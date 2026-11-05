@@ -49,6 +49,7 @@ import {
   type RepoInspection,
   releaseDoc,
   STEP_PREFIX,
+  UPSTREAM_ITEM,
   type UpstreamBoard,
   verbsOf,
 } from "@spi-code/core";
@@ -349,11 +350,14 @@ function repoResult(
   });
 }
 
-function upstreamPlanResult(board: UpstreamBoard, areas: readonly AreaEnvelope[]): InspectResult {
+export function upstreamPlanResult(
+  board: UpstreamBoard,
+  areas: readonly AreaEnvelope[],
+): InspectResult {
   const rows = board.sections[0];
   const next = board.sections.find((section) => section.kind === "cards")?.items[0];
   return InspectResultSchema.parse({
-    id: "upstream",
+    id: UPSTREAM_ITEM,
     class: board.header.status.tone === "error" ? "TOOLCHAIN" : "ROLLOUT",
     cause: rows?.kind === "rows" ? (rows.items[1]?.text ?? board.title) : board.title,
     effect: rows?.kind === "rows" ? (rows.items[0]?.text ?? "") : "",
@@ -374,7 +378,7 @@ function upstreamPlanResult(board: UpstreamBoard, areas: readonly AreaEnvelope[]
             card.fields.map((field) => ({
               text: field.value,
               state,
-              ...webUrl("href" in field ? field.href : undefined),
+              ...webUrl(field.href),
             })),
           );
         case "bars":
@@ -399,7 +403,7 @@ function upstreamPlanResult(board: UpstreamBoard, areas: readonly AreaEnvelope[]
     approval: null,
     actions: appActions(
       board.sections.flatMap((s) =>
-        s.kind === "cards" ? s.items.flatMap((card) => card.actions) : [],
+        s.kind === "cards" ? s.items.flatMap((card) => card.actions ?? []) : [],
       ),
     ),
     areas,
@@ -516,7 +520,7 @@ export class WatchRoutes {
       result = stepResult(model, id, ctx, latest.view.areas);
     } else if (mrTitle(model, id)) {
       result = mrResult(mrBoard(model, id, now, ctx), id, latest.view.areas);
-    } else if (id === "upstream") {
+    } else if (id === UPSTREAM_ITEM) {
       result = upstreamPlanResult(inspectUpstreamPlan(model, now), latest.view.areas);
     } else if (id.startsWith(RELEASE_PREFIX)) {
       const month = id.slice(RELEASE_PREFIX.length);

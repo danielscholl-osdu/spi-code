@@ -4,6 +4,8 @@ Source: `keelson-rib-spi@59d6895`, `src/boards/upstream.ts`.
 `inspectUpstreamPlan` ports the plan board without changing its output. Shared
 board types, `inspectRow` and `nextCard` live in `inspect/upstream-shared.ts`
 for the subsequent upstream-fork port. Core imports no Keelson board types.
+Cards may omit actions, as the fork inspector's "What failed" section does;
+the host preserves their fields without producing an action.
 
 The six whole-board SHA-256 oracles in `inspect/upstream-plan.test.ts` were
 captured from the pinned rib's `upstreamPlanBoard`, using the same Facts from

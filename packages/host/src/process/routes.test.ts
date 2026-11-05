@@ -40,7 +40,7 @@ import { SweepService } from "../sweep/service.js";
 import { projectReleases, projectWatch } from "../watch/project.js";
 import { fixtureInput, oracle } from "../watch/snapshot-fixture.js";
 import { attachHostPort, type HostPort } from "./port.js";
-import { inspectResult, WatchRoutes, watchFleet } from "./routes.js";
+import { inspectResult, upstreamPlanResult, WatchRoutes, watchFleet } from "./routes.js";
 
 const input = fixtureInput();
 const ctx = input.context;
@@ -412,6 +412,26 @@ describe("inspect.request", () => {
     expect(calls).toBe(0);
   });
 
+  it("projects an action-less upstream cards section", () => {
+    const board = inspectUpstreamPlan(model, ctx.clock.now());
+    board.sections = [
+      {
+        kind: "cards",
+        title: "What failed",
+        items: [
+          {
+            title: "file",
+            edge: "error",
+            fields: [{ label: "First error", value: "Build failed" }],
+          },
+        ],
+      },
+    ];
+    const result = upstreamPlanResult(board, areas);
+    expect(result.related).toContainEqual({ text: "Build failed", state: "What failed" });
+    expect(result.actions).toEqual([]);
+  });
+
   it("inspects the upstream plan from a reopened snapshot without running commands", async () => {
     const storedAreas = areas.map(({ area }) => ({
       area,
@@ -436,7 +456,7 @@ describe("inspect.request", () => {
     expect(result.actions.map((action) => action.label)).toEqual(
       board.sections.flatMap((section) =>
         section.kind === "cards"
-          ? section.items.flatMap((card) => card.actions.map((a) => a.label))
+          ? section.items.flatMap((card) => (card.actions ?? []).map((a) => a.label))
           : [],
       ),
     );

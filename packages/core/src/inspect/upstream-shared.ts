@@ -20,6 +20,17 @@ export interface UpstreamCell {
   badges?: { text: string; tone: CanvasTone }[];
 }
 
+export interface UpstreamCards {
+  kind: "cards";
+  title: string;
+  items: {
+    title: string;
+    edge: CanvasTone;
+    fields: { label: string; value: string; href?: string }[];
+    actions?: ActionItem[];
+  }[];
+}
+
 export type UpstreamSection =
   | { kind: "rows"; title?: string; items: UpstreamRow[] }
   | {
@@ -33,7 +44,7 @@ export type UpstreamSection =
       title: string;
       items: { label: string; value: number | null; total: number; trailing: string }[];
     }
-  | ReturnType<typeof nextCard>;
+  | UpstreamCards;
 
 export interface UpstreamBoard {
   view: "board";
@@ -57,9 +68,9 @@ export function nextCard(
   verbs: UpstreamActions,
   links: { value: string; href: string }[],
   edge: CanvasTone,
-) {
+): UpstreamCards {
   return {
-    kind: "cards" as const,
+    kind: "cards",
     title: "Next step",
     items: [
       {
@@ -69,7 +80,7 @@ export function nextCard(
           ...(why ? [{ label: "", value: why }] : []),
           ...links.map((l) => ({ label: "", value: l.value, href: l.href })),
         ],
-        actions: [verbs.primary, ...verbs.secondary] satisfies ActionItem[],
+        actions: [verbs.primary, ...verbs.secondary],
       },
     ],
   };
