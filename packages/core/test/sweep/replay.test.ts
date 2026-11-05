@@ -51,10 +51,10 @@ function result(entry: ExecLogEntry): string {
   return JSON.stringify([entry.stdout, entry.stderr, entry.exit, entry.error ?? null]);
 }
 
-// The lifecycle reader caches a run's declaration by commit only after its read returns, and
-// reads two workflows' runs at once (spicode-t1k.109), so two runs at one commit read the stack's
-// declaration once or twice depending on which returns first. Only that read, with one answer
-// recorded, may be served a number of times other than recorded: once to DECLARATION_RACE times.
+// A recording made before spicode-t1k.109 may hold two reads of the stack's declaration at one
+// commit: the lifecycle reader cached it only after a read returned, and read two workflows' runs
+// at once. Core now shares the read in flight. Only that read, with one answer recorded, may be
+// served a number of times other than recorded: once to DECLARATION_RACE times.
 const DECLARATION_READ = new RegExp(
   `^repos/[^/]+/[^/]+/contents/${DECLARATION_PATH.replace(/[.]/g, "\\.")}\\?ref=[0-9a-f]{40}$`,
 );
@@ -70,7 +70,14 @@ function raced(cmd: string, args: readonly string[]): boolean {
 class SweepReplay implements Exec {
   private readonly calls = new Map<
     string,
-    { lines: string[]; exec: ReplayExec; served: number; min: number; max: number }
+    {
+      lines: string[];
+      exec: ReplayExec;
+      served: number;
+      recorded: number;
+      min: number;
+      max: number;
+    }
   >();
   readonly unexpected: string[] = [];
 
@@ -91,6 +98,7 @@ class SweepReplay implements Exec {
         lines: kept,
         exec: new ReplayExec(kept.join("\n")),
         served: 0,
+        recorded: recorded.length,
         min: kept.length,
         max: race ? DECLARATION_RACE : kept.length,
       });
@@ -128,7 +136,7 @@ class SweepReplay implements Exec {
   /** The declaration reads served other than as recorded, for the report. */
   get raced(): number {
     return [...this.calls.values()].filter(
-      (call) => call.max > call.min && call.served !== call.lines.length,
+      (call) => call.max > call.min && call.served !== call.recorded,
     ).length;
   }
 
@@ -168,9 +176,13 @@ describe("SweepReplay", () => {
     await call(once, declaration);
     once.assertExhausted();
     await expect(call(once, declaration)).rejects.toThrow(/more often than recorded/);
+    expect(once.raced).toBe(1);
     const twice = new SweepReplay(log(entry(declaration), entry(declaration)));
     await call(twice, declaration);
     twice.assertExhausted();
+    expect([twice.served, twice.raced]).toEqual([1, 1]);
+    await call(twice, declaration);
+    expect([twice.served, twice.raced]).toEqual([2, 0]);
   });
 
   test("a lifecycle declaration read with differing answers is replayed strictly", async () => {
