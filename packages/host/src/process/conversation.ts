@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { CopilotSession } from "@github/copilot-sdk";
-import type { Message } from "@spi-code/contracts";
+import { type Message, PROTOCOL_VERSION } from "@spi-code/contracts";
 import { registrySource } from "../copilot/registry-source.js";
 import { CopilotRuntime, streamTurn } from "../copilot/runtime.js";
 import { captureLoginShellPath } from "../env/shell-environment.js";
@@ -111,7 +111,7 @@ export function conversationHandler(
   let generation = 0;
   let hasSession = false;
   return async (message: Message): Promise<void> => {
-    const envelope = { version: 1, id: message.id, kind: "event" } as const;
+    const envelope = { version: PROTOCOL_VERSION, id: message.id, kind: "event" } as const;
     let authenticated = false;
     let failureMessage = "Copilot request failed. Check gh sign-in and retry.";
     try {

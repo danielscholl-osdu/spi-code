@@ -8,7 +8,7 @@ import { EventEmitter, once } from "node:events";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type Message, parseMessage } from "@spi-code/contracts";
+import { type Message, PROTOCOL_VERSION, parseMessage } from "@spi-code/contracts";
 import {
   app,
   BrowserWindow,
@@ -115,9 +115,10 @@ async function startHost(window: BrowserWindow, args: string[]): Promise<number>
   const pid = child.pid;
   assert(pid, "Host has no pid");
   const { port1, port2 } = new MessageChannelMain();
-  child.postMessage({ version: 1, id: "connect", kind: "request", type: "ping", payload: {} }, [
-    port2,
-  ]);
+  child.postMessage(
+    { version: PROTOCOL_VERSION, id: "connect", kind: "request", type: "ping", payload: {} },
+    [port2],
+  );
   window.webContents.postMessage("host:port", null, [port1]);
   return pid;
 }

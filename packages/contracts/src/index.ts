@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: MIT
 
 import { z } from "zod";
+import { PROTOCOL_VERSION, WatchMessageSchema } from "./watch/messages.js";
 
-export const PROTOCOL_VERSION = 1;
+export * from "./watch/index.js";
 
 const identifier = z.string().min(1);
 const envelope = {
@@ -98,6 +99,7 @@ export const MessageSchema = z.discriminatedUnion("type", [
     type: z.literal("error"),
     payload: z.strictObject({ code: identifier, message: identifier }),
   }),
+  ...WatchMessageSchema.options,
 ]);
 
 export type Message = z.infer<typeof MessageSchema>;

@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type Message, parseMessage } from "@spi-code/contracts";
+import { type Message, PROTOCOL_VERSION, parseMessage } from "@spi-code/contracts";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { settleTurn, signInStatus } from "./turn-state.js";
@@ -47,8 +47,20 @@ function App() {
       setActiveRequestId((current) => settleTurn(current, message));
       switch (message.type) {
         case "host.hello":
-          send({ version: 1, id: "window-ping", kind: "request", type: "ping", payload: {} });
-          send({ version: 1, id: "catalog", kind: "request", type: "models.list", payload: {} });
+          send({
+            version: PROTOCOL_VERSION,
+            id: "window-ping",
+            kind: "request",
+            type: "ping",
+            payload: {},
+          });
+          send({
+            version: PROTOCOL_VERSION,
+            id: "catalog",
+            kind: "request",
+            type: "models.list",
+            payload: {},
+          });
           break;
         case "signin.state":
           setSignedIn(message.payload.signedIn);
@@ -65,7 +77,7 @@ function App() {
             proofStarted = true;
             setActiveRequestId("proof-turn");
             send({
-              version: 1,
+              version: PROTOCOL_VERSION,
               id: "proof-turn",
               kind: "request",
               type: "turn.start",
@@ -105,7 +117,7 @@ function App() {
         disabled={busy}
         onClick={() =>
           send({
-            version: 1,
+            version: PROTOCOL_VERSION,
             id: "refresh",
             kind: "request",
             type: "models.list",
@@ -124,7 +136,7 @@ function App() {
           setText("");
           setTools([]);
           send({
-            version: 1,
+            version: PROTOCOL_VERSION,
             id,
             kind: "request",
             type: "turn.start",

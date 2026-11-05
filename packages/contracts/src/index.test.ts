@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, it } from "vitest";
-import { type Message, parseMessage } from "./index.js";
+import { type Message, PROTOCOL_VERSION, parseMessage } from "./index.js";
 
-const envelope = { version: 1, id: "request-1" } as const;
+const envelope = { version: PROTOCOL_VERSION, id: "request-1" } as const;
 const messages = [
   { ...envelope, kind: "event", type: "host.hello", payload: { pid: 123 } },
   { ...envelope, kind: "request", type: "ping", payload: {} },
@@ -50,7 +50,7 @@ describe("M0 message contract", () => {
     null,
     [],
     {},
-    { ...messages[0], version: 2 },
+    { ...messages[0], version: 1 },
     { ...messages[0], id: "" },
     { ...messages[0], kind: "request" },
     { ...messages[0], unexpected: true },

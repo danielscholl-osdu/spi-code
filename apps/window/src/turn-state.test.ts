@@ -1,13 +1,14 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { PROTOCOL_VERSION } from "@spi-code/contracts";
 import { expect, it } from "vitest";
 import { settleTurn, signInStatus } from "./turn-state.js";
 
 it("keeps the renderer busy when credential_changed ends the old session mid-turn", () => {
   let active: string | undefined = "turn";
   active = settleTurn(active, {
-    version: 1,
+    version: PROTOCOL_VERSION,
     id: "turn",
     kind: "event",
     type: "session.ended",
@@ -15,7 +16,7 @@ it("keeps the renderer busy when credential_changed ends the old session mid-tur
   });
   expect(active !== undefined).toBe(true);
   active = settleTurn(active, {
-    version: 1,
+    version: PROTOCOL_VERSION,
     id: "turn",
     kind: "event",
     type: "turn.end",
@@ -28,14 +29,14 @@ it.each(["turn.end", "error"] as const)("only settles %s for the active request"
   const message =
     type === "turn.end"
       ? ({
-          version: 1,
+          version: PROTOCOL_VERSION,
           id: "other",
           kind: "event",
           type,
           payload: { reason: "completed" },
         } as const)
       : ({
-          version: 1,
+          version: PROTOCOL_VERSION,
           id: "other",
           kind: "response",
           type,

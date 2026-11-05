@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type Message, parseMessage } from "@spi-code/contracts";
+import { type Message, PROTOCOL_VERSION, parseMessage } from "@spi-code/contracts";
 import { expect, it, vi } from "vitest";
 import { attachHostPort, type HostPort } from "./port.js";
 
@@ -20,12 +20,28 @@ it("validates both directions and never dispatches malformed ping messages", () 
     start() {},
   };
   attachHostPort(port, 123);
-  receive({ data: { version: 1, id: "ping", kind: "request", type: "ping", payload: {} } });
   receive({
-    data: { version: 1, id: "bad", kind: "request", type: "ping", payload: { extra: true } },
+    data: { version: PROTOCOL_VERSION, id: "ping", kind: "request", type: "ping", payload: {} },
+  });
+  receive({
+    data: {
+      version: PROTOCOL_VERSION,
+      id: "bad",
+      kind: "request",
+      type: "ping",
+      payload: { extra: true },
+    },
   });
   receive({ data: null });
-  receive({ data: { version: 1, id: "wrong-way", kind: "response", type: "pong", payload: {} } });
+  receive({
+    data: {
+      version: PROTOCOL_VERSION,
+      id: "wrong-way",
+      kind: "response",
+      type: "pong",
+      payload: {},
+    },
+  });
   expect(sent.map((message) => parseMessage(message).ok)).toEqual([true, true, true, true, true]);
   expect(sent).toMatchObject([
     { type: "host.hello", payload: { pid: 123 } },
@@ -67,7 +83,7 @@ it("serializes turns and refreshes, rejects malformed dispatch, and recovers fro
     123,
     handler,
   );
-  const request = { version: 1, kind: "request", type: "models.list", payload: {} };
+  const request = { version: PROTOCOL_VERSION, kind: "request", type: "models.list", payload: {} };
   receive({ data: { ...request, id: "malformed", payload: { token: "secret" } } });
   receive({ data: { ...request, id: "first" } });
   receive({ data: { ...request, id: "second" } });

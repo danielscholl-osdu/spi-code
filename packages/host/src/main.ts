@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { dirname } from "node:path";
-import { parseMessage } from "@spi-code/contracts";
+import { PROTOCOL_VERSION, parseMessage } from "@spi-code/contracts";
 import {
   type ConversationBackend,
   conversationHandler,
@@ -51,7 +51,7 @@ parentPort.once("message", ({ data, ports }) => {
   const backend = () =>
     createConversationBackend(dirname(storePath), stub, (event) => {
       const message = parseMessage({
-        version: 1,
+        version: PROTOCOL_VERSION,
         id: requestId,
         kind: "event",
         type: "tool.call",

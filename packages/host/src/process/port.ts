@@ -48,7 +48,7 @@ export function attachHostPort(
         .then(() => handler(message, send))
         .catch(() =>
           send({
-            version: 1,
+            version: PROTOCOL_VERSION,
             id: message.id,
             kind: "response",
             type: "error",

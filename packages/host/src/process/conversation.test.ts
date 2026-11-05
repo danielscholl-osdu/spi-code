@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type Message, parseMessage } from "@spi-code/contracts";
+import { type Message, PROTOCOL_VERSION, parseMessage } from "@spi-code/contracts";
 import { expect, it, vi } from "vitest";
 import { APPENDIX_A_TOOLS } from "../tools/tool-names.js";
 import {
@@ -10,9 +10,15 @@ import {
   createConversationBackend,
 } from "./conversation.js";
 
-const list: Message = { version: 1, id: "list", kind: "request", type: "models.list", payload: {} };
+const list: Message = {
+  version: PROTOCOL_VERSION,
+  id: "list",
+  kind: "request",
+  type: "models.list",
+  payload: {},
+};
 const turn: Message = {
-  version: 1,
+  version: PROTOCOL_VERSION,
   id: "turn",
   kind: "request",
   type: "turn.start",
@@ -120,7 +126,7 @@ it("does not claim a turn failure means gh is signed out", async () => {
   await conversationHandler(backend, (message) => messages.push(message))(turn);
   expect(messages.filter((message) => message.type === "signin.state")).toEqual([
     {
-      version: 1,
+      version: PROTOCOL_VERSION,
       id: "turn",
       kind: "event",
       type: "signin.state",
@@ -143,7 +149,7 @@ it.each(["signin.state", "session.ended", "tool.call"])("rejects token fields on
         : { name: "spi_brief", callId: "call", arguments: {}, outcome: "completed" };
   expect(
     parseMessage({
-      version: 1,
+      version: PROTOCOL_VERSION,
       id: "x",
       kind: "event",
       type,
@@ -169,7 +175,7 @@ it("does not announce a stale session ending after generation changes inside a t
 it("rejects a stub state that claims gh authentication", () => {
   expect(
     parseMessage({
-      version: 1,
+      version: PROTOCOL_VERSION,
       id: "stub",
       kind: "event",
       type: "signin.state",
