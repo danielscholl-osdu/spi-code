@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { isDeepStrictEqual } from "node:util";
 import type { z } from "zod";
 import { type FleetFileReader, type FleetFiles, type FleetView, fleetView, readFleet } from "../collect/fleet.js";
 import { parseGithub } from "../collect/github-parse.js";
@@ -54,10 +55,18 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
   const account = (options.budget ?? new GraphqlBudget(options.ctx.clock)).scope();
   const pacer = options.pacer ?? new BudgetPacer({ floor: 100, resetBudget: 5000 });
   let baseline = account.snapshot();
-  let gitlabDue = false;
+  let upstreamChanged = false;
   let view: FleetView | undefined;
   const areas: SweepArea<CollectorCache>[] = [];
   type Input = SweepInput<CollectorCache>;
+  function upstreamForks({ ctx, facts, reads, clock, force }: Input) {
+    return ctx.fleet.forks.filter((fork) => {
+      const records = reads.upstream?.filter((r) => r.source === fork.upstream);
+      const branch = records?.find((r) => r.object === "repository/branches/master");
+      return !facts.upstream.data?.[fork.id] || records?.some((r) => r.failure) ||
+        due(branch?.observedAt ?? facts.upstream.at, GITLAB_EVERY_MS, clock.now(), force);
+    });
+  }
   function area<K extends AreaName>(
     name: K, core: boolean, estimate: number, interval: number,
     read: (input: Input, gh: Gh, glab: Glab) => Promise<{
@@ -69,12 +78,8 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
       name,
       shouldRead: (input: Input) => {
         const { cache, facts, force, clock } = input;
-        const missing = (name === "upstream" || name === "radar") &&
-          (input.ctx.fleet.forks.some((f) => !facts.upstream.data?.[f.id]) ||
-            input.reads.upstream?.some((r) => r.failure));
-        if (name === "upstream")
-          gitlabDue = !facts.upstream.data || missing || due(facts.upstream.at, interval, clock.now(), force);
-        if (interval && facts[name].data && !missing && !(name === "radar" && gitlabDue) &&
+        if (name === "upstream" && facts.upstream.data && !upstreamForks(input).length) return false;
+        if (name !== "upstream" && interval && facts[name].data && !(name === "radar" && upstreamChanged) &&
           !due(facts[name].at, interval, clock.now(), force)) return false;
         const before = account.snapshot();
         const decision = pacer.plan({
@@ -210,14 +215,24 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
     }
     return { data, reads };
   });
-  area("upstream", true, 0, GITLAB_EVERY_MS, async ({ ctx, facts, cache, reads }, _gh, glab) => {
-    const result = await readUpstream(glab, facts.github.data?.repos ?? {}, cache.upstream, ctx);
+  area("upstream", true, 0, GITLAB_EVERY_MS, async (input, _gh, glab) => {
+    const { ctx, facts, cache, reads } = input;
+    const forks = upstreamForks(input);
+    const sources = new Set(forks.map((fork) => fork.upstream));
+    const result = await readUpstream(glab, facts.github.data?.repos ?? {}, cache.upstream,
+      { ...ctx, fleet: { ...ctx.fleet, forks } });
     const idOf = (r: ReadRecord) => ctx.fleet.forks.find((f) => f.upstream === r.source)?.id ?? "";
     const failures = new Map(result.reads.filter((r) => r.failure).map((r) => [r.source, r.failure]));
     const records = result.reads.map((r) =>
       !result.upstream[idOf(r)] && failures.has(r.source)
         ? { ...r, failure: r.failure ?? `Upstream frame incomplete: ${failures.get(r.source)}` } : r);
-    return retain(result.upstream, facts.upstream.data, records, reads.upstream ?? [], idOf);
+    const retained = retain(result.upstream, facts.upstream.data, records, reads.upstream ?? [], idOf);
+    const data = { ...facts.upstream.data, ...retained.data };
+    upstreamChanged = !isDeepStrictEqual(data, facts.upstream.data);
+    return { data, reads: [
+      ...(reads.upstream ?? []).filter((r) => !sources.has(r.source)),
+      ...retained.reads,
+    ] };
   });
   area("radar", false, 5, GITLAB_EVERY_MS, async ({ ctx, facts, reads, cache }, gh, glab) => {
     const result = await readRadar(gh, glab, facts.upstream.data ?? {}, cache.radar, ctx,
@@ -247,6 +262,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
     },
     beforeSweep: ({ cache }) => {
       baseline = account.snapshot();
+      upstreamChanged = false;
       cache.budget.deferred = [];
     },
     afterAreas: async ({ ctx, exec, cache, force, clock }) => {

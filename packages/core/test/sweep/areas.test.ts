@@ -481,6 +481,62 @@ test("a run whose only cut is an over-limit job log settles and is not re-listed
   expect(listings).toBe(settled);
 });
 
+test("a permanently failing upstream retries only that fork without rerunning radar before cadence", async () => {
+  const h = harness();
+  const branches: string[] = [];
+  let radarLists = 0;
+  h.setRoute((cmd, args) => {
+    const query = args.find((a) => a.startsWith("query=")) ?? "";
+    if (cmd === "gh" && query.includes("stack: repository"))
+      return {
+        stdout: JSON.stringify({
+          data: {
+            stack: {
+              object: {
+                text: "forks:\n  - service: partition\n    repo: owner/partition\n  - service: storage\n    repo: owner/storage\n",
+              },
+            },
+            template: { object: null },
+            spicodeBudget: { cost: 2, remaining: 4000, resetAt: "2099-01-01T00:00:00Z" },
+          },
+        }),
+        stderr: "",
+        exit: 0,
+      };
+    const path = args.at(-1) ?? "";
+    if (cmd === "glab" && path.includes("merge_requests?state=opened")) radarLists++;
+    if (cmd === "glab" && path.includes("/repository/branches/")) {
+      branches.push(path);
+      if (path.includes(encodeURIComponent("osdu/platform/system/storage")))
+        return { stdout: "", stderr: "storage unavailable", exit: 1 };
+    }
+  });
+  const sweeper = createSweeper(h.options);
+  await sweeper.sweep();
+  const failed = sweeper.reads.upstream?.find((r) => r.failure)?.source;
+  expect(failed).toBeDefined();
+  const goodReads = structuredClone(sweeper.reads.upstream?.filter((r) => !r.failure));
+  const radar = structuredClone(sweeper.facts.radar);
+  const initialLists = radarLists;
+  expect(initialLists).toBeGreaterThan(0);
+  branches.length = 0;
+  const resumed = createSweeper(h.options);
+  for (let i = 0; i < 2; i++) {
+    h.advance(1);
+    await resumed.sweep();
+    expect(resumed.facts.radar).toEqual(radar);
+    expect(resumed.reads.upstream?.filter((r) => !r.failure)).toEqual(goodReads);
+  }
+  expect(branches).toHaveLength(2);
+  expect(branches.every((path) => path.includes(encodeURIComponent(failed ?? "")))).toBe(true);
+  expect(radarLists).toBe(initialLists);
+  branches.length = 0;
+  h.advance(GITLAB_EVERY_MS - 2);
+  await resumed.sweep();
+  expect(branches).toHaveLength(2);
+  expect(radarLists).toBeGreaterThan(initialLists);
+});
+
 test("partial upstream failures retain queued commits and retry the failed fork before cadence", async () => {
   const h = harness();
   let failedProject: string | undefined;
@@ -542,6 +598,8 @@ test("partial upstream failures retain queued commits and retry the failed fork 
   expect(retries).toBe(3);
   expect(sweeper.reads.upstream?.find((r) => r.source === failedProject)?.failure).toBeUndefined();
   expect(sweeper.facts.upstream.data?.storage?.commits).toEqual([]);
+  expect(sweeper.facts.radar.data?.services.storage?.queued).toEqual([]);
+  expect(sweeper.facts.radar.at).toBe(h.options.ctx.clock.now().toISOString());
 });
 
 test("shared budget accounts attribute interleaved sweeps only their own GraphQL charges", async () => {
