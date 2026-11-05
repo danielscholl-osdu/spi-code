@@ -1,0 +1,127 @@
+// Copyright 2026, Daniel Scholl
+// SPDX-License-Identifier: MIT
+
+import { describe, expect, it } from "vitest";
+import { RecordingExec, ReplayExec, type ExecOptions, type ExecOutput } from "./index.js";
+
+describe("exec recording and replay", () => {
+  it("reproduces text, JSON, nonzero exits, parse failures and runner errors", async () => {
+    let log = "";
+    const outputs: ExecOutput[] = [
+      { stdout: "hello\n", stderr: "warning", exit: 0 },
+      { stdout: 'warning\n{"value":42}', stderr: "", exit: 0 },
+      { stdout: "logical failure", stderr: "bad\nmore", exit: 2 },
+      { stdout: '{"accepted":true}', stderr: "warning", exit: 3 },
+      { stdout: "not JSON", stderr: "", exit: 0 },
+      { stdout: "{invalid", stderr: "", exit: 0 },
+    ];
+    const recording = new RecordingExec(async () => {
+      const output = outputs.shift();
+      if (!output) throw new Error("runner unavailable");
+      return output;
+    }, (line) => { log += line; });
+    const options = [{}, {}, {}, { acceptNonZeroExit: true }, {}, {}, {}];
+    const expected = [];
+    for (const [i, opts] of options.entries()) {
+      expected.push(await (i === 0 || i === 2 || i === 6
+        ? recording.runText("gh", [String(i)], opts)
+        : recording.runJSON("gh", [String(i)], opts)));
+    }
+    expect(expected.slice(0, 4)).toEqual([
+      { ok: true, data: "hello\n", exitCode: 0 },
+      { ok: true, data: { value: 42 }, exitCode: 0 },
+      { ok: false, error: "bad", code: 2 },
+      { ok: true, data: { accepted: true }, exitCode: 3 },
+    ]);
+    expect(expected[4]).toEqual({ ok: false, error: "no JSON found in output", code: null });
+    expect(expected[5]).toMatchObject({ ok: false, error: expect.stringContaining("invalid JSON:") });
+    expect(expected[6]).toEqual({ ok: false, error: "runner unavailable", code: null });
+    const replay = new ReplayExec(log);
+    for (const [i, opts] of options.entries()) {
+      const actual = await (i === 0 || i === 2 || i === 6
+        ? replay.runText("gh", [String(i)], opts)
+        : replay.runJSON("gh", [String(i)], opts));
+      expect(actual).toEqual(expected[i]);
+    }
+    replay.assertExhausted();
+    expect(JSON.parse(log.split("\n")[0] ?? "")).toMatchObject({
+      cmd: "gh", args: ["0"], stdin: null, stdout: "hello\n", stderr: "warning", exit: 0,
+      ms: expect.any(Number),
+    });
+  });
+
+  it("names unexpected commands and arguments without consuming the entry", async () => {
+    const replay = new ReplayExec('{"cmd":"gh","args":["api"],"stdin":null,"stdout":"","stderr":"","exit":0,"ms":1}\n');
+    await expect(replay.runText("git", ["status"])).rejects.toThrow('git ["status"]');
+    expect(() => replay.assertExhausted()).toThrow('gh ["api"]');
+    await replay.runText("gh", ["api"]);
+    replay.assertExhausted();
+    await expect(replay.runText("glab", ["api"])).rejects.toThrow('glab ["api"]');
+  });
+
+  it.each([
+    "gho_oauth123", "ghp_personal123", "ghs_install123", "github_pat_fine123", "glpat-gitlab123",
+    "Authorization: Basic credential123", "Bearer bearer123", "custom-secret123",
+  ])("strips %s from all written fields, including thrown error text", async (secret) => {
+    let log = "";
+    const env = { CUSTOM_TOKEN_VALUE: "custom-secret123" };
+    const recording = new RecordingExec(async () => ({
+      stdout: secret, stderr: secret, exit: 0,
+    }), (line) => { log += line; }, env);
+    await recording.runText(secret, [secret], { stdin: secret });
+    const throwing = new RecordingExec(async () => { throw new Error(secret); }, (line) => {
+      log += line;
+    }, env);
+    const result = await throwing.runText("gh", [secret]);
+    expect(result.ok).toBe(false);
+    expect(log).not.toContain(secret);
+    expect(log).not.toContain("credential123");
+    expect(log).not.toContain("bearer123");
+    const replay = new ReplayExec(log, env);
+    await replay.runText(secret, [secret], { stdin: secret });
+    expect(await replay.runText("gh", [secret])).toMatchObject({ ok: false });
+    replay.assertExhausted();
+  });
+
+  it("forwards options and redacts call-specific token environment values", async () => {
+    let log = "";
+    const options: ExecOptions = {
+      cwd: "/work", timeoutMs: 1, env: { MY_TOKEN: "secret.with+regex" }, stdin: "input",
+    };
+    const recording = new RecordingExec(async (cmd, args, opts) => {
+      expect([cmd, args, opts]).toEqual(["gh", ["secret.with+regex"], options]);
+      return { stdout: "secret.with+regex", stderr: "", exit: 0 };
+    }, (line) => { log += line; });
+    await recording.runText("gh", ["secret.with+regex"], options);
+    expect(log).not.toContain("secret.with+regex");
+    const replay = new ReplayExec(log);
+    await replay.runText("gh", ["secret.with+regex"], options);
+    replay.assertExhausted();
+  });
+
+  it("writes concurrent calls in invocation order, not completion order", async () => {
+    let log = "";
+    let release: ((output: ExecOutput) => void) | undefined;
+    const recording = new RecordingExec(async (_cmd, args) => {
+      if (args[0] === "first") return new Promise<ExecOutput>((resolve) => { release = resolve; });
+      return { stdout: "second", stderr: "", exit: 0 };
+    }, (line) => { log += line; });
+    const first = recording.runText("gh", ["first"]);
+    const second = recording.runText("gh", ["second"]);
+    release?.({ stdout: "first", stderr: "", exit: 0 });
+    await Promise.all([first, second]);
+    const replay = new ReplayExec(log);
+    expect(await replay.runText("gh", ["first"])).toMatchObject({ data: "first" });
+    expect(await replay.runText("gh", ["second"])).toMatchObject({ data: "second" });
+    replay.assertExhausted();
+  });
+
+  it("rejects malformed logs and surfaces sink failures", async () => {
+    expect(() => new ReplayExec("{}\n")).toThrow();
+    expect(() => new ReplayExec("not json\n")).toThrow();
+    const recording = new RecordingExec(async () => ({ stdout: "", stderr: "", exit: 0 }), () => {
+      throw new Error("disk full");
+    });
+    await expect(recording.runText("gh", [])).rejects.toThrow("disk full");
+  });
+});
