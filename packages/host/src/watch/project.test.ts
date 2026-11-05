@@ -5,9 +5,16 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ViewSnapshotSchema } from "@spi-code/contracts";
-import { type ActionItem, AREAS, type ReadRecord, TEMPLATE_REPO } from "@spi-code/core";
+import {
+  type ActionItem,
+  AREAS,
+  type AreaName,
+  type ReadRecord,
+  TEMPLATE_REPO,
+} from "@spi-code/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { appActions, projectReleases, projectWatch } from "./project.js";
+import { stationAreas } from "./provenance.js";
 import {
   fixtureInput,
   fixtureRoot,
@@ -407,6 +414,57 @@ describe("Watch projection", () => {
   });
 });
 
+/** The fixture with one fresh read per area, inferred only for the named areas. */
+function onlyInferred(inferred: readonly AreaName[]) {
+  const input = fixtureInput();
+  const observedAt = input.context.clock.now().toISOString();
+  const reads = Object.fromEntries(
+    AREAS.map((area) => [
+      area,
+      [
+        {
+          source: area,
+          object: area,
+          observedAt,
+          completeness: { kind: "complete" as const },
+          ...(inferred.includes(area) ? { inferred: true } : {}),
+        },
+      ],
+    ]),
+  );
+  return { ...input, reads };
+}
+
+/** The window's isInferred rule: an exact pointer whose every named area is inferred. */
+function inferredAt(snapshot: ReturnType<typeof projectWatch>, pointer: string): boolean {
+  const source = snapshot.provenance.find(({ path }) => path === pointer);
+  if (!source) return false;
+  return source.areas.every(
+    (area) => snapshot.areas.find((entry) => entry.area === area)?.envelope.inferred === true,
+  );
+}
+
+// Values the views do not draw from a swept area: read metadata, the clock window, inspector
+// ids and the fleet's own service names.
+const UNDRAWN = [
+  /^\/briefing\/(sweptAt|nextSyncAt)$/,
+  /^\/briefing\/doctor\//,
+  /^\/briefing\/environment\/(from|to)$/,
+  /^\/briefing\/flow\/inspect$/,
+  /^\/briefing\/repositories\/first$/,
+  /^\/stations\/\d+\/service$/,
+];
+
+/** Every scalar leaf pointer under the value, walked generically. */
+function renderedLeaves(value: unknown, prefix = ""): string[] {
+  if (value === null || typeof value !== "object") {
+    return UNDRAWN.some((pattern) => pattern.test(prefix)) ? [] : [prefix];
+  }
+  return Object.entries(value).flatMap(([key, child]) =>
+    renderedLeaves(child, `${prefix}/${key.replaceAll("~", "~0").replaceAll("/", "~1")}`),
+  );
+}
+
 describe("area envelopes and provenance", () => {
   it("gives every area an envelope, unread when it has no reads", () => {
     const input = fixtureInput();
@@ -449,34 +507,165 @@ describe("area envelopes and provenance", () => {
   it("names the feeding areas for every drawn value with resolving, unique paths", () => {
     const snapshot = projectWatch(fixtureInput());
     const paths = snapshot.provenance.map(({ path }) => path);
-    const { briefing, stations } = snapshot;
-    const expected = [
-      ...briefing.facts.map((_, i) => `/briefing/facts/${i}/figure`),
-      ...briefing.focus.map((_, i) => `/briefing/focus/${i}`),
-      ...briefing.rest.map((_, i) => `/briefing/rest/${i}`),
-      ...briefing.ready.map((_, i) => `/briefing/ready/${i}`),
-      ...briefing.themes.map((_, i) => `/briefing/themes/${i}`),
-      ...briefing.flow.tiles.map((_, i) => `/briefing/flow/tiles/${i}`),
-      ...briefing.flow.rows.map((_, i) => `/briefing/flow/rows/${i}`),
-      ...briefing.environment.facts.map((_, i) => `/briefing/environment/facts/${i}/figure`),
-      ...briefing.environment.lanes.map((_, i) => `/briefing/environment/lanes/${i}`),
-      ...stations.flatMap((row, s) => row.stations.map((_, k) => `/stations/${s}/stations/${k}`)),
-    ];
-    expect(paths).toEqual(expected);
+    expect(new Set(paths).size).toBe(paths.length);
     const areas = (path: string) => snapshot.provenance.find((p) => p.path === path)?.areas;
     expect(areas("/briefing/environment/facts/1/figure")).toEqual(["lifecycle"]);
     expect(areas("/briefing/environment/lanes/3")).toEqual(["lifecycle"]);
-    expect(areas("/briefing/facts/1/figure")).toEqual([
+    expect(areas("/briefing/environment/note")).toEqual(["github"]);
+    expect(areas("/briefing/repositories/rows/0/cells/issues")).toEqual(["github"]);
+    expect(areas("/briefing/repositories/rows/0/cells/vulnerabilities")).toEqual([
+      "radar",
+      "template",
+      "security",
+    ]);
+    expect(areas("/briefing/flow/rows/0")).toEqual([
       "github",
       "runs",
       "lifecycle",
-      "details",
       "upstream",
       "radar",
-      "template",
     ]);
     expect(areas("/briefing/focus/0")).toContain("approvals");
     expect(areas("/briefing/focus/0")).toContain("security");
+  });
+
+  it("marks each station inferred exactly when the areas that fed it are inferred", () => {
+    // Independent of provenance.ts: what core's buildLine read for each fixture branch.
+    const feeding = (id: string, text: string): AreaName[] => {
+      if (id === "upstream")
+        return text === "0 behind" ? ["upstream"] : ["github", "upstream", "radar"];
+      if (id === "sync") return text === "clean" ? ["github", "runs"] : ["github"];
+      if (id === "cascade" || id === "main") return ["github", "runs"];
+      if (id === "release") return ["github"];
+      if (id === "lane")
+        return text === "blocked by the stack" ? ["lifecycle"] : ["github", "lifecycle"];
+      throw new Error(`no feeding areas pinned for ${id}`);
+    };
+    const kinds = new Set<string>();
+    const base = projectWatch(onlyInferred([]));
+    for (const [s, row] of base.stations.entries()) {
+      for (const [k, station] of row.stations.entries()) {
+        const pointer = `/stations/${s}/stations/${k}`;
+        const areas = feeding(station.id, station.text);
+        const unrelated = AREAS.filter((area) => !areas.includes(area));
+        kinds.add(`${station.id}:${areas.join(",")}`);
+        expect(inferredAt(projectWatch(onlyInferred(areas)), pointer), pointer).toBe(true);
+        expect(inferredAt(projectWatch(onlyInferred(unrelated)), pointer), pointer).toBe(false);
+        for (const area of areas) {
+          const rest = AREAS.filter((a) => a !== area);
+          expect(inferredAt(projectWatch(onlyInferred(rest)), pointer), pointer).toBe(false);
+        }
+      }
+    }
+    expect([...kinds].sort()).toEqual([
+      "cascade:github,runs",
+      "lane:lifecycle",
+      "main:github,runs",
+      "release:github",
+      "sync:github",
+      "sync:github,runs",
+      "upstream:github,upstream,radar",
+      "upstream:upstream",
+    ]);
+  });
+
+  it("shows the release tag as inferred when only github reads are inferred", () => {
+    const snapshot = projectWatch(onlyInferred(["github"]));
+    const k = snapshot.stations[0]?.stations.findIndex(({ id }) => id === "release") ?? -1;
+    expect(snapshot.stations[0]?.stations[k]?.text).toBe("v1.3.1");
+    expect(inferredAt(snapshot, `/stations/0/stations/${k}`)).toBe(true);
+  });
+
+  it("binds every station branch to the areas core read for it", () => {
+    const at = (id: string, state: string, text: string) => stationAreas({ id, state, text });
+    expect(at("upstream", "unknown", "lag unmeasured")).toEqual(["upstream"]);
+    expect(at("sync", "stopped", "Sync Upstream failed")).toEqual(["github", "runs"]);
+    expect(at("sync", "waiting", "gate 1 · PR #4")).toEqual(["github"]);
+    expect(at("cascade", "stopped", "conflict")).toEqual(["github"]);
+    expect(at("cascade", "moving", "running")).toEqual(["github", "runs"]);
+    expect(at("main", "stopped", "gate 2 · PR #9 red")).toEqual(["github"]);
+    expect(at("main", "waiting", "gate 2 · PR #9")).toEqual(["github"]);
+    expect(at("main", "stopped", "main red")).toEqual(["github", "runs"]);
+    expect(at("main", "unknown", "unproven")).toEqual(["github", "runs"]);
+    expect(at("release", "waiting", "gate 3 · PR #2")).toEqual(["github"]);
+    expect(at("lane", "idle", "last run ok")).toEqual(["github", "lifecycle"]);
+    expect(at("lane", "waiting", "last run failed")).toEqual(["github", "lifecycle"]);
+  });
+
+  it("covers every rendered briefing and station value with provenance at it or an ancestor", () => {
+    const base = fixtureInput();
+    const variants = [
+      base,
+      { ...base, facts: { ...base.facts, lifecycle: {} } },
+      { ...base, facts: { ...base.facts, security: {} } },
+    ];
+    for (const input of variants) {
+      const snapshot = projectWatch(input);
+      const paths = new Set(snapshot.provenance.map(({ path }) => path));
+      for (const coarse of [
+        "",
+        "/briefing",
+        "/stations",
+        "/briefing/flow",
+        "/briefing/environment",
+      ]) {
+        expect(paths.has(coarse), coarse).toBe(false);
+      }
+      const covered = (leaf: string): boolean =>
+        [...paths].some((path) => leaf === path || leaf.startsWith(`${path}/`));
+      const missing = renderedLeaves({ briefing: snapshot.briefing, stations: snapshot.stations })
+        .map((leaf) => leaf.replace(/\/facts\/(\d+)\/(label|sub|tone)$/, "/facts/$1/figure"))
+        .filter((leaf) => !covered(leaf));
+      expect(missing).toEqual([]);
+    }
+  });
+
+  it("pins every fixture fact and flow tile label to the areas that feed it", () => {
+    const pinned: Record<string, AreaName[]> = {
+      "facts:Environment": ["lifecycle"],
+      "facts:Upstream sync": ["github", "runs", "details", "template"],
+      "facts:Template": ["github", "template"],
+      "environment/facts:Running": ["lifecycle"],
+      "environment/facts:Deployable · 21 days": ["lifecycle"],
+      "environment/facts:Last proof": ["lifecycle"],
+      "repositories/facts:Issues": ["github"],
+      "repositories/facts:Pull Requests": ["github"],
+      "repositories/facts:Dependabot Bumps": ["github"],
+      "repositories/facts:Vulnerabilities · ours": ["radar", "template", "security"],
+      "repositories/facts:Code scanning · ours": ["radar", "template", "security"],
+      "flow/tiles:Behind upstream": ["upstream"],
+      "flow/tiles:Toolchain move": ["github", "runs", "upstream", "radar"],
+      "flow/tiles:Will halt": ["github", "runs", "upstream", "radar"],
+      "flow/tiles:Lanes": ["github", "runs"],
+    };
+    for (const input of [fixtureInput(), mixedFixtureInput()]) {
+      const snapshot = projectWatch(input);
+      const areas = (path: string) => snapshot.provenance.find((p) => p.path === path)?.areas;
+      const { briefing } = snapshot;
+      const seen = [
+        ...briefing.facts.map((f, i) => [`facts:${f.label}`, `/briefing/facts/${i}/figure`]),
+        ...briefing.environment.facts.map((f, i) => [
+          `environment/facts:${f.label}`,
+          `/briefing/environment/facts/${i}/figure`,
+        ]),
+        ...briefing.repositories.facts.map((f, i) => [
+          `repositories/facts:${f.label}`,
+          `/briefing/repositories/facts/${i}/figure`,
+        ]),
+        ...briefing.flow.tiles.map((t, i) => [
+          `flow/tiles:${t.label}`,
+          `/briefing/flow/tiles/${i}`,
+        ]),
+      ].map(([key, path]) => [
+        (key as string).replace(/^facts:Template\b.*$/, "facts:Template"),
+        path,
+      ]);
+      for (const [key, path] of seen) {
+        expect(pinned[key as string], `unpinned label ${key}`).toBeDefined();
+        expect(areas(path as string), key).toEqual(pinned[key as string]);
+      }
+      expect(seen.map(([key]) => key).sort()).toEqual(Object.keys(pinned).sort());
+    }
   });
 
   it("binds the environment figure to github when only the declared version is known", () => {

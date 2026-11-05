@@ -24,13 +24,18 @@ marker. `intervalMs` is the caller's freshness interval.
 `envelopeOf` over that area's reads. An area with no reads is unread. Each area
 uses `intervals[area]` when given, otherwise `intervalMs`; the tree still uses
 `intervalMs`. `provenance` maps JSON Pointers into the snapshot to the areas
-that fed each drawn value: briefing facts and environment facts by label, focus,
-rest, ready, themes, flow tiles and rows, environment lanes and station cells.
-Bindings in `provenance.ts` mirror the inputs `buildModel` reads and name more
-areas rather than fewer; they never guess from record sources or object names.
-Deployability, maintenance, last proof and environment lanes name only
-lifecycle; the running version names lifecycle, or github when only the
-declared version is known. The contract rejects a snapshot whose provenance
+that fed each drawn value. Every rendered briefing and station value has an
+entry at its own pointer or an ancestor's; the only exceptions are read
+metadata, the clock window, inspector ids and fleet service names. Bindings in
+`provenance.ts` follow core's builders and name only the areas that fed the
+value, per fact label, flow tile label, repository cell and station branch, so
+a value drawn only from inferred reads reads as inferred. For example, a release
+station names github, a lane held by the stack names lifecycle, and a clean sync
+names github and runs. Values that judge the whole model (headline, summary,
+focus, rest, ready, themes, horizon) name every swept area. An unknown label or
+branch falls back to a superset rather than fewer areas. Bindings never guess
+from record sources or object names. The running version names lifecycle, or
+github when only the declared version is known. The contract rejects a snapshot whose provenance
 path does not resolve or names an area without an envelope.
 
 `projectReleases` reads `<appData>/notes/YYYY-MM.json` through core's `parseNotes`,

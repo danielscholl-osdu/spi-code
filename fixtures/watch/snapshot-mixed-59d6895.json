@@ -2874,16 +2874,58 @@
   ],
   "provenance": [
     {
+      "path": "/briefing/headline",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/summary",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/more",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
       "path": "/briefing/facts/0/figure",
       "areas": ["lifecycle"]
     },
     {
       "path": "/briefing/facts/1/figure",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs", "details", "template"]
     },
     {
       "path": "/briefing/facts/2/figure",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "template"]
     },
     {
       "path": "/briefing/focus/0",
@@ -3040,40 +3082,82 @@
       ]
     },
     {
+      "path": "/briefing/horizon/headline",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/flow/mode",
+      "areas": ["github", "runs", "upstream", "radar"]
+    },
+    {
+      "path": "/briefing/flow/headline",
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
+    },
+    {
+      "path": "/briefing/flow/sub",
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
+    },
+    {
       "path": "/briefing/flow/tiles/0",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["upstream"]
     },
     {
       "path": "/briefing/flow/tiles/1",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/tiles/2",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/tiles/3",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/briefing/flow/rows/0",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/rows/1",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/rows/2",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/rows/3",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
     },
     {
       "path": "/briefing/flow/rows/4",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
+    },
+    {
+      "path": "/briefing/flow/plan",
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
+    },
+    {
+      "path": "/briefing/flow/schedule",
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
+    },
+    {
+      "path": "/briefing/flow/next",
+      "areas": ["github", "runs", "lifecycle", "upstream", "radar"]
+    },
+    {
+      "path": "/briefing/environment/headline",
+      "areas": ["lifecycle"]
     },
     {
       "path": "/briefing/environment/facts/0/figure",
@@ -3104,124 +3188,320 @@
       "areas": ["lifecycle"]
     },
     {
+      "path": "/briefing/environment/note",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/headline",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/facts/0/figure",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/facts/1/figure",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/facts/2/figure",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/facts/3/figure",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/facts/4/figure",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/0",
+      "areas": ["github", "radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/0/cells/changes",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/0/cells/dependabot",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/0/cells/issues",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/0/cells/vulnerabilities",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/0/cells/codeScanning",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/1",
+      "areas": ["github", "radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/1/cells/changes",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/1/cells/dependabot",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/1/cells/issues",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/1/cells/vulnerabilities",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/1/cells/codeScanning",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/2",
+      "areas": ["github", "radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/2/cells/changes",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/2/cells/dependabot",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/2/cells/issues",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/2/cells/vulnerabilities",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/2/cells/codeScanning",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/3",
+      "areas": ["github", "radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/3/cells/changes",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/3/cells/dependabot",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/3/cells/issues",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/3/cells/vulnerabilities",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/3/cells/codeScanning",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/4",
+      "areas": ["github", "radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/4/cells/changes",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/4/cells/dependabot",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/4/cells/issues",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/4/cells/vulnerabilities",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/4/cells/codeScanning",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/5",
+      "areas": ["github", "radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/5/cells/changes",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/5/cells/dependabot",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/5/cells/issues",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/5/cells/vulnerabilities",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/5/cells/codeScanning",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/6",
+      "areas": ["github", "radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/6/cells/changes",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/6/cells/dependabot",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/6/cells/issues",
+      "areas": ["github"]
+    },
+    {
+      "path": "/briefing/repositories/rows/6/cells/vulnerabilities",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/repositories/rows/6/cells/codeScanning",
+      "areas": ["radar", "template", "security"]
+    },
+    {
       "path": "/stations/0/stations/0",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["upstream"]
     },
     {
       "path": "/stations/0/stations/1",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/0/stations/2",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/0/stations/3",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/0/stations/4",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github"]
     },
     {
       "path": "/stations/0/stations/5",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["lifecycle"]
     },
     {
       "path": "/stations/1/stations/0",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "upstream", "radar"]
     },
     {
       "path": "/stations/1/stations/1",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github"]
     },
     {
       "path": "/stations/1/stations/2",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/1/stations/3",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/1/stations/4",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github"]
     },
     {
       "path": "/stations/1/stations/5",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["lifecycle"]
     },
     {
       "path": "/stations/2/stations/0",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "upstream", "radar"]
     },
     {
       "path": "/stations/2/stations/1",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github"]
     },
     {
       "path": "/stations/2/stations/2",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/2/stations/3",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/2/stations/4",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github"]
     },
     {
       "path": "/stations/2/stations/5",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["lifecycle"]
     },
     {
       "path": "/stations/3/stations/0",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["upstream"]
     },
     {
       "path": "/stations/3/stations/1",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/3/stations/2",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/3/stations/3",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/3/stations/4",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github"]
     },
     {
       "path": "/stations/3/stations/5",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["lifecycle"]
     },
     {
       "path": "/stations/4/stations/0",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["upstream"]
     },
     {
       "path": "/stations/4/stations/1",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/4/stations/2",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/4/stations/3",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github", "runs"]
     },
     {
       "path": "/stations/4/stations/4",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["github"]
     },
     {
       "path": "/stations/4/stations/5",
-      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+      "areas": ["lifecycle"]
     }
   ],
   "selection": null

@@ -13,6 +13,7 @@ const mixed = ViewSnapshotSchema.parse(
 
 const deployability = "/briefing/environment/facts/1/figure";
 const maintenance = "/briefing/environment/lanes/3";
+const blockedLane = "/stations/0/stations/5";
 
 describe("evidence helpers on the mixed-source fixture", () => {
   it("marks lifecycle-only deployability and maintenance values inferred", () => {
@@ -22,12 +23,21 @@ describe("evidence helpers on the mixed-source fixture", () => {
     expect(isInferred(mixed, maintenance)).toBe(true);
   });
 
+  it("marks a station inferred when only lifecycle fed its branch", () => {
+    expect(mixed.stations[0]?.stations[5]).toMatchObject({
+      id: "lane",
+      text: "blocked by the stack",
+    });
+    expect(isInferred(mixed, blockedLane)).toBe(true);
+  });
+
   it("leaves observed peers and values without provenance uninferred", () => {
     expect(isInferred(mixed, "/briefing/facts/1/figure")).toBe(false);
     expect(isInferred(mixed, "/briefing/flow/rows/0")).toBe(false);
-    expect(isInferred(mixed, "/stations/0/stations/5")).toBe(false);
+    expect(isInferred(mixed, "/stations/0/stations/4")).toBe(false);
     expect(isInferred(mixed, "/briefing/headline")).toBe(false);
     expect(isInferred(mixed, "/briefing/environment")).toBe(false);
+    expect(isInferred(mixed, `${deployability}/x`)).toBe(false);
   });
 
   it("reads an area's envelope", () => {
@@ -47,14 +57,24 @@ describe("evidence helpers on the mixed-source fixture", () => {
       "github",
       "runs",
       "lifecycle",
-      "details",
       "upstream",
       "radar",
+    ]);
+    expect(names("/briefing/environment")).toEqual(["github", "lifecycle"]);
+    expect(names("/briefing/facts")).toEqual([
+      "github",
+      "runs",
+      "lifecycle",
+      "details",
       "template",
     ]);
-    expect(names("/briefing/environment")).toEqual(["lifecycle"]);
-    expect(names("/briefing/facts")).toEqual(names("/briefing/flow"));
+    expect(names("/briefing/repositories/rows/0/cells/issues")).toEqual([
+      "github",
+      "radar",
+      "template",
+      "security",
+    ]);
     expect(names("/briefing/flow/row")).toEqual([]);
-    expect(names("/briefing/headline")).toEqual([]);
+    expect(names("/briefing/head")).toEqual([]);
   });
 });

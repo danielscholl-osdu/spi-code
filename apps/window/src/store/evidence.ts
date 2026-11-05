@@ -33,7 +33,11 @@ export function envelopesFor(snapshot: Evidence, pointerPrefix: string): AreaEnv
   return snapshot.areas.filter(({ area }) => feeding.has(area));
 }
 
-/** True iff the pointer has provenance and every area it names is inferred-only. */
+/**
+ * True iff the pointer has provenance and every area it names is inferred-only. Matching is
+ * exact: pass the value's own pointer (a fact's `/figure`, a list item, a station), never a
+ * prefix or a field inside it, which reads as not inferred.
+ */
 export function isInferred(snapshot: Evidence, pointer: string): boolean {
   const source = snapshot.provenance.find(({ path }) => path === pointer);
   return source?.areas.every((area) => areaEnvelope(snapshot, area).inferred === true) ?? false;
