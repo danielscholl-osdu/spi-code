@@ -13,8 +13,9 @@ import { fleetOf, TEMPLATE_REPO } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
 import type { Exec } from "../../src/exec/index.js";
 import { RecordingExec, ReplayExec } from "../../src/exec/recording.js";
-import type { RepoFact } from "../../src/facts.js";
+import { emptyFacts, type RepoFact } from "../../src/facts.js";
 import { Gh } from "../../src/forge.js";
+import { cacheSchema, emptyCache, pruneCache } from "../../src/sweep/cache.js";
 
 const now = "2026-10-13T18:00:00.000Z";
 const fork = { id: "custom", repo: "example/custom", upstream: "custom" };
@@ -398,4 +399,68 @@ test("an early empty page fails explicitly, with no retainedFrom on a cold read"
     failure: "Template compare ended before total_commits",
   });
   expect(result.reads.find((r) => r.failure)?.retainedFrom).toBeUndefined();
+});
+
+test("pruning keeps reused and refreshed entries and evicts the least recently used", async () => {
+  const good = await readTemplate(ctx(), new Gh(routed(baseRoute).exec), repos());
+  const used = Object.keys(good.state);
+  expect(used).toHaveLength(3);
+  const sync = used.find((k) => k.includes("/contents/")) ?? "";
+  const failedSync = good.state[sync];
+  if (!failedSync) throw new Error("no sync entry");
+  const record = { ...failedSync.record, failure: "offline" };
+  const stamp = (i: number) => `2026-10-13T19:${String(i).padStart(2, "0")}:00.000Z`;
+  const stored = {
+    ...good.state,
+    [sync]: { ...failedSync, record },
+    ...Object.fromEntries(
+      Array.from({ length: 45 }, (_, i) => [`old-${i}`, { value: [], record, usedAt: stamp(i) }]),
+    ),
+    legacy: { value: [], record },
+  };
+  const fake = routed(baseRoute);
+  const later = "2026-10-14T18:00:00.000Z";
+  const result = await readTemplate(ctx(later), new Gh(fake.exec), repos(), stored, good);
+  expect(fake.calls.filter((p) => !p.includes("/contents/"))).toEqual([]);
+  expect(result.reads.find((r) => r.object === sync)).toMatchObject({ observedAt: later });
+  const cache = emptyCache();
+  cache.template = result.state;
+  pruneCache(emptyFacts(), cache);
+  const kept = Object.keys(cacheSchema.parse(JSON.parse(JSON.stringify(cache))).template);
+  expect(kept).toHaveLength(40);
+  for (const key of used) {
+    expect(kept).toContain(key);
+    expect(cache.template[key]?.usedAt).toBe(later);
+  }
+  expect(kept).not.toContain("legacy");
+  expect(kept.filter((k) => k.startsWith("old-"))).toEqual(
+    Array.from({ length: 37 }, (_, i) => `old-${i + 8}`),
+  );
+});
+
+test("the newest read's entries stay even when they alone exceed the cap", () => {
+  const record = {
+    source: TEMPLATE_REPO,
+    object: "x",
+    observedAt: now,
+    completeness: { kind: "complete" as const },
+  };
+  const cache = emptyCache();
+  for (let i = 0; i < 45; i++) cache.template[`live-${i}`] = { value: [], record, usedAt: now };
+  cache.template.stale = { value: [], record, usedAt: "2026-10-12T18:00:00.000Z" };
+  pruneCache(emptyFacts(), cache);
+  expect(Object.keys(cache.template)).toEqual(Array.from({ length: 45 }, (_, i) => `live-${i}`));
+});
+
+test("saved state rejects a malformed recency and loads an entry without one", () => {
+  const record = {
+    source: TEMPLATE_REPO,
+    object: "x",
+    observedAt: now,
+    completeness: { kind: "complete" },
+  };
+  expect(templateStateSchema.safeParse({ e: { value: [], record, usedAt: "soon" } }).success).toBe(
+    false,
+  );
+  expect(templateStateSchema.safeParse({ e: { value: [], record } }).success).toBe(true);
 });

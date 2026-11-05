@@ -8,7 +8,9 @@ import { pinStateSchema } from "../collect/pins.js";
 import { emptyRadarState, pruneRadar } from "../collect/radar.js";
 import { emptyReads, releaseStateSchema } from "../collect/releases.js";
 import { prFilesSchema } from "../collect/runs.js";
+import { evictLeastRecent } from "../collect/recency.js";
 import { templateStateSchema } from "../collect/template.js";
+import { upstreamCompareSchema } from "../collect/upstream.js";
 import type { CoreContext } from "../context.js";
 import type { Facts } from "../facts.js";
 import { readRecordSchema } from "./record.js";
@@ -21,9 +23,7 @@ export const cacheSchema = z.object({
   details: z.record(z.string(), z.object({ data: jobSchema, reads: z.array(readRecordSchema).min(1) })),
   lifecycle: lifecycleStateSchema,
   template: templateStateSchema,
-  upstream: z.record(z.string(), z.array(z.object({
-    sha: z.string(), title: z.string(), at: z.string(), url: z.string(),
-  }))),
+  upstream: z.record(z.string(), upstreamCompareSchema),
   approvals: z.record(z.string(), prFilesSchema),
   radar: z.object({
     mrDiffs: z.record(z.string(), diff), commitDiffs: z.record(z.string(), diff),
@@ -74,7 +74,5 @@ export function pruneCache(facts: Facts, cache: CollectorCache, ctx: CoreContext
   const waiting = new Set(Object.entries(facts.approvals.data ?? {}).flatMap(([repo, list]) =>
     list.flatMap((r) => r.pr ? [`${repo}#${r.pr.number}@${r.pr.headSha}`] : [])));
   for (const key of Object.keys(cache.approvals)) if (!waiting.has(key)) delete cache.approvals[key];
-  for (const map of [cache.template, cache.upstream]) {
-    for (const key of Object.keys(map).slice(0, Math.max(0, Object.keys(map).length - 40))) delete map[key];
-  }
+  for (const map of [cache.template, cache.upstream]) evictLeastRecent(map, 40);
 }

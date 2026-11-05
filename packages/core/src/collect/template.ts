@@ -8,6 +8,7 @@ import type { ReadCompleteness, ReadRecord } from "../evidence/index.js";
 import type { RepoFact, TemplateChange, TemplateFacts } from "../facts.js";
 import type { Gh } from "../forge.js";
 import { semverCmp } from "../model/stack.js";
+import { usedAtSchema } from "./recency.js";
 import { errorText, short } from "../util.js";
 
 const commitSchema = z.object({
@@ -31,9 +32,10 @@ const recordSchema = z.object({
   completeness: completenessSchema, failure: z.string().min(1).optional(),
   retainedFrom: z.iso.datetime({ offset: true }).optional(),
 });
-export type TemplateState = Record<string, { value: unknown; record: ReadRecord }>;
+export type TemplateState = Record<string, { value: unknown; record: ReadRecord; usedAt?: string }>;
 export const templateStateSchema: z.ZodType<TemplateState> = z.record(z.string(), z.object({
   value: z.union([compareSchema, positionSchema, pathsSchema, z.array(z.string())]), record: recordSchema,
+  usedAt: usedAtSchema,
 }));
 export interface TemplateRead extends TemplateFacts {
   state: TemplateState;
@@ -107,6 +109,7 @@ export async function readTemplate(
         delete state[cacheKey];
         cached = undefined;
       } else if (cached.record.failure === undefined && (cached.record.completeness.kind === "complete" || reuseCut)) {
+        state[cacheKey] = { ...cached, usedAt: observedAt };
         reads.push(cached.record);
         return checked.data;
       }
@@ -118,7 +121,7 @@ export async function readTemplate(
         source: TEMPLATE_REPO, object, observedAt,
         completeness: loaded.completeness ?? { kind: "complete" },
       };
-      state[cacheKey] = { value, record };
+      state[cacheKey] = { value, record, usedAt: observedAt };
       reads.push(record);
       return value;
     } catch (error) {
@@ -132,7 +135,7 @@ export async function readTemplate(
       };
       reads.push(record);
       if (cached) {
-        state[cacheKey] = { value: cached.value, record };
+        state[cacheKey] = { value: cached.value, record, usedAt: observedAt };
         return schema.parse(cached.value);
       }
       return undefined;

@@ -7,7 +7,9 @@ import { fleetOf } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
 import type { Exec } from "../../src/exec/index.js";
 import { RecordingExec, ReplayExec } from "../../src/exec/recording.js";
+import { emptyFacts } from "../../src/facts.js";
 import { Glab } from "../../src/forge.js";
+import { cacheSchema, emptyCache, pruneCache } from "../../src/sweep/cache.js";
 import fixture from "../fixtures/upstream.json";
 import { FIXTURE_NOW } from "../harness.js";
 
@@ -60,7 +62,9 @@ test("a glab compare replay reproduces fixture commits and caches the fixed SHA 
     expect(result.upstream.partition).toEqual(expected);
     expect(result.reads).toHaveLength(2);
     expect(result.reads.every((r) => r.observedAt === FIXTURE_NOW.toISOString())).toBe(true);
-    expect(Object.values(compares)).toEqual([expected.commits]);
+    expect(Object.values(compares)).toEqual([
+      { commits: expected.commits, usedAt: FIXTURE_NOW.toISOString() },
+    ]);
     const warm = await readUpstream(new Glab(exec), repos, compares, ctx);
     expect(warm.upstream.partition?.commits).toEqual(expected.commits);
   };
@@ -122,4 +126,36 @@ test("equal head and synced SHAs need no compare; a missing trailer leaves lag u
     expect(result.reads).toHaveLength(1);
     expect(result.upstream.partition?.lag).toBe(upstreamSha ? 0 : undefined);
   }
+});
+
+test("pruning keeps a reused compare and evicts the least recently used, legacy entries first", async () => {
+  const synced = repos["Azure/osdu-spi-partition"].upstreamSha?.sha;
+  const live = `${synced}...${expected.head.sha}`;
+  const stamp = (i: number) => `2026-01-01T00:${String(i).padStart(2, "0")}:00.000Z`;
+  const fillers = Object.fromEntries(
+    Array.from({ length: 45 }, (_, i) => [`old-${i}`, { commits: [], usedAt: stamp(i + 1) }]),
+  );
+  const cache = cacheSchema.parse({
+    ...emptyCache(),
+    upstream: { [live]: { commits: expected.commits, usedAt: stamp(0) }, ...fillers, legacy: [] },
+  });
+  expect(cache.upstream.legacy).toEqual({ commits: [] });
+  const recorded = recording();
+  const result = await readUpstream(new Glab(recorded.exec), repos, cache.upstream, ctx);
+  expect(result.upstream.partition).toEqual(expected);
+  expect(recorded.calls.some((path) => path.includes("/compare?"))).toBe(false);
+  pruneCache(emptyFacts(), cache);
+  const kept = Object.keys(cacheSchema.parse(JSON.parse(JSON.stringify(cache))).upstream);
+  expect(kept).toHaveLength(40);
+  expect(kept).toContain(live);
+  expect(cache.upstream[live]?.usedAt).toBe(FIXTURE_NOW.toISOString());
+  expect(kept).not.toContain("legacy");
+  expect(kept.filter((k) => k.startsWith("old-"))).toEqual(
+    Array.from({ length: 39 }, (_, i) => `old-${i + 6}`),
+  );
+});
+
+test("persisted upstream recency must be a timestamp", () => {
+  const upstream = { key: { commits: [], usedAt: "yesterday" } };
+  expect(cacheSchema.safeParse({ ...emptyCache(), upstream }).success).toBe(false);
 });
