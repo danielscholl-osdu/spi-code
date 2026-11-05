@@ -1,8 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { Button } from "@base-ui/react/button";
 import { type ReactNode, useEffect, useState } from "react";
+import { ProgramTree } from "../components/tree/ProgramTree.js";
 import { createWatchStore } from "../store/watch.js";
 import { createAppearance } from "./appearance.js";
 import { routes } from "./routes.js";
@@ -51,17 +51,7 @@ export function Shell({ children }: { children?: ReactNode }) {
           </select>
         </label>
       </header>
-      <nav aria-label="Program">
-        {routes.map((item) => (
-          <Button
-            key={item.id}
-            aria-current={item === route ? "page" : undefined}
-            onClick={() => setRoute(item)}
-          >
-            {item.label}
-          </Button>
-        ))}
-      </nav>
+      <ProgramTree store={watchStore} route={route} onNavigate={setRoute} />
       <main>
         {error && <p role="alert">{error}</p>}
         <View />

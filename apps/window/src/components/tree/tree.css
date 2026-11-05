@@ -1,0 +1,19 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.program-tree { gap: 2px; padding: 10px 8px; }
+.program-tree .tree-heading { display: flex; align-items: center; gap: 8px; margin: 14px 8px 4px; color: var(--text-muted); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.program-tree .tree-entry { display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; padding: 4px 8px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text); text-decoration: none; text-align: left; }
+.tree-entry span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.program-tree .tree-entry:hover { background: var(--surface-raised); }
+.program-tree .tree-entry[aria-current="page"] { background: var(--accent-surface); border-color: var(--border); color: var(--text-strong); font-weight: 600; }
+.tree-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--text-muted); }
+.tree-dot[data-status="fresh"] { background: var(--success); }
+.tree-dot[data-status="stale"], .tree-dot[data-status="incomplete"] { background: var(--warning); }
+.tree-dot[data-status="failed"] { background: var(--error); }
+.tree-dot[data-status="incomplete"] { border: 1px dashed var(--text); }
+.program-tree .tree-empty { margin: 4px 8px; color: var(--text-muted); font-size: 12px; }
+.program-tree .service-overflow { margin-top: 2px; }
+.service-overflow summary { padding: 4px 8px; color: var(--text-muted); }
+.tree-footer { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border); }
+.tree-footer h3 { margin: 8px; font-size: 11px; color: var(--text-muted); font-weight: 500; }
