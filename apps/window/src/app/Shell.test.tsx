@@ -115,3 +115,76 @@ it("updates the title bar from the worst live area envelope, or unread before a 
     window.spi = previous;
   }
 });
+
+it.each(["failed", "stale"] as const)(
+  "updates the title bar from a %s non-area release envelope and clears it on recovery",
+  async (state) => {
+    const previous = window.spi;
+    const previousState = watchStore.getState();
+    let receive: Parameters<typeof window.spi.onMessage>[0] | undefined;
+    window.spi = {
+      proof: false,
+      openExternal: vi.fn(),
+      postMessage: vi.fn(),
+      onMessage: (listener) => {
+        receive = listener;
+        return vi.fn();
+      },
+    };
+    watchStore.setState({ snapshot: null });
+    const base = testSnapshot(briefing, releases);
+    const areas = base.areas.map(({ area }) => ({
+      area,
+      envelope: {
+        source: area,
+        state: "fresh" as const,
+        observedAt: base.sweptAt,
+        completeness: { kind: "complete" as const },
+      },
+    }));
+    const releaseEnvelope = {
+      source: "releases",
+      state,
+      observedAt: base.sweptAt,
+      completeness: { kind: "complete" as const },
+      inferred: true,
+    };
+    const degraded = testSnapshot(briefing, releases, {
+      areas,
+      provenance: [
+        { path: "/releases", areas: ["fleet"], envelope: releaseEnvelope },
+        { path: "/releases/lines/0", areas: ["fleet"], envelope: releaseEnvelope },
+      ],
+    });
+    const recovered = testSnapshot(briefing, releases, { cursor: 2, areas });
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      await act(async () => root.render(<Shell />));
+      for (const [snapshot, expected] of [
+        [degraded, state],
+        [recovered, "fresh"],
+        [degraded, "fresh"],
+      ] as const) {
+        await act(async () =>
+          receive?.({
+            version: PROTOCOL_VERSION,
+            id: `snapshot-${snapshot.cursor}`,
+            kind: "event",
+            type: "view.snapshot",
+            payload: snapshot,
+          }),
+        );
+        const badge = container.querySelector("header [data-envelope]");
+        expect(badge?.getAttribute("data-envelope")).toBe(expected);
+        expect(badge?.querySelector("[data-inferred]") !== null).toBe(expected !== "fresh");
+      }
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+      watchStore.setState(previousState);
+      window.spi = previous;
+    }
+  },
+);

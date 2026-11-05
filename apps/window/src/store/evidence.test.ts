@@ -3,7 +3,7 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { ViewSnapshotSchema } from "@spi-code/contracts";
+import { type Envelope, ViewSnapshotSchema } from "@spi-code/contracts";
 import { describe, expect, it } from "vitest";
 import { areaEnvelope, envelopesFor, envelopesForAll, isInferred } from "./evidence.js";
 
@@ -91,3 +91,59 @@ it("unions the envelopes under several prefixes in area order, without repeats",
   expect(names([])).toEqual([]);
   expect(names(["/releases"])).toEqual(["fleet"]);
 });
+
+it.each<{ envelope: Envelope | undefined; inferred: boolean }>([
+  { envelope: undefined, inferred: true },
+  {
+    envelope: {
+      source: "releases",
+      state: "fresh",
+      observedAt: mixed.sweptAt,
+      completeness: { kind: "complete" },
+      inferred: true,
+    },
+    inferred: true,
+  },
+  {
+    envelope: {
+      source: "releases",
+      state: "fresh",
+      observedAt: mixed.sweptAt,
+      completeness: { kind: "complete" },
+      inferred: false,
+    },
+    inferred: false,
+  },
+  {
+    envelope: {
+      source: "releases",
+      state: "failed",
+      completeness: { kind: "complete" },
+    },
+    inferred: false,
+  },
+  { envelope: { source: "releases", state: "unread" }, inferred: false },
+])(
+  "requires every area and a present supplemental envelope to be inferred: $envelope",
+  ({ envelope, inferred }) => {
+    const pointer = "/releases/lines/0";
+    const source = {
+      path: pointer,
+      areas: ["lifecycle"] as const,
+      ...(envelope ? { envelope } : {}),
+    };
+    const evidence = {
+      areas: mixed.areas,
+      provenance: [{ ...source, areas: [...source.areas] }],
+    };
+    expect(isInferred(evidence, pointer)).toBe(inferred);
+    expect(
+      isInferred(
+        { ...evidence, provenance: [{ ...source, areas: ["lifecycle", "github"] }] },
+        pointer,
+      ),
+    ).toBe(false);
+    expect(isInferred(evidence, "/releases/lines")).toBe(false);
+    expect(isInferred(evidence, `${pointer}/headline`)).toBe(false);
+  },
+);

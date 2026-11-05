@@ -7,14 +7,14 @@ import { useShallow } from "zustand/react/shallow";
 import { WorstEnvelope } from "../components/evidence/WorstEnvelope.js";
 import { ProgramTree } from "../components/tree/ProgramTree.js";
 import { RightPanel, selectionStore } from "../panels/index.js";
-import { selectAreaEnvelopes, watchStore } from "../store/watch.js";
+import { selectEnvelopes, watchStore } from "../store/watch.js";
 import { createAppearance } from "./appearance.js";
 import { routes, useSetupLanding } from "./routes.js";
 
 export { watchStore };
 
 export function Shell({ children }: { children?: ReactNode }) {
-  const envelopes = useStore(watchStore, useShallow(selectAreaEnvelopes));
+  const envelopes = useStore(watchStore, useShallow(selectEnvelopes));
   const [route, setRoute] = useState<(typeof routes)[number]>(routes[0]);
   useSetupLanding(setRoute);
   const [appearance, setAppearance] = useState<ReturnType<typeof createAppearance>>();

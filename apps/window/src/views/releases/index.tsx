@@ -5,8 +5,8 @@ import type { NotesState, ReleaseLine } from "@spi-code/contracts";
 import { useState } from "react";
 import { useStore } from "zustand";
 import { AreaEnvelopes, InferredMark } from "../../components/evidence/AreaEnvelopes.js";
-import { EnvelopeBadge, InferredMarker } from "../../components/evidence/EnvelopeBadge.js";
-import { type Evidence, isInferred } from "../../store/evidence.js";
+import { EnvelopeBadge } from "../../components/evidence/EnvelopeBadge.js";
+import type { Evidence } from "../../store/evidence.js";
 import { watchStore } from "../../store/watch.js";
 import "../repositories/panes.css";
 
@@ -35,12 +35,12 @@ function Notes({ line }: { line: ReleaseLine }) {
 
 function ReleaseEvidence({ evidence, pointer }: { evidence: Evidence; pointer: string }) {
   const envelope = evidence.provenance.find(({ path }) => path === pointer)?.envelope;
-  if (!envelope) return <InferredMark evidence={evidence} pointer={pointer} />;
-  const { inferred, ...observed } = envelope;
   return (
     <>
-      {envelope.state !== "fresh" && <EnvelopeBadge envelope={observed} />}
-      {inferred === true && isInferred(evidence, pointer) && <InferredMarker />}
+      {envelope && envelope.state !== "fresh" && (
+        <EnvelopeBadge envelope={{ ...envelope, inferred: false }} />
+      )}
+      <InferredMark evidence={evidence} pointer={pointer} />
     </>
   );
 }
@@ -52,11 +52,18 @@ export default function Releases() {
   const selected = releases?.lines.some((line) => line.id === picked)
     ? picked
     : releases?.lines[0]?.id;
-  const envelope = evidence?.provenance.find(({ path }) => path === "/releases/lines/0")?.envelope;
+  const envelope = evidence?.provenance.find(
+    ({ path, envelope }) => envelope && (path === "/releases" || path.startsWith("/releases/")),
+  )?.envelope;
   return (
     <>
       <h1>Releases</h1>
       <div className="watch-pane" data-view-pane="releases">
+        {envelope && (
+          <span data-release-envelopes="">
+            releases <EnvelopeBadge envelope={envelope} />
+          </span>
+        )}
         {!releases?.lines.length || !evidence ? (
           <h2 role="status">{releases?.reading ? "Reading releases…" : "No releases read yet."}</h2>
         ) : (
@@ -67,11 +74,6 @@ export default function Releases() {
               core-lib-azure and every service fork, with reviewed notes laid over it.
             </p>
             <AreaEnvelopes evidence={evidence} prefixes={["/releases/lines"]} />
-            {envelope && (
-              <span data-release-envelopes="">
-                releases <EnvelopeBadge envelope={envelope} />
-              </span>
-            )}
             <div className="pane-split">
               <div className="release-list">
                 {releases.lines.map((line, index) => (

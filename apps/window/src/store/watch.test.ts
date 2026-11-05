@@ -7,7 +7,7 @@ import briefing from "../../../../fixtures/rib-59d6895/oracle/briefing.json?raw"
 import releases from "../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
 import { createSelectionStore } from "../panels/selection.js";
 import { testSnapshot as snapshotFromOracles } from "./test-snapshot.js";
-import { createWatchStore, selectAreaEnvelopes } from "./watch.js";
+import { createWatchStore, selectAreaEnvelopes, selectEnvelopes } from "./watch.js";
 
 const testSnapshot = (overrides: Partial<ViewSnapshot> = {}) =>
   snapshotFromOracles(briefing, releases, overrides);
@@ -23,9 +23,31 @@ const event = (type: string, payload: unknown) => ({
 it("selects every snapshot area's envelope and none before the first snapshot", () => {
   const store = createWatchStore(vi.fn());
   expect(selectAreaEnvelopes(store.getState())).toEqual([]);
+  expect(selectEnvelopes(store.getState())).toEqual([]);
   const body = testSnapshot();
   store.getState().receive(event("view.snapshot", body));
   expect(selectAreaEnvelopes(store.getState())).toEqual(body.areas.map(({ envelope }) => envelope));
+  expect(selectEnvelopes(store.getState())).toEqual(selectAreaEnvelopes(store.getState()));
+});
+
+it("selects supplemental envelopes alongside every area without inventing absent evidence", () => {
+  const store = createWatchStore(vi.fn());
+  const envelope = {
+    source: "releases",
+    state: "failed",
+    completeness: { kind: "complete" },
+  } as const;
+  const body = testSnapshot({
+    provenance: [
+      { path: "/releases", areas: ["fleet"], envelope },
+      { path: "/briefing", areas: ["github"] },
+    ],
+  });
+  store.getState().receive(event("view.snapshot", body));
+  expect(selectEnvelopes(store.getState())).toEqual([
+    ...selectAreaEnvelopes(store.getState()),
+    envelope,
+  ]);
 });
 
 it("rejects git sign-in at the type and runtime boundaries", () => {

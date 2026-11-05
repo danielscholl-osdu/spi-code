@@ -42,6 +42,17 @@ export function selectAreaEnvelopes(state: Pick<WatchState, "snapshot">): Envelo
   return state.snapshot?.body.areas.map(({ envelope }) => envelope) ?? [];
 }
 
+/** All evidence feeding the title bar, including collectors outside Facts areas. */
+export function selectEnvelopes(state: Pick<WatchState, "snapshot">): Envelope[] {
+  const body = state.snapshot?.body;
+  return body
+    ? [
+        ...selectAreaEnvelopes(state),
+        ...body.provenance.flatMap(({ envelope }) => (envelope ? [envelope] : [])),
+      ]
+    : [];
+}
+
 export function createWatchStore(
   send: (message: Message) => void,
   inspector: SelectionStore = createSelectionStore({ postMessage: send }),
