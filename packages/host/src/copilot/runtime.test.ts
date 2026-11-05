@@ -1,10 +1,13 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { isAbsolute, join } from "node:path";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { delimiter, isAbsolute, join, relative } from "node:path";
 import { inspect } from "node:util";
 import type { CopilotClientOptions } from "@github/copilot-sdk";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { probeCopilotSeat } from "../setup/seat.js";
 import {
   buildClientOptions,
   buildSessionOptions,
@@ -223,6 +226,88 @@ describe("Copilot runtime boundary", () => {
     expect(options.env).not.toHaveProperty("COPILOT_GITHUB_TOKEN");
     expect(options).not.toHaveProperty("gitHubToken");
   });
+
+  it("isolates every runtime home without mutating the caller or process environment", () => {
+    const before = { ...process.env };
+    const names = [
+      "HOME",
+      "USERPROFILE",
+      "XDG_CACHE_HOME",
+      "XDG_CONFIG_HOME",
+      "XDG_STATE_HOME",
+      "LOCALAPPDATA",
+      "APPDATA",
+      "COPILOT_HOME",
+    ];
+    const env = Object.fromEntries(
+      names.flatMap((name) => [
+        [name, "/operator"],
+        [name.toLowerCase(), "/operator-lowercase"],
+      ]),
+    );
+    const original = { ...env };
+    const appDataDir = join(tmpdir(), "spicode-app");
+    const options = buildClientOptions({
+      appDataDir,
+      capturedPath: "/bin",
+      env,
+    });
+    for (const name of names) {
+      const path = options.env?.[name];
+      expect(path).toBeDefined();
+      expect(isAbsolute(path ?? "")).toBe(true);
+      expect(relative(appDataDir, path ?? "").startsWith("..")).toBe(false);
+      expect(options.env).not.toHaveProperty(name.toLowerCase());
+    }
+    expect(env).toEqual(original);
+    expect(process.env).toEqual(before);
+  });
+
+  it.skipIf(process.platform === "win32").each(["runtime", "seat"])(
+    "%s reads the default credential through a fake gh with the real home and config",
+    async (consumer) => {
+      const root = await mkdtemp(join(tmpdir(), "spicode-gh-home-"));
+      const home = join(root, "operator");
+      const config = join(root, "operator-config");
+      const appDataDir = join(root, "app-data");
+      try {
+        await mkdir(home);
+        await mkdir(config);
+        await writeFile(join(home, "token"), "home-token");
+        await writeFile(join(config, "token"), "config-token");
+        await writeFile(
+          join(root, "gh"),
+          '#!/bin/sh\n[ "$1 $2" = "auth token" ] || exit 1\n[ "$(cat "$HOME/token")" = "home-token" ] || exit 2\ncat "$XDG_CONFIG_HOME/token"\n',
+          { mode: 0o700 },
+        );
+        const options = {
+          appDataDir,
+          capturedPath: [root, "/usr/bin", "/bin"].join(delimiter),
+          env: { ...process.env, HOME: home, XDG_CONFIG_HOME: config, GH_TOKEN: "stray" },
+        };
+        if (consumer === "seat") {
+          fake.createSession.mockResolvedValueOnce({ disconnect: vi.fn() });
+          fake.list.mockResolvedValueOnce({ models: [{ id: "seat-model" }] });
+          expect(await probeCopilotSeat(options)).toEqual({
+            kind: "seat-ok",
+            models: ["seat-model"],
+          });
+        } else {
+          const runtime = new CopilotRuntime(options);
+          try {
+            await runtime.start();
+          } finally {
+            await runtime.stop();
+          }
+        }
+        expect(fake.configs[0]?.gitHubToken).toBe("config-token");
+        expect(fake.configs[0]?.env?.HOME).not.toBe(home);
+        expect(fake.configs[0]?.env?.XDG_CONFIG_HOME).not.toBe(config);
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
 
   it("gets fresh session credentials with a fixed lifetime and registry policy", async () => {
     const readToken = vi.fn().mockResolvedValueOnce("first").mockResolvedValueOnce("second");

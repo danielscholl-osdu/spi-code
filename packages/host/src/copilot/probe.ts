@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { CopilotClient, type CopilotSession } from "@github/copilot-sdk";
 import { captureLoginShellPath, ghAuthToken } from "../env/shell-environment.js";
 import {
+  buildAuthEnvironment,
   buildClientOptions,
   CopilotRuntime,
   type RuntimeOptions,
@@ -118,7 +119,7 @@ async function probe() {
     await mkdir(appDataDir);
     await mkdir(join(home, ".copilot"), { recursive: true });
     const captured = await captureLoginShellPath();
-    const authEnv = buildClientOptions({ appDataDir, capturedPath: captured.path }).env ?? {};
+    const authEnv = buildAuthEnvironment({ appDataDir, capturedPath: captured.path });
     const realToken = await ghAuthToken(authEnv);
     const invalidToken = "spicode-deliberately-invalid-token";
     secrets.push(realToken, invalidToken);

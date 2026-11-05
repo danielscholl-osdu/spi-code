@@ -109,10 +109,35 @@ export function unpackRuntimePath(path: string): string {
   return path.replace(/([\\/])app\.asar([\\/])/, "$1app.asar.unpacked$2");
 }
 
+export function buildAuthEnvironment(options: RuntimeOptions): NodeJS.ProcessEnv {
+  return buildToolEnvironment({
+    toolsDir: join(options.appDataDir, "tools", "bin"),
+    capturedPath: options.capturedPath,
+    kubeconfig: join(options.appDataDir, "kubeconfig"),
+    azureConfigDir: join(options.appDataDir, "azure"),
+    ...(options.env ? { env: options.env } : {}),
+  });
+}
+
 export function buildClientOptions(options: RuntimeOptions): CopilotClientOptions {
   const cliPath = options.cliPath ?? resolveRuntimePath();
   if (!isAbsolute(cliPath) || !isAbsolute(options.appDataDir)) {
     throw new Error("Copilot runtime and app data paths must be absolute.");
+  }
+  const home = join(options.appDataDir, "copilot", "home");
+  const homes: NodeJS.ProcessEnv = {
+    HOME: home,
+    USERPROFILE: home,
+    XDG_CACHE_HOME: join(home, ".cache"),
+    XDG_CONFIG_HOME: join(home, ".config"),
+    XDG_STATE_HOME: join(home, ".local", "state"),
+    LOCALAPPDATA: join(home, "AppData", "Local"),
+    APPDATA: join(home, "AppData", "Roaming"),
+    COPILOT_HOME: join(options.appDataDir, "copilot"),
+  };
+  const env = buildAuthEnvironment(options);
+  for (const name of Object.keys(env)) {
+    if (Object.hasOwn(homes, name.toUpperCase())) delete env[name];
   }
   return {
     connection: { kind: "stdio", path: cliPath },
@@ -121,13 +146,7 @@ export function buildClientOptions(options: RuntimeOptions): CopilotClientOption
     workingDirectory: options.appDataDir,
     useLoggedInUser: false,
     logLevel: "none",
-    env: buildToolEnvironment({
-      toolsDir: join(options.appDataDir, "tools", "bin"),
-      capturedPath: options.capturedPath,
-      kubeconfig: join(options.appDataDir, "kubeconfig"),
-      azureConfigDir: join(options.appDataDir, "azure"),
-      ...(options.env ? { env: options.env } : {}),
-    }),
+    env: { ...env, ...homes },
   };
 }
 
@@ -178,7 +197,8 @@ export class CopilotRuntime {
     ghRunner: typeof ghAuthToken = ghAuthToken,
   ) {
     this.config = buildClientOptions(options);
-    const reader = readToken ?? (() => ghRunner(this.config.env ?? {}));
+    const authEnv = buildAuthEnvironment(options);
+    const reader = readToken ?? (() => ghRunner(authEnv));
     this.readToken = async () => {
       const token = await reader();
       this.tokens.clear();

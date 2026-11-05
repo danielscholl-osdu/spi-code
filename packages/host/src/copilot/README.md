@@ -3,6 +3,11 @@
 The host starts the SDK 1.0.26 platform package's `prebuilds/<platform>/copilot-runtime`
 (`.exe` on Windows) by absolute `connection.path`, over stdio. Empty mode uses
 `<appDataDir>/copilot`; the environment comes from `buildToolEnvironment`.
+Only the runtime child's environment redirects `HOME`, `USERPROFILE`,
+`XDG_CACHE_HOME`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `LOCALAPPDATA`, `APPDATA`
+and `COPILOT_HOME` beneath app data. This includes the runtime's macOS caches
+and Microsoft device ID. Token lookup uses a separate scrubbed environment
+with the operator's original home and gh configuration.
 The packaging bead must leave the complete platform runtime package unpacked.
 Startup cleanup, credential-keyed warm-client handling, and streamed delta
 subscription are ported from Keelson's `copilot/factory.ts` and `provider.ts`.
@@ -27,7 +32,8 @@ by the host. Under this fallback, any process the runtime spawns would inherit
 the token. That is safe today only because production sessions expose custom
 tools alone (CP-04) and the runtime's base directory is the app-owned
 `<appDataDir>/copilot`, not the operator's config directory. The runtime ignores
-`HOME` and `COPILOT_HOME` in favor of that base directory. Empty mode can still
+`HOME` and `COPILOT_HOME` for Copilot configuration in favor of that base directory.
+Other caches and the device ID still follow the isolated home. Empty mode can still
 spawn MCP servers configured there, even with `availableTools: []`. The app must
 never write `mcp-config.json` or any MCP configuration there: a server spawned
 from it would inherit `COPILOT_SDK_AUTH_TOKEN`. The isolation-only probe allows
@@ -41,3 +47,11 @@ Run `pnpm --filter @spi-code/host probe:copilot` on a machine signed into gh wit
 a Copilot seat. The probe uses disposable OS-temp HOME and app-data directories,
 redacts token values, scans app data before deleting it, and exits nonzero when
 its evidence cannot be established.
+
+Run `SPICODE_LIVE_COPILOT_ISOLATION=1 pnpm vitest run packages/host/src/copilot/isolation.test.ts`
+to check filesystem isolation with the real runtime. It skips unless explicitly
+enabled and gh credentials are available; enabling it requires network access
+and a Copilot seat. It opens a session, lists models, stops the runtime, and
+compares file listings in a disposable scratch home outside app data, printing
+the before/after evidence and app-data listing. It never uses the operator's
+real home for the runtime or alters their Copilot cache.

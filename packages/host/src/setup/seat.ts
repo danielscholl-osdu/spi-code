@@ -5,6 +5,7 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { CopilotClient, type CopilotClientOptions, type SessionConfig } from "@github/copilot-sdk";
 import {
+  buildAuthEnvironment,
   buildClientOptions,
   buildSessionOptions,
   listModelsWithToken,
@@ -104,7 +105,7 @@ export async function probeCopilotSeat(options: SeatProbeOptions): Promise<SeatR
     const config = buildClientOptions(options);
     phase = "credential";
     token = await bounded(
-      options.readToken?.() ?? ghAuthToken(config.env ?? {}, { timeoutMs }),
+      options.readToken?.() ?? ghAuthToken(buildAuthEnvironment(options), { timeoutMs }),
       timeoutMs,
     );
     if (!token || /[\s\p{Cc}]/u.test(token)) {
