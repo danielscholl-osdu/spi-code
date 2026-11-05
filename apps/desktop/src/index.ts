@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -21,6 +20,7 @@ import {
 } from "electron";
 import { externalLinkHandlers } from "./external-links.js";
 import { hostLaunch } from "./host-launch.js";
+import { listenersOf } from "./smoke-listeners.js";
 import { smokeMessages } from "./smoke-messages.js";
 import { assertSmokeReport, assertSmokeTools, type SmokeReport } from "./smoke-report.js";
 import { HostSupervisor, hostPortCallbacks } from "./supervisor.js";
@@ -70,32 +70,6 @@ function fail(error: unknown): void {
       },
     );
   }
-}
-
-function listenersOf(pid: number): string[] {
-  process.kill(pid, 0);
-  let listeners: string[] = [];
-  try {
-    const output = execFileSync("lsof", ["-nP", "-a", "-p", String(pid), "-iTCP", "-sTCP:LISTEN"], {
-      encoding: "utf8",
-      timeout: 5000,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    listeners = output.trim() ? output.trim().split("\n") : [];
-  } catch (error) {
-    const noMatches =
-      error !== null &&
-      typeof error === "object" &&
-      "status" in error &&
-      error.status === 1 &&
-      "stdout" in error &&
-      error.stdout === "" &&
-      "stderr" in error &&
-      error.stderr === "";
-    if (!noMatches) throw error;
-  }
-  process.kill(pid, 0);
-  return listeners;
 }
 
 async function stopHost(): Promise<void> {

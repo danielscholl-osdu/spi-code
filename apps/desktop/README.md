@@ -21,7 +21,8 @@ Alternatively pass `--smoke-report /absolute/path/report.json` to the smoke
 script. The smoke uses a fresh directory under Electron's app-data directory,
 checks a renderer ping and malformed-message rejection, kills and restarts the
 host, and verifies its SQLite row and event survived. It checks both live process
-ids with `lsof` before and after restart. The success report is asserted before
+ids with `lsof` on macOS or `netstat -ano -p tcp` on Windows before and after restart.
+The success report is asserted before
 being written, and includes Electron's main and utility-process Node versions
 and the observed `DatabaseSync.isTransaction` support. Failure writes an `error`
 report and exits nonzero; success exits zero. Smoke databases remain under
@@ -39,4 +40,13 @@ The script reads both reports back, validates the existing smoke assertions,
 checks the runtime path and host pid, and writes the combined evidence to
 `build/package-mac/smoke.json`. A missing or failing report fails the command;
 no live sign-in is needed. Normal packaged launches still use gh authentication.
-Windows x64 NSIS is configured but is not built by this macOS command.
+`pnpm run package:win` runs the same gate on Windows x64, producing an NSIS
+installer and a ZIP under `build/package-win/artifacts` and combined evidence
+at `build/package-win/smoke.json`. Both commands smoke the app extracted from
+the shipped ZIP and require the matching unpacked SDK runtime's stdio handshake.
+
+The `Packaged smoke` Actions workflow runs `scripts/check` and this packaging
+gate on `macos-latest` arm64 and `windows-latest` x64 for `main`, `bead/**`,
+and manual dispatches. Artifacts and smoke/runtime reports are uploaded with
+the commit SHA. No credentials or live Copilot turn are required; macOS builds
+remain unsigned.

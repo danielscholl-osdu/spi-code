@@ -1,0 +1,63 @@
+# Copyright 2026, Daniel Scholl
+# SPDX-License-Identifier: MIT
+
+name: Packaged smoke
+
+on:
+  push:
+    branches: [main, "bead/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  packaged-smoke:
+    name: ${{ matrix.os }} / ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            arch: arm64
+            package: mac
+          - os: windows-latest
+            arch: x64
+            package: win
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: pnpm/action-setup@7088e561eb65bb68695d245aa206f005ef30921d # v4.1.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22.22.0"
+          cache: pnpm
+      - name: Install pinned dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check (pnpm check, shifted clock and licenses)
+        run: bash scripts/check
+      - name: Build unsigned artifacts and smoke the extracted ZIP
+        run: pnpm run package:${{ matrix.package }}
+      - name: Upload packages
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: spi-code-${{ matrix.package }}-${{ matrix.arch }}-${{ github.sha }}
+          path: |
+            build/package-${{ matrix.package }}/artifacts/*.exe
+            build/package-${{ matrix.package }}/artifacts/*.dmg
+            build/package-${{ matrix.package }}/artifacts/*.zip
+            build/package-${{ matrix.package }}/artifacts/*.blockmap
+          if-no-files-found: error
+      - name: Upload smoke evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: smoke-${{ matrix.package }}-${{ matrix.arch }}-${{ github.sha }}
+          path: |
+            build/package-${{ matrix.package }}/smoke.json
+            build/package-${{ matrix.package }}/runtime.json
+          if-no-files-found: error

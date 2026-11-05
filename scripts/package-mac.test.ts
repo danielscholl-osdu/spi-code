@@ -3,7 +3,7 @@
 
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, win32 } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   assertRuntimeEvidence,
@@ -91,7 +91,32 @@ describe("packaged smoke gate", () => {
     status: { protocolVersion: 1, version: "1.0.103" },
   };
   it("accepts a protocol response from the shipped binary in the observed host", () => {
-    expect(() => assertRuntimeEvidence({ hostPid: 42 }, evidence, resources)).not.toThrow();
+    expect(() =>
+      assertRuntimeEvidence({ hostPid: 42 }, evidence, resources, "darwin", "arm64"),
+    ).not.toThrow();
+  });
+  it("accepts only the Windows x64 unpacked executable for Windows evidence", () => {
+    const windowsResources = "C:\\artifacts\\SPI Code\\resources";
+    const runtimePath = win32.join(
+      windowsResources,
+      "app.asar.unpacked/node_modules/@github/copilot-sdk-win32-x64/prebuilds/win32-x64/copilot-runtime.exe",
+    );
+    const check = (path: string) =>
+      assertRuntimeEvidence(
+        { hostPid: 42 },
+        { ...evidence, runtimePath: path },
+        windowsResources,
+        "win32",
+        "x64",
+      );
+    expect(() => check(runtimePath)).not.toThrow();
+    for (const path of [
+      runtimePath.replace("app.asar.unpacked", "app.asar"),
+      runtimePath.replaceAll("win32-x64", "darwin-arm64"),
+      runtimePath.replace(".exe", ""),
+      runtimePath.replace("C:\\artifacts", "C:\\external"),
+    ])
+      expect(() => check(path)).toThrow();
   });
   it.each([
     { ...evidence, hostPid: 43 },
@@ -103,7 +128,9 @@ describe("packaged smoke gate", () => {
     { ...evidence, ping: { message: "pong: spi-code-packaged-smoke", timestamp: "invalid" } },
     { ...evidence, status: { protocolVersion: 1 } },
   ])("rejects missing or mismatched runtime proof %#", (invalid) => {
-    expect(() => assertRuntimeEvidence({ hostPid: 42 }, invalid, resources)).toThrow();
+    expect(() =>
+      assertRuntimeEvidence({ hostPid: 42 }, invalid, resources, "darwin", "arm64"),
+    ).toThrow();
   });
   it("removes Node boot and signing overrides without enabling environment stub mode", () => {
     expect(
@@ -112,6 +139,8 @@ describe("packaged smoke gate", () => {
         ELECTRON_RUN_AS_NODE: "1",
         CSC_LINK: "certificate",
         CSC_KEY_PASSWORD: "password",
+        WIN_CSC_LINK: "certificate",
+        WIN_CSC_KEY_PASSWORD: "password",
         CSC_IDENTITY_AUTO_DISCOVERY: "true",
         APPLE_API_KEY: "key",
         SPI_CODE_STUB_MODEL: "1",
