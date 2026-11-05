@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { EventEmitter, once } from "node:events";
 import {
   mkdirSync,
@@ -31,11 +31,16 @@ import { HostSupervisor, hostPortCallbacks } from "./supervisor.js";
 
 function assertFreshBuild(directory: string) {
   const source = join(directory, "src");
+  const config = statSync(join(directory, "tsconfig.build.json"), { throwIfNoEntry: false })
+    ? "tsconfig.build"
+    : "tsconfig";
+  // Incremental builds acknowledge unchanged sources without re-emitting JavaScript.
+  const checked = statSync(join(directory, `${config}.tsbuildinfo`), { throwIfNoEntry: false });
   for (const relative of readdirSync(source, { recursive: true, encoding: "utf8" })) {
     if (!/\.tsx?$/.test(relative) || /\.test\.tsx?$|\.d\.ts$/.test(relative)) continue;
     const compiled = join(directory, "dist", relative.replace(/\.tsx?$/, ".js"));
     const built = statSync(compiled, { throwIfNoEntry: false });
-    if (!built || built.mtimeMs < statSync(join(source, relative)).mtimeMs)
+    if (!built || !checked || checked.mtimeMs < statSync(join(source, relative)).mtimeMs)
       throw new Error(`Missing or stale build: ${compiled}. Run pnpm exec tsc -b --force.`);
   }
 }
@@ -171,6 +176,7 @@ it("fails clearly for missing or stale dist and accepts a fresh build", () => {
   const directory = mkdtempSync(join(tmpdir(), "spi-build-freshness-"));
   const source = join(directory, "src", "module.ts");
   const compiled = join(directory, "dist", "module.js");
+  const buildInfo = join(directory, "tsconfig.tsbuildinfo");
   try {
     mkdirSync(join(directory, "src"));
     mkdirSync(join(directory, "dist"));
@@ -180,12 +186,59 @@ it("fails clearly for missing or stale dist and accepts a fresh build", () => {
     writeFileSync(compiled, "export const value = 1;");
     utimesSync(compiled, 1000, 1000);
     expect(() => assertFreshBuild(directory)).toThrow("Missing or stale build:");
-    utimesSync(compiled, 3000, 3000);
+    writeFileSync(buildInfo, "{}");
+    utimesSync(buildInfo, 1000, 1000);
+    expect(() => assertFreshBuild(directory)).toThrow("Missing or stale build:");
+    utimesSync(buildInfo, 3000, 3000);
     expect(() => assertFreshBuild(directory)).not.toThrow();
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+it.each(["tsconfig.json", "tsconfig.build.json"])(
+  "accepts a content-unchanged incremental rebuild and rejects an unbuilt edit (%s)",
+  (configName) => {
+    const directory = mkdtempSync(join(tmpdir(), "spi-incremental-freshness-"));
+    const source = join(directory, "src", "module.ts");
+    const compiled = join(directory, "dist", "module.js");
+    const buildInfo = join(directory, configName.replace(/\.json$/, ".tsbuildinfo"));
+    const config = join(directory, configName);
+    const original = "export const value = 1;";
+    const build = () =>
+      execFileSync("pnpm", ["exec", "tsc", "-b", config], {
+        cwd: fileURLToPath(new URL("../../../", import.meta.url)),
+        encoding: "utf8",
+        timeout: 15000,
+      });
+    try {
+      mkdirSync(join(directory, "src"));
+      writeFileSync(
+        config,
+        JSON.stringify({
+          compilerOptions: { composite: true, rootDir: "src", outDir: "dist", types: [] },
+          include: ["src/**/*.ts"],
+        }),
+      );
+      writeFileSync(source, original);
+      build();
+      utimesSync(compiled, 1000, 1000);
+      utimesSync(buildInfo, 1000, 1000);
+      utimesSync(source, 2000, 2000);
+      build();
+      expect(readFileSync(source, "utf8")).toBe(original);
+      expect(statSync(compiled).mtimeMs).toBe(1000000);
+      expect(statSync(buildInfo).mtimeMs).toBeGreaterThan(statSync(source).mtimeMs);
+      expect(() => assertFreshBuild(directory)).not.toThrow();
+      writeFileSync(source, "export const value = 2;");
+      const afterBuild = (statSync(buildInfo).mtimeMs + 1000) / 1000;
+      utimesSync(source, afterBuild, afterBuild);
+      expect(() => assertFreshBuild(directory)).toThrow("Run pnpm exec tsc -b --force");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  },
+);
 
 function harness() {
   const clock = new Clock();

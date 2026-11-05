@@ -218,6 +218,30 @@ it("settles an in-flight inspection on give-up regardless of the supervisor's re
   }
 });
 
+it("keeps a completed inspection visible when the host gives up with no request pending", async () => {
+  const result = inspectFromOracle(board("HALT"), "halt:entitlements");
+  const view = await inspect(result);
+  try {
+    const shown = view.store.getState().result;
+    await act(async () =>
+      view.store.getState().receive({
+        version: PROTOCOL_VERSION,
+        id: "host-supervisor",
+        kind: "response",
+        type: "error",
+        payload: { code: "host_unavailable", message: "Host stopped after repeated crashes." },
+      }),
+    );
+    expect(view.store.getState().result).toBe(shown);
+    expect(view.store.getState().error).toBeNull();
+    expect(view.container.querySelector('[role="alert"]')).toBeNull();
+    expect(view.container.querySelector("aside")?.getAttribute("aria-busy")).toBe("false");
+    expect(view.text("cause")).toBe(result.cause);
+  } finally {
+    await view.cleanup();
+  }
+});
+
 it.each([
   ["TEST", { id: "diagnose", label: "Diagnose", disabledReason: "Diagnose ships in M3." }],
   [

@@ -90,7 +90,7 @@ export function createSelectionStore(port: InspectPort) {
         return;
       }
       if (message.type === "error" && message.payload.code === "host_unavailable") {
-        set({ request: null, error: message.payload.message });
+        if (request !== null) set({ request: null, error: message.payload.message });
         return;
       }
       if (request === null || message.id !== request) return;
