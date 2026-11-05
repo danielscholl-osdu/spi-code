@@ -5,15 +5,14 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 
 export function windowsListeners(output: string, pid: number): string[] {
-  const rows = output.split(/\r?\n/).filter((line) => /^\s*TCP\s/i.test(line));
+  const rows = output.split(/\r?\n/).filter((line) => /^\s*TCP(?:v6)?\s/i.test(line));
   return rows.filter((line) => {
     const fields = line.trim().split(/\s+/);
     assert(
       fields.length === 5 && /^\d+$/.test(fields[4] ?? ""),
       `Unexpected netstat TCP row: ${line}`,
     );
-    // netstat translates state labels; a listening socket has a zero foreign port.
-    return Number(fields[4]) === pid && /:0$/.test(fields[2] ?? "");
+    return Number(fields[4]) === pid && fields[3] === "LISTENING";
   });
 }
 
@@ -22,7 +21,7 @@ export function listenersOf(pid: number): string[] {
   let listeners: string[];
   if (process.platform === "win32") {
     listeners = windowsListeners(
-      execFileSync("netstat.exe", ["-ano", "-p", "tcp"], {
+      execFileSync("netstat.exe", ["-ano"], {
         encoding: "utf8",
         timeout: 10000,
         stdio: ["ignore", "pipe", "pipe"],

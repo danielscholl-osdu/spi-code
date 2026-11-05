@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc -b",
     "package:mac": "node scripts/package-mac.mjs",
-    "package:win": "node scripts/package.mjs",
+    "package:win": "node scripts/package-win.mjs",
     "lint": "biome check .",
     "typecheck": "tsc -b",
     "test": "vitest run",

@@ -1,9 +1,11 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, win32 } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   assertRuntimeEvidence,
@@ -82,6 +84,18 @@ ${directories.map((directory) => `\n  ${directory}: {}\n`).join("")}`;
 });
 
 describe("packaged smoke gate", () => {
+  it("rejects a packaging entry point for the wrong OS before building", () => {
+    const script = process.platform === "win32" ? "package-mac.mjs" : "package-win.mjs";
+    const result = spawnSync(process.execPath, [fileURLToPath(new URL(script, import.meta.url))], {
+      encoding: "utf8",
+    });
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "Packaging requires macOS arm64 or Windows x64 on the target OS",
+    );
+  });
+
   const resources = "/artifacts/SPI Code.app/Contents/Resources";
   const evidence = {
     hostPid: 42,
