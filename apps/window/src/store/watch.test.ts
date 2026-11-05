@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: MIT
 
 import { PROTOCOL_VERSION, type ViewSnapshot, WatchMessageSchema } from "@spi-code/contracts";
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import briefing from "../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import releases from "../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
+import { Shell } from "../app/Shell.js";
 import { createSelectionStore } from "../panels/selection.js";
 import { testSnapshot as snapshotFromOracles } from "./test-snapshot.js";
-import { createWatchStore, selectAreaEnvelopes, selectEnvelopes } from "./watch.js";
+import { createWatchStore, selectAreaEnvelopes, selectEnvelopes, watchStore } from "./watch.js";
 
 const testSnapshot = (overrides: Partial<ViewSnapshot> = {}) =>
   snapshotFromOracles(briefing, releases, overrides);
@@ -172,6 +175,62 @@ it("subscribes on every hello with zero initially and the last cursor after rese
     { fromCursor: 12 },
   ]);
   expect(send.mock.calls[0]?.[0].id).not.toBe(send.mock.calls[1]?.[0].id);
+});
+
+it("keeps the mounted snapshot across reconnect and shows the supervisor's schema-valid give-up error", async () => {
+  const previous = window.spi;
+  const previousState = watchStore.getState();
+  const listeners = new Set<(message: unknown) => void>();
+  const postMessage = vi.fn();
+  window.spi = {
+    proof: false,
+    openExternal: vi.fn(),
+    postMessage,
+    onMessage: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+  watchStore.setState({ snapshot: null });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const receive = async (message: unknown) =>
+    act(async () => {
+      for (const listener of listeners) listener(message);
+    });
+  try {
+    await act(async () => root.render(createElement(Shell)));
+    await receive(event("view.snapshot", testSnapshot({ cursor: 12 })));
+    const mountedView = container.querySelector("main h1");
+    expect(mountedView).not.toBeNull();
+    await receive(event("host.hello", { pid: 456 }));
+    expect(postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: "view.subscribe", payload: { fromCursor: 12 } }),
+    );
+    expect(watchStore.getState().snapshot?.cursor).toBe(12);
+    expect(container.querySelector("main h1")).toBe(mountedView);
+    await receive({
+      version: PROTOCOL_VERSION,
+      id: "host-supervisor",
+      kind: "response",
+      type: "error",
+      payload: {
+        code: "host_unavailable",
+        message: "Host stopped after repeated crashes. Restart SPI Code to reconnect.",
+      },
+    });
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      "Host stopped after repeated crashes. Restart SPI Code to reconnect.",
+    );
+    expect(watchStore.getState().snapshot?.cursor).toBe(12);
+    expect(container.querySelector("main h1")).toBe(mountedView);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    watchStore.setState(previousState);
+    window.spi = previous;
+  }
 });
 
 it("keeps the latest cursorless sweep and setup states independently of snapshots", () => {

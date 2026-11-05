@@ -85,6 +85,8 @@ export function createWatchStore(
       const parsed = parseMessage(input);
       if (!parsed.ok) throw new Error("Invalid host message");
       const message = parsed.message;
+      if (message.type === "error" && message.payload.code === "host_unavailable")
+        throw new Error(message.payload.message);
       if (message.type === "view.snapshot") {
         const payload = message.payload;
         const last = get().snapshot;

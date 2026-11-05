@@ -14,6 +14,7 @@ import {
   BrowserWindow,
   ipcMain,
   MessageChannelMain,
+  type MessagePortMain,
   shell,
   type UtilityProcess,
   utilityProcess,
@@ -22,6 +23,7 @@ import { externalLinkHandlers } from "./external-links.js";
 import { hostLaunch } from "./host-launch.js";
 import { smokeMessages } from "./smoke-messages.js";
 import { assertSmokeReport, assertSmokeTools, type SmokeReport } from "./smoke-report.js";
+import { HostSupervisor } from "./supervisor.js";
 
 const smoke = process.argv.includes("--smoke");
 const liveFlag = process.argv.indexOf("--live-report");
@@ -40,6 +42,9 @@ const windowEntry = app.isPackaged
   ? join(app.getAppPath(), "apps/window/build/index.html")
   : fileURLToPath(new URL("../../window/build/index.html", import.meta.url));
 let child: UtilityProcess | undefined;
+let supervisor: HostSupervisor<UtilityProcess> | undefined;
+let hostFailure: Extract<Message, { type: "error" }> | undefined;
+let failurePort: MessagePortMain | undefined;
 let stopping = false;
 let failing = false;
 
@@ -95,6 +100,10 @@ function listenersOf(pid: number): string[] {
 }
 
 async function stopHost(): Promise<void> {
+  if (supervisor) {
+    await supervisor.stop();
+    return;
+  }
   if (!child) return;
   stopping = true;
   const exited = once(child, "exit");
@@ -104,32 +113,60 @@ async function stopHost(): Promise<void> {
   stopping = false;
 }
 
-async function startHost(window: BrowserWindow, args: string[]): Promise<number> {
+function forkHost(args: string[]): UtilityProcess {
   const launch = hostLaunch(app.isPackaged, smoke, liveFlag >= 0, process.env);
-  child = utilityProcess.fork(hostEntry, [...args, ...launch.args], {
+  const host = utilityProcess.fork(hostEntry, [...args, ...launch.args], {
     env: launch.env,
     serviceName: "SPI Code host",
     stdio: "pipe",
   });
-  child.stderr?.on("data", (data: Buffer) => process.stderr.write(data));
-  child.stdout?.on("data", (data: Buffer) => process.stdout.write(data));
-  child.on("exit", (code) => {
+  child = host;
+  host.stderr?.on("data", (data: Buffer) => process.stderr.write(data));
+  host.stdout?.on("data", (data: Buffer) => process.stdout.write(data));
+  host.once("exit", () => {
+    if (child === host) child = undefined;
+  });
+  return host;
+}
+
+async function startHost(window: BrowserWindow, args: string[]): Promise<number> {
+  const host = forkHost(args);
+  host.on("exit", (code) => {
     if (!stopping) fail(new Error(`Host exited unexpectedly (${code})`));
   });
-  await once(child, "spawn");
-  const pid = child.pid;
+  await once(host, "spawn");
+  const pid = host.pid;
   assert(pid, "Host has no pid");
-  transferHostPort(window, child);
+  transferHostPort(window, host);
   return pid;
 }
 
 function transferHostPort(window: BrowserWindow, host: UtilityProcess): void {
+  failurePort?.close();
+  failurePort = undefined;
   const { port1, port2 } = new MessageChannelMain();
   host.postMessage(
     { version: PROTOCOL_VERSION, id: "connect", kind: "request", type: "ping", payload: {} },
     [port2],
   );
   window.webContents.postMessage("host:port", null, [port1]);
+}
+
+function transferHostFailure(window: BrowserWindow, message: Extract<Message, { type: "error" }>) {
+  failurePort?.close();
+  const { port1, port2 } = new MessageChannelMain();
+  failurePort = port2;
+  port2.on("message", ({ data }: { data: unknown }) => {
+    const parsed = parseMessage(data);
+    if (!parsed.ok) {
+      console.warn("Rejected invalid message on the stopped-host port");
+      return;
+    }
+    if (parsed.message.kind === "request") port2.postMessage({ ...message, id: parsed.message.id });
+  });
+  port2.start();
+  window.webContents.postMessage("host:port", null, [port1]);
+  port2.postMessage(message);
 }
 
 async function run(): Promise<void> {
@@ -171,6 +208,7 @@ async function run(): Promise<void> {
   window.webContents.on("will-navigate", (event) => event.preventDefault());
   window.webContents.on("did-finish-load", () => {
     if (child) transferHostPort(window, child);
+    else if (hostFailure) transferHostFailure(window, hostFailure);
   });
   const messages = smokeMessages();
   const wait = messages.wait;
@@ -217,7 +255,17 @@ async function run(): Promise<void> {
   await window.loadFile(windowEntry);
   const storePath = join(dataDir, "runs.sqlite");
   if (!smoke) {
-    await startHost(window, [storePath]);
+    supervisor = new HostSupervisor({
+      spawn: () => forkHost([storePath]),
+      onSpawn: (host) => {
+        if (!window.isDestroyed()) transferHostPort(window, host);
+      },
+      onGiveUp: (message) => {
+        hostFailure = message;
+        if (!window.isDestroyed()) transferHostFailure(window, message);
+      },
+    });
+    supervisor.start();
     return;
   }
   const rowId = randomUUID();
@@ -302,7 +350,9 @@ async function run(): Promise<void> {
 app.on("window-all-closed", () => app.quit());
 app.on("will-quit", () => {
   stopping = true;
-  child?.kill();
+  failurePort?.close();
+  if (supervisor) void supervisor.stop().catch(console.error);
+  else child?.kill();
 });
 if (proof)
   setTimeout(
