@@ -4,11 +4,13 @@
 import { afterEach, describe, expect, test } from "vitest";
 import { buildBriefing } from "../src/brief/index";
 import { nextWhy, upstreamPrs, watchText } from "../src/brief/rollout";
+import { createContext } from "../src/context";
 import type { Facts } from "../src/facts";
 import { buildModel } from "../src/model/index";
 import { upstreamOpens } from "../src/model/rollout";
-import { parseRollout, useRollout } from "../src/rollout";
+import { parseRollout } from "../src/rollout";
 import { plural } from "../src/util";
+import { fixtureContext } from "./briefing-setup";
 import {
   doneFacts,
   environmentFacts,
@@ -22,22 +24,25 @@ import {
   stoppedFacts,
 } from "./flow-states";
 import { FIXTURE_NOW, fixtureFacts } from "./harness";
-import "./briefing-setup";
 
-afterEach(() => useRollout(undefined));
+let context = fixtureContext;
+afterEach(() => {
+  context = fixtureContext;
+});
 
 describe("a change only on main", () => {
   test("raises a P1 Rollout item with the plan, the reach and the schedule", () => {
-    useRollout(
-      parseRollout(
+    context = createContext({
+      ...fixtureContext,
+      rollout: parseRollout(
         JSON.stringify({
           schema: 1,
           lanes: 2,
           ordering: [{ service: "file", after: ["legal", "schema"] }],
         }),
       ).rollout,
-    );
-    const m = buildModel(readyFacts(), FIXTURE_NOW);
+    });
+    const m = buildModel(readyFacts(), FIXTURE_NOW, {}, context);
     expect(m.rollout).toMatchObject({ phase: "ready", next: "start", total: 5, merged: 0 });
     const item = m.queue.items.find((i) => i.id === "rollout");
     expect(item).toMatchObject({ rung: 1, cls: "ROLLOUT", scope: "fleet" });
@@ -57,7 +62,7 @@ describe("a main run that fails after its merge", () => {
   test("an Environment title on a second attempt stops the line", () => {
     const f = settled(fixtureFacts());
     merged(f, "partition", { conclusion: "failure", attempt: 2, jobs: [job(["timeout"], 2)] });
-    expect(buildModel(f, FIXTURE_NOW).rollout?.phase).toBe("stopped");
+    expect(buildModel(f, FIXTURE_NOW, {}, context).rollout?.phase).toBe("stopped");
   });
 });
 
@@ -71,7 +76,7 @@ describe("every fork on the change", () => {
   }
 
   test("a day after the last merge the item leaves the queue", () => {
-    expect(buildModel(done(25 * 60), FIXTURE_NOW).rollout).toBeUndefined();
+    expect(buildModel(done(25 * 60), FIXTURE_NOW, {}, context).rollout).toBeUndefined();
   });
 });
 
@@ -87,9 +92,12 @@ describe("the rollout file's ordering", () => {
 
 describe("the states dev/states.ts replays", () => {
   test("each lands in the phase and next press it is named for", () => {
-    useRollout({ lanes: 2, ordering: [{ service: "file", after: ["legal", "schema"] }] });
+    context = createContext({
+      ...fixtureContext,
+      rollout: { lanes: 2, ordering: [{ service: "file", after: ["legal", "schema"] }] },
+    });
     const phase = (f: Facts) => {
-      const r = buildModel(f, FIXTURE_NOW).rollout;
+      const r = buildModel(f, FIXTURE_NOW, {}, context).rollout;
       return [r?.phase, r?.next];
     };
     expect(phase(readyFacts())).toEqual(["ready", "start"]);
@@ -105,7 +113,7 @@ describe("a held environment", () => {
   test("an approved PR waits on the environment, not on the next press", () => {
     const f = heldFacts();
     ready(f, "legal");
-    const m = buildModel(f, FIXTURE_NOW);
+    const m = buildModel(f, FIXTURE_NOW, {}, context);
     expect(m.rollout?.next).toBe("env");
     expect(m.rollout?.forks.find((x) => x.service === "legal")?.merge).toMatchObject({
       text: "env",
@@ -116,7 +124,7 @@ describe("a held environment", () => {
 
 describe("the words around a rollout", () => {
   test("an upstream sync that only halts says so instead of nothing queued", () => {
-    const r = buildModel(readyFacts(), FIXTURE_NOW).rollout as NonNullable<
+    const r = buildModel(readyFacts(), FIXTURE_NOW, {}, context).rollout as NonNullable<
       ReturnType<typeof buildModel>["rollout"]
     >;
     const only = {
@@ -135,7 +143,7 @@ describe("the words around a rollout", () => {
   });
 
   test("a sync is filtered-only by its queued commits, not by open upstream MRs", () => {
-    const m = buildModel(readyFacts(), FIXTURE_NOW);
+    const m = buildModel(readyFacts(), FIXTURE_NOW, {}, context);
     const line = m.lines.find((l) => l.fork.id === "legal");
     if (!line) throw new Error("legal line");
     const filtered = { bucket: "Filtered" as const, paths: ["docs/a.md"] };
@@ -154,7 +162,8 @@ describe("the words around a rollout", () => {
 
   test("the rollout's fingerprint tells an owed re-run from an unjudged environment failure", () => {
     const inputs = (f: Facts) =>
-      buildModel(f, FIXTURE_NOW).queue.items.find((i) => i.id === "rollout")?.inputs ?? [];
+      buildModel(f, FIXTURE_NOW, {}, context).queue.items.find((i) => i.id === "rollout")?.inputs ??
+      [];
     const owed = inputs(environmentFacts()).find((x) => x.startsWith("partition:"));
     const unjudged = inputs(heldFacts()).find((x) => x.startsWith("entitlements:"));
     expect(owed).toContain(":rerun");
@@ -163,7 +172,7 @@ describe("the words around a rollout", () => {
   });
 
   test("the upstream sync counts only the forks it opens a PR on", () => {
-    const r = buildModel(readyFacts(), FIXTURE_NOW).rollout;
+    const r = buildModel(readyFacts(), FIXTURE_NOW, {}, context).rollout;
     expect(r?.schedule).toMatchObject({ upstreamHalts: ["entitlements"] });
     expect(upstreamPrs(r as NonNullable<typeof r>)).toBe(
       `${plural(r?.schedule.upstreamForks ?? 0, "PR")} (entitlements halts instead)`,
@@ -171,14 +180,14 @@ describe("the words around a rollout", () => {
   });
 
   test("the evidence leads with main's sha and how far the forks trail it", () => {
-    const m = buildModel(readyFacts(), FIXTURE_NOW);
+    const m = buildModel(readyFacts(), FIXTURE_NOW, {}, context);
     const b = buildBriefing(m, { state: "clear", problems: [] }, FIXTURE_NOW);
     const evidence = b.focus.find((f) => f.id === "rollout")?.evidence.map((e) => e.label);
     expect(evidence?.slice(0, 2)).toEqual(["main c0de000", "forks on ea9a2e1"]);
   });
 
   test("a fork whose name ends in s takes a bare apostrophe", () => {
-    const m = buildModel(stoppedFacts(), FIXTURE_NOW);
+    const m = buildModel(stoppedFacts(), FIXTURE_NOW, {}, context);
     expect(nextWhy(m.rollout as NonNullable<typeof m.rollout>)).toMatch(
       /^entitlements' main run failed after its merge\./,
     );

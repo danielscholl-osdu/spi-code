@@ -53,13 +53,13 @@ export interface TemplateMerged {
 
 // What a template change does to a fork, read from the synced paths it touches.
 export type Consequence = "images" | "actions" | "workflows" | "settings" | "fork resources";
-const CONSEQUENCE_ORDER: Consequence[] = [
+const CONSEQUENCE_ORDER: ReadonlyArray<Consequence> = Object.freeze([
   "images",
   "actions",
   "workflows",
   "settings",
   "fork resources",
-];
+]);
 
 // One step of the template's history: the changes from the next older fork
 // position up to this one, and how far across the fleet they have spread.

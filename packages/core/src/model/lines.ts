@@ -71,7 +71,7 @@ export interface Pill {
   tone: CanvasTone;
 }
 
-const TONE: Record<PillKind, CanvasTone> = {
+const TONE: Readonly<Record<PillKind, CanvasTone>> = Object.freeze({
   broken: "error",
   halted: "error",
   blocked: "warn",
@@ -79,7 +79,7 @@ const TONE: Record<PillKind, CanvasTone> = {
   waiting: "info",
   unmeasured: "neutral",
   current: "ok",
-};
+});
 
 function pillOf(label: string, kind: PillKind, tone: CanvasTone = TONE[kind]): Pill {
   return { label, kind, tone };
@@ -139,7 +139,7 @@ export interface LineModel {
   history?: LineHistory;
 }
 
-const CASCADE_STOP = ["cascade-failed", "cascade-blocked", "conflict", "validation-failed"];
+const CASCADE_STOP = Object.freeze(["cascade-failed", "cascade-blocked", "conflict", "validation-failed"]);
 
 // Sync Template runs daily, so a delivery older than one and a half days is stale.
 const STALE_MS = 36 * 3_600_000;

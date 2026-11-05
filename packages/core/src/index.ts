@@ -3,6 +3,9 @@
 
 export * from "./facts.js";
 export * from "./config.js";
+export * from "./context.js";
+export * from "./clock.js";
+export * from "./environment.js";
 export * from "./util.js";
 export * from "./rollout.js";
 export * from "./tone.js";

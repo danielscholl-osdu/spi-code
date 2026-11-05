@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { FORKS } from "../config.js";
+import { type CoreContext, defaultContext } from "../context.js";
 import type { DiffFact, LibraryPins, MrFact, RadarFacts } from "../facts.js";
 import { type FilterMap, parseFilter, type UpstreamFilter } from "./filter.js";
 import type { LineModel } from "./lines.js";
@@ -112,12 +112,12 @@ export interface Prediction {
   ports?: PortLedger;
 }
 
-const MAP_CODE: Record<FilterMap, HaltCode> = {
+const MAP_CODE: Readonly<Record<FilterMap, HaltCode>> = Object.freeze({
   top_level: "UNKNOWN_TOP_LEVEL",
   testing: "UNKNOWN_TESTING_ENTRY",
   profiles: "UNKNOWN_PROFILE",
   fossa_modules: "UNKNOWN_FOSSA_MODULE",
-};
+});
 
 function escapeRe(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -149,14 +149,14 @@ export function classifyPath(filter: UpstreamFilter, path: string): PathVerdict 
   return byMap(filter, "top_level", top);
 }
 
-const TOOLCHAIN_RULES: [RegExp, (m: RegExpExecArray) => string][] = [
-  [/<java\.version>\s*(\d+)\s*</, (m) => `Java ${m[1]}`],
-  [/<maven\.compiler\.release>\s*(\d+)\s*</, (m) => `Java ${m[1]}`],
-  [/<os-core-common\.version>\s*([^<\s]+)\s*</, (m) => `os-core-common ${m[1]}`],
+const TOOLCHAIN_RULES: ReadonlyArray<[RegExp, (m: RegExpExecArray) => string]> = Object.freeze([
+  [/<java\.version>\s*(\d+)\s*</, (m: RegExpExecArray) => `Java ${m[1]}`],
+  [/<maven\.compiler\.release>\s*(\d+)\s*</, (m: RegExpExecArray) => `Java ${m[1]}`],
+  [/<os-core-common\.version>\s*([^<\s]+)\s*</, (m: RegExpExecArray) => `os-core-common ${m[1]}`],
   // The enforcer's Java range, as in <version>[25,)</version> under RequireJavaVersion.
-  [/<version>\s*\[(\d+),/, (m) => `Java ${m[1]}`],
+  [/<version>\s*\[(\d+),/, (m: RegExpExecArray) => `Java ${m[1]}`],
   [/RequireJavaVersion|requireJavaVersion/, () => "Java enforcer rule"],
-];
+]);
 
 export function toolchainValues(lines: readonly string[] | undefined): string[] {
   const found: string[] = [];
@@ -234,7 +234,7 @@ export function diffVerdicts(
   return out;
 }
 
-const BUCKET_ORDER: Bucket[] = ["Halt", "Toolchain", "Port", "Interface", "Shared", "Filtered"];
+const BUCKET_ORDER: ReadonlyArray<Bucket> = Object.freeze(["Halt", "Toolchain", "Port", "Interface", "Shared", "Filtered"]);
 
 function gather(
   filter: UpstreamFilter,
@@ -331,13 +331,13 @@ export function predict(
   };
 }
 
-export function predictAll(radar: RadarFacts | undefined): Record<string, Prediction> {
+export function predictAll(radar: RadarFacts | undefined, context: CoreContext = defaultContext): Record<string, Prediction> {
   const out: Record<string, Prediction> = {};
   if (!radar) return out;
   const filters = Object.fromEntries(
     Object.entries(radar.filters).map(([svc, f]) => [svc, parseFilter(f.text)]),
   );
-  for (const fork of FORKS) {
+  for (const fork of context.fleet.forks) {
     const p = predict(radar.services[fork.id], radar.filters[fork.id]);
     if (!p) continue;
     for (const v of [...p.certain, ...p.possible]) {
@@ -354,7 +354,7 @@ export function predictAll(radar: RadarFacts | undefined): Record<string, Predic
   return out;
 }
 
-const BREAKS = new Set<Bucket>(["Halt", "Toolchain"]);
+const BREAKS: ReadonlySet<string> = new Set<Bucket>(["Halt", "Toolchain"]);
 
 export function radarState(p: Prediction | undefined, line: LineModel | undefined): RadarState {
   if (!p) return "unmeasured";

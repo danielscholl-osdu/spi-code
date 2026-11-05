@@ -416,7 +416,7 @@ export interface Facts {
   sweep?: { at: string; ms: number; calls: number; errors: number };
 }
 
-export const AREAS = [
+export const AREAS = Object.freeze([
   "fleet",
   "github",
   "runs",
@@ -428,7 +428,7 @@ export const AREAS = [
   "template",
   "auth",
   "security",
-] as const;
+] as const);
 export type AreaName = (typeof AREAS)[number];
 
 export function emptyFacts(): Facts {

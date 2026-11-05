@@ -7,7 +7,8 @@ import {
   type ReleaseFact,
   type ReleaseReads,
 } from "../releases.js";
-import { CORE_LIB_REPO, FORKS, RELEASE_REPOS, STACK_REPO, TEMPLATE_REPO } from "../config.js";
+import { CORE_LIB_REPO, STACK_REPO, TEMPLATE_REPO } from "../config.js";
+import { type CoreContext, defaultContext } from "../context.js";
 
 export type ComponentKind = "template" | "stack" | "library" | "service";
 export type ChangeType = "breaking" | "new" | "improved" | "fixed" | "security";
@@ -59,7 +60,7 @@ export interface MonthFacts {
   unread: string[];
 }
 
-const MONTHS = [
+const MONTHS = Object.freeze([
   "January",
   "February",
   "March",
@@ -72,22 +73,22 @@ const MONTHS = [
   "October",
   "November",
   "December",
-];
+]);
 
-const KIND_OF: Record<string, ComponentKind> = {
+const KIND_OF: Readonly<Record<string, ComponentKind>> = Object.freeze({
   [TEMPLATE_REPO]: "template",
   [STACK_REPO]: "stack",
   [CORE_LIB_REPO]: "library",
-};
+});
 
-const ID_OF: Record<string, string> = {
+const ID_OF: Readonly<Record<string, string>> = Object.freeze({
   [TEMPLATE_REPO]: "spi-template",
   [STACK_REPO]: "spi-stack",
   [CORE_LIB_REPO]: "core-lib-azure",
-};
+});
 
-export function componentId(repo: string): string {
-  return ID_OF[repo] ?? FORKS.find((f) => f.repo === repo)?.id ?? repo;
+export function componentId(repo: string, context: CoreContext = defaultContext): string {
+  return ID_OF[repo] ?? context.fleet.forks.find((f) => f.repo === repo)?.id ?? repo;
 }
 
 function kindOf(repo: string): ComponentKind {
@@ -128,21 +129,21 @@ export function releaseMonths(reads: ReleaseReads, now: Date): string[] {
   return [...set].sort().reverse();
 }
 
-const SECTION_TYPE: Array<[RegExp, ChangeType | undefined]> = [
+const SECTION_TYPE: ReadonlyArray<[RegExp, ChangeType | undefined]> = Object.freeze([
   [/breaking/i, "breaking"],
   [/feature/i, "new"],
   [/bug ?fix/i, "fixed"],
   [/performance/i, "improved"],
   [/security/i, "security"],
-];
+]);
 
-const NOISE = [
+const NOISE = Object.freeze([
   /^sync (upstream|template)/i,
   /^generate filtered upstream tree/i,
   /^stamp fork-owned/i,
   /^release\b/i,
   /^initial code$/i,
-];
+]);
 
 const SECURITY = /\bCVEs?\b|vulnerab|advisor(y|ies)|managed identity|\bsecurity\b/i;
 const IMPROVED = /^(improve|upgrade|update|switch|move|speed|reduce|enhance|simplif)/i;
@@ -217,7 +218,8 @@ function firstLine(c: Component, tag: string): string {
   return `First ${c.id} release (${tag})`;
 }
 
-export function monthFacts(reads: ReleaseReads, month: string, now: Date): MonthFacts {
+export function monthFacts(reads: ReleaseReads, month: string, now: Date, context: CoreContext = defaultContext): MonthFacts {
+  const { forks: FORKS, releaseRepos: RELEASE_REPOS } = context.fleet;
   const { start, end } = bounds(month);
   const open = now.getTime() < end.getTime();
   const last = new Date(Math.min(now.getTime(), end.getTime() - 1));
@@ -238,7 +240,7 @@ export function monthFacts(reads: ReleaseReads, month: string, now: Date): Month
     const latest = upTo[0];
     const kind = kindOf(repo);
     const c: Component = {
-      id: componentId(repo),
+      id: componentId(repo, context),
       repo,
       kind,
       count: within.length,
@@ -285,7 +287,7 @@ export function monthFacts(reads: ReleaseReads, month: string, now: Date): Month
     libs.set(v, [...(libs.get(v) ?? []), s.id]);
   }
   const unread = RELEASE_REPOS.filter((r) => reads.errors[r] || !reads.releases[r]).map(
-    componentId,
+    (repo) => componentId(repo, context),
   );
   const partial = components.some((c) => c.unread);
   const stack = components.find((c) => c.kind === "stack")?.to;

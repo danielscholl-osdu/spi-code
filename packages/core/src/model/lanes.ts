@@ -1,9 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { FORKS, LANES_OVERRIDE } from "../config.js";
+import { type CoreContext, defaultContext } from "../context.js";
 import type { ForkRuns, RepoFact } from "../facts.js";
-import { activeRollout } from "../rollout.js";
 import { latestChecks } from "./checks.js";
 
 // The workflow whose PR and main runs borrow the shared environment.
@@ -27,9 +26,10 @@ export interface LaneLoad {
   claims?: LaneInFlight[];
 }
 
-export function laneCap(): Pick<LaneLoad, "cap" | "capFrom"> {
-  if (LANES_OVERRIDE) return { cap: LANES_OVERRIDE, capFrom: "RIB_SPI_LANES" };
-  const lanes = activeRollout()?.lanes;
+export function laneCap(context: CoreContext = defaultContext): Pick<LaneLoad, "cap" | "capFrom"> {
+  const override = context.paths.lanesOverride;
+  if (override) return { cap: override, capFrom: "RIB_SPI_LANES" };
+  const lanes = context.rollout?.lanes;
   return lanes ? { cap: lanes, capFrom: "rollout" } : { cap: null };
 }
 
@@ -42,10 +42,10 @@ export function laneLoad(input: {
   prsRead: boolean;
   dispatched?: Record<string, string>;
   pressed?: Record<string, string>;
-}): LaneLoad {
+}, context: CoreContext = defaultContext): LaneLoad {
   const inflight: LaneInFlight[] = [];
   const claims: LaneInFlight[] = [];
-  for (const fork of FORKS) {
+  for (const fork of context.fleet.forks) {
     const runs = input.runs?.[fork.repo];
     // fork_upstream builds core only and never borrows the environment.
     const pending = (input.repos[fork.repo]?.prs ?? []).find(
@@ -70,7 +70,7 @@ export function laneLoad(input: {
     }
   }
   const unread = !input.runs ? "fork workflow runs" : !input.prsRead ? "PR checks" : undefined;
-  return { ...laneCap(), inflight, claims, ...(unread ? { unread } : {}) };
+  return { ...laneCap(context), inflight, claims, ...(unread ? { unread } : {}) };
 }
 
 // How many more forks a press may start, once every running cascade has taken the lane its

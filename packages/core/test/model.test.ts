@@ -1,7 +1,6 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import "./model-fleet";
 import { describe, expect, test } from "vitest";
 import { emptyFacts } from "../src/facts";
 import { classOf } from "../src/model/attribution";
@@ -9,10 +8,11 @@ import { buildModel } from "../src/model/index";
 import { nextText, verbOf } from "../src/model/next";
 import { consequenceOf } from "../src/model/template";
 import { FIXTURE_NOW, fixtureFacts } from "./harness";
+import { fixtureContext } from "./model-fleet";
 
 // The fixture is a real sweep from 12 October: the v0.28.1 upgrade failed on a
 // GitLab outage, maintenance stayed set, and a v0.28.2 upgrade was in flight.
-const model = buildModel(fixtureFacts(), FIXTURE_NOW);
+const model = buildModel(fixtureFacts(), FIXTURE_NOW, {}, fixtureContext);
 
 describe("the fleet on 12 October", () => {
   test("a failed Sync Upstream reads as a P0 only once the fork's issues were read", () => {
@@ -20,7 +20,8 @@ describe("the fleet on 12 October", () => {
     const ent = f.github.data?.repos["Azure/osdu-spi-entitlements"];
     if (!ent) throw new Error("fixture has entitlements");
     ent.issues = ent.issues.filter((i) => !i.labels.includes("sync-failed"));
-    const ids = (facts: typeof f) => buildModel(facts, FIXTURE_NOW).queue.items.map((i) => i.id);
+    const ids = (facts: typeof f) =>
+      buildModel(facts, FIXTURE_NOW, {}, fixtureContext).queue.items.map((i) => i.id);
     expect(ids(f)).toContain("sync-run:entitlements");
     const dark = fixtureFacts();
     dark.github = { error: "gh api graphql: HTTP 502" };
@@ -96,7 +97,9 @@ describe("the fleet on 12 October", () => {
       failedStep: "Run Java Build",
       reason: raw,
     };
-    const item = buildModel(f, FIXTURE_NOW).queue.items.find((i) => i.kind === "release-red");
+    const item = buildModel(f, FIXTURE_NOW, {}, fixtureContext).queue.items.find(
+      (i) => i.kind === "release-red",
+    );
     expect(item?.text).toBe(
       "release PR #248 fails Java Build: 24 errors in CompoundWGS84TransformTests",
     );
@@ -122,9 +125,10 @@ describe("the fleet on 12 October", () => {
     );
     if (!release) throw new Error("fixture has the template release PR");
     release.reviewDecision = "APPROVED";
-    expect(buildModel(f, FIXTURE_NOW).queue.items.find((i) => i.id === "releases")?.text).toBe(
-      "1 release PR · osdu-spi v1.2.1 · ready",
-    );
+    expect(
+      buildModel(f, FIXTURE_NOW, {}, fixtureContext).queue.items.find((i) => i.id === "releases")
+        ?.text,
+    ).toBe("1 release PR · osdu-spi v1.2.1 · ready");
   });
 
   test("template-sync PRs at main read as one rollout, held by the stack", () => {
@@ -150,7 +154,7 @@ describe("the fleet on 12 October", () => {
       refresh: lc.refresh.filter((r) => Date.parse(r.createdAt) < cut),
       upgrade: lc.upgrade.filter((r) => Date.parse(r.createdAt) < cut),
     };
-    const items = buildModel(f, FIXTURE_NOW).queue.items;
+    const items = buildModel(f, FIXTURE_NOW, {}, fixtureContext).queue.items;
     const lanes = items.find((i) => i.id === "stack:lanes");
     expect(lanes?.text).toBe("deployable again; 5 fork lanes failed before it recovered");
     expect(lanes?.note).toBe("re-run now");
@@ -231,7 +235,9 @@ describe("the fleet on 12 October", () => {
     const template = f.github.data?.repos["Azure/osdu-spi"];
     if (!template) throw new Error("fixture has the template");
     template.prs = template.prs.filter((p) => !p.head.startsWith("release-please--"));
-    const line = buildModel(f, FIXTURE_NOW).lines.find((l) => l.fork.id === "partition");
+    const line = buildModel(f, FIXTURE_NOW, {}, fixtureContext).lines.find(
+      (l) => l.fork.id === "partition",
+    );
     expect(line?.template).toMatchObject({ label: "v1.2.0", target: "v1.2.0 +14" });
   });
 
@@ -244,7 +250,9 @@ describe("the fleet on 12 October", () => {
     repo.marker = head;
     repo.prs = repo.prs.filter((p) => !p.head.startsWith("template-sync/"));
     compares[head] = { marker: head, head, label: "v1.2.0 +14", aheadBy: 0, shas: [], changes: [] };
-    const line = buildModel(f, FIXTURE_NOW).lines.find((l) => l.fork.id === "file");
+    const line = buildModel(f, FIXTURE_NOW, {}, fixtureContext).lines.find(
+      (l) => l.fork.id === "file",
+    );
     expect(line?.template.label).toBe("v1.2.0 +14");
     expect(line?.pill.kind).toBe("current");
   });
@@ -254,7 +262,9 @@ describe("the fleet on 12 October", () => {
     const runs = f.runs.data?.["Azure/osdu-spi-partition"];
     if (!runs?.template[0]) throw new Error("fixture has partition template runs");
     runs.template[0] = { ...runs.template[0], conclusion: "failure" };
-    const line = buildModel(f, FIXTURE_NOW).lines.find((l) => l.fork.id === "partition");
+    const line = buildModel(f, FIXTURE_NOW, {}, fixtureContext).lines.find(
+      (l) => l.fork.id === "partition",
+    );
     expect(line?.pill).toEqual({ label: "template halted", kind: "halted", tone: "error" });
     expect(line?.why).toBe("Sync Template failed; template changes stop reaching this fork");
   });
@@ -264,7 +274,9 @@ describe("the fleet on 12 October", () => {
     const repo = f.github.data?.repos["Azure/osdu-spi-file"];
     if (!repo) throw new Error("fixture has the file fork");
     repo.prs = repo.prs.filter((p) => !p.head.startsWith("template-sync/"));
-    const line = buildModel(f, FIXTURE_NOW).lines.find((l) => l.fork.id === "file");
+    const line = buildModel(f, FIXTURE_NOW, {}, fixtureContext).lines.find(
+      (l) => l.fork.id === "file",
+    );
     expect(line?.pill.label).toBe("template halted");
     expect(line?.why).toBe("14 template commits behind and no template-sync PR open");
   });
@@ -277,7 +289,9 @@ describe("the fleet on 12 October", () => {
     if (!file || !template?.head) throw new Error("fixture has the file fork and the template");
     file.prs = file.prs.filter((p) => !p.head.startsWith("template-sync/"));
     template.head = { ...template.head, at: "2026-10-12T20:00:00Z" };
-    const line = buildModel(f, FIXTURE_NOW).lines.find((l) => l.fork.id === "file");
+    const line = buildModel(f, FIXTURE_NOW, {}, fixtureContext).lines.find(
+      (l) => l.fork.id === "file",
+    );
     expect(line?.pill).toEqual({ label: "template behind", kind: "waiting", tone: "info" });
     expect(line?.template.awaitingRun).toBe(true);
   });
@@ -287,7 +301,9 @@ describe("the fleet on 12 October", () => {
     const runs = f.runs.data?.["Azure/osdu-spi-entitlements"];
     if (!runs?.main[0]) throw new Error("fixture has entitlements main runs");
     runs.main[0] = { ...runs.main[0], status: "completed", conclusion: "failure" };
-    const line = buildModel(f, FIXTURE_NOW).lines.find((l) => l.fork.id === "entitlements");
+    const line = buildModel(f, FIXTURE_NOW, {}, fixtureContext).lines.find(
+      (l) => l.fork.id === "entitlements",
+    );
     expect(line?.pill).toEqual({ label: "main red", kind: "broken", tone: "error" });
   });
 
@@ -300,7 +316,7 @@ describe("the fleet on 12 October", () => {
 
 describe("before the first sweep", () => {
   test("nothing is measured and nothing is queued", () => {
-    const empty = buildModel(emptyFacts(), FIXTURE_NOW);
+    const empty = buildModel(emptyFacts(), FIXTURE_NOW, {}, fixtureContext);
     expect(empty.measured).toBe(false);
     expect(empty.queue.items.filter((i) => i.rung < 2)).toHaveLength(0);
     expect(empty.lines.every((l) => l.upstream?.lag === undefined)).toBe(true);
@@ -348,10 +364,10 @@ function withDescriptorPr(f = fixtureFacts()) {
 }
 
 describe("a Borrow 401 on the fork's own image", () => {
-  const items = buildModel(withDescriptorPr(), FIXTURE_NOW).queue.items;
+  const items = buildModel(withDescriptorPr(), FIXTURE_NOW, {}, fixtureContext).queue.items;
 
   test("attributes to the fork as ACCESS, not ENV", () => {
-    const m = buildModel(withDescriptorPr(), FIXTURE_NOW);
+    const m = buildModel(withDescriptorPr(), FIXTURE_NOW, {}, fixtureContext);
     const pr = m.lines.find((l) => l.fork.id === "partition")?.prs.find((p) => p.pr.number === 175);
     expect(pr?.failures.map((f) => [f.cls, f.step, f.reason])).toEqual([
       ["ACCESS", "Borrow", "cannot pull ghcr.io/azure/osdu-spi-partition: 401"],
@@ -389,7 +405,7 @@ describe("a Borrow 401 on the fork's own image", () => {
       refresh: lc.refresh.filter((r) => Date.parse(r.createdAt) < cut),
       upgrade: lc.upgrade.filter((r) => Date.parse(r.createdAt) < cut),
     };
-    const after = buildModel(f, FIXTURE_NOW).queue.items;
+    const after = buildModel(f, FIXTURE_NOW, {}, fixtureContext).queue.items;
     const lanes = after.find((i) => i.id === "stack:lanes");
     expect(lanes?.text).toBe("deployable again; 5 fork lanes failed before it recovered");
     expect(lanes?.effects.some((e) => e.text.includes("#175"))).toBe(false);
@@ -458,7 +474,7 @@ function skippedRun(
 describe("main reads only from a run whose Java Build ran", () => {
   const PARTITION = "Azure/osdu-spi-partition";
   const partition = (f: ReturnType<typeof fixtureFacts>) => {
-    const m = buildModel(f, FIXTURE_NOW);
+    const m = buildModel(f, FIXTURE_NOW, {}, fixtureContext);
     return { m, line: m.lines.find((l) => l.fork.id === "partition") };
   };
   const station = (line: ReturnType<typeof partition>["line"]) =>

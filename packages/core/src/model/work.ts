@@ -1,14 +1,15 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { FORKS, STACK_REPO, TEMPLATE_REPO } from "../config.js";
+import { STACK_REPO, TEMPLATE_REPO } from "../config.js";
+import { type CoreContext, defaultContext } from "../context.js";
 import type { IssueFact, PrFact, RepoFact } from "../facts.js";
 import { classifyPr, type PrClass } from "./attribution.js";
 
 export type PrKind = "people" | "bots" | "pipeline";
 export type IssueKind = "bug" | "enhancement" | "other" | "automation";
 
-const PR_KIND: Record<PrClass, PrKind> = {
+const PR_KIND: Readonly<Record<PrClass, PrKind>> = Object.freeze({
   sync: "pipeline",
   cascade: "pipeline",
   template: "pipeline",
@@ -17,18 +18,18 @@ const PR_KIND: Record<PrClass, PrKind> = {
   dependabot: "bots",
   agent: "people",
   human: "people",
-};
+});
 
-const INSIDERS = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
+const INSIDERS: ReadonlySet<string> = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
 
 // Labels the sync engine and cascade put on the issues they open.
-const AUTOMATION_LABELS = [
+const AUTOMATION_LABELS = Object.freeze([
   "sync-failed",
   "upstream-sync",
   "conflict",
   "cascade-blocked",
   "cascade-failed",
-];
+]);
 
 // The template's label for an issue that waits on a person's action or approval.
 export const HUMAN_LABEL = "human-required";
@@ -97,10 +98,10 @@ export interface WorkModel {
 }
 
 // Every open PR and issue on every repository, whether or not it sits on a line.
-export function buildWork(repos: Record<string, RepoFact>): WorkModel {
+export function buildWork(repos: Record<string, RepoFact>, context: CoreContext = defaultContext): WorkModel {
   return {
     template: workRow(TEMPLATE_REPO, "osdu-spi", repos[TEMPLATE_REPO]),
     stack: workRow(STACK_REPO, "osdu-spi-stack", repos[STACK_REPO]),
-    forks: FORKS.map((f) => workRow(f.repo, f.id, repos[f.repo])),
+    forks: context.fleet.forks.map((f) => workRow(f.repo, f.id, repos[f.repo])),
   };
 }

@@ -9,13 +9,13 @@ export const ROLLOUT_SCHEMA = 1;
 // A fork that merges only once each fork it names has merged and its main run is green.
 export interface OrderRule {
   service: string;
-  after: string[];
+  after: readonly string[];
   reason?: string;
 }
 
 export interface Rollout {
   lanes?: number;
-  ordering?: OrderRule[];
+  ordering?: readonly OrderRule[];
 }
 
 function orderingOf(raw: unknown): { ordering?: OrderRule[]; warnings: string[] } {
@@ -81,17 +81,6 @@ export function parseRollout(text: string): ParsedRollout {
     };
   }
   return { rollout: { lanes: doc.lanes, ...ordering }, warnings: order.warnings };
-}
-
-// The rollout file the model reads, set once per sweep beside the fleet list.
-let active: Rollout | undefined;
-
-export function useRollout(rollout: Rollout | undefined): void {
-  active = rollout;
-}
-
-export function activeRollout(): Rollout | undefined {
-  return active;
 }
 
 // The annotation title validate.yml gives its shared-environment timeouts.

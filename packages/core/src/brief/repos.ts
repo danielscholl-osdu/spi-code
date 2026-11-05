@@ -72,24 +72,24 @@ export interface Repositories {
   first?: string;
 }
 
-const OWNER_WORD: Record<Owner, string> = {
+const OWNER_WORD: Readonly<Record<Owner, string>> = Object.freeze({
   spi: "SPI",
   template: "Template",
   upstream: "Upstream",
-};
-const SEVERITY_WORD: Record<Severity, string> = {
+});
+const SEVERITY_WORD: Readonly<Record<Severity, string>> = Object.freeze({
   critical: "Critical",
   high: "High",
   medium: "Medium",
   low: "Low",
-};
-const SEVERITY_TONE: Record<Severity, Tone> = {
+});
+const SEVERITY_TONE: Readonly<Record<Severity, Tone>> = Object.freeze({
   critical: "bad",
   high: "bad",
   medium: "warn",
   low: "neutral",
-};
-const STATE_TONE: Record<PrState, Tone> = {
+});
+const STATE_TONE: Readonly<Record<PrState, Tone>> = Object.freeze({
   draft: "neutral",
   conflicts: "bad",
   red: "bad",
@@ -98,10 +98,10 @@ const STATE_TONE: Record<PrState, Tone> = {
   behind: "neutral",
   running: "neutral",
   ready: "ok",
-};
+});
 
 // How a count of PRs reads in one state.
-const STATE_PHRASE: Record<PrState, string> = {
+const STATE_PHRASE: Readonly<Record<PrState, string>> = Object.freeze({
   draft: "drafts",
   conflicts: "with conflicts",
   red: "with red checks",
@@ -110,7 +110,7 @@ const STATE_PHRASE: Record<PrState, string> = {
   behind: "behind main",
   running: "running checks",
   ready: "ready",
-};
+});
 
 function list(items: readonly string[], max = 3): string {
   if (items.length <= max) {
@@ -143,10 +143,10 @@ function severeCount(g: AlertGroup): number {
 }
 
 // Dependabot alerts are vulnerabilities in a library; code scanning flags the source itself.
-export const KIND_LABEL: Record<AlertGroup["source"], string> = {
+export const KIND_LABEL: Readonly<Record<AlertGroup["source"], string>> = Object.freeze({
   dependabot: "Vulnerabilities",
   code: "Code scanning",
-};
+});
 
 function counted(g: AlertGroup, n = g.count): string {
   return g.source === "dependabot"
@@ -407,7 +407,7 @@ function alertSection(r: RepoRow, source: AlertGroup["source"]): RepoSection | u
   return s ? { ...s, rest: ` · ${inherited.length} upstream`, weight: "quiet" } : undefined;
 }
 
-const REACH_RANK: Record<DependencyPr["reach"], number> = { shipped: 0, tooling: 1, tests: 2 };
+const REACH_RANK: Readonly<Record<DependencyPr["reach"], number>> = Object.freeze({ shipped: 0, tooling: 1, tests: 2 });
 
 function withRest(s: RepoSection | undefined, rest: string | undefined): RepoSection | undefined {
   return s && rest ? { ...s, rest } : s;

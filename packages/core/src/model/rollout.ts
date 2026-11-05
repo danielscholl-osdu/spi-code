@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { forkOf, githubUrl, SYNC_UPSTREAM_CRON, TEMPLATE_REPO } from "../config.js";
+import { type CoreContext, defaultContext } from "../context.js";
 import type { ForkRuns, JobDetail, PastPrFact, RunFact, TemplateChange } from "../facts.js";
 import { type Judgement, judgeRun, type OrderRule } from "../rollout.js";
 import { names, stamp } from "../util.js";
@@ -137,7 +138,7 @@ const MERGE_RUN_MS = 15 * 60_000;
 const STOP_WINDOW_MS = 7 * 86_400_000;
 // A finished rollout stays on the board this long, to offer Fleet Release.
 const DONE_WINDOW_MS = 24 * 3_600_000;
-const BORROWING: Consequence[] = ["images", "actions", "workflows"];
+const BORROWING: ReadonlyArray<Consequence> = Object.freeze(["images", "actions", "workflows"]);
 const VALIDATION = "Validation";
 
 function cell(text: string, tone: CellTone, url?: string, note?: string): Cell {
@@ -323,7 +324,7 @@ export function buildRollout(input: {
   held?: string;
   radar?: RadarModel;
   now: Date;
-}): RolloutModel | undefined {
+}, context: CoreContext = defaultContext): RolloutModel | undefined {
   const { template: t, lines, runs, lanes, now } = input;
   const head = t.head;
   if (!head || t.rows.length === 0) return undefined;
@@ -398,7 +399,7 @@ export function buildRollout(input: {
         Date.parse(line.release.at) > Date.parse(merge.mergedAt),
       unread: row.behind === undefined,
       ...(() => {
-        const mirror = forkOf(row.repo)?.mirror;
+        const mirror = forkOf(row.repo, context.fleet.forks)?.mirror;
         return mirror ? { skip: "mirror" } : mirror === null ? { skip: "sync mode unread" } : {};
       })(),
     };

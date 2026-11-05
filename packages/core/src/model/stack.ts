@@ -158,16 +158,16 @@ function stateOf(status: string, conclusion: string | undefined): StageState {
   }
 }
 
-const UPGRADE_JOBS: [RegExp, string][] = [
+const UPGRADE_JOBS: ReadonlyArray<[RegExp, string]> = Object.freeze([
   [/^declare$/, "declare"],
   [/^verify-release$/, "verify-release"],
   [/^detect/, "detect"],
   [/^quiesce/, "quiesce"],
   [/^provision$/, "provision"],
   [/^verify$/, "verify"],
-];
+]);
 
-const REFRESH_STEPS: [RegExp, string][] = [
+const REFRESH_STEPS: ReadonlyArray<[RegExp, string]> = Object.freeze([
   [/^Quiesce/, "quiesce"],
   [/^spi reconcile$/, "reconcile"],
   [/^Wait for Flux/, "flux"],
@@ -175,7 +175,7 @@ const REFRESH_STEPS: [RegExp, string][] = [
   [/^Verify stack version/, "verify"],
   [/^Clear maintenance$/, "clear"],
   [/^Require deployable/, "deployable"],
-];
+]);
 
 function worst(states: StageState[]): StageState {
   for (const s of ["failed", "running", "cancelled", "waits", "ok", "skipped"] as StageState[]) {
@@ -233,9 +233,9 @@ function stageLabel(kind: LifecycleKind, job: JobDetail, step: StepFact | undefi
   return (step && REFRESH_STEPS.find(([re]) => re.test(step.name))?.[1]) ?? job.name;
 }
 
-const STOPPED = new Set(["failure", "timed_out"]);
+const STOPPED: ReadonlySet<string> = new Set(["failure", "timed_out"]);
 // Conclusions that are not a failure of the environment.
-const SETTLED = new Set(["success", "cancelled", "skipped"]);
+const SETTLED: ReadonlySet<string> = new Set(["success", "cancelled", "skipped"]);
 
 function positionOf(run: LifecycleRun): Position | undefined {
   const jobs = run.jobs ?? [];

@@ -25,10 +25,10 @@ export function itemClass(item: QueueItem): ItemClass {
   return item.cls ?? (item.incident ? "INCIDENT" : item.rung === 1 ? "GATE" : "READY");
 }
 
-export const CLASS_VERB: Record<
+export const CLASS_VERB: Readonly<Record<
   FailureClass | "PORT" | "SECURITY" | "ROLLOUT" | "INCIDENT",
   string
-> = {
+>> = Object.freeze({
   HALT: "Classify entry",
   TOOLCHAIN: "Absorb toolchain",
   BUILD: "Investigate",
@@ -43,10 +43,10 @@ export const CLASS_VERB: Record<
   ROLLOUT: "Open the rollout",
   CONFLICT: "Investigate, then Dispatch cascade",
   INCIDENT: "Investigate",
-};
+});
 
 // Gates and ready work carry no failure class; their verb follows the kind.
-const KIND_VERB: Partial<Record<ItemKind, string>> = {
+const KIND_VERB: Readonly<Partial<Record<ItemKind, string>>> = Object.freeze({
   stack: "Re-dispatch",
   maintenance: "Re-dispatch",
   cascade: "Investigate, then Dispatch cascade",
@@ -58,7 +58,7 @@ const KIND_VERB: Partial<Record<ItemKind, string>> = {
   releases: "Review on GitHub",
   "template-pr": "Review on GitHub",
   bump: "Merge",
-};
+});
 
 export function verbOf(item: QueueItem): string {
   if (item.kind === "radar") return item.cls === "TOOLCHAIN" ? "Absorb toolchain" : "Pre-classify";

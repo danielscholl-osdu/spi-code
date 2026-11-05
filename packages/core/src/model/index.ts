@@ -1,9 +1,9 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { FORKS, PLANNED, type ServiceDef, STACK_REPO, TEMPLATE_REPO } from "../config.js";
+import { type ServiceDef, STACK_REPO, TEMPLATE_REPO } from "../config.js";
+import { type CoreContext, defaultContext } from "../context.js";
 import type { Facts } from "../facts.js";
-import { activeRollout } from "../rollout.js";
 import type { DismissEntry } from "./dismiss.js";
 import { buildGates, type Gates } from "./gates.js";
 import { type LaneLoad, laneLoad } from "./lanes.js";
@@ -49,13 +49,16 @@ export interface Model {
 // and every tool counts the same things.
 export function buildModel(
   facts: Facts,
-  now: Date,
+  now: Date | undefined = undefined,
   opts: {
     dispatched?: Record<string, string>;
     pressed?: Record<string, string>;
     dismissed?: readonly DismissEntry[];
   } = {},
+  context: CoreContext = defaultContext,
 ): Model {
+  now ??= context.clock.now();
+  const { forks: FORKS, planned: PLANNED } = context.fleet;
   const { repos, ignored } = withoutNoise(facts.github.data?.repos ?? {});
   const details = facts.details.data ?? {};
   const stack = buildStack(
@@ -68,7 +71,7 @@ export function buildModel(
     }),
   );
   const templateRepo = repos[TEMPLATE_REPO];
-  const predictions = predictAll(facts.radar.data);
+  const predictions = predictAll(facts.radar.data, context);
   const lines = FORKS.map((fork) =>
     buildLine({
       fork,
@@ -96,30 +99,30 @@ export function buildModel(
     alerts: facts.security,
     filters: facts.radar.data?.filters,
     synced: facts.template.data?.synced,
-  });
+  }, context);
   const lanes = laneLoad({
     repos,
     runs: facts.runs.data,
     prsRead: !!facts.github.data,
     dispatched: opts.dispatched,
     pressed: opts.pressed,
-  });
+  }, context);
   const rollout = buildRollout({
     template,
     lines,
     runs: facts.runs.data,
     lanes,
-    ordering: activeRollout()?.ordering,
+    ordering: context.rollout?.ordering,
     held: heldText(stack),
     radar,
     now,
-  });
+  }, context);
   const upstream = buildUpstream({
     lines,
     radar,
     runs: facts.runs.data,
     lanes,
-    ordering: activeRollout()?.ordering,
+    ordering: context.rollout?.ordering,
     held: heldText(stack),
     now,
   });
@@ -135,7 +138,7 @@ export function buildModel(
     repositories,
     dismissed: opts.dismissed ?? [],
     now,
-  });
+  }, context);
   return {
     measured: facts.github.data !== undefined,
     sweptAt: facts.sweep?.at,
@@ -150,7 +153,7 @@ export function buildModel(
     gates: buildGates(lines, now),
     queue,
     radar,
-    work: buildWork(repos),
+    work: buildWork(repos, context),
     repositories,
     lanes,
     ...(rollout ? { rollout } : {}),

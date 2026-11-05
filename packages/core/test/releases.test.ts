@@ -3,13 +3,13 @@
 
 import { describe, expect, test } from "vitest";
 import { releaseDoc } from "../src/brief/release";
-import { FORKS, STACK_REPO, TEMPLATE_REPO } from "../src/config";
+import { STACK_REPO, TEMPLATE_REPO } from "../src/config";
 import { monthFacts, parseBody, releaseMonths } from "../src/model/releases";
 import type { NotesRead } from "../src/notes";
 import type { ReleaseReads } from "../src/releases";
+import { FORKS, fixtureContext } from "./briefing-setup";
 import fixture from "./fixtures/rib-59d6895/releases.json";
 import { skeleton } from "./release-fixtures";
-import "./briefing-setup";
 
 const NOW = new Date("2026-10-21T15:00:00Z");
 function reads(): ReleaseReads {
@@ -61,7 +61,7 @@ describe("release bodies", () => {
 
 describe("a calendar month from the recorded release read", () => {
   test("October: versions move from the last release before the month to the last inside it", () => {
-    const f = monthFacts(reads(), "2026-10", NOW);
+    const f = monthFacts(reads(), "2026-10", NOW, fixtureContext);
     expect(f.open).toBe(true);
     expect(f.through).toBe("Oct 1 to 21");
     // The suite runs on the five forks the recorded sweep watched.
@@ -76,7 +76,7 @@ describe("a calendar month from the recorded release read", () => {
     expect(by.entitlements?.from).toBeUndefined();
     expect(by.entitlements?.pins).toEqual({ lib: "3.0.3", java: "25" });
     expect(f.services.forkedNow).toEqual([]);
-    expect(monthFacts(reads(), "2026-09", NOW).services.forkedNow).toEqual([
+    expect(monthFacts(reads(), "2026-09", NOW, fixtureContext).services.forkedNow).toEqual([
       "entitlements",
       "legal",
       "schema",
@@ -86,7 +86,7 @@ describe("a calendar month from the recorded release read", () => {
   });
 
   test("a fork's first release is one line, not the template history it inherits", () => {
-    const f = monthFacts(reads(), "2026-10", NOW);
+    const f = monthFacts(reads(), "2026-10", NOW, fixtureContext);
     const legal = f.changes.filter((c) => c.component === "legal");
     expect(legal[0]?.text).toBe("legal forked and released as v1.2.0");
     expect(legal.slice(1).map((c) => c.tag)).toEqual(["v1.2.1", "v1.2.1"]);
@@ -102,7 +102,7 @@ describe("a calendar month from the recorded release read", () => {
   });
 
   test("a closed month reads its whole window", () => {
-    const f = monthFacts(reads(), "2026-09", NOW);
+    const f = monthFacts(reads(), "2026-09", NOW, fixtureContext);
     expect(f.open).toBe(false);
     expect(f.through).toBe("Sep 1 to 30");
     expect(f.components.find((c) => c.id === "core-lib-azure")).toBeUndefined();
@@ -123,13 +123,13 @@ describe("a calendar month from the recorded release read", () => {
         r.releases[repo] = (r.releases[repo] ?? []).filter((x) => x.at < "2026-10");
       }
     }
-    expect(monthFacts(r, "2026-10", NOW).deps).toBe(1);
+    expect(monthFacts(r, "2026-10", NOW, fixtureContext).deps).toBe(1);
   });
 
   test("a repository never read is unknown, not empty", () => {
     const r = reads();
     delete r.releases[STACK_REPO];
-    const f = monthFacts(r, "2026-10", NOW);
+    const f = monthFacts(r, "2026-10", NOW, fixtureContext);
     expect(f.releases).toBeNull();
     expect(f.unread).toContain("spi-stack");
     const doc = releaseDoc(f, undefined, NOW);
@@ -144,7 +144,7 @@ describe("a calendar month from the recorded release read", () => {
 
 describe("the document", () => {
   test("without notes it is a draft from computed facts, breaking changes ask for review", () => {
-    const doc = releaseDoc(monthFacts(reads(), "2026-10", NOW), undefined, NOW);
+    const doc = releaseDoc(monthFacts(reads(), "2026-10", NOW, fixtureContext), undefined, NOW);
     expect(doc.notes).toBe("none");
     expect(doc.headline).toBe("37 releases across 8 repositories in October 2026.");
     expect(doc.required.every((a) => a.level === "recommended")).toBe(true);
@@ -155,7 +155,7 @@ describe("the document", () => {
   });
 
   test("a notes file's actions replace the computed ones, even when it lists none", () => {
-    const f = monthFacts(reads(), "2026-10", NOW);
+    const f = monthFacts(reads(), "2026-10", NOW, fixtureContext);
     expect(releaseDoc(f, undefined, NOW).required.length).toBeGreaterThan(0);
     const read: NotesRead = {
       state: "ok",

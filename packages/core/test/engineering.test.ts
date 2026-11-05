@@ -4,9 +4,9 @@
 import { describe, expect, test } from "vitest";
 import type { Facts, PrFact } from "../src/facts";
 import { buildModel } from "../src/model/index";
+import { fixtureContext } from "./briefing-setup";
 import { settled } from "./flow-states";
 import { FIXTURE_NOW, releasedFacts as released } from "./harness";
-import "./briefing-setup";
 
 function dependabotPr(repo: string, number: number): PrFact {
   return {
@@ -29,7 +29,7 @@ function dependabotPr(repo: string, number: number): PrFact {
 function model(edit?: (f: Facts) => void) {
   const f = settled(released());
   edit?.(f);
-  return buildModel(f, FIXTURE_NOW);
+  return buildModel(f, FIXTURE_NOW, {}, fixtureContext);
 }
 
 describe("the template rollout", () => {

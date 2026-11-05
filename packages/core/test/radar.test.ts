@@ -1,15 +1,15 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import "./model-fleet";
 import { describe, expect, test } from "vitest";
 import type { Facts } from "../src/facts";
 import { parseFilter } from "../src/model/filter";
 import { buildModel } from "../src/model/index";
 import { certainText, classifyPath, diffVerdicts } from "../src/model/radar";
 import { FIXTURE_NOW, fixtureFacts } from "./harness";
+import { fixtureContext } from "./model-fleet";
 
-const recorded = buildModel(fixtureFacts(), FIXTURE_NOW);
+const recorded = buildModel(fixtureFacts(), FIXTURE_NOW, {}, fixtureContext);
 
 function filterOf(svc: string) {
   const text = fixtureFacts().radar.data?.filters[svc]?.text;
@@ -159,7 +159,7 @@ describe("the recorded fixture predicts the next sync from the diffs alone", () 
     expect(station(recorded, "legal")).toBe("4 behind · in the sync PR · Java 25 queued");
     expect(station(recorded, "partition")).toBe("0 behind");
     const before = unsynced();
-    const m = buildModel(before, FIXTURE_NOW);
+    const m = buildModel(before, FIXTURE_NOW, {}, fixtureContext);
     expect(station(m, "entitlements")).toBe("2 behind · will halt on schemathesis-tests");
     expect(station(m, "legal")).toBe("4 behind · Java 25 queued");
     expect(certainText([{ bucket: "Port", paths: ["provider/x-azure/a"] }])).toBe("port owed");
@@ -174,7 +174,7 @@ describe("the recorded fixture predicts the next sync from the diffs alone", () 
         ? { ...m, paths: ["schemathesis-tests/run.sh"] }
         : { ...m, paths: ["pom.xml"], hunks: undefined },
     );
-    const r = buildModel(f, FIXTURE_NOW).radar.services.partition;
+    const r = buildModel(f, FIXTURE_NOW, {}, fixtureContext).radar.services.partition;
     const halt = r?.possible.find((v) => v.bucket === "Halt");
     expect(halt?.mr?.draft).toBe(true);
     expect(r?.state).toBe("clean");
@@ -185,7 +185,7 @@ describe("the recorded fixture predicts the next sync from the diffs alone", () 
     const svc = f.radar.data?.services.partition;
     if (!svc) throw new Error("fixture has partition");
     svc.mrs = svc.mrs.map((m) => ({ ...m, paths: undefined, hunks: undefined }));
-    const r = buildModel(f, FIXTURE_NOW).radar.services.partition;
+    const r = buildModel(f, FIXTURE_NOW, {}, fixtureContext).radar.services.partition;
     expect(r?.possible).toEqual([]);
     expect(r?.state).toBe("clean");
   });
@@ -195,13 +195,15 @@ describe("the recorded fixture predicts the next sync from the diffs alone", () 
     const filters = f.radar.data?.filters;
     if (!filters) throw new Error("fixture has filters");
     delete filters.entitlements;
-    const m = buildModel(f, FIXTURE_NOW);
+    const m = buildModel(f, FIXTURE_NOW, {}, fixtureContext);
     expect(m.radar.services.entitlements?.state).toBe("unmeasured");
     expect(station(m, "entitlements")).toBe("2 behind");
     expect(m.queue.items.some((i) => i.id === "radar:entitlements")).toBe(false);
     const dark = fixtureFacts();
     dark.radar = {};
-    expect(buildModel(dark, FIXTURE_NOW).radar.services.legal?.state).toBe("unmeasured");
+    expect(buildModel(dark, FIXTURE_NOW, {}, fixtureContext).radar.services.legal?.state).toBe(
+      "unmeasured",
+    );
   });
 });
 
@@ -211,7 +213,7 @@ describe("the radar queue item", () => {
   });
 
   test("open MRs never enter the queue", () => {
-    const m = buildModel(unsynced(), FIXTURE_NOW);
+    const m = buildModel(unsynced(), FIXTURE_NOW, {}, fixtureContext);
     expect(m.radar.services.file?.state).toBe("at-risk");
     expect(m.queue.items.some((i) => i.id === "radar:file")).toBe(false);
   });

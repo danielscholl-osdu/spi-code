@@ -3,7 +3,7 @@
 
 import type { CheckFact, ForkRuns, JobDetail, PrFact, RunFact } from "../facts.js";
 
-export const FAILED_CONCLUSIONS = new Set([
+export const FAILED_CONCLUSIONS: ReadonlySet<string> = new Set([
   "FAILURE",
   "TIMED_OUT",
   "STARTUP_FAILURE",

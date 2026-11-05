@@ -134,8 +134,8 @@ export function holdDays(
   }));
 }
 
-const PASSED = new Set(["SUCCESS", "INACTIVE"]);
-const FAILED = new Set(["FAILURE", "ERROR"]);
+const PASSED: ReadonlySet<string> = new Set(["SUCCESS", "INACTIVE"]);
+const FAILED: ReadonlySet<string> = new Set(["FAILURE", "ERROR"]);
 
 export function deployResult(state: string | undefined): "passed" | "failed" | undefined {
   if (!state) return undefined;
@@ -231,7 +231,7 @@ export interface LineHistory {
   template: TrackDay[];
 }
 
-const RANK: Record<TrackState, number> = { none: 0, ok: 1, waiting: 2, failing: 3, halted: 4 };
+const RANK: Readonly<Record<TrackState, number>> = Object.freeze({ none: 0, ok: 1, waiting: 2, failing: 3, halted: 4 });
 
 export function worse(a: TrackState, b: TrackState): TrackState {
   return RANK[a] >= RANK[b] ? a : b;

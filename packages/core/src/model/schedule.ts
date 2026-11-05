@@ -1,5 +1,6 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
+import { type CoreContext, defaultContext } from "../context.js";
 
 // Five-field cron as GitHub Actions reads it: UTC, with day-of-month and
 // day-of-week OR'ed when both are restricted.
@@ -12,8 +13,8 @@ export interface Cron {
   dow?: Set<number>;
 }
 
-const DAY_NAMES = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
-const MONTH_NAMES = [
+const DAY_NAMES = Object.freeze(["sun", "mon", "tue", "wed", "thu", "fri", "sat"]);
+const MONTH_NAMES = Object.freeze([
   "jan",
   "feb",
   "mar",
@@ -26,9 +27,9 @@ const MONTH_NAMES = [
   "oct",
   "nov",
   "dec",
-];
+]);
 
-function value(token: string, names?: string[], base = 0): number {
+function value(token: string, names?: readonly string[], base = 0): number {
   const named = names?.indexOf(token.toLowerCase()) ?? -1;
   return named >= 0 ? named + base : Number(token);
 }
@@ -37,7 +38,7 @@ function field(
   text: string,
   min: number,
   max: number,
-  names?: string[],
+  names?: readonly string[],
   base = 0,
 ): number[] | undefined {
   const out = new Set<number>();
@@ -133,7 +134,7 @@ function two(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-const SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const SHORT = Object.freeze(["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
 
 // Weekdays as a reader says them: "daily", "weekdays", "Sun-Thu", "Mon,Wed".
 function dayNames(days: readonly number[]): string {
@@ -156,8 +157,10 @@ function dayNames(days: readonly number[]): string {
 export function cadence(
   crons: readonly Cron[],
   unscheduled = "unscheduled",
-  now: Date = new Date(),
+  now: Date | undefined = undefined,
+  context: CoreContext = defaultContext,
 ): string {
+  now ??= context.clock.now();
   const cron = crons[0];
   if (!cron) return unscheduled;
   if (cron.dom || cron.months) return "scheduled";

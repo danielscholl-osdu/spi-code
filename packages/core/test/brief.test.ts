@@ -7,13 +7,13 @@ import { ago, deployableWords, streakText } from "../src/brief/words";
 import type { Facts, LifecycleRun } from "../src/facts";
 import { buildModel, type Model } from "../src/model/index";
 import type { QueueItem } from "../src/model/queue";
+import { fixtureContext } from "./briefing-setup";
 import { FIXTURE_NOW, fixtureFacts } from "./harness";
-import "./briefing-setup";
 
 const CLEAR: DoctorView = { state: "clear", problems: [] };
 
 function fixtureModel(): Model {
-  return buildModel(fixtureFacts(), FIXTURE_NOW);
+  return buildModel(fixtureFacts(), FIXTURE_NOW, {}, fixtureContext);
 }
 
 function item(over: Partial<QueueItem>): QueueItem {
@@ -322,7 +322,7 @@ describe("the environment", () => {
   const WINDOW_FROM = FIXTURE_NOW.getTime() - 86_400_000;
 
   function envOf(facts: Facts) {
-    const m = buildModel(facts, FIXTURE_NOW);
+    const m = buildModel(facts, FIXTURE_NOW, {}, fixtureContext);
     return { m, env: buildBriefing(m, CLEAR, FIXTURE_NOW).environment };
   }
 
@@ -463,16 +463,18 @@ describe("shared wording", () => {
       refresh: lc.refresh.filter((r) => Date.parse(r.createdAt) < cut),
       upgrade: lc.upgrade.filter((r) => Date.parse(r.createdAt) < cut),
     };
-    expect(deployableWords(buildModel(f, FIXTURE_NOW), FIXTURE_NOW).sub).toMatch(
-      / · up since 10-11 21:4\d$/,
-    );
+    expect(
+      deployableWords(buildModel(f, FIXTURE_NOW, {}, fixtureContext), FIXTURE_NOW).sub,
+    ).toMatch(/ · up since 10-11 21:4\d$/);
     const none = fixtureFacts();
     none.lifecycle.data = { refresh: [], upgrade: [], smoke: [], sweeper: [] };
-    expect(deployableWords(buildModel(none, FIXTURE_NOW), FIXTURE_NOW)).toEqual({
-      label: "Deployable · 21 days",
-      figure: null,
-      sub: "no lifecycle run read",
-    });
+    expect(deployableWords(buildModel(none, FIXTURE_NOW, {}, fixtureContext), FIXTURE_NOW)).toEqual(
+      {
+        label: "Deployable · 21 days",
+        figure: null,
+        sub: "no lifecycle run read",
+      },
+    );
   });
 
   test("a streak reads from two runs, and ago reads a span", () => {

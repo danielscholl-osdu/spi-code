@@ -147,7 +147,7 @@ export interface UpstreamModel {
 // A merge to main this recent is this round's; its main run is the merge's own within 15 minutes.
 const ROUND_MS = 3 * 86_400_000;
 const MERGE_RUN_MS = 15 * 60_000;
-const STOPS = ["conflict", "validation-failed", "cascade-failed", "cascade-blocked"];
+const STOPS = Object.freeze(["conflict", "validation-failed", "cascade-failed", "cascade-blocked"]);
 const STARTED: ReadonlySet<UpPhase> = new Set(["merged", "cascading", "review", "main"]);
 const WAITING: ReadonlySet<UpPhase> = new Set(["idle", "halted", "preparing", "prepared"]);
 
@@ -155,7 +155,7 @@ function cell(text: string, tone: CellTone, url?: string, note?: string): Cell {
   return { text, tone, ...(url ? { url } : {}), ...(note ? { note } : {}) };
 }
 
-const DASH: Cell = { text: "·", tone: "idle" };
+const DASH: Readonly<Cell> = Object.freeze({ text: "·", tone: "idle" });
 
 function lastMerged(past: readonly PastPrFact[] | undefined, prefix: string) {
   return (past ?? [])

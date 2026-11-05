@@ -8,6 +8,7 @@ import {
   SYNC_UPSTREAM_CRON,
 } from "../config.js";
 import type { LifecycleRun } from "../facts.js";
+import { type CoreContext, defaultContext } from "../context.js";
 import type { Model } from "../model/index.js";
 import type { LineModel } from "../model/lines.js";
 import { type ItemClass, itemClass, nextText, verbOf } from "../model/next.js";
@@ -154,15 +155,15 @@ const TITLE_MAX = 80;
 const HEADLINE_CAUSES = 2;
 const DEADLINE_WINDOW_DAYS = 60;
 const DAY_MS = 86_400_000;
-const STOPPED = new Set(["halted", "blocked", "broken"]);
-const ENVIRONMENT = new Set(["stack", "maintenance", "lanes"]);
+const STOPPED: ReadonlySet<string> = new Set(["halted", "blocked", "broken"]);
+const ENVIRONMENT: ReadonlySet<string> = new Set(["stack", "maintenance", "lanes"]);
 
-const HALT_PLACE: Record<string, string> = {
+const HALT_PLACE: Readonly<Record<string, string>> = Object.freeze({
   UNKNOWN_TOP_LEVEL: "a top-level entry",
   UNKNOWN_TESTING_ENTRY: "a testing entry",
   UNKNOWN_PROFILE: "a Maven profile",
   UNKNOWN_FOSSA_MODULE: "a FOSSA module",
-};
+});
 
 function cap(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
@@ -716,11 +717,11 @@ function themeHas(t: Theme, item: QueueItem): boolean {
   }
 }
 
-const THEME_ITEMS: Partial<Record<ThemeKind, string[]>> = {
+const THEME_ITEMS: Readonly<Partial<Record<ThemeKind, string[]>>> = Object.freeze({
   halt: ["halt", "radar"],
   toolchain: ["gate1", "radar"],
   port: ["port"],
-};
+});
 
 function relatedOf(model: Model, item: QueueItem, themes: readonly Theme[]): Related[] {
   const ids = new Set(model.queue.items.map((i) => i.id));
@@ -743,7 +744,8 @@ function relatedOf(model: Model, item: QueueItem, themes: readonly Theme[]): Rel
   return out;
 }
 
-export function readItem(model: Model, item: QueueItem, now: Date): Reading {
+export function readItem(model: Model, item: QueueItem, now: Date | undefined = undefined, context: CoreContext = defaultContext): Reading {
+  now ??= context.clock.now();
   if (item.kind === "rollout" && model.rollout) {
     const w = rolloutWords(model.rollout, now);
     return {
@@ -1090,11 +1092,11 @@ function horizonOf(themes: readonly Theme[], next: string | undefined): string {
   return parts.length > 0 ? parts.join(" ") : "Nothing new reaches the forks at the next sync.";
 }
 
-const ENV_LANES: [EnvLane["id"] & LifecycleKind, string][] = [
+const ENV_LANES: ReadonlyArray<[EnvLane["id"] & LifecycleKind, string]> = Object.freeze([
   ["upgrade", "Upgrade"],
   ["refresh", "Refresh"],
   ["smoke", "Smoke"],
-];
+]);
 
 function envState(run: LifecycleRun): EnvState {
   if (run.status !== "completed") return "running";
@@ -1328,7 +1330,8 @@ function environmentOf(model: Model, env: BriefFact | undefined, now: Date): Env
 }
 
 // Pure: the same model, doctor and clock always write the same briefing.
-export function buildBriefing(model: Model, doctor: DoctorView, now: Date): Briefing {
+export function buildBriefing(model: Model, doctor: DoctorView, now: Date | undefined = undefined, context: CoreContext = defaultContext): Briefing {
+  now ??= context.clock.now();
   const nextIso = syncAt(now);
   const next = clock(nextIso);
   const base = { sweptAt: model.sweptAt, nextSyncAt: nextIso, doctor };

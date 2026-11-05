@@ -56,7 +56,7 @@ function dedupeSegments(text: string): string {
   return kept.join("; ");
 }
 
-const NOISE = [
+const NOISE = Object.freeze([
   /^BUILD FAILURE$/,
   /^-> \[Help \d+\]$/,
   /^To see the full stack trace/,
@@ -67,7 +67,7 @@ const NOISE = [
   /^\S+ \.+ FAILURE \[/,
   /^Failed to execute goal .*enforce/,
   /^Rule \d+: .* failed with message:$/,
-];
+]);
 
 // The log is the fallback when annotations carry nothing but the exit code: a
 // Maven enforcer line, a "Deployment failed:" paragraph, or the first real error.
@@ -149,13 +149,13 @@ function suites(reason: string): string | undefined {
 }
 
 const GHCR_IMAGE = /ghcr\.io\S*?azure(?:\/|%2F)(osdu-spi-[a-z0-9_-]+)/i;
-const PULL_CODES: [RegExp, string][] = [
+const PULL_CODES: ReadonlyArray<[RegExp, string]> = Object.freeze([
   [/\b401\b/, "401"],
   [/\b403\b/, "403"],
   [/manifest unknown/i, "manifest unknown"],
   [/unauthorized/i, "unauthorized"],
   [/denied/i, "denied"],
-];
+]);
 
 // An image under ghcr.io/azure/osdu-spi-* refused with an auth or pull code.
 export function pullFailure(reason: string): { image: string; code: string } | undefined {

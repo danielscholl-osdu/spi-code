@@ -13,7 +13,7 @@ export interface NoiseRule {
 }
 
 // Checks that say nothing about a PR, taken out of its state before anything counts them.
-export const NOISE: readonly NoiseRule[] = [
+export const NOISE: readonly NoiseRule[] = Object.freeze([
   {
     id: "license-cla-app-authored",
     check: "license/cla",
@@ -27,7 +27,7 @@ export const NOISE: readonly NoiseRule[] = [
     reason:
       "skipped by design on the pull_request_target lane; the pull_request lane builds the image",
   },
-];
+]);
 
 export function appAuthored(pr: PrFact): boolean {
   if (pr.authorApp !== undefined) return pr.authorApp;

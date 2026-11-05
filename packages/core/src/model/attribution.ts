@@ -40,7 +40,7 @@ export function classifyPr(
   return "human";
 }
 
-export const CLASS_LABEL: Record<PrClass, string> = {
+export const CLASS_LABEL: Readonly<Record<PrClass, string>> = Object.freeze({
   sync: "sync PR",
   cascade: "release/upstream PR",
   template: "template-sync PR",
@@ -49,7 +49,7 @@ export const CLASS_LABEL: Record<PrClass, string> = {
   agent: "agent PR",
   dependabot: "Dependabot PR",
   human: "PR",
-};
+});
 
 export type FailureClass =
   | "ENV"
@@ -82,15 +82,15 @@ export interface Failure {
 
 // Steps of the Deploy and Test job that belong to the shared stack, not the
 // service: a red check there is the environment until Prove says otherwise.
-const ENV_STEPS = new Set([
+const ENV_STEPS: ReadonlySet<string> = new Set([
   "Connect to cluster",
   "Match stack version",
   "Confirm environment deployable",
   "Borrow",
   "Verify",
 ]);
-const TEST_STEPS = new Set(["Prove"]);
-const PULL_STEPS = new Set(["Borrow", "Verify"]);
+const TEST_STEPS: ReadonlySet<string> = new Set(["Prove"]);
+const PULL_STEPS: ReadonlySet<string> = new Set(["Borrow", "Verify"]);
 const STACK_RE = /not deployable|maintenance|Reconciliation in progress/i;
 const POLICY_CHECKS = /^(Check Paths|Check Code Quality|PR Title|Validate PR Title|Check Commit)/i;
 const TOOLCHAIN_RE =
@@ -176,7 +176,7 @@ export function toolchainText(reason: string | undefined): string | undefined {
   return m ? `upstream requires Java ${m[2]}, the fork builds on ${m[1]}` : undefined;
 }
 
-export const CLASS_TONE: Record<FailureClass, "error" | "warn" | "caution" | "info" | "neutral"> = {
+export const CLASS_TONE: Readonly<Record<FailureClass, "error" | "warn" | "caution" | "info" | "neutral">> = Object.freeze({
   ENV: "info",
   ACCESS: "error",
   TEST: "error",
@@ -187,4 +187,4 @@ export const CLASS_TONE: Record<FailureClass, "error" | "warn" | "caution" | "in
   INFRA: "warn",
   BUILD: "error",
   UNREAD: "neutral",
-};
+});

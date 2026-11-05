@@ -129,7 +129,8 @@ and five inverted-assertion failures are recorded on `spicode-2u4.9`.
 The seven assigned files move 87 pinned cases and leave 85 in the rib. Every
 assigned row adds up to its count in `test-count.json`. The ten `rib` rows
 record 0 moved and all 132 cases staying. The six rows owned by spicode-2u4.9
-remain untouched; whichever port lands second reconciles the 469-case total.
+are also counted: the complete ledger reconciles all 469 baseline cases,
+with 212 moved to core and 257 staying in the rib.
 
 Mixed cases stay whole in the rib, including cases that assert model output
 and then inspect a board. Releases moves the two body parsers, six month-facts
@@ -153,3 +154,50 @@ ports its notes `skeleton` input helper. The shared `harness.ts` is unchanged.
 Per-file source comparisons, moved/staying counts and five inverted-assertion
 failures are recorded on the bead. Core source and runner configuration are
 unchanged.
+
+## Context threading: spicode-2u4.5
+
+Core accepts an immutable `CoreContext`: its fleet lists, environment-read
+paths (facts, services, rollout and lane override), rollout policy and clock.
+Use `fleetOf(services)` and `createContext({ fleet, paths, rollout, clock })`,
+or `contextFromEnv(env, clock)` to snapshot environment inputs and load the
+configured services file. The host supplies the parsed active rollout; core
+does not read or watch its file. `environment.ts` is the only ambient
+environment reader and `clock.ts` is the only ambient clock adapter.
+
+`buildModel(facts, now, opts, context)`, `buildBriefing(model, doctor, now,
+context)` and `readItem(model, item, now, context)` keep explicit `now`
+compatible; pass `undefined` for it to use the context clock. `cadence`
+accepts context after `now` too. Fleet-sensitive `predictAll`, `buildRepos`,
+`buildWork`, `laneCap`, `laneLoad`, `buildQueue`, `buildRollout`, `componentId`
+and `monthFacts` accept trailing context. `forkOf` accepts the explicit fork
+list. Omitted context uses the frozen default snapshot. The old fleet
+constant exports are immutable compatibility views of that default, not
+live sweep state. `setFleet` and `useRollout` are removed: make a new context
+instead. `replayFile(context)` reads its facts path.
+
+Only signature-forced setup and argument changes were made to the ported
+tests; no assertion was removed or changed:
+
+- `briefing-setup.ts` and `model-fleet.ts`: export the recorded five-fork
+  context instead of installing and restoring module-global fleet state.
+- `brief.test.ts`, `engineering.test.ts`, `ledgers.test.ts`,
+  `repositories.test.ts`, `model.test.ts`, `radar.test.ts`, `repos.test.ts`:
+  pass that fixture context to each `buildModel` call.
+- `releases.test.ts`: pass fixture context to `monthFacts` and read its fork
+  list instead of the former live fleet export.
+- `fleet.test.ts` and `flow.test.ts`: use a local context per case, reset it
+  in the existing cleanup hook, and replace rollout setters with new
+  contexts. Every model call receives that context.
+- `upstream.test.ts`: construct the upstream fixture fleet once, then pass
+  a fresh context carrying each Facts input's rollout into `buildModel`.
+
+`context.test.ts` adds interleaved fleet/policy/path isolation and fixed-clock
+proofs for briefing, model, reading and cadence under a third ambient clock.
+`context-boundary.test.ts` parses every source file except the two adapters
+and rejects module-global variables, unsafe collections and collection
+writes, exported setters, environment reads and ambient clock calls.
+Its planted cases exercise each rule; the physical planted-source failure
+and subsequent clean run are recorded on the bead. Existing 212 migrated
+baseline cases remain intact; the new acceptance cases are not part of the
+469-case migration ledger.

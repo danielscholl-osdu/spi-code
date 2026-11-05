@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { forkOf, githubUrl, shortRepo, TEMPLATE_REPO } from "../config.js";
+import { type CoreContext, defaultContext } from "../context.js";
 import type { OutsidePr, PrFact, RepoFact, WaitingRun } from "../facts.js";
 import { governing, type Judgement } from "../rollout.js";
 import { clip, plural, releaseTag, short, stamp } from "../util.js";
@@ -714,12 +715,12 @@ function templateSetItem(
   };
 }
 
-const ROLLOUT_RUNG: Record<RolloutModel["phase"], Rung> = {
+const ROLLOUT_RUNG: Readonly<Record<RolloutModel["phase"], Rung>> = Object.freeze({
   ready: 1,
   rolling: 1,
   stopped: 0,
   done: 2,
-};
+});
 
 // One item for osdu-spi main on its way to the fleet, from the first dispatch to the last green main run.
 function rolloutItem(r: RolloutModel, template: TemplateModel): QueueItem {
@@ -781,18 +782,19 @@ function rolloutItem(r: RolloutModel, template: TemplateModel): QueueItem {
 }
 
 // Forks by service name, as the lines table names them; other repositories by short name.
-function repoName(repo: string): string {
-  return forkOf(repo)?.id ?? shortRepo(repo);
+function repoName(repo: string, context: CoreContext): string {
+  return forkOf(repo, context.fleet.forks)?.id ?? shortRepo(repo);
 }
 
 // A fork's first release is counted, not named; a release on a line already cut is the news.
 function releaseNames(
   open: readonly { repo: string; tag: string }[],
   repos: Record<string, RepoFact>,
+  context: CoreContext,
 ): string {
   const named = open.filter((r) => repos[r.repo]?.release);
   const first = open.length - named.length;
-  const names = named.map((r) => `${repoName(r.repo)} ${r.tag}`);
+  const names = named.map((r) => `${repoName(r.repo, context)} ${r.tag}`);
   if (first > 0) names.push(plural(first, "first release"));
   return names.length <= 1
     ? (names[0] ?? "")
@@ -803,6 +805,7 @@ function releaseItems(
   repos: Record<string, RepoFact>,
   details: Parameters<typeof prFailures>[1],
   now: Date,
+  context: CoreContext,
 ): QueueItem[] {
   const open: { repo: string; pr: PrFact; tag: string; ready: boolean }[] = [];
   const items: QueueItem[] = [];
@@ -818,7 +821,7 @@ function releaseItems(
           id: `release-red:${pr.repo}#${pr.number}`,
           kind: "release-red",
           rung: 1,
-          scope: repoName(pr.repo),
+          scope: repoName(pr.repo, context),
           text: `release PR #${pr.number} fails ${real[0]?.check}${real[0]?.reason ? `: ${real[0].reason}` : ""}`,
           since: pr.createdAt,
           url: pr.url,
@@ -847,17 +850,17 @@ function releaseItems(
       kind: "releases",
       rung: 2,
       scope: "fleet",
-      text: [plural(open.length, "release PR"), releaseNames(open, repos), state]
+      text: [plural(open.length, "release PR"), releaseNames(open, repos, context), state]
         .filter(Boolean)
         .join(" · "),
       since: oldest.pr.createdAt,
       url: oldest.pr.url,
       effects: open.map((r) => ({
-        text: `${repoName(r.repo)} #${r.pr.number} ${r.pr.title}`,
+        text: `${repoName(r.repo, context)} #${r.pr.number} ${r.pr.title}`,
         url: r.pr.url,
       })),
       cause: open.map((r) => ({
-        label: repoName(r.repo),
+        label: repoName(r.repo, context),
         value: `${r.tag} · #${r.pr.number} · ${r.ready ? "approved and green" : (r.pr.reviewDecision ?? "pending").toLowerCase().replaceAll("_", " ")}`,
         url: r.pr.url,
       })),
@@ -889,6 +892,7 @@ function templatePrItems(
   templateRepo: RepoFact | undefined,
   details: Parameters<typeof prFailures>[1],
   now: Date,
+  context: CoreContext,
 ): QueueItem[] {
   const items: QueueItem[] = [];
   for (const pr of templateRepo?.prs ?? []) {
@@ -899,7 +903,7 @@ function templatePrItems(
       id: templatePrId(pr),
       kind: "template-pr",
       rung: red ? 1 : 2,
-      scope: repoName(pr.repo),
+      scope: repoName(pr.repo, context),
       text: `${CLASS_LABEL[prClass]} #${pr.number} ${pr.title} · ${templatePrState(pr, failures)}`,
       since: pr.createdAt,
       url: pr.url,
@@ -921,10 +925,10 @@ export function associationText(association: string): string {
   return association.toLowerCase().replaceAll("_", "-");
 }
 
-const WHY_APPROVAL: Fact = {
+const WHY_APPROVAL: Readonly<Fact> = Object.freeze({
   label: "why",
   value: "outside contributors' runs wait until a maintainer approves them",
-};
+});
 
 // Before the runs are matched to PRs, the item can only count titles.
 function titledApprovals(repo: string, runs: readonly WaitingRun[]): QueueItem {
@@ -1268,7 +1272,7 @@ export function buildQueue(input: {
   repositories?: ReposModel;
   dismissed?: readonly DismissEntry[];
   now: Date;
-}): Queue {
+}, context: CoreContext = defaultContext): Queue {
   const { stack, lines, template, repos, details, approvals, radar, now } = input;
   const items: QueueItem[] = [];
   items.push(...stackItems(stack, lines, now).items);
@@ -1281,8 +1285,8 @@ export function buildQueue(input: {
     const set = templateSetItem(template, lines, stack, now);
     if (set) items.push(set);
   }
-  items.push(...releaseItems(repos, details, now));
-  items.push(...templatePrItems(repos[TEMPLATE_REPO], details, now));
+  items.push(...releaseItems(repos, details, now, context));
+  items.push(...templatePrItems(repos[TEMPLATE_REPO], details, now, context));
   const bump = bumpItem(stack);
   if (bump) items.push(bump);
   items.push(...securityItems(input.repositories));

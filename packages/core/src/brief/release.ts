@@ -100,14 +100,14 @@ export interface ReleaseDoc {
   built: string;
 }
 
-const AREA: Record<ComponentKind, string> = {
+const AREA: Readonly<Record<ComponentKind, string>> = Object.freeze({
   service: "Services",
   library: "Library",
   stack: "Environment",
   template: "Engineering system",
-};
+});
 
-const AREA_ORDER = ["Services", "Library", "Environment", "Engineering system"];
+const AREA_ORDER = Object.freeze(["Services", "Library", "Environment", "Engineering system"]);
 
 function notesOf(read: NotesRead | undefined): Notes | undefined {
   return read?.state === "ok" ? read.notes : undefined;
@@ -352,9 +352,9 @@ export function releaseLine(d: ReleaseDoc): ReleaseLine {
   };
 }
 
-export const NOTES_LABEL: Record<NotesState, string> = {
+export const NOTES_LABEL: Readonly<Record<NotesState, string>> = Object.freeze({
   approved: "Approved",
   draft: "Draft",
   none: "No notes yet",
   invalid: "Notes file invalid",
-};
+});

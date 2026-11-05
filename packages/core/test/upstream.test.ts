@@ -1,12 +1,13 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { afterAll, describe, expect, test } from "vitest";
-import { builtInFleet, setFleet } from "../src/config";
+import { describe, expect, test } from "vitest";
+import { builtInFleet, fleetOf } from "../src/config";
+import { createContext } from "../src/context";
 import type { Facts } from "../src/facts";
 import { buildModel, type Model } from "../src/model/index";
 import { errorKey, wavesOf } from "../src/model/upstream";
-import { parseRollout, useRollout } from "../src/rollout";
+import { parseRollout } from "../src/rollout";
 import {
   heldFacts,
   pausedFacts,
@@ -21,17 +22,14 @@ import {
   waveFacts,
 } from "./upstream-states";
 
-// Describe bodies build their models at load, before any hook runs.
-setFleet(builtInFleet(UPSTREAM_SERVICES));
-
-afterAll(() => {
-  setFleet(builtInFleet());
-  useRollout(undefined);
-});
+const fleet = fleetOf(builtInFleet(UPSTREAM_SERVICES));
 
 function modelOf(f: Facts): Model {
-  useRollout(parseRollout(f.fleet.data?.rollout as string).rollout);
-  return buildModel(f, UPSTREAM_NOW);
+  const context = createContext({
+    fleet,
+    rollout: parseRollout(f.fleet.data?.rollout as string).rollout,
+  });
+  return buildModel(f, UPSTREAM_NOW, {}, context);
 }
 
 function fork(m: Model, service: string) {

@@ -4,15 +4,15 @@
 import { describe, expect, test } from "vitest";
 import type { Facts } from "../src/facts";
 import { buildModel } from "../src/model/index";
+import { fixtureContext } from "./briefing-setup";
 import { FIXTURE_NOW, fixtureFacts } from "./harness";
-import "./briefing-setup";
 
 const ENT = "osdu/platform/security-and-compliance/entitlements";
 
 function model(edit?: (f: Facts) => void) {
   const f = fixtureFacts();
   edit?.(f);
-  return buildModel(f, FIXTURE_NOW);
+  return buildModel(f, FIXTURE_NOW, {}, fixtureContext);
 }
 
 function owed(m: ReturnType<typeof buildModel>) {

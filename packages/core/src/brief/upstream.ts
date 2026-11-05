@@ -61,15 +61,15 @@ export interface UpstreamView {
   inspect: string;
 }
 
-export const LINE_COLUMNS = ["Sync PR", "Cascade", "Sync to Main", "Main run"];
+export const LINE_COLUMNS = Object.freeze(["Sync PR", "Cascade", "Sync to Main", "Main run"]);
 
-const TONE: Record<CellTone, UpTone> = {
+const TONE: Readonly<Record<CellTone, UpTone>> = Object.freeze({
   ok: "ok",
   run: "run",
   warn: "warn",
   bad: "bad",
   idle: "neutral",
-};
+});
 
 function cap(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);

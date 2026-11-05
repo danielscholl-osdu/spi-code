@@ -21,7 +21,7 @@ function cap(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-const NUMBER = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
+const NUMBER = Object.freeze(["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]);
 
 function count(n: number): string {
   return NUMBER[n] ?? String(n);

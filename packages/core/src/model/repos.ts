@@ -1,7 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { FORKS, type ServiceDef, STACK_REPO, TEMPLATE_REPO } from "../config.js";
+import { type ServiceDef, STACK_REPO, TEMPLATE_REPO } from "../config.js";
+import { type CoreContext, defaultContext } from "../context.js";
 import type {
   CodeAlertFact,
   DependencyAlertFact,
@@ -34,12 +35,12 @@ export type PrState =
   | "ready";
 export type ChangeKind = "feature" | "fix" | "maintenance" | "other";
 
-export const SEVERITY_ORDER: readonly Severity[] = ["critical", "high", "medium", "low"];
-const OWNER_RANK: Record<Owner, number> = { spi: 0, template: 1, upstream: 2 };
-const REACH_RANK: Record<Reach, number> = { shipped: 0, tooling: 1, tests: 2 };
+export const SEVERITY_ORDER: readonly Severity[] = Object.freeze(["critical", "high", "medium", "low"]);
+const OWNER_RANK: Readonly<Record<Owner, number>> = Object.freeze({ spi: 0, template: 1, upstream: 2 });
+const REACH_RANK: Readonly<Record<Reach, number>> = Object.freeze({ shipped: 0, tooling: 1, tests: 2 });
 
-const MAINTENANCE = new Set(["refactor", "chore", "docs", "ci", "build", "test", "perf", "style"]);
-const TOOLING_TOPS = new Set([".github", "deployments", "devops", "scripts", "tools", "docs"]);
+const MAINTENANCE: ReadonlySet<string> = new Set(["refactor", "chore", "docs", "ci", "build", "test", "perf", "style"]);
+const TOOLING_TOPS: ReadonlySet<string> = new Set([".github", "deployments", "devops", "scripts", "tools", "docs"]);
 const TEST_SEGMENT = /^testing$|(^|[-_.])tests?([-_.]|$)/i;
 
 export interface ChangePr {
@@ -476,7 +477,8 @@ export function buildRepos(input: {
   alerts: Measured<Record<string, RepoAlerts>>;
   filters?: RadarFacts["filters"];
   synced?: SyncedPaths;
-}): ReposModel {
+}, context: CoreContext = defaultContext): ReposModel {
+  const FORKS = context.fleet.forks;
   const alerts = input.alerts.data;
   const program = (repo: string, name: string): RepoRow =>
     buildRow({

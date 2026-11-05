@@ -3,15 +3,15 @@
 
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, test } from "vitest";
-import { FORKS } from "../src/config";
+import { createContext } from "../src/context";
 import type { JobDetail } from "../src/facts";
 import { failedChecks } from "../src/model/checks";
 import { buildModel } from "../src/model/index";
 import { nextText } from "../src/model/next";
 import { withoutNoise } from "../src/model/noise";
-import { governing, judgeRun, parseRollout, useRollout } from "../src/rollout";
+import { governing, judgeRun, parseRollout } from "../src/rollout";
+import { FORKS, fixtureContext } from "./briefing-setup";
 import { FIXTURE_NOW, fixtureFacts, laneFacts, releasedFacts } from "./harness";
-import "./briefing-setup";
 
 const ROLLOUT_TEXT = readFileSync(
   new URL("./fixtures/rib-59d6895/rollout.json", import.meta.url),
@@ -20,7 +20,10 @@ const ROLLOUT_TEXT = readFileSync(
 const ROLLOUT = parseRollout(ROLLOUT_TEXT).rollout;
 if (!ROLLOUT) throw new Error("the rollout fixture parses");
 const TIMEOUT = "environment is not deployable after 10 minutes";
-afterEach(() => useRollout(undefined));
+let context = fixtureContext;
+afterEach(() => {
+  context = fixtureContext;
+});
 
 describe("the rollout file", () => {
   test("an unknown schema leaves the buttons unpaced, with a warning", () => {
@@ -54,7 +57,7 @@ describe("built-in noise", () => {
     expect(humanAfter?.checks.some((c) => c.name === "license/cla")).toBe(true);
     expect(ignored["license-cla-app-authored"]).toBeGreaterThan(0);
 
-    const m = buildModel(facts, FIXTURE_NOW);
+    const m = buildModel(facts, FIXTURE_NOW, {}, context);
     expect(m.noise["license-cla-app-authored"]).toBe(ignored["license-cla-app-authored"]);
   });
 
@@ -96,26 +99,30 @@ describe("failure class from the annotation title", () => {
     for (const d of Object.values(facts.details.data ?? {})) {
       d.environment = d.conclusion === "failure" ? [TIMEOUT] : [];
     }
-    const lanes = buildModel(facts, FIXTURE_NOW).queue.items.find((i) => i.kind === "lanes");
+    const lanes = buildModel(facts, FIXTURE_NOW, {}, context).queue.items.find(
+      (i) => i.kind === "lanes",
+    );
     if (!lanes) throw new Error("fixture has failed lanes");
     expect(lanes.judgement?.class).toBe("environment");
     expect(nextText(lanes)).toMatch(/re-run the failed jobs once, after the other lanes drain/i);
 
     for (const d of Object.values(facts.details.data ?? {})) d.attempt = 2;
-    const again = buildModel(facts, FIXTURE_NOW).queue.items.find((i) => i.kind === "lanes");
+    const again = buildModel(facts, FIXTURE_NOW, {}, context).queue.items.find(
+      (i) => i.kind === "lanes",
+    );
     expect(again?.judgement?.note).toBe("already rerun once");
     expect(again && nextText(again)).toMatch(/^Stop the line \(already rerun once\): /);
   });
 
   test("without read annotations the queue keeps its own words", () => {
-    const m = buildModel(laneFacts(), FIXTURE_NOW);
+    const m = buildModel(laneFacts(), FIXTURE_NOW, {}, context);
     expect(m.queue.items.some((i) => i.judgement)).toBe(false);
   });
 });
 
 describe("paced fleet buttons", () => {
   test("lanes in flight are read from Sync Template runs, PR Validation and main runs", () => {
-    useRollout(ROLLOUT);
+    context = createContext({ ...fixtureContext, rollout: ROLLOUT });
     const facts = fixtureFacts();
     const repo = FORKS[0]?.repo ?? "";
     const runs = facts.runs.data?.[repo];
@@ -134,7 +141,7 @@ describe("paced fleet buttons", () => {
       workflow: "Validation",
       status: "IN_PROGRESS",
     });
-    const m = buildModel(facts, FIXTURE_NOW, { pressed: { [FORKS[1]?.repo ?? ""]: "x" } });
+    const m = buildModel(facts, FIXTURE_NOW, { pressed: { [FORKS[1]?.repo ?? ""]: "x" } }, context);
     expect(m.lanes.cap).toBe(5);
     expect(m.lanes.inflight).toEqual([
       { repo, service: FORKS[0]?.id ?? "", what: `Validation running on #${pr.number}` },
@@ -146,12 +153,12 @@ describe("paced fleet buttons", () => {
 describe("the dismiss file", () => {
   test("a dismissed item stays quiet until its inputs change", () => {
     const facts = laneFacts();
-    const m = buildModel(facts, FIXTURE_NOW);
+    const m = buildModel(facts, FIXTURE_NOW, {}, context);
     const item = m.queue.items.find((i) => i.kind === "lanes");
     if (!item?.fingerprint || !item.lanes?.[0]) throw new Error("fixture has failed lanes");
     const entry = { id: item.id, fingerprint: item.fingerprint };
 
-    const quiet = buildModel(facts, FIXTURE_NOW, { dismissed: [entry] });
+    const quiet = buildModel(facts, FIXTURE_NOW, { dismissed: [entry] }, context);
     expect(quiet.queue.items.find((i) => i.id === item.id)).toBeUndefined();
     expect(quiet.queue.dismissed.map((d) => d.item.id)).toEqual([item.id]);
     expect(quiet.queue.counts.p1).toBe(m.queue.counts.p1 - 1);
@@ -159,7 +166,9 @@ describe("the dismiss file", () => {
     // The same inputs a day later stay quiet: the fingerprint ignores how stamps print.
     const tomorrow = new Date(FIXTURE_NOW.getTime() + 24 * 3600_000);
     expect(
-      buildModel(facts, tomorrow, { dismissed: [entry] }).queue.dismissed.map((d) => d.item.id),
+      buildModel(facts, tomorrow, { dismissed: [entry] }, context).queue.dismissed.map(
+        (d) => d.item.id,
+      ),
     ).toEqual([item.id]);
 
     // A new head on one lane's PR is a new input, so the item comes back.
@@ -167,7 +176,7 @@ describe("the dismiss file", () => {
     const pr = facts.github.data?.repos[lane.repo]?.prs.find((p) => p.number === lane.pr);
     if (!pr) throw new Error("lane PR");
     pr.headSha = "f".repeat(40);
-    const back = buildModel(facts, FIXTURE_NOW, { dismissed: [entry] });
+    const back = buildModel(facts, FIXTURE_NOW, { dismissed: [entry] }, context);
     expect(back.queue.items.find((i) => i.id === item.id)?.fingerprint).not.toBe(item.fingerprint);
     expect(back.queue.dismissed).toEqual([]);
   });
@@ -176,11 +185,15 @@ describe("the dismiss file", () => {
 describe("review fixes", () => {
   test("a new head on a template-sync PR changes the rollout's fingerprint", () => {
     const facts = releasedFacts();
-    const before = buildModel(facts, FIXTURE_NOW).queue.items.find((i) => i.kind === "rollout");
+    const before = buildModel(facts, FIXTURE_NOW, {}, context).queue.items.find(
+      (i) => i.kind === "rollout",
+    );
     const pr = facts.github.data?.repos["Azure/osdu-spi-legal"]?.prs.find((p) => p.number === 33);
     if (!before || !pr) throw new Error("fixture has a rollout");
     pr.headSha = "e".repeat(40);
-    const after = buildModel(facts, FIXTURE_NOW).queue.items.find((i) => i.kind === "rollout");
+    const after = buildModel(facts, FIXTURE_NOW, {}, context).queue.items.find(
+      (i) => i.kind === "rollout",
+    );
     expect(after?.fingerprint).not.toBe(before.fingerprint);
   });
 
@@ -193,13 +206,17 @@ describe("review fixes", () => {
 
   test("a new head on a release PR changes the release item's fingerprint", () => {
     const facts = fixtureFacts();
-    const before = buildModel(facts, FIXTURE_NOW).queue.items.find((i) => i.id === "releases");
+    const before = buildModel(facts, FIXTURE_NOW, {}, context).queue.items.find(
+      (i) => i.id === "releases",
+    );
     const pr = Object.values(facts.github.data?.repos ?? {})
       .flatMap((r) => r.prs)
       .find((p) => before?.url === p.url);
     if (!before || !pr) throw new Error("fixture has a release PR");
     pr.headSha = "d".repeat(40);
-    const after = buildModel(facts, FIXTURE_NOW).queue.items.find((i) => i.id === "releases");
+    const after = buildModel(facts, FIXTURE_NOW, {}, context).queue.items.find(
+      (i) => i.id === "releases",
+    );
     expect(after?.fingerprint).not.toBe(before.fingerprint);
   });
 

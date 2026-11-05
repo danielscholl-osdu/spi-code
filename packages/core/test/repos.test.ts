@@ -1,7 +1,6 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import "./model-fleet";
 import { describe, expect, test } from "vitest";
 import type { Facts, PrFact } from "../src/facts";
 import { buildModel } from "../src/model/index";
@@ -15,6 +14,7 @@ import {
   titleShape,
 } from "../src/model/repos";
 import { FIXTURE_NOW, fixtureFacts } from "./harness";
+import { fixtureContext } from "./model-fleet";
 
 const SYNCED = {
   dirs: [".github/actions", "build"],
@@ -29,7 +29,7 @@ const FORK = {
 function rows(edit?: (f: Facts) => void) {
   const f = fixtureFacts();
   edit?.(f);
-  return buildModel(f, FIXTURE_NOW).repositories.rows;
+  return buildModel(f, FIXTURE_NOW, {}, fixtureContext).repositories.rows;
 }
 
 function pr(repo: string, number: number, title: string, extra: Partial<PrFact> = {}): PrFact {
