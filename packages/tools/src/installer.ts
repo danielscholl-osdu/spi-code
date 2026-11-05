@@ -9,6 +9,7 @@ import {
   mkdir,
   mkdtemp,
   open,
+  readdir,
   readFile,
   readlink,
   rename,
@@ -34,6 +35,10 @@ export type Readiness =
   | { state: "ready" | "needs-update"; version: string }
   | { state: "failed"; error: string };
 export type Extractor = (archive: string, binary: string, signal?: AbortSignal) => Promise<Buffer>;
+export interface PayloadOptions {
+  binDirectory: "cmd";
+  populate: (archive: string, payload: string, signal?: AbortSignal) => Promise<void>;
+}
 
 export const extractBinary: Extractor = async (archive, binary, signal) => {
   const { stdout } = await exec(tar, ["-tf", archive], { signal });
@@ -90,6 +95,7 @@ export class ToolInstaller {
     manifest: unknown,
     platform = `${process.platform}-${process.arch}`,
     private readonly extract: Extractor = extractBinary,
+    private readonly payloadOptions?: PayloadOptions,
   ) {
     if (platform !== "darwin-arm64" && platform !== "win32-x64") {
       throw new Error(`Unsupported tool platform: ${platform}`);
@@ -118,7 +124,7 @@ export class ToolInstaller {
           : await readlink(current);
       // A torn or foreign pointer reads as missing, so Setup offers Install and reinstall repairs it.
       if (!isVersion(version)) return undefined;
-      await access(join(this.root(tool), version, "bin", this.binary(tool)));
+      await access(join(this.root(tool), version, this.binDirectory(), this.binary(tool)));
       return version;
     } catch (error) {
       if (missing(error)) return undefined;
@@ -130,9 +136,13 @@ export class ToolInstaller {
     return `${tool}${this.platform === "win32-x64" ? ".exe" : ""}`;
   }
 
+  private binDirectory(): string {
+    return this.payloadOptions?.binDirectory ?? "bin";
+  }
+
   async binDir(tool: string): Promise<string | undefined> {
     const version = await this.version(tool);
-    return version ? join(this.root(tool), version, "bin") : undefined;
+    return version ? join(this.root(tool), version, this.binDirectory()) : undefined;
   }
 
   async readiness(tool: string): Promise<Readiness> {
@@ -158,7 +168,11 @@ export class ToolInstaller {
       const asset = pin.platforms[this.platform];
       const archive = join(
         staging,
-        new URL(asset.url).pathname.endsWith(".zip") ? "archive.zip" : "archive.tar.gz",
+        new URL(asset.url).pathname.endsWith(".exe")
+          ? "archive.exe"
+          : new URL(asset.url).pathname.endsWith(".zip")
+            ? "archive.zip"
+            : "archive.tar.gz",
       );
       const hash = createHash("sha256");
       const url = new URL(asset.url);
@@ -196,9 +210,32 @@ export class ToolInstaller {
       );
       if (hash.digest("hex") !== asset.sha256) throw new Error(`SHA-256 mismatch for ${tool}`);
       const payload = join(staging, "payload");
-      await mkdir(join(payload, "bin"), { recursive: true });
-      const binary = await this.extract(archive, this.binary(tool), signal);
-      await writeDurable(join(payload, "bin", this.binary(tool)), binary, 0o755);
+      await mkdir(join(payload, this.binDirectory()), { recursive: true });
+      if (this.payloadOptions) {
+        await this.payloadOptions.populate(archive, payload, signal);
+      } else {
+        const binary = await this.extract(archive, this.binary(tool), signal);
+        await writeDurable(join(payload, "bin", this.binary(tool)), binary, 0o755);
+      }
+      await access(join(payload, this.binDirectory(), this.binary(tool)));
+      const files: string[] = [];
+      async function flush(directory: string, prefix = ""): Promise<void> {
+        for (const entry of await readdir(directory, { withFileTypes: true })) {
+          const relative = join(prefix, entry.name);
+          const path = join(directory, entry.name);
+          if (entry.isDirectory()) await flush(path, relative);
+          else if (entry.isFile()) {
+            const handle = await open(path, "r+");
+            try {
+              await handle.sync();
+            } finally {
+              await handle.close();
+            }
+            files.push(relative);
+          } else throw new Error(`Unsupported payload entry: ${relative}`);
+        }
+      }
+      await flush(payload);
       signal?.throwIfAborted();
       const root = this.root(tool);
       await mkdir(root, { recursive: true });
@@ -215,20 +252,21 @@ export class ToolInstaller {
           )
         )
           throw error;
-        const existing = await readFile(join(target, "bin", this.binary(tool))).catch(
-          () => undefined,
-        );
-        if (!existing?.equals(binary)) {
-          // The installed copy is damaged. Swap in the binary that just passed SHA-256 with a
-          // file rename, so `current` never points at a missing directory, even after a crash.
-          const bin = join(target, "bin");
-          await mkdir(bin, { recursive: true });
-          const repair = join(bin, `.repair-${staging.split(/[\\/]/).pop()}`);
-          try {
-            await writeDurable(repair, binary, 0o755);
-            await rename(repair, join(bin, this.binary(tool)));
-          } finally {
-            await rm(repair, { force: true });
+        for (const file of files) {
+          const binary = await readFile(join(payload, file));
+          const existing = await readFile(join(target, file)).catch(() => undefined);
+          if (!existing?.equals(binary)) {
+            // The installed copy is damaged. Swap in the binary that just passed SHA-256 with a
+            // file rename, so `current` never points at a missing directory, even after a crash.
+            const bin = join(target, file, "..");
+            await mkdir(bin, { recursive: true });
+            const repair = join(bin, `.repair-${staging.split(/[\\/]/).pop()}`);
+            try {
+              await writeDurable(repair, binary, 0o755);
+              await rename(repair, join(target, file));
+            } finally {
+              await rm(repair, { force: true });
+            }
           }
         }
       }

@@ -40,7 +40,10 @@ export function parseManifest(value: unknown): ToolPin[] {
       const url = new URL(entry.url);
       if (
         !["https:", "http:", "file:"].includes(url.protocol) ||
-        !/\.(?:tar\.gz|zip)$/.test(url.pathname) ||
+        !(
+          /\.(?:tar\.gz|zip)$/.test(url.pathname) ||
+          (pin.tool === "git" && /\.7z\.exe$/.test(url.pathname))
+        ) ||
         !/^[a-f0-9]{64}$/.test(entry.sha256)
       ) {
         throw new Error(`Invalid archive or SHA-256 for ${platform}`);
