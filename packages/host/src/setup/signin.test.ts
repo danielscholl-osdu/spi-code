@@ -63,6 +63,19 @@ it("parses the fallback line gh prints when it cannot copy the code", () => {
   });
 });
 
+it("waits for the code terminator when the URL is already present", () => {
+  for (const prefix of ["one-time code (", "First copy your one-time code: "]) {
+    const text = `https://github.com/login/device\n${prefix}9C4F-D809-ABCD\n`;
+    for (let cut = text.indexOf("9C4F"); cut < text.length; cut++) {
+      expect(parseGhDeviceCode(text.slice(0, cut))).toBeUndefined();
+    }
+    expect(parseGhDeviceCode(text)).toEqual({
+      deviceCode: "9C4F-D809-ABCD",
+      url: "https://github.com/login/device",
+    });
+  }
+});
+
 const HYPERLINKED =
   "First copy your one-time code: \x1b[1m9C4F-D809\x1b[0m\nOpen \x1b]8;;https://github.com/login/device\x07https://github.com/login/device\x1b]8;;\x07\n";
 
@@ -331,7 +344,7 @@ it("never reports completed after a cancel, whichever step it lands in", async (
   for (const step of [1, 2, 3]) {
     const controller = new AbortController();
     let seen = 0;
-    const { exec } = fakeExec((call, opts) => {
+    const { exec, calls } = fakeExec((call, opts) => {
       expect(opts.signal).toBe(controller.signal);
       if (++seen === step) controller.abort();
       return glabHandler({})(call, opts);
@@ -340,6 +353,10 @@ it("never reports completed after a cancel, whichever step it lands in", async (
     const outcome = await signinGlab(exec, TOKEN, { report, signal: controller.signal });
     expect(outcome).toEqual({ state: "failed", reason: "Sign-in was cancelled." });
     expect(progress.map((entry) => entry.state)).not.toContain("completed");
+    expect(calls).toHaveLength(step);
+    if (step === 1) {
+      expect(calls.some((call) => call.args.includes("login"))).toBe(false);
+    }
   }
 });
 

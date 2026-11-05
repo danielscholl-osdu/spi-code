@@ -124,6 +124,7 @@ it("parses glab status and the token scopes", async () => {
 it("never treats an unverifiable scope probe as ready", async () => {
   for (const pat of [
     { stdout: '{"message":"404 Not Found"}', exit: 1 },
+    { stdout: fixture("glab-pat-self.json"), exit: 1 },
     { stdout: "{}" },
     { stdout: "<html>proxy login</html>" },
     { error: "spawn glab ENOENT" },
@@ -173,8 +174,12 @@ it("flags a classic ghp_ token only on the active gh account", async () => {
   const inactive = fixture("gh-status-inactive-classic.txt");
   expect(isClassicGhToken(inactive)).toBe(false);
   const status = await ghStatus(gh("gh-status-inactive-classic.txt"));
-  expect(status).toMatchObject({ state: "ready", action: null });
-  expect(status.scopes).toContain("workflow");
+  expect(status).toMatchObject({
+    state: "scope-missing",
+    action: "signin",
+    scopes: ["gist", "read:org", "repo"],
+    missingScopes: ["workflow"],
+  });
 });
 
 it("reports glab as signed out when unauthenticated or its token is rejected", async () => {
