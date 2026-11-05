@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseMessage } from "../index.js";
 import { BriefingSchema } from "./briefing.js";
-import { EnvelopeSchema, type ReadRecord, ReadRecordSchema } from "./evidence.js";
+import { AREAS, EnvelopeSchema, type ReadRecord, ReadRecordSchema } from "./evidence.js";
 import { ItemClassSchema } from "./inspect.js";
 import { PROTOCOL_VERSION, type WatchMessage, WatchMessageSchema } from "./messages.js";
 import { ReleasesPaneSchema, type ViewSnapshot } from "./snapshot.js";
@@ -77,6 +77,8 @@ const snapshot = {
   ],
   tree: [{ id: "today", status: "failed" }],
   reads: [record],
+  areas: AREAS.map((area) => ({ area, envelope: { source: area, state: "unread" as const } })),
+  provenance: [{ path: "/stations/0/stations/4", areas: ["github"] }],
   selection: "today",
 } satisfies ViewSnapshot;
 const messages = [

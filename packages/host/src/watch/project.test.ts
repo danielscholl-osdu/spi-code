@@ -5,10 +5,17 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ViewSnapshotSchema } from "@spi-code/contracts";
-import { type ActionItem, type ReadRecord, TEMPLATE_REPO } from "@spi-code/core";
+import { type ActionItem, AREAS, type ReadRecord, TEMPLATE_REPO } from "@spi-code/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { appActions, projectReleases, projectWatch } from "./project.js";
-import { fixtureInput, fixtureRoot, oracle, snapshotPath } from "./snapshot-fixture.js";
+import {
+  fixtureInput,
+  fixtureRoot,
+  mixedFixtureInput,
+  mixedSnapshotPath,
+  oracle,
+  snapshotPath,
+} from "./snapshot-fixture.js";
 
 process.env.TZ = "UTC";
 
@@ -55,6 +62,9 @@ describe("Watch projection", () => {
 
   it("fails when the committed snapshot differs from a fresh projection", () => {
     expect(projectWatch(fixtureInput())).toEqual(JSON.parse(readFileSync(snapshotPath, "utf8")));
+    expect(projectWatch(mixedFixtureInput())).toEqual(
+      JSON.parse(readFileSync(mixedSnapshotPath, "utf8")),
+    );
   });
 
   it("preserves every read, including retained failures, cuts and inferred provenance", () => {
@@ -394,6 +404,90 @@ describe("Watch projection", () => {
     const snapshot = projectWatch(input);
     expect(snapshot.sweptAt).toBe(input.context.clock.now().toISOString());
     expect(snapshot.briefing.sweptAt).toBeUndefined();
+  });
+});
+
+describe("area envelopes and provenance", () => {
+  it("gives every area an envelope, unread when it has no reads", () => {
+    const input = fixtureInput();
+    const snapshot = projectWatch({ ...input, reads: { github: input.reads.github ?? [] } });
+    expect(snapshot.areas.map(({ area }) => area)).toEqual([...AREAS]);
+    for (const { area, envelope } of snapshot.areas) {
+      expect(envelope.source).toBe(area);
+      expect(envelope.state).toBe(area === "github" ? "stale" : "unread");
+    }
+  });
+
+  it("turns an area stale past twice its own sweep interval as the clock moves", () => {
+    const input = fixtureInput();
+    const start = input.context.clock.now().getTime();
+    let now = start;
+    const context = { ...input.context, clock: { now: () => new Date(now) } };
+    const read = (area: string): ReadRecord => ({
+      source: area,
+      object: area,
+      observedAt: new Date(start).toISOString(),
+      completeness: { kind: "complete" },
+    });
+    const at = (ms: number) => {
+      now = start + ms;
+      const { areas } = projectWatch({
+        ...input,
+        context,
+        intervalMs: 600_000,
+        intervals: { runs: 60_000 },
+        reads: { runs: [read("runs")], github: [read("github")] },
+      });
+      return Object.fromEntries(areas.map(({ area, envelope }) => [area, envelope.state]));
+    };
+    expect(at(0)).toMatchObject({ runs: "fresh", github: "fresh" });
+    expect(at(120_000)).toMatchObject({ runs: "fresh", github: "fresh" });
+    expect(at(120_001)).toMatchObject({ runs: "stale", github: "fresh" });
+    expect(at(1_200_001)).toMatchObject({ runs: "stale", github: "stale" });
+  });
+
+  it("names the feeding areas for every drawn value with resolving, unique paths", () => {
+    const snapshot = projectWatch(fixtureInput());
+    const paths = snapshot.provenance.map(({ path }) => path);
+    const { briefing, stations } = snapshot;
+    const expected = [
+      ...briefing.facts.map((_, i) => `/briefing/facts/${i}/figure`),
+      ...briefing.focus.map((_, i) => `/briefing/focus/${i}`),
+      ...briefing.rest.map((_, i) => `/briefing/rest/${i}`),
+      ...briefing.ready.map((_, i) => `/briefing/ready/${i}`),
+      ...briefing.themes.map((_, i) => `/briefing/themes/${i}`),
+      ...briefing.flow.tiles.map((_, i) => `/briefing/flow/tiles/${i}`),
+      ...briefing.flow.rows.map((_, i) => `/briefing/flow/rows/${i}`),
+      ...briefing.environment.facts.map((_, i) => `/briefing/environment/facts/${i}/figure`),
+      ...briefing.environment.lanes.map((_, i) => `/briefing/environment/lanes/${i}`),
+      ...stations.flatMap((row, s) => row.stations.map((_, k) => `/stations/${s}/stations/${k}`)),
+    ];
+    expect(paths).toEqual(expected);
+    const areas = (path: string) => snapshot.provenance.find((p) => p.path === path)?.areas;
+    expect(areas("/briefing/environment/facts/1/figure")).toEqual(["lifecycle"]);
+    expect(areas("/briefing/environment/lanes/3")).toEqual(["lifecycle"]);
+    expect(areas("/briefing/facts/1/figure")).toEqual([
+      "github",
+      "runs",
+      "lifecycle",
+      "details",
+      "upstream",
+      "radar",
+      "template",
+    ]);
+    expect(areas("/briefing/focus/0")).toContain("approvals");
+    expect(areas("/briefing/focus/0")).toContain("security");
+  });
+
+  it("binds the environment figure to github when only the declared version is known", () => {
+    const input = fixtureInput();
+    const snapshot = projectWatch({
+      ...input,
+      facts: { ...input.facts, lifecycle: {} },
+    });
+    const figure = snapshot.provenance.find(({ path }) => path === "/briefing/facts/0/figure");
+    expect(snapshot.briefing.facts[0]?.figure).not.toBe("?");
+    expect(figure?.areas).toEqual(["github"]);
   });
 });
 

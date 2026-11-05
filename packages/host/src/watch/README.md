@@ -20,6 +20,19 @@ include release evidence. Threads remain unread until their milestone.
 All records retain their completeness, failure, retained timestamp and inferred
 marker. `intervalMs` is the caller's freshness interval.
 
+`areas` carries one envelope per area, in core's `AREAS` order, from core's
+`envelopeOf` over that area's reads. An area with no reads is unread. Each area
+uses `intervals[area]` when given, otherwise `intervalMs`; the tree still uses
+`intervalMs`. `provenance` maps JSON Pointers into the snapshot to the areas
+that fed each drawn value: briefing facts and environment facts by label, focus,
+rest, ready, themes, flow tiles and rows, environment lanes and station cells.
+Bindings in `provenance.ts` mirror the inputs `buildModel` reads and name more
+areas rather than fewer; they never guess from record sources or object names.
+Deployability, maintenance, last proof and environment lanes name only
+lifecycle; the running version names lifecycle, or github when only the
+declared version is known. The contract rejects a snapshot whose provenance
+path does not resolve or names an area without an envelope.
+
 `projectReleases` reads `<appData>/notes/YYYY-MM.json` through core's `parseNotes`,
 then builds and validates the documents and pane. Missing files mean no notes;
 invalid text means invalid notes; other file errors propagate. Projection never
@@ -36,13 +49,17 @@ produce a diagnostic in that action's eligibility reason without dropping the
 other actions. Irreversible confirmations without a nonblank subject are rejected
 before adaptation. The Re-run when deployable offer is retained, not filtered out.
 
-Regenerate only the Watch fixture from the repository root:
+Regenerate only the Watch fixtures from the repository root:
 
 ```sh
 pnpm run build
 TZ=UTC bun scripts/watch-snapshot.ts
-pnpm biome check --write fixtures/watch/snapshot-59d6895.json
+pnpm biome check --write fixtures/watch/snapshot-59d6895.json fixtures/watch/snapshot-mixed-59d6895.json
 ```
+
+The mixed fixture (`mixedFixtureInput`) keeps only lifecycle reads inferred and
+marks every other area observed, so the window's evidence helpers can tell
+inferred values from observed peers.
 
 The generator uses the pinned core fixtures, fleet, rollout and clock. It does
 not regenerate or modify the rib oracles. Tests compare against those oracles

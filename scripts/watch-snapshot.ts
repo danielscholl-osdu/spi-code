@@ -5,8 +5,18 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { projectWatch } from "../packages/host/src/watch/project.js";
-import { fixtureInput, snapshotPath } from "../packages/host/src/watch/snapshot-fixture.js";
+import {
+  fixtureInput,
+  mixedFixtureInput,
+  mixedSnapshotPath,
+  snapshotPath,
+} from "../packages/host/src/watch/snapshot-fixture.js";
 
 process.env.TZ = "UTC";
 mkdirSync(dirname(snapshotPath), { recursive: true });
-writeFileSync(snapshotPath, `${JSON.stringify(projectWatch(fixtureInput()), null, 2)}\n`);
+for (const [path, input] of [
+  [snapshotPath, fixtureInput()],
+  [mixedSnapshotPath, mixedFixtureInput()],
+] as const) {
+  writeFileSync(path, `${JSON.stringify(projectWatch(input), null, 2)}\n`);
+}

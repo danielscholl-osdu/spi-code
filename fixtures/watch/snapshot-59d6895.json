@@ -2752,5 +2752,486 @@
       "inferred": true
     }
   ],
+  "areas": [
+    {
+      "area": "fleet",
+      "envelope": {
+        "source": "fleet",
+        "state": "unread"
+      }
+    },
+    {
+      "area": "github",
+      "envelope": {
+        "source": "github",
+        "state": "stale",
+        "observedAt": "2026-10-12T21:58:23.086Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "area": "runs",
+      "envelope": {
+        "source": "runs",
+        "state": "stale",
+        "observedAt": "2026-10-12T21:58:24.978Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "area": "approvals",
+      "envelope": {
+        "source": "approvals",
+        "state": "stale",
+        "observedAt": "2026-10-12T21:58:24.339Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "area": "lifecycle",
+      "envelope": {
+        "source": "lifecycle",
+        "state": "stale",
+        "observedAt": "2026-10-12T21:58:26.501Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "area": "details",
+      "envelope": {
+        "source": "details",
+        "state": "stale",
+        "observedAt": "2026-10-12T21:58:23.123Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "area": "upstream",
+      "envelope": {
+        "source": "upstream",
+        "state": "stale",
+        "observedAt": "2026-10-12T21:58:27.443Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "area": "radar",
+      "envelope": {
+        "source": "radar",
+        "state": "stale",
+        "observedAt": "2026-10-13T23:20:48.929Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "area": "template",
+      "envelope": {
+        "source": "template",
+        "state": "stale",
+        "observedAt": "2026-10-12T21:58:23.122Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "area": "auth",
+      "envelope": {
+        "source": "auth",
+        "state": "stale",
+        "observedAt": "2026-10-12T21:58:15.134Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "area": "security",
+      "envelope": {
+        "source": "security",
+        "state": "stale",
+        "observedAt": "2026-10-12T21:58:20.000Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    }
+  ],
+  "provenance": [
+    {
+      "path": "/briefing/facts/0/figure",
+      "areas": ["lifecycle"]
+    },
+    {
+      "path": "/briefing/facts/1/figure",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/briefing/facts/2/figure",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/briefing/focus/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/focus/1",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/focus/2",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/focus/3",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/focus/4",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/rest/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/ready/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/themes/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/themes/1",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/themes/2",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/themes/3",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/flow/tiles/0",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/briefing/flow/tiles/1",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/briefing/flow/tiles/2",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/briefing/flow/tiles/3",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/briefing/flow/rows/0",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/briefing/flow/rows/1",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/briefing/flow/rows/2",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/briefing/flow/rows/3",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/briefing/flow/rows/4",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/briefing/environment/facts/0/figure",
+      "areas": ["lifecycle"]
+    },
+    {
+      "path": "/briefing/environment/facts/1/figure",
+      "areas": ["lifecycle"]
+    },
+    {
+      "path": "/briefing/environment/facts/2/figure",
+      "areas": ["lifecycle"]
+    },
+    {
+      "path": "/briefing/environment/lanes/0",
+      "areas": ["lifecycle"]
+    },
+    {
+      "path": "/briefing/environment/lanes/1",
+      "areas": ["lifecycle"]
+    },
+    {
+      "path": "/briefing/environment/lanes/2",
+      "areas": ["lifecycle"]
+    },
+    {
+      "path": "/briefing/environment/lanes/3",
+      "areas": ["lifecycle"]
+    },
+    {
+      "path": "/stations/0/stations/0",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/0/stations/1",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/0/stations/2",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/0/stations/3",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/0/stations/4",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/0/stations/5",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/1/stations/0",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/1/stations/1",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/1/stations/2",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/1/stations/3",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/1/stations/4",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/1/stations/5",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/2/stations/0",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/2/stations/1",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/2/stations/2",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/2/stations/3",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/2/stations/4",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/2/stations/5",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/3/stations/0",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/3/stations/1",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/3/stations/2",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/3/stations/3",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/3/stations/4",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/3/stations/5",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/4/stations/0",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/4/stations/1",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/4/stations/2",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/4/stations/3",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/4/stations/4",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    },
+    {
+      "path": "/stations/4/stations/5",
+      "areas": ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"]
+    }
+  ],
   "selection": null
 }

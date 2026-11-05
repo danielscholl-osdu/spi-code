@@ -27,6 +27,10 @@ function json<T>(path: string): T {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
+export const mixedSnapshotPath = fileURLToPath(
+  new URL("../../../../fixtures/watch/snapshot-mixed-59d6895.json", import.meta.url),
+);
+
 export function oracle(name: string): unknown {
   return json(
     fileURLToPath(new URL(`../../../../fixtures/rib-59d6895/oracle/${name}.json`, import.meta.url)),
@@ -85,4 +89,16 @@ export function fixtureInput(): WatchInput {
         ]
       : [],
   };
+}
+
+/** Lifecycle runs (deployability, maintenance) come only from inferred reads; peers are observed. */
+export function mixedFixtureInput(): WatchInput {
+  const input = fixtureInput();
+  const reads = Object.fromEntries(
+    Object.entries(input.reads).map(([area, records]) => [
+      area,
+      area === "lifecycle" ? records : records?.map(({ inferred: _inferred, ...record }) => record),
+    ]),
+  );
+  return { ...input, reads };
 }

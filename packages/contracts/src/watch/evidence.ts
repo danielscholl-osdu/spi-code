@@ -57,3 +57,59 @@ export const EnvelopeSchema = z.union([
 
 export type ReadRecord = z.infer<typeof ReadRecordSchema>;
 export type Envelope = z.infer<typeof EnvelopeSchema>;
+
+// Mirrors core's AREAS; a core test keeps the two lists equal (contracts stay core-free).
+export const AREAS = Object.freeze([
+  "fleet",
+  "github",
+  "runs",
+  "approvals",
+  "lifecycle",
+  "details",
+  "upstream",
+  "radar",
+  "template",
+  "auth",
+  "security",
+] as const);
+export const AreaNameSchema = z.enum(AREAS);
+export const AreaEnvelopeSchema = z.strictObject({
+  area: AreaNameSchema,
+  envelope: EnvelopeSchema,
+});
+export const JsonPointerSchema = z.string().regex(/^(\/([^~/]|~[01])*)+$/, {
+  message: "Expected an RFC 6901 JSON pointer below the root",
+});
+export const ValueSourceSchema = z.strictObject({
+  path: JsonPointerSchema,
+  areas: z
+    .array(AreaNameSchema)
+    .min(1)
+    .refine((areas) => new Set(areas).size === areas.length, { message: "Areas repeat" }),
+});
+
+/** Resolves an RFC 6901 pointer; array indices must be canonical and in range. */
+export function resolvePointer(
+  document: unknown,
+  pointer: string,
+): { found: boolean; value?: unknown } {
+  if (pointer === "") return { found: true, value: document };
+  if (!pointer.startsWith("/")) return { found: false };
+  let current = document;
+  for (const raw of pointer.slice(1).split("/")) {
+    const token = raw.replaceAll("~1", "/").replaceAll("~0", "~");
+    if (Array.isArray(current)) {
+      if (!/^(0|[1-9]\d*)$/.test(token) || Number(token) >= current.length) return { found: false };
+      current = current[Number(token)];
+    } else if (current !== null && typeof current === "object" && Object.hasOwn(current, token)) {
+      current = (current as Record<string, unknown>)[token];
+    } else {
+      return { found: false };
+    }
+  }
+  return { found: true, value: current };
+}
+
+export type AreaName = z.infer<typeof AreaNameSchema>;
+export type AreaEnvelope = z.infer<typeof AreaEnvelopeSchema>;
+export type ValueSource = z.infer<typeof ValueSourceSchema>;

@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
+import { AREAS, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 
 export function testSnapshot(
   briefing: string,
@@ -36,6 +36,8 @@ export function testSnapshot(
         completeness: { kind: "complete" },
       },
     ],
+    areas: AREAS.map((area) => ({ area, envelope: { source: area, state: "unread" } })),
+    provenance: [],
     selection: null,
     ...overrides,
   });

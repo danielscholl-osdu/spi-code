@@ -32,6 +32,7 @@ import {
   STACK_REPO,
   type SweepReads,
 } from "@spi-code/core";
+import { areaEnvelopes, briefingProvenance, stationProvenance } from "./provenance.js";
 
 export function appActions(items: readonly ActionItem[]): AppAction[] {
   const reserved = new Set(items.map((item) => item.type));
@@ -105,6 +106,8 @@ export interface WatchInput {
   readonly appData: string;
   readonly cursor: number;
   readonly intervalMs: number;
+  /** Per-area sweep intervals; an area without one uses intervalMs. */
+  readonly intervals?: Partial<Record<AreaName, number>>;
   readonly selection?: string | null;
   readonly reading?: boolean;
 }
@@ -201,14 +204,17 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     input.context,
     input.reading,
   ).pane;
+  const stations = model.lines.map((line) => ({ service: line.fork.id, stations: line.stations }));
   return ViewSnapshotSchema.parse({
     cursor: input.cursor,
     sweptAt: model.sweptAt ?? now.toISOString(),
     briefing,
     releases,
-    stations: model.lines.map((line) => ({ service: line.fork.id, stations: line.stations })),
+    stations,
     tree: treeOf(input, now),
     reads: [...Object.values(input.reads).flat(), ...input.releaseRecords],
+    areas: areaEnvelopes(input.reads, (area) => input.intervals?.[area] ?? input.intervalMs, now),
+    provenance: [...briefingProvenance(briefing, model.stack), ...stationProvenance(stations)],
     selection: input.selection ?? null,
   });
 }
