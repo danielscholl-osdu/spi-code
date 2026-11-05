@@ -10,7 +10,7 @@
     }
   },
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && vite build",
     "typecheck": "tsc -b"
   },
   "dependencies": {

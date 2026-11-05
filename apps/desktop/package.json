@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "main": "dist/index.js",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -10,7 +11,9 @@
     }
   },
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && pnpm --filter @spi-code/window build",
+    "start": "pnpm run build && electron .",
+    "smoke": "pnpm run build && electron . --smoke",
     "typecheck": "tsc -b"
   },
   "dependencies": {
