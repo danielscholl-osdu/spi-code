@@ -10,21 +10,26 @@ import {
   type Message,
   PROTOCOL_VERSION,
   parseMessage,
+  SweepStatusSchema,
 } from "@spi-code/contracts";
 import {
+  BudgetPacer,
   buildModel,
   type CollectorOptions,
-  type createSweeper,
+  createSweeper,
   type Exec,
   emptyCache,
+  type Facts,
   type InspectOptions,
   type ItemClass,
   type QueueItem,
 } from "@spi-code/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { z } from "zod";
 import { createLeaseStore } from "../store/leases.js";
 import { createSnapshotStore } from "../store/snapshots.js";
 import { openRunStore } from "../store/store.js";
+import { SweepService } from "../sweep/service.js";
 import { projectWatch } from "../watch/project.js";
 import { fixtureInput, oracle } from "../watch/snapshot-fixture.js";
 import { attachHostPort, type HostPort } from "./port.js";
@@ -135,6 +140,66 @@ function routes(database: () => DatabaseSync = () => db) {
 }
 
 describe("view.subscribe", () => {
+  it.each([1234, 0, undefined])(
+    "publishes the configured pacer floor %s on every sweep status, including replay",
+    async (floor) => {
+      const watch = routes();
+      const port = host(watch);
+      port.request("view.subscribe", { fromCursor: 0 });
+      await settle();
+      const budgetResetAt = new Date(now + 3600_000).toISOString();
+      const service = new SweepService({
+        db,
+        fleet,
+        ctx,
+        exec: {
+          ...failing,
+          runText: async (cmd, args, options) =>
+            args[1] === "graphql"
+              ? {
+                  ok: true,
+                  data: JSON.stringify({
+                    data: {
+                      spicodeBudget: { cost: 1, remaining: 1000, resetAt: budgetResetAt },
+                    },
+                  }),
+                }
+              : failing.runText(cmd, args, options),
+        },
+        appData: directory,
+        factsSchema: z.custom<Facts>(),
+        ...(floor === undefined ? {} : { pacer: new BudgetPacer({ floor, resetBudget: 5000 }) }),
+        doctor: () => input.doctor,
+        onError: (error) => {
+          throw error;
+        },
+        createSweeper: watch.sweeper((options) => {
+          expect(options.pacer).toBe(service.pacer);
+          return createSweeper(options);
+        }),
+      });
+      try {
+        await service.start();
+        await service.sweep(true);
+      } finally {
+        await service.stop();
+      }
+      const replay = host(routes());
+      replay.request("view.subscribe", { fromCursor: 0 });
+      await settle();
+      const statuses = [...port.sent, ...replay.sent].filter(
+        (message) => message.type === "sweep.status",
+      );
+      expect(statuses).toHaveLength(3);
+      for (const status of statuses) {
+        expect(SweepStatusSchema.parse(status.payload)).toMatchObject({
+          floor: floor ?? service.pacer.floor,
+          resetAt: budgetResetAt,
+        });
+      }
+    },
+  );
+
   it("serves a fresh host the last persisted snapshot and cursor without reading the network", async () => {
     const cursor = writeSnapshot();
     db.close();

@@ -58,7 +58,11 @@ export function watchFleet(ctx: CoreContext): string {
 
 const persistedSchema = z.object({
   facts: z.custom<Facts>((value) => typeof value === "object" && value !== null),
-  cache: z.object({ budget: cacheSchema.shape.budget }).optional(),
+  cache: z
+    .object({
+      budget: cacheSchema.shape.budget.extend({ floor: SweepStatusSchema.shape.floor }),
+    })
+    .optional(),
 });
 
 interface Persisted {
@@ -77,6 +81,7 @@ function persisted(record: SnapshotRecord): Persisted {
   const budget = state.success ? state.data.cache?.budget : undefined;
   const status = SweepStatusSchema.parse({
     remaining: budget?.remaining == null ? null : Math.floor(budget.remaining),
+    ...(budget?.floor === undefined ? {} : { floor: budget.floor }),
     resetAt: budget?.resetAt ?? null,
     deferredAreas: (budget?.deferred ?? []).map(({ area, reason }) => ({ area, reason })),
   });

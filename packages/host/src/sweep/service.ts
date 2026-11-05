@@ -14,6 +14,7 @@ import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import {
+  BudgetPacer,
   type CollectorCache,
   type CollectorOptions,
   cacheSchema,
@@ -80,6 +81,7 @@ function resetBudget(cache: CollectorCache): void {
 /** One owner per service lifetime, never a reusable PID or configured fleet id. */
 export class SweepService {
   readonly owner = randomUUID();
+  readonly pacer: BudgetPacer;
   private readonly leases;
   private readonly snapshots;
   private readonly ttl;
@@ -96,6 +98,7 @@ export class SweepService {
   private cancellations: (() => void)[] = [];
 
   constructor(private readonly options: SweepServiceOptions) {
+    this.pacer = options.pacer ?? new BudgetPacer({ floor: 100, resetBudget: 5000 });
     this.ttl = options.ttlMs ?? 60_000;
     this.interval = options.intervalMs ?? SWEEP_MS;
     for (const ms of [this.ttl, this.interval]) {
@@ -322,6 +325,7 @@ export class SweepService {
       const sweeper = (this.options.createSweeper ?? createSweeper)({
         ...this.options,
         budget,
+        pacer: this.pacer,
         exec,
         persist: {
           load: async () => {
@@ -358,7 +362,18 @@ export class SweepService {
             });
             this.guard(holder);
             try {
-              holder.cursor = this.snapshots.writeSnapshot(identity, state, view, () => this.now());
+              holder.cursor = this.snapshots.writeSnapshot(
+                identity,
+                {
+                  ...state,
+                  cache: {
+                    ...state.cache,
+                    budget: { ...state.cache.budget, floor: this.pacer.floor },
+                  },
+                },
+                view,
+                () => this.now(),
+              );
             } catch (error) {
               this.lose(holder);
               throw error;
