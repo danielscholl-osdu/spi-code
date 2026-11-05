@@ -14,6 +14,7 @@ export interface SmokeReport {
   rendererRoundTrip: boolean;
   reloadRoundTrip: boolean;
   permissionDenied: boolean;
+  permissionQueryDenied: boolean;
   malformed: "rejected" | "accepted";
   rowSurvived: true;
   listeners: string[];
@@ -39,6 +40,7 @@ export function assertSmokeReport(value: unknown): asserts value is SmokeReport 
   assert.equal(report.rendererRoundTrip, true);
   assert.equal(report.reloadRoundTrip, true);
   assert.equal(report.permissionDenied, true);
+  assert.equal(report.permissionQueryDenied, true);
   assert.equal(report.malformed, "rejected");
   assert.equal(report.rowSurvived, true);
   assert.deepEqual(report.listeners, []);

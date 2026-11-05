@@ -32,7 +32,8 @@ window labels the stub without claiming gh sign-in.
 Smoke requires every appendix A tool and a refused shell built-in, alongside the
 existing process, malformed-message and SQLite checks.
 It also reloads the window and round-trips over a new host port, requests a
-renderer permission and observes its denial. Round-trips, rejection and TCP
+renderer permission and observes its denial, and checks that a permission query
+reports denied. Round-trips, rejection and TCP
 listeners in the report come from the probes; a failed observation fails the
 report check. The desktop denies all session permission requests by default.
 

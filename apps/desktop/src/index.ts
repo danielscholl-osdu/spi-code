@@ -153,6 +153,7 @@ async function run(): Promise<void> {
     },
   });
   let deniedPermissionRequests = 0;
+  window.webContents.session.setPermissionCheckHandler(() => false);
   window.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => {
     deniedPermissionRequests++;
     callback(false);
@@ -255,6 +256,9 @@ async function run(): Promise<void> {
     "Notification.requestPermission()",
   );
   const permissionDenied = permission === "denied" && deniedPermissionRequests > 0;
+  const permissionQuery: unknown = await window.webContents.executeJavaScript(
+    "navigator.permissions.query({ name: 'notifications' }).then(result => result.state)",
+  );
   messages.length = 0;
   const loaded = once(window.webContents, "did-finish-load");
   window.webContents.reload();
@@ -286,12 +290,14 @@ async function run(): Promise<void> {
     mainNodeVersion: process.versions.node,
     hostNodeVersion: probe.nodeVersion,
     sqliteIsTransaction: probe.sqliteIsTransaction,
+    // These waits fail fast on timeout; a report is emitted only after the matching observations.
     rendererRoundTrip: pong.type === "pong",
     reloadRoundTrip:
       reloadedHello.type === "host.hello" &&
       reloadedHello.payload.pid === hostPid &&
       reloadedPong.type === "pong",
     permissionDenied,
+    permissionQueryDenied: permissionQuery === "denied",
     malformed:
       malformed.type === "error" && malformed.payload.code === "invalid_message"
         ? "rejected"

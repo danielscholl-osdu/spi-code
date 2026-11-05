@@ -9,17 +9,21 @@ export interface HostPort {
   start(): void;
 }
 
+export interface HostRequestQueue {
+  pending: Promise<void>;
+}
+
 export function attachHostPort(
   port: HostPort,
   pid: number,
   handler?: (message: Message, send: (message: Message) => void) => Promise<void>,
+  queue: HostRequestQueue = { pending: Promise.resolve() },
 ): void {
   const send = (message: Message) => {
     const parsed = parseMessage(message);
     if (!parsed.ok) throw new Error("Host generated an invalid message");
     port.postMessage(parsed.message);
   };
-  let pending = Promise.resolve();
   port.on("message", ({ data }) => {
     const parsed = parseMessage(data);
     if (!parsed.ok) {
@@ -45,7 +49,7 @@ export function attachHostPort(
       return;
     }
     if (handler && (message.type === "models.list" || message.type === "turn.start")) {
-      pending = pending
+      queue.pending = queue.pending
         .then(() => handler(message, send))
         .catch(() =>
           send({

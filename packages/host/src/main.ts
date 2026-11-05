@@ -9,7 +9,7 @@ import {
   conversationHandler,
   createConversationBackend,
 } from "./process/conversation.js";
-import { attachHostPort, type HostPort } from "./process/port.js";
+import { attachHostPort, type HostPort, type HostRequestQueue } from "./process/port.js";
 import { probeStore } from "./process/store-probe.js";
 import { openRunStore } from "./store/store.js";
 
@@ -35,6 +35,7 @@ let activeBackend: ConversationBackend | undefined;
 let connectedPort: HostPort | undefined;
 let requestId = "startup";
 let handler: ReturnType<typeof conversationHandler> | undefined;
+const requestQueue: HostRequestQueue = { pending: Promise.resolve() };
 function sendToWindow(message: Message): void {
   const parsed = parseMessage(message);
   if (!parsed.ok) throw new Error("Host generated an invalid message");
@@ -64,14 +65,19 @@ attachHostConnections(
           payload: { ...event, arguments: {} },
         });
       });
-    attachHostPort(port, process.pid, async (message) => {
-      requestId = message.id;
-      if (!handler) {
-        activeBackend ??= await backend();
-        handler = conversationHandler(activeBackend, sendToWindow);
-      }
-      await handler(message);
-    });
+    attachHostPort(
+      port,
+      process.pid,
+      async (message) => {
+        requestId = message.id;
+        if (!handler) {
+          activeBackend ??= await backend();
+          handler = conversationHandler(activeBackend, sendToWindow);
+        }
+        await handler(message);
+      },
+      requestQueue,
+    );
   },
   console.error,
 );
