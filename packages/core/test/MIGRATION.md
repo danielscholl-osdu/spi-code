@@ -41,8 +41,15 @@ rib still runs before switching to core.
 | sweep.test.ts | 5 | rib | 0 | 5 |
 | upstream.test.ts | 45 | split | 18 | 27 |
 | work.test.ts | 5 | split | 4 | 1 |
-| **Baseline total** | **469** | **28 files** | | |
-| **Five files ported here** | **40** | | **38** | **2** |
+| **Baseline total** | **469** | **28 files** | **212** | **257** |
+| **First port: spicode-2u4.3** | **40** | **5 files** | **38** | **2** |
+| **Model ports: spicode-2u4.9** | **125** | **6 files** | **87** | **38** |
+| **Briefing and release: spicode-2u4.4** | **172** | **7 files** | **87** | **85** |
+| **Rib-only files** | **132** | **10 files** | **0** | **132** |
+
+The complete ledger reconciles: 40 + 125 + 172 + 132 = 469 baseline tests;
+38 + 87 + 87 = 212 moved, and 2 + 38 + 85 + 132 = 257 staying.
+Every file has been counted, and 212 + 257 = 469.
 
 ## First port: spicode-2u4.3
 
