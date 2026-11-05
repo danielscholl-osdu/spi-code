@@ -425,7 +425,7 @@ test("pruning keeps reused and refreshed entries and evicts the least recently u
   expect(result.reads.find((r) => r.object === sync)).toMatchObject({ observedAt: later });
   const cache = emptyCache();
   cache.template = result.state;
-  pruneCache(emptyFacts(), cache);
+  pruneCache(emptyFacts(), cache, ctx());
   const kept = Object.keys(cacheSchema.parse(JSON.parse(JSON.stringify(cache))).template);
   expect(kept).toHaveLength(40);
   for (const key of used) {
@@ -448,7 +448,7 @@ test("the newest read's entries stay even when they alone exceed the cap", () =>
   const cache = emptyCache();
   for (let i = 0; i < 45; i++) cache.template[`live-${i}`] = { value: [], record, usedAt: now };
   cache.template.stale = { value: [], record, usedAt: "2026-10-12T18:00:00.000Z" };
-  pruneCache(emptyFacts(), cache);
+  pruneCache(emptyFacts(), cache, ctx());
   expect(Object.keys(cache.template)).toEqual(Array.from({ length: 45 }, (_, i) => `live-${i}`));
 });
 

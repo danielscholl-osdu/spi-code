@@ -144,7 +144,7 @@ test("pruning keeps a reused compare and evicts the least recently used, legacy 
   const result = await readUpstream(new Glab(recorded.exec), repos, cache.upstream, ctx);
   expect(result.upstream.partition).toEqual(expected);
   expect(recorded.calls.some((path) => path.includes("/compare?"))).toBe(false);
-  pruneCache(emptyFacts(), cache);
+  pruneCache(emptyFacts(), cache, ctx);
   const kept = Object.keys(cacheSchema.parse(JSON.parse(JSON.stringify(cache))).upstream);
   expect(kept).toHaveLength(40);
   expect(kept).toContain(live);
