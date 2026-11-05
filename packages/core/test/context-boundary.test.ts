@@ -22,131 +22,142 @@ import {
   isVariableStatement,
   type Node,
   NodeFlags,
+  type SourceFile,
   SyntaxKind,
 } from "typescript/unstable/ast";
 import { createVirtualFileSystem } from "typescript/unstable/fs";
 import { API } from "typescript/unstable/sync";
 import { describe, expect, test } from "vitest";
 
-function violations(source: string): string[] {
-  const path = join(dirname(fileURLToPath(import.meta.url)), "boundary.virtual.ts").replaceAll(
+function scan(sources: readonly string[]): string[][] {
+  const directory = join(dirname(fileURLToPath(import.meta.url)), "boundary.virtual").replaceAll(
     "\\",
     "/",
   );
-  const config = `${path}.json`;
+  const files = sources.map((source, index) => [`${directory}/${index}.ts`, source] as const);
+  const paths = files.map(([path]) => path);
+  const config = `${directory}/tsconfig.json`;
   const api = new API({
     fs: createVirtualFileSystem({
       [config]: JSON.stringify({
         compilerOptions: { noLib: true, noResolve: true, types: [] },
-        files: [path],
+        files: paths,
       }),
-      [path]: source,
+      ...Object.fromEntries(files),
     }),
   });
   try {
     using snapshot = api.updateSnapshot({ openProjects: [config] });
-    const file = snapshot.getProject(config)?.program.getSourceFile(path);
-    if (!file) throw new Error(`Could not parse context boundary: ${path}`);
-    const found: string[] = [];
-    const bindings = new Set<string>();
-    function unwrap(node: Node): Node {
-      return isAsExpression(node) || isParenthesizedExpression(node)
-        ? unwrap(node.expression)
-        : node;
-    }
-    function root(node: Node): string | undefined {
-      if (isIdentifier(node)) return node.text;
-      return isPropertyAccessExpression(node) || isElementAccessExpression(node)
-        ? root(node.expression)
-        : undefined;
-    }
-    for (const statement of file.statements) {
-      const exported =
-        (isFunctionDeclaration(statement) || isVariableStatement(statement)) &&
-        statement.modifiers?.some((m) => m.kind === SyntaxKind.ExportKeyword);
-      if (
-        isExportDeclaration(statement) &&
-        /\bset[A-Z]/.test(statement.exportClause?.getText(file) ?? "")
-      ) {
-        found.push("exported setter alias");
-      }
-      if (
-        exported &&
-        isFunctionDeclaration(statement) &&
-        /^set[A-Z]/.test(statement.name?.text ?? "")
-      ) {
-        found.push(`exported setter: ${statement.name?.text}`);
-      }
-      if (!isVariableStatement(statement)) continue;
-      if (!(statement.declarationList.flags & NodeFlags.Const)) found.push("module-scope let/var");
-      for (const declaration of statement.declarationList.declarations) {
-        if (!isIdentifier(declaration.name)) continue;
-        const name = declaration.name.text;
-        bindings.add(name);
-        if (exported && /^set[A-Z]/.test(name)) found.push(`exported setter: ${name}`);
-        const initializer = declaration.initializer && unwrap(declaration.initializer);
-        if (!initializer) continue;
-        const frozen =
-          isCallExpression(initializer) && initializer.expression.getText(file) === "Object.freeze";
-        const value =
-          frozen && initializer.arguments[0] ? unwrap(initializer.arguments[0]) : initializer;
-        const collection =
-          frozen ||
-          isArrayLiteralExpression(value) ||
-          isObjectLiteralExpression(value) ||
-          (isNewExpression(value) &&
-            /^(Map|Set|Array|Object)$/.test(value.expression.getText(file)));
-        if (!collection) continue;
-        const readonly = /\breadonly\b|\bReadonly(Array|Map|Set)\b/.test(
-          declaration.type?.getText(file) ?? "",
-        );
-        if (!frozen && !readonly) found.push(`mutable module collection: ${name}`);
-      }
-    }
-    function visit(node: Node): void {
-      if (isPropertyAccessExpression(node)) {
-        const text = node.getText(file);
-        if (text === "process.env" || text === "Date.now") found.push(text);
-      }
-      if (
-        isNewExpression(node) &&
-        node.expression.getText(file) === "Date" &&
-        !node.arguments?.length
-      ) {
-        found.push("ambient new Date()");
-      }
-      if (
-        isCallExpression(node) &&
-        isPropertyAccessExpression(node.expression) &&
-        /^(push|pop|shift|unshift|splice|sort|reverse|fill|copyWithin|set|add|delete|clear)$/.test(
-          node.expression.name.text,
-        ) &&
-        bindings.has(root(node.expression.expression) ?? "")
-      ) {
-        found.push(`module collection mutation: ${node.expression.getText(file)}`);
-      }
-      if (
-        isBinaryExpression(node) &&
-        node.operatorToken.kind >= SyntaxKind.FirstAssignment &&
-        node.operatorToken.kind <= SyntaxKind.LastAssignment &&
-        bindings.has(root(node.left) ?? "")
-      ) {
-        found.push(`module collection assignment: ${node.left.getText(file)}`);
-      }
-      if (
-        (isPrefixUnaryExpression(node) || isPostfixUnaryExpression(node)) &&
-        (node.operator === SyntaxKind.PlusPlusToken ||
-          node.operator === SyntaxKind.MinusMinusToken) &&
-        bindings.has(root(node.operand) ?? "")
-      )
-        found.push("module collection increment");
-      node.forEachChild(visit);
-    }
-    visit(file);
-    return found;
+    const program = snapshot.getProject(config)?.program;
+    return paths.map((path) => {
+      const file = program?.getSourceFile(path);
+      if (!file) throw new Error(`Could not parse context boundary: ${path}`);
+      return inspect(file);
+    });
   } finally {
     api.close();
   }
+}
+
+function violations(source: string): string[] {
+  return scan([source])[0] ?? [];
+}
+
+function inspect(file: SourceFile): string[] {
+  const found: string[] = [];
+  const bindings = new Set<string>();
+  function unwrap(node: Node): Node {
+    return isAsExpression(node) || isParenthesizedExpression(node) ? unwrap(node.expression) : node;
+  }
+  function root(node: Node): string | undefined {
+    if (isIdentifier(node)) return node.text;
+    return isPropertyAccessExpression(node) || isElementAccessExpression(node)
+      ? root(node.expression)
+      : undefined;
+  }
+  for (const statement of file.statements) {
+    const exported =
+      (isFunctionDeclaration(statement) || isVariableStatement(statement)) &&
+      statement.modifiers?.some((m) => m.kind === SyntaxKind.ExportKeyword);
+    if (
+      isExportDeclaration(statement) &&
+      /\bset[A-Z]/.test(statement.exportClause?.getText(file) ?? "")
+    ) {
+      found.push("exported setter alias");
+    }
+    if (
+      exported &&
+      isFunctionDeclaration(statement) &&
+      /^set[A-Z]/.test(statement.name?.text ?? "")
+    ) {
+      found.push(`exported setter: ${statement.name?.text}`);
+    }
+    if (!isVariableStatement(statement)) continue;
+    if (!(statement.declarationList.flags & NodeFlags.Const)) found.push("module-scope let/var");
+    for (const declaration of statement.declarationList.declarations) {
+      if (!isIdentifier(declaration.name)) continue;
+      const name = declaration.name.text;
+      bindings.add(name);
+      if (exported && /^set[A-Z]/.test(name)) found.push(`exported setter: ${name}`);
+      const initializer = declaration.initializer && unwrap(declaration.initializer);
+      if (!initializer) continue;
+      const frozen =
+        isCallExpression(initializer) && initializer.expression.getText(file) === "Object.freeze";
+      const value =
+        frozen && initializer.arguments[0] ? unwrap(initializer.arguments[0]) : initializer;
+      const collection =
+        frozen ||
+        isArrayLiteralExpression(value) ||
+        isObjectLiteralExpression(value) ||
+        (isNewExpression(value) && /^(Map|Set|Array|Object)$/.test(value.expression.getText(file)));
+      if (!collection) continue;
+      const readonly = /\breadonly\b|\bReadonly(Array|Map|Set)\b/.test(
+        declaration.type?.getText(file) ?? "",
+      );
+      if (!frozen && !readonly) found.push(`mutable module collection: ${name}`);
+    }
+  }
+  function visit(node: Node): void {
+    if (isPropertyAccessExpression(node)) {
+      const text = node.getText(file);
+      if (text === "process.env" || text === "Date.now") found.push(text);
+    }
+    if (
+      isNewExpression(node) &&
+      node.expression.getText(file) === "Date" &&
+      !node.arguments?.length
+    ) {
+      found.push("ambient new Date()");
+    }
+    if (
+      isCallExpression(node) &&
+      isPropertyAccessExpression(node.expression) &&
+      /^(push|pop|shift|unshift|splice|sort|reverse|fill|copyWithin|set|add|delete|clear)$/.test(
+        node.expression.name.text,
+      ) &&
+      bindings.has(root(node.expression.expression) ?? "")
+    ) {
+      found.push(`module collection mutation: ${node.expression.getText(file)}`);
+    }
+    if (
+      isBinaryExpression(node) &&
+      node.operatorToken.kind >= SyntaxKind.FirstAssignment &&
+      node.operatorToken.kind <= SyntaxKind.LastAssignment &&
+      bindings.has(root(node.left) ?? "")
+    ) {
+      found.push(`module collection assignment: ${node.left.getText(file)}`);
+    }
+    if (
+      (isPrefixUnaryExpression(node) || isPostfixUnaryExpression(node)) &&
+      (node.operator === SyntaxKind.PlusPlusToken ||
+        node.operator === SyntaxKind.MinusMinusToken) &&
+      bindings.has(root(node.operand) ?? "")
+    )
+      found.push("module collection increment");
+    node.forEachChild(visit);
+  }
+  visit(file);
+  return found;
 }
 
 function sources(directory: string): string[] {
@@ -163,10 +174,11 @@ describe("core context static boundary", () => {
       (path) => !["clock.ts", "environment.ts"].some((adapter) => path === join(root, adapter)),
     );
     expect(files.length).toBeGreaterThanOrEqual(35);
+    const found = scan(files.map((path) => readFileSync(path, "utf8")));
     expect(
-      files.flatMap((path) => violations(readFileSync(path, "utf8")).map((v) => `${path}: ${v}`)),
+      files.flatMap((path, index) => (found[index] ?? []).map((v) => `${path}: ${v}`)),
     ).toEqual([]);
-  });
+  }, 60_000);
 
   test.each([
     ["let active = 1;", "module-scope let/var"],
