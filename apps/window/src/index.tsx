@@ -4,7 +4,9 @@
 import { type Message, PROTOCOL_VERSION, parseMessage } from "@spi-code/contracts";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { Shell } from "./app/Shell.js";
 import { settleTurn, signInStatus } from "./turn-state.js";
+import "./theme/tokens.css";
 import "./style.css";
 
 declare global {
@@ -108,8 +110,8 @@ function App() {
     });
   }, []);
   return (
-    <main>
-      <h1>SPI Code</h1>
+    <div className="turn-panel">
+      <h2>Copilot</h2>
       <p role="status">{status}</p>
       {ended && <p role="status">{ended}</p>}
       <button
@@ -176,10 +178,14 @@ function App() {
         <h2>Gated tools</h2>
         <pre>{tools.join("\n")}</pre>
       </section>
-    </main>
+    </div>
   );
 }
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Missing window root");
-createRoot(root).render(<App />);
+createRoot(root).render(
+  <Shell>
+    <App />
+  </Shell>,
+);
