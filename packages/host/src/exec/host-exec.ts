@@ -123,7 +123,7 @@ export class HostExec implements Exec {
                 // so the result cannot wait for them to close.
                 child.stdout.destroy();
                 child.stderr.destroy();
-                setTimeout(() => finish(child.exitCode), PIPE_GRACE_MS);
+                setTimeout(() => finish(child.exitCode), PIPE_GRACE_MS).unref();
               });
           }
         };
