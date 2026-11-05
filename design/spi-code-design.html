@@ -1,0 +1,766 @@
+<title>SPI Code</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --surface-2:#e9eeec; --line:#d2dad6; --line-strong:#98a6a0;
+  --ink:#1a2320; --ink-2:#48554f; --ink-3:#78857f;
+  --o1:#3d5aa8;  --o1-bg:#e6ebf8;  --o1-ink:#2b4180;
+  --o2:#7a4aa6; --o2-bg:#efe6f7; --o2-ink:#5a3380;
+  --o3:#0e7c7c;   --o3-bg:#dcf2f1;   --o3-ink:#0a5a5a;
+  --o4:#5f6f7a; --o4-bg:#eaeef0; --o4-ink:#45535c;
+  --ok:#2c7a4e; --ok-bg:#dff0e5; --bad:#a83a2f; --bad-bg:#f5dcd8; --warn:#9a6a12; --warn-bg:#f6ecd6;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#121817; --surface:#1a2220; --surface-2:#222d2a; --line:#31403c; --line-strong:#5a6c66;
+    --ink:#e6ecea; --ink-2:#b3bfba; --ink-3:#7f8d88;
+    --o1:#8b9ae6;  --o1-bg:#232b49;  --o1-ink:#c3cbf5;
+    --o2:#b08ad9; --o2-bg:#2c2140; --o2-ink:#d9c6f0;
+    --o3:#45bdbd;   --o3-bg:#123636;   --o3-ink:#a3e3e3;
+    --o4:#93a3ad; --o4-bg:#242d33; --o4-ink:#c4cfd6;
+    --ok:#7fd1a0; --ok-bg:#173226; --bad:#f08a7e; --bad-bg:#3d1f1b; --warn:#e2b45c; --warn-bg:#3a2e17;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#121817; --surface:#1a2220; --surface-2:#222d2a; --line:#31403c; --line-strong:#5a6c66;
+  --ink:#e6ecea; --ink-2:#b3bfba; --ink-3:#7f8d88;
+  --o1:#8b9ae6;  --o1-bg:#232b49;  --o1-ink:#c3cbf5;
+  --o2:#b08ad9; --o2-bg:#2c2140; --o2-ink:#d9c6f0;
+  --o3:#45bdbd;   --o3-bg:#123636;   --o3-ink:#a3e3e3;
+  --o4:#93a3ad; --o4-bg:#242d33; --o4-ink:#c4cfd6;
+  --ok:#7fd1a0; --ok-bg:#173226; --bad:#f08a7e; --bad-bg:#3d1f1b; --warn:#e2b45c; --warn-bg:#3a2e17;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5}
+.wrap{max-width:1120px;margin:0 auto;padding-block:32px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-size:clamp(26px,4vw,36px);font-weight:600;letter-spacing:-.01em;margin:0 0 10px;text-wrap:balance}
+h2{font-size:22px;font-weight:600;margin:0 0 8px;text-wrap:balance}
+h3{font-size:15px;font-weight:600;margin:18px 0 6px}
+p{margin:0 0 10px;max-width:74ch;color:var(--ink-2)}
+p.lead{font-size:17px;color:var(--ink);max-width:66ch}
+.eyebrow{font-size:11.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin:0 0 6px}
+section{margin-top:48px;padding-top:30px;border-top:1px solid var(--line)}
+code{font-family:var(--mono);font-size:.92em}
+.problem{margin-top:22px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px 22px}
+.problem p{max-width:80ch}
+.problem p b{color:var(--ink);font-weight:500}
+.legend{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:16px;font-size:13.5px}
+.owner{display:inline-flex;align-items:center;gap:7px;font-weight:600;white-space:nowrap}
+.owner::before{content:"";width:10px;height:10px;border-radius:2px;background:var(--c);flex:none}
+.owner.dash::before{background:none;border:1.5px dashed var(--line-strong)}
+.o-o1{--c:var(--o1);color:var(--o1-ink)} .o-o2{--c:var(--o2);color:var(--o2-ink)} .o-o3{--c:var(--o3);color:var(--o3-ink)} .o-o4{--c:var(--o4);color:var(--o4-ink)} .o-mute{color:var(--ink-3)}
+ul.plain{margin:6px 0 10px;padding-left:20px;color:var(--ink-2);max-width:74ch}
+ul.plain li{margin:3px 0}
+
+.flow{margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 16px;overflow-x:auto}
+.flow svg{display:block;width:100%;height:auto;min-width:820px}
+.flow text{font-family:var(--sans);fill:var(--ink);font-size:12px}
+.flow .t{font-size:14px;font-weight:600}
+.flow .mono{font-family:var(--mono)}
+.flow .sub{fill:var(--ink-2)}
+.flow .tiny{fill:var(--ink-3);font-size:11px}
+.flow .okt{fill:var(--ok);font-weight:600} .flow .badt{fill:var(--bad);font-weight:600}
+.flow .box{rx:8;stroke-width:1.3}
+.flow .b-o1{fill:var(--o1-bg);stroke:var(--o1)}
+.flow .b-o2{fill:var(--o2-bg);stroke:var(--o2)}
+.flow .b-o3{fill:var(--o3-bg);stroke:var(--o3)}
+.flow .b-o4{fill:var(--o4-bg);stroke:var(--o4)}
+.flow .b-ok{fill:var(--ok-bg);stroke:var(--ok)}
+.flow .b-bad{fill:var(--bad-bg);stroke:var(--bad)}
+.flow .b-mute{fill:var(--surface-2);stroke:var(--line-strong);stroke-dasharray:4 3}
+.flow .arrow{stroke:var(--line-strong);stroke-width:1.5;fill:none;marker-end:url(#ah)}
+.flow .arrow.ok{stroke:var(--ok);marker-end:url(#ah-ok)}
+.flow .arrow.bad{stroke:var(--bad);stroke-dasharray:5 4;marker-end:url(#ah-bad)}
+.flow .lanebg{fill:none;stroke:var(--line);stroke-dasharray:3 4}
+.flow .lanelbl{font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;fill:var(--ink-3)}
+.note{font-size:13px;color:var(--ink-3);margin-top:10px;max-width:90ch}
+
+.tbl{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14px;margin-top:16px}
+.tbl th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:600;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.tbl td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink-2);overflow-wrap:anywhere}
+.tbl tr:last-child td{border-bottom:none}
+.tbl td b{color:var(--ink);font-weight:500}
+.tblwrap{overflow-x:auto;margin-top:16px}
+.tblwrap + p,.mockwrap + p,.flow + p,.swatches + p{margin-top:14px}
+.tblwrap .tbl{margin-top:0;min-width:680px}
+.tbl.compact td{padding:8px 12px;font-size:13.5px}
+.tbl td.mono{font-family:var(--mono);font-size:12.5px;color:var(--ink);white-space:nowrap}
+.tier{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 7px;border-radius:4px;white-space:nowrap}
+.tier.read{background:var(--ok-bg);color:var(--ok)}
+.tier.change{background:var(--warn-bg);color:var(--warn)}
+.tier.cons{background:var(--bad-bg);color:var(--bad)}
+.tier.local{background:var(--o3-bg);color:var(--o3-ink)}
+.tier.cmd{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line-strong)}
+.tier.never{background:var(--surface-2);color:var(--ink-3);border:1px dashed var(--line-strong)}
+
+.callout{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--ink-2);border-radius:10px;padding:12px 16px;margin-top:14px;font-size:14px;color:var(--ink-2)}
+.callout b{color:var(--ink)}
+.appendix{margin-top:56px;padding-top:30px;border-top:3px solid var(--line)}
+.appendix h2{font-size:18px}
+.appendix section{margin-top:32px;padding-top:22px}
+
+/* ---------- app mockup: Shore light, fixed so it reads the same in either page theme ---------- */
+.mockwrap{margin-top:18px;overflow-x:auto;border-radius:12px;border:1px solid var(--line)}
+.app{--a-bg:#f3efe4;--a-soft:#ece6d7;--a-card:#fbf9f3;--a-card2:#f2ede1;--a-border:#dcd3bf;--a-bsoft:#e8e1d0;--a-fg:#23211c;--a-strong:#15130f;--a-muted:#665f4f;--a-dim:#8a8170;--a-accent:#1d7a6c;--a-acc-bg:#d9ece7;--a-green:#3a7633;--a-yellow:#a07b3a;--a-red:#bb4a2b;--a-red-bg:#f4dfd6;--a-yel-bg:#f3e8cf;--a-mag:#8a5cc0;
+  min-width:1040px;display:grid;grid-template-columns:232px 1fr 300px;grid-template-rows:34px 1fr;height:640px;background:var(--a-bg);color:var(--a-fg);font:12.5px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+.app.dark{--a-bg:#0f1a1b;--a-soft:#132021;--a-card:#162324;--a-card2:#1d2d2e;--a-border:#2b3d3d;--a-bsoft:#213132;--a-fg:#e4dfd1;--a-strong:#f6f2e6;--a-muted:#a59d8a;--a-dim:#7d7666;--a-accent:#5cc4b2;--a-acc-bg:#173b37;--a-green:#8fcf86;--a-yellow:#e2b45c;--a-red:#ec8a6e;--a-red-bg:#3a211b;--a-yel-bg:#33291a;--a-mag:#c3a2e8}
+.app .bar{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:0 12px;background:var(--a-soft);border-bottom:1px solid var(--a-border);font-size:12px;color:var(--a-muted)}
+.app .dots{display:flex;gap:6px}.app .dots i{width:11px;height:11px;border-radius:50%;background:var(--a-border);display:block}
+.app .bar b{color:var(--a-strong);font-weight:600}
+.app .bar .sp{flex:1}
+.app .side{background:var(--a-soft);border-right:1px solid var(--a-border);padding:10px 8px;overflow:hidden;display:flex;flex-direction:column}
+.app .grp{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--a-dim);font-weight:600;margin:12px 8px 4px}
+.app .it{display:flex;align-items:center;gap:8px;padding:3px 8px;border-radius:6px;color:var(--a-fg);white-space:nowrap}
+.app .it.on{background:var(--a-card);box-shadow:inset 0 0 0 1px var(--a-border);color:var(--a-strong);font-weight:600}
+.app .it .n{margin-left:auto;font-size:11px;color:var(--a-dim)}
+.app .it .pip{margin-left:auto;font-size:10.5px;font-weight:700;color:#fff;background:var(--a-red);border-radius:8px;padding:0 6px}
+.app .d{width:7px;height:7px;border-radius:50%;flex:none;background:var(--a-green)}
+.app .d.r{background:var(--a-red)} .app .d.y{background:var(--a-yellow)} .app .d.m{background:var(--a-dim)}
+.app .it.th{color:var(--a-muted)} .app .it.th::before{content:"";width:7px;height:7px;flex:none;border-radius:2px;border:1.3px solid var(--a-dim)}
+.app .foot{margin-top:auto;border-top:1px solid var(--a-border);padding-top:8px}
+.app .main{display:flex;flex-direction:column;min-width:0;background:var(--a-card)}
+.app .tabs{display:flex;gap:2px;padding:8px 14px 0;border-bottom:1px solid var(--a-bsoft);font-size:12px}
+.app .tabs span{padding:5px 10px;color:var(--a-muted);border-bottom:2px solid transparent}
+.app .tabs span.on{color:var(--a-strong);border-color:var(--a-accent);font-weight:600}
+.app .tabs .stamp{margin-left:auto;font-size:11px;color:var(--a-dim);border:0}
+.app .body{padding:14px 18px;overflow:hidden;flex:1}
+.app .head{font-size:15px;color:var(--a-strong);font-weight:600;line-height:1.4;margin-bottom:10px;max-width:60ch}
+.app .facts{display:flex;gap:8px;margin-bottom:12px}
+.app .fact{flex:1;background:var(--a-bg);border:1px solid var(--a-bsoft);border-radius:8px;padding:7px 10px}
+.app .fact .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--a-dim);font-weight:600}
+.app .fact .v{font-size:15px;color:var(--a-strong);font-weight:600}
+.app .fact .s{font-size:11px;color:var(--a-muted)}
+.app .row{display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--a-bsoft);border-radius:8px;margin-bottom:6px;background:var(--a-card)}
+.app .row.sel{box-shadow:inset 3px 0 0 var(--a-accent);border-color:var(--a-border);background:var(--a-card2)}
+.app .pr{font-size:10.5px;font-weight:700;border-radius:4px;padding:1px 0;text-align:center}
+.app .p0{background:var(--a-red-bg);color:var(--a-red)} .app .p1{background:var(--a-yel-bg);color:var(--a-yellow)} .app .p2{background:var(--a-acc-bg);color:var(--a-accent)}
+.app .row .t{color:var(--a-strong);font-weight:600}
+.app .row .s{color:var(--a-muted);font-size:11.5px}
+.app .btn{font-size:11.5px;border:1px solid var(--a-border);background:var(--a-card);border-radius:6px;padding:3px 9px;color:var(--a-fg);white-space:nowrap}
+.app .btn.pri{background:var(--a-accent);border-color:var(--a-accent);color:#fff}
+.app .ready{font-size:12px;color:var(--a-muted);margin-top:8px}
+.app .comp{margin:0 14px 12px;border:1px solid var(--a-border);border-radius:10px;background:var(--a-card);padding:8px 10px}
+.app .comp .ph{color:var(--a-dim);margin-bottom:8px}
+.app .comp .ctl{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--a-muted)}
+.app .chipx{border:1px solid var(--a-bsoft);border-radius:5px;padding:1px 7px;background:var(--a-bg)}
+.app .chipx.anc{border-color:var(--a-accent);color:var(--a-accent);background:var(--a-acc-bg)}
+.app .right{border-left:1px solid var(--a-border);background:var(--a-bg);display:flex;flex-direction:column;min-width:0}
+.app .rtabs{display:flex;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--a-border);font-size:11.5px}
+.app .rtabs span{padding:4px 8px;color:var(--a-muted);border-bottom:2px solid transparent}
+.app .rtabs span.on{color:var(--a-strong);border-color:var(--a-accent);font-weight:600}
+.app .rtabs .pip{font-size:10px;font-weight:700;color:#fff;background:var(--a-yellow);border-radius:7px;padding:0 5px;margin-left:3px}
+.app .ins{padding:12px;overflow:hidden}
+.app .ins .h{font-size:13.5px;font-weight:600;color:var(--a-strong);margin:4px 0 2px}
+.app .ins .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--a-dim);font-weight:600;margin-top:9px}
+.app .ins .v{color:var(--a-fg);font-size:12px}
+.app .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.app .appr{margin-top:12px;border:1px solid var(--a-yellow);border-radius:8px;background:var(--a-card);padding:9px 10px}
+.app .appr .lbl{font-size:10.5px;font-weight:700;color:var(--a-yellow);letter-spacing:.06em;text-transform:uppercase}
+.app .appr code{display:block;font:11px/1.4 ui-monospace,Menlo,monospace;background:var(--a-bg);border:1px solid var(--a-bsoft);border-radius:5px;padding:5px 7px;margin:6px 0;color:var(--a-strong);white-space:pre-wrap}
+.app .appr .bind{font-size:11px;color:var(--a-muted)}
+
+.setup{min-width:760px;background:#fbf9f3;color:#23211c;font:12.5px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px 18px}
+.setup .g{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8a8170;font-weight:600;margin:12px 0 6px}
+.setup .r{display:grid;grid-template-columns:150px 120px 1fr auto;gap:12px;align-items:center;padding:7px 10px;border:1px solid #e8e1d0;border-radius:8px;margin-bottom:5px;background:#fff}
+.setup .nm{font-weight:600;color:#15130f}
+.setup .st{font-size:11px;font-weight:700;border-radius:4px;padding:1px 7px;justify-self:start}
+.setup .ok{background:#e1eedc;color:#3a7633} .setup .in{background:#d9ece7;color:#1d7a6c} .setup .si{background:#f3e8cf;color:#8f6207} .setup .at{background:#f4dfd6;color:#bb4a2b} .setup .off{background:#ece6d7;color:#665f4f}
+.setup .why{color:#665f4f;font-size:12px}
+.setup .b{font-size:11.5px;border:1px solid #dcd3bf;background:#fbf9f3;border-radius:6px;padding:3px 10px;white-space:nowrap}
+.setup .b.p{background:#1d7a6c;border-color:#1d7a6c;color:#fff}
+
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:14px}
+.sw{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface);font-size:11.5px}
+.sw .c{height:30px;display:flex}
+.sw .c i{flex:1}
+.sw .l{padding:5px 8px;color:var(--ink-2)}
+.sw .l b{color:var(--ink);font-weight:600;display:block}
+@media print{ body{background:#fff} .wrap{max-width:none;padding:0} section{break-before:page;border-top:none;margin-top:0;padding-top:0} .appendix section{break-before:auto} .flow svg{min-width:0} }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">spi-code · desktop operator app · design</p>
+  <h1>SPI Code</h1>
+  <p class="lead">A macOS and Windows desktop app for running the SPI program (System, Stack, Services) with GitHub Copilot as its only agent, built on the SPI domain already proven in keelson-rib-spi.</p>
+
+  <div class="problem">
+    <p>Operating SPI today takes four tools and an agent that knows nothing about the program. The <code>keelson-rib-spi</code> console in Keelson reads the program well. Its 23k lines and 464 tests cover failure attribution, incident folding, the upstream radar and template rollout. But it writes only to GitHub, and only through board buttons. Stack work happens in a terminal with <code>spi</code>, <code>kubectl</code> and <code>az</code>, and GitLab upstream work in <code>glab</code> or the browser. Rerun-when-deployable waits and workflow approval pauses are lost on restart. Setup means installing Bun, Keelson and seven command-line tools by hand.</p>
+    <p>SPI Code is one Electron app with three parts. The first is <b>@spi-code/core</b>, the domain extracted from keelson-rib-spi, which both the rib and the app use. The second is a <b>host process</b> that runs the sweeps and drives Copilot through <code>@github/copilot-sdk</code>, with SPI operator tools running in the host. It records every run, approval and write intent in SQLite, so a restart never loses a wait or repeats a write. The third is a <b>three-pane window</b>: the program tree on the left, a console view or an agent thread in the middle, and an inspector on the right. The app installs, versions and signs in the tools it needs, without Homebrew or a terminal.</p>
+    <p>SPI Code supports one agent provider and has no MCP server, CLI or plugin system. Threads come in two kinds. In an operate thread, Copilot has no shell and no file access, and every command it can cause is a typed tool with a declared tier. In a code thread, Copilot reads and edits files in an app-owned worktree, and each command it wants to run is approved on its own card and runs in an OS sandbox with no credentials. SPI Code itself makes the commits and the push, and the push is an approval card too. Fixes on a fork's main branch can still go to the Copilot coding agent. Linux is not a target. SPI Code does not replace the <code>spi</code> CLI or the fork workflows, and it never stands in for a human review gate. Its picture of the environment is no stronger than its evidence. Every view says when a source is unread, and a write that needs a deployable environment is refused while evidence is missing or in conflict.</p>
+  </div>
+
+  <p class="eyebrow" style="margin-top:28px">Colors identify who acts</p>
+  <div class="legend">
+    <span class="owner o-o1">Operator · asks, approves, decides</span>
+    <span class="owner o-o2">SPI Code · reads, plans, executes, records</span>
+    <span class="owner o-o3">Copilot · reasons and proposes tool calls</span>
+    <span class="owner o-o4">Outside systems · GitHub, GitLab, Azure, the cluster</span>
+    <span class="owner o-mute dash">Dashed · installed or carried by SPI Code, not its own logic</span>
+  </div>
+
+  <section>
+    <h2>Program shape</h2>
+    <p>The app is organized around the program's three nouns, not around repositories or chat sessions. Each noun is a branch of the left tree. Each object under a branch has a console view and can anchor agent threads. The rib console already builds six views (Today, Repositories, Environment, Flow, Horizon, Releases), and each one has a place in the tree.</p>
+    <div class="tblwrap">
+    <table class="tbl">
+      <thead><tr><th style="width:14%">Branch</th><th style="width:28%">Objects</th><th style="width:30%">Read from</th><th>Operator acts on it by</th></tr></thead>
+      <tbody>
+        <tr><td><b>Today</b></td><td>The program briefing: headline, facts, focus items, ready work</td><td>The whole model, through <code>buildBriefing</code></td><td>Working the queue item by item from the inspector</td></tr>
+        <tr><td><b>System</b></td><td>The osdu-spi template, its release ladder and rollout, fork Repositories (issues, PRs, Dependabot, vulnerabilities, code scanning), monthly Releases</td><td>GitHub GraphQL and REST, template tags and compares, releases</td><td>Sync all forks, roll out, fleet release, release notes</td></tr>
+        <tr><td><b>Stack</b></td><td>The shared environment: running version, deployability, lifecycle runs, Flux state, pins</td><td>Lifecycle workflow runs from M2; <code>spi status --json</code>, Flux and pods from M6, labeled as live reads</td><td>Re-dispatch refresh or upgrade, reconcile, maintenance, service pin and reset</td></tr>
+        <tr><td><b>Services</b></td><td>Each service line (13 today) with its six stations, Flow across the fleet, Horizon (upstream radar, ports owed, library skew)</td><td>Fork Actions runs and PRs on GitHub; upstream heads, MRs and pipelines on GitLab</td><td>Approve runs, re-run, prepare and start upstream, cascade, merge Dependabot and template PRs, fix code in a worktree, hand a fix to the coding agent</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Window</h2>
+    <p>The layout follows T3 Code: a left bar, a middle panel and a right panel. The left bar is the program tree with live status dots, plus recent threads and active runs. The middle panel shows the selected object's console view, or an agent thread when one is open. The right panel starts with context tabs for whatever is selected (the inspector, a run, a code thread's changes, a PR), then Approvals and Log, always in that order. The <a href="https://claude.ai/artifact/KZ6UNcnih9kS6Ynd72kkbk">UI mockups</a> show thirteen screens and the component kit, all at one example moment.</p>
+    <div class="mockwrap">
+      <div class="app">
+        <div class="bar"><span class="dots"><i></i><i></i><i></i></span><b>SPI Code</b><span>· shared environment deployable · inferred</span><span class="sp"></span><span>⌘K</span></div>
+        <div class="side">
+          <div class="it on"><span class="d r"></span>Today<span class="pip">3</span></div>
+          <div class="grp">System</div>
+          <div class="it"><span class="d"></span>Template<span class="n">v1.3.0 +6</span></div>
+          <div class="it"><span class="d y"></span>Repositories<span class="n">2 critical</span></div>
+          <div class="it"><span class="d m"></span>Releases<span class="n">Oct</span></div>
+          <div class="grp">Stack</div>
+          <div class="it"><span class="d"></span>Shared environment<span class="n">0.35.1</span></div>
+          <div class="grp">Services</div>
+          <div class="it"><span class="d"></span>Flow · Horizon</div>
+          <div class="it"><span class="d r"></span>entitlements</div>
+          <div class="it"><span class="d y"></span>schema</div>
+          <div class="it"><span class="d"></span>partition</div>
+          <div class="it"><span class="d"></span>legal</div>
+          <div class="it"><span class="d"></span>storage<span class="n">+8 more</span></div>
+          <div class="grp">Threads</div>
+          <div class="it th">Why is entitlements red</div>
+          <div class="it th">Classify schema's new entry</div>
+          <div class="foot"><div class="it"><span class="d y"></span>Runs<span class="n">1 waiting</span></div><div class="it"><span class="d"></span>Setup<span class="n">ready</span></div></div>
+        </div>
+        <div class="main">
+          <div class="tabs"><span class="on">Today</span><span>Focus</span><span>Ready</span><span class="stamp">swept 2 min ago · all sources read</span></div>
+          <div class="body">
+            <div class="head">Fix entitlements' cascade, which fails at Prove on a test failure. Classify the new shared entry before schema halts at the 00:00 sync.</div>
+            <div class="facts">
+              <div class="fact"><div class="k">Environment</div><div class="v">Deployable</div><div class="s">refresh green 34 min · 6 h ago</div></div>
+              <div class="fact"><div class="k">Template</div><div class="v">v1.3.0 +6</div><div class="s">11 of 13 forks at main</div></div>
+              <div class="fact"><div class="k">Upstream</div><div class="v">2 will break</div><div class="s">1 halt · 1 toolchain</div></div>
+            </div>
+            <div class="row sel"><span class="pr p0">P0</span><div><div class="t">entitlements · cascade failed at Prove</div><div class="s">TEST · 3 suites red after sync of 14 upstream commits · 5 h</div></div><span class="btn">Diagnose</span></div>
+            <div class="row"><span class="pr p1">P1</span><div><div class="t">schema · halts at next sync</div><div class="s">HALT · unclassified shared entry in upstream MR · before 00:00</div></div><span class="btn">Hand off</span></div>
+            <div class="row"><span class="pr p1">P1</span><div><div class="t">partition · 1 outside PR waits for run approval</div><div class="s">Actions run held · PR head matched · 2 h</div></div><span class="btn">Approve run</span></div>
+            <div class="ready">Ready: 2 Dependabot bumps and 1 template sync PR are green and waiting for review.</div>
+          </div>
+          <div class="comp">
+            <div class="ph">Ask about entitlements, or tell Copilot what to do…</div>
+            <div class="ctl"><span class="chipx anc">⚓ entitlements · cascade</span><span class="chipx">Copilot · auto</span><span class="chipx">Changes need approval</span><span style="margin-left:auto">⏎ send</span></div>
+          </div>
+        </div>
+        <div class="right">
+          <div class="rtabs"><span class="on">Inspector</span><span>Approvals<span class="pip">1</span></span><span>Log</span></div>
+          <div class="ins">
+            <div class="k">P0 · TEST · entitlements</div>
+            <div class="h">Cascade failed at Prove</div>
+            <div class="k">Cause</div><div class="v">Three acceptance suites fail after the sync brought 14 upstream commits. The environment was deployable during the run.</div>
+            <div class="k">Effect</div><div class="v">Main does not advance. The next upstream sync for entitlements waits behind this cascade.</div>
+            <div class="k">Next</div><div class="v">Diagnose the failing suites, then fix them on fork_integration in a code thread.</div>
+            <div class="acts"><span class="btn pri">Diagnose</span><span class="btn" style="opacity:.5">Re-run failed</span><span class="btn">Open PR</span></div>
+            <div class="bind" style="margin-top:6px">Re-run is offered for an Environment failure. This one is TEST.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Mockup in the light appearance. Names, counts and identifiers are examples. The composer always shows its anchor, so the operator knows what context Copilot starts from. A disabled action always says why, in place.</p>
+
+    <h3>Threads anchor to objects</h3>
+    <p>Every thread has an anchor: the program, a branch, a service line, the stack, a queue item or a PR. The anchor decides three things:</p>
+    <ul class="plain">
+      <li>Copilot's starting context: the object's <code>readItem</code> text (title, cause, effect, next action, related items) and the sweep time it came from.</li>
+      <li>Where the thread is listed in the tree.</li>
+      <li>Which operator tools are offered first. Every tool stays reachable.</li>
+    </ul>
+    <p>Typing in the composer on a console view starts a thread anchored to whatever is selected.</p>
+
+    <h3>Thread kinds</h3>
+    <p>A thread's kind is set when it starts and shown in its header. An <b>operate thread</b> reads the program and proposes typed tools; Diagnose a failure runs as one. A <b>code thread</b> works in a worktree on one fork branch (see Code threads). The kind decides the session's <code>availableTools</code>, so Copilot in an operate thread has no file or command tool to call. When a thread already owns a piece of work, every view that shows the work opens that thread instead of offering to start another: the queue row reads "Fix awaiting push", and the inspector's primary action is "Open thread".</p>
+
+    <h3>One approval, several places</h3>
+    <p>Every approval card has one id and one state in the host's approval store: pending, binding failed, executing, applied, not applied, unknown, declined or invalidated. It shows where it was requested and in the Approvals tab, which is one inbox with the same count on every screen. The decision happens in one place per origin. A card requested in a thread is decided in that thread's composer strip, and its timeline entry and inbox row point there. A card requested by a button is decided on the card itself, in its run and in the inbox. A button never writes: it creates the card, and the card holds the decision.</p>
+
+    <h3>Window state</h3>
+    <p>The window renders views of five host stores and keeps only the selection and each context's chosen tab.</p>
+    <div class="tblwrap"><table class="tbl compact">
+      <thead><tr><th style="width:18%">Store</th><th style="width:44%">Holds</th><th>Feeds</th></tr></thead>
+      <tbody>
+        <tr><td><b>SweepSnapshot</b></td><td>Facts, model, briefing and evidence envelopes from the latest sweep</td><td>The tree, every console view, evidence chips</td></tr>
+        <tr><td><b>ApprovalStore</b></td><td>Every card by id, with kind, tier, binding, typed name and state</td><td>Timeline cards, the composer strip, the Approvals inbox, Runs</td></tr>
+        <tr><td><b>IntentLedger</b></td><td>Runs, intents, per-target outcomes and lookups</td><td>Runs, outcome chips, the PR watch</td></tr>
+        <tr><td><b>WorktreeStore</b></td><td>Worktree, local branch, base and head, uncommitted and unpushed counts, push lease</td><td>The tree, the thread header, the Changes tab</td></tr>
+        <tr><td><b>ThreadStore</b></td><td>Thread kind, anchor, Copilot session and timeline</td><td>The timeline, the work log, the composer</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Process model</h2>
+    <p>SPI Code is Electron. Like T3 Code, it splits a thin main process from a separate backend, adjusted for an app that is never served remotely. The host runs as an Electron <code>utilityProcess</code> and talks to the window over a <code>MessagePort</code> with zod-validated messages. There is no local network port, so nothing else on the machine can reach the agent. M0 measures the Copilot runtime and <code>node:sqlite</code> inside a utility process on signed builds. If either misbehaves, the host becomes a Node child process started with <code>ELECTRON_RUN_AS_NODE</code>, as T3 Code runs it. Only the chosen model is built after M0. The message contract is the same either way.</p>
+    <div class="flow">
+      <svg viewBox="0 0 1000 366" role="img" aria-label="The window, Electron main and host process on the operator's machine; the host runs the Copilot runtime and managed tools, which reach GitHub, GitLab, Azure and the cluster.">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--line-strong)"/></marker>
+          <marker id="ah-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--ok)"/></marker>
+          <marker id="ah-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--bad)"/></marker>
+        </defs>
+        <rect x="8" y="8" width="984" height="226" class="lanebg" rx="10"/>
+        <text x="22" y="30" class="lanelbl">On the operator's machine · one app bundle</text>
+
+        <rect x="24" y="48" width="200" height="96" class="box b-o1"/>
+        <text x="36" y="72" class="t">Window (renderer)</text>
+        <text x="36" y="92" class="sub">React, three panes</text>
+        <text x="36" y="109" class="sub">MessagePort to the host</text>
+        <text x="36" y="130" class="tiny">sandboxed, derived views only</text>
+
+        <rect x="24" y="160" width="200" height="58" class="box b-o2"/>
+        <text x="36" y="184" class="t">Electron main</text>
+        <text x="36" y="204" class="sub">windows, tray, restarts host</text>
+
+        <path d="M224 96 L262 96" class="arrow"/>
+
+        <rect x="264" y="48" width="300" height="170" class="box b-o2"/>
+        <text x="276" y="72" class="t">Host (utilityProcess)</text>
+        <text x="276" y="92" class="sub">sweeper: scheduled reads into Facts</text>
+        <text x="276" y="109" class="sub">@spi-code/core: model, briefing, plans</text>
+        <text x="276" y="126" class="sub">agent runtime: sessions, operator tools</text>
+        <text x="276" y="143" class="sub">policy: tiers, bindings, locks, redaction</text>
+        <text x="276" y="160" class="sub">runs: verbs, playbooks, waits, intents</text>
+        <text x="276" y="177" class="sub">store: SQLite (node:sqlite), settings</text>
+        <text x="276" y="204" class="tiny">every outside call starts here</text>
+
+        <path d="M564 96 L602 96" class="arrow"/>
+        <rect x="604" y="48" width="370" height="96" class="box b-mute"/>
+        <text x="616" y="72" class="t">Managed tools</text>
+        <text x="616" y="92" class="sub mono">git gh glab uv az kubelogin</text>
+        <text x="616" y="109" class="sub mono">kubectl flux helm spi</text>
+        <text x="616" y="130" class="tiny">child processes with a scoped environment</text>
+
+        <path d="M564 190 L602 190" class="arrow"/>
+        <rect x="604" y="160" width="180" height="58" class="box b-o3"/>
+        <text x="616" y="184" class="t">Copilot runtime</text>
+        <text x="616" y="204" class="sub">SDK platform binary, stdio</text>
+
+        <rect x="800" y="160" width="174" height="58" class="box b-mute"/>
+        <text x="812" y="184" class="t">App data</text>
+        <text x="812" y="204" class="sub">tools, configs, db</text>
+
+        <path d="M604 130 L586 130 L586 242 L112 242 L112 266" class="arrow"/>
+        <path d="M304 242 L304 266" class="arrow"/>
+        <path d="M496 242 L496 266" class="arrow"/>
+        <path d="M694 218 L694 266" class="arrow"/>
+
+        <rect x="8" y="250" width="984" height="108" class="lanebg" rx="10"/>
+        <rect x="24" y="268" width="176" height="62" class="box b-o4"/>
+        <text x="36" y="292" class="t">GitHub</text>
+        <text x="36" y="312" class="sub">template, forks, Actions</text>
+        <rect x="216" y="268" width="176" height="62" class="box b-o4"/>
+        <text x="228" y="292" class="t">GitLab upstream</text>
+        <text x="228" y="312" class="sub">community.opengroup.org</text>
+        <rect x="408" y="268" width="176" height="62" class="box b-o4"/>
+        <text x="420" y="292" class="t">Azure + AKS</text>
+        <text x="420" y="312" class="sub">subscription, Flux, pods</text>
+        <rect x="604" y="268" width="180" height="62" class="box b-o3"/>
+        <text x="616" y="292" class="t">Copilot service</text>
+        <text x="616" y="312" class="sub">models, coding agent</text>
+        <text x="22" y="350" class="lanelbl">Outside · reached only through the operator's own sign-ins</text>
+      </svg>
+    </div>
+    <p class="note">The window never runs a command and never calls the network. The host pushes it derived view models (briefing, view rows, inspector text), never raw Facts. Every button becomes a host request that passes the same policy check as a Copilot tool call.</p>
+    <p>Closing the window leaves SPI Code in the menu bar on macOS and in the tray on Windows while any run or wait is open. Quitting with open runs asks first. Waits resume on the next launch, and a single-instance lock stops two hosts from sweeping or writing at once. If the host crashes, main restarts it once. The window then resubscribes from its last event cursor, so no run event is shown twice or skipped.</p>
+  </section>
+
+  <section>
+    <h2>Copilot runtime</h2>
+    <p>The host drives Copilot through <code>@github/copilot-sdk</code>, pinned at a version Keelson's provider already runs (1.0.26 today). The SDK ships its own runtime for each platform in <code>@github/copilot-sdk-&lt;platform&gt;</code>, so the app bundles no separate CLI. Packaging unpacks that platform package from the asar archive and starts it over stdio by explicit path. It never uses the SDK's in-process mode, which loads a native library into the host and conflicts with the hardened runtime. Each architecture gets its own build because only the matching platform package is installed.</p>
+    <p>Sessions are isolated from anything the operator has set up for Copilot elsewhere. The client runs in <code>empty</code> mode with a base directory under app data, which keeps the operator's <code>~/.copilot</code> MCP servers, agents, skills and instructions out of SPI Code. Empty mode also means the runtime never sees the operator's existing Copilot login. Instead, each session gets its token from a provider that reads <code>gh auth token</code>, so one gh sign-in covers both tools and a <code>gh auth switch</code> takes effect on the next session. That provider API is marked experimental, so M0 proves it with no client token: start, list models, stream a turn and refresh. If it falls short, the host passes the gh token at the client level instead, and drops the warm client when the credential changes, as Keelson does. The token stays in gh's keychain entry, and no Copilot credential is written under app data. <code>availableTools</code> lists every allowed tool by name: each SPI tool as <code>custom:&lt;name&gt;</code> and no built-in tool at all. Every SPI tool is registered with <code>defer: "never"</code>, because with no built-in tool search a deferred tool would be out of Copilot's reach. Copilot never gets a built-in shell, file, URL fetch, memory or subagent tool. In an operate thread it has no file or command tool at all, and when it needs a log or report it calls <code>read_artifact</code>, which reads only files the host itself saved for the current run. A code thread adds the host's worktree tools from appendix C: file reads, search and edits confined to the worktree, <code>run_command</code> and <code>commit</code>. <code>onPermissionRequest</code> denies every kind, so a built-in tool that ever slips through is refused rather than allowed.</p>
+    <p>SPI tools are registered with the SDK's permission prompt skipped, and the policy check runs inside each tool's handler. The handler is the only place that can hold the target's lock, re-read the binding and write the intent around the actual call. Buttons and playbooks call the same handler, so all three paths share one check. The check runs after the arguments pass the tool's zod schema and before any outside call. Any error in that check, or an answer it cannot read, fails closed. Model choice comes from the operator's Copilot plan, shown as a picker with <code>auto</code> as the default.</p>
+    <p>Each session starts with a system message seeded from the rib's Watch Officer prompt, followed by the anchor's context and its sweep time. The prompt's rules: read before acting, keep certain upstream changes apart from possible ones, never assume maintenance can be cleared, and name the exact next action. Appendix D lists the session lifecycle hazards Keelson's provider already handles; the host copies those fixes.</p>
+  </section>
+
+  <section>
+    <h2>Authority and approvals</h2>
+    <p>SPI Code can act in GitHub, GitLab, Azure and the cluster through typed tools, with the operator's own sign-ins. Each tool builds its own command from validated arguments, supports an explicit list of variants, and declares one tier. Outside a code thread's sandbox, no tool runs an arbitrary command. A button press, a playbook step and a Copilot tool call all go through the same check. Copilot proposes. Neither Copilot nor a playbook can approve a proposal.</p>
+    <div class="tblwrap">
+    <table class="tbl">
+      <thead><tr><th style="width:15%">Tier</th><th style="width:33%">Runs when</th><th>Examples</th></tr></thead>
+      <tbody>
+        <tr><td><span class="tier read">Read</span></td><td>At once, with no prompt. Logged, and redacted before the result reaches Copilot or the store.</td><td>Every <code>spi_*</code> read tool, <code>spi status --json</code>, <code>kubectl get</code> (not Secrets) and bounded logs, <code>flux get</code>, run logs, MR diffs, <code>az</code> show and list</td></tr>
+        <tr><td><span class="tier local">Local</span></td><td>At once, inside a code thread's worktree only. Shown in the thread's work log.</td><td>Read, search and edit files in the worktree (paths checked after resolving links); commit to the thread's local <code>spi/*</code> branch</td></tr>
+        <tr><td><span class="tier cmd">Command</span></td><td>After the operator approves the card, which shows the exact command and folder. Runs in the worktree sandbox. Code threads only.</td><td>Test runs, builds and formatters, such as <code>mvn -pl &lt;module&gt; test</code></td></tr>
+        <tr><td><span class="tier change">Change</span></td><td>After the operator approves the card. One card, one call.</td><td>Push a code thread's branch (typing the PR number when the push changes <code>.github/</code>), open a PR, re-run a cascade, re-run failed jobs, approve an outside PR's Actions run, merge a Dependabot or template PR into a protected branch once checks and reviews pass, dispatch template sync to one fork, prepare upstream, open an issue or upstream MR, assign the coding agent, comment</td></tr>
+        <tr><td><span class="tier cons">Consequential</span></td><td>Only after the operator types the target's name into the card. Never batched with another card.</td><td>Anything that touches the shared environment, deletes, or acts on many forks at once: sync all forks, roll out, start upstream, env refresh, upgrade or reset dispatch, maintenance set and clear, <code>spi reconcile</code> (plain, resume, refresh-images; <code>--suspend</code> is not offered), service pin and reset</td></tr>
+        <tr><td><span class="tier never">Not offered</span></td><td>No tool exists for it.</td><td>Commands outside a code thread's sandbox; <code>git push</code>, <code>gh</code>, <code>az</code>, <code>kubectl</code>, <code>spi</code>, <code>flux</code> or <code>helm</code> as commands; merging a cascade PR (gate 2 is a review on GitHub); submitting a PR review approval, squash-merging release or upstream branches, force push, repository secrets, reading Kubernetes Secrets, <code>info --show-secrets</code>, any guard bypass</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>Each Change and Consequential tool declares its binding: the facts that must still hold when it runs (appendix C). For a merge, those are the head SHA, base SHA, mergeability, required checks, review state and draft state. The merge itself is sent with <code>--match-head-commit</code>, so GitHub refuses it if the head moved after the check. For an environment upgrade, the binding is the declared version, maintenance state, no lifecycle run in flight, and the tenant, subscription and cluster the card names. A recovery tool binds the state it exists to fix. Clearing maintenance makes the same check the lifecycle workflows make before they clear it: no lifecycle run in flight, the deployed ref matches the declared stack version, and <code>spi status</code> reports the environment ready, with maintenance as its only blocker. It does not require the environment to read deployable, because clearing maintenance is what makes it deployable. A pending card does not expire. When the operator approves, the host takes the target's named lock, re-reads every binding field, and runs only if all of them still hold. Otherwise the card says which field changed and nothing runs. Named locks per fork and per environment serialize conflicting writes across threads, playbooks and buttons.</p>
+    <div class="flow">
+      <svg viewBox="0 -22 1000 236" role="img" aria-label="A proposed tool call is classified by tier; read runs, change and consequential wait for the operator, then the target is locked and its binding re-read before execution.">
+        <rect x="24" y="20" width="168" height="76" class="box b-o3"/>
+        <text x="36" y="44" class="t">Proposal</text>
+        <text x="36" y="64" class="sub">Copilot tool call</text>
+        <text x="36" y="85" class="tiny">or a button, or a playbook</text>
+        <path d="M192 58 L226 58" class="arrow"/>
+        <rect x="228" y="20" width="168" height="76" class="box b-o2"/>
+        <text x="240" y="44" class="t">Validate and bind</text>
+        <text x="240" y="64" class="sub">schema, tier, binding</text>
+        <text x="240" y="85" class="tiny">any error: refuse</text>
+        <path d="M312 20 L312 -8 L912 -8 L912 18" class="arrow ok"/>
+        <text x="560" y="-12" class="tiny">Read and Local: run at once</text>
+        <path d="M396 76 L430 76 L430 138 L448 138" class="arrow"/>
+        <text x="424" y="112" text-anchor="end" class="tiny">Command,</text>
+        <text x="424" y="124" text-anchor="end" class="tiny">Change,</text>
+        <text x="424" y="136" text-anchor="end" class="tiny">Consequential</text>
+        <rect x="450" y="108" width="168" height="76" class="box b-o1"/>
+        <text x="462" y="132" class="t">Approval card</text>
+        <text x="462" y="152" class="sub">exact command, binding</text>
+        <text x="462" y="173" class="tiny">typed name if Consequential</text>
+        <path d="M618 146 L652 146 L652 76 L672 76" class="arrow ok"/>
+        <path d="M534 184 L534 200" class="arrow bad"/>
+        <text x="544" y="206" class="tiny">denied: nothing runs, Copilot is told why</text>
+        <rect x="674" y="20" width="148" height="76" class="box b-o2"/>
+        <text x="686" y="44" class="t">Lock and re-read</text>
+        <text x="686" y="64" class="sub">every binding field</text>
+        <text x="686" y="85" class="tiny">changed: refuse</text>
+        <path d="M822 58 L846 58" class="arrow ok"/>
+        <rect x="848" y="20" width="128" height="76" class="box b-ok"/>
+        <text x="860" y="44" class="t">Execute</text>
+        <text x="860" y="64" class="sub">intent first</text>
+        <text x="860" y="85" class="tiny">record, resweep</text>
+      </svg>
+    </div>
+    <p class="note">Every call, including a Read, is written to the run log with its arguments, result size and duration. Child processes never inherit <code>SPI_SKIP_GUARD</code> or another guard-bypass variable.</p>
+
+    <h3>Evidence before a write</h3>
+    <p>Every read result carries the same envelope: its source, when it was observed, whether it is complete, and whether it is fresh, stale, unread or failed. A source is stale when its last good read is older than twice its sweep interval, incomplete when a page or size limit cut the read short, failed when its latest read errored, and unread when no read has succeeded since the app started. Views show that envelope wherever a value is drawn. A write whose binding needs a deployable environment is refused when deployability is unread or when sources disagree, for example when the inferred model says deployable but a live <code>spi status</code> says blocked. The card names the disagreement. Both values stay visible. Neither silently wins. A value drawn only from inferred sources says so wherever it is shown, including the top bar ("Deployable · inferred").</p>
+    <p>Redaction runs on every result before it reaches Copilot or SQLite. It strips tokens, keys, connection strings and kubeconfig credentials. Pod logs and <code>kubectl get</code> results have size limits, and Kubernetes Secrets have no reader.</p>
+  </section>
+
+  <section>
+    <h2>Code threads</h2>
+    <p>Some fixes have to land on <code>fork_integration</code> or in files the template owns, where the coding agent cannot work. A code thread makes those fixes in an app-owned worktree. It starts from a finding or an inspector action, checks out the fork at the head the finding read, and carries the finding as context. Each fork is cloned once under app data and shared by its worktrees.</p>
+    <p>Each code thread commits to its own local <code>spi/*</code> branch and names the remote branch it targets, for example <code>spi/fix-prove-418 → fork_integration</code>. One thread at a time holds the lease to push to a given remote branch. The thread header shows the branch, the target, and the base and head commits.</p>
+    <div class="tblwrap"><table class="tbl">
+      <thead><tr><th style="width:30%">Step</th><th style="width:32%">Who acts</th><th>Approval</th></tr></thead>
+      <tbody>
+        <tr><td>Read, search and edit files</td><td>Copilot, through host tools confined to the worktree</td><td>None (Local)</td></tr>
+        <tr><td>Run a test or build</td><td>Copilot proposes; the sandbox runs it</td><td>One Command card per command</td></tr>
+        <tr><td>Commit to the local branch</td><td>SPI Code, at Copilot's request</td><td>None (Local); recorded in the work log</td></tr>
+        <tr><td>Push the branch</td><td>SPI Code, through <code>push_branch</code></td><td>Change card; the PR number is typed when the push changes <code>.github/</code></td></tr>
+        <tr><td>Re-run the cascade</td><td>SPI Code, through <code>rerun_cascade</code></td><td>Its own Change card; a push does not re-run it</td></tr>
+        <tr><td>Review and merge the cascade PR</td><td>A reviewer on GitHub</td><td>Not offered in the app</td></tr>
+      </tbody>
+    </table></div>
+    <p>After the push, the thread watches the PR at the pushed commit: each required check on that commit and the review gate 2 needs. When the checks pass, it links to the PR on GitHub for the review. The worktree is kept until its branch merges and nothing in it is unpushed, and while any thread, run or approval still uses it.</p>
+
+    <h3>Command sandbox</h3>
+    <p>Commands run under an OS sandbox: Seatbelt on macOS and a restricted token on Windows. If the sandbox cannot start, the thread offers no commands. Inside it, a command:</p>
+    <ul class="plain">
+      <li>can write the worktree checkout only. The clone's git folder, hooks and config are read-only to it, which is why SPI Code makes the commits.</li>
+      <li>gets its own home folder and an allow-listed environment, with no <code>GH_TOKEN</code>, <code>GITHUB_TOKEN</code>, <code>AZURE_*</code>, <code>ARM_*</code> or <code>SSH_AUTH_SOCK</code>, and no credential helper.</li>
+      <li>cannot read the keychain, <code>~/.ssh</code>, <code>~/.kube</code>, <code>~/.azure</code> or the gh config.</li>
+      <li>is refused when it is <code>git push</code>, <code>gh</code>, <code>az</code>, <code>kubectl</code>, <code>spi</code>, <code>flux</code> or <code>helm</code>. Those actions go through SPI Code's own tools.</li>
+    </ul>
+    <p>Network access stays on, because Maven downloads dependencies, so an approved command can send whatever the worktree holds. The card shows the exact command for the operator to judge, and Settings states the limit.</p>
+
+    <h3>SPI Code's own git</h3>
+    <p>Commit, status, diff and push run outside the sandbox. Each of those calls names the clone's git folder directly and never follows the worktree's <code>.git</code> file, which a sandboxed command can write. Each runs with hooks off and repository config ignored. <code>push_branch</code> pushes the exact commit from the fork clone to the remote URL SPI Code holds. The push is fast-forward only and is refused unless the remote is still at the commit the card names. Its binding is read when the card is made and again on approval (appendix C).</p>
+
+    <h3>Terminal</h3>
+    <p>Each worktree has a terminal drawer with two tabs. The first is a read-only view of Copilot's approved commands and their output. The second is the operator's own login shell in the worktree, outside the sandbox and labelled that way, for rebasing, resolving conflicts and committing by hand. SPI Code re-reads the worktree before it makes any card, so work done in that shell is picked up.</p>
+  </section>
+
+  <section>
+    <h2>Runs and durability</h2>
+    <p>Everything that does work is a run: a verb pressed in the inspector, a Copilot turn, a playbook, and a wait such as rerun-when-deployable. A run is a row in SQLite with an append-only event list. The window shows a run's log in the right panel and lists active runs and waits in the left bar. Each host write (a push, a re-run, a dispatch) gets a run. Commands and commits stay in their thread's work log.</p>
+    <p>Before any outside write, the host records an intent: the tool, its exact arguments, the binding it checked, and the facts that will identify the result, such as the dispatch time and actor or the PR number. After the call returns, the intent is closed with its result. If the app stops between the two, the run reopens as <b>outcome unknown</b>. Each write tool declares how to look up its own outcome, for example whether the PR is now merged, or the state of the workflow run the dispatch returned. The host runs that lookup before offering retry and never re-sends a write without one. The lookup ends in one of three states. Applied closes the run. Not applied allows retry, and is reached only on positive evidence that the write did not happen, never because time passed. Unknown keeps the run open, with retry disabled, until a lookup succeeds or the operator records that they checked by hand. Writes that create text on GitHub or GitLab (an issue, an MR, a comment) carry the intent id in a hidden marker, so the lookup finds them exactly. A write to several targets keeps a ledger with one outcome per target and never retries a target that is applied or unknown. A target whose last write by the same tool is unknown is held out of new fleet actions, and named, until the operator confirms the candidate run or not applied is proven. Appendix C gives each tool's lookup. The M4 issue carries the exact fields and the crash-test matrix for every write, and M4 starts from it.</p>
+    <p>Waits and verb or playbook approvals survive a restart. A wait resumes its condition check on the next sweep. A pending approval card shows again and binds when approved. A Copilot tool call does not survive a restart, because the SDK restores the conversation but not the in-flight call. That call is marked cancelled, and Copilot is told so on the thread's next turn. A command running in a code thread's sandbox stops with the host, and running it again takes a new card.</p>
+  </section>
+
+  <section>
+    <h2>Playbooks</h2>
+    <p>A playbook is a versioned state machine the host runs as one run. Each step has a stable id and is one of four kinds: a tool call, a Copilot turn with a narrowed tool set and a schema-checked result, an approval, or a wait on a model condition. Every transition is committed before the next step starts. On restart the host reads the last committed transition and continues from there, or reports outcome unknown when the step was a write. A run keeps the playbook version it started with. Playbooks are TypeScript in the app, not user-authored YAML. Version 1 ships two.</p>
+    <div class="tblwrap">
+    <table class="tbl">
+      <thead><tr><th style="width:20%">Playbook</th><th style="width:22%">Started from</th><th>Steps</th></tr></thead>
+      <tbody>
+        <tr><td><b>Diagnose a failure</b><br><span class="note">M3, cluster evidence M6</span></td><td>Any incident or failed lane in the inspector</td><td>Read the failed job, step and reason, annotations and logs, then the core's attribution, the image digest and the pin owner. From M6 it also reads Flux state, pods and jobs for the service. Copilot writes a finding that cites each tool result, names the cause, and names the verb that clears it. Read only.</td></tr>
+        <tr><td><b>Hand off a fix</b><br><span class="note">M4</span></td><td>An item whose next action is a code change on the fork's main branch: a port owed, a dependency, a failing test, a filter classification</td><td>Copilot drafts an issue with the cited evidence. After approval, the host opens it on the fork and assigns the Copilot coding agent. It then follows the PR, offers <code>approve_runs</code> when the PR's workflows wait for approval, and links the PR to the item.</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>The coding agent opens PRs against the default branch, so it does not handle <code>fork_integration</code> conflicts or workflow files the template owns. For those items the inspector offers a code thread instead of a handoff, and Diagnose suggests one as its next step. Drive a PR to green and Upgrade the stack follow version 1, built on the same runner (appendix E).</p>
+  </section>
+
+  <section>
+    <h2>Setup and tools</h2>
+    <p>The first launch opens Setup instead of Today. Setup lists each tool with one state, as T3 Code does for providers: checking, install, sign in, ready, or attention. Tools are grouped by the capability they unlock (Watch, Code, Operate), so Watch works before a JDK or any Azure tooling is installed. Probing a tool is always read-only. Installing or signing in is always a button the operator presses, and its output streams into a run log.</p>
+    <div class="mockwrap">
+      <div class="setup">
+        <div class="g">Watch · read the program</div>
+        <div class="r"><span class="nm">Copilot</span><span class="st ok">Ready</span><span class="why">Runtime inside the app · uses the gh sign-in below</span><span></span></div>
+        <div class="r"><span class="nm">git</span><span class="st ok">Ready</span><span class="why">Found on the login-shell PATH</span><span></span></div>
+        <div class="r"><span class="nm">gh</span><span class="st si">Sign in</span><span class="why">Installed by SPI Code · needs repo and workflow scopes</span><span class="b p">Sign in with browser</span></div>
+        <div class="r"><span class="nm">glab</span><span class="st in">Install</span><span class="why">For community.opengroup.org · pinned release, checksum verified</span><span class="b p">Install</span></div>
+        <div class="g">Code · worktrees and builds</div>
+        <div class="r"><span class="nm">Worktree folder</span><span class="st ok">Ready</span><span class="why">App data · each fork cloned once and shared by its worktrees</span><span></span></div>
+        <div class="r"><span class="nm">JDK 17 · Maven</span><span class="st in">Install</span><span class="why">Release archives, checksum verified · one shared Maven repository</span><span class="b p">Install</span></div>
+        <div class="r"><span class="nm">Command sandbox</span><span class="st ok">Ready</span><span class="why">Sandbox profile checked · code threads can run commands</span><span></span></div>
+        <div class="g">Operate · stack and Azure</div>
+        <div class="r"><span class="nm">uv · Python</span><span class="st ok">Ready</span><span class="why">Installed by SPI Code · Python managed by uv under app data</span><span></span></div>
+        <div class="r"><span class="nm">az</span><span class="st si">Sign in</span><span class="why">Installed with uv · k8s-configuration extension added · sign in to the stack's tenant</span><span class="b p">Sign in</span></div>
+        <div class="r"><span class="nm">spi</span><span class="st at">Attention</span><span class="why">0.35.0 installed · the stack declares 0.35.1</span><span class="b p">Update</span></div>
+        <div class="r"><span class="nm">kubectl · kubelogin · flux · helm</span><span class="st ok">Ready</span><span class="why">Installed by SPI Code · app-scoped kubeconfig</span><span></span></div>
+      </div>
+    </div>
+    <p>Single-binary tools (gh, glab, uv, kubectl, kubelogin, flux, helm) install from a manifest that records the version, download URL and SHA-256 for each OS and architecture. They go into the app's own <code>tools/</code> folder. uv provides everything Python. Its Python, tool and binary folders all live under app data. The Azure CLI installs as <code>uv tool install azure-cli --with pip</code>, because <code>az extension add</code> needs pip, and Setup then adds the <code>k8s-configuration</code> extension that spi's cluster guard falls back on. <code>spi</code> installs the wheel from the stack's GitHub release through Microsoft's package feed proxy, at the version the stack declares in <code>ops/environments/shared.yaml</code>. Setup flags any mismatch, so a stack upgrade prompts a CLI update. Neither platform needs Homebrew, WinGet or administrator rights. The Code group installs JDK 17 and Maven from their release archives the same way and shares one Maven local repository across worktrees. git is the one tool taken from the system: Xcode command line tools on macOS, and PortableGit unpacked into <code>tools/</code> on Windows.</p>
+    <p>SPI Code's own tool processes get a scoped environment. The app's tools come first on PATH, followed by the PATH captured from the operator's login shell, as T3 Code does. That lets an app started from Finder find the same tools a terminal would. <code>KUBECONFIG</code> and <code>AZURE_CONFIG_DIR</code> point at app-owned folders, so <code>spi connect</code> and <code>az account set</code> never change the operator's own terminal setup. That means the operator signs in to Azure once inside SPI Code. Stray <code>GH_TOKEN</code> and <code>GITHUB_TOKEN</code> values are removed unless Settings names one. Sign-ins use each tool's own flow: <code>gh</code> through the browser (which also signs in Copilot), <code>glab</code> against <code>community.opengroup.org</code>, and <code>az login</code> with the stack's tenant filled in. Tokens stay in each tool's own store or the OS keychain. Commands in a code thread use the sandbox profile instead.</p>
+  </section>
+
+  <section>
+    <h2>Look</h2>
+    <p>SPI Code has one palette, Shore, in a light and a dark appearance. The appearance follows the system unless Settings pins one, and there is no palette picker. The token structure is T3 Code's semantic role model, cut down to the roles this app uses: canvas, chrome, sidebar, surface, raised, overlay, text, muted, accent, error, warning, success and code. Shore's values from Keelson's <code>design-tokens.ts</code> fill it. Data colors (status, series, priorities) are checked with Keelson's palette validator for contrast and color-blind separation in both appearances.</p>
+    <p>In the light appearance, sand (<code>#f3efe4</code>) is the chrome: title bar, left bar and right panel. The middle panel, where the reading happens, uses the near-white card color (<code>#fbf9f3</code>), so long text sits on the lightest surface. The teal accent marks the current selection, the primary button and the anchor chip.</p>
+    <div class="swatches">
+      <div class="sw"><div class="c"><i style="background:#f3efe4"></i><i style="background:#0f1a1b"></i></div><div class="l"><b>Chrome</b>#f3efe4 · #0f1a1b</div></div>
+      <div class="sw"><div class="c"><i style="background:#fbf9f3"></i><i style="background:#162324"></i></div><div class="l"><b>Reading surface</b>#fbf9f3 · #162324</div></div>
+      <div class="sw"><div class="c"><i style="background:#23211c"></i><i style="background:#e4dfd1"></i></div><div class="l"><b>Text</b>#23211c · #e4dfd1</div></div>
+      <div class="sw"><div class="c"><i style="background:#1d7a6c"></i><i style="background:#5cc4b2"></i></div><div class="l"><b>Accent</b>#1d7a6c · #5cc4b2</div></div>
+      <div class="sw"><div class="c"><i style="background:#bb4a2b"></i><i style="background:#ec8a6e"></i></div><div class="l"><b>P0 · error</b>#bb4a2b · #ec8a6e</div></div>
+      <div class="sw"><div class="c"><i style="background:#a07b3a"></i><i style="background:#e2b45c"></i></div><div class="l"><b>P1 · warning</b>#a07b3a · #e2b45c</div></div>
+      <div class="sw"><div class="c"><i style="background:#3a7633"></i><i style="background:#8fcf86"></i></div><div class="l"><b>Healthy</b>#3a7633 · #8fcf86</div></div>
+      <div class="sw"><div class="c"><i style="background:#8a5cc0"></i><i style="background:#c3a2e8"></i></div><div class="l"><b>Copilot</b>#8a5cc0 · #c3a2e8</div></div>
+    </div>
+    <p class="note">Each swatch shows light, then dark. Sea lavender marks Copilot's own messages and proposals, so text the agent wrote is never confused with a fact the sweep read.</p>
+  </section>
+
+  <section>
+    <h2>Relationship to Keelson</h2>
+    <p>The SPI domain moves into <code>@spi-code/core</code>, a package in the SPI Code repository, in two steps. M1 moves the pure parts: Facts, the model, the briefing and <code>readItem</code>. M2 moves the collectors and action planning behind an exec port, once the host actually calls them.</p>
+    <p>The package has no Keelson, Bun or Electron dependency:</p>
+    <ul class="plain">
+      <li>Fleet membership, rollout policy, configuration and the clock are passed in as arguments, not read from module globals.</li>
+      <li><code>Bun.YAML</code> is replaced by <code>yaml</code>.</li>
+      <li>Board tone types stop leaking into the model.</li>
+      <li>The package ships compiled JavaScript.</li>
+    </ul>
+    <p>The rib depends on a release tarball of core and becomes a thin adapter. It keeps its boards and Keelson lifecycle, so the Keelson tab keeps working.</p>
+    <div class="flow">
+      <svg viewBox="0 0 1000 250" role="img" aria-label="Today keelson-rib-spi holds the domain and its Keelson glue; after extraction both the rib and SPI Code host use @spi-code/core.">
+        <rect x="8" y="8" width="320" height="230" class="lanebg" rx="10"/>
+        <text x="22" y="30" class="lanelbl">Today</text>
+        <rect x="24" y="46" width="288" height="176" class="box b-mute"/>
+        <text x="36" y="70" class="t">keelson-rib-spi · 23k lines</text>
+        <rect x="36" y="84" width="264" height="58" class="box b-o2"/>
+        <text x="48" y="106" class="t">domain</text>
+        <text x="48" y="126" class="sub">facts, model, brief, collect, act plans</text>
+        <rect x="36" y="152" width="264" height="58" class="box b-mute"/>
+        <text x="48" y="174" class="t">Keelson glue</text>
+        <text x="48" y="194" class="sub">boards, lifecycle, ops, tool emission</text>
+        <path d="M328 124 L366 124" class="arrow"/>
+        <rect x="368" y="8" width="624" height="230" class="lanebg" rx="10"/>
+        <text x="382" y="30" class="lanelbl">After extraction</text>
+        <rect x="560" y="46" width="250" height="76" class="box b-o2"/>
+        <text x="572" y="70" class="t">@spi-code/core</text>
+        <text x="572" y="90" class="sub">explicit inputs, exec port, plain JS</text>
+        <text x="572" y="111" class="tiny">domain tests move with it</text>
+        <rect x="384" y="150" width="270" height="76" class="box b-mute"/>
+        <text x="396" y="174" class="t">keelson-rib-spi adapter</text>
+        <text x="396" y="194" class="sub">boards, lifecycle, board tests</text>
+        <text x="396" y="215" class="tiny">read-only from M4, then retired</text>
+        <rect x="706" y="150" width="270" height="76" class="box b-o2"/>
+        <text x="718" y="174" class="t">SPI Code host</text>
+        <text x="718" y="194" class="sub">sweeper, runtime, policy, runs, UI</text>
+        <text x="718" y="215" class="tiny">adds Operate: stack, GitLab, Azure</text>
+        <path d="M600 122 L540 148" class="arrow"/>
+        <path d="M770 122 L830 148" class="arrow"/>
+      </svg>
+    </div>
+    <p>The domain tests move into core and switch from <code>bun:test</code> to vitest, a mechanical change. The board and adapter tests stay in the rib. The M1 check is that all the moved tests pass and the live Keelson tab renders the same Today on the same sweep. Core lives in SPI Code's repository because, from M2 on, the host is what drives its changes. The rib pins a core version and bumps it only when asked. Two sweepers would share one GitHub GraphQL budget. So from M2, the rib's sweep is off by default and its tab reads the last Facts it recorded. Once M4 ships, the rib's verbs are switched off too, so two hosts can never pace or dispatch the same fleet action. The rib retires after SPI Code has been used daily for a release cycle. That decision is made then.</p>
+    <p>From Keelson, SPI Code takes the Shore tokens and the palette validator as code. It uses Keelson's Copilot provider as the reference for session handling and tool projection. It takes three ideas as concepts: verbs that return a client effect (open the inspector, open a run, start a thread), durable runs with cursor-read events, and the shapes of <code>investigate</code> and <code>plan-act-evaluate</code>. From T3 Code it copies, under MIT with the notice kept, the login-shell PATH capture, the verified app-owned installer, the readiness states, the semantic theme roles, the right-panel tab model and the electron-builder signing setup. It adapts T3 Code's work log, diff view, terminal drawer and composer approval strip for code threads.</p>
+  </section>
+
+  <section>
+    <h2>Milestones</h2>
+    <p>Each milestone ships something the operator uses. M0 and M1 run in parallel because neither depends on the other. Signing comes early, because hardened-runtime failures on the Copilot runtime only appear in a signed build. Windows is built and smoke-tested in CI from M0. Hands-on Windows operation starts at M7.</p>
+    <div class="tblwrap">
+    <table class="tbl">
+      <thead><tr><th style="width:12%">Milestone</th><th style="width:38%">Ships</th><th>Proves before the next starts</th></tr></thead>
+      <tbody>
+        <tr><td><b>M0 Spike</b></td><td>Electron shell, utilityProcess host, MessagePort contract, the SDK's platform runtime unpacked and started by path, one SPI tool gated in its handler, <code>node:sqlite</code>. Developer ID signed and notarized macOS arm64 build; Windows x64 CI build. An install-only probe of the Operate chain (uv, Python, <code>azure-cli</code> with pip, the <code>k8s-configuration</code> extension) on both platforms. A command sandbox probe on both platforms that runs <code>java -version</code> with the keychain and home config unreadable.</td><td>On a clean machine with no <code>~/.copilot</code>, the signed macOS build and the Windows build each sign in through gh, list models through the per-session token, start Copilot, stream a turn, register a stub for every tool name in appendix C and confirm that each one reaches the model and can be called, and refuse a denied call. A user-level <code>~/.copilot</code> MCP server is not visible to the session. The host model (utilityProcess or Node child) is chosen here and only that one is built, as is the signing approach for the SDK's runtime binaries: re-sign them with the app, or keep GitHub's signature.</td></tr>
+        <tr><td><b>M1 Core</b></td><td><code>@spi-code/core</code> with Facts, model, briefing and <code>readItem</code>. The rib consumes its tarball.</td><td>The moved tests pass under vitest, and the live Keelson SPI tab renders the same Today on the same sweep.</td></tr>
+        <tr><td><b>M2 Watch</b></td><td>Collectors in core, sweeps in the host with a rate budget, program tree, the six console views, inspector, evidence envelope, Setup for Copilot, git, gh and glab.</td><td>On Facts recorded from one sweep, every view reads the same as the rib console. Then a day of live operation with no Keelson sweeping.</td></tr>
+        <tr><td><b>M3 Ask</b></td><td>Anchored threads, Copilot with the read tools, redaction, approval cards, run log, Diagnose a failure on Actions evidence.</td><td>On recorded incidents, Diagnose names the same cause as the inspector, and every claim cites a tool result.</td></tr>
+        <tr><td><b>M4 Act</b></td><td>The rib's eleven GitHub verbs plus <code>merge_pr</code>, <code>comment</code>, <code>open_issue</code> and <code>assign_coding_agent</code> as tiered tools with bindings and locks, intents and outcome lookups, durable waits, Hand off a fix. The rib's verbs are switched off.</td><td>A stale binding is refused in tests and live, a rerun-when-deployable wait survives a restart, and a write interrupted after sending is resolved by outcome lookup, not re-sent.</td></tr>
+        <tr><td><b>M5 Code</b></td><td>Code threads: worktrees and the push lease, the host's worktree tools, the command sandbox on both platforms, Command cards, host commit and <code>push_branch</code>, the terminal drawer with node-pty rebuilt and signed, JDK and Maven in Setup, the PR watch after a push.</td><td>A sandboxed command cannot read the keychain, <code>~/.ssh</code> or <code>~/.kube</code>, cannot write the clone's git folder, and cannot get a planted hook or config value run by SPI Code's git. A push is refused when the remote moved. One real <code>fork_integration</code> fix goes from finding to green checks without leaving the app.</td></tr>
+        <tr><td><b>M6 Operate</b></td><td>Operate tools in Setup, environment dispatches, maintenance, reconcile and service pin and reset through <code>spi</code>, read tools through <code>kubectl</code> and <code>flux</code>, GitLab MR tools, live cluster evidence in the Stack view and in Diagnose.</td><td>One environment refresh and one service pin and reset run end to end, with every Consequential step carded. Live reads are labeled apart from inferred state.</td></tr>
+        <tr><td><b>M7 Team</b></td><td>Azure Trusted Signing on Windows, auto-update from GitHub releases, first-run welcome.</td><td>A second engineer installs from a release and reaches Watch without help.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Validation</h2>
+    <p>Core keeps the rib's fixture tests. They cover attribution, incident folding, pacing, release naming and briefing wording, and run on every change. The host is tested against recorded Facts replays, so a sweep can be reproduced without touching GitHub.</p>
+    <p>The agent runtime is tested against a fake SDK session that scripts tool calls. Those tests check three things. Every tier answers the way the table says. A tool missing from <code>availableTools</code> cannot be reached. A policy error refuses the call.</p>
+    <p>Durability tests stop the host at each crash boundary: before an intent is written, after it is written but before the call, and after the call but before the result. Each test checks what the run reopens as.</p>
+    <p>Sandbox tests run commands that try to read each blocked path, write the clone's git folder, add a hook, set a config value and repoint the worktree's <code>.git</code> file, then check that SPI Code's commit and push ignore all of them. Push tests move the remote between card and approval and expect a refusal.</p>
+    <p>A packaged-app smoke test runs on macOS and Windows in CI. It starts the app, completes a scripted Copilot turn against a stub model, and screenshots each view in both appearances.</p>
+  </section>
+
+  <div class="appendix">
+    <p class="eyebrow">Appendix · reference material</p>
+    <h2>Reference detail</h2>
+
+    <section>
+      <h3>A · Repository and stack</h3>
+      <div class="tblwrap"><table class="tbl compact">
+        <thead><tr><th style="width:24%">Part</th><th>Choice</th></tr></thead>
+        <tbody>
+          <tr><td><b>Repository</b></td><td><code>spi-code</code>, a pnpm monorepo:<br>· <code>apps/desktop</code>: Electron main and preload<br>· <code>apps/window</code>: the renderer<br>· <code>packages/core</code>: <code>@spi-code/core</code><br>· <code>packages/host</code>: sweeper, runtime, policy, runs, store<br>· <code>packages/contracts</code>: zod message schemas<br>· <code>packages/tools</code>: manifest and installers</td></tr>
+          <tr><td><b>Runtime and tests</b></td><td>Node as shipped in a pinned Electron. pnpm with a hoisted layout for electron-builder, as T3 Code stages it. vitest across the repository. Bun cannot load <code>node:sqlite</code>, so it is not used.</td></tr>
+          <tr><td><b>Window</b></td><td>React 19, Vite, Tailwind v4, Base UI primitives wrapped as T3 Code wraps them, and Zustand stores fed by host events. No Effect, so zod is the one validation style from core to the window.</td></tr>
+          <tr><td><b>Store</b></td><td><code>node:sqlite</code> in the host, with these tables: threads, messages, runs, run_events, intents, approvals, waits, worktrees, leases, facts_snapshots. Facts snapshots are kept for seven days. Settings are in <code>settings.json</code>.</td></tr>
+          <tr><td><b>Agent</b></td><td><code>@github/copilot-sdk</code>, pinned. Its <code>@github/copilot-sdk-&lt;platform&gt;</code> runtime is listed in <code>asarUnpack</code> and started over stdio by explicit path. In-process mode is never used.</td></tr>
+          <tr><td><b>Packaging</b></td><td>electron-builder: dmg and zip on macOS arm64, NSIS on Windows x64. The SDK's runtime adds about 160 MB per architecture. Developer ID signing and notarization from M0. Azure Trusted Signing and electron-updater at M7.</td></tr>
+          <tr><td><b>Lint and format</b></td><td>Biome, matching the rib and Keelson.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section>
+      <h3>B · Tool manifest</h3>
+      <div class="tblwrap"><table class="tbl compact">
+        <thead><tr><th style="width:18%">Tool</th><th style="width:11%">Group</th><th>Install</th><th>Sign-in</th></tr></thead>
+        <tbody>
+          <tr><td><b>Copilot runtime</b></td><td>Watch</td><td>Inside the app (SDK platform package)</td><td>The gh OAuth token, read per session; needs a Copilot seat on that account. Setup recognizes a classic <code>ghp_</code> token named in Settings and explains that Copilot needs the gh OAuth sign-in.</td></tr>
+          <tr><td><b>git</b></td><td>Watch</td><td>macOS: Xcode command line tools prompt. Windows: PortableGit into tools/</td><td>gh as credential helper for SPI Code's own git; none inside the sandbox</td></tr>
+          <tr><td><b>gh</b></td><td>Watch</td><td>Release archive into tools/, checksum verified</td><td><code>gh auth login --web</code>, repo and workflow scopes</td></tr>
+          <tr><td><b>glab</b></td><td>Watch</td><td>Release archive into tools/, checksum verified</td><td>Login against community.opengroup.org</td></tr>
+          <tr><td><b>JDK 17, Maven</b></td><td>Code</td><td>Release archives into tools/, checksum verified; one Maven local repository under app data</td><td>None</td></tr>
+          <tr><td><b>uv, Python</b></td><td>Operate</td><td>uv binary into tools/; uv-managed Python under app data</td><td>None</td></tr>
+          <tr><td><b>az</b></td><td>Operate</td><td><code>uv tool install azure-cli --with pip</code>; <code>az extension add -n k8s-configuration</code></td><td><code>az login --tenant</code> with an app-owned <code>AZURE_CONFIG_DIR</code></td></tr>
+          <tr><td><b>spi</b></td><td>Operate</td><td>uv tool install of the stack release wheel through the Microsoft package feed proxy, at the declared version</td><td>Uses az and the app kubeconfig</td></tr>
+          <tr><td><b>kubectl, kubelogin, flux, helm</b></td><td>Operate</td><td>Release binaries into tools/, checksum verified. kubectl is matched to the cluster's supported version skew</td><td>Azure session, app kubeconfig</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section>
+      <h3>C · Operator tools, tiers, bindings and outcome lookups</h3>
+      <div class="tblwrap"><table class="tbl compact">
+        <thead><tr><th style="width:12%">Tier</th><th style="width:24%">Tools</th><th style="width:32%">Binding re-read before running</th><th>Outcome lookup after an interruption</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tier read">Read</span></td><td><code>spi_brief</code>, <code>spi_watchstand</code>, <code>spi_incidents</code>, <code>spi_line</code>, <code>spi_stack</code>, <code>spi_template</code>, <code>spi_prs</code>, <code>spi_issues</code>, <code>spi_security</code>, <code>spi_radar</code>, <code>spi_release_notes</code>, <code>read_artifact</code>, <code>run_log</code>, <code>pr_diff</code>, <code>mr_diff</code>, <code>stack_status</code>, <code>stack_info</code>, <code>flux_state</code>, <code>pod_logs</code>, <code>k8s_get</code>, <code>az_show</code></td><td>None</td><td>None; a read is simply repeated</td></tr>
+          <tr><td><span class="tier local">Local</span></td><td><code>read_file</code>, <code>search_files</code>, <code>edit_file</code>, <code>worktree_diff</code>, <code>commit</code> (code threads)</td><td>The path resolves inside the thread's worktree after links; a commit goes to the thread's own <code>spi/*</code> branch</td><td>A commit is applied if the branch head is the new commit</td></tr>
+          <tr><td><span class="tier cmd">Command</span></td><td><code>run_command</code> (code threads)</td><td>Worktree, folder and exact arguments on the card; the sandbox profile started</td><td>None; a command stopped by a restart is marked cancelled and needs a new card</td></tr>
+          <tr><td><span class="tier change">Change</span></td><td><code>push_branch</code></td><td>Worktree clean with nothing untracked; remote at the expected commit; fast-forward; no <code>.github/</code> change unless the PR number is typed; PR open at the expected head; this thread holds the lease</td><td>Read the remote ref: at the pushed commit is applied; at the expected commit is not applied; anything else is unknown</td></tr>
+          <tr><td><span class="tier change">Change</span></td><td><code>approve_runs</code></td><td>The run waits for approval; the PR is open and its head matches the held run</td><td>Applied if the run left the waiting state after the intent time</td></tr>
+          <tr><td><span class="tier change">Change</span></td><td><code>rerun</code></td><td>Run id, attempt number, conclusion</td><td>Applied if the run's attempt number is higher than the bound one</td></tr>
+          <tr><td><span class="tier change">Change</span></td><td><code>merge_pr</code> (Dependabot or template PR, protected branch)</td><td>Head and base SHA, mergeable, required checks green, required reviews present, not draft; sent with <code>--match-head-commit</code></td><td>Read the PR: merged with the bound head is applied; open, unmerged, at the bound head and with no merge queued is not applied; anything else is unknown</td></tr>
+          <tr><td><span class="tier change">Change</span></td><td><code>sync_template</code> (one fork), <code>sync_upstream</code> (prepare), <code>dispatch_cascade</code>, <code>rerun_cascade</code>, <code>fleet_release</code> (BOM only)</td><td>No run of the same workflow queued or running; template main SHA; the tracking issue is open</td><td>The run URL that <code>gh workflow run</code> returns is stored on the intent, and its run is read back. With no stored URL, a matching run by the operator after the intent time is shown as a candidate and the outcome stays unknown until the operator confirms</td></tr>
+          <tr><td><span class="tier change">Change</span></td><td><code>open_issue</code>, <code>open_pr</code>, <code>open_upstream_mr</code>, <code>comment</code></td><td>Target repository or thread exists and is open</td><td>Applied if an item carrying the intent marker exists</td></tr>
+          <tr><td><span class="tier change">Change</span></td><td><code>assign_coding_agent</code></td><td>Issue open; not already assigned to the agent</td><td>Applied if the agent is among the issue's assignees</td></tr>
+          <tr><td><span class="tier cons">Consequential</span></td><td><code>sync_all_forks</code>, <code>roll_out</code>, <code>start_upstream</code></td><td>For each target: head SHA and checks, sent with <code>--match-head-commit</code> where it merges; pacing and ordering guards from core; lane capacity</td><td>Per target, using the merge and dispatch lookups above, in the run's target ledger</td></tr>
+          <tr><td><span class="tier cons">Consequential</span></td><td><code>dispatch_env_refresh</code>, <code>dispatch_env_upgrade</code>, <code>dispatch_env_reset</code></td><td>Tenant, subscription, cluster; declared version; no lifecycle run in flight; deployability evidence fresh, complete and in agreement</td><td>The dispatch lookup above, by the stored run URL, on the stack repository</td></tr>
+          <tr><td><span class="tier cons">Consequential</span></td><td><code>stack_reconcile</code> (plain, refresh-images)</td><td>Cluster on the card; no lifecycle run in flight; variant on the card</td><td>Before the call, the intent records the source's reconcile annotation and, for refresh-images, the <code>osdu-image-lock</code> contents. Applied if the annotation now parses to a time after the intent (spi writes it in the host's local time) and differs from the recorded value; otherwise unknown. Reconcile is a trigger, so repeating it has the same effect: an unknown outcome offers a resend once the operator confirms</td></tr>
+          <tr><td><span class="tier cons">Consequential</span></td><td><code>stack_reconcile</code> (resume)</td><td>Cluster on the card; the source is suspended; no lifecycle run in flight</td><td>Applied if the source reads not suspended; not applied if it still reads suspended</td></tr>
+          <tr><td><span class="tier cons">Consequential</span></td><td><code>maintenance_set</code></td><td>Cluster on the card; maintenance not set; no lifecycle run in flight</td><td>Applied if <code>spi status</code> reports maintenance set</td></tr>
+          <tr><td><span class="tier cons">Consequential</span></td><td><code>maintenance_clear</code></td><td>No lifecycle run in flight; deployed ref matches the declared stack version; <code>spi status</code> reports ready, maintenance set, and maintenance as the only blocker. Deployability is not required</td><td>Applied if <code>spi status</code> reports maintenance clear</td></tr>
+          <tr><td><span class="tier cons">Consequential</span></td><td><code>service_pin</code>, <code>service_reset</code></td><td>Cluster, service, digest, current pin owner; deployability evidence fresh, complete and in agreement</td><td>Applied if the live digest and pin owner match the intent</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">When a lookup itself fails, the outcome is unknown and retry stays disabled. Every dispatch and creation lookup is limited to items created by the operator's own account.</p>
+    </section>
+
+    <section>
+      <h3>D · Copilot session checklist</h3>
+      <div class="tblwrap"><table class="tbl compact">
+        <thead><tr><th style="width:34%">Behavior</th><th>Handling</th></tr></thead>
+        <tbody>
+          <tr><td><b>Disconnect is asynchronous</b></td><td>Wait for the previous session to release before resuming it, as Keelson's <code>waitForSessionRelease</code> does. Resuming early closes the new session.</td></tr>
+          <tr><td><b>Resume ignores model and effort</b></td><td>Call <code>session.setModel</code> after every resume.</td></tr>
+          <tr><td><b>Warm clients are shared</b></td><td>Count references, so a retry on one thread never stops a client another thread is streaming on.</td></tr>
+          <tr><td><b>Connection errors</b></td><td>Match the SDK's connection errors, restart the runtime and resume the session; the in-flight tool call is marked cancelled.</td></tr>
+          <tr><td><b>Operator's own Copilot setup</b></td><td><code>empty</code> mode and an app-owned base directory; <code>availableTools</code> on every session.</td></tr>
+          <tr><td><b>Sign-in under empty mode</b></td><td>Empty mode sees no existing login and would store a new one in plain text. Each session takes its token from a provider that reads <code>gh auth token</code>, so an account switch is followed. The provider API is experimental and is proved in M0. The fallback is a client-level token with the warm client dropped on a credential change. Setup checks the account has a Copilot seat with a real session probe.</td></tr>
+          <tr><td><b>Thread kinds</b></td><td><code>availableTools</code> is set from the thread's kind when the session starts. A code thread's session includes the worktree tools; an operate thread's never does.</td></tr>
+          <tr><td><b>Tool deferral</b></td><td>Register every SPI tool with <code>defer: "never"</code>; with no built-in tool search, a deferred tool cannot be reached.</td></tr>
+          <tr><td><b>SDK upgrades</b></td><td>Run the fake-session suite and the packaged smoke test on both platforms before the pin moves.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section>
+      <h3>E · After version 1</h3>
+      <div class="tblwrap"><table class="tbl compact">
+        <thead><tr><th style="width:30%">Item</th><th>Shape</th></tr></thead>
+        <tbody>
+          <tr><td><b>Drive a PR to green</b></td><td>Playbook: read checks and threads, classify failures with core attribution, re-run Environment-class failures once, hand code fixes to the coding agent, wait for CI, repeat up to a round limit. The merge stays its own card.</td></tr>
+          <tr><td><b>Upgrade the stack</b></td><td>Playbook: declaration diff, bump PR, wait for its merge, <code>env-upgrade</code> card, follow maintenance, verify running revision, gateway and smoke, draft the consumer note.</td></tr>
+          <tr><td><b>Provisioning and data writes</b></td><td><code>spi up</code> (including <code>--dry-run</code>, which creates a resource group), <code>spi down</code>, Bicep, entitlement changes and data loads. First provisioning needs a binding that expects the environment to be absent, which v1 does not define.</td></tr>
+          <tr><td><b>Container builds</b></td><td>A container engine for local <code>spi build</code> and paired tests in a worktree.</td></tr>
+          <tr><td><b>macOS x64 and release-notes PDF</b></td><td>The SDK ships a darwin-x64 runtime, so Intel Macs are packaging work when someone needs them. A PDF of release notes would use <code>webContents.printToPDF</code> on a hidden window.</td></tr>
+          <tr><td><b>Thread-wide approvals</b></td><td>Letting one approval cover repeats of a Change tool on one target within a thread. Added only if per-card approval proves tiring.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section>
+      <h3>F · Alternatives not chosen</h3>
+      <div class="tblwrap"><table class="tbl compact">
+        <thead><tr><th style="width:30%">Alternative</th><th>Why not</th></tr></thead>
+        <tbody>
+          <tr><td><b>Fork T3 Code and strip it</b></td><td>About 650k lines built for many providers and remote use, with heavy upstream churn and Effect throughout. Every package is private, so nothing can be depended on. The strip would touch contracts, settings and onboarding across the tree and leave conceptual weight the app never uses.</td></tr>
+          <tr><td><b>Tauri or a Swift and WinUI app</b></td><td>The domain, the Copilot SDK and the rib's tests are TypeScript on Node. Tauri would still need a Node sidecar for them, and two native UIs would double the window work.</td></tr>
+          <tr><td><b>Copilot through ACP, as T3 Code does</b></td><td>Copilot CLI accepts client tools over ACP only as an MCP HTTP server. The SDK registers tools in the host, with no server to secure.</td></tr>
+          <tr><td><b>Host as a localhost WebSocket server</b></td><td>Only needed for remote clients. A MessagePort gives the same separation with no port and no token.</td></tr>
+          <tr><td><b>Port Keelson's YAML workflow engine</b></td><td>It is bound to Bun, and its approval pause does not survive a restart, the property playbooks need most. Two typed state machines on the run store are smaller than the port.</td></tr>
+          <tr><td><b>A general command tool</b></td><td>A wrapper, interpreter or script defeats any classification by binary and verb. Typed tools with explicit variants are the only way the tier table can be enforced. Code threads run commands only inside the sandbox, one approved card each, with no credentials.</td></tr>
+          <tr><td><b>Copilot built-in file reads with path limits</b></td><td>The callback does see read paths, but a path allowlist for Copilot's own reader would be a second file policy beside the tools. <code>read_artifact</code> keeps one boundary: only files the host saved for the run.</td></tr>
+          <tr><td><b>Extract core inside the rib repository</b></td><td>From M2, the host drives core's changes. Keeping core in the rib would put every host change behind a rib release.</td></tr>
+          <tr><td><b>Copy the domain into the app and retire the rib now</b></td><td>Loses the live tab as the check that nothing changed, and leaves two diverging copies.</td></tr>
+          <tr><td><b>Code changes only through the coding agent</b></td><td>The agent opens PRs against main, so it cannot take <code>fork_integration</code> conflicts or template-owned files. Those fixes would leave the app for a terminal.</td></tr>
+          <tr><td><b>A command allowlist by name</b></td><td>Once a command starts, it and its child processes run whatever they like, so a name check proves nothing. The sandbox and the credential-free environment hold for every process a command starts.</td></tr>
+          <tr><td><b>Commands with the operator's environment</b></td><td>Default config files, the keychain and the SSH agent would give every approved build the operator's GitHub, Azure and cluster access.</td></tr>
+          <tr><td><b>Merging cascade PRs in the app</b></td><td>Gate 2 is a human review on GitHub. <code>merge_pr</code> covers Dependabot and template PRs only.</td></tr>
+          <tr><td><b>Homebrew and WinGet installs</b></td><td>A clean Mac has no Homebrew, and WinGet can need elevation. uv covers Python, az and spi on both platforms without either.</td></tr>
+          <tr><td><b>Several palettes with a picker</b></td><td>One palette in two appearances covers the need. The role model leaves room for more later at no cost now.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section>
+      <h3>G · Risks</h3>
+      <div class="tblwrap"><table class="tbl compact">
+        <thead><tr><th style="width:30%">Risk</th><th>Handling</th></tr></thead>
+        <tbody>
+          <tr><td><b>Copilot runtime in a signed, packaged app</b></td><td>Proved in M0 on a notarized build before anything depends on it. A Node child process is the fallback for the host.</td></tr>
+          <tr><td><b>SDK shape changes</b></td><td>Pinned version, fake-session suite, Keelson's provider as a second reference.</td></tr>
+          <tr><td><b>GitHub API budget</b></td><td>Core keeps its batching. The host adds a budget that slows sweeps before the GraphQL limit, and Setup shows the points left.</td></tr>
+          <tr><td><b>Coding agent cannot do the work</b></td><td>Handoff is offered only for changes on the fork's main branch. The issue records the evidence, so the operator can take it over in a code thread.</td></tr>
+          <tr><td><b>Command sandbox on Windows</b></td><td>Seatbelt profiles are proven on macOS by other agent tools. The Windows restricted-token profile is probed in M0 and proved in M5. Without a working sandbox, code threads offer no commands.</td></tr>
+          <tr><td><b>Data leaving through an approved command</b></td><td>Network stays on for Maven. Each card shows the exact command, the sandbox holds no credentials to send, and Settings states the limit.</td></tr>
+          <tr><td><b>Rib and app both acting</b></td><td>The rib's verbs are switched off at M4. Both pin the same core version, and the rib carries no domain logic.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+  </div>
+</div>
