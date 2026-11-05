@@ -17,6 +17,7 @@ export * from "./exec/index.js";
 export * from "./act/index.js";
 export * from "./evidence/index.js";
 export * from "./collect/index.js";
+export { Gh, Glab } from "./forge.js";
 export * from "./sweep/index.js";
 export * from "./inspect/index.js";
 export * from "./model/index.js";

@@ -221,7 +221,6 @@ export class WatchRoutes {
       type: "view.snapshot",
       payload: latest.view,
     });
-    subscriber.cursor = cursor;
     subscriber.send({
       version: PROTOCOL_VERSION,
       id: `sweep-status-${cursor}`,
@@ -229,6 +228,7 @@ export class WatchRoutes {
       type: "sweep.status",
       payload: latest.status,
     });
+    subscriber.cursor = cursor;
   }
 
   private async inspect(message: Message, send: HostSend): Promise<void> {

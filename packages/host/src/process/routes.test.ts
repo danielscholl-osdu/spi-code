@@ -17,16 +17,16 @@ import {
   type createSweeper,
   type Exec,
   emptyCache,
+  type InspectOptions,
   type ItemClass,
   type QueueItem,
-  verbsOf,
 } from "@spi-code/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createLeaseStore } from "../store/leases.js";
 import { createSnapshotStore } from "../store/snapshots.js";
 import { openRunStore } from "../store/store.js";
 import { projectWatch } from "../watch/project.js";
-import { fixtureInput } from "../watch/snapshot-fixture.js";
+import { fixtureInput, oracle } from "../watch/snapshot-fixture.js";
 import { attachHostPort, type HostPort } from "./port.js";
 import { inspectResult, WatchRoutes, watchFleet } from "./routes.js";
 
@@ -92,7 +92,7 @@ function writeSnapshot(remaining = 4321.5): number {
   );
 }
 
-function host(watch: WatchRoutes) {
+function host(watch: WatchRoutes, reject: (message: Message) => boolean = () => false) {
   const sent: Message[] = [];
   let receive: (event: { data: unknown }) => void = () => {
     throw new Error("Port not attached");
@@ -104,6 +104,7 @@ function host(watch: WatchRoutes) {
     postMessage(message) {
       const parsed = parseMessage(message);
       if (!parsed.ok) throw new Error("host posted an invalid message");
+      if (reject(parsed.message)) throw new Error("port closed");
       sent.push(parsed.message);
     },
     start() {},
@@ -187,6 +188,22 @@ describe("view.subscribe", () => {
     expect(old.sent.filter((m) => m.type === "view.snapshot")).toHaveLength(1);
   });
 
+  it("keeps the cursor when the sweep status send fails, so the next publish resends", async () => {
+    const cursor = writeSnapshot();
+    const watch = routes();
+    let closed = true;
+    const port = host(watch, (m) => closed && m.type === "sweep.status");
+    port.request("view.subscribe", { fromCursor: 0 });
+    await settle();
+    expect(port.sent.map((m) => m.type)).toEqual(["host.hello", "view.snapshot", "error"]);
+    closed = false;
+    watch.publish();
+    expect(port.sent.slice(3)).toMatchObject([
+      { type: "view.snapshot", payload: { cursor } },
+      { type: "sweep.status" },
+    ]);
+  });
+
   it("does not open the store until a request needs it", async () => {
     let opened = 0;
     const port = host(
@@ -216,54 +233,92 @@ describe("inspect.request", () => {
     incident: true,
     blocks: 1,
   };
-  const classes: Record<ItemClass, Partial<QueueItem>> = {
-    ENV: { kind: "lanes", cls: "ENV" },
+  const oracleCases = (
+    oracle("inspect-actions") as {
+      cases: { name: string; item: QueueItem; opts: InspectOptions }[];
+    }
+  ).cases;
+  const real = (name: string) => {
+    const found = oracleCases.find((c) => c.name === name);
+    if (!found) throw new Error(`oracle case ${name} missing`);
+    return found;
+  };
+  const approve = ["Approve #343 · 2 runs", "Approve #344 · 2 runs", "Approve #345 · 2 runs"];
+  interface Case {
+    item: Partial<QueueItem>;
+    opts?: InspectOptions;
+    labels: string[];
+    approval?: string;
+  }
+  const classes: Record<ItemClass, Case> = {
+    ENV: { ...real("wait for deployable"), labels: ["Re-run when deployable"] },
     ACCESS: {
-      kind: "access",
-      cls: "ACCESS",
-      cause: [
-        { label: "reason", value: 'denied: "ghcr.io/azure/osdu-spi-legal:pr-9" requires auth' },
-      ],
+      item: {
+        kind: "access",
+        cls: "ACCESS",
+        cause: [
+          { label: "reason", value: 'denied: "ghcr.io/azure/osdu-spi-legal:pr-9" requires auth' },
+        ],
+      },
+      labels: [],
     },
-    TEST: { kind: "template-red", cls: "TEST" },
+    TEST: { item: { kind: "template-red", cls: "TEST" }, labels: [] },
     HALT: {
-      kind: "halt",
-      rung: 0,
-      cls: "HALT",
-      halt: { fork: "entitlements", code: "UNKNOWN_TOP_LEVEL", entries: ["schemathesis-tests"] },
+      item: {
+        kind: "halt",
+        rung: 0,
+        cls: "HALT",
+        halt: { fork: "entitlements", code: "UNKNOWN_TOP_LEVEL", entries: ["schemathesis-tests"] },
+      },
+      labels: [],
     },
-    TOOLCHAIN: { cls: "TOOLCHAIN" },
-    CONFLICT: { kind: "conflict", rung: 0, cls: "CONFLICT" },
-    POLICY: { cls: "POLICY" },
-    INFRA: { cls: "INFRA" },
-    BUILD: { kind: "release-red", cls: "BUILD" },
-    UNREAD: { cls: "UNREAD" },
-    PORT: { kind: "port", cls: "PORT", scope: "entitlements" },
-    SECURITY: { kind: "security", cls: "SECURITY" },
-    ROLLOUT: { kind: "rollout", cls: "ROLLOUT" },
-    INCIDENT: {},
-    GATE: { incident: false, kind: "approvals", scope: "Azure/osdu-spi-stack" },
-    READY: { incident: false, rung: 2, kind: "releases" },
+    TOOLCHAIN: { item: { cls: "TOOLCHAIN" }, labels: [] },
+    CONFLICT: { item: { kind: "conflict", rung: 0, cls: "CONFLICT" }, labels: [] },
+    POLICY: { item: { cls: "POLICY" }, labels: [] },
+    INFRA: {
+      item: { ...real("busy lifecycle").item, cls: "INFRA" },
+      opts: real("busy lifecycle").opts,
+      labels: ["Re-dispatch env-upgrade", "Re-dispatch env-refresh"],
+    },
+    BUILD: { item: { kind: "release-red", cls: "BUILD" }, labels: [] },
+    UNREAD: { item: { cls: "UNREAD" }, labels: [] },
+    PORT: { item: { kind: "port", cls: "PORT", scope: "entitlements" }, labels: [] },
+    SECURITY: { item: { kind: "security", cls: "SECURITY" }, labels: [] },
+    ROLLOUT: {
+      item: { ...real("template actions").item, cls: "ROLLOUT" },
+      opts: real("template actions").opts,
+      labels: ["Sync all forks · 0", "Roll out · 0 ready"],
+    },
+    INCIDENT: { ...real("approval waiting"), labels: approve, approval: "Outside PRs · 3" },
+    GATE: {
+      item: { ...real("approval waiting").item, incident: false },
+      opts: real("approval waiting").opts,
+      labels: approve,
+      approval: "Outside PRs · 3",
+    },
+    READY: { item: { incident: false, rung: 2, kind: "releases" }, labels: [] },
   };
 
   it.each(Object.entries(classes))(
     "%s maps to a schema-valid result with every write disabled",
-    async (cls, override) => {
+    async (cls, { item: override, opts, labels, approval }) => {
       const item = { ...base, ...override } as QueueItem;
-      const result = await inspectResult(model, item, ctx.clock.now(), ctx, failing);
+      const result = await inspectResult(model, item, ctx.clock.now(), ctx, failing, opts);
       expect(InspectResultSchema.safeParse(result).success).toBe(true);
       expect(result.class).toBe(cls);
-      expect(result.actions.map((action) => action.label)).toEqual(
-        verbsOf(item, model, ctx).map((action) => action.label),
-      );
+      expect(result.actions.map((action) => action.label)).toEqual(labels);
+      expect(result.actions.length).toBe(labels.length);
       for (const action of result.actions) {
         expect(action.disabledReason).toBe("writes arrive at M4");
       }
+      expect(result.approval).toEqual(
+        approval ? { id: item.id, state: "pending", reason: approval } : null,
+      );
     },
   );
 
   it("records the failed FILTERS read as evidence for a checkable halt", async () => {
-    const item = { ...base, ...classes.HALT } as QueueItem;
+    const item = { ...base, ...classes.HALT.item } as QueueItem;
     const result = await inspectResult(model, item, ctx.clock.now(), ctx, failing);
     expect(calls).toBeGreaterThan(0);
     expect(result.evidence.length).toBeGreaterThan(0);
