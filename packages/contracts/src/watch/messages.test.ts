@@ -1,11 +1,14 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseMessage } from "../index.js";
+import { BriefingSchema } from "./briefing.js";
 import { EnvelopeSchema, type ReadRecord, ReadRecordSchema } from "./evidence.js";
 import { ItemClassSchema } from "./inspect.js";
 import { PROTOCOL_VERSION, type WatchMessage, WatchMessageSchema } from "./messages.js";
+import { ReleasesPaneSchema, type ViewSnapshot } from "./snapshot.js";
 import { ServiceStationsSchema, StationIdSchema } from "./stations.js";
 import { TreeStatusSchema } from "./tree.js";
 
@@ -46,6 +49,36 @@ const inspect = {
   ],
 } as const;
 const envelope = { version: PROTOCOL_VERSION, id: "watch-1" } as const;
+function oracle(name: string): unknown {
+  return JSON.parse(
+    readFileSync(
+      new URL(`../../../../fixtures/rib-59d6895/oracle/${name}.json`, import.meta.url),
+      "utf8",
+    ),
+  );
+}
+const snapshot = {
+  cursor: 1,
+  sweptAt: at,
+  briefing: BriefingSchema.parse(oracle("briefing")),
+  releases: ReleasesPaneSchema.parse(oracle("releases")),
+  stations: [
+    {
+      service: "legal",
+      stations: [
+        { id: "upstream", state: "moving", text: "4 commits held" },
+        { id: "sync", state: "stopped", text: "Java Build failed" },
+        { id: "cascade", state: "idle", text: "" },
+        { id: "main", state: "unknown", text: "" },
+        { id: "release", state: "waiting", text: "Needs review" },
+        { id: "lane", state: "stopped", text: "Environment held" },
+      ],
+    },
+  ],
+  tree: [{ id: "today", status: "failed" }],
+  reads: [record],
+  selection: "today",
+} satisfies ViewSnapshot;
 const messages = [
   { ...envelope, kind: "request", type: "inspect.request", payload: { id: "main:osdu-spi" } },
   {
@@ -102,7 +135,9 @@ const messages = [
     },
   },
   { ...envelope, kind: "request", type: "view.subscribe", payload: { fromCursor: 0 } },
+  { ...envelope, kind: "event", type: "view.snapshot", payload: snapshot },
 ] satisfies [
+  WatchMessage,
   WatchMessage,
   WatchMessage,
   WatchMessage,
@@ -128,6 +163,30 @@ describe("Watch protocol", () => {
         payload: { ...messages[2].payload, floor },
       }).ok,
     ).toBe(false);
+  });
+  it("round-trips a full snapshot fixture through the Watch schema and shared parser", () => {
+    const message = messages[8];
+    const wire: unknown = JSON.parse(JSON.stringify(message));
+    expect(WatchMessageSchema.parse(wire)).toEqual(message);
+    expect(parseMessage(wire)).toEqual({ ok: true, message });
+    expect(parseMessage({ ...message, payload: { ...snapshot, selection: null } }).ok).toBe(true);
+  });
+  it.each([
+    { ...snapshot, cursor: -1 },
+    { ...snapshot, cursor: 0.5 },
+    { ...snapshot, sweptAt: "yesterday" },
+    { ...snapshot, selection: "" },
+    { ...snapshot, reads: [{ ...record, observedAt: "yesterday" }] },
+    { ...snapshot, tree: [{ id: "today", status: "unknown" }] },
+    { ...snapshot, stations: [{ service: "legal", stations: [] }] },
+    { ...snapshot, releases: { ...snapshot.releases, extra: true } },
+    {
+      ...snapshot,
+      releases: { ...snapshot.releases, lines: [{ ...snapshot.releases.lines[0], notes: "bad" }] },
+    },
+    { ...snapshot, briefing: { ...snapshot.briefing, focus: [{ rung: 3 }] } },
+  ])("rejects invalid nested snapshot fields", (payload) => {
+    expect(parseMessage({ ...messages[8], payload }).ok).toBe(false);
   });
   it.each(messages)("round-trips $type through the shared parser", (message) => {
     expect(parseMessage(JSON.parse(JSON.stringify(message)))).toEqual({ ok: true, message });

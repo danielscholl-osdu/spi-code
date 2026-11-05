@@ -10,6 +10,7 @@ import {
   SetupSigninSchema,
   SetupStateSchema,
 } from "./setup.js";
+import { ViewSnapshotSchema } from "./snapshot.js";
 
 export const PROTOCOL_VERSION = 2;
 export const SweepStatusSchema = z.strictObject({
@@ -21,6 +22,12 @@ export const SweepStatusSchema = z.strictObject({
 export const ViewSubscribeSchema = z.strictObject({ fromCursor: z.int().nonnegative() });
 const envelope = { version: z.literal(PROTOCOL_VERSION), id: IdentifierSchema };
 export const WatchMessageSchema = z.discriminatedUnion("type", [
+  z.strictObject({
+    ...envelope,
+    kind: z.literal("event"),
+    type: z.literal("view.snapshot"),
+    payload: ViewSnapshotSchema,
+  }),
   z.strictObject({
     ...envelope,
     kind: z.literal("request"),
