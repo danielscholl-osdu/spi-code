@@ -8,11 +8,11 @@ import { encodeProject, Gh, Glab, GraphqlBudget, tokenScopes } from "./forge.js"
 const resetAt = "2026-11-05T08:00:00Z";
 const query = "{viewer{login}}";
 const charge = "spicodeBudget: rateLimit { cost remaining resetAt }";
-const chargedQuery = `{ ${charge} viewer{login}}`;
 const output = (stdout: string, exit = 0): ExecOutput => ({ stdout, stderr: "", exit });
-const body = (cost: number, remaining: number) =>
+const nextResetAt = "2026-11-05T09:00:00Z";
+const body = (cost: number, remaining: number, reset = resetAt) =>
   JSON.stringify({
-    data: { viewer: { login: "someone" }, spicodeBudget: { cost, remaining, resetAt } },
+    data: { viewer: { login: "someone" }, spicodeBudget: { cost, remaining, resetAt: reset } },
   });
 
 async function replay(
@@ -118,7 +118,7 @@ describe("forge replay", () => {
   it("queues concurrent clients on one budget until reset when the second estimate exceeds remaining", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-11-05T07:59:59Z"));
-    await replay([output(body(4, 2)), output(body(3, 97))], async (exec) => {
+    await replay([output(body(4, 2)), output(body(3, 97, nextResetAt))], async (exec) => {
       vi.setSystemTime(new Date("2026-11-05T07:59:59Z"));
       const budget = new GraphqlBudget();
       const first = new Gh(exec, undefined, budget).graphql(query, 4);
@@ -132,7 +132,12 @@ describe("forge replay", () => {
       expect(budget.snapshot()).toEqual({ remaining: 2, resetAt, spent: 4, calls: 1 });
       await vi.advanceTimersByTimeAsync(1);
       await second;
-      expect(budget.snapshot()).toEqual({ remaining: 97, resetAt, spent: 7, calls: 2 });
+      expect(budget.snapshot()).toEqual({
+        remaining: 97,
+        resetAt: nextResetAt,
+        spent: 7,
+        calls: 2,
+      });
     });
   });
 
@@ -163,6 +168,16 @@ describe("forge replay", () => {
       `{ ${charge} viewer{login} rateLimit @skip(if:true) {cost remaining resetAt}}`,
     ],
     ["{ rateLimit: viewer { login } }", `{ ${charge}  rateLimit: viewer { login } }`],
+    ["query mutation { viewer { login } }", `query mutation { ${charge}  viewer { login } }`],
+    ["query fragment { viewer { login } }", `query fragment { ${charge}  viewer { login } }`],
+    [
+      "{ viewer { ...mutation } } fragment mutation on User { login }",
+      `{ ${charge}  viewer { ...mutation } } fragment mutation on User { login }`,
+    ],
+    [
+      "query Q @include(if: true) { viewer { login } }",
+      `query Q @include(if: true) { ${charge}  viewer { login } }`,
+    ],
   ])(
     "injects one aliased budget selection at the operation root of %s",
     async (input, expected) => {
@@ -195,6 +210,7 @@ describe("forge replay", () => {
     ["subscription { x }", "subscription operations"],
     ["{ spicodeBudget: viewer { login } }", "may not use the name spicodeBudget"],
     ["query A { a } query B { b }", "one operation"],
+    ["extend type Query { a: Int }", "definition extend is not supported"],
   ])("refuses %s before calling gh", async (input, message) => {
     const exec = new ReplayExec("");
     await expect(new Gh(exec).graphql(input)).rejects.toThrow(message);
@@ -232,6 +248,38 @@ describe("forge replay", () => {
     releases[2]?.();
     await third;
     expect(budget.snapshot()).toEqual({ remaining: 90, resetAt, spent: 3, calls: 3 });
+  });
+
+  it("ignores an expired window's figure while a new-window probe is pending", async () => {
+    let now = Date.parse("2026-11-05T07:59:00Z");
+    const budget = new GraphqlBudget({ now: () => new Date(now) });
+    await budget.run(1, async () => ({ value: 0, rate: { cost: 1, remaining: 10, resetAt } }));
+    const resolvers: ((rate: { cost: number; remaining: number; resetAt: string }) => void)[] = [];
+    let calls = 0;
+    const call = () => {
+      calls++;
+      return new Promise<{
+        value: number;
+        rate: { cost: number; remaining: number; resetAt: string };
+      }>((resolve) => resolvers.push((rate) => resolve({ value: 1, rate })));
+    };
+    const a = budget.run(1, call);
+    await vi.waitFor(() => expect(calls).toBe(1));
+    now = Date.parse("2026-11-05T08:00:01Z");
+    const b = budget.run(1, call);
+    await vi.waitFor(() => expect(calls).toBe(2));
+    resolvers[0]?.({ cost: 1, remaining: 8, resetAt });
+    await a;
+    expect(budget.snapshot().remaining).toBeNull();
+    const c = budget.run(1, call);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(calls).toBe(2);
+    resolvers[1]?.({ cost: 1, remaining: 4999, resetAt: nextResetAt });
+    await b;
+    await vi.waitFor(() => expect(calls).toBe(3));
+    resolvers[2]?.({ cost: 1, remaining: 4998, resetAt: nextResetAt });
+    await c;
+    expect(budget.snapshot()).toMatchObject({ remaining: 4998, resetAt: nextResetAt, calls: 4 });
   });
 
   it("waits on the injected sleep rather than wall time", async () => {

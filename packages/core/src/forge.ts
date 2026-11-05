@@ -64,21 +64,30 @@ export class GraphqlBudget {
     this.queue = new Promise<void>((resolve) => { release = resolve; });
     await previous;
     let settle: (() => void) | undefined;
+    let owned: Promise<void> | undefined;
     try {
-      while (this.state.remaining === null && this.probe) await this.probe;
-      const reset = this.state.resetAt === null ? null : Date.parse(this.state.resetAt);
-      if (reset !== null && reset <= this.clock.now().getTime()) this.state.remaining = null;
-      if (this.state.remaining !== null && this.state.remaining < estimate) {
-        if (reset === null) throw new ForgeError("GraphQL budget exhausted; reset time unknown", null);
-        await this.sleep(Math.max(0, reset - this.clock.now().getTime()));
-        this.state.remaining = null;
+      for (;;) {
+        const reset = this.state.resetAt === null ? null : Date.parse(this.state.resetAt);
+        if (reset !== null && reset <= this.clock.now().getTime()) this.state.remaining = null;
+        if (this.state.remaining === null && this.probe) {
+          await this.probe;
+          continue;
+        }
+        if (this.state.remaining !== null && this.state.remaining < estimate) {
+          if (reset === null) throw new ForgeError("GraphQL budget exhausted; reset time unknown", null);
+          await this.sleep(Math.max(0, reset - this.clock.now().getTime()));
+          this.state.remaining = null;
+          continue;
+        }
+        break;
       }
       this.state.calls++;
       this.state.spent += estimate;
       if (this.state.remaining !== null) this.state.remaining -= estimate;
       this.inFlight += estimate;
       if (this.state.remaining === null) {
-        this.probe = new Promise<void>((resolve) => { settle = resolve; });
+        owned = new Promise<void>((resolve) => { settle = resolve; });
+        this.probe = owned;
       }
     } finally {
       release();
@@ -91,7 +100,7 @@ export class GraphqlBudget {
     } finally {
       this.inFlight -= estimate;
       if (settle) {
-        this.probe = null;
+        if (this.probe === owned) this.probe = null;
         settle();
       }
     }
@@ -101,6 +110,8 @@ export class GraphqlBudget {
     this.state.spent += rate.cost - estimate;
     const current = this.state.resetAt === null ? null : Date.parse(this.state.resetAt);
     const reported = Date.parse(rate.resetAt);
+    // A figure from a window that has already reset says nothing about the current one.
+    if (reported <= this.clock.now().getTime()) return;
     if (current !== null && reported < current) return;
     // Other reservations still in flight are not yet in GitHub's figure.
     const remaining = Math.max(0, rate.remaining - (this.inFlight - estimate));
@@ -119,6 +130,9 @@ function budgetQuery(query: string): { query: string; key: string } {
     .filter((token) => !token[0].startsWith('"') && !token[0].startsWith("#"));
   let depth = 0;
   let parens = 0;
+  // Only the first token of a top-level definition is its keyword; later names are
+  // operation names, fragment names, type conditions or directives.
+  let definitionStart = true;
   let fragment = false;
   let root: number | undefined;
   for (const token of tokens) {
@@ -127,10 +141,16 @@ function budgetQuery(query: string): { query: string; key: string } {
     if (text === "(") parens++;
     if (text === ")") parens--;
     if (parens !== 0) continue;
-    if (depth === 0 && (text === "mutation" || text === "subscription")) {
-      throw new ForgeError(`GraphQL ${text} operations are not supported`, null);
+    if (depth === 0 && definitionStart) {
+      definitionStart = false;
+      if (text === "mutation" || text === "subscription") {
+        throw new ForgeError(`GraphQL ${text} operations are not supported`, null);
+      }
+      if (text === "fragment") fragment = true;
+      else if (text !== "query" && text !== "{") {
+        throw new ForgeError(`GraphQL definition ${text} is not supported`, null);
+      }
     }
-    if (depth === 0 && text === "fragment") fragment = true;
     if (text === "{") {
       if (depth === 0 && !fragment) {
         if (root !== undefined) throw new ForgeError("GraphQL document must hold one operation", null);
@@ -139,7 +159,10 @@ function budgetQuery(query: string): { query: string; key: string } {
       depth++;
     }
     if (text === "}") depth--;
-    if (text === "}" && depth === 0) fragment = false;
+    if (text === "}" && depth === 0) {
+      fragment = false;
+      definitionStart = true;
+    }
   }
   if (root === undefined) throw new ForgeError("GraphQL query has no selection set", null);
   return {
