@@ -2,14 +2,16 @@
 // SPDX-License-Identifier: MIT
 
 // Upstream sync states built on the recorded 13-fork sweep, for the tests and dev/upstream-states.ts.
+import { fileURLToPath } from "node:url";
 import { emptyFacts, type Facts, type JobDetail, type PrFact, type RunFact } from "../src/facts";
 import fixture from "./fixtures/upstream.json";
 
 export const UPSTREAM_NOW = new Date(
   (fixture as unknown as Facts).sweep?.at ?? "2026-11-04T23:42:58Z",
 );
-export const UPSTREAM_SERVICES = new URL("./fixtures/upstream-services.json", import.meta.url)
-  .pathname;
+export const UPSTREAM_SERVICES = fileURLToPath(
+  new URL("./fixtures/upstream-services.json", import.meta.url),
+);
 
 const MIN = 60_000;
 let seq = 990_000;

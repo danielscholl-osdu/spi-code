@@ -29,7 +29,10 @@ import { API } from "typescript/unstable/sync";
 import { describe, expect, test } from "vitest";
 
 function violations(source: string): string[] {
-  const path = join(dirname(fileURLToPath(import.meta.url)), "boundary.virtual.ts");
+  const path = join(dirname(fileURLToPath(import.meta.url)), "boundary.virtual.ts").replaceAll(
+    "\\",
+    "/",
+  );
   const config = `${path}.json`;
   const api = new API({
     fs: createVirtualFileSystem({

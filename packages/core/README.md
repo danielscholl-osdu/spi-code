@@ -39,6 +39,9 @@ The result is `packages/core/release/spi-code-core-0.1.1.tgz`; the script prints
 SHA-256. Vendor that tarball and pin it with a `file:` dependency in the consumer.
 `node scripts/pack.mjs <release-directory>` from this package accepts an alternate
 output directory.
+The pack script supports native macOS and Windows paths, including spaces; archive
+inspection runs relative to the archive's directory so a Windows drive letter is
+not treated as a remote tar host.
 
 The workspace manifest retains `@spi-code/contracts` for the workspace dependency
 graph, but core currently imports neither its runtime code nor its types.

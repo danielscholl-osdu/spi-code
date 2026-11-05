@@ -59,7 +59,12 @@ try {
   });
   const tarball = `spi-code-core-${manifest.version}.tgz`;
   const packed = join(staging, tarball);
-  const entries = execFileSync("tar", ["-tzf", packed], { encoding: "utf8" }).trim().split("\n");
+  const entries = execFileSync("tar", ["-tzf", tarball], {
+    cwd: staging,
+    encoding: "utf8",
+  })
+    .trim()
+    .split("\n");
   if (entries.some((entry) => /\/(?:src|test|fixtures)\//.test(entry) || /\.test\./.test(entry))) {
     throw new Error("Release tarball contains sources, tests or fixtures");
   }

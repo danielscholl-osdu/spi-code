@@ -28,8 +28,11 @@ function analyze(
   noBuiltins = false,
 ): { forbidden: string[]; modules: number } {
   const directory = dirname(fileURLToPath(import.meta.url));
-  const configPath = join(directory, "dependency-lint.virtual.json");
-  const path = join(directory, jsx ? "dependency-lint.virtual.tsx" : "dependency-lint.virtual.ts");
+  const configPath = join(directory, "dependency-lint.virtual.json").replaceAll("\\", "/");
+  const path = join(
+    directory,
+    jsx ? "dependency-lint.virtual.tsx" : "dependency-lint.virtual.ts",
+  ).replaceAll("\\", "/");
   const api = new API({
     fs: createVirtualFileSystem({
       [configPath]: JSON.stringify({

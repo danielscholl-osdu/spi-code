@@ -31,19 +31,20 @@ it("keeps the README vendoring version aligned with the package manifest", async
 });
 
 it("packs a pinned, source-free tarball that installs outside the workspace", async (test) => {
-  const temporary = await mkdtemp(join(tmpdir(), "spi-core-pack-test-"));
+  const temporary = await mkdtemp(join(tmpdir(), "spi core pack-test-"));
   try {
     const release = join(temporary, "release");
     const packed = await exec(process.execPath, ["scripts/pack.mjs", release], {
       cwd: core,
       timeout: 120_000,
     });
-    const tarball = join(release, "spi-code-core-0.1.1.tgz");
+    const filename = "spi-code-core-0.1.1.tgz";
+    const tarball = join(release, filename);
     const sha256 = createHash("sha256")
       .update(await readFile(tarball))
       .digest("hex");
     expect(packed.stdout).toContain(`${sha256}  ${tarball}`);
-    const { stdout: listing } = await exec("tar", ["-tzf", tarball]);
+    const { stdout: listing } = await exec("tar", ["-tzf", filename], { cwd: release });
     const entries = listing.trim().split("\n");
     expect(entries).toContain("package/dist/index.js");
     expect(entries).toContain("package/dist/index.d.ts");
@@ -51,7 +52,9 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
     expect(entries).toContain("package/README.md");
     expect(entries.filter((entry) => /\/(?:src|test|fixtures)\//.test(entry))).toEqual([]);
     expect(entries.filter((entry) => /\.test\.|\.map$/.test(entry))).toEqual([]);
-    const { stdout: manifest } = await exec("tar", ["-xOzf", tarball, "package/package.json"]);
+    const { stdout: manifest } = await exec("tar", ["-xOzf", filename, "package/package.json"], {
+      cwd: release,
+    });
     const pkg = JSON.parse(manifest);
     expect(pkg.version).toBe("0.1.1");
     expect(pkg.dependencies).toEqual({ yaml: "2.9.1", zod: "4.6.7" });
