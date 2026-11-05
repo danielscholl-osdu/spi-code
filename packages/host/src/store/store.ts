@@ -69,7 +69,11 @@ export function openRunStore(path: string): RunStore {
   const db = new DatabaseSync(path);
   try {
     db.exec("PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON");
-    db.exec("PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL");
+    const journalMode = db.prepare("PRAGMA journal_mode = WAL").get()?.journal_mode;
+    if (journalMode !== "wal") {
+      throw new Error(`SQLite WAL mode required; received ${journalMode}`);
+    }
+    db.exec("PRAGMA synchronous = FULL");
     migrate(db);
     const insertRun = db.prepare(
       "INSERT INTO runs (id, kind, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
@@ -122,7 +126,7 @@ export function openRunStore(path: string): RunStore {
           db.exec("COMMIT");
           return seq;
         } catch (error) {
-          db.exec("ROLLBACK");
+          if (db.isTransaction) db.exec("ROLLBACK");
           throw error;
         }
       },

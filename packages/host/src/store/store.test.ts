@@ -1,11 +1,16 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createInterface } from "node:readline";
 import { DatabaseSync } from "node:sqlite";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { fileURLToPath } from "node:url";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { migrate } from "./migrations.js";
 import { openRunStore, type RunStore } from "./store.js";
 
 describe("file-backed run store", () => {
@@ -52,6 +57,28 @@ describe("file-backed run store", () => {
     expect(db.prepare("SELECT name, sql FROM sqlite_schema ORDER BY name").all()).toEqual(schema);
   });
 
+  it("sets synchronous=FULL on the store's own connection", () => {
+    const originalExec = DatabaseSync.prototype.exec;
+    let connection: DatabaseSync | undefined;
+    const exec = vi.spyOn(DatabaseSync.prototype, "exec").mockImplementation(function (
+      this: DatabaseSync,
+      sql: string,
+    ) {
+      if (!connection) {
+        connection = this;
+        originalExec.call(this, "PRAGMA synchronous = NORMAL");
+      }
+      originalExec.call(this, sql);
+    });
+    try {
+      open();
+      if (!connection) throw new Error("Store connection was not captured");
+      expect(connection.prepare("PRAGMA synchronous").get()).toEqual({ synchronous: 2 });
+    } finally {
+      exec.mockRestore();
+    }
+  });
+
   it("reads a run and events after close/reopen and continues its sequence", () => {
     let store = open();
     const run = { id: "run-1", kind: "turn", title: "SPI status", createdAt: at };
@@ -69,6 +96,57 @@ describe("file-backed run store", () => {
     expect(store.appendEvent(run.id, { kind: "text", message: "again" }, later)).toBe(3);
     expect(store.lastSeq(run.id)).toBe(3);
     expect(store.get("missing")).toBeUndefined();
+  });
+
+  it("preserves every committed event with contiguous sequences after SIGKILL", async () => {
+    const count = 12;
+    const store = open();
+    store.create({ id: "crash", kind: "turn", createdAt: at });
+    store.close();
+    const child = spawn(
+      process.execPath,
+      [fileURLToPath(new URL("./crash-writer.mjs", import.meta.url)), path, at],
+      { stdio: ["pipe", "pipe", "pipe"], timeout: 4000, killSignal: "SIGKILL" },
+    );
+    const exited = once(child, "close");
+    const lines = createInterface({ input: child.stdout });
+    let stderr = "";
+    child.stderr.setEncoding("utf8").on("data", (text: string) => {
+      stderr += text;
+    });
+    let committed = 0;
+    try {
+      child.stdin.write("append\n");
+      for await (const line of lines) {
+        committed += 1;
+        expect(line).toBe(`committed ${committed}`);
+        if (committed === count) {
+          expect(child.kill("SIGKILL")).toBe(true);
+          break;
+        }
+        child.stdin.write("append\n");
+      }
+      const [code, signal] = await exited;
+      expect(stderr).not.toMatch(/Error/);
+      expect({ code, signal }).toEqual({ code: null, signal: "SIGKILL" });
+      expect(committed).toBe(count);
+    } finally {
+      lines.close();
+      if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+      await exited;
+    }
+    const reopened = open();
+    expect(reopened.listEvents("crash", 0)).toEqual(
+      Array.from({ length: count }, (_, index) => ({
+        seq: index + 1,
+        kind: "text",
+        message: `event ${index + 1}`,
+        data: null,
+        createdAt: at,
+      })),
+    );
+    expect(reopened.lastSeq("crash")).toBe(count);
+    expect(reopened.appendEvent("crash", { kind: "text" }, later)).toBe(count + 1);
   });
 
   it("pages strictly after the cursor in sequence order, independently per run and connection", () => {
@@ -109,10 +187,10 @@ describe("file-backed run store", () => {
   it("rejects unknown runs, duplicate runs and unserializable data without losing sequence", () => {
     const store = open();
     const run = { id: "a", kind: "turn", createdAt: at };
-    expect(() => store.appendEvent("missing", { kind: "text" }, at)).toThrow();
+    expect(() => store.appendEvent("missing", { kind: "text" }, at)).toThrow(/FOREIGN KEY/);
     store.create(run);
-    expect(() => store.create(run)).toThrow();
-    expect(() => store.appendEvent("a", { kind: "tool", data: 1n }, at)).toThrow();
+    expect(() => store.create(run)).toThrow(/UNIQUE/);
+    expect(() => store.appendEvent("a", { kind: "tool", data: 1n }, at)).toThrow(/BigInt/);
     expect(() => store.appendEvent("a", { kind: "tool", data: () => null }, at)).toThrow(
       "Event data must be JSON-serializable",
     );
@@ -143,7 +221,7 @@ describe("file-backed run store", () => {
   it("rolls back a failed migration and refuses a newer schema", () => {
     const db = inspect();
     db.exec("CREATE TABLE run_events (conflict TEXT)");
-    expect(() => openRunStore(path)).toThrow();
+    expect(() => openRunStore(path)).toThrow(/already exists/);
     expect(db.prepare("SELECT name FROM sqlite_schema WHERE name = 'runs'").get()).toBeUndefined();
     expect(
       db.prepare("SELECT name FROM sqlite_schema WHERE name = 'schema_version'").get(),
@@ -156,5 +234,38 @@ describe("file-backed run store", () => {
       { version: 1 },
       { version: 2 },
     ]);
+  });
+
+  it("preserves the append error when SQLite has already rolled back", () => {
+    const store = open();
+    store.create({ id: "a", kind: "turn", createdAt: at });
+    const db = inspect();
+    db.exec(`
+      CREATE TRIGGER fail_update BEFORE UPDATE ON runs
+      BEGIN SELECT RAISE(ROLLBACK, 'injected rollback failure'); END;
+    `);
+    expect(() => store.appendEvent("a", { kind: "text" }, later)).toThrow(
+      "injected rollback failure",
+    );
+    expect(store.lastSeq("a")).toBe(0);
+    expect(store.get("a")?.updatedAt).toBe(at);
+    db.exec("DROP TRIGGER fail_update");
+    expect(store.appendEvent("a", { kind: "text" }, later)).toBe(1);
+  });
+
+  it("preserves the migration error when SQLite has already rolled back", () => {
+    const db = inspect();
+    db.exec(`
+      CREATE TABLE schema_version (version INTEGER PRIMARY KEY) STRICT;
+      CREATE TRIGGER fail_migration BEFORE INSERT ON schema_version
+      BEGIN SELECT RAISE(ROLLBACK, 'injected migration rollback'); END;
+    `);
+    expect(() => migrate(db)).toThrow("injected migration rollback");
+    expect(db.isTransaction).toBe(false);
+    expect(db.prepare("SELECT name FROM sqlite_schema WHERE name = 'runs'").get()).toBeUndefined();
+  });
+
+  it("refuses a database that cannot enable WAL", () => {
+    expect(() => openRunStore(":memory:")).toThrow(/WAL/);
   });
 });
