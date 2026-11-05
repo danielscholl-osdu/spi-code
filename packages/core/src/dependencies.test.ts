@@ -21,7 +21,7 @@ import { createVirtualFileSystem } from "typescript/unstable/fs";
 import { API } from "typescript/unstable/sync";
 import { describe, expect, it } from "vitest";
 
-function forbiddenImports(source: string, jsx = false): string[] {
+function analyze(source: string, jsx = false): { forbidden: string[]; modules: number } {
   const directory = dirname(fileURLToPath(import.meta.url));
   const configPath = join(directory, "dependency-lint.virtual.json");
   const path = join(directory, jsx ? "dependency-lint.virtual.tsx" : "dependency-lint.virtual.ts");
@@ -39,6 +39,7 @@ function forbiddenImports(source: string, jsx = false): string[] {
     const file = snapshot.getProject(configPath)?.program.getSourceFile(path);
     if (!file) throw new Error(`Could not parse dependency-lint source: ${path}`);
     const found: string[] = [];
+    let modules = 0;
     function visit(node: Node): void {
       let specifier: Node | undefined;
       if (isImportDeclaration(node) || isExportDeclaration(node)) {
@@ -57,6 +58,7 @@ function forbiddenImports(source: string, jsx = false): string[] {
       } else if (isImportTypeNode(node) && isLiteralTypeNode(node.argument)) {
         specifier = node.argument.literal;
       }
+      if (specifier) modules += 1;
       if (
         specifier &&
         isStringLiteralLikeNode(specifier) &&
@@ -67,26 +69,43 @@ function forbiddenImports(source: string, jsx = false): string[] {
       node.forEachChild(visit);
     }
     visit(file);
-    return found;
+    return { forbidden: found, modules };
   } finally {
     api.close();
   }
 }
 
-function scan(directory: string): string[] {
+function forbiddenImports(source: string, jsx = false): string[] {
+  return analyze(source, jsx).forbidden;
+}
+
+function sourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name);
-    if (entry.isDirectory()) return scan(path);
-    if (!/\.[cm]?tsx?$/.test(entry.name)) return [];
-    return forbiddenImports(readFileSync(path, "utf8"), entry.name.endsWith(".tsx")).map(
-      (name) => `${path}: ${name}`,
-    );
+    if (entry.isDirectory()) return sourceFiles(path);
+    return /\.[cm]?tsx?$/.test(entry.name) ? [path] : [];
   });
+}
+
+function scan(files: string[]): { violations: string[]; modules: number } {
+  let modules = 0;
+  const violations = files.flatMap((path) => {
+    const result = analyze(readFileSync(path, "utf8"), path.endsWith(".tsx"));
+    modules += result.modules;
+    return result.forbidden.map((name) => `${path}: ${name}`);
+  });
+  return { violations, modules };
 }
 
 describe("plain Node dependency boundary", () => {
   it("scans every core source file", () => {
-    expect(scan(dirname(fileURLToPath(import.meta.url)))).toEqual([]);
+    const root = dirname(fileURLToPath(import.meta.url));
+    const files = sourceFiles(root);
+    const library = files.filter((path) => !path.endsWith(".test.ts"));
+    expect(library.length).toBeGreaterThanOrEqual(30);
+    const result = scan(files);
+    expect(result.modules).toBeGreaterThan(0);
+    expect(result.violations).toEqual([]);
   });
 
   it.each(["@keelson/shared", "keelson", "bun", "bun:test", "electron"])(
