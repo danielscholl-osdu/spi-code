@@ -12,11 +12,11 @@ export const MIN_SECRET_LENGTH = 8;
 const whitespace = String.raw`(?:\s|\\[nrtbf]|\\u00(?:09|0[acd]|20))`;
 const quote = String.raw`(?:\\?["'])?`;
 const authorization = new RegExp(
-  String.raw`((?<![A-Za-z])authorization(?:\\?["']|\\(?=\s*[:=]))?${whitespace}*[:=]${whitespace}*${quote})(?:\\(?:u[0-9a-f]{4}|[^nr])|[^\r\n"',}\\])+`,
+  String.raw`((?:(?<![A-Za-z])|(?<=\\[nrtbf]))authorization(?:\\?["']|\\(?=\s*[:=]))?${whitespace}*[:=]${whitespace}*${quote})(?:\\(?:u[0-9a-f]{4}|[^nr"'])|[^\r\n"',}\\])+`,
   "gi",
 );
 const bearer = new RegExp(
-  String.raw`(\bbearer${whitespace}+${quote})(?:\\(?:[\\/]|u[0-9a-f]{4})|[^\s"',;}\\])+`,
+  String.raw`((?:\b|(?<=\\[nrtbf]))bearer${whitespace}+${quote})(?:\\(?:[\\/]|u[0-9a-f]{4})|[^\s"',;}\\])+`,
   "gi",
 );
 
@@ -29,6 +29,6 @@ export function redact(text: string, env: Record<string, string> = {}): string {
   for (const secret of secrets) safe = safe.split(secret).join(REDACTED);
   return safe
     .replace(/(?:gh[opsur]_|github_pat_|glpat-)[A-Za-z0-9_-]+/g, REDACTED)
-    .replace(authorization, `$1${REDACTED}`)
-    .replace(bearer, `$1${REDACTED}`);
+    .replace(bearer, `$1${REDACTED}`)
+    .replace(authorization, `$1${REDACTED}`);
 }

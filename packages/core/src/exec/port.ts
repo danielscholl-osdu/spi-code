@@ -54,6 +54,8 @@ export function execOutputDelivery(opts: ExecOptions, env: Record<string, string
           }
         }
       }
+      // The next character may complete an escape that establishes a header boundary.
+      if (text.endsWith("\\")) end = Math.min(end, text.length - 1);
       const credential = text.search(/(?:gh[opsur]_|github_pat_|glpat-)[A-Za-z0-9_-]*$/);
       if (credential >= 0) end = Math.min(end, credential);
       const header = text.search(

@@ -9,6 +9,8 @@ describe("exec recording and replay", () => {
   it.each([
     "Authorization:\nopaque-credential",
     'Bearer "opaque-credential"',
+    "line\nAuthorization: opaque-credential",
+    "line\tBearer opaque-credential",
   ])("records parseable JSON and replays a redacted %j", async (body) => {
     let log = "";
     const stdout = JSON.stringify({ body, unchanged: "kept" });
@@ -134,6 +136,14 @@ describe("exec recording and replay", () => {
     [JSON.stringify({ body: "Authorization:\nBearer \"opaque-credential\"" }), {}],
     [JSON.stringify({ body: "Authorization: opaque\\credential" }), {}],
     [JSON.stringify({ body: "Bearer opaque\\credential" }), {}],
+    [JSON.stringify({ body: "line\nAuthorization: opaque-credential" }), {}],
+    [JSON.stringify({ body: "line\tAuthorization: opaque-credential" }), {}],
+    [JSON.stringify({ body: "line\r\nAuthorization: opaque-credential" }), {}],
+    [JSON.stringify({ body: "line\nBearer opaque-credential" }), {}],
+    [JSON.stringify({ body: "line\tBearer opaque-credential" }), {}],
+    [JSON.stringify({ body: "line\r\nBearer opaque-credential" }), {}],
+    [JSON.stringify({ body: JSON.stringify({ Authorization: "opaque-credential", count: 1 }) }), {}],
+    [JSON.stringify('curl -H "Authorization: Bearer opaque-credential" https://x'), {}],
     ["opaque.credential", { stdin: "opaque.credential\n" }],
     ["environment.credential", { env: { SERVICE_TOKEN: "environment.credential" } }],
   ] satisfies [string, ExecOptions][])("redacts %s across every chunk boundary", (secret, opts) => {
@@ -147,7 +157,7 @@ describe("exec recording and replay", () => {
       delivery.push("stdout", "\n");
       delivery.finish();
       const text = chunks.join("");
-      expect(text).toBe(execRedactor(opts)(`${secret}\n`));
+      expect(text, `split ${split}`).toBe(execRedactor(opts)(`${secret}\n`));
       expect(text).not.toContain(secret);
       expect(text).not.toContain("credential");
       expect(text).toContain("<redacted>");
