@@ -120,7 +120,7 @@ it("renders every program entry and the exact snapshot status, with service over
     expect(overflow?.open).toBe(true);
     expect(view.container.textContent).toContain("No threads yet");
     expect(view.container.textContent).toContain("No app runs yet");
-    expect(view.container.querySelectorAll('a[href*="/actions/runs/"]')).toHaveLength(1);
+    expect(view.container.querySelectorAll('a[target="_blank"]')).toHaveLength(0);
     expect(view.container.textContent).toContain("Upgrade · #123");
     expect(view.container.textContent).toContain("GitHub run #789");
   } finally {
@@ -130,6 +130,7 @@ it("renders every program entry and the exact snapshot status, with service over
 
 it("navigates through existing routes and retains the selected service in Flow", async () => {
   const view = await mount();
+  const hash = window.location.hash;
   try {
     for (const route of routes) {
       const button = view.container.querySelector<HTMLButtonElement>(
@@ -145,11 +146,18 @@ it("navigates through existing routes and retains the selected service in Flow",
       expect(view.container.querySelector("h1")?.textContent).toBe("Flow");
       expect(entry?.getAttribute("aria-current")).toBe("page");
       expect(view.container.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+      expect(window.location.hash).toBe(hash);
     }
-    await act(async () =>
-      view.container.querySelector<HTMLAnchorElement>('[data-selection-id="run:789"]')?.click(),
-    );
-    expect(view.container.querySelector("h1")?.textContent).toBe("Environment");
+    for (const id of ["run:123", "run:789"]) {
+      await act(async () =>
+        view.container.querySelector<HTMLButtonElement>('[data-selection-id="today"]')?.click(),
+      );
+      const entry = view.container.querySelector<HTMLAnchorElement>(`[data-selection-id="${id}"]`);
+      await act(async () => entry?.click());
+      expect(view.container.querySelector("h1")?.textContent).toBe("Environment");
+      expect(entry?.getAttribute("aria-current")).toBe("page");
+      expect(window.location.hash).toBe(hash);
+    }
   } finally {
     await view.dispose();
   }
@@ -175,6 +183,19 @@ it("shows unread before the first sweep, updates from the store, and rejects inv
     expect(view.container.querySelector('[role="alert"]')?.textContent).toContain(
       "Invalid program tree",
     );
+    await act(async () => view.receive({ cursor: 3 }));
+    expect(view.container.querySelector('[role="alert"]')?.textContent).toContain(
+      "Invalid program tree",
+    );
+    for (const route of routes) {
+      const button = view.container.querySelector<HTMLButtonElement>(
+        `[data-selection-id="${route.id}"]`,
+      );
+      expect(button).not.toBeNull();
+      expect(button?.querySelector('[role="img"]')?.getAttribute("data-status")).toBe("unread");
+      await act(async () => button?.click());
+      expect(view.container.querySelector("h1")?.textContent).toBe(route.label);
+    }
   } finally {
     await view.dispose();
   }

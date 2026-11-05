@@ -23,7 +23,7 @@
 
 import { Button } from "@base-ui/react/button";
 import { type TreeStatus, TreeStatusSchema } from "@spi-code/contracts";
-import { useState } from "react";
+import { type MouseEvent, useState } from "react";
 import { useStore } from "zustand";
 import { routes } from "../../app/routes.js";
 import type { createWatchStore } from "../../store/watch.js";
@@ -38,7 +38,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function workflowRuns(body: unknown) {
-  const runs = new Map<string, { id: string; label: string; url: string }>();
+  const runs = new Map<string, string>();
   const briefing = isRecord(body) ? body.briefing : undefined;
   const focus = isRecord(briefing) && Array.isArray(briefing.focus) ? briefing.focus : [];
   for (const item of focus) {
@@ -49,11 +49,10 @@ function workflowRuns(body: unknown) {
         evidence.url,
       );
       if (!match?.[1] || !match[2] || runs.has(`run:${match[2]}`)) continue;
-      runs.set(`run:${match[2]}`, {
-        id: `run:${match[2]}`,
-        label: `${typeof evidence.label === "string" ? evidence.label : "Workflow run"} · #${match[2]}`,
-        url: match[1],
-      });
+      runs.set(
+        `run:${match[2]}`,
+        `${typeof evidence.label === "string" ? evidence.label : "Workflow run"} · #${match[2]}`,
+      );
     }
   }
   return runs;
@@ -78,14 +77,7 @@ export function ProgramTree({
   const parsed = TreeStatusSchema.safeParse(
     body === undefined ? [] : isRecord(body) ? body.tree : undefined,
   );
-  if (!parsed.success) {
-    return (
-      <nav aria-label="Program">
-        <p role="alert">Invalid program tree: {parsed.error.message}</p>
-      </nav>
-    );
-  }
-  const tree = parsed.data;
+  const tree = parsed.success ? parsed.data : [];
   const status = (id: string): Status => tree.find((node) => node.id === id)?.status ?? "unread";
   const active = selection?.route === route ? selection.id : route.id;
   const services = tree.filter((node) => node.id.startsWith("service:"));
@@ -102,7 +94,8 @@ export function ProgramTree({
       className: "tree-entry",
       "data-selection-id": id,
       "aria-current": active === id ? ("page" as const) : undefined,
-      onClick: () => {
+      onClick: (event: MouseEvent<HTMLElement>) => {
+        event.preventDefault();
         setSelection({ id, route: target });
         onNavigate(target);
       },
@@ -133,6 +126,7 @@ export function ProgramTree({
       {heading("services", "Services")}
       {entry("flow", "Flow", flow)}
       {entry("horizon", "Horizon", horizon)}
+      {!parsed.success && <p role="alert">Invalid program tree: {parsed.error.message}</p>}
       {services.slice(0, 5).map(service)}
       {services.length > 5 && (
         <details className="service-overflow">
@@ -146,23 +140,9 @@ export function ProgramTree({
         {heading("runs", "Runs")}
         <h3>GitHub workflow runs</h3>
         {runs.length === 0 && <p className="tree-empty">No GitHub workflow runs</p>}
-        {runs.map((node) => {
-          const run = runDetails.get(node.id);
-          if (!run) return entry(node.id, `GitHub run #${node.id.slice(4)}`, environment);
-          return (
-            <a
-              key={run.url}
-              className="tree-entry"
-              data-selection-id={run.id}
-              href={run.url}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <StatusDot status={status(run.id)} />
-              <span>{run.label}</span>
-            </a>
-          );
-        })}
+        {runs.map((node) =>
+          entry(node.id, runDetails.get(node.id) ?? `GitHub run #${node.id.slice(4)}`, environment),
+        )}
         <h3>App runs</h3>
         <p className="tree-empty">No app runs yet</p>
         {entry("setup", "Setup", setup)}
