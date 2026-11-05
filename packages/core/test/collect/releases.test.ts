@@ -208,7 +208,7 @@ test("failed refresh retains pins and releases at their own last good time, incl
   h.faults.releases = true;
   h.faults.created = true;
   const start = h.log.length;
-  await h.reader.read({ force: true });
+  await h.reader.read({ force: true, refreshPins: true });
   expect(h.reader.data.pins[h.key]).toEqual({ java: "25", lib: "3.0.1" });
   expect(h.reader.data.releases[h.repo]).toEqual([RELEASE]);
   for (const object of [h.key, h.repo]) {
@@ -221,7 +221,7 @@ test("failed refresh retains pins and releases at their own last good time, incl
   h.advance(RELEASES_EVERY_MS);
   const log = new ReplayExec(h.log.slice(start).join(""));
   const restored = new ReleaseReader(new Gh(log), h.persist, h.ctx);
-  await restored.read({ force: true });
+  await restored.read({ force: true, refreshPins: true });
   expect(restored.records.find((r) => r.object === h.key)?.retainedFrom).toBe(START);
   log.assertExhausted();
   h.faults.pins = false;
@@ -238,7 +238,7 @@ test("truncated trees do not replace cached pins with a partial read", async () 
   await h.reader.read();
   h.advance(RELEASES_EVERY_MS);
   h.faults.truncated = true;
-  await h.reader.read({ force: true });
+  await h.reader.read({ force: true, refreshPins: true });
   expect(h.reader.data.pins[h.key]).toEqual({ java: "25", lib: "3.0.1" });
   expect(h.reader.records.find((r) => r.object === h.key)).toMatchObject({
     retainedFrom: START,
@@ -289,4 +289,103 @@ test("persistence failures produce failure records and save failures reject", as
     false,
   );
   replay.assertExhausted();
+});
+
+const treeCalls = (calls: string[]) => calls.filter((call) => call.includes("git/trees")).length;
+
+test("legacy state without evidence records refreshes cached pins into records", async () => {
+  const h = harness();
+  h.store({
+    at: START,
+    releases: { [h.repo]: [RELEASE] },
+    created: {},
+    pins: { [h.key]: { lib: "old", java: "8" } },
+    errors: {},
+  });
+  h.advance(RELEASES_EVERY_MS);
+  await h.reader.read();
+  expect(h.reader.data.pins[h.key]).toEqual({ java: "25", lib: "3.0.1" });
+  expect(
+    h.reader.records.find((r) => r.source === "github-pins" && r.object === h.key),
+  ).toBeDefined();
+  const count = treeCalls(h.calls);
+  h.advance(RELEASES_EVERY_MS);
+  await h.reader.read();
+  expect(treeCalls(h.calls)).toBe(count);
+});
+
+test("force re-reads cached pins only when refreshPins is asked for", async () => {
+  const h = harness();
+  await h.reader.read();
+  await h.reader.read({ force: true });
+  expect(treeCalls(h.calls)).toBe(1);
+  await h.reader.read({ force: true, refreshPins: true });
+  expect(treeCalls(h.calls)).toBe(2);
+});
+
+test("a load failure record does not outlive a later successful load", async () => {
+  const h = harness();
+  const bad = new ReleaseReader(
+    new Gh(new ReplayExec("")),
+    {
+      load: async () => ({ pins: 1 }),
+      save: async () => {},
+    },
+    createContext({ fleet: fleetOf([]), clock: h.ctx.clock }),
+  );
+  await bad.read();
+  expect(bad.records.some((r) => r.object === "load")).toBe(true);
+  h.store({
+    ...emptyState(),
+    records: [
+      {
+        source: "release-state",
+        object: "load",
+        observedAt: START,
+        completeness: { kind: "complete" },
+        failure: "stale",
+      },
+    ],
+  });
+  await h.reader.read();
+  expect(h.reader.records.some((r) => r.source === "release-state" && r.object === "load")).toBe(
+    false,
+  );
+});
+
+test("a creation-date failure uses the error whose path names its repository", async () => {
+  const h = harness();
+  const exec = {
+    runText: async (_cmd: string, args: string[]) => {
+      const query = args.find((arg) => arg.startsWith("query=")) ?? "";
+      if (query.includes("createdAt")) {
+        return {
+          ok: true as const,
+          data: JSON.stringify({
+            data: {
+              r0: null,
+              spicodeBudget: { cost: 1, remaining: 9, resetAt: "2026-10-22T00:00:00Z" },
+            },
+            errors: [
+              { message: "other repo", path: ["r9"] },
+              { message: "this repo", path: ["r0"] },
+            ],
+          }),
+          exitCode: 0,
+        };
+      }
+      return { ok: true as const, data: "", exitCode: 0 };
+    },
+    runJSON: async () => ({ ok: true as const, data: [] }),
+  };
+  const reader = new ReleaseReader(
+    new Gh(exec as never),
+    { load: async () => undefined, save: async () => {} },
+    h.ctx,
+  );
+  await reader.read();
+  expect(reader.data.errors[`created:${h.ctx.fleet.releaseRepos[0]}`]).toBe("this repo");
+  expect(reader.data.errors[`created:${h.ctx.fleet.releaseRepos[1]}`]).toBe(
+    `${h.ctx.fleet.releaseRepos[1]} creation date not readable`,
+  );
 });

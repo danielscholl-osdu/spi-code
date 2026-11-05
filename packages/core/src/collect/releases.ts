@@ -12,7 +12,7 @@ import { pinsOf } from "./pins.js";
 
 export interface ReleasePersist {
   load(): Promise<unknown>;
-  save(state: ReleaseReads): Promise<void>;
+  save(state: ReleaseState): Promise<void>;
 }
 
 export interface ReleaseState extends ReleaseReads {
@@ -114,9 +114,9 @@ export class ReleaseReader {
   get records(): readonly ReadRecord[] { return this.reads.records; }
   get busy(): boolean { return !!this.reading; }
 
-  read(opts: { force?: boolean } = {}): Promise<void> {
+  read(opts: { force?: boolean; refreshPins?: boolean } = {}): Promise<void> {
     if (this.reading) return this.reading;
-    this.reading = this.readIfDue(opts.force === true).finally(() => {
+    this.reading = this.readIfDue(opts.force === true, opts.refreshPins === true).finally(() => {
       this.reading = undefined;
     });
     return this.reading;
@@ -136,14 +136,20 @@ export class ReleaseReader {
     });
   }
 
-  private async readIfDue(force: boolean): Promise<void> {
+  private dropRecord(source: string, object: string): void {
+    this.reads.records = this.reads.records.filter((r) => r.source !== source || r.object !== object);
+  }
+
+  private async readIfDue(force: boolean, refreshPins: boolean): Promise<void> {
     if (!this.loaded) {
+      this.dropRecord("release-state", "load");
       try {
         const value = await this.persist.load();
         if (value !== undefined && value !== null) {
           const parsed = readsSchema.safeParse(value);
           if (!parsed.success) throw new Error(`Invalid persisted release reads: ${parsed.error.message}`);
           this.reads = parsed.data;
+          this.dropRecord("release-state", "load");
         }
       } catch (error) {
         this.record("release-state", "load", errorText(error));
@@ -155,10 +161,10 @@ export class ReleaseReader {
       if (this.savePending) await this.save();
       return;
     }
-    await this.readAll(force);
+    await this.readAll(refreshPins);
   }
 
-  private async readAll(force: boolean): Promise<void> {
+  private async readAll(refreshPins: boolean): Promise<void> {
     const repos = [...this.ctx.fleet.releaseRepos];
     const forks = new Set(this.ctx.fleet.forks.map((f) => f.repo));
     const releases = { ...this.reads.releases };
@@ -191,7 +197,8 @@ export class ReleaseReader {
           created[r] = at;
           this.record("github-created", r);
         } else {
-          const failure = gqlErrors[0]?.message ?? `${r} creation date not readable`;
+          const own = gqlErrors.find((e) => e.path?.[0] === `r${i}`);
+          const failure = own?.message ?? `${r} creation date not readable`;
           errors[`created:${r}`] = failure;
           this.record("github-created", r, failure, created[r] !== undefined);
         }
@@ -201,9 +208,15 @@ export class ReleaseReader {
       for (const repo of repos) this.record("github-created", repo, errors.created, created[repo] !== undefined);
     }
     const pins = { ...this.reads.pins };
+    const recorded = new Set(
+      this.reads.records.filter((r) => r.source === "github-pins").map((r) => r.object),
+    );
     const missing = Object.entries(releases).filter(([repo]) => forks.has(repo))
       .flatMap(([repo, list]) => list.map((r) => ({ repo, tag: r.tag })))
-      .filter((r) => force || !pins[pinKey(r.repo, r.tag)] || this.reads.errors[pinKey(r.repo, r.tag)]);
+      .filter((r) => {
+        const key = pinKey(r.repo, r.tag);
+        return refreshPins || !pins[key] || this.reads.errors[key] !== undefined || !recorded.has(key);
+      });
     await pool(missing, 4, async ({ repo, tag }) => {
       const key = pinKey(repo, tag);
       try {
@@ -224,7 +237,7 @@ export class ReleaseReader {
   }
 
   private async save(): Promise<void> {
-    this.reads.records = this.reads.records.filter((r) => r.source !== "release-state" || r.object !== "save");
+    this.dropRecord("release-state", "save");
     try {
       await this.persist.save(this.reads);
     } catch (error) {
