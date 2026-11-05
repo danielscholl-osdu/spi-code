@@ -1,0 +1,23 @@
+{
+  "name": "@spi-code/host",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b"
+  },
+  "dependencies": {
+    "@github/copilot-sdk": "1.0.26",
+    "@spi-code/contracts": "workspace:*",
+    "@spi-code/core": "workspace:*",
+    "@spi-code/tools": "workspace:*",
+    "zod": "4.6.7"
+  }
+}

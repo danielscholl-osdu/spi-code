@@ -1,0 +1,23 @@
+{
+  "name": "@spi-code/monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.9",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "lint": "biome check .",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "check:headers": "node scripts/check-license-headers.mjs",
+    "check": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run check:headers"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.4",
+    "@types/node": "22.20.5",
+    "typescript": "7.0.2",
+    "vitest": "4.1.12"
+  }
+}

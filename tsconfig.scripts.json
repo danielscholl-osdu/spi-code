@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "rootDir": ".",
+    "outDir": "./dist/scripts"
+  },
+  "include": ["scripts/**/*.mjs", "scripts/**/*.test.ts", "vitest.config.ts"]
+}

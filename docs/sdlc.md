@@ -17,7 +17,7 @@ epic ──breakdown──▶ beads ──claim──▶ worktree ──build─
 | **Keelson beads board** | Where you watch it: the Epics wave map, In flight claims, Your calls (decisions waiting on you), Shipped. `beads-next` picks a bead; `beads-groom` checks backlog health. `beads-work` is not used, because it is built around draft PRs. |
 | **Keelson workflows** | `adversarial-review` for high-risk beads (three lenses plus a verifier, with the author's model excluded). `design-converge` when a bead hits a real design fork. `investigate` when a fact needs establishing first. |
 | **T3 Code** | The main place work is dispatched from: one delegated agent per bead, each in its own worktree, mixing Claude, Codex and Gemini. |
-| **`scripts/check`** | The checks every bead passes before review and before landing. Docs and scripts only until the M0 scaffold adds `package.json`, then `pnpm run check`, which M0 defines as lint, typecheck and test. |
+| **`scripts/check`** | The checks every bead passes before review and before landing. Installs the pinned dependencies with `pnpm install --frozen-lockfile` if `node_modules` is missing, then runs `pnpm run check`: Biome, a strict TypeScript build, Vitest and source license headers. |
 | **`scripts/land`** | The only way onto `main`. It is deterministic, so it behaves the same whichever harness or model calls it. |
 | **GitHub** | Not set up yet. When M0 needs CI for signed builds, `main` gets a remote and Actions runs on it. `scripts/land` pushes once a remote exists. No issues and no PRs. |
 
@@ -45,6 +45,13 @@ The agent claims the bead atomically with `bd update --claim`, under a worker na
 ## 4. Build
 
 Skill: `bead-build`. Work happens only in the bead's worktree, on branch `bead/<id>`, never in the main checkout. Commits use `aipr` with a `Bead: <id>` trailer. Run `scripts/check` before asking for review. Anything outside the bead's acceptance becomes a new bead.
+
+The scaffold uses Node 22.12 or newer and pnpm 10 (the exact pnpm version is in `package.json`).
+`pnpm run build` compiles all six workspaces; `pnpm run lint`, `pnpm run typecheck`,
+`pnpm run test` and `pnpm run check:headers` run individual checks. Vitest discovers
+`src/**/*.test.ts` and `src/**/*.test.tsx` in each workspace, plus script tests.
+The header check covers tracked and untracked, non-ignored sources, including
+extensionless shebang scripts. Build output and dependencies are ignored.
 
 ## 5. Review
 

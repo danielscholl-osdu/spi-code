@@ -10,6 +10,13 @@
 
 .DS_Store
 
+# Dependencies and TypeScript output
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
 # Beads / Dolt files (added by bd init)
 *.db
 .beads/proxieddb/
