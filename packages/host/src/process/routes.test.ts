@@ -25,6 +25,7 @@ import {
   type ItemClass,
   inspectRepo,
   inspectStep,
+  inspectUpstreamPlan,
   type QueueItem,
   REPO_PREFIX,
   STEP_PREFIX,
@@ -411,6 +412,46 @@ describe("inspect.request", () => {
     expect(calls).toBe(0);
   });
 
+  it("inspects the upstream plan from a reopened snapshot without running commands", async () => {
+    const storedAreas = areas.map(({ area }) => ({
+      area,
+      envelope: { source: area, state: "unread" as const },
+    }));
+    writeSnapshot(undefined, undefined, storedAreas);
+    db.close();
+    db = new DatabaseSync(path);
+    const port = host(routes());
+    port.request("inspect.request", { id: "upstream" });
+    await settle();
+    expect(port.sent[1]).toMatchObject({
+      type: "inspect.result",
+      payload: { id: "upstream" },
+    });
+    const result = InspectResultSchema.parse(port.sent[1]?.payload);
+    const board = inspectUpstreamPlan(model, ctx.clock.now());
+    const summary = board.sections[0];
+    expect(result.cause).toBe(summary?.kind === "rows" ? summary.items[1]?.text : undefined);
+    expect(result.effect).toBe(summary?.kind === "rows" ? summary.items[0]?.text : undefined);
+    expect(result.why).toBe(board.header.status.label);
+    expect(result.actions.map((action) => action.label)).toEqual(
+      board.sections.flatMap((section) =>
+        section.kind === "cards"
+          ? section.items.flatMap((card) => card.actions.map((a) => a.label))
+          : [],
+      ),
+    );
+    expect(result.areas).toEqual(storedAreas);
+    expect(result.provenance).toEqual([]);
+    expect(result.approval).toBeNull();
+    expect(result.actions.length).toBeGreaterThan(0);
+    expect(result.actions.every((action) => action.disabledReason === "writes arrive at M4")).toBe(
+      true,
+    );
+    expect(result.related.some((row) => row.state.startsWith("Forks"))).toBe(true);
+    expect(result.related.some((row) => row.state === "Lanes")).toBe(true);
+    expect(calls).toBe(0);
+  });
+
   it.each(["step", "release"] as const)(
     "inspects non-queue %s ids from the persisted fixture sweep",
     async (kind) => {
@@ -480,21 +521,31 @@ describe("inspect.request", () => {
     },
   );
 
-  it.each(["step:", "step:not-a-marker", "step:00000000", "release:2026-13", "release:1900-01"])(
-    "answers not_found for malformed or unknown id %s",
-    async (id) => {
-      writeSnapshot();
-      const port = host(routes());
-      port.request("inspect.request", { id });
-      await settle();
-      expect(port.sent[1]).toMatchObject({
-        id: "req",
-        type: "error",
-        payload: { code: "not_found" },
-      });
-      expect(calls).toBe(0);
-    },
-  );
+  it.each([
+    "step:",
+    "step:not-a-marker",
+    "step:00000000",
+    "release:2026-13",
+    "release:1900-01",
+    "upstream:",
+    "UPSTREAM",
+    "upstream/x",
+    " upstream",
+    "upstream ",
+    "upstream%3A",
+    "upstream%2Fx",
+  ])("answers not_found for malformed or unknown id %s", async (id) => {
+    writeSnapshot();
+    const port = host(routes());
+    port.request("inspect.request", { id });
+    await settle();
+    expect(port.sent[1]).toMatchObject({
+      id: "req",
+      type: "error",
+      payload: { code: "not_found" },
+    });
+    expect(calls).toBe(0);
+  });
 
   it("inspects every watched repository from the persisted fixture sweep", async () => {
     const ids = model.repositories.rows.map((row) => `${REPO_PREFIX}${row.name}`);

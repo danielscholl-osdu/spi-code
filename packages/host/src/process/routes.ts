@@ -34,6 +34,7 @@ import {
   inspectItem,
   inspectRepo,
   inspectStep,
+  inspectUpstreamPlan,
   isMonth,
   type Model,
   type MrInspection,
@@ -48,6 +49,7 @@ import {
   type RepoInspection,
   releaseDoc,
   STEP_PREFIX,
+  type UpstreamBoard,
   verbsOf,
 } from "@spi-code/core";
 import { z } from "zod";
@@ -347,10 +349,68 @@ function repoResult(
   });
 }
 
+function upstreamPlanResult(board: UpstreamBoard, areas: readonly AreaEnvelope[]): InspectResult {
+  const rows = board.sections[0];
+  const next = board.sections.find((section) => section.kind === "cards")?.items[0];
+  return InspectResultSchema.parse({
+    id: "upstream",
+    class: board.header.status.tone === "error" ? "TOOLCHAIN" : "ROLLOUT",
+    cause: rows?.kind === "rows" ? (rows.items[1]?.text ?? board.title) : board.title,
+    effect: rows?.kind === "rows" ? (rows.items[0]?.text ?? "") : "",
+    next: next?.title ?? "",
+    why: board.header.status.label,
+    evidence: [],
+    related: board.sections.flatMap((section): InspectResult["related"] => {
+      const state = section.title ?? "";
+      switch (section.kind) {
+        case "rows":
+          return section.items.map((row) => ({
+            text: [row.chip?.label, row.text, row.trailing].filter(Boolean).join(" · "),
+            state,
+            ...(row.action ? { inspect: row.action.payload.id } : webUrl(row.href)),
+          }));
+        case "cards":
+          return section.items.flatMap((card) =>
+            card.fields.map((field) => ({
+              text: field.value,
+              state,
+              ...webUrl("href" in field ? field.href : undefined),
+            })),
+          );
+        case "bars":
+          return section.items.map((bar) => ({
+            text: `${bar.label}: ${bar.trailing}`,
+            state,
+          }));
+        case "table":
+          return section.rows.map((row) => ({
+            text: section.columns
+              .map(({ key, label }) => {
+                const cell = row[key];
+                return `${label}: ${typeof cell === "string" ? cell : (cell?.value ?? cell?.badges?.map((badge) => badge.text).join(", ") ?? "")}`;
+              })
+              .join(" · "),
+            state,
+            ...webUrl(typeof row.fork === "object" ? row.fork.href : undefined),
+          }));
+      }
+      throw new TypeError("Unsupported upstream inspector section");
+    }),
+    approval: null,
+    actions: appActions(
+      board.sections.flatMap((s) =>
+        s.kind === "cards" ? s.items.flatMap((card) => card.actions) : [],
+      ),
+    ),
+    areas,
+    provenance: [],
+  });
+}
+
 /**
- * Watch requests over the port, including queue items, template steps, MRs, release documents
- * and repositories. One window subscribes at a time: a reload's subscription replaces the
- * previous connection's.
+ * Watch requests over the port, including queue items, steps, MRs, releases, repositories
+ * and the upstream plan.
+ * One window subscribes at a time: a reload's subscription replaces the previous connection's.
  */
 export class WatchRoutes {
   private store: ReturnType<typeof createSnapshotStore> | undefined;
@@ -456,6 +516,8 @@ export class WatchRoutes {
       result = stepResult(model, id, ctx, latest.view.areas);
     } else if (mrTitle(model, id)) {
       result = mrResult(mrBoard(model, id, now, ctx), id, latest.view.areas);
+    } else if (id === "upstream") {
+      result = upstreamPlanResult(inspectUpstreamPlan(model, now), latest.view.areas);
     } else if (id.startsWith(RELEASE_PREFIX)) {
       const month = id.slice(RELEASE_PREFIX.length);
       if (
