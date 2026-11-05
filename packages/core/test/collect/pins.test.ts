@@ -196,7 +196,7 @@ test("upstream poms cache by project and head and failed heads retry after JSON 
   h.advance(HOUR);
   expect(
     (await readUpstreamPins(h.glab, "upstream/one", "head", state, h.ctx)).reads[0]?.observedAt,
-  ).toBe(START);
+  ).toBe(new Date(Date.parse(START) + HOUR).toISOString());
   expect(h.calls).toHaveLength(1);
   await readUpstreamPins(h.glab, "upstream/two", "head", state, h.ctx);
   fail = true;

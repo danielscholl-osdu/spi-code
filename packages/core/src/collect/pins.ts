@@ -149,7 +149,10 @@ export async function readUpstreamPins(
   const key = `${project}:${head}`;
   const known = state.upstreamPoms[key];
   if (known?.record.failure === undefined && known?.value !== undefined) {
-    return { pins: known.value, reads: [known.record] };
+    // pom.xml at a fixed head cannot change; the caller has just re-read the head, so the record is fresh.
+    const record = { ...known.record, observedAt: ctx.clock.now().toISOString() };
+    state.upstreamPoms[key] = { ...known, record };
+    return { pins: known.value, reads: [record] };
   }
   const path = `projects/${encodeURIComponent(project)}/repository/files/pom.xml?ref=${encodeURIComponent(head)}`;
   const cached = await attempt(ctx, project, path, known, async () => {
