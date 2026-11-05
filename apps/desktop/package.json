@@ -36,7 +36,9 @@
       "apps/desktop/src/preload.cjs",
       "apps/window/build/**/*",
       "packages/*/dist/**/*",
-      "scripts/packaged-host.mjs"
+      "scripts/packaged-host.mjs",
+      "!**/*.test.js",
+      "!**/*.map"
     ],
     "mac": {
       "identity": null,

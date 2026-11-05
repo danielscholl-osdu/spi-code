@@ -3,16 +3,16 @@
 
 import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { CopilotClient } from "@github/copilot-sdk";
 import { buildClientOptions, resolveRuntimePath } from "../packages/host/dist/copilot/runtime.js";
 
 if (process.argv.includes("--stub-model") && process.argv[3] === "write") {
-  const reportPath = process.env.SPI_CODE_RUNTIME_REPORT;
-  assert(reportPath, "Packaged smoke requires a runtime report path");
-  const runtimePath = resolveRuntimePath();
   const storePath = process.argv[2];
   assert(storePath, "Packaged host requires a store path");
+  const reportPath =
+    process.env.SPI_CODE_RUNTIME_REPORT || join(dirname(storePath), "runtime-report.json");
+  const runtimePath = resolveRuntimePath();
   assert(/[/\\]app\.asar\.unpacked[/\\]/.test(runtimePath), "Runtime must be outside app.asar");
   const client = new CopilotClient(
     buildClientOptions({
@@ -21,10 +21,11 @@ if (process.argv.includes("--stub-model") && process.argv[3] === "write") {
       cliPath: runtimePath,
     }),
   );
+  // Stays under the desktop's 10s wait for host.hello so a slow start reports this error.
   const timeout = setTimeout(() => {
     console.error("Packaged runtime handshake timed out");
     process.exit(1);
-  }, 15000);
+  }, 8000);
   let evidence;
   let failure;
   try {
