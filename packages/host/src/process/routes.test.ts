@@ -16,7 +16,7 @@ import {
   BudgetPacer,
   buildModel,
   type CollectorOptions,
-  createSweeper,
+  type createSweeper,
   type Exec,
   emptyCache,
   type Facts,
@@ -24,7 +24,7 @@ import {
   type ItemClass,
   type QueueItem,
 } from "@spi-code/core";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createLeaseStore } from "../store/leases.js";
 import { createSnapshotStore } from "../store/snapshots.js";
@@ -72,7 +72,7 @@ afterEach(() => {
 
 let fence: number | undefined;
 
-function writeSnapshot(remaining = 4321.5): number {
+function writeSnapshot(remaining = 4321.5, floor?: number): number {
   fence ??= createLeaseStore(db).acquire(fleet, "sweeper", 60_000, now);
   if (fence === undefined) throw new Error("lease not acquired");
   const { cursor: _, ...view } = projectWatch(input);
@@ -85,6 +85,7 @@ function writeSnapshot(remaining = 4321.5): number {
         budget: {
           cost: 1,
           remaining,
+          ...(floor === undefined ? {} : { floor }),
           resetAt,
           calls: 3,
           deferred: [{ area: "security", reason: "budget" }],
@@ -173,16 +174,16 @@ describe("view.subscribe", () => {
         onError: (error) => {
           throw error;
         },
-        createSweeper: watch.sweeper((options) => {
-          expect(options.pacer).toBe(service.pacer);
-          return createSweeper(options);
-        }),
+        createSweeper: watch.sweeper(),
       });
+      const plan = vi.spyOn(service.pacer, "plan");
       try {
         await service.start();
         await service.sweep(true);
+        expect(plan).toHaveBeenCalled();
       } finally {
         await service.stop();
+        plan.mockRestore();
       }
       const replay = host(routes());
       replay.request("view.subscribe", { fromCursor: 0 });
@@ -197,6 +198,32 @@ describe("view.subscribe", () => {
           resetAt: budgetResetAt,
         });
       }
+    },
+  );
+
+  it.each([100.5, -1])(
+    "omits invalid stored floor %s without losing budget or inspectable facts",
+    async (floor) => {
+      writeSnapshot(4321.5, floor);
+      const item = buildModel(input.facts, ctx.clock.now(), {}, ctx).queue.items[0];
+      if (!item) throw new Error("Fixture must have an inspectable queue item");
+      const port = host(routes());
+      port.request("view.subscribe", { fromCursor: 0 });
+      port.request("inspect.request", { id: item.id }, "inspect-floor");
+      await settle();
+      const status = port.sent.find((message) => message.type === "sweep.status");
+      expect(status).toMatchObject({
+        payload: {
+          remaining: 4321,
+          resetAt,
+          deferredAreas: [{ area: "security", reason: "budget" }],
+        },
+      });
+      expect(status?.payload).not.toHaveProperty("floor");
+      expect(port.sent.find((message) => message.id === "inspect-floor")).toMatchObject({
+        type: "inspect.result",
+        payload: { id: item.id },
+      });
     },
   );
 

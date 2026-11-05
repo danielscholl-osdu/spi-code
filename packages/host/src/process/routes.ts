@@ -60,7 +60,7 @@ const persistedSchema = z.object({
   facts: z.custom<Facts>((value) => typeof value === "object" && value !== null),
   cache: z
     .object({
-      budget: cacheSchema.shape.budget.extend({ floor: SweepStatusSchema.shape.floor }),
+      budget: cacheSchema.shape.budget.extend({ floor: z.unknown().optional() }),
     })
     .optional(),
 });
@@ -79,9 +79,10 @@ function persisted(record: SnapshotRecord): Persisted {
   const view = ViewSnapshotSchema.parse({ ...envelope, cursor: record.cursor });
   const state = persistedSchema.safeParse(record.facts);
   const budget = state.success ? state.data.cache?.budget : undefined;
+  const floor = SweepStatusSchema.shape.floor.safeParse(budget?.floor);
   const status = SweepStatusSchema.parse({
     remaining: budget?.remaining == null ? null : Math.floor(budget.remaining),
-    ...(budget?.floor === undefined ? {} : { floor: budget.floor }),
+    ...(floor.success && floor.data !== undefined ? { floor: floor.data } : {}),
     resetAt: budget?.resetAt ?? null,
     deferredAreas: (budget?.deferred ?? []).map(({ area, reason }) => ({ area, reason })),
   });
