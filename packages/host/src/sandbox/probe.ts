@@ -4,12 +4,21 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { once } from "node:events";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  linkSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { createServer } from "node:net";
 import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { credentialPaths, runSeatbelt, sandboxEnvironment } from "./seatbelt.js";
+import { credentialPaths, runSeatbelt, sandboxEnvironment, seatbeltProfile } from "./seatbelt.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -190,6 +199,74 @@ export async function runSandboxProbe() {
         );
       }
     }
+    const hardLinkHome = join(root, "hardlink-home");
+    const hardLinkSource = join(hardLinkHome, ".ssh/fixture");
+    const hardLinkAlias = join(worktree, "hardlink");
+    const launchMarker = join(worktree, "hardlink-launched");
+    mkdirSync(join(hardLinkHome, ".ssh"), { recursive: true });
+    writeFileSync(hardLinkSource, "public hardlink fixture");
+    linkSync(hardLinkSource, hardLinkAlias);
+    let hardLinkGuard = { launchRefused: false, commandRan: false };
+    try {
+      runSeatbelt(
+        { ...options, protectedHome: hardLinkHome, ghConfig: join(hardLinkHome, ".config/gh") },
+        "/bin/sh",
+        ["-c", ': > "$1"; ( : < "$2" )', "probe", launchMarker, hardLinkAlias],
+      );
+    } catch (error) {
+      if (
+        !(error instanceof Error) ||
+        !error.message.includes(
+          `protected credential file has multiple hard links: ${hardLinkSource}`,
+        )
+      )
+        throw error;
+      hardLinkGuard = { launchRefused: true, commandRan: existsSync(launchMarker) };
+    }
+    hardLinkGuard.commandRan = existsSync(launchMarker);
+    const missingHome = join(root, "missing-home");
+    const configTarget = join(worktree, "config");
+    mkdirSync(missingHome);
+    mkdirSync(configTarget);
+    symlinkSync(configTarget, join(missingHome, ".config"));
+    const missingGh = join(missingHome, ".config/gh");
+    const absentAtProfileCreation = !existsSync(missingGh);
+    const missingProfile = seatbeltProfile({
+      ...options,
+      protectedHome: missingHome,
+      ghConfig: missingGh,
+    });
+    mkdirSync(join(configTarget, "gh"));
+    writeFileSync(join(configTarget, "gh/fixture"), "public missing-child fixture");
+    const missingChildReads = [join(missingGh, "fixture"), join(configTarget, "gh/fixture")].map(
+      (path) => {
+        const before = spawnSync("/bin/sh", ["-c", readCheck, "probe", path], { encoding: "utf8" });
+        const result = spawnSync(
+          "/usr/bin/sandbox-exec",
+          ["-p", missingProfile, "/bin/sh", "-c", readCheck, "probe", path],
+          {
+            cwd: worktree,
+            env: sandboxEnvironment(scratchHome),
+            encoding: "utf8",
+            timeout: 30_000,
+          },
+        );
+        if (result.error) throw result.error;
+        if (
+          before.status !== 0 ||
+          before.stdout !== "true" ||
+          result.status !== 0 ||
+          !["true", "false"].includes(result.stdout)
+        )
+          throw new Error("Missing-child credential probe failed");
+        return {
+          path: path.slice(root.length + 1),
+          absentAtProfileCreation,
+          readableBefore: true,
+          readable: result.stdout === "true",
+        };
+      },
+    );
     const writeCheck = '( printf fixture > "$1" ) 2>/dev/null';
     const outside = runSeatbelt(options, "/bin/sh", [
       "-c",
@@ -213,6 +290,8 @@ export async function runSandboxProbe() {
       fixtureReads,
       symlinkReads,
       unixSocket,
+      hardLinkGuard,
+      missingChildReads,
       writes: { outside: outside.status === 0, inside: inside.status === 0 },
       environment: env.stdout
         .trim()
@@ -226,6 +305,9 @@ export async function runSandboxProbe() {
       fixtureReads.some((read) => read.readable) ||
       symlinkReads.some((read) => read.readable) ||
       unixSocket.connected ||
+      !hardLinkGuard.launchRefused ||
+      hardLinkGuard.commandRan ||
+      missingChildReads.some((read) => !read.absentAtProfileCreation || read.readable) ||
       report.writes.outside ||
       !report.writes.inside
     ) {

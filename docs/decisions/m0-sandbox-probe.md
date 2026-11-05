@@ -41,6 +41,8 @@ OpenJDK 64-Bit Server VM Homebrew (build 17.0.21.0.3+0, mixed mode, sharing)
 | Login keychain, `.ssh`, `.kube`, `.azure`, gh config | Each `readable: false` |
 | Public file in each credential-shaped fixture directory | Each `readableBefore: true`, `readable: false` |
 | Credential directory symlink into allowed checkout, and direct target | Each `readableBefore: true`, `readable: false` |
+| Pre-existing credential hard link into checkout | Launch refused before the command ran |
+| Missing gh child under symlinked config ancestor, created after profile generation | Both lexical and target reads denied |
 | Host listening on fixture Unix socket in temporary root | `connectedBefore: true`, `connected: false` |
 | Write outside temporary checkout and scratch HOME | Failed |
 | Write inside temporary checkout | Succeeded |
@@ -60,8 +62,16 @@ Adoptium metadata and verifies its SHA-256 before extraction into scratch.
 That fallback was not exercised on this machine.
 
 The profile defaults to deny, with system/JDK reads, checkout/scratch writes,
-explicit credential subtree denies covering both lexical and existing canonical
-paths. IP networking remains allowed; Unix socket connections are denied except
+explicit credential subtree denies covering both lexical and canonical paths.
+Missing paths are canonicalized through their nearest existing ancestor before
+appending the missing suffix. A metadata-only preflight walks protected paths,
+refusing launch for regular files with multiple hard links. The walk is bounded
+to depth 16 and 100,000 paths; exceeding either limit or a filesystem error also
+refuses launch. No credential bytes are read.
+The observed protected directories contain about 75,500 entries, mostly caches;
+the scan limit accommodates that without making traversal unbounded.
+IP networking remains allowed, including loopback: local servers are reachable.
+Unix socket connections are denied except
 the system mDNSResponder socket for DNS. The host fixture listener verifies
 connection denial independently of file-read rules. macOS 27.2 dyld
 aborted without a read grant for the root directory **itself**; `(literal "/")`
@@ -69,6 +79,8 @@ resolved this without granting its descendants. Sandbox startup errors throw;
 there is no unsandboxed retry. This does not prove CT-08 git-folder isolation,
 CT-10 command refusal, credential-helper execution refusal, keychain service API
 isolation, or the packaged host on either platform. Those remain M5 work.
+Retargeting a symlink during execution is also a known M5 gap: canonical deny
+paths are computed before launch, not refreshed while the command runs.
 
 ## SDK sandboxConfig
 

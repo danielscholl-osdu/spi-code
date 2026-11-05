@@ -1,10 +1,12 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { resolve } from "node:path";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ghConfigPath, runSandboxProbe } from "./probe.js";
-import { sandboxEnvironment } from "./seatbelt.js";
+import { sandboxEnvironment, seatbeltProfile } from "./seatbelt.js";
 
 describe.skipIf(process.platform !== "darwin")("Seatbelt probe", () => {
   it("runs Java, blocks credential reads and outside writes, and permits worktree writes", async () => {
@@ -18,6 +20,13 @@ describe.skipIf(process.platform !== "darwin")("Seatbelt probe", () => {
     expect(report.symlinkReads).toHaveLength(2);
     expect(report.symlinkReads.every((read) => read.readableBefore && !read.readable)).toBe(true);
     expect(report.unixSocket).toEqual({ connectedBefore: true, connected: false });
+    expect(report.hardLinkGuard).toEqual({ launchRefused: true, commandRan: false });
+    expect(report.missingChildReads).toHaveLength(2);
+    expect(
+      report.missingChildReads.every(
+        (read) => read.absentAtProfileCreation && read.readableBefore && !read.readable,
+      ),
+    ).toBe(true);
     expect(report.writes).toEqual({ outside: false, inside: true });
     expect(report.environment).toEqual(
       [
@@ -69,4 +78,27 @@ it("normalizes empty and relative gh configuration overrides", () => {
   expect(ghConfigPath(home, { GH_CONFIG_DIR: "", XDG_CONFIG_HOME: "relative-xdg" })).toBe(
     resolve("relative-xdg/gh"),
   );
+});
+
+it("refuses a protected directory scan beyond the depth limit", () => {
+  const root = mkdtempSync(join(tmpdir(), "spi-seatbelt-depth-"));
+  try {
+    const options = {
+      worktree: join(root, "worktree"),
+      scratchHome: join(root, "scratch"),
+      protectedHome: join(root, "home"),
+    };
+    for (const path of Object.values(options)) mkdirSync(path);
+    let path = join(options.protectedHome, ".ssh");
+    mkdirSync(path);
+    for (let depth = 0; depth < 16; depth++) {
+      path = join(path, "nested");
+      mkdirSync(path);
+    }
+    expect(() => seatbeltProfile(options)).not.toThrow();
+    mkdirSync(join(path, "too-deep"));
+    expect(() => seatbeltProfile(options)).toThrow(/protected credential scan limit exceeded/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

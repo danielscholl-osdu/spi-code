@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 import { spawnSync } from "node:child_process";
-import { existsSync, realpathSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, lstatSync, opendirSync, realpathSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
 
 export interface SeatbeltOptions {
   worktree: string;
@@ -30,6 +30,50 @@ function subpath(path: string): string {
   return `(subpath ${JSON.stringify(path)})`;
 }
 
+function canonicalPath(path: string): string {
+  let ancestor = resolve(path);
+  const suffix: string[] = [];
+  while (!existsSync(ancestor)) {
+    const parent = dirname(ancestor);
+    if (parent === ancestor) throw new Error(`Cannot canonicalize protected path: ${path}`);
+    suffix.unshift(basename(ancestor));
+    ancestor = parent;
+  }
+  return resolve(realpathSync(ancestor), ...suffix);
+}
+
+function refuseCredentialHardLinks(paths: Iterable<string>): void {
+  const visited = new Set<string>();
+  function visit(path: string, depth: number): void {
+    if (visited.has(path)) return;
+    if (depth > 16 || visited.size >= 100_000) {
+      throw new Error(
+        `Refusing sandbox launch: protected credential scan limit exceeded at ${path}`,
+      );
+    }
+    visited.add(path);
+    const stat = lstatSync(path, { throwIfNoEntry: false });
+    if (!stat) return;
+    if (stat.isSymbolicLink()) {
+      visit(realpathSync(path), depth);
+    } else if (stat.isFile() && stat.nlink > 1) {
+      throw new Error(
+        `Refusing sandbox launch: protected credential file has multiple hard links: ${path}`,
+      );
+    } else if (stat.isDirectory()) {
+      const directory = opendirSync(path);
+      try {
+        for (let entry = directory.readSync(); entry; entry = directory.readSync()) {
+          visit(join(path, entry.name), depth + 1);
+        }
+      } finally {
+        directory.closeSync();
+      }
+    }
+  }
+  for (const path of paths) visit(path, 0);
+}
+
 export function seatbeltProfile(options: SeatbeltOptions): string {
   const worktree = realpathSync(options.worktree);
   const home = realpathSync(options.scratchHome);
@@ -47,15 +91,16 @@ export function seatbeltProfile(options: SeatbeltOptions): string {
   ];
   const protectedHome = resolve(options.protectedHome);
   const protectedHomes = new Set([protectedHome]);
-  if (existsSync(protectedHome)) protectedHomes.add(realpathSync(protectedHome));
+  protectedHomes.add(canonicalPath(protectedHome));
   const denied = new Set<string>();
   for (const protectedPath of protectedHomes) {
     for (const path of credentialPaths(protectedPath, options.ghConfig)) {
       const lexical = resolve(path);
       denied.add(lexical);
-      if (existsSync(lexical)) denied.add(realpathSync(lexical));
+      denied.add(canonicalPath(lexical));
     }
   }
+  refuseCredentialHardLinks(denied);
   return [
     "(version 1)",
     "(deny default)",
