@@ -83,8 +83,8 @@ importers:
     try {
       installProductionDependencies(stage, process.env);
     } catch (error) {
-      if (!(error instanceof Error) || !("stdout" in error)) throw error;
-      expect(String(error.stdout)).toContain("ERR_PNPM_OUTDATED_LOCKFILE");
+      if (!(error instanceof Error)) throw error;
+      expect(error.message).toContain("ERR_PNPM_OUTDATED_LOCKFILE");
       return;
     }
     expect.fail("A mismatched staging lockfile must fail the install");

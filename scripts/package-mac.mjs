@@ -90,12 +90,18 @@ export async function stageWorkspace(root, stage) {
 
 /** @param {string} stage @param {NodeJS.ProcessEnv} env */
 export function installProductionDependencies(stage, env) {
-  return execFileSync("pnpm", ["install", "--prod", "--frozen-lockfile", "--ignore-scripts"], {
-    cwd: stage,
-    env,
-    stdio: "pipe",
-    timeout: 600000,
-  });
+  try {
+    return execFileSync("pnpm", ["install", "--prod", "--frozen-lockfile", "--ignore-scripts"], {
+      cwd: stage,
+      env,
+      stdio: "pipe",
+      timeout: 600000,
+    });
+  } catch (error) {
+    const output = /** @type {{stdout?: unknown, stderr?: unknown}} */ (error);
+    const text = `${String(output.stdout ?? "")}${String(output.stderr ?? "")}`.trim();
+    throw new Error(`Locked production install failed in ${stage}:\n${text}`, { cause: error });
+  }
 }
 
 /**
