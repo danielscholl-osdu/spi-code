@@ -32,13 +32,21 @@ import {
   Glab,
   type InspectOptions,
   inspectItem,
+  inspectStep,
+  isMonth,
   type Model,
+  monthFacts,
+  NOTES_LABEL,
   type QueueItem,
+  RELEASE_PREFIX,
+  type ReleaseDoc,
+  releaseDoc,
+  STEP_PREFIX,
   verbsOf,
 } from "@spi-code/core";
 import { z } from "zod";
 import { createSnapshotStore, type SnapshotRecord } from "../store/snapshots.js";
-import { appActions } from "../watch/project.js";
+import { appActions, readNotes } from "../watch/project.js";
 import type { HostRoutes, HostSend } from "./port.js";
 
 export interface WatchRoutesOptions {
@@ -46,6 +54,7 @@ export interface WatchRoutesOptions {
   readonly db: () => DatabaseSync;
   readonly fleet: string;
   readonly ctx: CoreContext;
+  readonly appData: string;
   /** Runs the inspector's on-demand reads. */
   readonly exec: Exec;
   readonly inspect?: InspectOptions;
@@ -62,6 +71,7 @@ const persistedSchema = z.object({
   cache: z
     .object({
       budget: cacheSchema.shape.budget.extend({ floor: z.unknown().optional() }),
+      releases: z.unknown().optional(),
     })
     .optional(),
 });
@@ -70,6 +80,7 @@ interface Persisted {
   view: ViewSnapshot;
   status: SweepStatus;
   facts: Facts | undefined;
+  releases: unknown;
 }
 
 function persisted(record: SnapshotRecord): Persisted {
@@ -91,6 +102,7 @@ function persisted(record: SnapshotRecord): Persisted {
     view,
     status,
     facts: state.success ? { ...emptyFacts(), ...state.data.facts } : undefined,
+    releases: state.success ? state.data.cache?.releases : undefined,
   };
 }
 
@@ -173,9 +185,102 @@ export async function inspectResult(
   });
 }
 
+function stepResult(
+  model: Model,
+  id: string,
+  ctx: CoreContext,
+  areas: readonly AreaEnvelope[],
+): InspectResult {
+  const step = inspectStep(model, id, ctx);
+  return InspectResultSchema.parse({
+    id,
+    class: "ROLLOUT",
+    cause: step.summary,
+    effect: step.chip ?? "",
+    next: "",
+    why: step.status.label,
+    evidence: [],
+    related: [
+      ...step.changes.map((change) => ({
+        text: change.text,
+        state: change.trailing,
+        ...webUrl(change.href),
+      })),
+      ...step.forks.map((fork) => ({ text: fork.text, state: fork.trailing })),
+      ...step.evidence.map((entry) => ({
+        text: entry.text,
+        state: "Evidence",
+        ...webUrl(entry.href),
+      })),
+    ],
+    approval: null,
+    actions: [],
+    areas,
+    provenance: [],
+  });
+}
+
+function releaseResult(doc: ReleaseDoc, areas: readonly AreaEnvelope[]): InspectResult {
+  const actionText = (action: ReleaseDoc["required"][number]) =>
+    [
+      action.title,
+      action.body,
+      action.owner ? `Owner: ${action.owner}` : undefined,
+      action.when ? `When: ${action.when}` : undefined,
+      action.ifSkipped ? `If skipped: ${action.ifSkipped}` : undefined,
+    ]
+      .filter(Boolean)
+      .join("; ");
+  return InspectResultSchema.parse({
+    id: doc.id,
+    class: doc.unread.length > 0 ? "UNREAD" : "READY",
+    cause: doc.headline,
+    effect: doc.stateText,
+    next: doc.required.map(actionText).join("\n"),
+    why: [
+      NOTES_LABEL[doc.notes],
+      doc.notesError,
+      ...doc.stats.map((stat) => `${stat.figure} ${stat.label}`),
+      ...(doc.unread.length > 0 ? [`Unread: ${doc.unread.join(", ")}`] : []),
+    ]
+      .filter(Boolean)
+      .join("; "),
+    evidence: [],
+    related: [
+      ...doc.keyChanges.map((text) => ({ text, state: "Key change" })),
+      ...doc.highlights.map((entry) => ({
+        text: [entry.title, entry.body].filter(Boolean).join(": "),
+        state: "Highlight",
+      })),
+      ...doc.changelog.flatMap((area) =>
+        area.items.map((entry) => ({ text: entry.text, state: `${area.area}: ${entry.type}` })),
+      ),
+      ...doc.issues.map((issue) => ({
+        text: [issue.title, issue.body].filter(Boolean).join(": "),
+        state: issue.state,
+      })),
+      ...doc.rows.map((row) => ({
+        text: `${row.id}: ${row.version}`,
+        state: row.state,
+        ...webUrl(row.url),
+      })),
+      ...doc.info.map((action) => ({ text: actionText(action), state: "Info" })),
+      ...doc.links.map((link) => ({
+        text: link.label,
+        state: "Releases",
+        ...webUrl(link.url),
+      })),
+    ],
+    approval: null,
+    actions: [],
+    areas,
+    provenance: [],
+  });
+}
+
 /**
- * Watch requests over the port. One window subscribes at a time: a reload's
- * subscription replaces the previous connection's.
+ * Watch requests over the port, including queue items, template steps and release documents.
+ * One window subscribes at a time: a reload's subscription replaces the previous connection's.
  */
 export class WatchRoutes {
   private store: ReturnType<typeof createSnapshotStore> | undefined;
@@ -264,17 +369,11 @@ export class WatchRoutes {
     const { ctx } = this.options;
     const now = ctx.clock.now();
     const model = buildModel(facts, now, {}, ctx);
-    const item = model.queue.items.find((entry) => entry.id === message.payload.id);
-    if (!item) {
-      notFound("Nothing in the queue has this id");
-      return;
-    }
-    send({
-      version: PROTOCOL_VERSION,
-      id: message.id,
-      kind: "response",
-      type: "inspect.result",
-      payload: await inspectResult(
+    const id = message.payload.id;
+    const item = model.queue.items.find((entry) => entry.id === id);
+    let result: InspectResult | undefined;
+    if (item) {
+      result = await inspectResult(
         model,
         item,
         now,
@@ -282,7 +381,37 @@ export class WatchRoutes {
         this.options.exec,
         latest.view.areas,
         this.options.inspect,
-      ),
+      );
+    } else if (model.template.steps.some((step) => `${STEP_PREFIX}${step.marker}` === id)) {
+      result = stepResult(model, id, ctx, latest.view.areas);
+    } else if (id.startsWith(RELEASE_PREFIX)) {
+      const month = id.slice(RELEASE_PREFIX.length);
+      if (
+        isMonth(month) &&
+        latest.view.releases.lines.some((line) => line.id === id) &&
+        latest.releases !== undefined
+      ) {
+        const { at, ...reads } = cacheSchema.shape.releases.parse(latest.releases);
+        result = releaseResult(
+          releaseDoc(
+            monthFacts({ ...reads, ...(at === undefined ? {} : { at }) }, month, now, ctx),
+            readNotes(this.options.appData, month),
+            now,
+          ),
+          latest.view.areas,
+        );
+      }
+    }
+    if (!result) {
+      notFound("Nothing in the latest sweep has this id");
+      return;
+    }
+    send({
+      version: PROTOCOL_VERSION,
+      id: message.id,
+      kind: "response",
+      type: "inspect.result",
+      payload: result,
     });
   }
 }

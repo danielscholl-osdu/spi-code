@@ -93,6 +93,7 @@ const watch = new WatchRoutes({
   db: openWatchDb,
   fleet: watchFleet(ctx),
   ctx,
+  appData,
   exec,
   onError: console.error,
 });

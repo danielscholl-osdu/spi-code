@@ -76,7 +76,7 @@ export function appActions(items: readonly ActionItem[]): AppAction[] {
   });
 }
 
-function readNotes(appData: string, month: string) {
+export function readNotes(appData: string, month: string) {
   if (!isMonth(month)) throw new RangeError(`Invalid notes month: ${month}`);
   const path = join(appData, "notes", `${month}.json`);
   let raw: string | undefined;

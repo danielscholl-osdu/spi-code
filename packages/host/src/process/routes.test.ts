@@ -23,7 +23,9 @@ import {
   type Facts,
   type InspectOptions,
   type ItemClass,
+  inspectStep,
   type QueueItem,
+  STEP_PREFIX,
 } from "@spi-code/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
@@ -31,7 +33,7 @@ import { createLeaseStore } from "../store/leases.js";
 import { createSnapshotStore } from "../store/snapshots.js";
 import { openRunStore } from "../store/store.js";
 import { SweepService } from "../sweep/service.js";
-import { projectWatch } from "../watch/project.js";
+import { projectReleases, projectWatch } from "../watch/project.js";
 import { fixtureInput, oracle } from "../watch/snapshot-fixture.js";
 import { attachHostPort, type HostPort } from "./port.js";
 import { inspectResult, WatchRoutes, watchFleet } from "./routes.js";
@@ -73,7 +75,11 @@ afterEach(() => {
 
 let fence: number | undefined;
 
-function writeSnapshot(remaining = 4321.5, floor?: number): number {
+function writeSnapshot(
+  remaining = 4321.5,
+  floor?: number,
+  areas = projectWatch(input).areas,
+): number {
   fence ??= createLeaseStore(db).acquire(fleet, "sweeper", 60_000, now);
   if (fence === undefined) throw new Error("lease not acquired");
   const { cursor: _, ...view } = projectWatch(input);
@@ -83,6 +89,7 @@ function writeSnapshot(remaining = 4321.5, floor?: number): number {
       facts: input.facts,
       cache: {
         ...emptyCache(),
+        releases: { ...input.releases, records: input.releaseRecords },
         budget: {
           cost: 1,
           remaining,
@@ -94,7 +101,7 @@ function writeSnapshot(remaining = 4321.5, floor?: number): number {
       },
       reads: {},
     },
-    view,
+    { ...view, areas },
     now,
   );
 }
@@ -134,6 +141,7 @@ function routes(database: () => DatabaseSync = () => db) {
     db: database,
     fleet,
     ctx,
+    appData: input.appData,
     exec: failing,
     onError: (error) => {
       throw error;
@@ -316,6 +324,94 @@ describe("view.subscribe", () => {
 describe("inspect.request", () => {
   const model = buildModel(input.facts, ctx.clock.now(), {}, ctx);
   const areas = projectWatch(input).areas;
+  const steps = model.template.steps.map((step) => `${STEP_PREFIX}${step.marker}`);
+  const documents = projectReleases(input.releases, input.appData, ctx.clock.now(), ctx).documents;
+
+  it.each(["step", "release"] as const)(
+    "inspects non-queue %s ids from the persisted fixture sweep",
+    async (kind) => {
+      const ids = kind === "step" ? steps : documents.map((document) => document.id);
+      expect(ids.length).toBeGreaterThan(0);
+      const storedAreas = areas.map(({ area }) => ({
+        area,
+        envelope: { source: area, state: "unread" as const },
+      }));
+      writeSnapshot(undefined, undefined, storedAreas);
+      db.close();
+      db = new DatabaseSync(path);
+      const port = host(routes());
+      for (const id of ids) {
+        expect(model.queue.items.some((item) => item.id === id)).toBe(false);
+        port.request("inspect.request", { id }, `inspect-${id}`);
+      }
+      await settle();
+      for (const id of ids) {
+        const response = port.sent.find((message) => message.id === `inspect-${id}`);
+        expect(response).toMatchObject({
+          kind: "response",
+          type: "inspect.result",
+          payload: { id },
+        });
+        const result = InspectResultSchema.parse(response?.payload);
+        expect(result.areas).toEqual(storedAreas);
+        expect(result.provenance).toEqual([]);
+        expect(result.approval).toBeNull();
+        expect(result.actions).toEqual([]);
+        if (kind === "step") {
+          const step = inspectStep(model, id, ctx);
+          expect(result).toMatchObject({
+            class: "ROLLOUT",
+            cause: step.summary,
+            effect: step.chip ?? "",
+          });
+          for (const change of step.changes) {
+            expect(result.related).toContainEqual({
+              text: change.text,
+              state: change.trailing,
+              url: change.href,
+            });
+          }
+          for (const fork of step.forks) {
+            expect(result.related).toContainEqual({ text: fork.text, state: fork.trailing });
+          }
+        } else {
+          const document = documents.find((document) => document.id === id);
+          if (!document) throw new Error(`Fixture document ${id} missing`);
+          expect(result).toMatchObject({
+            class: document.unread.length > 0 ? "UNREAD" : "READY",
+            cause: document.headline,
+            effect: document.stateText,
+          });
+          for (const action of document.required) expect(result.next).toContain(action.title);
+          for (const row of document.rows) {
+            expect(result.related).toContainEqual({
+              text: `${row.id}: ${row.version}`,
+              state: row.state,
+              ...(row.url ? { url: row.url } : {}),
+            });
+          }
+        }
+      }
+      expect(calls).toBe(0);
+    },
+  );
+
+  it.each(["step:", "step:not-a-marker", "step:00000000", "release:2026-13", "release:1900-01"])(
+    "answers not_found for malformed or unknown id %s",
+    async (id) => {
+      writeSnapshot();
+      const port = host(routes());
+      port.request("inspect.request", { id });
+      await settle();
+      expect(port.sent[1]).toMatchObject({
+        id: "req",
+        type: "error",
+        payload: { code: "not_found" },
+      });
+      expect(calls).toBe(0);
+    },
+  );
+
   const base: QueueItem = {
     id: "x",
     kind: "gate1",
@@ -442,11 +538,13 @@ describe("inspect.request", () => {
     port.request("inspect.request", { id: "missing" }, "inspect-missing");
     await settle();
     const replies = port.sent.slice(1);
-    for (const id of ids) {
-      expect(replies.find((m) => m.id === `inspect-${id}`)).toMatchObject({
+    for (const item of model.queue.items) {
+      expect(replies.find((m) => m.id === `inspect-${item.id}`)).toEqual({
+        version: PROTOCOL_VERSION,
+        id: `inspect-${item.id}`,
         kind: "response",
         type: "inspect.result",
-        payload: { id },
+        payload: await inspectResult(model, item, ctx.clock.now(), ctx, failing, areas),
       });
     }
     const results = replies.flatMap((m) => (m.type === "inspect.result" ? [m.payload] : []));
