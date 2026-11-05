@@ -147,7 +147,10 @@ export async function inspectResult(
   const drawn = appActions(actions);
   const sameEntry = inspection.sameEntry?.rows ?? [];
   const provenance = inspectProvenance({
+    model,
     item,
+    cause: inspection.cause,
+    effect: inspection.effect,
     related: {
       themes: inspection.related.length,
       evidence: inspection.evidence.length,

@@ -7,12 +7,14 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import {
   AREAS,
+  type AreaEnvelope,
   type InspectResult,
   InspectResultSchema,
   type Message,
   PROTOCOL_VERSION,
   parseMessage,
   SweepStatusSchema,
+  type ValueSource,
 } from "@spi-code/contracts";
 import {
   BudgetPacer,
@@ -21,10 +23,13 @@ import {
   type createSweeper,
   type Exec,
   emptyCache,
+  emptyFacts,
   type Facts,
+  type ForkEntry,
   type InspectOptions,
   type ItemClass,
   type QueueItem,
+  type ReadRecord,
 } from "@spi-code/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
@@ -33,6 +38,7 @@ import { createSnapshotStore } from "../store/snapshots.js";
 import { openRunStore } from "../store/store.js";
 import { SweepService } from "../sweep/service.js";
 import { projectWatch } from "../watch/project.js";
+import { inspectProvenance } from "../watch/provenance.js";
 import { fixtureInput, mixedFixtureInput, oracle } from "../watch/snapshot-fixture.js";
 import { attachHostPort, type HostPort } from "./port.js";
 import { inspectResult, WatchRoutes, watchFleet } from "./routes.js";
@@ -453,9 +459,11 @@ describe("inspect.request", () => {
       expect(result.areas).toEqual(areas);
       expect(result.areas?.map(({ area }) => area)).toEqual([...AREAS]);
       const sources = bindings(result);
-      for (const path of ["/class", "/cause", "/effect", "/next", "/why"]) {
+      for (const path of ["/class", "/cause", "/effect", "/next"]) {
         expect(sources.get(path)?.areas.length).toBeGreaterThan(0);
       }
+      // An empty why lists no fact and no source, so nothing produced it.
+      expect(sources.has("/why")).toBe(result.why !== "");
       for (const i of result.related.keys()) expect(sources.has(`/related/${i}`)).toBe(true);
       for (const [path, named] of Object.entries(bound)) {
         expect(sources.get(path)?.areas).toEqual(named);
@@ -519,6 +527,105 @@ describe("inspect.request", () => {
     expect(isInferred(env, "/actions/0/label")).toBe(true);
     expect(bindings(env).get("/cause")?.areas).toContain("lifecycle");
     expect(isInferred(env, "/cause")).toBe(false);
+  });
+
+  it("binds a stack cause to the lifecycle reads alone, whatever GitHub or details say", async () => {
+    const evidence = new URL("../../../../apps/window/src/store/evidence.ts", import.meta.url);
+    const { isInferred } = (await import(/* @vite-ignore */ evidence.href)) as {
+      isInferred: (
+        snapshot: { areas: AreaEnvelope[]; provenance: ValueSource[] },
+        p: string,
+      ) => boolean;
+    };
+    const mixed = mixedFixtureInput();
+    const mixedAreas = projectWatch(mixed).areas;
+    const inspectStack = async (facts: Facts) => {
+      const stackModel = buildModel(facts, ctx.clock.now(), {}, mixed.context);
+      const item = stackModel.queue.items.find((i) => i.kind === "stack");
+      if (!item) throw new Error("fixture must queue a stack incident");
+      const result = await inspectResult(
+        stackModel,
+        item,
+        ctx.clock.now(),
+        mixed.context,
+        failing,
+        mixedAreas,
+      );
+      return {
+        cause: result.cause,
+        areas: bindings(result).get("/cause")?.areas,
+        inferred: isInferred(
+          { areas: result.areas ?? [], provenance: result.provenance ?? [] },
+          "/cause",
+        ),
+      };
+    };
+    const pinned = await inspectStack(mixed.facts);
+    expect(pinned).toMatchObject({ areas: ["lifecycle"], inferred: true });
+
+    const repos = structuredClone(mixed.facts.github.data?.repos ?? {});
+    const stackRepo = repos["Azure/osdu-spi-stack"];
+    if (!stackRepo?.declaration) throw new Error("fixture must declare the stack");
+    stackRepo.declaration.stackVersion = "v9.9.9";
+    const redeclared = await inspectStack({
+      ...mixed.facts,
+      github: { ...mixed.facts.github, data: { ...mixed.facts.github.data, repos } },
+    } as Facts);
+    expect(redeclared).toEqual({ ...pinned });
+
+    const undetailed = await inspectStack({ ...mixed.facts, details: emptyFacts().details });
+    expect(undetailed).toEqual({ ...pinned });
+  });
+
+  it("judges each same-entry row by its own fork's FILTERS read", () => {
+    const item = { ...base, ...classes.HALT.item } as QueueItem;
+    const at = ctx.clock.now().toISOString();
+    const read = (object: string, failure?: string): ReadRecord => ({
+      source: "filters",
+      object,
+      observedAt: at,
+      completeness: { kind: "complete" },
+      ...(failure ? { failure } : {}),
+    });
+    const entries: ForkEntry[] = [
+      {
+        fork: "legal",
+        entry: "schemathesis-tests",
+        state: "unread",
+        reads: [read("legal", "offline")],
+      },
+      {
+        fork: "partition",
+        entry: "schemathesis-tests",
+        state: "listed",
+        reads: [read("partition")],
+      },
+    ];
+    const provenance = inspectProvenance({
+      model,
+      item,
+      cause: "",
+      effect: "",
+      related: { themes: 0, evidence: 0, sameEntry: 2 },
+      approval: false,
+      actions: [],
+      drawn: [],
+      blocked: undefined,
+      deployable: false,
+      entries,
+      now: ctx.clock.now(),
+    });
+    const sources = new Map(provenance.map((source) => [source.path, source]));
+    // core lists the listed partition row before the unread legal one.
+    expect(sources.get("/related/0")).toMatchObject({
+      areas: ["fleet"],
+      envelope: { source: "filters", state: "fresh" },
+    });
+    expect(sources.get("/related/1")).toMatchObject({
+      areas: ["fleet"],
+      envelope: { source: "filters", state: "failed" },
+    });
+    expect(sources.get("/next")?.envelope).toMatchObject({ state: "fresh" });
   });
 
   it("records the failed FILTERS read as evidence for a checkable halt", async () => {
