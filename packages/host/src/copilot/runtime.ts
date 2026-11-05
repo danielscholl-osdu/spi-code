@@ -17,6 +17,55 @@ import { buildToolEnvironment, ghAuthToken } from "../env/shell-environment.js";
 export const tokenLifetimeSeconds = 60;
 export type TokenSource = () => Promise<string>;
 export type ModelCatalog = Awaited<ReturnType<CopilotClient["rpc"]["models"]["list"]>>;
+const sessionTokens = new WeakMap<CopilotSession, Set<string>>();
+
+function validateToken(token: string): string {
+  if (!token || /[\s\p{Cc}]/u.test(token)) {
+    throw new Error(
+      "Invalid GitHub credential: expected a non-empty token without whitespace or control characters.",
+    );
+  }
+  return token;
+}
+
+function redactError(error: unknown, tokens: ReadonlySet<string>): unknown {
+  const seen = new WeakMap<object, unknown>();
+  const redact = (value: unknown): unknown => {
+    if (typeof value === "string") {
+      let text = value;
+      for (const token of tokens) {
+        if (token) text = text.replaceAll(token, "[redacted]");
+      }
+      return text;
+    }
+    if (!value || typeof value !== "object") return value;
+    if (seen.has(value)) return seen.get(value);
+    if (value instanceof Error) {
+      const copy = value instanceof AggregateError ? new AggregateError([], "") : new Error();
+      seen.set(value, copy);
+      copy.message = String(redact(value.message));
+      copy.name = String(redact(value.name));
+      if (value.stack !== undefined) copy.stack = String(redact(value.stack));
+      if ("cause" in value) copy.cause = redact(value.cause);
+      if (value instanceof AggregateError && copy instanceof AggregateError) {
+        copy.errors = value.errors.map(redact);
+      }
+      return copy;
+    }
+    const copy: unknown[] | Record<string, unknown> = Array.isArray(value) ? [] : {};
+    seen.set(value, copy);
+    for (const [key, entry] of Object.entries(value)) {
+      Object.defineProperty(copy, String(redact(key)), {
+        value: redact(entry),
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
+    }
+    return copy;
+  };
+  return redact(error);
+}
 
 export interface SessionToolSource {
   readonly availableTools: string[];
@@ -86,7 +135,7 @@ export function buildSessionOptions(
     onPermissionRequest: source.onPermissionRequest,
     gitHubTokenProvider: async () => ({
       kind: "token",
-      accessToken: await readToken(),
+      accessToken: validateToken(await readToken()),
       expiresIn: tokenLifetimeSeconds,
     }),
   };
@@ -96,7 +145,7 @@ export function listModelsWithToken<T>(
   client: { rpc: { models: { list: (options: { gitHubToken: string }) => Promise<T> } } },
   gitHubToken: string,
 ): Promise<T> {
-  if (!gitHubToken.trim()) throw new Error("gh returned an empty GitHub token.");
+  validateToken(gitHubToken);
   return client.rpc.models.list({ gitHubToken });
 }
 
@@ -106,24 +155,38 @@ export class CopilotRuntime {
   private readonly config: CopilotClientOptions;
   private readonly readToken: TokenSource;
   private pending: Promise<unknown> = Promise.resolve();
+  private readonly tokens = new Set<string>();
+  private generation = 0;
+
+  get clientGeneration(): number {
+    return this.generation;
+  }
 
   constructor(
     private readonly options: RuntimeOptions,
     readToken?: TokenSource,
     private readonly source: SessionToolSource = stubToolSource,
+    ghRunner: typeof ghAuthToken = ghAuthToken,
   ) {
     this.config = buildClientOptions(options);
-    this.readToken = readToken ?? (() => ghAuthToken(this.config.env ?? {}));
+    const reader = readToken ?? (() => ghRunner(this.config.env ?? {}));
+    this.readToken = async () => {
+      const token = await reader();
+      this.tokens.add(token);
+      return validateToken(token);
+    };
   }
 
   private serialize<T>(operation: () => Promise<T>): Promise<T> {
-    const result = this.pending.then(operation, operation);
+    const result = this.pending.then(operation, operation).catch((error: unknown) => {
+      throw redactError(error, this.tokens);
+    });
     this.pending = result;
     return result;
   }
 
   private async acquire(token: string): Promise<CopilotClient> {
-    if (!token.trim()) throw new Error("gh returned an empty GitHub token.");
+    validateToken(token);
     if (this.client && (this.options.credentialMode === "session" || token === this.token)) {
       return this.client;
     }
@@ -141,6 +204,7 @@ export class CopilotRuntime {
     }
     this.client = client;
     this.token = token;
+    this.generation++;
     return client;
   }
 
@@ -165,10 +229,12 @@ export class CopilotRuntime {
         this.source,
         model,
       );
-      return client.createSession({
+      const session = await client.createSession({
         ...config,
         ...(this.options.credentialMode === "session" ? { gitHubTokenProvider } : {}),
       });
+      sessionTokens.set(session, this.tokens);
+      return session;
     });
   }
 
@@ -192,12 +258,16 @@ export async function streamTurn(
   onDelta: (text: string) => void,
   timeoutMs = 60_000,
 ): Promise<void> {
-  const unsubscribe = session.on("assistant.message_delta", (event) => {
-    if (event.data.deltaContent) onDelta(event.data.deltaContent);
-  });
   try {
-    await session.sendAndWait({ prompt }, timeoutMs);
-  } finally {
-    unsubscribe();
+    const unsubscribe = session.on("assistant.message_delta", (event) => {
+      if (event.data.deltaContent) onDelta(event.data.deltaContent);
+    });
+    try {
+      await session.sendAndWait({ prompt }, timeoutMs);
+    } finally {
+      unsubscribe();
+    }
+  } catch (error) {
+    throw redactError(error, sessionTokens.get(session) ?? new Set());
   }
 }

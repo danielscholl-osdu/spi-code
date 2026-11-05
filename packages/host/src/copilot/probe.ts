@@ -4,7 +4,7 @@
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CopilotClient } from "@github/copilot-sdk";
+import { CopilotClient, type CopilotSession } from "@github/copilot-sdk";
 import { captureLoginShellPath, ghAuthToken } from "../env/shell-environment.js";
 import {
   buildClientOptions,
@@ -27,7 +27,21 @@ async function scan(directory: string, tokens: string[]): Promise<boolean> {
   return false;
 }
 
-async function exercise(runtime: CopilotRuntime) {
+async function mcpEvidence(session: CopilotSession) {
+  const liveServerNames = (await session.rpc.mcp.list()).servers.map((server) => server.name);
+  const configuredServerNames = (await session.rpc.mcp.listConfigured()).servers.map(
+    (server) => server.name,
+  );
+  return {
+    liveServerNames,
+    configuredServerNames,
+    sentinelAbsent:
+      !liveServerNames.includes("spicode_sentinel") &&
+      !configuredServerNames.includes("spicode_sentinel"),
+  };
+}
+
+async function exercise(runtime: CopilotRuntime, isolationOnly = false) {
   const modelCount = (await runtime.listModels()).models.length;
   if (!modelCount) throw new Error("Model listing returned no models.");
   const session = await runtime.createSession();
@@ -36,13 +50,17 @@ async function exercise(runtime: CopilotRuntime) {
     const metadata = await session.rpc.tools.getCurrentMetadata();
     if (metadata.tools === null) throw new Error("Runtime tool list is uninitialized.");
     const toolNames = metadata.tools.map((tool) => tool.name);
-    if (toolNames.length) throw new Error("Empty-mode stub session exposed unexpected tools.");
+    if (toolNames.length) throw new Error("Empty-mode session exposed unexpected tools.");
+    const mcp = await mcpEvidence(session);
+    if (!mcp.sentinelAbsent) throw new Error("Empty mode discovered the user MCP sentinel.");
     let streamedDeltaCount = 0;
-    await streamTurn(session, "Reply with just OK.", () => {
-      streamedDeltaCount++;
-    });
-    if (!streamedDeltaCount) throw new Error("Turn produced no streamed deltas.");
-    return { modelCount, streamedDeltaCount, toolNames, sentinelAbsent: true };
+    if (!isolationOnly) {
+      await streamTurn(session, "Reply with just OK.", () => {
+        streamedDeltaCount++;
+      });
+      if (!streamedDeltaCount) throw new Error("Turn produced no streamed deltas.");
+    }
+    return { modelCount, streamedDeltaCount, toolNames, ...mcp };
   } finally {
     await session.disconnect();
   }
@@ -71,7 +89,11 @@ async function sentinelControl(options: RuntimeOptions, home: string, token: str
         .map((tool) => tool.name);
       if (!names?.length)
         throw new Error("Positive control did not discover the configured sentinel.");
-      return names;
+      const mcp = await mcpEvidence(session);
+      if (!mcp.liveServerNames.includes("spicode_sentinel")) {
+        throw new Error("Positive control MCP inventory did not discover the sentinel.");
+      }
+      return { toolNames: names, ...mcp };
     } finally {
       await session.disconnect();
     }
@@ -129,13 +151,18 @@ async function probe() {
     runtime = new CopilotRuntime(options, readToken);
     await runtime.start();
     report.baseline = await exercise(runtime);
+    const baselineGeneration = runtime.clientGeneration;
 
     invalid = true;
     let modelRejected = false;
     try {
       await runtime.listModels();
     } catch (error) {
-      if (!(error instanceof Error) || !/auth|token|401|403|credential/iu.test(error.message))
+      if (
+        !(error instanceof Error) ||
+        !error.message.includes("401 Unauthorized") ||
+        !error.message.includes("Bad credentials")
+      )
         throw error;
       modelRejected = true;
       report.invalidModelError = error.message;
@@ -149,16 +176,31 @@ async function probe() {
         await session.disconnect();
       }
     } catch (error) {
-      if (!(error instanceof Error) || !/auth|token|401|403|credential/iu.test(error.message))
+      if (
+        !(error instanceof Error) ||
+        !error.message.includes(
+          "Session was not created with authentication info or custom provider",
+        )
+      )
         throw error;
       sessionRejected = true;
       report.invalidSessionError = error.message;
     }
     if (!modelRejected || !sessionRejected)
       throw new Error("Invalid credential did not fail authentication.");
-    report.accountSwitch = { modelRejected, sessionRejected, clientRestartOnChange: true };
+    const invalidGeneration = runtime.clientGeneration;
     invalid = false;
     report.restored = await exercise(runtime);
+    const restoredGeneration = runtime.clientGeneration;
+    const clientRestartOnChange =
+      baselineGeneration !== invalidGeneration && invalidGeneration !== restoredGeneration;
+    if (!clientRestartOnChange) throw new Error("Client was not replaced on credential changes.");
+    report.accountSwitch = {
+      modelRejected,
+      sessionRejected,
+      clientRestartOnChange,
+      clientGenerations: [baselineGeneration, invalidGeneration, restoredGeneration],
+    };
     await runtime.stop();
 
     runtime = new CopilotRuntime(
@@ -181,10 +223,17 @@ async function probe() {
         },
       }),
     );
-    report.sentinelControlToolNames = await sentinelControl(options, home, realToken);
+    report.sentinelControl = await sentinelControl(options, home, realToken);
     runtime = new CopilotRuntime(options, readToken);
     await runtime.start();
     report.userMcpConfigured = await exercise(runtime);
+    await runtime.stop();
+    runtime = new CopilotRuntime(options, readToken, {
+      ...stubToolSource,
+      availableTools: ["mcp:*"],
+    });
+    await runtime.start();
+    report.mcpAllowedIsolation = { availableTools: ["mcp:*"], ...(await exercise(runtime, true)) };
   } catch (error) {
     report.error = error instanceof Error ? error.message : "UnknownError";
     process.exitCode = 1;

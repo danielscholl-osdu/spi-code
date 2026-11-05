@@ -21,8 +21,14 @@ Each model listing and session creation reads gh again. Credential changes stop
 the previous client (including its sessions) before starting another. Operations
 are serialized so a concurrent account switch cannot interrupt session creation
 or model listing. Model listings always call `rpc.models.list({ gitHubToken })`;
-there is no host model cache. A client-level token is passed in memory to the SDK,
-which supplies it to its child process; it is never saved by the host.
+there is no host model cache. The SDK 1.0.26 passes the client-level token to the
+runtime in its `COPILOT_SDK_AUTH_TOKEN` environment variable; it is never saved
+by the host. Under this fallback, any process the runtime spawns would inherit
+the token. That is safe today only because production sessions expose custom
+tools alone (CP-04) and empty mode loads no MCP servers. The isolation-only
+probe allows MCP tools to test discovery, but discovers no servers.
+Tokens are validated before client construction and outward errors are
+recursively redacted, including their stacks, causes and aggregate errors.
 The runtime can create a session without a valid credential, but authentication
 fails at its first turn; the live probe checks both the listing and the turn.
 

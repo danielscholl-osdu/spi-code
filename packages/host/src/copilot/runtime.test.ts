@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { isAbsolute, join } from "node:path";
+import { inspect } from "node:util";
 import type { CopilotClientOptions } from "@github/copilot-sdk";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -10,6 +11,7 @@ import {
   CopilotRuntime,
   listModelsWithToken,
   resolveRuntimePath,
+  streamTurn,
   stubToolSource,
   tokenLifetimeSeconds,
 } from "./runtime.js";
@@ -20,11 +22,13 @@ const fake = vi.hoisted(() => ({
   stop: vi.fn().mockResolvedValue([]),
   createSession: vi.fn().mockRejectedValue(new Error("session stub")),
   list: vi.fn().mockResolvedValue({ models: [] }),
+  construct: vi.fn(),
 }));
 
 vi.mock("@github/copilot-sdk", () => ({
   CopilotClient: class {
     constructor(config: CopilotClientOptions) {
+      fake.construct(config);
       fake.configs.push(config);
     }
     start = fake.start;
@@ -36,9 +40,123 @@ vi.mock("@github/copilot-sdk", () => ({
 
 describe("Copilot runtime boundary", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    fake.start.mockResolvedValue(undefined);
+    fake.stop.mockResolvedValue([]);
+    fake.createSession.mockRejectedValue(new Error("session stub"));
+    fake.list.mockResolvedValue({ models: [] });
     fake.configs.length = 0;
   });
+  it.each(["", "dummy\0secret", "dummy secret", "dummy\nsecret", "dummy\u007fsecret"])(
+    "rejects malformed credentials before SDK construction without echoing them",
+    async (token) => {
+      const runtime = new CopilotRuntime(
+        { appDataDir: "/tmp/spicode", capturedPath: "/bin" },
+        async () => token,
+      );
+      await expect(runtime.start()).rejects.toThrow("Invalid GitHub credential");
+      expect(fake.construct).not.toHaveBeenCalled();
+      for (const action of [() => runtime.listModels(), () => runtime.createSession()]) {
+        await expect(action()).rejects.toThrow("Invalid GitHub credential");
+      }
+      expect(fake.configs).toEqual([]);
+    },
+  );
+
+  it("passes only the scrubbed environment to gh behind the default token reader", async () => {
+    const ghRunner = vi.fn().mockResolvedValue("dummy-valid-secret");
+    const runtime = new CopilotRuntime(
+      {
+        appDataDir: "/tmp/spicode",
+        capturedPath: "/bin",
+        env: {
+          GH_TOKEN: "stray",
+          gh_token: "stray",
+          Gh_ToKeN: "stray",
+          GITHUB_TOKEN: "stray",
+          github_token: "stray",
+          COPILOT_GITHUB_TOKEN: "stray",
+          Copilot_Github_Token: "stray",
+        },
+      },
+      undefined,
+      stubToolSource,
+      ghRunner,
+    );
+    await runtime.start();
+    await runtime.listModels();
+    await expect(runtime.createSession()).rejects.toThrow("session stub");
+    expect(ghRunner).toHaveBeenCalledTimes(3);
+    for (const [env] of ghRunner.mock.calls) {
+      expect(Object.keys(env).map((key) => key.toUpperCase())).not.toEqual(
+        expect.arrayContaining(["GH_TOKEN"]),
+      );
+      for (const key of Object.keys(env)) {
+        expect(["GH_TOKEN", "GITHUB_TOKEN", "COPILOT_GITHUB_TOKEN"]).not.toContain(
+          key.toUpperCase(),
+        );
+      }
+    }
+    await runtime.stop();
+  });
+
+  it.each(["construct", "start", "list", "session", "stream"] as const)(
+    "recursively redacts credential-bearing %s errors and keeps originals private",
+    async (phase) => {
+      const token = "dummy-secret-token";
+      const leaf = new Error(`leaf ${token}`, { cause: { message: token, stack: token } });
+      const original = new AggregateError(
+        [leaf, { cause: new Error(token) }, token],
+        `aggregate ${token}`,
+        { cause: new Error(token) },
+      );
+      const fail = () => {
+        throw original;
+      };
+      const session = {
+        on: vi.fn().mockReturnValue(vi.fn()),
+        sendAndWait: vi.fn().mockRejectedValue(original),
+      };
+      const runtime = new CopilotRuntime(
+        { appDataDir: "/tmp/spicode", capturedPath: "/bin" },
+        async () => token,
+      );
+      let action: () => Promise<unknown>;
+      if (phase === "construct") {
+        fake.construct.mockImplementationOnce(fail);
+        action = () => runtime.start();
+      } else if (phase === "start") {
+        fake.start.mockRejectedValueOnce(original);
+        fake.stop.mockResolvedValueOnce([leaf]);
+        action = () => runtime.start();
+      } else {
+        await runtime.start();
+        if (phase === "list") {
+          fake.list.mockRejectedValueOnce(original);
+          action = () => runtime.listModels();
+        } else if (phase === "session") {
+          fake.createSession.mockRejectedValueOnce(original);
+          action = () => runtime.createSession();
+        } else {
+          fake.createSession.mockResolvedValueOnce(session);
+          const opened = await runtime.createSession();
+          action = () => streamTurn(opened, "hello", () => {});
+        }
+      }
+      const result = await action().then(
+        () => {
+          throw new Error("Expected a failure.");
+        },
+        (error: unknown) => error,
+      );
+      expect(result).toBeInstanceOf(AggregateError);
+      expect(inspect(result, { depth: null })).not.toContain(token);
+      expect(inspect(result, { depth: null })).toContain("[redacted]");
+      expect(original.message).toContain(token);
+      expect(leaf.message).toContain(token);
+      await runtime.stop();
+    },
+  );
   it("starts the platform runtime explicitly over stdio in isolated empty mode", () => {
     const cliPath = resolveRuntimePath();
     expect(isAbsolute(cliPath)).toBe(true);
