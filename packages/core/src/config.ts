@@ -138,7 +138,7 @@ export function plannedRepo(service: ServiceDef): string {
   return `Azure/osdu-spi-${service.id}`;
 }
 
-export function forkOf(repo: string, forks: readonly ForkDef[] = FORKS): ForkDef | undefined {
+export function forkOf(repo: string, forks: readonly ForkDef[]): ForkDef | undefined {
   return forks.find((f) => f.repo === repo);
 }
 

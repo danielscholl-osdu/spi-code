@@ -16,7 +16,7 @@ map; no workflow list is hard-coded.
 
 All eight cases run in `packages/core/test/collect/github-parse.test.ts`.
 Their bodies and assertions are unchanged; imports use Vitest and core.
-Test setup mocks only config's `PLANNED` with the existing pinned
+Test setup passes a context with the existing pinned
 `fixtures/rib-59d6895/services.json` fleet, keeping the baseline planned-service
 assertion independent of today's built-in fleet and local environment.
 
@@ -51,7 +51,13 @@ duplicated here.
 
 ## Reviewer comparison
 
-Run from this worktree using Bash; success has no output:
+Follow-up `spicode-t1k.72` makes `parseGithub(data, context)` read
+`context.fleet.planned` instead of the module-level `PLANNED`, matching the
+context that `readGithub` already passes to its parser callback. An additional
+case interleaves custom, pinned and empty fleets. The original eight cases remain.
+
+Run from this worktree using Bash; the only body differences are the explicit
+context parameter and the planned-list lookup:
 
 ```bash
 diff -u \
@@ -60,5 +66,5 @@ diff -u \
 ```
 
 `pnpm vitest list packages/core/test/collect/github-parse.test.ts` discovers all
-eight migrated cases. `pnpm vitest run` with that path exercises them without
+nine cases. `pnpm vitest run` with that path exercises them without
 network reads or the rib harness.

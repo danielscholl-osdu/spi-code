@@ -1,7 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { LIFECYCLE_WORKFLOWS, type LifecycleKind, PLANNED } from "../config.js";
+import { LIFECYCLE_WORKFLOWS, type LifecycleKind } from "../config.js";
+import type { CoreContext } from "../context.js";
 import type {
   CheckFact,
   Declaration,
@@ -305,7 +306,7 @@ export function parseRepo(raw: RawRepo): RepoFact {
   };
 }
 
-export function parseGithub(data: Record<string, unknown>): GithubFacts {
+export function parseGithub(data: Record<string, unknown>, context: CoreContext): GithubFacts {
   const repos: Record<string, RepoFact> = {};
   const planned: Record<string, boolean> = {};
   for (const [alias, value] of Object.entries(data)) {
@@ -314,7 +315,7 @@ export function parseGithub(data: Record<string, unknown>): GithubFacts {
       repos[fact.repo] = fact;
     }
   }
-  PLANNED.forEach((p, i) => {
+  context.fleet.planned.forEach((p, i) => {
     planned[p.id] = !!data[`p_${i}`];
   });
   const rate = data.rateLimit as

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, it } from "vitest";
+import { parseGithub } from "../../src/collect/github-parse.js";
 import { buildQueries, cutsOf, mergeReads, readGithub } from "../../src/collect/github-read.js";
 import { fleetOf, plannedRepo, STACK_REPO, TEMPLATE_REPO } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
@@ -118,6 +119,25 @@ it("replays two queries, merges repos and charges both costs only to the account
     expect(records).toHaveLength(8);
     expect(records.every((r) => !r.failure && r.completeness.kind === "complete")).toBe(true);
     expect(gh.budget.snapshot()).toEqual({ spent: 12, remaining: 88, resetAt, calls: 2 });
+  });
+});
+
+it("passes the query fleet to the GitHub parser for planned aliases", async () => {
+  const custom = createContext({
+    clock,
+    fleet: fleetOf([
+      { id: "next-service", upstream: "upstream/next" },
+      { id: "later-service", upstream: "upstream/later" },
+    ]),
+  });
+  const raw = { ...base, p_0: { nameWithOwner: "Azure/osdu-spi-next-service" }, p_1: null };
+  await replay([response(raw, 3, 97)], async (exec) => {
+    const { facts } = await readGithub(
+      new Gh(exec, undefined, new GraphqlBudget(clock)),
+      custom,
+      parseGithub,
+    );
+    expect(facts.planned).toEqual({ "next-service": true, "later-service": false });
   });
 });
 

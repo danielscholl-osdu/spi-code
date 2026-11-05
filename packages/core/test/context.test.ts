@@ -3,7 +3,7 @@
 
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { buildBriefing, readItem } from "../src/brief/index";
-import { fleetOf } from "../src/config";
+import { fleetOf, forkOf } from "../src/config";
 import { type CoreContext, contextFromEnv, createContext, defaultContext } from "../src/context";
 import { buildModel } from "../src/model/index";
 import { noiseRule, withoutNoise } from "../src/model/noise";
@@ -25,6 +25,23 @@ function briefing(context: CoreContext) {
 }
 
 describe("explicit core context", () => {
+  test("fork lookup requires a fleet and keeps identities isolated", () => {
+    const repo = "custom/shared";
+    const a = fleetOf([{ id: "a", repo, upstream: "upstream/a", mirror: true }]);
+    const b = fleetOf([{ id: "b", repo, upstream: "upstream/b", mirror: false }]);
+    for (const fleet of [a, b, a, b]) {
+      expect(forkOf(repo, fleet.forks)).toBe(fleet.forks[0]);
+    }
+    expect(forkOf(repo, [])).toBeUndefined();
+    expect(forkOf("custom/missing", a.forks)).toBeUndefined();
+
+    const omittedFleet = () => {
+      // @ts-expect-error Fleet membership must be supplied by the caller.
+      forkOf(repo);
+    };
+    expect(omittedFleet).toBeTypeOf("function");
+  });
+
   test("mutating rollout placeholders cannot affect other cells or subsequent builds", () => {
     const facts = releasedFacts();
     const model = buildModel(facts, FIXTURE_NOW, {}, fixtureContext);
