@@ -77,7 +77,7 @@ describe("JSON-safe credential redaction", () => {
 
   it.each(
     encodings.flatMap(([name, encode, depth]) =>
-      [" ", "\n", "\t", "\r\n", "\r", "\b", "\f"].map((boundary) => [name, boundary, encode, depth] as const)),
+      [" ", "\n", "\t", "\r\n", "\r", "\b", "\f", "\v"].map((boundary) => [name, boundary, encode, depth] as const)),
   )(
     "preserves %s syntax and strips an opaque token planted at word boundaries after %j",
     (_name, boundary, encode, depth) => {
@@ -87,7 +87,8 @@ describe("JSON-safe credential redaction", () => {
         '[]{}:;,"\'=', "\u0000\u001f", "before\nline\tafter",
       ];
       const introductions = [
-        "Authorization:", "Authorization:\n", "Bearer ", 'Bearer "', "bearer\t", '"Authorization": "',
+        "Authorization:", "Authorization:\n", "Authorization:\v", "Bearer ", 'Bearer "', "bearer\t", "bearer\v",
+        '"Authorization": "',
       ];
       for (const context of corpus) {
         for (let position = 0; position <= context.length; position++) {
@@ -114,6 +115,9 @@ describe("JSON-safe credential redaction", () => {
     String.raw`line\u000dBearer opaque-credential`,
     String.raw`line\u000cauthorization=opaque-credential`,
     String.raw`line\u0008Bearer opaque-credential`,
+    String.raw`line\u000bAuthorization:\u000bopaque-credential`,
+    String.raw`line\u000bBearer\u000bopaque-credential`,
+    String.raw`line\\u000bBearer\\u000bopaque-credential`,
     String.raw`line\\u000aBearer\\u0009opaque-credential`,
     String.raw`line\\nAuthorization: opaque-credential`,
     String.raw`line\\nbearer\\topaque-credential`,

@@ -64,6 +64,9 @@ describe("exec recording and replay", () => {
     "line\nbearer\topaque-credential\\ tail",
     "line\nAuthorization: opaque-credential\\ tail",
     '"Authorization": "opaque-credential\\ tail',
+    "line\vAuthorization:\vopaque-credential\\ tail",
+    "line\nbearer\vopaque-credential\\ tail",
+    "line\nAuthorization:\nopaque-credential",
   ])("streams double-encoded %j split at every offset as whole-buffer redaction", (body) => {
     const inner = JSON.stringify({ body });
     const full = `${JSON.stringify({ body: inner })}\n${JSON.stringify(inner).replaceAll("\\\\n", "\\\\u000a")}\n`;
