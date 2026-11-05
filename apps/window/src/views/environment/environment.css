@@ -1,0 +1,56 @@
+/* Copyright 2026, Daniel Scholl
+ * SPDX-License-Identifier: MIT */
+
+.environment .env-facts { display: flex; flex-wrap: wrap; gap: 24px; margin: 16px 0; }
+.environment .env-fact { flex: 1 1 180px; }
+.environment .env-fact strong { display: block; font-size: 24px; }
+.environment .env-fact-label, .environment .env-lane-label {
+  font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.environment .tone-bad strong, .environment .state-failed { color: var(--error-text); }
+.environment .tone-warn strong { color: var(--warning-text); }
+.environment .tone-ok strong { color: var(--success-text); }
+.environment .env-scroll { overflow-x: auto; margin-top: 16px; padding: 4px 0 2px; direction: rtl; }
+.environment .env-timeline { direction: ltr; position: relative; }
+.environment .env-row { display: grid; grid-template-columns: 84px minmax(0, 1fr); border-bottom: 1px solid var(--border); }
+.environment .env-row:last-child { border-bottom: none; }
+.environment .env-lane-label {
+  position: sticky; left: 0; z-index: 2; background: var(--surface); padding: 8px 8px 0 0;
+}
+.environment .env-track { position: relative; min-height: 26px; }
+.environment .env-axis .env-track { height: 20px; min-height: 0; }
+.environment .env-hour {
+  position: absolute; top: 1px; transform: translateX(-50%); font-size: 12px;
+  color: var(--text-muted); white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.environment .env-grid { position: absolute; inset: 0 0 0 84px; pointer-events: none; }
+.environment .env-tick { position: absolute; top: 20px; bottom: 0; border-left: 1px solid var(--border-soft); }
+.environment .env-tick.major { border-left-color: var(--border); }
+.environment .env-event {
+  position: absolute; height: 12px; min-width: 10px; padding: 0; border: none;
+  border-radius: 6px; background: var(--text-muted); font: inherit;
+}
+.environment .env-event.state-ok { background: var(--success); }
+.environment .env-event.state-failed { background: var(--error); }
+.environment .env-event.state-running { background: var(--warning); }
+.environment .env-event.state-held {
+  background: color-mix(in srgb, var(--warning) 25%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warning) 55%, transparent);
+}
+.environment .env-event-label {
+  position: absolute; left: calc(100% + 9px); top: -3px;
+  font-size: 12px; line-height: 18px; color: var(--text); white-space: nowrap;
+}
+.environment .env-event-label.flip { left: auto; right: calc(100% + 9px); }
+.environment .state-failed .env-event-label { color: var(--error-text); font-weight: 600; }
+.environment .state-held .env-event-label { color: var(--text-muted); }
+.environment .env-event[aria-pressed="true"] .env-event-label {
+  font-weight: 600; text-decoration: underline 2px var(--accent); text-underline-offset: 3px;
+}
+.environment .env-none, .environment .env-note { color: var(--text-muted); font-size: 12px; }
+.environment .env-none { display: block; padding-top: 4px; }
+.environment .env-detail { margin-top: 14px; }
+.environment .env-detail h3 { margin: 0; }
+.environment .env-detail dd { margin: 0 0 8px; color: var(--text); }
+.environment .env-detail dt { font-weight: 600; color: var(--text-strong); }
