@@ -6,6 +6,6 @@
     "rootDir": ".",
     "outDir": "./dist/scripts"
   },
-  "include": ["scripts/**/*.mjs", "scripts/**/*.test.ts", "vitest.config.ts"],
+  "include": ["scripts/**/*.mjs", "scripts/**/*.ts", "vitest.config.ts"],
   "references": [{ "path": "./apps/desktop" }, { "path": "./packages/host" }]
 }
