@@ -1,0 +1,14 @@
+{
+  "revision": "59d6895d140e9482ed788a3307177855d10883f0",
+  "bun": "1.3.13",
+  "now": "2026-10-21T15:00:00.000Z",
+  "timezone": "UTC",
+  "locale": "en-US",
+  "months": 12,
+  "reading": false,
+  "facts": "facts.json",
+  "releases": "releases.json",
+  "services": "services.json",
+  "rollout": "rollout.json",
+  "notes": "notes"
+}

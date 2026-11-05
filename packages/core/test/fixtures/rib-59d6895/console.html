@@ -1,0 +1,546 @@
+<style>:root {
+  --bg: var(--keelson-bg, #0d1429); --card: var(--keelson-card, #161e3b); --card-2: var(--keelson-card-2, #1f2a4d);
+  --border: var(--keelson-border, #2a3258); --fg: var(--keelson-fg, #d8def0); --fg-strong: var(--keelson-fg-strong, #f0f3ff);
+  --muted: var(--keelson-muted, #8993b2); --accent: var(--keelson-accent, #9b8eff);
+  --good: var(--keelson-green, #6dd28d); --warn: var(--keelson-yellow, #f5c352); --crit: var(--keelson-red, #f08793); --info: var(--keelson-cyan, #7cc0ff);
+  --s1: var(--keelson-s1, #8b7cf6); --s2: var(--keelson-s2, #bd8622); --s3: var(--keelson-s3, #3f8edb);
+  --s4: var(--keelson-s4, #d4663f); --s5: var(--keelson-s5, #2fa876); --s6: var(--keelson-s6, #d260a4);
+  --id-1: var(--keelson-id-blue, #4f7df0); --id-2: var(--keelson-id-amber, #c27718); --id-3: var(--keelson-id-teal, #0e9d8f);
+  --id-4: var(--keelson-id-rose, #ba3d78); --id-5: var(--keelson-id-olive, #5f6e0a);
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --bg: var(--keelson-bg, #f3f0fa); --card: var(--keelson-card, #ffffff); --card-2: var(--keelson-card-2, #eeeaf7);
+  --border: var(--keelson-border, #c8bfdc); --fg: var(--keelson-fg, #161b31); --fg-strong: var(--keelson-fg-strong, #0b0f1e);
+  --muted: var(--keelson-muted, #5d5876); --accent: var(--keelson-accent, #6d4fe0);
+  --good: var(--keelson-green, #15834f); --warn: var(--keelson-yellow, #b57a00); --crit: var(--keelson-red, #d9385e); --info: var(--keelson-cyan, #2e6fd8);
+  --s1: var(--keelson-s1, #6d4fe0); --s2: var(--keelson-s2, #b57a00); --s3: var(--keelson-s3, #2e6fd8);
+  --s4: var(--keelson-s4, #b66229); --s5: var(--keelson-s5, #15834f); --s6: var(--keelson-s6, #804bc1);
+  --id-1: var(--keelson-id-blue, #2457c5); --id-2: var(--keelson-id-amber, #b45309); --id-3: var(--keelson-id-teal, #11b3a5);
+  --id-4: var(--keelson-id-rose, #992558); --id-5: var(--keelson-id-olive, #6b7f1a);
+  color-scheme: light;
+}
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 var(--sans); }
+:root {
+  --line: color-mix(in srgb, var(--border) 60%, var(--card));
+  --sunk: color-mix(in srgb, var(--card-2) 50%, var(--card));
+  --hover: color-mix(in srgb, var(--card-2) 70%, var(--card));
+  --pick: color-mix(in srgb, var(--accent) 9%, var(--card));
+  --tone: var(--muted);
+  --soft: color-mix(in srgb, var(--fg) 70%, var(--muted));
+  --label: var(--muted);
+}
+:root:not([data-theme="light"]) {
+  --line: color-mix(in srgb, var(--border) 90%, var(--card));
+  --label: color-mix(in srgb, var(--fg) 40%, var(--muted));
+  --sunk: color-mix(in srgb, var(--card-2) 72%, var(--card));
+  --hover: color-mix(in srgb, var(--card-2) 90%, var(--card));
+}
+[hidden] { display: none !important; }
+body { background: var(--card); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+.t-bad { --tone: var(--crit); } .t-warn { --tone: var(--warn); } .t-ok { --tone: var(--good); } .t-run { --tone: var(--accent); }
+.wrap { padding: 2px 4px 16px; }
+h2 { margin: 18px 0 4px; font-size: 21px; line-height: 1.3; font-weight: 650; letter-spacing: -.01em; color: var(--fg-strong); text-wrap: balance; max-width: 70ch; }
+.summary { margin: 0; color: var(--muted); font-size: 14px; max-width: 80ch; }
+.eyebrow, .dl, .fact .k, .rgrp, .rhead, .up thead th, .tl-lab { font-family: var(--sans); font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--label); margin: 0; }
+
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+.facts.four { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.fact { position: relative; padding: 12px 14px 13px 26px; background: var(--sunk); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.fact .k { position: relative; }
+.fact .k::before { content: ""; position: absolute; left: -14px; top: calc(50% - 3.5px); width: 7px; height: 7px; border-radius: 50%; background: transparent; }
+.fact.t-bad .k::before, .fact.t-warn .k::before, .fact.t-ok .k::before { background: var(--tone); }
+.fact .v { margin-top: 4px; font-size: 26px; font-weight: 650; letter-spacing: -.015em; line-height: 1.2; color: var(--fg-strong); font-variant-numeric: tabular-nums; }
+.fact.t-bad .v, .fact.t-warn .v { color: var(--tone); }
+.fact .s { margin-top: 3px; font-size: 12.5px; line-height: 1.45; color: var(--soft); text-wrap: balance; }
+
+.split { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; margin-top: 18px; align-items: start; }
+.focus { display: flex; flex-direction: column; min-width: 0; }
+.row { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 12px; text-align: left; padding: 11px 12px; border: none; border-bottom: 1px solid var(--line); border-radius: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.row.trow { grid-template-columns: minmax(0, 1fr) auto; }
+.row:hover { background: var(--hover); }
+.row.on { background: var(--pick); border-radius: 7px; border-bottom-color: transparent; box-shadow: inset 3px 0 0 var(--accent); }
+.focus > .row:has(+ .row.on) { border-bottom-color: transparent; }
+.rung { display: inline-block; min-width: 24px; text-align: center; font-family: var(--mono); font-size: 11px; font-weight: 600; line-height: 18px; padding: 0 5px; border-radius: 5px; color: var(--tone); background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 45%, transparent); }
+.nw { white-space: nowrap; }
+:is(.chip, .tag):not(.t-bad, .t-warn, .t-ok) { color: var(--soft); background: color-mix(in srgb, var(--muted) 20%, transparent); }
+.row > .rung { margin-top: 1px; align-self: start; }
+.tt { font-weight: 600; color: var(--fg-strong); font-size: 14px; }
+.scope { color: var(--muted); font-size: 13px; }
+.chip { display: inline-block; font-size: 10.5px; font-weight: 600; letter-spacing: .04em; line-height: 18px; padding: 0 7px; border-radius: 5px; vertical-align: 1px; color: var(--tone); background: color-mix(in srgb, var(--tone) 12%, transparent); }
+.ss { display: block; margin-top: 2px; font-size: 13px; color: var(--soft); }
+.when { font-size: 12px; color: var(--muted); padding-top: 2px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.ready { margin: 12px 0 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--sunk); font-size: 13px; color: var(--muted); }
+.ready b { color: var(--fg); font-weight: 600; margin-right: 2px; }
+.more { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+.more summary { cursor: pointer; padding: 8px 12px; border-radius: 8px; }
+.more summary:hover { background: var(--hover); color: var(--fg); }
+.link { background: none; border: none; padding: 0; font: inherit; color: var(--accent); cursor: pointer; text-decoration: none; }
+.link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.link.quiet { color: inherit; }
+.link.alert { color: var(--warn); font-weight: 600; }
+
+.tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; border-bottom: 1px solid var(--line); }
+.tab { position: relative; font: inherit; font-size: 13.5px; font-weight: 600; padding: 9px 12px 11px; background: none; border: none; color: var(--muted); cursor: pointer; border-radius: 6px 6px 0 0; }
+.tab:hover { color: var(--fg-strong); }
+.tab.on { color: var(--fg-strong); }
+.tab.on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--accent); }
+.stamp { margin-left: auto; padding: 8px 2px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.pane { min-width: 0; }
+.detail { background: var(--sunk); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px 18px; }
+.detail .eyebrow { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--muted); }
+.detail h3 { margin: 6px 0 0; font-size: 18px; line-height: 1.35; font-weight: 650; letter-spacing: -.005em; color: var(--fg-strong); text-wrap: balance; }
+.detail h3.t-bad, .detail h3.t-warn, .detail h3.t-ok { color: var(--tone); }
+.detail > p { margin: 6px 0 0; font-size: 13.5px; color: var(--fg); }
+.detail .dl, .detail > p.dl { margin-top: 18px; font-size: 11.5px; color: var(--label); }
+.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 10px 18px; margin: 14px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 13.5px; }
+.kv dt { font-size: 12px; font-weight: 600; color: var(--muted); padding-top: 1px; }
+.kv dd { margin: 0; color: var(--fg); text-wrap: pretty; }
+.kv dd.next { color: var(--fg-strong); font-weight: 550; }
+.evidence { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.open { justify-self: start; margin-top: 16px; font: inherit; font-size: 13px; font-weight: 600; padding: 7px 14px; border-radius: 7px; border: 1px solid var(--accent); color: var(--card); background: var(--accent); cursor: pointer; }
+.open:hover { filter: brightness(1.08); }
+.open.ghost { color: var(--accent); background: none; }
+:root:not([data-theme="light"]) :is(.tab, .stamp, .when) { color: color-mix(in srgb, var(--fg) 45%, var(--muted)); }
+:root:not([data-theme="light"]) .ev.s-held { background: color-mix(in srgb, var(--warn) 30%, transparent); }
+:root:not([data-theme="light"]) .relfacts .fact { background: color-mix(in srgb, var(--card-2) 85%, var(--card)); }
+:root:not([data-theme="light"]) .tick { border-left-color: color-mix(in srgb, var(--line) 20%, transparent); }
+:root:not([data-theme="light"]) .tick.major { border-left-color: color-mix(in srgb, var(--line) 50%, transparent); }
+:root[data-theme="light"] :is(.chip, .tag):is(.t-bad, .t-warn, .t-ok) { color: color-mix(in srgb, var(--tone) 72%, var(--fg-strong)); }
+:root[data-theme="light"] .rung { font-weight: 650; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 65%, transparent); }
+:root:not([data-theme="light"]) .tab:is(:hover, .on) { color: var(--fg-strong); }
+.items { margin: 6px 0 0; padding-left: 18px; font-size: 13.5px; }
+.items li + li { margin-top: 3px; }
+.note { margin: 10px 0 0; font-size: 12.5px; color: var(--muted); max-width: 90ch; }
+.detail > .note { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+
+.pairs { list-style: none; margin: 8px 0 0; padding: 0; columns: 2; column-gap: 36px; column-rule: 1px solid var(--line); font-size: 13px; }
+.pairs li { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; break-inside: avoid; }
+.pairs .ps { text-align: right; font-variant-numeric: tabular-nums; }
+.pairs .maybe { color: var(--muted); }
+.pairs + .kv { margin-top: 12px; }
+
+
+.facts.up4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.meter { display: flex; gap: 4px; margin-top: 6px; }
+.meter span { width: 18px; height: 8px; border-radius: 3px; background: var(--line); }
+.meter span.on { background: var(--accent); }
+.split.usplit { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); }
+.utable { min-width: 0; overflow-x: auto; }
+.up { width: 100%; border-collapse: collapse; font-size: 13px; }
+.up thead th { text-align: left; padding: 6px 10px 8px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.up tbody tr { border-bottom: 1px solid var(--line); cursor: pointer; }
+.up tbody tr:hover { background: var(--hover); }
+.up tbody tr.on { background: var(--pick); }
+.up td, .up tbody th { padding: 7px 10px 7px 0; vertical-align: middle; text-align: left; }
+.up tbody th, .up td.carries { white-space: nowrap; }
+.ufork { background: none; border: none; padding: 0 0 0 6px; font: inherit; font-weight: 650; color: var(--fg-strong); cursor: pointer; }
+.utag { font-size: 12px; color: var(--muted); }
+.ss { color: var(--soft); }
+.pill { display: inline-block; white-space: nowrap; font-size: 12px; line-height: 1.5; padding: 1px 9px; border-radius: 999px; color: var(--fg); background: var(--sunk); border: 1px solid var(--line); }
+.pill.t-bad, .pill.t-warn, .pill.t-ok, .pill.t-run { color: var(--tone); border-color: color-mix(in srgb, var(--tone) 45%, transparent); background: color-mix(in srgb, var(--tone) 12%, var(--card)); }
+.pill.p-pilot { color: var(--card); background: var(--accent); border-color: var(--accent); font-weight: 650; }
+.pill.p-held { background: none; border-style: dashed; color: var(--muted); }
+.udot { color: var(--muted); }
+.line { white-space: nowrap; }
+.ld { display: inline-block; width: 9px; height: 9px; margin-right: 4px; border-radius: 50%; border: 1.5px solid var(--muted); vertical-align: -1px; }
+.ld.t-ok, .ld.t-bad, .ld.t-warn, .ld.t-run, .ld.t-idle { background: var(--tone); border-color: var(--tone); }
+.ld.t-idle { --tone: var(--muted); }
+.unext { color: var(--soft); }
+.unext.strong { font-weight: 650; color: var(--fg-strong); }
+.unext.strong.t-bad, .unext.strong.t-warn { color: var(--tone); }
+.uplan .kv dt { color: var(--fg-strong); }
+
+.tl-box { overflow-x: auto; margin-top: 16px; padding: 4px 0 2px; direction: rtl; }
+.tl { direction: ltr; position: relative; min-width: 1044px; }
+.tl-row { display: grid; grid-template-columns: 84px minmax(0, 1fr); border-bottom: 1px solid var(--line); }
+.tl-row:last-child { border-bottom: none; }
+.tl-lab { position: sticky; left: 0; z-index: 2; background: var(--card); padding: 8px 8px 0 0; }
+.tl-track { position: relative; min-height: 26px; }
+.tl-axis { border-bottom-color: var(--line); }
+.tl-axis .tl-track { height: 20px; min-height: 0; }
+.tl-hour { position: absolute; top: 1px; transform: translateX(-50%); font-size: 12px; color: var(--soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tl-grid { position: absolute; top: 0; bottom: 0; left: 84px; right: 0; pointer-events: none; }
+.tick { position: absolute; top: 20px; bottom: 0; border-left: 1px solid color-mix(in srgb, var(--line) 35%, transparent); }
+.tick.major { border-left-color: var(--line); }
+.tl .tl-lab { color: var(--soft); }
+.ev { position: absolute; height: 12px; min-width: 10px; padding: 0; border: none; border-radius: 6px; background: var(--muted); cursor: pointer; font: inherit; }
+.ev.s-ok { background: var(--good); } .ev.s-failed { background: var(--crit); } .ev.s-running, .ev.s-held { background: var(--warn); }
+.ev.s-held { background: color-mix(in srgb, var(--warn) 25%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 55%, transparent); }
+.evl { position: absolute; left: calc(100% + 9px); top: -3px; font-size: 12px; line-height: 18px; color: var(--fg); white-space: nowrap; }
+.evl.flip { left: auto; right: calc(100% + 9px); }
+.ev.s-failed .evl { color: var(--crit); font-weight: 600; }
+.ev.s-held .evl { color: var(--muted); }
+.ev.on .evl { color: var(--fg-strong); font-weight: 600; text-decoration: underline 2px var(--accent); text-underline-offset: 3px; }
+.ev.s-failed.on .evl { color: var(--crit); }
+.none { position: absolute; left: 6px; top: 7px; font-size: 12px; color: var(--muted); }
+.events { margin-top: 14px; }
+.events .detail { padding-bottom: 16px; display: grid; grid-template-columns: minmax(200px, 280px) minmax(0, 1fr); grid-template-rows: auto auto auto; column-gap: 28px; align-items: start; align-content: start; }
+.events .detail > * { grid-column: 1; }
+.events .detail > .kv { grid-column: 2; grid-row: 1 / span 3; margin: 0; padding: 5px 0 0 28px; border-top: none; border-left: 1px solid var(--line); align-self: stretch; }
+
+.facts.relfacts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.relfacts .fact { background: var(--card); border-color: var(--line); padding: 12px 14px; }
+.relfacts .v { margin-top: 0; font-size: 23px; }
+.relfacts .unread .v { color: var(--muted); font-weight: 500; }
+
+.split.rsplit { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); }
+.rtable { min-width: 0; overflow-x: auto; }
+.rgrid { min-width: 600px; }
+.rhead, .rrow { display: grid; box-sizing: border-box; grid-template-columns: minmax(120px, 1.25fr) minmax(60px, 1fr) minmax(60px, .9fr) minmax(60px, 1.35fr) minmax(60px, 1fr) minmax(60px, 1fr); gap: 0 8px; align-items: baseline; }
+.rhead { padding: 0 12px 8px; border-bottom: 1px solid var(--line); align-items: start; line-height: 1.35; font-size: 12px; letter-spacing: 0; text-transform: none; }
+.rhead > span { white-space: nowrap; min-width: 0; }
+.rhead small { display: block; white-space: nowrap; font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--muted); }
+.rgrp { margin: 14px 0 2px; padding: 0 12px; }
+.rrow { position: relative; width: 100%; text-align: left; padding: 7px 12px; border: none; border-bottom: 1px solid var(--line); border-radius: 0; background: none; color: inherit; font: inherit; font-size: 13px; cursor: pointer; }
+.rrow:hover { background: var(--hover); }
+.rrow:has(+ .rrow.on) { border-bottom-color: transparent; }
+.rrow.on { background: var(--pick); border-radius: 7px; border-bottom-color: transparent; box-shadow: inset 3px 0 0 var(--accent); }
+.rn { font-weight: 600; color: var(--fg-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--fg); }
+.rc .z { color: var(--muted); }
+.rc .t-bad { color: var(--crit); font-weight: 650; } .rc .t-warn { color: var(--warn); font-weight: 500; }
+.rc .rrest { color: var(--fg); }
+.rc .rup, .rsec .rup, .rhead .rup { color: var(--muted); }
+.rsec { display: flex; justify-content: space-between; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+.detail .dl.rsec, .detail > p.dl.rsec { margin-top: 10px; }
+.rl { display: grid; grid-template-columns: minmax(70px, max-content) minmax(0, 1fr); gap: 2px 10px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.rsec + .rl { border-top: none; padding-top: 6px; }
+.tag { justify-self: start; font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; line-height: 18px; padding: 0 7px; border-radius: 5px; color: var(--tone); background: color-mix(in srgb, var(--tone) 12%, transparent); align-self: start; margin-top: 1px; white-space: nowrap; }
+.rt { color: var(--fg-strong); overflow-wrap: anywhere; }
+.rs { grid-column: 2; font-size: 12px; color: var(--soft); overflow-wrap: anywhere; }
+.detail > .rl .rt { font-weight: 500; }
+.rminor .rl { font-size: 12.5px; padding: 6px 0; }
+.rminor .rs { font-size: 11.5px; }
+.rminor .rt { color: var(--fg); }
+.rminor .tag:not(.t-bad) { color: var(--soft); background: color-mix(in srgb, var(--muted) 20%, transparent); }
+.rquiet { margin-top: 0; }
+.rquiet .rl { font-size: 12.5px; padding: 6px 0; }
+.rquiet .rs { font-size: 11.5px; }
+.rl.up { opacity: .6; }
+.rl.up .tag { color: var(--soft); background: color-mix(in srgb, var(--muted) 20%, transparent); }
+.rl.up .rt { color: var(--fg); }
+
+button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) {
+  .row, .rrow, .up tbody tr, .tab, .link, .open { transition: background-color .12s ease, color .12s ease, box-shadow .12s ease; }
+}
+@media (max-width: 1100px) {
+  .facts.four, .facts.up4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .split.usplit { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 720px) {
+  .split, .split.rsplit, .split.usplit, .facts, .facts.four, .facts.up4 { grid-template-columns: minmax(0, 1fr); }
+  .events .detail { display: block; }
+  .events .detail > .kv { padding: 14px 0 0; margin-top: 14px; border-left: none; border-top: 1px solid var(--line); }
+}</style>
+<div class="wrap">
+<div class="tabs" role="tablist"><button type="button" role="tab" class="tab on" data-view="today" aria-selected="true">Today</button><button type="button" role="tab" class="tab" data-view="repositories" aria-selected="false">Repositories</button><button type="button" role="tab" class="tab" data-view="environment" aria-selected="false">Environment</button><button type="button" role="tab" class="tab" data-view="flow" aria-selected="false">Flow</button><button type="button" role="tab" class="tab" data-view="horizon" aria-selected="false">Horizon</button><button type="button" role="tab" class="tab" data-view="releases" aria-selected="false">Releases</button><span class="stamp"><button type="button" class="link quiet" data-inspect="doctor">swept 10-12 21:58 UTC</button> · next sync 10-22 00:00 UTC</span></div>
+<div data-view-pane="today"><h2>Restore the environment. Unhalt entitlements. 2 more causes below.</h2>
+<p class="summary">2 forks have been stopped for 13 days. 1 PR is ready for review.</p>
+<div class="facts"><div class="fact t-warn"><div class="k">Environment</div><div class="v">v0.28.0</div><div class="s"><span class="nw">upgrade running</span>&nbsp;· <span class="nw">at verify</span>&nbsp;· <span class="nw">declares v0.28.2</span></div></div><div class="fact t-bad"><div class="k">Upstream sync</div><div class="v">2 of 5</div><div class="s"><span class="nw">forks stopped</span>&nbsp;· <span class="nw">entitlements and legal</span></div></div><div class="fact t-warn"><div class="k">Template · main bb49a03</div><div class="v">0 of 5</div><div class="s"><span class="nw">on main</span>&nbsp;· 4 changes reach the forks&nbsp;· <span class="nw">5 of 5 on v1.2.0</span></div></div></div>
+<div class="split"><div class="focus"><button type="button" class="row on" data-sel="stack:38181620856" aria-pressed="true">
+<span class="rung t-bad">P0</span>
+<span class="body"><span class="tt">Maintenance mode</span> <span class="scope">Environment</span> <span class="chip t-bad">ENV</span>
+<span class="ss">env-upgrade v0.28.2 in verify › Azure login (OIDC) now&nbsp;· <span class="nw">folds 8 effects</span>&nbsp;· <span class="nw">9d</span></span></span></button><button type="button" class="row" data-sel="halt:entitlements" aria-pressed="false">
+<span class="rung t-bad">P0</span>
+<span class="body"><span class="tt">Sync halted on schemathesis-tests</span> <span class="scope">entitlements</span> <span class="chip t-bad">HALT</span>
+<span class="ss"><span class="nw">2 commits held</span>&nbsp;· <span class="nw">13d</span>&nbsp;· the same entry is missing from 4 other filters</span></span></button><button type="button" class="row" data-sel="rollout" aria-pressed="false">
+<span class="rung t-warn">P1</span>
+<span class="body"><span class="tt">Rollout to template bb49a03</span> <span class="scope">fleet</span> <span class="chip t-warn">ROLLOUT</span>
+<span class="ss"><span class="nw">0 of 5 merged</span>&nbsp;· <span class="nw">0 of 5 lanes busy</span></span></span></button><button type="button" class="row" data-sel="gate1:legal" aria-pressed="false">
+<span class="rung t-warn">P1</span>
+<span class="body"><span class="tt">Sync PR #31 fails Java Build</span> <span class="scope">legal</span> <span class="chip t-warn">TOOLCHAIN</span>
+<span class="ss">upstream requires Java 25, the fork builds on 17&nbsp;· <span class="nw">4 commits held</span>&nbsp;· <span class="nw">13d</span></span></span></button><button type="button" class="row" data-sel="approvals:Azure/osdu-spi-stack" aria-pressed="false">
+<span class="rung t-warn">P1</span>
+<span class="body"><span class="tt">1 outside PR waits for workflow approval</span> <span class="scope">osdu-spi-stack</span> <span class="chip t-warn">GATE</span>
+<span class="ss"><span class="nw">10d</span></span></span></button><details class="more"><summary>1 more in the queue</summary><button type="button" class="row" data-sel="port:entitlements" aria-pressed="false">
+<span class="rung ">P1</span>
+<span class="body"><span class="tt">3 upstream provider changes not ported</span> <span class="scope">2 forks</span> <span class="chip ">PORT</span>
+<span class="ss"><span class="nw">entitlements 2</span>&nbsp;· <span class="nw">legal 1</span></span></span></button></details><p class="ready"><b>Ready, no rush:</b> <button type="button" class="link" data-inspect="releases">1 release PR</button></p></div><div class="pane"><section class="detail" data-detail="stack:38181620856">
+<p class="eyebrow"><span class="rung t-bad">P0</span> Environment <span class="chip t-bad">ENV</span></p>
+<h3>Maintenance mode</h3>
+<dl class="kv"><dt>Cause</dt><dd>Maintenance mode; env-upgrade v0.28.2 in verify › Azure login (OIDC) now.</dd><dt>Effect</dt><dd>10-11 22:44 · env-upgrade v0.28.1 failed in provision › spi up: GitLab API unreachable while resolving images · set maintenance. 10-12 04:16 · env-refresh v0.28.1 failed in Verify stack version and source suspension are unchanged: deployed v0.28.0 drifted from declared v0.28.1. 10-12 20:20 · env-upgrade v0.28.1 (dispatched) cancelled after 1h 2m in verify › Wait for Flux Kustomizations to be Ready.</dd><dt>Next</dt><dd class="next">Wait for the run in flight; if it fails, fix its cause and re-dispatch.</dd><dt>Evidence</dt><dd class="evidence">first env-upgrade v0.28.1 failed in provision › spi up: GitLab API unreachable while resolving images · last env-upgrade v0.28.2 in verify › Azure login (OIDC) · run · run</dd></dl>
+<button type="button" class="open" data-inspect="stack:38181620856">Open in inspector · Re-dispatch</button>
+</section><section class="detail" data-detail="halt:entitlements" hidden>
+<p class="eyebrow"><span class="rung t-bad">P0</span> entitlements <span class="chip t-bad">HALT</span></p>
+<h3>Sync halted on schemathesis-tests</h3>
+<dl class="kv"><dt>Cause</dt><dd>Upstream adds schemathesis-tests, a top-level entry the fork&#39;s filter has no rule for, so Sync Upstream stops with UNKNOWN_TOP_LEVEL.</dd><dt>Effect</dt><dd>4 daily Sync Upstream runs failed since the halt. 2 upstream commits wait behind the halt.</dd><dt>Next</dt><dd class="next">Add a rule for schemathesis-tests to .github/upstream-filter.yml, then dispatch sync.</dd><dt>Evidence</dt><dd class="evidence">issue #47 · run</dd></dl>
+<button type="button" class="open" data-inspect="halt:entitlements">Open in inspector · Classify entry</button>
+</section><section class="detail" data-detail="rollout" hidden>
+<p class="eyebrow"><span class="rung t-warn">P1</span> fleet <span class="chip t-warn">ROLLOUT</span></p>
+<h3>Rollout to template bb49a03</h3>
+<dl class="kv"><dt>Cause</dt><dd>osdu-spi main bb49a03 is on its way to the fleet: 0 of 5 forks merged.</dd><dt>Effect</dt><dd>The change reaches images, actions and workflows, so every PR and every merge takes a deploy lane: 10 lanes, 5 at a time still to go.</dd><dt>Next</dt><dd class="next">Wait for the environment: env-upgrade in verify. Nothing that deploys starts until it reads deployable.</dd><dt>Plan</dt><dd>1 wave · lanes 5 from rollout.json</dd><dt>Watch</dt><dd>Upstream sync at 10-22 00:00 opens 1 PR (entitlements halts instead) that share these lanes.</dd><dt>Reaches</dt><dd>build/Dockerfile · java-build action · setup-maven action · build.yml · cascade.yml · copilot-setup-steps.yml · acceptance-image action · validate.yml · build/acceptance.Dockerfile</dd><dt>Evidence</dt><dd class="evidence">main bb49a03 · forks on ea9a2e1</dd></dl>
+<button type="button" class="open" data-inspect="rollout">Open in inspector · Wait for the environment</button>
+</section><section class="detail" data-detail="gate1:legal" hidden>
+<p class="eyebrow"><span class="rung t-warn">P1</span> legal <span class="chip t-warn">TOOLCHAIN</span></p>
+<h3>Sync PR #31 fails Java Build</h3>
+<dl class="kv"><dt>Cause</dt><dd>Upstream requires Java 25; the fork builds on 17.</dd><dt>Effect</dt><dd>4 upstream commits wait on this PR.</dd><dt>Next</dt><dd class="next">Move the fork&#39;s Java pin to 25, the version upstream now requires.</dd><dt>Evidence</dt><dd class="evidence">PR #31 · check Java Build › Run Java Build</dd></dl>
+<button type="button" class="open" data-inspect="gate1:legal">Open in inspector · Absorb toolchain</button>
+</section><section class="detail" data-detail="approvals:Azure/osdu-spi-stack" hidden>
+<p class="eyebrow"><span class="rung t-warn">P1</span> osdu-spi-stack <span class="chip t-warn">GATE</span></p>
+<h3>1 outside PR waits for workflow approval</h3>
+<dl class="kv"><dt>Cause</dt><dd>Outside contributors&#39; runs wait until a maintainer approves them.</dd><dt>Effect</dt><dd>feat: cannot run their checks until a maintainer approves them.</dd><dt>Next</dt><dd class="next">Read each outside PR&#39;s diff, then approve its runs below.</dd></dl>
+<button type="button" class="open" data-inspect="approvals:Azure/osdu-spi-stack">Open in inspector · Approve runs</button>
+</section><section class="detail" data-detail="port:entitlements" hidden>
+<p class="eyebrow"><span class="rung ">P1</span> 2 forks <span class="chip ">PORT</span></p>
+<h3>3 upstream provider changes not ported</h3>
+<dl class="kv"><dt>Cause</dt><dd>Upstream merged changes to fork-owned provider and test trees since each fork&#39;s seed, and no fork PR cites them.</dd><dt>Effect</dt><dd>Until each MR is ported, entitlements and legal drift from upstream.</dd><dt>Next</dt><dd class="next">Port !963 into testing/entitlements-v2-test-azure; cite the MR URL in the PR body.</dd><dt>Evidence</dt><dd class="evidence">!963 · !956 · !783</dd></dl>
+<button type="button" class="open" data-inspect="port:entitlements">Open in inspector · Port</button>
+</section></div></div></div>
+<div data-view-pane="repositories" hidden><h2>In SPI-owned shipped code: 3 high vulnerabilities and 13 high code-scanning alerts.</h2>
+<div class="facts four"><div class="fact t-bad"><div class="k">Issues</div><div class="v">13</div><div class="s"><span class="nw">2 human-required</span>&nbsp;· <span class="nw">5 bugs</span>&nbsp;· <span class="nw">6 enhancements</span>&nbsp;· <span class="nw">2 from the sync engine</span></div></div><div class="fact t-warn"><div class="k">Pull Requests</div><div class="v">3</div><div class="s"><span class="nw">2 feat</span>&nbsp;· <span class="nw">1 untyped</span>&nbsp;· 2 with conflicts or red checks</div></div><div class="fact "><div class="k">Dependabot Bumps</div><div class="v">0</div><div class="s"><span class="nw">none open</span></div></div><div class="fact t-warn"><div class="k">Vulnerabilities · ours</div><div class="v">3</div><div class="s">critical or high in shipped code&nbsp;· <span class="nw">1 package</span>&nbsp;· <span class="nw">3 more from upstream</span></div></div><div class="fact t-warn"><div class="k">Code scanning · ours</div><div class="v">13</div><div class="s">critical or high in shipped code&nbsp;· <span class="nw">3 rules</span>&nbsp;· <span class="nw">2 more from upstream</span></div></div></div>
+<div class="split rsplit"><div class="rtable"><div class="rgrid"><div class="rhead"><span>Repository</span><span>Issues<small>human<span class="rup"> · other</span></small></span><span>Pull Requests</span><span>Dependabot Bumps</span><span>Vulnerabilities<small>ours<span class="rup"> · upstream</span></small></span><span>Code scanning<small>ours<span class="rup"> · upstream</span></small></span></div><p class="rgrp">Program</p><button type="button" class="rrow" data-repo="repo:osdu-spi" aria-pressed="false"><span class="rn">osdu-spi</span><span class="rc"><span class="z">0</span><span class="rup"> · 7</span></span><span class="rc"><span class="z">0</span></span><span class="rc"><span class="z">0</span></span><span class="rc"><span class="z">0</span><span class="rup"> · 0</span></span><span class="rc"><span class="t-warn">2</span><span class="rup"> · 0</span></span></button><button type="button" class="rrow on" data-repo="repo:osdu-spi-stack" aria-pressed="true"><span class="rn">osdu-spi-stack</span><span class="rc"><span class="z">0</span><span class="rup"> · 4</span></span><span class="rc"><span class="">2</span></span><span class="rc"><span class="z">0</span></span><span class="rc"><span class="t-warn">3</span><span class="rup"> · 0</span></span><span class="rc"><span class="z">0</span><span class="rup"> · 0</span></span></button><p class="rgrp">Forks</p><button type="button" class="rrow" data-repo="repo:partition" aria-pressed="false"><span class="rn">partition</span><span class="rc"><span class="z">0</span><span class="rup"> · 0</span></span><span class="rc"><span class="z">0</span></span><span class="rc"><span class="z">0</span></span><span class="rc"><span class="z">0</span><span class="rup"> · 3</span></span><span class="rc"><span class="t-warn">2</span><span class="rup"> · 0</span></span></button><button type="button" class="rrow" data-repo="repo:entitlements" aria-pressed="false"><span class="rn">entitlements</span><span class="rc"><span class="t-bad">1</span><span class="rup"> · 0</span></span><span class="rc"><span class="">1</span></span><span class="rc"><span class="z">0</span></span><span class="rc"><span class="z">0</span><span class="rup"> · 0</span></span><span class="rc"><span class="t-warn">2</span><span class="rup"> · 0</span></span></button><button type="button" class="rrow" data-repo="repo:legal" aria-pressed="false"><span class="rn">legal</span><span class="rc"><span class="t-bad">1</span><span class="rup"> · 0</span></span><span class="rc"><span class="z">0</span></span><span class="rc"><span class="z">0</span></span><span class="rc"><span class="z">0</span><span class="rup"> · 0</span></span><span class="rc"><span class="t-warn">2</span><span class="rup"> · 0</span></span></button><button type="button" class="rrow" data-repo="repo:schema" aria-pressed="false"><span class="rn">schema</span><span class="rc"><span class="z">0</span><span class="rup"> · 0</span></span><span class="rc"><span class="z">0</span></span><span class="rc"><span class="z">0</span></span><span class="rc"><span class="z">0</span><span class="rup"> · 0</span></span><span class="rc"><span class="t-warn">3</span><span class="rup"> · 0</span></span></button><button type="button" class="rrow" data-repo="repo:file" aria-pressed="false"><span class="rn">file</span><span class="rc"><span class="z">0</span><span class="rup"> · 0</span></span><span class="rc"><span class="z">0</span></span><span class="rc"><span class="z">0</span></span><span class="rc"><span class="z">0</span><span class="rup"> · 0</span></span><span class="rc"><span class="t-warn">2</span><span class="rup"> · 2</span></span></button></div><p class="note">Vulnerabilities are Dependabot alerts on the libraries a service uses. Code scanning is CodeQL and Scorecard findings in the source itself. Both count critical and high alerts in shipped code only. Pipeline PRs stay on Flow.</p></div><div class="pane"><section class="detail" data-repo-detail="repo:osdu-spi" hidden>
+<p class="eyebrow">osdu-spi</p>
+<h3 class="t-bad">High code-scanning alert: Branch-Protection</h3>
+<p>1 alert in SPI-owned shipped code at repository settings, found by Scorecard.</p>
+<p class="dl rsec"><span>Issues</span><span>7</span></p><div class="rl"><span class="tag ">bug</span><span class="rt">validate: duplicate PR runs push the same image tag and break the deploy lane pin · #250</span><span class="rs"><span class="nw">opened 13d ago</span>&nbsp;· <span class="nw">0 comments</span></span></div><div class="rl"><span class="tag ">bug</span><span class="rt">Template sync skips file removal when the template tip is unchanged · #245</span><span class="rs"><span class="nw">opened 15d ago</span>&nbsp;· <span class="nw">0 comments</span></span></div><div class="rl"><span class="tag ">enhancement</span><span class="rt">Deploy lane: optional nightly run against the shared stack · #241</span><span class="rs"><span class="nw">opened 15d ago</span>&nbsp;· <span class="nw">0 comments</span></span></div><div class="rquiet"><p class="dl rsec"><span>Code scanning</span><span>7 ours<span class="rup"> · 0 upstream</span></span></p><div class="rl"><span class="tag t-bad">High</span><span class="rt">Branch-Protection · 1 alert</span><span class="rs"><span class="nw">SPI</span>&nbsp;· <span class="nw">shipped</span>&nbsp;· <span class="nw">repository settings</span>&nbsp;· <span class="nw">found by Scorecard</span></span></div><div class="rl"><span class="tag t-bad">High</span><span class="rt">Code-Review · 1 alert</span><span class="rs"><span class="nw">SPI</span>&nbsp;· <span class="nw">shipped</span>&nbsp;· <span class="nw">repository settings</span>&nbsp;· <span class="nw">found by Scorecard</span></span></div><div class="rl"><span class="tag t-warn">Medium</span><span class="rt">Fuzzing · 1 alert</span><span class="rs"><span class="nw">SPI</span>&nbsp;· <span class="nw">shipped</span>&nbsp;· <span class="nw">repository settings</span>&nbsp;· <span class="nw">found by Scorecard</span></span></div></div>
+<p class="note">Not shown here: 4 more alert groups; 1 pipeline PR, on Flow. The inspector lists every item.</p>
+<button type="button" class="open" data-inspect="repo:osdu-spi">Open in inspector</button>
+</section><section class="detail" data-repo-detail="repo:osdu-spi-stack">
+<p class="eyebrow">osdu-spi-stack</p>
+<h3 class="t-warn">1 pull request has conflicts</h3>
+<p>#323 onboard Seismic Store V3.</p>
+<p class="dl rsec"><span>Issues</span><span>4</span></p><div class="rl"><span class="tag ">bug</span><span class="rt">[bug] spi up --declaration rejects absent identities with ParentResourceNotFound · #324</span><span class="rs"><span class="nw">opened 12d ago</span>&nbsp;· <span class="nw">0 comments</span></span></div><div class="rl"><span class="tag ">bug</span><span class="rt">Pin refusal for a moved tag should say re-run all jobs · #321</span><span class="rs"><span class="nw">opened 13d ago</span>&nbsp;· <span class="nw">0 comments</span></span></div><div class="rl"><span class="tag ">bug</span><span class="rt">Restore can start the canonical schema loader against the outgoing borrowed pod · #320</span><span class="rs"><span class="nw">opened 13d ago</span>&nbsp;· <span class="nw">0 comments</span></span></div><p class="dl rsec"><span>Pull Requests</span><span>2</span></p><div class="rl"><span class="tag ">feat</span><span class="rt">add RAFS service · #327</span><span class="rs"><span class="nw">behind</span>&nbsp;· <span class="nw">opened 10d ago</span>&nbsp;· <span class="nw">by contributor-a</span></span></div><div class="rl"><span class="tag t-bad">feat</span><span class="rt">onboard Seismic Store V3 · #323</span><span class="rs"><span class="nw">conflicts</span>&nbsp;· <span class="nw">opened 12d ago</span>&nbsp;· <span class="nw">by contributor-a</span></span></div><div class="rquiet"><p class="dl rsec"><span>Vulnerabilities</span><span>1 ours<span class="rup"> · 0 upstream</span></span></p><div class="rl"><span class="tag t-bad">High</span><span class="rt">virtualenv · 4 vulnerabilities</span><span class="rs"><span class="nw">SPI</span>&nbsp;· <span class="nw">shipped</span>&nbsp;· <span class="nw">uv.lock</span>&nbsp;· <span class="nw">fixed in 21.7.13</span></span></div></div>
+
+<button type="button" class="open" data-inspect="repo:osdu-spi-stack">Open in inspector</button>
+</section><section class="detail" data-repo-detail="repo:partition" hidden>
+<p class="eyebrow">partition</p>
+<h3 class="t-bad">High code-scanning alert: Disabled Spring CSRF protection</h3>
+<p>2 alerts in SPI-owned shipped code at provider/partition-azure, found by CodeQL. Also ours on entitlements, legal, schema and 1 more.</p>
+<div class="rquiet"><p class="dl rsec"><span>Vulnerabilities</span><span>0 ours<span class="rup"> · 1 upstream</span></span></p><div class="rl up"><span class="tag t-bad">High</span><span class="rt">jackson-databind · 5 vulnerabilities</span><span class="rs"><span class="nw">Upstream</span>&nbsp;· <span class="nw">shipped</span>&nbsp;· <span class="nw">pom.xml</span>&nbsp;· <span class="nw">fixed in 2.21.7</span></span></div><p class="dl rsec"><span>Code scanning</span><span>2 ours<span class="rup"> · 0 upstream</span></span></p><div class="rl"><span class="tag t-bad">High</span><span class="rt">Disabled Spring CSRF protection · 2 alerts</span><span class="rs"><span class="nw">SPI</span>&nbsp;· <span class="nw">shipped</span>&nbsp;· <span class="nw">provider/partition-azure</span>&nbsp;· <span class="nw">found by CodeQL</span>&nbsp;· also ours on entitlements, legal, schema and 1 more</span></div><div class="rl"><span class="tag t-warn">Medium</span><span class="rt">Log Injection · 1 alert</span><span class="rs"><span class="nw">SPI</span>&nbsp;· <span class="nw">shipped</span>&nbsp;· <span class="nw">provider/partition-azure</span>&nbsp;· <span class="nw">found by CodeQL</span>&nbsp;· also ours on schema and file</span></div></div>
+<p class="note">Not shown here: 2 more alert groups, 2 in tests; 1 pipeline PR, on Flow. The inspector lists every item.</p>
+<button type="button" class="open" data-inspect="repo:partition">Open in inspector</button>
+</section><section class="detail" data-repo-detail="repo:entitlements" hidden>
+<p class="eyebrow">entitlements</p>
+<h3 class="t-bad">1 issue needs a person</h3>
+<p>#47 🔄 Upstream Sync Failed 2026-10-08, open 13d.</p>
+<p class="dl rsec"><span>Issues</span><span>1 human-required<span class="rup"> · 0 other</span></span></p><div class="rl"><span class="tag t-bad">human-required</span><span class="rt">🔄 Upstream Sync Failed 2026-10-08 · #47</span><span class="rs"><span class="nw">opened 13d ago</span>&nbsp;· <span class="nw">4 comments</span>&nbsp;· <span class="nw">from the sync engine</span></span></div><p class="dl rsec"><span>Pull Requests</span><span>1</span></p><div class="rl"><span class="tag t-bad">untyped</span><span class="rt">Test External Contribution flow · #49</span><span class="rs"><span class="nw">red</span>&nbsp;· <span class="nw">opened 12d ago</span>&nbsp;· <span class="nw">by contributor-b</span></span></div><div class="rquiet"><p class="dl rsec"><span>Vulnerabilities</span><span>0 ours<span class="rup"> · 2 upstream</span></span></p><div class="rl up"><span class="tag t-warn">Medium</span><span class="rt">log4j-core · 3 vulnerabilities</span><span class="rs"><span class="nw">Upstream</span>&nbsp;· <span class="nw">shipped</span>&nbsp;· <span class="nw">pom.xml</span>&nbsp;· <span class="nw">fixed in 2.25.4</span></span></div><div class="rl up"><span class="tag t-warn">Medium</span><span class="rt">log4j-api · 1 vulnerability</span><span class="rs"><span class="nw">Upstream</span>&nbsp;· <span class="nw">shipped</span>&nbsp;· <span class="nw">pom.xml</span>&nbsp;· <span class="nw">fixed in 2.25.5</span></span></div><p class="dl rsec"><span>Code scanning</span><span>1 ours<span class="rup"> · 1 upstream</span></span></p><div class="rl"><span class="tag t-bad">High</span><span class="rt">Disabled Spring CSRF protection · 2 alerts</span><span class="rs"><span class="nw">SPI</span>&nbsp;· <span class="nw">shipped</span>&nbsp;· provider/entitlements-v2-azure&nbsp;· <span class="nw">found by CodeQL</span>&nbsp;· also ours on partition, legal, schema and 1 more</span></div><div class="rl up"><span class="tag t-warn">Medium</span><span class="rt">Information exposure through an error message · 5 alerts</span><span class="rs"><span class="nw">Upstream</span>&nbsp;· <span class="nw">shipped</span>&nbsp;· <span class="nw">entitlements-v2-core</span>&nbsp;· <span class="nw">found by CodeQL</span></span></div></div>
+<p class="note">Not shown here: 4 more alert groups, 4 in tests; 1 pipeline PR, on Flow. The inspector lists every item.</p>
+<button type="button" class="open" data-inspect="repo:entitlements">Open in inspector</button>
+</section><section class="detail" data-repo-detail="repo:legal" hidden>
+<p class="eyebrow">legal</p>
+<h3 class="t-bad">1 issue needs a person</h3>
+<p>#32 📥 Upstream Sync Ready for Review - 2026-10-08, open 13d.</p>
+<p class="dl rsec"><span>Issues</span><span>1 human-required<span class="rup"> · 0 other</span></span></p><div class="rl"><span class="tag t-bad">human-required</span><span class="rt">📥 Upstream Sync Ready for Review - 2026-10-08 · #32</span><span class="rs"><span class="nw">opened 13d ago</span>&nbsp;· <span class="nw">0 comments</span>&nbsp;· <span class="nw">from the sync engine</span></span></div><div class="rquiet"><p class="dl rsec"><span>Code scanning</span><span>1 ours<span class="rup"> · 0 upstream</span></span></p><div class="rl"><span class="tag t-bad">High</span><span class="rt">Disabled Spring CSRF protection · 2 alerts</span><span class="rs"><span class="nw">SPI</span>&nbsp;· <span class="nw">shipped</span>&nbsp;· <span class="nw">provider/legal-azure</span>&nbsp;· <span class="nw">found by CodeQL</span>&nbsp;· also ours on partition, entitlements, schema and 1 more</span></div></div>
+<p class="note">Not shown here: 3 more alert groups, 3 in tests; 2 pipeline PRs, on Flow. The inspector lists every item.</p>
+<button type="button" class="open" data-inspect="repo:legal">Open in inspector</button>
+</section><section class="detail" data-repo-detail="repo:schema" hidden>
+<p class="eyebrow">schema</p>
+<h3 class="t-bad">High code-scanning alert: Disabled Spring CSRF protection</h3>
+<p>3 alerts in SPI-owned shipped code at provider/schema-azure, found by CodeQL. Also ours on partition, entitlements, legal and 1 more.</p>
+<div class="rquiet"><p class="dl rsec"><span>Code scanning</span><span>2 ours<span class="rup"> · 0 upstream</span></span></p><div class="rl"><span class="tag t-bad">High</span><span class="rt">Disabled Spring CSRF protection · 3 alerts</span><span class="rs"><span class="nw">SPI</span>&nbsp;· <span class="nw">shipped</span>&nbsp;· <span class="nw">provider/schema-azure</span>&nbsp;· <span class="nw">found by CodeQL</span>&nbsp;· also ours on partition, entitlements, legal and 1 more</span></div><div class="rl"><span class="tag t-warn">Medium</span><span class="rt">Log Injection · 2 alerts</span><span class="rs"><span class="nw">SPI</span>&nbsp;· <span class="nw">shipped</span>&nbsp;· <span class="nw">provider/schema-azure</span>&nbsp;· <span class="nw">found by CodeQL</span>&nbsp;· also ours on partition and file</span></div></div>
+<p class="note">Not shown here: 13 more alert groups, 5 in tests; 1 pipeline PR, on Flow. The inspector lists every item.</p>
+<button type="button" class="open" data-inspect="repo:schema">Open in inspector</button>
+</section><section class="detail" data-repo-detail="repo:file" hidden>
+<p class="eyebrow">file</p>
+<h3 class="t-bad">High code-scanning alert: Disabled Spring CSRF protection</h3>
+<p>2 alerts in SPI-owned shipped code at provider/file-azure, found by CodeQL. Also ours on partition, entitlements, legal and 1 more.</p>
+<div class="rquiet"><p class="dl rsec"><span>Vulnerabilities</span><span>0 ours<span class="rup"> · 2 upstream</span></span></p><div class="rl up"><span class="tag t-warn">Medium</span><span class="rt">log4j-api · 1 vulnerability</span><span class="rs"><span class="nw">Upstream</span>&nbsp;· <span class="nw">shipped</span>&nbsp;· <span class="nw">pom.xml</span>&nbsp;· <span class="nw">fixed in 2.25.5</span></span></div><div class="rl up"><span class="tag ">Low</span><span class="rt">logback-core · 3 vulnerabilities</span><span class="rs"><span class="nw">Upstream</span>&nbsp;· <span class="nw">shipped</span>&nbsp;· <span class="nw">pom.xml</span>&nbsp;· <span class="nw">fixed in 1.5.34</span></span></div><p class="dl rsec"><span>Code scanning</span><span>2 ours<span class="rup"> · 3 upstream</span></span></p><div class="rl"><span class="tag t-bad">High</span><span class="rt">Disabled Spring CSRF protection · 2 alerts</span><span class="rs"><span class="nw">SPI</span>&nbsp;· <span class="nw">shipped</span>&nbsp;· <span class="nw">provider/file-azure</span>&nbsp;· <span class="nw">found by CodeQL</span>&nbsp;· also ours on partition, entitlements, legal and 1 more</span></div><div class="rl"><span class="tag t-warn">Medium</span><span class="rt">Log Injection · 4 alerts</span><span class="rs"><span class="nw">SPI</span>&nbsp;· <span class="nw">shipped</span>&nbsp;· <span class="nw">provider/file-azure</span>&nbsp;· <span class="nw">found by CodeQL</span>&nbsp;· also ours on partition and schema</span></div><div class="rl up"><span class="tag t-bad">High</span><span class="rt">Implicit narrowing conversion in compound assignment · 1 alert</span><span class="rs"><span class="nw">Upstream</span>&nbsp;· <span class="nw">shipped</span>&nbsp;· <span class="nw">file-core</span>&nbsp;· <span class="nw">found by CodeQL</span></span></div></div>
+<p class="note">Not shown here: 7 more alert groups, 5 in tests; 1 pipeline PR, on Flow. The inspector lists every item.</p>
+<button type="button" class="open" data-inspect="repo:file">Open in inspector</button>
+</section></div></div></div>
+<div data-view-pane="environment" hidden><h2>An upgrade to v0.28.2 is running, at verify.</h2>
+<div class="facts"><div class="fact t-warn"><div class="k">Running</div><div class="v">v0.28.0</div><div class="s"><span class="nw">upgrade running</span>&nbsp;· <span class="nw">at verify</span>&nbsp;· <span class="nw">declares v0.28.2</span></div></div><div class="fact t-warn"><div class="k">Deployable · 21 days</div><div class="v">35%</div><div class="s">4 holds over an hour, 13 d 7 h in all&nbsp;· <span class="nw">held since 10-11 22:44</span></div></div><div class="fact t-ok"><div class="k">Last proof</div><div class="v">26 min</div><div class="s"><span class="nw">smoke</span>&nbsp;· <span class="nw">fresh cluster</span>&nbsp;· <span class="nw">9 d 5 h ago</span>&nbsp;· <span class="nw">7 in a row</span></div></div></div>
+<div class="tl-box"><div class="tl"><div class="tl-grid"><span class="tick major" style="left:4.17%"></span><span class="tick" style="left:8.33%"></span><span class="tick major" style="left:12.5%"></span><span class="tick" style="left:16.67%"></span><span class="tick major" style="left:20.83%"></span><span class="tick" style="left:25%"></span><span class="tick major" style="left:29.17%"></span><span class="tick" style="left:33.33%"></span><span class="tick major" style="left:37.5%"></span><span class="tick" style="left:41.67%"></span><span class="tick major" style="left:45.83%"></span><span class="tick" style="left:50%"></span><span class="tick major" style="left:54.17%"></span><span class="tick" style="left:58.33%"></span><span class="tick major" style="left:62.5%"></span><span class="tick" style="left:66.67%"></span><span class="tick major" style="left:70.83%"></span><span class="tick" style="left:75%"></span><span class="tick major" style="left:79.17%"></span><span class="tick" style="left:83.33%"></span><span class="tick major" style="left:87.5%"></span><span class="tick" style="left:91.67%"></span><span class="tick major" style="left:95.83%"></span></div><div class="tl-row tl-axis"><div class="tl-lab"></div><div class="tl-track"><span class="tl-hour" style="left:4.17%">16:00</span><span class="tl-hour" style="left:12.5%">18:00</span><span class="tl-hour" style="left:20.83%">20:00</span><span class="tl-hour" style="left:29.17%">22:00</span><span class="tl-hour" style="left:37.5%">00:00</span><span class="tl-hour" style="left:45.83%">02:00</span><span class="tl-hour" style="left:54.17%">04:00</span><span class="tl-hour" style="left:62.5%">06:00</span><span class="tl-hour" style="left:70.83%">08:00</span><span class="tl-hour" style="left:79.17%">10:00</span><span class="tl-hour" style="left:87.5%">12:00</span><span class="tl-hour" style="left:95.83%">14:00</span></div></div><div class="tl-row"><div class="tl-lab">Upgrade</div><div class="tl-track" style="height:32px"><button type="button" class="ev s-running on" data-event="upgrade:38312331838" aria-pressed="true" title="Upgrade v0.28.2, running, 10-12 21:42 to now · 8 d 17 h" aria-label="Upgrade v0.28.2, running, 10-12 21:42 to now · 8 d 17 h" style="left:0%;width:100%;top:10px"><span class="evl flip">● v0.28.2</span></button></div></div><div class="tl-row"><div class="tl-lab">Refresh</div><div class="tl-track" style="height:32px"><span class="none">none in the last day</span></div></div><div class="tl-row"><div class="tl-lab">Smoke</div><div class="tl-track" style="height:32px"><span class="none">none in the last day</span></div></div><div class="tl-row"><div class="tl-lab">Held</div><div class="tl-track" style="height:32px"><button type="button" class="ev s-held" data-event="holds:1791758673000" aria-pressed="false" title="Held 9 d 16 h, held, 10-11 22:44 to now · 9 d 16 h" aria-label="Held 9 d 16 h, held, 10-11 22:44 to now · 9 d 16 h" style="left:0%;width:100%;top:10px"><span class="evl flip">9 d 16 h</span></button></div></div></div></div><p class="note">No fork lane deployed today. Deploys are counted per day, so the timeline leaves them out.</p>
+<div class="pane events"><section class="detail" data-event-detail="upgrade:38312331838">
+<p class="eyebrow">Upgrade · running</p>
+<h3 class="t-warn">v0.28.2</h3>
+<dl class="kv"><dt>When</dt><dd>10-12 21:42 to now · 8 d 17 h</dd><dt>What happened</dt><dd>running · at verify</dd></dl>
+<button type="button" class="open" data-inspect="stack:38181620856">Open in inspector</button>
+</section><section class="detail" data-event-detail="holds:1791758673000" hidden>
+<p class="eyebrow">Held · held</p>
+<h3 class="t-warn">9 d 16 h</h3>
+<dl class="kv"><dt>When</dt><dd>10-11 22:44 to now · 9 d 16 h</dd><dt>What happened</dt><dd>in maintenance for 9 d 16 h so far</dd></dl>
+<button type="button" class="open" data-inspect="stack:38181620856">Open in inspector</button>
+</section></div></div>
+<div data-view-pane="flow" hidden><h2>6 upstream commits wait across 2 forks. 2 forks move their toolchain, so start with one pilot.</h2>
+<p class="summary">1 sync PR is prepared. Nothing syncs until you merge one.</p>
+<div class="facts up4"><div class="fact "><div class="k">Behind upstream</div><div class="v">2 of 5</div><div class="s"><span class="nw">2 to 4 commits</span>&nbsp;· <span class="nw">6 in all</span></div></div><div class="fact t-warn"><div class="k">Toolchain move</div><div class="v">2</div><div class="s">1 to os-core-common 8.2.0&nbsp;· <span class="nw">1 to Java 25</span></div></div><div class="fact t-bad"><div class="k">Will halt</div><div class="v">1</div><div class="s"><span class="nw">entitlements</span>&nbsp;· schemathesis-tests has no filter rule</div></div><div class="fact "><div class="k">Lanes</div><div class="v">0 of 5</div><div class="meter" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div><div class="s">shared with the template rollout</div></div></div>
+<div class="split usplit"><div class="utable"><table class="up"><thead><tr><th>Fork</th><th>Next sync carries</th><th>Before it can start</th><th>Line</th><th>Plan</th></tr></thead><tbody><tr data-up="legal"><th scope="row"><button type="button" class="ufork" data-up="legal" aria-pressed="false">legal</button></th><td class="carries"><b>4</b> <span class="ss">Java 25</span></td><td><span class="pill t-warn">template PR #33 first</span></td><td class="line" aria-label="Sync PR red, Cascade idle, Sync to Main idle, Main run idle"><span class="ld t-bad"></span><span class="ld "></span><span class="ld "></span><span class="ld "></span> <span class="ss">red</span></td><td><span class="pill  p-wave">Wave 1</span></td></tr><tr data-up="entitlements"><th scope="row"><button type="button" class="ufork" data-up="entitlements" aria-pressed="false">entitlements</button></th><td class="carries"><b>2</b> <span class="ss">schemathesis-tests</span></td><td><span class="pill t-bad">halted · add a filter rule</span></td><td class="line" aria-label="Sync PR halt, Cascade idle, Sync to Main idle, Main run idle"><span class="ld t-bad"></span><span class="ld "></span><span class="ld "></span><span class="ld "></span> <span class="ss">halt</span></td><td><span class="pill  p-held">Held</span></td></tr><tr data-up="partition"><th scope="row"><button type="button" class="ufork" data-up="partition" aria-pressed="false">partition</button></th><td class="carries"><b>0</b> <span class="ss">no toolchain move</span></td><td><span class="pill t-warn">template PR #174 first</span></td><td class="line" aria-label="Sync PR idle, Cascade idle, Sync to Main idle, Main run idle"><span class="ld "></span><span class="ld "></span><span class="ld "></span><span class="ld "></span></td><td><span class="pill  p-none">current</span></td></tr><tr data-up="schema"><th scope="row"><button type="button" class="ufork" data-up="schema" aria-pressed="false">schema</button></th><td class="carries"><b>0</b> <span class="ss">no toolchain move</span></td><td><span class="pill t-warn">template PR #37 first</span></td><td class="line" aria-label="Sync PR idle, Cascade idle, Sync to Main idle, Main run idle"><span class="ld "></span><span class="ld "></span><span class="ld "></span><span class="ld "></span></td><td><span class="pill  p-none">current</span></td></tr><tr data-up="file"><th scope="row"><button type="button" class="ufork" data-up="file" aria-pressed="false">file</button></th><td class="carries"><b>0</b> <span class="ss">no toolchain move</span></td><td><span class="pill t-warn">template PR #51 first</span></td><td class="line" aria-label="Sync PR idle, Cascade idle, Sync to Main idle, Main run idle"><span class="ld "></span><span class="ld "></span><span class="ld "></span><span class="ld "></span></td><td><span class="pill  p-none">current</span></td></tr></tbody></table><p class="note">Line: Sync PR · Cascade · Sync to Main · Main run. Select a row, then open it in the inspector.</p></div><div class="pane"><section class="detail uplan" data-up-detail="plan">
+<p class="eyebrow">Proposed plan</p>
+<h3>1 fork in 1 wave, 1 held</h3>
+<dl class="kv"><dt>Wave 1</dt><dd>legal</dd><dt>Held</dt><dd>entitlements (filter rule)</dd></dl>
+<p class="note">Waves size to 5 lanes. A fork with a template PR open waits for it to merge first.</p>
+<button type="button" class="open" data-inspect="upstream">Open in inspector · Plan upstream syncs</button>
+<p class="dl">At 10-22 00:00 if you do nothing</p><p>Sync Upstream updates 1 prepared PR in place.</p>
+</section><section class="detail" data-up-detail="legal" hidden>
+<p class="eyebrow"><button type="button" class="link quiet" data-up="plan">Plan</button> › legal</p>
+<h3 class="">legal · wave 1</h3>
+<p>its sync PR is red</p>
+<ul class="items"><li>4 upstream commits not yet in fork_upstream · carries Java 25.</li><li>Line: Sync PR red · Cascade · · Sync to Main · · Main run ·.</li><li>Waits: its sync PR is red.</li></ul>
+<button type="button" class="open" data-inspect="upstream:legal">Open in inspector · legal</button>
+</section><section class="detail" data-up-detail="entitlements" hidden>
+<p class="eyebrow"><button type="button" class="link quiet" data-up="plan">Plan</button> › entitlements</p>
+<h3 class="">entitlements · held</h3>
+<p>filter rule first</p>
+<ul class="items"><li>2 upstream commits not yet in fork_upstream · carries schemathesis-tests.</li><li>Line: Sync PR halt · Cascade · · Sync to Main · · Main run ·.</li><li>Held: the sync halts on schemathesis-tests. It clears once the fork&#39;s filter carries a rule for it.</li><li>Waits: the sync halted; add a filter rule.</li></ul>
+<button type="button" class="open" data-inspect="upstream:entitlements">Open in inspector · entitlements</button>
+</section><section class="detail" data-up-detail="partition" hidden>
+<p class="eyebrow"><button type="button" class="link quiet" data-up="plan">Plan</button> › partition</p>
+<h3 class="">partition</h3>
+<p>current</p>
+<ul class="items"><li>fork_upstream carries every upstream commit.</li><li>Line: Sync PR · · Cascade · · Sync to Main · · Main run ·.</li></ul>
+<button type="button" class="open" data-inspect="upstream:partition">Open in inspector · partition</button>
+</section><section class="detail" data-up-detail="schema" hidden>
+<p class="eyebrow"><button type="button" class="link quiet" data-up="plan">Plan</button> › schema</p>
+<h3 class="">schema</h3>
+<p>current</p>
+<ul class="items"><li>fork_upstream carries every upstream commit.</li><li>Line: Sync PR · · Cascade · · Sync to Main · · Main run ·.</li></ul>
+<button type="button" class="open" data-inspect="upstream:schema">Open in inspector · schema</button>
+</section><section class="detail" data-up-detail="file" hidden>
+<p class="eyebrow"><button type="button" class="link quiet" data-up="plan">Plan</button> › file</p>
+<h3 class="">file</h3>
+<p>current</p>
+<ul class="items"><li>fork_upstream carries every upstream commit.</li><li>Line: Sync PR · · Cascade · · Sync to Main · · Main run ·.</li></ul>
+<button type="button" class="open" data-inspect="upstream:file">Open in inspector · file</button>
+</section></div></div></div>
+<div data-view-pane="horizon" hidden><h2>One filter entry would stop 4 future halts.</h2>
+<div class="split"><div class="focus"><button type="button" class="row trow on" data-theme-sel="toolchain:Java 25" aria-pressed="true">
+<span class="body"><span class="tt">Java 25</span> <span class="chip t-bad">TOOLCHAIN</span>
+<span class="ss">blocked: legal · open MRs: partition and schema</span></span><span class="when">13d</span></button><button type="button" class="row trow" data-theme-sel="halt:top_level:schemathesis-tests" aria-pressed="false">
+<span class="body"><span class="tt">schemathesis-tests</span> <span class="chip t-bad">HALT</span>
+<span class="ss">halted: entitlements · 4 other filters lack it · open MRs bring it to legal and file</span></span><span class="when">13d</span></button><button type="button" class="row trow" data-theme-sel="port" aria-pressed="false">
+<span class="body"><span class="tt">Provider changes to port</span> <span class="chip ">PORT</span>
+<span class="ss">3 merged MRs · entitlements 2, legal 1</span></span><span class="when">37d</span></button><button type="button" class="row trow" data-theme-sel="deadline:azure-removal" aria-pressed="false">
+<span class="body"><span class="tt">Azure removal upstream</span> <span class="chip ">DEADLINE</span>
+<span class="ss">0 pending · 5 established · 0 fork-only</span></span><span class="when">23 days left</span></button></div><div class="pane"><section class="detail" data-theme-detail="toolchain:Java 25">
+<p class="eyebrow"><span class="chip t-bad">TOOLCHAIN</span> 13d</p>
+<h3>Java 25</h3>
+<p class="dl">Exposure by fork</p><ul class="pairs"><li><span>legal</span><span class="ps">blocked · PR #31</span></li><li class="maybe"><span>partition</span><span class="ps"><button type="button" class="link" data-inspect="mr:partition:830">possible · open MR !830</button></span></li><li class="maybe"><span>schema</span><span class="ps"><button type="button" class="link" data-inspect="mr:schema:867">possible · open MR !867</button></span></li></ul>
+<dl class="kv"><dt>Next</dt><dd class="next">Move one fork&#39;s Java pin to 25 and repeat it for the others before the next sync carries it.</dd></dl>
+<button type="button" class="open" data-inspect="gate1:legal">Open in inspector</button>
+</section><section class="detail" data-theme-detail="halt:top_level:schemathesis-tests" hidden>
+<p class="eyebrow"><span class="chip t-bad">HALT</span> 13d</p>
+<h3>schemathesis-tests</h3>
+<p class="dl">Exposure by fork</p><ul class="pairs"><li><span>entitlements</span><span class="ps">halted 13d</span></li><li class="maybe"><span>legal</span><span class="ps"><button type="button" class="link" data-inspect="mr:legal:756">possible · open MR !756</button></span></li><li class="maybe"><span>file</span><span class="ps"><button type="button" class="link" data-inspect="mr:file:752">possible · open MR !752</button></span></li></ul>
+<dl class="kv"><dt>Exposed</dt><dd>partition, schema</dd><dt>Next</dt><dd class="next">Add a rule for schemathesis-tests to every fork&#39;s .github/upstream-filter.yml, starting with entitlements.</dd></dl>
+<button type="button" class="open" data-inspect="halt:entitlements">Open in inspector</button>
+</section><section class="detail" data-theme-detail="port" hidden>
+<p class="eyebrow"><span class="chip ">PORT</span> 37d</p>
+<h3>Provider changes to port</h3>
+<p class="dl">Exposure by fork</p><ul class="pairs"><li><span>entitlements</span><span class="ps">2 owed</span></li><li><span>legal</span><span class="ps">1 owed</span></li></ul>
+<dl class="kv"><dt>Next</dt><dd class="next">Port each MR into its fork-owned tree and cite the MR URL in the PR body.</dd></dl>
+<button type="button" class="open" data-inspect="port:entitlements">Open in inspector</button>
+</section><section class="detail" data-theme-detail="deadline:azure-removal" hidden>
+<p class="eyebrow"><span class="chip ">DEADLINE</span> 23 days left</p>
+<h3>Azure removal upstream</h3>
+<p class="dl">Exposure by fork</p><ul class="pairs"><li><span>partition</span><span class="ps">established</span></li><li><span>entitlements</span><span class="ps">established</span></li><li><span>legal</span><span class="ps">established</span></li><li><span>schema</span><span class="ps">established</span></li><li><span>file</span><span class="ps">established</span></li></ul>
+<dl class="kv"><dt>Next</dt><dd class="next">Upstream removes the Azure provider code at the deadline; forks keep their own copy.</dd></dl>
+
+</section></div></div></div>
+<div data-view-pane="releases" hidden><h2>Monthly release notes for SPI consumers.</h2>
+<p class="summary">Each month is built from the GitHub releases of the template, the stack, core-lib-azure and every service fork, with reviewed notes laid over it.</p>
+<div class="split"><div class="focus"><button type="button" class="row trow on" data-rel="release:2026-10" aria-pressed="true">
+<span class="body"><span class="tt">SPI 2026.10</span> <span class="chip t-ok">APPROVED</span>
+<span class="ss">All 13 services &lt;now&gt; ship from SPI forks.</span></span><span class="when">in progress</span></button><button type="button" class="row trow" data-rel="release:2026-09" aria-pressed="false">
+<span class="body"><span class="tt">SPI 2026.09</span> <span class="chip ">NO NOTES YET</span>
+<span class="ss">28 releases across 2 repositories in September 2026.</span></span><span class="when">closed</span></button><button type="button" class="row trow" data-rel="release:2026-08" aria-pressed="false">
+<span class="body"><span class="tt">SPI 2026.08</span> <span class="chip ">NO NOTES YET</span>
+<span class="ss">11 releases across 2 repositories in August 2026.</span></span><span class="when">closed</span></button><button type="button" class="row trow" data-rel="release:2026-07" aria-pressed="false">
+<span class="body"><span class="tt">SPI 2026.07</span> <span class="chip ">NO NOTES YET</span>
+<span class="ss">1 release across 1 repository in July 2026.</span></span><span class="when">closed</span></button><button type="button" class="row trow" data-rel="release:2026-04" aria-pressed="false">
+<span class="body"><span class="tt">SPI 2026.04</span> <span class="chip ">NO NOTES YET</span>
+<span class="ss">1 release across 1 repository in April 2026.</span></span><span class="when">closed</span></button><button type="button" class="row trow" data-rel="release:2026-03" aria-pressed="false">
+<span class="body"><span class="tt">SPI 2026.03</span> <span class="chip ">NO NOTES YET</span>
+<span class="ss">1 release across 1 repository in March 2026.</span></span><span class="when">closed</span></button></div><div class="pane"><section class="detail" data-rel-detail="release:2026-10">
+<p class="eyebrow"><span class="chip t-ok">APPROVED</span> In progress, closes Oct 31</p>
+<h3>SPI 2026.10</h3>
+<p>All 13 services &lt;now&gt; ship from SPI forks.</p>
+<div class="facts relfacts"><div class="fact"><div class="v">5/5</div><div class="s">services released from SPI forks</div></div><div class="fact"><div class="v">37</div><div class="s">releases across 8 repositories</div></div><div class="fact t-bad"><div class="v">1</div><div class="s">required action</div></div><div class="fact"><div class="v">1</div><div class="s">open known issue</div></div></div>
+
+<button type="button" class="open" data-inspect="release:2026-10">Open in inspector · read or download PDF</button>
+</section><section class="detail" data-rel-detail="release:2026-09" hidden>
+<p class="eyebrow"><span class="chip ">NO NOTES YET</span> Closed Sep 30</p>
+<h3>SPI 2026.09</h3>
+<p>28 releases across 2 repositories in September 2026.</p>
+<div class="facts relfacts"><div class="fact"><div class="v">1/5</div><div class="s">services released from SPI forks, 4 forked this month</div></div><div class="fact"><div class="v">28</div><div class="s">releases across 2 repositories</div></div><div class="fact unread"><div class="v">?</div><div class="s">actions not reviewed yet</div></div><div class="fact unread"><div class="v">?</div><div class="s">known issues not reviewed yet</div></div></div>
+
+<button type="button" class="open" data-inspect="release:2026-09">Open in inspector · read or download PDF</button>
+</section><section class="detail" data-rel-detail="release:2026-08" hidden>
+<p class="eyebrow"><span class="chip ">NO NOTES YET</span> Closed Aug 31</p>
+<h3>SPI 2026.08</h3>
+<p>11 releases across 2 repositories in August 2026.</p>
+<div class="facts relfacts"><div class="fact"><div class="v">1/5</div><div class="s">services released from SPI forks</div></div><div class="fact"><div class="v">11</div><div class="s">releases across 2 repositories</div></div><div class="fact unread"><div class="v">?</div><div class="s">actions not reviewed yet</div></div><div class="fact unread"><div class="v">?</div><div class="s">known issues not reviewed yet</div></div></div>
+
+<button type="button" class="open" data-inspect="release:2026-08">Open in inspector · read or download PDF</button>
+</section><section class="detail" data-rel-detail="release:2026-07" hidden>
+<p class="eyebrow"><span class="chip ">NO NOTES YET</span> Closed Jul 31</p>
+<h3>SPI 2026.07</h3>
+<p>1 release across 1 repository in July 2026.</p>
+<div class="facts relfacts"><div class="fact"><div class="v">1/5</div><div class="s">services released from SPI forks</div></div><div class="fact"><div class="v">1</div><div class="s">release across 1 repository</div></div><div class="fact unread"><div class="v">?</div><div class="s">actions not reviewed yet</div></div><div class="fact unread"><div class="v">?</div><div class="s">known issues not reviewed yet</div></div></div>
+
+<button type="button" class="open" data-inspect="release:2026-07">Open in inspector · read or download PDF</button>
+</section><section class="detail" data-rel-detail="release:2026-04" hidden>
+<p class="eyebrow"><span class="chip ">NO NOTES YET</span> Closed Apr 30</p>
+<h3>SPI 2026.04</h3>
+<p>1 release across 1 repository in April 2026.</p>
+<div class="facts relfacts"><div class="fact"><div class="v">1/5</div><div class="s">services released from SPI forks</div></div><div class="fact"><div class="v">1</div><div class="s">release across 1 repository</div></div><div class="fact unread"><div class="v">?</div><div class="s">actions not reviewed yet</div></div><div class="fact unread"><div class="v">?</div><div class="s">known issues not reviewed yet</div></div></div>
+
+<button type="button" class="open" data-inspect="release:2026-04">Open in inspector · read or download PDF</button>
+</section><section class="detail" data-rel-detail="release:2026-03" hidden>
+<p class="eyebrow"><span class="chip ">NO NOTES YET</span> Closed Mar 31</p>
+<h3>SPI 2026.03</h3>
+<p>1 release across 1 repository in March 2026.</p>
+<div class="facts relfacts"><div class="fact"><div class="v">0/5</div><div class="s">services released from SPI forks</div></div><div class="fact"><div class="v">1</div><div class="s">release across 1 repository</div></div><div class="fact unread"><div class="v">?</div><div class="s">actions not reviewed yet</div></div><div class="fact unread"><div class="v">?</div><div class="s">known issues not reviewed yet</div></div></div>
+
+<button type="button" class="open" data-inspect="release:2026-03">Open in inspector · read or download PDF</button>
+</section></div></div></div>
+</div>
+<script>(function () {
+  var k = window.keelson || {};
+  function show(row, pane, id, aria) {
+    var panes = document.querySelectorAll("[" + pane + "]");
+    var found = false;
+    panes.forEach(function (d) { if (d.getAttribute(pane) === id) found = true; });
+    if (!found) return false;
+    panes.forEach(function (d) { d.hidden = d.getAttribute(pane) !== id; });
+    document.querySelectorAll("[" + row + "]").forEach(function (r) {
+      var on = r.getAttribute(row) === id;
+      r.classList.toggle("on", on);
+      r.setAttribute(aria, on ? "true" : "false");
+    });
+    return true;
+  }
+  function current(row) {
+    var on = document.querySelector("[" + row + "].on");
+    return on ? on.getAttribute(row) : null;
+  }
+  var KINDS = [
+    ["view", "data-view", "data-view-pane", "aria-selected"],
+    ["sel", "data-sel", "data-detail", "aria-pressed"],
+    ["theme", "data-theme-sel", "data-theme-detail", "aria-pressed"],
+    ["up", "data-up", "data-up-detail", "aria-pressed"],
+    ["event", "data-event", "data-event-detail", "aria-pressed"],
+    ["repo", "data-repo", "data-repo-detail", "aria-pressed"],
+    ["rel", "data-rel", "data-rel-detail", "aria-pressed"],
+  ];
+  var state = {};
+  KINDS.forEach(function (c) { state[c[0]] = current(c[1]); });
+  if (k.onRestore) k.onRestore(function (s) {
+    if (!s) return;
+    KINDS.forEach(function (c) {
+      var id = s[c[0]];
+      if (typeof id === "string" && show(c[1], c[2], id, c[3])) state[c[0]] = id;
+    });
+  });
+  document.addEventListener("click", function (e) {
+    var t = e.target && e.target.closest ? e.target.closest("[data-view],[data-sel],[data-theme-sel],[data-up],[data-event],[data-repo],[data-rel],[data-inspect]") : null;
+    if (!t) return;
+    for (var i = 0; i < KINDS.length; i++) {
+      var c = KINDS[i];
+      var id = t.getAttribute(c[1]);
+      if (id === null) continue;
+      if (show(c[1], c[2], id, c[3])) {
+        state[c[0]] = id;
+        if (k.saveState) k.saveState({ view: state.view, sel: state.sel, theme: state.theme, up: state.up, event: state.event, repo: state.repo, rel: state.rel });
+      }
+      return;
+    }
+    if (k.action) k.action("inspect", { id: t.getAttribute("data-inspect") });
+  });
+})();</script>

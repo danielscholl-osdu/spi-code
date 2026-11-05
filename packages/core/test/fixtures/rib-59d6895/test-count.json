@@ -1,0 +1,209 @@
+{
+  "revision": "59d6895d140e9482ed788a3307177855d10883f0",
+  "bun": "1.3.13",
+  "files": [
+    {
+      "file": "test/act.test.ts",
+      "tests": 19,
+      "assertions": 75,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/approve.test.ts",
+      "tests": 9,
+      "assertions": 34,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/boards.test.ts",
+      "tests": 13,
+      "assertions": 45,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/brief.test.ts",
+      "tests": 35,
+      "assertions": 142,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/checks.test.ts",
+      "tests": 5,
+      "assertions": 10,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/collect.test.ts",
+      "tests": 23,
+      "assertions": 79,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/console.test.ts",
+      "tests": 22,
+      "assertions": 118,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/engineering.test.ts",
+      "tests": 9,
+      "assertions": 39,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/fleet.test.ts",
+      "tests": 39,
+      "assertions": 124,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/flow.test.ts",
+      "tests": 27,
+      "assertions": 119,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/history.test.ts",
+      "tests": 13,
+      "assertions": 31,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/inspect.test.ts",
+      "tests": 15,
+      "assertions": 111,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/ledgers.test.ts",
+      "tests": 16,
+      "assertions": 47,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/marks.test.ts",
+      "tests": 3,
+      "assertions": 15,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/model.test.ts",
+      "tests": 31,
+      "assertions": 108,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/next.test.ts",
+      "tests": 6,
+      "assertions": 33,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/radar.test.ts",
+      "tests": 14,
+      "assertions": 56,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/reason.test.ts",
+      "tests": 11,
+      "assertions": 22,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/releases.test.ts",
+      "tests": 32,
+      "assertions": 153,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/repos.test.ts",
+      "tests": 15,
+      "assertions": 46,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/repositories.test.ts",
+      "tests": 14,
+      "assertions": 50,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/rib.test.ts",
+      "tests": 19,
+      "assertions": 267,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/rollout.test.ts",
+      "tests": 10,
+      "assertions": 43,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/security.test.ts",
+      "tests": 4,
+      "assertions": 13,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/stack.test.ts",
+      "tests": 10,
+      "assertions": 30,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/sweep.test.ts",
+      "tests": 5,
+      "assertions": 27,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/upstream.test.ts",
+      "tests": 45,
+      "assertions": 349,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "file": "test/work.test.ts",
+      "tests": 5,
+      "assertions": 33,
+      "failures": 0,
+      "skipped": 0
+    }
+  ],
+  "total": {
+    "files": 28,
+    "tests": 469,
+    "assertions": 2219,
+    "failures": 0,
+    "skipped": 0
+  }
+}

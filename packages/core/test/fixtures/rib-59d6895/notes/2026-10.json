@@ -1,0 +1,35 @@
+{
+  "status": "approved",
+  "headline": "All 13 services <now> ship from SPI forks.",
+  "keyChanges": [],
+  "actions": [
+    {
+      "level": "required",
+      "title": "Move unit off 2.5.10",
+      "owner": "unit fork"
+    }
+  ],
+  "knownIssues": [
+    {
+      "state": "open",
+      "title": "Stray upstream tags."
+    }
+  ],
+  "highlights": [
+    {
+      "title": "Coverage",
+      "visual": "coverage"
+    }
+  ],
+  "changelog": [
+    {
+      "area": "Services",
+      "items": [
+        {
+          "type": "new",
+          "text": "Eight forks"
+        }
+      ]
+    }
+  ]
+}

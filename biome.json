@@ -17,7 +17,8 @@
       "!**/node_modules",
       "!**/dist",
       "!**/build",
-      "!design"
+      "!design",
+      "!packages/core/test/fixtures/rib-59d6895"
     ]
   },
   "formatter": {
