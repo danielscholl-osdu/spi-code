@@ -4,7 +4,10 @@
 import { describe, expect, test } from "vitest";
 import { APPROVE_RUNS, approveAction, approveTargets } from "../../src/act/approve.js";
 import { bindingSchema } from "../../src/act/verbs.js";
+import type { OutsidePr, WaitingRun } from "../../src/facts.js";
+import { buildModel } from "../../src/model/index.js";
 import type { ApprovePr } from "../../src/model/queue.js";
+import { FIXTURE_NOW, fixtureFacts } from "../harness.js";
 
 const STACK = "Azure/osdu-spi-stack";
 const SWEPT = { item: `approvals:${STACK}`, swept: "2026-10-12T21:58:30Z" };
@@ -112,5 +115,87 @@ describe("the approve button", () => {
     expect(button.confirm?.body).toContain("first-time-contributor, draft");
     expect(button.confirm?.body).toContain("Files: one.ts.");
     expect(button.confirm?.body).not.toContain("more.");
+  });
+});
+
+const HEAD_343 = "541ab075615710332d1212659f536d027e6c72c3";
+const HEAD_327 = "c1c308ae709bd66451a299509b69097888ac5f81";
+const PR_343: OutsidePr = {
+  number: 343,
+  title: "fix(k8s): Harden Reference Catalog Downloads",
+  url: `https://github.com/${STACK}/pull/343`,
+  author: "contributor-a",
+  association: "CONTRIBUTOR",
+  draft: false,
+  headSha: HEAD_343,
+  files: [".github/workflows/validate.yml", "k8s/reference/download.sh"],
+  changedFiles: 2,
+  additions: 90,
+  deletions: 12,
+};
+const PR_327: OutsidePr = approval.pr;
+
+function waitingRun(
+  id: number,
+  name: string,
+  sha: string,
+  at: string,
+  pr?: OutsidePr | null,
+): WaitingRun {
+  return {
+    id,
+    name,
+    path: `.github/workflows/${name.toLowerCase()}.yml`,
+    event: "pull_request",
+    status: "completed",
+    conclusion: "action_required",
+    createdAt: at,
+    updatedAt: at,
+    sha,
+    title: pr?.title ?? "feat: add RAFS service",
+    url: `https://github.com/${STACK}/actions/runs/${id}`,
+    attempt: 1,
+    ...(pr !== undefined ? { pr } : {}),
+  };
+}
+
+const STALE_SHA = "1ad08ed999501f788a48cce241ca3a289a4dbb38";
+const WAITING: WaitingRun[] = [
+  waitingRun(38380539981, "CodeQL", HEAD_343, "2026-10-12T20:01:49Z", PR_343),
+  waitingRun(38380540082, "Validate", HEAD_343, "2026-10-12T20:01:49Z", PR_343),
+  waitingRun(38268575770, "CodeQL", HEAD_327, "2026-10-12T15:12:52Z", PR_327),
+  waitingRun(38268575898, "Validate", HEAD_327, "2026-10-12T15:12:52Z", PR_327),
+  waitingRun(38260195110, "CodeQL", STALE_SHA, "2026-10-12T14:04:03Z", null),
+  waitingRun(38260194924, "Validate", STALE_SHA, "2026-10-12T14:04:03Z", null),
+];
+
+function modelWith(waiting: WaitingRun[]) {
+  const facts = fixtureFacts();
+  facts.approvals.data = { ...facts.approvals.data, [STACK]: waiting };
+  return buildModel(facts, FIXTURE_NOW);
+}
+
+describe("waiting runs in the queue", () => {
+  test("group by the PR at their head; runs on superseded heads have nothing to approve", () => {
+    const item = modelWith(WAITING).queue.items.find((i) => i.id === `approvals:${STACK}`);
+    expect(item?.rung).toBe(1);
+    expect(item?.text).toBe("2 outside PRs wait for workflow approval");
+    expect(item?.since).toBe("2026-10-12T15:12:52Z");
+    expect(item?.approve?.map((a) => [a.pr.number, a.runs.length, a.workflowFiles])).toEqual([
+      [327, 2, []],
+      [343, 2, [".github/workflows/validate.yml"]],
+    ]);
+    expect(item?.cause.find((f) => f.label === "superseded")?.value).toBe(
+      "2 runs on heads since pushed past; nothing to approve",
+    );
+  });
+
+  test("only superseded runs leave no item; unread PRs fall back to counting titles", () => {
+    const stale = WAITING.slice(4);
+    expect(modelWith(stale).queue.items.find((i) => i.id === `approvals:${STACK}`)).toBeUndefined();
+    const unread = WAITING.map(({ pr: _, ...r }) => r);
+    const item = modelWith(unread).queue.items.find((i) => i.id === `approvals:${STACK}`);
+    expect(item?.text).toBe("2 outside PRs wait for workflow approval");
+    expect(item?.approve).toBeUndefined();
   });
 });

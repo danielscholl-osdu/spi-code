@@ -21,15 +21,26 @@ portion of `src/act/rerun.ts` (through `dispatchActions`, before
   The existing config, lane, stack, queue, util and rollout helpers are reused.
   No fleet reads, ambient clocks, verb registration or barrel exports are added.
 
-## Moved cases (9)
+## Moved cases (11)
 
-Two cases from `test/approve.test.ts` run in `test/act/approve.test.ts`:
+Four cases from `test/approve.test.ts` run in `test/act/approve.test.ts`:
 
 1. names the author, the diff and the files, and lists one call per run
 2. a PR that changes .github/ is approved only after its number is typed
+3. waiting runs in the queue: group by the PR at their head; runs on superseded
+   heads have nothing to approve
+4. waiting runs in the queue: only superseded runs leave no item; unread PRs
+   fall back to counting titles
+
+Cases 3 and 4 build the model with `buildModel` over `fixtureFacts` with
+`facts.approvals` set, so core's queue grouping (by head, superseded runs
+dropped, `workflowFiles` derived) is exercised; cases 1 and 2 hand-build
+`ApprovePr` and test only the planner.
 
 Seven planning cases run in `test/act/rerun.test.ts`: all five
-`the environment verbs` cases from `test/inspect.test.ts`, and
+`the environment verbs` cases from `test/inspect.test.ts` (their inspector-level
+assertions, `gate(b)` and the missing-repo-scope message, stay in the rib until
+t1k.44), and
 `Re-run lanes takes the same cap` plus
 `a stop judgement draws no re-run, now or when deployable` from
 `test/fleet.test.ts`.
@@ -45,9 +56,9 @@ No execution behavior is replaced by a planner assertion.
 
 ## Staying in the rib
 
-The other seven approval cases remain there: two queue grouping/superseded-head
-cases, one inspector/board-validation case, three action-path execution and
-revalidation cases, and one approval collector/cache case. At the pinned source,
+The other five approval cases remain there: one inspector/board-validation case
+and the three action-path execution and revalidation cases (until t1k.44), and
+one approval collector/cache case (until the collector bead). At the pinned source,
 `bun test test/approve.test.ts` passes all nine cases (34 assertions). The seven
 original rerun planning cases also pass there (49 assertions). Nothing in the
 source repository is changed or deleted.
@@ -55,13 +66,13 @@ source repository is changed or deleted.
 `test/act.test.ts`'s `the re-run verbs` and `the re-run wait` suites stay in the
 rib: they exercise execution, revalidation, logs, durable ops and rib integration,
 not the extracted planning half. The remaining inspector/fleet cases stay too.
-For LEDGER, count nine moved original cases, not the temporary copies in both
-runners. The other seven approval cases are not claimed as core migrations.
+For LEDGER, count eleven moved original cases, not the temporary copies in both
+runners. The other five approval cases are not claimed as core migrations.
 
 ## Added core coverage and parity
 
 Two new core-only cases cover disabled/singular/draft approval presentation and
-multiple runs for one PR with differing failed steps. All eleven core cases
+multiple runs for one PR with differing failed steps. All thirteen core cases
 appear in `pnpm vitest list`; the full check passes 61 files and 718 tests.
 
 A direct comparison with the pinned rib passes **11,520 lane**, **72 dispatch**
