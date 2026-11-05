@@ -171,9 +171,15 @@ export interface Fleet {
   readonly repos: readonly string[];
   readonly releaseRepos: readonly string[];
   readonly projectRepos: readonly string[];
+  // The library whose releases are read with the fleet's; null leaves it out of every read.
+  readonly coreLib: string | null;
 }
 
-export function fleetOf(next: readonly ServiceDef[], stackRepo: string = STACK_REPO): Fleet {
+export function fleetOf(
+  next: readonly ServiceDef[],
+  stackRepo: string = STACK_REPO,
+  coreLib: string | null = CORE_LIB_REPO,
+): Fleet {
   const services = Object.freeze(next.map((s) => Object.freeze({ ...s })));
   const forks = Object.freeze(services.filter((s): s is ForkDef => !!s.repo));
   return Object.freeze({
@@ -181,8 +187,11 @@ export function fleetOf(next: readonly ServiceDef[], stackRepo: string = STACK_R
     forks,
     planned: Object.freeze(services.filter((s) => !s.repo)),
     repos: Object.freeze([TEMPLATE_REPO, stackRepo, ...forks.map((f) => f.repo)]),
-    releaseRepos: Object.freeze([TEMPLATE_REPO, stackRepo, CORE_LIB_REPO, ...forks.map((f) => f.repo)]),
+    releaseRepos: Object.freeze([
+      TEMPLATE_REPO, stackRepo, ...(coreLib ? [coreLib] : []), ...forks.map((f) => f.repo),
+    ]),
     projectRepos: Object.freeze([...forks.map((f) => f.repo), TEMPLATE_REPO]),
+    coreLib,
   });
 }
 

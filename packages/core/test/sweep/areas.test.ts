@@ -4,10 +4,13 @@
 import { expect, test } from "vitest";
 import { z } from "zod";
 import {
+  CORE_LIB_REPO,
   fleetOf,
   GITLAB_EVERY_MS,
   RELEASES_EVERY_MS,
   SECURITY_EVERY_MS,
+  STACK_REPO,
+  shortRepo,
 } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
 import { RecordingExec, ReplayExec } from "../../src/exec/index.js";
@@ -284,6 +287,26 @@ test("two interleaved fleets keep facts, caches and budgets independent", async 
   expect(Object.keys(two.cache.radar.pins.forks)).toEqual([]);
   expect(one.cache.budget.deferred).toEqual([]);
   expect(two.cache.budget).toEqual(budget);
+});
+
+test("a fleet without the core library makes no release reads for it; the default fleet does", async () => {
+  const library = (log: readonly string[]) =>
+    log.filter((line) => line.includes(shortRepo(CORE_LIB_REPO)));
+  const standard = harness();
+  expect(standard.options.ctx.fleet.releaseRepos).toContain(CORE_LIB_REPO);
+  await createSweeper(standard.options).sweep();
+  expect(library(standard.log).length).toBeGreaterThan(0);
+
+  const without = harness();
+  const fleet = fleetOf(without.options.ctx.fleet.services, STACK_REPO, null);
+  const sweeper = createSweeper({
+    ...without.options,
+    ctx: createContext({ ...without.options.ctx, fleet }),
+  });
+  await sweeper.sweep();
+  expect(sweeper.cache.releases.at).toBe(START);
+  expect(sweeper.cache.releases.releases).toHaveProperty("owner/partition");
+  expect(library(without.log)).toEqual([]);
 });
 
 test("sweeper fleet reads and pruning use its context stack after fleet context rebuilding", async () => {

@@ -19,8 +19,9 @@ export interface CoreContext {
 
 export function createContext(input: Partial<CoreContext> = {}): CoreContext {
   const stackRepo = input.stackRepo ?? STACK_REPO;
+  const base = input.fleet ?? DEFAULT_FLEET;
   const fleet = input.fleet || stackRepo !== STACK_REPO
-    ? fleetOf((input.fleet ?? DEFAULT_FLEET).services, stackRepo)
+    ? fleetOf(base.services, stackRepo, base.coreLib)
     : DEFAULT_FLEET;
   const rollout = input.rollout;
   const clock = input.clock ?? systemClock;

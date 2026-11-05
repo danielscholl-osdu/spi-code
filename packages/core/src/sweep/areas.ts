@@ -262,7 +262,9 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
         now: options.ctx.clock.now(), readFile: options.readFile, previous: view,
       });
       return createContext({ ...options.ctx,
-        fleet: facts.fleet.data?.forks || options.fleetFiles?.services ? fleetOf(view.fleet.services) : options.ctx.fleet,
+        fleet: facts.fleet.data?.forks || options.fleetFiles?.services
+          ? fleetOf(view.fleet.services, options.ctx.stackRepo, options.ctx.fleet.coreLib)
+          : options.ctx.fleet,
         rollout: view.rollout.rollout ?? options.ctx.rollout });
     },
     beforeSweep: ({ cache }) => {
