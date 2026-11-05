@@ -14,18 +14,20 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
+import { buildQueries } from "../packages/core/src/collect/github-read.js";
 import {
   auditSweep,
   callTargets,
+  classify,
   fenceMessage,
   JWT_MARK,
   NOT_PUBLIC,
-  references,
+  REST_SHAPES,
   scrubEmails,
   scrubJwts,
   sweepReferences,
 } from "./audit-exec-log.js";
-import { prepareOut } from "./record-sweep.js";
+import { managedEnv, prepareOut } from "./record-sweep.js";
 
 const AUDIT = join(import.meta.dirname, "..", "fixtures", "exec", "audit");
 const temps: string[] = [];
@@ -94,11 +96,13 @@ describe("audit-exec-log", () => {
       `"args":["api","-H","Authorization: bearer ${"a".repeat(24)}",`,
     );
     plant(dir, 2, "acme", "elsewhere");
-    expect(auditSweep(dir).findings).toEqual([
+    const findings = auditSweep(dir).findings;
+    expect(findings.filter((f) => !f.includes("unrecognized command"))).toEqual([
       "exec.jsonl:2 args[2]: authorization header",
       "exec.jsonl:2 args[2]: bearer credential",
       "github elsewhere/gadgets: not checked at record time",
     ]);
+    expect(findings.filter((f) => f.includes("unrecognized command")).length).toBe(1);
   });
 
   test("scrubs emails without breaking the JSON around them", () => {
@@ -116,7 +120,18 @@ describe("audit-exec-log", () => {
   });
 
   test("passes a call fenced on a private repository, which read nothing of it", () => {
-    const releases = { cmd: "gh", args: ["api", "repos/acme/vault/releases"], stdin: null, ms: 0 };
+    const releases = {
+      cmd: "gh",
+      args: [
+        "api",
+        "--paginate",
+        "repos/acme/vault/releases?per_page=100",
+        "--jq",
+        jqOf("releases"),
+      ],
+      stdin: null,
+      ms: 0,
+    };
     const fence = { stdout: "", stderr: fenceMessage("acme/vault", NOT_PUBLIC), exit: 1 };
     const dir = copyOfClean();
     setVisibility(dir, "github", "acme/vault", "private");
@@ -141,36 +156,32 @@ describe("audit-exec-log", () => {
     const jwt = `eyJ${"a".repeat(10)}.eyJ${"b".repeat(10)}.${"c".repeat(10)}`;
     expect(scrubJwts(`token: ${jwt}\n`)).toBe(`token: ${JWT_MARK}\n`);
   });
-
-  test("reads the repository names a recorded call carries", () => {
-    const refs = references(
-      'repos/a/b/pulls repository(owner: "c", name: "d") projects/x%2Fy%2Fz fullPath: "p/q"',
-    );
-    expect([...refs.github].sort()).toEqual(["a/b", "c/d"]);
-    expect([...refs.gitlab].sort()).toEqual(["p/q", "x/y/z"]);
-  });
 });
 
-// Every call shape the recorder emits, as recorded on 2026-11-05, with what it names.
+// Representative calls of the allowlisted shapes, as the sweep issues them, with what they read.
 const GITLAB_HOST = ["--hostname", "community.opengroup.org"];
+const jqOf = (id: string) => REST_SHAPES.find((shape) => shape.id === id)?.jq ?? "";
+const BUDGET = "spicodeBudget: rateLimit { cost remaining resetAt }";
 const SHAPES: {
   cmd: string;
   args: string[];
+  class: "public-content" | "operator";
   github?: string[];
   gitlab?: string[];
   groups?: string[];
 }[] = [
-  { cmd: "gh", args: ["auth", "status", "--hostname", "github.com"] },
-  { cmd: "glab", args: ["auth", "status", ...GITLAB_HOST] },
-  { cmd: "gh", args: ["api", "user", "--jq", ".login"] },
+  { cmd: "gh", args: ["auth", "status", "--hostname", "github.com"], class: "operator" },
+  { cmd: "glab", args: ["auth", "status", ...GITLAB_HOST], class: "operator" },
+  { cmd: "gh", args: ["api", "user", "--jq", ".login"], class: "operator" },
   {
     cmd: "gh",
     args: [
       "api",
       "repos/Azure/osdu-spi-partition/actions/workflows/sync.yml/runs?per_page=10",
       "--jq",
-      "{total: .total_count}",
+      jqOf("runs"),
     ],
+    class: "public-content",
     github: ["Azure/osdu-spi-partition"],
   },
   {
@@ -180,19 +191,34 @@ const SHAPES: {
       "--paginate",
       "repos/Azure/osdu-spi-stack/pulls?state=open&per_page=100",
       "--jq",
-      ".[] | {number}",
+      jqOf("open pulls"),
     ],
+    class: "public-content",
     github: ["Azure/osdu-spi-stack"],
   },
   {
     cmd: "gh",
     args: ["api", "--allow-escape-sequences", "repos/Azure/osdu-spi-stack/actions/jobs/1/logs"],
+    class: "public-content",
     github: ["Azure/osdu-spi-stack"],
   },
   {
     cmd: "gh",
-    args: ["api", "repos/Azure/osdu-spi/contents/.github/x.yml"],
+    args: ["api", "repos/Azure/osdu-spi/contents/.github/upstream-filter.yml"],
+    class: "public-content",
     github: ["Azure/osdu-spi"],
+  },
+  {
+    cmd: "gh",
+    args: [
+      "api",
+      "--paginate",
+      "repos/Azure/osdu-spi-stack/dependabot/alerts?state=open&per_page=100",
+      "--jq",
+      jqOf("dependabot alerts"),
+    ],
+    class: "operator",
+    github: ["Azure/osdu-spi-stack"],
   },
   {
     cmd: "gh",
@@ -200,8 +226,9 @@ const SHAPES: {
       "api",
       "graphql",
       "-f",
-      'query=query { spicodeBudget: rateLimit { cost remaining resetAt }  template: repository(owner: "Azure", name: "osdu-spi") { object(expression: "main:x") { ... on Blob { text } } } r1: repository(owner: "Azure", name: "osdu-spi-stack") { createdAt } }',
+      `query=query { ${BUDGET}  template: repository(owner: "Azure", name: "osdu-spi") { object(expression: "main:x.json") { ... on Blob { text } } } r1: repository(owner: "Azure", name: "osdu-spi-stack") { createdAt } }`,
     ],
+    class: "operator",
     github: ["Azure/osdu-spi", "Azure/osdu-spi-stack"],
   },
   {
@@ -210,8 +237,9 @@ const SHAPES: {
       "api",
       "graphql",
       "-f",
-      'query=query { port_o0: search(query: "repo:Azure/osdu-spi-partition is:pr is:open", type: ISSUE, first: 100) { issueCount } }',
+      `query=query { ${BUDGET} port_o0: search(query: "repo:Azure/osdu-spi-partition is:pr is:open", type: ISSUE, first: 100) { issueCount pageInfo { hasNextPage endCursor } nodes { ... on PullRequest { number url mergedAt bodyText commits(first: 100) { totalCount pageInfo { hasNextPage } nodes { commit { message } } } } } } }`,
     ],
+    class: "operator",
     github: ["Azure/osdu-spi-partition"],
   },
   {
@@ -221,6 +249,7 @@ const SHAPES: {
       ...GITLAB_HOST,
       "projects/osdu%2Fplatform%2Fsystem%2Fpartition/repository/branches/master",
     ],
+    class: "public-content",
     gitlab: ["osdu/platform/system/partition"],
   },
   {
@@ -228,8 +257,9 @@ const SHAPES: {
     args: [
       "api",
       ...GITLAB_HOST,
-      "groups/osdu%2Fplatform/issues?labels=SPI%20fork%3A%3Apending&state=all",
+      "groups/osdu%2Fplatform/issues?labels=SPI%20fork%3A%3Apending&state=all&per_page=100&page=1",
     ],
+    class: "operator",
     groups: ["osdu/platform"],
   },
   {
@@ -239,8 +269,9 @@ const SHAPES: {
       "graphql",
       ...GITLAB_HOST,
       "-f",
-      'query=query { p0: project(fullPath: "osdu/platform/system/partition") { mergeRequests(state: merged, first: 100) { nodes { iid } } } }',
+      'query=query { p0: project(fullPath: "osdu/platform/system/partition") { mergeRequests(state: merged, targetBranches: ["master"], mergedAfter: "2026-01-01T00:00:00Z", first: 100) { pageInfo { hasNextPage } nodes { iid title webUrl mergedAt diffHeadSha } } } }',
     ],
+    class: "public-content",
     gitlab: ["osdu/platform/system/partition"],
   },
 ];
@@ -248,61 +279,97 @@ const SHAPES: {
 const sorted = (set: Set<string> | undefined) => [...(set ?? [])].sort();
 
 describe("call shapes", () => {
-  test.each(SHAPES)(
-    "$cmd $args.0 $args.1 names what it reads",
-    ({ cmd, args, github, gitlab, groups }) => {
-      const targets = callTargets(cmd, args);
-      expect(targets).toBeDefined();
-      expect(sorted(targets?.github)).toEqual(github ?? []);
-      expect(sorted(targets?.gitlab)).toEqual(gitlab ?? []);
-      expect(sorted(targets?.gitlabGroups)).toEqual(groups ?? []);
-    },
-  );
+  test.each(SHAPES)("$cmd $args.0 $args.1 is $class and names what it reads", (shape) => {
+    const classified = classify(shape.cmd, shape.args);
+    expect("refused" in classified ? classified : classified.class).toBe(shape.class);
+    const targets = callTargets(shape.cmd, shape.args);
+    expect(sorted(targets?.github)).toEqual(shape.github ?? []);
+    expect(sorted(targets?.gitlab)).toEqual(shape.gitlab ?? []);
+    expect(sorted(targets?.gitlabGroups)).toEqual(shape.groups ?? []);
+  });
 
-  test("reads repositories named by bare arguments and GraphQL variables", () => {
-    expect(sorted(callTargets("gh", ["repo", "view", "acme/vault"])?.github)).toEqual([
-      "acme/vault",
+  test("gives a GraphQL call's budget block the operator class, and each other block its own", () => {
+    const classified = classify("gh", SHAPES[8]?.args ?? []);
+    expect("refused" in classified ? [] : classified.blocks?.map((b) => [b.key, b.class])).toEqual([
+      ["spicodeBudget", "operator"],
+      ["template", "public-content"],
+      ["r1", "public-content"],
     ]);
-    expect(sorted(callTargets("gh", ["pr", "list", "-R", "acme/vault"])?.github)).toEqual([
-      "acme/vault",
+  });
+
+  // The documents core sends, built by core: every block and fragment is allowlisted.
+  test("reads every document packages/core builds", () => {
+    const forks = Array.from({ length: 7 }, (_, i) => ({ repo: `Azure/osdu-spi-f${i}` }));
+    const docs = buildQueries({
+      fleet: { forks, planned: [{ id: "planned" }] },
+      stackRepo: "Azure/osdu-spi-stack",
+    } as unknown as Parameters<typeof buildQueries>[0]);
+    const read = docs.map((doc) => {
+      const args = ["api", "graphql", "-f", `query=${doc.replace("query {", `query { ${BUDGET}`)}`];
+      return sorted(callTargets("gh", args)?.github);
+    });
+    expect(read).toEqual([
+      ["Azure/osdu-spi", "Azure/osdu-spi-planned", "Azure/osdu-spi-stack"],
+      forks.slice(0, 5).map((f) => f.repo),
+      forks.slice(5).map((f) => f.repo),
     ]);
-    expect(sorted(callTargets("glab", ["repo", "view", "a/b/c"])?.gitlab)).toEqual(["a/b/c"]);
-    const query =
-      "query=query($o: String!, $n: String!) { repository(owner: $o, name: $n) { id } }";
-    expect(
-      sorted(
-        callTargets("gh", ["api", "graphql", "-f", query, "-f", "o=acme", "-F", "n=vault"])?.github,
-      ),
-    ).toEqual(["acme/vault"]);
   });
 
   test.each([
-    ["gh", ["api", "orgs/acme/repos"]],
-    ["gh", ["pr", "list"]],
-    ["gh", ["auth", "token"]],
-    ["gh", ["api", "graphql", "-f", "query={ repository(owner: $o, name: $n) { id } }"]],
+    ["a bare argument", "gh", ["repo", "view", "acme/vault"]],
+    ["a -R repository", "gh", ["pr", "list", "-R", "acme/vault"]],
+    ["glab repo view", "glab", ["repo", "view", "a/b/c"]],
     [
+      "GraphQL variables",
       "gh",
       [
         "api",
         "graphql",
         "-f",
-        'query={ organization(login: "acme") { repositories(first: 9) { nodes { name } } } }',
+        "query=query($o: String!, $n: String!) { repository(owner: $o, name: $n) { id } }",
+        "-f",
+        "o=acme",
       ],
     ],
+    ["an organization listing", "gh", ["api", "orgs/acme/repos"]],
+    ["gh pr list", "gh", ["pr", "list"]],
+    ["gh auth token", "gh", ["auth", "token"]],
     [
+      "an organization's repositories",
       "gh",
       [
         "api",
         "graphql",
         "-f",
-        'query={ search(query: "org:acme", type: REPOSITORY, first: 9) { repositoryCount } }',
+        `query={ ${BUDGET} organization(login: "acme") { repositories(first: 9) { nodes { name } } } }`,
       ],
     ],
-    ["gh", ["api", "--input", "-", "repos/acme/widgets/issues"]],
-    ["glab", ["api", "repos/acme/widgets"]],
-    ["git", ["clone", "https://github.com/acme/vault"]],
-  ])("refuses to vouch for %s %j", (cmd, args) => {
+    [
+      "a repository search",
+      "gh",
+      [
+        "api",
+        "graphql",
+        "-f",
+        `query={ ${BUDGET} search(query: "org:acme", type: REPOSITORY, first: 9) { repositoryCount } }`,
+      ],
+    ],
+    ["a request body", "gh", ["api", "--input", "-", "repos/acme/widgets/issues"]],
+    ["a gh path on glab", "glab", ["api", "repos/acme/widgets"]],
+    ["git clone", "git", ["clone", "https://github.com/acme/vault"]],
+    ["a jq filter of its own", "gh", ["api", "repos/acme/widgets/pulls/1", "--jq", "env"]],
+    ["a dot segment", "gh", ["api", "repos/acme/../actions/runs/1", "--jq", jqOf("run")]],
+    [
+      "a forged fragment",
+      "gh",
+      [
+        "api",
+        "graphql",
+        "-f",
+        `query=query { ${BUDGET} r_stack: repository(owner: "a", name: "b") { ...Base ...Stack } } fragment Base on Repository { nameWithOwner viewerPermission } fragment Stack on Repository { nameWithOwner }`,
+      ],
+    ],
+  ])("refuses %s", (_, cmd, args) => {
     expect(callTargets(cmd, args)).toBeUndefined();
   });
 
@@ -312,7 +379,7 @@ describe("call shapes", () => {
         .filter((name) => /^sweep-/.test(name))
         .map((name) => join(local, name))
     : [];
-  test.skipIf(!recorded.length)("every call in a local recording is a known shape", () => {
+  test.skipIf(!recorded.length)("every call in a local recording is an allowlisted shape", () => {
     for (const dir of recorded) {
       for (const line of readFileSync(join(dir, "exec.jsonl"), "utf8")
         .split("\n")
@@ -327,55 +394,14 @@ describe("call shapes", () => {
   });
 });
 
-describe("references in text", () => {
-  test.each([
-    ["https://github.com/acme/vault", "acme/vault"],
-    ["clone github.com/acme/vault.git.", "acme/vault"],
-    ["git@github.com:acme/vault.git", "acme/vault"],
-    ["ssh://git@github.com/acme/vault", "acme/vault"],
-    ["https://github.com/acme/vault/wiki/Home", "acme/vault"],
-    ['search(query: \\"repo:acme/vault is:pr\\")', "acme/vault"],
-    ["https://raw.githubusercontent.com/acme/vault/main/x.yml", "acme/vault"],
-    ['repository(name: "vault", owner: "acme")', "acme/vault"],
-  ])("GitHub: %s", (text, name) => {
-    expect(sorted(references(text).github)).toEqual([name]);
-  });
-
-  test("skips GitHub's own pages", () => {
-    expect(
-      sorted(references("https://github.com/orgs/acme/people github.com/settings/tokens").github),
-    ).toEqual([]);
-  });
-
-  test.each([
-    ["https://community.opengroup.org/a/b/-/merge_requests/1", ["a/b"], []],
-    ["git@community.opengroup.org:a/b.git", ["a/b"], ["a"]],
-    ["https://community.opengroup.org/a/b/c", ["a/b", "a/b/c"], ["a", "a/b"]],
-    ["https://community.opengroup.org/groups/a/b/-/issues", [], ["a/b"]],
-    ["glab api groups/a%2Fb/issues", [], ["a/b"]],
-    ['group(fullPath: \\"a/b\\")', [], ["a/b"]],
-    ['project(fullPath: "a/b")', ["a/b"], []],
-  ])("GitLab: %s", (text, projects, groups) => {
-    const refs = references(text);
-    expect(sorted(refs.gitlab)).toEqual(projects);
-    expect(sorted(refs.gitlabGroups)).toEqual(groups);
-  });
-});
-
 describe("audit of shapes, decoded strings and new credentials", () => {
-  test("fails a private repository read by a bare argument", () => {
-    const dir = copyOfClean();
-    setVisibility(dir, "github", "acme/vault", "private");
-    append(dir, { cmd: "gh", args: ["repo", "view", "acme/vault"], ...ok, stdout: "{}" });
-    expect(auditSweep(dir).findings).toEqual(["github acme/vault: private"]);
-  });
-
-  test("fails a private repository read through GraphQL variables", () => {
-    const dir = copyOfClean();
-    setVisibility(dir, "github", "acme/vault", "private");
-    append(dir, {
-      cmd: "gh",
-      args: [
+  // A call outside the allowlist reads what it likes: it fails as unrecognized, whatever it names.
+  test.each([
+    ["by a bare argument", "gh", ["repo", "view", "acme/vault"]],
+    [
+      "through GraphQL variables",
+      "gh",
+      [
         "api",
         "graphql",
         "-f",
@@ -385,29 +411,15 @@ describe("audit of shapes, decoded strings and new credentials", () => {
         "-f",
         "n=vault",
       ],
-      ...ok,
-      stdout: "{}",
-    });
-    expect(auditSweep(dir).findings).toEqual(["github acme/vault: private"]);
-  });
-
-  test("fails a private repository a call reads by its clone URL", () => {
+    ],
+    ["by its clone URL", "git", ["ls-remote", "git@github.com:acme/vault.git"]],
+    ["by an organization listing", "gh", ["api", "orgs/acme/repos"]],
+  ])("fails a call that reads %s", (_, cmd, args) => {
     const dir = copyOfClean();
     setVisibility(dir, "github", "acme/vault", "private");
-    append(dir, {
-      cmd: "git",
-      args: ["ls-remote", "git@github.com:acme/vault.git"],
-      ...ok,
-      stdout: "",
-    });
-    expect(auditSweep(dir).findings).toEqual(["github acme/vault: private"]);
-  });
-
-  test("fails a call whose shape it cannot read", () => {
-    const dir = copyOfClean();
-    append(dir, { cmd: "gh", args: ["api", "orgs/acme/repos"], ...ok, stdout: "[]" });
+    append(dir, { cmd, args, ...ok, stdout: "{}" });
     expect(auditSweep(dir).findings).toEqual([
-      "exec.jsonl:5: unrecognised call gh api orgs/acme/repos",
+      `exec.jsonl:5: unrecognized command: ${[cmd, ...args].join(" ")}`,
     ]);
   });
 
@@ -416,7 +428,11 @@ describe("audit of shapes, decoded strings and new credentials", () => {
     setVisibility(dir, "gitlabGroups", "osdu/hidden", "private");
     append(dir, {
       cmd: "glab",
-      args: ["api", ...GITLAB_HOST, "groups/osdu%2Fhidden/issues"],
+      args: [
+        "api",
+        ...GITLAB_HOST,
+        "groups/osdu%2Fhidden/issues?labels=x&state=all&per_page=100&page=1",
+      ],
       ...ok,
       stdout: "[]",
     });
@@ -425,10 +441,10 @@ describe("audit of shapes, decoded strings and new credentials", () => {
 
   test("fails credentials and emails hidden behind JSON escapes", () => {
     const dir = copyOfClean();
-    plant(dir, 1, '\\"login\\": \\"octo\\"', '\\"login\\": \\"jane\\\\u0040example.com\\"');
+    plant(dir, 1, '\\"author\\": \\"octo\\"', '\\"author\\": \\"jane\\\\u0040example.com\\"');
     append(dir, {
       cmd: "gh",
-      args: ["api", "repos/acme/widgets/issues"],
+      args: ["api", "repos/acme/widgets/pulls/1", "--jq", jqOf("pull")],
       ...ok,
       stdout: JSON.stringify({ body: `{"t": "ghp\\u005f${"x".repeat(36)}"}` }),
     });
@@ -456,27 +472,40 @@ describe("audit of shapes, decoded strings and new credentials", () => {
     const widgets = "projects/osdu%2Fplatform%2Fsystem%2Fwidgets";
     append(dir, {
       cmd: "glab",
-      args: ["api", ...GITLAB_HOST, `${widgets}/issues`],
+      args: [
+        "api",
+        ...GITLAB_HOST,
+        `${widgets}/merge_requests?state=opened&target_branch=master&per_page=100&page=1`,
+      ],
       ...ok,
       stdout: JSON.stringify([{ description: "Fork: https://github.com/acme/vault" }]),
     });
     append(dir, {
       cmd: "gh",
-      args: ["api", "repos/acme/widgets/forks"],
+      args: ["api", "repos/acme/widgets/git/trees/main?recursive=1", "--jq", jqOf("tree")],
       ...ok,
-      stdout: JSON.stringify([
-        { full_name: "acme/vault" },
-        { body: "Upstream: https://community.opengroup.org/osdu/hidden/thing/-/issues/1" },
-      ]),
+      stdout: JSON.stringify({
+        paths: ["acme/vault", "https://community.opengroup.org/osdu/hidden/thing/-/issues/1"],
+        truncated: false,
+      }),
     });
     setVisibility(dir, "github", "acme/vault", "private");
     setVisibility(dir, "gitlab", "osdu/hidden/thing", "private");
     expect(auditSweep(dir).findings).toEqual([]);
     expect(sweepReferences(dir).github.has("acme/vault")).toBe(false);
-    append(dir, { cmd: "gh", args: ["api", "repos/acme/vault/forks"], ...ok, stdout: "[]" });
+    append(dir, {
+      cmd: "gh",
+      args: ["api", "--paginate", "repos/acme/vault/tags?per_page=100", "--jq", jqOf("tags")],
+      ...ok,
+      stdout: "[]",
+    });
     append(dir, {
       cmd: "glab",
-      args: ["api", ...GITLAB_HOST, "projects/osdu%2Fhidden%2Fthing/issues"],
+      args: [
+        "api",
+        ...GITLAB_HOST,
+        "projects/osdu%2Fhidden%2Fthing/repository/tags?per_page=100&page=1",
+      ],
       ...ok,
       stdout: "[]",
     });
@@ -588,7 +617,7 @@ test.each(["PASSWORD", "Password", "pAsSwOrD", "Client_Secret", "API_KEY"])(
       args: [
         "api",
         ...GITLAB_HOST,
-        "projects/osdu%2Fplatform%2Fsystem%2Fwidgets/repository/commits/abc/diff",
+        "projects/osdu%2Fplatform%2Fsystem%2Fwidgets/repository/commits/abcdef0/diff?per_page=100&page=1",
       ],
       ...ok,
       stdout: "[]",
@@ -603,9 +632,15 @@ test.each(["PASSWORD", "Password", "pAsSwOrD", "Client_Secret", "API_KEY"])(
 // detectors run there.
 describe("credential assignments by provenance", () => {
   const LINE = "CLIENT_SECRET=s3cr3tValue42";
+  const CREATED = `query { ${BUDGET} r0: repository(owner: "acme", name: "widgets") { createdAt } r1: repository(owner: "acme", name: "vault") { createdAt } }`;
   const read = (repo: string, extra: object = {}) => ({
     cmd: "gh",
-    args: ["api", `repos/${repo}/contents/.env`],
+    args: [
+      "api",
+      `repos/${repo}/contents/ops/environments/shared.yaml?ref=abcdef0`,
+      "--jq",
+      jqOf("declaration"),
+    ],
     ...ok,
     stdout: JSON.stringify({ content: `${LINE}\n` }),
     ...extra,
@@ -616,7 +651,11 @@ describe("credential assignments by provenance", () => {
     append(dir, read("acme/widgets"));
     append(dir, {
       cmd: "glab",
-      args: ["api", ...GITLAB_HOST, "projects/osdu%2Fplatform%2Fsystem%2Fwidgets/repository/files"],
+      args: [
+        "api",
+        ...GITLAB_HOST,
+        "projects/osdu%2Fplatform%2Fsystem%2Fwidgets/repository/files/pom.xml?ref=abcdef0",
+      ],
       ...ok,
       stdout: JSON.stringify({ content: LINE }),
     });
@@ -625,19 +664,24 @@ describe("credential assignments by provenance", () => {
 
   test.each([
     ["stderr", read("acme/widgets", { stdout: "{}", stderr: LINE }), [], "stderr"],
-    ["stdin", read("acme/widgets", { stdout: "{}", stdin: LINE }), [], "stdin"],
+    [
+      "stdin",
+      read("acme/widgets", { stdout: "{}", stdin: LINE }),
+      ["exec.jsonl:5: unrecognized command: stdin"],
+      "stdin",
+    ],
     [
       "argv",
       read("acme/widgets", {
-        args: ["api", "repos/acme/widgets/pulls", "--jq", LINE],
+        args: ["api", "repos/acme/widgets/pulls/1", "--jq", LINE],
         stdout: "[]",
       }),
-      [],
+      [`exec.jsonl:5: unrecognized command: gh api repos/acme/widgets/pulls/1 --jq ${LINE}`],
       "args[3]",
     ],
     [
       "a non-repository command's stdout",
-      read("acme/widgets", { args: ["api", "user"] }),
+      read("acme/widgets", { args: ["api", "user", "--jq", ".login"] }),
       [],
       "stdout",
     ],
@@ -646,12 +690,8 @@ describe("credential assignments by provenance", () => {
     [
       "the stdout of a read of a public and a private repository",
       read("acme/widgets", {
-        args: [
-          "api",
-          "graphql",
-          "-f",
-          'query={ r0: repository(owner: "acme", name: "widgets") { id } r1: repository(owner: "acme", name: "vault") { id } }',
-        ],
+        args: ["api", "graphql", "-f", `query=${CREATED}`],
+        stdout: JSON.stringify({ data: { r0: { createdAt: "x" }, r1: { createdAt: LINE } } }),
       }),
       ["github acme/vault: private"],
       "stdout",
@@ -661,10 +701,41 @@ describe("credential assignments by provenance", () => {
     if (what.includes("private")) setVisibility(dir, "github", "acme/vault", "private");
     if (what.includes("missing")) setVisibility(dir, "github", "acme/vault", "missing");
     append(dir, entry);
-    expect(auditSweep(dir).findings).toEqual([
+    const findings = auditSweep(dir).findings;
+    expect(findings.filter((f) => f.endsWith(": credential assignment"))).toEqual([
       `exec.jsonl:5 ${field}: credential assignment`,
-      ...more,
     ]);
+    expect(findings.filter((f) => !f.endsWith(": credential assignment"))).toEqual(more);
+  });
+
+  test("exempts only the GraphQL blocks that read a public repository", () => {
+    const dir = copyOfClean();
+    setVisibility(dir, "github", "acme/vault", "private");
+    const stdout = (r0: string, r1: string) =>
+      JSON.stringify({
+        data: { spicodeBudget: { cost: 1 }, r0: { createdAt: r0 }, r1: { createdAt: r1 } },
+      });
+    append(
+      dir,
+      read("acme/widgets", {
+        args: ["api", "graphql", "-f", `query=${CREATED}`],
+        stdout: stdout(LINE, "x"),
+      }),
+    );
+    expect(auditSweep(dir).findings).toEqual(["github acme/vault: private"]);
+    const budget = copyOfClean();
+    append(budget, {
+      ...read("acme/widgets", {
+        args: [
+          "api",
+          "graphql",
+          "-f",
+          `query=${CREATED.replace(' r1: repository(owner: "acme", name: "vault") { createdAt }', "")}`,
+        ],
+      }),
+      stdout: JSON.stringify({ data: { spicodeBudget: { note: LINE }, r0: { createdAt: "x" } } }),
+    });
+    expect(auditSweep(budget).findings).toEqual(["exec.jsonl:5 stdout: credential assignment"]);
   });
 
   test("fails a token in public repository stdout and in the Facts files", () => {
@@ -678,8 +749,10 @@ describe("credential assignments by provenance", () => {
       "exec.jsonl:5 stdout: GitLab token",
       "core-facts.json: GitHub token",
       "core-facts.json: GitLab token",
+      "core-facts.json: credential assignment",
       "rib-facts.json: GitHub token",
       "rib-facts.json: GitLab token",
+      "rib-facts.json: credential assignment",
       "services.json: GitHub token",
       "services.json: GitLab token",
       "services.json: credential assignment",
@@ -692,6 +765,200 @@ describe("credential assignments by provenance", () => {
     expect(auditSweep(dir).findings).toEqual([]);
     plant(dir, 0, `gho_${"*".repeat(36)}`, "gho_****x");
     expect(auditSweep(dir).findings).toEqual(["exec.jsonl:1 stdout: credential assignment"]);
+  });
+});
+
+// Recheck 5's bypasses: each planted a credential assignment in the stdout of a call the sweep
+// never issues, and each passed. Every one now fails on the call itself, and its stdout is strict.
+describe("allowlist", () => {
+  const LINE = "CLIENT_SECRET=s3cr3tValue42";
+  const WIDGETS = "projects/osdu%2Fplatform%2Fsystem%2Fwidgets";
+  const PULL = ["repos/acme/widgets/pulls/1", "--jq", jqOf("pull")];
+  const gql = (cmd: string, query: string) =>
+    cmd === "gh"
+      ? ["api", "graphql", "-f", `query=${query}`]
+      : ["api", "graphql", ...GITLAB_HOST, "-f", `query=${query}`];
+  const planted = (cmd: string, args: string[], extra: object = {}) => {
+    const dir = copyOfClean();
+    append(dir, {
+      cmd,
+      args,
+      ...ok,
+      stdout: JSON.stringify({ data: { r0: { v: LINE } }, v: LINE }),
+      ...extra,
+    });
+    return auditSweep(dir).findings;
+  };
+
+  test.each([
+    ["invitations", "gh", ["api", "repos/acme/widgets/invitations"]],
+    ["notifications", "gh", ["api", "repos/acme/widgets/notifications"]],
+    [
+      "a collaborator's permission",
+      "gh",
+      ["api", "repos/acme/widgets/collaborators/octo/permission"],
+    ],
+    ["the app installation", "gh", ["api", "repos/acme/widgets/installation"]],
+    ["hooks", "gh", ["api", "repos/acme/widgets/hooks"]],
+    ["security advisories", "gh", ["api", "repos/acme/widgets/security-advisories"]],
+    ["GitLab variables", "glab", ["api", ...GITLAB_HOST, `${WIDGETS}/variables`]],
+    ["GitLab access tokens", "glab", ["api", ...GITLAB_HOST, `${WIDGETS}/access_tokens`]],
+    [
+      "an allowlisted path with another jq",
+      "gh",
+      ["api", "repos/acme/widgets/pulls/1", "--jq", "env"],
+    ],
+    [
+      "glab currentUser named for a repository in a comment",
+      "glab",
+      gql("glab", "{ currentUser { username } } # repo:acme/widgets"),
+    ],
+    [
+      "rateLimit named for a repository in a comment",
+      "gh",
+      gql("gh", "{ rateLimit { remaining } } # repo:acme/widgets"),
+    ],
+    [
+      "a repository's owner's repositories",
+      "gh",
+      gql(
+        "gh",
+        `{ ${BUDGET} r0: repository(owner: "acme", name: "widgets") { owner { repositories(first: 9) { nodes { name } } } } }`,
+      ),
+    ],
+    [
+      "viewer",
+      "gh",
+      gql(
+        "gh",
+        `{ ${BUDGET} viewer { login } r0: repository(owner: "acme", name: "widgets") { createdAt } }`,
+      ),
+    ],
+  ])("fails a call to %s as unrecognized", (_, cmd, args) => {
+    expect(planted(cmd, args)).toEqual([
+      `exec.jsonl:5: unrecognized command: ${[cmd, ...args].join(" ")}`.slice(0, 300),
+      "exec.jsonl:5 stdout: credential assignment",
+    ]);
+  });
+
+  test.each([
+    ["--hostname", ["api", "--hostname", "evil.example", ...PULL], {}, "--hostname evil.example"],
+    ["--hostname=", ["api", "--hostname=evil.example", ...PULL], {}, "--hostname=evil.example"],
+    [
+      "a Host header",
+      ["api", "-H", "Host: evil.example", ...PULL],
+      {},
+      "header Host: evil.example",
+    ],
+  ])("fails a call routed by %s as a host override", (_, args, extra, detail) => {
+    expect(planted("gh", args, extra)).toEqual([
+      `exec.jsonl:5: host override: ${detail}`,
+      "exec.jsonl:5 stdout: credential assignment",
+    ]);
+  });
+
+  test.each(["GH_HOST", "GITLAB_HOST", "gh_config_dir"])(
+    "fails a call with %s in its environment",
+    (name) => {
+      expect(planted("gh", ["api", ...PULL], { env: { [name]: "evil.example" } })).toEqual([
+        "exec.jsonl:5: unexpected field env",
+        `exec.jsonl:5: host override: env ${name}`,
+        "exec.jsonl:5 stdout: credential assignment",
+      ]);
+    },
+  );
+
+  test("keeps the stdout of an allowlisted operator call strict", () => {
+    expect(
+      planted("gh", [
+        "api",
+        "--paginate",
+        "repos/acme/widgets/dependabot/alerts?state=open&per_page=100",
+        "--jq",
+        jqOf("dependabot alerts"),
+      ]),
+    ).toEqual(["exec.jsonl:5 stdout: credential assignment"]);
+    expect(planted("gh", ["api", ...PULL])).toEqual([]);
+  });
+
+  test("runs visibility checks against the canonical host, without routing variables", () => {
+    const env = managedEnv({ GH_HOST: "evil", gitlab_host: "evil", GH_TOKEN: "t", PATH: "/bin" });
+    expect(env).toEqual({ PATH: "/bin" });
+  });
+});
+
+// The Facts files hold the operator's account and auth state as well as public reads: only
+// listed public-derived subtrees are exempt from the credential-assignment heuristic.
+describe("Facts files", () => {
+  const LINE = "CLIENT_SECRET=s3cr3tValue42";
+  interface Facts {
+    auth: { data: { gh: { detail: string } } };
+    github: { data: { repos: Record<string, { body?: string }>; errors?: string[] } };
+    account?: { scopes: string };
+    radar?: {
+      data: { removal: { labels: Record<string, string> }; other?: Record<string, string> };
+    };
+  }
+  const facts = (plant: (facts: Facts) => void) => {
+    const dir = copyOfClean();
+    setVisibility(dir, "github", "acme/vault", "private");
+    const content: Facts = {
+      auth: { data: { gh: { detail: "" } } },
+      github: { data: { repos: { "acme/widgets": {}, "acme/vault": {} } } },
+    };
+    plant(content);
+    writeFileSync(join(dir, "core-facts.json"), JSON.stringify(content));
+    return auditSweep(dir).findings;
+  };
+
+  const PROJECT = "osdu/platform/security-and-compliance/secret";
+  const labels = (entries: Record<string, string>, f: Facts) => {
+    f.radar = { data: { removal: { labels: entries } } };
+  };
+
+  test.each(["pending", "established"])("passes an upstream project path at stage %s", (stage) => {
+    expect(facts((f) => labels({ [PROJECT]: stage }, f))).toEqual([]);
+  });
+
+  test.each([
+    ["a planted assignment", { [PROJECT]: LINE }, []],
+    ["another stage name", { [PROJECT]: "Pending" }, []],
+    ["a token", { [PROJECT]: `ghp_${"x".repeat(36)}` }, ["core-facts.json: GitHub token"]],
+    ["a key that is no project path", { CLIENT_SECRET: "pending" }, []],
+    ["a single-segment key", { secret: "pending" }, []],
+    ["a key with a dot segment", { "osdu/../secret": "pending" }, []],
+  ])("fails removal labels holding %s", (_, entries, more) => {
+    expect(facts((f) => labels(entries, f))).toEqual([
+      ...more,
+      "core-facts.json: credential assignment",
+    ]);
+  });
+
+  test("fails the same project path and stage anywhere else in the Facts", () => {
+    expect(facts((f) => (f.account = { scopes: { [PROJECT]: "pending" } as never }))).toEqual([
+      "core-facts.json: credential assignment",
+    ]);
+    expect(
+      facts((f) => {
+        f.radar = { data: { removal: { labels: {} }, other: { [PROJECT]: "pending" } } };
+      }),
+    ).toEqual(["core-facts.json: credential assignment"]);
+  });
+
+  test("passes a credential assignment read from a public repository", () => {
+    expect(facts((f) => ((f.github.data.repos["acme/widgets"] ?? {}).body = LINE))).toEqual([]);
+  });
+
+  test.each([
+    ["auth detail", (f: Facts) => (f.auth.data.gh.detail = LINE)],
+    [
+      "a private repository's entry",
+      (f: Facts) => ((f.github.data.repos["acme/vault"] ?? {}).body = LINE),
+    ],
+    ["an unlisted subtree", (f: Facts) => (f.account = { scopes: LINE })],
+    ["github data outside repos", (f: Facts) => (f.github.data.errors = [LINE])],
+  ])("fails a credential assignment in %s", (_, plant) => {
+    expect(facts(plant)).toEqual(["core-facts.json: credential assignment"]);
   });
 });
 

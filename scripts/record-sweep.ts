@@ -45,9 +45,9 @@ import {
   callTargets,
   fenced,
   fenceMessage,
+  GITHUB_HOST,
   LOG_FILE,
   NOT_PUBLIC,
-  references,
   report,
   scrubEmails,
   scrubJwts,
@@ -101,18 +101,41 @@ async function pool<T>(items: readonly T[], size: number, work: (item: T) => Pro
   );
 }
 
+// What the managed sweep removes from the environment (packages/host/src/env/
+// shell-environment.ts), and GITLAB_HOST: visibility is checked on the host and account the
+// sweep reads.
+const UNMANAGED = new Set([
+  "GH_TOKEN",
+  "GITHUB_TOKEN",
+  "COPILOT_GITHUB_TOKEN",
+  "GH_ENTERPRISE_TOKEN",
+  "GITHUB_ENTERPRISE_TOKEN",
+  "GH_HOST",
+  "GH_CONFIG_DIR",
+  "GITLAB_HOST",
+]);
+
+export function managedEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(env).filter(([name]) => !UNMANAGED.has(name.toUpperCase())),
+  );
+}
+
 function githubVisibility(name: string): Visibility {
   try {
     const out = execFileSync(
       "gh",
       [
         "api",
+        "--hostname",
+        GITHUB_HOST,
         `repos/${name}`,
         "--jq",
         '.visibility // (if .private then "private" else "public" end)',
       ],
       {
         encoding: "utf8",
+        env: managedEnv(),
         stdio: ["ignore", "pipe", "pipe"],
         timeout: 30_000,
       },
@@ -140,6 +163,7 @@ async function gitlabVisibility(
   try {
     const out = execFileSync("glab", ["api", "--hostname", GITLAB, `${kind}/${encoded}`], {
       encoding: "utf8",
+      env: managedEnv(),
       stdio: ["ignore", "pipe", "pipe"],
       timeout: 30_000,
     });
@@ -211,9 +235,8 @@ function fence(
       refused[what] = (refused[what] ?? 0) + 1;
       return { stdout: "", stderr: fenceMessage(what, why), exit: 1 };
     };
-    if (!targets) return refuse(cmd, "call of a shape the audit cannot read");
-    const named = references([cmd, ...args, opts.stdin ?? ""].join("\n"), targets).github;
-    const hit = [...named].find((name) => closed.has(name.toLowerCase()));
+    if (!targets || opts.stdin) return refuse(cmd, "call of a shape the audit cannot read");
+    const hit = [...targets.github].find((name) => closed.has(name.toLowerCase()));
     return hit ? refuse(hit, NOT_PUBLIC) : runner(cmd, args, opts);
   };
 }
