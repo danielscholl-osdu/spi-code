@@ -100,6 +100,8 @@ export async function readRadar(
   upstream: Record<string, UpstreamFact>,
   state: RadarState,
   ctx: CoreContext,
+  upstreamReads: readonly ReadRecord[] = [],
+  previous?: RadarFacts,
 ): Promise<RadarRead> {
   const out: RadarRead = { services: {}, filters: {}, reads: [] };
   const record = (source: string, object: string): ReadRecord => ({
@@ -153,6 +155,10 @@ export async function readRadar(
       raw = await glab.restAll<RawMr>(`projects/${project}/${object}`);
       out.reads.push(record(fork.upstream, object));
     } catch (error) {
+      const last = previous?.services[fork.id];
+      if (last) out.services[fork.id] = last;
+      const filter = previous?.filters[fork.id];
+      if (filter) out.filters[fork.id] = filter;
       out.reads.push({ ...record(fork.upstream, object), failure: errorText(error) });
       return;
     }
@@ -178,7 +184,8 @@ export async function readRadar(
       return entry ? { ...m, paths: entry.paths, deleted: entry.deleted ?? [] } : m;
     }) : undefined;
     const forkPrs = ports.prs[fork.id];
-    const pins = await readUpstreamPins(glab, fork.upstream, upstream[fork.id]?.head?.sha, state.pins, ctx);
+    const pins = await readUpstreamPins(glab, fork.upstream, upstream[fork.id]?.head?.sha, state.pins, ctx,
+      upstreamReads.find((r) => r.source === fork.upstream && r.object === "repository/branches/master"));
     out.reads.push(...pins.reads);
     out.services[fork.id] = {
       project: fork.upstream, mrs, queued,
@@ -188,11 +195,21 @@ export async function readRadar(
     try {
       const file = await readFilterFile(gh, fork.repo);
       state.filters[file.sha] = file.text;
+      state.filters[`repo:${fork.repo}`] = file.sha;
       out.filters[fork.id] = file;
       out.reads.push(record(fork.repo, FILTER_PATH));
     } catch (error) {
-      out.reads.push({ ...record(fork.repo, FILTER_PATH), failure: errorText(error) });
+      const last = previous?.filters[fork.id];
+      const sha = last?.sha ?? state.filters[`repo:${fork.repo}`];
+      const text = sha ? state.filters[sha] : undefined;
+      if (sha && text !== undefined) out.filters[fork.id] = { sha, text };
+      const prior = state.records[`filter:${fork.repo}`];
+      out.reads.push({ ...record(fork.repo, FILTER_PATH), failure: errorText(error),
+        ...(text !== undefined && prior
+          ? { retainedFrom: prior.retainedFrom ?? prior.observedAt } : {}) });
     }
+    const read = [...out.reads].reverse().find((r) => r.source === fork.repo && r.object === FILTER_PATH);
+    if (read) state.records[`filter:${fork.repo}`] = read;
   });
   const forkPins = await readForkPins(gh, ctx.fleet.forks.map((f) => {
     const text = out.filters[f.id]?.text;
@@ -229,9 +246,12 @@ export function pruneRadar(state: RadarState, facts: RadarFacts | undefined, cap
   for (const f of Object.values(facts?.filters ?? {})) blobs.add(f.sha);
   capMap(state.mrDiffs, mrs, cap);
   capMap(state.commitDiffs, commits, cap);
-  for (const key of Object.keys(state.filters)) if (!blobs.has(key)) delete state.filters[key];
+  for (const key of Object.keys(state.filters)) {
+    if (key.startsWith("repo:") ? !blobs.has(state.filters[key] ?? "") : !blobs.has(key)) delete state.filters[key];
+  }
   for (const key of Object.keys(state.records)) {
-    if (key.startsWith("mr:") ? !state.mrDiffs[key.slice(3)] : !state.commitDiffs[key.slice(7)]) {
+    if (key.startsWith("filter:") ? !state.filters[`repo:${key.slice(7)}`]
+      : key.startsWith("mr:") ? !state.mrDiffs[key.slice(3)] : !state.commitDiffs[key.slice(7)]) {
       delete state.records[key];
     }
   }

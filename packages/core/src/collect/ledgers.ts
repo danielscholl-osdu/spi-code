@@ -17,7 +17,7 @@ const prSchema = z.object({
 const commitCutSchema = z.object({
   fact: prSchema, read: z.number().int().nonnegative(), total: z.number().int().nonnegative(),
 });
-const ledgerSchema = z.object({
+export const ledgerSchema = z.object({
   merged: z.record(z.string(), z.array(z.object({
     iid: z.number().int().positive(), title: z.string(), url: z.string(),
     mergedAt: z.iso.datetime({ offset: true }), headSha: z.string(),

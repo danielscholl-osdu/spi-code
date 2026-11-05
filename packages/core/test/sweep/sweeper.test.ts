@@ -251,7 +251,7 @@ describe("Sweeper shell", () => {
     expect(sweeper.model.measured).toBe(true);
   });
 
-  it("creates failure provenance when persisted area reads are empty", async () => {
+  it("does not invent retained provenance when persisted area reads are empty", async () => {
     const h = harness();
     const first = new Sweeper({ ...h.options, areas: [github()] });
     await first.sweep();
@@ -275,7 +275,6 @@ describe("Sweeper shell", () => {
         observedAt: h.options.clock.now().toISOString(),
         completeness: { kind: "complete" },
         failure: "offline",
-        retainedFrom: first.facts.github.at,
       },
     ]);
   });

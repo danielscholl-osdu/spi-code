@@ -34,7 +34,7 @@ const stepSchema = z.strictObject({
   number: z.int().nonnegative(), name: z.string(), status: z.string(),
   conclusion: z.string().optional(), startedAt: time.optional(), completedAt: time.optional(),
 });
-const jobSchema = z.strictObject({
+export const jobSchema = z.strictObject({
   id: z.int().nonnegative(), name: z.string(), status: z.string(), conclusion: z.string().optional(),
   startedAt: time.optional(), completedAt: time.optional(), url: z.string(),
   steps: z.array(stepSchema), failedStep: z.string().optional(), reason: z.string().optional(),
@@ -59,7 +59,7 @@ const runSchema = z.strictObject({
 });
 const saved = <T extends z.ZodType>(schema: T) =>
   z.strictObject({ data: schema, reads: z.array(recordSchema).min(1) });
-const stateSchema = z.strictObject({
+export const lifecycleStateSchema = z.strictObject({
   runJobs: z.record(z.string(), saved(z.array(jobSchema)).extend({
     run: z.strictObject({ status: z.string(), updatedAt: time }).optional(),
   })),
@@ -275,7 +275,7 @@ async function targetOf(
 }
 
 export async function readLifecycle(gh: Gh, detailState: unknown, previous: unknown, ctx: CoreContext) {
-  const loaded = stateSchema.safeParse(previous ?? { runJobs: {}, files: {} });
+  const loaded = lifecycleStateSchema.safeParse(previous ?? { runJobs: {}, files: {} });
   const state: LifecycleState = loaded.success ? loaded.data : { runJobs: {}, files: {} };
   const detail = details(detailState, ctx);
   const reads = detail.reads;

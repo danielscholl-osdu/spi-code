@@ -211,6 +211,44 @@ test("upstream poms cache by project and head and failed heads retry after JSON 
   expect(h.calls).toHaveLength(4);
 });
 
+test("cached pins carry the head read's retained evidence rather than making a stale head fresh", async () => {
+  const h = harness(() => blob("3.0.1"));
+  const state = emptyPinState();
+  await readUpstreamPins(h.glab, "upstream/one", "head", state, h.ctx);
+  h.advance(HOUR);
+  const head = {
+    source: "upstream/one",
+    object: "repository/branches/master",
+    observedAt: h.ctx.clock.now().toISOString(),
+    retainedFrom: START,
+    completeness: { kind: "complete" as const },
+    failure: "head unread",
+  };
+  const result = await readUpstreamPins(h.glab, "upstream/one", "head", state, h.ctx, head);
+  expect(result.pins).toEqual({ coreLibAzure: "3.0.1" });
+  expect(result.reads[0]).toMatchObject({
+    observedAt: head.observedAt,
+    retainedFrom: START,
+    failure: "head unread",
+  });
+  expect(h.calls).toHaveLength(1);
+});
+
+test("a failed removal read retries before the hourly cadence and only success starts its cadence", async () => {
+  let fails = true;
+  const h = harness(() => (fails ? new Error("offline") : []));
+  const state = emptyPinState();
+  await readRemoval(h.glab, state, h.ctx);
+  expect(state.removalAt).toBeUndefined();
+  fails = false;
+  await readRemoval(h.glab, state, h.ctx);
+  expect(state.removal?.record.failure).toBeUndefined();
+  expect(state.removalAt).toBe(START);
+  expect(h.calls).toHaveLength(3);
+  await readRemoval(h.glab, state, h.ctx);
+  expect(h.calls).toHaveLength(3);
+});
+
 test("the latest release is the newest semver tag and cadence uses the exact injected-clock boundary", async () => {
   const h = harness(() => [
     { name: "v8.4.0" },

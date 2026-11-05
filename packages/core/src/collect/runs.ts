@@ -125,7 +125,7 @@ export async function readForkRuns(
 export type PrFiles = Pick<OutsidePr, "files" | "changedFiles" | "additions" | "deletions">;
 // Keyed `repo#number@sha`: a PR's files at one head never change.
 export type PrFilesCache = Record<string, PrFiles>;
-const prFilesSchema = z
+export const prFilesSchema = z
   .strictObject({
     files: z.array(z.string()),
     changedFiles: z.int().nonnegative(),

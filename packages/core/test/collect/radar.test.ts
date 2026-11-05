@@ -157,6 +157,34 @@ function recording(
 
 afterEach(() => vi.useRealTimers());
 
+test("cached diff envelopes replay unchanged and a failed filter keeps its last-good text and age", async () => {
+  const state = emptyRadarState();
+  const first = recording();
+  await readRadar(new Gh(first.exec), new Glab(first.exec), upstream, state, ctx);
+  const stored = structuredClone(state);
+  const next = recording({ failFilter: true });
+  const later = createContext({
+    fleet: ctx.fleet,
+    clock: { now: () => new Date(FIXTURE_NOW.getTime() + 60_000) },
+  });
+  const live = await readRadar(new Gh(next.exec), new Glab(next.exec), upstream, state, later);
+  const replay = next.replay();
+  const recorded = await readRadar(new Gh(replay), new Glab(replay), upstream, stored, later);
+  expect(recorded.reads).toEqual(live.reads);
+  expect(recorded.filters.partition).toEqual({
+    sha: "blob1",
+    text: "top_level:\n  docs: shared\n",
+  });
+  expect(recorded.reads.find((r) => r.object.endsWith("upstream-filter.yml"))).toMatchObject({
+    failure: expect.stringContaining("unavailable"),
+    retainedFrom: FIXTURE_NOW.toISOString(),
+  });
+  expect(recorded.reads.find((r) => r.object === "merge_requests/1/diffs")).toMatchObject({
+    completeness: { kind: "complete" },
+    observedAt: later.clock.now().toISOString(),
+  });
+});
+
 test("MR fields, paths and pom lines survive replay; failed diffs stay unread, not empty", async () => {
   const run = async (exec: Exec) => {
     const result = await readRadar(new Gh(exec), new Glab(exec), upstream, emptyRadarState(), ctx);

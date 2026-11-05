@@ -9,6 +9,7 @@ import type { Exec } from "../exec/port.js";
 import { AREAS, type AreaName, emptyFacts, type Facts, type Measured } from "../facts.js";
 import { buildModel, type Model } from "../model/index.js";
 import { errorText } from "../util.js";
+import { readRecordSchema } from "./record.js";
 
 export type SweepReads = Partial<Record<AreaName | "persist", readonly ReadRecord[]>>;
 
@@ -33,6 +34,7 @@ export interface SweepInput<C> extends SweepState<C> {
 export type SweepArea<C> = {
   [K in AreaName]: {
     readonly name: K;
+    readonly shouldRead?: (input: SweepInput<C>) => boolean;
     readonly read: (input: SweepInput<C>) => Promise<{
       data: NonNullable<Facts[K]["data"]>;
       reads: readonly ReadRecord[];
@@ -50,25 +52,11 @@ export interface SweeperOptions<C> {
   readonly cacheSchema: z.ZodType<C>;
   readonly emptyCache: () => C;
   readonly prune?: (facts: Facts, cache: C, now: Date) => void;
+  readonly context?: (facts: Facts, cache: C) => CoreContext;
+  readonly beforeSweep?: () => void;
+  readonly afterAreas?: (input: SweepInput<C>) => Promise<void>;
+  readonly replay?: () => Promise<unknown>;
 }
-
-const readRecordSchema: z.ZodType<ReadRecord> = z.strictObject({
-  source: z.string().min(1),
-  object: z.string().min(1),
-  observedAt: z.iso.datetime({ offset: true }),
-  completeness: z.union([
-    z.strictObject({ kind: z.literal("complete") }),
-    z.strictObject({
-      kind: z.literal("cut"),
-      reason: z.string().min(1),
-      read: z.int().nonnegative(),
-      total: z.int().nonnegative(),
-    }).refine(({ read, total }) => read <= total, "Read count exceeds total"),
-  ]),
-  failure: z.string().min(1).optional(),
-  retainedFrom: z.iso.datetime({ offset: true }).optional(),
-  inferred: z.boolean().optional(),
-});
 
 /** Callers supply the collector-owned schemas; core validates both load and save. */
 export function sweepStateSchema<C>(factsSchema: z.ZodType<Facts>, cacheSchema: z.ZodType<C>) {
@@ -155,10 +143,15 @@ export class Sweeper<C> {
     const previous: Measured<unknown> = this.facts[area.name];
     try {
       const cache = structuredClone(this.cache);
-      const result = await area.read({
-        ctx: this.opts.ctx, exec, clock: this.clock, force,
+      const input = {
+        ctx: this.context(), exec, clock: this.clock, force,
         facts: structuredClone(this.facts), cache, reads: structuredClone(this.reads),
-      });
+      };
+      if (area.shouldRead && !area.shouldRead(input)) {
+        this.cache = this.opts.cacheSchema.parse(cache);
+        return true;
+      }
+      const result = await area.read(input);
       const records = z.array(readRecordSchema).parse(result.reads);
       const at = this.clock.now().toISOString();
       const facts = this.opts.factsSchema.parse({
@@ -182,7 +175,7 @@ export class Sweeper<C> {
         observedAt: previous.at ?? at, completeness: { kind: "complete" },
       }];
       this.reads[area.name] = records.map((record) => {
-        const retainedFrom = previous.data === undefined
+        const retainedFrom = previous.data === undefined || !prior?.includes(record)
           ? undefined
           : record.retainedFrom ?? record.observedAt;
         return {
@@ -196,7 +189,16 @@ export class Sweeper<C> {
 
   private async run(force: boolean): Promise<void> {
     const previousPersistFailure = this.reads.persist;
+    if (this.opts.replay) {
+      const state = this.schema.parse(await this.opts.replay());
+      this.facts = state.facts;
+      this.cache = state.cache;
+      this.reads = state.reads;
+      this.rebuild();
+      return;
+    }
     await this.load();
+    this.opts.beforeSweep?.();
     const started = this.clock.now();
     let calls = 0;
     let errors = 0;
@@ -213,6 +215,10 @@ export class Sweeper<C> {
     for (const area of this.opts.areas) {
       if (!(await this.area(area, exec, force))) errors++;
     }
+    await this.opts.afterAreas?.({
+      ctx: this.context(), exec, clock: this.clock, force,
+      facts: this.facts, cache: this.cache, reads: this.reads,
+    });
     this.facts.sweep = {
       at: started.toISOString(),
       ms: this.clock.now().getTime() - started.getTime(),
@@ -237,6 +243,10 @@ export class Sweeper<C> {
   }
 
   rebuild(): void {
-    this.model = buildModel(this.facts, this.clock.now(), {}, this.opts.ctx);
+    this.model = buildModel(this.facts, this.clock.now(), {}, this.context());
+  }
+
+  private context(): CoreContext {
+    return this.opts.context?.(this.facts, this.cache) ?? this.opts.ctx;
   }
 }

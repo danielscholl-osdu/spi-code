@@ -34,7 +34,7 @@ const recordSchema = z.object({
   retainedFrom: z.iso.datetime({ offset: true }).optional(),
   inferred: z.boolean().optional(),
 });
-const readsSchema = z.object({
+export const releaseStateSchema = z.object({
   at: z.iso.datetime({ offset: true }).optional(),
   releases: z.record(z.string(), z.array(z.object({
     tag: z.string(), at: z.string(), body: z.string(),
@@ -125,7 +125,7 @@ export class ReleaseReader {
   private record(source: string, object: string, failure?: string, retained = false): void {
     const previous = this.reads.records.find((r) => r.source === source && r.object === object);
     const retainedFrom = retained
-      ? previous?.retainedFrom ?? (previous?.failure ? undefined : previous?.observedAt) ?? this.reads.at
+      ? previous?.retainedFrom ?? (previous?.failure ? undefined : previous?.observedAt)
       : undefined;
     this.reads.records = this.reads.records.filter((r) => r.source !== source || r.object !== object);
     this.reads.records.push({
@@ -146,7 +146,7 @@ export class ReleaseReader {
       try {
         const value = await this.persist.load();
         if (value !== undefined && value !== null) {
-          const parsed = readsSchema.safeParse(value);
+          const parsed = releaseStateSchema.safeParse(value);
           if (!parsed.success) throw new Error(`Invalid persisted release reads: ${parsed.error.message}`);
           this.reads = parsed.data;
           this.dropRecord("release-state", "load");

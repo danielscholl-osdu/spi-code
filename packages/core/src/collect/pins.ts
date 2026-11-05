@@ -1,11 +1,13 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { z } from "zod";
 import type { CoreContext } from "../context.js";
 import type { ReadRecord } from "../evidence/index.js";
 import type { RadarFacts } from "../facts.js";
 import type { Gh, Glab } from "../forge.js";
 import { errorText } from "../util.js";
+import { readRecordSchema } from "../sweep/record.js";
 
 export interface PinRead {
   osCoreCommon?: string;
@@ -54,6 +56,21 @@ export interface PinState {
 export function emptyPinState(): PinState {
   return { poms: {}, forks: {}, upstreamPoms: {}, latest: {} };
 }
+
+const pinSchema = z.object({ osCoreCommon: z.string().optional(), coreLibAzure: z.string().optional() });
+const cached = <T extends z.ZodType>(value: T) =>
+  z.object({ value: value.optional(), record: readRecordSchema });
+export const pinStateSchema: z.ZodType<PinState> = z.object({
+  poms: z.record(z.string(), pinSchema),
+  forks: z.record(z.string(), cached(pinSchema)),
+  upstreamPoms: z.record(z.string(), cached(pinSchema)),
+  latest: z.object({ osCoreCommon: cached(pinSchema).optional(), coreLibAzure: cached(pinSchema).optional() }),
+  latestAt: z.iso.datetime({ offset: true }).optional(),
+  removal: cached(z.object({
+    due: z.iso.date().optional(), labels: z.record(z.string(), z.enum(["pending", "established"])),
+  })).optional(),
+  removalAt: z.iso.datetime({ offset: true }).optional(),
+});
 
 async function attempt<T>(
   ctx: CoreContext, source: string, object: string, previous: Cached<T> | undefined,
@@ -144,13 +161,18 @@ export async function readForkPins(
 
 export async function readUpstreamPins(
   glab: Glab, project: string, head: string | undefined, state: PinState, ctx: CoreContext,
+  headRecord?: ReadRecord,
 ): Promise<{ pins?: PinRead; reads: ReadRecord[] }> {
   if (!head) return { reads: [] };
   const key = `${project}:${head}`;
   const known = state.upstreamPoms[key];
   if (known?.record.failure === undefined && known?.value !== undefined) {
     // pom.xml at a fixed head cannot change; the caller has just re-read the head, so the record is fresh.
-    const record = { ...known.record, observedAt: ctx.clock.now().toISOString() };
+    const record = headRecord
+      ? { ...known.record, observedAt: headRecord.observedAt,
+        ...(headRecord.failure ? { failure: headRecord.failure } : {}),
+        ...(headRecord.retainedFrom ? { retainedFrom: headRecord.retainedFrom } : {}) }
+      : { ...known.record, observedAt: ctx.clock.now().toISOString() };
     state.upstreamPoms[key] = { ...known, record };
     return { pins: known.value, reads: [record] };
   }
@@ -160,7 +182,12 @@ export async function readUpstreamPins(
     return pinsOf(decode(file.content));
   });
   state.upstreamPoms[key] = cached;
-  return { ...(cached.value === undefined ? {} : { pins: cached.value }), reads: [cached.record] };
+  const record = headRecord ? {
+    ...cached.record,
+    ...(headRecord.failure ? { failure: headRecord.failure } : {}),
+    ...(headRecord.retainedFrom ? { retainedFrom: headRecord.retainedFrom } : {}),
+  } : cached.record;
+  return { ...(cached.value === undefined ? {} : { pins: cached.value }), reads: [record] };
 }
 
 function newest(tags: readonly string[]): string | undefined {
@@ -226,7 +253,7 @@ export async function readRemoval(
       }
       return { ...(due ? { due } : {}), labels };
     });
-    state.removalAt = now.toISOString();
+    if (state.removal.record.failure === undefined) state.removalAt = now.toISOString();
   }
   const cached = state.removal;
   return {
