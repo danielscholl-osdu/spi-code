@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-01-02T03:04:05.000Z",
+  "github": {
+    "acme/widgets": "public",
+    "acme/gadgets": "public"
+  },
+  "gitlab": {
+    "osdu/platform/system/widgets": "public"
+  }
+}
