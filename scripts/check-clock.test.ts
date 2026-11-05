@@ -8,24 +8,35 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
 
-it("scripts/check rejects a future-expiring test while preserving explicit fake clocks", () => {
-  const directory = mkdtempSync(join(tmpdir(), "spi-code-clock-"));
-  const root = fileURLToPath(new URL("../", import.meta.url));
-  const header = "// Copyright 2026, Daniel Scholl\n// SPDX-License-Identifier: MIT\n";
-  const now = performance.timeOrigin + performance.now();
-  const expiry = now + 200 * 24 * 60 * 60 * 1_000;
-  const command = `"${process.execPath}" "${join(root, "node_modules/vitest/vitest.mjs")}" run --config "${join(root, "vitest.config.ts")}" --maxWorkers=1`;
-  try {
-    execFileSync("git", ["init", "--quiet", directory]);
-    cpSync(join(root, "scripts/check"), join(directory, "check"));
-    symlinkSync(join(root, "node_modules"), join(directory, "node_modules"), "junction");
-    writeFileSync(
-      join(directory, "package.json"),
-      JSON.stringify({ type: "module", scripts: { check: command, test: command } }),
-    );
-    const fixture = `${header}
+it.each(["2040-01-01T00:00:00.998Z", "2040-01-01T00:00:00.999Z"])(
+  "scripts/check rejects expiry and preserves fake clocks with Date text sampled at %s",
+  (boundary) => {
+    const directory = mkdtempSync(join(tmpdir(), "spi-code-clock-"));
+    const root = fileURLToPath(new URL("../", import.meta.url));
+    const header = "// Copyright 2026, Daniel Scholl\n// SPDX-License-Identifier: MIT\n";
+    const now = performance.timeOrigin + performance.now();
+    const expiry = now + 200 * 24 * 60 * 60 * 1_000;
+    const command = `"${process.execPath}" "${join(root, "node_modules/vitest/vitest.mjs")}" run --config "${join(root, "vitest.config.ts")}" --maxWorkers=1`;
+    try {
+      execFileSync("git", ["init", "--quiet", directory]);
+      cpSync(join(root, "scripts/check"), join(directory, "check"));
+      symlinkSync(join(root, "node_modules"), join(directory, "node_modules"), "junction");
+      writeFileSync(
+        join(directory, "package.json"),
+        JSON.stringify({ type: "module", scripts: { check: command, test: command } }),
+      );
+      const fixture = `${header}
 import { afterEach, expect, it, vi } from "vitest";
 afterEach(() => vi.useRealTimers());
+function expectDateString(advance = () => {}) {
+  const before = Date.now();
+  const text = Date();
+  advance();
+  const after = Date.now();
+  const parsed = Date.parse(text);
+  expect(parsed).toBeGreaterThanOrEqual(Math.floor(before / 1000) * 1000);
+  expect(parsed).toBeLessThanOrEqual(Math.floor(after / 1000) * 1000);
+}
 it("expires at a fixed future date", () => {
   expect(Date.now()).toBeLessThan(${expiry});
   expect(new Date().getTime()).toBeLessThan(${expiry});
@@ -48,36 +59,45 @@ it("restores the shifted ticking clock after useRealTimers", async () => {
   await new Promise(resolve => setTimeout(resolve, 20));
   expect(Date.now()).toBeGreaterThan(start);
   expect(new Date().getTime()).toBeGreaterThan(start);
-  expect(Math.abs(Date.parse(Date()) - Date.now())).toBeLessThan(1000);
+  expectDateString();
   expect(Date.parse("2040-01-01T00:00:00Z")).toBe(Date.UTC(2040, 0, 1));
 });
+it("accepts Date text sampled before or across a simulated second boundary", () => {
+  const start = Date.parse(${JSON.stringify(boundary)});
+  vi.useFakeTimers();
+  vi.setSystemTime(start);
+  expectDateString(() => vi.advanceTimersByTime(1));
+  expect(Date.now()).toBe(start + 1);
+});
 `;
-    for (const project of [
-      "scripts",
-      "apps/desktop/src",
-      "apps/window/src",
-      "packages/contracts/src",
-      "packages/core/src",
-      "packages/host/src",
-      "packages/tools/src",
-    ]) {
-      mkdirSync(join(directory, project), { recursive: true });
-      writeFileSync(join(directory, project, "expiry.test.ts"), fixture);
+      for (const project of [
+        "scripts",
+        "apps/desktop/src",
+        "apps/window/src",
+        "packages/contracts/src",
+        "packages/core/src",
+        "packages/host/src",
+        "packages/tools/src",
+      ]) {
+        mkdirSync(join(directory, project), { recursive: true });
+        writeFileSync(join(directory, project, "expiry.test.ts"), fixture);
+      }
+      const result = spawnSync("bash", ["check"], {
+        cwd: directory,
+        encoding: "utf8",
+        env: { ...process.env, SPI_TEST_CLOCK_SHIFT: "", VITEST_MAX_WORKERS: "1" },
+        timeout: 90_000,
+      });
+      expect(result.error).toBeUndefined();
+      const output = result.stdout + result.stderr;
+      expect(result.status, output).toBe(1);
+      expect(output).toContain("28 passed");
+      expect(output).toContain("wall clock 400 days forward");
+      expect(output).toContain("7 failed | 21 passed");
+      expect(output).toContain("expires at a fixed future date");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
     }
-    const result = spawnSync("bash", ["check"], {
-      cwd: directory,
-      encoding: "utf8",
-      env: { ...process.env, SPI_TEST_CLOCK_SHIFT: "", VITEST_MAX_WORKERS: "1" },
-      timeout: 90_000,
-    });
-    expect(result.error).toBeUndefined();
-    const output = result.stdout + result.stderr;
-    expect(result.status, output).toBe(1);
-    expect(output).toContain("21 passed");
-    expect(output).toContain("wall clock 400 days forward");
-    expect(output).toContain("7 failed | 14 passed");
-    expect(output).toContain("expires at a fixed future date");
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
-}, 120_000);
+  },
+  120_000,
+);
