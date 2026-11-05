@@ -61,6 +61,26 @@ describe("exec recording and replay", () => {
   );
 
   it.each([
+    "line\nbearer\topaque-credential\\ tail",
+    "line\nAuthorization: opaque-credential\\ tail",
+    '"Authorization": "opaque-credential\\ tail',
+  ])("streams double-encoded %j split at every offset as whole-buffer redaction", (body) => {
+    const inner = JSON.stringify({ body });
+    const full = `${JSON.stringify({ body: inner })}\n${JSON.stringify(inner).replaceAll("\\\\n", "\\\\u000a")}\n`;
+    const expected = execRedactor({})(full);
+    expect(expected).not.toContain("opaque-credential");
+    for (let offset = 0; offset <= full.length; offset++) {
+      const chunks: string[] = [];
+      const delivery = execOutputDelivery({ onOutput: (_stream, text) => chunks.push(text) });
+      delivery.push("stdout", full.slice(0, offset));
+      delivery.push("stdout", full.slice(offset));
+      delivery.finish();
+      expect(chunks.join("")).toBe(expected);
+      for (const chunk of chunks) expect(chunk).not.toMatch(/opaque|credential/);
+    }
+  });
+
+  it.each([
     ["opaque.g", "opaque.gh", { stdin: "opaque.g\n" }],
     ["opaque.gh", "opaque.ghp_", { stdin: "opaque.gh" }],
     ["opaque.b", "opaque.bear", { env: { SERVICE_TOKEN: "opaque.b" } }],

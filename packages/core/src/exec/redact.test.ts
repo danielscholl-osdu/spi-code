@@ -61,23 +61,45 @@ describe("JSON-safe credential redaction", () => {
     expect(redact(text)).not.toContain("opaque-credential");
   });
 
-  it.each([" ", "\n", "\t", "\r\n", "\b", "\f"])(
-    "preserves JSON syntax and strips an opaque token planted at word boundaries after %j",
-    (boundary) => {
+  // JSON writers other than JSON.stringify spell control characters as \u00XX escapes.
+  const unicodeEscapes = (json: string) =>
+    json.replace(/\\(?:u[0-9a-f]{4}|.)/g, (unit) => {
+      const code = { "\\b": 8, "\\t": 9, "\\n": 10, "\\f": 12, "\\r": 13 }[unit];
+      return code === undefined ? unit : `\\u${code.toString(16).padStart(4, "0")}`;
+    });
+  const encodings: [string, (text: string) => string, number][] = [
+    ["JSON", (text) => JSON.stringify(text), 1],
+    ["\\u00XX JSON", (text) => unicodeEscapes(JSON.stringify(text)), 1],
+    ["double-encoded JSON", (text) => JSON.stringify(JSON.stringify(text)), 2],
+    ["double-encoded \\u00XX JSON",
+      (text) => unicodeEscapes(JSON.stringify(unicodeEscapes(JSON.stringify(text)))), 2],
+  ];
+
+  it.each(
+    encodings.flatMap(([name, encode, depth]) =>
+      [" ", "\n", "\t", "\r\n", "\r", "\b", "\f"].map((boundary) => [name, boundary, encode, depth] as const)),
+  )(
+    "preserves %s syntax and strips an opaque token planted at word boundaries after %j",
+    (_name, boundary, encode, depth) => {
       const token = "plantedCredential123";
       const corpus = [
         "", "plain text", '"quoted"', "\\", "\\\\", "\\n", "\n\r\t\b\f",
         '[]{}:;,"\'=', "\u0000\u001f", "before\nline\tafter",
       ];
-      const introductions = ["Authorization:", "Authorization:\n", "Bearer ", 'Bearer "'];
+      const introductions = [
+        "Authorization:", "Authorization:\n", "Bearer ", 'Bearer "', "bearer\t", '"Authorization": "',
+      ];
       for (const context of corpus) {
         for (let position = 0; position <= context.length; position++) {
           for (const introduction of introductions) {
             const text = context.slice(0, position) + boundary + introduction + token +
               " " + context.slice(position);
-            const safe = redact(JSON.stringify(text));
-            const parsed = JSON.parse(safe);
-            expect(typeof parsed).toBe("string");
+            const safe = redact(encode(text));
+            let parsed: unknown = safe;
+            for (let level = 0; level < depth; level++) {
+              parsed = JSON.parse(parsed as string);
+              expect(typeof parsed).toBe("string");
+            }
             expect(safe).not.toContain(token);
             expect(parsed).not.toContain(token);
             expect(safe).toContain(REDACTED);
@@ -86,4 +108,25 @@ describe("JSON-safe credential redaction", () => {
       }
     },
   );
+
+  it.each([
+    String.raw`line\u000aAuthorization: opaque-credential`,
+    String.raw`line\u000dBearer opaque-credential`,
+    String.raw`line\u000cauthorization=opaque-credential`,
+    String.raw`line\u0008Bearer opaque-credential`,
+    String.raw`line\\u000aBearer\\u0009opaque-credential`,
+    String.raw`line\\nAuthorization: opaque-credential`,
+    String.raw`line\\nbearer\\topaque-credential`,
+  ])("redacts a header after the escaped boundary in %s", (text) => {
+    expect(redact(text)).not.toContain("opaque-credential");
+    expect(redact(text)).toContain(REDACTED);
+  });
+
+  it("keeps every level of nested JSON intact around a redacted authorization field", () => {
+    const inner = JSON.stringify({ Authorization: "opaque-credential", count: 1 });
+    const safe = redact(JSON.stringify({ body: JSON.stringify({ body: inner }) }));
+    expect(safe).not.toContain("opaque-credential");
+    const middle = JSON.parse(JSON.parse(safe).body);
+    expect(JSON.parse(middle.body)).toEqual({ Authorization: REDACTED, count: 1 });
+  });
 });
