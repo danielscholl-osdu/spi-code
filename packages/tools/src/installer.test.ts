@@ -3,6 +3,7 @@
 
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
+import { renameSync, symlinkSync } from "node:fs";
 import {
   chmod,
   lutimes,
@@ -19,7 +20,7 @@ import {
 } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
@@ -30,10 +31,23 @@ import {
 } from "./installer.js";
 import { parseManifest } from "./manifest.js";
 
-const fsHooks = vi.hoisted(() => ({
-  rename: undefined as undefined | ((from: string, to: string) => void),
-  readdir: undefined as undefined | ((path: string) => void),
-}));
+const fsHooks = vi.hoisted(() => {
+  const hooks = {
+    rename: undefined as undefined | ((from: string, to: string) => void),
+    readdir: undefined as undefined | ((path: string) => void),
+    readdirCallback: undefined as undefined | ((path: string) => void),
+  };
+  // Node's recursive rm binds the callback readdir when it first loads, so patch it before any rm.
+  const fs = process.getBuiltinModule("node:fs");
+  const readdir = fs.readdir;
+  Object.assign(fs, {
+    readdir: (path: string, ...rest: unknown[]) => {
+      hooks.readdirCallback?.(String(path));
+      return Reflect.apply(readdir, fs, [path, ...rest]);
+    },
+  });
+  return hooks;
+});
 vi.mock("node:fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs/promises")>();
   return {
@@ -95,6 +109,7 @@ beforeEach(async () => {
 afterEach(async () => {
   fsHooks.rename = undefined;
   fsHooks.readdir = undefined;
+  fsHooks.readdirCallback = undefined;
   vi.unstubAllEnvs();
   vi.useRealTimers();
   const listening = server;
@@ -302,6 +317,33 @@ test.skipIf(process.platform === "win32").each(Object.keys(tornShapes))(
     await installer.install("gh");
     expect(await installer.binDir("gh")).toBe(join(root, "1.0.0", "bin"));
     expect(await installer.readiness("gh")).toEqual({ state: "ready", version: "1.0.0" });
+  },
+);
+
+test.skipIf(process.platform === "win32")(
+  "repairing a directory current never deletes through it after a swap to an outside symlink",
+  async () => {
+    const appData = join(home, "torn-race");
+    const root = join(appData, "tools", "gh");
+    const current = join(root, "current");
+    const outside = join(home, "outside");
+    await mkdir(join(current, "bin"), { recursive: true });
+    await writeFile(join(current, "bin", "gh"), "torn");
+    await mkdir(outside);
+    await writeFile(join(outside, "sentinel"), "keep");
+    let swapped = false;
+    const swap = (path: string) => {
+      if (swapped || !(path === current || basename(path).startsWith(".torn-current-"))) return;
+      swapped = true;
+      renameSync(current, join(home, "displaced"));
+      symlinkSync(outside, current);
+    };
+    fsHooks.readdir = swap;
+    fsHooks.readdirCallback = swap;
+    await new ToolInstaller(appData, manifest(), platform).install("gh").catch(() => undefined);
+    expect(swapped).toBe(true);
+    expect(await readFile(join(outside, "sentinel"), "utf8")).toBe("keep");
+    expect(await readdir(root)).toEqual(["1.0.0", "current"]);
   },
 );
 

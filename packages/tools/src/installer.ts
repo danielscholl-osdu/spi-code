@@ -17,8 +17,10 @@ import {
   readlink,
   rename,
   rm,
+  rmdir,
   stat,
   symlink,
+  unlink,
 } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { Readable, Transform } from "node:stream";
@@ -74,6 +76,20 @@ function torn(error: unknown): boolean {
     "code" in error &&
     ["ENOENT", "EINVAL", "EISDIR", "ELOOP", "ENOTDIR"].includes(String(error.code))
   );
+}
+
+// Each entry is lstat-checked, so a symlink is unlinked and never traversed.
+async function removeWithoutFollowing(path: string): Promise<void> {
+  const stats = await lstat(path);
+  if (stats.isDirectory()) {
+    for (const name of await readdir(path)) await removeWithoutFollowing(join(path, name));
+    await rmdir(path);
+  } else if (stats.isSymbolicLink() && process.platform === "win32") {
+    // Windows directory symlinks and junctions are removed with rmdir, which does not follow them.
+    await unlink(path).catch(() => rmdir(path));
+  } else {
+    await unlink(path);
+  }
 }
 
 // Flush before the caller renames, so a power loss cannot leave an empty file in place.
@@ -247,6 +263,7 @@ export class ToolInstaller {
     this.states.set(tool, { state: "installing" });
     let staging: string | undefined;
     let pointer: string | undefined;
+    let torn: string | undefined;
     try {
       await mkdir(this.appData, { recursive: true });
       const cutoff = Date.now() - staleAfterMs;
@@ -379,9 +396,11 @@ export class ToolInstaller {
       else await symlink(pin.version, pointer);
       signal?.throwIfAborted();
       const current = join(root, "current");
-      // A file rename cannot replace a directory, so a torn directory pointer is removed first.
+      // A file rename cannot replace a directory, so a torn directory pointer is moved aside first.
+      // rename never follows a final symlink, so a concurrent swap of current moves only the link.
       if ((await lstat(current).catch(() => undefined))?.isDirectory()) {
-        await rm(current, { recursive: true, force: true });
+        torn = join(root, `.torn-current-${staging.split(/[\\/]/).pop()}`);
+        await rename(current, torn);
       }
       await rename(pointer, current);
       this.states.delete(tool);
@@ -394,6 +413,7 @@ export class ToolInstaller {
     } finally {
       this.active.delete(tool);
       if (pointer) await rm(pointer, { force: true });
+      if (torn) await removeWithoutFollowing(torn).catch(() => undefined);
       if (staging) await rm(staging, { recursive: true, force: true });
     }
   }

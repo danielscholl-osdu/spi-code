@@ -208,6 +208,8 @@ describe("Copilot runtime boundary", () => {
       const appDataDir = join(root, "app");
       const shellBin = join(root, "shell-bin");
       const token = "gho_obviouslyFakeLoginShellFallback";
+      const logs = ["log", "info", "warn", "error", "debug"] as const;
+      const spies = logs.map((name) => vi.spyOn(console, name).mockImplementation(() => {}));
       try {
         const managed = join(appDataDir, "tools", "gh");
         await mkdir(join(managed, "2.83.0", "bin"), { recursive: true });
@@ -236,7 +238,9 @@ describe("Copilot runtime boundary", () => {
         }
         expect(fake.configs[0]?.gitHubToken).toBe(token);
         expect(inspect(fake.configs[0]?.env)).not.toContain(token);
+        for (const spy of spies) expect(spy).not.toHaveBeenCalled();
       } finally {
+        for (const spy of spies) spy.mockRestore();
         await rm(root, { recursive: true, force: true });
       }
     },
