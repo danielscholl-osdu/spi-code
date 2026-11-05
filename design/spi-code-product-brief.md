@@ -94,7 +94,7 @@ SPI Code is assembled from code that already runs. The table names each source a
 
 ## License
 
-SPI Code is MIT-licensed from its first commit. Keelson and keelson-rib-spi are Apache-2.0, and SPI Code's author holds their copyright: every human commit in both repositories is his, and the rest are Dependabot and GitHub Actions. Code extracted, copied or ported from them enters SPI Code under MIT. The source repositories keep Apache-2.0. T3 Code and the Copilot SDK are MIT already. osdu-spi and osdu-spi-stack are read and called, not copied, so their terms do not reach SPI Code's source.
+SPI Code is MIT-licensed from its first commit. Keelson and keelson-rib-spi are Apache-2.0, and SPI Code's author holds their copyright: every human commit in both repositories is his, and the rest are Dependabot and GitHub Actions. Code extracted, copied or ported from them enters SPI Code under MIT, with an MIT header naming Daniel Scholl in each file; `AGENTS.md` gives the header. The source repositories keep Apache-2.0. T3 Code and the Copilot SDK are MIT already. osdu-spi and osdu-spi-stack are read and called, not copied, so their terms do not reach SPI Code's source.
 
 The plan is to make SPI Code private if it works. MIT allows that. Copied T3 Code files keep T3 Tools Inc.'s copyright and permission notice, and the packaged app ships a third-party notices file, whether the repository is public or private. Making the repository private stops only later versions: any commit or build published under MIT stays usable under MIT by whoever has it. If no public window is wanted, the repository starts private.
 
@@ -104,8 +104,8 @@ Each milestone ships something the operator uses. M0 and M1 run in parallel. Sig
 
 | Milestone | The operator gets | Done when |
 |---|---|---|
-| **M0 Spike** | Nothing yet; the risky parts are proven | A notarized macOS build and a Windows CI build sign in through gh, stream a Copilot turn, reach every tool stub and refuse a denied call |
-| **M1 Core** | The rib running on `@spi-code/core` | The moved tests pass and the live Keelson tab renders the same Today on the same sweep |
+| **M0 Spike** | Nothing yet; the risky parts are proven | A notarized macOS build signs in through gh, streams a Copilot turn, reaches every tool stub and refuses a denied call; the Windows CI build passes the packaged smoke test against a stub model |
+| **M1 Core** | The rib running on `@spi-code/core` | No test is lost in the move, and the rib's console renders byte-identical output from recorded Facts before and after the switch |
 | **M2 Watch** | The app replaces the Keelson tab for reading | Every view matches the rib console on the same Facts, then a day of live use with no Keelson sweeping |
 | **M3 Ask** | Anchored threads and Diagnose a failure | On recorded incidents, Diagnose names the inspector's cause and cites a tool result for every claim |
 | **M4 Act** | GitHub actions with approvals, bindings and durable waits; Hand off a fix | A stale binding is refused, a wait survives a restart, an interrupted write is resolved by lookup |
@@ -137,13 +137,13 @@ These are decided exclusions. Items still being decided are under Open questions
 
 | Question | Why it matters | Settled by |
 |---|---|---|
-| Where a fix lands when a cascade fails | A build or unit failure in the cascade's validate step is fixed on `fork_integration` and the cascade re-run. A Prove failure on the open `release/upstream-*` PR is fixed on that PR's head branch, because the cascade is held while the PR is open. Code threads must target the right branch for each. | PRD, before M5 |
+| Whether a Prove fix on the release PR's head branch is also applied to `fork_integration` | The PRD settles where each cascade fix lands (CT-02). After a release merges, `integration-cleanup.yml` resets `fork_integration` to `main`, which may make a back-port redundant. But if the release PR is closed instead of merged, the fix is lost. | Maintainer, with the osdu-spi workflow owners, before M5 |
 | Host as a utilityProcess or a Node child | Decides how the Copilot binary and `node:sqlite` run in a signed build | M0 spike |
 | Per-session token provider | The SDK marks it experimental; the fallback is a client-level token | M0 spike |
 | Re-sign the Copilot binary or keep GitHub's signature | Notarization and Gatekeeper behavior | M0 spike |
 | Windows command sandbox | Without one, Windows code threads offer no commands | Probed at M0, proved at M5 |
 | The SDK's own `sandboxConfig` | It can confine Copilot's built-in tools; SPI Code exposes none, so its value next to the host sandbox is unclear | M0, revisited at M5 |
-| Environment dispatch at M4 or M6 | The rib's refresh and upgrade verbs are GitHub writes (M4); reset has no rib verb and the stack tools arrive at M6 | PRD milestone plan |
+| Environment refresh and upgrade as Change or Consequential | The PRD ships them at M4 as Change, since the rib already sends them as single GitHub dispatches; reset arrives at M6 as Consequential | Maintainer, before M4 |
 | When the repository goes private | Everything published before then stays MIT for anyone who has it | Maintainer, by M7 when a second engineer installs it |
 | When the rib retires | Two codebases carry adapters until it does | After a release cycle of daily use |
 
