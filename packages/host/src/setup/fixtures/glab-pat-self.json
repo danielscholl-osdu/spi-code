@@ -1,0 +1,7 @@
+{
+  "id": 1,
+  "name": "spi-code",
+  "revoked": false,
+  "scopes": ["api", "write_repository"],
+  "active": true
+}

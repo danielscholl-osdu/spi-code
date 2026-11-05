@@ -1,0 +1,11 @@
+community.opengroup.org
+  x community.opengroup.org: API call failed: GET https://community.opengroup.org/api/v4/user: 401 {message: 401 Unauthorized}
+  ✓ Git operations for community.opengroup.org configured to use https protocol.
+  ✓ API calls for community.opengroup.org are made over https protocol.
+  ✓ REST API Endpoint: https://community.opengroup.org/api/v4/
+  ✓ GraphQL Endpoint: https://community.opengroup.org/api/graphql/
+  ✓ Token found: **************************
+
+   ERROR  
+
+  X could not authenticate to one or more of the configured GitLab instances..

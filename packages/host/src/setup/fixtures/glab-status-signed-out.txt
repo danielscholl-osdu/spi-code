@@ -1,0 +1,6 @@
+
+   ERROR  
+
+  X community.opengroup.org has not been authenticated with glab. Run `glab auth login --hostname
+  community.opengroup.org` to authenticate..
+

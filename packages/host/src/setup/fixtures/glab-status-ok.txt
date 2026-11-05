@@ -1,0 +1,7 @@
+community.opengroup.org
+  ✓ Logged in to community.opengroup.org as octocat (keyring)
+  ✓ Git operations for community.opengroup.org configured to use https protocol.
+  ✓ API calls for community.opengroup.org are made over https protocol.
+  ✓ REST API Endpoint: https://community.opengroup.org/api/v4/
+  ✓ GraphQL Endpoint: https://community.opengroup.org/api/graphql/
+  ✓ Token found: **************************
