@@ -45,10 +45,10 @@ installer and a ZIP under `build/package-win/artifacts` and combined evidence
 at `build/package-win/smoke.json`. Both commands smoke the app extracted from
 the shipped ZIP and require the matching unpacked SDK runtime's stdio handshake.
 
-The `Packaged smoke` Actions workflow runs `scripts/check` and this packaging
-gate on `macos-latest` arm64 and `windows-latest` x64 for `main`, `bead/**`,
-and manual dispatches. Artifacts and smoke/runtime reports are uploaded with
-the commit SHA. No credentials or live Copilot turn are required; macOS builds
-remain unsigned.
-Packaging still runs after a failed check to preserve diagnostics; that check
-continues to fail the job, so packaging success alone cannot pass the SDK gate.
+The `Packaged smoke` Actions workflow has independent `package` and `check`
+jobs, each on `macos-latest` arm64 and `windows-latest` x64 for `main`, `bead/**`,
+and manual dispatches. `package` builds the app and runs this packaging gate,
+uploading artifacts and smoke/runtime reports with the commit SHA. `check`
+runs the full `scripts/check` suite and remains blocking independently of
+packaging; packaging success alone cannot pass the SDK gate. No credentials
+or live Copilot turn are required; macOS builds remain unsigned.
