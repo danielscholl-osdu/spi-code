@@ -4,6 +4,7 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { inspect } from "node:util";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -30,6 +31,20 @@ async function script(directory: string, name: string, body: string) {
   return file;
 }
 
+async function waitForPid(file: string): Promise<number> {
+  const deadline = Date.now() + 3000;
+  while (Date.now() < deadline) {
+    try {
+      const pid = Number(await readFile(file, "utf8"));
+      if (Number.isInteger(pid) && pid > 0) return pid;
+    } catch (error) {
+      if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error;
+    }
+    await delay(10);
+  }
+  throw new Error("Child did not report readiness.");
+}
+
 function toolEnvironment(capturedPath: string, env = process.env) {
   return buildToolEnvironment({
     platform: "linux",
@@ -42,6 +57,7 @@ function toolEnvironment(capturedPath: string, env = process.env) {
 }
 
 afterEach(async () => {
+  vi.useRealTimers();
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
   await Promise.all(directories.splice(0).map((directory) => rm(directory, { recursive: true })));
@@ -134,16 +150,30 @@ describe("login-shell PATH", () => {
       const shell = await script(
         directory,
         "shell",
-        [`printf '%s' "$$" > '${pidFile}'`, "trap '' TERM", "while :; do :; done"].join("\n"),
+        ["trap '' TERM", `printf '%s' "$$" > '${pidFile}'`, "while :; do :; done"].join("\n"),
       );
-      const result = await captureLoginShellPath({
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const result = captureLoginShellPath({
         platform: "linux",
         shells: [shell],
         timeoutMs: 150,
         env: { PATH: "/usr/bin:/bin" },
       });
-      expect(result).toEqual({ path: "/usr/bin:/bin", captured: false, failures: ["timeout"] });
-      const pid = Number(await readFile(pidFile, "utf8"));
+      let pid: number;
+      try {
+        pid = await waitForPid(pidFile);
+        process.kill(pid, "SIGTERM");
+        await delay(10);
+        process.kill(pid, 0);
+      } finally {
+        await vi.advanceTimersByTimeAsync(150);
+      }
+      expect(await result).toEqual({
+        path: "/usr/bin:/bin",
+        captured: false,
+        failures: ["timeout"],
+      });
+      vi.useRealTimers();
       await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow());
     },
   );
@@ -314,16 +344,27 @@ describe.skipIf(process.platform === "win32")("gh auth token", () => {
       directory,
       "gh",
       [
+        "trap '' TERM",
         `printf '%s' "$$" > '${pidFile}'`,
         `printf '${secret}'`,
-        "trap '' TERM",
         "while :; do :; done",
       ].join("\n"),
     );
-    await expect(ghAuthToken(toolEnvironment(directory), { timeoutMs: 150 })).rejects.toThrow(
-      "gh auth token timed out.",
-    );
-    const pid = Number(await readFile(pidFile, "utf8"));
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const rejected = expect(
+      ghAuthToken(toolEnvironment(directory), { timeoutMs: 150 }),
+    ).rejects.toThrow("gh auth token timed out.");
+    let pid: number;
+    try {
+      pid = await waitForPid(pidFile);
+      process.kill(pid, "SIGTERM");
+      await delay(10);
+      process.kill(pid, 0);
+    } finally {
+      await vi.advanceTimersByTimeAsync(150);
+    }
+    await rejected;
+    vi.useRealTimers();
     await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow());
   });
 });
