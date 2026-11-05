@@ -17,7 +17,8 @@ import {
   type UtilityProcess,
   utilityProcess,
 } from "electron";
-import { assertSmokeReport, type SmokeReport } from "./smoke-report.js";
+import { hostLaunch } from "./host-launch.js";
+import { assertSmokeReport, assertSmokeTools, type SmokeReport } from "./smoke-report.js";
 
 const smoke = process.argv.includes("--smoke");
 const liveFlag = process.argv.indexOf("--live-report");
@@ -33,6 +34,7 @@ const hostEntry = fileURLToPath(new URL("../../../packages/host/dist/main.js", i
 const windowEntry = fileURLToPath(new URL("../../window/build/index.html", import.meta.url));
 let child: UtilityProcess | undefined;
 let stopping = false;
+let failing = false;
 
 function saveReport(report: unknown): void {
   assert(reportPath);
@@ -41,13 +43,21 @@ function saveReport(report: unknown): void {
 }
 
 function fail(error: unknown): void {
+  if (failing) return;
+  failing = true;
+  setTimeout(() => process.exit(1), 2000).unref();
   console.error(error);
   stopping = true;
-  child?.kill();
   try {
     if (smoke) saveReport({ error: error instanceof Error ? error.message : String(error) });
   } finally {
-    app.exit(1);
+    void stopHost().then(
+      () => app.exit(1),
+      () => {
+        console.error("Failed to stop the host after a proof failure");
+        process.exit(1);
+      },
+    );
   }
 }
 
@@ -86,7 +96,12 @@ async function stopHost(): Promise<void> {
 }
 
 async function startHost(window: BrowserWindow, args: string[]): Promise<number> {
-  child = utilityProcess.fork(hostEntry, args, { serviceName: "SPI Code host", stdio: "pipe" });
+  const launch = hostLaunch(app.isPackaged, smoke, liveFlag >= 0, process.env);
+  child = utilityProcess.fork(hostEntry, [...args, ...launch.args], {
+    env: launch.env,
+    serviceName: "SPI Code host",
+    stdio: "pipe",
+  });
   child.stderr?.on("data", (data: Buffer) => process.stderr.write(data));
   child.stdout?.on("data", (data: Buffer) => process.stdout.write(data));
   child.on("exit", (code) => {
@@ -107,8 +122,6 @@ async function run(): Promise<void> {
   if (!reportPath) throw new Error("--smoke-report requires a path");
   if (liveFlag >= 0 && (!livePath || livePath.startsWith("--")))
     throw new Error("--live-report requires a path");
-  if (liveFlag >= 0 && process.env.SPI_CODE_STUB_MODEL === "1")
-    throw new Error("--live-report requires the real Copilot runtime");
   await app.whenReady();
   const dataDir = smoke
     ? join(app.getPath("userData"), "smoke", randomUUID())
@@ -212,7 +225,7 @@ async function run(): Promise<void> {
       return { name, outcome };
     });
   const deniedBuiltIn = evidence.toolEvents.find(({ name }) => name === "builtin:shell");
-  assert(deniedBuiltIn?.outcome === "refused", "Built-in refusal was not observed");
+  assertSmokeTools(tools, deniedBuiltIn);
   window.webContents.send("smoke:malformed");
   await wait((message) => message.type === "error" && message.payload.code === "invalid_message");
   assertNoListeners(process.pid);

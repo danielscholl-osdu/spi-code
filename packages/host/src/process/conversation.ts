@@ -11,6 +11,7 @@ import { ToolRefusedError } from "../tools/registry.js";
 import { APPENDIX_A_TOOLS } from "../tools/tool-names.js";
 
 export interface ConversationBackend {
+  readonly mode: "gh" | "stub";
   readonly generation: number;
   models(): Promise<{ id: string; name: string }[]>;
   turn(model: string, prompt: string, delta: (text: string) => void): Promise<void>;
@@ -27,6 +28,7 @@ export async function createConversationBackend(
   if (stub) {
     const fake = new FakeSession(source);
     return {
+      mode: "stub",
       generation: 1,
       models: async () => [{ id: "stub", name: "Stub model (no Copilot seat)" }],
       endSession() {},
@@ -78,6 +80,7 @@ export async function createConversationBackend(
   let session: CopilotSession | undefined;
   let sessionModel: string | undefined;
   return {
+    mode: "gh",
     get generation() {
       return runtime.clientGeneration;
     },
@@ -89,8 +92,10 @@ export async function createConversationBackend(
     stop: () => runtime.stop(),
     async turn(model, prompt, delta) {
       if (session && sessionModel !== model) {
-        await session.disconnect();
+        const previous = session;
         session = undefined;
+        sessionModel = undefined;
+        await previous.disconnect();
       }
       session ??= await runtime.createSession(model);
       sessionModel = model;
@@ -108,6 +113,7 @@ export function conversationHandler(
   return async (message: Message): Promise<void> => {
     const envelope = { version: 1, id: message.id, kind: "event" } as const;
     let authenticated = false;
+    let failureMessage = "Copilot request failed. Check gh sign-in and retry.";
     try {
       if (message.type !== "models.list" && message.type !== "turn.start") return;
       const models = await backend.models();
@@ -125,7 +131,7 @@ export function conversationHandler(
       send({
         ...envelope,
         type: "signin.state",
-        payload: { signedIn: true },
+        payload: { signedIn: backend.mode === "gh", mode: backend.mode },
       });
       send({
         ...envelope,
@@ -134,8 +140,10 @@ export function conversationHandler(
         payload: { models },
       });
       if (message.type === "turn.start") {
+        failureMessage = "The selected model is no longer available. Refresh models and retry.";
         if (!models.some(({ id }) => id === message.payload.modelId))
           throw new Error("Requested model is not in the current catalog");
+        failureMessage = "Copilot turn failed. Retry the turn.";
         hasSession = true;
         await backend.turn(message.payload.modelId, message.payload.prompt, (text) =>
           send({
@@ -144,6 +152,7 @@ export function conversationHandler(
             payload: { text },
           }),
         );
+        generation = backend.generation;
         send({
           ...envelope,
           type: "turn.end",
@@ -156,7 +165,11 @@ export function conversationHandler(
         await backend.stop();
         backend.endSession();
         hasSession = false;
-        send({ ...envelope, type: "signin.state", payload: { signedIn: false } });
+        send({
+          ...envelope,
+          type: "signin.state",
+          payload: { signedIn: false, mode: backend.mode },
+        });
         send({ ...envelope, type: "session.ended", payload: { reason: "authentication_failed" } });
       }
       send({
@@ -165,7 +178,7 @@ export function conversationHandler(
         type: "error",
         payload: {
           code: "copilot_failed",
-          message: "Copilot request failed. Check gh sign-in and retry.",
+          message: failureMessage,
         },
       });
       if (message.type === "turn.start")

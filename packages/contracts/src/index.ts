@@ -17,7 +17,11 @@ export const MessageSchema = z.discriminatedUnion("type", [
     ...envelope,
     kind: z.literal("event"),
     type: z.literal("signin.state"),
-    payload: z.strictObject({ signedIn: z.boolean() }),
+    payload: z
+      .strictObject({ signedIn: z.boolean(), mode: z.enum(["gh", "stub"]) })
+      .refine(({ signedIn, mode }) => mode !== "stub" || !signedIn, {
+        message: "Stub mode cannot claim gh sign-in",
+      }),
   }),
   z.strictObject({
     ...envelope,

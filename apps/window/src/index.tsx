@@ -4,6 +4,7 @@
 import { type Message, parseMessage } from "@spi-code/contracts";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { settleTurn, signInStatus } from "./turn-state.js";
 import "./style.css";
 
 declare global {
@@ -25,12 +26,14 @@ function send(message: Message): void {
 function App() {
   const [status, setStatus] = useState("Connecting to host...");
   const [signedIn, setSignedIn] = useState(false);
+  const [stub, setStub] = useState(false);
   const [models, setModels] = useState<{ id: string; name: string }[]>([]);
   const [model, setModel] = useState("");
   const [prompt, setPrompt] = useState("");
   const [text, setText] = useState("");
   const [tools, setTools] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [activeRequestId, setActiveRequestId] = useState<string>();
+  const busy = activeRequestId !== undefined;
   const [ended, setEnded] = useState("");
   useEffect(() => {
     let proofStarted = false;
@@ -38,10 +41,10 @@ function App() {
       const parsed = parseMessage(input);
       if (!parsed.ok) {
         setStatus("Invalid host message rejected");
-        setBusy(false);
         return;
       }
       const message = parsed.message;
+      setActiveRequestId((current) => settleTurn(current, message));
       switch (message.type) {
         case "host.hello":
           send({ version: 1, id: "window-ping", kind: "request", type: "ping", payload: {} });
@@ -49,7 +52,8 @@ function App() {
           break;
         case "signin.state":
           setSignedIn(message.payload.signedIn);
-          setStatus(message.payload.signedIn ? "Signed in through gh" : "Not signed in");
+          setStub(message.payload.mode === "stub");
+          setStatus(signInStatus(message.payload));
           break;
         case "models.result": {
           setModels(message.payload.models);
@@ -59,7 +63,7 @@ function App() {
           );
           if (window.spi.proof && !proofStarted && selected) {
             proofStarted = true;
-            setBusy(true);
+            setActiveRequestId("proof-turn");
             send({
               version: 1,
               id: "proof-turn",
@@ -82,16 +86,11 @@ function App() {
             `${message.payload.name}: ${message.payload.outcome}`,
           ]);
           break;
-        case "turn.end":
-          setBusy(false);
-          break;
         case "session.ended":
           setEnded(`Session ended: ${message.payload.reason.replaceAll("_", " ")}`);
-          setBusy(false);
           break;
         case "error":
           setStatus(message.payload.message);
-          setBusy(false);
           break;
       }
     });
@@ -119,13 +118,14 @@ function App() {
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          setBusy(true);
+          const id = crypto.randomUUID();
+          setActiveRequestId(id);
           setEnded("");
           setText("");
           setTools([]);
           send({
             version: 1,
-            id: crypto.randomUUID(),
+            id,
             kind: "request",
             type: "turn.start",
             payload: { modelId: model, prompt },
@@ -152,7 +152,7 @@ function App() {
           disabled={busy}
           onChange={(event) => setPrompt(event.target.value)}
         />
-        <button type="submit" disabled={!signedIn || !model || !prompt.trim() || busy}>
+        <button type="submit" disabled={(!signedIn && !stub) || !model || !prompt.trim() || busy}>
           {busy ? "Streaming..." : "Send"}
         </button>
       </form>

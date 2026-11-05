@@ -12,7 +12,10 @@ import { attachHostPort, type HostPort } from "./process/port.js";
 import { probeStore } from "./process/store-probe.js";
 import { openRunStore } from "./store/store.js";
 
-const [storePath, phase, rowId, reportPath] = process.argv.slice(2);
+const stub = process.argv.includes("--stub-model");
+const [storePath, phase, rowId, reportPath] = process.argv
+  .slice(2)
+  .filter((arg) => arg !== "--stub-model");
 if (!storePath) throw new Error("Host requires an app-data store path");
 const store = openRunStore(storePath);
 if (phase) {
@@ -46,21 +49,17 @@ parentPort.once("message", ({ data, ports }) => {
   let requestId = "startup";
   let handler: ReturnType<typeof conversationHandler> | undefined;
   const backend = () =>
-    createConversationBackend(
-      dirname(storePath),
-      process.env.SPI_CODE_STUB_MODEL === "1",
-      (event) => {
-        const message = parseMessage({
-          version: 1,
-          id: requestId,
-          kind: "event",
-          type: "tool.call",
-          payload: { ...event, arguments: {} },
-        });
-        if (!message.ok) throw new Error("Invalid tool observation");
-        port.postMessage(message.message);
-      },
-    );
+    createConversationBackend(dirname(storePath), stub, (event) => {
+      const message = parseMessage({
+        version: 1,
+        id: requestId,
+        kind: "event",
+        type: "tool.call",
+        payload: { ...event, arguments: {} },
+      });
+      if (!message.ok) throw new Error("Invalid tool observation");
+      port.postMessage(message.message);
+    });
   attachHostPort(port, process.pid, async (message, send) => {
     requestId = message.id;
     if (!handler) {

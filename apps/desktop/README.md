@@ -12,6 +12,11 @@ On macOS, run:
 SPI_CODE_SMOKE_REPORT=/tmp/spi-code-smoke.json pnpm --filter @spi-code/desktop smoke
 ```
 
+`--smoke` explicitly selects the stub model, with no Copilot seat or environment
+flag required. Packaged normal launches ignore inherited `SPI_CODE_STUB_MODEL`;
+unpackaged development may set it to `1`. Stub sign-in is labelled as a stub,
+not as gh authentication.
+
 Alternatively pass `--smoke-report /absolute/path/report.json` to the smoke
 script. The smoke uses a fresh directory under Electron's app-data directory,
 checks a renderer ping and malformed-message rejection, kills and restarts the

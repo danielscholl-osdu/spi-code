@@ -9,12 +9,15 @@ results, SDK errors and credentials are not forwarded to the renderer.
 From the repository root:
 
 ```
-SPI_CODE_STUB_MODEL=1 pnpm --filter @spi-code/desktop smoke
+pnpm --filter @spi-code/desktop smoke
 pnpm --filter @spi-code/desktop start --live-report /tmp/spi-code-live.json
 ```
 
 Stub mode uses the existing fake-session harness and the production registry and
 permission policy: Read stubs complete; unsafe tiers are reached but refused.
+Smoke selects it explicitly. Normal packaged launches ignore the stub environment
+flag; unpackaged development may enable it with `SPI_CODE_STUB_MODEL=1`. The
+window labels the stub without claiming gh sign-in.
 Smoke requires every appendix A tool and a refused shell built-in, alongside the
 existing process, malformed-message and SQLite checks.
 

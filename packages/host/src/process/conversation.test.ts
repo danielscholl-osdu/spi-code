@@ -36,7 +36,7 @@ it("runs every appendix A tool through the real gates and refuses the built-in",
   ]);
   expect(messages.map((message) => parseMessage(message).ok)).not.toContain(false);
   expect(messages).toMatchObject([
-    { type: "signin.state", payload: { signedIn: true } },
+    { type: "signin.state", payload: { signedIn: false, mode: "stub" } },
     { type: "models.result" },
     { type: "turn.delta" },
     { type: "turn.end", payload: { reason: "completed" } },
@@ -45,6 +45,7 @@ it("runs every appendix A tool through the real gates and refuses the built-in",
 
 function fakeBackend(): ConversationBackend {
   return {
+    mode: "gh",
     generation: 1,
     models: vi.fn(async () => [{ id: "stub", name: "Stub" }]),
     turn: vi.fn(async (_model, _prompt, delta) => {
@@ -96,6 +97,15 @@ it("does not dispatch a model absent from the current catalog", async () => {
   await conversationHandler(backend, send)(turn);
   expect(backend.turn).not.toHaveBeenCalled();
   expect(backend.stop).not.toHaveBeenCalled();
+  expect(send).toHaveBeenCalledWith(
+    expect.objectContaining({
+      type: "error",
+      payload: {
+        code: "copilot_failed",
+        message: "The selected model is no longer available. Refresh models and retry.",
+      },
+    }),
+  );
   expect(send).toHaveBeenLastCalledWith(
     expect.objectContaining({ type: "turn.end", payload: { reason: "error" } }),
   );
@@ -109,16 +119,25 @@ it("does not claim a turn failure means gh is signed out", async () => {
   const messages: Message[] = [];
   await conversationHandler(backend, (message) => messages.push(message))(turn);
   expect(messages.filter((message) => message.type === "signin.state")).toEqual([
-    { version: 1, id: "turn", kind: "event", type: "signin.state", payload: { signedIn: true } },
+    {
+      version: 1,
+      id: "turn",
+      kind: "event",
+      type: "signin.state",
+      payload: { signedIn: true, mode: "gh" },
+    },
   ]);
   expect(backend.stop).not.toHaveBeenCalled();
+  expect(messages.find((message) => message.type === "error")).toMatchObject({
+    payload: { message: "Copilot turn failed. Retry the turn." },
+  });
   expect(messages.at(-1)).toMatchObject({ type: "turn.end", payload: { reason: "error" } });
 });
 
 it.each(["signin.state", "session.ended", "tool.call"])("rejects token fields on %s", (type) => {
   const payload =
     type === "signin.state"
-      ? { signedIn: true }
+      ? { signedIn: true, mode: "gh" }
       : type === "session.ended"
         ? { reason: "credential_changed" }
         : { name: "spi_brief", callId: "call", arguments: {}, outcome: "completed" };
@@ -129,6 +148,32 @@ it.each(["signin.state", "session.ended", "tool.call"])("rejects token fields on
       kind: "event",
       type,
       payload: { ...payload, token: "secret" },
+    }).ok,
+  ).toBe(false);
+});
+
+it("does not announce a stale session ending after generation changes inside a turn", async () => {
+  const backend = fakeBackend();
+  backend.turn = vi.fn(async () => {
+    Object.defineProperty(backend, "generation", { value: 2 });
+  });
+  const messages: Message[] = [];
+  const handle = conversationHandler(backend, (message) => messages.push(message));
+  await handle(turn);
+  messages.length = 0;
+  await handle(list);
+  expect(messages.some((message) => message.type === "session.ended")).toBe(false);
+  expect(backend.endSession).not.toHaveBeenCalled();
+});
+
+it("rejects a stub state that claims gh authentication", () => {
+  expect(
+    parseMessage({
+      version: 1,
+      id: "stub",
+      kind: "event",
+      type: "signin.state",
+      payload: { mode: "stub", signedIn: true },
     }).ok,
   ).toBe(false);
 });
