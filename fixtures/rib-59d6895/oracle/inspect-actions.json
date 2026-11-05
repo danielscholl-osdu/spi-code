@@ -1,0 +1,1905 @@
+{
+  "revision": "59d6895d140e9482ed788a3307177855d10883f0",
+  "now": "2026-10-12T21:58:30.000Z",
+  "cases": [
+    {
+      "name": "busy lifecycle",
+      "fixture": "fixture",
+      "item": {
+        "id": "x",
+        "kind": "stack",
+        "rung": 0,
+        "scope": "Environment",
+        "text": "maintenance mode; env-upgrade v0.28.2 in verify › Azure login (OIDC) now",
+        "since": "2026-10-11T22:44:33Z",
+        "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38312331838",
+        "note": "folds 8 effects",
+        "effects": [
+          {
+            "text": "10-11 22:44 · env-upgrade v0.28.1 failed in provision › spi up: GitLab API unreachable while resolving images · set maintenance",
+            "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38181620856"
+          },
+          {
+            "text": "04:16 · env-refresh v0.28.1 failed in Verify stack version and source suspension are unchanged: deployed v0.28.0 drifted from declared v0.28.1",
+            "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38203142060"
+          },
+          {
+            "text": "20:20 · env-upgrade v0.28.1 (dispatched) cancelled after 1h 2m in verify › Wait for Flux Kustomizations to be Ready",
+            "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38303533757"
+          },
+          {
+            "text": "partition template-sync PR #174 · Confirm environment deployable · not deployable: spi-redis: Reconciliation in progress · 20:04",
+            "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/38222934119/job/114982304735"
+          },
+          {
+            "text": "entitlements template-sync PR #48 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:50",
+            "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38224153176/job/114729921174"
+          },
+          {
+            "text": "legal template-sync PR #33 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:48",
+            "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38224167314/job/114729427464"
+          },
+          {
+            "text": "schema template-sync PR #37 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:54",
+            "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/38224682332/job/114731235585"
+          },
+          {
+            "text": "file template-sync PR #51 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:50",
+            "url": "https://github.com/Azure/osdu-spi-file/actions/runs/38223915937/job/114729818458"
+          }
+        ],
+        "cause": [
+          {
+            "label": "state",
+            "value": "maintenance mode since 10-11 22:44"
+          },
+          {
+            "label": "first",
+            "value": "env-upgrade v0.28.1 failed in provision › spi up: GitLab API unreachable while resolving images",
+            "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38181620856"
+          },
+          {
+            "label": "last",
+            "value": "env-upgrade v0.28.2 in verify › Azure login (OIDC)",
+            "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38312331838"
+          },
+          {
+            "label": "versions",
+            "value": "declared v0.28.2 · running v0.28.0"
+          }
+        ],
+        "cls": "ENV",
+        "incident": true,
+        "blocks": 5,
+        "fingerprint": "a1a528a995aaa985"
+      },
+      "opts": {
+        "scopes": ["repo"]
+      },
+      "actions": [
+        {
+          "type": "act",
+          "label": "Re-dispatch env-upgrade",
+          "pendingLabel": "Dispatching…",
+          "tone": "brand",
+          "binding": {
+            "item": "x",
+            "swept": "2026-10-12T21:58:14.428Z",
+            "targets": [
+              {
+                "repo": "Azure/osdu-spi-stack",
+                "kind": "workflow",
+                "state": "idle",
+                "label": "env-upgrade"
+              }
+            ],
+            "verb": "dispatch-env-upgrade"
+          },
+          "disabled": true,
+          "reason": "env-upgrade v0.28.2 is running in concurrency group env-shared"
+        },
+        {
+          "type": "act",
+          "label": "Re-dispatch env-refresh",
+          "pendingLabel": "Dispatching…",
+          "binding": {
+            "item": "x",
+            "swept": "2026-10-12T21:58:14.428Z",
+            "targets": [
+              {
+                "repo": "Azure/osdu-spi-stack",
+                "kind": "workflow",
+                "state": "idle",
+                "label": "env-refresh"
+              }
+            ],
+            "verb": "dispatch-env-refresh"
+          },
+          "disabled": true,
+          "reason": "env-upgrade v0.28.2 is running in concurrency group env-shared"
+        }
+      ]
+    },
+    {
+      "name": "failed lifecycle",
+      "fixture": "down",
+      "item": {
+        "id": "x",
+        "kind": "stack",
+        "rung": 0,
+        "scope": "Environment",
+        "text": "not deployable; last attempt env-refresh v0.28.0 (dispatched) failed",
+        "since": "2026-10-12T21:30:00Z",
+        "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38177432359",
+        "effects": [],
+        "cause": [
+          {
+            "label": "state",
+            "value": "not deployable since 10-11 21:44"
+          },
+          {
+            "label": "first",
+            "value": "env-refresh v0.28.0 (dispatched) failed",
+            "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38177432359"
+          },
+          {
+            "label": "last",
+            "value": "env-refresh v0.28.0 (dispatched) failed",
+            "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38177432359"
+          },
+          {
+            "label": "versions",
+            "value": "declared v0.28.2 · running v0.28.0"
+          }
+        ],
+        "cls": "ENV",
+        "incident": true,
+        "blocks": 0,
+        "fingerprint": "1d45e244d9f24dbe"
+      },
+      "opts": {
+        "scopes": ["repo"]
+      },
+      "actions": [
+        {
+          "type": "act",
+          "label": "Re-dispatch env-refresh",
+          "pendingLabel": "Dispatching…",
+          "tone": "brand",
+          "binding": {
+            "item": "x",
+            "swept": "2026-10-12T21:58:14.428Z",
+            "targets": [
+              {
+                "repo": "Azure/osdu-spi-stack",
+                "kind": "workflow",
+                "state": "idle",
+                "label": "env-refresh"
+              }
+            ],
+            "verb": "dispatch-env-refresh"
+          },
+          "confirm": {
+            "title": "Re-dispatch env-refresh · osdu-spi-stack",
+            "body": "Runs env-refresh on the shared environment: quiesce, reconcile the pinned source, wait for Flux, probe the gateway, then reopen for deploys. It clears maintenance only after its probes pass; the board has no verb that clears maintenance directly. env-refresh and env-upgrade share concurrency group env-shared, so this is refused while either one is queued or running.\n\nCalls: gh workflow run env-refresh.yml -R Azure/osdu-spi-stack.\n\nEach target is read again first; one that changed since the board drew it is skipped and named in the result.",
+            "confirmLabel": "Re-dispatch env-refresh"
+          }
+        },
+        {
+          "type": "act",
+          "label": "Re-dispatch env-upgrade",
+          "pendingLabel": "Dispatching…",
+          "binding": {
+            "item": "x",
+            "swept": "2026-10-12T21:58:14.428Z",
+            "targets": [
+              {
+                "repo": "Azure/osdu-spi-stack",
+                "kind": "workflow",
+                "state": "idle",
+                "label": "env-upgrade"
+              }
+            ],
+            "verb": "dispatch-env-upgrade"
+          },
+          "confirm": {
+            "title": "Re-dispatch env-upgrade · osdu-spi-stack",
+            "body": "Runs env-upgrade, which deploys the declared stackVersion v0.28.2 from ops/environments/shared.yaml onto the shared environment. It takes no inputs. It clears maintenance only after its verify stage passes. env-refresh and env-upgrade share concurrency group env-shared, so this is refused while either one is queued or running.\n\nCalls: gh workflow run env-upgrade.yml -R Azure/osdu-spi-stack.\n\nEach target is read again first; one that changed since the board drew it is skipped and named in the result.",
+            "confirmLabel": "Re-dispatch env-upgrade"
+          }
+        }
+      ]
+    },
+    {
+      "name": "scope blocked",
+      "fixture": "down",
+      "item": {
+        "id": "x",
+        "kind": "stack",
+        "rung": 0,
+        "scope": "Environment",
+        "text": "not deployable; last attempt env-refresh v0.28.0 (dispatched) failed",
+        "since": "2026-10-12T21:30:00Z",
+        "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38177432359",
+        "effects": [],
+        "cause": [
+          {
+            "label": "state",
+            "value": "not deployable since 10-11 21:44"
+          },
+          {
+            "label": "first",
+            "value": "env-refresh v0.28.0 (dispatched) failed",
+            "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38177432359"
+          },
+          {
+            "label": "last",
+            "value": "env-refresh v0.28.0 (dispatched) failed",
+            "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38177432359"
+          },
+          {
+            "label": "versions",
+            "value": "declared v0.28.2 · running v0.28.0"
+          }
+        ],
+        "cls": "ENV",
+        "incident": true,
+        "blocks": 0,
+        "fingerprint": "1d45e244d9f24dbe"
+      },
+      "opts": {
+        "scopes": ["read:org"]
+      },
+      "actions": [
+        {
+          "type": "act",
+          "label": "Re-dispatch env-refresh",
+          "pendingLabel": "Dispatching…",
+          "tone": "brand",
+          "binding": {
+            "item": "x",
+            "swept": "2026-10-12T21:58:14.428Z",
+            "targets": [
+              {
+                "repo": "Azure/osdu-spi-stack",
+                "kind": "workflow",
+                "state": "idle",
+                "label": "env-refresh"
+              }
+            ],
+            "verb": "dispatch-env-refresh"
+          },
+          "disabled": true,
+          "reason": "gh's token lacks the repo scope; run gh auth refresh -s repo"
+        },
+        {
+          "type": "act",
+          "label": "Re-dispatch env-upgrade",
+          "pendingLabel": "Dispatching…",
+          "binding": {
+            "item": "x",
+            "swept": "2026-10-12T21:58:14.428Z",
+            "targets": [
+              {
+                "repo": "Azure/osdu-spi-stack",
+                "kind": "workflow",
+                "state": "idle",
+                "label": "env-upgrade"
+              }
+            ],
+            "verb": "dispatch-env-upgrade"
+          },
+          "disabled": true,
+          "reason": "gh's token lacks the repo scope; run gh auth refresh -s repo"
+        }
+      ]
+    },
+    {
+      "name": "deployable lanes",
+      "fixture": "lanes",
+      "item": {
+        "id": "x",
+        "kind": "lanes",
+        "rung": 1,
+        "scope": "Environment",
+        "text": "deployable again; 5 fork lanes failed before it recovered",
+        "since": "2026-10-12T08:48:44Z",
+        "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38224167314/job/114729427464",
+        "note": "re-run now",
+        "effects": [
+          {
+            "text": "partition template-sync PR #174 · Confirm environment deployable · not deployable: spi-redis: Reconciliation in progress · 20:04",
+            "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/38222934119/job/114982304735"
+          },
+          {
+            "text": "entitlements template-sync PR #48 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:50",
+            "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38224153176/job/114729921174"
+          },
+          {
+            "text": "legal template-sync PR #33 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:48",
+            "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38224167314/job/114729427464"
+          },
+          {
+            "text": "schema template-sync PR #37 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:54",
+            "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/38224682332/job/114731235585"
+          },
+          {
+            "text": "file template-sync PR #51 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:50",
+            "url": "https://github.com/Azure/osdu-spi-file/actions/runs/38223915937/job/114729818458"
+          }
+        ],
+        "cause": [
+          {
+            "label": "environment",
+            "value": "deployable · maintenance clear after the last lifecycle run"
+          },
+          {
+            "label": "first failure",
+            "value": "legal template-sync PR #33 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:48",
+            "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38224167314/job/114729427464"
+          }
+        ],
+        "cls": "ENV",
+        "lanes": [
+          {
+            "repo": "Azure/osdu-spi-partition",
+            "service": "partition",
+            "pr": 174,
+            "headSha": "106530c99367ee065def80132c4ba17eb97fc103",
+            "runId": 38222934119,
+            "step": "Confirm environment deployable"
+          },
+          {
+            "repo": "Azure/osdu-spi-entitlements",
+            "service": "entitlements",
+            "pr": 48,
+            "headSha": "83ba02695699cf9846d0f0a597e2c40ee14dc823",
+            "runId": 38224153176,
+            "step": "Confirm environment deployable"
+          },
+          {
+            "repo": "Azure/osdu-spi-legal",
+            "service": "legal",
+            "pr": 33,
+            "headSha": "65231bb10c8f2d3789c101e806332431a65937d5",
+            "runId": 38224167314,
+            "step": "Confirm environment deployable"
+          },
+          {
+            "repo": "Azure/osdu-spi-schema",
+            "service": "schema",
+            "pr": 37,
+            "headSha": "073b6511b5b5a328ca5d7d4d9ae77aabba5adac6",
+            "runId": 38224682332,
+            "step": "Confirm environment deployable"
+          },
+          {
+            "repo": "Azure/osdu-spi-file",
+            "service": "file",
+            "pr": 51,
+            "headSha": "da1e35efa81a6aead1b28b93bf272ebec3d72452",
+            "runId": 38223915937,
+            "step": "Confirm environment deployable"
+          }
+        ],
+        "incident": true,
+        "blocks": 5,
+        "fingerprint": "87226b5abcde1910"
+      },
+      "opts": {
+        "scopes": ["repo"],
+        "ops": true
+      },
+      "actions": [
+        {
+          "type": "act",
+          "label": "Re-run lanes · 5",
+          "pendingLabel": "Re-running 5…",
+          "tone": "brand",
+          "binding": {
+            "item": "x",
+            "swept": "2026-10-12T21:58:14.428Z",
+            "targets": [
+              {
+                "repo": "Azure/osdu-spi-partition",
+                "kind": "run",
+                "number": 38222934119,
+                "pr": 174,
+                "sha": "106530c99367ee065def80132c4ba17eb97fc103",
+                "state": "failure",
+                "label": "partition #174"
+              },
+              {
+                "repo": "Azure/osdu-spi-entitlements",
+                "kind": "run",
+                "number": 38224153176,
+                "pr": 48,
+                "sha": "83ba02695699cf9846d0f0a597e2c40ee14dc823",
+                "state": "failure",
+                "label": "entitlements #48"
+              },
+              {
+                "repo": "Azure/osdu-spi-legal",
+                "kind": "run",
+                "number": 38224167314,
+                "pr": 33,
+                "sha": "65231bb10c8f2d3789c101e806332431a65937d5",
+                "state": "failure",
+                "label": "legal #33"
+              },
+              {
+                "repo": "Azure/osdu-spi-schema",
+                "kind": "run",
+                "number": 38224682332,
+                "pr": 37,
+                "sha": "073b6511b5b5a328ca5d7d4d9ae77aabba5adac6",
+                "state": "failure",
+                "label": "schema #37"
+              },
+              {
+                "repo": "Azure/osdu-spi-file",
+                "kind": "run",
+                "number": 38223915937,
+                "pr": 51,
+                "sha": "da1e35efa81a6aead1b28b93bf272ebec3d72452",
+                "state": "failure",
+                "label": "file #51"
+              }
+            ],
+            "verb": "rerun"
+          },
+          "confirm": {
+            "title": "Re-run 5 failed lanes",
+            "body": "The stack has been deployable since 10-11 21:44. Each lane failed in Confirm environment deployable, on the shared stack rather than the code, so only the failed jobs run again. Lanes: partition #174 run 38222934119, entitlements #48 run 38224153176, legal #33 run 38224167314, schema #37 run 38224682332 and file #51 run 38223915937.\n\nCalls: gh run rerun 38222934119 --failed -R Azure/osdu-spi-partition; gh run rerun 38224153176 --failed -R Azure/osdu-spi-entitlements; gh run rerun 38224167314 --failed -R Azure/osdu-spi-legal; gh run rerun 38224682332 --failed -R Azure/osdu-spi-schema; gh run rerun 38223915937 --failed -R Azure/osdu-spi-file.\n\nEach target is read again first; one that changed since the board drew it is skipped and named in the result.",
+            "confirmLabel": "Re-run lanes · 5"
+          }
+        }
+      ]
+    },
+    {
+      "name": "no durable ops",
+      "fixture": "down",
+      "item": {
+        "id": "x",
+        "kind": "lanes",
+        "rung": 1,
+        "scope": "Environment",
+        "text": "5 fork lanes failed on the environment: not deployable: The environment is in maintenance.",
+        "since": "2026-10-12T08:48:44Z",
+        "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38224167314/job/114729427464",
+        "effects": [
+          {
+            "text": "partition template-sync PR #174 · Confirm environment deployable · not deployable: spi-redis: Reconciliation in progress · 20:04",
+            "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/38222934119/job/114982304735"
+          },
+          {
+            "text": "entitlements template-sync PR #48 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:50",
+            "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38224153176/job/114729921174"
+          },
+          {
+            "text": "legal template-sync PR #33 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:48",
+            "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38224167314/job/114729427464"
+          },
+          {
+            "text": "schema template-sync PR #37 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:54",
+            "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/38224682332/job/114731235585"
+          },
+          {
+            "text": "file template-sync PR #51 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:50",
+            "url": "https://github.com/Azure/osdu-spi-file/actions/runs/38223915937/job/114729818458"
+          }
+        ],
+        "cause": [
+          {
+            "label": "environment",
+            "value": "not deployable · no lifecycle run in the window says"
+          },
+          {
+            "label": "first failure",
+            "value": "legal template-sync PR #33 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:48",
+            "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38224167314/job/114729427464"
+          }
+        ],
+        "cls": "ENV",
+        "lanes": [
+          {
+            "repo": "Azure/osdu-spi-partition",
+            "service": "partition",
+            "pr": 174,
+            "headSha": "106530c99367ee065def80132c4ba17eb97fc103",
+            "runId": 38222934119,
+            "step": "Confirm environment deployable"
+          },
+          {
+            "repo": "Azure/osdu-spi-entitlements",
+            "service": "entitlements",
+            "pr": 48,
+            "headSha": "83ba02695699cf9846d0f0a597e2c40ee14dc823",
+            "runId": 38224153176,
+            "step": "Confirm environment deployable"
+          },
+          {
+            "repo": "Azure/osdu-spi-legal",
+            "service": "legal",
+            "pr": 33,
+            "headSha": "65231bb10c8f2d3789c101e806332431a65937d5",
+            "runId": 38224167314,
+            "step": "Confirm environment deployable"
+          },
+          {
+            "repo": "Azure/osdu-spi-schema",
+            "service": "schema",
+            "pr": 37,
+            "headSha": "073b6511b5b5a328ca5d7d4d9ae77aabba5adac6",
+            "runId": 38224682332,
+            "step": "Confirm environment deployable"
+          },
+          {
+            "repo": "Azure/osdu-spi-file",
+            "service": "file",
+            "pr": 51,
+            "headSha": "da1e35efa81a6aead1b28b93bf272ebec3d72452",
+            "runId": 38223915937,
+            "step": "Confirm environment deployable"
+          }
+        ],
+        "incident": true,
+        "blocks": 5,
+        "fingerprint": "9ada4d265429bad6"
+      },
+      "opts": {
+        "scopes": ["repo"]
+      },
+      "actions": [
+        {
+          "type": "rerun-when-deployable",
+          "label": "Re-run when deployable",
+          "pendingLabel": "Setting the wait…",
+          "tone": "brand",
+          "binding": {
+            "item": "x",
+            "swept": "2026-10-12T21:58:14.428Z",
+            "targets": [
+              {
+                "repo": "Azure/osdu-spi-partition",
+                "kind": "run",
+                "number": 38222934119,
+                "pr": 174,
+                "sha": "106530c99367ee065def80132c4ba17eb97fc103",
+                "state": "failure",
+                "label": "partition #174"
+              },
+              {
+                "repo": "Azure/osdu-spi-entitlements",
+                "kind": "run",
+                "number": 38224153176,
+                "pr": 48,
+                "sha": "83ba02695699cf9846d0f0a597e2c40ee14dc823",
+                "state": "failure",
+                "label": "entitlements #48"
+              },
+              {
+                "repo": "Azure/osdu-spi-legal",
+                "kind": "run",
+                "number": 38224167314,
+                "pr": 33,
+                "sha": "65231bb10c8f2d3789c101e806332431a65937d5",
+                "state": "failure",
+                "label": "legal #33"
+              },
+              {
+                "repo": "Azure/osdu-spi-schema",
+                "kind": "run",
+                "number": 38224682332,
+                "pr": 37,
+                "sha": "073b6511b5b5a328ca5d7d4d9ae77aabba5adac6",
+                "state": "failure",
+                "label": "schema #37"
+              },
+              {
+                "repo": "Azure/osdu-spi-file",
+                "kind": "run",
+                "number": 38223915937,
+                "pr": 51,
+                "sha": "da1e35efa81a6aead1b28b93bf272ebec3d72452",
+                "state": "failure",
+                "label": "file #51"
+              }
+            ],
+            "verb": "rerun"
+          },
+          "disabled": true,
+          "reason": "this Keelson has no durable ops"
+        }
+      ]
+    },
+    {
+      "name": "wait for deployable",
+      "fixture": "down",
+      "item": {
+        "id": "x",
+        "kind": "lanes",
+        "rung": 1,
+        "scope": "Environment",
+        "text": "5 fork lanes failed on the environment: not deployable: The environment is in maintenance.",
+        "since": "2026-10-12T08:48:44Z",
+        "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38224167314/job/114729427464",
+        "effects": [
+          {
+            "text": "partition template-sync PR #174 · Confirm environment deployable · not deployable: spi-redis: Reconciliation in progress · 20:04",
+            "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/38222934119/job/114982304735"
+          },
+          {
+            "text": "entitlements template-sync PR #48 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:50",
+            "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38224153176/job/114729921174"
+          },
+          {
+            "text": "legal template-sync PR #33 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:48",
+            "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38224167314/job/114729427464"
+          },
+          {
+            "text": "schema template-sync PR #37 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:54",
+            "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/38224682332/job/114731235585"
+          },
+          {
+            "text": "file template-sync PR #51 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:50",
+            "url": "https://github.com/Azure/osdu-spi-file/actions/runs/38223915937/job/114729818458"
+          }
+        ],
+        "cause": [
+          {
+            "label": "environment",
+            "value": "not deployable · no lifecycle run in the window says"
+          },
+          {
+            "label": "first failure",
+            "value": "legal template-sync PR #33 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:48",
+            "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38224167314/job/114729427464"
+          }
+        ],
+        "cls": "ENV",
+        "lanes": [
+          {
+            "repo": "Azure/osdu-spi-partition",
+            "service": "partition",
+            "pr": 174,
+            "headSha": "106530c99367ee065def80132c4ba17eb97fc103",
+            "runId": 38222934119,
+            "step": "Confirm environment deployable"
+          },
+          {
+            "repo": "Azure/osdu-spi-entitlements",
+            "service": "entitlements",
+            "pr": 48,
+            "headSha": "83ba02695699cf9846d0f0a597e2c40ee14dc823",
+            "runId": 38224153176,
+            "step": "Confirm environment deployable"
+          },
+          {
+            "repo": "Azure/osdu-spi-legal",
+            "service": "legal",
+            "pr": 33,
+            "headSha": "65231bb10c8f2d3789c101e806332431a65937d5",
+            "runId": 38224167314,
+            "step": "Confirm environment deployable"
+          },
+          {
+            "repo": "Azure/osdu-spi-schema",
+            "service": "schema",
+            "pr": 37,
+            "headSha": "073b6511b5b5a328ca5d7d4d9ae77aabba5adac6",
+            "runId": 38224682332,
+            "step": "Confirm environment deployable"
+          },
+          {
+            "repo": "Azure/osdu-spi-file",
+            "service": "file",
+            "pr": 51,
+            "headSha": "da1e35efa81a6aead1b28b93bf272ebec3d72452",
+            "runId": 38223915937,
+            "step": "Confirm environment deployable"
+          }
+        ],
+        "incident": true,
+        "blocks": 5,
+        "fingerprint": "9ada4d265429bad6"
+      },
+      "opts": {
+        "scopes": ["repo"],
+        "ops": true
+      },
+      "actions": [
+        {
+          "type": "rerun-when-deployable",
+          "label": "Re-run when deployable",
+          "pendingLabel": "Setting the wait…",
+          "tone": "brand",
+          "binding": {
+            "item": "x",
+            "swept": "2026-10-12T21:58:14.428Z",
+            "targets": [
+              {
+                "repo": "Azure/osdu-spi-partition",
+                "kind": "run",
+                "number": 38222934119,
+                "pr": 174,
+                "sha": "106530c99367ee065def80132c4ba17eb97fc103",
+                "state": "failure",
+                "label": "partition #174"
+              },
+              {
+                "repo": "Azure/osdu-spi-entitlements",
+                "kind": "run",
+                "number": 38224153176,
+                "pr": 48,
+                "sha": "83ba02695699cf9846d0f0a597e2c40ee14dc823",
+                "state": "failure",
+                "label": "entitlements #48"
+              },
+              {
+                "repo": "Azure/osdu-spi-legal",
+                "kind": "run",
+                "number": 38224167314,
+                "pr": 33,
+                "sha": "65231bb10c8f2d3789c101e806332431a65937d5",
+                "state": "failure",
+                "label": "legal #33"
+              },
+              {
+                "repo": "Azure/osdu-spi-schema",
+                "kind": "run",
+                "number": 38224682332,
+                "pr": 37,
+                "sha": "073b6511b5b5a328ca5d7d4d9ae77aabba5adac6",
+                "state": "failure",
+                "label": "schema #37"
+              },
+              {
+                "repo": "Azure/osdu-spi-file",
+                "kind": "run",
+                "number": 38223915937,
+                "pr": 51,
+                "sha": "da1e35efa81a6aead1b28b93bf272ebec3d72452",
+                "state": "failure",
+                "label": "file #51"
+              }
+            ],
+            "verb": "rerun"
+          },
+          "confirm": {
+            "title": "Re-run 5 failed lanes when deployable",
+            "body": "The stack is not deployable now (no lifecycle run in the window says). A wait holds these 5 lanes and, on the first sweep that reads deployable, re-runs them through the same calls. It stands down without writing if a lifecycle run fails again. A Keelson restart drops the wait and the item stays in the queue. Lanes: partition #174 run 38222934119, entitlements #48 run 38224153176, legal #33 run 38224167314, schema #37 run 38224682332 and file #51 run 38223915937.\n\nCalls: gh run rerun 38222934119 --failed -R Azure/osdu-spi-partition; gh run rerun 38224153176 --failed -R Azure/osdu-spi-entitlements; gh run rerun 38224167314 --failed -R Azure/osdu-spi-legal; gh run rerun 38224682332 --failed -R Azure/osdu-spi-schema; gh run rerun 38223915937 --failed -R Azure/osdu-spi-file.\n\nEach target is read again first; one that changed since the board drew it is skipped and named in the result.",
+            "confirmLabel": "Re-run when deployable"
+          }
+        }
+      ]
+    },
+    {
+      "name": "already waiting",
+      "fixture": "down",
+      "item": {
+        "id": "x",
+        "kind": "lanes",
+        "rung": 1,
+        "scope": "Environment",
+        "text": "5 fork lanes failed on the environment: not deployable: The environment is in maintenance.",
+        "since": "2026-10-12T08:48:44Z",
+        "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38224167314/job/114729427464",
+        "effects": [
+          {
+            "text": "partition template-sync PR #174 · Confirm environment deployable · not deployable: spi-redis: Reconciliation in progress · 20:04",
+            "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/38222934119/job/114982304735"
+          },
+          {
+            "text": "entitlements template-sync PR #48 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:50",
+            "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38224153176/job/114729921174"
+          },
+          {
+            "text": "legal template-sync PR #33 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:48",
+            "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38224167314/job/114729427464"
+          },
+          {
+            "text": "schema template-sync PR #37 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:54",
+            "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/38224682332/job/114731235585"
+          },
+          {
+            "text": "file template-sync PR #51 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:50",
+            "url": "https://github.com/Azure/osdu-spi-file/actions/runs/38223915937/job/114729818458"
+          }
+        ],
+        "cause": [
+          {
+            "label": "environment",
+            "value": "not deployable · no lifecycle run in the window says"
+          },
+          {
+            "label": "first failure",
+            "value": "legal template-sync PR #33 · Confirm environment deployable · not deployable: The environment is in maintenance. · 08:48",
+            "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38224167314/job/114729427464"
+          }
+        ],
+        "cls": "ENV",
+        "lanes": [
+          {
+            "repo": "Azure/osdu-spi-partition",
+            "service": "partition",
+            "pr": 174,
+            "headSha": "106530c99367ee065def80132c4ba17eb97fc103",
+            "runId": 38222934119,
+            "step": "Confirm environment deployable"
+          },
+          {
+            "repo": "Azure/osdu-spi-entitlements",
+            "service": "entitlements",
+            "pr": 48,
+            "headSha": "83ba02695699cf9846d0f0a597e2c40ee14dc823",
+            "runId": 38224153176,
+            "step": "Confirm environment deployable"
+          },
+          {
+            "repo": "Azure/osdu-spi-legal",
+            "service": "legal",
+            "pr": 33,
+            "headSha": "65231bb10c8f2d3789c101e806332431a65937d5",
+            "runId": 38224167314,
+            "step": "Confirm environment deployable"
+          },
+          {
+            "repo": "Azure/osdu-spi-schema",
+            "service": "schema",
+            "pr": 37,
+            "headSha": "073b6511b5b5a328ca5d7d4d9ae77aabba5adac6",
+            "runId": 38224682332,
+            "step": "Confirm environment deployable"
+          },
+          {
+            "repo": "Azure/osdu-spi-file",
+            "service": "file",
+            "pr": 51,
+            "headSha": "da1e35efa81a6aead1b28b93bf272ebec3d72452",
+            "runId": 38223915937,
+            "step": "Confirm environment deployable"
+          }
+        ],
+        "incident": true,
+        "blocks": 5,
+        "fingerprint": "9ada4d265429bad6"
+      },
+      "opts": {
+        "scopes": ["repo"],
+        "ops": true,
+        "waiting": {
+          "id": "op-7",
+          "at": "2026-10-12T21:45:00Z"
+        }
+      },
+      "actions": [
+        {
+          "type": "rerun-when-deployable",
+          "label": "Re-run when deployable",
+          "pendingLabel": "Setting the wait…",
+          "tone": "brand",
+          "binding": {
+            "item": "x",
+            "swept": "2026-10-12T21:58:14.428Z",
+            "targets": [
+              {
+                "repo": "Azure/osdu-spi-partition",
+                "kind": "run",
+                "number": 38222934119,
+                "pr": 174,
+                "sha": "106530c99367ee065def80132c4ba17eb97fc103",
+                "state": "failure",
+                "label": "partition #174"
+              },
+              {
+                "repo": "Azure/osdu-spi-entitlements",
+                "kind": "run",
+                "number": 38224153176,
+                "pr": 48,
+                "sha": "83ba02695699cf9846d0f0a597e2c40ee14dc823",
+                "state": "failure",
+                "label": "entitlements #48"
+              },
+              {
+                "repo": "Azure/osdu-spi-legal",
+                "kind": "run",
+                "number": 38224167314,
+                "pr": 33,
+                "sha": "65231bb10c8f2d3789c101e806332431a65937d5",
+                "state": "failure",
+                "label": "legal #33"
+              },
+              {
+                "repo": "Azure/osdu-spi-schema",
+                "kind": "run",
+                "number": 38224682332,
+                "pr": 37,
+                "sha": "073b6511b5b5a328ca5d7d4d9ae77aabba5adac6",
+                "state": "failure",
+                "label": "schema #37"
+              },
+              {
+                "repo": "Azure/osdu-spi-file",
+                "kind": "run",
+                "number": 38223915937,
+                "pr": 51,
+                "sha": "da1e35efa81a6aead1b28b93bf272ebec3d72452",
+                "state": "failure",
+                "label": "file #51"
+              }
+            ],
+            "verb": "rerun"
+          },
+          "disabled": true,
+          "reason": "already waiting since 21:45 as op op-7; run_cancel drops it"
+        }
+      ]
+    },
+    {
+      "name": "template actions",
+      "fixture": "fixture",
+      "item": {
+        "id": "x",
+        "kind": "template-set",
+        "rung": 1,
+        "scope": "svc",
+        "text": "",
+        "effects": [],
+        "cause": [],
+        "incident": true,
+        "blocks": 1
+      },
+      "opts": {
+        "scopes": ["repo"]
+      },
+      "actions": [
+        {
+          "type": "act",
+          "label": "Sync all forks · 0",
+          "pendingLabel": "Dispatching 0…",
+          "binding": {
+            "item": "engineering",
+            "swept": "2026-10-12T21:58:14.428Z",
+            "targets": [
+              {
+                "repo": "Azure/osdu-spi",
+                "kind": "repo",
+                "label": "none"
+              }
+            ],
+            "verb": "sync-template"
+          },
+          "disabled": true,
+          "reason": "every fork is on v1.2.0 +14 or its PR carries it"
+        },
+        {
+          "type": "act",
+          "label": "Roll out · 0 ready",
+          "pendingLabel": "Merging 0…",
+          "binding": {
+            "item": "engineering",
+            "swept": "2026-10-12T21:58:14.428Z",
+            "targets": [
+              {
+                "repo": "Azure/osdu-spi",
+                "kind": "repo",
+                "label": "none"
+              }
+            ],
+            "verb": "roll-out"
+          },
+          "disabled": true,
+          "reason": "nothing is ready: partition #174, entitlements #48, legal #33, schema #37 and file #51 are red on the stack"
+        }
+      ]
+    },
+    {
+      "name": "approval waiting",
+      "fixture": "fixture",
+      "item": {
+        "id": "x",
+        "kind": "approvals",
+        "rung": 1,
+        "scope": "svc",
+        "text": "",
+        "effects": [],
+        "cause": [],
+        "incident": true,
+        "blocks": 1,
+        "approve": [
+          {
+            "repo": "Azure/osdu-spi-stack",
+            "pr": {
+              "number": 343,
+              "title": "fix(k8s): Harden Reference Catalog Downloads",
+              "url": "https://github.com/Azure/osdu-spi-stack/pull/343",
+              "author": "contributor-a",
+              "association": "CONTRIBUTOR",
+              "draft": false,
+              "headSha": "541ab075615710332d1212659f536d027e6c72c3",
+              "files": [".github/workflows/validate.yml", "k8s/reference/download.sh"],
+              "changedFiles": 2,
+              "additions": 90,
+              "deletions": 12
+            },
+            "runs": [
+              {
+                "id": 38380539981,
+                "name": "CodeQL"
+              },
+              {
+                "id": 38380540082,
+                "name": "Validate"
+              }
+            ],
+            "since": "2026-10-12T20:01:49Z",
+            "workflowFiles": [".github/workflows/validate.yml"]
+          },
+          {
+            "repo": "Azure/osdu-spi-stack",
+            "pr": {
+              "number": 344,
+              "title": "fix(k8s): Harden Reference Catalog Downloads",
+              "url": "https://github.com/Azure/osdu-spi-stack/pull/343",
+              "author": "contributor-a",
+              "association": "CONTRIBUTOR",
+              "draft": true,
+              "headSha": "541ab075615710332d1212659f536d027e6c72c3",
+              "files": [".github/workflows/validate.yml", "k8s/reference/download.sh"],
+              "changedFiles": 2,
+              "additions": 90,
+              "deletions": 12
+            },
+            "runs": [
+              {
+                "id": 38380539981,
+                "name": "CodeQL"
+              },
+              {
+                "id": 38380540082,
+                "name": "Validate"
+              }
+            ],
+            "since": "2026-10-12T20:01:49Z",
+            "workflowFiles": []
+          },
+          {
+            "repo": "Azure/osdu-spi-stack",
+            "pr": {
+              "number": 345,
+              "title": "fix(k8s): Harden Reference Catalog Downloads",
+              "url": "https://github.com/Azure/osdu-spi-stack/pull/343",
+              "author": "contributor-a",
+              "association": "CONTRIBUTOR",
+              "draft": false,
+              "headSha": "541ab075615710332d1212659f536d027e6c72c3",
+              "files": [".github/workflows/validate.yml", "k8s/reference/download.sh"],
+              "changedFiles": 2,
+              "additions": 90,
+              "deletions": 12
+            },
+            "runs": [
+              {
+                "id": 38380539981,
+                "name": "CodeQL"
+              },
+              {
+                "id": 38380540082,
+                "name": "Validate"
+              }
+            ],
+            "since": "2026-10-12T20:01:49Z",
+            "workflowFiles": []
+          }
+        ]
+      },
+      "opts": {
+        "scopes": ["repo"]
+      },
+      "actions": [],
+      "approvals": {
+        "kind": "cards",
+        "title": "Outside PRs · 3",
+        "items": [
+          {
+            "title": "#343 fix(k8s): Harden Reference Catalog Downloads",
+            "href": "https://github.com/Azure/osdu-spi-stack/pull/343",
+            "pill": {
+              "label": "changes .github",
+              "tone": "caution"
+            },
+            "fields": [
+              {
+                "label": "by",
+                "value": "contributor-a · contributor"
+              },
+              {
+                "label": "diff",
+                "value": "2 files · +90 −12"
+              },
+              {
+                "label": "waiting",
+                "value": "2 runs"
+              }
+            ],
+            "actions": [
+              {
+                "type": "act",
+                "label": "Approve #343 · 2 runs",
+                "pendingLabel": "Approving…",
+                "binding": {
+                  "item": "x",
+                  "swept": "2026-10-12T21:58:14.428Z",
+                  "targets": [
+                    {
+                      "repo": "Azure/osdu-spi-stack",
+                      "kind": "run",
+                      "number": 38380539981,
+                      "pr": 343,
+                      "sha": "541ab075615710332d1212659f536d027e6c72c3",
+                      "state": "action_required",
+                      "label": "#343 CodeQL"
+                    },
+                    {
+                      "repo": "Azure/osdu-spi-stack",
+                      "kind": "run",
+                      "number": 38380540082,
+                      "pr": 343,
+                      "sha": "541ab075615710332d1212659f536d027e6c72c3",
+                      "state": "action_required",
+                      "label": "#343 Validate"
+                    }
+                  ],
+                  "verb": "approve-runs"
+                },
+                "confirm": {
+                  "title": "Approve runs · contributor-a #343",
+                  "body": "#343 fix(k8s): Harden Reference Catalog Downloads, by contributor-a (contributor) · 2 files · +90 −12. It changes .github/workflows/validate.yml, and approved runs execute that change. Files: .github/workflows/validate.yml, k8s/reference/download.sh.\n\nCalls: gh api --method POST repos/Azure/osdu-spi-stack/actions/runs/38380539981/approve; gh api --method POST repos/Azure/osdu-spi-stack/actions/runs/38380540082/approve.\n\nEach target is read again first; one that changed since the board drew it is skipped and named in the result.",
+                  "confirmLabel": "Approve #343 · 2 runs",
+                  "irreversible": true,
+                  "subject": "343",
+                  "label": "Type 343: this PR changes .github/"
+                }
+              }
+            ]
+          },
+          {
+            "title": "#344 fix(k8s): Harden Reference Catalog Downloads",
+            "href": "https://github.com/Azure/osdu-spi-stack/pull/343",
+            "pill": {
+              "label": "draft",
+              "tone": "neutral"
+            },
+            "fields": [
+              {
+                "label": "by",
+                "value": "contributor-a · contributor"
+              },
+              {
+                "label": "diff",
+                "value": "2 files · +90 −12"
+              },
+              {
+                "label": "waiting",
+                "value": "2 runs"
+              }
+            ],
+            "actions": [
+              {
+                "type": "act",
+                "label": "Approve #344 · 2 runs",
+                "pendingLabel": "Approving…",
+                "binding": {
+                  "item": "x",
+                  "swept": "2026-10-12T21:58:14.428Z",
+                  "targets": [
+                    {
+                      "repo": "Azure/osdu-spi-stack",
+                      "kind": "run",
+                      "number": 38380539981,
+                      "pr": 344,
+                      "sha": "541ab075615710332d1212659f536d027e6c72c3",
+                      "state": "action_required",
+                      "label": "#344 CodeQL"
+                    },
+                    {
+                      "repo": "Azure/osdu-spi-stack",
+                      "kind": "run",
+                      "number": 38380540082,
+                      "pr": 344,
+                      "sha": "541ab075615710332d1212659f536d027e6c72c3",
+                      "state": "action_required",
+                      "label": "#344 Validate"
+                    }
+                  ],
+                  "verb": "approve-runs"
+                },
+                "confirm": {
+                  "title": "Approve runs · contributor-a #344",
+                  "body": "#344 fix(k8s): Harden Reference Catalog Downloads, by contributor-a (contributor, draft) · 2 files · +90 −12. Files: .github/workflows/validate.yml, k8s/reference/download.sh.\n\nCalls: gh api --method POST repos/Azure/osdu-spi-stack/actions/runs/38380539981/approve; gh api --method POST repos/Azure/osdu-spi-stack/actions/runs/38380540082/approve.\n\nEach target is read again first; one that changed since the board drew it is skipped and named in the result.",
+                  "confirmLabel": "Approve #344 · 2 runs"
+                }
+              }
+            ]
+          },
+          {
+            "title": "#345 fix(k8s): Harden Reference Catalog Downloads",
+            "href": "https://github.com/Azure/osdu-spi-stack/pull/343",
+            "fields": [
+              {
+                "label": "by",
+                "value": "contributor-a · contributor"
+              },
+              {
+                "label": "diff",
+                "value": "2 files · +90 −12"
+              },
+              {
+                "label": "waiting",
+                "value": "2 runs"
+              }
+            ],
+            "actions": [
+              {
+                "type": "act",
+                "label": "Approve #345 · 2 runs",
+                "pendingLabel": "Approving…",
+                "binding": {
+                  "item": "x",
+                  "swept": "2026-10-12T21:58:14.428Z",
+                  "targets": [
+                    {
+                      "repo": "Azure/osdu-spi-stack",
+                      "kind": "run",
+                      "number": 38380539981,
+                      "pr": 345,
+                      "sha": "541ab075615710332d1212659f536d027e6c72c3",
+                      "state": "action_required",
+                      "label": "#345 CodeQL"
+                    },
+                    {
+                      "repo": "Azure/osdu-spi-stack",
+                      "kind": "run",
+                      "number": 38380540082,
+                      "pr": 345,
+                      "sha": "541ab075615710332d1212659f536d027e6c72c3",
+                      "state": "action_required",
+                      "label": "#345 Validate"
+                    }
+                  ],
+                  "verb": "approve-runs"
+                },
+                "confirm": {
+                  "title": "Approve runs · contributor-a #345",
+                  "body": "#345 fix(k8s): Harden Reference Catalog Downloads, by contributor-a (contributor) · 2 files · +90 −12. Files: .github/workflows/validate.yml, k8s/reference/download.sh.\n\nCalls: gh api --method POST repos/Azure/osdu-spi-stack/actions/runs/38380539981/approve; gh api --method POST repos/Azure/osdu-spi-stack/actions/runs/38380540082/approve.\n\nEach target is read again first; one that changed since the board drew it is skipped and named in the result.",
+                  "confirmLabel": "Approve #345 · 2 runs"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "approval scope blocked",
+      "fixture": "fixture",
+      "item": {
+        "id": "x",
+        "kind": "approvals",
+        "rung": 1,
+        "scope": "svc",
+        "text": "",
+        "effects": [],
+        "cause": [],
+        "incident": true,
+        "blocks": 1,
+        "approve": [
+          {
+            "repo": "Azure/osdu-spi-stack",
+            "pr": {
+              "number": 343,
+              "title": "fix(k8s): Harden Reference Catalog Downloads",
+              "url": "https://github.com/Azure/osdu-spi-stack/pull/343",
+              "author": "contributor-a",
+              "association": "CONTRIBUTOR",
+              "draft": false,
+              "headSha": "541ab075615710332d1212659f536d027e6c72c3",
+              "files": [".github/workflows/validate.yml", "k8s/reference/download.sh"],
+              "changedFiles": 2,
+              "additions": 90,
+              "deletions": 12
+            },
+            "runs": [
+              {
+                "id": 38380539981,
+                "name": "CodeQL"
+              },
+              {
+                "id": 38380540082,
+                "name": "Validate"
+              }
+            ],
+            "since": "2026-10-12T20:01:49Z",
+            "workflowFiles": [".github/workflows/validate.yml"]
+          },
+          {
+            "repo": "Azure/osdu-spi-stack",
+            "pr": {
+              "number": 344,
+              "title": "fix(k8s): Harden Reference Catalog Downloads",
+              "url": "https://github.com/Azure/osdu-spi-stack/pull/343",
+              "author": "contributor-a",
+              "association": "CONTRIBUTOR",
+              "draft": true,
+              "headSha": "541ab075615710332d1212659f536d027e6c72c3",
+              "files": [".github/workflows/validate.yml", "k8s/reference/download.sh"],
+              "changedFiles": 2,
+              "additions": 90,
+              "deletions": 12
+            },
+            "runs": [
+              {
+                "id": 38380539981,
+                "name": "CodeQL"
+              },
+              {
+                "id": 38380540082,
+                "name": "Validate"
+              }
+            ],
+            "since": "2026-10-12T20:01:49Z",
+            "workflowFiles": []
+          },
+          {
+            "repo": "Azure/osdu-spi-stack",
+            "pr": {
+              "number": 345,
+              "title": "fix(k8s): Harden Reference Catalog Downloads",
+              "url": "https://github.com/Azure/osdu-spi-stack/pull/343",
+              "author": "contributor-a",
+              "association": "CONTRIBUTOR",
+              "draft": false,
+              "headSha": "541ab075615710332d1212659f536d027e6c72c3",
+              "files": [".github/workflows/validate.yml", "k8s/reference/download.sh"],
+              "changedFiles": 2,
+              "additions": 90,
+              "deletions": 12
+            },
+            "runs": [
+              {
+                "id": 38380539981,
+                "name": "CodeQL"
+              },
+              {
+                "id": 38380540082,
+                "name": "Validate"
+              }
+            ],
+            "since": "2026-10-12T20:01:49Z",
+            "workflowFiles": []
+          }
+        ]
+      },
+      "opts": {
+        "scopes": []
+      },
+      "actions": [],
+      "approvals": {
+        "kind": "cards",
+        "title": "Outside PRs · 3",
+        "items": [
+          {
+            "title": "#343 fix(k8s): Harden Reference Catalog Downloads",
+            "href": "https://github.com/Azure/osdu-spi-stack/pull/343",
+            "pill": {
+              "label": "changes .github",
+              "tone": "caution"
+            },
+            "fields": [
+              {
+                "label": "by",
+                "value": "contributor-a · contributor"
+              },
+              {
+                "label": "diff",
+                "value": "2 files · +90 −12"
+              },
+              {
+                "label": "waiting",
+                "value": "2 runs"
+              }
+            ],
+            "actions": [
+              {
+                "type": "act",
+                "label": "Approve #343 · 2 runs",
+                "pendingLabel": "Approving…",
+                "binding": {
+                  "item": "x",
+                  "swept": "2026-10-12T21:58:14.428Z",
+                  "targets": [
+                    {
+                      "repo": "Azure/osdu-spi-stack",
+                      "kind": "run",
+                      "number": 38380539981,
+                      "pr": 343,
+                      "sha": "541ab075615710332d1212659f536d027e6c72c3",
+                      "state": "action_required",
+                      "label": "#343 CodeQL"
+                    },
+                    {
+                      "repo": "Azure/osdu-spi-stack",
+                      "kind": "run",
+                      "number": 38380540082,
+                      "pr": 343,
+                      "sha": "541ab075615710332d1212659f536d027e6c72c3",
+                      "state": "action_required",
+                      "label": "#343 Validate"
+                    }
+                  ],
+                  "verb": "approve-runs"
+                },
+                "disabled": true,
+                "reason": "gh's token lacks the repo scope; run gh auth refresh -s repo"
+              }
+            ]
+          },
+          {
+            "title": "#344 fix(k8s): Harden Reference Catalog Downloads",
+            "href": "https://github.com/Azure/osdu-spi-stack/pull/343",
+            "pill": {
+              "label": "draft",
+              "tone": "neutral"
+            },
+            "fields": [
+              {
+                "label": "by",
+                "value": "contributor-a · contributor"
+              },
+              {
+                "label": "diff",
+                "value": "2 files · +90 −12"
+              },
+              {
+                "label": "waiting",
+                "value": "2 runs"
+              }
+            ],
+            "actions": [
+              {
+                "type": "act",
+                "label": "Approve #344 · 2 runs",
+                "pendingLabel": "Approving…",
+                "binding": {
+                  "item": "x",
+                  "swept": "2026-10-12T21:58:14.428Z",
+                  "targets": [
+                    {
+                      "repo": "Azure/osdu-spi-stack",
+                      "kind": "run",
+                      "number": 38380539981,
+                      "pr": 344,
+                      "sha": "541ab075615710332d1212659f536d027e6c72c3",
+                      "state": "action_required",
+                      "label": "#344 CodeQL"
+                    },
+                    {
+                      "repo": "Azure/osdu-spi-stack",
+                      "kind": "run",
+                      "number": 38380540082,
+                      "pr": 344,
+                      "sha": "541ab075615710332d1212659f536d027e6c72c3",
+                      "state": "action_required",
+                      "label": "#344 Validate"
+                    }
+                  ],
+                  "verb": "approve-runs"
+                },
+                "disabled": true,
+                "reason": "gh's token lacks the repo scope; run gh auth refresh -s repo"
+              }
+            ]
+          },
+          {
+            "title": "#345 fix(k8s): Harden Reference Catalog Downloads",
+            "href": "https://github.com/Azure/osdu-spi-stack/pull/343",
+            "fields": [
+              {
+                "label": "by",
+                "value": "contributor-a · contributor"
+              },
+              {
+                "label": "diff",
+                "value": "2 files · +90 −12"
+              },
+              {
+                "label": "waiting",
+                "value": "2 runs"
+              }
+            ],
+            "actions": [
+              {
+                "type": "act",
+                "label": "Approve #345 · 2 runs",
+                "pendingLabel": "Approving…",
+                "binding": {
+                  "item": "x",
+                  "swept": "2026-10-12T21:58:14.428Z",
+                  "targets": [
+                    {
+                      "repo": "Azure/osdu-spi-stack",
+                      "kind": "run",
+                      "number": 38380539981,
+                      "pr": 345,
+                      "sha": "541ab075615710332d1212659f536d027e6c72c3",
+                      "state": "action_required",
+                      "label": "#345 CodeQL"
+                    },
+                    {
+                      "repo": "Azure/osdu-spi-stack",
+                      "kind": "run",
+                      "number": 38380540082,
+                      "pr": 345,
+                      "sha": "541ab075615710332d1212659f536d027e6c72c3",
+                      "state": "action_required",
+                      "label": "#345 Validate"
+                    }
+                  ],
+                  "verb": "approve-runs"
+                },
+                "disabled": true,
+                "reason": "gh's token lacks the repo scope; run gh auth refresh -s repo"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "ladder": {
+    "kind": "rows",
+    "title": "Release ladder · newest first",
+    "items": [
+      {
+        "chip": {
+          "label": "v1.2.0 +14",
+          "tone": "info"
+        },
+        "text": "4 changes · images, actions, workflows · Pin Maven in java-build and other template mvn …",
+        "trailing": "0 of 5 · 5 waiting",
+        "action": {
+          "type": "inspect",
+          "payload": {
+            "id": "step:bb49a034a3dcdaa922a1905e708ec66bde930888"
+          }
+        }
+      },
+      {
+        "chip": {
+          "label": "v1.2.0 +2",
+          "tone": "neutral"
+        },
+        "text": "1 change · images, actions, workflows · prewarm with dependency:resolve, not go-offline",
+        "trailing": "1 of 5 · 4 waiting",
+        "action": {
+          "type": "inspect",
+          "payload": {
+            "id": "step:ddfd9ff376b1f49a2f41b7a9f55e9541796cba45"
+          }
+        }
+      },
+      {
+        "chip": {
+          "label": "v1.2.0",
+          "tone": "neutral"
+        },
+        "text": "the oldest fork position",
+        "trailing": "5 of 5",
+        "action": {
+          "type": "inspect",
+          "payload": {
+            "id": "step:ea9a2e1975c3e62588a85b2947ba77a32d6fcfb9"
+          }
+        }
+      }
+    ]
+  },
+  "shaLadder": {
+    "kind": "rows",
+    "title": "Release ladder · newest first",
+    "items": [
+      {
+        "chip": {
+          "label": "bb49a03",
+          "tone": "info"
+        },
+        "text": "v1.2.0 +14 · 4 changes · images, actions, workflows · Pin Maven in java-build and other template mvn …",
+        "trailing": "0 of 5 · 5 waiting",
+        "action": {
+          "type": "inspect",
+          "payload": {
+            "id": "step:bb49a034a3dcdaa922a1905e708ec66bde930888"
+          }
+        }
+      },
+      {
+        "chip": {
+          "label": "ddfd9ff",
+          "tone": "neutral"
+        },
+        "text": "v1.2.0 +2 · 1 change · images, actions, workflows · prewarm with dependency:resolve, not go-offline",
+        "trailing": "1 of 5 · 4 waiting",
+        "action": {
+          "type": "inspect",
+          "payload": {
+            "id": "step:ddfd9ff376b1f49a2f41b7a9f55e9541796cba45"
+          }
+        }
+      },
+      {
+        "chip": {
+          "label": "ea9a2e1",
+          "tone": "neutral"
+        },
+        "text": "v1.2.0 · the oldest fork position",
+        "trailing": "5 of 5",
+        "action": {
+          "type": "inspect",
+          "payload": {
+            "id": "step:ea9a2e1975c3e62588a85b2947ba77a32d6fcfb9"
+          }
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "id": "step:bb49a034a3dcdaa922a1905e708ec66bde930888",
+      "board": {
+        "view": "board",
+        "header": {
+          "status": {
+            "label": "v1.2.0 +14",
+            "tone": "info"
+          },
+          "chip": "0 of 5 · 5 waiting"
+        },
+        "sections": [
+          {
+            "kind": "rows",
+            "items": [
+              {
+                "glyph": "info",
+                "text": "4 changes from v1.2.0 +2 to v1.2.0 +14, reaching images, actions, workflows."
+              }
+            ]
+          },
+          {
+            "kind": "rows",
+            "title": "Changes · 4",
+            "items": [
+              {
+                "text": "chore(deps): bump openjdk/jdk from `df29dac` to `fe3dae3` in /build in the docker group",
+                "trailing": "#252 · 10-10 16:17",
+                "href": "https://github.com/Azure/osdu-spi/pull/252"
+              },
+              {
+                "text": "Pin Maven in java-build and other template mvn steps",
+                "trailing": "#251 · 10-10 16:12",
+                "href": "https://github.com/Azure/osdu-spi/pull/251"
+              },
+              {
+                "text": "chore(deps): bump urllib3 from 2.7.0 to 2.8.0 in /doc",
+                "trailing": "#243 · 10-07 19:25",
+                "href": "https://github.com/Azure/osdu-spi/pull/243"
+              },
+              {
+                "text": "chore(deps): bump openjdk/jdk from `ab77e25` to `df29dac` in /build in the docker group",
+                "trailing": "#244 · 10-07 19:18",
+                "href": "https://github.com/Azure/osdu-spi/pull/244"
+              }
+            ]
+          },
+          {
+            "kind": "rows",
+            "title": "Forks",
+            "items": [
+              {
+                "glyph": "info",
+                "text": "partition",
+                "trailing": "PR waits"
+              },
+              {
+                "glyph": "info",
+                "text": "entitlements",
+                "trailing": "PR waits"
+              },
+              {
+                "glyph": "info",
+                "text": "legal",
+                "trailing": "PR waits"
+              },
+              {
+                "glyph": "info",
+                "text": "schema",
+                "trailing": "PR waits"
+              },
+              {
+                "glyph": "info",
+                "text": "file",
+                "trailing": "PR waits"
+              }
+            ]
+          },
+          {
+            "kind": "rows",
+            "title": "Evidence",
+            "items": [
+              {
+                "icon": "↗",
+                "text": "Compare on GitHub",
+                "href": "https://github.com/Azure/osdu-spi/compare/ddfd9ff376b1f49a2f41b7a9f55e9541796cba45...bb49a034a3dcdaa922a1905e708ec66bde930888"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "step:ddfd9ff376b1f49a2f41b7a9f55e9541796cba45",
+      "board": {
+        "view": "board",
+        "header": {
+          "status": {
+            "label": "v1.2.0 +2",
+            "tone": "neutral"
+          },
+          "chip": "1 of 5 · 4 waiting"
+        },
+        "sections": [
+          {
+            "kind": "rows",
+            "items": [
+              {
+                "glyph": "neutral",
+                "text": "1 change from v1.2.0 to v1.2.0 +2, reaching images, actions, workflows."
+              }
+            ]
+          },
+          {
+            "kind": "rows",
+            "title": "Changes · 1",
+            "items": [
+              {
+                "text": "fix(acceptance): prewarm with dependency:resolve, not go-offline",
+                "trailing": "#247 · 10-07 18:47",
+                "href": "https://github.com/Azure/osdu-spi/pull/247"
+              }
+            ]
+          },
+          {
+            "kind": "rows",
+            "title": "Forks",
+            "items": [
+              {
+                "glyph": "ok",
+                "text": "schema",
+                "trailing": "on it"
+              },
+              {
+                "glyph": "info",
+                "text": "partition",
+                "trailing": "PR waits"
+              },
+              {
+                "glyph": "info",
+                "text": "entitlements",
+                "trailing": "PR waits"
+              },
+              {
+                "glyph": "info",
+                "text": "legal",
+                "trailing": "PR waits"
+              },
+              {
+                "glyph": "info",
+                "text": "file",
+                "trailing": "PR waits"
+              }
+            ]
+          },
+          {
+            "kind": "rows",
+            "title": "Evidence",
+            "items": [
+              {
+                "icon": "↗",
+                "text": "Compare on GitHub",
+                "href": "https://github.com/Azure/osdu-spi/compare/ea9a2e1975c3e62588a85b2947ba77a32d6fcfb9...ddfd9ff376b1f49a2f41b7a9f55e9541796cba45"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "step:ea9a2e1975c3e62588a85b2947ba77a32d6fcfb9",
+      "board": {
+        "view": "board",
+        "header": {
+          "status": {
+            "label": "v1.2.0",
+            "tone": "neutral"
+          },
+          "chip": "5 of 5"
+        },
+        "sections": [
+          {
+            "kind": "rows",
+            "items": [
+              {
+                "glyph": "neutral",
+                "text": "v1.2.0 is the oldest position a fork holds."
+              }
+            ]
+          },
+          {
+            "kind": "rows",
+            "title": "Forks",
+            "items": [
+              {
+                "glyph": "ok",
+                "text": "partition",
+                "trailing": "on it"
+              },
+              {
+                "glyph": "ok",
+                "text": "entitlements",
+                "trailing": "on it"
+              },
+              {
+                "glyph": "ok",
+                "text": "legal",
+                "trailing": "on it"
+              },
+              {
+                "glyph": "ok",
+                "text": "schema",
+                "trailing": "on it"
+              },
+              {
+                "glyph": "ok",
+                "text": "file",
+                "trailing": "on it"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "step:gone",
+      "board": {
+        "view": "board",
+        "header": {
+          "status": {
+            "label": "MOVED",
+            "tone": "neutral"
+          }
+        },
+        "sections": [
+          {
+            "kind": "rows",
+            "items": [
+              {
+                "glyph": "ok",
+                "text": "No fork sits at this position any more; the ladder redrew."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
