@@ -51,22 +51,26 @@ function result(entry: ExecLogEntry): string {
   return JSON.stringify([entry.stdout, entry.stderr, entry.exit, entry.error ?? null]);
 }
 
-// A recording made before spicode-t1k.109 may hold two reads of the stack's declaration at one
-// commit: the lifecycle reader cached it only after a read returned, and read two workflows' runs
-// at once. Core now shares the read in flight. Only that read, with one answer recorded, may be
-// served a number of times other than recorded: once to DECLARATION_RACE times.
-const DECLARATION_READ = new RegExp(
-  `^repos/[^/]+/[^/]+/contents/${DECLARATION_PATH.replace(/[.]/g, "\\.")}\\?ref=[0-9a-f]{40}$`,
+// The recording of 2026-11-05 was made before spicode-t1k.109 shared the lifecycle reader's
+// declaration read in flight, and holds the stack's declaration at one commit read twice with
+// one answer; core now reads it once. Only that exact call, recorded at most SHARED_COPIES
+// times with one answer, may be served fewer times than recorded, and at least once. Every
+// other call is served exactly as often as recorded.
+const SHARED_DECLARATION = key(
+  "gh",
+  [
+    "api",
+    `repos/Azure/osdu-spi-stack/contents/${DECLARATION_PATH}?ref=b941fa7ea7e2362a8512a1ada5cd3248336260eb`,
+    "--jq",
+    "{text: (.content | @base64d)}",
+  ],
+  null,
 );
-const DECLARATION_RACE = 2;
-
-function raced(cmd: string, args: readonly string[]): boolean {
-  return cmd === "gh" && args[0] === "api" && DECLARATION_READ.test(args[1] ?? "");
-}
+const SHARED_COPIES = 2;
 
 /** Core's ReplayExec, one per distinct call. The sweep reads areas concurrently, so the
  * recorded order across calls is timing; the order of one call's answers is not. Each recorded
- * entry is served once and must be served, except the declaration race above. */
+ * entry is served once and must be served, except the shared declaration read above. */
 class SweepReplay implements Exec {
   private readonly calls = new Map<
     string,
@@ -89,18 +93,17 @@ class SweepReplay implements Exec {
       lines.set(id, [...(lines.get(id) ?? []), line]);
     }
     for (const [id, recorded] of lines) {
-      const first = JSON.parse(recorded[0] as string) as ExecLogEntry;
       const answers = new Set(recorded.map((line) => result(JSON.parse(line) as ExecLogEntry)));
-      const race =
-        raced(first.cmd, first.args) && answers.size === 1 && recorded.length <= DECLARATION_RACE;
-      const kept = race ? recorded.slice(0, 1) : recorded;
+      const shared =
+        id === SHARED_DECLARATION && answers.size === 1 && recorded.length <= SHARED_COPIES;
+      const kept = shared ? recorded.slice(0, 1) : recorded;
       this.calls.set(id, {
         lines: kept,
         exec: new ReplayExec(kept.join("\n")),
         served: 0,
         recorded: recorded.length,
         min: kept.length,
-        max: race ? DECLARATION_RACE : kept.length,
+        max: shared ? recorded.length : kept.length,
       });
     }
   }
@@ -133,7 +136,7 @@ class SweepReplay implements Exec {
     return [...this.calls.values()].reduce((sum, call) => sum + call.served, 0);
   }
 
-  /** The declaration reads served other than as recorded, for the report. */
+  /** The shared declaration reads served fewer times than recorded. */
   get raced(): number {
     return [...this.calls.values()].filter(
       (call) => call.max > call.min && call.served !== call.recorded,
@@ -152,7 +155,14 @@ describe("SweepReplay", () => {
   const log = (...lines: string[]) => lines.join("\n");
   const call = (exec: Exec, args: string[]) => exec.runText("gh", args);
   const rate = ["api", "rate_limit"];
-  const declaration = ["api", `repos/${STACK}/contents/${DECLARATION_PATH}?ref=${"a".repeat(40)}`];
+  const SHARED_REF = "b941fa7ea7e2362a8512a1ada5cd3248336260eb";
+  const declaration = (repo: string, ref: string) => [
+    "api",
+    `repos/${repo}/contents/${DECLARATION_PATH}?ref=${ref}`,
+    "--jq",
+    "{text: (.content | @base64d)}",
+  ];
+  const shared = declaration(STACK, SHARED_REF);
 
   test("serves each recorded answer once", async () => {
     const exec = new SweepReplay(log(entry(rate)));
@@ -169,27 +179,67 @@ describe("SweepReplay", () => {
     exec.assertExhausted();
   });
 
-  test("a lifecycle declaration read at one commit may run once or twice, never more", async () => {
-    const once = new SweepReplay(log(entry(declaration)));
-    expect(() => once.assertExhausted()).toThrow(/Unconsumed exec entry/);
-    await call(once, declaration);
-    await call(once, declaration);
-    once.assertExhausted();
-    await expect(call(once, declaration)).rejects.toThrow(/more often than recorded/);
-    expect(once.raced).toBe(1);
-    const twice = new SweepReplay(log(entry(declaration), entry(declaration)));
-    await call(twice, declaration);
+  test("the shared declaration read recorded twice may be served once or twice", async () => {
+    const twice = new SweepReplay(log(entry(shared), entry(shared)));
+    expect(() => twice.assertExhausted()).toThrow(/Unconsumed exec entry/);
+    await call(twice, shared);
     twice.assertExhausted();
     expect([twice.served, twice.raced]).toEqual([1, 1]);
-    await call(twice, declaration);
+    await call(twice, shared);
     expect([twice.served, twice.raced]).toEqual([2, 0]);
+    await expect(call(twice, shared)).rejects.toThrow(/more often than recorded/);
   });
 
-  test("a lifecycle declaration read with differing answers is replayed strictly", async () => {
-    const exec = new SweepReplay(log(entry(declaration, "{}"), entry(declaration, "[]")));
-    await call(exec, declaration);
+  test("the shared declaration read recorded once is served exactly once", async () => {
+    const once = new SweepReplay(log(entry(shared)));
+    await call(once, shared);
+    await expect(call(once, shared)).rejects.toThrow(/more often than recorded/);
+    expect(once.raced).toBe(0);
+  });
+
+  test("the shared declaration read recorded more than twice is replayed strictly", async () => {
+    const thrice = new SweepReplay(log(entry(shared), entry(shared), entry(shared)));
+    await call(thrice, shared);
+    expect(() => thrice.assertExhausted()).toThrow(/Unconsumed exec entry/);
+  });
+
+  test("the shared declaration read with differing answers is replayed strictly", async () => {
+    const exec = new SweepReplay(log(entry(shared, "{}"), entry(shared, "[]")));
+    await call(exec, shared);
     expect(() => exec.assertExhausted()).toThrow(/Unconsumed exec entry/);
   });
+
+  test.each([
+    ["another commit", declaration(STACK, "a".repeat(40))],
+    ["another repository", declaration("Azure/osdu-spi-other", SHARED_REF)],
+    ["another jq filter", [...declaration(STACK, SHARED_REF).slice(0, 3), ".content"]],
+    ["no jq filter", declaration(STACK, SHARED_REF).slice(0, 2)],
+  ])("a declaration read at %s recorded twice must be made twice", async (_, args) => {
+    const exec = new SweepReplay(log(entry(args), entry(args)));
+    await call(exec, args);
+    expect(() => exec.assertExhausted()).toThrow(/Unconsumed exec entry/);
+    expect(exec.raced).toBe(0);
+  });
+
+  test.skipIf(!sweep)(
+    "every other recorded declaration read duplicated must be made twice",
+    async () => {
+      const lines = readFileSync(join(sweep as string, "exec.jsonl"), "utf8")
+        .split("\n")
+        .filter((line) => line.includes(`contents/${DECLARATION_PATH}?ref=`));
+      const others = lines.filter((line) => {
+        const { cmd, args, stdin } = JSON.parse(line) as ExecLogEntry;
+        return key(cmd, args, stdin) !== SHARED_DECLARATION;
+      });
+      expect([lines.length - others.length, others.length]).toEqual([2, 13]);
+      for (const line of others) {
+        const { args } = JSON.parse(line) as ExecLogEntry;
+        const exec = new SweepReplay(log(line, line));
+        await call(exec, args);
+        expect(() => exec.assertExhausted()).toThrow(/Unconsumed exec entry/);
+      }
+    },
+  );
 });
 
 /** Splits what the sweep's account charged into GitHub's reported costs and the reservations
@@ -478,7 +528,7 @@ describe("paged port reads", () => {
 
 /** Core's Facts from the live sweep that wrote the log, as the replay must read them: the log
  * holds redacted output, so live strings are redacted the same way, and the live count of calls
- * is the log's length, which the replay's own count is checked against with the race allowed. */
+ * is the log's length, which the replay's own count is checked against with the shared read allowed. */
 function asLogged(value: unknown): unknown {
   if (typeof value === "string") return redact(value);
   if (Array.isArray(value)) return value.map(asLogged);
@@ -532,8 +582,8 @@ test.skipIf(!sweep)(
     exec.assertExhausted();
     expect(sweeper.facts.sweep?.calls).toBe(exec.served);
     expect(live.sweep.calls).toBe(entries.length);
-    expect(exec.served).toBeGreaterThanOrEqual(entries.length - exec.raced);
-    expect(exec.served).toBeLessThanOrEqual(entries.length + exec.raced);
+    expect(exec.raced).toBeLessThanOrEqual(1);
+    expect(exec.served).toBe(entries.length - exec.raced);
     expect(comparable(sweeper.facts as unknown as Record<string, unknown>, "core")).toEqual(
       comparable(live, "core"),
     );

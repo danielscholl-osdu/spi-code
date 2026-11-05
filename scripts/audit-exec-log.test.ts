@@ -962,6 +962,113 @@ describe("Facts files", () => {
   });
 });
 
+describe("base64 content", () => {
+  const LINE = "CLIENT_SECRET=s3cr3tValue42";
+  const b64 = (text: string) => Buffer.from(text).toString("base64");
+  // GitHub wraps a contents or blob read's base64 at 60 characters.
+  const wrapped = (text: string) => b64(text).replace(/.{60}/g, "$&\n");
+  const READS = {
+    "a GitLab file read": {
+      cmd: "glab",
+      args: [
+        "api",
+        ...GITLAB_HOST,
+        "projects/osdu%2Fplatform%2Fsystem%2Fwidgets/repository/files/pom.xml?ref=abcdef0",
+      ],
+      envelope: (content: unknown) => ({ file_name: "pom.xml", encoding: "base64", content }),
+    },
+    "a GitHub contents read": {
+      cmd: "gh",
+      args: ["api", "repos/acme/widgets/contents/.github/upstream-filter.yml"],
+      envelope: (content: unknown) => ({ path: "x", type: "file", encoding: "base64", content }),
+    },
+    "a GitHub blob read": {
+      cmd: "gh",
+      args: ["api", `repos/acme/widgets/git/blobs/${"a".repeat(40)}`],
+      envelope: (content: unknown) => ({ sha: "a".repeat(40), encoding: "base64", content }),
+    },
+  };
+  type Read = keyof typeof READS;
+  const audited = (read: Read, stdout: string, extra: object = {}) => {
+    const dir = copyOfClean();
+    const { cmd, args } = READS[read];
+    append(dir, { cmd, args, ...ok, stdout, ...extra });
+    return auditSweep(dir).findings;
+  };
+  const encoded = (read: Read, text: string) =>
+    JSON.stringify(READS[read].envelope(read === "a GitLab file read" ? b64(text) : wrapped(text)));
+  const pom = (inner: string) =>
+    `<project>\n${"<!-- padding -->\n".repeat(8)}${inner}\n</project>\n`;
+  const reads = Object.keys(READS) as Read[];
+
+  test.each(reads)("passes public content and its credential assignments in %s", (read) => {
+    expect(audited(read, encoded(read, pom(`<password>${LINE}</password>`)))).toEqual([]);
+  });
+
+  const planted: [string, string, string][] = [
+    ["a GitHub token", `<token>${"ghp_"}${"x".repeat(36)}</token>`, "GitHub token"],
+    ["a GitLab token", `<token>${"glpat-"}${"y".repeat(20)}</token>`, "GitLab token"],
+    [
+      "a private key",
+      `-----BEGIN ${"RSA "}PRIVATE KEY-----\nMIIB\n-----END RSA PRIVATE KEY-----`,
+      "private key",
+    ],
+    [
+      "a JSON web token",
+      `eyJ${"a".repeat(10)}.eyJ${"b".repeat(10)}.${"c".repeat(10)}`,
+      "JSON web token",
+    ],
+    ["an email address", "<email>jane@example.com</email>", "email address (1)"],
+  ];
+  test.each(
+    reads.flatMap((read) => planted.map(([what, text, finding]) => [what, read, text, finding])),
+  )("fails %s inside the base64 content of %s", (_, read, text, finding) => {
+    const stdout = encoded(read as Read, pom(text as string));
+    expect(stdout).not.toContain((text as string).slice(0, 12));
+    expect(audited(read as Read, stdout)).toEqual([`exec.jsonl:5 stdout: ${finding}`]);
+  });
+
+  test("fails a planted token in base64 content inside a Facts file", () => {
+    const dir = copyOfClean();
+    writeFileSync(
+      join(dir, "core-facts.json"),
+      JSON.stringify({ note: { encoding: "base64", content: b64(`ghp_${"x".repeat(36)}`) } }),
+    );
+    expect(auditSweep(dir).findings).toEqual(["core-facts.json: GitHub token"]);
+  });
+
+  test("fails a credential assignment in the base64 content of an operator read", () => {
+    const dir = copyOfClean();
+    append(dir, {
+      cmd: "gh",
+      args: ["api", "user", "--jq", ".login"],
+      ...ok,
+      stdout: JSON.stringify({ encoding: "base64", content: b64(LINE) }),
+    });
+    expect(auditSweep(dir).findings).toEqual(["exec.jsonl:5 stdout: credential assignment"]);
+  });
+
+  test.each([
+    ["characters outside base64", "not*base64!"],
+    ["missing padding", b64("ab").replace(/=+$/, "")],
+    ["non-zero padding bits", "YR=="],
+    ["a content that is not a string", 42],
+    ["no content", undefined],
+  ])("fails base64 content with %s", (_, content) => {
+    const read = "a GitHub contents read";
+    expect(audited(read, JSON.stringify(READS[read].envelope(content)))).toEqual([
+      "exec.jsonl:5 stdout: malformed base64 content",
+    ]);
+  });
+
+  test("fails an envelope in stdout that does not parse as JSON", () => {
+    const read = "a GitLab file read";
+    expect(audited(read, `${encoded(read, pom("x"))} trailing`)).toEqual([
+      "exec.jsonl:5 stdout: malformed base64 content",
+    ]);
+  });
+});
+
 describe("record-sweep", () => {
   test("refuses to record into a directory that holds anything", () => {
     const dir = mkdtempSync(join(tmpdir(), "spicode-out-"));

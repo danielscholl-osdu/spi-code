@@ -11,7 +11,8 @@
  * nothing and may name the one private repository it refused. Repository names are allowed
  * anywhere (maintainer decision, 2026-11-05).
  * Every recorded field of every file, visibility.json included, is scanned for tokens, keys
- * and email addresses, as written and with its JSON strings decoded. The credential-assignment
+ * and email addresses, as written, with its JSON strings decoded and with the base64 content
+ * of its API envelopes decoded; an envelope that does not decode is itself a finding. The credential-assignment
  * heuristic guards what the operator's side wrote, so it skips only public repository content:
  * the stdout of a public-content shape whose every target is public, a GraphQL response's
  * public-content blocks whose targets are public, and the Facts' github.data.repos entries of
@@ -818,15 +819,70 @@ function decodings(text: string, depth = 0, into: string[] = [text]): string[] {
   return into;
 }
 
-/** Scans one field. The token, key and email detectors read the whole text; the
- * credential-assignment heuristic reads only strictText: all of it, except where the field
- * holds public repository content (see strictStdout and strictFacts). */
+/** The JSON values a field holds: the whole text, or one per line (a paginated jq read). */
+function jsonValues(text: string): unknown[] | undefined {
+  try {
+    return [JSON.parse(text)];
+  } catch {
+    const lines = text.split("\n").filter((line) => line.trim());
+    try {
+      return lines.map((line) => JSON.parse(line));
+    } catch {
+      return undefined;
+    }
+  }
+}
+
+const BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+// An envelope's encoding field as it appears unparsed: a field that is not JSON yet holds one.
+const RAW_ENVELOPE = /"encoding"\s*:\s*"base64"/i;
+
+/** The decoded text of every base64 envelope a field holds ({content, encoding: "base64"}, as
+ * GitHub's contents and blob reads and GitLab's file read return it), and whether any envelope
+ * could not be decoded: content that is not a string or not canonical base64, or an envelope
+ * in text that does not parse as JSON. */
+export function base64Contents(text: string): { decoded: string[]; malformed: boolean } {
+  const decoded: string[] = [];
+  const values = jsonValues(text);
+  if (!values) return { decoded, malformed: RAW_ENVELOPE.test(text) };
+  let malformed = false;
+  const walk = (value: unknown): void => {
+    if (Array.isArray(value)) value.forEach(walk);
+    if (!value || typeof value !== "object" || Array.isArray(value)) return;
+    const record = value as Record<string, unknown>;
+    if (typeof record.encoding === "string" && record.encoding.toLowerCase() === "base64") {
+      const raw =
+        typeof record.content === "string" ? record.content.replace(/\s/g, "") : undefined;
+      const bytes = raw !== undefined && BASE64.test(raw) ? Buffer.from(raw, "base64") : undefined;
+      if (bytes && bytes.toString("base64") === raw) decoded.push(bytes.toString("utf8"));
+      else malformed = true;
+    }
+    Object.values(record).forEach(walk);
+  };
+  values.forEach(walk);
+  return { decoded, malformed };
+}
+
+/** The text, the strings it holds behind JSON escapes, and the decoded text of its base64
+ * envelopes with theirs. */
+function readings(text: string): string[] {
+  return [
+    ...decodings(text),
+    ...base64Contents(text).decoded.flatMap((decoded) => decodings(decoded)),
+  ];
+}
+
+/** Scans one field. The token, key and email detectors read the whole text, base64 envelopes
+ * decoded, whatever its provenance; the credential-assignment heuristic reads only strictText:
+ * all of it, except where the field holds public repository content (see strictStdout and
+ * strictFacts). */
 function scan(where: string, text: string, findings: string[], strictText = text): void {
-  const texts = decodings(text);
+  const texts = readings(text);
+  if (base64Contents(text).malformed) findings.push(`${where}: malformed base64 content`);
   for (const { name, pattern } of TOKEN_PATTERNS) {
     if (texts.some((each) => pattern.test(each))) findings.push(`${where}: ${name}`);
   }
-  if (strictText && decodings(strictText).some((each) => CREDENTIAL_ASSIGNMENT.pattern.test(each)))
+  if (strictText && readings(strictText).some((each) => CREDENTIAL_ASSIGNMENT.pattern.test(each)))
     findings.push(`${where}: ${CREDENTIAL_ASSIGNMENT.name}`);
   const emails = new Set(texts.flatMap((each) => each.match(EMAIL) ?? []));
   if (emails.size) findings.push(`${where}: email address (${emails.size})`);
