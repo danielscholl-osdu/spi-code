@@ -234,8 +234,12 @@ export async function readRunJobs(
     if (known && known.data.status === job.status && known.data.conclusion === job.conclusion &&
         known.data.attempt === job.attempt && timed(known.data)) {
       const kept = { ...known.data, ...job, reason: known.data.reason, environment: known.data.environment };
-      put(cache, repo, kept, known.reads);
-      return { data: kept, reads: known.reads };
+      const annotations = `repos/${repo}/check-runs/${job.id}/annotations`;
+      const log = `repos/${repo}/actions/jobs/${job.id}/logs`;
+      const explanation = known.reads.filter((r) => r.source === "github" &&
+        (r.object.split("?")[0] === annotations || r.object === log));
+      put(cache, repo, kept, [...listing.filter((r) => r.source !== "persist"), ...explanation]);
+      return { data: kept, reads: explanation };
     }
     const explanation = await explain(gh, repo, job, false, ctx);
     put(cache, repo, job, [...listing.filter((r) => r.source !== "persist"), ...explanation]);

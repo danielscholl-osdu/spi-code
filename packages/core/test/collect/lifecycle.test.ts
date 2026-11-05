@@ -598,31 +598,76 @@ test("completed runs settle with cached size-cut log evidence while other cuts a
 });
 
 test("readJob sees refreshed steps written back by a run-jobs cache hit", async () => {
+  const job = { ...rawJob(), conclusion: "failure" };
   const first = await replay(
-    (gh) => readJob(gh, {}, STACK, 1, "build", context()),
-    () => rawJob(),
+    (gh) => readJob(gh, {}, STACK, 1, "Java Build", context()),
+    (path) =>
+      path.includes("/annotations")
+        ? [{ level: "failure", title: "Environment", message: "annotation reason" }]
+        : path.endsWith("/logs")
+          ? "[ERROR] reused log reason\n"
+          : job,
   );
-  const job = rawJob();
+  const explanation = first.reads.filter(
+    (r) => r.object.includes("/annotations") || r.object.endsWith("/logs"),
+  );
+  expect(explanation).toHaveLength(2);
+  expect(explanation.every((r) => r.observedAt === NOW.toISOString())).toBe(true);
   const step = job.steps[0];
   if (!step) throw new Error("Expected step fixture");
+  const later = new Date(NOW.getTime() + 60_000);
   const fresh = {
     ...job,
-    steps: [{ ...step, name: "Refreshed step", completed_at: "2026-11-03T13:14:00Z" }],
+    steps: [{ ...step, name: "Refreshed step", completed_at: later.toISOString() }],
   };
   const refreshed = await replay(
-    (gh) => readRunJobs(gh, first.cache, STACK, run, context()),
+    (gh) => readRunJobs(gh, first.cache, STACK, run, context(later)),
     () => ({ total: 1, jobs: [fresh] }),
   );
   const single = await replay(
-    (gh) => readJob(gh, refreshed.cache, STACK, 1, "build", context()),
+    (gh) => readJob(gh, refreshed.cache, STACK, 1, "Java Build", context(later)),
     () => {
       throw new Error("Expected refreshed cache hit");
     },
   );
   expect(single.data?.steps).toEqual(refreshed.data?.[0]?.steps);
   expect(single.data?.steps[0]?.name).toBe("Refreshed step");
-  expect(single.data?.steps[0]?.completedAt).toBe("2026-11-03T13:14:00Z");
+  expect(single.data?.steps[0]?.completedAt).toBe(later.toISOString());
+  expect(single.data?.reason).toBe("reused log reason");
+  expect(single.data?.environment).toEqual(["annotation reason"]);
   expect(first.data?.steps[0]?.name).toBe("Set maintenance");
+  const listingPath = `repos/${STACK}/actions/runs/7/attempts/1/jobs?per_page=100&page=1`;
+  expect(single.reads).toEqual([
+    {
+      source: "github",
+      object: listingPath,
+      observedAt: later.toISOString(),
+      completeness: { kind: "complete" },
+    },
+    ...explanation,
+  ]);
+  expect(refreshed.reads).toEqual(single.reads);
+  const latest = new Date(later.getTime() + 60_000);
+  const reread = await replay(
+    (gh) => readRunJobs(gh, JSON.parse(JSON.stringify(single.cache)), STACK, run, context(latest)),
+    () => ({ total: 1, jobs: [fresh] }),
+  );
+  const last = await replay(
+    (gh) => readJob(gh, reread.cache, STACK, 1, "Java Build", context(latest)),
+    () => {
+      throw new Error("Expected refreshed cache hit");
+    },
+  );
+  expect(last.reads).toEqual([
+    {
+      source: "github",
+      object: listingPath,
+      observedAt: latest.toISOString(),
+      completeness: { kind: "complete" },
+    },
+    ...explanation,
+  ]);
+  expect(reread.reads).toEqual(last.reads);
 });
 
 test.each([undefined, null])(

@@ -76,7 +76,9 @@ All five findings are port regressions, not inherited bugs:
    round-trip with the cut record intact.
 4. The rib calls `cache.put(repo, kept)` on a job cache hit. Restore that write
    here. Regression: "readJob sees refreshed steps written back by a run-jobs
-   cache hit".
+   cache hit". Its follow-up provenance check uses the current listing to
+   support refreshed fields and retains only the original annotation/log reads
+   for reused explanations. Repeated refreshes replace older job/list reads.
 5. The rib takes an initialized state and has no persistence-validation failure
    for cold starts. Regression: "cold lifecycle state %s starts empty without a
    persistence failure" covers undefined/null and still checks malformed state.
