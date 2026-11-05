@@ -149,7 +149,7 @@ function treeOf(input: WatchInput, now: Date): TreeStatus {
   const services = records(["github", "runs", "upstream", "radar", "template"]);
   const sharedTemplateReads = records(["template"]).filter((record) => {
     const state = stateOf([record]);
-    return state === "failed" || state === "stale";
+    return state === "failed" || state === "incomplete" || state === "stale";
   });
   const areaFailures = (["github", "runs", "upstream", "radar"] as const).flatMap((area) =>
     (input.reads[area] ?? []).filter(

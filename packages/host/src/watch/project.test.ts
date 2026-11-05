@@ -316,7 +316,7 @@ describe("Watch projection", () => {
     },
   );
 
-  it.each(["fresh", "stale", "failed"] as const)(
+  it.each(["fresh", "stale", "incomplete", "failed"] as const)(
     "keeps services without their own evidence unread despite a %s shared template read",
     (state) => {
       const input = fixtureInput();
@@ -328,7 +328,10 @@ describe("Watch projection", () => {
           state === "stale"
             ? new Date(now.getTime() - 3 * input.intervalMs).toISOString()
             : now.toISOString(),
-        completeness: { kind: "complete" },
+        completeness:
+          state === "incomplete"
+            ? { kind: "cut", reason: "Template commit page limit", read: 100, total: 250 }
+            : { kind: "complete" },
         ...(state === "failed" ? { failure: "offline" } : {}),
       };
       const services = projectWatch({ ...input, reads: { template: [template] } }).tree.filter(
@@ -340,7 +343,7 @@ describe("Watch projection", () => {
     },
   );
 
-  it.each(["fresh", "stale", "failed"] as const)(
+  it.each(["fresh", "stale", "incomplete", "failed"] as const)(
     "uses a %s shared template read only to degrade a service with its own evidence",
     (state) => {
       const input = fixtureInput();
@@ -354,7 +357,10 @@ describe("Watch projection", () => {
           state === "stale"
             ? new Date(now.getTime() - 3 * input.intervalMs).toISOString()
             : now.toISOString(),
-        completeness: { kind: "complete" },
+        completeness:
+          state === "incomplete"
+            ? { kind: "cut", reason: "Template commit page limit", read: 100, total: 250 }
+            : { kind: "complete" },
         ...(state === "failed" ? { failure: "offline" } : {}),
       };
       const { tree } = projectWatch({
