@@ -11,10 +11,12 @@ export interface SmokeReport {
   mainNodeVersion: string;
   hostNodeVersion: string;
   sqliteIsTransaction: true;
-  rendererRoundTrip: true;
-  malformed: "rejected";
+  rendererRoundTrip: boolean;
+  reloadRoundTrip: boolean;
+  permissionDenied: boolean;
+  malformed: "rejected" | "accepted";
   rowSurvived: true;
-  listeners: "none";
+  listeners: string[];
   tools: { name: string; outcome: "completed" | "refused" | "error" }[];
   deniedBuiltIn: { name: string; outcome: "refused" };
 }
@@ -35,9 +37,11 @@ export function assertSmokeReport(value: unknown): asserts value is SmokeReport 
   }
   assert.equal(report.sqliteIsTransaction, true);
   assert.equal(report.rendererRoundTrip, true);
+  assert.equal(report.reloadRoundTrip, true);
+  assert.equal(report.permissionDenied, true);
   assert.equal(report.malformed, "rejected");
   assert.equal(report.rowSurvived, true);
-  assert.equal(report.listeners, "none");
+  assert.deepEqual(report.listeners, []);
   assertSmokeTools(report.tools, report.deniedBuiltIn);
 }
 

@@ -42,14 +42,42 @@ it("validates both directions and never dispatches malformed ping messages", () 
       payload: {},
     },
   });
-  expect(sent.map((message) => parseMessage(message).ok)).toEqual([true, true, true, true, true]);
+  expect(sent.map((message) => parseMessage(message).ok)).toEqual([true, true, true, true]);
   expect(sent).toMatchObject([
     { type: "host.hello", payload: { pid: 123 } },
     { type: "pong", id: "ping" },
     { type: "error", payload: { code: "invalid_message" } },
     { type: "error", payload: { code: "invalid_message" } },
-    { type: "error", payload: { code: "unsupported_message" } },
   ]);
+});
+
+it("ignores inbound responses and events without replying or dispatching", () => {
+  const sent: unknown[] = [];
+  let receive: (event: { data: unknown }) => void = () => {};
+  const handler = vi.fn();
+  attachHostPort(
+    {
+      on(_event, listener) {
+        receive = listener;
+      },
+      postMessage(message) {
+        sent.push(message);
+      },
+      start() {},
+    },
+    123,
+    handler,
+  );
+  sent.length = 0;
+  for (const message of [
+    { kind: "response", type: "error", payload: { code: "invalid_message", message: "Rejected" } },
+    { kind: "response", type: "pong", payload: {} },
+    { kind: "event", type: "host.hello", payload: { pid: 456 } },
+  ]) {
+    receive({ data: { version: PROTOCOL_VERSION, id: "wrong-way", ...message } });
+  }
+  expect(sent).toEqual([]);
+  expect(handler).not.toHaveBeenCalled();
 });
 
 it("serializes turns and refreshes, rejects malformed dispatch, and recovers from a failed request", async () => {

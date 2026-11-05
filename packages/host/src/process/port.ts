@@ -33,6 +33,7 @@ export function attachHostPort(
       return;
     }
     const message = parsed.message;
+    if (message.kind !== "request") return;
     if (message.type === "ping") {
       send({
         version: PROTOCOL_VERSION,

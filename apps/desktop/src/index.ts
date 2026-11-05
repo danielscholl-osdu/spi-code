@@ -65,15 +65,16 @@ function fail(error: unknown): void {
   }
 }
 
-function assertNoListeners(pid: number): void {
+function listenersOf(pid: number): string[] {
   process.kill(pid, 0);
+  let listeners: string[] = [];
   try {
     const output = execFileSync("lsof", ["-nP", "-a", "-p", String(pid), "-iTCP", "-sTCP:LISTEN"], {
       encoding: "utf8",
       timeout: 5000,
       stdio: ["ignore", "pipe", "pipe"],
     });
-    assert.equal(output.trim(), "", `TCP listener owned by ${pid}: ${output}`);
+    listeners = output.trim() ? output.trim().split("\n") : [];
   } catch (error) {
     const noMatches =
       error !== null &&
@@ -87,6 +88,7 @@ function assertNoListeners(pid: number): void {
     if (!noMatches) throw error;
   }
   process.kill(pid, 0);
+  return listeners;
 }
 
 async function stopHost(): Promise<void> {
@@ -114,13 +116,17 @@ async function startHost(window: BrowserWindow, args: string[]): Promise<number>
   await once(child, "spawn");
   const pid = child.pid;
   assert(pid, "Host has no pid");
+  transferHostPort(window, child);
+  return pid;
+}
+
+function transferHostPort(window: BrowserWindow, host: UtilityProcess): void {
   const { port1, port2 } = new MessageChannelMain();
-  child.postMessage(
+  host.postMessage(
     { version: PROTOCOL_VERSION, id: "connect", kind: "request", type: "ping", payload: {} },
     [port2],
   );
   window.webContents.postMessage("host:port", null, [port1]);
-  return pid;
 }
 
 async function run(): Promise<void> {
@@ -146,8 +152,16 @@ async function run(): Promise<void> {
       additionalArguments: proof ? ["--spi-proof", ...(smoke ? ["--spi-smoke"] : [])] : [],
     },
   });
+  let deniedPermissionRequests = 0;
+  window.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => {
+    deniedPermissionRequests++;
+    callback(false);
+  });
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.webContents.on("will-navigate", (event) => event.preventDefault());
+  window.webContents.on("did-finish-load", () => {
+    if (child) transferHostPort(window, child);
+  });
   const messages: Message[] = [];
   const received = new EventEmitter();
   const evidence = {
@@ -222,7 +236,7 @@ async function run(): Promise<void> {
   const hello = await wait((message) => message.type === "host.hello");
   assert(hello.type === "host.hello");
   assert.equal(hello.payload.pid, hostPid);
-  await wait((message) => message.type === "pong" && message.id === "window-ping");
+  const pong = await wait((message) => message.type === "pong" && message.id === "window-ping");
   const turn = await wait((message) => message.type === "turn.end");
   assert(turn.type === "turn.end" && turn.payload.reason === "completed");
   const tools = evidence.toolEvents
@@ -234,17 +248,31 @@ async function run(): Promise<void> {
   const deniedBuiltIn = evidence.toolEvents.find(({ name }) => name === "builtin:shell");
   assertSmokeTools(tools, deniedBuiltIn);
   window.webContents.send("smoke:malformed");
-  await wait((message) => message.type === "error" && message.payload.code === "invalid_message");
-  assertNoListeners(process.pid);
-  assertNoListeners(hostPid);
+  const malformed = await wait(
+    (message) => message.type === "error" && message.payload.code === "invalid_message",
+  );
+  const permission: unknown = await window.webContents.executeJavaScript(
+    "Notification.requestPermission()",
+  );
+  const permissionDenied = permission === "denied" && deniedPermissionRequests > 0;
+  messages.length = 0;
+  const loaded = once(window.webContents, "did-finish-load");
+  window.webContents.reload();
+  await loaded;
+  const reloadedHello = await wait((message) => message.type === "host.hello");
+  const reloadedPong = await wait(
+    (message) => message.type === "pong" && message.id === "window-ping",
+  );
+  const reloadTurn = await wait((message) => message.type === "turn.end");
+  assert(reloadTurn.type === "turn.end" && reloadTurn.payload.reason === "completed");
+  const listeners = [...listenersOf(process.pid), ...listenersOf(hostPid)];
   await stopHost();
   const restartedHostPid = await startHost(window, [storePath, "read", rowId, probePath]);
   const restartedHello = await wait((message) => message.type === "host.hello");
   assert(restartedHello.type === "host.hello");
   assert.equal(restartedHello.payload.pid, restartedHostPid);
   await wait((message) => message.type === "pong" && message.id === "window-ping");
-  assertNoListeners(process.pid);
-  assertNoListeners(restartedHostPid);
+  listeners.push(...listenersOf(process.pid), ...listenersOf(restartedHostPid));
   const probe: unknown = JSON.parse(readFileSync(probePath, "utf8"));
   assert(probe !== null && typeof probe === "object");
   assert("pid" in probe && probe.pid === restartedHostPid);
@@ -258,10 +286,18 @@ async function run(): Promise<void> {
     mainNodeVersion: process.versions.node,
     hostNodeVersion: probe.nodeVersion,
     sqliteIsTransaction: probe.sqliteIsTransaction,
-    rendererRoundTrip: true,
-    malformed: "rejected",
+    rendererRoundTrip: pong.type === "pong",
+    reloadRoundTrip:
+      reloadedHello.type === "host.hello" &&
+      reloadedHello.payload.pid === hostPid &&
+      reloadedPong.type === "pong",
+    permissionDenied,
+    malformed:
+      malformed.type === "error" && malformed.payload.code === "invalid_message"
+        ? "rejected"
+        : "accepted",
     rowSurvived: probe.rowSurvived,
-    listeners: "none",
+    listeners,
     tools,
     deniedBuiltIn: { name: deniedBuiltIn.name, outcome: deniedBuiltIn.outcome },
   };
