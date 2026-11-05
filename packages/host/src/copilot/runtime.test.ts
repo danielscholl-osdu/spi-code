@@ -8,6 +8,7 @@ import { inspect } from "node:util";
 import type { CopilotClientOptions } from "@github/copilot-sdk";
 import { createToolInstaller } from "@spi-code/tools";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ghAuthToken } from "../env/shell-environment.js";
 import { createConversationBackend } from "../process/conversation.js";
 import { probeCopilotSeat } from "../setup/seat.js";
 import {
@@ -76,7 +77,7 @@ describe("Copilot runtime boundary", () => {
   });
 
   it.skipIf(process.platform === "win32")(
-    "reads a managed-only gh after installation without leaking credentials",
+    "prefers managed gh over a login-shell decoy after installation without leaking credentials",
     async () => {
       const root = await mkdtemp(join(tmpdir(), "spicode-managed-gh-"));
       const appDataDir = join(root, "app");
@@ -104,9 +105,19 @@ describe("Copilot runtime boundary", () => {
         expect(await tools.binDir("gh")).toBe(bin);
         await runtime.start();
         expect(fake.configs.at(-1)?.gitHubToken).toBe(token);
+        const pathBin = join(root, "shell-bin");
+        const decoyToken = "gho_obviouslyFakeLoginShellDecoy";
+        await mkdir(pathBin);
+        await writeFile(join(pathBin, "gh"), `#!/bin/sh\nprintf '${decoyToken}\\n'\n`, {
+          mode: 0o700,
+        });
+        options.capturedPath = pathBin;
+        await runtime.listModels();
+        expect(fake.list).toHaveBeenLastCalledWith({ gitHubToken: token });
         const authEnv = await buildAuthEnvironment(options);
-        expect(authEnv.PATH?.split(delimiter)).toEqual([bin]);
+        expect(authEnv.PATH?.split(delimiter)).toEqual([bin, pathBin]);
         expect(inspect(authEnv)).not.toContain(token);
+        expect(inspect(authEnv)).not.toContain(decoyToken);
         expect(inspect(fake.configs.at(-1)?.env)).not.toContain(token);
         fake.createSession.mockResolvedValueOnce({ disconnect: vi.fn() });
         fake.list.mockResolvedValueOnce({ models: [{ id: "seat-model" }] });
@@ -140,6 +151,52 @@ describe("Copilot runtime boundary", () => {
       } finally {
         await runtime.stop();
         for (const spy of spies) spy.mockRestore();
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it.skipIf(process.platform === "win32").each(["runtime", "seat"])(
+    "%s uses the github.com credential instead of an enterprise default",
+    async (consumer) => {
+      const root = await mkdtemp(join(tmpdir(), "spicode-gh-host-"));
+      const token = "gho_obviouslyFakeGithubComAccount";
+      const enterpriseToken = "gho_obviouslyFakeEnterpriseAccount";
+      const options = {
+        appDataDir: join(root, "app"),
+        capturedPath: root,
+        env: { GH_HOST: "enterprise.example.test" },
+      };
+      try {
+        await writeFile(
+          join(root, "gh"),
+          `#!/bin/sh\n[ "$1 $2" = "auth token" ] || exit 2\n[ -z "$GH_HOST" ] || exit 3\ncase "$3 $4" in\n  "--hostname github.com") printf '${token}\\n';;\n  " ") printf '${enterpriseToken}\\n';;\n  *) exit 4;;\nesac\n`,
+          { mode: 0o700 },
+        );
+        const authEnv = await buildAuthEnvironment(options);
+        expect(await ghAuthToken(authEnv)).toBe(enterpriseToken);
+        if (consumer === "seat") {
+          fake.createSession.mockResolvedValueOnce({ disconnect: vi.fn() });
+          fake.list.mockResolvedValueOnce({ models: [{ id: "seat-model" }] });
+          expect(await probeCopilotSeat(options)).toEqual({
+            kind: "seat-ok",
+            models: ["seat-model"],
+          });
+        } else {
+          const runtime = new CopilotRuntime(options);
+          try {
+            await runtime.listModels();
+          } finally {
+            await runtime.stop();
+          }
+        }
+        expect(fake.configs[0]?.gitHubToken).toBe(token);
+        expect(fake.list).toHaveBeenLastCalledWith({ gitHubToken: token });
+        for (const secret of [token, enterpriseToken]) {
+          expect(inspect(authEnv)).not.toContain(secret);
+          expect(inspect(fake.configs[0]?.env)).not.toContain(secret);
+        }
+      } finally {
         await rm(root, { recursive: true, force: true });
       }
     },
@@ -189,7 +246,8 @@ describe("Copilot runtime boundary", () => {
     expect(ghRunner).toHaveBeenCalledTimes(3);
     expect(installer.binDir).toHaveBeenCalledWith("gh");
     expect(fake.configs[0]?.env?.PATH?.split(delimiter)).toEqual([bin, "/bin"]);
-    for (const [env] of ghRunner.mock.calls) {
+    for (const [env, options] of ghRunner.mock.calls) {
+      expect(options).toEqual({ hostname: "github.com", timeoutMs: 5000 });
       expect(env.PATH?.split(delimiter)).toEqual([bin, "/bin"]);
       expect(Object.keys(env).map((key) => key.toUpperCase())).not.toEqual(
         expect.arrayContaining(["GH_TOKEN"]),

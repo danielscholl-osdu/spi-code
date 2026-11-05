@@ -209,7 +209,13 @@ export class CopilotRuntime {
     private readonly source: SessionToolSource = stubToolSource,
     ghRunner: typeof ghAuthToken = ghAuthToken,
   ) {
-    const reader = readToken ?? (async () => ghRunner(await buildAuthEnvironment(options)));
+    const reader =
+      readToken ??
+      (async () =>
+        ghRunner(await buildAuthEnvironment(options), {
+          hostname: "github.com",
+          timeoutMs: 5000,
+        }));
     this.readToken = async () => {
       const token = await reader();
       this.tokens.clear();

@@ -68,7 +68,7 @@ it.skipIf(process.env.SPICODE_LIVE_COPILOT_ISOLATION !== "1")(
       });
       let token: string;
       try {
-        token = await ghAuthToken(authEnv);
+        token = await ghAuthToken(authEnv, { hostname: "github.com" });
       } catch {
         context.skip("Requires gh sign-in and a Copilot seat.");
         return;

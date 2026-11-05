@@ -15,6 +15,8 @@ putting the managed `tools/gh/<version>/bin` first on PATH and falling back to
 the captured login-shell PATH when gh is not managed. Installing gh after a
 failed lookup does not require restarting the backend. Tokens stay out of these
 environment objects; only the SDK's client credential receives the token.
+Copilot credential reads explicitly select `github.com`, never gh's default
+enterprise host, and time out after five seconds (or the probe's shorter limit).
 The packaging bead must leave the complete platform runtime package unpacked.
 Startup cleanup, credential-keyed warm-client handling, and streamed delta
 subscription are ported from Keelson's `copilot/factory.ts` and `provider.ts`.

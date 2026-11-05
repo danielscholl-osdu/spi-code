@@ -284,14 +284,23 @@ export function buildToolEnvironment(options: ToolEnvironmentOptions): NodeJS.Pr
 
 export async function ghAuthToken(
   env: NodeJS.ProcessEnv,
-  options: { readonly timeoutMs?: number } = {},
+  options: { readonly timeoutMs?: number; readonly hostname?: string } = {},
 ): Promise<string> {
   let output: string;
   try {
     const toolEnv = Object.fromEntries(
       Object.entries(env).filter(([name]) => !isGuardBypass(name)),
     );
-    output = await commandOutput("gh", ["auth", "token"], toolEnv, options.timeoutMs ?? 5000);
+    output = await commandOutput(
+      "gh",
+      [
+        "auth",
+        "token",
+        ...(options.hostname === undefined ? [] : ["--hostname", options.hostname]),
+      ],
+      toolEnv,
+      options.timeoutMs ?? 5000,
+    );
   } catch (error) {
     if (!(error instanceof CommandError)) throw error;
     throw new Error(

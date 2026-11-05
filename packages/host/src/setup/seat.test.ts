@@ -205,6 +205,40 @@ describe("Copilot seat probe", () => {
     },
   );
 
+  it("caps the credential read at five seconds independently of the session timeout", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const { options } = fixture();
+      let entered: () => void = () => {};
+      const started = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      options.readToken.mockImplementation(() => {
+        entered();
+        return new Promise<never>(() => {});
+      });
+      let settled = false;
+      const pending = probeCopilotSeat(options).then((result) => {
+        settled = true;
+        return result;
+      });
+      await started;
+      await vi.advanceTimersByTimeAsync(4999);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(settled).toBe(true);
+      await expect(pending).resolves.toMatchObject({
+        kind: "error",
+        reason: expect.stringContaining("timed out"),
+      });
+      expect(options.createClient).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      await vi.runAllTimersAsync();
+      vi.useRealTimers();
+    }
+  });
+
   it.each(["gho_", "ghp_", "ghr_", "ghs_", "ghu_", "github_pat_"])(
     "redacts %s tokens from non-Error SDK rejections",
     async (prefix) => {
