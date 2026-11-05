@@ -28,6 +28,7 @@ import {
   emptyFacts,
   entryAcrossForks,
   type Facts,
+  type ForkEntry,
   Gh,
   Glab,
   type InspectOptions,
@@ -35,12 +36,11 @@ import {
   type Model,
   type QueueItem,
   verbsOf,
-  writeBlocked,
 } from "@spi-code/core";
 import { z } from "zod";
 import { createSnapshotStore, type SnapshotRecord } from "../store/snapshots.js";
 import { appActions } from "../watch/project.js";
-import { inspectProvenance } from "../watch/provenance.js";
+import { type InspectBody, inspectProvenance } from "../watch/provenance.js";
 import type { HostRoutes, HostSend } from "./port.js";
 
 export interface WatchRoutesOptions {
@@ -110,68 +110,29 @@ function webUrl(url: string | undefined): { url: string } | Record<string, never
   return url !== undefined && WebUrlSchema.safeParse(url).success ? { url } : {};
 }
 
-/**
- * Core inspection mapped to the contract, with the FILTERS read for a checkable halt. Each
- * value names the Facts areas behind it; areas are the envelopes of the sweep the model was
- * built from.
- */
-export async function inspectResult(
+/** Core's inspection of an item mapped to the contract's shown values. */
+function inspectBody(
   model: Model,
   item: QueueItem,
   now: Date,
   ctx: CoreContext,
-  exec: Exec,
-  areas: readonly AreaEnvelope[],
-  opts: InspectOptions = {},
-): Promise<InspectResult> {
-  const entries = checkable(item.halt)
-    ? await entryAcrossForks(new Gh(exec), new Glab(exec), item.halt, ctx)
-    : undefined;
+  entries: readonly ForkEntry[] | undefined,
+  opts: InspectOptions,
+): InspectBody {
   const inspection = inspectItem(
     model,
     item,
     now,
     ctx,
-    entries ? { others: { id: item.id, entries } } : {},
+    entries ? { others: { id: item.id, entries: [...entries] } } : {},
   );
   const approvals = approvalSection(item, model, opts);
-  const evidence = new Map<string, ReadRecord>();
-  for (const record of (entries ?? []).flatMap((entry) => entry.reads)) {
-    const parsed = readRecord(record);
-    evidence.set(JSON.stringify(parsed), parsed);
-  }
-  const actions = [
-    ...verbsOf(item, model, ctx, opts),
-    ...(approvals?.items.flatMap((entry) => entry.actions) ?? []),
-  ];
-  const drawn = appActions(actions);
-  const sameEntry = inspection.sameEntry?.rows ?? [];
-  const provenance = inspectProvenance({
-    model,
-    item,
-    cause: inspection.cause,
-    effect: inspection.effect,
-    related: {
-      themes: inspection.related.length,
-      evidence: inspection.evidence.length,
-      sameEntry: sameEntry.length,
-    },
-    approval: approvals !== undefined,
-    actions,
-    drawn,
-    blocked: writeBlocked(model.sweptAt, opts.scopes),
-    deployable: model.stack.deployable.state === "yes",
-    entries,
-    now,
-  });
-  return InspectResultSchema.parse({
-    id: item.id,
+  return {
     class: inspection.class,
     cause: inspection.cause,
     effect: inspection.effect,
     next: inspection.next,
     why: inspection.why.map((field) => `${field.label}: ${field.value}`).join("; "),
-    evidence: [...evidence.values()],
     related: [
       ...inspection.related.map((r) => ({
         text: r.text,
@@ -183,15 +144,58 @@ export async function inspectResult(
         state: field.label,
         ...webUrl(field.href),
       })),
-      ...sameEntry.map((row) => ({
+      ...(inspection.sameEntry?.rows ?? []).map((row) => ({
         text: row.trailing ? `${row.text} · ${row.trailing}` : row.text,
         state: row.chip?.label ?? "",
         ...webUrl(row.href),
       })),
     ],
     approval: approvals ? { id: item.id, state: "pending", reason: approvals.title } : null,
-    actions: drawn,
-    areas,
+    actions: appActions([
+      ...verbsOf(item, model, ctx, opts),
+      ...(approvals?.items.flatMap((entry) => entry.actions) ?? []),
+    ]),
+  };
+}
+
+/**
+ * Core inspection mapped to the contract, with the FILTERS read for a checkable halt. Each
+ * value names the Facts areas behind it, found by rebuilding the model from the sweep's facts;
+ * areas are that sweep's envelopes.
+ */
+export async function inspectResult(
+  model: Model,
+  item: QueueItem,
+  now: Date,
+  ctx: CoreContext,
+  exec: Exec,
+  sweep: { readonly areas: readonly AreaEnvelope[]; readonly facts?: Facts },
+  opts: InspectOptions = {},
+): Promise<InspectResult> {
+  const entries = checkable(item.halt)
+    ? await entryAcrossForks(new Gh(exec), new Glab(exec), item.halt, ctx)
+    : undefined;
+  const show = (from: Model, shown: QueueItem, others: readonly ForkEntry[] | undefined) =>
+    inspectBody(from, shown, now, ctx, others, opts);
+  const evidence = new Map<string, ReadRecord>();
+  for (const record of (entries ?? []).flatMap((entry) => entry.reads)) {
+    const parsed = readRecord(record);
+    evidence.set(JSON.stringify(parsed), parsed);
+  }
+  const provenance = inspectProvenance({
+    facts: sweep.facts,
+    model,
+    item,
+    entries,
+    now,
+    rebuild: (facts) => buildModel(facts, now, {}, ctx),
+    show,
+  });
+  return InspectResultSchema.parse({
+    id: item.id,
+    ...show(model, item, entries),
+    evidence: [...evidence.values()],
+    areas: sweep.areas,
     provenance,
   });
 }
@@ -303,7 +307,7 @@ export class WatchRoutes {
         now,
         ctx,
         this.options.exec,
-        latest.view.areas,
+        { areas: latest.view.areas, facts },
         this.options.inspect,
       ),
     });

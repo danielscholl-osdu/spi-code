@@ -1,28 +1,21 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type {
-  ActionItem as ActionItemWire,
-  AreaEnvelope,
-  Envelope,
-  ValueSource,
-} from "@spi-code/contracts";
+import { isDeepStrictEqual } from "node:util";
+import type { AreaEnvelope, Envelope, InspectResult, ValueSource } from "@spi-code/contracts";
 import {
-  type ActionItem,
   AREAS,
   type AreaName,
   type Briefing,
+  emptyFacts,
   envelopeOf,
+  type Facts,
   type ForkEntry,
-  type LineModel,
-  type LinePr,
   type Model,
-  prVerdict,
   type QueueItem,
   RELEASES_EVERY_MS,
   type ReadRecord,
   type StackModel,
-  sourceOf,
 } from "@spi-code/core";
 
 // Each binding names the Facts areas core read to build the value, per branch where the branch
@@ -258,314 +251,59 @@ export function areaEnvelopes(
   }));
 }
 
-type Areas = readonly AreaName[];
+/** The values an inspect result shows: everything but its id, the FILTERS reads and evidence. */
+export type InspectBody = Pick<
+  InspectResult,
+  "class" | "cause" | "effect" | "next" | "why" | "related" | "approval" | "actions"
+>;
 
-/** The pull request, its job details (failure classes, judgements) and nothing else. */
-const PR_DETAILS = ["github", "details"] as const satisfies Areas;
-/** A lane failure: the PR (github), its classified jobs (details) and the stack's attempts. */
-const LANE = ["github", "lifecycle", "details"] as const satisfies Areas;
-
-/**
- * The reads behind each value buildQueue put on an item, by the branch that computed it.
- * exists names what made the item and fixes its kind's constant sentences; class, text, url
- * and next name the branch that wrote them. A fact or effect returns undefined when core gave
- * it a label this file does not know, and the value it feeds stays unbound.
- */
-interface Producers {
-  readonly exists: Areas;
-  readonly class: Areas;
-  readonly text: Areas;
-  readonly url: Areas;
-  readonly next: Areas;
-  fact(label: string): Areas | undefined;
-  effect(index: number): Areas | undefined;
+interface Shown {
+  readonly path: string;
+  /** Finds the same value in another body: a pointer, a row's content or an action's id. */
+  readonly key: string;
+  readonly value: string;
 }
 
-function uniform(areas: Areas, facts: Partial<Record<string, Areas>> = {}): Producers {
-  return {
-    exists: areas,
-    class: areas,
-    text: areas,
-    url: areas,
-    next: areas,
-    fact: (label) => facts[label] ?? areas,
-    effect: () => areas,
+/**
+ * Every non-empty value a body shows. A related row is matched by its content, so a row that
+ * only moved still counts as unchanged; an action by its id, which is stable per type.
+ */
+function shownOf(body: InspectBody): Shown[] {
+  const out: Shown[] = [];
+  const scalar = (path: string, value: string | undefined) => {
+    if (value) out.push({ path, key: path, value });
   };
-}
-
-function known(facts: Partial<Record<string, Areas>>): (label: string) => Areas | undefined {
-  return (label) => facts[label];
-}
-
-/** prFacts: the PR and its review (github) and the first failure core classified (details). */
-const PR_FACTS = {
-  PR: GITHUB,
-  head: GITHUB,
-  review: GITHUB,
-  check: PR_DETAILS,
-  reason: PR_DETAILS,
-} as const satisfies Record<string, Areas>;
-
-function lineOf(model: Model, item: QueueItem): LineModel | undefined {
-  return model.lines.find((line) => line.fork.id === item.scope);
-}
-
-/**
- * A gate's text, class and next follow prVerdict: a red PR is said through its classified
- * failures (github, details), a waiting one through the PR alone.
- */
-function gateProducers(pr: LinePr | undefined, facts: Partial<Record<string, Areas>>): Producers {
-  const red = pr !== undefined && prVerdict(pr.pr) === "red";
-  const said = red ? PR_DETAILS : GITHUB;
-  return {
-    exists: GITHUB,
-    class: said,
-    text: said,
-    url: GITHUB,
-    next: said,
-    fact: known({ ...PR_FACTS, ...facts }),
-    effect: () => undefined,
-  };
-}
-
-function producersOf(item: QueueItem, model: Model): Producers | undefined {
-  const line = lineOf(model, item);
-  switch (item.kind) {
-    case "stack": {
-      // Attempts and the maintenance state are lifecycle runs; the effects after the attempts
-      // are ENV lane failures folded in from the PRs (github, details) since the first stop.
-      const attempts = Math.max(model.stack.attempts.length - 1, 0);
-      return {
-        ...uniform(LIFECYCLE),
-        fact: known({ state: LIFECYCLE, first: LIFECYCLE, last: LIFECYCLE, versions: STACK }),
-        effect: (i) => (i < attempts ? LIFECYCLE : LANE),
-      };
+  scalar("/class", body.class);
+  scalar("/cause", body.cause);
+  scalar("/effect", body.effect);
+  scalar("/next", body.next);
+  scalar("/why", body.why);
+  const seen = new Map<string, number>();
+  body.related.forEach((row, i) => {
+    const value = JSON.stringify(row);
+    const k = seen.get(value) ?? 0;
+    seen.set(value, k + 1);
+    out.push({ path: `/related/${i}`, key: `related ${k} ${value}`, value });
+  });
+  scalar("/approval/reason", body.approval?.reason);
+  body.actions.forEach((action, i) => {
+    out.push({ path: `/actions/${i}/label`, key: `${action.id} label`, value: action.label });
+    if (action.eligibilityReason) {
+      out.push({
+        path: `/actions/${i}/eligibilityReason`,
+        key: `${action.id} eligibilityReason`,
+        value: action.eligibilityReason,
+      });
     }
-    case "maintenance":
-      return { ...uniform(LIFECYCLE), fact: known({ "set by": LIFECYCLE }) };
-    case "lanes":
-      return {
-        ...uniform(LANE),
-        fact: known({ environment: LIFECYCLE, "first failure": LANE }),
-      };
-    case "halt": {
-      // The sync-failed issue says the halt; the failed runs since it and the lag are their own reads.
-      const failed = line?.syncFailedSince ? 1 : 0;
-      return {
-        ...uniform(GITHUB),
-        fact: known({
-          issue: GITHUB,
-          halt: GITHUB,
-          entry: GITHUB,
-          entries: GITHUB,
-          filter: GITHUB,
-          held: ["upstream"],
-        }),
-        effect: (i) => (i < failed ? GITHUB_RUNS : ["upstream"]),
-      };
-    }
-    case "sync-run":
-      // A completed failed run (runs) on a read repository with no sync PR open (github).
-      return {
-        ...uniform(GITHUB_RUNS),
-        url: ["runs"],
-        fact: known({ run: ["runs"] }),
-        effect: () => undefined,
-      };
-    case "conflict":
-      return { ...uniform(GITHUB), fact: known({ issue: GITHUB }), effect: () => undefined };
-    case "cascade":
-      return { ...uniform(GITHUB), fact: known({ tracking: GITHUB }), effect: () => undefined };
-    case "labels":
-      return { ...uniform(GITHUB), fact: known({ issue: GITHUB }), effect: () => undefined };
-    case "main":
-      return {
-        ...uniform(["runs"]),
-        fact: known({ run: ["runs"], job: ["runs"], reason: ["runs"] }),
-        effect: () => undefined,
-      };
-    case "template-run":
-      return { ...uniform(["runs"]), fact: known({ run: ["runs"] }), effect: () => undefined };
-    case "gate1":
-      return gateProducers(line?.syncPr, { held: ["upstream"] });
-    case "gate2":
-      return gateProducers(line?.cascadePr, { merge: GITHUB });
-    case "access":
-      return { ...uniform(PR_DETAILS), fact: known(PR_FACTS), effect: () => undefined };
-    case "release-red":
-      return { ...uniform(PR_DETAILS), fact: known(PR_FACTS), effect: () => undefined };
-    case "template-red":
-      // "moves to" names the fork's template marker (github) and its compare target (template).
-      return {
-        ...uniform(PR_DETAILS),
-        fact: known({ ...PR_FACTS, "moves to": ["github", "template"] }),
-        effect: () => undefined,
-      };
-    case "releases":
-      // One fact per release PR, labelled by repository: each reads the PR and its checks.
-      return uniform(PR_DETAILS);
-    case "template-pr":
-      return {
-        exists: GITHUB,
-        class: PR_DETAILS,
-        text: PR_DETAILS,
-        url: GITHUB,
-        next: PR_DETAILS,
-        fact: known(PR_FACTS),
-        effect: () => GITHUB,
-      };
-    case "template-set":
-      // The text weighs ENV failures (details) against the stack (lifecycle), the reviews
-      // (github) and the template's head and latest tag against the targets (template).
-      return {
-        exists: GITHUB,
-        class: GITHUB,
-        text: ["github", "lifecycle", "details", "template"],
-        url: GITHUB,
-        next: GITHUB,
-        fact: known({
-          target: ["github", "template"],
-          PRs: GITHUB,
-          latest: ["github", "template"],
-          review: GITHUB,
-          failing: PR_DETAILS,
-        }),
-        effect: () => PR_DETAILS,
-      };
-    case "rollout":
-      // readItem says a rollout through rolloutWords over the whole rollout model.
-      return uniform(LINES);
-    case "approvals":
-      return uniform(["approvals"]);
-    case "bump":
-      return {
-        ...uniform(GITHUB),
-        text: STACK,
-        fact: known({ PR: GITHUB, declared: GITHUB }),
-        effect: () => undefined,
-      };
-    case "radar": {
-      // radarState reaches will-halt or toolchain-queued only past a halt issue and a sync PR
-      // failing on the toolchain (github, details); the rest is the radar's prediction.
-      const state = ["github", "radar", "details"] as const satisfies Areas;
-      return {
-        exists: state,
-        class: state,
-        text: state,
-        url: ["radar"],
-        next: state,
-        fact: known({
-          commit: ["radar"],
-          map: ["radar"],
-          value: ["radar"],
-          filter: ["radar"],
-          queued: ["radar"],
-        }),
-        effect: () => ["radar"],
-      };
-    }
-    case "port":
-      return {
-        ...uniform(["radar"]),
-        fact: known({ seeded: ["fleet"], tree: ["radar"], owed: ["radar"], match: ["radar"] }),
-      };
-    case "security":
-      // An alert group's Dependabot PR is matched from the repository's PRs (github).
-      return {
-        ...uniform(ALERTS),
-        next: REPO,
-        fact: known({
-          why: ALERTS,
-          package: ALERTS,
-          rule: ALERTS,
-          where: ALERTS,
-          fix: ALERTS,
-          PR: REPO,
-        }),
-      };
-    default:
-      return undefined;
-  }
+  });
+  return out;
 }
 
-function union(...parts: (Areas | undefined)[]): AreaName[] | undefined {
-  if (parts.some((part) => part === undefined)) return undefined;
-  return ordered(parts.flatMap((part) => part ?? []));
-}
-
-function fact(item: QueueItem, label: string): string | undefined {
-  return item.cause.find((f) => f.label === label)?.value;
-}
-
-/** causeOf, branch by branch: the cause names only what the branch it took read. */
-function causeAreas(item: QueueItem, p: Producers): AreaName[] | undefined {
-  if (item.kind === "halt") return union(p.exists, p.fact("halt"));
-  if (item.kind === "radar") {
-    if (item.cls !== "TOOLCHAIN" || item.effects.length === 0) return union(p.class);
-    return union(p.class, ...item.effects.map((_, i) => p.effect(i)));
-  }
-  if (item.cls === "TOOLCHAIN") {
-    const reason = fact(item, "reason") ?? "";
-    const java = /allowed range \[(\d+)/.test(reason)
-      ? p.fact("reason")
-      : /^Java (\d+)$/.test(fact(item, "value") ?? "")
-        ? p.fact("value")
-        : /requires Java (\d+)/.test(item.text)
-          ? p.text
-          : null;
-    if (java !== null) {
-      return union(p.class, java, /JDK (\d+)/.test(reason) ? p.fact("reason") : []);
-    }
-  }
-  if (item.cls === "PORT") {
-    return union(p.class, fact(item, "tree") === undefined ? p.exists : p.fact("tree"));
-  }
-  const said =
-    fact(item, "reason") !== undefined
-      ? "reason"
-      : fact(item, "why") !== undefined
-        ? "why"
-        : undefined;
-  return union(p.class, said ? p.fact(said) : p.text);
-}
-
-/** effectOf: the first three effects, else the held fact, else the item's fixed sentence. */
-function effectAreas(item: QueueItem, p: Producers): AreaName[] | undefined {
-  // A radar item's effect looks for a stuck incident on the same move across the queue.
-  if (item.kind === "radar") return ordered(MODEL);
-  const shown = item.kind === "approvals" ? item.effects : item.effects.slice(0, 3);
-  if (shown.length > 0) return union(...shown.map((_, i) => p.effect(i)));
-  if (fact(item, "held") !== undefined) return union(p.fact("held"));
-  return union(p.exists);
-}
-
-/**
- * whySection lists the cause facts the cause and effect sentences did not already say, then
- * the item's source link. The filter compares text the item already holds and reads nothing.
- */
-function whyAreas(item: QueueItem, p: Producers, said: string): AreaName[] | undefined {
-  const facts = item.cause.filter(
-    (f) => f.label !== "held" && !said.includes(f.value.toLowerCase()),
-  );
-  const parts: (Areas | undefined)[] = facts.map((f) => p.fact(f.label));
-  if (sourceOf(item)) parts.push(p.url);
-  if (parts.length === 0) return undefined;
-  return union(...parts);
-}
-
-const ENTRY_ORDER = ["listed", "unlisted", "unread"] as const;
-
-/**
- * sameEntry's rows in core's order, each with the fork reads behind it: one row per listed,
- * unlisted or unread entry, then one summary row for every fork with no such entry.
- */
-function entryRows(entries: readonly ForkEntry[]): ForkEntry[][] {
-  const rows: ForkEntry[][] = ENTRY_ORDER.flatMap((state) =>
-    entries.filter((entry) => entry.state === state).map((entry) => [entry]),
-  );
-  const absent = entries.filter((entry) => entry.state === "absent");
-  if (absent.length > 0) rows.push(absent);
-  return rows;
+/** The values of shown that other does not show the same; all of them when other is absent. */
+function changed(shown: readonly Shown[], other: InspectBody | undefined): Shown[] {
+  if (other === undefined) return [...shown];
+  const index = new Map(shownOf(other).map((v) => [v.key, v.value]));
+  return shown.filter((v) => index.get(v.key) !== v.value);
 }
 
 function filtersEnvelope(entries: readonly ForkEntry[], now: Date): Envelope {
@@ -577,125 +315,73 @@ function filtersEnvelope(entries: readonly ForkEntry[], now: Date): Envelope {
   );
 }
 
-/**
- * A label core computed from reads, chosen by the branch core took. The dispatch labels are
- * fixed text and bind nothing. laneActions offers "Re-run when deployable" on the stack's
- * deployability alone; when deployable, "Re-run lanes · N" also counts the lanes the lane load
- * (github, runs) leaves room for and their judged checks.
- */
-function labelAreas(verb: string, deployable: boolean): readonly AreaName[] | undefined {
-  switch (verb) {
-    case "approve-runs":
-      return ["approvals"];
-    case "rerun":
-      return deployable ? ["github", "runs", "lifecycle", "details"] : LIFECYCLE;
-    case "sync-template":
-    case "roll-out":
-      return LINES;
-    case "dispatch-env-refresh":
-    case "dispatch-env-upgrade":
-      return undefined;
-    default:
-      return MODEL;
-  }
-}
-
-/**
- * A reason core derived from reads, by the branch that set it. A write block is host and
- * sweep-marker state and never reaches here. A re-run's stop judgement (laneActions) outranks
- * the rest; past it, a deployable stack leaves only the lane load, and a held one leaves host
- * state (no durable ops, a wait already held), which binds nothing.
- */
-function reasonAreas(
-  verb: string,
-  item: QueueItem,
-  deployable: boolean,
-): readonly AreaName[] | undefined {
-  switch (verb) {
-    case "dispatch-env-refresh":
-    case "dispatch-env-upgrade":
-      // The only other reason is a lifecycle run already queued or running.
-      return LIFECYCLE;
-    case "rerun":
-      if (item.judgement?.response === "stop") return ["github", "details"];
-      return deployable ? GITHUB_RUNS : undefined;
-    case "sync-template":
-    case "roll-out":
-      return LINES;
-    case "approve-runs":
-      return undefined;
-    default:
-      return MODEL;
-  }
-}
-
 export interface InspectSources {
+  /** The sweep's facts the model was built from; without them no model value is bound. */
+  readonly facts: Facts | undefined;
   readonly model: Model;
   readonly item: QueueItem;
-  /** The inspection's cause and effect sentences, which whySection checks facts against. */
-  readonly cause: string;
-  readonly effect: string;
-  /** Rows in the result's related list, in the order the route writes them. */
-  readonly related: {
-    readonly themes: number;
-    readonly evidence: number;
-    readonly sameEntry: number;
-  };
-  readonly approval: boolean;
-  /** Core's actions and the contract actions mapped from them, one to one and in order. */
-  readonly actions: readonly ActionItem[];
-  readonly drawn: readonly Pick<ActionItemWire, "label" | "eligibilityReason">[];
-  /** core's writeBlocked for this request. */
-  readonly blocked: string | undefined;
-  /** Whether the stack read deployable, the branch laneActions takes. */
-  readonly deployable: boolean;
   /** The FILTERS read across forks, when the item is a checkable halt. */
   readonly entries: readonly ForkEntry[] | undefined;
   readonly now: Date;
+  /** Core's model for a set of facts, built as the result's model was. */
+  rebuild(facts: Facts): Model;
+  /** The body the route shows for an item, built by core from a model and FILTERS read. */
+  show(model: Model, item: QueueItem, entries: readonly ForkEntry[] | undefined): InspectBody;
 }
 
 /**
- * Provenance for an inspect result, keyed by RFC 6901 pointer into it. Each value binds the
- * reads of the branch that computed it, never every read its item touched. Values from the
- * inspector's on-demand reads bind fleet with an envelope judged at the request from the
- * reads behind that value alone: those reads have no sweep interval and were observed for
- * this request.
+ * Provenance for an inspect result, keyed by RFC 6901 pointer into it, found by asking core
+ * rather than by restating it. A value binds a Facts area exactly when rebuilding the model
+ * with that area empty changes the value or drops the item; it binds the on-demand FILTERS
+ * reads (fleet, with an envelope judged now from those reads alone) when leaving them out
+ * changes it. Core's per-value producers are private and buildModel reads every area for the
+ * whole queue at once, so per-value read tracking is out of reach; the counterfactual follows
+ * core wherever it changes. A value bound to nothing (a fixed label, a host write block) or
+ * shown from a model its facts do not rebuild stays unbound.
  */
 export function inspectProvenance(sources: InspectSources): ValueSource[] {
-  const { item, related, entries, now } = sources;
-  const out: ValueSource[] = [];
-  const add = (path: string, areas: Areas | undefined, envelope?: Envelope): void => {
-    if (!areas || areas.length === 0) return;
-    out.push({ path, areas: ordered(areas), ...(envelope ? { envelope } : {}) });
+  const { facts, model, item, entries, now } = sources;
+  const shown = shownOf(sources.show(model, item, entries));
+  const areas = new Map<string, Set<AreaName>>();
+  const bind = (path: string, area: AreaName) => {
+    const set = areas.get(path) ?? new Set<AreaName>();
+    set.add(area);
+    areas.set(path, set);
   };
-  const p = producersOf(item, sources.model);
-  if (p) {
-    add("/class", p.class);
-    add("/cause", causeAreas(item, p));
-    add("/effect", effectAreas(item, p));
-    const listed = entries?.filter((entry) => entry.state === "listed") ?? [];
-    if (listed.length > 0) add("/next", union(p.next, ["fleet"]), filtersEnvelope(listed, now));
-    else add("/next", p.next);
-    add("/why", whyAreas(item, p, `${sources.cause} ${sources.effect}`.toLowerCase()));
+  const variant = (from: Model, others: readonly ForkEntry[] | undefined) => {
+    const found = from.queue.items.find((entry) => entry.id === item.id);
+    return found && sources.show(from, found, others);
+  };
+  if (
+    facts !== undefined &&
+    changed(shown, variant(sources.rebuild(facts), entries)).length === 0
+  ) {
+    const empty = emptyFacts();
+    for (const area of AREAS) {
+      if (isDeepStrictEqual(facts[area], empty[area])) continue;
+      const ablated = sources.rebuild({ ...facts, [area]: empty[area] });
+      for (const { path } of changed(shown, variant(ablated, entries))) bind(path, area);
+    }
   }
-  let row = 0;
-  // A theme row's fork, state and inspect link are found across every theme and the queue.
-  for (let i = 0; i < related.themes; i++) add(`/related/${row++}`, MODEL);
-  for (let i = 0; i < related.evidence; i++) add(`/related/${row++}`, p?.url);
-  const rows = entries ? entryRows(entries) : [];
-  if (rows.length === related.sameEntry) {
-    for (const reads of rows) add(`/related/${row++}`, ["fleet"], filtersEnvelope(reads, now));
+  const reads = new Map<string, ForkEntry[]>();
+  if (entries !== undefined && entries.length > 0) {
+    for (const { path } of changed(shown, variant(model, undefined))) reads.set(path, []);
+    for (const entry of entries) {
+      const rest = entries.filter((other) => other !== entry);
+      for (const { path } of changed(shown, variant(model, rest))) {
+        reads.set(path, [...(reads.get(path) ?? []), entry]);
+      }
+    }
+    for (const path of reads.keys()) bind(path, "fleet");
   }
-  if (sources.approval) add("/approval/reason", ["approvals"]);
-  sources.actions.forEach((action, i) => {
-    const verb = typeof action.binding?.verb === "string" ? action.binding.verb : "";
-    const label = labelAreas(verb, sources.deployable);
-    if (label && sources.drawn[i]?.label === action.label) add(`/actions/${i}/label`, label);
-    const reason = action.reason;
-    if (reason === undefined || reason === sources.blocked) return;
-    if (sources.drawn[i]?.eligibilityReason !== reason) return;
-    const areas = reasonAreas(verb, item, sources.deployable);
-    if (areas) add(`/actions/${i}/eligibilityReason`, areas);
+  return shown.flatMap(({ path }) => {
+    const named = areas.get(path);
+    if (named === undefined) return [];
+    const behind = reads.get(path);
+    const envelope =
+      behind === undefined
+        ? undefined
+        : filtersEnvelope(behind.length > 0 ? behind : (entries ?? []), now);
+    return [{ path, areas: ordered([...named]), ...(envelope ? { envelope } : {}) }];
   });
-  return out;
 }
