@@ -45,7 +45,8 @@ export class RecordingExec implements Exec {
       await previous;
       await this.write(`${JSON.stringify(entry)}\n`);
     })();
-    this.written = written;
+    // A failed write rejects only its own call; later calls still record.
+    this.written = written.catch(() => {});
     await written;
     return textResult(await output, opts);
   }

@@ -62,6 +62,7 @@ describe("exec recording and replay", () => {
   it.each([
     "gho_oauth123", "ghp_personal123", "ghs_install123", "github_pat_fine123", "glpat-gitlab123",
     "Authorization: Basic credential123", "Bearer bearer123", "custom-secret123",
+    "ghu_user123", "ghr_refresh123",
   ])("strips %s from all written fields, including thrown error text", async (secret) => {
     let log = "";
     const env = { CUSTOM_TOKEN_VALUE: "custom-secret123" };
@@ -123,5 +124,53 @@ describe("exec recording and replay", () => {
       throw new Error("disk full");
     });
     await expect(recording.runText("gh", [])).rejects.toThrow("disk full");
+  });
+
+  it("records again after a sink failure", async () => {
+    let log = "";
+    let fail = true;
+    const recording = new RecordingExec(async (_cmd, args) => ({
+      stdout: args[0] ?? "", stderr: "", exit: 0,
+    }), (line) => {
+      if (fail) { fail = false; throw new Error("disk full"); }
+      log += line;
+    });
+    await expect(recording.runText("gh", ["lost"])).rejects.toThrow("disk full");
+    expect(await recording.runText("gh", ["kept"])).toMatchObject({ ok: true, data: "kept" });
+    const replay = new ReplayExec(log);
+    await replay.runText("gh", ["kept"]);
+    replay.assertExhausted();
+  });
+
+  it("replays JSON unchanged when a redaction precedes the payload or a short token flag is set", async () => {
+    let log = "";
+    const env = { TOKENIZERS_PARALLELISM: "false" };
+    const outputs: ExecOutput[] = [
+      { stdout: 'warning: ghp_fakeSecret123\n{"value":42}', stderr: "", exit: 0 },
+      { stdout: '{"draft":false}', stderr: "", exit: 0 },
+    ];
+    const recording = new RecordingExec(async () => outputs.shift() ?? {
+      stdout: "", stderr: "", exit: 0,
+    }, (line) => { log += line; }, env);
+    const live = [await recording.runJSON("gh", ["a"]), await recording.runJSON("gh", ["b"])];
+    expect(live).toEqual([
+      { ok: true, data: { value: 42 }, exitCode: 0 },
+      { ok: true, data: { draft: false }, exitCode: 0 },
+    ]);
+    expect(log).not.toContain("ghp_fakeSecret123");
+    const replay = new ReplayExec(log, env);
+    expect([await replay.runJSON("gh", ["a"]), await replay.runJSON("gh", ["b"])]).toEqual(live);
+    replay.assertExhausted();
+  });
+
+  it.each([
+    ["HTTP_AUTHORIZATION=httpauth123", "httpauth123"],
+    ['{\\"Authorization\\": \\"token escaped123\\"}', "escaped123"],
+  ])("strips the credential from %s", async (text, credential) => {
+    let log = "";
+    const recording = new RecordingExec(async () => ({ stdout: text, stderr: "", exit: 0 }),
+      (line) => { log += line; });
+    await recording.runText("env", []);
+    expect(log).not.toContain(credential);
   });
 });
