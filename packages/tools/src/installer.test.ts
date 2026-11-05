@@ -5,6 +5,7 @@ import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   chmod,
+  lutimes,
   mkdir,
   mkdtemp,
   open,
@@ -12,6 +13,8 @@ import {
   readFile,
   rm,
   stat,
+  symlink,
+  utimes,
   writeFile,
 } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
@@ -85,6 +88,7 @@ beforeEach(async () => {
 afterEach(async () => {
   fsHooks.rename = undefined;
   vi.unstubAllEnvs();
+  vi.useRealTimers();
   await new Promise<void>((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve())),
   );
@@ -282,4 +286,114 @@ test("a repair that fails partway leaves current pointing at an intact version d
   expect(await installer.binDir("gh")).toBe(join(version, "bin"));
   await installer.install("gh");
   expect(await readFile(installed)).toEqual(executable);
+});
+
+test("install reclaims only stale same-tool temporary entries and never follows their symlinks", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date((await stat(home)).mtimeMs));
+  const appData = join(home, "stale");
+  const installer = new ToolInstaller(appData, manifest(), platform);
+  await installer.install("gh");
+  const root = join(appData, "tools", "gh");
+  const bin = join(root, "1.0.0", "bin");
+  const stalePointer = join(root, ".current-abandoned");
+  const stale = [
+    join(appData, ".install-gh-Ab1234"),
+    stalePointer,
+    join(bin, ".repair-abandoned"),
+    join(root, "0.9.0", "bin", ".repair-abandoned"),
+  ];
+  const kept = [
+    join(appData, ".install-gh-Fresh1"),
+    join(appData, ".install-glab-Ab1234"),
+    join(appData, ".install-gh-other-Ab1234"),
+    join(appData, ".install-Ab1234"),
+    join(root, ".current-fresh"),
+    join(bin, ".repair-fresh"),
+    join(root, "1.0.0", "keep"),
+    join(appData, "tools", "glab", ".current-abandoned"),
+    join(appData, "tools", "glab", "1.0.0", "bin", ".repair-abandoned"),
+  ];
+  const old = new Date(Date.now() - 48 * 60 * 60_000);
+  if (platform === "win32-x64") await utimes(join(root, "current"), old, old);
+  else await lutimes(join(root, "current"), old, old);
+  for (const path of [...stale, ...kept]) {
+    await mkdir(join(path, ".."), { recursive: true });
+    if (path.includes(".install-")) {
+      await mkdir(path);
+      await writeFile(join(path, "archive"), "partial download");
+    } else await writeFile(path, "temporary");
+    if (!path.includes("fresh") && !path.includes("Fresh1")) await utimes(path, old, old);
+  }
+  if (platform !== "win32-x64") {
+    await rm(stalePointer);
+    await symlink("1.0.0", stalePointer);
+    await lutimes(stalePointer, old, old);
+  }
+  const update = new ToolInstaller(appData, manifest("2.0.0"), platform, async () => {
+    for (const path of stale) await expect(stat(path)).rejects.toMatchObject({ code: "ENOENT" });
+    for (const path of kept) expect(await stat(path)).toBeDefined();
+    expect(await installer.binDir("gh")).toBe(bin);
+    expect(await readFile(join(bin, binary))).toEqual(executable);
+    throw new Error("interrupted after reclaim");
+  });
+  await expect(update.install("gh")).rejects.toThrow("interrupted after reclaim");
+  expect(await installer.binDir("gh")).toBe(bin);
+  await installer.install("gh");
+  expect(await readFile(join(bin, binary))).toEqual(executable);
+});
+
+test.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
+  "a stale entry that cannot be removed never blocks the install",
+  async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date((await stat(home)).mtimeMs));
+    const appData = join(home, "locked");
+    const installer = new ToolInstaller(appData, manifest(), platform);
+    await installer.install("gh");
+    const lockedBin = join(appData, "tools", "gh", "0.9.0", "bin");
+    const locked = join(lockedBin, ".repair-abandoned");
+    await mkdir(lockedBin, { recursive: true });
+    await writeFile(locked, "temporary");
+    const old = new Date(Date.now() - 48 * 60 * 60_000);
+    await utimes(locked, old, old);
+    await chmod(lockedBin, 0o555);
+    try {
+      await new ToolInstaller(appData, manifest("2.0.0"), platform).install("gh");
+      expect(await stat(locked)).toBeDefined();
+      expect(await installer.binDir("gh")).toBe(join(appData, "tools", "gh", "2.0.0", "bin"));
+    } finally {
+      await chmod(lockedBin, 0o755);
+    }
+  },
+);
+
+test("another installer leaves a fresh in-progress same-tool staging directory alone", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date((await stat(home)).mtimeMs));
+  const appData = join(home, "concurrent");
+  let release: () => void = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let entered: () => void = () => {};
+  const extracting = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const first = new ToolInstaller(appData, manifest(), platform, async (path) => {
+    entered();
+    await gate;
+    expect(await readFile(path)).toEqual(archive);
+    return executable;
+  });
+  const install = first.install("gh");
+  try {
+    await extracting;
+    await new ToolInstaller(appData, manifest(), platform).install("gh");
+    expect((await readdir(appData)).some((name) => name.startsWith(".install-gh-"))).toBe(true);
+  } finally {
+    release();
+    await install;
+  }
+  expect(await first.readiness("gh")).toEqual({ state: "ready", version: "1.0.0" });
 });

@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: MIT
 
 import { execFile } from "node:child_process";
-import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout } from "node:timers/promises";
 import { promisify } from "node:util";
 import { type Readiness, ToolInstaller } from "../installer.js";
 import { isVersion } from "../manifest.js";
+import { pinnedManifest } from "../pinned-manifest.js";
 
 export type Runner = (
   command: string,
@@ -39,10 +39,7 @@ export interface GitPin {
 }
 
 export async function createWindowsGitInstaller(appData: string): Promise<WindowsGitInstaller> {
-  const manifest: { git: GitPin } = JSON.parse(
-    await readFile(new URL("../../manifest.json", import.meta.url), "utf8"),
-  );
-  return new WindowsGitInstaller(appData, manifest.git);
+  return new WindowsGitInstaller(appData, pinnedManifest.git);
 }
 
 export class WindowsGitInstaller {

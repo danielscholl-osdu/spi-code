@@ -2,7 +2,17 @@
 // SPDX-License-Identifier: MIT
 
 import { createHash } from "node:crypto";
-import { chmod, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -17,6 +27,7 @@ import {
 
 const homes: string[] = [];
 afterEach(async () => {
+  vi.useRealTimers();
   for (const home of homes.splice(0)) await rm(home, { recursive: true, force: true });
 });
 async function fixture() {
@@ -109,12 +120,36 @@ test("a failed or aborted update keeps the existing current", async () => {
   await expect(update.install()).rejects.toThrow();
   await expect(update.install(AbortSignal.abort())).rejects.toThrow();
   expect(await update.binDir()).toBe(await installer.binDir());
-  expect(await readdir(join(home, "tools", "git"))).toEqual([pin.version, "current"]);
+  expect((await readdir(join(home, "tools", "git"))).sort()).toEqual(
+    [pin.version, "current"].sort(),
+  );
 });
 
 test("packaged Git pins parse without changing the existing single-binary manifest", async () => {
   const { home } = await fixture();
   expect(await (await createWindowsGitInstaller(home)).readiness()).toEqual({ state: "missing" });
+});
+
+test("Git install reclaims stale repairs from both cmd and nested runtime bins", async () => {
+  const { home, pin, runner } = await fixture();
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date((await stat(home)).mtimeMs));
+  const installer = new WindowsGitInstaller(join(home, "app"), pin, runner);
+  await installer.install();
+  const bin = await installer.binDir();
+  if (!bin) throw new Error("Git was not published");
+  const runtime = join(bin, "..", "mingw64", "bin");
+  const old = new Date(Date.now() - 48 * 60 * 60_000);
+  for (const directory of [bin, runtime]) {
+    const repair = join(directory, ".repair-abandoned");
+    await writeFile(repair, "partial repair");
+    await utimes(repair, old, old);
+    await writeFile(join(directory, ".repair-fresh"), "active repair");
+  }
+  await installer.install();
+  expect((await readdir(bin)).sort()).toEqual([".repair-fresh", "git.exe"]);
+  expect((await readdir(runtime)).sort()).toEqual([".repair-fresh", "runtime.dll"]);
+  expect(await installer.binDir()).toBe(bin);
 });
 
 test("macOS probes git, not an xcode-select path, and polls after the fake install prompt", async () => {

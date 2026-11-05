@@ -3,11 +3,12 @@
 
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { createReadStream, createWriteStream } from "node:fs";
+import { createReadStream, createWriteStream, type Dirent } from "node:fs";
 import {
   access,
   chmod,
   type FileHandle,
+  lstat,
   mkdir,
   mkdtemp,
   open,
@@ -25,6 +26,7 @@ import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { isVersion, parseManifest, type ToolPin, type ToolPlatform } from "./manifest.js";
+import { pinnedManifest } from "./pinned-manifest.js";
 
 const exec = promisify(execFile);
 // GNU tar from Git or MSYS can come first on a Windows PATH and cannot read C:\ paths or zips.
@@ -125,8 +127,40 @@ export async function createToolInstaller(
   appData: string,
   platform?: string,
 ): Promise<ToolInstaller> {
-  const manifest = JSON.parse(await readFile(new URL("../manifest.json", import.meta.url), "utf8"));
-  return new ToolInstaller(appData, manifest, platform);
+  return new ToolInstaller(appData, pinnedManifest, platform);
+}
+
+// A recent entry may belong to another process still downloading or extracting.
+const staleAfterMs = 24 * 60 * 60_000;
+
+async function reclaimStale(
+  directory: string,
+  matches: (name: string) => boolean,
+  cutoff: number,
+  descend: (name: string) => boolean = () => false,
+): Promise<void> {
+  // Reclaim is best effort: a locked or unreadable leftover must never block an install.
+  let entries: Dirent[];
+  try {
+    entries = await readdir(directory, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    const path = join(directory, entry.name);
+    try {
+      if (matches(entry.name)) {
+        // lstat ages the temporary symlink itself, never its installed target.
+        if ((await lstat(path)).mtimeMs < cutoff) {
+          await rm(path, { recursive: entry.isDirectory(), force: true });
+        }
+      } else if (entry.isDirectory() && descend(entry.name)) {
+        await reclaimStale(path, matches, cutoff, () => true);
+      }
+    } catch {
+      // Leave it for a later install to retry.
+    }
+  }
 }
 
 export class ToolInstaller {
@@ -209,7 +243,13 @@ export class ToolInstaller {
     let pointer: string | undefined;
     try {
       await mkdir(this.appData, { recursive: true });
-      staging = await mkdtemp(join(this.appData, ".install-"));
+      const cutoff = Date.now() - staleAfterMs;
+      // Older unqualified .install-* names cannot be safely attributed to a tool.
+      const stagingName = new RegExp(`^\\.install-${tool}-[A-Za-z0-9]{6}$`);
+      await reclaimStale(this.appData, (name) => stagingName.test(name), cutoff);
+      await reclaimStale(this.root(tool), (name) => name.startsWith(".current-"), cutoff);
+      await reclaimStale(this.root(tool), (name) => name.startsWith(".repair-"), cutoff, isVersion);
+      staging = await mkdtemp(join(this.appData, `.install-${tool}-`));
       const asset = pin.platforms[this.platform];
       const archive = join(
         staging,
