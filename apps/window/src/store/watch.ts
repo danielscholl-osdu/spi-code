@@ -26,12 +26,18 @@ type WatchState = {
   signin: Partial<Record<SetupSigninProgress["tool"], SetupSigninProgress>>;
   signinOutcome: Partial<Record<SetupSigninProgress["tool"], SetupSigninProgress>>;
   requestSetup(
-    ...request: {
-      [T in "setup.install" | "setup.signin"]: [
-        type: T,
-        tool: Extract<WatchMessage, { type: T }>["payload"]["tool"],
-      ];
-    }["setup.install" | "setup.signin"]
+    ...request:
+      | [
+          type: "setup.install",
+          tool: Extract<WatchMessage, { type: "setup.install" }>["payload"]["tool"],
+          token?: never,
+        ]
+      | [
+          type: "setup.signin",
+          tool: Exclude<Extract<WatchMessage, { type: "setup.signin" }>["payload"]["tool"], "glab">,
+          token?: never,
+        ]
+      | [type: "setup.signin", tool: "glab", token: string]
   ): void;
   receive(input: unknown): void;
 };
@@ -70,13 +76,13 @@ export function createWatchStore(
     setup: null,
     signin: {},
     signinOutcome: {},
-    requestSetup(type, tool) {
+    requestSetup(type, tool, token?: string) {
       const parsed = parseMessage({
         version: PROTOCOL_VERSION,
         id: crypto.randomUUID(),
         kind: "request",
         type,
-        payload: { tool },
+        payload: token === undefined ? { tool } : { tool, token },
       });
       if (!parsed.ok) throw new Error("Invalid setup request");
       send(parsed.message);

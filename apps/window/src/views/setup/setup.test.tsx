@@ -1,7 +1,12 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION, type SetupState, WatchMessageSchema } from "@spi-code/contracts";
+import {
+  PROTOCOL_VERSION,
+  SetupSigninSchema,
+  type SetupState,
+  WatchMessageSchema,
+} from "@spi-code/contracts";
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -72,7 +77,8 @@ it.each(cases)(
       const buttons = row?.querySelectorAll<HTMLButtonElement>("button");
       const offered = action && !(name === "git" && action === "signin");
       expect(buttons).toHaveLength(offered ? 1 : 0);
-      if (offered) expect(buttons?.[0]?.disabled).toBe(status === "installing");
+      const tokenless = name === "glab" && action === "signin";
+      if (offered) expect(buttons?.[0]?.disabled).toBe(status === "installing" || tokenless);
     }
   },
 );
@@ -101,6 +107,118 @@ it("sends validated install and sign-in requests through the shared store port",
     { type: "setup.signin", payload: { tool: "gh" } },
   ]);
   expect(container.textContent).toContain("Required scopes: workflow");
+});
+
+const token = "glpat-Secret0123456789";
+const glab = () => {
+  const row = container.querySelector('section[aria-label="glab"]');
+  const field = row?.querySelector<HTMLInputElement>("input");
+  const button = row?.querySelector<HTMLButtonElement>("button");
+  if (!row || !field || !button) throw new Error("glab row needs a token field and Sign in");
+  return { row, field, button };
+};
+const paste = (value: string) =>
+  act(async () => {
+    const { field } = glab();
+    field.value = value;
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+const sent = () =>
+  send.mock.calls.map(([message]) => {
+    const parsed = WatchMessageSchema.parse(message);
+    return { type: parsed.type, payload: parsed.payload };
+  });
+
+it("sends the pasted glab token with Sign in as a schema-valid setup.signin", async () => {
+  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+  await render();
+  await paste(` ${token} `);
+  await act(async () => glab().button.click());
+  expect(sent()).toEqual([{ type: "setup.signin", payload: { tool: "glab", token } }]);
+  expect(SetupSigninSchema.parse(sent()[0]?.payload)).toEqual({ tool: "glab", token });
+});
+
+it.each(["", "   "])("keeps Sign in disabled and sends nothing for token %j", async (value) => {
+  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+  await render();
+  expect(glab().button.disabled).toBe(true);
+  await paste(value);
+  expect(glab().button.disabled).toBe(true);
+  await act(async () => glab().button.click());
+  expect(send).not.toHaveBeenCalled();
+});
+
+it.each([
+  ["short", "Too small"],
+  ["glpat-abc def12345", "Credential must not contain whitespace"],
+])("shows the schema error for %j without sending and clears the field", async (value, error) => {
+  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+  await render();
+  await paste(value);
+  await act(async () => glab().button.click());
+  expect(send).not.toHaveBeenCalled();
+  expect(glab().row.querySelector('[role="alert"]')?.textContent).toContain(error);
+  expect(glab().row.textContent).not.toContain(value);
+  expect(glab().field.value).toBe("");
+  expect(glab().button.disabled).toBe(true);
+});
+
+it("never echoes, logs, stores or persists the glab token, and clears it on success and failure", async () => {
+  const logs = (["log", "info", "warn", "error", "debug"] as const).map((method) =>
+    vi.spyOn(console, method),
+  );
+  const persist = vi.spyOn(Storage.prototype, "setItem");
+  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+  await render();
+  const { field } = glab();
+  expect(field.type).toBe("password");
+  expect(field.autocomplete).toBe("off");
+  expect(field.getAttribute("autocomplete")).toBe("off");
+  for (const outcome of [
+    { tool: "glab", state: "failed", reason: "GitLab rejected the token" },
+    { tool: "glab", state: "completed" },
+  ]) {
+    send.mockClear();
+    await paste(token);
+    expect(container.innerHTML).not.toContain(token);
+    expect(JSON.stringify(watchStore.getState())).not.toContain(token);
+    await act(async () => glab().button.click());
+    expect(sent()).toEqual([{ type: "setup.signin", payload: { tool: "glab", token } }]);
+    expect(glab().field.value).toBe("");
+    expect(glab().button.disabled).toBe(true);
+    await receive("setup.signin.progress", { tool: "glab", state: "starting" });
+    expect(glab().field.disabled).toBe(true);
+    await receive("setup.signin.progress", outcome);
+    expect(glab().field.disabled).toBe(false);
+    expect(glab().field.value).toBe("");
+    expect(container.innerHTML).not.toContain(token);
+    expect(JSON.stringify(watchStore.getState())).not.toContain(token);
+  }
+  expect(container.textContent).toContain("Sign-in completed");
+  expect(persist).not.toHaveBeenCalled();
+  for (const storage of [localStorage, sessionStorage]) {
+    const stored = Array.from({ length: storage.length }, (_, index) => {
+      const key = storage.key(index) ?? "";
+      return `${key}=${storage.getItem(key)}`;
+    });
+    expect(stored.join("\n")).not.toContain(token);
+  }
+  for (const log of logs) expect(JSON.stringify(log.mock.calls)).not.toContain(token);
+});
+
+it("keeps Copilot and gh sign-in tokenless with no token field", async () => {
+  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+  await render();
+  for (const name of ["Copilot", "gh"]) {
+    const row = container.querySelector(`section[aria-label="${name}"]`);
+    expect(row?.querySelector("input")).toBeNull();
+    await act(async () => row?.querySelector<HTMLButtonElement>("button")?.click());
+  }
+  expect(container.querySelector('section[aria-label="git"] input')).toBeNull();
+  expect(sent()).toEqual([
+    { type: "setup.signin", payload: { tool: "copilot" } },
+    { type: "setup.signin", payload: { tool: "gh" } },
+  ]);
 });
 
 it("shows attention explanations without sending an install or sign-in", async () => {
@@ -156,7 +274,7 @@ it("shows live device codes and URLs independently for each tool, then errors an
   expect(container.querySelector('section[aria-label="gh"] [role="alert"]')?.textContent).toBe(
     "Device code expired",
   );
-  expect(container.querySelector("input")).toBeNull();
+  expect(container.querySelector("input[readonly]")).toBeNull();
   expect(watchStore.getState().signin.gh).toBeUndefined();
   expect(
     container.querySelector<HTMLButtonElement>('section[aria-label="gh"] button')?.disabled,
@@ -181,7 +299,7 @@ it("clears interrupted sign-in on reconnect so Sign in is enabled again", async 
   await receive("host.hello", { pid: 456 });
   expect(watchStore.getState().signin).toEqual({});
   expect(watchStore.getState().signinOutcome).toEqual({});
-  expect(container.querySelector("input")).toBeNull();
+  expect(container.querySelector("input[readonly]")).toBeNull();
   expect(
     container.querySelector<HTMLButtonElement>('section[aria-label="gh"] button')?.disabled,
   ).toBe(false);

@@ -1,8 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { SetupState } from "@spi-code/contracts";
-import { useState } from "react";
+import { SetupSigninSchema, type SetupState } from "@spi-code/contracts";
+import { useRef, useState } from "react";
 import { useStore } from "zustand";
 import { watchStore } from "../../store/watch.js";
 
@@ -46,6 +46,49 @@ function CopyText({ label, value }: { label: string; value: string }) {
   );
 }
 
+function GlabSignin({ disabled }: { disabled: boolean }) {
+  const field = useRef<HTMLInputElement>(null);
+  const [filled, setFilled] = useState(false);
+  const [error, setError] = useState("");
+  return (
+    <form
+      aria-label="glab sign-in"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const input = field.current;
+        if (!input) return;
+        const token = input.value.trim();
+        input.value = "";
+        setFilled(false);
+        const parsed = SetupSigninSchema.safeParse({ tool: "glab", token });
+        if (!parsed.success) {
+          setError(parsed.error.issues[0]?.message ?? "Enter a valid GitLab token.");
+          return;
+        }
+        setError("");
+        watchStore.getState().requestSetup("setup.signin", "glab", token);
+      }}
+    >
+      <label>
+        GitLab token{" "}
+        <input
+          ref={field}
+          type="password"
+          name="glab-token"
+          autoComplete="off"
+          spellCheck={false}
+          disabled={disabled}
+          onInput={(event) => setFilled(event.currentTarget.value.trim() !== "")}
+        />
+      </label>
+      <button type="submit" disabled={disabled || !filled}>
+        {actions.signin}
+      </button>
+      {error && <p role="alert">{error}</p>}
+    </form>
+  );
+}
+
 function ToolRow({ tool }: { tool: Tool }) {
   const progress = useStore(watchStore, (state) =>
     tool.tool === "git" ? undefined : (state.signin[tool.tool] ?? state.signinOutcome[tool.tool]),
@@ -70,7 +113,8 @@ function ToolRow({ tool }: { tool: Tool }) {
       </p>
       {tool.reason && !attention && <p>{tool.reason}</p>}
       {!!tool.missingScopes?.length && <p>Required scopes: {tool.missingScopes.join(", ")}</p>}
-      {tool.action && !(tool.tool === "git" && tool.action === "signin") && (
+      {tool.tool === "glab" && tool.action === "signin" && <GlabSignin disabled={!!busy} />}
+      {tool.action && !(tool.action === "signin" && ["git", "glab"].includes(tool.tool)) && (
         <button
           type="button"
           disabled={!!busy}
@@ -79,7 +123,7 @@ function ToolRow({ tool }: { tool: Tool }) {
             if (tool.action === "attention") setAttention(!attention);
             else if (tool.action === "install")
               watchStore.getState().requestSetup("setup.install", tool.tool);
-            else if (tool.action === "signin" && tool.tool !== "git")
+            else if (tool.action === "signin" && tool.tool !== "git" && tool.tool !== "glab")
               watchStore.getState().requestSetup("setup.signin", tool.tool);
             else throw new Error(`Unsupported setup action for ${tool.tool}`);
           }}
