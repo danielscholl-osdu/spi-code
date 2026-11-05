@@ -56,7 +56,7 @@ const binary = platform === "win32-x64" ? "gh.exe" : "gh";
 let home: string;
 let archive: Buffer;
 let url: string;
-let server: Server;
+let server: Server | undefined;
 
 function manifest(
   version = "1.0.0",
@@ -77,15 +77,17 @@ function manifest(
 }
 
 beforeEach(async () => {
+  server = undefined;
   home = await mkdtemp(join(tmpdir(), "spi-tools-home-"));
   await mkdir(join(home, "fixture", "bin"), { recursive: true });
   await writeFile(join(home, "fixture", "bin", binary), executable);
-  const path = join(home, "fixture.tar.gz");
-  await exec("tar", ["-czf", path, "-C", join(home, "fixture"), `bin/${binary}`]);
-  archive = await readFile(path);
-  server = createServer((_request, response) => response.end(archive));
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
-  const address = server.address();
+  // Relative paths: GNU tar from Git for Windows reads "C:" in an archive path as a remote host.
+  await exec("tar", ["-czf", "fixture.tar.gz", "-C", "fixture", `bin/${binary}`], { cwd: home });
+  archive = await readFile(join(home, "fixture.tar.gz"));
+  const listening = createServer((_request, response) => response.end(archive));
+  server = listening;
+  await new Promise<void>((resolve) => listening.listen(0, "127.0.0.1", resolve));
+  const address = listening.address();
   if (!address || typeof address === "string") throw new Error("Fixture server did not bind");
   url = `http://127.0.0.1:${address.port}/fixture.tar.gz`;
 });
@@ -95,9 +97,11 @@ afterEach(async () => {
   fsHooks.readdir = undefined;
   vi.unstubAllEnvs();
   vi.useRealTimers();
-  await new Promise<void>((resolve, reject) =>
-    server.close((error) => (error ? reject(error) : resolve())),
-  );
+  const listening = server;
+  if (listening)
+    await new Promise<void>((resolve, reject) =>
+      listening.close((error) => (error ? reject(error) : resolve())),
+    );
   await rm(home, { recursive: true, force: true });
 });
 

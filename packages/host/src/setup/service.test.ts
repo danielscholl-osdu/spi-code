@@ -59,32 +59,36 @@ const GH_STATUS_OK =
 
 let directory: string;
 let appData: string;
-let server: Server;
+let server: Server | undefined;
 let origin: string;
 let archive: Buffer;
 const services: SetupService[] = [];
 
 beforeEach(async () => {
+  server = undefined;
   directory = mkdtempSync(join(tmpdir(), "spi-setup-"));
   appData = join(directory, "app");
   const fixture = join(directory, "fixture");
   mkdirSync(join(fixture, "bin"), { recursive: true });
   writeFileSync(join(fixture, "bin", "gh"), GH_FIXTURE);
   chmodSync(join(fixture, "bin", "gh"), 0o755);
-  execFileSync("tar", ["-czf", join(directory, "gh.tar.gz"), "-C", fixture, "bin/gh"]);
+  // Relative paths: GNU tar from Git for Windows reads "C:" in an archive path as a remote host.
+  execFileSync("tar", ["-czf", "gh.tar.gz", "-C", "fixture", "bin/gh"], { cwd: directory });
   archive = readFileSync(join(directory, "gh.tar.gz"));
-  server = createServer((request, response) => {
+  const listening = createServer((request, response) => {
     if (request.url === "/gh.tar.gz") response.end(archive);
     else response.writeHead(404).end();
   });
-  server.listen(0, "127.0.0.1");
-  await new Promise<void>((resolve) => server.once("listening", resolve));
-  origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  server = listening;
+  listening.listen(0, "127.0.0.1");
+  await new Promise<void>((resolve) => listening.once("listening", resolve));
+  origin = `http://127.0.0.1:${(listening.address() as AddressInfo).port}`;
 });
 
 afterEach(async () => {
   for (const service of services.splice(0)) await service.stop();
-  await new Promise<void>((resolve) => server.close(() => resolve()));
+  const listening = server;
+  if (listening) await new Promise<void>((resolve) => listening.close(() => resolve()));
   rmSync(directory, { recursive: true, force: true });
 });
 

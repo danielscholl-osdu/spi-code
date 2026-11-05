@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ghConfigPath, runSandboxProbe } from "./probe.js";
-import { sandboxEnvironment, seatbeltProfile } from "./seatbelt.js";
+import { refuseCredentialHardLinks, sandboxEnvironment, seatbeltProfile } from "./seatbelt.js";
 
 describe.skipIf(process.platform !== "darwin")("Seatbelt probe", () => {
   it("runs Java, blocks credential reads and outside writes, and permits worktree writes", async () => {
@@ -89,14 +89,19 @@ it("refuses a protected directory scan beyond the depth limit", () => {
       protectedHome: join(root, "home"),
     };
     for (const path of Object.values(options)) mkdirSync(path);
-    let path = join(options.protectedHome, ".ssh");
+    const ssh = join(options.protectedHome, ".ssh");
+    let path = ssh;
     mkdirSync(path);
     for (let depth = 0; depth < 16; depth++) {
       path = join(path, "nested");
       mkdirSync(path);
     }
-    expect(() => seatbeltProfile(options)).not.toThrow();
+    expect(() => refuseCredentialHardLinks([ssh])).not.toThrow();
+    if (process.platform !== "win32") expect(() => seatbeltProfile(options)).not.toThrow();
     mkdirSync(join(path, "too-deep"));
+    expect(() => refuseCredentialHardLinks([ssh])).toThrow(
+      /protected credential scan limit exceeded/u,
+    );
     expect(() => seatbeltProfile(options)).toThrow(/protected credential scan limit exceeded/u);
   } finally {
     rmSync(root, { recursive: true, force: true });

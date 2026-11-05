@@ -321,7 +321,7 @@ describe("Copilot seat probe", () => {
       expect(await readFile(join(home, "sentinel"), "utf8")).toBe("unchanged");
       expect(await readdir(appDataDir, { recursive: true })).toEqual([
         "copilot",
-        "copilot/session",
+        join("copilot", "session"),
       ]);
       expect(await readFile(join(appDataDir, "copilot/session"), "utf8")).not.toContain(
         "gho_fixture",

@@ -42,7 +42,7 @@ function canonicalPath(path: string): string {
   return resolve(realpathSync(ancestor), ...suffix);
 }
 
-function refuseCredentialHardLinks(paths: Iterable<string>): void {
+export function refuseCredentialHardLinks(paths: Iterable<string>): void {
   const visited = new Set<string>();
   function visit(path: string, depth: number): void {
     if (visited.has(path)) return;

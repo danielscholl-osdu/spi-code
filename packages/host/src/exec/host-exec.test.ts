@@ -213,6 +213,9 @@ it("owns configuration dirs and scrubs overrides, keeping only the named token",
 it("passes stdin, cwd and env, parses JSON and accepts a nonzero result only on request", async () => {
   const options = await fixture();
   const exec = new HostExec(options);
+  // The child reports its cwd as given, so pass the canonical path: /private/var on macOS,
+  // and the long name on Windows, where the temporary directory is an 8.3 short name.
+  const cwd = await realpath(options.appData);
   const args = [
     "-e",
     "process.stdin.on('data', x => process.stdout.write(JSON.stringify({input: x.toString(), cwd: process.cwd(), value: process.env.VALUE})))",
@@ -220,12 +223,12 @@ it("passes stdin, cwd and env, parses JSON and accepts a nonzero result only on 
   expect(
     await exec.runJSON(process.execPath, args, {
       stdin: "hello",
-      cwd: options.appData,
+      cwd,
       env: { VALUE: "test" },
     }),
   ).toEqual({
     ok: true,
-    data: { input: "hello", cwd: await realpath(options.appData), value: "test" },
+    data: { input: "hello", cwd, value: "test" },
     exitCode: 0,
   });
   const failure = [
