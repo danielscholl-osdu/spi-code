@@ -3,8 +3,7 @@
 
 import { type Clock, systemClock } from "./clock.js";
 import {
-  builtInFleet, CORE_LIB_REPO, DEFAULT_FLEET, DEFAULT_PATHS, type Fleet, fleetOf,
-  STACK_REPO, TEMPLATE_REPO,
+  builtInFleet, DEFAULT_FLEET, DEFAULT_PATHS, type Fleet, fleetOf, STACK_REPO,
 } from "./config.js";
 import { type EnvironmentPaths, environmentFromEnv } from "./environment.js";
 import type { Rollout } from "./rollout.js";
@@ -20,15 +19,13 @@ export interface CoreContext {
 
 export function createContext(input: Partial<CoreContext> = {}): CoreContext {
   const stackRepo = input.stackRepo ?? STACK_REPO;
-  const fleet = input.fleet ? fleetOf(input.fleet.services) : DEFAULT_FLEET;
+  const fleet = input.fleet || stackRepo !== STACK_REPO
+    ? fleetOf((input.fleet ?? DEFAULT_FLEET).services, stackRepo)
+    : DEFAULT_FLEET;
   const rollout = input.rollout;
   const clock = input.clock ?? systemClock;
   return Object.freeze({
-    fleet: stackRepo === STACK_REPO ? fleet : Object.freeze({
-      ...fleet,
-      repos: Object.freeze([TEMPLATE_REPO, stackRepo, ...fleet.forks.map((f) => f.repo)]),
-      releaseRepos: Object.freeze([TEMPLATE_REPO, stackRepo, CORE_LIB_REPO, ...fleet.forks.map((f) => f.repo)]),
-    }),
+    fleet,
     stackRepo,
     paths: Object.freeze({ ...(input.paths ?? DEFAULT_PATHS) }),
     rollout: rollout

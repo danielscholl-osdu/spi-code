@@ -10,7 +10,13 @@ import {
   resolveRollout,
   upstreamProject,
 } from "../../src/collect/fleet.js";
-import { fleetOf, GITLAB_EVERY_MS, KNOWN_SERVICES } from "../../src/config.js";
+import {
+  DECLARATION_PATH,
+  fleetOf,
+  GITLAB_EVERY_MS,
+  KNOWN_SERVICES,
+  STACK_REPO,
+} from "../../src/config.js";
 import { createContext } from "../../src/context.js";
 import { envelopeOf } from "../../src/evidence/index.js";
 import type { Exec } from "../../src/exec/index.js";
@@ -69,6 +75,70 @@ function fleetGh(
 }
 const extended = () => yaml([...KNOWN_SERVICES.map((s) => s.id), extra.service]);
 const upstream = { [extra.repo]: [{ name: "UPSTREAM_REPO_URL", value: url }] };
+
+test("two contexts discover forks and attribute declaration reads to their own stack", async () => {
+  const contexts = ["one/stack", "two/environment"].map((stackRepo) =>
+    createContext({ stackRepo, fleet: fleetOf([]) }),
+  );
+  const calls: string[] = [];
+  const gh = new Gh({
+    runText: async (_cmd, args) => {
+      const query = args.join(" ");
+      calls.push(query);
+      const context = contexts.find((c) => {
+        const [owner, name] = c.stackRepo.split("/");
+        return query.includes(`owner: "${owner}", name: "${name}"`);
+      });
+      return {
+        ok: true,
+        data: JSON.stringify({
+          data: {
+            stack: context
+              ? {
+                  object: {
+                    text: `forks:\n  - service: legal\n    repo: ${context.stackRepo}-legal`,
+                  },
+                }
+              : null,
+            template: { object: null },
+          },
+        }),
+        exitCode: 0,
+      };
+    },
+    runJSON: async <T>() => ({
+      ok: true,
+      data: { total_count: 0, variables: [] } as T,
+    }),
+  });
+  for (const context of [...contexts, ...[...contexts].reverse()]) {
+    const data = await readFleet(gh, undefined, now, {}, context.stackRepo);
+    expect(data.forks).toEqual([{ service: "legal", repo: `${context.stackRepo}-legal` }]);
+    expect(data.reads.find((r) => r.object === DECLARATION_PATH)).toEqual({
+      source: context.stackRepo,
+      object: DECLARATION_PATH,
+      observedAt: now.toISOString(),
+      completeness: { kind: "complete" },
+    });
+    const discovered = createContext({ ...context, fleet: fleetOf(resolveFleet(data).services) });
+    expect(discovered.fleet.forks.map((f) => f.repo)).toEqual([`${context.stackRepo}-legal`]);
+    expect(discovered.fleet.repos).toContain(context.stackRepo);
+    expect(discovered.fleet.repos).not.toContain(STACK_REPO);
+  }
+  expect(calls).toHaveLength(4);
+});
+
+test("custom stack declaration failures retain their own last good observation", async () => {
+  const stackRepo = "custom/environment";
+  const good = await readFleet(fleetGh(yaml(["legal"])).gh, undefined, now, {}, stackRepo);
+  const failed = await readFleet(fleetGh(null).gh, good, later, {}, stackRepo);
+  expect(failed.forks).toEqual(good.forks);
+  expect(failed.reads.find((r) => r.object === DECLARATION_PATH)).toMatchObject({
+    source: stackRepo,
+    failure: `${stackRepo} has no ${DECLARATION_PATH} on main`,
+    retainedFrom: now.toISOString(),
+  });
+});
 
 test("14 forks: the 13 known by identity, the new one by its UPSTREAM_REPO_URL; independent contexts", async () => {
   const data = await readFleet(fleetGh(extended(), null, upstream).gh, undefined, now);

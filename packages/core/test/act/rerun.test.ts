@@ -10,6 +10,9 @@ import {
   WAIT_ACTION,
 } from "../../src/act/rerun.js";
 import { bindingSchema } from "../../src/act/verbs.js";
+import { STACK_REPO } from "../../src/config.js";
+import { createContext } from "../../src/context.js";
+import { verbsOf } from "../../src/inspect/actions.js";
 import { buildModel } from "../../src/model/index.js";
 import type { LaneLoad } from "../../src/model/lanes.js";
 import type { QueueItem } from "../../src/model/queue.js";
@@ -30,6 +33,42 @@ function stackItem(m: ReturnType<typeof model>): QueueItem {
 }
 
 describe("the environment verbs", () => {
+  test("two contexts assemble lifecycle dispatches for their own stack repository", () => {
+    const contexts = ["one/stack", "two/environment"].map((stackRepo) =>
+      createContext({ ...fixtureContext, stackRepo }),
+    );
+    const facts = laneFacts(true);
+    const repos = facts.github.data?.repos;
+    const original = repos?.[STACK_REPO];
+    if (!repos || !original) throw new Error("fixture has a stack");
+    for (const context of contexts) {
+      repos[context.stackRepo] = { ...original, repo: context.stackRepo };
+    }
+    delete repos[STACK_REPO];
+    for (const context of [...contexts, ...[...contexts].reverse()]) {
+      const m = buildModel(facts, FIXTURE_NOW, {}, context);
+      const item = m.queue.items.find((i) => i.kind === "stack");
+      if (!item) throw new Error("fixture has a failed lifecycle attempt");
+      for (const kind of ["stack", "maintenance"] as const) {
+        const actions = verbsOf({ ...item, kind }, m, context, { scopes: ["repo"] });
+        expect(actions).toHaveLength(2);
+        for (const action of actions) {
+          expect(bindingSchema.parse(action.binding).targets).toEqual([
+            {
+              repo: context.stackRepo,
+              kind: "workflow",
+              state: "idle",
+              label: action.label.replace("Re-dispatch ", ""),
+            },
+          ]);
+          expect(action.confirm?.body).toContain(`-R ${context.stackRepo}`);
+          expect(action.confirm?.title).toBe(`${action.label} · ${context.stackRepo}`);
+          expect(action.confirm?.body).not.toContain(STACK_REPO);
+        }
+      }
+    }
+  });
+
   test("while deployable, one Re-run lanes confirmation names each PR and run and every command", () => {
     const m = model();
     const [rerun, ...rest] = laneActions(m.item, m.stack, opts);

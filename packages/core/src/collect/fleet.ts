@@ -98,11 +98,12 @@ export async function readFleet(
   prev: (FleetFacts & { reads?: readonly ReadRecord[] }) | undefined,
   now: Date,
   files: FleetFiles = {},
+  stackRepo: string = STACK_REPO,
 ): Promise<FleetRead> {
   const reads: ReadRecord[] = [];
   const previous = prev?.reads ?? [];
   const parts = [
-    ...(files.services ? [] : [blob("stack", STACK_REPO, DECLARATION_PATH)]),
+    ...(files.services ? [] : [blob("stack", stackRepo, DECLARATION_PATH)]),
     ...(files.rollout ? [] : [blob("template", TEMPLATE_REPO, ROLLOUT_PATH)]),
   ];
   let data: { stack?: BlobRepo; template?: BlobRepo } = {};
@@ -120,14 +121,14 @@ export async function readFleet(
   if (!files.services) {
     try {
       if (queryFailure) throw queryFailure;
-      if (!data.stack) throw new Error(`${STACK_REPO} is not readable`);
+      if (!data.stack) throw new Error(`${stackRepo} is not readable`);
       const text = data.stack.object?.text;
-      if (text === undefined) throw new Error(`${STACK_REPO} has no ${DECLARATION_PATH} on main`);
+      if (text === undefined) throw new Error(`${stackRepo} has no ${DECLARATION_PATH} on main`);
       forks = parseForks(text);
-      reads.push(record(STACK_REPO, DECLARATION_PATH, now, previous));
+      reads.push(record(stackRepo, DECLARATION_PATH, now, previous));
     } catch (error) {
       forks = prev?.forks;
-      reads.push(record(STACK_REPO, DECLARATION_PATH, now, previous, error));
+      reads.push(record(stackRepo, DECLARATION_PATH, now, previous, error));
     }
   }
   let remote: Pick<FleetFacts, "rollout" | "rolloutFrom"> = {};

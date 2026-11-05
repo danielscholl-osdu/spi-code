@@ -119,5 +119,5 @@ export function verbsOf(
         ...(blocked ? { blocked } : {}),
         ...(opts.waiting ? { waiting: opts.waiting } : {}),
       })
-    : dispatchActions(item, model.stack, { swept, ...(blocked ? { blocked } : {}) });
+    : dispatchActions(item, model.stack, { swept, stackRepo: context.stackRepo, ...(blocked ? { blocked } : {}) });
 }

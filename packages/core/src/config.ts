@@ -173,15 +173,15 @@ export interface Fleet {
   readonly projectRepos: readonly string[];
 }
 
-export function fleetOf(next: readonly ServiceDef[]): Fleet {
+export function fleetOf(next: readonly ServiceDef[], stackRepo: string = STACK_REPO): Fleet {
   const services = Object.freeze(next.map((s) => Object.freeze({ ...s })));
   const forks = Object.freeze(services.filter((s): s is ForkDef => !!s.repo));
   return Object.freeze({
     services,
     forks,
     planned: Object.freeze(services.filter((s) => !s.repo)),
-    repos: Object.freeze([TEMPLATE_REPO, STACK_REPO, ...forks.map((f) => f.repo)]),
-    releaseRepos: Object.freeze([TEMPLATE_REPO, STACK_REPO, CORE_LIB_REPO, ...forks.map((f) => f.repo)]),
+    repos: Object.freeze([TEMPLATE_REPO, stackRepo, ...forks.map((f) => f.repo)]),
+    releaseRepos: Object.freeze([TEMPLATE_REPO, stackRepo, CORE_LIB_REPO, ...forks.map((f) => f.repo)]),
     projectRepos: Object.freeze([...forks.map((f) => f.repo), TEMPLATE_REPO]),
   });
 }

@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { LIFECYCLE_WORKFLOWS, STACK_REPO } from "../config.js";
+import { LIFECYCLE_WORKFLOWS, shortRepo, STACK_REPO } from "../config.js";
 import type { LaneLoad } from "../model/lanes.js";
 import type { LaneRun, QueueItem } from "../model/queue.js";
 import { runName, type StackModel, stoppedAttempts } from "../model/stack.js";
@@ -167,9 +167,10 @@ function primaryKind(item: QueueItem, stack: StackModel): "refresh" | "upgrade" 
 export function dispatchActions(
   item: QueueItem,
   stack: StackModel,
-  opts: { swept: string; blocked?: string },
+  opts: { swept: string; blocked?: string; stackRepo?: string },
 ): ActionItem[] {
   if (item.kind !== "stack" && item.kind !== "maintenance") return [];
+  const stackRepo = opts.stackRepo ?? STACK_REPO;
   const busy = stack.inflight
     ? `${runName(stack.inflight.run)} is ${stack.inflight.run.status === "queued" ? "queued" : "running"} in concurrency group env-shared`
     : undefined;
@@ -178,7 +179,7 @@ export function dispatchActions(
   const shared =
     "env-refresh and env-upgrade share concurrency group env-shared, so this is refused while either one is queued or running.";
   const target = (label: string): Target => ({
-    repo: STACK_REPO,
+    repo: stackRepo,
     kind: "workflow",
     state: "idle",
     label,
@@ -189,7 +190,7 @@ export function dispatchActions(
     {
       primary: primary === "refresh",
       pending: "Dispatching…",
-      title: "Re-dispatch env-refresh · osdu-spi-stack",
+      title: `Re-dispatch env-refresh · ${shortRepo(stackRepo)}`,
       detail: [
         "Runs env-refresh on the shared environment: quiesce, reconcile the pinned source, wait for Flux, probe the gateway, then reopen for deploys.",
         "It clears maintenance only after its probes pass; the board has no verb that clears maintenance directly.",
@@ -204,7 +205,7 @@ export function dispatchActions(
     {
       primary: primary === "upgrade",
       pending: "Dispatching…",
-      title: "Re-dispatch env-upgrade · osdu-spi-stack",
+      title: `Re-dispatch env-upgrade · ${shortRepo(stackRepo)}`,
       detail: [
         `Runs env-upgrade, which deploys the declared stackVersion${stack.declared ? ` ${stack.declared}` : ""} from ops/environments/shared.yaml onto the shared environment. It takes no inputs.`,
         "It clears maintenance only after its verify stage passes.",
