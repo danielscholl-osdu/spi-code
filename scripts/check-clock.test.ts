@@ -184,7 +184,7 @@ it("accepts Date text sampled before or across a simulated second boundary", () 
       });
       expect(result.error).toBeUndefined();
       const output = result.stdout + result.stderr;
-      const ran = realpathSync(directory);
+      const ran = realpathSync.native(directory);
       for (const [report, expected] of [
         ["check.json", { passed: 4, failed: 0 }],
         ["test.json", { passed: 3, failed: 1 }],
