@@ -79,3 +79,23 @@ All clocks are fixed.
   this publication boundary while emitting project-isolated failure evidence.
   A timeout response, unlike an exception, returns a partial fact with cut
   evidence as previously documented.
+
+## Council round 2
+
+- The only `Gh.pages`/`--jq` call in these collectors now selects
+  `.[].commit.message | tojson`. Real gh emits raw strings for the original
+  selector, which cannot be parsed as JSON lines and splits multiline messages.
+  The fake now mirrors that distinction and includes multiline messages with
+  quotes/backslashes; the 51-commit paging case exercises the encoded form.
+- REST references are merged before checking the reported total. A short
+  response preserves those references in the published fact and pending retry,
+  reports the number actually read, and still permits watermark advancement.
+- GitHub's 250-commit REST ceiling is a permanent cut when exactly 250 commits
+  were returned and the reported total is higher. A zod-validated
+  `permanentCuts` map keeps the fact, read count and total separately from
+  retryable `pending` entries. Later sweeps (including after reload and while
+  the PR is still in the search window) preserve its references and emit
+  PR-specific and aggregate cut evidence without another REST request.
+  Non-cap shortfalls and transport failures remain retryable.
+- The accepted over-100-result search limit is unchanged; the maintainer is
+  filing its follow-up bead.

@@ -65,7 +65,11 @@ function exec(data: unknown, errors: unknown[] = [], commits: string[] | Error =
           return commits instanceof Error
             ? { stdout: "", stderr: commits.message, exit: 1 }
             : {
-                stdout: commits.map((message) => JSON.stringify(message)).join("\n"),
+                stdout: commits
+                  .map((message) =>
+                    args.at(-1)?.endsWith("| tojson") ? JSON.stringify(message) : message,
+                  )
+                  .join("\n"),
                 stderr: "",
                 exit: 0,
               };
@@ -88,7 +92,7 @@ test("a fork PR cites an upstream MR URL, not a bare GitLab reference, without d
     mrRefs([
       `Ports https://community.opengroup.org/${ENT}/-/merge_requests/956 into the fork.`,
       `fix: tomcat\n\nSee merge request ${ENT}!963`,
-      `https://community.opengroup.org/${ENT}/-/merge_requests/956`,
+      `fix: port changes\n\nSee https://community.opengroup.org/${ENT}/-/merge_requests/956\nand preserve "quotes" and \\backslashes`,
     ]),
   ).toEqual([`${ENT}!956`]);
 });
@@ -221,7 +225,7 @@ test("a 51-commit merged PR pages all commits through Gh and advances the waterm
   expect(state.portPrs.partition?.watermark).toBe(longPr.mergedAt);
   expect(state.portPrs.partition?.pending).toEqual({});
   expect(calls.queries[1]).toBe(
-    "api --paginate repos/Azure/osdu-spi-partition/pulls/37/commits?per_page=100 --jq .[].commit.message",
+    "api --paginate repos/Azure/osdu-spi-partition/pulls/37/commits?per_page=100 --jq .[].commit.message | tojson",
   );
   expect(counter.calls).toBe(2);
   expect(budget.snapshot()).toMatchObject({ calls: 1, spent: 4 });
@@ -269,6 +273,87 @@ test("failed commit paging does not freeze other PRs or lose retries behind the 
       expect(restored.portPrs.partition?.pending).toEqual({});
       expect(result.reads.some((r) => r.failure && r.source === services[0]?.repo)).toBe(false);
     }
+  }
+});
+
+test("a short REST commit read keeps its references before reporting failure", async () => {
+  const truncated = { ...longPr, commits: { ...longPr.commits, totalCount: 60 } };
+  const state = emptyLedgerState();
+  const calls = exec({ port_o0: search(), port_m0: search([truncated]) }, [], fullMessages);
+  const result = await readPortPrs(
+    new Gh(calls.exec, undefined, new GraphqlBudget(ctx.clock)),
+    state,
+    ctx,
+  );
+  expect(result.prs.partition?.[0]?.refs).toEqual([`${ENT}!955`, `${ENT}!956`]);
+  expect(result.read).toEqual({ prs: 1, commits: 51 });
+  expect(result.reads.find((r) => r.object === "pulls/37/commits")).toMatchObject({
+    failure: expect.stringContaining("Expected 60 commits, read 51"),
+    completeness: { kind: "cut", read: 51, total: 60 },
+  });
+  expect(state.portPrs.partition?.pending?.["37"]?.fact.refs).toEqual([`${ENT}!955`, `${ENT}!956`]);
+  expect(state.portPrs.partition?.watermark).toBe(longPr.mergedAt);
+  const retry = exec(
+    { port_o0: search(), port_m0: search([truncated]) },
+    [],
+    new Error("HTTP 502"),
+  );
+  const failed = await readPortPrs(
+    new Gh(retry.exec, undefined, new GraphqlBudget(ctx.clock)),
+    state,
+    later,
+  );
+  expect(failed.prs.partition?.[0]?.refs).toEqual([`${ENT}!955`, `${ENT}!956`]);
+});
+
+test("the 250-commit REST cap preserves read references and persists a cut without re-queuing", async () => {
+  const capped = { ...longPr, commits: { ...longPr.commits, totalCount: 251 } };
+  const messages = [...Array.from({ length: 249 }, () => "commit"), fullMessages[50] ?? ""];
+  const state = emptyLedgerState();
+  const calls = exec({ port_o0: search(), port_m0: search([capped]) }, [], messages);
+  const result = await readPortPrs(
+    new Gh(calls.exec, undefined, new GraphqlBudget(ctx.clock)),
+    state,
+    ctx,
+  );
+  expect(result.prs.partition?.[0]?.refs).toEqual([`${ENT}!955`, `${ENT}!956`]);
+  expect(result.read).toEqual({ prs: 1, commits: 250 });
+  expect(result.reads.find((r) => r.object === "pulls/37/commits")).toMatchObject({
+    completeness: {
+      kind: "cut",
+      read: 250,
+      total: 251,
+      reason: expect.stringContaining("REST limit"),
+    },
+  });
+  expect(state.portPrs.partition?.pending).toEqual({});
+  expect(state.portPrs.partition?.permanentCuts?.["37"]?.read).toBe(250);
+  const restored = loadLedgerState(JSON.parse(JSON.stringify(state)), ctx).state;
+  for (const nodes of [[capped], []]) {
+    const laterCalls = exec(
+      { port_o0: search(), port_m0: search(nodes) },
+      [],
+      new Error("must not retry"),
+    );
+    const laterResult = await readPortPrs(
+      new Gh(laterCalls.exec, undefined, new GraphqlBudget(ctx.clock)),
+      restored,
+      later,
+    );
+    expect(laterCalls.queries).toHaveLength(1);
+    expect(laterResult.prs.partition?.[0]?.refs).toEqual([`${ENT}!955`, `${ENT}!956`]);
+    expect(
+      laterResult.reads.find((r) => r.object === "pulls/37/commits")?.completeness,
+    ).toMatchObject({
+      kind: "cut",
+      read: 250,
+      total: 251,
+    });
+    expect(
+      laterResult.reads.find((r) => r.object === "port PRs" && r.source === services[0]?.repo)
+        ?.completeness.kind,
+    ).toBe("cut");
+    expect(restored.portPrs.partition?.pending).toEqual({});
   }
 });
 

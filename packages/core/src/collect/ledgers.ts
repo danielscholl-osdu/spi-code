@@ -14,6 +14,9 @@ const prSchema = z.object({
   number: z.number().int().positive(), url: z.string(), state: z.enum(["open", "merged"]),
   refs: z.array(z.string()),
 });
+const commitCutSchema = z.object({
+  fact: prSchema, read: z.number().int().nonnegative(), total: z.number().int().nonnegative(),
+});
 const ledgerSchema = z.object({
   merged: z.record(z.string(), z.array(z.object({
     iid: z.number().int().positive(), title: z.string(), url: z.string(),
@@ -23,9 +26,8 @@ const ledgerSchema = z.object({
   portPrs: z.record(z.string(), z.object({
     watermark: z.iso.datetime({ offset: true }).optional(),
     prs: z.record(z.string(), prSchema), open: z.array(prSchema).optional(),
-    pending: z.record(z.string(), z.object({
-      fact: prSchema, read: z.number().int().nonnegative(), total: z.number().int().nonnegative(),
-    })).optional(),
+    pending: z.record(z.string(), commitCutSchema).optional(),
+    permanentCuts: z.record(z.string(), commitCutSchema).optional(),
   })),
   observed: z.record(z.string(), z.iso.datetime({ offset: true })),
 });
@@ -197,22 +199,46 @@ export async function readPortPrs(gh: Gh, state: LedgerState, ctx: CoreContext):
     }
     const known: PortPrState = state.portPrs[f.id] ?? { prs: {} };
     const pending: NonNullable<PortPrState["pending"]> = {};
+    const permanentCuts: NonNullable<PortPrState["permanentCuts"]> = {};
+    const permanentCut = (fact: ForkPrFact, count: number, total: number) => {
+      permanentCuts[String(fact.number)] = { fact, read: count, total };
+      reads.push({
+        ...record(ctx, f.repo, `pulls/${fact.number}/commits`),
+        completeness: { kind: "cut", reason: "GitHub PR commits REST limit is 250", read: count, total },
+      });
+      return fact;
+    };
     const completeCommits = async (fact: ForkPrFact, count: number, total: number, inspected = 0) => {
       const object = `pulls/${fact.number}/commits`;
-      try {
-        const messages = await gh.pages<string>(`repos/${f.repo}/${object}?per_page=100`, ".[].commit.message");
-        if (messages.length < total) throw new Error(`Expected ${total} commits, read ${messages.length}`);
-        read.commits += messages.length;
-        reads.push(record(ctx, f.repo, object));
-        return { ...fact, refs: [...new Set([...fact.refs, ...mrRefs(messages)])] };
-      } catch (error) {
+      const capped = known.permanentCuts?.[String(fact.number)];
+      if (capped && total > 250) {
         read.commits += inspected;
-        pending[String(fact.number)] = { fact, read: count, total };
+        return permanentCut({
+          ...fact, refs: [...new Set([...capped.fact.refs, ...fact.refs])],
+        }, capped.read, total);
+      }
+      const previousRefs = known.pending?.[String(fact.number)]?.fact.refs ?? [];
+      let result = { ...fact, refs: [...new Set([...previousRefs, ...fact.refs])] };
+      let observed = count;
+      let counted = false;
+      try {
+        const messages = await gh.pages<string>(`repos/${f.repo}/${object}?per_page=100`, ".[].commit.message | tojson");
+        read.commits += messages.length;
+        counted = true;
+        observed = messages.length;
+        result = { ...result, refs: [...new Set([...result.refs, ...mrRefs(messages)])] };
+        if (messages.length === 250 && total > 250) return permanentCut(result, messages.length, total);
+        if (messages.length < total) throw new Error(`Expected ${total} commits, read ${messages.length}`);
+        reads.push(record(ctx, f.repo, object));
+        return result;
+      } catch (error) {
+        if (!counted) read.commits += inspected;
+        pending[String(fact.number)] = { fact: result, read: observed, total };
         reads.push({
           ...record(ctx, f.repo, object), failure: errorText(error),
-          completeness: { kind: "cut", reason: "PR commit messages are incomplete", read: count, total },
+          completeness: { kind: "cut", reason: "PR commit messages are incomplete", read: observed, total },
         });
-        return fact;
+        return result;
       }
     };
     const fact = async (n: NonNullable<NonNullable<RawSearch["nodes"]>[number]>, kind: ForkPrFact["state"]) => {
@@ -228,6 +254,10 @@ export async function readPortPrs(gh: Gh, state: LedgerState, ctx: CoreContext):
     };
     // A failed merged PR must be retried even after the search watermark passes it.
     const current = new Set([...merged.nodes, ...open.nodes].map((n) => n?.number));
+    for (const capped of Object.values(known.permanentCuts ?? {})) {
+      if (capped.fact.state !== "merged" || current.has(capped.fact.number)) continue;
+      permanentCut(capped.fact, capped.read, capped.total);
+    }
     for (const retry of Object.values(known.pending ?? {})) {
       if (retry.fact.state !== "merged" || current.has(retry.fact.number)) continue;
       read.prs++;
@@ -241,9 +271,9 @@ export async function readPortPrs(gh: Gh, state: LedgerState, ctx: CoreContext):
     }
     const openPrs: ForkPrFact[] = [];
     for (const n of open.nodes) if (n?.number) openPrs.push(await fact(n, "open"));
-    state.portPrs[f.id] = { ...(watermark ? { watermark } : {}), prs: known.prs, open: openPrs, pending };
+    state.portPrs[f.id] = { ...(watermark ? { watermark } : {}), prs: known.prs, open: openPrs, pending, permanentCuts };
     out[f.id] = [...openPrs, ...Object.values(known.prs)];
-    const incomplete = Object.values(pending);
+    const incomplete = [...Object.values(pending), ...Object.values(permanentCuts)];
     if (incomplete.length) {
       reads.push({
         ...base,
