@@ -117,6 +117,70 @@ describe("Watch protocol", () => {
   it.each(messages)("round-trips $type through the shared parser", (message) => {
     expect(parseMessage(JSON.parse(JSON.stringify(message)))).toEqual({ ok: true, message });
   });
+  it.each([{ tool: "glab" }, { tool: "glab", token: "opaque.credential" }])(
+    "round-trips the transient glab sign-in input",
+    (payload) => {
+      const message = { ...messages[5], payload };
+      expect(parseMessage(JSON.parse(JSON.stringify(message)))).toEqual({ ok: true, message });
+    },
+  );
+  it.each([
+    { tool: "gh", token: "opaque.credential" },
+    { tool: "copilot", token: "opaque.credential" },
+    { tool: "glab", token: "" },
+    { tool: "glab", token: "x".repeat(4097) },
+    ...[
+      " leading",
+      "trailing ",
+      "trailing\n",
+      "trailing\r",
+      "embedded space",
+      "line\nbreak",
+      "tab\tbreak",
+    ].map((token) => ({
+      tool: "glab",
+      token,
+    })),
+  ])("rejects disallowed credentials", (payload) => {
+    expect(parseMessage({ ...messages[5], payload }).ok).toBe(false);
+  });
+  it("accepts the credential length boundary and keeps the sign-in object strict", () => {
+    expect(
+      parseMessage({ ...messages[5], payload: { tool: "glab", token: "x".repeat(4096) } }).ok,
+    ).toBe(true);
+    expect(
+      parseMessage({ ...messages[5], payload: { tool: "glab", token: "x", extra: true } }).ok,
+    ).toBe(false);
+  });
+  it("rejects credential fields in every progress and status shape", () => {
+    const token = "opaque.credential";
+    for (const state of ["starting", "waiting", "completed", "failed", "device-code"]) {
+      const payload = {
+        ...messages[6].payload,
+        tool: "glab",
+        state,
+        ...(state === "failed" ? { reason: "failed" } : {}),
+      };
+      const { deviceCode, url, ...withoutCode } = payload;
+      const progress = state === "device-code" ? payload : withoutCode;
+      expect(parseMessage({ ...messages[6], payload: progress }).ok).toBe(true);
+      expect(parseMessage({ ...messages[6], payload: { ...progress, token } }).ok).toBe(false);
+    }
+    for (const index of [2, 3] as const) {
+      expect(
+        parseMessage({ ...messages[index], payload: { ...messages[index].payload, token } }).ok,
+      ).toBe(false);
+    }
+    expect(
+      parseMessage({
+        ...messages[3],
+        payload: {
+          ...messages[3].payload,
+          tools: [{ tool: "glab", state: "ready", action: null, token }],
+        },
+      }).ok,
+    ).toBe(false);
+  });
   it("covers every Watch kind", () => {
     expect(messages.map(({ type }) => type).sort()).toEqual(
       WatchMessageSchema.options.map((schema) => schema.shape.type.value).sort(),

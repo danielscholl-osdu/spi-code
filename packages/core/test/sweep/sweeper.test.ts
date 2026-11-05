@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { createContext } from "../../src/context.js";
-import type { Exec } from "../../src/exec/port.js";
+import { type Exec, execOutputDelivery } from "../../src/exec/port.js";
 import { emptyFacts } from "../../src/facts.js";
 import { type SweepArea, Sweeper, type SweepPersist } from "../../src/sweep/sweeper.js";
 
@@ -51,8 +51,19 @@ const factsSchema = z.strictObject({
 const cacheSchema = z.strictObject({ entries: z.array(z.string()) });
 type Cache = z.infer<typeof cacheSchema>;
 const exec: Exec = {
-  runJSON: async () => ({ ok: false, error: "offline", code: null }),
-  runText: async () => ({ ok: true, data: "ok" }),
+  runJSON: async (_cmd, _args, opts) => ({
+    ok: false,
+    error: opts?.signal?.aborted ? "Command aborted." : "offline",
+    code: null,
+  }),
+  runText: async (_cmd, _args, opts = {}) => {
+    const delivery = execOutputDelivery(opts);
+    delivery.push("stdout", "ok");
+    delivery.finish();
+    return opts.signal?.aborted
+      ? { ok: false, error: "Command aborted.", code: null }
+      : { ok: true, data: "ok" };
+  },
 };
 
 function harness(initial?: unknown) {

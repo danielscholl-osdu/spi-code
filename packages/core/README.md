@@ -3,6 +3,23 @@
 SPI domain facts, models and briefing for plain Node, compiled as ESM with
 TypeScript declarations.
 
+## Exec progress and credentials
+
+`ExecOptions.onOutput(stream, text)` receives redacted stdout and stderr while
+the host command runs. Potential credential fragments are held across chunks;
+unterminated credentials and authorization lines flush when the command ends.
+Buffered stdout remains unchanged for existing parsers. `signal` cancels the
+host process tree; a pre-aborted signal does not start a command or consume a
+replay entry. Recording forwards cancellation to its runner and replays deliver
+the recorded stdout and stderr through the same callback (without timing or
+cross-stream ordering guarantees).
+
+Stdin is transient: its trimmed value is stripped from recordings, progress,
+stderr and errors even when it has no recognizable token prefix. Never persist
+or log the original options. The additive `setup.signin` request accepts an
+optional `token` only for `glab` (1-4096 characters, no whitespace); setup state
+and progress messages remain strict and have no credential field.
+
 ## Vendoring version 0.1.0
 
 From the repository root, run:

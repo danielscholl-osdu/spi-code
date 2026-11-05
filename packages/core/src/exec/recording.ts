@@ -3,9 +3,9 @@
 
 import { z } from "zod";
 import {
-  type Exec, type ExecOptions, type ExecOutput, type ExecRunner, jsonResult, textResult,
+  type Exec, type ExecOptions, type ExecOutput, type ExecRunner, execRedactor,
+  execOutputDelivery, jsonResult, textResult,
 } from "./port.js";
-import { redact } from "./redact.js";
 
 const entrySchema = z.object({
   cmd: z.string(), args: z.array(z.string()), stdin: z.string().nullable(),
@@ -26,14 +26,28 @@ export class RecordingExec implements Exec {
   ) {}
 
   async runText(cmd: string, args: string[], opts: ExecOptions = {}) {
+    if (opts.signal?.aborted) return textResult({ stdout: "", stderr: "", exit: null, error: "Command aborted." }, opts);
     const started = performance.now();
-    const env = { ...this.env, ...opts.env };
-    const safe = (text: string) => redact(text, env);
+    const safe = execRedactor(opts, this.env);
     const call = {
       cmd: safe(cmd), args: args.map(safe),
       stdin: opts.stdin === undefined ? null : safe(opts.stdin),
     };
-    const output = this.capture(cmd, [...args], opts);
+    const delivery = execOutputDelivery(opts, this.env);
+    const streamed = new Set<string>();
+    const output = this.capture(cmd, [...args], opts.onOutput
+      ? { ...opts, onOutput: (stream, text) => {
+        streamed.add(stream);
+        delivery.push(stream, text);
+      } } : opts).then((result) => {
+        if (!streamed.has("stdout")) delivery.push("stdout", result.stdout);
+        if (!streamed.has("stderr")) delivery.push("stderr", result.stderr);
+        delivery.finish();
+        return result;
+      }).catch((failure: unknown): ExecOutput => ({
+        stdout: "", stderr: "", exit: null,
+        error: safe(failure instanceof Error ? failure.message : String(failure)),
+      }));
     const previous = this.written;
     const written = (async () => {
       const result = await output;
@@ -48,7 +62,9 @@ export class RecordingExec implements Exec {
     // A failed write rejects only its own call; later calls still record.
     this.written = written.catch(() => {});
     await written;
-    return textResult(await output, opts);
+    const result = await output;
+    return textResult({ ...result, stderr: safe(result.stderr),
+      ...(result.error === undefined ? {} : { error: safe(result.error) }) }, opts);
   }
 
   async runJSON<T = unknown>(cmd: string, args: string[], opts: ExecOptions = {}) {
@@ -57,11 +73,13 @@ export class RecordingExec implements Exec {
 
   private async capture(cmd: string, args: string[], opts: ExecOptions): Promise<ExecOutput> {
     try {
-      return await this.runner(cmd, args, opts);
+      const output = await this.runner(cmd, args, opts);
+      return opts.signal?.aborted ? { ...output, error: "Command aborted." } : output;
     } catch (error) {
       return {
         stdout: "", stderr: "", exit: null,
-        error: error instanceof Error ? error.message : String(error),
+        error: opts.signal?.aborted ? "Command aborted." :
+          error instanceof Error ? error.message : String(error),
       };
     }
   }
@@ -77,7 +95,8 @@ export class ReplayExec implements Exec {
   }
 
   async runText(cmd: string, args: string[], opts: ExecOptions = {}) {
-    const safe = (text: string) => redact(text, { ...this.env, ...opts.env });
+    if (opts.signal?.aborted) return textResult({ stdout: "", stderr: "", exit: null, error: "Command aborted." }, opts);
+    const safe = execRedactor(opts, this.env);
     const entry = this.entries[this.cursor];
     const actual = {
       cmd: safe(cmd), args: args.map(safe),
@@ -85,13 +104,19 @@ export class ReplayExec implements Exec {
     };
     if (!entry || entry.cmd !== actual.cmd ||
       JSON.stringify(entry.args) !== JSON.stringify(actual.args) || entry.stdin !== actual.stdin) {
-      const expected = entry ? `${entry.cmd} ${JSON.stringify(entry.args)}` : "end of log";
+      const expected = entry ? safe(`${entry.cmd} ${JSON.stringify(entry.args)}`) : "end of log";
       throw new Error(
         `Unexpected exec call: ${actual.cmd} ${JSON.stringify(actual.args)}; expected ${expected}`,
       );
     }
     this.cursor += 1;
-    return textResult(entry, opts);
+    const delivery = execOutputDelivery(opts, this.env);
+    delivery.push("stdout", entry.stdout);
+    delivery.push("stderr", entry.stderr);
+    delivery.finish();
+    if (opts.signal?.aborted) return textResult({ ...entry, error: "Command aborted." }, opts);
+    return textResult({ ...entry, stderr: safe(entry.stderr),
+      ...(entry.error === undefined ? {} : { error: safe(entry.error) }) }, opts);
   }
 
   async runJSON<T = unknown>(cmd: string, args: string[], opts: ExecOptions = {}) {

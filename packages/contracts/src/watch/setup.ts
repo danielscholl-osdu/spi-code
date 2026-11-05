@@ -40,7 +40,18 @@ export const SetupStateSchema = z
   });
 export const SetupInstallSchema = z.strictObject({ tool: WatchToolSchema });
 export const SigninToolSchema = z.enum(["copilot", "gh", "glab"]);
-export const SetupSigninSchema = z.strictObject({ tool: SigninToolSchema });
+export const SetupSigninSchema = z.discriminatedUnion("tool", [
+  z.strictObject({ tool: z.enum(["copilot", "gh"]) }),
+  z.strictObject({
+    tool: z.literal("glab"),
+    token: z
+      .string()
+      .min(1)
+      .max(4096)
+      .refine((token) => !/\s/.test(token), "Credential must not contain whitespace")
+      .optional(),
+  }),
+]);
 export const SetupSigninProgressSchema = z.discriminatedUnion("state", [
   z.strictObject({
     tool: SigninToolSchema,

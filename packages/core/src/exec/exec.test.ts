@@ -3,8 +3,112 @@
 
 import { describe, expect, it } from "vitest";
 import { RecordingExec, ReplayExec, type ExecOptions, type ExecOutput } from "./index.js";
+import { execOutputDelivery } from "./port.js";
 
 describe("exec recording and replay", () => {
+  it.each([
+    ["ghp_planted", {}],
+    ["github_pat_planted", {}],
+    ["glpat-planted", {}],
+    ["Authorization: Basic credential", {}],
+    ["Bearer credential", {}],
+    ["opaque.credential", { stdin: "opaque.credential\n" }],
+    ["environment.credential", { env: { SERVICE_TOKEN: "environment.credential" } }],
+  ] satisfies [string, ExecOptions][])("redacts %s across every chunk boundary", (secret, opts) => {
+    for (let split = 1; split < secret.length; split++) {
+      const chunks: string[] = [];
+      const delivery = execOutputDelivery({
+        ...opts, onOutput: (_stream, text) => chunks.push(text),
+      });
+      delivery.push("stdout", secret.slice(0, split));
+      delivery.push("stdout", secret.slice(split));
+      delivery.push("stdout", "\n");
+      delivery.finish();
+      const text = chunks.join("");
+      expect(text).not.toContain(secret);
+      expect(text).not.toContain("credential");
+      expect(text).toContain("<redacted>");
+    }
+  });
+
+  it("delivers plain chunks without a newline and redacts buffered-runner output on replay", async () => {
+    const chunks: string[] = [];
+    execOutputDelivery({ onOutput: (_stream, text) => chunks.push(text) }).push("stdout", "ready");
+    expect(chunks).toEqual(["ready"]);
+    let log = "";
+    const recording = new RecordingExec(async () => ({
+      stdout: "ghp_planted", stderr: "warning", exit: 0,
+    }), (line) => { log += line; });
+    const streamed = { stdout: "", stderr: "" };
+    const opts: ExecOptions = { onOutput: (stream, text) => { streamed[stream] += text; } };
+    await recording.runText("gh", [], opts);
+    expect(streamed).toEqual({ stdout: "<redacted>", stderr: "warning" });
+    streamed.stdout = "";
+    streamed.stderr = "";
+    await new ReplayExec(log).runText("gh", [], opts);
+    expect(streamed).toEqual({ stdout: "<redacted>", stderr: "warning" });
+  });
+
+  it("forwards the signal to the recording runner and stops replay progress on abort", async () => {
+    const controller = new AbortController();
+    let log = "";
+    const recording = new RecordingExec(async (_cmd, _args, opts) => {
+      expect(opts.signal).toBe(controller.signal);
+      controller.abort();
+      return { stdout: "ready", stderr: "waiting", exit: 0 };
+    }, (line) => { log += line; });
+    expect(await recording.runText("gh", [], { signal: controller.signal })).toMatchObject({
+      ok: false, error: "Command aborted.",
+    });
+    const replayController = new AbortController();
+    const chunks: string[] = [];
+    expect(await new ReplayExec(log).runText("gh", [], {
+      signal: replayController.signal,
+      onOutput: (_stream, text) => { chunks.push(text); replayController.abort(); },
+    })).toMatchObject({ ok: false, error: "Command aborted." });
+    expect(chunks).toEqual(["ready"]);
+  });
+
+  it("delivers live and replay output redacted, without recording transient stdin", async () => {
+    let log = "";
+    const chunks: [string, string][] = [];
+    const secret = "opaque.credential";
+    const recording = new RecordingExec(async (_cmd, _args, opts) => {
+      opts.onOutput?.("stderr", "gh");
+      opts.onOutput?.("stderr", `p_planted ${secret}\n`);
+      opts.onOutput?.("stdout", "ready\n");
+      expect(chunks).toEqual([["stderr", "<redacted> <redacted>\n"], ["stdout", "ready\n"]]);
+      return { stdout: "ready\n", stderr: `ghp_planted ${secret}\n`, exit: 0 };
+    }, (line) => { log += line; });
+    const opts: ExecOptions = {
+      stdin: `${secret}\n`,
+      onOutput: (stream, text) => chunks.push([stream, text]),
+    };
+    expect(await recording.runText("glab", [], opts)).toMatchObject({ ok: true });
+    expect(log).not.toContain(secret);
+    expect(log).not.toContain("ghp_planted");
+    const live = [...chunks];
+    chunks.length = 0;
+    await new ReplayExec(log).runText("glab", [], opts);
+    expect(chunks).toEqual([live[1], live[0]]);
+  });
+
+  it("redacts stdin echoed by a failing runner and rejects pre-aborted replay without consuming it", async () => {
+    const secret = "opaque.credential";
+    let log = "";
+    const recording = new RecordingExec(async () => { throw new Error(secret); },
+      (line) => { log += line; });
+    expect(await recording.runText("glab", [], { stdin: secret })).toEqual({
+      ok: false, error: "<redacted>", code: null,
+    });
+    const replay = new ReplayExec(log);
+    expect(await replay.runText("glab", [], {
+      stdin: secret, signal: AbortSignal.abort(secret),
+    })).toEqual({ ok: false, error: "Command aborted.", code: null });
+    await replay.runText("glab", [], { stdin: secret });
+    replay.assertExhausted();
+  });
+
   it("reproduces text, JSON, nonzero exits, parse failures and runner errors", async () => {
     let log = "";
     const outputs: ExecOutput[] = [

@@ -44,6 +44,107 @@ async function fixture() {
   };
 }
 
+it("delivers redacted device progress before exit, retaining the buffered stdout", async () => {
+  const options = await fixture();
+  const controller = new AbortController();
+  let release = (_text: string) => {};
+  const progress = new Promise<string>((resolve) => {
+    release = resolve;
+  });
+  const chunks: string[] = [];
+  let completed = false;
+  const run = new HostExec(options)
+    .runText(
+      process.execPath,
+      [
+        "-e",
+        "process.stdout.write('payload'); process.stderr.write('gh'); setTimeout(() => process.stderr.write('p_planted ABCD-1234 https://github.com/login/device\\n'), 30); setInterval(() => {}, 1000)",
+      ],
+      {
+        signal: controller.signal,
+        timeoutMs: 20_000,
+        onOutput: (stream, text) => {
+          chunks.push(text);
+          if (stream === "stderr") release(text);
+        },
+      },
+    )
+    .then((result) => {
+      completed = true;
+      return result;
+    });
+  try {
+    expect(await progress).toBe("<redacted> ABCD-1234 https://github.com/login/device\n");
+    expect(completed).toBe(false);
+    expect(chunks).toContain("payload");
+    expect(chunks.join("")).not.toContain("ghp_planted");
+  } finally {
+    controller.abort();
+  }
+  expect(await run).toMatchObject({ ok: false, error: "Command aborted." });
+  expect(chunks).toContain("payload");
+  const output = await new HostExec(options).run(process.execPath, [
+    "-e",
+    "process.stdout.write('unchanged')",
+  ]);
+  expect(output.stdout).toBe("unchanged");
+}, 25_000);
+
+it("never exposes an echoed opaque stdin token through chunks, logs or errors", async () => {
+  const options = await fixture();
+  const logs: unknown[] = [];
+  const chunks: string[] = [];
+  const token = "opaque.credential";
+  const exec = new HostExec({ ...options, log: (entry) => logs.push(entry) });
+  const result = await exec.runText(
+    process.execPath,
+    [
+      "-e",
+      "process.stdin.on('data', x => process.stderr.write(x)); process.stdin.on('end', () => { process.exitCode = 1; })",
+    ],
+    { stdin: `${token}\n`, onOutput: (_stream, text) => chunks.push(text) },
+  );
+  const missing = await exec.runText(join(options.appData, token), [], { stdin: token });
+  const invalidJSON = await exec.runJSON(
+    process.execPath,
+    ["-e", "process.stdin.on('data', x => process.stdout.write('{'+x))"],
+    { stdin: token },
+  );
+  expect(result).toMatchObject({ ok: false, error: "<redacted>" });
+  expect(missing.ok).toBe(false);
+  expect(invalidJSON.ok).toBe(false);
+  expect(JSON.stringify({ result, missing, invalidJSON, logs, chunks })).not.toContain(token);
+  expect(chunks).toEqual(["<redacted>\n"]);
+});
+
+it("terminates a running child on abort and does not spawn for a pre-aborted signal", async () => {
+  const options = await fixture();
+  const pidFile = join(options.appData, "abort-pid");
+  const controller = new AbortController();
+  const exec = new HostExec(options);
+  const run = exec.runText(
+    process.execPath,
+    [
+      "-e",
+      `require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); setInterval(() => {}, 1000)`,
+    ],
+    { signal: controller.signal, timeoutMs: 20_000 },
+  );
+  let pid = 0;
+  try {
+    pid = await waitForPid(pidFile);
+  } finally {
+    controller.abort("opaque.abort-reason");
+  }
+  expect(await run).toMatchObject({ ok: false, error: "Command aborted." });
+  expect(() => process.kill(pid, 0)).toThrow();
+  expect(
+    await exec.runText("nonexistent-command", [], {
+      signal: AbortSignal.abort("opaque.abort-reason"),
+    }),
+  ).toEqual({ ok: false, error: "Command aborted.", code: null });
+}, 25_000);
+
 it.skipIf(process.platform === "win32")("runs managed gh before login PATH gh", async () => {
   const options = await fixture();
   const root = join(options.appData, "tools", "gh");
