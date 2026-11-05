@@ -25,8 +25,13 @@ there is no host model cache. The SDK 1.0.26 passes the client-level token to th
 runtime in its `COPILOT_SDK_AUTH_TOKEN` environment variable; it is never saved
 by the host. Under this fallback, any process the runtime spawns would inherit
 the token. That is safe today only because production sessions expose custom
-tools alone (CP-04) and empty mode loads no MCP servers. The isolation-only
-probe allows MCP tools to test discovery, but discovers no servers.
+tools alone (CP-04) and the runtime's base directory is the app-owned
+`<appDataDir>/copilot`, not the operator's config directory. The runtime ignores
+`HOME` and `COPILOT_HOME` in favor of that base directory. Empty mode can still
+spawn MCP servers configured there, even with `availableTools: []`. The app must
+never write `mcp-config.json` or any MCP configuration there: a server spawned
+from it would inherit `COPILOT_SDK_AUTH_TOKEN`. The isolation-only probe allows
+MCP tools to test discovery, but discovers no servers in the clean base directory.
 Tokens are validated before client construction and outward errors are
 recursively redacted, including their stacks, causes and aggregate errors.
 The runtime can create a session without a valid credential, but authentication

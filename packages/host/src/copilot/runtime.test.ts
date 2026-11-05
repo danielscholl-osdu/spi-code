@@ -157,6 +157,29 @@ describe("Copilot runtime boundary", () => {
       await runtime.stop();
     },
   );
+  it("bounds runtime credentials while retaining an old session's redaction snapshot", async () => {
+    const session = {
+      on: vi.fn().mockReturnValue(vi.fn()),
+      sendAndWait: vi.fn().mockRejectedValue(new Error("failed with first-secret")),
+    };
+    fake.createSession.mockResolvedValueOnce(session);
+    const readToken = vi
+      .fn()
+      .mockResolvedValueOnce("first-secret")
+      .mockResolvedValueOnce("second-secret")
+      .mockResolvedValueOnce("third-secret");
+    const runtime = new CopilotRuntime(
+      { appDataDir: "/tmp/spicode", capturedPath: "/bin" },
+      readToken,
+    );
+    const opened = await runtime.createSession();
+    await runtime.listModels();
+    await runtime.listModels();
+    expect(Reflect.get(runtime, "tokens")).toEqual(new Set(["second-secret", "third-secret"]));
+    await expect(streamTurn(opened, "hello", () => {})).rejects.toThrow("failed with [redacted]");
+    await runtime.stop();
+  });
+
   it("starts the platform runtime explicitly over stdio in isolated empty mode", () => {
     const cliPath = resolveRuntimePath();
     expect(isAbsolute(cliPath)).toBe(true);

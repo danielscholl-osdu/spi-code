@@ -17,7 +17,10 @@ import { buildToolEnvironment, ghAuthToken } from "../env/shell-environment.js";
 export const tokenLifetimeSeconds = 60;
 export type TokenSource = () => Promise<string>;
 export type ModelCatalog = Awaited<ReturnType<CopilotClient["rpc"]["models"]["list"]>>;
-const sessionTokens = new WeakMap<CopilotSession, Set<string>>();
+const sessionTokens = new WeakMap<
+  CopilotSession,
+  { initial: ReadonlySet<string>; current: ReadonlySet<string> }
+>();
 
 function validateToken(token: string): string {
   if (!token || /[\s\p{Cc}]/u.test(token)) {
@@ -172,6 +175,8 @@ export class CopilotRuntime {
     const reader = readToken ?? (() => ghRunner(this.config.env ?? {}));
     this.readToken = async () => {
       const token = await reader();
+      this.tokens.clear();
+      if (this.token) this.tokens.add(this.token);
       this.tokens.add(token);
       return validateToken(token);
     };
@@ -233,7 +238,7 @@ export class CopilotRuntime {
         ...config,
         ...(this.options.credentialMode === "session" ? { gitHubTokenProvider } : {}),
       });
-      sessionTokens.set(session, this.tokens);
+      sessionTokens.set(session, { initial: new Set(this.tokens), current: this.tokens });
       return session;
     });
   }
@@ -268,6 +273,7 @@ export async function streamTurn(
       unsubscribe();
     }
   } catch (error) {
-    throw redactError(error, sessionTokens.get(session) ?? new Set());
+    const tokens = sessionTokens.get(session);
+    throw redactError(error, new Set([...(tokens?.initial ?? []), ...(tokens?.current ?? [])]));
   }
 }
