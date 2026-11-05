@@ -28,6 +28,12 @@ import { basename } from "node:path";
 const pathStart = "__SPICODE_ENV_PATH_START__";
 const pathEnd = "__SPICODE_ENV_PATH_END__";
 const tokenNames = ["GH_TOKEN", "GITHUB_TOKEN", "COPILOT_GITHUB_TOKEN"] as const;
+const ghOverrideNames = [
+  "GH_ENTERPRISE_TOKEN",
+  "GITHUB_ENTERPRISE_TOKEN",
+  "GH_HOST",
+  "GH_CONFIG_DIR",
+];
 type TokenName = (typeof tokenNames)[number];
 type Failure = "failed" | "timeout" | "invalid-output" | "output-limit";
 
@@ -67,7 +73,10 @@ function scrubEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     Object.entries(env).filter(([name, value]) => {
       const upper = name.toUpperCase();
       return (
-        value !== undefined && !tokenNames.some((token) => upper === token) && !isGuardBypass(name)
+        value !== undefined &&
+        !tokenNames.some((token) => upper === token) &&
+        !ghOverrideNames.includes(upper) &&
+        !isGuardBypass(name)
       );
     }),
   );

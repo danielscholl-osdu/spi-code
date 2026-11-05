@@ -17,6 +17,12 @@ import {
 const start = "__SPICODE_ENV_PATH_START__";
 const end = "__SPICODE_ENV_PATH_END__";
 const secret = "sensitive-env-fixture";
+const inheritedGhNames = [
+  "GH_ENTERPRISE_TOKEN",
+  "GITHUB_ENTERPRISE_TOKEN",
+  "GH_HOST",
+  "GH_CONFIG_DIR",
+] as const;
 const directories: string[] = [];
 
 async function fixture() {
@@ -122,7 +128,13 @@ describe("login-shell PATH", () => {
   it.skipIf(process.platform === "win32")(
     "scrubs tokens and guard bypasses before shell capture",
     async () => {
-      for (const name of ["GH_TOKEN", "GITHUB_TOKEN", "COPILOT_GITHUB_TOKEN", "SPI_SKIP_GUARD"]) {
+      for (const name of [
+        "GH_TOKEN",
+        "GITHUB_TOKEN",
+        "COPILOT_GITHUB_TOKEN",
+        "SPI_SKIP_GUARD",
+        ...inheritedGhNames,
+      ]) {
         vi.stubEnv(name, secret);
       }
       const directory = await fixture();
@@ -131,6 +143,7 @@ describe("login-shell PATH", () => {
         "shell",
         [
           'test -z "$GH_TOKEN$GITHUB_TOKEN$COPILOT_GITHUB_TOKEN$SPI_SKIP_GUARD" || exit 2',
+          'test -z "$GH_ENTERPRISE_TOKEN$GITHUB_ENTERPRISE_TOKEN$GH_HOST$GH_CONFIG_DIR" || exit 3',
           `printf '%s\\n' '${start}' '/captured/bin' '${end}'`,
         ].join("\n"),
       );
@@ -202,6 +215,7 @@ describe("tool environment", () => {
       "SPI_BYPASS_GUARD",
       "OTHER_DISABLE_GUARD",
       "SPI_GUARD_BYPASS",
+      ...inheritedGhNames,
     ]) {
       vi.stubEnv(name, secret);
     }
@@ -211,7 +225,44 @@ describe("tool environment", () => {
     expect(env.KUBECONFIG).toBe(join(tmpdir(), "spi-code-app-config", "kubeconfig"));
     expect(env.AZURE_CONFIG_DIR).toBe(join(tmpdir(), "spi-code-app-config", "azure"));
     expect(process.env.GH_TOKEN === secret).toBe(true);
+    for (const name of inheritedGhNames) {
+      expect(Object.hasOwn(env, name)).toBe(false);
+      expect(process.env[name] === secret).toBe(true);
+    }
+    expect(inspect(env).includes(secret)).toBe(false);
   });
+
+  it.each(["uppercase", "lowercase", "mixed", "conflicting"])(
+    "strips %s Windows gh overrides regardless of sorted-key precedence",
+    (variant) => {
+      const inherited: NodeJS.ProcessEnv = {};
+      for (const name of inheritedGhNames) {
+        if (variant === "uppercase" || variant === "conflicting") inherited[name] = secret;
+        if (variant === "lowercase" || variant === "conflicting") {
+          inherited[name.toLowerCase()] = secret;
+        }
+        if (variant === "mixed" || variant === "conflicting") {
+          inherited[name.toLowerCase().replace("gh", "Gh")] = secret;
+        }
+      }
+      const before = { ...inherited };
+      const env = buildToolEnvironment({
+        platform: "win32",
+        toolsDir: "C:\\App\\tools",
+        capturedPath: "C:\\Windows",
+        kubeconfig: "C:\\App\\kubeconfig",
+        azureConfigDir: "C:\\App\\azure",
+        env: inherited,
+      });
+      expect(env).toEqual({
+        PATH: "C:\\App\\tools;C:\\Windows",
+        KUBECONFIG: "C:\\App\\kubeconfig",
+        AZURE_CONFIG_DIR: "C:\\App\\azure",
+      });
+      expect(inspect(env).includes(secret)).toBe(false);
+      expect(inherited).toEqual(before);
+    },
+  );
 
   it("normalizes Windows names and PATH while removing case-variant secrets", () => {
     const env = buildToolEnvironment({
@@ -236,11 +287,19 @@ describe("tool environment", () => {
       capturedPath: "/usr/bin",
       kubeconfig: "/app/kubeconfig",
       azureConfigDir: "/app/azure",
-      env: { GH_TOKEN: secret, GITHUB_TOKEN: secret },
+      env: {
+        GH_TOKEN: secret,
+        GITHUB_TOKEN: secret,
+        GH_ENTERPRISE_TOKEN: secret,
+        GITHUB_ENTERPRISE_TOKEN: secret,
+        GH_HOST: "fake-ghe.invalid",
+        GH_CONFIG_DIR: "/fake/gh-config",
+      },
       configuredTokens: { GITHUB_TOKEN: "configured-fixture" },
     });
     expect(env.GH_TOKEN).toBeUndefined();
     expect(env.GITHUB_TOKEN).toBe("configured-fixture");
+    for (const name of inheritedGhNames) expect(Object.hasOwn(env, name)).toBe(false);
   });
 });
 
@@ -278,7 +337,13 @@ describe.skipIf(process.platform === "win32")("gh auth token", () => {
     const directory = await fixture();
     const logs = ["log", "info", "warn", "error", "debug"] as const;
     const spies = logs.map((name) => vi.spyOn(console, name).mockImplementation(() => {}));
-    for (const name of ["GH_TOKEN", "GITHUB_TOKEN", "COPILOT_GITHUB_TOKEN", "SPI_SKIP_GUARD"]) {
+    for (const name of [
+      "GH_TOKEN",
+      "GITHUB_TOKEN",
+      "COPILOT_GITHUB_TOKEN",
+      "SPI_SKIP_GUARD",
+      ...inheritedGhNames,
+    ]) {
       vi.stubEnv(name, secret);
     }
     await script(
@@ -287,6 +352,7 @@ describe.skipIf(process.platform === "win32")("gh auth token", () => {
       [
         'test "$1 $2" = "auth token" || exit 2',
         'test -z "$GH_TOKEN$GITHUB_TOKEN$COPILOT_GITHUB_TOKEN$SPI_SKIP_GUARD" || exit 3',
+        'test -z "$GH_ENTERPRISE_TOKEN$GITHUB_ENTERPRISE_TOKEN$GH_HOST$GH_CONFIG_DIR" || exit 4',
         "printf 'oauth-fixture\\n'",
       ].join("\n"),
     );
@@ -307,6 +373,7 @@ describe.skipIf(process.platform === "win32")("gh auth token", () => {
   });
 
   it("never exposes failed stdout, stderr or configured tokens in errors or logs", async () => {
+    for (const name of inheritedGhNames) vi.stubEnv(name, secret);
     const directory = await fixture();
     await script(directory, "gh", `printf '${secret}'; printf '${secret}' >&2; exit 1`);
     const logs = ["log", "info", "warn", "error", "debug"] as const;
