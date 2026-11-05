@@ -240,6 +240,106 @@ describe("Sweeper shell", () => {
     expect(sweeper.model.measured).toBe(true);
   });
 
+  it("creates failure provenance when persisted area reads are empty", async () => {
+    const h = harness();
+    const first = new Sweeper({ ...h.options, areas: [github()] });
+    await first.sweep();
+    const restored = new Sweeper({
+      ...harness({ facts: first.facts, cache: first.cache, reads: { github: [] } }).options,
+      areas: [
+        {
+          name: "github",
+          read: async () => {
+            throw new Error("offline");
+          },
+        },
+      ],
+    });
+    await restored.sweep();
+    expect(restored.facts.github.data).toEqual(first.facts.github.data);
+    expect(restored.reads.github).toEqual([
+      {
+        source: "github",
+        object: "github",
+        observedAt: h.options.clock.now().toISOString(),
+        completeness: { kind: "complete" },
+        failure: "offline",
+        retainedFrom: first.facts.github.at,
+      },
+    ]);
+  });
+
+  it.each(["facts", "cache"])(
+    "rejects invalid area %s and rolls back its writes",
+    async (invalid) => {
+      const h = harness();
+      let fails = false;
+      const sweeper = new Sweeper({
+        ...h.options,
+        areas: [
+          {
+            ...github(),
+            read: async (input) => {
+              const result = await github().read(input);
+              if (fails) {
+                input.cache.entries.push("discard");
+                if (input.facts.github.data) input.facts.github.data.planned.changed = true;
+                if (invalid === "facts") Reflect.set(result.data, "planned", 42);
+                else Reflect.set(input.cache, "entries", [42]);
+              }
+              return result;
+            },
+          },
+        ],
+      });
+      await sweeper.sweep();
+      const good = structuredClone(sweeper.facts.github);
+      const reads = structuredClone(sweeper.reads.github);
+      fails = true;
+      h.advance();
+      await expect(sweeper.sweep()).resolves.toBeUndefined();
+      expect(sweeper.facts.github.data).toEqual(good.data);
+      expect(sweeper.facts.github.at).toBe(good.at);
+      expect(sweeper.cache).toEqual({ entries: [] });
+      expect(sweeper.reads.github?.[0]).toMatchObject({
+        failure: expect.stringContaining("Invalid"),
+        retainedFrom: reads?.[0]?.observedAt,
+      });
+      expect(sweeper.facts.sweep?.errors).toBe(1);
+      expect(sweeper.model.measured).toBe(true);
+    },
+  );
+
+  it("retains provenance when the last-good data already carried a partial failure", async () => {
+    const h = harness();
+    let fails = false;
+    const sweeper = new Sweeper({
+      ...h.options,
+      areas: [
+        {
+          ...github(),
+          read: async (input) => {
+            if (fails) throw new Error("offline");
+            const result = await github().read(input);
+            return {
+              ...result,
+              reads: result.reads.map((record) => ({ ...record, failure: "one repo failed" })),
+            };
+          },
+        },
+      ],
+    });
+    await sweeper.sweep();
+    const original = sweeper.reads.github?.[0]?.observedAt;
+    fails = true;
+    h.advance();
+    await sweeper.sweep();
+    expect(sweeper.reads.github?.[0]).toMatchObject({
+      failure: "offline",
+      retainedFrom: original,
+    });
+  });
+
   it("round-trips facts, cache and reads through the persist port without sharing references", async () => {
     const h = harness();
     const first = new Sweeper({ ...h.options, areas: [github()] });
@@ -323,6 +423,42 @@ describe("Sweeper shell", () => {
     expect(h.loads()).toBe(1);
   });
 
+  it("rebuilds the persisted model before a slow area completes", async () => {
+    const h = harness();
+    const first = new Sweeper({ ...h.options, areas: [github()] });
+    await first.sweep();
+    const gate: { release?: () => void; entered?: () => void } = {};
+    const waiting = new Promise<void>((resolve) => {
+      gate.release = resolve;
+    });
+    const entered = new Promise<void>((resolve) => {
+      gate.entered = resolve;
+    });
+    const restored = new Sweeper({
+      ...h.options,
+      areas: [
+        {
+          ...github(),
+          read: async (input) => {
+            gate.entered?.();
+            await waiting;
+            return github().read(input);
+          },
+        },
+      ],
+    });
+    const pending = restored.sweep();
+    await entered;
+    try {
+      expect(restored.sweeping).toBe(true);
+      expect(restored.model.measured).toBe(true);
+      expect(restored.model.sweptAt).toBe(first.model.sweptAt);
+    } finally {
+      gate.release?.();
+      await pending;
+    }
+  });
+
   it("records load failures and continues collecting from an empty state", async () => {
     const h = harness();
     const sweeper = new Sweeper({
@@ -341,7 +477,62 @@ describe("Sweeper shell", () => {
       failure: "load unavailable",
     });
     expect(sweeper.model.measured).toBe(true);
-    expect(h.stored()).toMatchObject({ reads: sweeper.reads });
+    expect(h.stored()).toMatchObject({ reads: { github: sweeper.reads.github } });
+    expect(h.stored()).not.toHaveProperty("reads.persist");
+  });
+
+  it.each(["load", "save"])(
+    "clears a recovered %s failure in memory and after restart",
+    async (kind) => {
+      const h = harness();
+      let fail = true;
+      const sweeper = new Sweeper({
+        ...h.options,
+        areas: [github()],
+        persist: {
+          load: async () => {
+            if (fail && kind === "load") throw new Error("cannot load");
+            return h.options.persist.load();
+          },
+          save: async (state) => {
+            if (fail && kind === "save") throw new Error("cannot save");
+            await h.options.persist.save(state);
+          },
+        },
+      });
+      if (kind === "save") await expect(sweeper.sweep()).rejects.toThrow("cannot save");
+      else await sweeper.sweep();
+      expect(sweeper.reads.persist?.[0]?.object).toBe(kind);
+      fail = false;
+      await sweeper.sweep();
+      expect(sweeper.reads.persist).toBeUndefined();
+      expect(h.stored()).not.toHaveProperty("reads.persist");
+      const restarted = new Sweeper({ ...h.options, areas: [] });
+      await restarted.sweep();
+      expect(restarted.reads.persist).toBeUndefined();
+    },
+  );
+
+  it("does not restore legacy persisted diagnostics", async () => {
+    const h = harness({
+      facts: emptyFacts(),
+      cache: { entries: [] },
+      reads: {
+        persist: [
+          {
+            source: "persist",
+            object: "save",
+            observedAt: "2026-11-05T07:00:00Z",
+            completeness: { kind: "complete" },
+            failure: "old failure",
+          },
+        ],
+      },
+    });
+    const sweeper = new Sweeper({ ...h.options, areas: [] });
+    await sweeper.sweep();
+    expect(sweeper.reads.persist).toBeUndefined();
+    expect(h.stored()).not.toHaveProperty("reads.persist");
   });
 
   it("exposes save failures instead of reporting durable success", async () => {

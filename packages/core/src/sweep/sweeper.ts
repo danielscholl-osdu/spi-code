@@ -137,12 +137,16 @@ export class Sweeper<C> {
       this.facts = parsed.data.facts;
       this.cache = parsed.data.cache;
       this.reads = parsed.data.reads;
+      delete this.reads.persist;
+      this.rebuild();
       return;
     }
     const frame = this.schema.extend({ cache: z.unknown() }).safeParse(stored);
     if (frame.success) {
       this.facts = frame.data.facts;
       this.reads = frame.data.reads;
+      delete this.reads.persist;
+      this.rebuild();
     }
     this.failure(frame.success ? "cache" : "state", `Invalid persisted state: ${parsed.error.message}`);
   }
@@ -150,16 +154,19 @@ export class Sweeper<C> {
   private async area(area: SweepArea<C>, exec: Exec, force: boolean): Promise<boolean> {
     const previous: Measured<unknown> = this.facts[area.name];
     try {
+      const cache = structuredClone(this.cache);
       const result = await area.read({
         ctx: this.opts.ctx, exec, clock: this.clock, force,
-        facts: this.facts, cache: this.cache, reads: this.reads,
+        facts: structuredClone(this.facts), cache, reads: structuredClone(this.reads),
       });
       const records = z.array(readRecordSchema).parse(result.reads);
       const at = this.clock.now().toISOString();
-      previous.at = at;
-      previous.data = result.data;
-      delete previous.error;
-      delete previous.errorAt;
+      const facts = this.opts.factsSchema.parse({
+        ...this.facts, [area.name]: { at, data: result.data },
+      });
+      const validatedCache = this.opts.cacheSchema.parse(cache);
+      this.facts = facts;
+      this.cache = validatedCache;
       this.reads[area.name] = records.length ? records : [{
         source: area.name, object: area.name, observedAt: at, completeness: { kind: "complete" },
       }];
@@ -169,14 +176,15 @@ export class Sweeper<C> {
       const failure = errorText(error) || "Unknown error";
       previous.error = failure;
       previous.errorAt = at;
-      const records = this.reads[area.name] ?? [{
+      const prior = this.reads[area.name];
+      const records: readonly ReadRecord[] = prior?.length ? prior : [{
         source: area.name, object: area.name,
-        observedAt: previous.at ?? at, completeness: { kind: "complete" as const },
+        observedAt: previous.at ?? at, completeness: { kind: "complete" },
       }];
       this.reads[area.name] = records.map((record) => {
         const retainedFrom = previous.data === undefined
           ? undefined
-          : record.retainedFrom ?? (record.failure === undefined ? record.observedAt : undefined);
+          : record.retainedFrom ?? record.observedAt;
         return {
           ...record, observedAt: at, failure,
           ...(retainedFrom === undefined ? {} : { retainedFrom }),
@@ -187,6 +195,7 @@ export class Sweeper<C> {
   }
 
   private async run(force: boolean): Promise<void> {
+    const previousPersistFailure = this.reads.persist;
     await this.load();
     const started = this.clock.now();
     let calls = 0;
@@ -212,9 +221,11 @@ export class Sweeper<C> {
     this.prune();
     this.rebuild();
     try {
+      const { persist: _persist, ...reads } = this.reads;
       await this.opts.persist.save(this.schema.parse({
-        facts: this.facts, cache: this.cache, reads: this.reads,
+        facts: this.facts, cache: this.cache, reads,
       }));
+      if (this.reads.persist === previousPersistFailure) delete this.reads.persist;
     } catch (error) {
       this.failure("save", error);
       throw error;

@@ -6,6 +6,8 @@ pruning and model rebuilding. Persistence is an asynchronous, filesystem-free
 port carrying `{facts, cache, reads}`. Core validates load and save through
 `sweepStateSchema`; callers provide the facts and cache schemas and an empty
 cache factory. Loading happens once, inside the first coalesced sweep.
+The model is rebuilt as soon as valid persisted facts load, before any
+potentially slow area completes.
 
 Approved orchestrator delta: cache schemas and `prune(facts, cache, now)` are
 injected. Wiring `DetailCache`, `jobsKey` and `pruneRadar` belongs to SWEEP2
@@ -22,6 +24,17 @@ the validated empty cache, preserving independently valid facts and reads.
 Invalid facts or provenance discard the persisted frame. Load/validation
 failures become persist read records; save failures are recorded and reject
 the sweep rather than silently claiming durability.
+Persistence diagnostics are transient: they are never saved or restored,
+and a later successful save clears the previous attempt's diagnostic. A new
+load/validation failure remains visible for the current sweep, even if its
+repaired state saves successfully.
+
+Council delta from the rib: each area receives isolated facts/cache/reads,
+and returned data plus cache writes are schema-validated before committing
+either. A malformed result follows the failed-area path without overwriting
+last-good facts or leaking cache mutations. Empty read arrays use the same
+failure-provenance fallback as absent arrays. Previously successful partial
+reads retain their observation time even if they already carried a failure.
 
 `test/sweep/sweeper.test.ts` adapts the rib's "failed radar read keeps the last
 good frame and its age" case to an injected area, and covers order, ports,
