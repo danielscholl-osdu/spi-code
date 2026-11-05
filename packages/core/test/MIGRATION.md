@@ -201,3 +201,10 @@ Its planted cases exercise each rule; the physical planted-source failure
 and subsequent clean run are recorded on the bead. Existing 212 migrated
 baseline cases remain intact; the new acceptance cases are not part of the
 469-case migration ledger.
+
+Round 1 review adds caller-mutation regressions: rollout placeholder cells
+are allocated per output, and each exposed `NoiseRule` is frozen with readonly
+fields. The static boundary tracks writes to every module binding, including
+factory-initialized objects, rather than only recognized collection literals.
+Planted factory cases cover property assignment, increment and array mutation;
+an explicitly frozen factory result remains valid for read-only use.

@@ -5,11 +5,11 @@ import { AUTOMATION_APP } from "../config.js";
 import type { CheckFact, PrFact, RepoFact } from "../facts.js";
 
 export interface NoiseRule {
-  id: string;
-  check: string;
-  conclusion?: string;
-  appOnly?: boolean;
-  reason: string;
+  readonly id: string;
+  readonly check: string;
+  readonly conclusion?: string;
+  readonly appOnly?: boolean;
+  readonly reason: string;
 }
 
 // Checks that say nothing about a PR, taken out of its state before anything counts them.
@@ -27,7 +27,7 @@ export const NOISE: readonly NoiseRule[] = Object.freeze([
     reason:
       "skipped by design on the pull_request_target lane; the pull_request lane builds the image",
   },
-]);
+].map((rule) => Object.freeze(rule)));
 
 export function appAuthored(pr: PrFact): boolean {
   if (pr.authorApp !== undefined) return pr.authorApp;

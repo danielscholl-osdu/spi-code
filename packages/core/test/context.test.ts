@@ -6,11 +6,12 @@ import { buildBriefing, readItem } from "../src/brief/index";
 import { fleetOf } from "../src/config";
 import { type CoreContext, contextFromEnv, createContext, defaultContext } from "../src/context";
 import { buildModel } from "../src/model/index";
+import { noiseRule, withoutNoise } from "../src/model/noise";
 import { monthFacts } from "../src/model/releases";
 import { cadence, toCrons } from "../src/model/schedule";
 import { fixtureContext } from "./briefing-setup";
 import releases from "./fixtures/rib-59d6895/releases.json";
-import { FIXTURE_NOW, releasedFacts } from "./harness";
+import { FIXTURE_NOW, fixtureFacts, releasedFacts } from "./harness";
 
 afterEach(() => vi.useRealTimers());
 
@@ -24,6 +25,37 @@ function briefing(context: CoreContext) {
 }
 
 describe("explicit core context", () => {
+  test("mutating rollout placeholders cannot affect other cells or subsequent builds", () => {
+    const facts = releasedFacts();
+    const model = buildModel(facts, FIXTURE_NOW, {}, fixtureContext);
+    const expected = structuredClone(model.rollout);
+    const placeholders =
+      model.rollout?.forks.flatMap((fork) =>
+        [fork.review, fork.merge, fork.main].filter((cell) => cell.text === "·"),
+      ) ?? [];
+    expect(placeholders.length).toBeGreaterThan(1);
+    const first = placeholders[0];
+    if (!first) throw new Error("fixture has placeholder cells");
+    first.text = "caller mutation";
+    expect(placeholders.slice(1).every((cell) => cell.text === "·")).toBe(true);
+    expect(buildModel(facts, FIXTURE_NOW, {}, fixtureContext).rollout).toEqual(expected);
+  });
+
+  test("exposed noise rules cannot be changed to alter subsequent filtering", () => {
+    const repos = fixtureFacts().github.data?.repos ?? {};
+    const pr = repos["Azure/osdu-spi-partition"]?.prs.find((p) =>
+      p.checks.some((check) => noiseRule(p, check)),
+    );
+    const check = pr?.checks.find((c) => noiseRule(pr, c));
+    const rule = pr && check ? noiseRule(pr, check) : undefined;
+    if (!rule) throw new Error("fixture has a matching noise rule");
+    const expected = withoutNoise(repos);
+    const changed = Reflect.set(rule, "check", "caller mutation");
+    expect(withoutNoise(repos)).toEqual(expected);
+    expect(changed).toBe(false);
+    expect(Object.isFrozen(rule)).toBe(true);
+  });
+
   test("interleaves two fleets, identities, lane overrides and rollout policies without interference", () => {
     const clock = { now: () => new Date(FIXTURE_NOW) };
     const a = createContext({

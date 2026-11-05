@@ -45,7 +45,7 @@ function violations(source: string): string[] {
     const file = snapshot.getProject(config)?.program.getSourceFile(path);
     if (!file) throw new Error(`Could not parse context boundary: ${path}`);
     const found: string[] = [];
-    const collections = new Set<string>();
+    const bindings = new Set<string>();
     function unwrap(node: Node): Node {
       return isAsExpression(node) || isParenthesizedExpression(node)
         ? unwrap(node.expression)
@@ -79,6 +79,7 @@ function violations(source: string): string[] {
       for (const declaration of statement.declarationList.declarations) {
         if (!isIdentifier(declaration.name)) continue;
         const name = declaration.name.text;
+        bindings.add(name);
         if (exported && /^set[A-Z]/.test(name)) found.push(`exported setter: ${name}`);
         const initializer = declaration.initializer && unwrap(declaration.initializer);
         if (!initializer) continue;
@@ -93,7 +94,6 @@ function violations(source: string): string[] {
           (isNewExpression(value) &&
             /^(Map|Set|Array|Object)$/.test(value.expression.getText(file)));
         if (!collection) continue;
-        collections.add(name);
         const readonly = /\breadonly\b|\bReadonly(Array|Map|Set)\b/.test(
           declaration.type?.getText(file) ?? "",
         );
@@ -118,7 +118,7 @@ function violations(source: string): string[] {
         /^(push|pop|shift|unshift|splice|sort|reverse|fill|copyWithin|set|add|delete|clear)$/.test(
           node.expression.name.text,
         ) &&
-        collections.has(root(node.expression.expression) ?? "")
+        bindings.has(root(node.expression.expression) ?? "")
       ) {
         found.push(`module collection mutation: ${node.expression.getText(file)}`);
       }
@@ -126,7 +126,7 @@ function violations(source: string): string[] {
         isBinaryExpression(node) &&
         node.operatorToken.kind >= SyntaxKind.FirstAssignment &&
         node.operatorToken.kind <= SyntaxKind.LastAssignment &&
-        collections.has(root(node.left) ?? "")
+        bindings.has(root(node.left) ?? "")
       ) {
         found.push(`module collection assignment: ${node.left.getText(file)}`);
       }
@@ -134,7 +134,7 @@ function violations(source: string): string[] {
         (isPrefixUnaryExpression(node) || isPostfixUnaryExpression(node)) &&
         (node.operator === SyntaxKind.PlusPlusToken ||
           node.operator === SyntaxKind.MinusMinusToken) &&
-        collections.has(root(node.operand) ?? "")
+        bindings.has(root(node.operand) ?? "")
       )
         found.push("module collection increment");
       node.forEachChild(visit);
@@ -188,6 +188,18 @@ describe("core context static boundary", () => {
       "const fleet = Object.freeze({ count: 1 }); export function write() { fleet.count = 2; }",
       "module collection assignment: fleet.count",
     ],
+    [
+      "function makeState() { return { count: 0 }; } const state = makeState(); export function update() { state.count++; return state.count; }",
+      "module collection increment",
+    ],
+    [
+      "function makeState() { return { count: 0 }; } const state = makeState(); export function update() { state.count = 1; }",
+      "module collection assignment: state.count",
+    ],
+    [
+      "function makeState() { return []; } const state = makeState(); export function update() { state.push('a'); }",
+      "module collection mutation: state.push",
+    ],
     ["const env = process.env;", "process.env"],
     ["export function now() { return Date.now(); }", "Date.now"],
     ["export function now() { return new Date(); }", "ambient new Date()"],
@@ -200,9 +212,11 @@ describe("core context static boundary", () => {
       violations(`
       const fleet = Object.freeze(['a']);
       const states: ReadonlySet<string> = new Set(['ok']);
+      function makeState() { return { count: 0 }; }
+      const state = Object.freeze(makeState());
       export function build(at: string) {
         let n = 0; const list = []; list.push(fleet[0]); n++;
-        return [list, new Date(at), n, states.has('ok')];
+        return [list, new Date(at), n, states.has('ok'), state.count];
       }
     `),
     ).toEqual([]);

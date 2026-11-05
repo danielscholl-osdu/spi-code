@@ -145,8 +145,6 @@ function cell(text: string, tone: CellTone, url?: string, note?: string): Cell {
   return { text, tone, ...(url ? { url } : {}), ...(note ? { note } : {}) };
 }
 
-const DASH = cell("·", "idle");
-
 function lastMerge(past: readonly PastPrFact[] | undefined): PastPrFact | undefined {
   return (past ?? [])
     .filter((p) => p.mergedAt && classifyPr(p) === "template")
@@ -380,9 +378,9 @@ export function buildRollout(input: {
         : {}),
       ...(run && (onTarget || red) ? { mainRun: run } : {}),
       validation: onTarget ? cell("green", "ok") : v.cell,
-      review: onTarget ? cell("reviewed", "ok") : carries ? reviewCell(row) : DASH,
-      merge: DASH,
-      main: onTarget || red ? mainCell(run, judgement, now) : DASH,
+      review: onTarget ? cell("reviewed", "ok") : carries ? reviewCell(row) : cell("·", "idle"),
+      merge: cell("·", "idle"),
+      main: onTarget || red ? mainCell(run, judgement, now) : cell("·", "idle"),
       ready: carries && !heldBecause(row),
       heldBy: [],
       ...(env ? { env: { service: row.service, repo: row.repo, ...env } } : {}),
