@@ -8,7 +8,7 @@ import { once } from "node:events";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type Message, PROTOCOL_VERSION, parseMessage } from "@spi-code/contracts";
+import { type Message, parseMessage } from "@spi-code/contracts";
 import {
   app,
   BrowserWindow,
@@ -23,7 +23,7 @@ import { externalLinkHandlers } from "./external-links.js";
 import { hostLaunch } from "./host-launch.js";
 import { smokeMessages } from "./smoke-messages.js";
 import { assertSmokeReport, assertSmokeTools, type SmokeReport } from "./smoke-report.js";
-import { HostSupervisor } from "./supervisor.js";
+import { HostSupervisor, hostPortCallbacks } from "./supervisor.js";
 
 const smoke = process.argv.includes("--smoke");
 const liveFlag = process.argv.indexOf("--live-report");
@@ -43,8 +43,7 @@ const windowEntry = app.isPackaged
   : fileURLToPath(new URL("../../window/build/index.html", import.meta.url));
 let child: UtilityProcess | undefined;
 let supervisor: HostSupervisor<UtilityProcess> | undefined;
-let hostFailure: Extract<Message, { type: "error" }> | undefined;
-let failurePort: MessagePortMain | undefined;
+let hostPorts: ReturnType<typeof hostPortCallbacks<MessagePortMain>> | undefined;
 let stopping = false;
 let failing = false;
 
@@ -129,7 +128,7 @@ function forkHost(args: string[]): UtilityProcess {
   return host;
 }
 
-async function startHost(window: BrowserWindow, args: string[]): Promise<number> {
+async function startHost(args: string[]): Promise<number> {
   const host = forkHost(args);
   host.on("exit", (code) => {
     if (!stopping) fail(new Error(`Host exited unexpectedly (${code})`));
@@ -137,36 +136,9 @@ async function startHost(window: BrowserWindow, args: string[]): Promise<number>
   await once(host, "spawn");
   const pid = host.pid;
   assert(pid, "Host has no pid");
-  transferHostPort(window, host);
+  assert(hostPorts, "Host port callbacks are not initialized");
+  hostPorts.onSpawn(host);
   return pid;
-}
-
-function transferHostPort(window: BrowserWindow, host: UtilityProcess): void {
-  failurePort?.close();
-  failurePort = undefined;
-  const { port1, port2 } = new MessageChannelMain();
-  host.postMessage(
-    { version: PROTOCOL_VERSION, id: "connect", kind: "request", type: "ping", payload: {} },
-    [port2],
-  );
-  window.webContents.postMessage("host:port", null, [port1]);
-}
-
-function transferHostFailure(window: BrowserWindow, message: Extract<Message, { type: "error" }>) {
-  failurePort?.close();
-  const { port1, port2 } = new MessageChannelMain();
-  failurePort = port2;
-  port2.on("message", ({ data }: { data: unknown }) => {
-    const parsed = parseMessage(data);
-    if (!parsed.ok) {
-      console.warn("Rejected invalid message on the stopped-host port");
-      return;
-    }
-    if (parsed.message.kind === "request") port2.postMessage({ ...message, id: parsed.message.id });
-  });
-  port2.start();
-  window.webContents.postMessage("host:port", null, [port1]);
-  port2.postMessage(message);
 }
 
 async function run(): Promise<void> {
@@ -192,6 +164,7 @@ async function run(): Promise<void> {
       additionalArguments: proof ? ["--spi-proof", ...(smoke ? ["--spi-smoke"] : [])] : [],
     },
   });
+  hostPorts = hostPortCallbacks(() => new MessageChannelMain(), window);
   let deniedPermissionRequests = 0;
   window.webContents.session.setPermissionCheckHandler(() => false);
   window.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => {
@@ -206,10 +179,6 @@ async function run(): Promise<void> {
   window.on("closed", () => ipcMain.removeHandler("external:open"));
   window.webContents.setWindowOpenHandler(externalLinks.windowOpen);
   window.webContents.on("will-navigate", (event) => event.preventDefault());
-  window.webContents.on("did-finish-load", () => {
-    if (child) transferHostPort(window, child);
-    else if (hostFailure) transferHostFailure(window, hostFailure);
-  });
   const messages = smokeMessages();
   const wait = messages.wait;
   const evidence = {
@@ -255,22 +224,17 @@ async function run(): Promise<void> {
   await window.loadFile(windowEntry);
   const storePath = join(dataDir, "runs.sqlite");
   if (!smoke) {
-    supervisor = new HostSupervisor({
+    supervisor = new HostSupervisor<UtilityProcess>({
       spawn: () => forkHost([storePath]),
-      onSpawn: (host) => {
-        if (!window.isDestroyed()) transferHostPort(window, host);
-      },
-      onGiveUp: (message) => {
-        hostFailure = message;
-        if (!window.isDestroyed()) transferHostFailure(window, message);
-      },
+      onSpawn: hostPorts.onSpawn,
+      onGiveUp: hostPorts.onGiveUp,
     });
     supervisor.start();
     return;
   }
   const rowId = randomUUID();
   const probePath = join(dataDir, "probe.json");
-  const hostPid = await startHost(window, [storePath, "write", rowId, probePath]);
+  const hostPid = await startHost([storePath, "write", rowId, probePath]);
   const hello = await wait("hello");
   assert(hello.type === "host.hello");
   assert.equal(hello.payload.pid, hostPid);
@@ -304,7 +268,7 @@ async function run(): Promise<void> {
   assert(reloadTurn.type === "turn.end" && reloadTurn.payload.reason === "completed");
   const listeners = [...listenersOf(process.pid), ...listenersOf(hostPid)];
   await stopHost();
-  const restartedHostPid = await startHost(window, [storePath, "read", rowId, probePath]);
+  const restartedHostPid = await startHost([storePath, "read", rowId, probePath]);
   const restartedHello = await wait("hello");
   assert(restartedHello.type === "host.hello");
   assert.equal(restartedHello.payload.pid, restartedHostPid);
@@ -350,7 +314,7 @@ async function run(): Promise<void> {
 app.on("window-all-closed", () => app.quit());
 app.on("will-quit", () => {
   stopping = true;
-  failurePort?.close();
+  hostPorts?.dispose();
   if (supervisor) void supervisor.stop().catch(console.error);
   else child?.kill();
 });

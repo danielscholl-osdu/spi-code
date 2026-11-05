@@ -49,3 +49,22 @@ it.each(["turn.end", "error"] as const)("only settles %s for the active request"
 it("labels the stub without claiming gh sign-in", () => {
   expect(signInStatus({ mode: "stub", signedIn: false })).toBe("Stub model (no Copilot seat)");
 });
+
+it.each([
+  {
+    version: PROTOCOL_VERSION,
+    id: "hello",
+    kind: "event",
+    type: "host.hello",
+    payload: { pid: 456 },
+  },
+  {
+    version: PROTOCOL_VERSION,
+    id: "unrelated-supervisor-request",
+    kind: "response",
+    type: "error",
+    payload: { code: "host_unavailable", message: "Host unavailable" },
+  },
+] as const)("settles a dead host's turn on $type regardless of request id", (message) => {
+  expect(settleTurn("active-turn", message)).toBeUndefined();
+});

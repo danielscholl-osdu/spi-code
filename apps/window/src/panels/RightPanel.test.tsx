@@ -160,6 +160,64 @@ it("shows a host error for the selection in place", async () => {
   }
 });
 
+it("reissues an in-flight inspection on a new host and settles only the replacement request", async () => {
+  const port = fakePort();
+  const view = await mount(port.store);
+  const hello = (pid: number) => ({
+    version: PROTOCOL_VERSION,
+    id: "hello",
+    kind: "event",
+    type: "host.hello",
+    payload: { pid },
+  });
+  try {
+    await act(async () => port.store.getState().receive(hello(123)));
+    await act(async () => port.store.getState().select("halt:entitlements"));
+    const oldRequest = port.sent();
+    await act(async () => port.store.getState().receive(hello(123)));
+    expect(port.postMessage).toHaveBeenCalledTimes(1);
+    await act(async () => port.store.getState().receive(hello(456)));
+    expect(port.postMessage).toHaveBeenCalledTimes(2);
+    expect(port.sent().payload).toEqual(oldRequest.payload);
+    expect(port.sent().id).not.toBe(oldRequest.id);
+    const result = inspectFromOracle(board("HALT"), "halt:entitlements");
+    await port.reply(result, oldRequest.id);
+    expect(view.container.querySelector("aside")?.getAttribute("aria-busy")).toBe("true");
+    await port.reply(result);
+    expect(view.container.querySelector("aside")?.getAttribute("aria-busy")).toBe("false");
+    expect(view.text("cause")).toBe(result.cause);
+    await act(async () => port.store.getState().receive(hello(789)));
+    expect(port.postMessage).toHaveBeenCalledTimes(2);
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("settles an in-flight inspection on give-up regardless of the supervisor's request id", async () => {
+  const port = fakePort();
+  const view = await mount(port.store);
+  try {
+    await act(async () => port.store.getState().select("halt:entitlements"));
+    const oldRequest = port.sent();
+    const message = "Host stopped after repeated crashes. Restart SPI Code to reconnect.";
+    await act(async () =>
+      port.store.getState().receive({
+        version: PROTOCOL_VERSION,
+        id: "unrelated-supervisor-request",
+        kind: "response",
+        type: "error",
+        payload: { code: "host_unavailable", message },
+      }),
+    );
+    expect(view.container.querySelector("aside")?.getAttribute("aria-busy")).toBe("false");
+    expect(view.container.querySelector('[role="alert"]')?.textContent).toBe(message);
+    await port.reply(inspectFromOracle(board("HALT"), "halt:entitlements"), oldRequest.id);
+    expect(view.container.querySelector('[role="alert"]')?.textContent).toBe(message);
+  } finally {
+    await view.cleanup();
+  }
+});
+
 it.each([
   ["TEST", { id: "diagnose", label: "Diagnose", disabledReason: "Diagnose ships in M3." }],
   [

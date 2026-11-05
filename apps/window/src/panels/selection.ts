@@ -47,6 +47,7 @@ export type SelectionState = {
 };
 
 export function createSelectionStore(port: InspectPort) {
+  let hostPid: number | undefined;
   return createStore<SelectionState>((set, get) => ({
     selected: null,
     request: null,
@@ -82,6 +83,16 @@ export function createSelectionStore(port: InspectPort) {
       if (!parsed.ok) return;
       const message = parsed.message;
       const { request, selected } = get();
+      if (message.type === "host.hello") {
+        const changed = message.payload.pid !== hostPid;
+        hostPid = message.payload.pid;
+        if (changed && request !== null && selected !== null) get().select(selected);
+        return;
+      }
+      if (message.type === "error" && message.payload.code === "host_unavailable") {
+        set({ request: null, error: message.payload.message });
+        return;
+      }
       if (request === null || message.id !== request) return;
       if (message.type === "inspect.result") {
         if (message.payload.id !== selected) return;

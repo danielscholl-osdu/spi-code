@@ -3,10 +3,20 @@
 
 import { spawn } from "node:child_process";
 import { EventEmitter, once } from "node:events";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { fileURLToPath } from "node:url";
 import {
   type Message,
   PROTOCOL_VERSION,
@@ -17,7 +27,18 @@ import { expect, it, vi } from "vitest";
 import { createLeaseStore } from "../../../packages/host/src/store/leases.js";
 import { createSnapshotStore } from "../../../packages/host/src/store/snapshots.js";
 import { openRunStore } from "../../../packages/host/src/store/store.js";
-import { HostSupervisor } from "./supervisor.js";
+import { HostSupervisor, hostPortCallbacks } from "./supervisor.js";
+
+function assertFreshBuild(directory: string) {
+  const source = join(directory, "src");
+  for (const relative of readdirSync(source, { recursive: true, encoding: "utf8" })) {
+    if (!/\.tsx?$/.test(relative) || /\.test\.tsx?$|\.d\.ts$/.test(relative)) continue;
+    const compiled = join(directory, "dist", relative.replace(/\.tsx?$/, ".js"));
+    const built = statSync(compiled, { throwIfNoEntry: false });
+    if (!built || built.mtimeMs < statSync(join(source, relative)).mtimeMs)
+      throw new Error(`Missing or stale build: ${compiled}. Run pnpm exec tsc -b --force.`);
+  }
+}
 
 class Clock {
   now = 0;
@@ -41,11 +62,130 @@ class Clock {
 }
 
 class Host extends EventEmitter {
+  postMessage = vi.fn();
   kill = vi.fn(() => {
     this.emit("exit", 0);
     return true;
   });
 }
+
+class Port extends EventEmitter {
+  postMessage = vi.fn();
+  start = vi.fn();
+  close = vi.fn();
+}
+
+function channels() {
+  const makeChannel = vi.fn(() => ({ port1: new Port(), port2: new Port() }));
+  const webContents = Object.assign(new EventEmitter(), {
+    postMessage: vi.fn(),
+    isLoadingMainFrame: vi.fn(() => false),
+  });
+  const window = { webContents, isDestroyed: vi.fn(() => false) };
+  const callbacks = hostPortCallbacks(makeChannel, window);
+  return { makeChannel, window, callbacks };
+}
+
+it("transfers fresh peer ports to each respawned host and the window through the production callbacks", async () => {
+  const { makeChannel, window, callbacks } = channels();
+  const clock = new Clock();
+  const hosts: Host[] = [];
+  const supervisor = new HostSupervisor({
+    clock,
+    log: vi.fn(),
+    spawn: () => {
+      const host = new Host();
+      hosts.push(host);
+      return host;
+    },
+    ...callbacks,
+  });
+  try {
+    supervisor.start();
+    hosts[0]?.emit("spawn");
+    hosts[0]?.emit("exit", 1);
+    clock.advance(500);
+    hosts[1]?.emit("spawn");
+    expect(makeChannel).toHaveBeenCalledTimes(2);
+    const first = makeChannel.mock.results[0]?.value;
+    const second = makeChannel.mock.results[1]?.value;
+    expect(first?.port1).not.toBe(second?.port1);
+    expect(first?.port2).not.toBe(second?.port2);
+    for (const [index, channel] of [first, second].entries()) {
+      expect(hosts[index]?.postMessage).toHaveBeenCalledExactlyOnceWith(
+        {
+          version: PROTOCOL_VERSION,
+          id: "connect",
+          kind: "request",
+          type: "ping",
+          payload: {},
+        },
+        [channel?.port2],
+      );
+      expect(window.webContents.postMessage).toHaveBeenNthCalledWith(index + 1, "host:port", null, [
+        channel?.port1,
+      ]);
+    }
+  } finally {
+    await supervisor.stop();
+    callbacks.dispose();
+  }
+});
+
+it("retains give-up across an in-progress reload and replays it on later reloads", () => {
+  const { makeChannel, window, callbacks } = channels();
+  const message: Extract<Message, { type: "error" }> = {
+    version: PROTOCOL_VERSION,
+    id: "host-supervisor",
+    kind: "response",
+    type: "error",
+    payload: { code: "host_unavailable", message: "Host stopped after repeated crashes." },
+  };
+  try {
+    window.webContents.isLoadingMainFrame.mockReturnValue(true);
+    callbacks.onGiveUp(message);
+    expect(makeChannel).not.toHaveBeenCalled();
+    window.webContents.isLoadingMainFrame.mockReturnValue(false);
+    window.webContents.emit("did-finish-load");
+    const first = makeChannel.mock.results[0]?.value;
+    expect(window.webContents.postMessage).toHaveBeenCalledExactlyOnceWith("host:port", null, [
+      first?.port1,
+    ]);
+    expect(first?.port2.start).toHaveBeenCalledOnce();
+    expect(first?.port2.postMessage).toHaveBeenCalledExactlyOnceWith(message);
+    expect(parseMessage(first?.port2.postMessage.mock.calls[0]?.[0]).ok).toBe(true);
+    window.webContents.emit("did-finish-load");
+    const second = makeChannel.mock.results[1]?.value;
+    expect(second?.port1).not.toBe(first?.port1);
+    expect(first?.port2.close).toHaveBeenCalledOnce();
+    expect(window.webContents.postMessage).toHaveBeenLastCalledWith("host:port", null, [
+      second?.port1,
+    ]);
+    expect(second?.port2.postMessage).toHaveBeenCalledExactlyOnceWith(message);
+  } finally {
+    callbacks.dispose();
+  }
+});
+
+it("fails clearly for missing or stale dist and accepts a fresh build", () => {
+  const directory = mkdtempSync(join(tmpdir(), "spi-build-freshness-"));
+  const source = join(directory, "src", "module.ts");
+  const compiled = join(directory, "dist", "module.js");
+  try {
+    mkdirSync(join(directory, "src"));
+    mkdirSync(join(directory, "dist"));
+    writeFileSync(source, "export const value = 1;");
+    utimesSync(source, 2000, 2000);
+    expect(() => assertFreshBuild(directory)).toThrow("Run pnpm exec tsc -b --force");
+    writeFileSync(compiled, "export const value = 1;");
+    utimesSync(compiled, 1000, 1000);
+    expect(() => assertFreshBuild(directory)).toThrow("Missing or stale build:");
+    utimesSync(compiled, 3000, 3000);
+    expect(() => assertFreshBuild(directory)).not.toThrow();
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 function harness() {
   const clock = new Clock();
@@ -135,6 +275,14 @@ it("retries synchronous launch failures and reports a failed intentional kill", 
 });
 
 it("SIGKILLs the real host, resumes the same window store from its cursor, and preserves SQLite", async () => {
+  for (const directory of [
+    "packages/contracts",
+    "packages/core",
+    "packages/tools",
+    "packages/host",
+    "apps/window",
+  ])
+    assertFreshBuild(fileURLToPath(new URL(`../../../${directory}/`, import.meta.url)));
   // Node's IPC stands in for Electron's transferable port; the host entry and routes are real.
   const hostEntry = new URL("../../../packages/host/dist/main.js", import.meta.url).href;
   const script = `

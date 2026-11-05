@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Shell } from "./app/Shell.js";
 import { hostMessageHandler } from "./host-message.js";
-import { settleTurn, signInStatus } from "./turn-state.js";
+import { settleTurn, signInStatus, turnInterruption } from "./turn-state.js";
 import "./theme/tokens.css";
 import "./style.css";
 
@@ -38,6 +38,7 @@ function App() {
   const [tools, setTools] = useState<string[]>([]);
   const [activeRequestId, setActiveRequestId] = useState<string>();
   const activeTurn = useRef<string | undefined>(undefined);
+  const hostPid = useRef<number | undefined>(undefined);
   const requestIds = useRef(new Set<string>());
   const request = useCallback((message: Message): void => {
     requestIds.current.add(message.id);
@@ -47,80 +48,91 @@ function App() {
   const [ended, setEnded] = useState("");
   useEffect(() => {
     let proofStarted = false;
-    return window.spi.onMessage(
-      hostMessageHandler(
-        (message) => {
-          activeTurn.current = settleTurn(activeTurn.current, message);
-          setActiveRequestId(activeTurn.current);
-          switch (message.type) {
-            case "host.hello":
-              request({
-                version: PROTOCOL_VERSION,
-                id: "window-ping",
-                kind: "request",
-                type: "ping",
-                payload: {},
-              });
-              request({
-                version: PROTOCOL_VERSION,
-                id: "catalog",
-                kind: "request",
-                type: "models.list",
-                payload: {},
-              });
-              break;
-            case "signin.state":
-              setSignedIn(message.payload.signedIn);
-              setStub(message.payload.mode === "stub");
-              setStatus(signInStatus(message.payload));
-              break;
-            case "models.result": {
-              setModels(message.payload.models);
-              const selected = message.payload.models[0]?.id ?? "";
-              setModel((current) =>
-                message.payload.models.some(({ id }) => id === current) ? current : selected,
-              );
-              if (window.spi.proof && !proofStarted && selected) {
-                proofStarted = true;
-                const id = crypto.randomUUID();
-                activeTurn.current = id;
-                setActiveRequestId(id);
-                request({
-                  version: PROTOCOL_VERSION,
-                  id,
-                  kind: "request",
-                  type: "turn.start",
-                  payload: {
-                    modelId: selected,
-                    prompt:
-                      "Call spi_brief with empty arguments, then reply with one short sentence.",
-                  },
-                });
-              }
-              break;
-            }
-            case "turn.delta":
-              setText((current) => current + message.payload.text);
-              break;
-            case "tool.call":
-              setTools((current) => [
-                ...current,
-                `${message.payload.name}: ${message.payload.outcome}`,
-              ]);
-              break;
-            case "session.ended":
-              setEnded(`Session ended: ${message.payload.reason.replaceAll("_", " ")}`);
-              break;
-            case "error":
-              setStatus(message.payload.message);
-              break;
+    const accept = (message: Message) => {
+      const interruption = turnInterruption(activeTurn.current, message, hostPid.current);
+      if (interruption) setEnded(interruption);
+      activeTurn.current = settleTurn(activeTurn.current, message, hostPid.current);
+      if (message.type === "host.hello") hostPid.current = message.payload.pid;
+      setActiveRequestId(activeTurn.current);
+      switch (message.type) {
+        case "host.hello":
+          request({
+            version: PROTOCOL_VERSION,
+            id: "window-ping",
+            kind: "request",
+            type: "ping",
+            payload: {},
+          });
+          request({
+            version: PROTOCOL_VERSION,
+            id: "catalog",
+            kind: "request",
+            type: "models.list",
+            payload: {},
+          });
+          break;
+        case "signin.state":
+          setSignedIn(message.payload.signedIn);
+          setStub(message.payload.mode === "stub");
+          setStatus(signInStatus(message.payload));
+          break;
+        case "models.result": {
+          setModels(message.payload.models);
+          const selected = message.payload.models[0]?.id ?? "";
+          setModel((current) =>
+            message.payload.models.some(({ id }) => id === current) ? current : selected,
+          );
+          if (window.spi.proof && !proofStarted && selected) {
+            proofStarted = true;
+            const id = crypto.randomUUID();
+            activeTurn.current = id;
+            setActiveRequestId(id);
+            request({
+              version: PROTOCOL_VERSION,
+              id,
+              kind: "request",
+              type: "turn.start",
+              payload: {
+                modelId: selected,
+                prompt: "Call spi_brief with empty arguments, then reply with one short sentence.",
+              },
+            });
           }
-        },
-        () => setStatus("Invalid host message rejected"),
-        () => activeTurn.current,
-        (id) => requestIds.current.has(id),
-      ),
+          break;
+        }
+        case "turn.delta":
+          setText((current) => current + message.payload.text);
+          break;
+        case "tool.call":
+          setTools((current) => [
+            ...current,
+            `${message.payload.name}: ${message.payload.outcome}`,
+          ]);
+          break;
+        case "session.ended":
+          setEnded(`Session ended: ${message.payload.reason.replaceAll("_", " ")}`);
+          break;
+        case "error":
+          setStatus(message.payload.message);
+          break;
+      }
+    };
+    const receive = hostMessageHandler(
+      accept,
+      () => setStatus("Invalid host message rejected"),
+      () => activeTurn.current,
+      (id) => requestIds.current.has(id),
     );
+    return window.spi.onMessage((input) => {
+      const parsed = parseMessage(input);
+      if (
+        parsed.ok &&
+        parsed.message.type === "error" &&
+        parsed.message.payload.code === "host_unavailable"
+      )
+        accept(parsed.message);
+      else receive(input);
+    });
   }, [request]);
   return (
     <div className="turn-panel">

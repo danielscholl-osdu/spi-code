@@ -21,7 +21,88 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { type Message, PROTOCOL_VERSION } from "@spi-code/contracts";
+import { type Message, PROTOCOL_VERSION, parseMessage } from "@spi-code/contracts";
+
+type HostFailure = Extract<Message, { type: "error" }>;
+
+interface ChannelPort {
+  close(): void;
+  start(): void;
+  postMessage(message: Message): void;
+  on(event: "message", listener: (event: { data: unknown }) => void): unknown;
+}
+
+interface ConnectedHost<Port> {
+  postMessage(message: Message, ports: Port[]): void;
+  once(event: "exit", listener: () => void): unknown;
+}
+
+interface HostWindow<Port> {
+  isDestroyed(): boolean;
+  webContents: {
+    isLoadingMainFrame(): boolean;
+    postMessage(channel: string, message: null, ports: Port[]): void;
+    on(event: "did-finish-load", listener: () => void): unknown;
+    off(event: "did-finish-load", listener: () => void): unknown;
+  };
+}
+
+export function hostPortCallbacks<Port extends ChannelPort>(
+  makeChannel: () => { port1: Port; port2: Port },
+  window: HostWindow<Port>,
+) {
+  let host: ConnectedHost<Port> | undefined;
+  let failure: HostFailure | undefined;
+  let failurePort: Port | undefined;
+  const connect = () => {
+    if (window.isDestroyed() || window.webContents.isLoadingMainFrame() || (!host && !failure))
+      return;
+    failurePort?.close();
+    failurePort = undefined;
+    const { port1, port2 } = makeChannel();
+    if (host) {
+      host.postMessage(
+        { version: PROTOCOL_VERSION, id: "connect", kind: "request", type: "ping", payload: {} },
+        [port2],
+      );
+    } else if (failure) {
+      const message = failure;
+      failurePort = port2;
+      port2.on("message", ({ data }) => {
+        const parsed = parseMessage(data);
+        if (!parsed.ok) {
+          console.warn("Rejected invalid message on the stopped-host port");
+          return;
+        }
+        if (parsed.message.kind === "request")
+          port2.postMessage({ ...message, id: parsed.message.id });
+      });
+      port2.start();
+    }
+    window.webContents.postMessage("host:port", null, [port1]);
+    if (failure) port2.postMessage(failure);
+  };
+  window.webContents.on("did-finish-load", connect);
+  return {
+    onSpawn(spawned: ConnectedHost<Port>) {
+      host = spawned;
+      failure = undefined;
+      spawned.once("exit", () => {
+        if (host === spawned) host = undefined;
+      });
+      connect();
+    },
+    onGiveUp(message: HostFailure) {
+      host = undefined;
+      failure = message;
+      connect();
+    },
+    dispose() {
+      window.webContents.off("did-finish-load", connect);
+      failurePort?.close();
+    },
+  };
+}
 
 const INITIAL_RESTART_DELAY = 500;
 const MAX_RESTART_DELAY = 10000;
