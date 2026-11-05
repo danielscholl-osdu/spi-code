@@ -19,8 +19,8 @@ import {
 import { Stations } from "../../components/stations/index.js";
 import { mixedSnapshot, testSnapshot } from "../../store/test-snapshot.js";
 import { watchStore } from "../../store/watch.js";
+import { paneText } from "../../test-utils/pane-text.test-helper.js";
 import Horizon from "../horizon/index.js";
-import { paneText } from "../repositories/pane-text.test-helper.js";
 import Flow from "./index.js";
 
 const oracle = new DOMParser().parseFromString(consoleHtml, "text/html");
@@ -182,28 +182,50 @@ it.each(["flow", "horizon"])("%s renders the oracle pane's exact text", async (v
   }
 });
 
-it("leaves running tiles and detail titles uncoloured without stripping running line tones", async () => {
-  const body = structuredClone(snapshot);
-  const tile = body.briefing.flow.tiles[0];
-  const row = body.briefing.flow.rows[0];
-  if (!tile || !row) throw new Error("Missing flow fixture");
-  tile.tone = "run";
-  row.next.tone = "run";
-  row.ready.tone = "run";
-  watchStore.setState({ snapshot: { cursor: 1, body } });
-  const dom = document.createElement("div");
-  const root = createRoot(dom);
-  try {
-    await act(async () => root.render(<Flow />));
-    expect(dom.querySelector(".watch-tile")?.getAttribute("data-tone")).toBe("neutral");
-    expect(dom.querySelector(`[data-up-detail="${row.fork}"] h3`)?.getAttribute("data-tone")).toBe(
-      "neutral",
-    );
-    expect(dom.querySelector(`tr[data-up="${row.fork}"] td[data-tone="run"]`)).not.toBeNull();
-  } finally {
-    await act(async () => root.unmount());
-  }
-});
+it.each(["planning", "flight"] as const)(
+  "leaves running tiles and detail titles uncoloured without stripping %s running line tones",
+  async (mode) => {
+    const body = structuredClone(snapshot);
+    body.briefing.flow.mode = mode;
+    const tile = body.briefing.flow.tiles[0];
+    const row = body.briefing.flow.rows[0];
+    if (!tile || !row) throw new Error("Missing flow fixture");
+    tile.tone = "run";
+    row.next.tone = "run";
+    row.ready.tone = "run";
+    row.line[0] = { text: "Running", tone: "run" };
+    watchStore.setState({ snapshot: { cursor: 1, body } });
+    const dom = document.createElement("div");
+    dom.style.setProperty("--accent-text", "rgb(0, 0, 100)");
+    const style = document.createElement("style");
+    style.textContent = stationStyles;
+    document.head.append(style);
+    document.body.append(dom);
+    const root = createRoot(dom);
+    try {
+      await act(async () => root.render(<Flow />));
+      expect(dom.querySelector(".watch-tile")?.getAttribute("data-tone")).toBe("neutral");
+      expect(
+        dom.querySelector(`[data-up-detail="${row.fork}"] h3`)?.getAttribute("data-tone"),
+      ).toBe("neutral");
+      const line = dom.querySelector(
+        `tr[data-up="${row.fork}"] ${mode === "flight" ? "td:nth-child(2)" : ".line-dot"}`,
+      );
+      if (!line) throw new Error("Missing running line cell");
+      expect(line.getAttribute("data-tone")).toBe("run");
+      expect(getComputedStyle(line).color).toBe("rgb(0, 0, 100)");
+      if (mode === "planning") {
+        expect(
+          dom.querySelector(`tr[data-up="${row.fork}"] td:nth-child(3)`)?.getAttribute("data-tone"),
+        ).toBe("run");
+      }
+    } finally {
+      await act(async () => root.unmount());
+      style.remove();
+      dom.remove();
+    }
+  },
+);
 
 it("selects fork and theme details and sends their inspector selections", async () => {
   watchStore.setState({ snapshot: { cursor: 1, body: snapshot } });

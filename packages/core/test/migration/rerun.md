@@ -71,8 +71,9 @@ runners. The other five approval cases are not claimed as core migrations.
 
 ## Added core coverage and parity
 
-Two new core-only cases cover disabled/singular/draft approval presentation and
-multiple runs for one PR with differing failed steps. All thirteen core cases
+Three new core-only cases cover disabled/singular/draft approval presentation,
+multiple runs for one PR with differing failed steps, and lifecycle dispatches
+assembled for two different stack repositories. All fourteen core cases
 appear in `pnpm vitest list`, and the full check passes.
 
 A direct comparison with the pinned rib passes **11,520 lane**, **72 dispatch**

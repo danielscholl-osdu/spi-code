@@ -14,9 +14,9 @@ import {
 } from "../../components/evidence/marks.test-helper.js";
 import { mixedSnapshot, testSnapshot } from "../../store/test-snapshot.js";
 import { watchStore } from "../../store/watch.js";
+import { paneText as text } from "../../test-utils/pane-text.test-helper.js";
 import Releases from "../releases/index.js";
 import Repositories from "./index.js";
-import { paneText as text } from "./pane-text.test-helper.js";
 
 const fixture = (name: string) =>
   readFileSync(resolve("fixtures/rib-59d6895/oracle", name), "utf8");
@@ -183,15 +183,6 @@ it("colours the shared pane's run tone with the accent", async () => {
     style.remove();
     container.style.removeProperty("--accent-text");
   }
-});
-
-it("detects a missing word separator even across inline markup", () => {
-  const dom = new DOMParser().parseFromString("<p>Read <b>the</b> notes.</p>", "text/html");
-  const paragraph = dom.querySelector("p");
-  expect(text(paragraph)).toBe("Read the notes.");
-  if (!paragraph) throw new Error("Missing paragraph");
-  paragraph.innerHTML = "Read <b>the</b>notes.";
-  expect(text(paragraph)).toBe("Read thenotes.");
 });
 
 it.each([true, false])("distinguishes reading=%s with no release lines", async (reading) => {

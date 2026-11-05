@@ -227,8 +227,7 @@ async function run(): Promise<void> {
   assert(hello.type === "host.hello");
   assert.equal(hello.payload.pid, hostPid);
   const pong = await wait("window-ping");
-  const startedTurn = await wait((message) => message.type === "turn.delta");
-  const turn = await messages.waitForTurn(startedTurn.id);
+  const turn = await messages.waitForStartedTurn();
   assert(turn.type === "turn.end" && turn.payload.reason === "completed");
   const tools = evidence.toolEvents
     .filter(({ name }) => !name.startsWith("builtin:"))
@@ -253,10 +252,7 @@ async function run(): Promise<void> {
   await loaded;
   const reloadedHello = await wait("hello");
   const reloadedPong = await wait("window-ping");
-  const startedReloadTurn = await wait(
-    (message) => message.type === "turn.delta" && message.id !== startedTurn.id,
-  );
-  const reloadTurn = await messages.waitForTurn(startedReloadTurn.id);
+  const reloadTurn = await messages.waitForStartedTurn();
   assert(reloadTurn.type === "turn.end" && reloadTurn.payload.reason === "completed");
   const listeners = [...listenersOf(process.pid), ...listenersOf(hostPid)];
   await stopHost();

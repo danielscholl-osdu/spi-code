@@ -171,7 +171,9 @@ export async function readTemplate(
     for (const tag of tags.slice(0, LABEL_TAGS)) {
       const path = comparePath(tag, marker);
       const cmp = await read(path, positionSchema, async () => ({ value: await gh.rest(path, POSITION_JQ) }),
-        priorLabel === undefined ? undefined : previous?.reads.find((r) => r.object === path),
+        priorLabel === undefined ? undefined : previous?.reads.find((r) => r.object === path)
+          ?? previous?.reads.find((r) =>
+            r.object.startsWith(`repos/${TEMPLATE_REPO}/compare/`) && r.object.endsWith(`...${marker}`)),
         `position:${path}`);
       if (!cmp) return priorLabel ?? short(marker);
       if (cmp.status === "identical") return tag;

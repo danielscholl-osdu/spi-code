@@ -166,25 +166,41 @@ describe("Copilot seat probe", () => {
   it.each(["credential", "startup", "session", "models", "disconnect", "stop"])(
     "bounds a hung %s and still stops the owned client",
     async (phase) => {
-      const { session, client, options } = fixture();
-      const hanging = () => new Promise<never>(() => {});
-      if (phase === "credential") options.readToken.mockImplementation(hanging);
-      if (phase === "startup") client.start.mockImplementation(hanging);
-      if (phase === "session") client.createSession.mockImplementation(hanging);
-      if (phase === "models") client.rpc.models.list.mockImplementation(hanging);
-      if (phase === "disconnect") session.disconnect.mockImplementation(hanging);
-      if (phase === "stop") client.stop.mockImplementation(hanging);
-      const pending = probeCopilotSeat({ ...options, timeoutMs: 10, cleanupTimeoutMs: 5 });
-      expect(await pending).toMatchObject({
-        kind: "error",
-        reason: expect.stringContaining("timed out"),
-      });
-      expect(client.stop).toHaveBeenCalledTimes(phase === "credential" ? 0 : 1);
-      expect(session.disconnect).toHaveBeenCalledTimes(
-        ["models", "disconnect", "stop"].includes(phase) ? 1 : 0,
-      );
-      if (["startup", "session", "models", "stop"].includes(phase)) {
-        expect(client.forceStop).toHaveBeenCalledOnce();
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      try {
+        const { session, client, options } = fixture();
+        let entered: () => void = () => {};
+        const started = new Promise<void>((resolve) => {
+          entered = resolve;
+        });
+        const hanging = () => {
+          entered();
+          return new Promise<never>(() => {});
+        };
+        if (phase === "credential") options.readToken.mockImplementation(hanging);
+        if (phase === "startup") client.start.mockImplementation(hanging);
+        if (phase === "session") client.createSession.mockImplementation(hanging);
+        if (phase === "models") client.rpc.models.list.mockImplementation(hanging);
+        if (phase === "disconnect") session.disconnect.mockImplementation(hanging);
+        if (phase === "stop") client.stop.mockImplementation(hanging);
+        const pending = probeCopilotSeat({ ...options, timeoutMs: 10, cleanupTimeoutMs: 5 });
+        const outcome = expect(pending).resolves.toMatchObject({
+          kind: "error",
+          reason: expect.stringContaining("timed out"),
+        });
+        await started;
+        await vi.runAllTimersAsync();
+        await outcome;
+        expect(client.stop).toHaveBeenCalledTimes(phase === "credential" ? 0 : 1);
+        expect(session.disconnect).toHaveBeenCalledTimes(
+          ["models", "disconnect", "stop"].includes(phase) ? 1 : 0,
+        );
+        if (["startup", "session", "models", "stop"].includes(phase)) {
+          expect(client.forceStop).toHaveBeenCalledOnce();
+        }
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
       }
     },
   );

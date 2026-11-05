@@ -6,7 +6,25 @@ import { RecordingExec, ReplayExec, type ExecOptions, type ExecOutput } from "./
 import { execOutputDelivery, execRedactor } from "./port.js";
 
 describe("exec recording and replay", () => {
-  it.each(["Bearer\n", "Authorization:\r\n", "Authorization:\n\n", "bEaReR \r\n "])(
+  it.each([
+    ["Authorization\n", ": opaque-value"],
+    ["Bearer\n", "opaque-value"],
+  ])("holds the split introducer %j before any credential can stream", (header, value) => {
+    const chunks: string[] = [];
+    const delivery = execOutputDelivery({ onOutput: (_stream, text) => chunks.push(text) });
+    delivery.push("stderr", header);
+    expect(chunks).toEqual([]);
+    delivery.push("stderr", value);
+    expect(chunks).toEqual([]);
+    delivery.push("stderr", "\nDone!\n");
+    delivery.finish();
+    expect(chunks.join("")).toBe(execRedactor({})(`${header}${value}\nDone!\n`));
+    expect(chunks.join("")).not.toContain("opaque-value");
+  });
+
+  it.each(["Bearer\n", "Authorization:\r\n", "Authorization:\n\n", "bEaReR \r\n ",
+    "Authorization\n:", "Authorization \r\n = ",
+  ])(
     "holds a multiline credential introducer %j until its value is redacted",
     (header) => {
       const chunks: string[] = [];
@@ -90,6 +108,8 @@ describe("exec recording and replay", () => {
     ["Authorization:\r\nBasic credential", {}],
     ["Authorization:\n\ncredential", {}],
     ["Bearer\ncredential", {}],
+    ["Authorization\n: credential", {}],
+    ["Bearer\n opaque-value", {}],
     ["opaque.credential", { stdin: "opaque.credential\n" }],
     ["environment.credential", { env: { SERVICE_TOKEN: "environment.credential" } }],
   ] satisfies [string, ExecOptions][])("redacts %s across every chunk boundary", (secret, opts) => {

@@ -57,7 +57,7 @@ export function execOutputDelivery(opts: ExecOptions, env: Record<string, string
       const credential = text.search(/(?:gh[opsur]_|github_pat_|glpat-)[A-Za-z0-9_-]*$/);
       if (credential >= 0) end = Math.min(end, credential);
       const header = text.search(
-        /(?:authorization|bearer)[^\r\n]*$|(?:authorization\\?["']?\s*[:=]\s*\\?["']?|\bbearer\s+)[^\r\n]*$/i,
+        /(?:authorization|bearer)[^\r\n]*\s*$|(?:authorization\\?["']?\s*[:=]\s*\\?["']?|\bbearer\s+)[^\r\n]*$/i,
       );
       if (header >= 0) end = Math.min(end, header);
     }

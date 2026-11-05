@@ -195,6 +195,46 @@ test("a commit is named by the newest release it contains, even from a cached co
   }
 });
 
+test("a failed label against a new release retains the same marker's original observation", async () => {
+  const marker = "fork-marker";
+  const fake = routed((path) => {
+    if (path.includes("/tags?")) return ["v1.0.0"];
+    if (path.includes("v2.0.0...")) return new Error("new release offline");
+    if (path.includes("/compare/v1.0.0...")) {
+      return { status: "identical", ahead_by: 0, behind_by: 0 };
+    }
+    return baseRoute(path);
+  });
+  const gh = new Gh(fake.exec);
+  const first = await readTemplate(ctx(), gh, repos("head", marker, "v1.0.0"));
+  first.reads.unshift(
+    {
+      source: TEMPLATE_REPO,
+      object: `files:repos/${TEMPLATE_REPO}/compare/old...${marker}`,
+      observedAt: "2026-10-01T18:00:00.000Z",
+      completeness: { kind: "complete" },
+    },
+    {
+      source: TEMPLATE_REPO,
+      object: `repos/${TEMPLATE_REPO}/compare/v1.0.0...other-marker`,
+      observedAt: "2026-10-02T18:00:00.000Z",
+      completeness: { kind: "complete" },
+    },
+  );
+  const input = repos("head", marker, "v2.0.0");
+  let previous = first;
+  for (const time of ["2026-10-14T18:00:00.000Z", "2026-10-15T18:00:00.000Z"]) {
+    const result = await readTemplate(ctx(time), gh, input, previous.state, previous);
+    expect(result.compares[marker]?.label).toBe("v1.0.0");
+    expect(result.reads.find((r) => r.object.endsWith(`v2.0.0...${marker}`))).toMatchObject({
+      failure: expect.stringContaining("new release offline"),
+      observedAt: time,
+      retainedFrom: now,
+    });
+    previous = result;
+  }
+});
+
 test("an Exec recording replays the template facts, sync paths and file reads", async () => {
   let log = "";
   const recording = new RecordingExec(

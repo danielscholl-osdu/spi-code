@@ -15,6 +15,16 @@ export function smokeMessages() {
     clear(): void {
       messages.length = 0;
     },
+    async waitForStartedTurn(): Promise<Message> {
+      const start = await this.wait((message) => message.type === "turn.start");
+      const terminal = await this.waitForTurn(start.id);
+      if (terminal.type === "error") {
+        throw new Error(
+          `Smoke turn failed (${terminal.payload.code}): ${terminal.payload.message}`,
+        );
+      }
+      return terminal;
+    },
     waitForTurn(id: string): Promise<Message> {
       return this.wait(
         (message) => message.id === id && (message.type === "turn.end" || message.type === "error"),
