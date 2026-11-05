@@ -33,6 +33,10 @@ export const SetupStateSchema = z
   })
   .refine(({ watchReady, disabledReason }) => watchReady === (disabledReason === null), {
     message: "Watch readiness must agree with its disabled reason",
+  })
+  .refine(({ tools }) => new Set(tools.map(({ tool }) => tool)).size === tools.length, {
+    message: "Each tool appears once",
+    path: ["tools"],
   });
 export const SetupInstallSchema = z.strictObject({ tool: WatchToolSchema });
 export const SigninToolSchema = z.enum(["copilot", "gh", "glab"]);

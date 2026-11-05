@@ -28,12 +28,19 @@ export const ReadRecordSchema = z.strictObject({
 });
 export const EnvelopeSchema = z.union([
   z.strictObject({ source: IdentifierSchema, state: z.literal("unread") }),
-  z.strictObject({
-    source: IdentifierSchema,
-    state: z.enum(["fresh", "stale", "incomplete", "failed"]),
-    observedAt: ObservedAtSchema,
-    completeness: CompletenessSchema,
-  }),
+  z
+    .strictObject({
+      source: IdentifierSchema,
+      state: z.enum(["fresh", "stale", "incomplete", "failed"]),
+      observedAt: ObservedAtSchema,
+      completeness: CompletenessSchema,
+    })
+    // EV-01: an area has one state, so a cut read cannot also claim to be fresh or stale.
+    .refine(
+      ({ state, completeness }) =>
+        completeness === "complete" || state === "incomplete" || state === "failed",
+      { message: "A cut read must be incomplete or failed", path: ["state"] },
+    ),
 ]);
 
 export type ReadRecord = z.infer<typeof ReadRecordSchema>;

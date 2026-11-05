@@ -18,6 +18,16 @@ export const FailureClassSchema = z.enum([
   "BUILD",
   "UNREAD",
 ]);
+// Mirrors core's ItemClass: every queue item, not only failures, can be inspected.
+export const ItemClassSchema = z.enum([
+  ...FailureClassSchema.options,
+  "PORT",
+  "SECURITY",
+  "ROLLOUT",
+  "INCIDENT",
+  "GATE",
+  "READY",
+]);
 export const ActionItemSchema = z.strictObject({
   id: IdentifierSchema,
   label: IdentifierSchema,
@@ -38,7 +48,7 @@ export const ApprovalSchema = z.strictObject({
 export const InspectRequestSchema = z.strictObject({ id: SelectionIdSchema });
 export const InspectResultSchema = z.strictObject({
   id: SelectionIdSchema,
-  class: FailureClassSchema,
+  class: ItemClassSchema,
   cause: z.string(),
   effect: z.string(),
   next: z.string(),
@@ -49,4 +59,5 @@ export const InspectResultSchema = z.strictObject({
   actions: z.array(ActionItemSchema),
 });
 export type InspectResult = z.infer<typeof InspectResultSchema>;
+export type ItemClass = z.infer<typeof ItemClassSchema>;
 export type ActionItem = z.infer<typeof ActionItemSchema>;

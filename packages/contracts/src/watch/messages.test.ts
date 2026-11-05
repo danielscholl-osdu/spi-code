@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { parseMessage } from "../index.js";
 import { EnvelopeSchema, type ReadRecord, ReadRecordSchema } from "./evidence.js";
-import { FailureClassSchema } from "./inspect.js";
+import { ItemClassSchema } from "./inspect.js";
 import { PROTOCOL_VERSION, type WatchMessage, WatchMessageSchema } from "./messages.js";
 import { ServiceStationsSchema, StationIdSchema } from "./stations.js";
 import { TreeStatusSchema } from "./tree.js";
@@ -138,8 +138,13 @@ describe("Watch protocol", () => {
       },
     });
   });
-  it.each(FailureClassSchema.options)("accepts inspector class %s", (cls) => {
+  it.each(ItemClassSchema.options)("accepts inspector class %s", (cls) => {
     expect(parseMessage({ ...messages[1], payload: { ...inspect, class: cls } }).ok).toBe(true);
+  });
+  it("rejects an inspector class outside core's ItemClass", () => {
+    expect(parseMessage({ ...messages[1], payload: { ...inspect, class: "OTHER" } }).ok).toBe(
+      false,
+    );
   });
   it.each([
     { ...inspect, actions: [{ id: "rerun", label: "Re-run" }] },
@@ -173,6 +178,13 @@ describe("Watch protocol", () => {
       payload: {
         ...messages[3].payload,
         tools: [{ tool: "gh", state: "ready", action: null, token: "secret" }],
+      },
+    },
+    {
+      ...messages[3],
+      payload: {
+        ...messages[3].payload,
+        tools: [...messages[3].payload.tools, ...messages[3].payload.tools],
       },
     },
     { ...messages[6], payload: { tool: "gh", state: "device-code", url: "https://github.com" } },
@@ -254,4 +266,22 @@ it("round-trips strict read records, area envelopes, tree status and six station
       completeness: { kind: "cut", reason: "limit", read: 21, total: 20 },
     }).success,
   ).toBe(false);
+  for (const state of ["fresh", "stale"]) {
+    const cut = EnvelopeSchema.safeParse({
+      source: "github",
+      state,
+      observedAt: at,
+      completeness: record.completeness,
+    });
+    expect(cut.success).toBe(false);
+    expect(cut.error?.issues[0]?.path).toEqual(["state"]);
+    expect(
+      EnvelopeSchema.safeParse({
+        source: "github",
+        state,
+        observedAt: at,
+        completeness: "complete",
+      }).success,
+    ).toBe(true);
+  }
 });
