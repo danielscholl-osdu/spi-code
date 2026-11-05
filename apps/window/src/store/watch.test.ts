@@ -7,7 +7,7 @@ import briefing from "../../../../fixtures/rib-59d6895/oracle/briefing.json?raw"
 import releases from "../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
 import { createSelectionStore } from "../panels/selection.js";
 import { testSnapshot as snapshotFromOracles } from "./test-snapshot.js";
-import { createWatchStore } from "./watch.js";
+import { createWatchStore, selectAreaEnvelopes } from "./watch.js";
 
 const testSnapshot = (overrides: Partial<ViewSnapshot> = {}) =>
   snapshotFromOracles(briefing, releases, overrides);
@@ -18,6 +18,14 @@ const event = (type: string, payload: unknown) => ({
   kind: "event",
   type,
   payload,
+});
+
+it("selects every snapshot area's envelope and none before the first snapshot", () => {
+  const store = createWatchStore(vi.fn());
+  expect(selectAreaEnvelopes(store.getState())).toEqual([]);
+  const body = testSnapshot();
+  store.getState().receive(event("view.snapshot", body));
+  expect(selectAreaEnvelopes(store.getState())).toEqual(body.areas.map(({ envelope }) => envelope));
 });
 
 it("rejects git sign-in at the type and runtime boundaries", () => {

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import {
+  type Envelope,
   type Message,
   PROTOCOL_VERSION,
   parseMessage,
@@ -36,6 +37,10 @@ type WatchState = {
 };
 
 const selectionOf = (selected: string | null) => (selected === null ? null : { id: selected });
+
+export function selectAreaEnvelopes(state: Pick<WatchState, "snapshot">): Envelope[] {
+  return state.snapshot?.body.areas.map(({ envelope }) => envelope) ?? [];
+}
 
 export function createWatchStore(
   send: (message: Message) => void,
