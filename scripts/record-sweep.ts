@@ -4,8 +4,9 @@
 /** Record one live sweep of the public Azure fleet and its rib oracle:
  *   pnpm build && bun scripts/record-sweep.ts [--rib /tmp/rib-record] [--out <directory>]
  * The core Sweeper runs over HostExec with RecordingExec, a fixed clock and an empty cache, on
- * the fleet's public forks only: services.json pins them, and a fence refuses, without running
- * it, any call that names a repository that is not public (the core library's releases) and any
+ * the fleet's public forks only: services.json pins them, and the core library joins the fleet's
+ * release reads only when it is public. A fence refuses, without running it, any call that names
+ * a repository, project or group not verified public, each checked when first named, and any
  * call whose shape the audit's grammar cannot read. The same log then replays through the
  * rib's Sweeper in a scratch checkout of keelson-rib-spi at RIB_REVISION, in a child bun
  * process with a clean environment, to give rib-facts.json. Every repository, project and group
@@ -29,11 +30,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { z } from "zod";
 import {
   CORE_LIB_REPO,
+  fleetOf,
   KNOWN_SERVICES,
   STACK_REPO,
   TEMPLATE_REPO,
 } from "../packages/core/src/config.js";
-import { createContext } from "../packages/core/src/context.js";
+import { type CoreContext, createContext } from "../packages/core/src/context.js";
 import type { ExecOptions, ExecOutput, ExecRunner } from "../packages/core/src/exec/port.js";
 import type { ExecLogEntry } from "../packages/core/src/exec/recording.js";
 import { RecordingExec } from "../packages/core/src/exec/recording.js";
@@ -48,6 +50,7 @@ import {
   GITHUB_HOST,
   LOG_FILE,
   NOT_PUBLIC,
+  type References,
   report,
   scrubEmails,
   scrubJwts,
@@ -72,10 +75,12 @@ export interface SweepMeta {
   entries: number;
   emailsScrubbed: number;
   jwtsScrubbed: number;
-  redactionsRepaired: number;
   failures: number;
   fleetFiles: { services: string };
+  /** The core library the sweep read releases of; null when it was not public. */
+  coreLib: string | null;
   excluded: Record<string, Visibility>;
+  /** Calls the fence refused, by the repository, project or command it named. */
   fenced: Record<string, number>;
 }
 
@@ -202,31 +207,36 @@ function tokens(): Record<string, string> {
   );
 }
 
-const ESCAPE_BEFORE_REDACTED = /(?<!\\)((?:\\\\)*)\\(?=<redacted>)/g;
+export type Forge = keyof References;
+const FORGE_NAMES: readonly Forge[] = ["github", "gitlab", "gitlabGroups"];
 
-/** Core's redaction of an `Authorization:` line inside JSON text keeps the backslash of the
- * escape after it and replaces the rest, leaving `\<redacted>`: not JSON, so a replay would
- * fail to parse what the live sweep read. Dropping that backslash makes the text JSON again,
- * with the redacted line's content still gone. */
-export function repairRedactions(text: string): string {
-  return text.replace(ESCAPE_BEFORE_REDACTED, "$1");
-}
+/** The visibility now of one GitHub repository, GitLab project or GitLab group. */
+export type CheckVisibility = (forge: Forge, name: string) => Promise<Visibility>;
 
-function repaired(entry: ExecLogEntry): ExecLogEntry {
-  const fix = (text: string) => repairRedactions(text);
-  return {
-    ...entry,
-    args: entry.args.map(fix),
-    stdin: entry.stdin === null ? null : fix(entry.stdin),
-    stdout: fix(entry.stdout),
-    stderr: fix(entry.stderr),
-    ...(entry.error === undefined ? {} : { error: fix(entry.error) }),
+const liveVisibility: CheckVisibility = async (forge, name) =>
+  forge === "github"
+    ? githubVisibility(name)
+    : gitlabVisibility(name, forge === "gitlab" ? "projects" : "groups");
+
+/** Checks each name once, whatever its case; a check that fails leaves the name unknown. */
+export function onceEach(check: CheckVisibility): CheckVisibility {
+  const seen = new Map<string, Promise<Visibility>>();
+  return (forge, name) => {
+    const key = `${forge}:${name.toLowerCase()}`;
+    let found = seen.get(key);
+    if (!found) {
+      found = check(forge, name).catch((): Visibility => "unknown");
+      seen.set(key, found);
+    }
+    return found;
   };
 }
 
-function fence(
+/** Runs a call only when the audit can read its shape and every repository, project and group
+ * it names is verified public; anything else is refused without running. */
+export function fence(
   runner: ExecRunner,
-  closed: ReadonlySet<string>,
+  check: CheckVisibility,
   refused: Record<string, number>,
 ): ExecRunner {
   return async (cmd: string, args: string[], opts: ExecOptions): Promise<ExecOutput> => {
@@ -236,23 +246,27 @@ function fence(
       return { stdout: "", stderr: fenceMessage(what, why), exit: 1 };
     };
     if (!targets || opts.stdin) return refuse(cmd, "call of a shape the audit cannot read");
-    const hit = [...targets.github].find((name) => closed.has(name.toLowerCase()));
-    return hit ? refuse(hit, NOT_PUBLIC) : runner(cmd, args, opts);
+    for (const forge of FORGE_NAMES) {
+      for (const name of [...targets[forge]].sort()) {
+        if ((await check(forge, name)) !== "public") return refuse(name, NOT_PUBLIC);
+      }
+    }
+    return runner(cmd, args, opts);
   };
 }
 
-/** The fleet's services whose fork is public now; the rest, and the core library, are fenced. */
-function publicFleet(): {
+/** The fleet's services whose fork is public now; the template and stack must be. */
+async function publicFleet(check: CheckVisibility): Promise<{
   services: (typeof KNOWN_SERVICES)[number][];
   excluded: Record<string, Visibility>;
-} {
+}> {
   const repos = [
     TEMPLATE_REPO,
     STACK_REPO,
-    CORE_LIB_REPO,
     ...KNOWN_SERVICES.flatMap((s) => (s.repo ? [s.repo] : [])),
   ];
-  const seen = Object.fromEntries(repos.map((repo) => [repo, githubVisibility(repo)]));
+  const seen: Record<string, Visibility> = {};
+  for (const repo of repos) seen[repo] = await check("github", repo);
   const excluded = Object.fromEntries(Object.entries(seen).filter(([, v]) => v !== "public"));
   if (excluded[TEMPLATE_REPO] || excluded[STACK_REPO])
     throw new Error(`the template and stack must be public: ${JSON.stringify(excluded)}`);
@@ -267,67 +281,100 @@ export function prepareOut(out: string): void {
   mkdirSync(out, { recursive: true });
 }
 
-async function record(out: string, rib: string): Promise<void> {
+export interface RecordOptions {
+  out: string;
+  /** Runs one call; the fence decides whether it is asked to. */
+  runner: ExecRunner;
+  check: CheckVisibility;
+  now: Date;
+  /** Values RecordingExec redacts beyond core's own patterns. */
+  secrets: Record<string, string>;
+  bun: string;
+}
+
+/** Records one sweep of the public fleet into an empty directory: services.json, exec.jsonl,
+ * core-facts.json and meta.json. The core library is read only when it is public. */
+export async function recordSweep(options: RecordOptions): Promise<{
+  meta: SweepMeta;
+  ctx: CoreContext;
+  facts: Facts;
+}> {
+  const { out, now } = options;
   prepareOut(out);
-  const now = new Date(Math.floor(Date.now() / 1000) * 1000);
   const clock = { now: () => now };
-  const appData = mkdtempSync(join(tmpdir(), "spi-code-record-"));
   const lines: string[] = [];
-  const counts = { emails: 0, jwts: 0, repairs: 0 };
+  const counts = { emails: 0, jwts: 0 };
   const refused: Record<string, number> = {};
-  const { services, excluded } = publicFleet();
+  const check = onceEach(options.check);
+  const { services, excluded } = await publicFleet(check);
+  const library = await check("github", CORE_LIB_REPO);
+  const coreLib = library === "public" ? CORE_LIB_REPO : null;
+  if (!coreLib) excluded[CORE_LIB_REPO] = library;
   writeJson(join(out, SERVICES_FILE), services);
+  const exec = new RecordingExec(
+    fence(options.runner, check, refused),
+    (jsonl) => {
+      const line = jsonl.replace(/\n$/, "");
+      const emails = scrubEmails(line);
+      if (emails !== line) counts.emails++;
+      const jwts = scrubJwts(emails);
+      if (jwts !== emails) counts.jwts++;
+      lines.push(`${jwts}\n`);
+    },
+    options.secrets,
+  );
+  const ctx = createContext({ clock, fleet: fleetOf(services, STACK_REPO, coreLib) });
+  const sweeper = createSweeper({
+    ctx,
+    exec,
+    persist: { load: async () => undefined, save: async () => {} },
+    fleetFiles: { services: SERVICES_FILE },
+    readFile: (path) => readFileSync(join(out, path), "utf8"),
+    factsSchema,
+  });
+  await sweeper.sweep({ force: true });
+  writeFileSync(join(out, LOG_FILE), lines.join(""));
+  writeJson(join(out, "core-facts.json"), sweeper.facts);
+  const entries = lines.map((line) => JSON.parse(line) as ExecLogEntry);
+  const meta: SweepMeta = {
+    recordedAt: now.toISOString(),
+    ribRevision: RIB_REVISION,
+    bun: options.bun,
+    entries: entries.length,
+    emailsScrubbed: counts.emails,
+    jwtsScrubbed: counts.jwts,
+    failures: entries.filter((e) => e.error !== undefined || e.exit !== 0).length,
+    fleetFiles: { services: SERVICES_FILE },
+    coreLib,
+    excluded,
+    fenced: refused,
+  };
+  writeJson(join(out, META_FILE), meta);
+  return { meta, ctx, facts: sweeper.facts };
+}
+
+async function record(out: string, rib: string): Promise<void> {
+  const now = new Date(Math.floor(Date.now() / 1000) * 1000);
+  const appData = mkdtempSync(join(tmpdir(), "spi-code-record-"));
   try {
     const host = new HostExec({
       appData,
       capturedPath: process.env.PATH ?? "",
       installer: { binDir: async () => undefined },
     });
-    const closed = new Set(Object.keys(excluded).map((repo) => repo.toLowerCase()));
-    const exec = new RecordingExec(
-      fence(host.run, closed, refused),
-      (jsonl) => {
-        const raw = JSON.parse(jsonl) as ExecLogEntry;
-        const fixed = JSON.stringify(repaired(raw));
-        if (fixed !== JSON.stringify(raw)) counts.repairs++;
-        const emails = scrubEmails(fixed);
-        if (emails !== fixed) counts.emails++;
-        const jwts = scrubJwts(emails);
-        if (jwts !== emails) counts.jwts++;
-        lines.push(`${jwts}\n`);
-      },
-      tokens(),
-    );
-    const sweeper = createSweeper({
-      ctx: createContext({ clock }),
-      exec,
-      persist: { load: async () => undefined, save: async () => {} },
-      fleetFiles: { services: SERVICES_FILE },
-      readFile: (path) => readFileSync(join(out, path), "utf8"),
-      factsSchema,
-    });
-    await sweeper.sweep({ force: true });
-    writeFileSync(join(out, LOG_FILE), lines.join(""));
-    writeJson(join(out, "core-facts.json"), sweeper.facts);
-    const entries = lines.map((line) => JSON.parse(line) as ExecLogEntry);
-    const meta: SweepMeta = {
-      recordedAt: now.toISOString(),
-      ribRevision: RIB_REVISION,
+    const { meta, facts } = await recordSweep({
+      out,
+      runner: host.run,
+      check: liveVisibility,
+      now,
+      secrets: tokens(),
       bun: execFileSync("bun", ["--version"], { encoding: "utf8" }).trim(),
-      entries: entries.length,
-      emailsScrubbed: counts.emails,
-      jwtsScrubbed: counts.jwts,
-      redactionsRepaired: counts.repairs,
-      failures: entries.filter((e) => e.error !== undefined || e.exit !== 0).length,
-      fleetFiles: { services: SERVICES_FILE },
-      excluded,
-      fenced: refused,
-    };
-    writeJson(join(out, META_FILE), meta);
+    });
     console.log(
-      `recorded ${entries.length} calls (${meta.failures} failed, ${Object.values(refused).reduce((a, b) => a + b, 0)} fenced; ` +
-        `scrubbed ${counts.emails} with emails, ${counts.jwts} with JWTs; repaired ${counts.repairs} redactions)` +
-        `; areas with errors: ${AREAS.filter((a) => sweeper.facts[a].error).join(", ") || "none"}`,
+      `recorded ${meta.entries} calls (${meta.failures} failed, ${Object.values(meta.fenced).reduce((a, b) => a + b, 0)} fenced; ` +
+        `scrubbed ${meta.emailsScrubbed} with emails, ${meta.jwtsScrubbed} with JWTs)` +
+        `; core library ${meta.coreLib ? "read" : "left out"}` +
+        `; areas with errors: ${AREAS.filter((a) => facts[a].error).join(", ") || "none"}`,
     );
   } finally {
     rmSync(appData, { recursive: true, force: true });

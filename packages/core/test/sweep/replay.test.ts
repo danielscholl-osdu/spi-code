@@ -5,7 +5,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { describe, expect, test } from "vitest";
 import { z } from "zod";
-import { DECLARATION_PATH } from "../../src/config.js";
+import { DECLARATION_PATH, DEFAULT_FLEET, fleetOf, STACK_REPO } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
 import { ReplayExec } from "../../src/exec/index.js";
 import { type Exec, type ExecOptions, execRedactor } from "../../src/exec/port.js";
@@ -548,6 +548,7 @@ test.skipIf(!sweep)(
     const meta = JSON.parse(readFileSync(join(dir, "meta.json"), "utf8")) as {
       recordedAt: string;
       fleetFiles: { services: string };
+      coreLib?: string | null;
     };
     const jsonl = readFileSync(join(dir, "exec.jsonl"), "utf8");
     const entries = jsonl
@@ -567,7 +568,13 @@ test.skipIf(!sweep)(
     const exec = new SweepReplay(jsonl);
     const budget = new BudgetLedger({ now: () => now });
     const sweeper = createSweeper({
-      ctx: createContext({ clock: { now: () => now } }),
+      // The core library is read only when the recording read it.
+      ctx: createContext({
+        clock: { now: () => now },
+        ...(meta.coreLib === undefined
+          ? {}
+          : { fleet: fleetOf(DEFAULT_FLEET.services, STACK_REPO, meta.coreLib) }),
+      }),
       exec,
       budget,
       persist: { load: async () => undefined, save: async () => {} },
