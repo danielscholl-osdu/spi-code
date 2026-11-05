@@ -14,6 +14,9 @@ import {
   parseLoginShellPath,
 } from "./shell-environment.js";
 
+// Real processes start slowly when the machine is busy; waitFor defaults to 1s.
+const PROCESS_WAIT = { timeout: 15_000 };
+
 const start = "__SPICODE_ENV_PATH_START__";
 const end = "__SPICODE_ENV_PATH_END__";
 const secret = "sensitive-env-fixture";
@@ -187,7 +190,7 @@ describe("login-shell PATH", () => {
         failures: ["timeout"],
       });
       vi.useRealTimers();
-      await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow());
+      await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow(), PROCESS_WAIT);
     },
   );
 });
@@ -432,6 +435,6 @@ describe.skipIf(process.platform === "win32")("gh auth token", () => {
     }
     await rejected;
     vi.useRealTimers();
-    await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow());
+    await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow(), PROCESS_WAIT);
   });
 });

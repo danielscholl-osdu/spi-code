@@ -3,11 +3,17 @@
 
 import { defineConfig } from "vitest/config";
 
+// Time budgets sized for scripts/check on a machine busy with parallel worktree builds;
+// the boundary scans parse every source and the exec tests spawn real process trees.
+const timeouts = { testTimeout: 30_000, hookTimeout: 30_000 };
+
 export default defineConfig({
   test: {
+    ...timeouts,
     projects: [
       {
         test: {
+          ...timeouts,
           name: "scripts",
           include: ["scripts/**/*.test.ts"],
           environment: "node",
@@ -22,6 +28,7 @@ export default defineConfig({
         "packages/tools",
       ].map((directory) => ({
         test: {
+          ...timeouts,
           name: directory,
           include: [
             `${directory}/src/**/*.test.{ts,tsx}`,

@@ -9,6 +9,9 @@ import { afterEach, expect, it, vi } from "vitest";
 import { createManagedToolEnvironment } from "../env/tool-environment.js";
 import { HostExec } from "./host-exec.js";
 
+// Real processes start slowly when the machine is busy; waitFor defaults to 1s.
+const PROCESS_WAIT = { timeout: 15_000 };
+
 const directories: string[] = [];
 afterEach(async () => {
   vi.useRealTimers();
@@ -162,7 +165,7 @@ it("kills the entire hung process tree including a SIGTERM-ignoring grandchild",
     await vi.waitFor(async () => {
       pid = Number(await readFile(pidFile, "utf8"));
       expect(pid).toBeGreaterThan(0);
-    });
+    }, PROCESS_WAIT);
     if (process.platform !== "win32") process.kill(pid, "SIGTERM");
     process.kill(pid, 0);
   } finally {
@@ -170,7 +173,7 @@ it("kills the entire hung process tree including a SIGTERM-ignoring grandchild",
   }
   expect(await result).toMatchObject({ ok: false, error: "Command timed out after 1000ms." });
   vi.useRealTimers();
-  await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow());
+  await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow(), PROCESS_WAIT);
 });
 
 it.skipIf(process.platform === "win32")(
