@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 import { expect, test } from "vitest";
-import { z } from "zod";
 import {
   CORE_LIB_REPO,
   fleetOf,
@@ -15,7 +14,8 @@ import {
 import { createContext } from "../../src/context.js";
 import { RecordingExec, ReplayExec } from "../../src/exec/index.js";
 import type { ExecOutput } from "../../src/exec/port.js";
-import { AREAS, emptyFacts, type Facts } from "../../src/facts.js";
+import { emptyFacts } from "../../src/facts.js";
+import { factsSchema } from "../../src/facts-schema.js";
 import { GraphqlBudget } from "../../src/forge.js";
 import { createSweeper } from "../../src/sweep/areas.js";
 import { cacheSchema, emptyCache, pruneCache } from "../../src/sweep/cache.js";
@@ -23,9 +23,6 @@ import { due } from "../../src/sweep/cadence.js";
 import type { SweepState } from "../../src/sweep/sweeper.js";
 
 const START = "2026-10-14T00:00:00.000Z";
-const factsSchema = z.custom<Facts>(
-  (v) => !!v && typeof v === "object" && AREAS.every((a) => a in v),
-);
 
 function harness(repo = "owner/partition", remaining = 4000) {
   let time = Date.parse(START);

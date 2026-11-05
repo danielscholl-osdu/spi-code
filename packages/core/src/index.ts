@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 export * from "./facts.js";
+export { factsSchema } from "./facts-schema.js";
 export * from "./config.js";
 export * from "./context.js";
 export * from "./clock.js";

@@ -4,14 +4,13 @@
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { type Message, PROTOCOL_VERSION, parseMessage } from "@spi-code/contracts";
-import { contextFromEnv, type Exec, type Facts } from "@spi-code/core";
+import { contextFromEnv, type Exec, factsSchema } from "@spi-code/core";
 import {
   createToolInstaller,
   createWindowsGitInstaller,
   MacGitInstaller,
   type ToolInstaller,
 } from "@spi-code/tools";
-import { z } from "zod";
 import { captureLoginShellPath } from "./env/shell-environment.js";
 import { HostExec } from "./exec/host-exec.js";
 import { attachHostConnections, type HostConnection } from "./process/connections.js";
@@ -115,7 +114,7 @@ const setup: SetupService = new SetupService({
       appData,
       ctx,
       exec,
-      factsSchema: z.custom<Facts>((value) => typeof value === "object" && value !== null),
+      factsSchema,
       doctor: () => setup.doctor(),
       onError: console.error,
       createSweeper: watch.sweeper(),

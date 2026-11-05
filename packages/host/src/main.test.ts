@@ -9,6 +9,7 @@ import { expect, it, vi } from "vitest";
 import type { HostConnection } from "./process/connections.js";
 import type { ConversationBackend } from "./process/conversation.js";
 import type { SetupServiceOptions } from "./setup/service.js";
+import type { SweepServiceOptions } from "./sweep/service.js";
 
 const mocks = vi.hoisted(() => ({
   createBackend: vi.fn(),
@@ -293,6 +294,28 @@ it.skipIf(process.platform === "win32")(
       expect(gh?.reason).toContain("Using gh 2.74.0 from the login-shell PATH.");
       await vi.waitFor(() => expect(start).toHaveBeenCalledOnce());
       expect(stop).not.toHaveBeenCalled();
+      const wired = (start.mock.contexts[0] as unknown as { options: SweepServiceOptions }).options;
+      const core = await import("@spi-code/core");
+      const replay = new core.Sweeper({
+        ctx: wired.ctx,
+        exec: wired.exec,
+        factsSchema: wired.factsSchema,
+        cacheSchema: core.cacheSchema,
+        emptyCache: core.emptyCache,
+        areas: [],
+        persist: { load: async () => undefined, save: async () => {} },
+        replay: async () => ({
+          facts: { ...core.emptyFacts(), auth: { data: { gh: { ok: "yes" }, glab: {} } } },
+          cache: core.emptyCache(),
+          reads: {},
+        }),
+      });
+      await expect(replay.sweep()).rejects.toMatchObject({
+        issues: expect.arrayContaining([
+          expect.objectContaining({ path: ["facts", "auth", "data", "gh", "ok"] }),
+        ]),
+      });
+      expect(replay.facts).toEqual(core.emptyFacts());
 
       rmSync(join(directory, "signed-in"));
       const second = port();
