@@ -177,3 +177,17 @@ test("a torn or foreign current pointer reads as missing instead of throwing", a
     expect(await installer.binDir("gh")).toBeUndefined();
   }
 });
+
+test("reinstalling over a damaged copy of the same version replaces it with the verified binary", async () => {
+  const appData = join(home, "damaged");
+  const installer = new ToolInstaller(appData, manifest(), platform);
+  await installer.install("gh");
+  const installed = join(appData, "tools", "gh", "1.0.0", "bin", binary);
+  await writeFile(installed, "tampered");
+  await installer.install("gh");
+  expect(await readFile(installed)).toEqual(executable);
+  expect(await installer.readiness("gh")).toEqual({ state: "ready", version: "1.0.0" });
+  await rm(installed);
+  await installer.install("gh");
+  expect(await readFile(installed)).toEqual(executable);
+});

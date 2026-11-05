@@ -210,13 +210,19 @@ export class ToolInstaller {
           !(
             error instanceof Error &&
             "code" in error &&
-            ["EEXIST", "ENOTEMPTY"].includes(String(error.code))
+            // Windows reports a directory rename onto an existing directory as EPERM or EACCES.
+            ["EEXIST", "ENOTEMPTY", "EPERM", "EACCES"].includes(String(error.code))
           )
         )
           throw error;
-        const existing = await readFile(join(target, "bin", this.binary(tool)));
-        if (!existing.equals(binary))
-          throw new Error(`Installed ${tool} ${pin.version} differs from verified archive`);
+        const existing = await readFile(join(target, "bin", this.binary(tool))).catch(
+          () => undefined,
+        );
+        if (!existing?.equals(binary)) {
+          // The installed copy is damaged; replace it with the payload that just passed SHA-256.
+          await rm(target, { recursive: true, force: true });
+          await rename(payload, target);
+        }
       }
       pointer = join(root, `.current-${staging.split(/[\\/]/).pop()}`);
       if (this.platform === "win32-x64") await writeDurable(pointer, pin.version);
