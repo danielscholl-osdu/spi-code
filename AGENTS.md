@@ -8,6 +8,27 @@ A macOS and Windows desktop app for running the OSDU SPI program, with GitHub Co
 
 Where the original combined design (`design/spi-code-design.pdf`) disagrees with these, these win.
 
+## How work moves
+
+Work is tracked in beads (`bd`, prefix `spicode`), built in parallel worktrees, reviewed by a different provider, and landed by `scripts/land`. No GitHub issues or pull requests. `docs/sdlc.md` has the whole flow.
+
+1. Work only on a claimed bead, in its own worktree, on branch `bead/<id>`. Never edit in the main checkout.
+2. One bead, one author, one review, one landing. Anything outside the bead's acceptance becomes a new bead.
+3. A different provider reviews what you wrote, and the pass is recorded on the bead.
+4. Land only with `scripts/land <id>`. Never commit, merge or push to `main` by hand.
+5. If a bead labelled `main-broken` is open, fixing it comes first.
+6. Never close a bead without a landed commit or a stated reason.
+
+| Skill | Use it to |
+|---|---|
+| `.agents/skills/epic-breakdown/SKILL.md` | Break a milestone epic into beads and dispatch the ready wave |
+| `.agents/skills/bead-build/SKILL.md` | Claim and build one bead |
+| `.agents/skills/bead-review/SKILL.md` | Review a bead from another provider and record the verdict |
+| `.agents/skills/bead-land/SKILL.md` | Land a reviewed bead on `main` |
+| `.agents/skills/stop-the-line/SKILL.md` | Fix a broken `main` |
+
+`scripts/check` runs the checks every bead must pass. The beads database (`.beads/`) is git-ignored and local to this machine; every worktree finds it through git's common directory.
+
 ## License headers
 
 SPI Code is MIT. Every source file starts with:

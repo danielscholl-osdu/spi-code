@@ -1,0 +1,15 @@
+# Beads tracker: local to this machine, never committed
+.beads/
+.beads.gate.lock
+.beads-credential-key
+.dolt/
+*.gate.lock*
+
+# Bead worktrees
+.worktrees/
+
+.DS_Store
+
+# Beads / Dolt files (added by bd init)
+*.db
+.beads/proxieddb/

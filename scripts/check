@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Copyright 2026, Daniel Scholl
+# SPDX-License-Identifier: MIT
+#
+# The checks a bead must pass before review and before landing.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+if [[ -f package.json ]]; then
+  pnpm run check
+  exit 0
+fi
+
+# Until the M0 scaffold adds package.json, the repo is docs and scripts only.
+base=$(git merge-base HEAD main 2>/dev/null || git rev-parse HEAD)
+git diff --check "$base"
+for f in scripts/*; do
+  bash -n "$f"
+done
+echo "check: ok"

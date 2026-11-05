@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+# Copyright 2026, Daniel Scholl
+# SPDX-License-Identifier: MIT
+#
+# Lands one bead on main. The only path to main; see docs/sdlc.md.
+#   scripts/land <bead-id>
+# Rerunning after a failed push finishes the landing.
+set -euo pipefail
+export BD_DISABLE_METRICS=1 OTEL_SDK_DISABLED=true
+
+die() { echo "land: $*" >&2; exit 1; }
+
+id=${1:?usage: scripts/land <bead-id>}
+branch="bead/$id"
+command -v jq >/dev/null || die "jq is required"
+
+root=$(git worktree list --porcelain | sed -n '1s/^worktree //p')
+[[ -n $root ]] || die "cannot find the main checkout"
+has_remote() { git -C "$root" remote get-url origin >/dev/null 2>&1; }
+
+worktree=$(git worktree list --porcelain | awk -v ref="refs/heads/$branch" '
+  /^worktree /{ path = substr($0, 10) }
+  $0 == "branch " ref { print path; exit }')
+
+bead=$(bd show "$id" --json | jq 'if type == "array" then .[0] else . end')
+[[ $(jq -r '.id // empty' <<<"$bead") == "$id" ]] || die "bead $id not found"
+status=$(jq -r '.status' <<<"$bead")
+[[ $status == in_progress ]] || die "$id is $status, not in_progress"
+assignee=$(jq -r '.assignee // empty' <<<"$bead")
+[[ -n $assignee ]] || die "$id has no assignee; claim it first"
+meta() { jq -r --arg k "$1" '.metadata[$k] // empty' <<<"$bead"; }
+has_label() { jq -e --arg l "$1" '(.labels // []) | index($l) != null' <<<"$bead" >/dev/null; }
+
+check_line() {
+  local broken
+  broken=$(bd list --label main-broken --status open,in_progress,blocked,deferred,hooked --limit 0 --json | jq -r '.[].id')
+  if [[ -n $broken ]] && ! grep -qx "$id" <<<"$broken"; then
+    die "main is broken ($(tr '\n' ' ' <<<"$broken")); only its fix may land"
+  fi
+}
+
+[[ $(git -C "$root" symbolic-ref --short HEAD) == main ]] || die "main checkout at $root is not on main"
+[[ -z $(git -C "$root" status --porcelain) ]] || die "main checkout at $root has uncommitted changes"
+
+holder="land:$id:$$"
+bd merge-slot acquire --holder "$holder" >/dev/null || die "the merge slot is held; try again shortly"
+trap 'bd merge-slot release --holder "$holder" >/dev/null || echo "land: release the merge slot: bd merge-slot release" >&2' EXIT
+
+finish() {
+  local sha=$1
+  if has_remote; then
+    git -C "$root" push --quiet origin main ||
+      die "$sha is on local main but the push failed; fix the remote, then rerun scripts/land $id"
+  fi
+  bd close "$id" --actor "$assignee" --reason "Landed $(git -C "$root" rev-parse --short "$sha")" >/dev/null
+  echo "land: $id landed as $(git -C "$root" rev-parse --short "$sha")"
+  case $worktree in
+    "$root"/.worktrees/*)
+      git -C "$root" worktree remove "$worktree"
+      git -C "$root" branch --quiet -D "$branch"
+      ;;
+    "") ;;
+    *) echo "land: left $worktree in place; the harness that made it removes it" ;;
+  esac
+}
+
+landed=$(meta land.sha)
+tip=$(git -C "$root" rev-parse -q --verify "refs/heads/$branch" || true)
+if [[ -n $landed && ( -z $tip || $tip == "$landed" ) ]] &&
+  git -C "$root" merge-base --is-ancestor "$landed" main 2>/dev/null &&
+  [[ -z $worktree || -z $(git -C "$worktree" status --porcelain) ]]; then
+  finish "$landed"
+  exit 0
+fi
+
+check_line
+[[ -n $worktree ]] || die "no worktree has $branch checked out"
+[[ -z $(git -C "$worktree" status --porcelain) ]] || die "$worktree has uncommitted changes"
+
+if has_remote; then
+  git -C "$root" fetch --quiet origin main
+  git -C "$root" merge --quiet --ff-only origin/main || die "local main has diverged from origin/main"
+fi
+
+if ! git -C "$worktree" rebase --quiet main; then
+  git -C "$worktree" rebase --abort
+  die "$branch does not rebase cleanly onto main; resolve it in $worktree, then review again"
+fi
+head=$(git -C "$worktree" rev-parse HEAD)
+base=$(git -C "$root" rev-parse main)
+[[ $(git -C "$root" merge-base "$base" "$head") == "$base" ]] || die "$branch is not on top of main after the rebase"
+[[ $head != "$base" ]] || die "$branch has no changes against main"
+
+(cd "$worktree" && scripts/check) || die "scripts/check failed on $branch"
+[[ $(git -C "$worktree" rev-parse HEAD) == "$head" ]] || die "$branch moved while checks ran"
+[[ -z $(git -C "$worktree" status --porcelain) ]] || die "checks left changes in $worktree"
+
+if has_label review:exempt; then
+  while IFS= read -r -d '' path; do
+    [[ $path == *.md ]] || die "review:exempt covers Markdown only; $path is not"
+    case $path in
+      design/* | .agents/* | AGENTS.md) die "review:exempt does not cover $path" ;;
+    esac
+  done < <(git -C "$root" diff --no-renames --name-only -z "$base" "$head")
+else
+  patch=$(git -C "$root" diff "$base" "$head" | git patch-id --verbatim | awk '{print $1}')
+  [[ $(meta review.verdict) == pass ]] || die "$id has no passing review"
+  [[ $(meta review.patch_id) == "$patch" ]] || die "the diff changed since review ($patch vs $(meta review.patch_id)); review again"
+  author=$(meta build.provider)
+  reviewer=$(meta review.provider)
+  [[ -n $author && -n $reviewer ]] || die "build.provider and review.provider must both be set on $id"
+  [[ $author != "$reviewer" ]] || die "the reviewer's provider ($reviewer) is the author's"
+fi
+
+check_line
+bd update "$id" --set-metadata land.sha="$head" >/dev/null
+git -C "$root" merge --quiet --ff-only "$head"
+finish "$head"
