@@ -18,12 +18,13 @@ remain unread. Workflow run dots, including approval and lifecycle runs, use onl
 their repository's evidence (or an explicit area-wide record). System and Today
 include release evidence. Threads remain unread until their milestone.
 All records retain their completeness, failure, retained timestamp and inferred
-marker. `intervalMs` is the caller's freshness interval.
+marker. `intervalMs` is the caller's default freshness interval; release records
+use the release reader's `RELEASES_EVERY_MS` cadence.
 
 `areas` carries one envelope per area, in core's `AREAS` order, from core's
 `envelopeOf` over that area's reads. An area with no reads is unread. Each area
-uses `intervals[area]` when given, otherwise `intervalMs`; the tree still uses
-`intervalMs`. `provenance` maps JSON Pointers into the snapshot to the areas
+uses `intervals[area]` when given, otherwise `intervalMs`, as does the tree.
+`provenance` maps JSON Pointers into the snapshot to the areas
 that fed each drawn value. Every rendered briefing and station value has an
 entry at its own pointer or an ancestor's; the only exceptions are read
 metadata, the clock window, inspector ids and fleet service names. Bindings in
@@ -35,10 +36,15 @@ names github and runs. Values that judge the whole model (headline, summary,
 focus, rest, ready, themes, horizon) name every swept area. An unknown label or
 branch falls back to a superset rather than fewer areas. Bindings never guess
 from record sources or object names. The running version names lifecycle, or
-github when only the declared version is known. Each release line names the
-fleet area alone: core builds it from the release reader's reads, which are not a
-Facts area and whose state shows on the Releases tree dot, and from the fleet's
-forks and release repositories. The contract rejects a snapshot whose provenance
+github and lifecycle when only the declared version is known. Each release line
+names the fleet area and carries an `envelope` for the release reader's own
+ReadRecords. This non-area envelope leaves Facts areas as swept collectors and
+avoids changes to the sweeper or snapshot store. It uses core's `envelopeOf`
+and the release reader's cadence, including retained times, cuts, failures and
+inferred-only status. The Releases section badges it alongside the fleet
+envelope; non-fresh release evidence marks each line in both list and detail.
+A line says inferred only when its release reads and feeding areas are all
+inferred. The contract rejects a snapshot whose provenance
 path does not resolve or names an area without an envelope.
 
 `projectReleases` reads `<appData>/notes/YYYY-MM.json` through core's `parseNotes`,
@@ -66,8 +72,8 @@ pnpm biome check --write fixtures/watch/snapshot-59d6895.json fixtures/watch/sna
 ```
 
 The mixed fixture (`mixedFixtureInput`) keeps only lifecycle reads inferred and
-marks every other area observed, so the window's evidence helpers can tell
-inferred values from observed peers.
+marks every other area and the release reads observed, so the window's evidence
+helpers can tell inferred values from observed peers.
 
 The generator uses the pinned core fixtures, fleet, rollout and clock. It does
 not regenerate or modify the rib oracles. Tests compare against those oracles

@@ -60,6 +60,29 @@ describe("ViewSnapshot areas and provenance", () => {
     );
   });
 
+  it("carries a non-area collector envelope alongside a value's Facts areas", () => {
+    const entry = {
+      path: "/releases/lines/0",
+      areas: ["fleet"],
+      envelope: {
+        source: "releases",
+        state: "failed",
+        observedAt: snapshot.sweptAt,
+        completeness: { kind: "complete" },
+        inferred: true,
+      },
+    };
+    const withEnvelope = { ...snapshot, provenance: [entry] };
+    expect(ViewSnapshotSchema.parse(withEnvelope)).toEqual(withEnvelope);
+    for (const envelope of [
+      { ...entry.envelope, extra: true },
+      { ...entry.envelope, state: "fresh", observedAt: undefined },
+      { ...entry.envelope, inferred: "yes" },
+    ]) {
+      expect(messages({ ...snapshot, provenance: [{ ...entry, envelope }] })).not.toEqual([]);
+    }
+  });
+
   it("rejects repeated paths, repeated areas, unknown areas and malformed pointers", () => {
     const at = (entry: unknown) => ({ ...snapshot, provenance: [entry] });
     const valid = { path: "/briefing/headline", areas: ["github"] };

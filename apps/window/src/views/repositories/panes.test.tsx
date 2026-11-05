@@ -292,44 +292,94 @@ it("marks no repository value from the real mixed fixture, whose repository area
   expect(pane.querySelectorAll("[data-inferred]").length).toBe(0);
 });
 
+it.each(["failed", "stale"] as const)(
+  "badges the Releases section and its lines when the real snapshot's release read is %s",
+  async (state) => {
+    const body = mixedSnapshot(mixed);
+    const releaseSources = body.provenance.filter(({ path }) => path.startsWith("/releases/"));
+    expect(releaseSources).toHaveLength(body.releases.lines.length);
+    for (const source of releaseSources) expect(source).toHaveProperty("envelope");
+    body.provenance = body.provenance.map((entry) =>
+      entry.path.startsWith("/releases/")
+        ? {
+            ...entry,
+            envelope: {
+              source: "releases",
+              state,
+              observedAt: body.sweptAt,
+              completeness: { kind: "complete" },
+              inferred: false,
+            },
+          }
+        : entry,
+    );
+    await render(<Releases />, body);
+    const pane = container.querySelector('[data-view-pane="releases"]');
+    if (!pane) throw new Error("Releases did not render");
+    expect(
+      pane.querySelector(`[data-release-envelopes] [data-envelope="${state}"]`),
+    ).not.toBeNull();
+    for (const line of body.releases.lines) {
+      for (const selector of [`[data-rel="${line.id}"]`, `[data-rel-detail="${line.id}"]`]) {
+        expect(
+          pane.querySelector(`${selector} [data-envelope="${state}"]`),
+          selector,
+        ).not.toBeNull();
+      }
+    }
+    expect(pane.querySelector("[data-inferred]")).toBeNull();
+  },
+);
+
 it.each([
-  ["unread", false],
-  ["inferred", true],
+  ["unread", true, false],
+  ["inferred", true, true],
+  ["inferred", false, false],
+  ["observed", true, false],
 ] as const)(
-  "badges release lines from the mixed fixture's own provenance with the fleet %s",
-  async (_, inferred) => {
+  "marks release lines with fleet %s and release inferred=%s only when all inputs are inferred",
+  async (fleetState, releaseInferred, inferred) => {
     const real = mixedSnapshot(mixed);
     const fleet = {
       source: "fleet",
       state: "fresh",
       observedAt: real.sweptAt,
       completeness: { kind: "complete" },
-      inferred: true,
+      inferred: fleetState === "inferred",
     } as const;
-    const body = inferred
-      ? {
-          ...real,
-          areas: real.areas.map((entry) =>
-            entry.area === "fleet" ? { area: "fleet" as const, envelope: fleet } : entry,
-          ),
-        }
-      : real;
-    expect(body.provenance.filter(({ path }) => path.startsWith("/releases"))).toEqual(
-      body.releases.lines.map((_, i) => ({ path: `/releases/lines/${i}`, areas: ["fleet"] })),
-    );
+    const body = {
+      ...real,
+      areas: real.areas.map((entry) =>
+        entry.area === "fleet" && fleetState !== "unread"
+          ? { area: "fleet" as const, envelope: fleet }
+          : entry,
+      ),
+      provenance: real.provenance.map((entry) =>
+        entry.envelope
+          ? {
+              ...entry,
+              envelope: {
+                source: "releases",
+                state: "fresh" as const,
+                observedAt: real.sweptAt,
+                completeness: { kind: "complete" as const },
+                inferred: releaseInferred,
+              },
+            }
+          : entry,
+      ),
+    };
     await render(<Releases />, body);
     const pane = container.querySelector('[data-view-pane="releases"]');
     if (!pane) throw new Error("Releases did not render");
-    expectEvidenceMarks(pane, body, {
-      prefixes: ["/releases"],
-      sections: [["/releases/lines"]],
-    });
     expect(pane.querySelector('[data-envelopes] [data-area="fleet"]')).not.toBeNull();
-    expect(
-      [...pane.querySelectorAll("[data-inferred]")].filter(
-        (mark) => !mark.closest("[data-envelopes]"),
-      ).length,
-    ).toBe(inferred ? body.releases.lines.length * 2 : 0);
+    for (const [i] of body.releases.lines.entries()) {
+      const drawn = pane.querySelectorAll(`[data-pointer="/releases/lines/${i}"]`);
+      expect(drawn).toHaveLength(2);
+      for (const element of drawn) {
+        expect(element.querySelectorAll("[data-inferred]")).toHaveLength(inferred ? 1 : 0);
+      }
+    }
   },
 );
 

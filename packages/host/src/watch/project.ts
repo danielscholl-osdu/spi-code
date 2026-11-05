@@ -26,6 +26,7 @@ import {
   isMonth,
   monthFacts,
   parseNotes,
+  RELEASES_EVERY_MS,
   type ReadRecord,
   type ReleaseReads,
   releaseDoc,
@@ -130,6 +131,7 @@ function treeOf(input: WatchInput, now: Date): TreeStatus {
       if (!intervalOf.has(record)) intervalOf.set(record, interval);
     }
   }
+  for (const record of input.releaseRecords) intervalOf.set(record, RELEASES_EVERY_MS);
   const stateOf = (reads: readonly ReadRecord[]): EvidenceState => {
     const groups = new Map<number, ReadRecord[]>();
     for (const record of reads) {
@@ -240,7 +242,7 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     provenance: [
       ...briefingProvenance(briefing, model.stack),
       ...stationProvenance(stations),
-      ...releaseProvenance(releases.lines),
+      ...releaseProvenance(releases.lines, input.releaseRecords, now),
     ],
     selection: input.selection ?? null,
   });

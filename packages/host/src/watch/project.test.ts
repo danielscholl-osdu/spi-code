@@ -9,6 +9,7 @@ import {
   type ActionItem,
   AREAS,
   type AreaName,
+  RELEASES_EVERY_MS,
   type ReadRecord,
   TEMPLATE_REPO,
 } from "@spi-code/core";
@@ -228,6 +229,109 @@ describe("Watch projection", () => {
     }
   });
 
+  it.each(["failed", "stale"] as const)(
+    "binds the release reader's own %s envelope to every release line",
+    (state) => {
+      const input = onlyInferred([]);
+      const now = input.context.clock.now().getTime();
+      const observedAt = new Date(now - 2 * RELEASES_EVERY_MS - 1).toISOString();
+      const record: ReadRecord = {
+        source: "github-releases",
+        object: input.context.fleet.releaseRepos[0] ?? "Azure/osdu-spi",
+        observedAt,
+        completeness: { kind: "complete" },
+        inferred: true,
+        ...(state === "failed"
+          ? {
+              failure: "offline",
+              observedAt: new Date(now).toISOString(),
+              retainedFrom: observedAt,
+            }
+          : {}),
+      };
+      const snapshot = projectWatch({ ...input, releaseRecords: [record] });
+      expect(snapshot.releases.lines.length).toBeGreaterThan(1);
+      expect(snapshot.provenance.filter(({ path }) => path.startsWith("/releases"))).toEqual(
+        snapshot.releases.lines.map((_, i) => ({
+          path: `/releases/lines/${i}`,
+          areas: ["fleet"],
+          envelope: {
+            source: "releases",
+            state,
+            observedAt,
+            completeness: { kind: "complete" },
+            inferred: true,
+          },
+        })),
+      );
+      expect(snapshot.tree.find(({ id }) => id === "releases")?.status).toBe(state);
+      expect(snapshot.reads).toContainEqual(record);
+    },
+  );
+
+  it("uses the release reader's cadence rather than the Facts sweep interval", () => {
+    const input = onlyInferred([]);
+    const start = input.context.clock.now().getTime();
+    const releaseRecords: ReadRecord[] = [
+      {
+        source: "github-releases",
+        object: "Azure/osdu-spi",
+        observedAt: new Date(start).toISOString(),
+        completeness: { kind: "complete" },
+      },
+    ];
+    for (const [elapsed, state] of [
+      [2 * RELEASES_EVERY_MS, "fresh"],
+      [2 * RELEASES_EVERY_MS + 1, "stale"],
+    ] as const) {
+      const snapshot = projectWatch({
+        ...input,
+        releaseRecords,
+        context: { ...input.context, clock: { now: () => new Date(start + elapsed) } },
+      });
+      expect(snapshot.provenance.find(({ path }) => path === "/releases/lines/0")).toMatchObject({
+        envelope: { state, inferred: false },
+      });
+      expect(snapshot.tree.find(({ id }) => id === "releases")?.status).toBe(state);
+    }
+  });
+
+  it("does not invent release evidence from cached values or an area's reads", () => {
+    const snapshot = projectWatch({ ...onlyInferred(AREAS), releaseRecords: [] });
+    expect(snapshot.releases.lines.length).toBeGreaterThan(0);
+    expect(snapshot.provenance.find(({ path }) => path === "/releases/lines/0")).toMatchObject({
+      envelope: { source: "releases", state: "unread" },
+    });
+  });
+
+  it("preserves cut and mixed-inference release records without borrowing fleet evidence", () => {
+    const input = onlyInferred(["fleet"]);
+    const observedAt = input.context.clock.now().toISOString();
+    const completeness = { kind: "cut", reason: "page limit", read: 1, total: 3 } as const;
+    const snapshot = projectWatch({
+      ...input,
+      releaseRecords: [
+        {
+          source: "github-created",
+          object: "Azure/osdu-spi",
+          observedAt,
+          completeness,
+          inferred: true,
+        },
+        {
+          source: "github-pins",
+          object: "Azure/osdu-partition@v1",
+          observedAt,
+          completeness: { kind: "complete" },
+        },
+      ],
+    });
+    expect(snapshot.provenance.find(({ path }) => path === "/releases/lines/0")).toMatchObject({
+      envelope: { source: "releases", state: "incomplete", completeness, inferred: false },
+    });
+    expect(inferredAt(snapshot, "/releases/lines/0")).toBe(false);
+  });
+
   it("includes shared template dependency failures in every service dot", () => {
     const input = fixtureInput();
     const at = input.context.clock.now().toISOString();
@@ -441,12 +545,15 @@ function onlyInferred(inferred: readonly AreaName[]) {
   return { ...input, reads };
 }
 
-/** The window's isInferred rule: an exact pointer whose every named area is inferred. */
+/** Inferred-only values require every feeding area and any non-area envelope to be inferred. */
 function inferredAt(snapshot: ReturnType<typeof projectWatch>, pointer: string): boolean {
   const source = snapshot.provenance.find(({ path }) => path === pointer);
   if (!source) return false;
-  return source.areas.every(
-    (area) => snapshot.areas.find((entry) => entry.area === area)?.envelope.inferred === true,
+  return (
+    (source.envelope === undefined || source.envelope.inferred === true) &&
+    source.areas.every(
+      (area) => snapshot.areas.find((entry) => entry.area === area)?.envelope.inferred === true,
+    )
   );
 }
 
@@ -663,9 +770,7 @@ describe("area envelopes and provenance", () => {
     expect(areas(1)).toEqual(["github"]);
   });
 
-  it("binds every release line to the fleet that names its components, never another area", () => {
-    // Independent of provenance.ts: monthFacts reads release reads (no Facts area) and the
-    // fleet's forks and release repositories (the fleet area), nothing else.
+  it("binds every release line to its release reads and the fleet, never another area", () => {
     const lines = projectWatch(fixtureInput()).releases.lines;
     expect(lines.length).toBeGreaterThan(1);
     const others = AREAS.filter((area) => area !== "fleet");
@@ -675,9 +780,11 @@ describe("area envelopes and provenance", () => {
       expect(inferredAt(projectWatch(onlyInferred(others)), pointer), pointer).toBe(false);
     }
     const { provenance } = projectWatch(fixtureInput());
-    expect(provenance.filter(({ path }) => path.startsWith("/releases"))).toEqual(
-      lines.map((_, i) => ({ path: `/releases/lines/${i}`, areas: ["fleet"] })),
-    );
+    expect(
+      provenance
+        .filter(({ path }) => path.startsWith("/releases"))
+        .map(({ path, areas }) => ({ path, areas })),
+    ).toEqual(lines.map((_, i) => ({ path: `/releases/lines/${i}`, areas: ["fleet"] })));
   });
 
   it("covers every rendered briefing, station and release value with provenance at it or an ancestor", () => {

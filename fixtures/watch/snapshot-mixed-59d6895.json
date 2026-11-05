@@ -2739,8 +2739,7 @@
       "observedAt": "2026-10-21T15:10:40.718Z",
       "completeness": {
         "kind": "complete"
-      },
-      "inferred": true
+      }
     }
   ],
   "areas": [
@@ -3505,27 +3504,81 @@
     },
     {
       "path": "/releases/lines/0",
-      "areas": ["fleet"]
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
     },
     {
       "path": "/releases/lines/1",
-      "areas": ["fleet"]
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
     },
     {
       "path": "/releases/lines/2",
-      "areas": ["fleet"]
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
     },
     {
       "path": "/releases/lines/3",
-      "areas": ["fleet"]
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
     },
     {
       "path": "/releases/lines/4",
-      "areas": ["fleet"]
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
     },
     {
       "path": "/releases/lines/5",
-      "areas": ["fleet"]
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
     }
   ],
   "selection": null

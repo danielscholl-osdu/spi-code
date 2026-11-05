@@ -100,5 +100,9 @@ export function mixedFixtureInput(): WatchInput {
       area === "lifecycle" ? records : records?.map(({ inferred: _inferred, ...record }) => record),
     ]),
   );
-  return { ...input, reads };
+  return {
+    ...input,
+    reads,
+    releaseRecords: input.releaseRecords.map(({ inferred: _inferred, ...record }) => record),
+  };
 }

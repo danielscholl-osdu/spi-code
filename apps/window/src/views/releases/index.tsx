@@ -5,6 +5,8 @@ import type { NotesState, ReleaseLine } from "@spi-code/contracts";
 import { useState } from "react";
 import { useStore } from "zustand";
 import { AreaEnvelopes, InferredMark } from "../../components/evidence/AreaEnvelopes.js";
+import { EnvelopeBadge, InferredMarker } from "../../components/evidence/EnvelopeBadge.js";
+import { type Evidence, isInferred } from "../../store/evidence.js";
 import { watchStore } from "../../store/watch.js";
 import "../repositories/panes.css";
 
@@ -31,6 +33,18 @@ function Notes({ line }: { line: ReleaseLine }) {
   );
 }
 
+function ReleaseEvidence({ evidence, pointer }: { evidence: Evidence; pointer: string }) {
+  const envelope = evidence.provenance.find(({ path }) => path === pointer)?.envelope;
+  if (!envelope) return <InferredMark evidence={evidence} pointer={pointer} />;
+  const { inferred, ...observed } = envelope;
+  return (
+    <>
+      {envelope.state !== "fresh" && <EnvelopeBadge envelope={observed} />}
+      {inferred === true && isInferred(evidence, pointer) && <InferredMarker />}
+    </>
+  );
+}
+
 export default function Releases() {
   const evidence = useStore(watchStore, (state) => state.snapshot?.body);
   const releases = evidence?.releases;
@@ -38,6 +52,7 @@ export default function Releases() {
   const selected = releases?.lines.some((line) => line.id === picked)
     ? picked
     : releases?.lines[0]?.id;
+  const envelope = evidence?.provenance.find(({ path }) => path === "/releases/lines/0")?.envelope;
   return (
     <>
       <h1>Releases</h1>
@@ -52,6 +67,11 @@ export default function Releases() {
               core-lib-azure and every service fork, with reviewed notes laid over it.
             </p>
             <AreaEnvelopes evidence={evidence} prefixes={["/releases/lines"]} />
+            {envelope && (
+              <span data-release-envelopes="">
+                releases <EnvelopeBadge envelope={envelope} />
+              </span>
+            )}
             <div className="pane-split">
               <div className="release-list">
                 {releases.lines.map((line, index) => (
@@ -66,7 +86,7 @@ export default function Releases() {
                   >
                     <span>
                       <strong>SPI {line.name}</strong> <Notes line={line} />
-                      <InferredMark evidence={evidence} pointer={`/releases/lines/${index}`} />
+                      <ReleaseEvidence evidence={evidence} pointer={`/releases/lines/${index}`} />
                       <span className="release-summary">{line.headline}</span>
                     </span>
                     <span data-muted>{line.open ? "in progress" : "closed"}</span>
@@ -86,7 +106,7 @@ export default function Releases() {
                     </p>
                     <h3>
                       SPI {line.name}
-                      <InferredMark evidence={evidence} pointer={`/releases/lines/${index}`} />
+                      <ReleaseEvidence evidence={evidence} pointer={`/releases/lines/${index}`} />
                     </h3>
                     <p>{line.headline}</p>
                     <div className="pane-facts">

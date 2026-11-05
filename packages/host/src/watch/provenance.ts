@@ -1,12 +1,13 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { AreaEnvelope, ValueSource } from "@spi-code/contracts";
+import type { AreaEnvelope, Envelope, ValueSource } from "@spi-code/contracts";
 import {
   AREAS,
   type AreaName,
   type Briefing,
   envelopeOf,
+  RELEASES_EVERY_MS,
   type ReadRecord,
   type StackModel,
 } from "@spi-code/core";
@@ -198,13 +199,31 @@ export function stationProvenance(
   );
 }
 
-/**
- * Release lines come from monthFacts over the release reader's own reads, which no Facts area
- * holds, and the fleet's forks and release repositories, which decide a line's components. The
- * fleet is the only area that feeds a line; the release reads' state shows on the Releases dot.
- */
-export function releaseProvenance(lines: readonly unknown[]): ValueSource[] {
-  return lines.map((_, i) => ({ path: `/releases/lines/${i}`, areas: ["fleet"] }));
+/** monthFacts reads the release ledger and the fleet's component list, not other Facts areas. */
+export function releaseProvenance(
+  lines: readonly unknown[],
+  records: readonly ReadRecord[],
+  now: Date,
+): ValueSource[] {
+  const envelope = readEnvelope("releases", records, RELEASES_EVERY_MS, now);
+  return lines.map((_, i) => ({ path: `/releases/lines/${i}`, areas: ["fleet"], envelope }));
+}
+
+function readEnvelope(
+  source: string,
+  records: readonly ReadRecord[],
+  intervalMs: number,
+  now: Date,
+): Envelope {
+  const envelope = envelopeOf(records, { intervalMs, now: now.getTime() });
+  if (envelope.state === "unread") return { source, state: "unread" };
+  return {
+    source,
+    state: envelope.state,
+    ...(envelope.observedAt === undefined ? {} : { observedAt: envelope.observedAt }),
+    completeness: envelope.completeness,
+    inferred: envelope.inferred,
+  };
 }
 
 /** One envelope per area, each judged against its own sweep interval; no area is omitted. */
@@ -213,21 +232,8 @@ export function areaEnvelopes(
   intervalOf: (area: AreaName) => number,
   now: Date,
 ): AreaEnvelope[] {
-  return AREAS.map((area) => {
-    const envelope = envelopeOf(reads[area] ?? [], {
-      intervalMs: intervalOf(area),
-      now: now.getTime(),
-    });
-    if (envelope.state === "unread") return { area, envelope: { source: area, state: "unread" } };
-    return {
-      area,
-      envelope: {
-        source: area,
-        state: envelope.state,
-        ...(envelope.observedAt === undefined ? {} : { observedAt: envelope.observedAt }),
-        completeness: envelope.completeness,
-        inferred: envelope.inferred,
-      },
-    };
-  });
+  return AREAS.map((area) => ({
+    area,
+    envelope: readEnvelope(area, reads[area] ?? [], intervalOf(area), now),
+  }));
 }
