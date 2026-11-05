@@ -26,11 +26,13 @@ per-poll clock observations. All tests are in the core Vitest project.
 - `DetailCache` is a plain `repo#job` record of `{data, reads}`. Pass it into
   `readJob`, `readRunJobs`, `readLifecycle` or `pollRun`; retain the returned
   `cache`. Load validation drops bad entries individually with persistence
-  failure evidence. Only completely read, completed jobs are cached.
+  failure evidence. Completed jobs are cached when reads succeeded; a deliberate
+  job-log character cut is final and stays in the cached evidence.
 - `LifecycleState` contains attempt-keyed `runJobs`, commit-keyed declaration
   `files`, and the last lifecycle result per workflow. Pass it into
   `readLifecycle` and persist its returned `state`. It is cloned and validated
-  on load. Invalid state is discarded with failure evidence.
+  on load. Undefined/null state starts empty; malformed state is discarded with
+  failure evidence.
 - Collector results contain `{data, reads, cache}`; `readLifecycle` also returns
   `state`. `pollRun` takes a previous `{data, reads}` and the injected
   `CoreContext`, so a failed poll retains both the run and its original
@@ -47,5 +49,34 @@ per-poll clock observations. All tests are in the core Vitest project.
   a cut record with actual/read character counts, never complete evidence.
   Test fakes emit log text raw, matching real gh output.
 - Active run jobs are also kept for failure retention, but only completed,
-  fully read, timed jobs settle a run's attempt cache. A new attempt cannot
-  inherit jobs from a failed read of the previous attempt.
+  timed jobs fetched against the same completed run status and updatedAt settle
+  a run's attempt cache. Legacy snapshots without that metadata are refreshed.
+  Other cuts and failures prevent settlement; a deliberate job-log character
+  cut does not. A new attempt cannot inherit jobs from a failed read of the
+  previous attempt.
+
+## Council fixes against the pinned rib
+
+All five findings are port regressions, not inherited bugs:
+
+1. The rib saves `runJobs` only when the run is completed. This port also keeps
+   active snapshots for retention, so it now records the run status/updatedAt
+   associated with a successful jobs snapshot before allowing it to settle.
+   Regression: "active snapshot with %i jobs is fetched again after completion"
+   covers empty and non-empty active lists.
+2. The rib carries a target across polls but has no ReadRecord envelope. Losing
+   its declaration evidence was introduced here. Successful polls now retain
+   only the declaration records supporting that target, without carrying old
+   run/job/workflow records. Regression: "successful polls retain target
+   declaration evidence but not superseded run and job reads".
+3. The rib caches completed job details and has no log character cap. Treating
+   a final size cut as a reason to fetch the full log forever was introduced
+   here. Regression: "completed runs settle with cached size-cut log evidence
+   while other cuts and failures retry"; the Java Build case also verifies JSON
+   round-trip with the cut record intact.
+4. The rib calls `cache.put(repo, kept)` on a job cache hit. Restore that write
+   here. Regression: "readJob sees refreshed steps written back by a run-jobs
+   cache hit".
+5. The rib takes an initialized state and has no persistence-validation failure
+   for cold starts. Regression: "cold lifecycle state %s starts empty without a
+   persistence failure" covers undefined/null and still checks malformed state.

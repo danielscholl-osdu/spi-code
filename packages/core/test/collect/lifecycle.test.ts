@@ -11,7 +11,7 @@ import {
   readLifecycle,
   readRunJobs,
 } from "../../src/collect/lifecycle.js";
-import { STACK_REPO as STACK } from "../../src/config.js";
+import { DECLARATION_PATH, STACK_REPO as STACK } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
 import { RecordingExec, ReplayExec } from "../../src/exec/recording.js";
 import type { LifecycleRun } from "../../src/facts.js";
@@ -209,7 +209,7 @@ test("DetailCache round-trips JSON, never caches active jobs, and rejects corrup
   });
 });
 
-test("Java Build prefers raw log text, records its size cut, and retries incomplete explanations", async () => {
+test("Java Build caches a final size-cut log and retries failed explanations", async () => {
   const fixture: Fixture = (path) =>
     path.includes("/annotations")
       ? [{ level: "failure", message: "annotation reason" }]
@@ -223,7 +223,16 @@ test("Java Build prefers raw log text, records its size cut, and retries incompl
     read: JOB_LOG_LIMIT,
     total: JOB_LOG_LIMIT + 29,
   });
-  expect(result.cache).toEqual({});
+  expect(result.cache[`${STACK}#1`]?.reads).toEqual(result.reads);
+  const cached = await replay(
+    (gh) =>
+      readJob(gh, JSON.parse(JSON.stringify(result.cache)), STACK, 1, "Java Build", context()),
+    () => {
+      throw new Error("Final log should stay cached");
+    },
+  );
+  expect(cached.data).toEqual(result.data);
+  expect(cached.reads).toEqual(result.reads);
   const missing = await replay(
     (gh) => readJob(gh, {}, STACK, 1, "Java Build", context()),
     (path) => (path.endsWith("/logs") ? new Error("expired") : fixture(path)),
@@ -434,3 +443,201 @@ test("a missing declaration and unread job have failure evidence rather than suc
   );
   expect(target.state.files).toEqual({});
 });
+
+test.each([0, 1])(
+  "active snapshot with %i jobs is fetched again after completion",
+  async (count) => {
+    const first = await replay(
+      (gh) => readLifecycle(gh, {}, empty(), context()),
+      (path) => {
+        if (path.includes("/workflows/env-upgrade"))
+          return {
+            total: 1,
+            runs: [{ ...rawRun(), status: "in_progress", conclusion: null }],
+          };
+        if (path.includes("/jobs?"))
+          return {
+            total: count,
+            jobs: Array.from({ length: count }, (_, i) => rawJob(i + 1)),
+          };
+        return lifecycle()(path);
+      },
+    );
+    const completed: Fixture = (path) =>
+      path.includes("/jobs?")
+        ? {
+            total: count + 1,
+            jobs: Array.from({ length: count + 1 }, (_, i) => rawJob(i + 1)),
+          }
+        : lifecycle()(path);
+    const second = await replay(
+      (gh) => readLifecycle(gh, first.cache, JSON.parse(JSON.stringify(first.state)), context()),
+      completed,
+    );
+    expect(second.data.upgrade[0]?.jobs).toHaveLength(count + 1);
+    const settled = await replay(
+      (gh) => readLifecycle(gh, second.cache, second.state, context()),
+      (path) => {
+        if (path.includes("/jobs?")) throw new Error("Completed snapshot should settle");
+        return completed(path);
+      },
+    );
+    expect(settled.data).toEqual(second.data);
+    expect(settled.reads.every((r) => !r.failure)).toBe(true);
+  },
+);
+
+test("successful polls retain target declaration evidence but not superseded run and job reads", async () => {
+  const declaration = `repos/${STACK}/contents/${DECLARATION_PATH}?ref=abc`;
+  const first = await replay(
+    (gh) => readLifecycle(gh, {}, empty(), context()),
+    (path) =>
+      path === declaration
+        ? { text: "stackVersion: v0.36.0\n" }
+        : path.includes("/workflows/env-upgrade")
+          ? {
+              total: 1,
+              runs: [{ ...rawRun(), display_title: "manual", status: "in_progress" }],
+            }
+          : lifecycle()(path),
+  );
+  const data = first.data.upgrade[0];
+  if (!data) throw new Error("Expected upgrade fixture");
+  const supporting = first.reads.filter((r) => r.object === declaration);
+  const support = supporting[0];
+  if (!support) throw new Error("Expected declaration evidence");
+  const next = new Date(NOW.getTime() + 15_000);
+  const polled = await replay(
+    (gh) =>
+      pollRun(
+        gh,
+        {},
+        {
+          data,
+          reads: [...first.reads, { ...support, object: `${declaration}-other` }],
+        },
+        context(next),
+      ),
+    (path) =>
+      path.includes("/jobs?")
+        ? { total: 1, jobs: [rawJob()] }
+        : { ...rawRun(), display_title: "manual" },
+  );
+  expect(polled.data.target).toBe("v0.36.0");
+  expect(polled.reads.filter((r) => r.object.includes("/contents/"))).toEqual(supporting);
+  expect(
+    polled.reads
+      .filter((r) => !r.object.includes("/contents/"))
+      .every((r) => r.observedAt === next.toISOString()),
+  ).toBe(true);
+  expect(polled.reads.some((r) => r.object.includes("/workflows/"))).toBe(false);
+  const again = await replay(
+    (gh) => pollRun(gh, {}, polled, context(next)),
+    (path) =>
+      path.includes("/jobs?")
+        ? { total: 1, jobs: [rawJob()] }
+        : { ...rawRun(), display_title: "manual" },
+  );
+  expect(again.reads.filter((r) => r.object === declaration)).toEqual(supporting);
+});
+
+test("completed runs settle with cached size-cut log evidence while other cuts and failures retry", async () => {
+  const seed = await replay(
+    (gh) => readJob(gh, {}, STACK, 1, "Java Build", context()),
+    (path) =>
+      path.endsWith("/logs")
+        ? `${"x".repeat(JOB_LOG_LIMIT)}\n[ERROR] build failed\n`
+        : path.includes("/annotations")
+          ? []
+          : { ...rawJob(), conclusion: "failure" },
+  );
+  expect(seed.cache[`${STACK}#1`]).toBeDefined();
+  const fixture: Fixture = (path) =>
+    path.includes("/annotations")
+      ? [{ level: "failure", message: "retry explanation" }]
+      : path.includes("/jobs?")
+        ? { total: 1, jobs: [{ ...rawJob(), conclusion: "failure" }] }
+        : lifecycle()(path);
+  const first = await replay((gh) => readLifecycle(gh, seed.cache, empty(), context()), fixture);
+  const second = await replay(
+    (gh) =>
+      readLifecycle(
+        gh,
+        JSON.parse(JSON.stringify(first.cache)),
+        JSON.parse(JSON.stringify(first.state)),
+        context(),
+      ),
+    (path) => {
+      if (!path.includes("/workflows/")) throw new Error("Size-cut log must not be fetched again");
+      return fixture(path);
+    },
+  );
+  expect(second.data).toEqual(first.data);
+  expect(second.reads.some((r) => r.failure)).toBe(false);
+  expect(second.reads.find((r) => r.object.endsWith("/logs"))).toMatchObject({
+    completeness: { kind: "cut", read: JOB_LOG_LIMIT },
+  });
+  for (const change of ["failure", "other-cut"]) {
+    const state = JSON.parse(JSON.stringify(first.state));
+    const cache = JSON.parse(JSON.stringify(first.cache));
+    for (const reads of [state.runJobs["7#1"].reads, cache[`${STACK}#1`].reads]) {
+      const log = reads.find((r: { object: string }) => r.object.endsWith("/logs"));
+      if (change === "failure") log.failure = "expired";
+      else log.completeness.reason = "Run jobs page limit or short read";
+    }
+    let reread = false;
+    await replay(
+      (gh) => readLifecycle(gh, cache, state, context()),
+      (path) => {
+        if (path.includes("/jobs?")) reread = true;
+        return fixture(path);
+      },
+    );
+    expect(reread).toBe(true);
+  }
+});
+
+test("readJob sees refreshed steps written back by a run-jobs cache hit", async () => {
+  const first = await replay(
+    (gh) => readJob(gh, {}, STACK, 1, "build", context()),
+    () => rawJob(),
+  );
+  const job = rawJob();
+  const step = job.steps[0];
+  if (!step) throw new Error("Expected step fixture");
+  const fresh = {
+    ...job,
+    steps: [{ ...step, name: "Refreshed step", completed_at: "2026-11-03T13:14:00Z" }],
+  };
+  const refreshed = await replay(
+    (gh) => readRunJobs(gh, first.cache, STACK, run, context()),
+    () => ({ total: 1, jobs: [fresh] }),
+  );
+  const single = await replay(
+    (gh) => readJob(gh, refreshed.cache, STACK, 1, "build", context()),
+    () => {
+      throw new Error("Expected refreshed cache hit");
+    },
+  );
+  expect(single.data?.steps).toEqual(refreshed.data?.[0]?.steps);
+  expect(single.data?.steps[0]?.name).toBe("Refreshed step");
+  expect(single.data?.steps[0]?.completedAt).toBe("2026-11-03T13:14:00Z");
+  expect(first.data?.steps[0]?.name).toBe("Set maintenance");
+});
+
+test.each([undefined, null])(
+  "cold lifecycle state %s starts empty without a persistence failure",
+  async (previous) => {
+    const result = await replay((gh) => readLifecycle(gh, {}, previous, context()), lifecycle());
+    expect(result.data.upgrade).toHaveLength(1);
+    expect(result.reads.some((r) => r.source === "persist")).toBe(false);
+    const malformed = await replay(
+      (gh) => readLifecycle(gh, {}, { runJobs: "bad" }, context()),
+      lifecycle(),
+    );
+    expect(malformed.reads.find((r) => r.source === "persist")).toMatchObject({
+      object: "lifecycle-cache",
+      failure: "Dropped invalid lifecycle cache",
+    });
+  },
+);

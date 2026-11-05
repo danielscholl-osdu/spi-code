@@ -22,7 +22,9 @@ export interface LifecycleRead<T> {
 export type DetailCache = Record<string, LifecycleRead<JobDetail>>;
 type LifecycleData = Record<LifecycleKind, LifecycleRun[]>;
 export interface LifecycleState {
-  runJobs: Record<string, LifecycleRead<JobDetail[]>>;
+  runJobs: Record<string, LifecycleRead<JobDetail[]> & {
+    run?: Pick<RunFact, "status" | "updatedAt">;
+  }>;
   files: Record<string, LifecycleRead<string>>;
   lifecycle?: Partial<Record<LifecycleKind, LifecycleRead<LifecycleRun[]>>>;
 }
@@ -58,7 +60,9 @@ const runSchema = z.strictObject({
 const saved = <T extends z.ZodType>(schema: T) =>
   z.strictObject({ data: schema, reads: z.array(recordSchema).min(1) });
 const stateSchema = z.strictObject({
-  runJobs: z.record(z.string(), saved(z.array(jobSchema))),
+  runJobs: z.record(z.string(), saved(z.array(jobSchema)).extend({
+    run: z.strictObject({ status: z.string(), updatedAt: time }).optional(),
+  })),
   files: z.record(z.string(), saved(z.string())),
   lifecycle: z.strictObject({
     refresh: saved(z.array(runSchema)).optional(), upgrade: saved(z.array(runSchema)).optional(),
@@ -69,8 +73,10 @@ const stateSchema = z.strictObject({
 function record(ctx: CoreContext, source: string, object: string): ReadRecord {
   return { source, object, observedAt: ctx.clock.now().toISOString(), completeness: { kind: "complete" } };
 }
+const JOB_LOG_CUT = "Job log character limit";
 const good = (reads: readonly ReadRecord[]) =>
-  reads.every((r) => r.failure === undefined && r.completeness.kind === "complete");
+  reads.every((r) => r.failure === undefined &&
+    (r.completeness.kind === "complete" || r.completeness.reason === JOB_LOG_CUT));
 
 export function loadDetailCache(state: unknown): { cache: DetailCache; dropped: string[] } {
   const cache: DetailCache = {};
@@ -164,7 +170,7 @@ async function explain(gh: Gh, repo: string, job: JobDetail, readLog: boolean, c
     if (text.length < log.length) {
       const read = reads.pop();
       if (read) reads.push({ ...read, completeness: {
-        kind: "cut", read: text.length, total: log.length, reason: "Job log character limit",
+        kind: "cut", read: text.length, total: log.length, reason: JOB_LOG_CUT,
       } });
     }
     job.reason = reasonFromLog(text) ?? job.reason;
@@ -228,6 +234,7 @@ export async function readRunJobs(
     if (known && known.data.status === job.status && known.data.conclusion === job.conclusion &&
         known.data.attempt === job.attempt && timed(known.data)) {
       const kept = { ...known.data, ...job, reason: known.data.reason, environment: known.data.environment };
+      put(cache, repo, kept, known.reads);
       return { data: kept, reads: known.reads };
     }
     const explanation = await explain(gh, repo, job, false, ctx);
@@ -239,6 +246,10 @@ export async function readRunJobs(
   return { data, cache, reads };
 }
 
+function declarationPath(sha: string): string {
+  return `repos/${STACK_REPO}/contents/${DECLARATION_PATH}?ref=${encodeURIComponent(sha)}`;
+}
+
 async function targetOf(
   gh: Gh, run: RunFact, files: LifecycleState["files"], reads: ReadRecord[], ctx: CoreContext,
 ): Promise<string | undefined> {
@@ -246,7 +257,7 @@ async function targetOf(
   if (title) return title;
   const known = files[run.sha];
   if (known) { reads.push(...known.reads); return known.data; }
-  const path = `repos/${STACK_REPO}/contents/${DECLARATION_PATH}?ref=${encodeURIComponent(run.sha)}`;
+  const path = declarationPath(run.sha);
   const evidence: ReadRecord[] = [];
   const file = await observe(ctx, evidence, path, () => gh.rest<{ text: string }>(path, "{text: (.content | @base64d)}"));
   const version = file && parseDeclaration(file.text)?.stackVersion;
@@ -260,7 +271,7 @@ async function targetOf(
 }
 
 export async function readLifecycle(gh: Gh, detailState: unknown, previous: unknown, ctx: CoreContext) {
-  const loaded = stateSchema.safeParse(previous);
+  const loaded = stateSchema.safeParse(previous ?? { runJobs: {}, files: {} });
   const state: LifecycleState = loaded.success ? loaded.data : { runJobs: {}, files: {} };
   const detail = details(detailState, ctx);
   const reads = detail.reads;
@@ -300,6 +311,7 @@ export async function readLifecycle(gh: Gh, detailState: unknown, previous: unkn
         if (kind !== "refresh" && kind !== "upgrade") return { entry, reads: runReads };
         const known = state.runJobs[jobsKey(run)];
         const settled = run.status === "completed" && known &&
+          known.run?.status === "completed" && known.run.updatedAt === run.updatedAt &&
           good(known.reads) && known.data.every((j) => j.status === "completed" && timed(j));
         if (settled) { entry.jobs = known.data; runReads.push(...known.reads); }
         else {
@@ -307,7 +319,10 @@ export async function readLifecycle(gh: Gh, detailState: unknown, previous: unkn
           Object.assign(detail.cache, jobs.cache);
           runReads.push(...jobs.reads);
           entry.jobs = jobs.data;
-          if (jobs.data) state.runJobs[jobsKey(run)] = { data: jobs.data, reads: jobs.reads };
+          if (jobs.data) state.runJobs[jobsKey(run)] = {
+            data: jobs.data, reads: jobs.reads,
+            run: good(jobs.reads) ? { status: run.status, updatedAt: run.updatedAt } : known?.run,
+          };
         }
         entry.target = await targetOf(gh, run, state.files, runReads, ctx);
         return { entry, reads: runReads };
@@ -340,5 +355,7 @@ export async function pollRun(
         r.object.includes("/jobs?") || r.object.includes("/check-runs/") || r.object.endsWith("/logs")),
     } : undefined);
   const data = { ...previous.data, ...fresh, jobs: jobs.data };
-  return { data, cache: jobs.cache, reads: [...reads, ...jobs.reads] };
+  const targetReads = previous.data.target === undefined ? [] : previous.reads.filter((r) =>
+    r.source === "github" && r.object === declarationPath(previous.data.sha));
+  return { data, cache: jobs.cache, reads: [...reads, ...jobs.reads, ...targetReads] };
 }
