@@ -74,7 +74,8 @@ function record(ctx: CoreContext, source: string, object: string): ReadRecord {
   return { source, object, observedAt: ctx.clock.now().toISOString(), completeness: { kind: "complete" } };
 }
 const JOB_LOG_CUT = "Job log character limit";
-const good = (reads: readonly ReadRecord[]) =>
+/** Failure-free reads that are complete, or cut only because a job log hit its limit: settled for reuse. */
+export const settledJobReads = (reads: readonly ReadRecord[]) =>
   reads.every((r) => r.failure === undefined &&
     (r.completeness.kind === "complete" || r.completeness.reason === JOB_LOG_CUT));
 
@@ -86,7 +87,7 @@ export function loadDetailCache(state: unknown): { cache: DetailCache; dropped: 
   for (const [key, value] of Object.entries(parsed.data)) {
     const entry = saved(jobSchema).safeParse(value);
     if (entry.success && entry.data.data.status === "completed" &&
-        key.endsWith(`#${entry.data.data.id}`) && good(entry.data.reads)) cache[key] = entry.data;
+        key.endsWith(`#${entry.data.data.id}`) && settledJobReads(entry.data.reads)) cache[key] = entry.data;
     else dropped.push(key);
   }
   return { cache, dropped };
@@ -179,7 +180,7 @@ async function explain(gh: Gh, repo: string, job: JobDetail, readLog: boolean, c
 }
 
 function put(cache: DetailCache, repo: string, data: JobDetail, reads: ReadRecord[]) {
-  if (data.status === "completed" && good(reads)) cache[`${repo}#${data.id}`] = { data, reads };
+  if (data.status === "completed" && settledJobReads(reads)) cache[`${repo}#${data.id}`] = { data, reads };
 }
 export async function readJob(
   gh: Gh, state: unknown, repo: string, id: number, name: string, ctx: CoreContext,
@@ -316,7 +317,7 @@ export async function readLifecycle(gh: Gh, detailState: unknown, previous: unkn
         const known = state.runJobs[jobsKey(run)];
         const settled = run.status === "completed" && known &&
           known.run?.status === "completed" && known.run.updatedAt === run.updatedAt &&
-          good(known.reads) && known.data.every((j) => j.status === "completed" && timed(j));
+          settledJobReads(known.reads) && known.data.every((j) => j.status === "completed" && timed(j));
         if (settled) { entry.jobs = known.data; runReads.push(...known.reads); }
         else {
           const jobs = await readRunJobs(gh, detail.cache, STACK_REPO, run, ctx, known);
@@ -325,7 +326,7 @@ export async function readLifecycle(gh: Gh, detailState: unknown, previous: unkn
           entry.jobs = jobs.data;
           if (jobs.data) state.runJobs[jobsKey(run)] = {
             data: jobs.data, reads: jobs.reads,
-            run: good(jobs.reads) ? { status: run.status, updatedAt: run.updatedAt } : known?.run,
+            run: settledJobReads(jobs.reads) ? { status: run.status, updatedAt: run.updatedAt } : known?.run,
           };
         }
         entry.target = await targetOf(gh, run, state.files, runReads, ctx);

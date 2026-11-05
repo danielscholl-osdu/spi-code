@@ -5,7 +5,7 @@ import type { z } from "zod";
 import { type FleetFileReader, type FleetFiles, type FleetView, fleetView, readFleet } from "../collect/fleet.js";
 import { parseGithub } from "../collect/github-parse.js";
 import { readGithub } from "../collect/github-read.js";
-import { jobsKey, readJob, readLifecycle, readRunJobs } from "../collect/lifecycle.js";
+import { jobsKey, settledJobReads, readJob, readLifecycle, readRunJobs } from "../collect/lifecycle.js";
 import { readRadar } from "../collect/radar.js";
 import { ReleaseReader } from "../collect/releases.js";
 import { readApprovals, readForkRuns } from "../collect/runs.js";
@@ -135,7 +135,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
       const readJobs = async (run: typeof entry.main[number]) => {
         const key = jobsKey(run);
         const known = cache.lifecycle.runJobs[key];
-        if (known?.reads.every((r) => !r.failure && r.completeness.kind === "complete")) {
+        if (known && settledJobReads(known.reads)) {
           result.reads.push(...known.reads);
           return known.data;
         }

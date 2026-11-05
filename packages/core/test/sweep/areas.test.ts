@@ -385,6 +385,51 @@ test("cut run-job listings are retried until the Java Build is observed", async 
   expect(calls).toBe(settled);
 });
 
+test("a run whose only cut is an over-limit job log settles and is not re-listed", async () => {
+  const h = harness();
+  let listings = 0;
+  h.setRoute((_cmd, args) => {
+    const path = args[1] ?? "";
+    if (path.includes("/attempts/1/jobs?")) {
+      listings++;
+      return {
+        stdout: JSON.stringify({
+          total: 1,
+          jobs: [
+            {
+              id: 9,
+              name: "Java Build",
+              status: "completed",
+              conclusion: "failure",
+              started_at: START,
+              completed_at: START,
+              html_url: "u",
+              steps: [],
+              run_attempt: 1,
+            },
+          ],
+        }),
+        stderr: "",
+        exit: 0,
+      };
+    }
+    const all = args.join(" ");
+    if (all.includes("/check-runs/9/annotations")) return { stdout: "", stderr: "", exit: 0 };
+    if (all.includes("/jobs/9/logs")) return { stdout: "x".repeat(70_000), stderr: "", exit: 0 };
+  });
+  const sweeper = createSweeper(h.options);
+  await sweeper.sweep();
+  expect(
+    sweeper.cache.lifecycle.runJobs["5#1"]?.reads.some(
+      (r) => r.completeness.kind === "cut" && r.completeness.reason === "Job log character limit",
+    ),
+  ).toBe(true);
+  const settled = listings;
+  await sweeper.sweep();
+  await sweeper.sweep();
+  expect(listings).toBe(settled);
+});
+
 test("partial upstream failures retain queued commits and retry the failed fork before cadence", async () => {
   const h = harness();
   let failedProject: string | undefined;
