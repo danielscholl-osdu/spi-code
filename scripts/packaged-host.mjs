@@ -17,7 +17,7 @@ if (process.argv.includes("--stub-model") && process.argv[3] === "write") {
   const client = new CopilotClient(
     buildClientOptions({
       appDataDir: dirname(storePath),
-      capturedPath: "/usr/bin:/bin",
+      capturedPath: process.env.PATH || (process.platform === "win32" ? "" : "/usr/bin:/bin"),
       cliPath: runtimePath,
     }),
   );
