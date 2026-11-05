@@ -14,6 +14,7 @@ import {
 export const PROTOCOL_VERSION = 2;
 export const SweepStatusSchema = z.strictObject({
   remaining: z.int().nonnegative().nullable(),
+  floor: z.int().nonnegative().optional(),
   resetAt: ObservedAtSchema.nullable(),
   deferredAreas: z.array(z.strictObject({ area: IdentifierSchema, reason: IdentifierSchema })),
 });

@@ -5,6 +5,7 @@ import {
   type Message,
   PROTOCOL_VERSION,
   parseMessage,
+  type SetupSigninProgress,
   type SetupState,
   type SweepStatus,
 } from "@spi-code/contracts";
@@ -15,6 +16,11 @@ type WatchState = {
   snapshot: Snapshot | null;
   sweep: SweepStatus | null;
   setup: SetupState | null;
+  signin: Partial<Record<SetupSigninProgress["tool"], SetupSigninProgress>>;
+  requestSetup(
+    type: "setup.install" | "setup.signin",
+    tool: SetupState["tools"][number]["tool"],
+  ): void;
   receive(input: unknown): void;
 };
 
@@ -27,6 +33,18 @@ export function createWatchStore(send: (message: Message) => void) {
     snapshot: null,
     sweep: null,
     setup: null,
+    signin: {},
+    requestSetup(type, tool) {
+      const parsed = parseMessage({
+        version: PROTOCOL_VERSION,
+        id: crypto.randomUUID(),
+        kind: "request",
+        type,
+        payload: { tool },
+      });
+      if (!parsed.ok) throw new Error("Invalid setup request");
+      send(parsed.message);
+    },
     receive(input) {
       // BRIEFSCHEMA will replace this minimal boundary with the snapshot contract.
       if (isRecord(input) && input.type === "view.snapshot") {
@@ -53,6 +71,13 @@ export function createWatchStore(send: (message: Message) => void) {
       const message = parsed.message;
       if (message.type === "sweep.status") set({ sweep: message.payload });
       if (message.type === "setup.state") set({ setup: message.payload });
+      if (message.type === "setup.signin.progress") {
+        const progress = message.payload;
+        const previous = get().signin[progress.tool];
+        if (progress.state !== "waiting" || previous?.state !== "device-code") {
+          set({ signin: { ...get().signin, [progress.tool]: progress } });
+        }
+      }
       if (message.type === "host.hello") {
         const outgoing = parseMessage({
           version: PROTOCOL_VERSION,
@@ -67,3 +92,5 @@ export function createWatchStore(send: (message: Message) => void) {
     },
   }));
 }
+
+export const watchStore = createWatchStore((message) => window.spi.postMessage(message));

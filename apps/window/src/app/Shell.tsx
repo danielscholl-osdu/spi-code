@@ -3,14 +3,15 @@
 
 import { type ReactNode, useEffect, useState } from "react";
 import { ProgramTree } from "../components/tree/ProgramTree.js";
-import { createWatchStore } from "../store/watch.js";
+import { watchStore } from "../store/watch.js";
 import { createAppearance } from "./appearance.js";
-import { routes } from "./routes.js";
+import { routes, useSetupLanding } from "./routes.js";
 
-export const watchStore = createWatchStore((message) => window.spi.postMessage(message));
+export { watchStore };
 
 export function Shell({ children }: { children?: ReactNode }) {
   const [route, setRoute] = useState<(typeof routes)[number]>(routes[0]);
+  useSetupLanding(setRoute);
   const [appearance, setAppearance] = useState<ReturnType<typeof createAppearance>>();
   const [error, setError] = useState("");
   useEffect(() => {
