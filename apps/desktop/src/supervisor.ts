@@ -42,8 +42,8 @@ interface HostWindow<Port> {
   webContents: {
     isLoadingMainFrame(): boolean;
     postMessage(channel: string, message: null, ports: Port[]): void;
-    on(event: "did-finish-load", listener: () => void): unknown;
-    off(event: "did-finish-load", listener: () => void): unknown;
+    on(event: "did-stop-loading", listener: () => void): unknown;
+    off(event: "did-stop-loading", listener: () => void): unknown;
   };
 }
 
@@ -82,7 +82,7 @@ export function hostPortCallbacks<Port extends ChannelPort>(
     window.webContents.postMessage("host:port", null, [port1]);
     if (failure) port2.postMessage(failure);
   };
-  window.webContents.on("did-finish-load", connect);
+  window.webContents.on("did-stop-loading", connect);
   return {
     onSpawn(spawned: ConnectedHost<Port>) {
       host = spawned;
@@ -98,7 +98,7 @@ export function hostPortCallbacks<Port extends ChannelPort>(
       connect();
     },
     dispose() {
-      window.webContents.off("did-finish-load", connect);
+      window.webContents.off("did-stop-loading", connect);
       failurePort?.close();
     },
   };

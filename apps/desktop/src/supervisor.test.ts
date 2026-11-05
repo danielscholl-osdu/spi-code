@@ -137,6 +137,49 @@ it("transfers fresh peer ports to each respawned host and the window through the
   }
 });
 
+it("reconnects once after each reload when the main frame stops loading after did-finish-load", () => {
+  const { makeChannel, window, callbacks } = channels();
+  const host = new Host();
+  try {
+    callbacks.onSpawn(host);
+    for (const count of [2, 3]) {
+      window.webContents.isLoadingMainFrame.mockReturnValue(true);
+      window.webContents.emit("did-finish-load");
+      expect(makeChannel).toHaveBeenCalledTimes(count - 1);
+      window.webContents.isLoadingMainFrame.mockReturnValue(false);
+      window.webContents.emit("did-stop-loading");
+      expect(makeChannel).toHaveBeenCalledTimes(count);
+      const channel = makeChannel.mock.results[count - 1]?.value;
+      const previous = makeChannel.mock.results[count - 2]?.value;
+      expect(channel?.port1).not.toBe(previous?.port1);
+      expect(channel?.port2).not.toBe(previous?.port2);
+      expect(host.postMessage).toHaveBeenNthCalledWith(
+        count,
+        expect.objectContaining({ id: "connect", type: "ping" }),
+        [channel?.port2],
+      );
+      expect(window.webContents.postMessage).toHaveBeenNthCalledWith(count, "host:port", null, [
+        channel?.port1,
+      ]);
+    }
+    window.webContents.emit("did-finish-load");
+    expect(makeChannel).toHaveBeenCalledTimes(3);
+  } finally {
+    callbacks.dispose();
+  }
+});
+
+it("disposes the reload listener without reconnecting after either load event", () => {
+  const { makeChannel, window, callbacks } = channels();
+  callbacks.onSpawn(new Host());
+  callbacks.dispose();
+  expect(window.webContents.listenerCount("did-finish-load")).toBe(0);
+  expect(window.webContents.listenerCount("did-stop-loading")).toBe(0);
+  window.webContents.emit("did-finish-load");
+  window.webContents.emit("did-stop-loading");
+  expect(makeChannel).toHaveBeenCalledOnce();
+});
+
 it("retains give-up across an in-progress reload and replays it on later reloads", () => {
   const { makeChannel, window, callbacks } = channels();
   const message: Extract<Message, { type: "error" }> = {
@@ -150,8 +193,10 @@ it("retains give-up across an in-progress reload and replays it on later reloads
     window.webContents.isLoadingMainFrame.mockReturnValue(true);
     callbacks.onGiveUp(message);
     expect(makeChannel).not.toHaveBeenCalled();
-    window.webContents.isLoadingMainFrame.mockReturnValue(false);
     window.webContents.emit("did-finish-load");
+    expect(makeChannel).not.toHaveBeenCalled();
+    window.webContents.isLoadingMainFrame.mockReturnValue(false);
+    window.webContents.emit("did-stop-loading");
     const first = makeChannel.mock.results[0]?.value;
     expect(window.webContents.postMessage).toHaveBeenCalledExactlyOnceWith("host:port", null, [
       first?.port1,
@@ -159,7 +204,11 @@ it("retains give-up across an in-progress reload and replays it on later reloads
     expect(first?.port2.start).toHaveBeenCalledOnce();
     expect(first?.port2.postMessage).toHaveBeenCalledExactlyOnceWith(message);
     expect(parseMessage(first?.port2.postMessage.mock.calls[0]?.[0]).ok).toBe(true);
+    window.webContents.isLoadingMainFrame.mockReturnValue(true);
     window.webContents.emit("did-finish-load");
+    expect(makeChannel).toHaveBeenCalledOnce();
+    window.webContents.isLoadingMainFrame.mockReturnValue(false);
+    window.webContents.emit("did-stop-loading");
     const second = makeChannel.mock.results[1]?.value;
     expect(second?.port1).not.toBe(first?.port1);
     expect(first?.port2.close).toHaveBeenCalledOnce();
