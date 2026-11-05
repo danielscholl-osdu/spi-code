@@ -50,3 +50,5 @@ gate on `macos-latest` arm64 and `windows-latest` x64 for `main`, `bead/**`,
 and manual dispatches. Artifacts and smoke/runtime reports are uploaded with
 the commit SHA. No credentials or live Copilot turn are required; macOS builds
 remain unsigned.
+Packaging still runs after a failed check to preserve diagnostics; that check
+continues to fail the job, so packaging success alone cannot pass the SDK gate.

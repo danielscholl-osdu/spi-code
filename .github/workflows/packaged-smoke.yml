@@ -43,12 +43,16 @@ jobs:
           node-version: "22.22.0"
           cache: pnpm
       - name: Install pinned dependencies
+        id: install
         run: pnpm install --frozen-lockfile
       - name: Check (pnpm check, shifted clock and licenses)
         run: bash scripts/check
       - name: Build unsigned artifacts and smoke the extracted ZIP
+        id: package
+        if: ${{ !cancelled() && steps.install.conclusion == 'success' }}
         run: pnpm run package:${{ matrix.package }}
       - name: Upload packages
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: spi-code-${{ matrix.package }}-${{ matrix.arch }}-${{ github.sha }}

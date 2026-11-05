@@ -15,7 +15,7 @@ import {
   symlink,
   writeFile,
 } from "node:fs/promises";
-import { dirname, join, relative, resolve, win32 } from "node:path";
+import { dirname, join, posix, relative, resolve, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 import { generateNotices } from "./third-party-notices.mjs";
 
@@ -60,7 +60,7 @@ export function assertRuntimeEvidence(
     "Unsupported packaged runtime platform",
   );
   const target = `${platform}-${arch}`;
-  const expected = (platform === "win32" ? win32.join : join)(
+  const expected = (platform === "win32" ? win32.join : posix.join)(
     resources,
     "app.asar.unpacked",
     "node_modules",
