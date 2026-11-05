@@ -38,12 +38,20 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
       cwd: core,
       timeout: 120_000,
     });
-    const filename = "spi-code-core-0.1.1.tgz";
+    const { version } = JSON.parse(await readFile(join(core, "package.json"), "utf8"));
+    const filename = `spi-code-core-${version}.tgz`;
     const tarball = join(release, filename);
-    const sha256 = createHash("sha256")
-      .update(await readFile(tarball))
-      .digest("hex");
+    const bytes = await readFile(tarball);
+    expect(bytes[9]).toBe(19);
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
     expect(packed.stdout).toContain(`${sha256}  ${tarball}`);
+    const vendored: Record<string, string> = JSON.parse(
+      await readFile(join(core, "pack-shas.json"), "utf8"),
+    );
+    const recorded = vendored[version];
+    if (recorded !== undefined && sha256 !== recorded) {
+      expect.fail(`core ${version} was vendored as ${recorded}; bump the version`);
+    }
     const { stdout: listing } = await exec("tar", ["-tzf", filename], { cwd: release });
     const entries = listing.trim().split("\n");
     expect(entries).toContain("package/dist/index.js");
@@ -56,7 +64,7 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
       cwd: release,
     });
     const pkg = JSON.parse(manifest);
-    expect(pkg.version).toBe("0.1.1");
+    expect(pkg.version).toBe(version);
     expect(pkg.dependencies).toEqual({ yaml: "2.9.1", zod: "4.6.7" });
     expect(pkg.exports["."]).toEqual({
       types: "./dist/index.d.ts",
@@ -93,7 +101,7 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
     const installed = JSON.parse(
       await readFile(join(temporary, "node_modules/@spi-code/core/package.json"), "utf8"),
     );
-    expect(installed.version).toBe("0.1.1");
+    expect(installed.version).toBe(version);
     await exec(
       process.execPath,
       [

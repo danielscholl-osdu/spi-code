@@ -59,6 +59,14 @@ try {
   });
   const tarball = `spi-code-core-${manifest.version}.tgz`;
   const packed = join(staging, tarball);
+  // zlib writes its build OS into gzip header byte 9 (19 on macOS, 10 on Windows, 3 on Linux).
+  // Pin the macOS value so every OS packs the bytes vendored shas were recorded from.
+  const gzip = readFileSync(packed);
+  if (gzip[0] !== 0x1f || gzip[1] !== 0x8b || (gzip[3] & 0x02) !== 0) {
+    throw new Error("Unexpected gzip header from pnpm pack");
+  }
+  gzip[9] = 19;
+  writeFileSync(packed, gzip);
   const entries = execFileSync("tar", ["-tzf", tarball], {
     cwd: staging,
     encoding: "utf8",

@@ -23,10 +23,13 @@ The additive `setup.signin` request accepts an
 optional `token` only for `glab` (8-4096 characters, no whitespace); setup state
 and progress messages remain strict and have no credential field.
 
-## Vendoring version 0.1.1
+## Vendoring version 0.1.2
 
 Each vendored tarball must carry a version not used before; never replace the
 contents of an already-vendored version.
+
+When a consumer vendors version X, add X's SHA-256 to `pack-shas.json` and bump
+this package to the next patch version.
 
 From the repository root, run:
 
@@ -35,7 +38,7 @@ pnpm --filter @spi-code/core run pack
 ```
 
 This builds core and runs `pnpm pack` on a temporary release staging directory.
-The result is `packages/core/release/spi-code-core-0.1.1.tgz`; the script prints its
+The result is `packages/core/release/spi-code-core-0.1.2.tgz`; the script prints its
 SHA-256. Vendor that tarball and pin it with a `file:` dependency in the consumer.
 `node scripts/pack.mjs <release-directory>` from this package accepts an alternate
 output directory.
@@ -55,4 +58,5 @@ direct `pnpm pack` in the workspace: the latter retains the workspace dependency
 `test/pack.test.ts` installs the tarball into an empty temporary npm project with
 its own cache, then imports `buildBriefing`. It runs with `scripts/check`. If the
 npm registry cannot be reached, it reports a skip for the install proof after
-checking the archive; run it again with registry access before release.
+checking the archive; run it again with registry access before release. It also fails
+when the current version is recorded in `pack-shas.json` and packs to other bytes.
