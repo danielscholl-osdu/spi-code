@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: MIT
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readGithub } from "./collect/github-read.js";
+import { fleetOf } from "./config.js";
+import { createContext } from "./context.js";
 import { type Exec, type ExecOutput, RecordingExec, ReplayExec } from "./exec/index.js";
 import {
   classifyGraphqlReply,
@@ -10,6 +13,7 @@ import {
   Gh,
   Glab,
   GraphqlBudget,
+  THROTTLE_WAIT_ALLOWANCE_MS,
   tokenScopes,
 } from "./forge.js";
 
@@ -442,4 +446,98 @@ describe("GraphQL reply classification", () => {
       expect((error as ForgeError).message).toContain("GitHub throttled the query");
     });
   });
+});
+
+describe("GraphQL throttle holds", () => {
+  const start = Date.parse("2026-11-05T07:00:00Z");
+  const limited = (seconds: number) =>
+    failed(
+      JSON.stringify({
+        message: `You have exceeded a secondary rate limit. Retry after ${seconds} seconds.`,
+      }),
+      "gh: HTTP 403\n",
+    );
+  // Timers faked: the budget sleeps on setTimeout and the clock reads the faked time.
+  const clock = { now: () => vi.getMockedSystemTime() ?? new Date(Number.NaN) };
+  const elapsed = () => clock.now().getTime() - start;
+  function timed(reply: (call: number) => ExecOutput) {
+    const calls: number[] = [];
+    const exec = new RecordingExec(
+      async () => {
+        calls.push(elapsed());
+        return reply(calls.length);
+      },
+      () => {},
+    );
+    const budget = new GraphqlBudget(
+      clock,
+      (ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
+    );
+    return { calls, exec, budget };
+  }
+  async function settle<T>(pending: Promise<T>): Promise<T> {
+    await vi.runAllTimersAsync();
+    return pending;
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(start);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("holds a sibling scope queued behind the throttled probe until the stated wait passes", async () => {
+    const { calls, exec, budget } = timed((call) =>
+      call === 1 ? limited(60) : output(body(1, 41)),
+    );
+    const first = new Gh(exec, undefined, budget.scope());
+    const sibling = new Gh(exec, undefined, budget.scope());
+    await settle(Promise.all([first.graphql(query), sibling.graphql("{viewer{id}}")]));
+    expect(calls).toEqual([0, 60_000, 60_000]);
+  });
+
+  it("keeps the not-before time of a wait too long to retry inline", async () => {
+    const { calls, exec, budget } = timed((call) =>
+      call === 1 ? limited(180) : output(body(1, 41)),
+    );
+    const error = await settle(
+      new Gh(exec, undefined, budget.scope()).graphql(query).catch((caught: unknown) => caught),
+    );
+    expect(error).toMatchObject({ kind: "throttle" });
+    const later = await settle(
+      new Gh(exec, undefined, budget.scope()).graphql(query).catch((caught: unknown) => caught),
+    );
+    expect(later).toMatchObject({ kind: "throttle" });
+    expect((later as ForgeError).message).toContain("until 2026-11-05T07:03:00.000Z");
+    expect(calls).toEqual([0]);
+    const patient = budget.scope();
+    patient.allowThrottleWait(200_000);
+    await settle(new Gh(exec, undefined, patient).graphql(query));
+    expect(calls).toEqual([0, 180_000]);
+  });
+
+  it.each([60, 120])(
+    "bounds a 13-fork collector under persistent %ss throttles by the sweep's allowance",
+    async (seconds) => {
+      const { calls, exec, budget } = timed(() => limited(seconds));
+      const ctx = createContext({
+        clock,
+        fleet: fleetOf(
+          Array.from({ length: 13 }, (_, i) => ({
+            id: `svc${i}`,
+            repo: `Azure/osdu-spi-svc${i}`,
+            upstream: `osdu/platform/svc${i}`,
+            seeded: "2026-08-04",
+          })),
+        ),
+      });
+      const result = await settle(readGithub(new Gh(exec, undefined, budget), ctx, (raw) => raw));
+      expect(elapsed()).toBeLessThanOrEqual(THROTTLE_WAIT_ALLOWANCE_MS);
+      expect(result.records.length).toBeGreaterThan(0);
+      expect(result.records.every((record) => record.failure?.includes("throttled"))).toBe(true);
+      expect(calls.length).toBeLessThanOrEqual(2);
+    },
+  );
 });

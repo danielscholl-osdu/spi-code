@@ -40,11 +40,17 @@ export interface GraphqlBudgetSnapshot {
 export type Sleep = (ms: number) => Promise<void>;
 const realSleep: Sleep = (ms) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/** How long one sweep may spend, in total, waiting out GitHub throttles: well under the
+ * five-minute sweep interval, so a throttled sweep ends before the next is due. */
+export const THROTTLE_WAIT_ALLOWANCE_MS = 90_000;
+
 export class GraphqlBudget {
   private queue: Promise<void> = Promise.resolve();
   private inFlight = 0;
   private probe: Promise<void> | null = null;
   private heldUntil = 0;
+  private heldFor = "";
+  private allowance = { ms: THROTTLE_WAIT_ALLOWANCE_MS };
   private state: GraphqlBudgetSnapshot = { remaining: null, resetAt: null, spent: 0, calls: 0 };
   private parent: GraphqlBudget | undefined;
 
@@ -68,21 +74,52 @@ export class GraphqlBudget {
   }
 
   /** Holds every later reservation, in every scope, until GitHub's stated wait has passed. */
-  hold(ms: number): void {
-    if (this.parent) this.parent.hold(ms);
-    else this.heldUntil = Math.max(this.heldUntil, this.clock.now().getTime() + ms);
+  hold(ms: number, reason: string): void {
+    if (this.parent) {
+      this.parent.hold(ms, reason);
+      return;
+    }
+    const until = this.clock.now().getTime() + ms;
+    if (until <= this.heldUntil) return;
+    this.heldUntil = until;
+    this.heldFor = reason;
+  }
+
+  /** Sets how long, in total, this budget's reservations may wait out throttles from now on;
+   * each budget and scope starts with THROTTLE_WAIT_ALLOWANCE_MS. A hold that outlasts what
+   * is left fails the reservation without sending it, and the hold itself stays in place. */
+  allowThrottleWait(ms: number): void {
+    this.allowance = { ms };
+  }
+
+  /** The shared hold when it outlasts this scope's remaining throttle allowance. */
+  throttled(): { until: string; reason: string } | undefined {
+    const root = this.root();
+    const wait = root.heldUntil - this.clock.now().getTime();
+    if (wait <= 0 || wait <= this.allowance.ms) return undefined;
+    return { until: new Date(root.heldUntil).toISOString(), reason: root.heldFor };
+  }
+
+  private root(): GraphqlBudget {
+    return this.parent ? this.parent.root() : this;
   }
 
   // Reservations are serialised; the calls they pay for run concurrently once the
   // remaining budget is known. While it is unknown, one call probes it and the rest wait.
-  async run<T>(estimate: number, call: () => Promise<{ value: T; rate?: Rate }>): Promise<T> {
-    if (this.parent) return this.parent.run(estimate, async () => {
+  run<T>(estimate: number, call: () => Promise<{ value: T; rate?: Rate }>): Promise<T> {
+    return this.reserve(estimate, call, this.allowance);
+  }
+
+  private async reserve<T>(
+    estimate: number, call: () => Promise<{ value: T; rate?: Rate }>, allowance: { ms: number },
+  ): Promise<T> {
+    if (this.parent) return this.parent.reserve(estimate, async () => {
       this.state.calls++;
       this.state.spent += estimate;
       const result = await call();
       if (result.rate) this.state.spent += result.rate.cost - estimate;
       return result;
-    });
+    }, allowance);
     if (!Number.isSafeInteger(estimate) || estimate < 1) {
       throw new ForgeError("GraphQL cost estimate must be a positive integer", null);
     }
@@ -96,7 +133,15 @@ export class GraphqlBudget {
       for (;;) {
         const held = this.heldUntil;
         if (held > this.clock.now().getTime()) {
-          await this.sleep(held - this.clock.now().getTime());
+          const wait = held - this.clock.now().getTime();
+          if (wait > allowance.ms) {
+            throw new ForgeError(
+              `gh api graphql: GitHub throttled GraphQL until ${new Date(held).toISOString()}, longer than this sweep may wait (${this.heldFor})`,
+              null, "throttle",
+            );
+          }
+          allowance.ms -= wait;
+          await this.sleep(wait);
           if (this.heldUntil === held) this.heldUntil = 0;
           continue;
         }
@@ -204,7 +249,6 @@ function budgetQuery(query: string): { query: string; key: string } {
   };
 }
 
-const MAX_THROTTLE_WAIT_MS = 120_000;
 const DEFAULT_THROTTLE_WAIT_MS = 60_000;
 const THROTTLE_TEXT = /secondary rate limit|abuse detection|rate limit exceeded|too many requests/i;
 
@@ -303,6 +347,8 @@ export class Gh {
         if (!res.ok) throw new ForgeError(`gh api graphql: ${res.error}`, res.code);
         exitCode = res.exitCode ?? null;
         const reply = classifyGraphqlReply(res.data, res.stderr ?? "");
+        // Held before the probe settles, so no caller waiting on it sends inside the wait.
+        if (reply.kind === "throttle") this.budget.hold(reply.waitMs, reply.detail);
         const data = reply.kind === "json" ? reply.body.data : undefined;
         const rate = rateSchema.safeParse(data?.[prepared.key]);
         if (data?.[prepared.key] != null && !rate.success) {
@@ -312,10 +358,6 @@ export class Gh {
       });
       if (reply.kind !== "json") {
         failed = reply;
-        if (reply.kind === "throttle") {
-          if (reply.waitMs > MAX_THROTTLE_WAIT_MS) break;
-          this.budget.hold(reply.waitMs);
-        }
         continue;
       }
       const body = reply.body as { data?: T & Record<string, unknown> | null; errors?: GqlError[] };

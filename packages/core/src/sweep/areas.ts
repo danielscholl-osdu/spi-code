@@ -17,7 +17,7 @@ import { fleetOf, GITLAB_EVERY_MS, RELEASES_EVERY_MS, SECURITY_EVERY_MS } from "
 import { type CoreContext, createContext } from "../context.js";
 import { BudgetPacer, type ReadRecord } from "../evidence/index.js";
 import type { AreaName, Facts, JobDetail } from "../facts.js";
-import { Gh, Glab, GraphqlBudget } from "../forge.js";
+import { Gh, Glab, GraphqlBudget, THROTTLE_WAIT_ALLOWANCE_MS } from "../forge.js";
 import { failedChecks, javaBuilt } from "../model/checks.js";
 import { errorText } from "../util.js";
 import { type CollectorCache, cacheSchema, emptyCache, pruneCache } from "./cache.js";
@@ -68,6 +68,12 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
         due(branch?.observedAt ?? facts.upstream.at, GITLAB_EVERY_MS, clock.now(), force);
     });
   }
+  // A GraphQL area whose throttle hold outlasts what this sweep may still wait is deferred
+  // rather than read, so the sweep ends inside its interval and says why it skipped.
+  function throttledReason(): string | undefined {
+    const held = account.throttled();
+    return held && `GitHub throttled GraphQL until ${held.until} (${held.reason})`;
+  }
   function area<K extends AreaName>(
     name: K, core: boolean, estimate: number, interval: number,
     read: (input: Input, gh: Gh, glab: Glab) => Promise<{
@@ -82,6 +88,11 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
         if (name === "upstream" && facts.upstream.data && !upstreamForks(input).length) return false;
         if (name !== "upstream" && interval && facts[name].data && !(name === "radar" && upstreamChanged) &&
           !due(facts[name].at, interval, clock.now(), force)) return false;
+        const throttled = estimate > 0 && throttledReason();
+        if (throttled) {
+          cache.budget.deferred.push({ area: name, reason: throttled });
+          return false;
+        }
         const before = account.snapshot();
         const decision = pacer.plan({
           ...(before.remaining === null ? {} : { remaining: before.remaining }),
@@ -269,12 +280,15 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
     },
     beforeSweep: ({ cache }) => {
       baseline = account.snapshot();
+      account.allowThrottleWait(THROTTLE_WAIT_ALLOWANCE_MS);
       upstreamChanged = false;
       cache.budget.deferred = [];
     },
     afterAreas: async ({ ctx, exec, cache, force, clock }) => {
       // Deferred entries belong to this sweep, including collectors without a Facts area.
-      if (due(cache.releases.at, RELEASES_EVERY_MS, clock.now(), force)) {
+      const throttled = due(cache.releases.at, RELEASES_EVERY_MS, clock.now(), force) && throttledReason();
+      if (throttled) cache.budget.deferred.push({ area: "releases", reason: throttled });
+      else if (due(cache.releases.at, RELEASES_EVERY_MS, clock.now(), force)) {
         const snapshot = account.snapshot();
         const decision = pacer.plan({
           ...(snapshot.remaining === null ? {} : { remaining: snapshot.remaining }),

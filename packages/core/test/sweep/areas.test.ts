@@ -792,3 +792,33 @@ test("cache loading rejects malformed pin times and pruning bounds every collect
   expect(Object.keys(cache.details)).toEqual(["repo#1"]);
   expect(Object.keys(cache.radar.commitDiffs)).toHaveLength(200);
 });
+
+test("a GitHub throttle longer than the sweep may wait defers the remaining GraphQL areas with its reason", async () => {
+  const h = harness();
+  const throttled: string[] = [];
+  h.setRoute((cmd, args) => {
+    if (cmd !== "gh" || !args.some((a) => a.startsWith("query="))) return undefined;
+    throttled.push(args.at(-1) ?? "");
+    return {
+      stdout: JSON.stringify({
+        message: "You have exceeded a secondary rate limit. Retry after 600 seconds.",
+      }),
+      stderr: "gh: HTTP 403\n",
+      exit: 1,
+    };
+  });
+  const sweeper = createSweeper(h.options);
+  await sweeper.sweep();
+  const reason = expect.stringMatching(
+    /^GitHub throttled GraphQL until 2026-10-14T00:10:00\.000Z \(.*secondary rate limit/,
+  );
+  expect(sweeper.facts.fleet.error).toContain("throttled");
+  expect(sweeper.cache.budget.deferred).toEqual([
+    { area: "github", reason },
+    { area: "details", reason },
+    { area: "radar", reason },
+    { area: "security", reason: "budget unknown" },
+    { area: "releases", reason },
+  ]);
+  expect(throttled).toHaveLength(1);
+});
