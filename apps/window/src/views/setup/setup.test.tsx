@@ -123,6 +123,39 @@ const paste = (value: string) =>
     field.value = value;
     field.dispatchEvent(new Event("input", { bubbles: true }));
   });
+const submit = () =>
+  act(async () => {
+    glab()
+      .row.querySelector("form")
+      ?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  });
+type Fiber = {
+  memoizedState: unknown;
+  memoizedProps: unknown;
+  child: Fiber | null;
+  sibling: Fiber | null;
+};
+/** Every string held in React hook state and props under the test root. */
+const reactStrings = () => {
+  const key = Object.keys(container).find((name) => name.startsWith("__reactContainer$"));
+  const strings: string[] = [];
+  const seen = new WeakSet<object>();
+  const visit = (value: unknown, depth: number) => {
+    if (typeof value === "string") strings.push(value);
+    if (depth > 8 || !value || typeof value !== "object" || value instanceof Node) return;
+    if (seen.has(value)) return;
+    seen.add(value);
+    for (const item of Object.values(value)) visit(item, depth + 1);
+  };
+  const fibers = [(container as unknown as Record<string, Fiber>)[key ?? ""]];
+  for (let fiber = fibers.pop(); fiber; fiber = fibers.pop()) {
+    visit(fiber.memoizedState, 0);
+    visit(fiber.memoizedProps, 0);
+    if (fiber.child) fibers.push(fiber.child);
+    if (fiber.sibling) fibers.push(fiber.sibling);
+  }
+  return strings.join("\n");
+};
 const sent = () =>
   send.mock.calls.map(([message]) => {
     const parsed = WatchMessageSchema.parse(message);
@@ -146,6 +179,15 @@ it.each(["", "   "])("keeps Sign in disabled and sends nothing for token %j", as
   expect(glab().button.disabled).toBe(true);
   await act(async () => glab().button.click());
   expect(send).not.toHaveBeenCalled();
+});
+
+it.each(["", "   "])("ignores a direct form submit of token %j silently", async (value) => {
+  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+  await render();
+  await paste(value);
+  await submit();
+  expect(send).not.toHaveBeenCalled();
+  expect(glab().row.querySelector('[role="alert"]')).toBeNull();
 });
 
 it.each([
@@ -180,9 +222,11 @@ it("never echoes, logs, stores or persists the glab token, and clears it on succ
   ]) {
     send.mockClear();
     await paste(token);
+    expect(reactStrings()).not.toContain(token);
     expect(container.innerHTML).not.toContain(token);
     expect(JSON.stringify(watchStore.getState())).not.toContain(token);
     await act(async () => glab().button.click());
+    expect(reactStrings()).not.toContain(token);
     expect(JSON.stringify(watchStore.getState())).not.toContain(token);
     expect(sent()).toEqual([{ type: "setup.signin", payload: { tool: "glab", token } }]);
     expect(glab().field.value).toBe("");
@@ -239,15 +283,30 @@ it.each(["failed", "completed"])(
   },
 );
 
-it("unlocks the field when the host resets before any sign-in progress", async () => {
+it("stays locked across an identical setup refresh before any sign-in progress", async () => {
+  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+  await render();
+  await paste(token);
+  await act(async () => glab().button.click());
+  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+  expect(glab().field.disabled).toBe(true);
+  expect(glab().button.disabled).toBe(true);
+  await paste("glpat-LateToken0123456789");
+  await submit();
+  expect(sent()).toHaveLength(1);
+});
+
+it("unlocks and empties the field on host.hello alone before any sign-in progress", async () => {
   await receive("setup.state", state({ state: "signed-out", action: "signin" }));
   await render();
   await paste(token);
   await act(async () => glab().button.click());
   expect(glab().field.disabled).toBe(true);
+  await paste("glpat-LateToken0123456789");
   await receive("host.hello", { pid: 456 });
-  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
   expect(glab().field.disabled).toBe(false);
+  expect(glab().field.value).toBe("");
+  expect(glab().button.disabled).toBe(true);
 });
 
 it("keeps Copilot and gh sign-in tokenless with no token field", async () => {

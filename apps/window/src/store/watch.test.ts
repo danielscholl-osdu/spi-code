@@ -190,7 +190,9 @@ it("subscribes on every hello with zero initially and the last cursor after rese
   store.getState().receive(event("host.hello", { pid: 123 }));
   store.getState().receive(event("view.snapshot", testSnapshot({ cursor: 0 })));
   store.getState().receive(event("view.snapshot", testSnapshot({ cursor: 12 })));
+  expect(store.getState().epoch).toBe(1);
   store.getState().receive(event("host.hello", { pid: 456 }));
+  expect(store.getState().epoch).toBe(2);
   expect(send.mock.calls.map(([message]) => WatchMessageSchema.parse(message).payload)).toEqual([
     { fromCursor: 0 },
     { fromCursor: 12 },

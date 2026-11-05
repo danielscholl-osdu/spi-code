@@ -25,6 +25,8 @@ type WatchState = {
   setup: SetupState | null;
   signin: Partial<Record<SetupSigninProgress["tool"], SetupSigninProgress>>;
   signinOutcome: Partial<Record<SetupSigninProgress["tool"], SetupSigninProgress>>;
+  /** Bumps on every host.hello, so views can drop state tied to the previous connection. */
+  epoch: number;
   requestSetup(
     ...request:
       | [
@@ -76,6 +78,7 @@ export function createWatchStore(
     setup: null,
     signin: {},
     signinOutcome: {},
+    epoch: 0,
     requestSetup(type, tool, token?: string) {
       const parsed = parseMessage({
         version: PROTOCOL_VERSION,
@@ -120,7 +123,7 @@ export function createWatchStore(
         set({ signin, signinOutcome });
       }
       if (message.type === "host.hello") {
-        set({ signin: {}, signinOutcome: {} });
+        set({ signin: {}, signinOutcome: {}, epoch: get().epoch + 1 });
         const outgoing = parseMessage({
           version: PROTOCOL_VERSION,
           id: crypto.randomUUID(),

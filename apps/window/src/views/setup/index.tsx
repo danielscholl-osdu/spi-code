@@ -49,14 +49,14 @@ function CopyText({ label, value }: { label: string; value: string }) {
 type Progress = SetupSigninProgress | undefined;
 const GLAB_FAILED = "glab sign-in failed. Check the GitLab token and try again.";
 
-function GlabSignin({ busy, progress, tool }: { busy: boolean; progress: Progress; tool: Tool }) {
+function GlabSignin({ busy, progress }: { busy: boolean; progress: Progress }) {
   const field = useRef<HTMLInputElement>(null);
   const [filled, setFilled] = useState(false);
   const [error, setError] = useState("");
-  const [sent, setSent] = useState<{ progress: Progress; tool: Tool } | null>(null);
-  const disabled = busy || (sent !== null && sent.progress === progress && sent.tool === tool);
+  const [sent, setSent] = useState<{ progress: Progress } | null>(null);
+  const disabled = busy || (sent !== null && sent.progress === progress);
   useEffect(() => {
-    if (progress?.state !== "completed" && progress?.state !== "failed") return;
+    if (progress && ["starting", "device-code", "waiting"].includes(progress.state)) return;
     if (field.current) field.current.value = "";
     setFilled(false);
   }, [progress]);
@@ -77,7 +77,7 @@ function GlabSignin({ busy, progress, tool }: { busy: boolean; progress: Progres
           return;
         }
         setError("");
-        setSent({ progress, tool });
+        setSent({ progress });
         watchStore.getState().requestSetup("setup.signin", "glab", token);
       }}
     >
@@ -105,6 +105,7 @@ function ToolRow({ tool }: { tool: Tool }) {
   const progress = useStore(watchStore, (state) =>
     tool.tool === "git" ? undefined : (state.signin[tool.tool] ?? state.signinOutcome[tool.tool]),
   );
+  const epoch = useStore(watchStore, (state) => state.epoch);
   const [attention, setAttention] = useState(false);
   const busy =
     tool.state === "installing" ||
@@ -126,7 +127,7 @@ function ToolRow({ tool }: { tool: Tool }) {
       {tool.reason && !attention && <p>{tool.reason}</p>}
       {!!tool.missingScopes?.length && <p>Required scopes: {tool.missingScopes.join(", ")}</p>}
       {tool.tool === "glab" && tool.action === "signin" && (
-        <GlabSignin busy={!!busy} progress={progress} tool={tool} />
+        <GlabSignin key={epoch} busy={!!busy} progress={progress} />
       )}
       {tool.action && !(tool.action === "signin" && ["git", "glab"].includes(tool.tool)) && (
         <button
