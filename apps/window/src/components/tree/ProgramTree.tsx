@@ -38,7 +38,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function workflowRuns(body: unknown) {
-  const runs = new Map<string, string>();
+  const runs = new Map<string, { label: string; url: string }>();
   const briefing = isRecord(body) ? body.briefing : undefined;
   const focus = isRecord(briefing) && Array.isArray(briefing.focus) ? briefing.focus : [];
   for (const item of focus) {
@@ -49,10 +49,10 @@ function workflowRuns(body: unknown) {
         evidence.url,
       );
       if (!match?.[1] || !match[2] || runs.has(`run:${match[2]}`)) continue;
-      runs.set(
-        `run:${match[2]}`,
-        `${typeof evidence.label === "string" ? evidence.label : "Workflow run"} · #${match[2]}`,
-      );
+      runs.set(`run:${match[2]}`, {
+        label: `${typeof evidence.label === "string" ? evidence.label : "Workflow run"} · #${match[2]}`,
+        url: evidence.url,
+      });
     }
   }
   return runs;
@@ -73,6 +73,17 @@ export function ProgramTree({
 }) {
   const snapshot = useStore(store, (state) => state.snapshot);
   const [selection, setSelection] = useState<{ id: string; route: Route }>();
+  const [externalError, setExternalError] = useState("");
+  async function openEvidence(url: string) {
+    setExternalError("");
+    try {
+      if (await window.spi.openExternal(url)) return;
+    } catch {
+      setExternalError("Could not open GitHub link in the browser.");
+      return;
+    }
+    setExternalError("GitHub link was refused or could not be opened.");
+  }
   const body = snapshot?.body;
   const parsed = TreeStatusSchema.safeParse(
     body === undefined ? [] : isRecord(body) ? body.tree : undefined,
@@ -140,9 +151,28 @@ export function ProgramTree({
         {heading("runs", "Runs")}
         <h3>GitHub workflow runs</h3>
         {runs.length === 0 && <p className="tree-empty">No GitHub workflow runs</p>}
-        {runs.map((node) =>
-          entry(node.id, runDetails.get(node.id) ?? `GitHub run #${node.id.slice(4)}`, environment),
-        )}
+        {runs.map((node) => {
+          const evidence = runDetails.get(node.id);
+          return (
+            <div key={node.id}>
+              {entry(node.id, evidence?.label ?? `GitHub run #${node.id.slice(4)}`, environment)}
+              {evidence && (
+                <a
+                  className="tree-entry"
+                  href={evidence.url}
+                  aria-label={`Open ${evidence.label} on GitHub`}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    void openEvidence(evidence.url);
+                  }}
+                >
+                  Open on GitHub
+                </a>
+              )}
+            </div>
+          );
+        })}
+        {externalError && <p role="alert">{externalError}</p>}
         <h3>App runs</h3>
         <p className="tree-empty">No app runs yet</p>
         {entry("setup", "Setup", setup)}

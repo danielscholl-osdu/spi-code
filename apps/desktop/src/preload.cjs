@@ -7,6 +7,9 @@ let port;
 const listeners = new Set();
 contextBridge.exposeInMainWorld("spi", {
   proof: process.argv.includes("--spi-proof"),
+  openExternal(url) {
+    return ipcRenderer.invoke("external:open", url);
+  },
   postMessage(message) {
     if (!port) throw new Error("Host port is not connected");
     port.postMessage(message);

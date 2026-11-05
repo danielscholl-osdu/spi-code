@@ -10,7 +10,12 @@ import { Shell } from "./Shell.js";
 it("renders exactly seven navigable placeholders and the supplied turn panel", async () => {
   const unsubscribe = vi.fn();
   const previous = window.spi;
-  window.spi = { proof: false, postMessage: vi.fn(), onMessage: () => unsubscribe };
+  window.spi = {
+    proof: false,
+    openExternal: vi.fn(),
+    postMessage: vi.fn(),
+    onMessage: () => unsubscribe,
+  };
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);

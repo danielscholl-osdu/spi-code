@@ -14,9 +14,11 @@ import {
   BrowserWindow,
   ipcMain,
   MessageChannelMain,
+  shell,
   type UtilityProcess,
   utilityProcess,
 } from "electron";
+import { externalLinkHandlers } from "./external-links.js";
 import { hostLaunch } from "./host-launch.js";
 import { assertSmokeReport, assertSmokeTools, type SmokeReport } from "./smoke-report.js";
 
@@ -158,7 +160,13 @@ async function run(): Promise<void> {
     deniedPermissionRequests++;
     callback(false);
   });
-  window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  const externalLinks = externalLinkHandlers(window.webContents, {
+    openExternal: (url) => shell.openExternal(url),
+    warn: (message) => console.warn(message),
+  });
+  ipcMain.handle("external:open", externalLinks.openFromRenderer);
+  window.on("closed", () => ipcMain.removeHandler("external:open"));
+  window.webContents.setWindowOpenHandler(externalLinks.windowOpen);
   window.webContents.on("will-navigate", (event) => event.preventDefault());
   window.webContents.on("did-finish-load", () => {
     if (child) transferHostPort(window, child);

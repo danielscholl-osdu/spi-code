@@ -14,6 +14,7 @@ declare global {
   interface Window {
     spi: {
       proof: boolean;
+      openExternal(url: string): Promise<boolean>;
       postMessage(message: Message): void;
       onMessage(listener: (message: unknown) => void): () => void;
     };

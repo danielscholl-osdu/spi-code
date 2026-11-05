@@ -18,7 +18,12 @@ const send = vi.fn();
 
 beforeEach(() => {
   previous = window.spi;
-  window.spi = { proof: false, postMessage: send, onMessage: () => () => {} };
+  window.spi = {
+    proof: false,
+    openExternal: vi.fn(),
+    postMessage: send,
+    onMessage: () => () => {},
+  };
   send.mockClear();
   watchStore.setState({ setup: null, sweep: null, snapshot: null, signin: {}, signinOutcome: {} });
   container = document.createElement("div");

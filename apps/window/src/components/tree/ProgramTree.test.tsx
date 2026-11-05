@@ -171,6 +171,47 @@ it("navigates through existing routes and retains the selected service in Flow",
   }
 });
 
+it("opens workflow evidence through the desktop bridge without changing the selected view", async () => {
+  const previous = window.spi;
+  const openExternal = vi.fn(async () => true);
+  window.spi = {
+    proof: false,
+    openExternal,
+    postMessage: vi.fn(),
+    onMessage: () => () => {},
+  };
+  const view = await mount();
+  const hash = window.location.hash;
+  try {
+    const link = view.container.querySelector<HTMLAnchorElement>(
+      'a[aria-label="Open Upgrade · #123 on GitHub"]',
+    );
+    expect(link?.getAttribute("href")).toBe("https://github.com/Azure/stack/actions/runs/123");
+    await act(async () => link?.click());
+    expect(openExternal).toHaveBeenCalledExactlyOnceWith(
+      "https://github.com/Azure/stack/actions/runs/123",
+    );
+    expect(view.container.querySelector("h1")?.textContent).toBe("Today");
+    expect(window.location.hash).toBe(hash);
+    expect(view.container.querySelector('[role="alert"]')).toBeNull();
+    expect(view.container.querySelectorAll('a[aria-label^="Open "]')).toHaveLength(1);
+
+    openExternal.mockResolvedValue(false);
+    await act(async () => link?.click());
+    expect(view.container.querySelector('[role="alert"]')?.textContent).toContain(
+      "GitHub link was refused or could not be opened.",
+    );
+    openExternal.mockRejectedValue(new Error("IPC unavailable"));
+    await act(async () => link?.click());
+    expect(view.container.querySelector('[role="alert"]')?.textContent).toBe(
+      "Could not open GitHub link in the browser.",
+    );
+  } finally {
+    await view.dispose();
+    window.spi = previous;
+  }
+});
+
 it("shows unread before the first sweep and retains the tree when invalid snapshots are rejected", async () => {
   const view = await mount(null);
   try {
