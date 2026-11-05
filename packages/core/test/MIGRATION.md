@@ -27,19 +27,19 @@ rib still runs before switching to core.
 | inspect.test.ts | 15 | rib | - | - |
 | ledgers.test.ts | 16 | split | - | - |
 | marks.test.ts | 3 | rib | - | - |
-| model.test.ts | 31 | core | - | - |
+| model.test.ts | 31 | core | 31 | 0 |
 | next.test.ts | 6 | split | 5 | 1 |
-| radar.test.ts | 14 | split | - | - |
+| radar.test.ts | 14 | split | 13 | 1 |
 | reason.test.ts | 11 | core | 11 | 0 |
 | releases.test.ts | 32 | split | - | - |
-| repos.test.ts | 15 | core | - | - |
+| repos.test.ts | 15 | core | 15 | 0 |
 | repositories.test.ts | 14 | split | - | - |
 | rib.test.ts | 19 | rib | - | - |
-| rollout.test.ts | 10 | split | - | - |
+| rollout.test.ts | 10 | split | 0 | 10 |
 | security.test.ts | 4 | rib | - | - |
-| stack.test.ts | 10 | core | - | - |
+| stack.test.ts | 10 | core | 10 | 0 |
 | sweep.test.ts | 5 | rib | - | - |
-| upstream.test.ts | 45 | split | - | - |
+| upstream.test.ts | 45 | split | 18 | 27 |
 | work.test.ts | 5 | split | 4 | 1 |
 | **Baseline total** | **469** | **28 files** | | |
 | **Five files ported here** | **40** | | **38** | **2** |
@@ -84,3 +84,35 @@ JavaScript and declarations are never emitted into `dist`.
 
 Per-file source diffs, count verification and the five inverted-assertion
 failures are recorded on bead `spicode-2u4.3`.
+
+## Model ports: spicode-2u4.9
+
+These six pinned files contain 125 tests: 87 move here and 38 stay in the rib.
+Their table rows count original cases, not extracted assertions.
+
+`model.test.ts`, `stack.test.ts` and `repos.test.ts` move in full. The model's
+rollout and environment-recovery assertions remain intact. `model-fleet.ts`
+loads the recorded five-fork fleet for model, radar and repos, then restores
+the built-in fleet. Stack uses the existing UTC runner shim so its daily
+history assertion retains Bun's timezone semantics.
+
+Radar's "names a queued halt and a queued Java move before the sync runs"
+stays in the rib: the same case validates inspector boards. Its model
+assertions are not deleted or rewritten.
+
+Upstream moves 18 model-only cases, preserving their original groups, setup,
+bodies and assertions. The remaining 27 cases exercise actions, boards or
+briefing built through the rib's doctor status. They stay in the rib intact,
+including mixed model/action cases. `upstream-states.ts` and its two recorded
+fixtures are copied from `59d6895`; the helper's import paths remain relative.
+Upstream restores the fleet and active rollout in its original cleanup hook.
+
+At `59d6895`, all ten `rollout.test.ts` cases target `act/rollout`, inspector
+buttons or the action path. There are no model-only or rollout-brief cases in
+that file, so it moves zero tests. The core rollout cases in `model.test.ts`
+move with that file; the other builder's briefing file is not changed here.
+
+Runner imports, MIT headers and repository formatting are the only other
+changes. Bun's two `toStartWith` assertions become equivalent
+`startsWith(...).toBe(true)` assertions. Per-file source comparison evidence
+and five inverted-assertion failures are recorded on `spicode-2u4.9`.
