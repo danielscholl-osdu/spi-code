@@ -4,7 +4,7 @@
 import { type Envelope, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import briefing from "../../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import releases from "../../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
 import { testSnapshot } from "../../store/test-snapshot.js";
@@ -115,3 +115,93 @@ it.each([true, false])(
     expect(container.querySelector("[data-release-envelopes]")).toBeNull();
   },
 );
+
+it("shows the worst envelope under /releases on the section badge, not the first", async () => {
+  const observedAt = testSnapshot(briefing, releases).sweptAt;
+  const at = (state: Envelope["state"]) =>
+    ({
+      source: "releases",
+      state,
+      observedAt,
+      completeness: { kind: "complete" },
+    }) satisfies Envelope;
+  const body = testSnapshot(briefing, releases, {
+    provenance: [
+      { path: "/releases/lines/0", areas: ["fleet"], envelope: at("fresh") },
+      { path: "/releases/lines/1", areas: ["fleet"], envelope: at("failed") },
+    ],
+  });
+  watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+  document.body.append(container);
+  root = createRoot(container);
+  await act(async () => root?.render(<Releases />));
+  expect(
+    container
+      .querySelector("[data-release-envelopes] [data-envelope]")
+      ?.getAttribute("data-envelope"),
+  ).toBe("failed");
+});
+
+const drawnStats = (id: string) =>
+  [...container.querySelectorAll(`[data-rel-detail="${id}"] .pane-fact`)].map((fact) => ({
+    anchor: fact.getAttribute("data-anchor"),
+    figure: fact.querySelector("strong")?.textContent,
+    label: fact.querySelector("div")?.textContent,
+  }));
+
+const duplicateKeyErrors = (spy: { mock: { calls: unknown[][] } }) =>
+  spy.mock.calls.filter((call) => call.some((arg) => String(arg).includes("same key")));
+
+it("keeps every stat that shares an anchor across switching and updating release details", async () => {
+  const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    const body = testSnapshot(briefing, releases);
+    const [first, second] = body.releases.lines;
+    if (!first || !second) throw new Error("oracle has fewer than two release lines");
+    expect(first.stats.filter((stat) => stat.anchor === "components").length).toBeGreaterThan(1);
+    watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => root?.render(<Releases />));
+    for (const line of body.releases.lines)
+      expect(drawnStats(line.id)).toEqual(
+        line.stats.map(({ anchor, figure, label }) => ({ anchor, figure, label })),
+      );
+
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>(`[data-rel="${second.id}"]`)?.click(),
+    );
+    expect(
+      container.querySelector(`[data-rel-detail="${second.id}"]`)?.hasAttribute("hidden"),
+    ).toBe(false);
+
+    const kept = container.querySelectorAll(`[data-rel-detail="${first.id}"] .pane-fact`)[1];
+    const stats = [
+      ...first.stats.slice(0, 2).map((stat) => ({ ...stat, figure: `${stat.figure}+` })),
+      { ...first.stats[1], anchor: "components", label: "a third components stat", figure: "9" },
+      ...first.stats.slice(2),
+    ] as typeof first.stats;
+    const updated = testSnapshot(briefing, releases, {
+      cursor: 2,
+      releases: {
+        ...body.releases,
+        lines: [{ ...first, stats }, ...body.releases.lines.slice(1)],
+      },
+    });
+    await act(async () => watchStore.setState({ snapshot: { cursor: 2, body: updated } }));
+    expect(drawnStats(first.id)).toEqual(
+      stats.map(({ anchor, figure, label }) => ({ anchor, figure, label })),
+    );
+    expect(container.querySelectorAll(`[data-rel-detail="${first.id}"] .pane-fact`)[1]).toBe(kept);
+
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>(`[data-rel="${first.id}"]`)?.click(),
+    );
+    expect(container.querySelector(`[data-rel-detail="${first.id}"]`)?.hasAttribute("hidden")).toBe(
+      false,
+    );
+    expect(duplicateKeyErrors(errors)).toEqual([]);
+  } finally {
+    errors.mockRestore();
+  }
+});

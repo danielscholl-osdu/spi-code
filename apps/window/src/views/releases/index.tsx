@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useStore } from "zustand";
 import { AreaEnvelopes, InferredMark } from "../../components/evidence/AreaEnvelopes.js";
 import { EnvelopeBadge } from "../../components/evidence/EnvelopeBadge.js";
+import { worstEnvelope } from "../../components/evidence/WorstEnvelope.js";
 import type { Evidence } from "../../store/evidence.js";
 import { watchStore } from "../../store/watch.js";
 import "../repositories/panes.css";
@@ -33,6 +34,16 @@ function Notes({ line }: { line: ReleaseLine }) {
   );
 }
 
+// A month can carry several stats under one anchor, so the key counts earlier stats that share it.
+function keyedStats(stats: ReleaseLine["stats"]) {
+  const seen = new Map<string, number>();
+  return stats.map((stat) => {
+    const occurrence = seen.get(stat.anchor) ?? 0;
+    seen.set(stat.anchor, occurrence + 1);
+    return { key: `${stat.anchor}#${occurrence}`, stat };
+  });
+}
+
 function ReleaseEvidence({ evidence, pointer }: { evidence: Evidence; pointer: string }) {
   const envelope = evidence.provenance.find(({ path }) => path === pointer)?.envelope;
   return (
@@ -52,9 +63,11 @@ export default function Releases() {
   const selected = releases?.lines.some((line) => line.id === picked)
     ? picked
     : releases?.lines[0]?.id;
-  const envelope = evidence?.provenance.find(
-    ({ path, envelope }) => envelope && (path === "/releases" || path.startsWith("/releases/")),
-  )?.envelope;
+  const envelopes =
+    evidence?.provenance.flatMap(({ path, envelope }) =>
+      envelope && (path === "/releases" || path.startsWith("/releases/")) ? [envelope] : [],
+    ) ?? [];
+  const envelope = envelopes.length ? worstEnvelope(envelopes) : undefined;
   return (
     <>
       <h1>Releases</h1>
@@ -112,10 +125,11 @@ export default function Releases() {
                     </h3>
                     <p>{line.headline}</p>
                     <div className="pane-facts">
-                      {line.stats.map((stat) => (
+                      {keyedStats(line.stats).map(({ key, stat }) => (
                         <div
                           className="pane-fact"
-                          key={stat.anchor}
+                          key={key}
+                          data-anchor={stat.anchor}
                           data-tone={stat.tone}
                           data-unread={stat.figure === "?"}
                         >
