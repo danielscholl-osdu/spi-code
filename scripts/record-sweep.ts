@@ -8,10 +8,11 @@
  * release reads only when it is public. A fence refuses, without running it, any call that names
  * a repository, project or group not verified public, each checked when first named, and any
  * call whose shape the audit's grammar cannot read. A public group does not make its projects
- * public, so a group-scoped read runs anonymously (no GitLab credential, an empty glab
- * configuration, an environment built from an allowlist) and every item it returns must be a
- * non-confidential item of a project verified public; one that is not aborts the recording
- * before anything is written. The same log then replays through the
+ * public, so a group-scoped read never runs glab: the recorder answers it in process with an
+ * anonymous HTTP GET to GitLab's API (no credential, no cookie, nothing from the environment)
+ * and records glab's output for it. Every item it returns must be a non-confidential item of a
+ * project verified public whose issues are open to everyone; one that is not aborts the
+ * recording before anything is written. The same log then replays through the
  * rib's Sweeper in a scratch checkout of keelson-rib-spi at RIB_REVISION, in a child bun
  * process with a clean environment, to give rib-facts.json. Every repository, project and group
  * a recorded call targets, and every project a group read returned an item of, then has its
@@ -30,7 +31,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { z } from "zod";
 import {
@@ -159,18 +160,34 @@ function githubVisibility(name: string): Visibility {
   }
 }
 
+/** The visibility of a GitLab project or group from its anonymous read. With issues, a public
+ * project counts as public only when its issues are open to everyone: issues limited to members
+ * ("private") count as private, and disabled or unreadable ones as unknown. */
+export function anonymousVisibility(body: unknown, options: { issues?: boolean } = {}): Visibility {
+  const { visibility, issues_access_level: issues } = (body ?? {}) as {
+    visibility?: unknown;
+    issues_access_level?: unknown;
+  };
+  if (visibility !== undefined && visibility !== "public") return "unknown";
+  if (!options.issues) return "public";
+  return issues === "enabled" || issues === "public"
+    ? "public"
+    : issues === "private"
+      ? "private"
+      : "unknown";
+}
+
 async function gitlabVisibility(
   path: string,
   kind: "projects" | "groups" = "projects",
+  options: { issues?: boolean } = {},
 ): Promise<Visibility> {
   const encoded = encodeURIComponent(path);
-  const anonymous = await fetch(`https://${GITLAB}/api/v4/${kind}/${encoded}`).catch(
-    () => undefined,
-  );
-  if (anonymous?.ok) {
-    const body = (await anonymous.json()) as { visibility?: string };
-    return body.visibility === undefined || body.visibility === "public" ? "public" : "unknown";
-  }
+  const anonymous = await fetch(`https://${GITLAB}/api/v4/${kind}/${encoded}`, {
+    headers: { Accept: "application/json" },
+    credentials: "omit",
+  }).catch(() => undefined);
+  if (anonymous?.ok) return anonymousVisibility(await anonymous.json(), options);
   if (anonymous?.status !== 404) return "unknown";
   try {
     const out = execFileSync("glab", ["api", "--hostname", GITLAB, `${kind}/${encoded}`], {
@@ -203,7 +220,9 @@ async function checkVisibility(out: string, now: Date): Promise<VisibilityFile> 
     github: await seen(refs.github, async (name) => githubVisibility(name)),
     gitlab: await seen(refs.gitlab, (path) => gitlabVisibility(path)),
     gitlabGroups: await seen(refs.gitlabGroups, (path) => gitlabVisibility(path, "groups")),
-    gitlabProjectIds: await seen(sweepItemProjects(out), (id) => gitlabVisibility(id)),
+    gitlabProjectIds: await seen(sweepItemProjects(out), (id) =>
+      gitlabVisibility(id, "projects", { issues: true }),
+    ),
   };
 }
 
@@ -226,50 +245,97 @@ export type CheckVisibility = (checked: Checked, name: string) => Promise<Visibi
 const liveVisibility: CheckVisibility = async (checked, name) =>
   checked === "github"
     ? githubVisibility(name)
-    : gitlabVisibility(name, checked === "gitlabGroups" ? "groups" : "projects");
+    : gitlabVisibility(name, checked === "gitlabGroups" ? "groups" : "projects", {
+        issues: checked === "gitlabProjectIds",
+      });
 
-// What an anonymous glab call inherits: its search path and locale, nothing else. Anything more
-// can name a credential or a place glab or git finds one (GIT_DIR, a token, a config directory).
-const ANONYMOUS_INHERITS = new Set(["PATH", "LANG", "LC_ALL", "LC_CTYPE", "TZ", "SYSTEMROOT"]);
+/** What answers a group read: fetch, or a stand-in for it. */
+export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
-/** The environment of an anonymous glab call, built from an allowlist: the search path and
- * locale inherited, and glab's configuration, XDG configuration and home all at an empty
- * directory, so glab finds no host entry and never consults the keyring. Git discovery, which
- * glab uses to find a repository's own glab configuration, stops at that directory and reads
- * no system configuration. */
-export function anonymousEnv(env: NodeJS.ProcessEnv, dir: string): NodeJS.ProcessEnv {
-  return {
-    ...Object.fromEntries(
-      Object.entries(env).filter(([name]) => ANONYMOUS_INHERITS.has(name.toUpperCase())),
-    ),
-    GLAB_CONFIG_DIR: dir,
-    XDG_CONFIG_HOME: dir,
-    HOME: dir,
-    GIT_CEILING_DIRECTORIES: dirname(dir),
-    GIT_CONFIG_NOSYSTEM: "1",
-  };
+export const GITLAB_API = `https://${GITLAB}/api/v4/`;
+const GROUP_API = "/api/v4/groups/";
+
+/** glab's stderr line for a failed response: GitLab's message and the status, or the status. */
+function glabError(status: number, type: string | null, body: string): string {
+  if (/[/+]json(;|$)/.test(type ?? "")) {
+    try {
+      const message = (JSON.parse(body) as { message?: unknown }).message;
+      if (typeof message === "string" && message) return `glab: ${message} (HTTP ${status})\n`;
+    } catch {}
+  }
+  return `glab: HTTP ${status}\n`;
 }
 
-/** Runs a group-scoped read on the anonymous runner, in the empty configuration directory so
- * glab finds no per-repository configuration either, and every other call signed in. A group
- * read holding an item of a project not verified public, or a confidential item, is withheld,
- * and abort is told why, naming the project id and issue iid only. */
-export function groupReadsAnonymously(
+/** Answers `glab api --hostname <GitLab> groups/...` in process with one anonymous GET: no
+ * glab, no git, nothing from the environment, no cookie, no Authorization, PRIVATE-TOKEN or
+ * JOB-TOKEN header, only Accept, and no redirect followed. What it gives back is glab's: the
+ * body on stdout and exit 0; for a failed response `glab: <message> (HTTP <status>)` or
+ * `glab: HTTP <status>` on stderr and exit 1, without the body; HostExec's error for a timeout
+ * or an abort. */
+export async function anonymousGroupRead(
+  fetchImpl: Fetch,
+  path: string,
+  opts: ExecOptions,
+): Promise<ExecOutput> {
+  const url = new URL(path, GITLAB_API);
+  if (url.origin !== new URL(GITLAB_API).origin || !url.pathname.startsWith(GROUP_API))
+    return { stdout: "", stderr: `spi-code record: not a group read: ${path}\n`, exit: 1 };
+  const timeoutMs = opts.timeoutMs ?? 60_000;
+  const timeout = AbortSignal.timeout(timeoutMs);
+  const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
+  try {
+    const response = await fetchImpl(url.href, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      credentials: "omit",
+      redirect: "error",
+      cache: "no-store",
+      signal,
+    });
+    const body = await response.text();
+    if (response.ok) return { stdout: body, stderr: "", exit: 0 };
+    return {
+      stdout: "",
+      stderr: glabError(response.status, response.headers.get("content-type"), body),
+      exit: 1,
+    };
+  } catch (failure) {
+    const failed = { stdout: "", stderr: "", exit: null };
+    if (opts.signal?.aborted) return { ...failed, error: "Command aborted." };
+    if (timeout.aborted) return { ...failed, error: `Command timed out after ${timeoutMs}ms.` };
+    const message = failure instanceof Error ? failure.message : String(failure);
+    return { stdout: "", stderr: `glab: ${message}\n`, exit: 1 };
+  }
+}
+
+/** Answers every group-scoped read over anonymous HTTP and runs every other call signed in. A
+ * group read holding a confidential item, or an item of a project not verified public with its
+ * issues open to everyone, is withheld, and abort is told why, naming the project id and issue
+ * iid only. Anonymity keeps such items out already; the checks stand behind it. */
+export function groupReadsOverHttp(
   signedIn: ExecRunner,
-  anonymous: ExecRunner,
-  dir: string,
+  fetchImpl: Fetch,
   check: CheckVisibility,
   abort: (reason: string) => void,
 ): ExecRunner {
   return async (cmd, args, opts) => {
     if (!callTargets(cmd, args)?.gitlabGroups.size) return signedIn(cmd, args, opts);
-    const { env: _env, ...rest } = opts;
-    const output = await anonymous(cmd, args, { ...rest, cwd: dir });
-    if (output.exit !== 0) return { ...output, stdout: "" };
     const withheld = (reason: string): ExecOutput => {
       abort(reason);
       return { stdout: "", stderr: "spi-code record: group read withheld", exit: 1 };
     };
+    const [api, flag, host, path, ...rest] = args;
+    if (
+      cmd !== "glab" ||
+      api !== "api" ||
+      flag !== "--hostname" ||
+      host !== GITLAB ||
+      path === undefined ||
+      rest.length
+    )
+      return withheld("a group read of a shape the recorder does not answer");
+    const output = await anonymousGroupRead(fetchImpl, path, opts);
+    if (output.exit !== 0) return output;
     const items = groupItems(output.stdout);
     if (!items) return withheld("a group read returned an item without a project");
     const confidential = items.find((item) => item.confidential);
@@ -351,12 +417,11 @@ export function prepareOut(out: string): void {
 
 export interface RecordOptions {
   out: string;
-  /** Runs one call signed in; the fence decides whether it is asked to. */
+  /** Runs one call signed in; the fence decides whether it is asked to. Group reads never
+   * reach it. */
   runner: ExecRunner;
-  /** A runner over the environment given, for group-scoped reads: no credential reaches it. */
-  anonymous: (env: NodeJS.ProcessEnv) => ExecRunner;
-  /** The environment the anonymous one is derived from; process.env when not given. */
-  env?: NodeJS.ProcessEnv;
+  /** Answers group reads anonymously; the global fetch when not given. */
+  fetch?: Fetch;
   check: CheckVisibility;
   now: Date;
   /** Values RecordingExec redacts beyond core's own patterns. */
@@ -386,11 +451,9 @@ export async function recordSweep(options: RecordOptions): Promise<{
   if (!coreLib) excluded[CORE_LIB_REPO] = library;
   const servicesJson = `${JSON.stringify(services, null, 2)}\n`;
   let aborted: string | undefined;
-  const config = mkdtempSync(join(tmpdir(), "spi-code-glab-anonymous-"));
-  const runner = groupReadsAnonymously(
+  const runner = groupReadsOverHttp(
     options.runner,
-    options.anonymous(anonymousEnv(options.env ?? process.env, config)),
-    config,
+    options.fetch ?? ((url, init) => fetch(url, init)),
     check,
     (reason) => {
       aborted ??= reason;
@@ -418,11 +481,7 @@ export async function recordSweep(options: RecordOptions): Promise<{
       path === SERVICES_FILE ? servicesJson : readFileSync(join(out, path), "utf8"),
     factsSchema,
   });
-  try {
-    await sweeper.sweep({ force: true });
-  } finally {
-    rmSync(config, { recursive: true, force: true });
-  }
+  await sweeper.sweep({ force: true });
   if (aborted) throw new Error(`recording aborted, nothing written: ${aborted}`);
   writeFileSync(join(out, SERVICES_FILE), servicesJson);
   writeFileSync(join(out, LOG_FILE), lines.join(""));
@@ -457,7 +516,6 @@ async function record(out: string, rib: string): Promise<void> {
     const { meta, facts } = await recordSweep({
       out,
       runner: new HostExec(host).run,
-      anonymous: (env) => new HostExec({ ...host, env }).run,
       check: liveVisibility,
       now,
       secrets: tokens(),

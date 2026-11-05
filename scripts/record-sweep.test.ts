@@ -1,26 +1,27 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { execFileSync } from "node:child_process";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { createServer, type IncomingHttpHeaders } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CORE_LIB_REPO, TEMPLATE_REPO } from "../packages/core/src/config.js";
-import type { ExecOptions, ExecOutput, ExecRunner } from "../packages/core/src/exec/port.js";
+import type { ExecOptions, ExecOutput } from "../packages/core/src/exec/port.js";
 import type { ExecLogEntry } from "../packages/core/src/exec/recording.js";
 import { BUDGET_KEY } from "../packages/core/src/forge.js";
-import { HostExec } from "../packages/host/src/exec/host-exec.js";
-import { callTargets, fenced, type Visibility } from "./audit-exec-log.js";
-import { type Checked, type CheckVisibility, fence, recordSweep } from "./record-sweep.js";
+import { callTargets, fenced, GITLAB_HOST, type Visibility } from "./audit-exec-log.js";
+import {
+  anonymousGroupRead,
+  anonymousVisibility,
+  type Checked,
+  type CheckVisibility,
+  type Fetch,
+  fence,
+  GITLAB_API,
+  recordSweep,
+} from "./record-sweep.js";
 
 const NOW = new Date("2026-11-05T12:00:00Z");
 const outs: string[] = [];
@@ -31,9 +32,8 @@ afterEach(() => {
 
 type Call = { cmd: string; args: string[] };
 type Answer = (call: Call) => ExecOutput | undefined;
-/** A call the anonymous runner ran: its arguments, the environment and working directory it
- * ran with, and what that configuration directory held when it ran. */
-type Anonymous = Call & { env: NodeJS.ProcessEnv; cwd?: string; configHeld?: string[] };
+/** A request the group-read fetch was given. */
+type Sent = { url: string; init: RequestInit };
 
 /** Answers GraphQL with a known budget, so the paced release reads run, and refuses the rest. */
 function fakeRunner(calls: Call[], answer?: Answer) {
@@ -47,6 +47,22 @@ function fakeRunner(calls: Call[], answer?: Answer) {
       return { stdout: JSON.stringify({ data: { [BUDGET_KEY]: rate } }), stderr: "", exit: 0 };
     }
     return { stdout: "", stderr: "fake: not answered", exit: 1 };
+  };
+}
+
+/** A fetch that answers as the glab call for the same path would: its stdout as the body, an
+ * empty list when nothing is given. */
+function fakeFetch(sent: Sent[], answer?: Answer): Fetch {
+  return async (url, init) => {
+    sent.push({ url, init });
+    const path = url.slice(GITLAB_API.length);
+    const given = answer?.({ cmd: "glab", args: ["api", "--hostname", GITLAB_HOST, path] });
+    return given && given.exit !== 0
+      ? new Response(JSON.stringify({ message: given.stderr }), {
+          status: 404,
+          headers: { "content-type": "application/json" },
+        })
+      : new Response(given?.stdout ?? "[]", { headers: { "content-type": "application/json" } });
   };
 }
 
@@ -73,74 +89,46 @@ const issuesOf = (...projects: number[]): ExecOutput => ({
   exit: 0,
 });
 
-const SIGNED_IN: NodeJS.ProcessEnv = {
-  PATH: "/usr/bin:/bin",
-  HOME: "/Users/someone",
+/** Everything that could name or carry a GitLab credential, set for the recording. */
+const SIGNED_IN: Record<string, string> = {
   GITLAB_TOKEN: "glpat-recording-account",
-  GLAB_TOKEN: "glpat-recording-account",
-  GITLAB_ACCESS_TOKEN: "glpat-recording-account",
+  GLAB_TOKEN: "glpat-glab-account",
+  GITLAB_ACCESS_TOKEN: "glpat-access-account",
   OAUTH_TOKEN: "oauth-recording-account",
-  CI_JOB_TOKEN: "job-token",
+  CI_JOB_TOKEN: "job-token-recording",
   GLAB_ENABLE_CI_AUTOLOGIN: "true",
-  GITLAB_CI: "true",
-  GITLAB_HOST: "gitlab.example",
-  GH_TOKEN: "gho_recording-account",
   GLAB_CONFIG_DIR: "/Users/someone/.config/glab-cli",
-  XDG_CONFIG_HOME: "/Users/someone/.config",
+  GITLAB_HOST: "gitlab.example",
   GIT_DIR: "/Users/someone/work/.git",
   GIT_CONFIG_GLOBAL: "/Users/someone/.gitconfig",
-  SSH_AUTH_SOCK: "/tmp/agent.sock",
-  LANG: "en_US.UTF-8",
-  TZ: "UTC",
 };
 
-async function attempt(
-  check: CheckVisibility,
-  answer?: Answer,
-  real?: { env: NodeJS.ProcessEnv; anonymous: (env: NodeJS.ProcessEnv) => ExecRunner },
-) {
+async function attempt(check: CheckVisibility, answer?: Answer, fetchImpl?: Fetch) {
   const out = mkdtempSync(join(tmpdir(), "spi-code-record-test-"));
   outs.push(out);
   const calls: Call[] = [];
-  const anonymous: Anonymous[] = [];
-  const signedIn = fakeRunner(calls, answer);
+  const sent: Sent[] = [];
   const run = recordSweep({
     out,
-    runner: signedIn,
-    env: real?.env ?? SIGNED_IN,
-    anonymous:
-      real?.anonymous ??
-      ((env) => async (cmd, args, opts) => {
-        const dir = env.GLAB_CONFIG_DIR;
-        anonymous.push({
-          cmd,
-          args,
-          env,
-          ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
-          ...(dir && existsSync(dir) ? { configHeld: readdirSync(dir) } : {}),
-        });
-        return answer?.({ cmd, args }) ?? { stdout: "[]", stderr: "", exit: 0 };
-      }),
+    runner: fakeRunner(calls, answer),
+    fetch: fetchImpl ?? fakeFetch(sent, answer),
     check,
     now: NOW,
     secrets: {},
     bun: "test",
   });
-  return { run, out, calls, anonymous };
+  return { run, out, calls, sent };
 }
 
-async function record(
-  check: CheckVisibility,
-  answer?: Answer,
-  real?: Parameters<typeof attempt>[2],
-) {
-  const { run, out, calls, anonymous } = await attempt(check, answer, real);
+async function record(check: CheckVisibility, answer?: Answer, fetchImpl?: Fetch) {
+  const { run, out, calls, sent } = await attempt(check, answer, fetchImpl);
   const result = await run;
-  const entries = readFileSync(join(out, "exec.jsonl"), "utf8")
+  const log = readFileSync(join(out, "exec.jsonl"), "utf8");
+  const entries = log
     .split("\n")
     .filter(Boolean)
     .map((line) => JSON.parse(line) as ExecLogEntry);
-  return { ...result, out, calls, anonymous, entries };
+  return { ...result, out, calls, sent, log, entries };
 }
 
 const naming = (calls: Call[], name: string) =>
@@ -206,36 +194,111 @@ describe("recordSweep", () => {
 describe("group-scoped reads", () => {
   // A public group does not make its projects public: a signed-in group read can return issues
   // of private projects the account sees, and of confidential issues in public ones.
-  it("run anonymously: no GitLab credential and an empty glab configuration", async () => {
-    const { anonymous, calls, entries } = await record(
+  it("never run glab: they are answered by an anonymous GET to GitLab's API", async () => {
+    const { calls, sent, entries } = await record(
       visibility({ github: [CORE_LIB_REPO] }),
       (call) => (isGroupRead(call) ? issuesOf(42) : undefined),
     );
     expect(calls.filter(isGroupRead)).toEqual([]);
-    expect(anonymous.length).toBeGreaterThan(0);
-    for (const call of anonymous) {
-      expect(isGroupRead(call)).toBe(true);
-      // An allowlist: nothing else inherited reaches glab, GIT_DIR and SSH_AUTH_SOCK included.
-      expect(Object.keys(call.env).sort()).toEqual([
-        "GIT_CEILING_DIRECTORIES",
-        "GIT_CONFIG_NOSYSTEM",
-        "GLAB_CONFIG_DIR",
-        "HOME",
-        "LANG",
-        "PATH",
-        "TZ",
-        "XDG_CONFIG_HOME",
-      ]);
-      const dir = call.env.GLAB_CONFIG_DIR as string;
-      expect(dir).not.toBe(SIGNED_IN.GLAB_CONFIG_DIR);
-      expect(call.configHeld).toEqual([]);
-      expect(call.env.XDG_CONFIG_HOME).toBe(dir);
-      expect(call.env.HOME).toBe(dir);
-      expect(call.cwd).toBe(dir);
-      expect(call.env.PATH).toBe(SIGNED_IN.PATH);
-      expect(existsSync(dir)).toBe(false);
+    expect(sent.length).toBeGreaterThan(0);
+    const reads = entries.filter(isGroupRead);
+    expect(reads.length).toBe(sent.length);
+    for (const [i, { url, init }] of sent.entries()) {
+      expect(url.startsWith(`${GITLAB_API}groups/`)).toBe(true);
+      expect(init.method).toBe("GET");
+      expect(init.credentials).toBe("omit");
+      expect(init.redirect).toBe("error");
+      expect([...new Headers(init.headers).keys()]).toEqual(["accept"]);
+      // Recorded as the glab call core makes, so replay finds it.
+      expect(reads[i]).toMatchObject({
+        cmd: "glab",
+        args: ["api", "--hostname", GITLAB_HOST, url.slice(GITLAB_API.length)],
+        stdout: issuesOf(42).stdout,
+        exit: 0,
+      });
     }
-    expect(entries.filter(isGroupRead).length).toBe(anonymous.length);
+  });
+
+  describe("with every GitLab credential and git discovery variable set", () => {
+    beforeEach(() => {
+      for (const [name, value] of Object.entries(SIGNED_IN)) vi.stubEnv(name, value);
+    });
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    // The real fetch, sent to a local server standing in for GitLab: what goes on the wire.
+    it("sends no credential header or cookie", async () => {
+      const seen: IncomingHttpHeaders[] = [];
+      const server = createServer((request, response) => {
+        seen.push(request.headers);
+        response.setHeader("content-type", "application/json");
+        response.end(issuesOf(42).stdout);
+      });
+      await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+      const { port } = server.address() as AddressInfo;
+      try {
+        const local: Fetch = (url, init) =>
+          fetch(url.replace(GITLAB_API, `http://127.0.0.1:${port}/api/v4/`), init);
+        const { calls, log, entries } = await record(
+          visibility({ github: [CORE_LIB_REPO] }),
+          undefined,
+          local,
+        );
+        expect(calls.filter(isGroupRead)).toEqual([]);
+        expect(seen.length).toBe(entries.filter(isGroupRead).length);
+        expect(seen.length).toBeGreaterThan(0);
+        for (const headers of seen) {
+          for (const name of ["authorization", "private-token", "job-token", "cookie"])
+            expect(headers[name]).toBeUndefined();
+          expect(JSON.stringify(headers)).not.toMatch(/glpat|oauth-recording|job-token-recording/);
+        }
+        for (const [name, value] of Object.entries(SIGNED_IN))
+          if (name.includes("TOKEN")) expect(log).not.toContain(value);
+        for (const read of entries.filter(isGroupRead))
+          expect(JSON.stringify(read)).not.toMatch(/authorization|private-token|token|cookie/i);
+      } finally {
+        await new Promise((done) => server.close(done));
+      }
+    });
+  });
+
+  it("record glab's failure for a failed response, without its body", async () => {
+    const answer =
+      (status: number, body: string, type = "application/json"): Fetch =>
+      async () =>
+        new Response(body, { status, headers: { "content-type": type } });
+    expect(
+      await anonymousGroupRead(
+        answer(404, '{"message":"404 Group Not Found"}'),
+        "groups/x/issues",
+        {},
+      ),
+    ).toEqual({ stdout: "", stderr: "glab: 404 Group Not Found (HTTP 404)\n", exit: 1 });
+    expect(
+      await anonymousGroupRead(answer(502, "<html>bad</html>", "text/html"), "groups/x/issues", {}),
+    ).toEqual({
+      stdout: "",
+      stderr: "glab: HTTP 502\n",
+      exit: 1,
+    });
+    const refused = async () => {
+      throw new Error("fetch failed");
+    };
+    expect(await anonymousGroupRead(refused, "groups/x/issues", {})).toEqual({
+      stdout: "",
+      stderr: "glab: fetch failed\n",
+      exit: 1,
+    });
+    // Only group reads, and only on GitLab's API.
+    let asked = 0;
+    const counted: Fetch = async () => {
+      asked++;
+      return new Response("[]");
+    };
+    for (const path of ["projects/1/issues", "groups/../projects/1", "//evil.example/groups/x"])
+      expect(await anonymousGroupRead(counted, path, {})).toMatchObject({ exit: 1 });
+    expect(asked).toBe(0);
   });
 
   it("aborts the recording before writing anything when an item's project is not public", async () => {
@@ -274,56 +337,19 @@ describe("group-scoped reads", () => {
     expect(readdirSync(out)).toEqual([]);
   });
 
-  // Sol's probe: real HostExec, and a glab that finds its credentials the way glab does: the
-  // token variables, its configuration directory, and the repository `git rev-parse --git-dir`
-  // names. An inherited GIT_DIR names a repository whose glab configuration holds a token.
-  it.skipIf(process.platform === "win32")(
-    "no inherited git or glab discovery reaches the anonymous glab",
-    async () => {
-      const root = mkdtempSync(join(tmpdir(), "spi-code-record-glab-"));
-      outs.push(root);
-      const bin = join(root, "bin");
-      const repo = join(root, "repo");
-      const home = join(root, "home");
-      mkdirSync(bin);
-      execFileSync("git", ["init", "-q", repo]);
-      for (const dir of [join(repo, ".git", "glab-cli"), join(home, ".config", "glab-cli")]) {
-        mkdirSync(dir, { recursive: true });
-        writeFileSync(
-          join(dir, "config.yml"),
-          "hosts:\n  community.opengroup.org:\n    token: glpat-x\n",
-        );
-      }
-      const item = (confidential: boolean, body: string) =>
-        JSON.stringify([{ id: 1, iid: 7, project_id: 42, confidential, description: body }]);
-      writeFileSync(
-        join(bin, "glab"),
-        [
-          "#!/bin/sh",
-          'signed="$GITLAB_TOKEN$GITLAB_ACCESS_TOKEN$OAUTH_TOKEN$GLAB_TOKEN"',
-          'config="$HOME/.config/glab-cli/config.yml"',
-          '[ -n "$XDG_CONFIG_HOME" ] && config="$XDG_CONFIG_HOME/glab-cli/config.yml"',
-          '[ -n "$GLAB_CONFIG_DIR" ] && config="$GLAB_CONFIG_DIR/config.yml"',
-          'grep -qs token "$config" && signed=config',
-          'gitdir=$(git rev-parse --git-dir 2>/dev/null) && grep -qs token "$gitdir/glab-cli/config.yml" && signed=repo',
-          `if [ -n "$signed" ]; then printf '%s' '${item(true, "CONFIDENTIAL-BODY")}'; else printf '%s' '${item(false, "PUBLIC-BODY")}'; fi`,
-          "",
-        ].join("\n"),
-        { mode: 0o755 },
-      );
-      const capturedPath = `${bin}:${process.env.PATH ?? ""}`;
-      const appData = join(root, "app");
-      const { entries } = await record(visibility({ github: [CORE_LIB_REPO] }), undefined, {
-        env: { PATH: capturedPath, HOME: home, GIT_DIR: join(repo, ".git") },
-        anonymous: (env) =>
-          new HostExec({ appData, capturedPath, installer: { binDir: async () => undefined }, env })
-            .run,
-      });
-      const reads = entries.filter(isGroupRead);
-      expect(reads.length).toBeGreaterThan(0);
-      for (const read of reads) expect(read.stdout).toContain("PUBLIC-BODY");
-    },
-  );
+  it("count a project public only when its issues are open to everyone", () => {
+    const project = (issues?: string) => ({
+      visibility: "public",
+      ...(issues ? { issues_access_level: issues } : {}),
+    });
+    expect(anonymousVisibility(project("enabled"), { issues: true })).toBe("public");
+    // Members-only issues of a public project are private content.
+    expect(anonymousVisibility(project("private"), { issues: true })).toBe("private");
+    expect(anonymousVisibility(project("disabled"), { issues: true })).toBe("unknown");
+    expect(anonymousVisibility(project(), { issues: true })).toBe("unknown");
+    expect(anonymousVisibility({ visibility: "internal" }, { issues: true })).toBe("unknown");
+    expect(anonymousVisibility(project())).toBe("public");
+  });
 
   it("aborts when a group read returns an item without a project", async () => {
     const { run, out } = await attempt(visibility({ github: [CORE_LIB_REPO] }), (call) =>
