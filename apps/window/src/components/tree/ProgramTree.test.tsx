@@ -6,6 +6,7 @@ import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { routes } from "../../app/routes.js";
+import { testSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore } from "../../store/watch.js";
 import { ProgramTree } from "./ProgramTree.js";
 
@@ -36,12 +37,17 @@ const ids = [
 const tree = TreeStatusSchema.parse(
   ids.map((id, index) => ({ id, status: states[index % states.length] })),
 );
-const snapshot = {
+const body = testSnapshot();
+const focus = body.briefing.focus[0];
+if (!focus) throw new Error("Oracle must contain a focus item");
+const snapshot = testSnapshot({
   cursor: 1,
   tree,
   briefing: {
+    ...body.briefing,
     focus: [
       {
+        ...focus,
         evidence: [
           { label: "Upgrade", url: "https://github.com/Azure/stack/actions/runs/123" },
           { label: "Duplicate", url: "https://github.com/Azure/stack/actions/runs/123" },
@@ -50,7 +56,7 @@ const snapshot = {
       },
     ],
   },
-};
+});
 
 function Harness({ store }: { store: ReturnType<typeof createWatchStore> }) {
   const [route, setRoute] = useState<(typeof routes)[number]>(routes[0]);
@@ -163,7 +169,7 @@ it("navigates through existing routes and retains the selected service in Flow",
   }
 });
 
-it("shows unread before the first sweep, updates from the store, and rejects invalid tree data visibly", async () => {
+it("shows unread before the first sweep and retains the tree when invalid snapshots are rejected", async () => {
   const view = await mount(null);
   try {
     expect(view.container.textContent).toContain("No GitHub workflow runs");
@@ -179,20 +185,25 @@ it("shows unread before the first sweep, updates from the store, and rejects inv
         .querySelector('[data-selection-id="today"] [role="img"]')
         ?.getAttribute("data-status"),
     ).toBe("fresh");
-    await act(async () => view.receive({ cursor: 2, tree: [{ id: "today", status: "green" }] }));
-    expect(view.container.querySelector('[role="alert"]')?.textContent).toContain(
-      "Invalid program tree",
-    );
-    await act(async () => view.receive({ cursor: 3 }));
-    expect(view.container.querySelector('[role="alert"]')?.textContent).toContain(
-      "Invalid program tree",
-    );
+    expect(() =>
+      view.receive({ ...snapshot, cursor: 2, tree: [{ id: "today", status: "green" }] }),
+    ).toThrow("Invalid host message");
+    expect(() => view.receive({ cursor: 3 })).toThrow("Invalid host message");
+    expect(view.container.querySelector('[role="alert"]')).toBeNull();
+    expect(
+      view.container
+        .querySelector('[data-selection-id="today"] [role="img"]')
+        ?.getAttribute("data-status"),
+    ).toBe("fresh");
+    expect(view.container.textContent).toContain("Upgrade · #123");
     for (const route of routes) {
       const button = view.container.querySelector<HTMLButtonElement>(
         `[data-selection-id="${route.id}"]`,
       );
       expect(button).not.toBeNull();
-      expect(button?.querySelector('[role="img"]')?.getAttribute("data-status")).toBe("unread");
+      expect(button?.querySelector('[role="img"]')?.getAttribute("data-status")).toBe(
+        tree.find((node) => node.id === route.id)?.status,
+      );
       await act(async () => button?.click());
       expect(view.container.querySelector("h1")?.textContent).toBe(route.label);
     }

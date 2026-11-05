@@ -3,6 +3,7 @@
 
 import { PROTOCOL_VERSION, WatchMessageSchema } from "@spi-code/contracts";
 import { expect, it, vi } from "vitest";
+import { testSnapshot } from "./test-snapshot.js";
 import { createWatchStore } from "./watch.js";
 
 const event = (type: string, payload: unknown) => ({
@@ -23,22 +24,93 @@ it("rejects git sign-in at the type and runtime boundaries", () => {
   expect(send).not.toHaveBeenCalled();
 });
 
-it("keeps the newest cursor, ignores late and duplicate snapshots, and retains opaque data", () => {
+it("keeps the newest full snapshot and ignores late and duplicate cursors", () => {
   const store = createWatchStore(vi.fn());
-  const body = { cursor: 9, briefing: { future: ["opaque"] } };
-  for (const payload of [{ cursor: 3 }, body, { cursor: 4 }, { cursor: 9 }]) {
+  const body = testSnapshot({ cursor: 9 });
+  for (const payload of [testSnapshot({ cursor: 3 }), body]) {
     store.getState().receive(event("view.snapshot", payload));
   }
   expect(store.getState().snapshot).toEqual({ cursor: 9, body });
-  expect(store.getState().snapshot?.body).toBe(body);
+  const state = store.getState();
+  const changed = vi.fn();
+  store.subscribe(changed);
+  for (const cursor of [4, 9]) {
+    store.getState().receive(event("view.snapshot", testSnapshot({ cursor, tree: [] })));
+  }
+  expect(store.getState()).toBe(state);
+  expect(changed).not.toHaveBeenCalled();
+});
+
+it.each([
+  ["Briefing", (body: ReturnType<typeof testSnapshot>) => ({ ...body, briefing: {} })],
+  [
+    "read",
+    (body: ReturnType<typeof testSnapshot>) => ({
+      ...body,
+      reads: [{ ...body.reads[0], observedAt: "not-a-date" }],
+    }),
+  ],
+  [
+    "station",
+    (body: ReturnType<typeof testSnapshot>) => ({
+      ...body,
+      stations: [{ service: "legal", stations: [{ id: "upstream", state: "green", text: "" }] }],
+    }),
+  ],
+])("rejects a malformed %s before any store mutation, even at a stale cursor", (_name, corrupt) => {
+  const send = vi.fn();
+  const store = createWatchStore(send);
+  store.getState().receive(event("view.snapshot", testSnapshot({ cursor: 9 })));
+  store.getState().select("halt:legal");
+  const state = store.getState();
+  const changed = vi.fn();
+  store.subscribe(changed);
+  for (const cursor of [10, 8]) {
+    expect(() =>
+      store.getState().receive(event("view.snapshot", corrupt(testSnapshot({ cursor })))),
+    ).toThrow("Invalid host message");
+    expect(store.getState()).toBe(state);
+  }
+  expect(changed).not.toHaveBeenCalled();
+  expect(send).not.toHaveBeenCalled();
+});
+
+it("sets, retains a vanished selection across snapshots and reset, and clears explicitly", () => {
+  const store = createWatchStore(vi.fn());
+  expect(store.getState().selection).toBeNull();
+  const body = testSnapshot();
+  const id = body.briefing.focus[0]?.id;
+  expect(id).toBeDefined();
+  if (id === undefined) throw new Error("Oracle must contain a focus item");
+  store.getState().receive(event("view.snapshot", body));
+  store.getState().select(id);
+  expect(store.getState().selection).toEqual({ id });
+  store.getState().receive(
+    event(
+      "view.snapshot",
+      testSnapshot({
+        cursor: 2,
+        briefing: { ...body.briefing, focus: [], rest: [] },
+        selection: "today",
+      }),
+    ),
+  );
+  expect(store.getState().selection).toEqual({ id });
+  store.getState().receive(event("host.hello", { pid: 456 }));
+  expect(store.getState().selection).toEqual({ id });
+  store.getState().select("rollout");
+  expect(store.getState().selection).toEqual({ id: "rollout" });
+  store.getState().clear();
+  expect(store.getState().selection).toBeNull();
+  expect(store.getState().snapshot?.cursor).toBe(2);
 });
 
 it("subscribes on every hello with zero initially and the last cursor after reset", () => {
   const send = vi.fn();
   const store = createWatchStore(send);
   store.getState().receive(event("host.hello", { pid: 123 }));
-  store.getState().receive(event("view.snapshot", { cursor: 0 }));
-  store.getState().receive(event("view.snapshot", { cursor: 12 }));
+  store.getState().receive(event("view.snapshot", testSnapshot({ cursor: 0 })));
+  store.getState().receive(event("view.snapshot", testSnapshot({ cursor: 12 })));
   store.getState().receive(event("host.hello", { pid: 456 }));
   expect(send.mock.calls.map(([message]) => WatchMessageSchema.parse(message).payload)).toEqual([
     { fromCursor: 0 },
@@ -55,13 +127,13 @@ it("keeps the latest cursorless sweep and setup states independently of snapshot
   store
     .getState()
     .receive(event("setup.state", { ...setup, watchReady: true, disabledReason: null }));
-  store.getState().receive(event("view.snapshot", { cursor: 9 }));
+  store.getState().receive(event("view.snapshot", testSnapshot({ cursor: 9 })));
   store.getState().receive(event("sweep.status", sweep));
   store.getState().receive(event("setup.state", setup));
-  store.getState().receive(event("view.snapshot", { cursor: 1 }));
+  store.getState().receive(event("view.snapshot", testSnapshot({ cursor: 1 })));
   expect(store.getState()).toMatchObject({ sweep, setup, snapshot: { cursor: 9 } });
   expect(() => store.getState().receive(event("sweep.status", {}))).toThrow("Invalid host");
   expect(() => store.getState().receive(event("view.snapshot", { cursor: -1 }))).toThrow(
-    "Invalid view",
+    "Invalid host",
   );
 });

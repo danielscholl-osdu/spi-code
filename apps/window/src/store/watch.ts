@@ -8,13 +8,17 @@ import {
   type SetupSigninProgress,
   type SetupState,
   type SweepStatus,
+  type ViewSnapshot,
   type WatchMessage,
 } from "@spi-code/contracts";
 import { createStore } from "zustand/vanilla";
 
-export type Snapshot = { cursor: number; body: unknown };
+export type Snapshot = { cursor: number; body: ViewSnapshot };
 type WatchState = {
   snapshot: Snapshot | null;
+  selection: { id: string } | null;
+  select(id: string): void;
+  clear(): void;
   sweep: SweepStatus | null;
   setup: SetupState | null;
   signin: Partial<Record<SetupSigninProgress["tool"], SetupSigninProgress>>;
@@ -30,13 +34,16 @@ type WatchState = {
   receive(input: unknown): void;
 };
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
 export function createWatchStore(send: (message: Message) => void) {
   return createStore<WatchState>((set, get) => ({
     snapshot: null,
+    selection: null,
+    select(id) {
+      set({ selection: { id } });
+    },
+    clear() {
+      set({ selection: null });
+    },
     sweep: null,
     setup: null,
     signin: {},
@@ -53,29 +60,17 @@ export function createWatchStore(send: (message: Message) => void) {
       send(parsed.message);
     },
     receive(input) {
-      // BRIEFSCHEMA will replace this minimal boundary with the snapshot contract.
-      if (isRecord(input) && input.type === "view.snapshot") {
-        const payload = input.payload;
-        if (
-          input.version !== PROTOCOL_VERSION ||
-          input.kind !== "event" ||
-          typeof input.id !== "string" ||
-          !input.id ||
-          !isRecord(payload) ||
-          typeof payload.cursor !== "number" ||
-          !Number.isSafeInteger(payload.cursor) ||
-          payload.cursor < 0
-        )
-          throw new Error("Invalid view.snapshot");
+      const parsed = parseMessage(input);
+      if (!parsed.ok) throw new Error("Invalid host message");
+      const message = parsed.message;
+      if (message.type === "view.snapshot") {
+        const payload = message.payload;
         const last = get().snapshot;
         if (!last || payload.cursor > last.cursor) {
           set({ snapshot: { cursor: payload.cursor, body: payload } });
         }
         return;
       }
-      const parsed = parseMessage(input);
-      if (!parsed.ok) throw new Error("Invalid host message");
-      const message = parsed.message;
       if (message.type === "sweep.status") set({ sweep: message.payload });
       if (message.type === "setup.state") set({ setup: message.payload });
       if (message.type === "setup.signin.progress") {
