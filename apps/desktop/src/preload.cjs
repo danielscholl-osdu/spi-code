@@ -12,7 +12,11 @@ contextBridge.exposeInMainWorld("spi", {
   },
   postMessage(message) {
     if (!port) throw new Error("Host port is not connected");
-    if (process.argv.includes("--spi-proof") && message.type === "turn.start")
+    if (
+      process.argv.includes("--spi-proof") &&
+      (message.type === "turn.start" ||
+        (process.argv.includes("--spi-smoke") && message.type === "view.subscribe"))
+    )
       ipcRenderer.send("proof:message", message);
     port.postMessage(message);
   },

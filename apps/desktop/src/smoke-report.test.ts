@@ -24,6 +24,17 @@ const report: SmokeReport = {
     outcome: tier === "Read" ? "completed" : "refused",
   })),
   deniedBuiltIn: { name: "builtin:shell", outcome: "refused" },
+  supervision: {
+    signal: "SIGKILL",
+    hostPids: [102, 103, 104, 105, 106, 107, 108, 109],
+    channelTransfers: 9,
+    fromCursor: 1,
+    resumedCursor: 2,
+    persistedCursors: [1, 2],
+    sameRenderer: true,
+    freshChannel: true,
+    giveUpAcrossReload: true,
+  },
 };
 
 it("accepts the terminal smoke report", () => {
@@ -49,6 +60,24 @@ it.each([
   { tools: report.tools.map((tool) => ({ ...tool, outcome: "completed" })) },
   { deniedBuiltIn: { name: "builtin:shell", outcome: "completed" } },
   { deniedBuiltIn: undefined },
+  { supervision: undefined },
 ])("rejects a failed smoke check: %j", (failure) => {
   expect(() => assertSmokeReport({ ...report, ...failure })).toThrow();
+});
+
+it.each([
+  { signal: "SIGTERM" },
+  { hostPids: [102, 103] },
+  { hostPids: [102, 103, 104, 105, 106, 107, 108, 108] },
+  { channelTransfers: 8 },
+  { fromCursor: 0 },
+  { resumedCursor: 1 },
+  { persistedCursors: [2] },
+  { sameRenderer: false },
+  { freshChannel: false },
+  { giveUpAcrossReload: false },
+])("rejects incomplete supervision evidence: %j", (failure) => {
+  expect(() =>
+    assertSmokeReport({ ...report, supervision: { ...report.supervision, ...failure } }),
+  ).toThrow();
 });

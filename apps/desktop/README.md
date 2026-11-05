@@ -18,7 +18,7 @@ unpackaged development may set it to `1`. Stub sign-in is labelled as a stub,
 not as gh authentication.
 
 Alternatively pass `--smoke-report /absolute/path/report.json` to the smoke
-script. The smoke uses a fresh directory under Electron's app-data directory,
+script. The launcher uses a fresh temporary Electron user-data directory,
 checks a renderer ping and malformed-message rejection, kills and restarts the
 host, and verifies its SQLite row and event survived. It checks both live process
 ids with `lsof` on macOS or `netstat -ano` on Windows before and after restart.
@@ -26,8 +26,25 @@ Windows smoke rejects unrecognized or localized TCP state labels explicitly.
 The success report is asserted before
 being written, and includes Electron's main and utility-process Node versions
 and the observed `DatabaseSync.isTransaction` support. Failure writes an `error`
-report and exits nonzero; success exits zero. Smoke databases remain under
-app data for inspection.
+report and exits nonzero; success exits zero. The launcher removes its temporary
+user-data directory after Electron exits, including on failure.
+
+The PM-03 smoke seeds a fixture Watch snapshot in SQLite and displays it in the
+real window. It sends `SIGKILL` to the actual utility-process PID and lets the
+production `HostSupervisor` restart it after its real first backoff. It asserts
+a new PID and MessageChannel peer pair, the window's outgoing `view.subscribe`
+cursor, a newer displayed snapshot, the same renderer PID and document without
+a reload, and the original SQLite run, event and snapshot rows. It then
+exhausts the real supervisor's crash budget and checks that `host_unavailable`
+is displayed both before and after a renderer reload. Only this remaining
+give-up probe accelerates restart timers; the stable-run timer is never shortened,
+and no accelerated clock exists without `--smoke`.
+
+The host's explicit `--smoke --stub-model` path bypasses live Setup and forbids
+external commands: no real gh/glab, seat lookup or sweep runs. Normal and
+development-stub launches retain production Setup. The smoke has a 45-second
+in-app deadline and a 60-second launcher timeout. The `supervision` section of
+the JSON report is required by both the local and packaged smoke gates.
 
 `pnpm run package:mac` builds unsigned macOS arm64 DMG and ZIP artifacts under
 `build/package-mac/artifacts`, using an isolated, hoisted production dependency

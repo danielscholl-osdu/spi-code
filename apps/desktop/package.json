@@ -16,7 +16,7 @@
   "scripts": {
     "build": "tsc -b && pnpm --filter @spi-code/window build",
     "start": "pnpm run build && electron .",
-    "smoke": "pnpm run build && electron . --smoke",
+    "smoke": "pnpm run build && node dist/smoke-launch.js",
     "typecheck": "tsc -b"
   },
   "dependencies": {

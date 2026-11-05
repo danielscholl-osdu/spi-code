@@ -44,7 +44,6 @@ const windowEntry = app.isPackaged
 let child: UtilityProcess | undefined;
 let supervisor: HostSupervisor<UtilityProcess> | undefined;
 let hostPorts: ReturnType<typeof hostPortCallbacks<MessagePortMain>> | undefined;
-let stopping = false;
 let failing = false;
 
 function saveReport(report: unknown): void {
@@ -58,12 +57,14 @@ function fail(error: unknown): void {
   failing = true;
   setTimeout(() => process.exit(1), 2000).unref();
   console.error(error);
-  stopping = true;
   try {
     if (smoke) saveReport({ error: error instanceof Error ? error.message : String(error) });
   } finally {
     void stopHost().then(
-      () => app.exit(1),
+      () => {
+        hostPorts?.dispose();
+        app.exit(1);
+      },
       () => {
         console.error("Failed to stop the host after a proof failure");
         process.exit(1);
@@ -78,12 +79,10 @@ async function stopHost(): Promise<void> {
     return;
   }
   if (!child) return;
-  stopping = true;
   const exited = once(child, "exit");
   if (!child.kill()) throw new Error("Could not kill host");
   await exited;
   child = undefined;
-  stopping = false;
 }
 
 function forkHost(args: string[]): UtilityProcess {
@@ -102,23 +101,15 @@ function forkHost(args: string[]): UtilityProcess {
   return host;
 }
 
-async function startHost(args: string[]): Promise<number> {
-  const host = forkHost(args);
-  host.on("exit", (code) => {
-    if (!stopping) fail(new Error(`Host exited unexpectedly (${code})`));
-  });
-  await once(host, "spawn");
-  const pid = host.pid;
-  assert(pid, "Host has no pid");
-  assert(hostPorts, "Host port callbacks are not initialized");
-  hostPorts.onSpawn(host);
-  return pid;
-}
-
 async function run(): Promise<void> {
   if (!reportPath) throw new Error("--smoke-report requires a path");
   if (liveFlag >= 0 && (!livePath || livePath.startsWith("--")))
     throw new Error("--live-report requires a path");
+  if (smoke) {
+    const userData = process.argv.find((arg) => arg.startsWith("--user-data-dir="))?.slice(16);
+    assert(userData, "Smoke requires an isolated --user-data-dir (use the smoke launcher)");
+    app.setPath("userData", userData);
+  }
   await app.whenReady();
   const dataDir = smoke
     ? join(app.getPath("userData"), "smoke", randomUUID())
@@ -138,7 +129,12 @@ async function run(): Promise<void> {
       additionalArguments: proof ? ["--spi-proof", ...(smoke ? ["--spi-smoke"] : [])] : [],
     },
   });
-  hostPorts = hostPortCallbacks(() => new MessageChannelMain(), window);
+  const channels: MessageChannelMain[] = [];
+  hostPorts = hostPortCallbacks(() => {
+    const channel = new MessageChannelMain();
+    if (smoke) channels.push(channel);
+    return channel;
+  }, window);
   let deniedPermissionRequests = 0;
   window.webContents.session.setPermissionCheckHandler(() => false);
   window.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => {
@@ -206,11 +202,25 @@ async function run(): Promise<void> {
     supervisor.start();
     return;
   }
+  const [{ initialHeadline, writeSmokeSnapshot }, { exerciseSupervision, smokeClock }] =
+    await Promise.all([import("./smoke-snapshot.js"), import("./smoke-supervision.js")]);
   const rowId = randomUUID();
   const probePath = join(dataDir, "probe.json");
-  const hostPid = await startHost([storePath, "write", rowId, probePath]);
+  const firstCursor = writeSmokeSnapshot(storePath, initialHeadline);
+  const clock = smokeClock(process.argv);
+  assert(clock);
+  let launches = 0;
+  supervisor = new HostSupervisor<UtilityProcess>({
+    spawn: () => forkHost([storePath, launches++ === 0 ? "write" : "read", rowId, probePath]),
+    onSpawn: hostPorts.onSpawn,
+    onGiveUp: hostPorts.onGiveUp,
+    clock,
+  });
+  supervisor.start();
   const hello = await wait("hello");
   assert(hello.type === "host.hello");
+  const hostPid = child?.pid;
+  assert(hostPid);
   assert.equal(hello.payload.pid, hostPid);
   const pong = await wait("window-ping");
   const turn = await messages.waitForStartedTurn();
@@ -241,17 +251,24 @@ async function run(): Promise<void> {
   const reloadTurn = await messages.waitForStartedTurn();
   assert(reloadTurn.type === "turn.end" && reloadTurn.payload.reason === "completed");
   const listeners = [...listenersOf(process.pid), ...listenersOf(hostPid)];
-  await stopHost();
-  const restartedHostPid = await startHost([storePath, "read", rowId, probePath]);
-  const restartedHello = await wait("hello");
-  assert(restartedHello.type === "host.hello");
-  assert.equal(restartedHello.payload.pid, restartedHostPid);
-  const restartedPong = await wait("window-ping");
-  assert.equal(restartedPong.type, "pong");
-  listeners.push(...listenersOf(process.pid), ...listenersOf(restartedHostPid));
+  const supervision = await exerciseSupervision({
+    window,
+    messages,
+    currentHost: () => {
+      assert(child, "Supervised utility process is missing");
+      return child;
+    },
+    channels,
+    storePath,
+    firstCursor,
+    clock,
+    listeners,
+  });
+  const restartedHostPid = supervision.hostPids[1];
+  assert(restartedHostPid);
   const probe: unknown = JSON.parse(readFileSync(probePath, "utf8"));
   assert(probe !== null && typeof probe === "object");
-  assert("pid" in probe && probe.pid === restartedHostPid);
+  assert("pid" in probe && probe.pid === supervision.hostPids.at(-1));
   assert("rowSurvived" in probe && probe.rowSurvived === true);
   assert("sqliteIsTransaction" in probe && probe.sqliteIsTransaction === true);
   assert("nodeVersion" in probe && typeof probe.nodeVersion === "string");
@@ -277,17 +294,21 @@ async function run(): Promise<void> {
     listeners,
     tools,
     deniedBuiltIn: { name: deniedBuiltIn.name, outcome: deniedBuiltIn.outcome },
+    supervision,
   };
   assertSmokeReport(report);
   await stopHost();
+  hostPorts.dispose();
   saveReport(report);
   console.log(JSON.stringify(report, null, 2));
+  window.destroy();
   app.exit(0);
 }
 
-app.on("window-all-closed", () => app.quit());
+app.on("window-all-closed", () => {
+  if (!smoke) app.quit();
+});
 app.on("will-quit", () => {
-  stopping = true;
   hostPorts?.dispose();
   if (supervisor) void supervisor.stop().catch(console.error);
   else child?.kill();
@@ -295,6 +316,6 @@ app.on("will-quit", () => {
 if (proof)
   setTimeout(
     () => fail(new Error("Proof exceeded its time limit")),
-    smoke ? 30000 : 120000,
+    smoke ? 45000 : 120000,
   ).unref();
 void run().catch(fail);

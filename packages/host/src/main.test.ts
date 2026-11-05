@@ -232,6 +232,63 @@ esac
 echo "spi-fixture-gh $*"
 `;
 
+it("keeps explicit smoke Setup fixture-only and forbids every external command", async () => {
+  vi.resetModules();
+  mocks.setupConnect.mockClear();
+  const originalParent = Object.getOwnPropertyDescriptor(process, "parentPort");
+  const originalArgs = process.argv;
+  const once = vi.spyOn(process, "once").mockReturnValue(process);
+  let connect: (event: HostConnection) => void = () => {};
+  Object.defineProperty(process, "parentPort", {
+    value: { on: (_event: string, listener: typeof connect) => (connect = listener) },
+    configurable: true,
+  });
+  process.argv = [
+    originalArgs[0] ?? "node",
+    "host",
+    "/tmp/unused.sqlite",
+    "--stub-model",
+    "--smoke",
+  ];
+  try {
+    await import("./main.js");
+    const sent: Message[] = [];
+    connect({
+      data: {
+        version: PROTOCOL_VERSION,
+        id: "connect",
+        kind: "request",
+        type: "ping",
+        payload: {},
+      },
+      ports: [
+        {
+          on() {},
+          postMessage: (message: Message) => sent.push(message),
+          start() {},
+          close() {},
+        },
+      ],
+    });
+    expect(mocks.setupConnect).not.toHaveBeenCalled();
+    expect(sent).toContainEqual(
+      expect.objectContaining({
+        type: "setup.state",
+        payload: { tools: [], watchReady: true, disabledReason: null },
+      }),
+    );
+    const options = mocks.setupOptions.at(-1);
+    expect(options).toBeDefined();
+    await expect(options?.exec.runText("gh", ["auth", "token"])).rejects.toThrow("forbidden");
+    await expect(options?.exec.runJSON("glab", ["api", "fixture"])).rejects.toThrow("forbidden");
+  } finally {
+    process.argv = originalArgs;
+    if (originalParent) Object.defineProperty(process, "parentPort", originalParent);
+    else Reflect.deleteProperty(process, "parentPort");
+    once.mockRestore();
+  }
+});
+
 it.skipIf(process.platform === "win32")(
   "gates the real SweepService on a login-shell gh and stops it after an outside sign-out",
   async () => {

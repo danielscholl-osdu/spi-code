@@ -11,7 +11,10 @@ it("does not let inherited stub flags alter a packaged normal launch", () => {
 });
 
 it.each([true, false])("passes explicit stub mode for smoke (packaged=%s)", (packaged) => {
-  expect(hostLaunch(packaged, true, false, {})).toEqual({ args: ["--stub-model"], env: {} });
+  expect(hostLaunch(packaged, true, false, {})).toEqual({
+    args: ["--stub-model", "--smoke"],
+    env: {},
+  });
 });
 
 it("allows the development stub but never substitutes it for a live proof", () => {

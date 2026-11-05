@@ -9,7 +9,7 @@ export function hostLaunch(
 ) {
   const stub = smoke || (!isPackaged && !live && inherited.SPI_CODE_STUB_MODEL === "1");
   return {
-    args: stub ? ["--stub-model"] : [],
+    args: smoke ? ["--stub-model", "--smoke"] : stub ? ["--stub-model"] : [],
     env: Object.fromEntries(
       Object.entries(inherited).filter(([name]) => name.toUpperCase() !== "SPI_CODE_STUB_MODEL"),
     ),

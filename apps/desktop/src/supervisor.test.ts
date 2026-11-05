@@ -414,7 +414,7 @@ it("SIGKILLs the real host, resumes the same window store from its cursor, and p
     }};
     process.argv = [
       process.execPath, ${JSON.stringify(hostEntry)}, process.argv[1],
-      process.argv[2], "durable", process.argv[3], "--stub-model"
+      process.argv[2], "durable", process.argv[3], "--stub-model", "--smoke"
     ];
     await import(${JSON.stringify(hostEntry)});
     process.send("ready");

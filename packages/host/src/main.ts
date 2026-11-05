@@ -28,9 +28,11 @@ import { openRunStore } from "./store/store.js";
 import { SweepService } from "./sweep/service.js";
 
 const stub = process.argv.includes("--stub-model");
+const smoke = process.argv.includes("--smoke");
+if (smoke && !stub) throw new Error("Smoke requires the stub model");
 const [storePath, phase, rowId, reportPath] = process.argv
   .slice(2)
-  .filter((arg) => arg !== "--stub-model");
+  .filter((arg) => arg !== "--stub-model" && arg !== "--smoke");
 if (!storePath) throw new Error("Host requires an app-data store path");
 const store = openRunStore(storePath);
 if (phase) {
@@ -79,8 +81,14 @@ const resolveExec = memo(async () => {
   });
 });
 const exec: Exec = {
-  runJSON: async (cmd, args, opts) => (await resolveExec()).runJSON(cmd, args, opts),
-  runText: async (cmd, args, opts) => (await resolveExec()).runText(cmd, args, opts),
+  runJSON: async (cmd, args, opts) => {
+    if (smoke) throw new Error("External commands are forbidden in smoke mode");
+    return (await resolveExec()).runJSON(cmd, args, opts);
+  },
+  runText: async (cmd, args, opts) => {
+    if (smoke) throw new Error("External commands are forbidden in smoke mode");
+    return (await resolveExec()).runText(cmd, args, opts);
+  },
 };
 function openWatchDb(): DatabaseSync {
   if (!watchDb) {
@@ -180,7 +188,15 @@ attachHostConnections(
       requestQueue,
       routes,
     );
-    setup.connect(sendToWindow);
+    if (smoke) {
+      sendToWindow({
+        version: PROTOCOL_VERSION,
+        id: "smoke-setup",
+        kind: "event",
+        type: "setup.state",
+        payload: { tools: [], watchReady: true, disabledReason: null },
+      });
+    } else setup.connect(sendToWindow);
   },
   console.error,
 );

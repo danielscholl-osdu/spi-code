@@ -301,14 +301,11 @@ export async function packageDesktop(platform = process.platform) {
     const reportPath = join(output, "smoke.json");
     const runtimeReportPath = join(output, "runtime.json");
     for (const path of [reportPath, runtimeReportPath]) await rm(path, { force: true });
-    execFileSync(
+    const { launchSmoke } = await import("../apps/desktop/dist/smoke-launch.js");
+    launchSmoke(
       join(bundle, windows ? "SPI Code.exe" : "MacOS/SPI Code"),
-      ["--smoke", "--smoke-report", reportPath],
-      {
-        env: { ...env, SPI_CODE_RUNTIME_REPORT: runtimeReportPath },
-        stdio: "inherit",
-        timeout: 60000,
-      },
+      ["--smoke-report", reportPath],
+      { ...env, SPI_CODE_RUNTIME_REPORT: runtimeReportPath },
     );
     const report = await readJson(reportPath);
     /** @type {(value: unknown) => asserts value is import("../apps/desktop/dist/smoke-report.js").SmokeReport} */
