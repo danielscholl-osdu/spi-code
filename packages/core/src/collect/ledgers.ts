@@ -6,7 +6,7 @@ import type { ForkDef } from "../config.js";
 import type { CoreContext } from "../context.js";
 import type { ReadRecord } from "../evidence/index.js";
 import type { ForkPrFact, MergedMrFact } from "../facts.js";
-import type { Gh, Glab } from "../forge.js";
+import { ForgeError, type Gh, type Glab } from "../forge.js";
 import { errorText } from "../util.js";
 
 const PAGE = 100;
@@ -216,43 +216,44 @@ export interface PortPrRead {
 export async function readPortPrs(gh: Gh, state: LedgerState, ctx: CoreContext): Promise<PortPrRead> {
   const forks = ctx.fleet.forks.filter((f) => seedOf(f));
   const until = ctx.clock.now().toISOString().slice(0, 10);
-  const fields = forks.flatMap((f, i) => {
-    const since = (state.portPrs[f.id]?.watermark ?? seedOf(f) ?? "").slice(0, 10);
-    return [
-      portSearchField(`port_o${i}`, `repo:${f.repo} is:pr is:open`),
-      portSearchField(`port_m${i}`, mergedPortQuery({ repo: f.repo, since, until })),
-    ];
-  });
   const out: Record<string, ForkPrFact[]> = {};
   const read = { prs: 0, commits: 0 };
   const reads: ReadRecord[] = [];
-  if (!fields.length) return { prs: out, read, reads };
-  let data: Record<string, RawSearch | null> = {};
-  let errors: Awaited<ReturnType<Gh["graphql"]>>["errors"] = [];
-  let failure: unknown;
-  try {
-    ({ data, errors } = await gh.graphql<typeof data>(
-      `query { ${fields.join(" ")} }`, fields.length * SEARCH_PAGE_COST,
-    ));
-  } catch (error) {
-    failure = error;
-  }
+  // One search query per fork, in turn: all thirteen in one query is heavy enough for GitHub's
+  // gateway to answer HTTP 502, failing every fork at once. A throttle stops the rest.
+  let throttled: unknown;
+  const stopOn = (error: unknown) => {
+    if (error instanceof ForgeError && error.kind === "throttle") throttled = error;
+    return error;
+  };
   for (const [i, f] of forks.entries()) {
     const key = `port:${f.id}`;
     const base = record(ctx, f.repo, "port PRs", state.observed[key]);
+    const since = (state.portPrs[f.id]?.watermark ?? seedOf(f) ?? "").slice(0, 10);
+    const window = { repo: f.repo, since, until };
+    let data: Record<string, RawSearch | null> = {};
+    let errors: Awaited<ReturnType<Gh["graphql"]>>["errors"] = [];
+    let searchFailure = throttled;
+    if (searchFailure === undefined) {
+      try {
+        ({ data, errors } = await gh.graphql<typeof data>(
+          `query { ${portSearchField(`port_o${i}`, `repo:${f.repo} is:pr is:open`)} ${portSearchField(`port_m${i}`, mergedPortQuery(window))} }`,
+          2 * SEARCH_PAGE_COST,
+        ));
+      } catch (error) {
+        searchFailure = stopOn(error);
+      }
+    }
     let open = data[`port_o${i}`];
     let merged = data[`port_m${i}`];
     const error = errors.find((e) => !e.path?.length ||
       e.path[0] === `port_o${i}` || e.path[0] === `port_m${i}`);
-    let searchFailure = failure;
     if (searchFailure === undefined && !error && open?.nodes && merged?.nodes) {
       try {
         open = await completePortSearch(gh, `repo:${f.repo} is:pr is:open`, open);
-        const since = (state.portPrs[f.id]?.watermark ?? seedOf(f) ?? "").slice(0, 10);
-        const window = { repo: f.repo, since, until };
         merged = await completePortSearch(gh, mergedPortQuery(window), merged, window);
       } catch (error) {
-        searchFailure = error;
+        searchFailure = stopOn(error);
       }
     }
     const searches = [open, merged];

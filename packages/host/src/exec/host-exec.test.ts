@@ -244,6 +244,7 @@ it("passes stdin, cwd and env, parses JSON and accepts a nonzero result only on 
     ok: true,
     data: "payload",
     exitCode: 7,
+    stderr: "failed",
   });
 });
 

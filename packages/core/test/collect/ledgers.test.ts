@@ -137,7 +137,7 @@ test("merged fork PRs are kept by number and later reads ask only since the newe
   for (const result of [await failed(), await failed()]) {
     expect(result.prs.partition?.map((p) => p.number)).toEqual([2]);
     expect(result.reads[0]).toMatchObject({
-      failure: expect.stringContaining("cut the response short"),
+      failure: expect.stringContaining("GitHub answered HTTP 502 twice"),
       retainedFrom: FIXTURE_NOW.toISOString(),
     });
   }
@@ -373,8 +373,8 @@ test("a 51-commit merged PR pages all commits through Gh and advances the waterm
   expect(calls.queries[1]).toBe(
     "api --paginate repos/Azure/osdu-spi-partition/pulls/37/commits?per_page=100 --jq .[].commit.message | tojson",
   );
-  expect(counter.calls).toBe(2);
-  expect(budget.snapshot()).toMatchObject({ calls: 1, spent: 8 });
+  expect(counter.calls).toBe(3);
+  expect(budget.snapshot()).toMatchObject({ calls: 2, spent: 8 });
 });
 
 test("failed commit paging does not freeze other PRs or lose retries behind the watermark", async () => {
@@ -495,7 +495,7 @@ test("the 250-commit REST cap preserves read references and persists a cut witho
       restored,
       later,
     );
-    expect(laterCalls.queries).toHaveLength(1);
+    expect(laterCalls.queries).toHaveLength(2);
     expect(laterResult.prs.partition?.[0]?.refs).toEqual([`${ENT}!955`, `${ENT}!956`]);
     expect(
       laterResult.reads.find((r) => r.object === "pulls/37/commits")?.completeness,
@@ -542,9 +542,9 @@ test("ledger GraphQL cost is charged to the shared forge account and commit mess
     ctx,
   );
   expect(budget.snapshot()).toEqual({
-    spent: 17,
-    remaining: 83,
-    calls: 1,
+    spent: 34,
+    remaining: 79,
+    calls: 2,
     resetAt: "2026-10-12T23:00:00Z",
   });
   expect(result.prs.partition?.[0]?.refs).toEqual([`${ENT}!956`]);
@@ -575,4 +575,85 @@ test("an unseeded fleet makes no ledger queries", async () => {
   expect((await readMerged(new Glab(calls.exec), emptyLedgerState(), unseeded)).merged).toEqual({});
   expect((await readPortPrs(new Gh(calls.exec), emptyLedgerState(), unseeded)).prs).toEqual({});
   expect(calls.queries).toEqual([]);
+});
+
+const NGINX_502 =
+  "<html>\r\n<head><title>502 Bad Gateway</title></head>\r\n<body>\r\n<center><h1>502 Bad Gateway</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>\r\n";
+const thirteen = createContext({
+  fleet: fleetOf(
+    Array.from({ length: 13 }, (_, i) => ({
+      id: `svc${i}`,
+      upstream: `osdu/platform/svc${i}`,
+      repo: `Azure/osdu-spi-svc${i}`,
+      seeded: "2026-08-04",
+    })),
+  ),
+  clock: { now: () => FIXTURE_NOW },
+});
+
+/** GitHub as the radar met it: a query holding more than one fork's searches gets nginx's 502
+ * page, a query for one fork gets its PRs; `answer` overrides a fork's reply by index. */
+function gateway(answer: (fork: number) => ExecOutputLike | undefined = () => undefined) {
+  const queries: string[] = [];
+  return {
+    queries,
+    exec: new RecordingExec(
+      async (_cmd, args) => {
+        const query = args.find((arg) => arg.startsWith("query=")) ?? "";
+        queries.push(query);
+        const forks = [...query.matchAll(/port_o(\d+):/g)].map((m) => Number(m[1]));
+        if (forks.length !== 1) return { stdout: NGINX_502, stderr: "gh: HTTP 502\n", exit: 1 };
+        const i = forks[0] ?? 0;
+        return (
+          answer(i) ?? {
+            stdout: JSON.stringify({
+              data: { [`port_o${i}`]: search([pr(i + 1, null, "")]), [`port_m${i}`]: search() },
+            }),
+            stderr: "",
+            exit: 0,
+          }
+        );
+      },
+      () => {},
+    ),
+  };
+}
+type ExecOutputLike = { stdout: string; stderr: string; exit: number };
+
+test("a 13-fork sweep reads every fork's port PRs where one batched search got HTTP 502", async () => {
+  const calls = gateway();
+  const result = await readPortPrs(
+    new Gh(calls.exec, undefined, new GraphqlBudget(thirteen.clock)),
+    emptyLedgerState(),
+    thirteen,
+  );
+  expect(result.reads.filter((r) => r.failure)).toEqual([]);
+  expect(Object.keys(result.prs)).toHaveLength(13);
+  expect(result.read).toEqual({ prs: 13, commits: 0 });
+  expect(calls.queries).toHaveLength(13);
+});
+
+test("a throttled port search stops the sweep's later searches and names the throttle", async () => {
+  const limited = {
+    stdout: JSON.stringify({ message: "You have exceeded a secondary rate limit." }),
+    stderr: "gh: You have exceeded a secondary rate limit. (HTTP 403)\n",
+    exit: 1,
+  };
+  const calls = gateway((i) => (i === 2 ? limited : undefined));
+  const sleeps: number[] = [];
+  const budget = new GraphqlBudget(thirteen.clock, async (ms) => {
+    sleeps.push(ms);
+  });
+  const result = await readPortPrs(
+    new Gh(calls.exec, undefined, budget),
+    emptyLedgerState(),
+    thirteen,
+  );
+  expect(calls.queries).toHaveLength(4);
+  expect(sleeps).toEqual([60_000]);
+  const failures = result.reads.filter((r) => r.failure);
+  expect(failures.map((r) => r.source)).toEqual(
+    Array.from({ length: 11 }, (_, i) => `Azure/osdu-spi-svc${i + 2}`),
+  );
+  for (const failure of failures) expect(failure.failure).toContain("GitHub throttled the query");
 });

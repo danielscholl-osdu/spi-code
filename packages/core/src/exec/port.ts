@@ -4,7 +4,7 @@
 import { MIN_SECRET_LENGTH, REDACTED, redact } from "./redact.js";
 
 export type ExecResult<T> =
-  | { ok: true; data: T; exitCode?: number | null }
+  | { ok: true; data: T; exitCode?: number | null; stderr?: string }
   | { ok: false; error: string; code: number | null };
 
 export interface ExecOptions {
@@ -104,7 +104,11 @@ export function textResult(output: ExecOutput, opts: ExecOptions): ExecResult<st
     const reason = output.stderr.split("\n").map((line) => line.trim()).find(Boolean);
     return { ok: false, error: (reason ?? `exit ${output.exit}`).slice(0, 200), code: output.exit };
   }
-  return { ok: true, data: output.stdout, exitCode: output.exit };
+  // An accepted failure keeps its stderr: it is where gh names the HTTP status.
+  return {
+    ok: true, data: output.stdout, exitCode: output.exit,
+    ...(output.exit !== 0 && output.stderr ? { stderr: output.stderr } : {}),
+  };
 }
 
 export function jsonResult<T>(result: ExecResult<string>): ExecResult<T> {

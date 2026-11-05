@@ -3,7 +3,15 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type Exec, type ExecOutput, RecordingExec, ReplayExec } from "./exec/index.js";
-import { encodeProject, Gh, Glab, GraphqlBudget, tokenScopes } from "./forge.js";
+import {
+  classifyGraphqlReply,
+  encodeProject,
+  ForgeError,
+  Gh,
+  Glab,
+  GraphqlBudget,
+  tokenScopes,
+} from "./forge.js";
 
 const resetAt = "2026-11-05T08:00:00Z";
 const query = "{viewer{login}}";
@@ -326,5 +334,112 @@ describe("forge replay", () => {
         expect(gh.budget.snapshot()).toMatchObject({ calls: 2, spent: 3 });
       },
     );
+  });
+});
+
+// nginx's stock 502 page: the 150 bytes the radar's port-PR searches got back (spicode-t1k.134).
+const NGINX_502 =
+  "<html>\r\n<head><title>502 Bad Gateway</title></head>\r\n<body>\r\n<center><h1>502 Bad Gateway</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>\r\n";
+const SECONDARY_LIMIT = JSON.stringify({
+  documentation_url:
+    "https://docs.github.com/free-pro-team@latest/rest/overview/rate-limits-for-the-rest-api#about-secondary-rate-limits",
+  message:
+    "You have exceeded a secondary rate limit. Please wait a few minutes before you try again.",
+});
+const failed = (stdout: string, stderr: string): ExecOutput => ({ stdout, stderr, exit: 1 });
+
+describe("GraphQL reply classification", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-05T07:00:00Z"));
+  });
+
+  it("names the failing radar reply a gateway error, not a throttle or a cut body", () => {
+    expect(NGINX_502).toHaveLength(150);
+    expect(classifyGraphqlReply(NGINX_502, "gh: HTTP 502\n")).toEqual({
+      kind: "gateway",
+      status: 502,
+      detail: "150 bytes of HTML",
+    });
+    expect(classifyGraphqlReply(NGINX_502, "")).toMatchObject({ kind: "gateway", status: 502 });
+  });
+
+  it("names secondary limits, 429s and RATE_LIMITED errors throttles", () => {
+    expect(
+      classifyGraphqlReply(
+        SECONDARY_LIMIT,
+        "gh: You have exceeded a secondary rate limit. (HTTP 403)\n",
+      ),
+    ).toMatchObject({ kind: "throttle", waitMs: 60_000 });
+    expect(classifyGraphqlReply("", "gh: HTTP 429\n")).toMatchObject({ kind: "throttle" });
+    expect(
+      classifyGraphqlReply(
+        JSON.stringify({ errors: [{ type: "RATE_LIMITED", message: "API rate limit exceeded" }] }),
+        "",
+      ),
+    ).toMatchObject({ kind: "throttle" });
+    expect(
+      classifyGraphqlReply(
+        JSON.stringify({ message: "Too many requests. Retry after 30 seconds." }),
+        "",
+      ),
+    ).toMatchObject({ kind: "throttle", waitMs: 30_000 });
+  });
+
+  it("keeps a truncated body a cut and carries gh's own words", () => {
+    expect(classifyGraphqlReply("", "gh: unexpected EOF\n")).toEqual({
+      kind: "cut",
+      detail: "empty response; gh: unexpected EOF",
+    });
+    expect(classifyGraphqlReply('{"data":', "")).toEqual({
+      kind: "cut",
+      detail: "8 bytes that were not JSON",
+    });
+  });
+
+  it("reports two gateway replies as a gateway error", async () => {
+    await replay(
+      [failed(NGINX_502, "gh: HTTP 502\n"), failed(NGINX_502, "gh: HTTP 502\n")],
+      async (exec) => {
+        const gh = new Gh(exec);
+        const error = await gh.graphql(query).catch((caught: unknown) => caught);
+        expect(error).toBeInstanceOf(ForgeError);
+        expect((error as ForgeError).kind).toBe("gateway");
+        expect((error as ForgeError).message).toBe(
+          "gh api graphql: GitHub answered HTTP 502 twice (150 bytes of HTML, a gateway error rather than a GraphQL reply)",
+        );
+      },
+    );
+  });
+
+  it("waits out a throttle on the shared budget before retrying", async () => {
+    await replay(
+      [
+        failed(SECONDARY_LIMIT, "gh: You have exceeded a secondary rate limit. (HTTP 403)\n"),
+        output(body(1, 41)),
+      ],
+      async (exec) => {
+        const sleeps: number[] = [];
+        const root = new GraphqlBudget(undefined, async (ms) => {
+          sleeps.push(ms);
+        });
+        const gh = new Gh(exec, undefined, root.scope());
+        expect((await gh.graphql<{ viewer: { login: string } }>(query)).data.viewer.login).toBe(
+          "someone",
+        );
+        expect(sleeps).toEqual([60_000]);
+        expect(gh.budget.snapshot()).toMatchObject({ calls: 2, remaining: 41 });
+      },
+    );
+  });
+
+  it("gives up on a throttle that persists and says so", async () => {
+    const limited = failed(SECONDARY_LIMIT, "gh: HTTP 403\n");
+    await replay([limited, limited], async (exec) => {
+      const gh = new Gh(exec, undefined, new GraphqlBudget(undefined, async () => {}));
+      const error = await gh.graphql(query).catch((caught: unknown) => caught);
+      expect((error as ForgeError).kind).toBe("throttle");
+      expect((error as ForgeError).message).toContain("GitHub throttled the query");
+    });
   });
 });

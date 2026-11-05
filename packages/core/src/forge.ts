@@ -6,8 +6,10 @@ import { type Clock, systemClock } from "./clock.js";
 import { GITLAB_HOST } from "./config.js";
 import type { Exec } from "./exec/index.js";
 
+export type ForgeFailure = "throttle" | "gateway" | "cut";
+
 export class ForgeError extends Error {
-  constructor(message: string, readonly code: number | null) {
+  constructor(message: string, readonly code: number | null, readonly kind?: ForgeFailure) {
     super(message);
   }
 }
@@ -42,6 +44,7 @@ export class GraphqlBudget {
   private queue: Promise<void> = Promise.resolve();
   private inFlight = 0;
   private probe: Promise<void> | null = null;
+  private heldUntil = 0;
   private state: GraphqlBudgetSnapshot = { remaining: null, resetAt: null, spent: 0, calls: 0 };
   private parent: GraphqlBudget | undefined;
 
@@ -62,6 +65,12 @@ export class GraphqlBudget {
     const scoped = new GraphqlBudget(this.clock, this.sleep);
     scoped.parent = this;
     return scoped;
+  }
+
+  /** Holds every later reservation, in every scope, until GitHub's stated wait has passed. */
+  hold(ms: number): void {
+    if (this.parent) this.parent.hold(ms);
+    else this.heldUntil = Math.max(this.heldUntil, this.clock.now().getTime() + ms);
   }
 
   // Reservations are serialised; the calls they pay for run concurrently once the
@@ -85,6 +94,12 @@ export class GraphqlBudget {
     let owned: Promise<void> | undefined;
     try {
       for (;;) {
+        const held = this.heldUntil;
+        if (held > this.clock.now().getTime()) {
+          await this.sleep(held - this.clock.now().getTime());
+          if (this.heldUntil === held) this.heldUntil = 0;
+          continue;
+        }
         const reset = this.state.resetAt === null ? null : Date.parse(this.state.resetAt);
         if (reset !== null && reset <= this.clock.now().getTime()) this.state.remaining = null;
         if (this.state.remaining === null && this.probe) {
@@ -189,6 +204,62 @@ function budgetQuery(query: string): { query: string; key: string } {
   };
 }
 
+const MAX_THROTTLE_WAIT_MS = 120_000;
+const DEFAULT_THROTTLE_WAIT_MS = 60_000;
+const THROTTLE_TEXT = /secondary rate limit|abuse detection|rate limit exceeded|too many requests/i;
+
+/** What one `gh api graphql` reply was. gh prints a non-JSON body to stdout as it came and
+ * names the status on stderr ("gh: HTTP 502"); a JSON error body's message goes to stderr
+ * with "(HTTP 403)" after it. */
+export type GraphqlReply =
+  | {
+      kind: "json";
+      body: { data?: Record<string, unknown> | null; errors?: GqlError[] };
+      message?: string;
+    }
+  | { kind: "throttle"; detail: string; waitMs: number }
+  | { kind: "gateway"; status: number; detail: string }
+  | { kind: "cut"; detail: string };
+
+export function classifyGraphqlReply(stdout: string, stderr: string): GraphqlReply {
+  const said = stderr.split("\n").map((line) => line.trim()).find(Boolean);
+  const html = /<title>\s*(\d{3})\b|<h1>\s*(\d{3})\b/i.exec(stdout);
+  const statusText = /\bHTTP (\d{3})\b/.exec(stderr)?.[1] ?? html?.[1] ?? html?.[2];
+  const status = statusText ? Number(statusText) : null;
+  let body: unknown;
+  let parsed = false;
+  if (stdout.trim()) {
+    try {
+      body = JSON.parse(stdout);
+      parsed = true;
+    } catch {}
+  }
+  const shaped = parsed && !!body && typeof body === "object" && !Array.isArray(body);
+  const record = shaped ? (body as Record<string, unknown>) : {};
+  const message = typeof record.message === "string" ? record.message : undefined;
+  const errors = Array.isArray(record.errors) ? (record.errors as GqlError[]) : [];
+  const limited = errors.find((error) => error?.type === "RATE_LIMITED");
+  const throttleText = [message, limited?.message, said].find((text) => text && THROTTLE_TEXT.test(text));
+  if (status === 429 || limited || throttleText) {
+    const text = throttleText ?? limited?.message ?? message ?? said ?? `HTTP ${status}`;
+    return { kind: "throttle", detail: text, waitMs: statedWait(text) };
+  }
+  if (shaped) return { kind: "json", body: record, ...(message ? { message } : {}) };
+  const what = !stdout.trim()
+    ? "empty response"
+    : stdout.trimStart().startsWith("<")
+      ? `${stdout.length} bytes of HTML`
+      : `${stdout.length} bytes that were not JSON`;
+  if (status !== null && status >= 500) return { kind: "gateway", status, detail: what };
+  return { kind: "cut", detail: said ? `${what}; ${said}` : what };
+}
+
+function statedWait(text: string): number {
+  const stated = /(\d+)\s*(second|minute)s?\b/i.exec(text);
+  if (!stated) return DEFAULT_THROTTLE_WAIT_MS;
+  return Number(stated[1]) * (stated[2]?.toLowerCase() === "minute" ? 60_000 : 1_000);
+}
+
 export class Gh {
   constructor(
     private readonly exec: Exec,
@@ -222,33 +293,50 @@ export class Gh {
   async graphql<T>(query: string, estimate = 1): Promise<{ data: T; errors: GqlError[] }> {
     const prepared = budgetQuery(query);
     let exitCode: number | null = null;
-    let cut = "empty response";
+    let failed: Exclude<GraphqlReply, { kind: "json" }> = { kind: "cut", detail: "empty response" };
     for (let attempt = 0; attempt < 2; attempt++) {
-      const body = await this.budget.run(estimate, async () => {
+      const reply = await this.budget.run(estimate, async () => {
         this.counter.calls++;
         const res = await this.exec.runText("gh", ["api", "graphql", "-f", `query=${prepared.query}`], {
           timeoutMs: 60_000, acceptNonZeroExit: true,
         });
         if (!res.ok) throw new ForgeError(`gh api graphql: ${res.error}`, res.code);
         exitCode = res.exitCode ?? null;
-        let body: { data?: T & Record<string, unknown>; errors?: GqlError[] } | null = null;
-        if (res.data.trim()) {
-          try { body = JSON.parse(res.data); } catch { cut = `${res.data.length} bytes that were not JSON`; }
-        } else cut = "empty response";
-        const rate = rateSchema.safeParse(body?.data?.[prepared.key]);
-        if (body?.data?.[prepared.key] != null && !rate.success) {
+        const reply = classifyGraphqlReply(res.data, res.stderr ?? "");
+        const data = reply.kind === "json" ? reply.body.data : undefined;
+        const rate = rateSchema.safeParse(data?.[prepared.key]);
+        if (data?.[prepared.key] != null && !rate.success) {
           throw new ForgeError("gh api graphql: invalid rateLimit budget", null);
         }
-        return { value: body, ...(rate.success ? { rate: rate.data } : {}) };
+        return { value: reply, ...(rate.success ? { rate: rate.data } : {}) };
       });
-      if (!body) continue;
+      if (reply.kind !== "json") {
+        failed = reply;
+        if (reply.kind === "throttle") {
+          if (reply.waitMs > MAX_THROTTLE_WAIT_MS) break;
+          this.budget.hold(reply.waitMs);
+        }
+        continue;
+      }
+      const body = reply.body as { data?: T & Record<string, unknown> | null; errors?: GqlError[] };
       const errors = body.errors ?? [];
-      if (!body.data) throw new ForgeError(`gh api graphql: ${errors[0]?.message ?? "no data"}`, null);
+      if (!body.data) {
+        throw new ForgeError(`gh api graphql: ${errors[0]?.message ?? reply.message ?? "no data"}`, null);
+      }
       delete body.data[prepared.key];
       return { data: body.data, errors };
     }
+    if (failed.kind === "throttle") {
+      throw new ForgeError(`gh api graphql: GitHub throttled the query (${failed.detail})`, exitCode, "throttle");
+    }
+    if (failed.kind === "gateway") {
+      throw new ForgeError(
+        `gh api graphql: GitHub answered HTTP ${failed.status} twice (${failed.detail}, a gateway error rather than a GraphQL reply)`,
+        exitCode, "gateway",
+      );
+    }
     throw new ForgeError(
-      `gh api graphql: GitHub cut the response short twice (exit ${exitCode}, ${cut})`, exitCode,
+      `gh api graphql: GitHub cut the response short twice (exit ${exitCode}, ${failed.detail})`, exitCode, "cut",
     );
   }
 
