@@ -84,6 +84,17 @@ it("sends a glab token only with glab sign-in and keeps it out of store state", 
   expect(send).toHaveBeenCalledTimes(2);
 });
 
+it("fences glab progress from host.hello until a new glab sign-in, leaving gh progress alone", () => {
+  const store = createWatchStore(vi.fn());
+  store.getState().receive(event("host.hello", { pid: 1 }));
+  store.getState().receive(event("setup.signin.progress", { tool: "glab", state: "starting" }));
+  store.getState().receive(event("setup.signin.progress", { tool: "gh", state: "starting" }));
+  expect(store.getState().signin).toEqual({ gh: { tool: "gh", state: "starting" } });
+  store.getState().requestSetup("setup.signin", "glab", "glpat-Secret0123456789");
+  store.getState().receive(event("setup.signin.progress", { tool: "glab", state: "starting" }));
+  expect(store.getState().signin.glab).toEqual({ tool: "glab", state: "starting" });
+});
+
 it("keeps the newest full snapshot and ignores late and duplicate cursors", () => {
   const store = createWatchStore(vi.fn());
   const body = testSnapshot({ cursor: 9 });

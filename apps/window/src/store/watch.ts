@@ -27,6 +27,8 @@ type WatchState = {
   signinOutcome: Partial<Record<SetupSigninProgress["tool"], SetupSigninProgress>>;
   /** Bumps on every host.hello, so views can drop state tied to the previous connection. */
   epoch: number;
+  /** Set on host.hello: glab progress belongs to an older flow until the window starts a new one. */
+  glabFenced: boolean;
   requestSetup(
     ...request:
       | [
@@ -79,6 +81,7 @@ export function createWatchStore(
     signin: {},
     signinOutcome: {},
     epoch: 0,
+    glabFenced: false,
     requestSetup(type, tool, token?: string) {
       const parsed = parseMessage({
         version: PROTOCOL_VERSION,
@@ -88,6 +91,8 @@ export function createWatchStore(
         payload: token === undefined ? { tool } : { tool, token },
       });
       if (!parsed.ok) throw new Error("Invalid setup request");
+      if (type === "setup.signin" && tool === "glab" && get().glabFenced)
+        set({ glabFenced: false });
       send(parsed.message);
     },
     receive(input) {
@@ -108,6 +113,7 @@ export function createWatchStore(
       if (message.type === "setup.state") set({ setup: message.payload });
       if (message.type === "setup.signin.progress") {
         const progress = message.payload;
+        if (progress.tool === "glab" && get().glabFenced) return;
         const previous = get().signin[progress.tool];
         const signin = { ...get().signin };
         const signinOutcome = { ...get().signinOutcome };
@@ -123,7 +129,7 @@ export function createWatchStore(
         set({ signin, signinOutcome });
       }
       if (message.type === "host.hello") {
-        set({ signin: {}, signinOutcome: {}, epoch: get().epoch + 1 });
+        set({ signin: {}, signinOutcome: {}, epoch: get().epoch + 1, glabFenced: true });
         const outgoing = parseMessage({
           version: PROTOCOL_VERSION,
           id: crypto.randomUUID(),

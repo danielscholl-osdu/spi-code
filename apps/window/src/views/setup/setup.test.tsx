@@ -30,7 +30,14 @@ beforeEach(() => {
     onMessage: () => () => {},
   };
   send.mockClear();
-  watchStore.setState({ setup: null, sweep: null, snapshot: null, signin: {}, signinOutcome: {} });
+  watchStore.setState({
+    setup: null,
+    sweep: null,
+    snapshot: null,
+    signin: {},
+    signinOutcome: {},
+    glabFenced: false,
+  });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -38,7 +45,14 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
-  watchStore.setState({ setup: null, sweep: null, snapshot: null, signin: {}, signinOutcome: {} });
+  watchStore.setState({
+    setup: null,
+    sweep: null,
+    snapshot: null,
+    signin: {},
+    signinOutcome: {},
+    glabFenced: false,
+  });
   vi.restoreAllMocks();
   window.spi = previous;
 });
@@ -308,6 +322,49 @@ it("unlocks and empties the field on host.hello alone before any sign-in progres
   expect(glab().field.value).toBe("");
   expect(glab().button.disabled).toBe(true);
 });
+
+const stale: [string, unknown[]][] = [
+  ["starting", [{ tool: "glab", state: "starting" }]],
+  ["waiting", [{ tool: "glab", state: "waiting" }]],
+  ["completed", [{ tool: "glab", state: "completed" }]],
+  ["failed", [{ tool: "glab", state: "failed", reason: "Old flow failed" }]],
+];
+it.each(stale)(
+  "ignores an old flow's %s after host.hello until a new glab sign-in is sent",
+  async (_state, events) => {
+    const typed = "glpat-Typed0123456789";
+    await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+    await render();
+    await receive("host.hello", { pid: 456 });
+    await paste(typed);
+    for (const payload of events) await receive("setup.signin.progress", payload);
+    expect(glab().field.disabled).toBe(false);
+    expect(glab().field.value).toBe(typed);
+    expect(glab().button.disabled).toBe(false);
+    expect(glab().row.querySelector('[role="status"], [role="alert"]')).toBeNull();
+    expect(watchStore.getState().signin.glab).toBeUndefined();
+    expect(watchStore.getState().signinOutcome.glab).toBeUndefined();
+  },
+);
+
+it("applies glab progress again once the window sends a new sign-in after host.hello", async () => {
+  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+  await render();
+  await receive("host.hello", { pid: 456 });
+  await paste(token);
+  await act(async () => glab().button.click());
+  await receive("setup.signin.progress", { tool: "glab", state: "starting" });
+  expect(glab().field.disabled).toBe(true);
+  await receive("setup.signin.progress", { tool: "glab", state: "failed", reason: "Rejected" });
+  expect(glab().row.querySelector('[role="alert"]')?.textContent).toBe(
+    "glab sign-in failed. Check the GitLab token and try again.",
+  );
+  expect(glab().field.disabled).toBe(false);
+});
+
+it.todo(
+  "ignores an old flow's terminal progress that arrives after a new glab sign-in (needs a request id on progress: spicode-t1k.123)",
+);
 
 it("keeps Copilot and gh sign-in tokenless with no token field", async () => {
   await receive("setup.state", state({ state: "signed-out", action: "signin" }));
