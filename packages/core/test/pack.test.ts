@@ -14,7 +14,11 @@ const exec = promisify(execFile);
 const core = fileURLToPath(new URL("../", import.meta.url));
 const shell = process.platform === "win32";
 const npm = shell ? "npm.cmd" : "npm";
-const arg = (value: string) => (shell && /\s/.test(value) ? `"${value}"` : value);
+const arg = (value: string) => {
+  if (!shell) return value;
+  if (/["%]/.test(value)) throw new Error(`Cannot pass ${value} through cmd.exe`);
+  return `"${value}"`;
+};
 
 it("packs a pinned, source-free tarball that installs outside the workspace", async (test) => {
   const temporary = await mkdtemp(join(tmpdir(), "spi-core-pack-test-"));

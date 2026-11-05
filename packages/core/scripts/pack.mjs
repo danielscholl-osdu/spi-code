@@ -20,7 +20,11 @@ const core = fileURLToPath(new URL("../", import.meta.url));
 const release = resolve(core, process.argv[2] ?? "release");
 const shell = process.platform === "win32";
 const pnpm = shell ? "pnpm.cmd" : "pnpm";
-const arg = (value) => (shell && /\s/.test(value) ? `"${value}"` : value);
+const arg = (value) => {
+  if (!shell) return value;
+  if (/["%]/.test(value)) throw new Error(`Cannot pass ${value} through cmd.exe`);
+  return `"${value}"`;
+};
 execFileSync(pnpm, ["run", "build"], { cwd: core, stdio: "inherit", shell });
 
 const staging = mkdtempSync(join(tmpdir(), "spi-core-pack-"));
