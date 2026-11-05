@@ -172,6 +172,7 @@ describe("Watch protocol", () => {
     expect(parseMessage({ ...message, payload: { ...snapshot, selection: null } }).ok).toBe(true);
   });
   it.each([
+    { ...snapshot, extra: true },
     { ...snapshot, cursor: -1 },
     { ...snapshot, cursor: 0.5 },
     { ...snapshot, sweptAt: "yesterday" },
@@ -184,7 +185,13 @@ describe("Watch protocol", () => {
       ...snapshot,
       releases: { ...snapshot.releases, lines: [{ ...snapshot.releases.lines[0], notes: "bad" }] },
     },
-    { ...snapshot, briefing: { ...snapshot.briefing, focus: [{ rung: 3 }] } },
+    {
+      ...snapshot,
+      briefing: {
+        ...snapshot.briefing,
+        focus: [{ ...snapshot.briefing.focus[0], rung: 3 }],
+      },
+    },
   ])("rejects invalid nested snapshot fields", (payload) => {
     expect(parseMessage({ ...messages[8], payload }).ok).toBe(false);
   });
