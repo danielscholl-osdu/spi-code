@@ -7,9 +7,14 @@ import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import briefing from "../../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import releases from "../../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
+import mixed from "../../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
+import {
+  expectEvidenceMarks,
+  expectNoEvidenceMarks,
+} from "../../components/evidence/marks.test-helper.js";
 import { RightPanel } from "../../panels/RightPanel.js";
 import { createSelectionStore } from "../../panels/selection.js";
-import { testSnapshot } from "../../store/test-snapshot.js";
+import { mixedSnapshot, testSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore } from "../../store/watch.js";
 import Today from "./index.js";
 
@@ -288,5 +293,48 @@ it("waits for a snapshot and updates reactively without inventing empty content"
     expect(container.querySelector(".today-row")).toBeNull();
   } finally {
     await cleanup();
+  }
+});
+
+it("badges each section's area envelopes and marks only the values fed by inferred areas alone", async () => {
+  const body = mixedSnapshot(mixed);
+  const view = await mount(body);
+  try {
+    const today = view.container.querySelector('[aria-label="Today"]');
+    if (!today) throw new Error("Today did not render");
+    expectEvidenceMarks(today, body, {
+      prefixes: [
+        "/briefing/headline",
+        "/briefing/summary",
+        "/briefing/facts",
+        "/briefing/focus",
+        "/briefing/rest",
+        "/briefing/more",
+        "/briefing/ready",
+        "/briefing/themes",
+      ],
+      sections: [
+        ["/briefing/headline", "/briefing/summary"],
+        ["/briefing/facts"],
+        ["/briefing/focus", "/briefing/rest", "/briefing/more"],
+        ["/briefing/ready"],
+        ["/briefing/themes"],
+      ],
+    });
+    expect(
+      [...today.querySelectorAll("[data-inferred]")]
+        .filter((mark) => !mark.closest("[data-envelopes]"))
+        .map((mark) => mark.closest("[data-pointer]")?.getAttribute("data-pointer")),
+    ).toEqual(["/briefing/facts/0/figure"]);
+  } finally {
+    await view.cleanup();
+  }
+  const plain = await mount();
+  try {
+    const today = plain.container.querySelector('[aria-label="Today"]');
+    if (!today) throw new Error("Today did not render");
+    expectNoEvidenceMarks(today);
+  } finally {
+    await plain.cleanup();
   }
 });

@@ -4,6 +4,7 @@
 import type { NotesState, ReleaseLine } from "@spi-code/contracts";
 import { useState } from "react";
 import { useStore } from "zustand";
+import { AreaEnvelopes, InferredMark } from "../../components/evidence/AreaEnvelopes.js";
 import { watchStore } from "../../store/watch.js";
 import "../repositories/panes.css";
 
@@ -31,7 +32,8 @@ function Notes({ line }: { line: ReleaseLine }) {
 }
 
 export default function Releases() {
-  const releases = useStore(watchStore, (state) => state.snapshot?.body.releases);
+  const evidence = useStore(watchStore, (state) => state.snapshot?.body);
+  const releases = evidence?.releases;
   const [picked, pick] = useState<string | null>(null);
   const selected = releases?.lines.some((line) => line.id === picked)
     ? picked
@@ -40,7 +42,7 @@ export default function Releases() {
     <>
       <h1>Releases</h1>
       <div className="watch-pane" data-view-pane="releases">
-        {!releases?.lines.length ? (
+        {!releases?.lines.length || !evidence ? (
           <h2 role="status">{releases?.reading ? "Reading releases…" : "No releases read yet."}</h2>
         ) : (
           <>
@@ -49,19 +51,22 @@ export default function Releases() {
               Each month is built from the GitHub releases of the template, the stack,
               core-lib-azure and every service fork, with reviewed notes laid over it.
             </p>
+            <AreaEnvelopes evidence={evidence} prefixes={["/releases/lines"]} />
             <div className="pane-split">
               <div className="release-list">
-                {releases.lines.map((line) => (
+                {releases.lines.map((line, index) => (
                   <button
                     type="button"
                     className="release-row"
                     key={line.id}
                     data-rel={line.id}
+                    data-pointer={`/releases/lines/${index}`}
                     aria-pressed={line.id === selected}
                     onClick={() => pick(line.id)}
                   >
                     <span>
                       <strong>SPI {line.name}</strong> <Notes line={line} />
+                      <InferredMark evidence={evidence} pointer={`/releases/lines/${index}`} />
                       <span className="release-summary">{line.headline}</span>
                     </span>
                     <span data-muted>{line.open ? "in progress" : "closed"}</span>
@@ -69,12 +74,20 @@ export default function Releases() {
                 ))}
               </div>
               <div>
-                {releases.lines.map((line) => (
-                  <section key={line.id} data-rel-detail={line.id} hidden={line.id !== selected}>
+                {releases.lines.map((line, index) => (
+                  <section
+                    key={line.id}
+                    data-rel-detail={line.id}
+                    data-pointer={`/releases/lines/${index}`}
+                    hidden={line.id !== selected}
+                  >
                     <p>
                       <Notes line={line} /> {line.stateText}
                     </p>
-                    <h3>SPI {line.name}</h3>
+                    <h3>
+                      SPI {line.name}
+                      <InferredMark evidence={evidence} pointer={`/releases/lines/${index}`} />
+                    </h3>
                     <p>{line.headline}</p>
                     <div className="pane-facts">
                       {line.stats.map((stat) => (

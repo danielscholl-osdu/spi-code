@@ -7,7 +7,12 @@ import { type NotesState, PROTOCOL_VERSION } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { testSnapshot } from "../../store/test-snapshot.js";
+import mixed from "../../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
+import {
+  expectEvidenceMarks,
+  expectNoEvidenceMarks,
+} from "../../components/evidence/marks.test-helper.js";
+import { mixedSnapshot, testSnapshot } from "../../store/test-snapshot.js";
 import { watchStore } from "../../store/watch.js";
 import Releases from "../releases/index.js";
 import Repositories from "./index.js";
@@ -255,4 +260,67 @@ it("shows explicit unread messages before any snapshot arrives", async () => {
   await act(async () => watchStore.setState({ snapshot: null }));
   expect(container.textContent).toContain("No repositories read yet.");
   expect(container.textContent).toContain("No releases read yet.");
+});
+
+it("badges repository sections by area and marks only values fed by inferred areas alone", async () => {
+  const body = mixedSnapshot(mixed, [
+    { path: "/briefing/repositories/rows/2/cells/issues", areas: ["lifecycle"] },
+    { path: "/briefing/repositories/facts/1/figure", areas: ["lifecycle"] },
+  ]);
+  await render(<Repositories />, body);
+  const pane = container.querySelector('[data-view-pane="repositories"]');
+  if (!pane) throw new Error("Repositories did not render");
+  expectEvidenceMarks(pane, body, {
+    prefixes: ["/briefing/repositories"],
+    sections: [
+      ["/briefing/repositories/headline"],
+      ["/briefing/repositories/facts"],
+      ["/briefing/repositories/rows"],
+    ],
+  });
+  expect(
+    new Set(
+      [...pane.querySelectorAll("[data-inferred]")]
+        .filter((mark) => !mark.closest("[data-envelopes]"))
+        .map((mark) => mark.closest("[data-pointer]")?.getAttribute("data-pointer")),
+    ),
+  ).toEqual(
+    new Set([
+      "/briefing/repositories/rows/2/cells/issues",
+      "/briefing/repositories/facts/1/figure",
+    ]),
+  );
+});
+
+it("marks no repository value from the real mixed fixture, whose repository areas are observed", async () => {
+  const body = mixedSnapshot(mixed);
+  await render(<Repositories />, body);
+  const pane = container.querySelector('[data-view-pane="repositories"]');
+  if (!pane) throw new Error("Repositories did not render");
+  expect(pane.querySelectorAll("[data-envelopes]").length).toBe(3);
+  expect(pane.querySelectorAll("[data-inferred]").length).toBe(0);
+});
+
+it("badges release lines by area and marks a line fed only by inferred areas", async () => {
+  const body = mixedSnapshot(mixed, [
+    { path: "/releases/lines/0", areas: ["lifecycle"] },
+    { path: "/releases/lines/1", areas: ["github", "lifecycle"] },
+  ]);
+  await render(<Releases />, body);
+  const pane = container.querySelector('[data-view-pane="releases"]');
+  if (!pane) throw new Error("Releases did not render");
+  expectEvidenceMarks(pane, body, {
+    prefixes: ["/releases"],
+    sections: [["/releases/lines"]],
+  });
+});
+
+it.each([
+  ["repositories", <Repositories key="r" />],
+  ["releases", <Releases key="l" />],
+] as const)("draws no envelope or marker on the plain %s fixture", async (name, view) => {
+  await render(view);
+  const pane = container.querySelector(`[data-view-pane="${name}"]`);
+  if (!pane) throw new Error(`${name} did not render`);
+  expectNoEvidenceMarks(pane);
 });

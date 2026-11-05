@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useStore } from "zustand";
+import { AreaEnvelopes, InferredMark } from "../../components/evidence/AreaEnvelopes.js";
 import "../../components/stations/stations.css";
 import { watchStore } from "../../store/watch.js";
 
@@ -19,21 +20,29 @@ export default function Horizon() {
   const { themes, horizon } = snapshot.body.briefing;
   const selected = themes.some((theme) => theme.id === picked) ? picked : themes[0]?.id;
   const inspect = (id: string) => watchStore.getState().select(id);
+  const evidence = snapshot.body;
   return (
     <div className="watch-horizon" data-view-pane="horizon">
-      <h2>{horizon.headline}</h2>
+      <AreaEnvelopes evidence={evidence} prefixes={["/briefing/horizon"]} />
+      <h2 data-pointer="/briefing/horizon/headline">
+        {horizon.headline}
+        <InferredMark evidence={evidence} pointer="/briefing/horizon/headline" />
+      </h2>
+      {themes.length > 0 && <AreaEnvelopes evidence={evidence} prefixes={["/briefing/themes"]} />}
       {themes.length > 0 && (
         <div className="watch-split">
           <div className="watch-themes">
-            {themes.map((theme) => (
+            {themes.map((theme, index) => (
               <button
                 key={theme.id}
                 type="button"
                 data-theme-sel={theme.id}
+                data-pointer={`/briefing/themes/${index}`}
                 aria-pressed={theme.id === selected}
                 onClick={() => setPicked(theme.id)}
               >
-                <span>{theme.title}</span>{" "}
+                <span>{theme.title}</span>
+                <InferredMark evidence={evidence} pointer={`/briefing/themes/${index}`} />{" "}
                 <span data-tone={theme.tone}>{theme.kind.toUpperCase()}</span>
                 <span className="theme-sub">{theme.sub}</span>
                 <small>{theme.when}</small>
@@ -41,12 +50,20 @@ export default function Horizon() {
             ))}
           </div>
           <div>
-            {themes.map((theme) => (
-              <section key={theme.id} data-theme-detail={theme.id} hidden={theme.id !== selected}>
+            {themes.map((theme, index) => (
+              <section
+                key={theme.id}
+                data-theme-detail={theme.id}
+                data-pointer={`/briefing/themes/${index}`}
+                hidden={theme.id !== selected}
+              >
                 <p>
                   <span data-tone={theme.tone}>{theme.kind.toUpperCase()}</span> {theme.when}
                 </p>
-                <h3>{theme.title}</h3>
+                <h3>
+                  {theme.title}
+                  <InferredMark evidence={evidence} pointer={`/briefing/themes/${index}`} />
+                </h3>
                 {theme.certain.length + theme.possible.length > 0 && (
                   <>
                     <p>Exposure by fork</p>

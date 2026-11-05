@@ -4,29 +4,53 @@
 import type { RepoCell, RepoEntry } from "@spi-code/contracts";
 import { useState } from "react";
 import { useStore } from "zustand";
+import { AreaEnvelopes, InferredMark } from "../../components/evidence/AreaEnvelopes.js";
+import type { Evidence } from "../../store/evidence.js";
 import { watchStore } from "../../store/watch.js";
 import "./panes.css";
 
-function Cell({ cell }: { cell: RepoCell }) {
+function Cell({
+  cell,
+  evidence,
+  pointer,
+}: {
+  cell: RepoCell;
+  evidence: Evidence;
+  pointer: string;
+}) {
   return (
-    <span className="repo-cell">
+    <span className="repo-cell" data-pointer={pointer}>
       <span data-tone={cell.tone} data-muted={cell.text === "0"}>
         {cell.text}
       </span>
       {cell.rest && <span data-muted={cell.fade || cell.rest === " · 0"}>{cell.rest}</span>}
+      <InferredMark evidence={evidence} pointer={pointer} />
     </span>
   );
 }
 
-function Detail({ repo, selected }: { repo: RepoEntry; selected: boolean }) {
+function Detail({
+  repo,
+  selected,
+  evidence,
+  pointer,
+}: {
+  repo: RepoEntry;
+  selected: boolean;
+  evidence: Evidence;
+  pointer: string;
+}) {
   const sections = [
     ...repo.sections.filter((section) => section.weight !== "quiet"),
     ...repo.sections.filter((section) => section.weight === "quiet"),
   ];
   return (
-    <section data-repo-detail={repo.id} hidden={!selected}>
+    <section data-repo-detail={repo.id} data-pointer={pointer} hidden={!selected}>
       <p>{repo.name}</p>
-      <h3 data-tone={repo.tone}>{repo.title}</h3>
+      <h3 data-tone={repo.tone}>
+        {repo.title}
+        <InferredMark evidence={evidence} pointer={pointer} />
+      </h3>
       <p>{repo.sub}</p>
       {sections.map((section) => (
         <div key={section.title} data-weight={section.weight}>
@@ -56,7 +80,8 @@ function Detail({ repo, selected }: { repo: RepoEntry; selected: boolean }) {
 }
 
 export default function Repositories() {
-  const repositories = useStore(watchStore, (state) => state.snapshot?.body.briefing.repositories);
+  const evidence = useStore(watchStore, (state) => state.snapshot?.body);
+  const repositories = evidence?.briefing.repositories;
   const [picked, pick] = useState<string | null>(null);
   const selected = repositories?.rows.some((repo) => repo.id === picked)
     ? picked
@@ -65,21 +90,40 @@ export default function Repositories() {
     <>
       <h1>Repositories</h1>
       <div className="watch-pane" data-view-pane="repositories">
-        {!repositories ? (
+        {!repositories || !evidence ? (
           <p role="status">No repositories read yet.</p>
         ) : (
           <>
-            <h2>{repositories.headline}</h2>
+            <AreaEnvelopes evidence={evidence} prefixes={["/briefing/repositories/headline"]} />
+            <h2 data-pointer="/briefing/repositories/headline">
+              {repositories.headline}
+              <InferredMark evidence={evidence} pointer="/briefing/repositories/headline" />
+            </h2>
             {!!repositories.facts.length && (
-              <div className="pane-facts">
-                {repositories.facts.map((fact) => (
-                  <div className="pane-fact" data-tone={fact.tone} key={fact.label}>
-                    <div>{fact.label}</div>
-                    <strong>{fact.figure}</strong>
-                    <div>{fact.sub}</div>
-                  </div>
-                ))}
-              </div>
+              <>
+                <AreaEnvelopes evidence={evidence} prefixes={["/briefing/repositories/facts"]} />
+                <div className="pane-facts">
+                  {repositories.facts.map((fact, index) => {
+                    const pointer = `/briefing/repositories/facts/${index}/figure`;
+                    return (
+                      <div
+                        className="pane-fact"
+                        data-tone={fact.tone}
+                        data-pointer={pointer}
+                        key={fact.label}
+                      >
+                        <div>{fact.label}</div>
+                        <strong>{fact.figure}</strong>
+                        <InferredMark evidence={evidence} pointer={pointer} />
+                        <div>{fact.sub}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            {!!repositories.rows.length && (
+              <AreaEnvelopes evidence={evidence} prefixes={["/briefing/repositories/rows"]} />
             )}
             {!!repositories.rows.length && (
               <div className="pane-split">
@@ -113,23 +157,36 @@ export default function Repositories() {
                       return rows.length ? (
                         <div key={group}>
                           <p>{group === "program" ? "Program" : "Forks"}</p>
-                          {rows.map((repo) => (
-                            <button
-                              className="repo-row"
-                              type="button"
-                              key={repo.id}
-                              data-repo={repo.id}
-                              aria-pressed={repo.id === selected}
-                              onClick={() => pick(repo.id)}
-                            >
-                              <span>{repo.name}</span>
-                              <Cell cell={repo.cells.issues} />
-                              <Cell cell={repo.cells.changes} />
-                              <Cell cell={repo.cells.dependabot} />
-                              <Cell cell={repo.cells.vulnerabilities} />
-                              <Cell cell={repo.cells.codeScanning} />
-                            </button>
-                          ))}
+                          {rows.map((repo) => {
+                            const pointer = `/briefing/repositories/rows/${repositories.rows.indexOf(repo)}`;
+                            const cell = (name: keyof RepoEntry["cells"]) => (
+                              <Cell
+                                cell={repo.cells[name]}
+                                evidence={evidence}
+                                pointer={`${pointer}/cells/${name}`}
+                              />
+                            );
+                            return (
+                              <button
+                                className="repo-row"
+                                type="button"
+                                key={repo.id}
+                                data-repo={repo.id}
+                                aria-pressed={repo.id === selected}
+                                onClick={() => pick(repo.id)}
+                              >
+                                <span data-pointer={pointer}>
+                                  {repo.name}
+                                  <InferredMark evidence={evidence} pointer={pointer} />
+                                </span>
+                                {cell("issues")}
+                                {cell("changes")}
+                                {cell("dependabot")}
+                                {cell("vulnerabilities")}
+                                {cell("codeScanning")}
+                              </button>
+                            );
+                          })}
                         </div>
                       ) : null;
                     })}
@@ -141,8 +198,14 @@ export default function Repositories() {
                   </p>
                 </div>
                 <div>
-                  {repositories.rows.map((repo) => (
-                    <Detail key={repo.id} repo={repo} selected={repo.id === selected} />
+                  {repositories.rows.map((repo, index) => (
+                    <Detail
+                      key={repo.id}
+                      repo={repo}
+                      selected={repo.id === selected}
+                      evidence={evidence}
+                      pointer={`/briefing/repositories/rows/${index}`}
+                    />
                   ))}
                 </div>
               </div>

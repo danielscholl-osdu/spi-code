@@ -11,7 +11,12 @@ import briefing from "../../../../../fixtures/rib-59d6895/oracle/briefing.json?r
 import consoleHtml from "../../../../../fixtures/rib-59d6895/oracle/console.html?raw";
 import placement from "../../../../../fixtures/rib-59d6895/oracle/environment-place.json?raw";
 import releases from "../../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
-import { testSnapshot } from "../../store/test-snapshot.js";
+import mixed from "../../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
+import {
+  expectEvidenceMarks,
+  expectNoEvidenceMarks,
+} from "../../components/evidence/marks.test-helper.js";
+import { mixedSnapshot, testSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore } from "../../store/watch.js";
 import Environment from "./index.js";
 import { eventWhen, firstEvent, hourTicks, place } from "./timeline.js";
@@ -255,6 +260,42 @@ it("renders oracle lane order, labels, facts and bars; selects details and the i
     );
     expect(container.querySelector(".env-timeline")).toBeNull();
     expect(container.querySelector(".env-detail")).toBeNull();
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
+it.each([
+  ["mixed", mixedSnapshot(mixed)],
+  ["plain", snapshot],
+] as const)("badges and marks the %s fixture's environment by area", async (name, body) => {
+  const store = createWatchStore(vi.fn());
+  store.setState({ snapshot: { cursor: 1, body } });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<Environment store={store} />));
+    if (name === "plain") {
+      expectNoEvidenceMarks(container);
+      return;
+    }
+    expectEvidenceMarks(container, body, {
+      prefixes: ["/briefing/environment"],
+      sections: [
+        ["/briefing/environment/headline"],
+        ["/briefing/environment/facts"],
+        ["/briefing/environment/lanes"],
+        ["/briefing/environment/note"],
+      ],
+    });
+    expect(
+      container.querySelector('[data-pointer="/briefing/environment/note"] [data-inferred]'),
+    ).toBeNull();
+    expect(
+      container.querySelector('[data-pointer="/briefing/environment/headline"] [data-inferred]'),
+    ).not.toBeNull();
   } finally {
     await act(async () => root.unmount());
     container.remove();

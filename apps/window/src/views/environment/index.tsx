@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useStore } from "zustand";
+import { AreaEnvelopes, InferredMark } from "../../components/evidence/AreaEnvelopes.js";
 import { watchStore } from "../../store/watch.js";
 import {
   eventKey,
@@ -23,7 +24,7 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
   const snapshot = useStore(store, (state) => state.snapshot);
   const [selected, setSelected] = useState<string>();
   const env = snapshot?.body.briefing.environment;
-  if (!env)
+  if (!snapshot || !env)
     return (
       <>
         <h1>Environment</h1>
@@ -35,25 +36,49 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
   // Keep duration text deterministic for the snapshot rather than ticking on the renderer clock.
   const now = new Date(to);
   const ticks = hourTicks(from, to);
-  const all = env.lanes.flatMap((lane) =>
-    lane.events.map((e) => ({ lane, e, key: eventKey(lane, e) })),
+  const evidence = snapshot.body;
+  const all = env.lanes.flatMap((lane, index) =>
+    lane.events.map((e) => ({
+      lane,
+      e,
+      key: eventKey(lane, e),
+      pointer: `/briefing/environment/lanes/${index}`,
+    })),
   );
   const first = firstEvent(env.lanes);
   const active = all.find(({ key }) => key === selected) ?? all.find(({ key }) => key === first);
   return (
     <div className="environment">
       <h1>Environment</h1>
-      <h2>{env.headline}</h2>
+      <AreaEnvelopes evidence={evidence} prefixes={["/briefing/environment/headline"]} />
+      <h2 data-pointer="/briefing/environment/headline">
+        {env.headline}
+        <InferredMark evidence={evidence} pointer="/briefing/environment/headline" />
+      </h2>
       {env.facts.length > 0 && (
-        <div className="env-facts">
-          {env.facts.map((fact) => (
-            <div className={`env-fact tone-${fact.tone}`} key={fact.label}>
-              <div className="env-fact-label">{fact.label}</div>
-              <strong>{fact.figure}</strong>
-              <div>{fact.sub}</div>
-            </div>
-          ))}
-        </div>
+        <>
+          <AreaEnvelopes evidence={evidence} prefixes={["/briefing/environment/facts"]} />
+          <div className="env-facts">
+            {env.facts.map((fact, index) => {
+              const pointer = `/briefing/environment/facts/${index}/figure`;
+              return (
+                <div
+                  className={`env-fact tone-${fact.tone}`}
+                  data-pointer={pointer}
+                  key={fact.label}
+                >
+                  <div className="env-fact-label">{fact.label}</div>
+                  <strong>{fact.figure}</strong>
+                  <InferredMark evidence={evidence} pointer={pointer} />
+                  <div>{fact.sub}</div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+      {env.lanes.length > 0 && (
+        <AreaEnvelopes evidence={evidence} prefixes={["/briefing/environment/lanes"]} />
       )}
       {env.lanes.length > 0 && (
         <div className="env-scroll">
@@ -86,12 +111,16 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
                   ))}
               </div>
             </div>
-            {env.lanes.map((lane) => {
+            {env.lanes.map((lane, index) => {
               const placed = place(lane.events, from, to);
               const tiers = Math.max(1, ...placed.map((p) => p.tier + 1));
+              const pointer = `/briefing/environment/lanes/${index}`;
               return (
                 <div className="env-row" key={lane.id} data-lane={lane.id}>
-                  <div className="env-lane-label">{lane.label}</div>
+                  <div className="env-lane-label" data-pointer={pointer}>
+                    {lane.label}
+                    <InferredMark evidence={evidence} pointer={pointer} />
+                  </div>
                   <div className="env-track" style={{ height: tiers * TIER_PX + 10 }}>
                     {placed.map((p) => {
                       const key = eventKey(lane, p.e);
@@ -126,11 +155,24 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
           </div>
         </div>
       )}
-      {env.note && <p className="env-note">{env.note}</p>}
+      {env.note && (
+        <>
+          <AreaEnvelopes evidence={evidence} prefixes={["/briefing/environment/note"]} />
+          <p className="env-note" data-pointer="/briefing/environment/note">
+            {env.note}
+            <InferredMark evidence={evidence} pointer="/briefing/environment/note" />
+          </p>
+        </>
+      )}
       {active && (
-        <section className={`env-detail state-${active.e.state}`} aria-label="Event details">
+        <section
+          className={`env-detail state-${active.e.state}`}
+          aria-label="Event details"
+          data-pointer={active.pointer}
+        >
           <p>
             {active.lane.label} &middot; {eventWord[active.e.state]}
+            <InferredMark evidence={evidence} pointer={active.pointer} />
           </p>
           <h3>{active.e.label}</h3>
           <dl>

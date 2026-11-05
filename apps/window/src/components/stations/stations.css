@@ -33,4 +33,5 @@
 .service-stations ol { display: grid; grid-template-columns: repeat(6, minmax(110px, 1fr)); list-style: none; padding: 0; overflow-x: auto; }
 .service-stations li { display: flex; flex-direction: column; gap: 4px; padding: 8px; border-top: 2px solid currentColor; }
 .service-stations strong, .service-stations small { color: var(--text-muted); }
+.service-stations li [data-inferred] { align-self: flex-start; }
 @media (width < 1100px) { .watch-split { grid-template-columns: minmax(0, 1fr); } }

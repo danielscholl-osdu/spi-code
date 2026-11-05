@@ -42,3 +42,19 @@ export function testSnapshot(
     ...overrides,
   });
 }
+
+/**
+ * The host's mixed-source Watch fixture (`fixtures/watch/snapshot-mixed-59d6895.json`: lifecycle
+ * inferred, every other area observed) over the rib oracle briefing and releases. Extra provenance
+ * replaces or adds entries by path.
+ */
+export function mixedSnapshot(mixed: string, extra: ViewSnapshot["provenance"] = []): ViewSnapshot {
+  const snapshot = ViewSnapshotSchema.parse(JSON.parse(mixed));
+  return ViewSnapshotSchema.parse({
+    ...snapshot,
+    provenance: [
+      ...snapshot.provenance.filter(({ path }) => !extra.some((entry) => entry.path === path)),
+      ...extra,
+    ],
+  });
+}

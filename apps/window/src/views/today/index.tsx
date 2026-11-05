@@ -4,12 +4,19 @@
 import type { ViewSnapshot } from "@spi-code/contracts";
 import { useEffect } from "react";
 import { useStore } from "zustand";
+import { AreaEnvelopes, InferredMark } from "../../components/evidence/AreaEnvelopes.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import "./today.css";
 
 type Briefing = ViewSnapshot["briefing"];
 type FocusItem = Briefing["focus"][number];
 type Theme = Briefing["themes"][number];
+
+function ranked(items: readonly FocusItem[], prefix: string): [FocusItem, string][] {
+  return items
+    .map((item, index): [FocusItem, string] => [item, `${prefix}/${index}`])
+    .sort(([a], [b]) => a.rung - b.rung);
+}
 
 export default function Today({
   store = watchStore,
@@ -19,8 +26,8 @@ export default function Today({
   const snapshot = useStore(store, (state) => state.snapshot);
   const selectedId = useStore(store, (state) => state.selection?.id);
   const select = useStore(store, (state) => state.select);
-  const focus = snapshot ? [...snapshot.body.briefing.focus].sort((a, b) => a.rung - b.rung) : [];
-  const first = focus[0]?.id;
+  const focus = snapshot ? ranked(snapshot.body.briefing.focus, "/briefing/focus") : [];
+  const first = focus[0]?.[0].id;
   useEffect(() => {
     if (selectedId === undefined && first !== undefined) select(first);
   }, [selectedId, first, select]);
@@ -32,7 +39,8 @@ export default function Today({
       </section>
     );
   const brief = snapshot.body.briefing;
-  const row = (item: FocusItem) => {
+  const evidence = snapshot.body;
+  const row = ([item, pointer]: [FocusItem, string]) => {
     const tone = item.rung === 0 ? "bad" : item.cls === "PORT" ? "neutral" : "warn";
     return (
       <button
@@ -40,6 +48,7 @@ export default function Today({
         className="today-row"
         key={item.id}
         data-selection-id={item.id}
+        data-pointer={pointer}
         aria-pressed={selectedId === item.id}
         onClick={() => select(item.id)}
       >
@@ -52,6 +61,7 @@ export default function Today({
           <span className="today-class" data-tone={tone}>
             {item.cls}
           </span>
+          <InferredMark evidence={evidence} pointer={pointer} />
           <span className="today-sub">{item.sub}</span>
         </span>
       </button>
@@ -83,59 +93,91 @@ export default function Today({
   );
   return (
     <section className="today" aria-label="Today">
-      <h1>{brief.headline}</h1>
-      {brief.summary && <p className="today-summary">{brief.summary}</p>}
+      <AreaEnvelopes evidence={evidence} prefixes={["/briefing/headline", "/briefing/summary"]} />
+      <h1 data-pointer="/briefing/headline">
+        {brief.headline}
+        <InferredMark evidence={evidence} pointer="/briefing/headline" />
+      </h1>
+      {brief.summary && (
+        <p className="today-summary" data-pointer="/briefing/summary">
+          {brief.summary}
+          <InferredMark evidence={evidence} pointer="/briefing/summary" />
+        </p>
+      )}
       {brief.facts.length > 0 && (
         <>
+          <AreaEnvelopes evidence={evidence} prefixes={["/briefing/facts"]} />
           <div className="today-facts">
-            {brief.facts.map((fact) => (
-              <div className="today-fact" data-tone={fact.tone} key={fact.label}>
+            {brief.facts.map((fact, index) => (
+              <div
+                className="today-fact"
+                data-tone={fact.tone}
+                data-pointer={`/briefing/facts/${index}/figure`}
+                key={fact.label}
+              >
                 <div className="today-fact-label">{fact.label}</div>
                 <strong className="today-figure">{fact.figure}</strong>
+                <InferredMark evidence={evidence} pointer={`/briefing/facts/${index}/figure`} />
                 <div className="today-fact-sub">{fact.sub}</div>
               </div>
             ))}
           </div>
           <section className="today-focus" aria-label="Focus">
+            <AreaEnvelopes
+              evidence={evidence}
+              prefixes={["/briefing/focus", "/briefing/rest", "/briefing/more"]}
+            />
             {focus.map(row)}
             {brief.rest.length > 0 && (
               <details>
-                <summary>{brief.more} more in the queue</summary>
-                {[...brief.rest].sort((a, b) => a.rung - b.rung).map(row)}
+                <summary data-pointer="/briefing/more">
+                  {brief.more} more in the queue
+                  <InferredMark evidence={evidence} pointer="/briefing/more" />
+                </summary>
+                {ranked(brief.rest, "/briefing/rest").map(row)}
               </details>
             )}
           </section>
           {brief.ready.length > 0 && (
-            <p className="today-ready">
-              <strong>Ready, no rush:</strong>{" "}
-              {brief.ready.map((item, index) => (
-                <span key={item.id}>
-                  {index > 0 && " · "}
-                  <button
-                    type="button"
-                    className="today-link"
-                    data-selection-id={item.id}
-                    onClick={() => select(item.id)}
-                  >
-                    {item.text}
-                  </button>
-                </span>
-              ))}
-            </p>
+            <>
+              <AreaEnvelopes evidence={evidence} prefixes={["/briefing/ready"]} />
+              <p className="today-ready">
+                <strong>Ready, no rush:</strong>{" "}
+                {brief.ready.map((item, index) => (
+                  <span key={item.id} data-pointer={`/briefing/ready/${index}`}>
+                    {index > 0 && " · "}
+                    <button
+                      type="button"
+                      className="today-link"
+                      data-selection-id={item.id}
+                      onClick={() => select(item.id)}
+                    >
+                      {item.text}
+                    </button>
+                    <InferredMark evidence={evidence} pointer={`/briefing/ready/${index}`} />
+                  </span>
+                ))}
+              </p>
+            </>
           )}
         </>
       )}
       {brief.themes.length > 0 && (
         <section className="today-themes" aria-label="Themes">
           <h2>Themes</h2>
-          {brief.themes.map((theme) => (
+          <AreaEnvelopes evidence={evidence} prefixes={["/briefing/themes"]} />
+          {brief.themes.map((theme, index) => (
             <article
               className="today-theme"
               data-theme-id={theme.id}
               data-tone={theme.tone}
+              data-pointer={`/briefing/themes/${index}`}
               key={theme.id}
             >
-              <h3>{theme.title}</h3>
+              <h3>
+                {theme.title}
+                <InferredMark evidence={evidence} pointer={`/briefing/themes/${index}`} />
+              </h3>
               <p className="today-theme-sub">{theme.sub}</p>
               {theme.when && <time>{theme.when}</time>}
               {theme.certain.length > 0 && (

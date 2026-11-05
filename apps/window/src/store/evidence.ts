@@ -3,7 +3,7 @@
 
 import type { AreaEnvelope, AreaName, Envelope, ViewSnapshot } from "@spi-code/contracts";
 
-type Evidence = Pick<ViewSnapshot, "areas" | "provenance">;
+export type Evidence = Pick<ViewSnapshot, "areas" | "provenance">;
 
 /** The area's envelope; the contract guarantees one per area, so absence reads as unread. */
 export function areaEnvelope(snapshot: Evidence, area: AreaName): Envelope {
@@ -30,6 +30,17 @@ export function envelopesFor(snapshot: Evidence, pointerPrefix: string): AreaEnv
       for (const area of areas) feeding.add(area);
     }
   }
+  return snapshot.areas.filter(({ area }) => feeding.has(area));
+}
+
+/** Envelopes of every area feeding a value under any of the prefixes, in the snapshot's area order. */
+export function envelopesForAll(
+  snapshot: Evidence,
+  pointerPrefixes: readonly string[],
+): AreaEnvelope[] {
+  const feeding = new Set(
+    pointerPrefixes.flatMap((prefix) => envelopesFor(snapshot, prefix).map(({ area }) => area)),
+  );
   return snapshot.areas.filter(({ area }) => feeding.has(area));
 }
 

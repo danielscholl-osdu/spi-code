@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { describe, expect, it } from "vitest";
-import { areaEnvelope, envelopesFor, isInferred } from "./evidence.js";
+import { areaEnvelope, envelopesFor, envelopesForAll, isInferred } from "./evidence.js";
 
 const mixed = ViewSnapshotSchema.parse(
   JSON.parse(readFileSync(resolve("fixtures/watch/snapshot-mixed-59d6895.json"), "utf8")),
@@ -77,4 +77,17 @@ describe("evidence helpers on the mixed-source fixture", () => {
     expect(names("/briefing/flow/row")).toEqual([]);
     expect(names("/briefing/head")).toEqual([]);
   });
+});
+
+it("unions the envelopes under several prefixes in area order, without repeats", () => {
+  const names = (prefixes: string[]) => envelopesForAll(mixed, prefixes).map(({ area }) => area);
+  expect(names(["/briefing/environment/lanes", "/briefing/flow/tiles/0"])).toEqual([
+    "lifecycle",
+    "upstream",
+  ]);
+  expect(
+    names(["/briefing/flow/tiles/0", "/briefing/flow/tiles/3", "/stations/0/stations/0"]),
+  ).toEqual(["github", "runs", "upstream"]);
+  expect(names([])).toEqual([]);
+  expect(names(["/releases"])).toEqual([]);
 });

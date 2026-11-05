@@ -3,6 +3,7 @@
 
 import { Fragment, useState } from "react";
 import { useStore } from "zustand";
+import { AreaEnvelopes, InferredMark } from "../../components/evidence/AreaEnvelopes.js";
 import { lineColumns, Stations } from "../../components/stations/index.js";
 import { watchStore } from "../../store/watch.js";
 
@@ -20,20 +21,37 @@ export default function Flow() {
   const selected = view.rows.some((row) => row.fork === picked) ? picked : "plan";
   const flight = view.mode === "flight";
   const inspect = (id: string) => watchStore.getState().select(id);
+  const evidence = snapshot.body;
+  const mark = (pointer: string) => <InferredMark evidence={evidence} pointer={pointer} />;
   return (
     <>
       <div className="watch-flow" data-view-pane="flow">
-        <h2>{view.headline}</h2>
-        {view.sub && <p>{view.sub}</p>}
+        <AreaEnvelopes
+          evidence={evidence}
+          prefixes={["/briefing/flow/mode", "/briefing/flow/headline", "/briefing/flow/sub"]}
+        />
+        <h2 data-pointer="/briefing/flow/headline">
+          {view.headline}
+          {mark("/briefing/flow/headline")}
+        </h2>
+        {view.sub && (
+          <p data-pointer="/briefing/flow/sub">
+            {view.sub}
+            {mark("/briefing/flow/sub")}
+          </p>
+        )}
+        <AreaEnvelopes evidence={evidence} prefixes={["/briefing/flow/tiles"]} />
         <div className="watch-tiles">
-          {view.tiles.map((tile) => (
+          {view.tiles.map((tile, index) => (
             <div
               className="watch-tile"
               key={tile.label}
               data-tone={tile.tone === "run" ? "neutral" : tile.tone}
+              data-pointer={`/briefing/flow/tiles/${index}`}
             >
               <div>{tile.label}</div>
               <b>{tile.value}</b>
+              {mark(`/briefing/flow/tiles/${index}`)}
               {tile.meter && (
                 <meter
                   aria-label={tile.label}
@@ -49,6 +67,7 @@ export default function Flow() {
         <div className="watch-split">
           {view.rows.length > 0 && (
             <div className="watch-table">
+              <AreaEnvelopes evidence={evidence} prefixes={["/briefing/flow/rows"]} />
               <table>
                 <thead>
                   <tr>
@@ -61,9 +80,9 @@ export default function Flow() {
                   </tr>
                 </thead>
                 <tbody>
-                  {view.rows.map((row) => (
+                  {view.rows.map((row, index) => (
                     <tr key={row.fork} data-up={row.fork}>
-                      <th scope="row">
+                      <th scope="row" data-pointer={`/briefing/flow/rows/${index}`}>
                         <button
                           type="button"
                           data-up={row.fork}
@@ -73,6 +92,7 @@ export default function Flow() {
                           {row.fork}
                         </button>
                         {flight && row.tag && <> {row.tag}</>}
+                        {mark(`/briefing/flow/rows/${index}`)}
                       </th>
                       {flight ? (
                         <>
@@ -123,9 +143,24 @@ export default function Flow() {
             </div>
           )}
           <div>
-            <section data-up-detail="plan" hidden={selected !== "plan"}>
+            <section
+              data-up-detail="plan"
+              data-pointer={flight ? "/briefing/flow/next" : "/briefing/flow/plan"}
+              hidden={selected !== "plan"}
+            >
+              <AreaEnvelopes
+                evidence={evidence}
+                prefixes={
+                  flight
+                    ? ["/briefing/flow/next", "/briefing/flow/also"]
+                    : ["/briefing/flow/plan", "/briefing/flow/schedule"]
+                }
+              />
               <p>{flight ? "Next step" : "Proposed plan"}</p>
-              <h3>{flight ? view.next.title : view.plan.title}</h3>
+              <h3>
+                {flight ? view.next.title : view.plan.title}
+                {mark(flight ? "/briefing/flow/next" : "/briefing/flow/plan")}
+              </h3>
               {flight ? (
                 <>
                   {view.next.text && <p>{view.next.text}</p>}
@@ -140,8 +175,8 @@ export default function Flow() {
                     <>
                       <p>Also waiting</p>
                       <ul>
-                        {view.also.map((item) => (
-                          <li key={item.text}>
+                        {view.also.map((item, index) => (
+                          <li key={item.text} data-pointer={`/briefing/flow/also/${index}`}>
                             {item.inspect ? (
                               <button
                                 type="button"
@@ -153,6 +188,7 @@ export default function Flow() {
                             ) : (
                               item.text
                             )}
+                            {mark(`/briefing/flow/also/${index}`)}
                           </li>
                         ))}
                       </ul>
@@ -180,16 +216,24 @@ export default function Flow() {
                     {view.plan.button}
                   </button>
                   {view.schedule && (
-                    <>
-                      <p>{view.schedule.title}</p>
+                    <div data-pointer="/briefing/flow/schedule">
+                      <p>
+                        {view.schedule.title}
+                        {mark("/briefing/flow/schedule")}
+                      </p>
                       <p>{view.schedule.text}</p>
-                    </>
+                    </div>
                   )}
                 </>
               )}
             </section>
-            {view.rows.map((row) => (
-              <section key={row.fork} data-up-detail={row.fork} hidden={selected !== row.fork}>
+            {view.rows.map((row, index) => (
+              <section
+                key={row.fork}
+                data-up-detail={row.fork}
+                data-pointer={`/briefing/flow/rows/${index}`}
+                hidden={selected !== row.fork}
+              >
                 <p>
                   <button type="button" data-up="plan" onClick={() => setPicked("plan")}>
                     Plan
@@ -198,6 +242,7 @@ export default function Flow() {
                 </p>
                 <h3 data-tone={row.next.tone === "run" ? "neutral" : row.next.tone}>
                   {row.detail.title}
+                  {mark(`/briefing/flow/rows/${index}`)}
                 </h3>
                 <p>{row.next.text}</p>
                 <ul>
@@ -217,7 +262,7 @@ export default function Flow() {
           </div>
         </div>
       </div>
-      <Stations services={snapshot.body.stations} />
+      <Stations services={snapshot.body.stations} evidence={evidence} />
     </>
   );
 }
