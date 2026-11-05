@@ -3,10 +3,10 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import type { NotesState } from "@spi-code/contracts";
+import { type NotesState, PROTOCOL_VERSION } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { testSnapshot } from "../../store/test-snapshot.js";
 import { watchStore } from "../../store/watch.js";
 import Releases from "../releases/index.js";
@@ -20,6 +20,19 @@ const snapshot = () => testSnapshot(fixture("briefing.json"), fixture("releases.
 const oracle = new DOMParser().parseFromString(fixture("console.html"), "text/html");
 const container = document.createElement("div");
 let root: ReturnType<typeof createRoot> | undefined;
+const send = vi.fn();
+let previous: Window["spi"];
+
+beforeEach(() => {
+  previous = window.spi;
+  window.spi = {
+    proof: false,
+    openExternal: vi.fn(),
+    postMessage: send,
+    onMessage: () => () => {},
+  };
+  send.mockClear();
+});
 
 async function render(view: React.ReactNode, body = snapshot()) {
   watchStore.setState({ snapshot: { cursor: body.cursor, body }, selection: null });
@@ -32,7 +45,9 @@ afterEach(async () => {
   await act(async () => root?.unmount());
   root = undefined;
   container.remove();
-  watchStore.setState({ snapshot: null, selection: null });
+  watchStore.getState().clear();
+  watchStore.setState({ snapshot: null });
+  window.spi = previous;
 });
 
 it("matches every repository value and detail in the frozen rib console and selects each row", async () => {
@@ -54,7 +69,16 @@ it("matches every repository value and detail in the frozen rib console and sele
     expect(text(detail)).toBe(text(oracle.querySelector(`[data-repo-detail="${repo.id}"]`)));
     await act(async () => detail?.querySelector("button")?.click());
     expect(watchStore.getState().selection).toEqual({ id: repo.id });
+    expect(send).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        version: PROTOCOL_VERSION,
+        kind: "request",
+        type: "inspect.request",
+        payload: { id: repo.id },
+      }),
+    );
   }
+  expect(send).toHaveBeenCalledTimes(body.briefing.repositories.rows.length);
 });
 
 it("matches every release line and detail in the frozen rib console and selects each month", async () => {
@@ -73,7 +97,16 @@ it("matches every release line and detail in the frozen rib console and selects 
     expect(text(detail)).toBe(text(oracle.querySelector(`[data-rel-detail="${line.id}"]`)));
     await act(async () => detail?.querySelector("button")?.click());
     expect(watchStore.getState().selection).toEqual({ id: line.id });
+    expect(send).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        version: PROTOCOL_VERSION,
+        kind: "request",
+        type: "inspect.request",
+        payload: { id: line.id },
+      }),
+    );
   }
+  expect(send).toHaveBeenCalledTimes(body.releases.lines.length);
   expect(container.querySelector("now")).toBeNull();
   expect(container.textContent).toContain("All 13 services <now> ship from SPI forks.");
 });

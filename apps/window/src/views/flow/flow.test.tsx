@@ -3,11 +3,11 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { type Station, StationsSchema, type UpTone } from "@spi-code/contracts";
+import { PROTOCOL_VERSION, type Station, StationsSchema, type UpTone } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import briefing from "../../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import consoleHtml from "../../../../../fixtures/rib-59d6895/oracle/console.html?raw";
 import lines from "../../../../../fixtures/rib-59d6895/oracle/lines.json?raw";
@@ -35,8 +35,25 @@ const snapshot = testSnapshot(briefing, '{"lines":[],"reading":false}', {
 });
 const text = (element: Element | null) => element?.textContent?.replace(/\s+/g, " ").trim();
 const pane = (view: string) => oracle.querySelector(`[data-view-pane="${view}"]`);
+const send = vi.fn();
+let previous: Window["spi"];
 
-afterEach(() => watchStore.setState({ snapshot: null, selection: null }));
+beforeEach(() => {
+  previous = window.spi;
+  window.spi = {
+    proof: false,
+    openExternal: vi.fn(),
+    postMessage: send,
+    onMessage: () => () => {},
+  };
+  send.mockClear();
+});
+
+afterEach(() => {
+  watchStore.getState().clear();
+  watchStore.setState({ snapshot: null });
+  window.spi = previous;
+});
 
 it("draws every service's six stations in oracle order with exact labels, states and tones", () => {
   const dom = document.createElement("div");
@@ -198,6 +215,15 @@ it("selects fork and theme details and sends their inspector selections", async 
     expect(dom.querySelector<HTMLElement>('[data-up-detail="entitlements"]')?.hidden).toBe(false);
     await click('[data-inspect="upstream:entitlements"]');
     expect(watchStore.getState().selection?.id).toBe("upstream:entitlements");
+    expect(send).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        version: PROTOCOL_VERSION,
+        kind: "request",
+        type: "inspect.request",
+        payload: { id: "upstream:entitlements" },
+      }),
+    );
     await click('[data-up-detail="entitlements"] button[data-up="plan"]');
     expect(dom.querySelector<HTMLElement>('[data-up-detail="plan"]')?.hidden).toBe(false);
     await act(async () => root.render(<Horizon />));
@@ -208,6 +234,16 @@ it("selects fork and theme details and sends their inspector selections", async 
     ).toBe(false);
     await click('[data-inspect="mr:legal:756"]');
     expect(watchStore.getState().selection?.id).toBe("mr:legal:756");
+    expect(send).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        version: PROTOCOL_VERSION,
+        kind: "request",
+        type: "inspect.request",
+        payload: { id: "mr:legal:756" },
+      }),
+    );
+    expect(send).toHaveBeenCalledTimes(2);
   } finally {
     await act(async () => root.unmount());
   }
