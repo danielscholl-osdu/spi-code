@@ -6,6 +6,8 @@ import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
 import {
   access,
+  chmod,
+  type FileHandle,
   mkdir,
   mkdtemp,
   open,
@@ -14,6 +16,7 @@ import {
   readlink,
   rename,
   rm,
+  stat,
   symlink,
 } from "node:fs/promises";
 import { join } from "node:path";
@@ -73,6 +76,48 @@ async function writeDurable(path: string, data: string | Buffer, mode?: number):
     await handle.sync();
   } finally {
     await handle.close();
+  }
+}
+
+type FileOpener = (path: string, flags: "r" | "r+") => Promise<Pick<FileHandle, "sync" | "close">>;
+
+export async function flushPayloadFile(
+  path: string,
+  platform: string = process.platform,
+  opener: FileOpener = open,
+): Promise<void> {
+  async function sync(flags: "r" | "r+"): Promise<void> {
+    const handle = await opener(path, flags);
+    try {
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+  }
+  if (platform !== "win32") {
+    try {
+      await sync("r");
+      return;
+    } catch (error) {
+      if (
+        !(
+          error instanceof Error &&
+          "code" in error &&
+          (error.code === "EPERM" || error.code === "EACCES")
+        )
+      )
+        throw error;
+    }
+  }
+  // FlushFileBuffers needs write access on Windows. Temporarily lift read-only
+  // permissions, then restore them even if opening or flushing the file fails.
+  const mode = (await stat(path)).mode & 0o7777;
+  const readOnly = (mode & 0o200) === 0;
+  try {
+    if (readOnly) await chmod(path, mode | 0o200);
+    await sync("r+");
+  } finally {
+    if (readOnly) await chmod(path, mode);
   }
 }
 
@@ -227,14 +272,7 @@ export class ToolInstaller {
           const path = join(directory, entry.name);
           if (entry.isDirectory()) await flush(path, relative);
           else if (entry.isFile()) {
-            // Read-only handles preserve extracted permissions while flushing payload bytes
-            // before publication; directory-only sync would not flush those bytes.
-            const handle = await open(path, "r");
-            try {
-              await handle.sync();
-            } finally {
-              await handle.close();
-            }
+            await flushPayloadFile(path);
             files.push(relative);
           } else throw new Error(`Unsupported payload entry: ${relative}`);
         }

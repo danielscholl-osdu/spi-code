@@ -3,13 +3,28 @@
 
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  open,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { createToolInstaller, extractBinary, ToolInstaller } from "./installer.js";
+import {
+  createToolInstaller,
+  extractBinary,
+  flushPayloadFile,
+  ToolInstaller,
+} from "./installer.js";
 import { parseManifest } from "./manifest.js";
 
 const fsHooks = vi.hoisted(() => ({
@@ -93,6 +108,46 @@ test("checksum mismatch never extracts or changes tools, including an existing c
   expect(await readdir(freshData)).toEqual([]);
   expect(await bad.readiness("gh")).toEqual({ state: "failed", error: "SHA-256 mismatch for gh" });
 });
+
+test.each(["win32", "darwin"])(
+  "payload flush restores read-only permissions on %s",
+  async (host) => {
+    const path = join(home, "readonly");
+    await writeFile(path, "payload");
+    await chmod(path, 0o444);
+    const flags: string[] = [];
+    let fail = false;
+    const opener = async (path: string, flag: "r" | "r+") => {
+      flags.push(flag);
+      const handle = await open(path, flag);
+      return {
+        close: () => handle.close(),
+        sync: async () => {
+          if (flag === "r") throw Object.assign(new Error("FlushFileBuffers"), { code: "EPERM" });
+          expect((await stat(path)).mode & 0o200).not.toBe(0);
+          if (fail) throw Object.assign(new Error("flush failed"), { code: "EIO" });
+          await handle.sync();
+        },
+      };
+    };
+    try {
+      await flushPayloadFile(path, host, opener);
+      expect(flags).toEqual(host === "win32" ? ["r+"] : ["r", "r+"]);
+      expect((await stat(path)).mode & 0o200).toBe(0);
+      fail = true;
+      await expect(flushPayloadFile(path, host, opener)).rejects.toThrow("flush failed");
+      expect((await stat(path)).mode & 0o200).toBe(0);
+      await expect(
+        flushPayloadFile(path, host, async () => {
+          throw Object.assign(new Error("open failed"), { code: "EIO" });
+        }),
+      ).rejects.toThrow("open failed");
+      expect((await stat(path)).mode & 0o200).toBe(0);
+    } finally {
+      await chmod(path, 0o644);
+    }
+  },
+);
 
 test("installs without admin under a temporary home and reports each readiness transition", async () => {
   vi.stubEnv("HOME", home);

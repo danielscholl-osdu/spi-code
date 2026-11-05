@@ -141,7 +141,7 @@ export class MacGitInstaller {
     if (this.state?.state === "installing") return this.state;
     const ready = await this.probe(signal);
     if (ready) {
-      this.state = undefined;
+      if (this.state?.state === "failed") this.state = undefined;
       return ready;
     }
     return this.state ?? { state: "missing" };
@@ -167,11 +167,11 @@ export class MacGitInstaller {
         bounded.throwIfAborted();
         const ready = await this.probe(bounded);
         bounded.throwIfAborted();
-        if (this.clock.now() >= end) break;
         if (ready) {
           this.state = undefined;
           return;
         }
+        if (this.clock.now() >= end) break;
         await this.clock.sleep(Math.min(1000, end - this.clock.now()), bounded);
       }
       throw new Error("Timed out waiting for Command Line Tools Git");

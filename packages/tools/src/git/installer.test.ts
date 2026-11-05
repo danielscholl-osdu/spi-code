@@ -180,6 +180,62 @@ test("macOS skips the prompt for working git and rejects empty probe output", as
   expect(await installer.readiness()).toEqual({ state: "missing" });
 });
 
+test("a readiness probe started before install cannot clear installing", async () => {
+  type Result = Awaited<ReturnType<Runner>>;
+  let finishReadiness: (value: Result) => void = () => {
+    throw new Error("No readiness probe");
+  };
+  let finishInstall: (value: Result) => void = () => {
+    throw new Error("No install probe");
+  };
+  const runner = vi
+    .fn<Runner>()
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishReadiness = resolve;
+        }),
+    )
+    .mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishInstall = resolve;
+        }),
+    );
+  const installer = new MacGitInstaller(runner);
+  const readiness = installer.readiness();
+  const install = installer.install();
+  finishReadiness({ code: 0, stdout: "git version 2.39.5" });
+  expect((await readiness).state).toBe("ready");
+  expect(await installer.readiness()).toEqual({ state: "installing" });
+  await expect(installer.install()).rejects.toThrow("already running");
+  finishInstall({ code: 0, stdout: "git version 2.39.5" });
+  await install;
+});
+
+test("a successful macOS probe at the deadline is ready, not timed out", async () => {
+  let now = 0;
+  let probes = 0;
+  const installer = new MacGitInstaller(
+    async (cmd) => {
+      if (cmd === "git" && ++probes === 2) {
+        now = 1000;
+        return { code: 0, stdout: "git version 2.39.5" };
+      }
+      return { code: 1, stdout: "" };
+    },
+    {
+      now: () => now,
+      sleep: async (ms) => {
+        now += ms;
+      },
+    },
+    1000,
+  );
+  await expect(installer.install()).resolves.toBeUndefined();
+  expect(now).toBe(1000);
+});
+
 test("macOS keeps polling after a nonzero prompt until git works", async () => {
   let now = 0;
   const runner = vi.fn<Runner>(async (cmd) => ({
