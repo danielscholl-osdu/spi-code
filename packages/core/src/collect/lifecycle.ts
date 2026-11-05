@@ -251,7 +251,7 @@ export async function readRunJobs(
   return { data, cache, reads };
 }
 
-function declarationPath(sha: string, ctx: CoreContext): string {
+export function declarationPath(sha: string, ctx: CoreContext): string {
   return `repos/${ctx.stackRepo}/contents/${DECLARATION_PATH}?ref=${encodeURIComponent(sha)}`;
 }
 

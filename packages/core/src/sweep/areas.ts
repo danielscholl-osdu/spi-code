@@ -22,6 +22,7 @@ import { failedChecks, javaBuilt } from "../model/checks.js";
 import { errorText } from "../util.js";
 import { type CollectorCache, cacheSchema, emptyCache, pruneCache } from "./cache.js";
 import { due } from "./cadence.js";
+import { collectorInflight } from "./inflight.js";
 import { type SweepArea, type SweepInput, type SweepPersist, Sweeper, type SweepState } from "./sweeper.js";
 
 export interface CollectorOptions {
@@ -252,7 +253,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
     } : undefined, ctx));
 
   return new Sweeper({
-    ...options, areas, cacheSchema, emptyCache,
+    ...options, areas, cacheSchema, emptyCache, inflight: collectorInflight,
     prune: (facts, cache) => pruneCache(facts, cache, options.ctx),
     context: (facts) => {
       if (!facts.fleet.data?.forks && !options.fleetFiles?.services && !facts.fleet.data?.rollout)

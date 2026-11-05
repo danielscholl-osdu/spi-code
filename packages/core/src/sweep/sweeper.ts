@@ -42,6 +42,12 @@ export type SweepArea<C> = {
   };
 }[AreaName];
 
+/** Polls what is in flight between sweeps; the host owns the timer. */
+export interface SweepInflight<C> {
+  has(facts: Facts, ctx: CoreContext): boolean;
+  poll(input: SweepInput<C>): Promise<{ changed: boolean; settled: boolean }>;
+}
+
 export interface SweeperOptions<C> {
   readonly ctx: CoreContext;
   readonly exec: Exec;
@@ -56,6 +62,7 @@ export interface SweeperOptions<C> {
   readonly beforeSweep?: (state: SweepState<C>) => void;
   readonly afterAreas?: (input: SweepInput<C>) => Promise<void>;
   readonly replay?: () => Promise<unknown>;
+  readonly inflight?: SweepInflight<C>;
 }
 
 /** Callers supply the collector-owned schemas; core validates both load and save. */
@@ -75,7 +82,9 @@ export class Sweeper<C> {
   readonly clock: Clock;
   private readonly schema;
   private running: Promise<void> | undefined;
-  private loaded = false;
+  private loading: Promise<void> | undefined;
+  private polling: Promise<void> | undefined;
+  private sweeps = 0;
 
   constructor(private readonly opts: SweeperOptions<C>) {
     const names = opts.areas.map((area) => area.name);
@@ -92,11 +101,49 @@ export class Sweeper<C> {
 
   sweep({ force = false }: { force?: boolean } = {}): Promise<void> {
     if (!this.running) {
+      this.sweeps++;
       this.running = this.run(force).finally(() => {
         this.running = undefined;
       });
     }
     return this.running;
+  }
+
+  /** Whether a run is in flight that pollInflight would follow. */
+  hasInflight(): boolean {
+    return !this.opts.replay && !!this.opts.inflight?.has(this.facts, this.context());
+  }
+
+  /**
+   * Re-read what is in flight without a full sweep. Recomposes when a run moved
+   * and sweeps once one settles. A sweep in progress wins: polling yields to it.
+   */
+  pollInflight(): Promise<void> {
+    if (this.running || !this.opts.inflight || this.opts.replay) return Promise.resolve();
+    this.polling ??= this.poll(this.opts.inflight).finally(() => {
+      this.polling = undefined;
+    });
+    return this.polling;
+  }
+
+  private async poll(inflight: SweepInflight<C>): Promise<void> {
+    await this.load();
+    if (this.running || !inflight.has(this.facts, this.context())) return;
+    const generation = this.sweeps;
+    const input: SweepInput<C> = {
+      ctx: this.context(), exec: this.opts.exec, clock: this.clock, force: false,
+      facts: structuredClone(this.facts), cache: structuredClone(this.cache),
+      reads: structuredClone(this.reads),
+    };
+    const { changed, settled } = await inflight.poll(input);
+    // A sweep that started meanwhile reads everything afresh; this poll is stale.
+    if (this.sweeps !== generation) return;
+    const state = this.schema.parse({ facts: input.facts, cache: input.cache, reads: input.reads });
+    this.facts = state.facts;
+    this.cache = state.cache;
+    this.reads = state.reads;
+    if (changed) this.rebuild();
+    if (settled) await this.sweep();
   }
 
   private failure(object: string, error: unknown): void {
@@ -109,9 +156,12 @@ export class Sweeper<C> {
     }];
   }
 
-  private async load(): Promise<void> {
-    if (this.loaded) return;
-    this.loaded = true;
+  private load(): Promise<void> {
+    this.loading ??= this.restore();
+    return this.loading;
+  }
+
+  private async restore(): Promise<void> {
     let stored: unknown;
     try {
       stored = await this.opts.persist.load();

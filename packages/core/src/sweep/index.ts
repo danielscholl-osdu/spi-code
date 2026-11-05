@@ -3,6 +3,7 @@
 
 export {
   type SweepArea,
+  type SweepInflight,
   Sweeper,
   type SweeperOptions,
   type SweepInput,
@@ -14,3 +15,4 @@ export {
 export { type CollectorOptions, createSweeper } from "./areas.js";
 export { type CollectorCache, type SweepBudget, cacheSchema, emptyCache, pruneCache } from "./cache.js";
 export { due } from "./cadence.js";
+export { collectorInflight, hasInflight, pollInflight, progress } from "./inflight.js";
