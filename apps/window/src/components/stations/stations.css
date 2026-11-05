@@ -1,0 +1,31 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.watch-flow, .watch-horizon, .service-stations { color: var(--text); }
+:is(.watch-flow, .watch-horizon, .service-stations) [data-tone="bad"] { color: var(--error-text); }
+:is(.watch-flow, .watch-horizon, .service-stations) [data-tone="warn"] { color: var(--warning-text); }
+:is(.watch-flow, .watch-horizon, .service-stations) [data-tone="ok"] { color: var(--success-text); }
+:is(.watch-flow, .watch-horizon, .service-stations) [data-tone="run"] { color: var(--accent-text); }
+.watch-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.watch-tile { padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.watch-tile b { display: block; font-size: 24px; }
+.watch-split { display: grid; grid-template-columns: minmax(0, 3fr) minmax(220px, 2fr); gap: 16px; margin-top: 16px; }
+.watch-table { overflow-x: auto; }
+.watch-flow table { width: 100%; border-collapse: collapse; }
+.watch-flow th, .watch-flow td { padding: 8px; text-align: left; border-bottom: 1px solid var(--border-soft); }
+.watch-flow dl, .watch-horizon dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; }
+.watch-flow dd, .watch-horizon dd { margin: 0; overflow-wrap: anywhere; }
+.watch-flow .line-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; margin-right: 5px; }
+.watch-flow .line-dot[data-tone="neutral"] { color: var(--placeholder-fill); }
+.watch-tile meter { width: 100%; accent-color: var(--accent); }
+.watch-flow button[aria-pressed="true"], .watch-horizon button[aria-pressed="true"] { background: var(--accent-surface); }
+.watch-themes { display: flex; flex-direction: column; gap: 6px; }
+.watch-themes button { text-align: left; padding: 12px; }
+.watch-themes small, .watch-themes .theme-sub { display: block; color: var(--text-muted); }
+.watch-horizon .pairs { list-style: none; padding: 0; }
+.watch-horizon .pairs li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; }
+.watch-horizon .possible { border-left: 2px dashed var(--border); padding-left: 8px; }
+.service-stations ol { display: grid; grid-template-columns: repeat(6, minmax(110px, 1fr)); list-style: none; padding: 0; overflow-x: auto; }
+.service-stations li { display: flex; flex-direction: column; gap: 4px; padding: 8px; border-top: 2px solid currentColor; }
+.service-stations strong, .service-stations small { color: var(--text-muted); }
+@media (width < 1100px) { .watch-split { grid-template-columns: minmax(0, 1fr); } }
