@@ -201,6 +201,47 @@ describe("Copilot runtime boundary", () => {
       }
     },
   );
+  it.skipIf(process.platform === "win32")(
+    "falls back to the login-shell gh when the managed current pointer is a regular file",
+    async () => {
+      const root = await mkdtemp(join(tmpdir(), "spicode-torn-gh-"));
+      const appDataDir = join(root, "app");
+      const shellBin = join(root, "shell-bin");
+      const token = "gho_obviouslyFakeLoginShellFallback";
+      try {
+        const managed = join(appDataDir, "tools", "gh");
+        await mkdir(join(managed, "2.83.0", "bin"), { recursive: true });
+        await writeFile(join(managed, "2.83.0", "bin", "gh"), "#!/bin/sh\nexit 9\n", {
+          mode: 0o700,
+        });
+        await writeFile(join(managed, "current"), "2.83.0");
+        await mkdir(shellBin);
+        await writeFile(
+          join(shellBin, "gh"),
+          `#!/bin/sh\n[ "$1 $2" = "auth token" ] || exit 2\nprintf '${token}\\n'\n`,
+          { mode: 0o700 },
+        );
+        const options = {
+          appDataDir,
+          capturedPath: shellBin,
+          installer: await createToolInstaller(appDataDir, "darwin-arm64"),
+        };
+        expect(await options.installer.binDir("gh")).toBeUndefined();
+        expect((await buildAuthEnvironment(options)).PATH).toBe(shellBin);
+        const runtime = new CopilotRuntime(options);
+        try {
+          await runtime.start();
+        } finally {
+          await runtime.stop();
+        }
+        expect(fake.configs[0]?.gitHubToken).toBe(token);
+        expect(inspect(fake.configs[0]?.env)).not.toContain(token);
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
+
   it.each(["", "dummy\0secret", "dummy secret", "dummy\nsecret", "dummy\u007fsecret"])(
     "rejects malformed credentials before SDK construction without echoing them",
     async (token) => {

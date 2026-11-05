@@ -66,8 +66,14 @@ export const extractBinary: Extractor = async (archive, binary, signal) => {
   return result.stdout;
 };
 
-function missing(error: unknown): boolean {
-  return error instanceof Error && "code" in error && error.code === "ENOENT";
+// A pointer that is missing, a regular file or directory where a symlink belongs (EINVAL, EISDIR),
+// or leads into a symlink loop (ELOOP) or through a file (ENOTDIR) means the tool is not installed.
+function torn(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    ["ENOENT", "EINVAL", "EISDIR", "ELOOP", "ENOTDIR"].includes(String(error.code))
+  );
 }
 
 // Flush before the caller renames, so a power loss cannot leave an empty file in place.
@@ -206,7 +212,7 @@ export class ToolInstaller {
       await access(join(this.root(tool), version, this.binDirectory(), this.binary(tool)));
       return version;
     } catch (error) {
-      if (missing(error)) return undefined;
+      if (torn(error)) return undefined;
       throw error;
     }
   }
@@ -372,7 +378,12 @@ export class ToolInstaller {
       if (this.platform === "win32-x64") await writeDurable(pointer, pin.version);
       else await symlink(pin.version, pointer);
       signal?.throwIfAborted();
-      await rename(pointer, join(root, "current"));
+      const current = join(root, "current");
+      // A file rename cannot replace a directory, so a torn directory pointer is removed first.
+      if ((await lstat(current).catch(() => undefined))?.isDirectory()) {
+        await rm(current, { recursive: true, force: true });
+      }
+      await rename(pointer, current);
       this.states.delete(tool);
     } catch (error) {
       this.states.set(tool, {

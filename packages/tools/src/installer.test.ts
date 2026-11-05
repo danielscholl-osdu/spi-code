@@ -262,6 +262,49 @@ test("a torn or foreign current pointer reads as missing instead of throwing", a
   }
 });
 
+const tornShapes: Record<string, (root: string) => Promise<void>> = {
+  "a regular file": (root) => writeFile(join(root, "current"), "1.0.0"),
+  "a directory": async (root) => {
+    await mkdir(join(root, "current", "bin"), { recursive: true });
+  },
+  "a dangling symlink": (root) => symlink("9.9.9", join(root, "current")),
+  "a self-referencing symlink": (root) => symlink("current", join(root, "current")),
+  "a symlink into a loop": async (root) => {
+    await symlink("9.9.9", join(root, "9.9.9"));
+    await symlink("9.9.9", join(root, "current"));
+  },
+};
+
+test.skipIf(process.platform === "win32").each(
+  (["darwin-arm64", "win32-x64"] as const).flatMap((target) =>
+    Object.keys(tornShapes)
+      .filter((shape) => target === "darwin-arm64" || shape !== "a regular file")
+      .map((shape) => [target, shape] as const),
+  ),
+)("a %s current pointer that is %s reads as missing", async (target, shape) => {
+  const appData = join(home, "torn-shape");
+  const root = join(appData, "tools", "gh");
+  await mkdir(root, { recursive: true });
+  await tornShapes[shape]?.(root);
+  const installer = new ToolInstaller(appData, manifest(), target);
+  expect(await installer.binDir("gh")).toBeUndefined();
+  expect(await installer.readiness("gh")).toEqual({ state: "missing" });
+});
+
+test.skipIf(process.platform === "win32").each(Object.keys(tornShapes))(
+  "reinstalling repairs a current pointer that is %s",
+  async (shape) => {
+    const appData = join(home, "torn-repair");
+    const root = join(appData, "tools", "gh");
+    await mkdir(root, { recursive: true });
+    await tornShapes[shape]?.(root);
+    const installer = new ToolInstaller(appData, manifest(), platform);
+    await installer.install("gh");
+    expect(await installer.binDir("gh")).toBe(join(root, "1.0.0", "bin"));
+    expect(await installer.readiness("gh")).toEqual({ state: "ready", version: "1.0.0" });
+  },
+);
+
 test("reinstalling over a damaged copy of the same version replaces it with the verified binary", async () => {
   const appData = join(home, "damaged");
   const installer = new ToolInstaller(appData, manifest(), platform);
