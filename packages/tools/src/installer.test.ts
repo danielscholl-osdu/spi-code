@@ -3,7 +3,7 @@
 
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,6 +11,20 @@ import { promisify } from "node:util";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createToolInstaller, extractBinary, ToolInstaller } from "./installer.js";
 import { parseManifest } from "./manifest.js";
+
+const fsHooks = vi.hoisted(() => ({
+  rename: undefined as undefined | ((from: string, to: string) => void),
+}));
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return {
+    ...actual,
+    rename: async (from: string, to: string) => {
+      fsHooks.rename?.(from, to);
+      return actual.rename(from, to);
+    },
+  };
+});
 
 const exec = promisify(execFile);
 const executable = Buffer.from("fixture executable\n");
@@ -54,6 +68,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  fsHooks.rename = undefined;
   vi.unstubAllEnvs();
   await new Promise<void>((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve())),
@@ -188,6 +203,28 @@ test("reinstalling over a damaged copy of the same version replaces it with the 
   expect(await readFile(installed)).toEqual(executable);
   expect(await installer.readiness("gh")).toEqual({ state: "ready", version: "1.0.0" });
   await rm(installed);
+  await installer.install("gh");
+  expect(await readFile(installed)).toEqual(executable);
+});
+
+test("a repair that fails partway leaves current pointing at an intact version directory", async () => {
+  const appData = join(home, "repair");
+  const installer = new ToolInstaller(appData, manifest(), platform);
+  await installer.install("gh");
+  const version = join(appData, "tools", "gh", "1.0.0");
+  const installed = join(version, "bin", binary);
+  await writeFile(installed, "tampered");
+  let renames = 0;
+  fsHooks.rename = () => {
+    // The first rename publishes the payload and meets the existing directory; fail the repair.
+    if (++renames === 2) throw Object.assign(new Error("injected EIO"), { code: "EIO" });
+  };
+  await expect(installer.install("gh")).rejects.toThrow("injected EIO");
+  fsHooks.rename = undefined;
+  expect((await stat(version)).isDirectory()).toBe(true);
+  expect(await readFile(installed, "utf8")).toBe("tampered");
+  expect(await readdir(join(version, "bin"))).toEqual([binary]);
+  expect(await installer.binDir("gh")).toBe(join(version, "bin"));
   await installer.install("gh");
   expect(await readFile(installed)).toEqual(executable);
 });

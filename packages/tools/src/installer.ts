@@ -219,9 +219,17 @@ export class ToolInstaller {
           () => undefined,
         );
         if (!existing?.equals(binary)) {
-          // The installed copy is damaged; replace it with the payload that just passed SHA-256.
-          await rm(target, { recursive: true, force: true });
-          await rename(payload, target);
+          // The installed copy is damaged. Swap in the binary that just passed SHA-256 with a
+          // file rename, so `current` never points at a missing directory, even after a crash.
+          const bin = join(target, "bin");
+          await mkdir(bin, { recursive: true });
+          const repair = join(bin, `.repair-${staging.split(/[\\/]/).pop()}`);
+          try {
+            await writeDurable(repair, binary, 0o755);
+            await rename(repair, join(bin, this.binary(tool)));
+          } finally {
+            await rm(repair, { force: true });
+          }
         }
       }
       pointer = join(root, `.current-${staging.split(/[\\/]/).pop()}`);
