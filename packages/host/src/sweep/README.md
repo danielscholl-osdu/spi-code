@@ -36,6 +36,17 @@ the snapshot transaction, so it must not be predicted from another connection's
 last write. `latest()` combines the stored view with that authoritative cursor
 and validates the complete `ViewSnapshot`.
 
+The projection uses the collectors' thirty-minute cadence for upstream, radar,
+security and fleet variables, rather than judging them all against the full-sweep
+interval. Cached completed jobs, commit-pinned files and template comparisons
+keep their original read times in the read list and persisted state. Their area
+and tree envelopes use the latest successful confirmation of the same cache key;
+template and detail confirmations also require successful GitHub selectors in
+that sweep. Failed, retained and cut records are never refreshed this way.
+Due areas deferred by the budget carry a `Read deferred: <reason>` failure record
+in the projection, retaining their last good observation rather than claiming
+that a read ran. A later successful sweep clears that projection-only failure.
+
 `sweep-budget.jsonl` under app data receives one line per full sweep, including a
 sweep triggered by a settled in-flight poll and failed/cancelled sweeps. Lines
 carry `fleet`, the latest `cursor` this holder loaded or committed (zero before either),
@@ -68,3 +79,6 @@ before the kill, proving the paused holder owns the writer lock. The tests prove
 exclusion before expiry, rollback of the uncommitted row and cursor, and
 state/cursor recovery after expiry.
 Build the host before running those tests alone.
+`freshness.test.ts` records and replays five fixture-only collector sweeps,
+including unchanged cache keys, thirty-minute reads, budget skips and failure
+and completeness guards. It never invokes a forge CLI.

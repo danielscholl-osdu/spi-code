@@ -20,8 +20,6 @@ import {
   buildModel,
   type CoreContext,
   type DoctorView,
-  type EvidenceState,
-  envelopeOf,
   type Facts,
   isMonth,
   monthFacts,
@@ -38,6 +36,7 @@ import {
 import {
   areaEnvelopes,
   briefingProvenance,
+  readEnvelope,
   releaseProvenance,
   stationProvenance,
 } from "./provenance.js";
@@ -116,37 +115,30 @@ export interface WatchInput {
   readonly intervalMs: number;
   /** Per-area sweep intervals; an area without one uses intervalMs. */
   readonly intervals?: Partial<Record<AreaName, number>>;
+  /** Confirmed immutable cache reads for envelopes; reads retains the original observations. */
+  readonly envelopeReads?: SweepReads;
+  readonly readIntervals?: ReadonlyMap<ReadRecord, number>;
   readonly selection?: string | null;
   readonly reading?: boolean;
 }
 
-const SEVERITY = { unread: 0, fresh: 1, stale: 2, incomplete: 3, failed: 4 } as const;
-
 function treeOf(input: WatchInput, now: Date): TreeStatus {
-  const records = (areas: readonly AreaName[]) => areas.flatMap((area) => input.reads[area] ?? []);
+  const evidence = input.envelopeReads ?? input.reads;
+  const records = (areas: readonly AreaName[]) => areas.flatMap((area) => evidence[area] ?? []);
   const intervalOf = new Map<ReadRecord, number>();
   for (const area of AREAS) {
     const interval = input.intervals?.[area] ?? input.intervalMs;
-    for (const record of input.reads[area] ?? []) {
-      if (!intervalOf.has(record)) intervalOf.set(record, interval);
+    for (const record of evidence[area] ?? []) {
+      if (!intervalOf.has(record)) {
+        intervalOf.set(record, input.readIntervals?.get(record) ?? interval);
+      }
     }
   }
   for (const record of input.releaseRecords) intervalOf.set(record, RELEASES_EVERY_MS);
-  const stateOf = (reads: readonly ReadRecord[]): EvidenceState => {
-    const groups = new Map<number, ReadRecord[]>();
-    for (const record of reads) {
-      const interval = intervalOf.get(record) ?? input.intervalMs;
-      groups.set(interval, [...(groups.get(interval) ?? []), record]);
-    }
-    let worst: EvidenceState = "unread";
-    for (const [intervalMs, group] of groups) {
-      const { state } = envelopeOf(group, { intervalMs, now: now.getTime() });
-      if (SEVERITY[state] > SEVERITY[worst]) worst = state;
-    }
-    return worst;
-  };
+  const stateOf = (reads: readonly ReadRecord[]) =>
+    readEnvelope("tree", reads, (record) => intervalOf.get(record) ?? input.intervalMs, now).state;
   const node = (id: string, reads: readonly ReadRecord[]) => ({ id, status: stateOf(reads) });
-  const all = [...Object.values(input.reads).flat(), ...input.releaseRecords];
+  const all = [...Object.values(evidence).flat(), ...input.releaseRecords];
   const environment = records(["github", "lifecycle"]);
   const services = records(["github", "runs", "upstream", "radar", "template"]);
   const sharedTemplateReads = records(["template"]).filter((record) => {
@@ -154,7 +146,7 @@ function treeOf(input: WatchInput, now: Date): TreeStatus {
     return state === "failed" || state === "incomplete" || state === "stale";
   });
   const areaFailures = (["github", "runs", "upstream", "radar"] as const).flatMap((area) =>
-    (input.reads[area] ?? []).filter(
+    (evidence[area] ?? []).filter(
       (r) => r.failure !== undefined && r.source === area && r.object === area,
     ),
   );
@@ -238,7 +230,12 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     stations,
     tree: treeOf(input, now),
     reads: [...Object.values(input.reads).flat(), ...input.releaseRecords],
-    areas: areaEnvelopes(input.reads, (area) => input.intervals?.[area] ?? input.intervalMs, now),
+    areas: areaEnvelopes(
+      input.envelopeReads ?? input.reads,
+      (area, record) =>
+        input.readIntervals?.get(record) ?? input.intervals?.[area] ?? input.intervalMs,
+      now,
+    ),
     provenance: [
       ...briefingProvenance(briefing, model.stack),
       ...stationProvenance(stations),

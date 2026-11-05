@@ -216,17 +216,30 @@ export function releaseProvenance(
   ];
 }
 
-function readEnvelope(
+export function readEnvelope(
   source: string,
   records: readonly ReadRecord[],
-  intervalMs: number,
+  intervalOf: number | ((record: ReadRecord) => number),
   now: Date,
 ): Envelope {
-  const envelope = envelopeOf(records, { intervalMs, now: now.getTime() });
-  if (envelope.state === "unread") return { source, state: "unread" };
+  const groups = new Map<number, ReadRecord[]>();
+  for (const record of records) {
+    const interval = typeof intervalOf === "number" ? intervalOf : intervalOf(record);
+    const group = groups.get(interval) ?? [];
+    group.push(record);
+    groups.set(interval, group);
+  }
+  const severity = { unread: 0, fresh: 1, stale: 2, incomplete: 3, failed: 4 };
+  const envelope = envelopeOf(records, { intervalMs: 0, now: now.getTime() });
+  let state: typeof envelope.state = "unread";
+  for (const [intervalMs, group] of groups) {
+    const candidate = envelopeOf(group, { intervalMs, now: now.getTime() }).state;
+    if (severity[candidate] > severity[state]) state = candidate;
+  }
+  if (state === "unread") return { source, state: "unread" };
   return {
     source,
-    state: envelope.state,
+    state,
     ...(envelope.observedAt === undefined ? {} : { observedAt: envelope.observedAt }),
     completeness: envelope.completeness,
     inferred: envelope.inferred,
@@ -236,11 +249,11 @@ function readEnvelope(
 /** One envelope per area, each judged against its own sweep interval; no area is omitted. */
 export function areaEnvelopes(
   reads: Partial<Record<AreaName, readonly ReadRecord[]>>,
-  intervalOf: (area: AreaName) => number,
+  intervalOf: (area: AreaName, record: ReadRecord) => number,
   now: Date,
 ): AreaEnvelope[] {
   return AREAS.map((area) => ({
     area,
-    envelope: readEnvelope(area, reads[area] ?? [], intervalOf(area), now),
+    envelope: readEnvelope(area, reads[area] ?? [], (record) => intervalOf(area, record), now),
   }));
 }

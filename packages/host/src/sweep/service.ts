@@ -30,6 +30,7 @@ import {
 import { createLeaseStore, type LeaseIdentity } from "../store/leases.js";
 import { createSnapshotStore } from "../store/snapshots.js";
 import { projectWatch } from "../watch/project.js";
+import { sweepEvidence } from "./evidence.js";
 
 export const DAY_MS = 24 * 60 * 60_000;
 
@@ -344,7 +345,7 @@ export class SweepService {
             const { at, ...releases } = state.cache.releases;
             const { cursor: _cursor, ...view } = projectWatch({
               facts: state.facts,
-              reads: state.reads,
+              ...sweepEvidence(state, this.interval, this.options.ctx.clock.now()),
               releases: { ...releases, ...(at === undefined ? {} : { at }) },
               releaseRecords: releases.records.map(
                 ({ failure, retainedFrom, inferred, ...record }) => ({
