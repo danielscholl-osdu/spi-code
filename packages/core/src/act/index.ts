@@ -16,4 +16,6 @@ export {
   syncTargets,
   waitSuffix,
 } from "./rollout.js";
+export * from "./upstream.js";
+export * from "./upstream-targets.js";
 export * from "./verbs.js";

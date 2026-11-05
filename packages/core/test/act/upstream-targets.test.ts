@@ -149,7 +149,7 @@ describe("upstream target buttons", () => {
     },
   );
 
-  test("Prepare is not gated on the environment", () => {
+  test("Prepare keeps schedule wording and the label override", () => {
     const u = modelOf(envHeld(planReadyFacts())).upstream;
     expect(u.envHeld).toBeDefined();
     const f = u.prepareNext[0];
