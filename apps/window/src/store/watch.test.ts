@@ -13,6 +13,16 @@ const event = (type: string, payload: unknown) => ({
   payload,
 });
 
+it("rejects git sign-in at the type and runtime boundaries", () => {
+  const send = vi.fn();
+  const store = createWatchStore(send);
+  expect(() => {
+    // @ts-expect-error git is installable but has no sign-in flow.
+    store.getState().requestSetup("setup.signin", "git");
+  }).toThrow("Invalid setup request");
+  expect(send).not.toHaveBeenCalled();
+});
+
 it("keeps the newest cursor, ignores late and duplicate snapshots, and retains opaque data", () => {
   const store = createWatchStore(vi.fn());
   const body = { cursor: 9, briefing: { future: ["opaque"] } };

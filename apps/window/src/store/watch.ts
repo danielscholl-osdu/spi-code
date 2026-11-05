@@ -8,6 +8,7 @@ import {
   type SetupSigninProgress,
   type SetupState,
   type SweepStatus,
+  type WatchMessage,
 } from "@spi-code/contracts";
 import { createStore } from "zustand/vanilla";
 
@@ -17,9 +18,14 @@ type WatchState = {
   sweep: SweepStatus | null;
   setup: SetupState | null;
   signin: Partial<Record<SetupSigninProgress["tool"], SetupSigninProgress>>;
+  signinOutcome: Partial<Record<SetupSigninProgress["tool"], SetupSigninProgress>>;
   requestSetup(
-    type: "setup.install" | "setup.signin",
-    tool: SetupState["tools"][number]["tool"],
+    ...request: {
+      [T in "setup.install" | "setup.signin"]: [
+        type: T,
+        tool: Extract<WatchMessage, { type: T }>["payload"]["tool"],
+      ];
+    }["setup.install" | "setup.signin"]
   ): void;
   receive(input: unknown): void;
 };
@@ -34,6 +40,7 @@ export function createWatchStore(send: (message: Message) => void) {
     sweep: null,
     setup: null,
     signin: {},
+    signinOutcome: {},
     requestSetup(type, tool) {
       const parsed = parseMessage({
         version: PROTOCOL_VERSION,
@@ -74,11 +81,21 @@ export function createWatchStore(send: (message: Message) => void) {
       if (message.type === "setup.signin.progress") {
         const progress = message.payload;
         const previous = get().signin[progress.tool];
-        if (progress.state !== "waiting" || previous?.state !== "device-code") {
-          set({ signin: { ...get().signin, [progress.tool]: progress } });
+        const signin = { ...get().signin };
+        const signinOutcome = { ...get().signinOutcome };
+        if (progress.state === "completed" || progress.state === "failed") {
+          delete signin[progress.tool];
+          signinOutcome[progress.tool] = progress;
+        } else {
+          delete signinOutcome[progress.tool];
+          if (progress.state !== "waiting" || previous?.state !== "device-code") {
+            signin[progress.tool] = progress;
+          }
         }
+        set({ signin, signinOutcome });
       }
       if (message.type === "host.hello") {
+        set({ signin: {}, signinOutcome: {} });
         const outgoing = parseMessage({
           version: PROTOCOL_VERSION,
           id: crypto.randomUUID(),

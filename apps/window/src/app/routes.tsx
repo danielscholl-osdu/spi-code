@@ -37,6 +37,10 @@ export function useSetupLanding(navigate: (route: (typeof routes)[number]) => vo
   useEffect(() => {
     if (!setup || checked.current) return;
     checked.current = true;
-    if (!setup.watchReady) navigate(routes[6]);
+    if (!setup.watchReady) {
+      const route = routes.find(({ id }) => id === "setup");
+      if (!route) throw new Error("Setup route is missing");
+      navigate(route);
+    }
   }, [setup, navigate]);
 }

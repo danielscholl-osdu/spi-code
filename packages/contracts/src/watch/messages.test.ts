@@ -114,6 +114,21 @@ const messages = [
 ];
 
 describe("Watch protocol", () => {
+  it.each([undefined, 0, 100])("round-trips an optional budget floor of %s", (floor) => {
+    const message = {
+      ...messages[2],
+      payload: { ...messages[2].payload, ...(floor === undefined ? {} : { floor }) },
+    };
+    expect(parseMessage(JSON.parse(JSON.stringify(message)))).toEqual({ ok: true, message });
+  });
+  it.each([-1, 1.5, null, "100"])("rejects an invalid budget floor of %s", (floor) => {
+    expect(
+      parseMessage({
+        ...messages[2],
+        payload: { ...messages[2].payload, floor },
+      }).ok,
+    ).toBe(false);
+  });
   it.each(messages)("round-trips $type through the shared parser", (message) => {
     expect(parseMessage(JSON.parse(JSON.stringify(message)))).toEqual({ ok: true, message });
   });

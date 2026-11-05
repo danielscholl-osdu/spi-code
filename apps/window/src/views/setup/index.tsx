@@ -21,9 +21,34 @@ const labels = {
 };
 const actions = { install: "Install", signin: "Sign in", attention: "Attention" };
 
+function CopyText({ label, value }: { label: string; value: string }) {
+  const [status, setStatus] = useState("");
+  return (
+    <div>
+      <label>
+        {label} <input readOnly value={value} onFocus={(event) => event.target.select()} />
+      </label>
+      <button
+        type="button"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(value);
+            setStatus("Copied");
+          } catch {
+            setStatus("Could not copy. Select and copy the text manually.");
+          }
+        }}
+      >
+        Copy {label}
+      </button>
+      {status && <p role="status">{status}</p>}
+    </div>
+  );
+}
+
 function ToolRow({ tool }: { tool: Tool }) {
   const progress = useStore(watchStore, (state) =>
-    tool.tool === "git" ? undefined : state.signin[tool.tool],
+    tool.tool === "git" ? undefined : (state.signin[tool.tool] ?? state.signinOutcome[tool.tool]),
   );
   const [attention, setAttention] = useState(false);
   const busy =
@@ -43,7 +68,7 @@ function ToolRow({ tool }: { tool: Tool }) {
         {labels[tool.state]}
         {tool.version && ` (${tool.version})`}
       </p>
-      {tool.reason && <p>{tool.reason}</p>}
+      {tool.reason && !attention && <p>{tool.reason}</p>}
       {!!tool.missingScopes?.length && <p>Required scopes: {tool.missingScopes.join(", ")}</p>}
       {tool.action && (
         <button
@@ -52,13 +77,11 @@ function ToolRow({ tool }: { tool: Tool }) {
           aria-expanded={tool.action === "attention" ? attention : undefined}
           onClick={() => {
             if (tool.action === "attention") setAttention(!attention);
-            else if (tool.action)
-              watchStore
-                .getState()
-                .requestSetup(
-                  tool.action === "install" ? "setup.install" : "setup.signin",
-                  tool.tool,
-                );
+            else if (tool.action === "install")
+              watchStore.getState().requestSetup("setup.install", tool.tool);
+            else if (tool.action === "signin" && tool.tool !== "git")
+              watchStore.getState().requestSetup("setup.signin", tool.tool);
+            else throw new Error(`Unsupported setup action for ${tool.tool}`);
           }}
         >
           {actions[tool.action]}
@@ -66,12 +89,15 @@ function ToolRow({ tool }: { tool: Tool }) {
       )}
       {attention && <p role="status">{reason}</p>}
       {progress?.state === "device-code" && (
-        <p role="status">
-          Enter <code>{progress.deviceCode}</code> at{" "}
-          <a href={progress.url} target="_blank" rel="noreferrer">
-            {progress.url}
-          </a>
-        </p>
+        <div>
+          <p>Open the URL in your browser and enter the device code.</p>
+          <CopyText
+            key={`code:${progress.deviceCode}`}
+            label="Device code"
+            value={progress.deviceCode}
+          />
+          <CopyText key={`url:${progress.url}`} label="Sign-in URL" value={progress.url} />
+        </div>
       )}
       {progress && progress.state !== "device-code" && (
         <p role={progress.state === "failed" ? "alert" : "status"}>
