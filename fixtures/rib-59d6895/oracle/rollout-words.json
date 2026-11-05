@@ -1,0 +1,11 @@
+{
+  "next": "Wait for the environment: env-upgrade in verify. Nothing that deploys starts until it reads deployable.",
+  "verb": "Wait for the environment",
+  "plan": "1 wave · lanes 5 from rollout.json",
+  "watch": "Upstream sync at 10-22 00:00 opens 1 PR (entitlements halts instead) that share these lanes.",
+  "reaches": "build/Dockerfile · java-build action · setup-maven action · build.yml · cascade.yml · copilot-setup-steps.yml · acceptance-image action · validate.yml · build/acceptance.Dockerfile",
+  "title": "Rollout to template bb49a03",
+  "sub": "0 of 5 merged · 0 of 5 lanes busy",
+  "cause": "osdu-spi main bb49a03 is on its way to the fleet: 0 of 5 forks merged.",
+  "effect": "The change reaches images, actions and workflows, so every PR and every merge takes a deploy lane: 10 lanes, 5 at a time still to go."
+}

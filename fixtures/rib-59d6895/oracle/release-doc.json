@@ -1,0 +1,1070 @@
+[
+  {
+    "id": "release:2026-10",
+    "month": "2026-10",
+    "name": "2026.10",
+    "open": true,
+    "stateText": "In progress, closes Oct 31",
+    "eyebrow": ["October 2026", "Oct 1 to 21", "spi-stack v0.30.2", "spi-template v1.4.0"],
+    "notes": "approved",
+    "headline": "All 13 services <now> ship from SPI forks.",
+    "headlineWritten": true,
+    "stats": [
+      {
+        "figure": "5/5",
+        "short": "Services released",
+        "label": "services released from SPI forks",
+        "anchor": "components"
+      },
+      {
+        "short": "Releases",
+        "figure": "37",
+        "label": "releases across 8 repositories",
+        "anchor": "components"
+      },
+      {
+        "short": "Actions",
+        "figure": "1",
+        "label": "required action",
+        "tone": "bad",
+        "anchor": "action"
+      },
+      {
+        "short": "Open issues",
+        "figure": "1",
+        "label": "open known issue",
+        "anchor": "issues"
+      }
+    ],
+    "keyChanges": [],
+    "required": [
+      {
+        "level": "required",
+        "title": "Move unit off 2.5.10",
+        "owner": "unit fork"
+      }
+    ],
+    "info": [],
+    "highlights": [
+      {
+        "title": "Coverage",
+        "visual": {
+          "kind": "coverage",
+          "tiles": [
+            {
+              "id": "partition",
+              "version": "v1.3.3",
+              "fresh": false
+            },
+            {
+              "id": "entitlements",
+              "version": "v1.2.1",
+              "fresh": false
+            },
+            {
+              "id": "legal",
+              "version": "v1.2.1",
+              "fresh": false
+            },
+            {
+              "id": "schema",
+              "version": "v1.2.0",
+              "fresh": false
+            },
+            {
+              "id": "file",
+              "version": "v1.2.0",
+              "fresh": false
+            }
+          ]
+        }
+      }
+    ],
+    "issues": [
+      {
+        "state": "open",
+        "title": "Stray upstream tags."
+      }
+    ],
+    "openIssues": 1,
+    "changelog": [
+      {
+        "area": "Services",
+        "items": [
+          {
+            "type": "new",
+            "text": "Eight forks"
+          }
+        ]
+      }
+    ],
+    "computedChangelog": false,
+    "deps": 19,
+    "chips": [
+      {
+        "id": "spi-template",
+        "from": "v1.1.0",
+        "to": "v1.4.0",
+        "platform": true
+      },
+      {
+        "id": "spi-stack",
+        "from": "v0.23.0",
+        "to": "v0.30.2",
+        "platform": true
+      },
+      {
+        "id": "core-lib-azure",
+        "to": "v4.0.0",
+        "platform": true
+      },
+      {
+        "id": "partition",
+        "from": "v1.3.0",
+        "to": "v1.3.3",
+        "platform": false
+      },
+      {
+        "id": "entitlements",
+        "to": "v1.2.1",
+        "platform": false
+      },
+      {
+        "id": "legal",
+        "to": "v1.2.1",
+        "platform": false
+      },
+      {
+        "id": "schema",
+        "to": "v1.2.0",
+        "platform": false
+      },
+      {
+        "id": "file",
+        "to": "v1.2.0",
+        "platform": false
+      }
+    ],
+    "rows": [
+      {
+        "id": "partition",
+        "group": "Services",
+        "version": "v1.3.0 → v1.3.3",
+        "from": "v1.3.0",
+        "to": "v1.3.3",
+        "releases": 3,
+        "upstream": "a2c4f7b7",
+        "lib": "4.0.0",
+        "java": "25",
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi-partition/releases/tag/v1.3.3"
+      },
+      {
+        "id": "entitlements",
+        "group": "Services",
+        "version": "new → v1.2.1",
+        "to": "v1.2.1",
+        "releases": 2,
+        "upstream": "v9.99.0-ibm.1",
+        "lib": "3.0.3",
+        "java": "25",
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi-entitlements/releases/tag/v1.2.1"
+      },
+      {
+        "id": "legal",
+        "group": "Services",
+        "version": "new → v1.2.1",
+        "to": "v1.2.1",
+        "releases": 2,
+        "upstream": "56ebd4f7",
+        "lib": "4.0.0",
+        "java": "25",
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi-legal/releases/tag/v1.2.1"
+      },
+      {
+        "id": "schema",
+        "group": "Services",
+        "version": "new → v1.2.0",
+        "to": "v1.2.0",
+        "releases": 1,
+        "upstream": "85d0f67f",
+        "lib": "3.0.1",
+        "java": "17",
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi-schema/releases/tag/v1.2.0"
+      },
+      {
+        "id": "file",
+        "group": "Services",
+        "version": "new → v1.2.0",
+        "to": "v1.2.0",
+        "releases": 1,
+        "upstream": "e7ef32a0",
+        "lib": "3.0.3",
+        "java": "17",
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi-file/releases/tag/v1.2.0"
+      },
+      {
+        "id": "spi-template",
+        "group": "Platform",
+        "version": "v1.1.0 → v1.4.0",
+        "from": "v1.1.0",
+        "to": "v1.4.0",
+        "releases": 3,
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi/releases/tag/v1.4.0"
+      },
+      {
+        "id": "spi-stack",
+        "group": "Platform",
+        "version": "v0.23.0 → v0.30.2",
+        "from": "v0.23.0",
+        "to": "v0.30.2",
+        "releases": 19,
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi-stack/releases/tag/v0.30.2"
+      },
+      {
+        "id": "core-lib-azure",
+        "group": "Platform",
+        "version": "new → v4.0.0",
+        "to": "v4.0.0",
+        "releases": 6,
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi-core-lib-azure/releases/tag/v4.0.0"
+      }
+    ],
+    "unchanged": [],
+    "links": [
+      {
+        "label": "spi-template",
+        "url": "https://github.com/Azure/osdu-spi/releases"
+      },
+      {
+        "label": "spi-stack",
+        "url": "https://github.com/Azure/osdu-spi-stack/releases"
+      },
+      {
+        "label": "core-lib-azure",
+        "url": "https://github.com/Azure/osdu-spi-core-lib-azure/releases"
+      },
+      {
+        "label": "partition",
+        "url": "https://github.com/Azure/osdu-spi-partition/releases"
+      },
+      {
+        "label": "entitlements",
+        "url": "https://github.com/Azure/osdu-spi-entitlements/releases"
+      },
+      {
+        "label": "legal",
+        "url": "https://github.com/Azure/osdu-spi-legal/releases"
+      },
+      {
+        "label": "schema",
+        "url": "https://github.com/Azure/osdu-spi-schema/releases"
+      },
+      {
+        "label": "file",
+        "url": "https://github.com/Azure/osdu-spi-file/releases"
+      }
+    ],
+    "unread": [],
+    "built": "Oct 21, 2026"
+  },
+  {
+    "id": "release:2026-09",
+    "month": "2026-09",
+    "name": "2026.09",
+    "open": false,
+    "stateText": "Closed Sep 30",
+    "eyebrow": ["September 2026", "Sep 1 to 30", "spi-stack v0.23.0", "spi-template v1.1.0"],
+    "notes": "none",
+    "headline": "28 releases across 2 repositories in September 2026.",
+    "headlineWritten": false,
+    "stats": [
+      {
+        "figure": "1/5",
+        "short": "Services released",
+        "label": "services released from SPI forks, 4 forked this month",
+        "anchor": "components"
+      },
+      {
+        "short": "Releases",
+        "figure": "28",
+        "label": "releases across 2 repositories",
+        "anchor": "components"
+      },
+      {
+        "short": "Actions",
+        "figure": "?",
+        "label": "actions not reviewed yet",
+        "anchor": "action"
+      },
+      {
+        "short": "Open issues",
+        "figure": "?",
+        "label": "known issues not reviewed yet",
+        "anchor": "issues"
+      }
+    ],
+    "keyChanges": [],
+    "required": [
+      {
+        "level": "recommended",
+        "title": "spi-stack v0.20.0: retire the superseded stack block",
+        "body": "A breaking change. Check it before taking this version."
+      }
+    ],
+    "info": [],
+    "highlights": [],
+    "issues": [],
+    "openIssues": 0,
+    "changelog": [
+      {
+        "area": "Services",
+        "items": [
+          {
+            "type": "security",
+            "text": "partition: CVE remediation wave 1 (tomcat, log4j-api, jackson-databind, kotlin-stdlib)"
+          },
+          {
+            "type": "security",
+            "text": "partition: Remediate CVE remediation wave 1 (tomcat, log4j-api, jackson-databind, kotlin-stdlib)"
+          }
+        ]
+      },
+      {
+        "area": "Environment",
+        "items": [
+          {
+            "type": "new",
+            "text": "Tier-1 legal-tag bootstrap and facts additions"
+          },
+          {
+            "type": "fixed",
+            "text": "Keep Kubernetes secret values out of spi info JSON output"
+          },
+          {
+            "type": "new",
+            "text": "Surface maintenance and the deployable verdict in the dashboard"
+          },
+          {
+            "type": "fixed",
+            "text": "Reset stalled HelmReleases and mark them in status"
+          },
+          {
+            "type": "fixed",
+            "text": "Request 100m CPU for osdu-spi-init Jobs"
+          },
+          {
+            "type": "new",
+            "text": "Name the environment in status, info and service confirmations"
+          },
+          {
+            "type": "new",
+            "text": "Spi down keeps managed identities, --purge deletes the group"
+          },
+          {
+            "type": "new",
+            "text": "Provision the environment deploy identity at spi up"
+          },
+          {
+            "type": "fixed",
+            "text": "Split pool shapes and require hostname anti-affinity"
+          },
+          {
+            "type": "new",
+            "text": "Spi onboard trusts a fork repository against the environment"
+          },
+          {
+            "type": "fixed",
+            "text": "Serve the UI login redirect from a path-only base_url"
+          },
+          {
+            "type": "fixed",
+            "text": "Request the 100m CPU floor admission grants"
+          },
+          {
+            "type": "fixed",
+            "text": "Retry partition cache convergence"
+          },
+          {
+            "type": "fixed",
+            "text": "Package local charts per git revision"
+          },
+          {
+            "type": "new",
+            "text": "Provision a no-access test identity and federate it on onboard"
+          },
+          {
+            "type": "new",
+            "text": "Seed the deploy identity into entitlements"
+          },
+          {
+            "type": "fixed",
+            "text": "Project each caller's own app id in the Istio filter"
+          },
+          {
+            "type": "new",
+            "text": "Mint app-only deploy identity tokens from the cluster"
+          },
+          {
+            "type": "fixed",
+            "text": "Seed the entitlements impersonation groups"
+          },
+          {
+            "type": "fixed",
+            "text": "Enable the free-text query flag on all fields"
+          },
+          {
+            "type": "new",
+            "text": "Add a member identity for non-admin acceptance tests"
+          },
+          {
+            "type": "fixed",
+            "text": "Seed the tenant service account into the partition record"
+          },
+          {
+            "type": "new",
+            "text": "Publish entitlements domain in spi info"
+          },
+          {
+            "type": "new",
+            "text": "Support id-claim OIDC subject templates"
+          },
+          {
+            "type": "fixed",
+            "text": "Accept the fork's repository-named package for ephemeral pins"
+          },
+          {
+            "type": "fixed",
+            "text": "Use Microsoft proxy for uv tools"
+          },
+          {
+            "type": "new",
+            "text": "Preflight deployer role-assignment permissions"
+          },
+          {
+            "type": "new",
+            "text": "Pair the fork's schema loader on ephemeral pins"
+          },
+          {
+            "type": "new",
+            "text": "Show active service pins"
+          },
+          {
+            "type": "fixed",
+            "text": "Read the region from flux-extension-values in flux-system"
+          },
+          {
+            "type": "fixed",
+            "text": "Seed the member identity into service.storage.admin"
+          },
+          {
+            "type": "fixed",
+            "text": "Deliver legal tag changes from legal to storage"
+          },
+          {
+            "type": "fixed",
+            "text": "Hold the node for ephemeral pins with do-not-disrupt"
+          },
+          {
+            "type": "breaking",
+            "text": "retire the superseded stack block"
+          },
+          {
+            "type": "new",
+            "text": "Shell completion and consistent JSON output"
+          },
+          {
+            "type": "new",
+            "text": "Require confirmation before teardown"
+          },
+          {
+            "type": "new",
+            "text": "Report per-service OSDU image versions"
+          },
+          {
+            "type": "new",
+            "text": "Stamp the stack release into every profile"
+          },
+          {
+            "type": "new",
+            "text": "Report the version Flux has applied"
+          },
+          {
+            "type": "new",
+            "text": "Canonical image source policy and spi service refresh"
+          },
+          {
+            "type": "new",
+            "text": "Spi test runs the deployed commit's own suites"
+          },
+          {
+            "type": "new",
+            "text": "Keep fork-sourced canonicals inside GHCR retention"
+          },
+          {
+            "type": "new",
+            "text": "Spi test reports what a suite proves"
+          }
+        ]
+      }
+    ],
+    "computedChangelog": true,
+    "deps": 2,
+    "chips": [
+      {
+        "id": "spi-stack",
+        "from": "v0.7.0",
+        "to": "v0.23.0",
+        "platform": true
+      },
+      {
+        "id": "partition",
+        "from": "v1.2.0",
+        "to": "v1.3.0",
+        "platform": false
+      }
+    ],
+    "rows": [
+      {
+        "id": "partition",
+        "group": "Services",
+        "version": "v1.2.0 → v1.3.0",
+        "from": "v1.2.0",
+        "to": "v1.3.0",
+        "releases": 1,
+        "upstream": "a48954c8",
+        "lib": "3.0.1",
+        "java": "17",
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi-partition/releases/tag/v1.3.0"
+      },
+      {
+        "id": "entitlements",
+        "group": "Services",
+        "version": "no release",
+        "releases": 0,
+        "state": "unreleased"
+      },
+      {
+        "id": "legal",
+        "group": "Services",
+        "version": "no release",
+        "releases": 0,
+        "state": "unreleased"
+      },
+      {
+        "id": "schema",
+        "group": "Services",
+        "version": "no release",
+        "releases": 0,
+        "state": "unreleased"
+      },
+      {
+        "id": "file",
+        "group": "Services",
+        "version": "no release",
+        "releases": 0,
+        "state": "unreleased"
+      },
+      {
+        "id": "spi-template",
+        "group": "Platform",
+        "version": "v1.1.0",
+        "releases": 0,
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi/releases/tag/v1.1.0"
+      },
+      {
+        "id": "spi-stack",
+        "group": "Platform",
+        "version": "v0.7.0 → v0.23.0",
+        "from": "v0.7.0",
+        "to": "v0.23.0",
+        "releases": 27,
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi-stack/releases/tag/v0.23.0"
+      }
+    ],
+    "unchanged": ["spi-template v1.1.0"],
+    "links": [
+      {
+        "label": "spi-template",
+        "url": "https://github.com/Azure/osdu-spi/releases"
+      },
+      {
+        "label": "spi-stack",
+        "url": "https://github.com/Azure/osdu-spi-stack/releases"
+      },
+      {
+        "label": "partition",
+        "url": "https://github.com/Azure/osdu-spi-partition/releases"
+      }
+    ],
+    "unread": [],
+    "built": "Oct 21, 2026"
+  },
+  {
+    "id": "release:2026-08",
+    "month": "2026-08",
+    "name": "2026.08",
+    "open": false,
+    "stateText": "Closed Aug 31",
+    "eyebrow": ["August 2026", "Aug 1 to 31", "spi-stack v0.7.0", "spi-template v1.1.0"],
+    "notes": "none",
+    "headline": "11 releases across 2 repositories in August 2026.",
+    "headlineWritten": false,
+    "stats": [
+      {
+        "figure": "1/5",
+        "short": "Services released",
+        "label": "services released from SPI forks",
+        "anchor": "components"
+      },
+      {
+        "short": "Releases",
+        "figure": "11",
+        "label": "releases across 2 repositories",
+        "anchor": "components"
+      },
+      {
+        "short": "Actions",
+        "figure": "?",
+        "label": "actions not reviewed yet",
+        "anchor": "action"
+      },
+      {
+        "short": "Open issues",
+        "figure": "?",
+        "label": "known issues not reviewed yet",
+        "anchor": "issues"
+      }
+    ],
+    "keyChanges": [],
+    "required": [],
+    "info": [],
+    "highlights": [],
+    "issues": [],
+    "openIssues": 0,
+    "changelog": [
+      {
+        "area": "Services",
+        "items": [
+          {
+            "type": "new",
+            "text": "partition: Add upstream-filter config for ADR-038"
+          },
+          {
+            "type": "fixed",
+            "text": "partition: Netty-bom before core-lib-azure (lettuce 7.5.2 NoClassDefFoundError)"
+          },
+          {
+            "type": "fixed",
+            "text": "partition: Upgrade core-lib-azure to 3.0.1"
+          },
+          {
+            "type": "security",
+            "text": "partition: Pin bcprov-jdk18on 1.84 in partition-aws (CVE-2025-14813)"
+          },
+          {
+            "type": "security",
+            "text": "partition: Remediate partition vulnerabilities"
+          }
+        ]
+      },
+      {
+        "area": "Environment",
+        "items": [
+          {
+            "type": "new",
+            "text": "Resolve system pool availability zones per subscription"
+          },
+          {
+            "type": "new",
+            "text": "Implement shared backing environment lifecycle"
+          },
+          {
+            "type": "new",
+            "text": "Ephemeral pin surface for fork CI"
+          },
+          {
+            "type": "fixed",
+            "text": "Report released loaders accurately and reject an empty --name-suffix"
+          },
+          {
+            "type": "fixed",
+            "text": "Treat missing Flux CRD as not deployable"
+          }
+        ]
+      }
+    ],
+    "computedChangelog": true,
+    "deps": 0,
+    "chips": [
+      {
+        "id": "spi-stack",
+        "from": "v0.3.1",
+        "to": "v0.7.0",
+        "platform": true
+      },
+      {
+        "id": "partition",
+        "from": "v1.1.0",
+        "to": "v1.2.0",
+        "platform": false
+      }
+    ],
+    "rows": [
+      {
+        "id": "partition",
+        "group": "Services",
+        "version": "v1.1.0 → v1.2.0",
+        "from": "v1.1.0",
+        "to": "v1.2.0",
+        "releases": 1,
+        "upstream": "v0.0.0",
+        "lib": "3.0.1",
+        "java": "17",
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi-partition/releases/tag/v1.2.0"
+      },
+      {
+        "id": "spi-template",
+        "group": "Platform",
+        "version": "v1.1.0",
+        "releases": 0,
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi/releases/tag/v1.1.0"
+      },
+      {
+        "id": "spi-stack",
+        "group": "Platform",
+        "version": "v0.3.1 → v0.7.0",
+        "from": "v0.3.1",
+        "to": "v0.7.0",
+        "releases": 10,
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi-stack/releases/tag/v0.7.0"
+      }
+    ],
+    "unchanged": ["spi-template v1.1.0"],
+    "links": [
+      {
+        "label": "spi-template",
+        "url": "https://github.com/Azure/osdu-spi/releases"
+      },
+      {
+        "label": "spi-stack",
+        "url": "https://github.com/Azure/osdu-spi-stack/releases"
+      },
+      {
+        "label": "partition",
+        "url": "https://github.com/Azure/osdu-spi-partition/releases"
+      }
+    ],
+    "unread": [],
+    "built": "Oct 21, 2026"
+  },
+  {
+    "id": "release:2026-07",
+    "month": "2026-07",
+    "name": "2026.07",
+    "open": false,
+    "stateText": "Closed Jul 31",
+    "eyebrow": ["July 2026", "Jul 1 to 31", "spi-stack v0.3.1", "spi-template v1.1.0"],
+    "notes": "none",
+    "headline": "1 release across 1 repository in July 2026.",
+    "headlineWritten": false,
+    "stats": [
+      {
+        "figure": "1/5",
+        "short": "Services released",
+        "label": "services released from SPI forks",
+        "anchor": "components"
+      },
+      {
+        "short": "Releases",
+        "figure": "1",
+        "label": "release across 1 repository",
+        "anchor": "components"
+      },
+      {
+        "short": "Actions",
+        "figure": "?",
+        "label": "actions not reviewed yet",
+        "anchor": "action"
+      },
+      {
+        "short": "Open issues",
+        "figure": "?",
+        "label": "known issues not reviewed yet",
+        "anchor": "issues"
+      }
+    ],
+    "keyChanges": [],
+    "required": [],
+    "info": [],
+    "highlights": [],
+    "issues": [],
+    "openIssues": 0,
+    "changelog": [
+      {
+        "area": "Environment",
+        "items": [
+          {
+            "type": "new",
+            "text": "First spi-stack release (v0.3.1)"
+          }
+        ]
+      }
+    ],
+    "computedChangelog": true,
+    "deps": 0,
+    "chips": [
+      {
+        "id": "spi-stack",
+        "to": "v0.3.1",
+        "platform": true
+      }
+    ],
+    "rows": [
+      {
+        "id": "partition",
+        "group": "Services",
+        "version": "v1.1.0",
+        "releases": 0,
+        "lib": "2.5.5",
+        "java": "17",
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi-partition/releases/tag/v1.1.0"
+      },
+      {
+        "id": "spi-template",
+        "group": "Platform",
+        "version": "v1.1.0",
+        "releases": 0,
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi/releases/tag/v1.1.0"
+      },
+      {
+        "id": "spi-stack",
+        "group": "Platform",
+        "version": "new → v0.3.1",
+        "to": "v0.3.1",
+        "releases": 1,
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi-stack/releases/tag/v0.3.1"
+      }
+    ],
+    "unchanged": ["spi-template v1.1.0"],
+    "links": [
+      {
+        "label": "spi-template",
+        "url": "https://github.com/Azure/osdu-spi/releases"
+      },
+      {
+        "label": "spi-stack",
+        "url": "https://github.com/Azure/osdu-spi-stack/releases"
+      },
+      {
+        "label": "partition",
+        "url": "https://github.com/Azure/osdu-spi-partition/releases"
+      }
+    ],
+    "unread": [],
+    "built": "Oct 21, 2026"
+  },
+  {
+    "id": "release:2026-04",
+    "month": "2026-04",
+    "name": "2026.04",
+    "open": false,
+    "stateText": "Closed Apr 30",
+    "eyebrow": ["April 2026", "Apr 1 to 30", "spi-template v1.1.0"],
+    "notes": "none",
+    "headline": "1 release across 1 repository in April 2026.",
+    "headlineWritten": false,
+    "stats": [
+      {
+        "figure": "1/5",
+        "short": "Services released",
+        "label": "services released from SPI forks",
+        "anchor": "components"
+      },
+      {
+        "short": "Releases",
+        "figure": "1",
+        "label": "release across 1 repository",
+        "anchor": "components"
+      },
+      {
+        "short": "Actions",
+        "figure": "?",
+        "label": "actions not reviewed yet",
+        "anchor": "action"
+      },
+      {
+        "short": "Open issues",
+        "figure": "?",
+        "label": "known issues not reviewed yet",
+        "anchor": "issues"
+      }
+    ],
+    "keyChanges": [],
+    "required": [],
+    "info": [],
+    "highlights": [],
+    "issues": [],
+    "openIssues": 0,
+    "changelog": [
+      {
+        "area": "Services",
+        "items": [
+          {
+            "type": "new",
+            "text": "partition forked and released as v1.1.0"
+          }
+        ]
+      }
+    ],
+    "computedChangelog": true,
+    "deps": 0,
+    "chips": [
+      {
+        "id": "partition",
+        "to": "v1.1.0",
+        "platform": false
+      }
+    ],
+    "rows": [
+      {
+        "id": "partition",
+        "group": "Services",
+        "version": "new → v1.1.0",
+        "to": "v1.1.0",
+        "releases": 1,
+        "lib": "2.5.5",
+        "java": "17",
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi-partition/releases/tag/v1.1.0"
+      },
+      {
+        "id": "spi-template",
+        "group": "Platform",
+        "version": "v1.1.0",
+        "releases": 0,
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi/releases/tag/v1.1.0"
+      }
+    ],
+    "unchanged": ["spi-template v1.1.0"],
+    "links": [
+      {
+        "label": "spi-template",
+        "url": "https://github.com/Azure/osdu-spi/releases"
+      },
+      {
+        "label": "partition",
+        "url": "https://github.com/Azure/osdu-spi-partition/releases"
+      }
+    ],
+    "unread": [],
+    "built": "Oct 21, 2026"
+  },
+  {
+    "id": "release:2026-03",
+    "month": "2026-03",
+    "name": "2026.03",
+    "open": false,
+    "stateText": "Closed Mar 31",
+    "eyebrow": ["March 2026", "Mar 1 to 31", "spi-template v1.1.0"],
+    "notes": "none",
+    "headline": "1 release across 1 repository in March 2026.",
+    "headlineWritten": false,
+    "stats": [
+      {
+        "figure": "0/5",
+        "short": "Services released",
+        "label": "services released from SPI forks",
+        "anchor": "components"
+      },
+      {
+        "short": "Releases",
+        "figure": "1",
+        "label": "release across 1 repository",
+        "anchor": "components"
+      },
+      {
+        "short": "Actions",
+        "figure": "?",
+        "label": "actions not reviewed yet",
+        "anchor": "action"
+      },
+      {
+        "short": "Open issues",
+        "figure": "?",
+        "label": "known issues not reviewed yet",
+        "anchor": "issues"
+      }
+    ],
+    "keyChanges": [],
+    "required": [],
+    "info": [],
+    "highlights": [],
+    "issues": [],
+    "openIssues": 0,
+    "changelog": [
+      {
+        "area": "Engineering system",
+        "items": [
+          {
+            "type": "improved",
+            "text": "spi-template v1.1.0: 1 change to fork automation, listed in the template's release notes"
+          }
+        ]
+      }
+    ],
+    "computedChangelog": true,
+    "deps": 0,
+    "chips": [
+      {
+        "id": "spi-template",
+        "to": "v1.1.0",
+        "platform": true
+      }
+    ],
+    "rows": [
+      {
+        "id": "partition",
+        "group": "Services",
+        "version": "no release",
+        "releases": 0,
+        "state": "unreleased"
+      },
+      {
+        "id": "spi-template",
+        "group": "Platform",
+        "version": "new → v1.1.0",
+        "to": "v1.1.0",
+        "releases": 1,
+        "state": "released",
+        "url": "https://github.com/Azure/osdu-spi/releases/tag/v1.1.0"
+      }
+    ],
+    "unchanged": [],
+    "links": [
+      {
+        "label": "spi-template",
+        "url": "https://github.com/Azure/osdu-spi/releases"
+      }
+    ],
+    "unread": [],
+    "built": "Oct 21, 2026"
+  }
+]

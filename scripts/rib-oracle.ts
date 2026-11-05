@@ -28,7 +28,9 @@ export const FAILURE_CLASSES = [
 ] as const;
 const payloads = [
   "briefing.json",
+  "release-doc.json",
   "releases.json",
+  "rollout-words.json",
   "lines.json",
   "environment-place.json",
   "console.html",
@@ -125,6 +127,7 @@ async function render(scratch: string, output: string) {
   const { consoleHtml, expectHtml, place } = await module("src/boards/console.ts");
   const { monthFacts, releaseMonths } = await module("src/model/releases.ts");
   const { releaseDoc, releaseLine } = await module("src/brief/release.ts");
+  const { rolloutWords } = await module("src/brief/rollout.ts");
   const { readNotes } = await module("src/notes/file.ts");
   const { LINE_COLUMNS } = await module("src/brief/upstream.ts");
   const { inspectBoard } = await module("src/boards/inspect.ts");
@@ -141,16 +144,20 @@ async function render(scratch: string, output: string) {
   const briefing = buildBriefing(model, doctorStatus(sweeper.facts, now), now);
   const reads = read(join(inputs, settings.releases));
   const months: string[] = releaseMonths(reads, now);
+  const documents = months.slice(0, settings.months).map((month) => {
+    const notes = readNotes(join(inputs, settings.notes), month);
+    assert.notEqual(notes.state, "invalid", `Invalid notes for ${month}`);
+    return releaseDoc(monthFacts(reads, month, now), notes, now);
+  });
   const releases = {
-    lines: months.slice(0, settings.months).map((month) => {
-      const notes = readNotes(join(inputs, settings.notes), month);
-      assert.notEqual(notes.state, "invalid", `Invalid notes for ${month}`);
-      return releaseLine(releaseDoc(monthFacts(reads, month, now), notes, now));
-    }),
+    lines: documents.map((document) => releaseLine(document)),
     reading: settings.reading,
   };
   json(join(output, "briefing.json"), briefing);
+  json(join(output, "release-doc.json"), documents);
   json(join(output, "releases.json"), releases);
+  assert.ok(model.rollout, "Recorded facts must include a rollout");
+  json(join(output, "rollout-words.json"), rolloutWords(model.rollout, now));
   json(join(output, "lines.json"), {
     columns: LINE_COLUMNS,
     flow: briefing.flow.rows.map((row: { fork: string; line: unknown[] }) => {

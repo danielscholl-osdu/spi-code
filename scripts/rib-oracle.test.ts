@@ -27,7 +27,9 @@ const expectedFiles = [
   "console.html",
   "environment-place.json",
   "lines.json",
+  "release-doc.json",
   "releases.json",
+  "rollout-words.json",
   ...classes.map((cls) => `inspect/${cls}.json`),
 ].sort();
 
@@ -57,21 +59,31 @@ describe("frozen rib payload oracle", () => {
     }
   });
 
-  it.each(["edit", "missing", "unlisted"] as const)("rejects a planted %s", (change) => {
+  it.each([
+    ["edit", "briefing.json"],
+    ["missing", "briefing.json"],
+    ["unlisted", "inspect/ENV.json"],
+    ["edit", "release-doc.json"],
+    ["missing", "release-doc.json"],
+    ["unlisted", "release-doc.json"],
+    ["edit", "rollout-words.json"],
+    ["missing", "rollout-words.json"],
+    ["unlisted", "rollout-words.json"],
+  ] as const)("rejects a planted %s in %s", (change, name) => {
     const temporary = mkdtempSync(join(tmpdir(), "spi-code-oracle-test-"));
     try {
       cpSync(directory, temporary, { recursive: true });
-      const target = join(temporary, "briefing.json");
+      const target = join(temporary, name);
       if (change === "edit") writeFileSync(target, `${readFileSync(target, "utf8")} `);
       if (change === "missing") unlinkSync(target);
       if (change === "unlisted") {
         const manifest = JSON.parse(readFileSync(join(temporary, "manifest.json"), "utf8"));
-        delete manifest.files["inspect/ENV.json"];
+        delete manifest.files[name];
         writeFileSync(join(temporary, "manifest.json"), JSON.stringify(manifest));
       }
       expect(() => verify(temporary)).toThrow(
         change === "edit"
-          ? "Hash differs: briefing.json"
+          ? `Hash differs: ${name}`
           : change === "missing"
             ? "ENOENT"
             : "Payload list differs",

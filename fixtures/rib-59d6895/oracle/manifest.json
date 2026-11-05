@@ -19,6 +19,8 @@
     "inspect/TOOLCHAIN.json": "471482920f7699a37816d8129d3fc75d26fcb732c19e93c56f1a10cf1b1663aa",
     "inspect/UNREAD.json": "b7f23c61178315d52734e78d2235cda3298cfe921d6bca0f504ad3b625ebad3d",
     "lines.json": "f5718d67fe53eb31b419e96f7d4fb57462bebe22c103b28eda7d3f743549d904",
-    "releases.json": "b74d05eb5023b097b54b82378467c7ba25a059021a11c1920e0afd22c9f0d5dc"
+    "release-doc.json": "29192063394882becacbf413936773fb5280252c3ccbfea36f38a75f8134f5cd",
+    "releases.json": "b74d05eb5023b097b54b82378467c7ba25a059021a11c1920e0afd22c9f0d5dc",
+    "rollout-words.json": "dbf9f6c10763c4945d03817eb50bd7d9ea2c3211579d828825732b403e0733b3"
   }
 }

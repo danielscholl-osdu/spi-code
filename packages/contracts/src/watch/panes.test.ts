@@ -4,7 +4,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  type ReleaseDoc,
   ReleaseDocSchema,
   ReleaseLineSchema,
   RepositoriesSchema,
@@ -35,62 +34,25 @@ const releaseLines = ReleaseLineSchema.array().parse(section(releases, "lines"))
 const line = releaseLines[0];
 if (!line) throw new Error("The releases oracle must include a release line");
 
-// The oracle freezes release summaries, not full documents or rollout words (spicode-t1k.74).
-const doc = {
-  ...line,
-  eyebrow: ["SPI releases"],
-  headlineWritten: true,
-  required: [{ level: "required", title: "Upgrade", owner: "operators", when: "now" }],
-  info: [{ level: "info", title: "Notes", body: "Read the release notes.", ifSkipped: "None" }],
-  highlights: [
-    {
-      title: "Coverage",
-      visual: { kind: "coverage", tiles: [{ id: "legal", version: "1", fresh: true }] },
-    },
-    {
-      title: "Library",
-      visual: { kind: "library", shares: [{ version: "8", services: ["legal"] }] },
-    },
-    {
-      title: "Commands",
-      visual: { kind: "commands", items: [{ text: "upgrade", sub: "all services" }] },
-    },
-    { title: "Steps", visual: { kind: "steps", items: [{ text: "Review" }] } },
-  ],
-  issues: [{ state: "open", title: "Known issue", body: "Workaround" }],
-  openIssues: 1,
-  changelog: [{ area: "Services", items: [{ type: "fixed", text: "A fix" }] }],
-  computedChangelog: true,
-  deps: 1,
-  chips: [{ id: "legal", from: "0", to: "1", platform: false }],
-  rows: [
-    {
-      id: "legal",
-      group: "Services",
-      version: "1",
-      releases: 1,
-      state: "released",
-      lib: null,
-      java: "25",
-    },
-    { id: "stack", group: "Platform", version: "?", releases: null, state: "unread" },
-  ],
-  unchanged: ["schema"],
-  links: [{ label: "Release", url: "https://github.com/Azure/osdu-spi-legal/releases" }],
-  unread: ["stack"],
-  built: "Oct 21, 2026",
-} satisfies ReleaseDoc;
-const words = {
-  title: "Rollout",
-  sub: "In progress",
-  cause: "Template changed",
-  effect: "Forks wait",
-  next: "Merge",
-  verb: "Merge",
-  plan: "One wave",
-  watch: "Next sync",
-  reaches: "workflows",
-};
+const documents = oracle("release-doc");
+const docs = ReleaseDocSchema.array().parse(documents);
+const doc = docs[0];
+if (!doc) throw new Error("The release document oracle must include a document");
+const rolloutWords = oracle("rollout-words");
+const words = RolloutWordsSchema.parse(rolloutWords);
+
+// The pinned facts and notes produce only coverage visuals.
+const supplementalHighlights = [
+  {
+    title: "Library",
+    visual: { kind: "library", shares: [{ version: "8", services: ["legal"] }] },
+  },
+  {
+    title: "Commands",
+    visual: { kind: "commands", items: [{ text: "upgrade", sub: "all services" }] },
+  },
+  { title: "Steps", visual: { kind: "steps", items: [{ text: "Review" }] } },
+];
 
 describe("Watch pane schemas", () => {
   it("round-trips the frozen repositories section without dropping nested fields", () => {
@@ -109,14 +71,41 @@ describe("Watch pane schemas", () => {
       section(releases, "lines"),
     );
   });
-  it("validates a full release document including all four visual variants", () => {
-    expect(ReleaseDocSchema.parse(doc)).toEqual(doc);
+  it("round-trips every frozen release document without dropping nested fields", () => {
+    expect(docs.length).toBeGreaterThan(0);
+    expect(ReleaseDocSchema.array().parse(documents)).toEqual(documents);
+    expect(
+      docs.map(({ id, month, name, open, stateText, notes, headline, stats, keyChanges }) => ({
+        id,
+        month,
+        name,
+        open,
+        stateText,
+        notes,
+        headline,
+        stats,
+        keyChanges,
+      })),
+    ).toEqual(releaseLines);
   });
-  it("validates rollout words and rejects missing or extra fields", () => {
-    expect(RolloutWordsSchema.parse(words)).toEqual(words);
+  it("round-trips frozen rollout words and rejects missing or extra fields", () => {
+    expect(RolloutWordsSchema.parse(rolloutWords)).toEqual(rolloutWords);
     expect(RolloutWordsSchema.safeParse({ ...words, cause: undefined }).success).toBe(false);
     expect(RolloutWordsSchema.safeParse({ ...words, extra: true }).success).toBe(false);
   });
+  it.each(supplementalHighlights)(
+    "round-trips the supplemental $visual.kind visual and rejects extra keys",
+    (highlight) => {
+      const document = { ...doc, highlights: [highlight] };
+      expect(ReleaseDocSchema.parse(document)).toEqual(document);
+      expect(
+        ReleaseDocSchema.safeParse({
+          ...document,
+          highlights: [{ ...highlight, visual: { ...highlight.visual, extra: true } }],
+        }).success,
+      ).toBe(false);
+    },
+  );
   it("rejects a bad tone deep in a release summary or document", () => {
     const invalid = { ...line, stats: [{ ...line.stats[0], tone: "ok" }] };
     expect(ReleaseLineSchema.safeParse(invalid).success).toBe(false);
@@ -144,8 +133,10 @@ describe("Watch pane schemas", () => {
       }).success,
     ).toBe(false);
   });
-  it("rejects extra keys in every release visual variant", () => {
+  it("rejects extra keys in frozen release visuals", () => {
+    expect(doc.highlights.some((highlight) => highlight.visual)).toBe(true);
     for (const highlight of doc.highlights) {
+      if (!highlight.visual) continue;
       expect(
         ReleaseDocSchema.safeParse({
           ...doc,
