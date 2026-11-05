@@ -32,6 +32,7 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
     );
   const from = Date.parse(env.from);
   const to = Date.parse(env.to);
+  // Keep duration text deterministic for the snapshot rather than ticking on the renderer clock.
   const now = new Date(to);
   const ticks = hourTicks(from, to);
   const all = env.lanes.flatMap((lane) =>

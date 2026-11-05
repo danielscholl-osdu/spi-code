@@ -11,12 +11,13 @@ import { testSnapshot } from "../../store/test-snapshot.js";
 import { watchStore } from "../../store/watch.js";
 import Releases from "../releases/index.js";
 import Repositories from "./index.js";
+import { paneText as text } from "./pane-text.test-helper.js";
 
 const fixture = (name: string) =>
   readFileSync(resolve("fixtures/rib-59d6895/oracle", name), "utf8");
+const paneStyles = readFileSync(resolve("apps/window/src/views/repositories/panes.css"), "utf8");
 const snapshot = () => testSnapshot(fixture("briefing.json"), fixture("releases.json"));
 const oracle = new DOMParser().parseFromString(fixture("console.html"), "text/html");
-const text = (element: Element | null) => element?.textContent?.replace(/\s+/g, "");
 const container = document.createElement("div");
 let root: ReturnType<typeof createRoot> | undefined;
 
@@ -108,6 +109,52 @@ it.each<{ notes: NotesState; label: string; tone: string }>([
     expect(container.querySelector("reviewed")).toBeNull();
   },
 );
+
+it("keeps a closed month with no notes neutral in both the row and detail", async () => {
+  const body = snapshot();
+  const line = body.releases.lines[0];
+  if (!line) throw new Error("Missing release fixture");
+  line.open = false;
+  line.notes = "none";
+  body.releases.lines = [line];
+  await render(<Releases />, body);
+  const badges = [...container.querySelectorAll("[data-notes]")];
+  expect(badges).toHaveLength(2);
+  for (const badge of badges) {
+    expect(badge.textContent).toBe("NO NOTES YET");
+    expect(badge.getAttribute("data-tone")).toBe("neutral");
+  }
+});
+
+it("colours the shared pane's run tone with the accent", async () => {
+  await render(
+    <div className="watch-pane">
+      <span data-tone="run">running</span>
+    </div>,
+  );
+  const style = document.createElement("style");
+  style.textContent = paneStyles;
+  document.head.append(style);
+  container.style.setProperty("--accent-text", "rgb(10, 20, 30)");
+  try {
+    const value = container.querySelector('[data-tone="run"]');
+    if (!value) throw new Error("Missing running repository value");
+    expect(value.textContent).toBe("running");
+    expect(getComputedStyle(value).color).toBe("rgb(10, 20, 30)");
+  } finally {
+    style.remove();
+    container.style.removeProperty("--accent-text");
+  }
+});
+
+it("detects a missing word separator even across inline markup", () => {
+  const dom = new DOMParser().parseFromString("<p>Read <b>the</b> notes.</p>", "text/html");
+  const paragraph = dom.querySelector("p");
+  expect(text(paragraph)).toBe("Read the notes.");
+  if (!paragraph) throw new Error("Missing paragraph");
+  paragraph.innerHTML = "Read <b>the</b>notes.";
+  expect(text(paragraph)).toBe("Read thenotes.");
+});
 
 it.each([true, false])("distinguishes reading=%s with no release lines", async (reading) => {
   const body = snapshot();

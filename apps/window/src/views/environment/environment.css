@@ -8,9 +8,11 @@
   font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--text-muted);
 }
-.environment .tone-bad strong, .environment .state-failed { color: var(--error-text); }
+.environment .tone-bad strong, .environment .env-detail.state-failed h3 { color: var(--error-text); }
 .environment .tone-warn strong { color: var(--warning-text); }
 .environment .tone-ok strong { color: var(--success-text); }
+.environment .env-detail.state-running h3, .environment .env-detail.state-held h3 { color: var(--warning-text); }
+.environment .env-detail.state-ok h3 { color: var(--success-text); }
 .environment .env-scroll { overflow-x: auto; margin-top: 16px; padding: 4px 0 2px; direction: rtl; }
 .environment .env-timeline { direction: ltr; position: relative; }
 .environment .env-row { display: grid; grid-template-columns: 84px minmax(0, 1fr); border-bottom: 1px solid var(--border); }
@@ -29,7 +31,7 @@
 .environment .env-tick.major { border-left-color: var(--border); }
 .environment .env-event {
   position: absolute; height: 12px; min-width: 10px; padding: 0; border: none;
-  border-radius: 6px; background: var(--text-muted); font: inherit;
+  border-radius: 6px; background: var(--text-muted); cursor: pointer; font: inherit;
 }
 .environment .env-event.state-ok { background: var(--success); }
 .environment .env-event.state-failed { background: var(--error); }
@@ -49,7 +51,7 @@
   font-weight: 600; text-decoration: underline 2px var(--accent); text-underline-offset: 3px;
 }
 .environment .env-none, .environment .env-note { color: var(--text-muted); font-size: 12px; }
-.environment .env-none { display: block; padding-top: 4px; }
+.environment .env-none { position: absolute; left: 6px; top: 7px; }
 .environment .env-detail { margin-top: 14px; }
 .environment .env-detail h3 { margin: 0; }
 .environment .env-detail dd { margin: 0 0 8px; color: var(--text); }

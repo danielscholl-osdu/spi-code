@@ -77,6 +77,7 @@ export function firstEvent(lanes: readonly EnvLane[]): string | undefined {
 
 function stamp(iso: string, now: Date): string {
   const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "?";
   const two = (n: number) => String(n).padStart(2, "0");
   const hm = `${two(d.getHours())}:${two(d.getMinutes())}`;
   const today =

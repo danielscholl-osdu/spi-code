@@ -1,6 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { PROTOCOL_VERSION } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -15,6 +17,10 @@ import Environment from "./index.js";
 import { eventWhen, firstEvent, hourTicks, place } from "./timeline.js";
 
 const snapshot = testSnapshot(briefing, releases);
+const environmentStyles = readFileSync(
+  resolve("apps/window/src/views/environment/environment.css"),
+  "utf8",
+);
 const environment = snapshot.briefing.environment;
 const from = Date.parse(environment.from);
 const to = Date.parse(environment.to);
@@ -102,6 +108,72 @@ it("ticks at local hours strictly inside the window", () => {
     "12:00",
   ]);
 });
+
+it("uses the rib's unknown timestamp marker for malformed dates", () => {
+  const now = new Date(to);
+  expect(eventWhen({ ...first, start: "invalid", end: undefined }, now)).toBe("? to now");
+  expect(eventWhen({ ...first, start: "invalid", end: "invalid" }, now)).toBe("? to ?");
+  expect(eventWhen({ ...first, end: "invalid" }, now)).toMatch(/ to \?$/);
+});
+
+it.each([
+  ["failed", "rgb(100, 0, 0)"],
+  ["running", "rgb(100, 80, 0)"],
+  ["held", "rgb(100, 80, 0)"],
+  ["ok", "rgb(0, 100, 0)"],
+  ["cancelled", "rgb(10, 20, 30)"],
+] as const)(
+  "colours only the %s detail heading and keeps timeline affordances",
+  async (state, colour) => {
+    const store = createWatchStore(vi.fn());
+    store.setState({
+      snapshot: {
+        cursor: 1,
+        body: {
+          ...snapshot,
+          briefing: {
+            ...snapshot.briefing,
+            environment: {
+              ...environment,
+              lanes: [
+                { id: "upgrade", label: "Upgrade", events: [{ ...first, state }] },
+                { id: "refresh", label: "Refresh", events: [] },
+              ],
+            },
+          },
+        },
+      },
+    });
+    const container = document.createElement("div");
+    container.style.color = "rgb(10, 20, 30)";
+    container.style.setProperty("--error-text", "rgb(100, 0, 0)");
+    container.style.setProperty("--warning-text", "rgb(100, 80, 0)");
+    container.style.setProperty("--success-text", "rgb(0, 100, 0)");
+    document.body.append(container);
+    const root = createRoot(container);
+    const style = document.createElement("style");
+    style.textContent = environmentStyles;
+    document.head.append(style);
+    try {
+      await act(async () => root.render(<Environment store={store} />));
+      const detail = container.querySelector(".env-detail");
+      const heading = detail?.querySelector("h3");
+      const bar = container.querySelector(".env-event");
+      const empty = container.querySelector(".env-none");
+      if (!detail || !heading || !bar || !empty) throw new Error("Missing environment elements");
+      expect(getComputedStyle(detail).color).toBe("rgb(10, 20, 30)");
+      expect(getComputedStyle(heading).color).toBe(colour);
+      expect(getComputedStyle(bar).cursor).toBe("pointer");
+      expect(getComputedStyle(empty).position).toBe("absolute");
+      expect(getComputedStyle(empty).left).toBe("6px");
+      expect(getComputedStyle(empty).top).toBe("7px");
+    } finally {
+      await act(async () => root.unmount());
+      style.remove();
+      container.remove();
+    }
+  },
+);
 
 it("renders oracle lane order, labels, facts and bars; selects details and the inspector", async () => {
   const store = createWatchStore(vi.fn());

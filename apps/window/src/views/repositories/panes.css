@@ -5,6 +5,7 @@
 .watch-pane [data-tone="bad"] { color: var(--error-text); }
 .watch-pane [data-tone="warn"] { color: var(--warning-text); }
 .watch-pane [data-tone="ok"] { color: var(--success-text); }
+.watch-pane [data-tone="run"] { color: var(--accent-text); }
 .watch-pane [data-muted="true"], .watch-pane [data-weight="quiet"], .watch-pane [data-weight="minor"], .watch-pane [data-upstream="true"] { color: var(--text-muted); }
 .pane-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin: 16px 0; }
 .pane-fact { padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-raised); }

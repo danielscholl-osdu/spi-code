@@ -27,7 +27,11 @@ export default function Flow() {
         {view.sub && <p>{view.sub}</p>}
         <div className="watch-tiles">
           {view.tiles.map((tile) => (
-            <div className="watch-tile" key={tile.label} data-tone={tile.tone}>
+            <div
+              className="watch-tile"
+              key={tile.label}
+              data-tone={tile.tone === "run" ? "neutral" : tile.tone}
+            >
               <div>{tile.label}</div>
               <b>{tile.value}</b>
               {tile.meter && (
@@ -188,7 +192,9 @@ export default function Flow() {
                   </button>{" "}
                   › {row.fork}
                 </p>
-                <h3 data-tone={row.next.tone}>{row.detail.title}</h3>
+                <h3 data-tone={row.next.tone === "run" ? "neutral" : row.next.tone}>
+                  {row.detail.title}
+                </h3>
                 <p>{row.next.text}</p>
                 <ul>
                   {row.detail.lines.map((line) => (
