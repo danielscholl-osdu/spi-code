@@ -447,6 +447,7 @@ function inferredAt(snapshot: ReturnType<typeof projectWatch>, pointer: string):
 // Values the views do not draw from a swept area: read metadata, the clock window, inspector
 // ids and the fleet's own service names.
 const UNDRAWN = [
+  /^\/releases\/reading$/,
   /^\/briefing\/(sweptAt|nextSyncAt)$/,
   /^\/briefing\/doctor\//,
   /^\/briefing\/environment\/(from|to)$/,
@@ -656,7 +657,24 @@ describe("area envelopes and provenance", () => {
     expect(areas(1)).toEqual(["github"]);
   });
 
-  it("covers every rendered briefing and station value with provenance at it or an ancestor", () => {
+  it("binds every release line to the fleet that names its components, never another area", () => {
+    // Independent of provenance.ts: monthFacts reads release reads (no Facts area) and the
+    // fleet's forks and release repositories (the fleet area), nothing else.
+    const lines = projectWatch(fixtureInput()).releases.lines;
+    expect(lines.length).toBeGreaterThan(1);
+    const others = AREAS.filter((area) => area !== "fleet");
+    for (const i of lines.keys()) {
+      const pointer = `/releases/lines/${i}`;
+      expect(inferredAt(projectWatch(onlyInferred(["fleet"])), pointer), pointer).toBe(true);
+      expect(inferredAt(projectWatch(onlyInferred(others)), pointer), pointer).toBe(false);
+    }
+    const { provenance } = projectWatch(fixtureInput());
+    expect(provenance.filter(({ path }) => path.startsWith("/releases"))).toEqual(
+      lines.map((_, i) => ({ path: `/releases/lines/${i}`, areas: ["fleet"] })),
+    );
+  });
+
+  it("covers every rendered briefing, station and release value with provenance at it or an ancestor", () => {
     const base = fixtureInput();
     const variants = [
       base,
@@ -672,12 +690,18 @@ describe("area envelopes and provenance", () => {
         "/stations",
         "/briefing/flow",
         "/briefing/environment",
+        "/releases",
+        "/releases/lines",
       ]) {
         expect(paths.has(coarse), coarse).toBe(false);
       }
       const covered = (leaf: string): boolean =>
         [...paths].some((path) => leaf === path || leaf.startsWith(`${path}/`));
-      const missing = renderedLeaves({ briefing: snapshot.briefing, stations: snapshot.stations })
+      const missing = renderedLeaves({
+        briefing: snapshot.briefing,
+        stations: snapshot.stations,
+        releases: snapshot.releases,
+      })
         .map((leaf) => leaf.replace(/\/facts\/(\d+)\/(label|sub|tone)$/, "/facts/$1/figure"))
         .filter((leaf) => !covered(leaf));
       expect(missing).toEqual([]);

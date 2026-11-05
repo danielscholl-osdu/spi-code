@@ -198,6 +198,15 @@ export function stationProvenance(
   );
 }
 
+/**
+ * Release lines come from monthFacts over the release reader's own reads, which no Facts area
+ * holds, and the fleet's forks and release repositories, which decide a line's components. The
+ * fleet is the only area that feeds a line; the release reads' state shows on the Releases dot.
+ */
+export function releaseProvenance(lines: readonly unknown[]): ValueSource[] {
+  return lines.map((_, i) => ({ path: `/releases/lines/${i}`, areas: ["fleet"] }));
+}
+
 /** One envelope per area, each judged against its own sweep interval; no area is omitted. */
 export function areaEnvelopes(
   reads: Partial<Record<AreaName, readonly ReadRecord[]>>,

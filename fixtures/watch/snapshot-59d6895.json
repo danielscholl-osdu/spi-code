@@ -3511,6 +3511,30 @@
     {
       "path": "/stations/4/stations/5",
       "areas": ["lifecycle"]
+    },
+    {
+      "path": "/releases/lines/0",
+      "areas": ["fleet"]
+    },
+    {
+      "path": "/releases/lines/1",
+      "areas": ["fleet"]
+    },
+    {
+      "path": "/releases/lines/2",
+      "areas": ["fleet"]
+    },
+    {
+      "path": "/releases/lines/3",
+      "areas": ["fleet"]
+    },
+    {
+      "path": "/releases/lines/4",
+      "areas": ["fleet"]
+    },
+    {
+      "path": "/releases/lines/5",
+      "areas": ["fleet"]
     }
   ],
   "selection": null

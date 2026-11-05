@@ -34,7 +34,12 @@ import {
   STACK_REPO,
   type SweepReads,
 } from "@spi-code/core";
-import { areaEnvelopes, briefingProvenance, stationProvenance } from "./provenance.js";
+import {
+  areaEnvelopes,
+  briefingProvenance,
+  releaseProvenance,
+  stationProvenance,
+} from "./provenance.js";
 
 export function appActions(items: readonly ActionItem[]): AppAction[] {
   const reserved = new Set(items.map((item) => item.type));
@@ -232,7 +237,11 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     tree: treeOf(input, now),
     reads: [...Object.values(input.reads).flat(), ...input.releaseRecords],
     areas: areaEnvelopes(input.reads, (area) => input.intervals?.[area] ?? input.intervalMs, now),
-    provenance: [...briefingProvenance(briefing, model.stack), ...stationProvenance(stations)],
+    provenance: [
+      ...briefingProvenance(briefing, model.stack),
+      ...stationProvenance(stations),
+      ...releaseProvenance(releases.lines),
+    ],
     selection: input.selection ?? null,
   });
 }

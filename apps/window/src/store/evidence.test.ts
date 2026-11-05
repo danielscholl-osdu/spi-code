@@ -89,5 +89,5 @@ it("unions the envelopes under several prefixes in area order, without repeats",
     names(["/briefing/flow/tiles/0", "/briefing/flow/tiles/3", "/stations/0/stations/0"]),
   ).toEqual(["github", "runs", "upstream"]);
   expect(names([])).toEqual([]);
-  expect(names(["/releases"])).toEqual([]);
+  expect(names(["/releases"])).toEqual(["fleet"]);
 });

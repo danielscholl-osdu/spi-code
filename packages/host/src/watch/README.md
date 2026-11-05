@@ -35,7 +35,10 @@ names github and runs. Values that judge the whole model (headline, summary,
 focus, rest, ready, themes, horizon) name every swept area. An unknown label or
 branch falls back to a superset rather than fewer areas. Bindings never guess
 from record sources or object names. The running version names lifecycle, or
-github when only the declared version is known. The contract rejects a snapshot whose provenance
+github when only the declared version is known. Each release line names the
+fleet area alone: core builds it from the release reader's reads, which are not a
+Facts area and whose state shows on the Releases tree dot, and from the fleet's
+forks and release repositories. The contract rejects a snapshot whose provenance
 path does not resolve or names an area without an envelope.
 
 `projectReleases` reads `<appData>/notes/YYYY-MM.json` through core's `parseNotes`,

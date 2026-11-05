@@ -301,19 +301,46 @@ it("marks no repository value from the real mixed fixture, whose repository area
   expect(pane.querySelectorAll("[data-inferred]").length).toBe(0);
 });
 
-it("badges release lines by area and marks a line fed only by inferred areas", async () => {
-  const body = mixedSnapshot(mixed, [
-    { path: "/releases/lines/0", areas: ["lifecycle"] },
-    { path: "/releases/lines/1", areas: ["github", "lifecycle"] },
-  ]);
-  await render(<Releases />, body);
-  const pane = container.querySelector('[data-view-pane="releases"]');
-  if (!pane) throw new Error("Releases did not render");
-  expectEvidenceMarks(pane, body, {
-    prefixes: ["/releases"],
-    sections: [["/releases/lines"]],
-  });
-});
+it.each([
+  ["unread", false],
+  ["inferred", true],
+] as const)(
+  "badges release lines from the mixed fixture's own provenance with the fleet %s",
+  async (_, inferred) => {
+    const real = mixedSnapshot(mixed);
+    const fleet = {
+      source: "fleet",
+      state: "fresh",
+      observedAt: real.sweptAt,
+      completeness: { kind: "complete" },
+      inferred: true,
+    } as const;
+    const body = inferred
+      ? {
+          ...real,
+          areas: real.areas.map((entry) =>
+            entry.area === "fleet" ? { area: "fleet" as const, envelope: fleet } : entry,
+          ),
+        }
+      : real;
+    expect(body.provenance.filter(({ path }) => path.startsWith("/releases"))).toEqual(
+      body.releases.lines.map((_, i) => ({ path: `/releases/lines/${i}`, areas: ["fleet"] })),
+    );
+    await render(<Releases />, body);
+    const pane = container.querySelector('[data-view-pane="releases"]');
+    if (!pane) throw new Error("Releases did not render");
+    expectEvidenceMarks(pane, body, {
+      prefixes: ["/releases"],
+      sections: [["/releases/lines"]],
+    });
+    expect(pane.querySelector('[data-envelopes] [data-area="fleet"]')).not.toBeNull();
+    expect(
+      [...pane.querySelectorAll("[data-inferred]")].filter(
+        (mark) => !mark.closest("[data-envelopes]"),
+      ).length,
+    ).toBe(inferred ? body.releases.lines.length * 2 : 0);
+  },
+);
 
 it.each([
   ["repositories", <Repositories key="r" />],
