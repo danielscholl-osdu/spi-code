@@ -20,6 +20,16 @@ const arg = (value: string) => {
   return `"${value}"`;
 };
 
+it("keeps the README vendoring version aligned with the package manifest", async () => {
+  const manifest = JSON.parse(await readFile(join(core, "package.json"), "utf8"));
+  const readme = await readFile(join(core, "README.md"), "utf8");
+  const vendoring = readme
+    .split(/^## /m)
+    .find((section) => section.startsWith("Vendoring version "));
+  expect(vendoring?.split("\n")[0]).toBe(`Vendoring version ${manifest.version}`);
+  expect(vendoring).toContain(`spi-code-core-${manifest.version}.tgz`);
+});
+
 it("packs a pinned, source-free tarball that installs outside the workspace", async (test) => {
   const temporary = await mkdtemp(join(tmpdir(), "spi-core-pack-test-"));
   try {
@@ -28,7 +38,7 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
       cwd: core,
       timeout: 120_000,
     });
-    const tarball = join(release, "spi-code-core-0.1.0.tgz");
+    const tarball = join(release, "spi-code-core-0.1.1.tgz");
     const sha256 = createHash("sha256")
       .update(await readFile(tarball))
       .digest("hex");
@@ -43,7 +53,7 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
     expect(entries.filter((entry) => /\.test\.|\.map$/.test(entry))).toEqual([]);
     const { stdout: manifest } = await exec("tar", ["-xOzf", tarball, "package/package.json"]);
     const pkg = JSON.parse(manifest);
-    expect(pkg.version).toBe("0.1.0");
+    expect(pkg.version).toBe("0.1.1");
     expect(pkg.dependencies).toEqual({ yaml: "2.9.1", zod: "4.6.7" });
     expect(pkg.exports["."]).toEqual({
       types: "./dist/index.d.ts",
@@ -80,7 +90,7 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
     const installed = JSON.parse(
       await readFile(join(temporary, "node_modules/@spi-code/core/package.json"), "utf8"),
     );
-    expect(installed.version).toBe("0.1.0");
+    expect(installed.version).toBe("0.1.1");
     await exec(
       process.execPath,
       [

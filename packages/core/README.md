@@ -23,7 +23,10 @@ The additive `setup.signin` request accepts an
 optional `token` only for `glab` (8-4096 characters, no whitespace); setup state
 and progress messages remain strict and have no credential field.
 
-## Vendoring version 0.1.0
+## Vendoring version 0.1.1
+
+Each vendored tarball must carry a version not used before; never replace the
+contents of an already-vendored version.
 
 From the repository root, run:
 
@@ -32,7 +35,7 @@ pnpm --filter @spi-code/core run pack
 ```
 
 This builds core and runs `pnpm pack` on a temporary release staging directory.
-The result is `packages/core/release/spi-code-core-0.1.0.tgz`; the script prints its
+The result is `packages/core/release/spi-code-core-0.1.1.tgz`; the script prints its
 SHA-256. Vendor that tarball and pin it with a `file:` dependency in the consumer.
 `node scripts/pack.mjs <release-directory>` from this package accepts an alternate
 output directory.
