@@ -1,14 +1,17 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, isAbsolute, join, relative } from "node:path";
 import { inspect } from "node:util";
 import type { CopilotClientOptions } from "@github/copilot-sdk";
+import { createToolInstaller } from "@spi-code/tools";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createConversationBackend } from "../process/conversation.js";
 import { probeCopilotSeat } from "../setup/seat.js";
 import {
+  buildAuthEnvironment,
   buildClientOptions,
   buildSessionOptions,
   CopilotRuntime,
@@ -42,6 +45,11 @@ vi.mock("@github/copilot-sdk", () => ({
   },
 }));
 
+vi.mock("../env/shell-environment.js", async (original) => ({
+  ...(await original<typeof import("../env/shell-environment.js")>()),
+  captureLoginShellPath: async () => ({ path: "", captured: true, failures: [] }),
+}));
+
 describe("Copilot runtime boundary", () => {
   it("resolves only the archive path segment to its unpacked sibling on both platforms", () => {
     expect(unpackRuntimePath("/App/Resources/app.asar/node_modules/runtime")).toBe(
@@ -66,6 +74,76 @@ describe("Copilot runtime boundary", () => {
     fake.list.mockResolvedValue({ models: [] });
     fake.configs.length = 0;
   });
+
+  it.skipIf(process.platform === "win32")(
+    "reads a managed-only gh after installation without leaking credentials",
+    async () => {
+      const root = await mkdtemp(join(tmpdir(), "spicode-managed-gh-"));
+      const appDataDir = join(root, "app");
+      const token = "gho_obviouslyFakeManagedFixture";
+      const tools = await createToolInstaller(appDataDir, "darwin-arm64");
+      const bin = join(appDataDir, "tools", "gh", "2.83.0", "bin");
+      const logs = ["log", "info", "warn", "error", "debug"] as const;
+      const spies = logs.map((name) => vi.spyOn(console, name).mockImplementation(() => {}));
+      const options = {
+        appDataDir,
+        capturedPath: "",
+        installer: tools,
+        env: { GH_TOKEN: token, GITHUB_TOKEN: token, COPILOT_GITHUB_TOKEN: token },
+      };
+      const runtime = new CopilotRuntime(options);
+      try {
+        await expect(runtime.start()).rejects.toThrow("gh auth token failed.");
+        await mkdir(bin, { recursive: true });
+        await writeFile(
+          join(bin, "gh"),
+          `#!/bin/sh\n[ "$1 $2" = "auth token" ] || exit 2\n[ -z "$GH_TOKEN$GITHUB_TOKEN$COPILOT_GITHUB_TOKEN" ] || exit 3\nprintf '${token}\\n'\n`,
+          { mode: 0o700 },
+        );
+        await symlink("2.83.0", join(appDataDir, "tools", "gh", "current"));
+        expect(await tools.binDir("gh")).toBe(bin);
+        await runtime.start();
+        expect(fake.configs.at(-1)?.gitHubToken).toBe(token);
+        const authEnv = await buildAuthEnvironment(options);
+        expect(authEnv.PATH?.split(delimiter)).toEqual([bin]);
+        expect(inspect(authEnv)).not.toContain(token);
+        expect(inspect(fake.configs.at(-1)?.env)).not.toContain(token);
+        fake.createSession.mockResolvedValueOnce({ disconnect: vi.fn() });
+        fake.list.mockResolvedValueOnce({ models: [{ id: "seat-model" }] });
+        expect(await probeCopilotSeat(options)).toEqual({
+          kind: "seat-ok",
+          models: ["seat-model"],
+        });
+        const backend = await createConversationBackend(appDataDir, false, () => {}, tools);
+        try {
+          expect(await backend.models()).toEqual([]);
+          expect(fake.configs.at(-1)?.gitHubToken).toBe(token);
+          expect(fake.configs.at(-1)?.env?.PATH?.split(delimiter)).toEqual([bin]);
+        } finally {
+          await backend.stop();
+        }
+        fake.list.mockRejectedValueOnce(new Error(`SDK failed with ${token}`));
+        const error: unknown = await runtime.listModels().catch((error: unknown) => error);
+        expect(error).toBeInstanceOf(Error);
+        expect(inspect(error, { depth: null })).not.toContain(token);
+        expect(inspect(error, { depth: null })).toContain("[redacted]");
+        await writeFile(
+          join(bin, "gh"),
+          `#!/bin/sh\nprintf '${token}'; printf '${token}' >&2; exit 1\n`,
+          { mode: 0o700 },
+        );
+        const authError: unknown = await runtime.listModels().catch((error: unknown) => error);
+        expect(authError).toBeInstanceOf(Error);
+        expect(inspect(authError, { depth: null })).not.toContain(token);
+        expect(inspect(authError)).toContain("gh auth token failed.");
+        for (const spy of spies) expect(spy).not.toHaveBeenCalled();
+      } finally {
+        await runtime.stop();
+        for (const spy of spies) spy.mockRestore();
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
   it.each(["", "dummy\0secret", "dummy secret", "dummy\nsecret", "dummy\u007fsecret"])(
     "rejects malformed credentials before SDK construction without echoing them",
     async (token) => {
@@ -84,10 +162,13 @@ describe("Copilot runtime boundary", () => {
 
   it("passes only the scrubbed environment to gh behind the default token reader", async () => {
     const ghRunner = vi.fn().mockResolvedValue("dummy-valid-secret");
+    const bin = join("/tmp/spicode", "tools", "gh", "2.83.0", "bin");
+    const installer = { binDir: vi.fn().mockResolvedValue(bin) };
     const runtime = new CopilotRuntime(
       {
         appDataDir: "/tmp/spicode",
         capturedPath: "/bin",
+        installer,
         env: {
           GH_TOKEN: "stray",
           gh_token: "stray",
@@ -106,7 +187,10 @@ describe("Copilot runtime boundary", () => {
     await runtime.listModels();
     await expect(runtime.createSession()).rejects.toThrow("session stub");
     expect(ghRunner).toHaveBeenCalledTimes(3);
+    expect(installer.binDir).toHaveBeenCalledWith("gh");
+    expect(fake.configs[0]?.env?.PATH?.split(delimiter)).toEqual([bin, "/bin"]);
     for (const [env] of ghRunner.mock.calls) {
+      expect(env.PATH?.split(delimiter)).toEqual([bin, "/bin"]);
       expect(Object.keys(env).map((key) => key.toUpperCase())).not.toEqual(
         expect.arrayContaining(["GH_TOKEN"]),
       );
@@ -291,7 +375,9 @@ describe("Copilot runtime boundary", () => {
           appDataDir,
           capturedPath: [root, "/usr/bin", "/bin"].join(delimiter),
           env: { ...process.env, HOME: home, XDG_CONFIG_HOME: config, GH_TOKEN: "stray" },
+          installer: await createToolInstaller(appDataDir, "darwin-arm64"),
         };
+        expect(await options.installer.binDir("gh")).toBeUndefined();
         if (consumer === "seat") {
           fake.createSession.mockResolvedValueOnce({ disconnect: vi.fn() });
           fake.list.mockResolvedValueOnce({ models: [{ id: "seat-model" }] });

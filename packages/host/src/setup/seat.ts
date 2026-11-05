@@ -102,12 +102,10 @@ export async function probeCopilotSeat(options: SeatProbeOptions): Promise<SeatR
   let timedOut = false;
   let result: SeatResult;
   try {
-    const config = buildClientOptions(options);
+    const authEnv = await bounded(buildAuthEnvironment(options), timeoutMs);
+    const config = buildClientOptions(options, authEnv.PATH);
     phase = "credential";
-    token = await bounded(
-      options.readToken?.() ?? ghAuthToken(buildAuthEnvironment(options), { timeoutMs }),
-      timeoutMs,
-    );
+    token = await bounded(options.readToken?.() ?? ghAuthToken(authEnv, { timeoutMs }), timeoutMs);
     if (!token || /[\s\p{Cc}]/u.test(token)) {
       return { kind: "sign-in", reason: "Sign in with gh OAuth: the credential is invalid." };
     }

@@ -12,6 +12,7 @@ import {
   type SessionConfig,
   type Tool,
 } from "@github/copilot-sdk";
+import type { ToolInstaller } from "@spi-code/tools";
 import { buildToolEnvironment, ghAuthToken } from "../env/shell-environment.js";
 
 export const tokenLifetimeSeconds = 60;
@@ -84,6 +85,7 @@ export const stubToolSource: SessionToolSource = {
 export interface RuntimeOptions {
   readonly appDataDir: string;
   readonly capturedPath: string;
+  readonly installer?: Pick<ToolInstaller, "binDir">;
   readonly env?: NodeJS.ProcessEnv;
   readonly cliPath?: string;
   readonly credentialMode?: "client" | "session";
@@ -109,9 +111,9 @@ export function unpackRuntimePath(path: string): string {
   return path.replace(/([\\/])app\.asar([\\/])/, "$1app.asar.unpacked$2");
 }
 
-export function buildAuthEnvironment(options: RuntimeOptions): NodeJS.ProcessEnv {
+function authEnvironment(options: RuntimeOptions, toolsDir = ""): NodeJS.ProcessEnv {
   return buildToolEnvironment({
-    toolsDir: join(options.appDataDir, "tools", "bin"),
+    toolsDir,
     capturedPath: options.capturedPath,
     kubeconfig: join(options.appDataDir, "kubeconfig"),
     azureConfigDir: join(options.appDataDir, "azure"),
@@ -119,7 +121,14 @@ export function buildAuthEnvironment(options: RuntimeOptions): NodeJS.ProcessEnv
   });
 }
 
-export function buildClientOptions(options: RuntimeOptions): CopilotClientOptions {
+export async function buildAuthEnvironment(options: RuntimeOptions): Promise<NodeJS.ProcessEnv> {
+  return authEnvironment(options, await options.installer?.binDir("gh"));
+}
+
+export function buildClientOptions(
+  options: RuntimeOptions,
+  authPath?: string,
+): CopilotClientOptions {
   const cliPath = options.cliPath ?? resolveRuntimePath();
   if (!isAbsolute(cliPath) || !isAbsolute(options.appDataDir)) {
     throw new Error("Copilot runtime and app data paths must be absolute.");
@@ -137,7 +146,7 @@ export function buildClientOptions(options: RuntimeOptions): CopilotClientOption
     // The SDK overwrites COPILOT_HOME with baseDirectory when spawning the runtime.
     COPILOT_HOME: join(options.appDataDir, "copilot"),
   };
-  const env = buildAuthEnvironment(options);
+  const env = authEnvironment(options, authPath);
   for (const name of Object.keys(env)) {
     const upper = name.toUpperCase();
     if (Object.hasOwn(homes, upper) || upper === "HOMEDRIVE" || upper === "HOMEPATH") {
@@ -185,7 +194,6 @@ export function listModelsWithToken<T>(
 export class CopilotRuntime {
   private client: CopilotClient | undefined;
   private token: string | undefined;
-  private readonly config: CopilotClientOptions;
   private readonly readToken: TokenSource;
   private pending: Promise<unknown> = Promise.resolve();
   private readonly tokens = new Set<string>();
@@ -201,9 +209,7 @@ export class CopilotRuntime {
     private readonly source: SessionToolSource = stubToolSource,
     ghRunner: typeof ghAuthToken = ghAuthToken,
   ) {
-    this.config = buildClientOptions(options);
-    const authEnv = buildAuthEnvironment(options);
-    const reader = readToken ?? (() => ghRunner(authEnv));
+    const reader = readToken ?? (async () => ghRunner(await buildAuthEnvironment(options)));
     this.readToken = async () => {
       const token = await reader();
       this.tokens.clear();
@@ -228,7 +234,7 @@ export class CopilotRuntime {
     }
     await this.disposeClient();
     const client = new CopilotClient({
-      ...this.config,
+      ...buildClientOptions(this.options, (await buildAuthEnvironment(this.options)).PATH),
       ...(this.options.credentialMode === "session" ? {} : { gitHubToken: token }),
     });
     try {

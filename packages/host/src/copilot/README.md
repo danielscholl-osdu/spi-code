@@ -9,6 +9,12 @@ and `COPILOT_HOME` beneath app data. This includes the runtime's macOS caches
 and Microsoft device ID. Token lookup uses a separate scrubbed environment
 with the operator's original home and gh configuration. The runtime child drops
 `HOMEDRIVE` and `HOMEPATH` so they cannot override its isolated `USERPROFILE`.
+Setup and the conversation backend pass their tool installer into the runtime.
+Auth environments resolve `installer.binDir("gh")` before each credential read,
+putting the managed `tools/gh/<version>/bin` first on PATH and falling back to
+the captured login-shell PATH when gh is not managed. Installing gh after a
+failed lookup does not require restarting the backend. Tokens stay out of these
+environment objects; only the SDK's client credential receives the token.
 The packaging bead must leave the complete platform runtime package unpacked.
 Startup cleanup, credential-keyed warm-client handling, and streamed delta
 subscription are ported from Keelson's `copilot/factory.ts` and `provider.ts`.

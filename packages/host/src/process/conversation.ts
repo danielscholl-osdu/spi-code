@@ -4,7 +4,7 @@
 import type { CopilotSession } from "@github/copilot-sdk";
 import { type Message, PROTOCOL_VERSION } from "@spi-code/contracts";
 import { registrySource } from "../copilot/registry-source.js";
-import { CopilotRuntime, streamTurn } from "../copilot/runtime.js";
+import { CopilotRuntime, type RuntimeOptions, streamTurn } from "../copilot/runtime.js";
 import { captureLoginShellPath } from "../env/shell-environment.js";
 import { FakeSession } from "../testing/fake-session.js";
 import { ToolRefusedError } from "../tools/registry.js";
@@ -23,6 +23,7 @@ export async function createConversationBackend(
   appDataDir: string,
   stub: boolean,
   observe: Parameters<typeof registrySource>[0],
+  installer?: RuntimeOptions["installer"],
 ): Promise<ConversationBackend> {
   const source = registrySource(observe);
   if (stub) {
@@ -73,7 +74,7 @@ export async function createConversationBackend(
   }
   const captured = await captureLoginShellPath();
   const runtime = new CopilotRuntime(
-    { appDataDir, capturedPath: captured.path },
+    { appDataDir, capturedPath: captured.path, ...(installer ? { installer } : {}) },
     undefined,
     source,
   );

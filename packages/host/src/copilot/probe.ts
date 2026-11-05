@@ -119,7 +119,7 @@ async function probe() {
     await mkdir(appDataDir);
     await mkdir(join(home, ".copilot"), { recursive: true });
     const captured = await captureLoginShellPath();
-    const authEnv = buildAuthEnvironment({ appDataDir, capturedPath: captured.path });
+    const authEnv = await buildAuthEnvironment({ appDataDir, capturedPath: captured.path });
     const realToken = await ghAuthToken(authEnv);
     const invalidToken = "spicode-deliberately-invalid-token";
     secrets.push(realToken, invalidToken);

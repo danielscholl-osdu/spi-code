@@ -106,14 +106,7 @@ const setup: SetupService = new SetupService({
     probeCopilotSeat({
       appDataDir: appData,
       capturedPath: await capturedPath(),
-      readToken: async () => {
-        const result = await exec.runText("gh", ["auth", "token", "--hostname", "github.com"], {
-          timeoutMs: 5000,
-        });
-        const token = result.ok ? result.data.trim() : "";
-        if (!token) throw new Error("gh did not return a GitHub token.");
-        return token;
-      },
+      installer: await toolInstaller(),
     }),
   createSweep: () =>
     new SweepService({
@@ -158,16 +151,21 @@ attachHostConnections(
   parentPort,
   (port) => {
     connectedPort = port;
-    const backend = () =>
-      createConversationBackend(dirname(storePath), stub, (event) => {
-        sendToWindow({
-          version: PROTOCOL_VERSION,
-          id: requestId,
-          kind: "event",
-          type: "tool.call",
-          payload: { ...event, arguments: {} },
-        });
-      });
+    const backend = async () =>
+      createConversationBackend(
+        appData,
+        stub,
+        (event) => {
+          sendToWindow({
+            version: PROTOCOL_VERSION,
+            id: requestId,
+            kind: "event",
+            type: "tool.call",
+            payload: { ...event, arguments: {} },
+          });
+        },
+        stub ? undefined : await toolInstaller(),
+      );
     attachHostPort(
       port,
       process.pid,

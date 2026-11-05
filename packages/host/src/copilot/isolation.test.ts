@@ -62,7 +62,7 @@ it.skipIf(process.env.SPICODE_LIVE_COPILOT_ISOLATION !== "1")(
     const capturedPath = process.env.PATH ?? "";
     let runtime: CopilotRuntime | undefined;
     try {
-      const authEnv = buildAuthEnvironment({
+      const authEnv = await buildAuthEnvironment({
         appDataDir,
         capturedPath,
       });

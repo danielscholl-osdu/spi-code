@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   capturedPath: "/usr/bin:/bin",
   setupConnect: vi.fn(),
   setupRoute: vi.fn(),
+  setupOptions: [] as SetupServiceOptions[],
+  probeSeat: vi.fn().mockResolvedValue({ kind: "seat-ok", models: ["auto"] }),
 }));
 vi.mock("./store/store.js", () => ({ openRunStore: () => ({ close: mocks.close }) }));
 // The stub records what main.ts wires; the real-wiring test swaps in the real SetupService.
@@ -25,6 +27,7 @@ vi.mock("./setup/service.js", async (original) => {
   return {
     ...actual,
     SetupService: function SetupService(options: SetupServiceOptions) {
+      mocks.setupOptions.push(options);
       if (mocks.realSetup) return new actual.SetupService(options);
       return {
         routes: { "setup.install": mocks.setupRoute },
@@ -36,7 +39,7 @@ vi.mock("./setup/service.js", async (original) => {
   };
 });
 vi.mock("./setup/seat.js", () => ({
-  probeCopilotSeat: async () => ({ kind: "seat-ok", models: ["auto"] }),
+  probeCopilotSeat: mocks.probeSeat,
 }));
 vi.mock("./env/shell-environment.js", async (original) => ({
   ...(await original<typeof import("./env/shell-environment.js")>()),
@@ -170,6 +173,15 @@ it("serializes backend startup and in-flight turns across reloads with correct e
       "third",
     ]);
     expect(mocks.createBackend).toHaveBeenCalledOnce();
+    const setupOptions = mocks.setupOptions.at(-1);
+    expect(setupOptions).toBeDefined();
+    await setupOptions?.probeSeat();
+    const probeOptions = mocks.probeSeat.mock.calls.at(-1)?.[0];
+    expect(probeOptions).toMatchObject({
+      installer: { binDir: expect.any(Function) },
+    });
+    expect(probeOptions).not.toHaveProperty("readToken");
+    expect(mocks.createBackend.mock.calls[0]?.[3]).toBe(probeOptions.installer);
 
     expect(mocks.setupConnect).toHaveBeenCalledTimes(3);
     const toWindow = mocks.setupConnect.mock.calls.at(-1)?.[0] as (message: Message) => void;
