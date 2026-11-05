@@ -4,8 +4,14 @@
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { type Message, PROTOCOL_VERSION, parseMessage } from "@spi-code/contracts";
-import { contextFromEnv, type Exec } from "@spi-code/core";
-import { createToolInstaller } from "@spi-code/tools";
+import { contextFromEnv, type Exec, type Facts } from "@spi-code/core";
+import {
+  createToolInstaller,
+  createWindowsGitInstaller,
+  MacGitInstaller,
+  type ToolInstaller,
+} from "@spi-code/tools";
+import { z } from "zod";
 import { captureLoginShellPath } from "./env/shell-environment.js";
 import { HostExec } from "./exec/host-exec.js";
 import { attachHostConnections, type HostConnection } from "./process/connections.js";
@@ -17,7 +23,10 @@ import {
 import { attachHostPort, type HostPort, type HostRequestQueue } from "./process/port.js";
 import { WatchRoutes, watchFleet } from "./process/routes.js";
 import { probeStore } from "./process/store-probe.js";
+import { probeCopilotSeat } from "./setup/seat.js";
+import { type SetupGit, SetupService } from "./setup/service.js";
 import { openRunStore } from "./store/store.js";
+import { SweepService } from "./sweep/service.js";
 
 const stub = process.argv.includes("--stub-model");
 const [storePath, phase, rowId, reportPath] = process.argv
@@ -38,39 +47,89 @@ const parentPort = (
 ).parentPort;
 if (!parentPort) throw new Error("Host must run inside an Electron utilityProcess");
 const appData = dirname(storePath);
+const watchPath = storePath;
 const ctx = contextFromEnv(process.env);
 let watchDb: DatabaseSync | undefined;
-let hostExec: Promise<HostExec> | undefined;
-function resolveExec(): Promise<HostExec> {
-  hostExec ??= (async () =>
-    new HostExec({
-      appData,
-      capturedPath: (await captureLoginShellPath()).path,
-      installer: await createToolInstaller(appData),
-    }))().catch((error: unknown) => {
-    hostExec = undefined;
-    throw error;
-  });
-  return hostExec;
+function memo<T>(load: () => Promise<T>): () => Promise<T> {
+  let value: Promise<T> | undefined;
+  return () => {
+    value ??= load().catch((error: unknown) => {
+      value = undefined;
+      throw error;
+    });
+    return value;
+  };
 }
+const capturedPath = memo(async () => (await captureLoginShellPath()).path);
+const toolInstaller = memo(() => createToolInstaller(appData));
+const gitInstaller = memo<SetupGit & { binDir?: () => Promise<string | undefined> }>(async () =>
+  process.platform === "win32" ? createWindowsGitInstaller(appData) : new MacGitInstaller(),
+);
+const resolveExec = memo(async () => {
+  const installer = await toolInstaller();
+  const git = process.platform === "win32" ? await gitInstaller() : undefined;
+  // On Windows the managed Git resolves through HostExec like gh and glab, read on every call.
+  const managed: Pick<ToolInstaller, "binDir"> = {
+    binDir: async (tool) => (tool === "git" ? git?.binDir?.() : installer.binDir(tool)),
+  };
+  return new HostExec({
+    appData,
+    capturedPath: await capturedPath(),
+    installer: managed,
+    ...(git ? { managedTools: ["gh", "glab", "git"] } : {}),
+  });
+});
 const exec: Exec = {
   runJSON: async (cmd, args, opts) => (await resolveExec()).runJSON(cmd, args, opts),
   runText: async (cmd, args, opts) => (await resolveExec()).runText(cmd, args, opts),
 };
-// A SweepService for this fleet writes through watch.sweeper() so commits reach the subscriber.
+function openWatchDb(): DatabaseSync {
+  if (!watchDb) {
+    watchDb = new DatabaseSync(watchPath);
+    watchDb.exec("PRAGMA busy_timeout = 5000");
+  }
+  return watchDb;
+}
 const watch = new WatchRoutes({
-  db: () => {
-    if (!watchDb) {
-      watchDb = new DatabaseSync(storePath);
-      watchDb.exec("PRAGMA busy_timeout = 5000");
-    }
-    return watchDb;
-  },
+  db: openWatchDb,
   fleet: watchFleet(ctx),
   ctx,
   exec,
   onError: console.error,
 });
+// Setup gates Watch: the SweepService writes through watch.sweeper() so commits reach the subscriber.
+const setup: SetupService = new SetupService({
+  exec,
+  tools: toolInstaller,
+  git: gitInstaller,
+  probeSeat: async () =>
+    probeCopilotSeat({
+      appDataDir: appData,
+      capturedPath: await capturedPath(),
+      readToken: async () => {
+        const result = await exec.runText("gh", ["auth", "token", "--hostname", "github.com"], {
+          timeoutMs: 5000,
+        });
+        const token = result.ok ? result.data.trim() : "";
+        if (!token) throw new Error("gh did not return a GitHub token.");
+        return token;
+      },
+    }),
+  createSweep: () =>
+    new SweepService({
+      db: openWatchDb(),
+      fleet: watchFleet(ctx),
+      appData,
+      ctx,
+      exec,
+      factsSchema: z.custom<Facts>((value) => typeof value === "object" && value !== null),
+      doctor: () => setup.doctor(),
+      onError: console.error,
+      createSweeper: watch.sweeper(),
+    }),
+  onError: console.error,
+});
+const routes = { ...watch.routes, ...setup.routes };
 let activeBackend: ConversationBackend | undefined;
 let connectedPort: HostPort | undefined;
 let requestId = "startup";
@@ -83,13 +142,17 @@ function sendToWindow(message: Message): void {
   connectedPort.postMessage(parsed.message);
 }
 process.once("SIGTERM", () => {
-  void (activeBackend?.stop() ?? Promise.resolve()).then(
-    () => process.exit(0),
-    () => {
-      console.error("Copilot shutdown failed");
-      process.exit(1);
-    },
-  );
+  void setup
+    .stop()
+    .catch(console.error)
+    .then(() => activeBackend?.stop())
+    .then(
+      () => process.exit(0),
+      () => {
+        console.error("Copilot shutdown failed");
+        process.exit(1);
+      },
+    );
 });
 attachHostConnections(
   parentPort,
@@ -117,8 +180,9 @@ attachHostConnections(
         await handler(message);
       },
       requestQueue,
-      watch.routes,
+      routes,
     );
+    setup.connect(sendToWindow);
   },
   console.error,
 );

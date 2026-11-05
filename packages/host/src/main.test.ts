@@ -8,6 +8,17 @@ import type { ConversationBackend } from "./process/conversation.js";
 
 const mocks = vi.hoisted(() => ({ createBackend: vi.fn(), close: vi.fn() }));
 vi.mock("./store/store.js", () => ({ openRunStore: () => ({ close: mocks.close }) }));
+// Setup reads real tools on connect; this test covers conversation ordering only.
+vi.mock("./setup/service.js", () => ({
+  SetupService: class {
+    routes = {};
+    connect(): void {}
+    doctor() {
+      return { state: "clear", problems: [] };
+    }
+    async stop(): Promise<void> {}
+  },
+}));
 vi.mock("./process/conversation.js", async (original) => ({
   ...(await original<typeof import("./process/conversation.js")>()),
   createConversationBackend: mocks.createBackend,
