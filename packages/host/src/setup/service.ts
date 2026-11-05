@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { createHash } from "node:crypto";
 import {
   type Message,
   PROTOCOL_VERSION,
@@ -17,7 +18,7 @@ import type { z } from "zod";
 import type { HostRoutes, HostSend } from "../process/port.js";
 import type { SeatResult } from "./seat.js";
 import { signinGh, signinGlab } from "./signin.js";
-import { ghStatus, glabStatus } from "./status.js";
+import { GH_HOST, ghStatus, glabStatus } from "./status.js";
 
 type ToolRow = z.infer<typeof SetupToolSchema>;
 type InstallTool = z.infer<typeof SetupInstallSchema>["tool"];
@@ -49,6 +50,8 @@ export interface SetupServiceOptions {
   /** Builds the fleet's SweepService once git and gh are ready. */
   readonly createSweep: () => SetupSweep;
   readonly onError: (error: unknown) => void;
+  /** How often a connected Setup re-reads every tool, so changes outside the app show. */
+  readonly intervalMs?: number;
 }
 
 export const GITLAB_AREAS_REASON =
@@ -57,6 +60,20 @@ const GLAB_TOKEN_NEEDED = "Paste a GitLab token to sign in glab.";
 const SEAT_FAILED = "The Copilot seat check did not complete.";
 const COPILOT_NEEDS_GH = "Copilot signs in through gh. Install gh and sign in first.";
 const WATCH_OFF = "Watch is off:";
+const REFRESH_MS = 60_000;
+const PROBE_TIMEOUT_MS = 10_000;
+
+type Source = "managed" | "path";
+type Found =
+  | { source: Source; version: string | undefined; outdated: boolean }
+  | { pending: ToolRow };
+
+function sourceText(tool: string, source: Source, version: string | undefined): string {
+  const named = version ? `${tool} ${version}` : tool;
+  return source === "managed"
+    ? `Using ${named} installed by SPI Code.`
+    : `Using ${named} from the login-shell PATH.`;
+}
 
 function installRow(tool: InstallTool, readiness: Readiness): ToolRow | undefined {
   switch (readiness.state) {
@@ -104,9 +121,11 @@ export class SetupService {
   private state: SetupState | undefined;
   private refreshing: Promise<SetupState> | undefined;
   private queued: Promise<SetupState> | undefined;
-  private seat: { gh: ToolRow["state"]; row: ToolRow } | undefined;
-  private sweep: SetupSweep | undefined;
-  private readonly signingIn = new Set<SigninRequest["tool"]>();
+  private seat: { key: string; row: ToolRow } | undefined;
+  private sweep: { instance: SetupSweep; failed: boolean } | undefined;
+  private timer: ReturnType<typeof setInterval> | undefined;
+  // copilot and gh share one gh auth login flow.
+  private readonly signingIn = new Set<"gh" | "glab">();
   private stopped = false;
   private sequence = 0;
 
@@ -128,11 +147,21 @@ export class SetupService {
     return this.state;
   }
 
-  /** Replaces the window sender and sends it the current state, reading it first if needed. */
+  /**
+   * Replaces the window sender, sends it the last state at once, and re-reads every tool so a
+   * change made outside the app (a sign-out, an account switch) reaches the window and the gate.
+   */
   connect(send: HostSend): void {
     this.sender = send;
     if (this.state) this.post(this.state);
-    else void this.refresh().catch(this.options.onError);
+    void this.refresh().catch(this.options.onError);
+    if (!this.timer && !this.stopped) {
+      this.timer = setInterval(
+        () => void this.refresh().catch(this.options.onError),
+        this.options.intervalMs ?? REFRESH_MS,
+      );
+      this.timer.unref?.();
+    }
   }
 
   /** Doctor for the sweep: partial while glab cannot read GitLab. */
@@ -175,9 +204,11 @@ export class SetupService {
   /** Stops the sweep; await before closing its store. */
   async stop(): Promise<void> {
     this.stopped = true;
+    clearInterval(this.timer);
+    this.timer = undefined;
     const sweep = this.sweep;
     this.sweep = undefined;
-    await sweep?.stop();
+    await sweep?.instance.stop();
   }
 
   private async install(tool: InstallTool): Promise<void> {
@@ -198,8 +229,9 @@ export class SetupService {
 
   private async signin(request: SigninRequest): Promise<void> {
     const tool = request.tool;
-    if (this.signingIn.has(tool)) return;
-    this.signingIn.add(tool);
+    const flow = tool === "glab" ? "glab" : "gh";
+    if (this.signingIn.has(flow)) return;
+    this.signingIn.add(flow);
     const report = (progress: SetupSigninProgress) =>
       this.emit(tool === "copilot" ? { ...progress, tool } : progress);
     try {
@@ -214,7 +246,7 @@ export class SetupService {
         this.seat = undefined;
       }
     } finally {
-      this.signingIn.delete(tool);
+      this.signingIn.delete(flow);
     }
     await this.refresh();
   }
@@ -240,69 +272,125 @@ export class SetupService {
     });
   }
 
-  private async gitRow(): Promise<ToolRow> {
+  /**
+   * Finds a tool the way HostExec runs it: the managed copy first, then the captured login-shell
+   * PATH. A tool already on PATH serves Watch without a managed install.
+   */
+  private async find(tool: "git" | "gh" | "glab"): Promise<Found> {
     let readiness: Readiness;
     try {
-      readiness = await (await this.options.git()).readiness();
+      readiness =
+        tool === "git"
+          ? await (await this.options.git()).readiness()
+          : await (await this.options.tools()).readiness(tool);
     } catch (error) {
       readiness = { state: "failed", error: errorText(error) };
     }
-    const pending = installRow("git", readiness);
-    if (pending) return pending;
-    const version = "version" in readiness ? readiness.version : undefined;
-    return readiness.state === "needs-update"
-      ? { tool: "git", state: "needs-update", action: "install", ...(version ? { version } : {}) }
-      : { tool: "git", state: "ready", action: null, ...(version ? { version } : {}) };
+    if (readiness.state === "ready" || readiness.state === "needs-update") {
+      return {
+        source: "managed",
+        version: readiness.version,
+        outdated: readiness.state === "needs-update",
+      };
+    }
+    const pending = installRow(tool, readiness);
+    if (readiness.state === "installing" && pending) return { pending };
+    const probe = await this.options.exec.runText(tool, ["--version"], {
+      timeoutMs: PROBE_TIMEOUT_MS,
+    });
+    if (probe.ok) {
+      const version = /(\d+\.\d+\.\d+)/.exec(probe.data)?.[1];
+      return { source: "path", version, outdated: false };
+    }
+    return { pending: pending ?? { tool, state: "missing", action: "install" } };
+  }
+
+  private async gitRow(): Promise<ToolRow> {
+    const found = await this.find("git");
+    if ("pending" in found) return found.pending;
+    const { source, version, outdated } = found;
+    const reason = sourceText("git", source, version);
+    return outdated
+      ? {
+          tool: "git",
+          state: "needs-update",
+          action: "install",
+          reason,
+          ...(version ? { version } : {}),
+        }
+      : { tool: "git", state: "ready", action: null, reason, ...(version ? { version } : {}) };
   }
 
   private async toolRow(tool: "gh" | "glab"): Promise<ToolRow> {
-    let readiness: Readiness;
-    try {
-      readiness = await (await this.options.tools()).readiness(tool);
-    } catch (error) {
-      readiness = { state: "failed", error: errorText(error) };
-    }
-    const pending = installRow(tool, readiness);
-    if (pending) return pending;
-    const version = "version" in readiness ? readiness.version : undefined;
+    const found = await this.find(tool);
+    if ("pending" in found) return found.pending;
+    const { source, version, outdated } = found;
     const status = await (tool === "gh" ? ghStatus : glabStatus)(this.options.exec);
-    const row: ToolRow = { tool, ...status, ...(version ? { version } : {}) };
+    const where = sourceText(tool, source, version);
+    const row: ToolRow = {
+      tool,
+      ...status,
+      reason: status.reason ? `${status.reason} ${where}` : where,
+      ...(version ? { version } : {}),
+    };
     // An outdated gh still serves Watch, so needs-update shows only once it is signed in.
-    if (readiness.state === "needs-update" && status.state === "ready") {
+    if (outdated && status.state === "ready") {
       return { ...row, state: "needs-update", action: "install" };
     }
     return row;
   }
 
-  /** Probes the seat only when gh can supply a token, and again only once gh changes. */
+  /** Probes the seat only when gh can supply a token, and again once gh or its credential changes. */
   private async copilotRow(gh: ToolRow): Promise<ToolRow> {
     const usable = ["ready", "needs-update", "scope-missing", "classic-token"].includes(gh.state);
     if (!usable) {
       this.seat = undefined;
       return { tool: "copilot", state: "signed-out", action: "signin", reason: COPILOT_NEEDS_GH };
     }
-    if (this.seat?.gh === gh.state) return this.seat.row;
+    const key = `${gh.state}:${await this.credential()}`;
+    if (this.seat?.key === key) return this.seat.row;
     let row: ToolRow;
     try {
       row = seatRow(await this.options.probeSeat());
     } catch {
       row = { tool: "copilot", state: "failed", action: "attention", reason: SEAT_FAILED };
     }
-    this.seat = { gh: gh.state, row };
+    this.seat = { key, row };
     return row;
+  }
+
+  /** A fingerprint of gh's active credential, so an account switch re-probes the seat. */
+  private async credential(): Promise<string> {
+    const result = await this.options.exec.runText("gh", ["auth", "token", "--hostname", GH_HOST], {
+      timeoutMs: PROBE_TIMEOUT_MS,
+    });
+    const token = result.ok ? result.data.trim() : "";
+    return token ? createHash("sha256").update(token).digest("hex") : "none";
   }
 
   private async gate(ready: boolean): Promise<void> {
     if (this.stopped) return;
-    if (ready && !this.sweep) {
-      const sweep = this.options.createSweep();
-      this.sweep = sweep;
-      sweep.start().catch(this.options.onError);
-    } else if (!ready && this.sweep) {
+    if (ready) {
+      if (!this.sweep) {
+        this.sweep = { instance: this.options.createSweep(), failed: false };
+        this.start(this.sweep);
+      } else if (this.sweep.failed) {
+        // A start that rejected may never have armed its timers, so try it again.
+        this.sweep.failed = false;
+        this.start(this.sweep);
+      }
+    } else if (this.sweep) {
       const sweep = this.sweep;
       this.sweep = undefined;
-      await sweep.stop();
+      await sweep.instance.stop();
     }
+  }
+
+  private start(sweep: { instance: SetupSweep; failed: boolean }): void {
+    sweep.instance.start().catch((error: unknown) => {
+      sweep.failed = true;
+      this.options.onError(error);
+    });
   }
 
   private post(state: SetupState): void {

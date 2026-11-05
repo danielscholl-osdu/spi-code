@@ -1,24 +1,58 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { type Message, PROTOCOL_VERSION } from "@spi-code/contracts";
 import { expect, it, vi } from "vitest";
 import type { HostConnection } from "./process/connections.js";
 import type { ConversationBackend } from "./process/conversation.js";
+import type { SetupServiceOptions } from "./setup/service.js";
 
-const mocks = vi.hoisted(() => ({ createBackend: vi.fn(), close: vi.fn() }));
-vi.mock("./store/store.js", () => ({ openRunStore: () => ({ close: mocks.close }) }));
-// Setup reads real tools on connect; this test covers conversation ordering only.
-vi.mock("./setup/service.js", () => ({
-  SetupService: class {
-    routes = {};
-    connect(): void {}
-    doctor() {
-      return { state: "clear", problems: [] };
-    }
-    async stop(): Promise<void> {}
-  },
+const mocks = vi.hoisted(() => ({
+  createBackend: vi.fn(),
+  close: vi.fn(),
+  realSetup: false,
+  capturedPath: "/usr/bin:/bin",
+  setupConnect: vi.fn(),
+  setupRoute: vi.fn(),
 }));
+vi.mock("./store/store.js", () => ({ openRunStore: () => ({ close: mocks.close }) }));
+// The stub records what main.ts wires; the real-wiring test swaps in the real SetupService.
+vi.mock("./setup/service.js", async (original) => {
+  const actual = await original<typeof import("./setup/service.js")>();
+  return {
+    ...actual,
+    SetupService: function SetupService(options: SetupServiceOptions) {
+      if (mocks.realSetup) return new actual.SetupService(options);
+      return {
+        routes: { "setup.install": mocks.setupRoute },
+        connect: mocks.setupConnect,
+        doctor: () => ({ state: "clear", problems: [] }),
+        stop: async () => {},
+      };
+    },
+  };
+});
+vi.mock("./setup/seat.js", () => ({
+  probeCopilotSeat: async () => ({ kind: "seat-ok", models: ["auto"] }),
+}));
+vi.mock("./env/shell-environment.js", async (original) => ({
+  ...(await original<typeof import("./env/shell-environment.js")>()),
+  captureLoginShellPath: async () => ({ path: mocks.capturedPath, captured: true, failures: [] }),
+}));
+vi.mock("@spi-code/tools", async (original) => {
+  const actual = await original<typeof import("@spi-code/tools")>();
+  return {
+    ...actual,
+    createToolInstaller: (appData: string) =>
+      actual.createToolInstaller(
+        appData,
+        process.platform === "win32" ? "win32-x64" : "darwin-arm64",
+      ),
+  };
+});
 vi.mock("./process/conversation.js", async (original) => ({
   ...(await original<typeof import("./process/conversation.js")>()),
   createConversationBackend: mocks.createBackend,
@@ -85,6 +119,9 @@ it("serializes backend startup and in-flight turns across reloads with correct e
       },
       start() {},
       close() {},
+      send(id: string, type: string, payload: unknown) {
+        receive({ data: { version: PROTOCOL_VERSION, id, kind: "request", type, payload } });
+      },
       request(id: string) {
         receive({
           data: {
@@ -133,6 +170,24 @@ it("serializes backend startup and in-flight turns across reloads with correct e
       "third",
     ]);
     expect(mocks.createBackend).toHaveBeenCalledOnce();
+
+    expect(mocks.setupConnect).toHaveBeenCalledTimes(3);
+    const toWindow = mocks.setupConnect.mock.calls.at(-1)?.[0] as (message: Message) => void;
+    toWindow({
+      version: PROTOCOL_VERSION,
+      id: "setup-probe",
+      kind: "event",
+      type: "tool.call",
+      payload: { callId: "setup", name: "setup", outcome: "completed", arguments: {} },
+    });
+    expect(sent.at(-1)?.id).toBe("setup-probe");
+    duringTurn.send("install", "setup.install", { tool: "gh" });
+    await vi.waitFor(() =>
+      expect(mocks.setupRoute).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "install", type: "setup.install" }),
+        expect.any(Function),
+      ),
+    );
   } finally {
     blocked.resolve();
     startup.resolve(backend);
@@ -142,3 +197,114 @@ it("serializes backend startup and in-flight turns across reloads with correct e
     once.mockRestore();
   }
 });
+
+const GH_FIXTURE = `#!/bin/sh
+here="$(cd "$(dirname "$0")" && pwd)"
+mark="$here/../../signed-in"
+case "$1 $2" in
+  "auth status")
+    if [ -f "$mark" ]; then
+      printf 'github.com\\n  Logged in to github.com account fixture (keyring)\\n  - Active account: true\\n  - Token: gho_****\\n  - Token scopes: '"'"'repo'"'"', '"'"'workflow'"'"'\\n' >&2
+      exit 0
+    fi
+    printf 'You are not logged into any GitHub hosts.\\n' >&2
+    exit 1;;
+  "auth token")
+    [ -f "$mark" ] && echo gho_fixture && exit 0
+    exit 1;;
+  "--version ")
+    echo "gh version 2.74.0 (2025-06-01)"
+    exit 0;;
+esac
+echo "spi-fixture-gh $*"
+`;
+
+it.skipIf(process.platform === "win32")(
+  "gates the real SweepService on a login-shell gh and stops it after an outside sign-out",
+  async () => {
+    const actualStore =
+      await vi.importActual<typeof import("./store/store.js")>("./store/store.js");
+    const directory = mkdtempSync(join(tmpdir(), "spi-main-"));
+    const storePath = join(directory, "app", "spi.sqlite");
+    mkdirSync(join(directory, "app"));
+    actualStore.openRunStore(storePath).close();
+    const shell = join(directory, "shell", "bin");
+    mkdirSync(shell, { recursive: true });
+    writeFileSync(join(shell, "gh"), GH_FIXTURE);
+    chmodSync(join(shell, "gh"), 0o755);
+    writeFileSync(join(directory, "signed-in"), "");
+    mocks.capturedPath = `${shell}:/usr/bin:/bin`;
+    mocks.realSetup = true;
+    vi.resetModules();
+    const { SweepService } = await import("./sweep/service.js");
+    const start = vi.spyOn(SweepService.prototype, "start").mockResolvedValue(true);
+    const stop = vi.spyOn(SweepService.prototype, "stop").mockResolvedValue();
+    let connect: (event: HostConnection) => void = () => {};
+    const originalParent = Object.getOwnPropertyDescriptor(process, "parentPort");
+    const originalArgs = process.argv;
+    const once = vi.spyOn(process, "once").mockReturnValue(process);
+    const exit = vi.spyOn(process, "exit").mockImplementation((() => undefined) as never);
+    Object.defineProperty(process, "parentPort", {
+      value: { on: (_event: string, listener: typeof connect) => (connect = listener) },
+      configurable: true,
+    });
+    process.argv = [originalArgs[0] ?? "node", "host", storePath];
+    const port = () => {
+      const sent: Message[] = [];
+      return {
+        sent,
+        on() {},
+        postMessage: (message: Message) => sent.push(message),
+        start() {},
+        close() {},
+      };
+    };
+    const ping = {
+      version: PROTOCOL_VERSION,
+      id: "connect",
+      kind: "request",
+      type: "ping",
+      payload: {},
+    };
+    const setupStates = (sent: Message[]) =>
+      sent.flatMap((message) => (message.type === "setup.state" ? [message.payload] : []));
+    try {
+      await import("./main.js");
+      const first = port();
+      connect({ data: ping, ports: [first] });
+      await vi.waitFor(() => expect(setupStates(first.sent).at(-1)?.watchReady).toBe(true), {
+        timeout: 10_000,
+      });
+      const gh = setupStates(first.sent)
+        .at(-1)
+        ?.tools.find((row) => row.tool === "gh");
+      expect(gh?.reason).toContain("Using gh 2.74.0 from the login-shell PATH.");
+      await vi.waitFor(() => expect(start).toHaveBeenCalledOnce());
+      expect(stop).not.toHaveBeenCalled();
+
+      rmSync(join(directory, "signed-in"));
+      const second = port();
+      connect({ data: ping, ports: [second] });
+      await vi.waitFor(() => expect(setupStates(second.sent).at(-1)?.watchReady).toBe(false), {
+        timeout: 10_000,
+      });
+      await vi.waitFor(() => expect(stop).toHaveBeenCalled());
+    } finally {
+      const handler = (event: string) =>
+        once.mock.calls.find(([name]) => name === event)?.[1] as (() => void) | undefined;
+      handler("SIGTERM")?.();
+      await vi.waitFor(() => expect(exit).toHaveBeenCalled());
+      handler("exit")?.();
+      mocks.realSetup = false;
+      process.argv = originalArgs;
+      if (originalParent) Object.defineProperty(process, "parentPort", originalParent);
+      else Reflect.deleteProperty(process, "parentPort");
+      once.mockRestore();
+      exit.mockRestore();
+      start.mockRestore();
+      stop.mockRestore();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  },
+  30_000,
+);

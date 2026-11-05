@@ -149,14 +149,33 @@ function request(
   } as Message;
 }
 
-function hostExec(tools: ToolInstaller): HostExec {
+function hostExec(tools: ToolInstaller, capturedPath = "/usr/bin:/bin"): HostExec {
   return new HostExec({
     appData,
-    capturedPath: "/usr/bin:/bin",
+    capturedPath,
     installer: tools,
     env: { HOME: directory, PATH: "/usr/bin:/bin" },
   });
 }
+
+/** An Exec that answers each call from `answer`, given the command and its arguments. */
+function fakeExec(answer: (cmd: string, args: string[]) => string | undefined): Exec {
+  return {
+    runText: async (cmd, args) => {
+      const data = answer(cmd, args);
+      return data === undefined
+        ? { ok: false, error: "absent", code: null }
+        : { ok: true, data, exitCode: 0 };
+    },
+    runJSON: async () => ({ ok: false, error: "unused", code: null }),
+  };
+}
+
+const managedGh = {
+  readiness: async (tool: string) =>
+    tool === "gh" ? { state: "ready" as const, version: "2.74.0" } : { state: "missing" as const },
+  install: async () => {},
+};
 
 it.skipIf(process.platform === "win32")(
   "installs gh from the pinned download and runs the managed binary through HostExec",
@@ -262,11 +281,19 @@ it.skipIf(process.platform === "win32")(
       await service.refresh();
       expect(created).toHaveBeenCalledOnce();
 
+      // Signed out outside the app: the next window connect re-reads gh and stops the sweep.
       rmSync(join(appData, "tools", "gh", "signed-in"));
       const stop = vi.spyOn(sweep as SweepService, "stop");
-      await service.refresh();
-      expect(states().at(-1)?.watchReady).toBe(false);
-      expect(stop).toHaveBeenCalledOnce();
+      const reloaded: Message[] = [];
+      service.connect((message) => reloaded.push(message));
+      await vi.waitFor(() => expect(stop).toHaveBeenCalledOnce());
+      expect(reloaded.at(-1)).toMatchObject({
+        type: "setup.state",
+        payload: {
+          watchReady: false,
+          disabledReason: expect.stringContaining("gh is not signed in"),
+        },
+      });
     } finally {
       await service.stop();
       db.close();
@@ -311,10 +338,7 @@ it("reports the GitLab areas disabled while glab is missing, without blocking Wa
 });
 
 it("sends setup.state to each fresh connection", async () => {
-  const exec: Exec = {
-    runText: async () => ({ ok: true, data: GH_STATUS_OK, exitCode: 0 }),
-    runJSON: async () => ({ ok: false, error: "unused", code: null }),
-  };
+  const exec = fakeExec((_cmd, args) => (args[0] === "--version" ? undefined : GH_STATUS_OK));
   const tools = {
     readiness: async () => ({ state: "missing" as const }),
     install: async () => {},
@@ -327,4 +351,120 @@ it("sends setup.state to each fresh connection", async () => {
   service.connect((message) => reloaded.push(message));
   expect(reloaded.map(({ type }) => type)).toEqual(["setup.state"]);
   expect(reloaded[0]?.payload).toEqual(states()[0]);
+});
+
+it.skipIf(process.platform === "win32")(
+  "uses a signed-in gh from the login-shell PATH when no managed copy exists",
+  async () => {
+    const shell = join(directory, "shell", "bin");
+    mkdirSync(shell, { recursive: true });
+    writeFileSync(join(shell, "gh"), GH_FIXTURE);
+    chmodSync(join(shell, "gh"), 0o755);
+    writeFileSync(join(directory, "signed-in"), "");
+    const tools = installer();
+    const created = vi.fn();
+    const { service, states } = setup({
+      exec: hostExec(tools, `${shell}:/usr/bin:/bin`),
+      tools: async () => tools,
+      createSweep: () => {
+        created();
+        return { start: async () => true, stop: async () => {} };
+      },
+    });
+    await service.refresh();
+
+    expect(await tools.readiness("gh")).toEqual({ state: "missing" });
+    expect(row(states().at(-1), "gh")).toMatchObject({
+      state: "ready",
+      action: null,
+      scopes: ["repo", "workflow"],
+      reason: "Using gh from the login-shell PATH.",
+    });
+    expect(states().at(-1)).toMatchObject({ watchReady: true, disabledReason: null });
+    expect(created).toHaveBeenCalledOnce();
+  },
+);
+
+it("re-reads on its interval, stops the sweep after an outside sign-out, and re-probes the seat on an account switch", async () => {
+  let signedIn = true;
+  let token = "gho_first";
+  const exec = fakeExec((cmd, args) => {
+    if (cmd === "gh" && args[1] === "status") return signedIn ? GH_STATUS_OK : undefined;
+    if (cmd === "gh" && args[1] === "token") return signedIn ? token : undefined;
+    return undefined;
+  });
+  const stop = vi.fn(async () => {});
+  const probeSeat = vi.fn(async () => ({ kind: "seat-ok" as const, models: ["auto"] }));
+  const { states } = setup({
+    exec,
+    tools: async () => managedGh,
+    probeSeat,
+    intervalMs: 20,
+    createSweep: () => ({ start: async () => true, stop }),
+  });
+  await vi.waitFor(() => expect(states().at(-1)?.watchReady).toBe(true));
+  expect(probeSeat).toHaveBeenCalledOnce();
+
+  token = "gho_second";
+  await vi.waitFor(() => expect(probeSeat).toHaveBeenCalledTimes(2));
+
+  signedIn = false;
+  await vi.waitFor(() => expect(stop).toHaveBeenCalledOnce());
+  expect(states().at(-1)).toMatchObject({ watchReady: false });
+});
+
+it("starts a sweep again at the next ready read after its start rejected", async () => {
+  let signedIn = false;
+  const errors: unknown[] = [];
+  const start = vi
+    .fn<() => Promise<boolean>>()
+    .mockRejectedValueOnce(new Error("prune failed"))
+    .mockResolvedValue(true);
+  const createSweep = vi.fn(() => ({ start, stop: async () => {} }));
+  const { service, states } = setup({
+    exec: fakeExec((cmd) => (cmd === "gh" && signedIn ? GH_STATUS_OK : undefined)),
+    tools: async () => managedGh,
+    createSweep,
+    onError: (error) => errors.push(error),
+  });
+  await vi.waitFor(() => expect(states()).toHaveLength(1));
+  signedIn = true;
+  await service.refresh();
+  await vi.waitFor(() => expect(errors).toHaveLength(1));
+  expect(start).toHaveBeenCalledOnce();
+
+  await service.refresh();
+  expect(createSweep).toHaveBeenCalledOnce();
+  expect(start).toHaveBeenCalledTimes(2);
+  await service.refresh();
+  expect(start).toHaveBeenCalledTimes(2);
+});
+
+it("runs one gh sign-in flow when copilot and gh ask together", async () => {
+  let release: () => void = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const logins = vi.fn();
+  const exec: Exec = {
+    runText: async (cmd, args) => {
+      if (cmd === "gh" && args[1] === "login") {
+        logins();
+        await held;
+        return { ok: true, data: "", exitCode: 0 };
+      }
+      return { ok: false, error: "absent", code: null };
+    },
+    runJSON: async () => ({ ok: false, error: "unused", code: null }),
+  };
+  const { service } = setup({ exec, tools: async () => managedGh });
+  const copilot = service.routes["setup.signin"]?.(
+    request("setup.signin", { tool: "copilot" }),
+    () => {},
+  );
+  const gh = service.routes["setup.signin"]?.(request("setup.signin", { tool: "gh" }), () => {});
+  await gh;
+  release();
+  await copilot;
+  expect(logins).toHaveBeenCalledOnce();
 });
