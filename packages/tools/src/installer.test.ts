@@ -166,3 +166,14 @@ test("packaged manifest pins both Watch tools on both platforms and rejects unsa
   expect(() => parseManifest({ tools: [pin, pin] })).toThrow();
   expect(() => new ToolInstaller(home, manifest(), "linux-x64")).toThrow("Unsupported");
 });
+
+test("a torn or foreign current pointer reads as missing instead of throwing", async () => {
+  const appData = join(home, "torn");
+  const installer = new ToolInstaller(appData, manifest(), "win32-x64");
+  await mkdir(join(appData, "tools", "gh"), { recursive: true });
+  for (const pointer of ["", "../../outside"]) {
+    await writeFile(join(appData, "tools", "gh", "current"), pointer);
+    expect(await installer.readiness("gh")).toEqual({ state: "missing" });
+    expect(await installer.binDir("gh")).toBeUndefined();
+  }
+});

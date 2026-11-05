@@ -8,12 +8,12 @@ import {
   access,
   mkdir,
   mkdtemp,
+  open,
   readFile,
   readlink,
   rename,
   rm,
   symlink,
-  writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
 import { Readable, Transform } from "node:stream";
@@ -23,6 +23,11 @@ import { promisify } from "node:util";
 import { isVersion, parseManifest, type ToolPin, type ToolPlatform } from "./manifest.js";
 
 const exec = promisify(execFile);
+// GNU tar from Git or MSYS can come first on a Windows PATH and cannot read C:\ paths or zips.
+const tar =
+  process.platform === "win32"
+    ? join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe")
+    : "tar";
 export type Readiness =
   | { state: "missing" }
   | { state: "installing" }
@@ -31,7 +36,7 @@ export type Readiness =
 export type Extractor = (archive: string, binary: string, signal?: AbortSignal) => Promise<Buffer>;
 
 export const extractBinary: Extractor = async (archive, binary, signal) => {
-  const { stdout } = await exec("tar", ["-tf", archive], { signal });
+  const { stdout } = await exec(tar, ["-tf", archive], { signal });
   const entries = stdout
     .split(/\r?\n/)
     .filter(
@@ -42,7 +47,7 @@ export const extractBinary: Extractor = async (archive, binary, signal) => {
     throw new Error(`Archive must contain exactly one ${binary} executable`);
   }
   // Extract only the executable to stdout: archive paths never become filesystem writes.
-  const result = await exec("tar", ["-xOf", archive, entry], {
+  const result = await exec(tar, ["-xOf", archive, entry], {
     signal,
     encoding: "buffer",
     maxBuffer: 128 * 1024 * 1024,
@@ -53,6 +58,17 @@ export const extractBinary: Extractor = async (archive, binary, signal) => {
 
 function missing(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+
+// Flush before the caller renames, so a power loss cannot leave an empty file in place.
+async function writeDurable(path: string, data: string | Buffer, mode?: number): Promise<void> {
+  const handle = await open(path, "w", mode);
+  try {
+    await handle.writeFile(data);
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
 }
 
 export async function createToolInstaller(
@@ -100,7 +116,8 @@ export class ToolInstaller {
         this.platform === "win32-x64"
           ? (await readFile(current, "utf8")).trim()
           : await readlink(current);
-      if (!isVersion(version)) throw new Error(`Invalid current pointer for ${tool}`);
+      // A torn or foreign pointer reads as missing, so Setup offers Install and reinstall repairs it.
+      if (!isVersion(version)) return undefined;
       await access(join(this.root(tool), version, "bin", this.binary(tool)));
       return version;
     } catch (error) {
@@ -181,7 +198,7 @@ export class ToolInstaller {
       const payload = join(staging, "payload");
       await mkdir(join(payload, "bin"), { recursive: true });
       const binary = await this.extract(archive, this.binary(tool), signal);
-      await writeFile(join(payload, "bin", this.binary(tool)), binary, { mode: 0o755 });
+      await writeDurable(join(payload, "bin", this.binary(tool)), binary, 0o755);
       signal?.throwIfAborted();
       const root = this.root(tool);
       await mkdir(root, { recursive: true });
@@ -202,7 +219,7 @@ export class ToolInstaller {
           throw new Error(`Installed ${tool} ${pin.version} differs from verified archive`);
       }
       pointer = join(root, `.current-${staging.split(/[\\/]/).pop()}`);
-      if (this.platform === "win32-x64") await writeFile(pointer, pin.version);
+      if (this.platform === "win32-x64") await writeDurable(pointer, pin.version);
       else await symlink(pin.version, pointer);
       signal?.throwIfAborted();
       await rename(pointer, join(root, "current"));
