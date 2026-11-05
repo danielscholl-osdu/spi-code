@@ -121,20 +121,60 @@ it("parses glab status and the token scopes", async () => {
   expect(SetupToolSchema.safeParse({ tool: "glab", ...noApi }).success).toBe(true);
 });
 
-it("treats a failed scope probe as signed out and an empty scope record as ready", async () => {
+it("never treats an unverifiable scope probe as ready", async () => {
+  for (const pat of [
+    { stdout: '{"message":"404 Not Found"}', exit: 1 },
+    { stdout: "{}" },
+    { stdout: "<html>proxy login</html>" },
+    { error: "spawn glab ENOENT" },
+  ]) {
+    const status = await glabStatus(
+      fakeExec(glabReplies({ stdout: fixture("glab-status-ok.txt") }, pat)),
+    );
+    expect(status).toMatchObject({ state: "signed-out", action: "signin" });
+  }
+});
+
+it("blanks stray GitLab tokens on every glab status call", async () => {
+  const envs: (Record<string, string> | undefined)[] = [];
+  const base = fakeExec(
+    glabReplies(
+      { stdout: fixture("glab-status-ok.txt") },
+      { stdout: fixture("glab-pat-self.json") },
+    ),
+  );
+  const exec: Exec = {
+    ...base,
+    runText: (cmd, args, opts) => {
+      envs.push(opts?.env);
+      return base.runText(cmd, args, opts);
+    },
+  };
+  await glabStatus(exec);
+  expect(envs).toHaveLength(2);
+  for (const env of envs) {
+    expect(env).toEqual({ GITLAB_TOKEN: "", GITLAB_ACCESS_TOKEN: "", OAUTH_TOKEN: "" });
+  }
+});
+
+it("says which glab scopes are needed", async () => {
   const status = await glabStatus(
     fakeExec(
       glabReplies(
         { stdout: fixture("glab-status-ok.txt") },
-        { stdout: '{"message":"404 Not Found"}', exit: 1 },
+        { stdout: fixture("glab-pat-self-no-api.json") },
       ),
     ),
   );
-  expect(status.state).toBe("signed-out");
-  const oauth = await glabStatus(
-    fakeExec(glabReplies({ stdout: fixture("glab-status-ok.txt") }, { stdout: "{}" })),
-  );
-  expect(oauth).toEqual({ state: "ready", action: null });
+  expect(status.reason).toMatch(/needs the api or read_api scope/);
+});
+
+it("flags a classic ghp_ token only on the active gh account", async () => {
+  const inactive = fixture("gh-status-inactive-classic.txt");
+  expect(isClassicGhToken(inactive)).toBe(false);
+  const status = await ghStatus(gh("gh-status-inactive-classic.txt"));
+  expect(status).toMatchObject({ state: "ready", action: null });
+  expect(status.scopes).toContain("workflow");
 });
 
 it("reports glab as signed out when unauthenticated or its token is rejected", async () => {

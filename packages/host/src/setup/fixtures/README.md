@@ -7,3 +7,7 @@ Recorded tool output.
   classic-token variants edit its scopes and token prefix.
 - `glab-status-ok.txt` and `glab-pat-self*.json` follow the lines glab prints and GitLab's
   personal access token API; no valid token was available to record them.
+- `gh-login-device-fallback.txt` is synthesized from gh source `internal/authflow/flow.go:67-70`
+  (the line gh prints when the clipboard is disabled or the copy fails).
+- `gh-status-inactive-classic.txt` is synthesized: two accounts, a classic token only on the
+  inactive one, in the layout of `gh-status-ok.txt`.
