@@ -3,7 +3,7 @@
   "github": {
     "acme/widgets": "public",
     "acme/gadgets": "public",
-    "acme/secret-plans": "private"
+    "acme/hidden-plans": "private"
   },
   "gitlab": {
     "osdu/platform/system/widgets": "public"

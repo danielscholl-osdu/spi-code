@@ -72,14 +72,17 @@ describe("audit-exec-log", () => {
   test("fails a log that leaks an email address and a private repository", () => {
     expect(auditSweep(join(AUDIT, "leaky")).findings).toEqual([
       "exec.jsonl:4 stdout: email address (1)",
-      "github acme/secret-plans: private",
+      "github acme/hidden-plans: private",
     ]);
   });
 
   test("fails a copy of a clean log with a token planted in it", () => {
     const dir = copyOfClean();
     plant(dir, 0, "Token: <redacted>", `Token: ${"ghp_"}${"x".repeat(36)}`);
-    expect(auditSweep(dir).findings).toEqual(["exec.jsonl:1 stdout: GitHub token"]);
+    expect(auditSweep(dir).findings).toEqual([
+      "exec.jsonl:1 stdout: GitHub token",
+      "exec.jsonl:1 stdout: credential assignment",
+    ]);
   });
 
   test("fails an unredacted authorization header and a repository never checked", () => {
@@ -410,14 +413,14 @@ describe("audit of shapes, decoded strings and new credentials", () => {
 
   test("fails a private GitLab group", () => {
     const dir = copyOfClean();
-    setVisibility(dir, "gitlabGroups", "osdu/secret", "private");
+    setVisibility(dir, "gitlabGroups", "osdu/hidden", "private");
     append(dir, {
       cmd: "glab",
-      args: ["api", ...GITLAB_HOST, "groups/osdu%2Fsecret/issues"],
+      args: ["api", ...GITLAB_HOST, "groups/osdu%2Fhidden/issues"],
       ...ok,
       stdout: "[]",
     });
-    expect(auditSweep(dir).findings).toEqual(["gitlab group osdu/secret: private"]);
+    expect(auditSweep(dir).findings).toEqual(["gitlab group osdu/hidden: private"]);
   });
 
   test("fails credentials and emails hidden behind JSON escapes", () => {
@@ -463,23 +466,23 @@ describe("audit of shapes, decoded strings and new credentials", () => {
       ...ok,
       stdout: JSON.stringify([
         { full_name: "acme/vault" },
-        { body: "Upstream: https://community.opengroup.org/osdu/secret/thing/-/issues/1" },
+        { body: "Upstream: https://community.opengroup.org/osdu/hidden/thing/-/issues/1" },
       ]),
     });
     setVisibility(dir, "github", "acme/vault", "private");
-    setVisibility(dir, "gitlab", "osdu/secret/thing", "private");
+    setVisibility(dir, "gitlab", "osdu/hidden/thing", "private");
     expect(auditSweep(dir).findings).toEqual([]);
     expect(sweepReferences(dir).github.has("acme/vault")).toBe(false);
     append(dir, { cmd: "gh", args: ["api", "repos/acme/vault/forks"], ...ok, stdout: "[]" });
     append(dir, {
       cmd: "glab",
-      args: ["api", ...GITLAB_HOST, "projects/osdu%2Fsecret%2Fthing/issues"],
+      args: ["api", ...GITLAB_HOST, "projects/osdu%2Fhidden%2Fthing/issues"],
       ...ok,
       stdout: "[]",
     });
     expect(auditSweep(dir).findings).toEqual([
       "github acme/vault: private",
-      "gitlab osdu/secret/thing: private",
+      "gitlab osdu/hidden/thing: private",
     ]);
   });
 
@@ -507,36 +510,75 @@ describe("audit of shapes, decoded strings and new credentials", () => {
     expect(auditSweep(dir).findings).toEqual([`exec.jsonl:1 stdout: ${name}`]);
   });
 
+  // Any credential-named key assigned any non-empty value is a finding: no value is exempt for
+  // its shape. The first rows are the round-4 recheck's accepted probes; the rest were passing
+  // controls (code, placeholders, live-sweep values) until the exemptions were removed.
   test.each([
+    "PASSWORD=a.password",
+    "PASSWORD=Hunt.er2Key",
+    "PASSWORD=Y2xpZW50.c2VjcmV0.API_KEY",
+    "export PASSWORD=a.password",
+    "password = s3cr3tValue;",
+    "password = hunter2;",
+    "password: s3cr3tValue",
+    String.raw`{\"password\":\"s3cr3tValue\"}`,
+    "{'password': 's3cr3tValue'}",
+    "KEY=x.y.API_KEY",
+    "pwd=s3cr3t",
+    "auth: s3cr3t",
+    "credential=s3cr3t",
+    "accessToken: s3cr3t",
+    "Client-Secret = s3cr3t",
+    "keys: s3cr3t",
+    "password=a",
     "password = getPassword()",
     // biome-ignore lint/suspicious/noTemplateCurlyInString: a shell placeholder, not a template
     "password=${PASSWORD}",
-    "secret=<redacted>",
     "String password = userPassword;",
-    // A diff nested in JSON: its escaped newlines and brackets still end the value.
     String.raw`-db.password=TODO\\n-server.port=8080`,
     String.raw`-AZURE_CLIENT_SECRET=\\u003cclient_secret\\u003e\\n-PORT=8080`,
-    // Explicit placeholder forms.
     "password=<your-password>",
     "password={{ .Values.password }}",
     "password=xxxxxxxx",
     "password=********",
     "password=changeme",
     "password=TODO",
-    "password=",
     "api_key=your_api_key_here",
-    // Code that reads a credential from a property, or a statement that copies a variable.
     "PASSWORD=config.dbPassword",
     "API_KEY=process.env.API_KEY",
     "apiKey = this.config.apiKey;",
-  ])("passes code that names a credential without holding one: %s", (text) => {
+    "AUTHORIZE_API_KEY=tobeupdated",
+    String.raw`export CLIENT_SECRET=\"client-secret\"`,
+  ])("fails a credential-named key with any value: %s", (text) => {
+    const dir = copyOfClean();
+    plant(dir, 0, "Token: <redacted>", `Token: <redacted> ${text}`);
+    expect(auditSweep(dir).findings).toEqual(["exec.jsonl:1 stdout: credential assignment"]);
+  });
+
+  // No value: an empty one, the recorder's own mark, or a nested mapping or list. And names that
+  // only contain a credential word inside another word.
+  test.each([
+    "password=",
+    String.raw`password=\"\"`,
+    "secret=<redacted>",
+    String.raw`password:\n  file: x`,
+    "auth: {",
+    "keys: [",
+    "monkey: 3",
+    "keyboard=qwerty",
+    "KEYCLOAK_URL=x",
+    "author: someone",
+    "AUTHORIZED_GROUP=x",
+    "tokenizer=x",
+  ])("passes a credential word with no value, or no credential name: %s", (text) => {
     const dir = copyOfClean();
     plant(dir, 0, "Token: <redacted>", `Token: <redacted> ${text}`);
     expect(auditSweep(dir).findings).toEqual([]);
   });
 });
 
-// A .env file in a diff nested in JSON: a mixed-case value is a password, not a code reference.
+// A .env file in a diff nested in JSON, written on the operator's side: a mixed-case value is a
+// password, not a code reference. (The same diff read from a public repository is its content.)
 test.each(["PASSWORD", "Password", "pAsSwOrD", "Client_Secret", "API_KEY"])(
   "fails %s=monKey in a JSON-wrapped .env diff",
   (key) => {
@@ -549,23 +591,109 @@ test.each(["PASSWORD", "Password", "pAsSwOrD", "Client_Secret", "API_KEY"])(
         "projects/osdu%2Fplatform%2Fsystem%2Fwidgets/repository/commits/abc/diff",
       ],
       ...ok,
-      stdout: JSON.stringify({ diff: `+.env\n+${key}=monKey\n` }),
+      stdout: "[]",
+      stderr: JSON.stringify({ diff: `+.env\n+${key}=monKey\n` }),
     });
-    const { findings } = auditSweep(dir);
-    expect(findings.length).toBeGreaterThan(0);
-    for (const finding of findings) expect(finding).toMatch(/ stdout: credential assignment$/);
+    expect(auditSweep(dir).findings).toEqual(["exec.jsonl:5 stderr: credential assignment"]);
   },
 );
 
-// Values the live sweep recorded that are not secrets; each is exempt by name.
-test.each(["AUTHORIZE_API_KEY=tobeupdated", String.raw`export CLIENT_SECRET=\"client-secret\"`])(
-  "passes a false positive seen in the recorded sweep: %s",
-  (text) => {
+// The credential-assignment heuristic guards the operator's side. A public repository's own
+// content and the Facts derived from it are public by design, so only the high-confidence
+// detectors run there.
+describe("credential assignments by provenance", () => {
+  const LINE = "CLIENT_SECRET=s3cr3tValue42";
+  const read = (repo: string, extra: object = {}) => ({
+    cmd: "gh",
+    args: ["api", `repos/${repo}/contents/.env`],
+    ...ok,
+    stdout: JSON.stringify({ content: `${LINE}\n` }),
+    ...extra,
+  });
+
+  test("passes a credential assignment in the stdout of public repository reads", () => {
     const dir = copyOfClean();
-    plant(dir, 0, "Token: <redacted>", `Token: <redacted> ${text}`);
+    append(dir, read("acme/widgets"));
+    append(dir, {
+      cmd: "glab",
+      args: ["api", ...GITLAB_HOST, "projects/osdu%2Fplatform%2Fsystem%2Fwidgets/repository/files"],
+      ...ok,
+      stdout: JSON.stringify({ content: LINE }),
+    });
     expect(auditSweep(dir).findings).toEqual([]);
-  },
-);
+  });
+
+  test.each([
+    ["stderr", read("acme/widgets", { stdout: "{}", stderr: LINE }), [], "stderr"],
+    ["stdin", read("acme/widgets", { stdout: "{}", stdin: LINE }), [], "stdin"],
+    [
+      "argv",
+      read("acme/widgets", {
+        args: ["api", "repos/acme/widgets/pulls", "--jq", LINE],
+        stdout: "[]",
+      }),
+      [],
+      "args[3]",
+    ],
+    [
+      "a non-repository command's stdout",
+      read("acme/widgets", { args: ["api", "user"] }),
+      [],
+      "stdout",
+    ],
+    ["the stdout of a private read", read("acme/vault"), ["github acme/vault: private"], "stdout"],
+    ["the stdout of a read missing from visibility.json", read("acme/vault"), [], "stdout"],
+    [
+      "the stdout of a read of a public and a private repository",
+      read("acme/widgets", {
+        args: [
+          "api",
+          "graphql",
+          "-f",
+          'query={ r0: repository(owner: "acme", name: "widgets") { id } r1: repository(owner: "acme", name: "vault") { id } }',
+        ],
+      }),
+      ["github acme/vault: private"],
+      "stdout",
+    ],
+  ])("fails a credential assignment in %s", (what, entry, more, field) => {
+    const dir = copyOfClean();
+    if (what.includes("private")) setVisibility(dir, "github", "acme/vault", "private");
+    if (what.includes("missing")) setVisibility(dir, "github", "acme/vault", "missing");
+    append(dir, entry);
+    expect(auditSweep(dir).findings).toEqual([
+      `exec.jsonl:5 ${field}: credential assignment`,
+      ...more,
+    ]);
+  });
+
+  test("fails a token in public repository stdout and in the Facts files", () => {
+    const dir = copyOfClean();
+    const tokens = `ghp_${"x".repeat(36)} glpat-${"y".repeat(20)} ${LINE}`;
+    append(dir, read("acme/widgets", { stdout: JSON.stringify({ content: tokens }) }));
+    for (const name of ["core-facts.json", "rib-facts.json", "services.json"])
+      writeFileSync(join(dir, name), JSON.stringify({ title: tokens }));
+    expect(auditSweep(dir).findings).toEqual([
+      "exec.jsonl:5 stdout: GitHub token",
+      "exec.jsonl:5 stdout: GitLab token",
+      "core-facts.json: GitHub token",
+      "core-facts.json: GitLab token",
+      "rib-facts.json: GitHub token",
+      "rib-facts.json: GitLab token",
+      "services.json: GitHub token",
+      "services.json: GitLab token",
+      "services.json: credential assignment",
+    ]);
+  });
+
+  test("passes the gh CLI's own token mask and fails anything more", () => {
+    const dir = copyOfClean();
+    plant(dir, 0, "Token: <redacted>", `Token: gho_${"*".repeat(36)}`);
+    expect(auditSweep(dir).findings).toEqual([]);
+    plant(dir, 0, `gho_${"*".repeat(36)}`, "gho_****x");
+    expect(auditSweep(dir).findings).toEqual(["exec.jsonl:1 stdout: credential assignment"]);
+  });
+});
 
 describe("record-sweep", () => {
   test("refuses to record into a directory that holds anything", () => {

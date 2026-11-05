@@ -5,7 +5,10 @@
  *   bun scripts/audit-exec-log.ts <sweep directory>
  * The directory holds exec.jsonl and the visibility.json written at record time. Every
  * recorded field of every file, visibility.json included, is scanned for credentials and email
- * addresses, as written and with its JSON strings decoded. Every call, a fenced one included,
+ * addresses, as written and with its JSON strings decoded. The credential-assignment heuristic
+ * guards what the operator's side wrote, so it skips only public repository content: the stdout
+ * of a call that reads public repositories only, and the Facts files derived from such reads.
+ * Every other detector runs on every field. Every call, a fenced one included,
  * must have a shape the call grammar reads, and must target only repositories, projects and
  * groups that were public when the log was recorded, on either forge: no recorded call reads a
  * private repository. A call the recorder fenced read nothing and may name the one private
@@ -26,34 +29,29 @@ export const FENCE_MARK = "spi-code record fence:";
 const JWT_SOURCE = "\\beyJ[A-Za-z0-9_-]{8,}\\.eyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}";
 const FIELDS = ["cmd", "args", "stdin", "stdout", "stderr", "exit", "ms", "error"] as const;
 
-const VALUE_CHAR = String.raw`[^\s"'&;,<>(){}$\[\]\\]|\\+(?![nrtbfu"/\\])`;
-const VALUE_END = String.raw`(?=$|[\s"'&;,]|\\+[nrtbfu"/])`;
-// Whole values that stand in for a credential. <...>, ${...}, {{...}} and empty values never
-// match, since a value must be six value characters. The last line lists values the live
-// sweep recorded that hold no secret.
-// The pattern is case-sensitive; credential and placeholder words match in any case.
+// A credential-named key: a name holding one of these words as a whole part, split at
+// non-letters and camel humps, in any case (KEY, API_KEY, apiKey, client_secret, pAsSwOrD).
+// The pattern is case-sensitive so a camel hump can be told apart.
 const anyCase = (words: string) =>
   words.replace(/[A-Za-z]/g, (c) => `[${c.toLowerCase()}${c.toUpperCase()}]`);
-const PLACEHOLDERS = [
-  anyCase("todo|tbd|to_?be_?updated|changeme|changeit|replace_?me|placeholder|dummy|example"),
-  anyCase("none|null|undefined"),
-  `${anyCase("your")}[_-][A-Za-z0-9_-]*[_-]${anyCase("here")}|${anyCase("x")}{3,}|\\*{3,}`,
-  anyCase("client-secret"),
-].join("|");
-// Code that reads a credential rather than holding one, in two forms only: a property read whose
-// last name is the credential (config.dbPassword, process.env.API_KEY), and a statement that
-// copies a variable (password = userPassword;). A bare value is never code, whatever its case,
-// so PASSWORD=monKey in a .env file is a password.
-const IDENTIFIER = String.raw`[A-Za-z_$][\w$]*`;
-const CREDENTIAL_NAME = String.raw`[\w$]*(?:${anyCase("password|passwd|secret|key|token")})[\w$]*`;
-const CODE_REFERENCE = [
-  String.raw`(?<!["'])(?:${IDENTIFIER}\.)+${CREDENTIAL_NAME}${VALUE_END}`,
-  String.raw`(?<=[ \t]=[ \t]+)${IDENTIFIER}[ \t]*;`,
-].join("|");
+const CREDENTIAL_WORD = anyCase(
+  "password|passwd|pwd|secret|token|credential|auth|api_?key|access_?key|key",
+);
+const CREDENTIAL_KEY = String.raw`(?:(?<![A-Za-z0-9])|(?<=[a-z0-9])(?=[A-Z]))(?:${CREDENTIAL_WORD})[sS]?(?![a-z])(?!(?<=[A-Z])[A-Z])[\w.-]*`;
+// k=v, k = v, export k=v, k: v, "k": "v", 'k': 'v', quoted or not, JSON-escaped or not.
+const ASSIGN = String.raw`\\?["']?[ \t]*[:=][ \t]*\\?["']?`;
+// Any non-empty value. Only an empty one (a quote, separator or line end) and a nested mapping
+// or list, whose members are scanned on their own, are not values.
+const VALUE = String.raw`(?![\s"'\`,;&)}\]]|\\[nrtbfu"'/\\]|\{(?!\{)|\[|$)`;
+const GITHUB_PREFIX = "(?:gh[opsur]_|github_pat_)";
+const GITLAB_PREFIX = "gl(?:pat|dt|rt|cbt|ptt|ft|imt|agent|soat)-";
+// The CLI's own mask of a token it holds (gh auth status prints gho_ and asterisks): a token
+// prefix followed by asterisks only, up to the end of the value.
+const CLI_MASK = String.raw`(?:${GITHUB_PREFIX}|${GITLAB_PREFIX})\*+(?=[\s"'\\]|$)`;
 
 export const TOKEN_PATTERNS: readonly { name: string; pattern: RegExp }[] = [
-  { name: "GitHub token", pattern: /(?:gh[opsur]_|github_pat_)[A-Za-z0-9_]{8,}/ },
-  { name: "GitLab token", pattern: /gl(?:pat|dt|rt|cbt|ptt|ft|imt|agent|soat)-[A-Za-z0-9_-]{8,}/ },
+  { name: "GitHub token", pattern: new RegExp(`${GITHUB_PREFIX}[A-Za-z0-9_]{8,}`) },
+  { name: "GitLab token", pattern: new RegExp(`${GITLAB_PREFIX}[A-Za-z0-9_-]{8,}`) },
   {
     name: "authorization header",
     pattern:
@@ -66,21 +64,19 @@ export const TOKEN_PATTERNS: readonly { name: string; pattern: RegExp }[] = [
   { name: "Azure storage key", pattern: /AccountKey=[A-Za-z0-9+/=]{20,}/ },
   { name: "AWS access key", pattern: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/ },
   { name: "Slack token", pattern: /\bxox[abposr]-[A-Za-z0-9-]{10,}/ },
-  // A credential assigned with "=" (environment lines, connection strings, query strings).
-  // A redaction, a placeholder or code that reads a variable, property or call holds no secret;
-  // any other value of six or more characters does. A backslash that begins a JSON escape (\n, \t, \", \uXXXX) ends the value,
-  // so a diff nested in JSON is read line by line; any other backslash is part of the value. A
-  // password that itself holds a backslash before one of those letters is read only up to it.
-  {
-    name: "credential assignment",
-    pattern: new RegExp(
-      `(?<![A-Za-z0-9])(?:${anyCase("password|passwd|secret|client_secret|api_?key|access_?key")})[ \\t]*=[ \\t]*["']?` +
-        `(?!<redacted>)(?!(?:${PLACEHOLDERS})${VALUE_END})(?!${CODE_REFERENCE})` +
-        `(?:${VALUE_CHAR}){6,}${VALUE_END}`,
-      "m",
-    ),
-  },
 ];
+
+/** A credential-named key assigned any non-empty value, in any of the forms ASSIGN reads,
+ * anywhere in the text: no value is exempt for its shape. Only the recorder's own <redacted>
+ * mark and a CLI's own token mask are not values. It guards what the operator's side wrote, so
+ * it skips the content of public repositories (see scan); the TOKEN_PATTERNS run everywhere. */
+export const CREDENTIAL_ASSIGNMENT = {
+  name: "credential assignment",
+  pattern: new RegExp(`${CREDENTIAL_KEY}${ASSIGN}(?!<redacted>)(?!${CLI_MASK})${VALUE}`, "m"),
+};
+
+/** Files derived only from reads the audit passed: their text is public repository content. */
+export const FACTS_FILES: ReadonlySet<string> = new Set(["core-facts.json", "rib-facts.json"]);
 
 // An address starts where a local part can; git@<forge> is a clone address, not a person's.
 const EMAIL =
@@ -413,6 +409,12 @@ function lookup(map: Record<string, Visibility> | undefined, name: string): Visi
   return undefined;
 }
 
+const FORGES = [
+  ["github", "github"],
+  ["gitlab", "gitlab"],
+  ["gitlabGroups", "gitlab group"],
+] as const;
+
 const STRING_LITERAL = /"(?:[^"\\]|\\.)*"/g;
 const DECODE_DEPTH = 4;
 
@@ -439,9 +441,13 @@ function decodings(text: string, depth = 0, into: string[] = [text]): string[] {
   return into;
 }
 
-function scan(where: string, text: string, findings: string[]): void {
+/** Scans one field. publicContent is the stdout of a read of public repositories only, or a
+ * Facts file: the high-confidence detectors run on it, the credential-assignment heuristic
+ * does not, since a public repository's own configuration and code are public by design. */
+function scan(where: string, text: string, findings: string[], publicContent = false): void {
   const texts = decodings(text);
-  for (const { name, pattern } of TOKEN_PATTERNS) {
+  const patterns = publicContent ? TOKEN_PATTERNS : [...TOKEN_PATTERNS, CREDENTIAL_ASSIGNMENT];
+  for (const { name, pattern } of patterns) {
     if (texts.some((each) => pattern.test(each))) findings.push(`${where}: ${name}`);
   }
   const emails = new Set(texts.flatMap((each) => each.match(EMAIL) ?? []));
@@ -474,9 +480,18 @@ function fencedOn(entry: Record<string, unknown>): string | undefined {
   return /^\S+$/.test(what) ? what : undefined;
 }
 
+/** A call that reads at least one repository, project or group, every one public. */
+function readsOnlyPublic(targets: References, visibility: VisibilityFile | undefined): boolean {
+  if (!visibility) return false;
+  const names = FORGES.flatMap(([forge]) =>
+    [...targets[forge]].map((name) => lookup(visibility[forge], name)),
+  );
+  return names.length > 0 && names.every((seen) => seen === "public");
+}
+
 /** Scans exec.jsonl and every other recorded JSON file in a sweep directory for credentials
  * and email addresses, and reads what each call targets, a fenced call's included. */
-function collect(directory: string): Collected {
+function collect(directory: string, visibility?: VisibilityFile): Collected {
   const findings: string[] = [];
   const refs = noReferences();
   const calls: Call[] = [];
@@ -509,19 +524,21 @@ function collect(directory: string): Collected {
       const call = [cmd, ...(Array.isArray(args) ? args : [])].join(" ");
       findings.push(`${where}: unrecognised call ${call}`.slice(0, 300));
     }
+    const publicRead = targets !== undefined && readsOnlyPublic(targets, visibility);
     for (const field of FIELDS) {
       const value = entry[field];
       if (value === undefined || value === null || typeof value === "number") continue;
       for (const [i, text] of (Array.isArray(value) ? value : [value]).entries()) {
         fields++;
-        scan(`${where} ${field}${Array.isArray(value) ? `[${i}]` : ""}`, String(text), findings);
+        const at = `${where} ${field}${Array.isArray(value) ? `[${i}]` : ""}`;
+        scan(at, String(text), findings, publicRead && field === "stdout");
       }
     }
   });
   for (const name of readdirSync(directory).sort()) {
     if (name === LOG_FILE || !name.endsWith(".json")) continue;
     fields++;
-    scan(name, readFileSync(join(directory, name), "utf8"), findings);
+    scan(name, readFileSync(join(directory, name), "utf8"), findings, FACTS_FILES.has(name));
   }
   return { entries: lines.length, fields, refs, calls, findings };
 }
@@ -532,19 +549,13 @@ export function sweepReferences(directory: string): References {
   return collect(directory).refs;
 }
 
-const FORGES = [
-  ["github", "github"],
-  ["gitlab", "gitlab"],
-  ["gitlabGroups", "gitlab group"],
-] as const;
-
 /** Audits exec.jsonl and every other recorded JSON file in a sweep directory. */
 export function auditSweep(directory: string): AuditResult {
-  const { entries, fields, refs, calls, findings } = collect(directory);
   const visibilityPath = join(directory, VISIBILITY_FILE);
   const visibility: VisibilityFile | undefined = existsSync(visibilityPath)
     ? JSON.parse(readFileSync(visibilityPath, "utf8"))
     : undefined;
+  const { entries, fields, refs, calls, findings } = collect(directory, visibility);
   if (!visibility)
     findings.push(`${VISIBILITY_FILE}: missing; visibility is checked at record time`);
   for (const [forge, label] of FORGES) {
