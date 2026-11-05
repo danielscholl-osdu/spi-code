@@ -141,6 +141,11 @@ export class SweepService {
       } catch (error) {
         return Promise.reject(error);
       }
+      try {
+        this.trimBudgetLog();
+      } catch (error) {
+        this.options.onError(error);
+      }
       this.started = true;
       this.generation++;
       this.repeat(this.interval, () => this.sweep());

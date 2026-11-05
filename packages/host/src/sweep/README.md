@@ -7,8 +7,10 @@ requires WAL and sets `synchronous=FULL` and a five-second writer-lock timeout o
 the same connection it uses for leases, snapshots and pruning. It does not own or
 close that connection. No routes or setup gating live here.
 
-`start()` prunes immediately and attempts an immediate sweep, then schedules full
-sweeps at `SWEEP_MS`, in-flight polls at `INFLIGHT_POLL_MS`, and pruning daily.
+`start()` prunes snapshots and trims the budget log immediately, attempts an
+immediate sweep, then schedules full sweeps at `SWEEP_MS`, in-flight polls at
+`INFLIGHT_POLL_MS`, and pruning daily.
+Startup budget-log trim errors go to `onError` without blocking the sweep.
 `sweep(force)` coalesces overlapping full-sweep requests and returns false when
 another owner holds the fleet. During a poll, it queues a full sweep afterward;
 any queued request's force flag applies to that sweep, whose result is returned
@@ -49,9 +51,10 @@ both the sweep and the append fail, an `AggregateError` carries both errors with
 the original sweep failure as its cause.
 Daily pruning removes snapshots strictly older than seven days, retaining the
 latest snapshot of each fleet so crash recovery always has a resume point.
-On the same daily clock, budget-log trimming atomically replaces the file with
-records that ended within the last day, including the boundary and all fleets.
-Invalid log records fail pruning rather than discarding budget evidence.
+At startup and on the same daily clock, budget-log trimming atomically replaces
+the file with records that ended within the last day, including the boundary
+and all fleets. Invalid log records leave the file intact and report an error
+rather than discarding budget evidence.
 Pruning is deliberately unfenced: it is store-wide retention housekeeping, not
 a fleet observation or cursor allocation. Its single atomic DELETE preserves
 each fleet's latest row and is safe to repeat across services. Running it even
@@ -60,6 +63,8 @@ as a lease contender also enforces retention after short-lived host sessions.
 `service.test.ts` uses fake timers for cadence, expiry, cancellation and retention.
 Its SIGKILL tests launch `holder.mjs` against the built service and kill that real
 lease holder both between sweeps and inside the snapshot INSERT transaction,
-after insertion but before COMMIT. They prove exclusion before expiry, rollback
-of the uncommitted row and cursor, and state/cursor recovery after expiry.
+after insertion but before COMMIT. A competing writer must get SQLITE_BUSY
+before the kill, proving the paused holder owns the writer lock. The tests prove
+exclusion before expiry, rollback of the uncommitted row and cursor, and
+state/cursor recovery after expiry.
 Build the host before running those tests alone.

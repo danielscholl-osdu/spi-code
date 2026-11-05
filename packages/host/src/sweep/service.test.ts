@@ -410,8 +410,10 @@ it("logs the returned commit cursor without decoding the saved snapshot again", 
 
 it("preserves the sweep failure alongside a budget-log failure", async () => {
   const failure = new Error("original collector failure");
+  const onError = vi.fn();
   mkdirSync(join(directory, "sweep-budget.jsonl"));
   const first = service([], {
+    onError,
     createSweeper: (options) =>
       new Sweeper({
         ...options,
@@ -427,13 +429,16 @@ it("preserves the sweep failure alongside a budget-log failure", async () => {
     cause: failure,
     errors: [failure, expect.objectContaining({ code: "EISDIR" })],
   });
+  expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: "EISDIR" }));
 });
 
 it("rejects a budget-log failure even when the sweep itself succeeds", async () => {
+  const onError = vi.fn();
   mkdirSync(join(directory, "sweep-budget.jsonl"));
-  const first = service();
+  const first = service([], { onError });
   await expect(first.start()).rejects.toMatchObject({ code: "EISDIR" });
   expect(first.latest()?.cursor).toBe(1);
+  expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: "EISDIR" }));
 });
 
 it("coalesces requests, aborts on stop and sends no further Exec calls after cancellation", async () => {
@@ -559,6 +564,43 @@ it("trims budget logs on the daily prune clock, retaining a full day across flee
   expect(budgets()).toEqual(records);
   await vi.advanceTimersByTimeAsync(1);
   expect(budgets()).toEqual(records.slice(1));
+});
+
+it("trims budget logs on startup across sessions shorter than a day", async () => {
+  const seed = service();
+  await seed.start();
+  await seed.stop();
+  const record = budgets()[0];
+  const old = { ...record, endedAt: new Date(epoch - 30 * DAY_MS).toISOString() };
+  const boundary = { ...record, endedAt: new Date(epoch - DAY_MS).toISOString() };
+  writeFileSync(
+    join(directory, "sweep-budget.jsonl"),
+    `${[old, boundary, record].map((line) => JSON.stringify(line)).join("\n")}\n`,
+  );
+  for (let session = 0; session < 3; session++) {
+    vi.setSystemTime(epoch + (session * DAY_MS) / 2);
+    const next = service([], { intervalMs: 2 * DAY_MS, ttlMs: 3 * DAY_MS });
+    await expect(next.start()).resolves.toBe(true);
+    expect(budgets()).not.toContainEqual(old);
+    if (session === 0) expect(budgets()).toContainEqual(boundary);
+    else expect(budgets()).not.toContainEqual(boundary);
+    expect(budgets()).toContainEqual(record);
+    await vi.advanceTimersByTimeAsync(60 * 60_000);
+    await next.stop();
+  }
+});
+
+it("reports malformed startup budget evidence without blocking the immediate sweep", async () => {
+  const onError = vi.fn();
+  const log = join(directory, "sweep-budget.jsonl");
+  const contents = "{not-json}\n";
+  writeFileSync(log, contents);
+  const first = service([], { onError });
+  await expect(first.start()).resolves.toBe(true);
+  expect(onError).toHaveBeenCalledOnce();
+  expect(onError).toHaveBeenCalledWith(expect.any(SyntaxError));
+  expect(first.latest()?.cursor).toBe(1);
+  expect(readFileSync(log, "utf8").startsWith(contents)).toBe(true);
 });
 
 it("reports malformed budget evidence without replacing the log", async () => {
@@ -795,6 +837,15 @@ it("recovers a complete snapshot and cursor after SIGKILL during writeSnapshot",
     const old = snapshots.latestSnapshot("test");
     expect(old?.cursor).toBe(1);
     expect(old?.facts).toMatchObject({ facts: { auth: { data: auth } } });
+    const contender = new DatabaseSync(path);
+    try {
+      contender.exec("PRAGMA busy_timeout = 0");
+      expect(() => contender.exec("BEGIN IMMEDIATE")).toThrow(
+        expect.objectContaining({ errcode: 5 }),
+      );
+    } finally {
+      contender.close();
+    }
     child.kill("SIGKILL");
     await exited;
     expect(child.signalCode).toBe("SIGKILL");
