@@ -2,11 +2,88 @@
 // SPDX-License-Identifier: MIT
 
 import { execFileSync, spawnSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
+import config from "../vitest.config.js";
+import { configuredProjects, projectSummary, unresolvedEnvironments } from "./vitest-projects.mjs";
+
+const projects = configuredProjects(config.test?.projects);
+
+function readReport(path: string) {
+  return existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : { testResults: [] };
+}
+
+describe("vitest project diagnostics", () => {
+  const window = { name: "apps/window", directory: "apps/window/src", environment: "happy-dom" };
+  const scripts = { name: "scripts", directory: "scripts", environment: "node" };
+  const passing = Array.from({ length: 4 }, () => ({ status: "passed" }));
+
+  it("reads every configured project with its directory and environment", () => {
+    expect(projects).toContainEqual(window);
+    expect(projects).toContainEqual(scripts);
+    expect(projects.map((p) => p.directory)).toContain("packages/core/src");
+  });
+
+  it("names a project that produced no results", () => {
+    const summary = projectSummary(
+      [scripts, window],
+      { testResults: [{ name: "/fixture/scripts/expiry.test.ts", assertionResults: passing }] },
+      "/fixture",
+      { passed: 4, failed: 0 },
+    );
+    expect(summary.problems).toEqual([
+      "vitest project apps/window is missing: no results (expected 4 passed, 0 failed)",
+    ]);
+    expect(summary.text).toContain("expected 2 (scripts, apps/window), found 1");
+    expect(summary.text).toContain("apps/window: missing");
+  });
+
+  it("names a project whose counts differ and carries its suite error", () => {
+    const summary = projectSummary(
+      [scripts, window],
+      {
+        testResults: [
+          { name: "/fixture/scripts/expiry.test.ts", assertionResults: passing },
+          {
+            name: "/fixture/apps/window/src/expiry.test.ts",
+            status: "failed",
+            message: "Cannot find package 'happy-dom'",
+            assertionResults: [],
+          },
+        ],
+      },
+      "/fixture",
+      { passed: 4, failed: 0 },
+    );
+    expect(summary.problems).toEqual([
+      "vitest project apps/window has 0 passed, 0 failed (expected 4 passed, 0 failed): Cannot find package 'happy-dom'",
+    ]);
+  });
+
+  it("names a project whose environment package does not resolve", () => {
+    const directory = mkdtempSync(join(tmpdir(), "spi-code-env-"));
+    try {
+      expect(unresolvedEnvironments([scripts, window], directory)).toEqual([
+        `vitest project apps/window runs in happy-dom, but package happy-dom does not resolve from ${join(directory, "node_modules")}; run pnpm install`,
+      ]);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+});
 
 it.each(["2040-01-01T00:00:00.998Z", "2040-01-01T00:00:00.999Z"])(
   "scripts/check rejects expiry and preserves fake clocks with Date text sampled at %s",
@@ -16,14 +93,19 @@ it.each(["2040-01-01T00:00:00.998Z", "2040-01-01T00:00:00.999Z"])(
     const header = "// Copyright 2026, Daniel Scholl\n// SPDX-License-Identifier: MIT\n";
     const now = performance.timeOrigin + performance.now();
     const expiry = now + 200 * 24 * 60 * 60 * 1_000;
-    const command = `"${process.execPath}" "${join(root, "node_modules/vitest/vitest.mjs")}" run --config "${join(root, "vitest.config.ts")}" --maxWorkers=1`;
+    const command = (report: string) =>
+      `"${process.execPath}" "${join(root, "node_modules/vitest/vitest.mjs")}" run --config "${join(root, "vitest.config.ts")}" --maxWorkers=1 --reporter=default --reporter=json --outputFile.json="${join(directory, report)}"`;
     try {
       execFileSync("git", ["init", "--quiet", directory]);
       cpSync(join(root, "scripts/check"), join(directory, "check"));
       symlinkSync(join(root, "node_modules"), join(directory, "node_modules"), "junction");
+      expect(unresolvedEnvironments(projects, directory)).toEqual([]);
       writeFileSync(
         join(directory, "package.json"),
-        JSON.stringify({ type: "module", scripts: { check: command, test: command } }),
+        JSON.stringify({
+          type: "module",
+          scripts: { check: command("check.json"), test: command("test.json") },
+        }),
       );
       const fixture = `${header}
 import { afterEach, expect, it, vi } from "vitest";
@@ -70,17 +152,9 @@ it("accepts Date text sampled before or across a simulated second boundary", () 
   expect(Date.now()).toBe(start + 1);
 });
 `;
-      for (const project of [
-        "scripts",
-        "apps/desktop/src",
-        "apps/window/src",
-        "packages/contracts/src",
-        "packages/core/src",
-        "packages/host/src",
-        "packages/tools/src",
-      ]) {
-        mkdirSync(join(directory, project), { recursive: true });
-        writeFileSync(join(directory, project, "expiry.test.ts"), fixture);
+      for (const project of projects) {
+        mkdirSync(join(directory, project.directory), { recursive: true });
+        writeFileSync(join(directory, project.directory, "expiry.test.ts"), fixture);
       }
       const result = spawnSync("bash", ["check"], {
         cwd: directory,
@@ -90,10 +164,23 @@ it("accepts Date text sampled before or across a simulated second boundary", () 
       });
       expect(result.error).toBeUndefined();
       const output = result.stdout + result.stderr;
+      const ran = realpathSync(directory);
+      for (const [report, expected] of [
+        ["check.json", { passed: 4, failed: 0 }],
+        ["test.json", { passed: 3, failed: 1 }],
+      ] as const) {
+        const summary = projectSummary(
+          projects,
+          readReport(join(directory, report)),
+          ran,
+          expected,
+        );
+        expect(summary.problems, `${report}\n${summary.text}\n\n${output}`).toEqual([]);
+      }
       expect(result.status, output).toBe(1);
-      expect(output).toContain("28 passed");
+      expect(output).toContain(`${projects.length * 4} passed`);
       expect(output).toContain("wall clock 400 days forward");
-      expect(output).toContain("7 failed | 21 passed");
+      expect(output).toContain(`${projects.length} failed | ${projects.length * 3} passed`);
       expect(output).toContain("expires at a fixed future date");
     } finally {
       rmSync(directory, { recursive: true, force: true });
