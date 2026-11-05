@@ -44,11 +44,11 @@ describe("file-backed run store", () => {
     rmSync(directory, { recursive: true, force: true });
   });
 
-  it("applies migration 1 once and preserves its record and schema on reopen", () => {
+  it("applies migrations once and preserves their records and schema on reopen", () => {
     const store = open();
     const db = inspect();
     const migrations = db.prepare("SELECT * FROM schema_version").all();
-    expect(migrations).toEqual([{ version: 1 }]);
+    expect(migrations).toEqual([{ version: 1 }, { version: 2 }]);
     expect(db.prepare("PRAGMA journal_mode").get()).toEqual({ journal_mode: "wal" });
     const schema = db.prepare("SELECT name, sql FROM sqlite_schema ORDER BY name").all();
     store.close();
@@ -228,11 +228,12 @@ describe("file-backed run store", () => {
     ).toBeUndefined();
     db.exec("DROP TABLE run_events");
     open().close();
-    db.exec("INSERT INTO schema_version VALUES (2)");
-    expect(() => openRunStore(path)).toThrow("Unsupported schema version: 2");
+    db.exec("INSERT INTO schema_version VALUES (3)");
+    expect(() => openRunStore(path)).toThrow("Unsupported schema version: 3");
     expect(db.prepare("SELECT version FROM schema_version ORDER BY version").all()).toEqual([
       { version: 1 },
       { version: 2 },
+      { version: 3 },
     ]);
   });
 
@@ -267,5 +268,52 @@ describe("file-backed run store", () => {
 
   it("refuses a database that cannot enable WAL", () => {
     expect(() => openRunStore(":memory:")).toThrow(/WAL/);
+  });
+
+  it("prunes snapshots strictly beyond seven days but retains each fleet's latest cursor", () => {
+    const store = open();
+    const db = inspect();
+    const now = Date.parse(at);
+    const cutoff = now - 7 * 24 * 60 * 60 * 1000;
+    const insert = db.prepare(
+      `INSERT INTO facts_snapshots (fleet, at, facts, envelope, fence)
+       VALUES (?, ?, '{}', '{}', 1)`,
+    );
+    insert.run("a", cutoff - 1);
+    insert.run("a", cutoff);
+    insert.run("a", cutoff + 1);
+    insert.run("b", cutoff - 100);
+    insert.run("b", cutoff - 200);
+    insert.run("c", cutoff - 100);
+    insert.run("c", cutoff - 100);
+    store.pruneSnapshots(now);
+    expect(db.prepare("SELECT cursor FROM facts_snapshots ORDER BY cursor").all()).toEqual([
+      { cursor: 2 },
+      { cursor: 3 },
+      { cursor: 5 },
+      { cursor: 7 },
+    ]);
+    store.pruneSnapshots(now);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM facts_snapshots").get()?.count).toBe(4);
+    store.close();
+    open().pruneSnapshots(now + 2);
+    expect(db.prepare("SELECT cursor FROM facts_snapshots ORDER BY cursor").all()).toEqual([
+      { cursor: 3 },
+      { cursor: 5 },
+      { cursor: 7 },
+    ]);
+  });
+
+  it("rejects invalid pruning clocks without deleting snapshots", () => {
+    const store = open();
+    const db = inspect();
+    db.exec(
+      `INSERT INTO facts_snapshots (fleet, at, facts, envelope, fence)
+       VALUES ('a', 0, '{}', '{}', 1), ('a', 1, '{}', '{}', 1)`,
+    );
+    for (const now of [Number.NaN, Infinity, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(() => store.pruneSnapshots(now)).toThrow(RangeError);
+    }
+    expect(db.prepare("SELECT COUNT(*) AS count FROM facts_snapshots").get()?.count).toBe(2);
   });
 });

@@ -39,6 +39,8 @@ export interface RunStore {
   appendEvent(id: string, event: AppendRunEvent, at: string): number;
   listEvents(id: string, cursor: number, limit?: number): RunEventRecord[];
   lastSeq(id: string): number;
+  /** Prune snapshots older than seven days at Unix epoch milliseconds, keeping each fleet's latest cursor. */
+  pruneSnapshots(now: number): void;
   close(): void;
 }
 
@@ -90,6 +92,10 @@ export function openRunStore(path: string): RunStore {
     const readEvents = db.prepare(
       `SELECT seq, kind, message, data_json, created_at FROM run_events
        WHERE run_id = ? AND seq > ? ORDER BY seq ASC LIMIT ?`,
+    );
+    const pruneSnapshots = db.prepare(
+      `DELETE FROM facts_snapshots WHERE at < ?
+       AND cursor NOT IN (SELECT MAX(cursor) FROM facts_snapshots GROUP BY fleet)`,
     );
     let closed = false;
 
@@ -147,6 +153,13 @@ export function openRunStore(path: string): RunStore {
       },
       lastSeq(id) {
         return Number(highestSeq.get(id)?.seq);
+      },
+      pruneSnapshots(now) {
+        const cutoff = now - 7 * 24 * 60 * 60 * 1000;
+        if (!Number.isSafeInteger(now) || !Number.isSafeInteger(cutoff)) {
+          throw new RangeError("Snapshot pruning clock must be safe integer epoch milliseconds");
+        }
+        pruneSnapshots.run(cutoff);
       },
       close() {
         if (closed) return;

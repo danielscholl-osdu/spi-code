@@ -26,6 +26,74 @@ const migrations = [
     CREATE TRIGGER run_events_no_delete BEFORE DELETE ON run_events
     BEGIN SELECT RAISE(ABORT, 'run_events are append-only'); END;
   `,
+  `
+    CREATE TABLE threads (
+      id TEXT PRIMARY KEY NOT NULL,
+      fleet TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      title TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    ) STRICT;
+    CREATE TABLE messages (
+      id TEXT PRIMARY KEY NOT NULL,
+      thread_id TEXT NOT NULL REFERENCES threads(id),
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    ) STRICT;
+    CREATE TABLE intents (
+      id TEXT PRIMARY KEY NOT NULL,
+      run_id TEXT NOT NULL REFERENCES runs(id),
+      kind TEXT NOT NULL,
+      state TEXT NOT NULL,
+      data_json TEXT NOT NULL CHECK (json_valid(data_json)),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    ) STRICT;
+    CREATE TABLE approvals (
+      id TEXT PRIMARY KEY NOT NULL,
+      intent_id TEXT NOT NULL REFERENCES intents(id),
+      state TEXT NOT NULL,
+      data_json TEXT NOT NULL CHECK (json_valid(data_json)),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    ) STRICT;
+    CREATE TABLE waits (
+      id TEXT PRIMARY KEY NOT NULL,
+      run_id TEXT NOT NULL REFERENCES runs(id),
+      kind TEXT NOT NULL,
+      state TEXT NOT NULL,
+      data_json TEXT NOT NULL CHECK (json_valid(data_json)),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    ) STRICT;
+    CREATE TABLE worktrees (
+      id TEXT PRIMARY KEY NOT NULL,
+      thread_id TEXT NOT NULL REFERENCES threads(id),
+      repo TEXT NOT NULL,
+      path TEXT NOT NULL,
+      branch TEXT NOT NULL,
+      head_sha TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    ) STRICT;
+    CREATE TABLE leases (
+      fleet TEXT PRIMARY KEY NOT NULL,
+      owner TEXT,
+      fence INTEGER NOT NULL CHECK (fence >= 0 AND fence <= 9007199254740991),
+      expires_at INTEGER NOT NULL
+    ) STRICT;
+    CREATE TABLE facts_snapshots (
+      cursor INTEGER PRIMARY KEY AUTOINCREMENT,
+      fleet TEXT NOT NULL,
+      at INTEGER NOT NULL,
+      facts TEXT NOT NULL CHECK (json_valid(facts)),
+      envelope TEXT NOT NULL CHECK (json_valid(envelope)),
+      fence INTEGER NOT NULL CHECK (fence > 0 AND fence <= 9007199254740991)
+    ) STRICT;
+    CREATE INDEX facts_snapshots_fleet_cursor ON facts_snapshots (fleet, cursor);
+    CREATE INDEX facts_snapshots_at ON facts_snapshots (at);
+  `,
 ];
 
 export function migrate(db: DatabaseSync): void {
