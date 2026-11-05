@@ -24,9 +24,12 @@ The rib source checkout is not modified by this bead.
   repeated failures preserve that time. A cold failure invents no retained time.
   Successful reads clear failure/retention. The area envelope is computed with
   the existing `envelopeOf`, not duplicated here.
-- All-repository failure returns explicit failed records instead of throwing
-  and losing per-repository evidence. The fourth source test checks that failed
-  envelope and the timeout reason rather than the old rejected promise.
+- All-repository failure (at least one repo) throws an Error carrying the first
+  failure message, as the rib did, so the Sweeper records an outage and retries.
+  Partial failure still returns per-repository failed records.
+- `SecurityRead.at` is the area's own observation time. When previous data holds a
+  repo but no read record (legacy state), a failed read falls back to it for
+  `retainedFrom`; without it, none is invented.
 - Remove the old readSecurity comment describing its superseded failure policy.
   Both parsers, jq projections, hidden-list detection and paginated list bodies
   are unchanged. `Gh.pages` still invokes `gh api --paginate` for the whole list;

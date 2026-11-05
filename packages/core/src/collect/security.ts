@@ -93,6 +93,8 @@ async function list<T>(
 export interface SecurityRead {
   data: Record<string, RepoAlerts>;
   reads: readonly ReadRecord[];
+  // The area's own observation time, used when a repository has data but no read record.
+  at?: string;
 }
 
 export async function readSecurity(
@@ -120,7 +122,9 @@ export async function readSecurity(
       if (last) out[repo] = last;
       const previous = prev?.reads.find((r) => r.source === repo && r.object === "security");
       const retainedFrom = last
-        ? (previous?.retainedFrom ?? (previous?.failure === undefined ? previous?.observedAt : undefined))
+        ? previous
+          ? (previous.retainedFrom ?? (previous.failure === undefined ? previous.observedAt : undefined))
+          : prev?.at
         : undefined;
       return {
         ...record,
@@ -129,5 +133,7 @@ export async function readSecurity(
       };
     }
   });
+  const failed = reads.find((r) => r.failure !== undefined);
+  if (failed && reads.every((r) => r.failure !== undefined)) throw new Error(failed.failure);
   return { data: out, reads };
 }

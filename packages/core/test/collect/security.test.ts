@@ -112,15 +112,13 @@ describe("readSecurity", () => {
     }
     const repeated = await readSecurity(client, out, ctx);
     expect(repeated.reads.find((r) => r.source === failing)?.retainedFrom).toBe(BEFORE);
-    const down = await readSecurity(
-      gh(() => ({ ok: false, error: "timeout", code: 1 })),
-      undefined,
-      ctx,
-    );
-    expect(down.data).toEqual({});
-    expect(down.reads).toHaveLength(ctx.fleet.repos.length);
-    expect(down.reads.every((r) => r.failure?.includes("timeout") && !r.retainedFrom)).toBe(true);
-    expect(envelope(down.reads).state).toBe("failed");
+    const timeout = gh(() => ({ ok: false, error: "timeout", code: 1 }));
+    await expect(readSecurity(timeout, undefined, ctx)).rejects.toThrow("timeout");
+    await expect(readSecurity(timeout, out, ctx)).rejects.toThrow("timeout");
+    const legacy = await readSecurity(client, { data: prev.data, reads: [], at: BEFORE }, ctx);
+    expect(legacy.reads.find((r) => r.source === failing)?.retainedFrom).toBe(BEFORE);
+    const bare = await readSecurity(client, { data: prev.data, reads: [] }, ctx);
+    expect(bare.reads.find((r) => r.source === failing)?.retainedFrom).toBeUndefined();
     const recovered = await readSecurity(gh(empty), out, ctx);
     expect(recovered.reads.every((r) => !r.failure && !r.retainedFrom)).toBe(true);
   });
