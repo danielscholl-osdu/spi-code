@@ -12,7 +12,9 @@ import { expect, it } from "vitest";
 
 const exec = promisify(execFile);
 const core = fileURLToPath(new URL("../", import.meta.url));
-const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+const shell = process.platform === "win32";
+const npm = shell ? "npm.cmd" : "npm";
+const arg = (value: string) => (shell && /\s/.test(value) ? `"${value}"` : value);
 
 it("packs a pinned, source-free tarball that installs outside the workspace", async (test) => {
   const temporary = await mkdtemp(join(tmpdir(), "spi-core-pack-test-"));
@@ -48,7 +50,7 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
       await exec(
         npm,
         ["view", "yaml@2.9.1", "version", "--fetch-retries=0", "--fetch-timeout=5000"],
-        { cwd: temporary, timeout: 10_000 },
+        { cwd: temporary, timeout: 10_000, shell },
       );
     } catch (error) {
       test.skip(`npm registry unreachable; isolated tarball install not run: ${String(error)}`);
@@ -63,10 +65,10 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
         "--fetch-retries=0",
         "--fetch-timeout=15000",
         "--cache",
-        join(temporary, "cache"),
-        tarball,
+        arg(join(temporary, "cache")),
+        arg(tarball),
       ],
-      { cwd: temporary, timeout: 60_000 },
+      { cwd: temporary, timeout: 60_000, shell },
     );
     expect(await realpath(join(temporary, "node_modules/@spi-code/core"))).toBe(
       join(await realpath(temporary), "node_modules/@spi-code/core"),

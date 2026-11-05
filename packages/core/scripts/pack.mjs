@@ -18,8 +18,10 @@ import { fileURLToPath } from "node:url";
 
 const core = fileURLToPath(new URL("../", import.meta.url));
 const release = resolve(core, process.argv[2] ?? "release");
-const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-execFileSync(pnpm, ["run", "build"], { cwd: core, stdio: "inherit" });
+const shell = process.platform === "win32";
+const pnpm = shell ? "pnpm.cmd" : "pnpm";
+const arg = (value) => (shell && /\s/.test(value) ? `"${value}"` : value);
+execFileSync(pnpm, ["run", "build"], { cwd: core, stdio: "inherit", shell });
 
 const staging = mkdtempSync(join(tmpdir(), "spi-core-pack-"));
 try {
@@ -46,9 +48,10 @@ try {
     cpSync(join(core, file), join(staging, file));
   }
   mkdirSync(release, { recursive: true });
-  execFileSync(pnpm, ["pack", "--pack-destination", staging], {
+  execFileSync(pnpm, ["pack", "--pack-destination", arg(staging)], {
     cwd: staging,
     stdio: "inherit",
+    shell,
   });
   const tarball = `spi-code-core-${manifest.version}.tgz`;
   const packed = join(staging, tarball);
