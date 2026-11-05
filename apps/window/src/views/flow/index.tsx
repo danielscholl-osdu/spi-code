@@ -81,7 +81,11 @@ export default function Flow() {
                               {cell.text}
                             </td>
                           ))}
-                          <td data-tone={row.next.tone}>
+                          <td
+                            className="flow-next"
+                            data-tone={row.next.tone}
+                            data-strong={row.next.strong || undefined}
+                          >
                             {row.next.strong ? <strong>{row.next.text}</strong> : row.next.text}
                           </td>
                         </>

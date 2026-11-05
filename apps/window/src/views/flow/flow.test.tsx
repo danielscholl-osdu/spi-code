@@ -1,7 +1,9 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type Station, StationsSchema } from "@spi-code/contracts";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { type Station, StationsSchema, type UpTone } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -17,6 +19,10 @@ import { paneText } from "../repositories/pane-text.test-helper.js";
 import Flow from "./index.js";
 
 const oracle = new DOMParser().parseFromString(consoleHtml, "text/html");
+const stationStyles = readFileSync(
+  resolve("apps/window/src/components/stations/stations.css"),
+  "utf8",
+);
 const lineOracle: { columns: string[]; services: { fork: string; stations: Station[] }[] } =
   JSON.parse(lines);
 const snapshot = testSnapshot(briefing, '{"lines":[],"reading":false}', {
@@ -70,6 +76,75 @@ it("draws every service's six stations in oracle order with exact labels, states
       ?.getAttribute("data-tone"),
   ).toBe("bad");
 });
+
+it("renders a moving station with the frozen run tone expectation", () => {
+  const service = structuredClone(snapshot.stations[0]);
+  if (!service) throw new Error("Missing station fixture");
+  service.stations[5].state = "moving";
+  service.stations[5].text = "Upgrade running";
+  const dom = document.createElement("div");
+  dom.innerHTML = renderToStaticMarkup(<Stations services={[service]} />);
+  expect(
+    Array.from(dom.querySelectorAll('[data-station="lane"]'), (station) => ({
+      id: station.getAttribute("data-station"),
+      state: station.getAttribute("data-state"),
+      tone: station.getAttribute("data-tone"),
+      text: text(station.querySelector("[data-label]")),
+    })),
+  ).toEqual([{ id: "lane", state: "moving", tone: "run", text: "Upgrade running" }]);
+});
+
+it.each<{ tone: UpTone; strong: boolean; colour: string }>([
+  { tone: "neutral", strong: false, colour: "rgb(100, 100, 100)" },
+  { tone: "bad", strong: false, colour: "rgb(100, 100, 100)" },
+  { tone: "warn", strong: false, colour: "rgb(100, 100, 100)" },
+  { tone: "ok", strong: false, colour: "rgb(100, 100, 100)" },
+  { tone: "run", strong: false, colour: "rgb(100, 100, 100)" },
+  { tone: "neutral", strong: true, colour: "rgb(10, 20, 30)" },
+  { tone: "bad", strong: true, colour: "rgb(100, 0, 0)" },
+  { tone: "warn", strong: true, colour: "rgb(100, 80, 0)" },
+  { tone: "ok", strong: true, colour: "rgb(10, 20, 30)" },
+  { tone: "run", strong: true, colour: "rgb(10, 20, 30)" },
+])(
+  "matches the rib's flight next colour for $tone, strong=$strong",
+  async ({ tone, strong, colour }) => {
+    const body = structuredClone(snapshot);
+    const row = body.briefing.flow.rows[0];
+    if (!row) throw new Error("Missing flow fixture");
+    body.briefing.flow.mode = "flight";
+    row.next = { text: "Next step", tone, strong };
+    watchStore.setState({ snapshot: { cursor: 1, body } });
+    const dom = document.createElement("div");
+    dom.style.setProperty("--text", "rgb(40, 50, 60)");
+    dom.style.setProperty("--text-muted", "rgb(100, 100, 100)");
+    dom.style.setProperty("--text-strong", "rgb(10, 20, 30)");
+    dom.style.setProperty("--error-text", "rgb(100, 0, 0)");
+    dom.style.setProperty("--warning-text", "rgb(100, 80, 0)");
+    dom.style.setProperty("--success-text", "rgb(0, 100, 0)");
+    dom.style.setProperty("--accent-text", "rgb(0, 0, 100)");
+    const style = document.createElement("style");
+    style.textContent = stationStyles;
+    document.head.append(style);
+    document.body.append(dom);
+    const root = createRoot(dom);
+    try {
+      await act(async () => root.render(<Flow />));
+      const next = dom.querySelector(`tr[data-up="${row.fork}"] td:last-child`);
+      if (!next) throw new Error("Missing flight next cell");
+      expect(next.textContent).toBe("Next step");
+      expect(getComputedStyle(next).color).toBe(colour);
+      if (strong) {
+        const emphasis = next.querySelector("strong");
+        if (!emphasis) throw new Error("Missing next-cell emphasis");
+        expect(getComputedStyle(emphasis).color).toBe(colour);
+      }
+    } finally {
+      await act(async () => root.unmount());
+      style.remove();
+      dom.remove();
+    }
+  },
+);
 
 it.each(["flow", "horizon"])("%s renders the oracle pane's exact text", async (view) => {
   watchStore.setState({ snapshot: { cursor: 1, body: snapshot } });

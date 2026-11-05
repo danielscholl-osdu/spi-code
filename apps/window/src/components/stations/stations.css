@@ -6,6 +6,11 @@
 :is(.watch-flow, .watch-horizon, .service-stations) [data-tone="warn"] { color: var(--warning-text); }
 :is(.watch-flow, .watch-horizon, .service-stations) [data-tone="ok"] { color: var(--success-text); }
 :is(.watch-flow, .watch-horizon, .service-stations) [data-tone="run"] { color: var(--accent-text); }
+.watch-flow .flow-next[data-tone] { color: var(--text-muted); }
+.watch-flow .flow-next[data-strong="true"] { color: var(--text-strong); }
+.watch-flow .flow-next strong { font-weight: 650; }
+.watch-flow .flow-next[data-strong="true"][data-tone="bad"] { color: var(--error-text); }
+.watch-flow .flow-next[data-strong="true"][data-tone="warn"] { color: var(--warning-text); }
 .watch-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
 .watch-tile { padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
 .watch-tile b { display: block; font-size: 24px; }
