@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createLeaseStore } from "./leases.js";
 import { createSnapshotStore } from "./snapshots.js";
 import { openRunStore } from "./store.js";
@@ -99,8 +99,40 @@ it("rejects invalid JSON, clocks and cursors without advancing the cursor", () =
   }
   for (const value of [NaN, Infinity, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
     expect(() => snapshots.writeSnapshot(first, {}, {}, value)).toThrow(RangeError);
+    expect(() => snapshots.writeSnapshot(first, {}, {}, () => value)).toThrow(RangeError);
+    expect(db.isTransaction).toBe(false);
     expect(() => snapshots.snapshotsSince(value)).toThrow(RangeError);
   }
   expect(() => snapshots.snapshotsSince(-1)).toThrow(RangeError);
   expect(snapshots.writeSnapshot(first, {}, {}, 1001)).toBe(1);
 });
+
+it.each([1050, 1100])(
+  "samples the clock after acquiring the writer lock (now: %s)",
+  (afterLock) => {
+    const snapshots = createSnapshotStore(db);
+    let now = 1001;
+    const execute = db.exec.bind(db);
+    const spy = vi.spyOn(db, "exec").mockImplementation((sql) => {
+      execute(sql);
+      if (sql === "BEGIN IMMEDIATE") now = afterLock;
+    });
+    const clock = vi.fn(() => {
+      expect(db.isTransaction).toBe(true);
+      return now;
+    });
+    try {
+      if (afterLock === 1100) {
+        expect(() => snapshots.writeSnapshot(first, {}, {}, clock)).toThrow("Stale lease");
+        expect(snapshots.latestSnapshot("a")).toBeUndefined();
+      } else {
+        expect(snapshots.writeSnapshot(first, {}, {}, clock)).toBe(1);
+        expect(snapshots.latestSnapshot("a")?.at).toBe(afterLock);
+      }
+      expect(clock).toHaveBeenCalledOnce();
+      expect(db.isTransaction).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
+  },
+);

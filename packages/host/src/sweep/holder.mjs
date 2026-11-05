@@ -1,12 +1,13 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { writeSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { cacheSchema, createContext, emptyCache, Sweeper } from "@spi-code/core";
 import { z } from "zod";
 import { SweepService } from "../../dist/sweep/service.js";
 
-const [path, appData, at] = process.argv.slice(2);
+const [path, appData, at, mode] = process.argv.slice(2);
 const db = new DatabaseSync(path);
 const service = new SweepService({
   db,
@@ -47,5 +48,16 @@ const service = new SweepService({
     }),
 });
 await service.start();
-process.stdout.write(`committed ${service.latest().cursor}\n`);
+if (mode === "mid-write") {
+  db.function("pause_snapshot", () => {
+    writeSync(process.stdout.fd, "writing snapshot 2\n");
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);
+    return 0;
+  });
+  db.exec(`CREATE TEMP TRIGGER pause_write AFTER INSERT ON facts_snapshots
+    BEGIN SELECT pause_snapshot(); END;`);
+  await service.sweep(true);
+} else {
+  process.stdout.write(`committed ${service.latest().cursor}\n`);
+}
 setInterval(() => {}, 60_000);

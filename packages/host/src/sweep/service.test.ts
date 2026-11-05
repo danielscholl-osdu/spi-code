@@ -3,13 +3,14 @@
 
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import {
+  BudgetPacer,
   cacheSchema,
   createContext,
   createSweeper,
@@ -262,6 +263,56 @@ it("logs the real collector's per-sweep GraphQL charges rather than accumulating
   expect(budgets()[0].deferred).toContainEqual({ area: "security", reason: expect.any(String) });
 });
 
+it("logs charges when collectors abort before publishing the budget, without double counting", async () => {
+  let calls = 0;
+  let fail = true;
+  const failure = new Error("budget pacing interrupted");
+  const resetAt = new Date(epoch + 3600_000).toISOString();
+  const pacer = new BudgetPacer({ floor: 100, resetBudget: 5000 });
+  const plan = pacer.plan.bind(pacer);
+  vi.spyOn(pacer, "plan").mockImplementation((input) => {
+    if (fail && calls > 0) throw failure;
+    return plan(input);
+  });
+  const first = service([], {
+    ctx: createContext({ fleet: fleetOf([]), clock: { now: () => new Date(Date.now()) } }),
+    createSweeper,
+    pacer,
+    exec: {
+      runJSON: async () => ({ ok: false, code: 1, error: "offline fixture" }),
+      runText: async (_cmd, args) => {
+        if (args[1] !== "graphql") return { ok: false, code: 1, error: "offline fixture" };
+        calls++;
+        return {
+          ok: true,
+          data: JSON.stringify({
+            data: { spicodeBudget: { cost: 2, remaining: 1000, resetAt } },
+          }),
+        };
+      },
+    },
+  });
+  await expect(first.start()).rejects.toBe(failure);
+  const abortedCalls = calls;
+  expect(abortedCalls).toBeGreaterThan(0);
+  expect(budgets()).toHaveLength(1);
+  expect(budgets()[0]).toMatchObject({
+    cursor: 0,
+    calls: abortedCalls,
+    cost: abortedCalls * 2,
+    remaining: 1000,
+    resetAt,
+  });
+  fail = false;
+  await first.sweep(true);
+  expect(budgets()).toHaveLength(2);
+  expect(budgets()[1]).toMatchObject({
+    cursor: 1,
+    calls: calls - abortedCalls,
+    cost: (calls - abortedCalls) * 2,
+  });
+});
+
 it("does not log an attempt rejected by the first guard as another sweep", async () => {
   const afterAreas = vi.fn(async ({ cache }: SweepInput<ReturnType<typeof emptyCache>>) => {
     cache.budget = {
@@ -423,6 +474,107 @@ it("coalesces requests, aborts on stop and sends no further Exec calls after can
   expect(createLeaseStore(db).acquire("test", "next", 3000, Date.now())).toBe(2);
 });
 
+it("does not report intentional stop cancellation from a background sweep", async () => {
+  const onError = vi.fn();
+  let blocked = false;
+  const first = service(
+    [
+      {
+        name: "auth",
+        read: async (input) => {
+          if (blocked) await input.exec.runText("gh", []);
+          return { data: auth, reads: [] };
+        },
+      },
+    ],
+    {
+      onError,
+      intervalMs: 100,
+      exec: {
+        ...exec,
+        runText: (_cmd, _args, options) =>
+          new Promise((_resolve, reject) => {
+            options?.signal?.addEventListener("abort", () => reject(options.signal?.reason));
+          }),
+      },
+    },
+  );
+  await first.start();
+  blocked = true;
+  await vi.advanceTimersByTimeAsync(100);
+  expect(first.sweeping).toBe(true);
+  await first.stop();
+  expect(onError).not.toHaveBeenCalled();
+  expect(budgets()).toHaveLength(2);
+});
+
+it("does not rearm an old timer generation when restarted during its sweep", async () => {
+  let finish: (() => void) | undefined;
+  let blocked = false;
+  const first = service(
+    [
+      {
+        name: "auth",
+        read: async () => {
+          if (blocked)
+            await new Promise<void>((resolve) => {
+              finish = resolve;
+            });
+          return { data: auth, reads: [] };
+        },
+      },
+    ],
+    { intervalMs: 100, onError: vi.fn() },
+  );
+  await first.start();
+  blocked = true;
+  await vi.advanceTimersByTimeAsync(100);
+  expect(finish).toBeTypeOf("function");
+  const stopped = first.stop();
+  const restarted = expect(first.start()).rejects.toThrow("Sweep service stopped");
+  finish?.();
+  await stopped;
+  await restarted;
+  await vi.advanceTimersByTimeAsync(0);
+  // Only the new full-sweep, poll and daily-prune chains remain.
+  expect(vi.getTimerCount()).toBe(3);
+  blocked = false;
+  await vi.advanceTimersByTimeAsync(100);
+  expect(first.latest()?.cursor).toBe(2);
+  await first.stop();
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it("trims budget logs on the daily prune clock, retaining a full day across fleets", async () => {
+  const first = service([], { intervalMs: 2 * DAY_MS, ttlMs: 3 * DAY_MS });
+  await first.start();
+  const log = join(directory, "sweep-budget.jsonl");
+  const records = [
+    { ...budgets()[0], fleet: "other", endedAt: new Date(epoch - 1).toISOString() },
+    budgets()[0],
+    { ...budgets()[0], endedAt: new Date(epoch + 1).toISOString() },
+  ];
+  writeFileSync(log, `${records.map((record) => JSON.stringify(record)).join("\n")}\n`);
+  await vi.advanceTimersByTimeAsync(DAY_MS - 1);
+  expect(budgets()).toEqual(records);
+  await vi.advanceTimersByTimeAsync(1);
+  expect(budgets()).toEqual(records.slice(1));
+});
+
+it("reports malformed budget evidence without replacing the log", async () => {
+  const onError = vi.fn();
+  const first = service([], { intervalMs: 2 * DAY_MS, ttlMs: 3 * DAY_MS, onError });
+  await first.start();
+  const log = join(directory, "sweep-budget.jsonl");
+  const contents = `${readFileSync(log, "utf8")}{"endedAt":"invalid"}\n`;
+  writeFileSync(log, contents);
+  await vi.advanceTimersByTimeAsync(DAY_MS);
+  expect(onError).toHaveBeenCalledWith(
+    expect.objectContaining({ message: "Invalid sweep budget log timestamp" }),
+  );
+  expect(readFileSync(log, "utf8")).toBe(contents);
+});
+
 it("prunes daily on the injected clock, retaining seven days and each fleet's latest snapshot", async () => {
   const leases = createLeaseStore(db);
   const snapshots = createSnapshotStore(db);
@@ -520,6 +672,44 @@ it("queues a full forced sweep behind a poll instead of joining it", async () =>
   expect(first.latest()?.cursor).toBe(2);
 });
 
+it("runs a queued forced sweep even when the preceding poll fails", async () => {
+  const forces: boolean[] = [];
+  let failPoll: ((error: Error) => void) | undefined;
+  const onError = vi.fn();
+  const first = service([], {
+    onError,
+    createSweeper: (options) =>
+      new Sweeper({
+        ...options,
+        areas: [],
+        cacheSchema,
+        emptyCache,
+        afterAreas: async (input) => {
+          forces.push(input.force);
+        },
+        inflight: {
+          has: () => true,
+          poll: async () => {
+            await new Promise<void>((_resolve, reject) => {
+              failPoll = reject;
+            });
+            return { changed: false, settled: false };
+          },
+        },
+      }),
+  });
+  await first.start();
+  await vi.advanceTimersByTimeAsync(INFLIGHT_POLL_MS);
+  const forced = first.sweep(true);
+  const result = expect(forced).resolves.toBe(true);
+  const failure = new Error("poll failed");
+  failPoll?.(failure);
+  await result;
+  expect(onError).toHaveBeenCalledWith(failure);
+  expect(forces).toEqual([false, true]);
+  expect(budgets()).toHaveLength(2);
+});
+
 it("a SIGKILLed holder is excluded until expiry, then its successor resumes state and cursor", async () => {
   vi.useRealTimers();
   const child = spawn(
@@ -565,6 +755,70 @@ it("a SIGKILLed holder is excluded until expiry, then its successor resumes stat
     expect(observed).toEqual([auth]);
     expect(next.latest()?.cursor).toBe(2);
     expect(createSnapshotStore(db).latestSnapshot("test")?.fence).toBe(2);
+  } finally {
+    if (child.exitCode === null && child.signalCode === null) {
+      child.kill("SIGKILL");
+      await exited;
+    }
+    lines.close();
+  }
+}, 30_000);
+
+it("recovers a complete snapshot and cursor after SIGKILL during writeSnapshot", async () => {
+  vi.useRealTimers();
+  const child = spawn(
+    process.execPath,
+    [
+      fileURLToPath(new URL("./holder.mjs", import.meta.url)),
+      path,
+      directory,
+      String(epoch),
+      "mid-write",
+    ],
+    { stdio: ["ignore", "pipe", "pipe"] },
+  );
+  let stderr = "";
+  child.stderr.on("data", (chunk) => {
+    stderr += String(chunk);
+  });
+  const lines = createInterface({ input: child.stdout });
+  const exited = once(child, "exit");
+  try {
+    const ready = await Promise.race([
+      once(lines, "line").then(([line]) => String(line)),
+      exited.then(() => {
+        throw new Error(`Holder exited: ${stderr}`);
+      }),
+    ]);
+    expect(ready).toBe("writing snapshot 2");
+    const snapshots = createSnapshotStore(db);
+    const old = snapshots.latestSnapshot("test");
+    expect(old?.cursor).toBe(1);
+    expect(old?.facts).toMatchObject({ facts: { auth: { data: auth } } });
+    child.kill("SIGKILL");
+    await exited;
+    expect(child.signalCode).toBe("SIGKILL");
+    const recovered = snapshots.latestSnapshot("test");
+    expect(recovered).toEqual(old);
+    expect(snapshots.snapshotsSince(0)).toEqual([old]);
+    const observed: unknown[] = [];
+    const next = service(
+      [
+        {
+          name: "auth",
+          read: async (input) => {
+            observed.push(input.facts.auth.data);
+            return { data: auth, reads: [] };
+          },
+        },
+      ],
+      { ctx: createContext({ clock: { now: () => new Date(epoch + 3000) } }) },
+    );
+    expect(await next.start()).toBe(true);
+    expect(observed).toEqual([auth]);
+    expect(next.latest()?.cursor).toBe(2);
+    expect(snapshots.latestSnapshot("test")?.fence).toBe(2);
+    expect(snapshots.snapshotsSince(0).map((snapshot) => snapshot.cursor)).toEqual([1, 2]);
   } finally {
     if (child.exitCode === null && child.signalCode === null) {
       child.kill("SIGKILL");

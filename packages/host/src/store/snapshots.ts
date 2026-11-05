@@ -41,13 +41,19 @@ export function createSnapshotStore(db: DatabaseSync) {
   );
   const since = db.prepare("SELECT * FROM facts_snapshots WHERE cursor > ? ORDER BY cursor");
   return {
-    writeSnapshot(lease: LeaseIdentity, facts: unknown, envelope: unknown, now: number): number {
-      if (!Number.isSafeInteger(now))
-        throw new RangeError("Snapshot clock must be safe integer milliseconds");
+    writeSnapshot(
+      lease: LeaseIdentity,
+      facts: unknown,
+      envelope: unknown,
+      clock: number | (() => number),
+    ): number {
       const factsJson = encode(facts);
       const envelopeJson = encode(envelope);
       db.exec("BEGIN IMMEDIATE");
       try {
+        const now = typeof clock === "function" ? clock() : clock;
+        if (!Number.isSafeInteger(now))
+          throw new RangeError("Snapshot clock must be safe integer milliseconds");
         if (!currentLease.get(lease.fleet, lease.owner, lease.fence, now)) {
           throw new Error("Stale lease: snapshot write refused");
         }

@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: MIT
 
 import { randomUUID } from "node:crypto";
-import { appendFileSync, mkdirSync } from "node:fs";
+import {
+  appendFileSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
@@ -18,6 +25,7 @@ import {
   SWEEP_MS,
   sweepStateSchema,
 } from "@spi-code/core";
+import { GraphqlBudget } from "../../../core/dist/forge.js";
 import { createLeaseStore, type LeaseIdentity } from "../store/leases.js";
 import { createSnapshotStore } from "../store/snapshots.js";
 import { projectWatch } from "../watch/project.js";
@@ -57,6 +65,7 @@ interface Holder {
   sweeper: ReturnType<typeof createSweeper>;
   saves: number;
   cursor: number;
+  budget: GraphqlBudget;
 }
 
 interface QueuedSweep {
@@ -82,6 +91,8 @@ export class SweepService {
   private polling = false;
   private queuedSweep: QueuedSweep | undefined;
   private started = false;
+  private generation = 0;
+  private readonly stopReason = new Error("Sweep service stopped");
   private cancellations: (() => void)[] = [];
 
   constructor(private readonly options: SweepServiceOptions) {
@@ -131,10 +142,12 @@ export class SweepService {
         return Promise.reject(error);
       }
       this.started = true;
+      this.generation++;
       this.repeat(this.interval, () => this.sweep());
       this.repeat(INFLIGHT_POLL_MS, () => this.poll());
       this.repeat(DAY_MS, async () => {
         this.prune.run(this.now() - 7 * DAY_MS);
+        this.trimBudgetLog();
       });
     }
     return this.sweep();
@@ -142,13 +155,14 @@ export class SweepService {
 
   /** False means another owner holds the fleet; concurrent requests coalesce. */
   sweep(force = false): Promise<boolean> {
-    if (!this.started) return Promise.reject(new Error("Sweep service is stopped"));
+    if (!this.started) return Promise.reject(this.stopReason);
     if (this.polling && this.running) {
       if (this.queuedSweep) this.queuedSweep.force ||= force;
       else {
         const queued: QueuedSweep = {
           force,
           promise: this.running
+            .catch(() => {})
             .then(() => this.sweep(queued.force))
             .finally(() => {
               if (this.queuedSweep === queued) this.queuedSweep = undefined;
@@ -166,11 +180,12 @@ export class SweepService {
 
   async stop(): Promise<void> {
     this.started = false;
+    this.generation++;
     for (const cancel of this.cancellations.splice(0)) cancel();
     const holder = this.holder;
     if (holder) {
       holder.cancelRenew?.();
-      holder.abort.abort(new Error("Sweep service stopped"));
+      holder.abort.abort(this.stopReason);
       this.holder = undefined;
     }
     try {
@@ -187,18 +202,56 @@ export class SweepService {
   }
 
   private repeat(ms: number, task: () => Promise<unknown>): void {
+    const generation = this.generation;
     let cancel = () => {};
     const schedule = () => {
       cancel = this.timers.after(ms, () => {
         void task()
-          .catch(this.options.onError)
+          .catch((error: unknown) => {
+            if (error !== this.stopReason) this.options.onError(error);
+          })
           .finally(() => {
-            if (this.started) schedule();
+            if (this.started && generation === this.generation) schedule();
           });
       });
     };
     schedule();
     this.cancellations.push(() => cancel());
+  }
+
+  private trimBudgetLog(): void {
+    const path = join(this.options.appData, "sweep-budget.jsonl");
+    let text: string;
+    try {
+      text = readFileSync(path, "utf8");
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "ENOENT") return;
+      throw error;
+    }
+    const cutoff = this.now() - DAY_MS;
+    const retained = text.split("\n").filter((line) => {
+      if (!line.trim()) return false;
+      const record: unknown = JSON.parse(line);
+      if (
+        typeof record !== "object" ||
+        record === null ||
+        !("endedAt" in record) ||
+        typeof record.endedAt !== "string" ||
+        !Number.isFinite(Date.parse(record.endedAt))
+      ) {
+        throw new TypeError("Invalid sweep budget log timestamp");
+      }
+      return Date.parse(record.endedAt) >= cutoff;
+    });
+    const temporary = `${path}.${randomUUID()}.tmp`;
+    try {
+      writeFileSync(temporary, retained.length ? `${retained.join("\n")}\n` : "", {
+        flag: "wx",
+      });
+      renameSync(temporary, path);
+    } finally {
+      rmSync(temporary, { force: true });
+    }
   }
 
   private lose(holder: Holder): void {
@@ -232,8 +285,10 @@ export class SweepService {
       runText: (cmd, args, opts) => this.options.exec.runText(cmd, args, prepare(opts)),
     };
     try {
+      const budget = this.options.budget?.scope() ?? new GraphqlBudget(this.options.ctx.clock);
       const sweeper = (this.options.createSweeper ?? createSweeper)({
         ...this.options,
+        budget,
         exec,
         persist: {
           load: async () => {
@@ -270,7 +325,7 @@ export class SweepService {
             });
             this.guard(holder);
             try {
-              holder.cursor = this.snapshots.writeSnapshot(identity, state, view, this.now());
+              holder.cursor = this.snapshots.writeSnapshot(identity, state, view, () => this.now());
             } catch (error) {
               this.lose(holder);
               throw error;
@@ -278,7 +333,7 @@ export class SweepService {
           },
         },
       });
-      holder = { identity, expiresAt: now + this.ttl, abort, sweeper, saves: 0, cursor: 0 };
+      holder = { identity, expiresAt: now + this.ttl, abort, sweeper, saves: 0, cursor: 0, budget };
       this.holder = holder;
       const renew = () => {
         holder.cancelRenew = this.timers.after(Math.floor(this.ttl / 3), () => {
@@ -323,6 +378,7 @@ export class SweepService {
     if (!holder) return false;
     this.guard(holder);
     resetBudget(holder.sweeper.cache);
+    const before = holder.budget.snapshot();
     const startedAt = this.options.ctx.clock.now().toISOString();
     const previousSaves = holder.saves;
     let failure: { error: unknown } | undefined;
@@ -336,12 +392,21 @@ export class SweepService {
     // A settled in-flight run can itself trigger a full sweep in core.
     if (!poll || holder.saves !== previousSaves) {
       try {
+        const spent = holder.budget.snapshot();
         const line = {
           fleet: this.options.fleet,
           cursor: holder.cursor,
           startedAt,
           endedAt: this.options.ctx.clock.now().toISOString(),
           ...holder.sweeper.cache.budget,
+          ...(spent.calls > before.calls
+            ? {
+                cost: spent.spent - before.spent,
+                calls: spent.calls - before.calls,
+                remaining: spent.remaining,
+                resetAt: spent.resetAt,
+              }
+            : {}),
         };
         mkdirSync(this.options.appData, { recursive: true });
         appendFileSync(
