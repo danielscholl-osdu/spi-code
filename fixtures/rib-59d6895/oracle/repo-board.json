@@ -1,0 +1,1818 @@
+{
+  "revision": "59d6895d140e9482ed788a3307177855d10883f0",
+  "now": "2026-10-12T21:58:30.000Z",
+  "cases": [
+    {
+      "variant": "fixture",
+      "id": "repo:osdu-spi",
+      "title": "osdu-spi",
+      "board": {
+        "view": "board",
+        "title": "High code-scanning alert: Branch-Protection",
+        "header": {
+          "status": {
+            "label": "PROGRAM",
+            "tone": "error"
+          },
+          "chip": "Azure/osdu-spi · alerts read 21:58"
+        },
+        "sections": [
+          {
+            "kind": "rows",
+            "items": [
+              {
+                "glyph": "info",
+                "text": "1 alert in SPI-owned shipped code at repository settings, found by Scorecard."
+              }
+            ]
+          },
+          {
+            "kind": "tabs",
+            "tabs": [
+              {
+                "label": "Issues",
+                "badge": "7",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Open · 7",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "bug",
+                          "tone": "neutral"
+                        },
+                        "text": "validate: duplicate PR runs push the same image tag and break the deploy lane pin · #250",
+                        "detail": "opened 10-07 21:05 · 0 comments",
+                        "href": "https://github.com/Azure/osdu-spi/issues/250"
+                      },
+                      {
+                        "chip": {
+                          "label": "bug",
+                          "tone": "neutral"
+                        },
+                        "text": "Template sync skips file removal when the template tip is unchanged · #245",
+                        "detail": "opened 10-06 12:23 · 0 comments",
+                        "href": "https://github.com/Azure/osdu-spi/issues/245"
+                      },
+                      {
+                        "chip": {
+                          "label": "enhancement",
+                          "tone": "neutral"
+                        },
+                        "text": "Deploy lane: optional nightly run against the shared stack · #241",
+                        "detail": "opened 10-05 19:39 · 0 comments",
+                        "href": "https://github.com/Azure/osdu-spi/issues/241"
+                      },
+                      {
+                        "chip": {
+                          "label": "enhancement",
+                          "tone": "neutral"
+                        },
+                        "text": "Deploy lane: preflight requires.loads, requires.groups, and dependencies against status facts · #176",
+                        "detail": "opened 09-10 17:24 · 1 comment",
+                        "href": "https://github.com/Azure/osdu-spi/issues/176"
+                      },
+                      {
+                        "chip": {
+                          "label": "enhancement",
+                          "tone": "neutral"
+                        },
+                        "text": "feat: mirror-tier adoption — stack pointer + identity · #157",
+                        "detail": "opened 08-31 17:31 · 3 comments",
+                        "href": "https://github.com/Azure/osdu-spi/issues/157"
+                      },
+                      {
+                        "chip": {
+                          "label": "enhancement",
+                          "tone": "neutral"
+                        },
+                        "text": "feat: contract drift tripwire (undeclared env reads fail the build) · #156",
+                        "detail": "opened 08-31 17:31 · 0 comments",
+                        "href": "https://github.com/Azure/osdu-spi/issues/156"
+                      },
+                      {
+                        "chip": {
+                          "label": "enhancement",
+                          "tone": "neutral"
+                        },
+                        "text": "Support explicit fork-owned path lists in the upstream filter config · #106",
+                        "detail": "opened 08-25 23:01 · 0 comments",
+                        "href": "https://github.com/Azure/osdu-spi/issues/106"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "PRs",
+                "badge": "0",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "items": [
+                      {
+                        "glyph": "neutral",
+                        "text": "1 pipeline PR (sync, template, release), on Flow."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Vulnerabilities",
+                "badge": "0",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "items": [
+                      {
+                        "glyph": "ok",
+                        "text": "No open vulnerabilities."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Code scanning",
+                "badge": "7",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Ours · 7",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "Branch-Protection · 1 alert",
+                        "detail": "SPI · shipped · repository settings · found by Scorecard",
+                        "trailing": "Scorecard",
+                        "href": "https://github.com/Azure/osdu-spi/security/code-scanning/7"
+                      },
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "Code-Review · 1 alert",
+                        "detail": "SPI · shipped · repository settings · found by Scorecard",
+                        "trailing": "Scorecard",
+                        "href": "https://github.com/Azure/osdu-spi/security/code-scanning/14"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "Fuzzing · 1 alert",
+                        "detail": "SPI · shipped · repository settings · found by Scorecard",
+                        "trailing": "Scorecard",
+                        "href": "https://github.com/Azure/osdu-spi/security/code-scanning/11"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "Pinned-Dependencies · 1 alert",
+                        "detail": "SPI · shipped · build · found by Scorecard",
+                        "trailing": "Scorecard",
+                        "href": "https://github.com/Azure/osdu-spi/security/code-scanning/69"
+                      },
+                      {
+                        "chip": {
+                          "label": "Low",
+                          "tone": "neutral"
+                        },
+                        "text": "CII-Best-Practices · 1 alert",
+                        "detail": "SPI · shipped · repository settings · found by Scorecard",
+                        "trailing": "Scorecard",
+                        "href": "https://github.com/Azure/osdu-spi/security/code-scanning/10"
+                      },
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "Token-Permissions · 5 alerts",
+                        "detail": "SPI · tooling · .github · found by Scorecard",
+                        "trailing": "Scorecard",
+                        "href": "https://github.com/Azure/osdu-spi/security/code-scanning?query=is%3Aopen%20tool%3AScorecard%20rule%3ATokenPermissionsID"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "Checkout of untrusted code in a non-privileged context · 1 alert",
+                        "detail": "SPI · tooling · .github · found by CodeQL",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi/security/code-scanning/63"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rows",
+            "title": "On GitHub",
+            "items": [
+              {
+                "icon": "↗",
+                "text": "Security overview",
+                "href": "https://github.com/Azure/osdu-spi/security"
+              },
+              {
+                "icon": "↗",
+                "text": "Pull requests",
+                "href": "https://github.com/Azure/osdu-spi/pulls"
+              },
+              {
+                "icon": "↗",
+                "text": "Issues",
+                "href": "https://github.com/Azure/osdu-spi/issues"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "variant": "fixture",
+      "id": "repo:osdu-spi-stack",
+      "title": "osdu-spi-stack",
+      "board": {
+        "view": "board",
+        "title": "1 pull request has conflicts",
+        "header": {
+          "status": {
+            "label": "PROGRAM",
+            "tone": "warn"
+          },
+          "chip": "Azure/osdu-spi-stack · alerts read 21:58"
+        },
+        "sections": [
+          {
+            "kind": "rows",
+            "items": [
+              {
+                "glyph": "info",
+                "text": "#323 onboard Seismic Store V3."
+              }
+            ]
+          },
+          {
+            "kind": "tabs",
+            "tabs": [
+              {
+                "label": "Issues",
+                "badge": "4",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Open · 4",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "bug",
+                          "tone": "neutral"
+                        },
+                        "text": "[bug] spi up --declaration rejects absent identities with ParentResourceNotFound · #324",
+                        "detail": "opened 10-08 21:06 · 0 comments",
+                        "href": "https://github.com/Azure/osdu-spi-stack/issues/324"
+                      },
+                      {
+                        "chip": {
+                          "label": "bug",
+                          "tone": "neutral"
+                        },
+                        "text": "Pin refusal for a moved tag should say re-run all jobs · #321",
+                        "detail": "opened 10-07 21:06 · 0 comments",
+                        "href": "https://github.com/Azure/osdu-spi-stack/issues/321"
+                      },
+                      {
+                        "chip": {
+                          "label": "bug",
+                          "tone": "neutral"
+                        },
+                        "text": "Restore can start the canonical schema loader against the outgoing borrowed pod · #320",
+                        "detail": "opened 10-07 21:06 · 0 comments",
+                        "href": "https://github.com/Azure/osdu-spi-stack/issues/320"
+                      },
+                      {
+                        "chip": {
+                          "label": "enhancement",
+                          "tone": "neutral"
+                        },
+                        "text": "feat(cli): spi load, named loads with published state · #133",
+                        "detail": "opened 08-31 17:30 · 3 comments",
+                        "href": "https://github.com/Azure/osdu-spi-stack/issues/133"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "PRs",
+                "badge": "2",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Pull Requests · 2",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "feat",
+                          "tone": "neutral"
+                        },
+                        "text": "add RAFS service · #327",
+                        "detail": "behind · opened 1d 14h ago · by contributor-a",
+                        "trailing": "behind",
+                        "href": "https://github.com/Azure/osdu-spi-stack/pull/327"
+                      },
+                      {
+                        "chip": {
+                          "label": "feat",
+                          "tone": "error"
+                        },
+                        "text": "onboard Seismic Store V3 · #323",
+                        "detail": "conflicts · opened 4d 4h ago · by contributor-a",
+                        "trailing": "conflicts",
+                        "href": "https://github.com/Azure/osdu-spi-stack/pull/323"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Vulnerabilities",
+                "badge": "1",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Ours · 1",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "virtualenv · 4 vulnerabilities",
+                        "detail": "SPI · shipped · uv.lock · fixed in 21.7.13",
+                        "trailing": "fix 21.7.13",
+                        "href": "https://github.com/Azure/osdu-spi-stack/security/dependabot?q=is%3Aopen%20package%3Avirtualenv%20manifest%3Auv.lock"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Code scanning",
+                "badge": "0",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "items": [
+                      {
+                        "glyph": "ok",
+                        "text": "No open code-scanning alerts."
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rows",
+            "title": "On GitHub",
+            "items": [
+              {
+                "icon": "↗",
+                "text": "Security overview",
+                "href": "https://github.com/Azure/osdu-spi-stack/security"
+              },
+              {
+                "icon": "↗",
+                "text": "Pull requests",
+                "href": "https://github.com/Azure/osdu-spi-stack/pulls"
+              },
+              {
+                "icon": "↗",
+                "text": "Issues",
+                "href": "https://github.com/Azure/osdu-spi-stack/issues"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "variant": "fixture",
+      "id": "repo:partition",
+      "title": "osdu-spi-partition",
+      "board": {
+        "view": "board",
+        "title": "High code-scanning alert: Disabled Spring CSRF protection",
+        "header": {
+          "status": {
+            "label": "FORK",
+            "tone": "error"
+          },
+          "chip": "Azure/osdu-spi-partition · alerts read 21:58"
+        },
+        "sections": [
+          {
+            "kind": "rows",
+            "items": [
+              {
+                "glyph": "info",
+                "text": "2 alerts in SPI-owned shipped code at provider/partition-azure, found by CodeQL. Also ours on entitlements, legal, schema and 1 more."
+              }
+            ]
+          },
+          {
+            "kind": "tabs",
+            "tabs": [
+              {
+                "label": "Issues",
+                "badge": "0",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "items": [
+                      {
+                        "glyph": "ok",
+                        "text": "No issues open."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "PRs",
+                "badge": "0",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "items": [
+                      {
+                        "glyph": "neutral",
+                        "text": "1 pipeline PR (sync, template, release), on Flow."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Vulnerabilities",
+                "badge": "3",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Upstream · 1",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "jackson-databind · 5 vulnerabilities",
+                        "detail": "Upstream · shipped · pom.xml · fixed in 2.21.7",
+                        "trailing": "fix 2.21.7",
+                        "href": "https://github.com/Azure/osdu-spi-partition/security/dependabot?q=is%3Aopen%20package%3Acom.fasterxml.jackson.core%3Ajackson-databind%20manifest%3Apom.xml"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "rows",
+                    "title": "Tests · 2",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "httpclient5 · 1 vulnerability",
+                        "detail": "Upstream · tests · testing/partition-test-core/pom.xml · fixed in 5.6.3",
+                        "trailing": "fix 5.6.3",
+                        "href": "https://github.com/Azure/osdu-spi-partition/security/dependabot/77"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "spring-web · 1 vulnerability",
+                        "detail": "Upstream · tests · testing/partition-test-core/pom.xml · fixed in 6.2.19",
+                        "trailing": "fix 6.2.19",
+                        "href": "https://github.com/Azure/osdu-spi-partition/security/dependabot/74"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Code scanning",
+                "badge": "2",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Ours · 2",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "Disabled Spring CSRF protection · 2 alerts",
+                        "detail": "SPI · shipped · provider/partition-azure · found by CodeQL · also ours on entitlements, legal, schema and 1 more",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-partition/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "Log Injection · 1 alert",
+                        "detail": "SPI · shipped · provider/partition-azure · found by CodeQL · also ours on schema and file",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-partition/security/code-scanning/5"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rows",
+            "title": "On GitHub",
+            "items": [
+              {
+                "icon": "↗",
+                "text": "Security overview",
+                "href": "https://github.com/Azure/osdu-spi-partition/security"
+              },
+              {
+                "icon": "↗",
+                "text": "Pull requests",
+                "href": "https://github.com/Azure/osdu-spi-partition/pulls"
+              },
+              {
+                "icon": "↗",
+                "text": "Issues",
+                "href": "https://github.com/Azure/osdu-spi-partition/issues"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "variant": "fixture",
+      "id": "repo:entitlements",
+      "title": "osdu-spi-entitlements",
+      "board": {
+        "view": "board",
+        "title": "1 issue needs a person",
+        "header": {
+          "status": {
+            "label": "FORK",
+            "tone": "error"
+          },
+          "chip": "Azure/osdu-spi-entitlements · alerts read 21:58"
+        },
+        "sections": [
+          {
+            "kind": "rows",
+            "items": [
+              {
+                "glyph": "info",
+                "text": "#47 🔄 Upstream Sync Failed 2026-10-08, open 4d 21h."
+              }
+            ]
+          },
+          {
+            "kind": "tabs",
+            "tabs": [
+              {
+                "label": "Issues",
+                "badge": "1",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Open · 1",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "human-required",
+                          "tone": "error"
+                        },
+                        "text": "🔄 Upstream Sync Failed 2026-10-08 · #47",
+                        "detail": "opened 10-08 00:22 · 4 comments · from the sync engine, on Today",
+                        "href": "https://github.com/Azure/osdu-spi-entitlements/issues/47"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "PRs",
+                "badge": "1",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Pull Requests · 1",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "untyped",
+                          "tone": "error"
+                        },
+                        "text": "Test External Contribution flow · #49",
+                        "detail": "red · opened 4d 3h ago · by contributor-b",
+                        "trailing": "red",
+                        "href": "https://github.com/Azure/osdu-spi-entitlements/pull/49"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "rows",
+                    "items": [
+                      {
+                        "glyph": "neutral",
+                        "text": "1 pipeline PR (sync, template, release), on Flow."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Vulnerabilities",
+                "badge": "5",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Upstream · 2",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "log4j-core · 3 vulnerabilities",
+                        "detail": "Upstream · shipped · pom.xml · fixed in 2.25.4",
+                        "trailing": "fix 2.25.4",
+                        "href": "https://github.com/Azure/osdu-spi-entitlements/security/dependabot?q=is%3Aopen%20package%3Aorg.apache.logging.log4j%3Alog4j-core%20manifest%3Apom.xml"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "log4j-api · 1 vulnerability",
+                        "detail": "Upstream · shipped · pom.xml · fixed in 2.25.5",
+                        "trailing": "fix 2.25.5",
+                        "href": "https://github.com/Azure/osdu-spi-entitlements/security/dependabot/5"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "rows",
+                    "title": "Tests · 3",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "httpclient5 · 1 vulnerability",
+                        "detail": "Upstream · tests · testing/entitlements-v2-test-core/pom.xml · fixed in 5.6.3",
+                        "trailing": "fix 5.6.3",
+                        "href": "https://github.com/Azure/osdu-spi-entitlements/security/dependabot/8"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "httpclient5 · 1 vulnerability",
+                        "detail": "Upstream · tests · entitlements-v2-acceptance-test/pom.xml · fixed in 5.6.3",
+                        "trailing": "fix 5.6.3",
+                        "href": "https://github.com/Azure/osdu-spi-entitlements/security/dependabot/1"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "spring-web · 1 vulnerability",
+                        "detail": "Upstream · tests · testing/entitlements-v2-test-core/pom.xml · fixed in 6.2.19",
+                        "trailing": "fix 6.2.19",
+                        "href": "https://github.com/Azure/osdu-spi-entitlements/security/dependabot/7"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Code scanning",
+                "badge": "3",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Ours · 1",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "Disabled Spring CSRF protection · 2 alerts",
+                        "detail": "SPI · shipped · provider/entitlements-v2-azure · found by CodeQL · also ours on partition, legal, schema and 1 more",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-entitlements/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "rows",
+                    "title": "Upstream · 1",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "Information exposure through an error message · 5 alerts",
+                        "detail": "Upstream · shipped · entitlements-v2-core · found by CodeQL",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-entitlements/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Ferror-message-exposure"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "rows",
+                    "title": "Tests · 1",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "Disabled Spring CSRF protection · 1 alert",
+                        "detail": "Upstream · tests · entitlements-v2-core · found by CodeQL",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-entitlements/security/code-scanning/2"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rows",
+            "title": "On GitHub",
+            "items": [
+              {
+                "icon": "↗",
+                "text": "Security overview",
+                "href": "https://github.com/Azure/osdu-spi-entitlements/security"
+              },
+              {
+                "icon": "↗",
+                "text": "Pull requests",
+                "href": "https://github.com/Azure/osdu-spi-entitlements/pulls"
+              },
+              {
+                "icon": "↗",
+                "text": "Issues",
+                "href": "https://github.com/Azure/osdu-spi-entitlements/issues"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "variant": "fixture",
+      "id": "repo:legal",
+      "title": "osdu-spi-legal",
+      "board": {
+        "view": "board",
+        "title": "1 issue needs a person",
+        "header": {
+          "status": {
+            "label": "FORK",
+            "tone": "error"
+          },
+          "chip": "Azure/osdu-spi-legal · alerts read 21:58"
+        },
+        "sections": [
+          {
+            "kind": "rows",
+            "items": [
+              {
+                "glyph": "info",
+                "text": "#32 📥 Upstream Sync Ready for Review - 2026-10-08, open 4d 21h."
+              }
+            ]
+          },
+          {
+            "kind": "tabs",
+            "tabs": [
+              {
+                "label": "Issues",
+                "badge": "1",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Open · 1",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "human-required",
+                          "tone": "error"
+                        },
+                        "text": "📥 Upstream Sync Ready for Review - 2026-10-08 · #32",
+                        "detail": "opened 10-08 00:08 · 0 comments · from the sync engine, on Today",
+                        "href": "https://github.com/Azure/osdu-spi-legal/issues/32"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "PRs",
+                "badge": "0",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "items": [
+                      {
+                        "glyph": "neutral",
+                        "text": "2 pipeline PRs (sync, template, release), on Flow."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Vulnerabilities",
+                "badge": "2",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Tests · 2",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "guava · 2 vulnerabilities",
+                        "detail": "Upstream · tests · testing/legal-test-core/pom.xml · fixed in 32.0.0-android",
+                        "trailing": "fix 32.0.0-android",
+                        "href": "https://github.com/Azure/osdu-spi-legal/security/dependabot?q=is%3Aopen%20package%3Acom.google.guava%3Aguava%20manifest%3Atesting%2Flegal-test-core%2Fpom.xml"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "commons-lang3 · 1 vulnerability",
+                        "detail": "Upstream · tests · testing/legal-test-core/pom.xml · fixed in 3.18.0",
+                        "trailing": "fix 3.18.0",
+                        "href": "https://github.com/Azure/osdu-spi-legal/security/dependabot/3"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Code scanning",
+                "badge": "2",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Ours · 1",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "Disabled Spring CSRF protection · 2 alerts",
+                        "detail": "SPI · shipped · provider/legal-azure · found by CodeQL · also ours on partition, entitlements, schema and 1 more",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-legal/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "rows",
+                    "title": "Tests · 1",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "`TrustManager` that accepts all certificates · 1 alert",
+                        "detail": "Upstream · tests · testing/legal-test-core · found by CodeQL",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-legal/security/code-scanning/4"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rows",
+            "title": "On GitHub",
+            "items": [
+              {
+                "icon": "↗",
+                "text": "Security overview",
+                "href": "https://github.com/Azure/osdu-spi-legal/security"
+              },
+              {
+                "icon": "↗",
+                "text": "Pull requests",
+                "href": "https://github.com/Azure/osdu-spi-legal/pulls"
+              },
+              {
+                "icon": "↗",
+                "text": "Issues",
+                "href": "https://github.com/Azure/osdu-spi-legal/issues"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "variant": "fixture",
+      "id": "repo:schema",
+      "title": "osdu-spi-schema",
+      "board": {
+        "view": "board",
+        "title": "High code-scanning alert: Disabled Spring CSRF protection",
+        "header": {
+          "status": {
+            "label": "FORK",
+            "tone": "error"
+          },
+          "chip": "Azure/osdu-spi-schema · alerts read 21:58"
+        },
+        "sections": [
+          {
+            "kind": "rows",
+            "items": [
+              {
+                "glyph": "info",
+                "text": "3 alerts in SPI-owned shipped code at provider/schema-azure, found by CodeQL. Also ours on partition, entitlements, legal and 1 more."
+              }
+            ]
+          },
+          {
+            "kind": "tabs",
+            "tabs": [
+              {
+                "label": "Issues",
+                "badge": "0",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "items": [
+                      {
+                        "glyph": "ok",
+                        "text": "No issues open."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "PRs",
+                "badge": "0",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "items": [
+                      {
+                        "glyph": "neutral",
+                        "text": "1 pipeline PR (sync, template, release), on Flow."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Vulnerabilities",
+                "badge": "12",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Upstream · 7",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "urllib3 · 7 vulnerabilities",
+                        "detail": "Upstream · tooling · deployments/scripts/schema-cleaner/requirements.txt · fixed in 2.8.0",
+                        "trailing": "fix 2.8.0",
+                        "href": "https://github.com/Azure/osdu-spi-schema/security/dependabot?q=is%3Aopen%20package%3Aurllib3%20manifest%3Adeployments%2Fscripts%2Fschema-cleaner%2Frequirements.txt"
+                      },
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "cryptography · 5 vulnerabilities",
+                        "detail": "Upstream · tooling · deployments/scripts/schema-cleaner/requirements.txt · fixed in 50.0.0",
+                        "trailing": "fix 50.0.0",
+                        "href": "https://github.com/Azure/osdu-spi-schema/security/dependabot?q=is%3Aopen%20package%3Acryptography%20manifest%3Adeployments%2Fscripts%2Fschema-cleaner%2Frequirements.txt"
+                      },
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "pyasn1 · 4 vulnerabilities",
+                        "detail": "Upstream · tooling · deployments/scripts/schema-cleaner/requirements.txt · fixed in 0.6.4",
+                        "trailing": "fix 0.6.4",
+                        "href": "https://github.com/Azure/osdu-spi-schema/security/dependabot?q=is%3Aopen%20package%3Apyasn1%20manifest%3Adeployments%2Fscripts%2Fschema-cleaner%2Frequirements.txt"
+                      },
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "protobuf · 2 vulnerabilities",
+                        "detail": "Upstream · tooling · deployments/scripts/schema-cleaner/requirements.txt · fixed in 5.29.6",
+                        "trailing": "fix 5.29.6",
+                        "href": "https://github.com/Azure/osdu-spi-schema/security/dependabot?q=is%3Aopen%20package%3Aprotobuf%20manifest%3Adeployments%2Fscripts%2Fschema-cleaner%2Frequirements.txt"
+                      },
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "pyopenssl · 2 vulnerabilities",
+                        "detail": "Upstream · tooling · deployments/scripts/schema-cleaner/requirements.txt · fixed in 26.0.0",
+                        "trailing": "fix 26.0.0",
+                        "href": "https://github.com/Azure/osdu-spi-schema/security/dependabot?q=is%3Aopen%20package%3Apyopenssl%20manifest%3Adeployments%2Fscripts%2Fschema-cleaner%2Frequirements.txt"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "requests · 2 vulnerabilities",
+                        "detail": "Upstream · tooling · deployments/scripts/requirements.txt · fixed in 2.33.0",
+                        "trailing": "fix 2.33.0",
+                        "href": "https://github.com/Azure/osdu-spi-schema/security/dependabot?q=is%3Aopen%20package%3Arequests%20manifest%3Adeployments%2Fscripts%2Frequirements.txt"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "idna · 1 vulnerability",
+                        "detail": "Upstream · tooling · deployments/scripts/schema-cleaner/requirements.txt · fixed in 3.15",
+                        "trailing": "fix 3.15",
+                        "href": "https://github.com/Azure/osdu-spi-schema/security/dependabot/15"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "rows",
+                    "title": "Tests · 5",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "spring-retry · 1 vulnerability",
+                        "detail": "SPI · tests · testing/schema-test-azure/pom.xml · no fix published",
+                        "trailing": "no fix",
+                        "href": "https://github.com/Azure/osdu-spi-schema/security/dependabot/22"
+                      },
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "jackson-databind · 10 vulnerabilities",
+                        "detail": "Upstream · tests · testing/schema-test-core/pom.xml · fixed in 2.18.11",
+                        "trailing": "fix 2.18.11",
+                        "href": "https://github.com/Azure/osdu-spi-schema/security/dependabot?q=is%3Aopen%20package%3Acom.fasterxml.jackson.core%3Ajackson-databind%20manifest%3Atesting%2Fschema-test-core%2Fpom.xml"
+                      },
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "jackson-core · 3 vulnerabilities",
+                        "detail": "Upstream · tests · testing/schema-test-core/pom.xml · fixed in 2.18.11",
+                        "trailing": "fix 2.18.11",
+                        "href": "https://github.com/Azure/osdu-spi-schema/security/dependabot?q=is%3Aopen%20package%3Acom.fasterxml.jackson.core%3Ajackson-core%20manifest%3Atesting%2Fschema-test-core%2Fpom.xml"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "azure-identity · 1 vulnerability",
+                        "detail": "Upstream · tests · testing/schema-test-core/pom.xml · fixed in 1.12.2",
+                        "trailing": "fix 1.12.2",
+                        "href": "https://github.com/Azure/osdu-spi-schema/security/dependabot/23"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "spring-retry · 1 vulnerability",
+                        "detail": "Upstream · tests · testing/schema-test-core/pom.xml · no fix published",
+                        "trailing": "no fix",
+                        "href": "https://github.com/Azure/osdu-spi-schema/security/dependabot/30"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Code scanning",
+                "badge": "3",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Ours · 2",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "Disabled Spring CSRF protection · 3 alerts",
+                        "detail": "SPI · shipped · provider/schema-azure · found by CodeQL · also ours on partition, entitlements, legal and 1 more",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-schema/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "Log Injection · 2 alerts",
+                        "detail": "SPI · shipped · provider/schema-azure · found by CodeQL · also ours on partition and file",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-schema/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Flog-injection"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "rows",
+                    "title": "Upstream · 1",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "Request without certificate validation · 1 alert",
+                        "detail": "Upstream · tooling · deployments · found by CodeQL",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-schema/security/code-scanning/2"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rows",
+            "title": "On GitHub",
+            "items": [
+              {
+                "icon": "↗",
+                "text": "Security overview",
+                "href": "https://github.com/Azure/osdu-spi-schema/security"
+              },
+              {
+                "icon": "↗",
+                "text": "Pull requests",
+                "href": "https://github.com/Azure/osdu-spi-schema/pulls"
+              },
+              {
+                "icon": "↗",
+                "text": "Issues",
+                "href": "https://github.com/Azure/osdu-spi-schema/issues"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "variant": "fixture",
+      "id": "repo:file",
+      "title": "osdu-spi-file",
+      "board": {
+        "view": "board",
+        "title": "High code-scanning alert: Disabled Spring CSRF protection",
+        "header": {
+          "status": {
+            "label": "FORK",
+            "tone": "error"
+          },
+          "chip": "Azure/osdu-spi-file · alerts read 21:58"
+        },
+        "sections": [
+          {
+            "kind": "rows",
+            "items": [
+              {
+                "glyph": "info",
+                "text": "2 alerts in SPI-owned shipped code at provider/file-azure, found by CodeQL. Also ours on partition, entitlements, legal and 1 more."
+              }
+            ]
+          },
+          {
+            "kind": "tabs",
+            "tabs": [
+              {
+                "label": "Issues",
+                "badge": "0",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "items": [
+                      {
+                        "glyph": "ok",
+                        "text": "No issues open."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "PRs",
+                "badge": "0",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "items": [
+                      {
+                        "glyph": "neutral",
+                        "text": "1 pipeline PR (sync, template, release), on Flow."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Vulnerabilities",
+                "badge": "4",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Upstream · 2",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "log4j-api · 1 vulnerability",
+                        "detail": "Upstream · shipped · pom.xml · fixed in 2.25.5",
+                        "trailing": "fix 2.25.5",
+                        "href": "https://github.com/Azure/osdu-spi-file/security/dependabot/4"
+                      },
+                      {
+                        "chip": {
+                          "label": "Low",
+                          "tone": "neutral"
+                        },
+                        "text": "logback-core · 3 vulnerabilities",
+                        "detail": "Upstream · shipped · pom.xml · fixed in 1.5.34",
+                        "trailing": "fix 1.5.34",
+                        "href": "https://github.com/Azure/osdu-spi-file/security/dependabot?q=is%3Aopen%20package%3Ach.qos.logback%3Alogback-core%20manifest%3Apom.xml"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "rows",
+                    "title": "Tests · 2",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "commons-io · 2 vulnerabilities",
+                        "detail": "Upstream · tests · testing/file-test-core/pom.xml · fixed in 2.14.0",
+                        "trailing": "fix 2.14.0",
+                        "href": "https://github.com/Azure/osdu-spi-file/security/dependabot?q=is%3Aopen%20package%3Acommons-io%3Acommons-io%20manifest%3Atesting%2Ffile-test-core%2Fpom.xml"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "spring-web · 1 vulnerability",
+                        "detail": "Upstream · tests · testing/file-test-core/pom.xml · fixed in 6.2.19",
+                        "trailing": "fix 6.2.19",
+                        "href": "https://github.com/Azure/osdu-spi-file/security/dependabot/10"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Code scanning",
+                "badge": "8",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Ours · 2",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "Disabled Spring CSRF protection · 2 alerts",
+                        "detail": "SPI · shipped · provider/file-azure · found by CodeQL · also ours on partition, entitlements, legal and 1 more",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-file/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "Log Injection · 4 alerts",
+                        "detail": "SPI · shipped · provider/file-azure · found by CodeQL · also ours on partition and schema",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-file/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Flog-injection"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "rows",
+                    "title": "Upstream · 3",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "Implicit narrowing conversion in compound assignment · 1 alert",
+                        "detail": "Upstream · shipped · file-core · found by CodeQL",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-file/security/code-scanning/2"
+                      },
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "Insertion of sensitive information into log files · 1 alert",
+                        "detail": "Upstream · shipped · file-core · found by CodeQL",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-file/security/code-scanning/7"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "Log Injection · 6 alerts",
+                        "detail": "Upstream · shipped · file-core · found by CodeQL",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-file/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Flog-injection"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "rows",
+                    "title": "Tests · 3",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "`TrustManager` that accepts all certificates · 1 alert",
+                        "detail": "Upstream · tests · testing/file-test-core · found by CodeQL",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-file/security/code-scanning/3"
+                      },
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "Disabled Spring CSRF protection · 1 alert",
+                        "detail": "Upstream · tests · file-core · found by CodeQL",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-file/security/code-scanning/4"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "Log Injection · 1 alert",
+                        "detail": "Upstream · tests · file-acceptance-test · found by CodeQL",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-file/security/code-scanning/9"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rows",
+            "title": "On GitHub",
+            "items": [
+              {
+                "icon": "↗",
+                "text": "Security overview",
+                "href": "https://github.com/Azure/osdu-spi-file/security"
+              },
+              {
+                "icon": "↗",
+                "text": "Pull requests",
+                "href": "https://github.com/Azure/osdu-spi-file/pulls"
+              },
+              {
+                "icon": "↗",
+                "text": "Issues",
+                "href": "https://github.com/Azure/osdu-spi-file/issues"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "variant": "fixture",
+      "id": "repo:not-watched",
+      "board": {
+        "view": "board",
+        "header": {
+          "status": {
+            "label": "UNKNOWN",
+            "tone": "neutral"
+          }
+        },
+        "sections": [
+          {
+            "kind": "rows",
+            "items": [
+              {
+                "glyph": "neutral",
+                "text": "repo:not-watched is not a watched repository."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "variant": "critical",
+      "id": "repo:partition",
+      "title": "osdu-spi-partition",
+      "board": {
+        "view": "board",
+        "title": "Critical vulnerability in async-http-client",
+        "header": {
+          "status": {
+            "label": "FORK",
+            "tone": "error"
+          },
+          "chip": "Azure/osdu-spi-partition · alerts read 21:58"
+        },
+        "sections": [
+          {
+            "kind": "rows",
+            "items": [
+              {
+                "glyph": "info",
+                "text": "1 vulnerability in SPI-owned shipped code at provider/partition-azure/pom.xml, no fix published."
+              }
+            ]
+          },
+          {
+            "kind": "tabs",
+            "tabs": [
+              {
+                "label": "Issues",
+                "badge": "0",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "items": [
+                      {
+                        "glyph": "ok",
+                        "text": "No issues open."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "PRs",
+                "badge": "0",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "items": [
+                      {
+                        "glyph": "neutral",
+                        "text": "1 pipeline PR (sync, template, release), on Flow."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Vulnerabilities",
+                "badge": "4",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Ours · 1",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "Critical",
+                          "tone": "error"
+                        },
+                        "text": "async-http-client · 1 vulnerability",
+                        "detail": "SPI · shipped · provider/partition-azure/pom.xml · no fix published",
+                        "trailing": "no fix",
+                        "href": "https://github.com/Azure/osdu-spi-partition/security/dependabot/900"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "rows",
+                    "title": "Upstream · 1",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "jackson-databind · 5 vulnerabilities",
+                        "detail": "Upstream · shipped · pom.xml · fixed in 2.21.7",
+                        "trailing": "fix 2.21.7",
+                        "href": "https://github.com/Azure/osdu-spi-partition/security/dependabot?q=is%3Aopen%20package%3Acom.fasterxml.jackson.core%3Ajackson-databind%20manifest%3Apom.xml"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "rows",
+                    "title": "Tests · 2",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "httpclient5 · 1 vulnerability",
+                        "detail": "Upstream · tests · testing/partition-test-core/pom.xml · fixed in 5.6.3",
+                        "trailing": "fix 5.6.3",
+                        "href": "https://github.com/Azure/osdu-spi-partition/security/dependabot/77"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "spring-web · 1 vulnerability",
+                        "detail": "Upstream · tests · testing/partition-test-core/pom.xml · fixed in 6.2.19",
+                        "trailing": "fix 6.2.19",
+                        "href": "https://github.com/Azure/osdu-spi-partition/security/dependabot/74"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Code scanning",
+                "badge": "2",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Ours · 2",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "High",
+                          "tone": "error"
+                        },
+                        "text": "Disabled Spring CSRF protection · 2 alerts",
+                        "detail": "SPI · shipped · provider/partition-azure · found by CodeQL · also ours on entitlements, legal, schema and 1 more",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-partition/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "Log Injection · 1 alert",
+                        "detail": "SPI · shipped · provider/partition-azure · found by CodeQL · also ours on schema and file",
+                        "trailing": "CodeQL",
+                        "href": "https://github.com/Azure/osdu-spi-partition/security/code-scanning/5"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rows",
+            "title": "On GitHub",
+            "items": [
+              {
+                "icon": "↗",
+                "text": "Security overview",
+                "href": "https://github.com/Azure/osdu-spi-partition/security"
+              },
+              {
+                "icon": "↗",
+                "text": "Pull requests",
+                "href": "https://github.com/Azure/osdu-spi-partition/pulls"
+              },
+              {
+                "icon": "↗",
+                "text": "Issues",
+                "href": "https://github.com/Azure/osdu-spi-partition/issues"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "variant": "code-hidden",
+      "id": "repo:legal",
+      "title": "osdu-spi-legal",
+      "board": {
+        "view": "board",
+        "title": "1 issue needs a person",
+        "header": {
+          "status": {
+            "label": "FORK",
+            "tone": "error"
+          },
+          "chip": "Azure/osdu-spi-legal · alerts read 21:58"
+        },
+        "sections": [
+          {
+            "kind": "rows",
+            "items": [
+              {
+                "glyph": "info",
+                "text": "#32 📥 Upstream Sync Ready for Review - 2026-10-08, open 4d 21h."
+              }
+            ]
+          },
+          {
+            "kind": "tabs",
+            "tabs": [
+              {
+                "label": "Issues",
+                "badge": "1",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Open · 1",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "human-required",
+                          "tone": "error"
+                        },
+                        "text": "📥 Upstream Sync Ready for Review - 2026-10-08 · #32",
+                        "detail": "opened 10-08 00:08 · 0 comments · from the sync engine, on Today",
+                        "href": "https://github.com/Azure/osdu-spi-legal/issues/32"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "PRs",
+                "badge": "0",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "items": [
+                      {
+                        "glyph": "neutral",
+                        "text": "2 pipeline PRs (sync, template, release), on Flow."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Vulnerabilities",
+                "badge": "2",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "title": "Tests · 2",
+                    "items": [
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "guava · 2 vulnerabilities",
+                        "detail": "Upstream · tests · testing/legal-test-core/pom.xml · fixed in 32.0.0-android",
+                        "trailing": "fix 32.0.0-android",
+                        "href": "https://github.com/Azure/osdu-spi-legal/security/dependabot?q=is%3Aopen%20package%3Acom.google.guava%3Aguava%20manifest%3Atesting%2Flegal-test-core%2Fpom.xml"
+                      },
+                      {
+                        "chip": {
+                          "label": "Medium",
+                          "tone": "warn"
+                        },
+                        "text": "commons-lang3 · 1 vulnerability",
+                        "detail": "Upstream · tests · testing/legal-test-core/pom.xml · fixed in 3.18.0",
+                        "trailing": "fix 3.18.0",
+                        "href": "https://github.com/Azure/osdu-spi-legal/security/dependabot/3"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Code scanning",
+                "badge": "0",
+                "sections": [
+                  {
+                    "kind": "rows",
+                    "items": [
+                      {
+                        "glyph": "neutral",
+                        "text": "Code-scanning alerts are not readable with this token, or not read yet."
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "rows",
+            "title": "On GitHub",
+            "items": [
+              {
+                "icon": "↗",
+                "text": "Security overview",
+                "href": "https://github.com/Azure/osdu-spi-legal/security"
+              },
+              {
+                "icon": "↗",
+                "text": "Pull requests",
+                "href": "https://github.com/Azure/osdu-spi-legal/pulls"
+              },
+              {
+                "icon": "↗",
+                "text": "Issues",
+                "href": "https://github.com/Azure/osdu-spi-legal/issues"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

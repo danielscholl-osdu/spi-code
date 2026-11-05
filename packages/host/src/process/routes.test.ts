@@ -23,8 +23,10 @@ import {
   type Facts,
   type InspectOptions,
   type ItemClass,
+  inspectRepo,
   inspectStep,
   type QueueItem,
+  REPO_PREFIX,
   STEP_PREFIX,
 } from "@spi-code/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -493,6 +495,88 @@ describe("inspect.request", () => {
       expect(calls).toBe(0);
     },
   );
+
+  it("inspects every watched repository from the persisted fixture sweep", async () => {
+    const ids = model.repositories.rows.map((row) => `${REPO_PREFIX}${row.name}`);
+    expect(ids.length).toBeGreaterThan(0);
+    const storedAreas = areas.map(({ area }) => ({
+      area,
+      envelope: { source: area, state: "unread" as const },
+    }));
+    writeSnapshot(undefined, undefined, storedAreas);
+    const port = host(routes());
+    for (const id of ids) port.request("inspect.request", { id }, `inspect-${id}`);
+    await settle();
+    for (const id of ids) {
+      expect(model.queue.items.some((item) => item.id === id)).toBe(false);
+      const repo = inspectRepo(model, id, ctx.clock.now());
+      if (!repo) throw new Error(`Fixture repository ${id} missing`);
+      const response = port.sent.find((message) => message.id === `inspect-${id}`);
+      expect(response).toMatchObject({ kind: "response", type: "inspect.result" });
+      const result = InspectResultSchema.parse(response?.payload);
+      expect(result).toMatchObject({
+        id,
+        class: "SECURITY",
+        cause: repo.title,
+        effect: repo.chip,
+        next: "",
+        why: `${repo.status.label}; ${repo.summary}`,
+        evidence: [],
+        approval: null,
+        actions: [],
+        areas: storedAreas,
+        provenance: [],
+      });
+      const items = repo.tabs.flatMap((tab) =>
+        tab.sections.flatMap((section) => section.items.map((item) => ({ tab, section, item }))),
+      );
+      expect(result.related).toHaveLength(items.length + repo.links.length);
+      for (const { tab, section, item } of items) {
+        expect(result.related).toContainEqual({
+          text: item.detail ? `${item.text} · ${item.detail}` : item.text,
+          state: [tab.label, section.title, item.chip?.label, item.trailing]
+            .filter(Boolean)
+            .join(" · "),
+          ...(item.href ? { url: item.href } : {}),
+        });
+      }
+      for (const link of repo.links) {
+        expect(result.related).toContainEqual({
+          text: link.text,
+          state: "On GitHub",
+          url: link.href,
+        });
+      }
+    }
+    expect(calls).toBe(0);
+  });
+
+  it.each([
+    "repo:",
+    "repo:not-watched",
+    "repo:partition:extra",
+    "repo:partition/x",
+    "repo%3Apartition",
+    "repo:part%69tion",
+    "REPO:partition",
+    "repo:Partition",
+    " repo:partition",
+    "repo:partition ",
+    "repo:__proto__",
+    "repo:toString",
+    "repo:constructor",
+  ])("answers not_found for malformed or unknown repository id %j", async (id) => {
+    writeSnapshot();
+    const port = host(routes());
+    port.request("inspect.request", { id });
+    await settle();
+    expect(port.sent[1]).toMatchObject({
+      id: "req",
+      type: "error",
+      payload: { code: "not_found" },
+    });
+    expect(calls).toBe(0);
+  });
 
   const base: QueueItem = {
     id: "x",

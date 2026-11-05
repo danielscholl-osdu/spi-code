@@ -32,6 +32,7 @@ import {
   Glab,
   type InspectOptions,
   inspectItem,
+  inspectRepo,
   inspectStep,
   isMonth,
   type Model,
@@ -42,7 +43,9 @@ import {
   NOTES_LABEL,
   type QueueItem,
   RELEASE_PREFIX,
+  REPO_PREFIX,
   type ReleaseDoc,
+  type RepoInspection,
   releaseDoc,
   STEP_PREFIX,
   verbsOf,
@@ -309,9 +312,45 @@ function releaseResult(doc: ReleaseDoc, areas: readonly AreaEnvelope[]): Inspect
   });
 }
 
+/** A repository's tabs flatten into related rows, each stating its tab, section and marks. */
+function repoResult(
+  id: string,
+  repo: RepoInspection,
+  areas: readonly AreaEnvelope[],
+): InspectResult {
+  return InspectResultSchema.parse({
+    id,
+    class: "SECURITY",
+    cause: repo.title,
+    effect: repo.chip,
+    next: "",
+    why: `${repo.status.label}; ${repo.summary}`,
+    evidence: [],
+    related: [
+      ...repo.tabs.flatMap((tab) =>
+        tab.sections.flatMap((section) =>
+          section.items.map((item) => ({
+            text: item.detail ? `${item.text} · ${item.detail}` : item.text,
+            state: [tab.label, section.title, item.chip?.label, item.trailing]
+              .filter(Boolean)
+              .join(" · "),
+            ...webUrl(item.href),
+          })),
+        ),
+      ),
+      ...repo.links.map((link) => ({ text: link.text, state: "On GitHub", ...webUrl(link.href) })),
+    ],
+    approval: null,
+    actions: [],
+    areas,
+    provenance: [],
+  });
+}
+
 /**
- * Watch requests over the port, including queue items, template steps, MRs and release documents.
- * One window subscribes at a time: a reload's subscription replaces the previous connection's.
+ * Watch requests over the port, including queue items, template steps, MRs, release documents
+ * and repositories. One window subscribes at a time: a reload's subscription replaces the
+ * previous connection's.
  */
 export class WatchRoutes {
   private store: ReturnType<typeof createSnapshotStore> | undefined;
@@ -434,6 +473,9 @@ export class WatchRoutes {
           latest.view.areas,
         );
       }
+    } else if (id.startsWith(REPO_PREFIX)) {
+      const repo = inspectRepo(model, id, now);
+      if (repo) result = repoResult(id, repo, latest.view.areas);
     }
     if (!result) {
       notFound("Nothing in the latest sweep has this id");
