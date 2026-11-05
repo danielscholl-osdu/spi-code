@@ -9,10 +9,11 @@
  * a repository, project or group not verified public, each checked when first named, and any
  * call whose shape the audit's grammar cannot read. A public group does not make its projects
  * public, so a group-scoped read never runs glab: the recorder answers it in process with an
- * anonymous HTTP GET to GitLab's API (no credential, no cookie, nothing from the environment)
- * and records glab's output for it. Every item it returns must be a non-confidential item of a
- * project verified public whose issues are open to everyone; one that is not aborts the
- * recording before anything is written. The same log then replays through the
+ * anonymous GET to GitLab's API on a socket of its own (no credential, no cookie, no proxy, no
+ * dispatcher, nothing from the environment) and records glab's output for it. Every item it
+ * returns must declare `confidential: false` and belong to a project verified public whose
+ * issues are open to everyone; one that does not aborts the recording before anything is
+ * written. The same log then replays through the
  * rib's Sweeper in a scratch checkout of keelson-rib-spi at RIB_REVISION, in a child bun
  * process with a clean environment, to give rib-facts.json. Every repository, project and group
  * a recorded call targets, and every project a group read returned an item of, then has its
@@ -30,8 +31,10 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { connect as netConnect } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { connect as tlsConnect } from "node:tls";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { z } from "zod";
 import {
@@ -51,6 +54,7 @@ import { HostExec } from "../packages/host/src/exec/host-exec.js";
 import {
   auditSweep,
   callTargets,
+  confidentiality,
   fenced,
   fenceMessage,
   GITHUB_HOST,
@@ -183,11 +187,17 @@ async function gitlabVisibility(
   options: { issues?: boolean } = {},
 ): Promise<Visibility> {
   const encoded = encodeURIComponent(path);
-  const anonymous = await fetch(`https://${GITLAB}/api/v4/${kind}/${encoded}`, {
-    headers: { Accept: "application/json" },
-    credentials: "omit",
-  }).catch(() => undefined);
-  if (anonymous?.ok) return anonymousVisibility(await anonymous.json(), options);
+  const anonymous = await isolatedGet(
+    new URL(`${kind}/${encoded}`, GITLAB_API),
+    AbortSignal.timeout(30_000),
+  ).catch(() => undefined);
+  if (anonymous && anonymous.status >= 200 && anonymous.status < 300) {
+    try {
+      return anonymousVisibility(JSON.parse(anonymous.body), options);
+    } catch {
+      return "unknown";
+    }
+  }
   if (anonymous?.status !== 404) return "unknown";
   try {
     const out = execFileSync("glab", ["api", "--hostname", GITLAB, `${kind}/${encoded}`], {
@@ -249,14 +259,137 @@ const liveVisibility: CheckVisibility = async (checked, name) =>
         issues: checked === "gitlabProjectIds",
       });
 
-/** What answers a group read: fetch, or a stand-in for it. */
-export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
+/** What one anonymous GET was answered with. */
+export interface Answered {
+  status: number;
+  type: string | undefined;
+  body: string;
+}
+
+/** Sends one anonymous GET: the isolated transport, or a stand-in for it. */
+export type Get = (url: URL, signal: AbortSignal) => Promise<Answered>;
 
 export const GITLAB_API = `https://${GITLAB}/api/v4/`;
 const GROUP_API = "/api/v4/groups/";
+const MAX_RESPONSE = 64 * 1024 * 1024;
 
-/** glab's stderr line for a failed response: GitLab's message and the status, or the status. */
-function glabError(status: number, type: string | null, body: string): string {
+/** A chunked body, decoded; trailers are dropped. */
+function dechunk(data: Buffer): Buffer {
+  const parts: Buffer[] = [];
+  let at = 0;
+  for (;;) {
+    const eol = data.indexOf("\r\n", at);
+    if (eol < 0) throw new Error("truncated chunked response");
+    const size = Number.parseInt(
+      (data.subarray(at, eol).toString("latin1").split(";")[0] ?? "").trim(),
+      16,
+    );
+    if (!Number.isSafeInteger(size) || size < 0) throw new Error("malformed chunked response");
+    if (size === 0) return Buffer.concat(parts);
+    const start = eol + 2;
+    if (start + size + 2 > data.length) throw new Error("truncated chunked response");
+    parts.push(data.subarray(start, start + size));
+    at = start + size + 2;
+  }
+}
+
+/** The status, content type and body of a whole HTTP/1.1 response read to the connection's
+ * close. */
+export function parseResponse(data: Buffer): Answered {
+  const split = data.indexOf("\r\n\r\n");
+  if (split < 0) throw new Error("malformed HTTP response");
+  const [line, ...fields] = data.subarray(0, split).toString("latin1").split("\r\n");
+  const status = /^HTTP\/1\.[01] (\d{3})(?: |$)/.exec(line ?? "")?.[1];
+  if (!status) throw new Error("malformed HTTP response");
+  const headers = new Map<string, string>();
+  for (const field of fields) {
+    const colon = field.indexOf(":");
+    if (colon > 0)
+      headers.set(field.slice(0, colon).trim().toLowerCase(), field.slice(colon + 1).trim());
+  }
+  const encoding = headers.get("content-encoding");
+  if (encoding && encoding.toLowerCase() !== "identity")
+    throw new Error(`unexpected content encoding ${encoding}`);
+  let body = data.subarray(split + 4);
+  const length = headers.get("content-length");
+  if (/\bchunked\b/i.test(headers.get("transfer-encoding") ?? "")) body = dechunk(body);
+  else if (length !== undefined) {
+    const size = Number(length);
+    if (!Number.isSafeInteger(size) || size < 0 || body.length < size)
+      throw new Error("truncated HTTP response");
+    body = body.subarray(0, size);
+  }
+  return { status: Number(status), type: headers.get("content-type"), body: body.toString("utf8") };
+}
+
+/** One GET on a socket of its own, its HTTP/1.1 written here: node:tls for https (node:net for
+ * http, which only tests use), so no proxy, dispatcher, agent, cookie jar or environment
+ * variable takes part, under Bun as under Node. It sends Host, Accept, Accept-Encoding,
+ * User-Agent and Connection and nothing else, refuses a URL carrying credentials, and verifies
+ * the certificate whatever NODE_TLS_REJECT_UNAUTHORIZED says. */
+export function isolatedGet(url: URL, signal: AbortSignal): Promise<Answered> {
+  return new Promise((resolve, reject) => {
+    if (url.username || url.password) return reject(new Error("a URL with credentials"));
+    if (url.protocol !== "https:" && url.protocol !== "http:")
+      return reject(new Error(`unsupported protocol ${url.protocol}`));
+    if (signal.aborted) return reject(new Error("aborted"));
+    const secure = url.protocol === "https:";
+    const host = url.hostname;
+    const port = Number(url.port || (secure ? 443 : 80));
+    const request = [
+      `GET ${url.pathname}${url.search} HTTP/1.1`,
+      `Host: ${url.host}`,
+      "Accept: application/json",
+      "Accept-Encoding: identity",
+      "User-Agent: spi-code-record",
+      "Connection: close",
+      "",
+      "",
+    ].join("\r\n");
+    const socket = secure
+      ? tlsConnect({
+          host,
+          port,
+          servername: host,
+          rejectUnauthorized: true,
+          ALPNProtocols: ["http/1.1"],
+        })
+      : netConnect({ host, port });
+    const chunks: Buffer[] = [];
+    let size = 0;
+    let settled = false;
+    const settle = (done: () => void) => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener("abort", abort);
+      socket.destroy();
+      done();
+    };
+    const fail = (error: Error) => settle(() => reject(error));
+    const abort = () => fail(new Error("aborted"));
+    signal.addEventListener("abort", abort, { once: true });
+    socket.once(secure ? "secureConnect" : "connect", () => socket.write(request));
+    socket.on("data", (chunk: Buffer) => {
+      size += chunk.length;
+      if (size > MAX_RESPONSE) fail(new Error("response too large"));
+      else chunks.push(chunk);
+    });
+    socket.on("error", fail);
+    socket.on("end", () => {
+      try {
+        const answered = parseResponse(Buffer.concat(chunks));
+        settle(() => resolve(answered));
+      } catch (error) {
+        fail(error as Error);
+      }
+    });
+    socket.on("close", () => fail(new Error("connection closed")));
+  });
+}
+
+/** glab's stderr line for a failed response: GitLab's message and the status, or the status.
+ * Synthesized from glab's source (internal/commands/api, v1.128.0), not captured. */
+function glabError({ status, type, body }: Answered): string {
   if (/[/+]json(;|$)/.test(type ?? "")) {
     try {
       const message = (JSON.parse(body) as { message?: unknown }).message;
@@ -266,39 +399,32 @@ function glabError(status: number, type: string | null, body: string): string {
   return `glab: HTTP ${status}\n`;
 }
 
-/** Answers `glab api --hostname <GitLab> groups/...` in process with one anonymous GET: no
- * glab, no git, nothing from the environment, no cookie, no Authorization, PRIVATE-TOKEN or
- * JOB-TOKEN header, only Accept, and no redirect followed. What it gives back is glab's: the
- * body on stdout and exit 0; for a failed response `glab: <message> (HTTP <status>)` or
- * `glab: HTTP <status>` on stderr and exit 1, without the body; HostExec's error for a timeout
- * or an abort. */
+/** Answers `glab api --hostname <GitLab> groups/...` in process with one anonymous GET on the
+ * isolated transport: no glab, no git, no credential, no proxy. What it gives back is glab's: the
+ * body on stdout and exit 0 for a 2xx; otherwise, a redirect included, `glab: <message> (HTTP
+ * <status>)` or `glab: HTTP <status>` on stderr and exit 1, without the body; HostExec's error
+ * for a timeout or an abort. */
 export async function anonymousGroupRead(
-  fetchImpl: Fetch,
+  get: Get,
   path: string,
   opts: ExecOptions,
 ): Promise<ExecOutput> {
   const url = new URL(path, GITLAB_API);
-  if (url.origin !== new URL(GITLAB_API).origin || !url.pathname.startsWith(GROUP_API))
+  if (
+    url.origin !== new URL(GITLAB_API).origin ||
+    url.username ||
+    url.password ||
+    !url.pathname.startsWith(GROUP_API)
+  )
     return { stdout: "", stderr: `spi-code record: not a group read: ${path}\n`, exit: 1 };
   const timeoutMs = opts.timeoutMs ?? 60_000;
   const timeout = AbortSignal.timeout(timeoutMs);
   const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
   try {
-    const response = await fetchImpl(url.href, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      credentials: "omit",
-      redirect: "error",
-      cache: "no-store",
-      signal,
-    });
-    const body = await response.text();
-    if (response.ok) return { stdout: body, stderr: "", exit: 0 };
-    return {
-      stdout: "",
-      stderr: glabError(response.status, response.headers.get("content-type"), body),
-      exit: 1,
-    };
+    const answered = await get(url, signal);
+    if (answered.status >= 200 && answered.status < 300)
+      return { stdout: answered.body, stderr: "", exit: 0 };
+    return { stdout: "", stderr: glabError(answered), exit: 1 };
   } catch (failure) {
     const failed = { stdout: "", stderr: "", exit: null };
     if (opts.signal?.aborted) return { ...failed, error: "Command aborted." };
@@ -309,12 +435,13 @@ export async function anonymousGroupRead(
 }
 
 /** Answers every group-scoped read over anonymous HTTP and runs every other call signed in. A
- * group read holding a confidential item, or an item of a project not verified public with its
+ * group read holding an item not declared `confidential: false`, or an item of a project not
+ * verified public with its
  * issues open to everyone, is withheld, and abort is told why, naming the project id and issue
  * iid only. Anonymity keeps such items out already; the checks stand behind it. */
 export function groupReadsOverHttp(
   signedIn: ExecRunner,
-  fetchImpl: Fetch,
+  get: Get,
   check: CheckVisibility,
   abort: (reason: string) => void,
 ): ExecRunner {
@@ -334,15 +461,15 @@ export function groupReadsOverHttp(
       rest.length
     )
       return withheld("a group read of a shape the recorder does not answer");
-    const output = await anonymousGroupRead(fetchImpl, path, opts);
+    const output = await anonymousGroupRead(get, path, opts);
     if (output.exit !== 0) return output;
     const items = groupItems(output.stdout);
     if (!items) return withheld("a group read returned an item without a project");
-    const confidential = items.find((item) => item.confidential);
-    if (confidential)
-      return withheld(
-        `GitLab project ${confidential.project} issue ${confidential.iid} in a group read is confidential`,
-      );
+    for (const item of items) {
+      const why = confidentiality(item);
+      if (why)
+        return withheld(`GitLab project ${item.project} issue ${item.iid} in a group read: ${why}`);
+    }
     const ids = [...new Set(items.map((item) => item.project))];
     for (const id of ids.sort((a, b) => Number(a) - Number(b))) {
       if ((await check("gitlabProjectIds", id)) !== "public")
@@ -420,8 +547,8 @@ export interface RecordOptions {
   /** Runs one call signed in; the fence decides whether it is asked to. Group reads never
    * reach it. */
   runner: ExecRunner;
-  /** Answers group reads anonymously; the global fetch when not given. */
-  fetch?: Fetch;
+  /** Sends the anonymous GET of a group read; isolatedGet when not given. */
+  get?: Get;
   check: CheckVisibility;
   now: Date;
   /** Values RecordingExec redacts beyond core's own patterns. */
@@ -451,14 +578,9 @@ export async function recordSweep(options: RecordOptions): Promise<{
   if (!coreLib) excluded[CORE_LIB_REPO] = library;
   const servicesJson = `${JSON.stringify(services, null, 2)}\n`;
   let aborted: string | undefined;
-  const runner = groupReadsOverHttp(
-    options.runner,
-    options.fetch ?? ((url, init) => fetch(url, init)),
-    check,
-    (reason) => {
-      aborted ??= reason;
-    },
-  );
+  const runner = groupReadsOverHttp(options.runner, options.get ?? isolatedGet, check, (reason) => {
+    aborted ??= reason;
+  });
   const exec = new RecordingExec(
     fence(runner, check, refused),
     (jsonl) => {

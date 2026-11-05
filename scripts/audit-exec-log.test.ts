@@ -459,7 +459,9 @@ describe("audit of shapes, decoded strings and new credentials", () => {
     };
     const issue = (project: number) => ({
       id: 1,
+      iid: 1,
       project_id: project,
+      confidential: false,
       references: { full: `osdu/platform/p${project}#1` },
       description: "an issue body",
     });
@@ -506,6 +508,22 @@ describe("audit of shapes, decoded strings and new credentials", () => {
       setVisibility(dir, "gitlabProjectIds", "42", "public");
       expect(auditSweep(dir).findings).toEqual([
         "gitlab project 42 issue 7 in a group read: confidential",
+      ]);
+    });
+
+    test("fails an issue that does not declare itself non-confidential", () => {
+      const { confidential: _, ...missing } = issue(42);
+      const dir = issues(
+        issue(42),
+        { ...missing, iid: 2 },
+        { ...issue(42), iid: 3, confidential: null },
+        { ...issue(42), iid: 4, confidential: "false" },
+      );
+      setVisibility(dir, "gitlabProjectIds", "42", "public");
+      expect(auditSweep(dir).findings).toEqual([
+        "gitlab project 42 issue 2 in a group read: confidentiality not declared",
+        "gitlab project 42 issue 3 in a group read: confidentiality not declared",
+        "gitlab project 42 issue 4 in a group read: confidentiality not declared",
       ]);
     });
 

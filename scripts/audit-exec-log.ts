@@ -821,18 +821,25 @@ function decodings(text: string, depth = 0, into: string[] = [text]): string[] {
   return into;
 }
 
-/** One item a group read returned: its project's numeric id, its iid, and whether it is
- * confidential. */
+/** One item a group read returned: its project's numeric id, its iid, and its confidentiality:
+ * false only when the item says `confidential: false`, "undeclared" when the field is missing
+ * or not a boolean. */
 export interface GroupItem {
   project: string;
   iid: string;
-  confidential: boolean;
+  confidential: boolean | "undeclared";
+}
+
+/** Why a group item cannot be recorded for its confidentiality, or undefined when it can. */
+export function confidentiality(item: GroupItem): string | undefined {
+  if (item.confidential === false) return undefined;
+  return item.confidential === true ? "confidential" : "confidentiality not declared";
 }
 
 /** Every item a group read returned, or undefined when one has no project. A public group does
  * not make its projects public: a group read can hold items of a private project the recording
  * account sees, so each item's project is checked on its own; and a confidential issue of a
- * public project is not public either. */
+ * public project is not public either, nor one that does not say it is not. */
 export function groupItems(stdout: string): GroupItem[] | undefined {
   if (!stdout.trim()) return [];
   const values = jsonValues(stdout);
@@ -847,7 +854,7 @@ export function groupItems(stdout: string): GroupItem[] | undefined {
       items.push({
         project: String(id),
         iid: typeof iid === "number" ? String(iid) : "?",
-        confidential: confidential !== undefined && confidential !== false,
+        confidential: typeof confidential === "boolean" ? confidential : "undeclared",
       });
     }
   }
@@ -1067,9 +1074,10 @@ function collect(directory: string, visibility?: VisibilityFile): Collected {
         if (!items) findings.push(`${where}: group read: an item without a project`);
         for (const item of items ?? []) {
           projects.add(item.project);
-          if (item.confidential)
+          const withheld = confidentiality(item);
+          if (withheld)
             findings.push(
-              `gitlab project ${item.project} issue ${item.iid} in a group read: confidential`,
+              `gitlab project ${item.project} issue ${item.iid} in a group read: ${withheld}`,
             );
         }
       }
