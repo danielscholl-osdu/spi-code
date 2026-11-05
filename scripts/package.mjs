@@ -15,9 +15,11 @@ import {
   symlink,
   writeFile,
 } from "node:fs/promises";
-import { dirname, join, posix, relative, resolve, win32 } from "node:path";
+import { basename, dirname, join, posix, relative, resolve, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 import { generateNotices } from "./third-party-notices.mjs";
+
+const runtimePackages = ["contracts", "core", "tools", "host"];
 
 /** @param {NodeJS.ProcessEnv} inherited */
 export function packagingEnvironment(inherited) {
@@ -123,6 +125,23 @@ export async function stageWorkspace(root, stage) {
   );
 }
 
+/** @param {string} root @param {string} stage */
+export async function stageRuntimeFiles(root, stage) {
+  for (const path of [
+    ...runtimePackages.map((name) => `packages/${name}/dist`),
+    "apps/desktop/dist",
+    "apps/desktop/src/preload.cjs",
+    "apps/window/build",
+    "scripts/packaged-host.mjs",
+  ]) {
+    await mkdir(dirname(join(stage, path)), { recursive: true });
+    await cp(join(root, path), join(stage, path), {
+      recursive: true,
+      filter: (source) => !/\.test\.|^smoke-launch\./.test(basename(source)),
+    });
+  }
+}
+
 /** @param {string} stage @param {NodeJS.ProcessEnv} env */
 export function installProductionDependencies(stage, env) {
   try {
@@ -176,7 +195,7 @@ export async function packageDesktop(platform = process.platform) {
     );
     /** @type {Record<string, string>} */
     const dependencies = {};
-    for (const name of ["contracts", "core", "tools", "host"]) {
+    for (const name of runtimePackages) {
       const manifest = /** @type {Manifest} */ (
         await readJson(join(root, "packages", name, "package.json"))
       );
@@ -190,9 +209,6 @@ export async function packageDesktop(platform = process.platform) {
       }
       dependencies[manifest.name] = `file:packages/${name}`;
       const destination = join(stage, "packages", name);
-      await cp(join(root, "packages", name, "dist"), join(destination, "dist"), {
-        recursive: true,
-      });
       await json(join(destination, "package.json"), {
         ...manifest,
         dependencies: Object.fromEntries(
@@ -229,15 +245,7 @@ export async function packageDesktop(platform = process.platform) {
       join(stage, "THIRD_PARTY_NOTICES.md"),
       await generateNotices([stage, join(root, "apps/window")], desktop.devDependencies.electron),
     );
-    for (const path of [
-      "apps/desktop/dist",
-      "apps/desktop/src/preload.cjs",
-      "apps/window/build",
-      "scripts/packaged-host.mjs",
-    ]) {
-      await mkdir(dirname(join(stage, path)), { recursive: true });
-      await cp(join(root, path), join(stage, path), { recursive: true });
-    }
+    await stageRuntimeFiles(root, stage);
     await rm(artifacts, { recursive: true, force: true });
     await json(join(stage, "electron-builder.json"), {
       ...desktop.build,

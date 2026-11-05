@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: MIT
 
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
+import { stageRuntimeFiles } from "./package.mjs";
 import {
   assertRuntimeEvidence,
   installProductionDependencies,
@@ -14,7 +15,7 @@ import {
   stageWorkspace,
 } from "./package-mac.mjs";
 
-describe("production staging lockfile", () => {
+describe("production staging", () => {
   const fixtures: string[] = [];
   afterEach(async () => {
     await Promise.all(fixtures.splice(0).map((path) => rm(path, { recursive: true, force: true })));
@@ -48,6 +49,46 @@ ${directories.map((directory) => `\n  ${directory}: {}\n`).join("")}`;
     await stageWorkspace(root, stage);
     return { stage, lockfile };
   }
+
+  it("stages no compiled tests or smoke launcher while retaining in-bundle smoke modules", async () => {
+    const root = await mkdtemp(join(tmpdir(), "spi-package-runtime-"));
+    fixtures.push(root);
+    const stage = join(root, "stage");
+    const keep = [
+      "apps/desktop/src/preload.cjs",
+      "apps/window/build/index.html",
+      "scripts/packaged-host.mjs",
+      ...["report", "messages", "listeners", "snapshot", "supervision"].map(
+        (name) => `apps/desktop/dist/smoke-${name}.js`,
+      ),
+    ];
+    const omit: string[] = [];
+    for (const directory of [
+      "apps/desktop/dist",
+      ...["contracts", "core", "tools", "host"].map((name) => `packages/${name}/dist`),
+    ]) {
+      for (const extension of ["js", "js.map", "d.ts", "d.ts.map"]) {
+        keep.push(`${directory}/index.${extension}`);
+        omit.push(
+          `${directory}/index.test.${extension}`,
+          `${directory}/nested/smoke.test.${extension}`,
+          `${directory}/smoke-launch.${extension}`,
+          `${directory}/nested/smoke-launch.${extension}`,
+        );
+      }
+    }
+    for (const path of [...keep, ...omit]) {
+      const parts = path.split("/");
+      await mkdir(join(root, ...parts.slice(0, -1)), { recursive: true });
+      await writeFile(join(root, path), path);
+    }
+
+    await stageRuntimeFiles(root, stage);
+
+    const staged = await readdir(stage, { recursive: true });
+    expect(staged.filter((path) => /\.test\.|smoke-launch\./.test(path))).toEqual([]);
+    for (const path of keep) expect(await readFile(join(stage, path), "utf8")).toBe(path);
+  });
 
   it("installs a copied workspace lockfile without rewriting it", async () => {
     const { stage, lockfile } = await fixture();

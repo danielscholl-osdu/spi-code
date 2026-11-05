@@ -74,6 +74,9 @@ packaging. Manifest discovery uses pnpm's workspace patterns and exclusions rath
 than a separate directory list. The packaged smoke test runs the app extracted from
 the generated ZIP, including the shipped runtime handshake, rather than the
 builder's app directory.
+Runtime staging excludes compiled `*.test.*` files and `smoke-launch.*`, including
+their declarations and maps, across the desktop and bundled workspace libraries.
+The in-app smoke modules remain bundled; the launcher runs from the build checkout.
 
 Pinned notice repairs in `scripts/third-party-notices.mjs` cover npm archives
 that omit their upstream MIT text: Copilot SDK/platform 1.0.26 uses the GitHub
