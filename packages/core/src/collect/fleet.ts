@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { parse } from "yaml";
+import { z } from "zod";
 import {
   builtInFleet,
   DECLARATION_PATH,
@@ -24,6 +25,15 @@ export type FleetFileReader = (path: string) => string | null;
 export interface FleetRead extends FleetFacts {
   reads: ReadRecord[];
 }
+
+const servicesSchema = z.array(z.object({
+  id: z.string(),
+  upstream: z.string(),
+  prefix: z.string().optional(),
+  repo: z.string().optional(),
+  seeded: z.string().optional(),
+  mirror: z.boolean().nullable().optional(),
+}));
 
 function blob(alias: string, repo: string, path: string): string {
   const [owner, name] = repo.split("/");
@@ -68,10 +78,15 @@ export function parseForks(text: string): FleetEntry[] {
 }
 
 async function readVars(gh: Gh, repo: string): Promise<ForkVars> {
-  const vars = await gh.rest<{ name: string; value: string }[]>(
-    `repos/${repo}/actions/variables?per_page=100`,
-    '[.variables[] | select(.name == "UPSTREAM_REPO_URL" or .name == "SYNC_MODE") | {name, value}]',
-  );
+  const vars: { name: string; value: string }[] = [];
+  for (let page = 1; ; page++) {
+    const result = await gh.rest<{ total_count: number; variables: typeof vars }>(
+      `repos/${repo}/actions/variables?per_page=100&page=${page}`,
+    );
+    vars.push(...result.variables);
+    if (vars.length >= result.total_count) break;
+    if (result.variables.length === 0) throw new Error(`${repo}: variables pagination ended before total_count`);
+  }
   const value = (name: string) => vars.find((v) => v.name === name)?.value;
   const upstreamUrl = value("UPSTREAM_REPO_URL");
   const syncMode = value("SYNC_MODE");
@@ -123,7 +138,10 @@ export async function readFleet(
       remote = { rollout: data.template.object?.text ?? null, rolloutFrom: `${TEMPLATE_REPO}:${ROLLOUT_PATH}` };
       reads.push(record(TEMPLATE_REPO, ROLLOUT_PATH, now, previous));
     } catch (error) {
-      remote = { rollout: prev?.rollout, rolloutFrom: prev?.rolloutFrom };
+      remote = {
+        ...(prev?.rollout !== undefined ? { rollout: prev.rollout } : {}),
+        ...(prev?.rolloutFrom !== undefined ? { rolloutFrom: prev.rolloutFrom } : {}),
+      };
       reads.push(record(TEMPLATE_REPO, ROLLOUT_PATH, now, previous, error));
     }
   }
@@ -146,7 +164,8 @@ export async function readFleet(
     vars = read;
     varsAt = now.toISOString();
   } else {
-    reads.push(...previous.filter((r) => r.object === "actions/variables"));
+    reads.push(...previous.filter((r) =>
+      r.object === "actions/variables" && forks?.some((f) => f.repo === r.source)));
   }
   return { ...(forks ? { forks } : {}), vars, ...(varsAt ? { varsAt } : {}), ...remote, reads };
 }
@@ -229,7 +248,7 @@ export function fleetView(
   const fleet = files.services
     ? local(files.services, (text) => {
       if (text === null) throw new Error(`${files.services} is not readable`);
-      return resolveFleet(data, JSON.parse(text) as ServiceDef[]);
+      return resolveFleet(data, servicesSchema.parse(JSON.parse(text)));
     }, previous?.fleet ?? resolveFleet(undefined))
     : resolveFleet(data);
   if (files.rollout) {

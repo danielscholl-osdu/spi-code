@@ -14,6 +14,7 @@ import { fleetOf, GITLAB_EVERY_MS, KNOWN_SERVICES } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
 import { envelopeOf } from "../../src/evidence/index.js";
 import type { Exec } from "../../src/exec/index.js";
+import { RecordingExec, ReplayExec } from "../../src/exec/recording.js";
 import { Gh } from "../../src/forge.js";
 import { buildModel } from "../../src/model/index.js";
 import { FIXTURE_NOW, fixtureFacts } from "../harness.js";
@@ -61,7 +62,7 @@ function fleetGh(
       const value = vars[repo] ?? [];
       return value instanceof Error
         ? { ok: false, error: value.message, code: 1 }
-        : { ok: true, data: value as T };
+        : { ok: true, data: { total_count: value.length, variables: value } as T };
     },
   };
   return { gh: new Gh(exec), calls };
@@ -130,6 +131,13 @@ test("a failed read keeps the last good list and its original observation across
   const cold = await readFleet(fleetGh(null).gh, undefined, now);
   expect(cold.reads[0]?.retainedFrom).toBeUndefined();
   expect(cold.reads[0]?.failure).toContain("has no");
+  const coldQueryFailure = await readFleet(
+    fleetGh(undefined, null, {}, "network down").gh,
+    undefined,
+    now,
+  );
+  expect(coldQueryFailure).not.toHaveProperty("rollout");
+  expect(coldQueryFailure).not.toHaveProperty("rolloutFrom");
 });
 
 test("the upstream project comes from the GitLab URL, with or without .git", () => {
@@ -264,6 +272,95 @@ test("failed local fork-file reads retain the previous fleet with retainedFrom",
   expect(again.fleet).toEqual(good.fleet);
   expect(failed.reads[0]).toMatchObject({ failure: "EACCES", retainedFrom: now.toISOString() });
   expect(again.reads[0]?.retainedFrom).toBe(now.toISOString());
+  for (const text of [
+    "{}",
+    "null",
+    "[1]",
+    '[{"id":1,"upstream":"osdu/x"}]',
+    '[{"id":"x"}]',
+    '[{"id":"x","upstream":"osdu/x","repo":1}]',
+    '[{"id":"x","upstream":"osdu/x","prefix":false}]',
+    '[{"id":"x","upstream":"osdu/x","seeded":1}]',
+    '[{"id":"x","upstream":"osdu/x","mirror":"true"}]',
+  ]) {
+    const invalid = fleetView(undefined, files, {
+      now: later,
+      previous: again,
+      readFile: () => text,
+    });
+    expect(invalid.fleet).toEqual(good.fleet);
+    expect(invalid.reads[0]).toMatchObject({
+      failure: expect.any(String),
+      retainedFrom: now.toISOString(),
+    });
+    expect(() => fleetOf(invalid.fleet.services)).not.toThrow();
+  }
+});
+
+test("variables on page two resolve the fork and replay with complete evidence", async () => {
+  const firstPage = Array.from({ length: 100 }, (_, i) => ({ name: `OTHER_${i}`, value: "x" }));
+  const secondPage = [
+    { name: "UPSTREAM_REPO_URL", value: url },
+    { name: "SYNC_MODE", value: "mirror" },
+  ];
+  const paths: string[] = [];
+  let log = "";
+  const recording = new RecordingExec(
+    async (_cmd, args) => {
+      if (args[1] === "graphql")
+        return {
+          stdout: JSON.stringify({
+            data: {
+              stack: { object: { text: yaml([extra.service]) } },
+              template: { object: null },
+            },
+          }),
+          stderr: "",
+          exit: 0,
+        };
+      const path = args[1] ?? "";
+      paths.push(path);
+      const variables = path.endsWith("&page=1")
+        ? firstPage
+        : path.endsWith("&page=2")
+          ? secondPage
+          : undefined;
+      if (!variables) throw new Error(`Unexpected variables page: ${path}`);
+      return { stdout: JSON.stringify({ total_count: 102, variables }), stderr: "", exit: 0 };
+    },
+    (line) => {
+      log += line;
+    },
+  );
+  const first = await readFleet(new Gh(recording), undefined, now);
+  expect(paths).toEqual(
+    [1, 2].map((page) => `repos/${extra.repo}/actions/variables?per_page=100&page=${page}`),
+  );
+  const replay = new ReplayExec(log);
+  const second = await readFleet(new Gh(replay), undefined, now);
+  expect(second).toEqual(first);
+  replay.assertExhausted();
+  expect(resolveFleet(second).services).toEqual([
+    { id: extra.service, repo: extra.repo, upstream: extra.upstream, mirror: true },
+  ]);
+  expect(second.reads.find((r) => r.source === extra.repo)).toMatchObject({
+    completeness: { kind: "complete" },
+  });
+  expect(second.reads.find((r) => r.source === extra.repo)?.failure).toBeUndefined();
+});
+
+test("cadence-skipped evidence excludes removed forks and services overrides", async () => {
+  const good = await readFleet(fleetGh().gh, undefined, now);
+  const next = new Date(now.getTime() + 300_000);
+  const smaller = fleetGh(yaml(["legal"]));
+  const result = await readFleet(smaller.gh, good, next);
+  expect(smaller.calls.filter((c) => c.includes("/actions/variables"))).toEqual([]);
+  expect(result.reads.filter((r) => r.object === "actions/variables")).toEqual(
+    good.reads.filter((r) => r.source === "Azure/osdu-spi-legal"),
+  );
+  const pinned = await readFleet(fleetGh().gh, good, next, { services: "/services" });
+  expect(pinned.forks).toBeUndefined();
+  expect(pinned.reads.filter((r) => r.object === "actions/variables")).toEqual([]);
 });
 
 test("fork YAML skips invalid entries, deduplicates identity on resolution and rejects empty lists", () => {
