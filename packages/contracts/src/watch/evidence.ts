@@ -7,7 +7,7 @@ export const IdentifierSchema = z.string().min(1);
 export const ObservedAtSchema = z.iso.datetime({ offset: true });
 export const EvidenceStateSchema = z.enum(["fresh", "stale", "incomplete", "failed", "unread"]);
 export const CompletenessSchema = z.union([
-  z.literal("complete"),
+  z.strictObject({ kind: z.literal("complete") }),
   z
     .strictObject({
       kind: z.literal("cut"),
@@ -32,13 +32,19 @@ export const EnvelopeSchema = z.union([
     .strictObject({
       source: IdentifierSchema,
       state: z.enum(["fresh", "stale", "incomplete", "failed"]),
-      observedAt: ObservedAtSchema,
+      // Absent only when a read failed and nothing earlier was retained.
+      observedAt: ObservedAtSchema.optional(),
       completeness: CompletenessSchema,
+      inferred: z.boolean().optional(),
+    })
+    .refine(({ state, observedAt }) => observedAt !== undefined || state === "failed", {
+      message: "Only a failed read may lack an observed time",
+      path: ["observedAt"],
     })
     // EV-01: an area has one state, so a cut read cannot also claim to be fresh or stale.
     .refine(
       ({ state, completeness }) =>
-        completeness === "complete" || state === "incomplete" || state === "failed",
+        completeness.kind === "complete" || state === "incomplete" || state === "failed",
       { message: "A cut read must be incomplete or failed", path: ["state"] },
     ),
 ]);

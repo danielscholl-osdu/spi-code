@@ -213,7 +213,7 @@ describe("Watch protocol", () => {
 it("round-trips strict read records, area envelopes, tree status and six stations", () => {
   const schemasAndValues = [
     [ReadRecordSchema, record],
-    [ReadRecordSchema, { ...record, completeness: "complete" }],
+    [ReadRecordSchema, { ...record, completeness: { kind: "complete" } }],
     [EnvelopeSchema, { source: "github", state: "unread" }],
     [
       EnvelopeSchema,
@@ -266,6 +266,20 @@ it("round-trips strict read records, area envelopes, tree status and six station
       completeness: { kind: "cut", reason: "limit", read: 21, total: 20 },
     }).success,
   ).toBe(false);
+  expect(
+    EnvelopeSchema.safeParse({
+      source: "github",
+      state: "failed",
+      completeness: { kind: "complete" },
+      inferred: false,
+    }).success,
+  ).toBe(true);
+  const timeless = EnvelopeSchema.safeParse({
+    source: "github",
+    state: "fresh",
+    completeness: { kind: "complete" },
+  });
+  expect(timeless.error?.issues[0]?.path).toEqual(["observedAt"]);
   for (const state of ["fresh", "stale"]) {
     const cut = EnvelopeSchema.safeParse({
       source: "github",
@@ -280,7 +294,7 @@ it("round-trips strict read records, area envelopes, tree status and six station
         source: "github",
         state,
         observedAt: at,
-        completeness: "complete",
+        completeness: { kind: "complete" },
       }).success,
     ).toBe(true);
   }
