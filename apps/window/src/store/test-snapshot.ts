@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: MIT
 
 import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
-import briefing from "../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
-import releases from "../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
 
-export function testSnapshot(overrides: Partial<ViewSnapshot> = {}): ViewSnapshot {
+export function testSnapshot(
+  briefing: string,
+  releases: string,
+  overrides: Partial<ViewSnapshot> = {},
+): ViewSnapshot {
   const sweptAt = "2026-10-12T21:58:14.428Z";
   return ViewSnapshotSchema.parse({
     cursor: 1,

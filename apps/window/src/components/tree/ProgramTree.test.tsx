@@ -5,6 +5,8 @@ import { PROTOCOL_VERSION, TreeStatusSchema } from "@spi-code/contracts";
 import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
+import briefing from "../../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
+import releases from "../../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
 import { routes } from "../../app/routes.js";
 import { testSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore } from "../../store/watch.js";
@@ -37,10 +39,10 @@ const ids = [
 const tree = TreeStatusSchema.parse(
   ids.map((id, index) => ({ id, status: states[index % states.length] })),
 );
-const body = testSnapshot();
+const body = testSnapshot(briefing, releases);
 const focus = body.briefing.focus[0];
 if (!focus) throw new Error("Oracle must contain a focus item");
-const snapshot = testSnapshot({
+const snapshot = testSnapshot(briefing, releases, {
   cursor: 1,
   tree,
   briefing: {

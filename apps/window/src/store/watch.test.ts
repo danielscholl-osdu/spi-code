@@ -1,10 +1,15 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION, WatchMessageSchema } from "@spi-code/contracts";
+import { PROTOCOL_VERSION, type ViewSnapshot, WatchMessageSchema } from "@spi-code/contracts";
 import { expect, it, vi } from "vitest";
-import { testSnapshot } from "./test-snapshot.js";
+import briefing from "../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
+import releases from "../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
+import { testSnapshot as snapshotFromOracles } from "./test-snapshot.js";
 import { createWatchStore } from "./watch.js";
+
+const testSnapshot = (overrides: Partial<ViewSnapshot> = {}) =>
+  snapshotFromOracles(briefing, releases, overrides);
 
 const event = (type: string, payload: unknown) => ({
   version: PROTOCOL_VERSION,
