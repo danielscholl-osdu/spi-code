@@ -42,12 +42,25 @@ const DEVICE_CODE = /one-time code(?:\s*\(|:\s*)([A-Z0-9]{4}(?:-[A-Z0-9]{4})+)(?
 // The URL counts only once something follows it, so a chunk cut mid-URL is never shown.
 const DEVICE_URL = /https?:\/\/[^\s)]+(?=[\s)])/;
 
+// CSI (colors), OSC (hyperlinks, ended by BEL or ST) and two-character escapes. An escape cut at
+// the end of a chunk stays in place, so the value next to it cannot match until it completes.
+const ANSI_ESCAPE =
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escapes in gh output
+  /\u001b(?:\][^\u0007\u001b]*(?:\u0007|\u001b\\)|\[[0-?]*[ -/]*[@-~]|[@-Z\\^_])/g;
+
 /** Parses the one-time code and verification URL from `gh auth login --web` output. */
 export function parseGhDeviceCode(text: string): { deviceCode: string; url: string } | undefined {
-  const deviceCode = DEVICE_CODE.exec(text)?.[1];
-  const url = DEVICE_URL.exec(text)?.[0];
+  const plain = text.replace(ANSI_ESCAPE, "");
+  const deviceCode = DEVICE_CODE.exec(plain)?.[1];
+  const url = DEVICE_URL.exec(plain)?.[0];
   if (!deviceCode || !url) return undefined;
   return { deviceCode, url };
+}
+
+// gh honours an inherited GH_FORCE_TTY or CLICOLOR_FORCE when piped, which colors the code and
+// waits for Enter. Empty values count as unset to gh; a fresh object keeps callers' env intact.
+function ghEnv(): Record<string, string> {
+  return { NO_COLOR: "1", GH_FORCE_TTY: "", CLICOLOR_FORCE: "" };
 }
 
 const TOKEN_FORM = /^[\x21-\x7e]{16,512}$/;
@@ -74,6 +87,7 @@ export async function signinGh(exec: Exec, options: SigninOptions): Promise<Sign
     "gh",
     ["auth", "login", "--web", "-s", GH_REQUIRED_SCOPES.join(","), "--hostname", GH_HOST],
     {
+      env: ghEnv(),
       timeoutMs: options.timeoutMs ?? GH_LOGIN_TIMEOUT_MS,
       ...(options.signal ? { signal: options.signal } : {}),
       onOutput: (_stream, text) => {

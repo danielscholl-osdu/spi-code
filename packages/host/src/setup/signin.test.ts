@@ -63,9 +63,27 @@ it("parses the fallback line gh prints when it cannot copy the code", () => {
   });
 });
 
+const HYPERLINKED =
+  "First copy your one-time code: \x1b[1m9C4F-D809\x1b[0m\nOpen \x1b]8;;https://github.com/login/device\x07https://github.com/login/device\x1b]8;;\x07\n";
+
+it("parses the code and URL when gh wraps them in ANSI color escapes", () => {
+  expect(parseGhDeviceCode(fixture("gh-login-device-color.txt"))).toEqual({
+    deviceCode: "9C4F-D809",
+    url: "https://github.com/login/device",
+  });
+  expect(parseGhDeviceCode(HYPERLINKED)).toEqual({
+    deviceCode: "9C4F-D809",
+    url: "https://github.com/login/device",
+  });
+});
+
 it("never shows a truncated URL or code, splitting the output at every position", async () => {
-  for (const name of ["gh-login-device.txt", "gh-login-device-fallback.txt"]) {
-    const text = fixture(name);
+  for (const text of [
+    fixture("gh-login-device.txt"),
+    fixture("gh-login-device-fallback.txt"),
+    fixture("gh-login-device-color.txt"),
+    HYPERLINKED,
+  ]) {
     for (let cut = 1; cut < text.length; cut++) {
       const { exec } = fakeExec(async (_call, opts) => {
         opts.onOutput?.("stderr", text.slice(0, cut));
@@ -122,6 +140,28 @@ it("sends the gh device code as soon as it appears, split across chunks, before 
   expect(progress.at(-1)).toEqual({ tool: "gh", state: "completed" });
   for (const entry of progress)
     expect(SetupSigninProgressSchema.safeParse(entry).success).toBe(true);
+});
+
+it("runs gh with forced TTY and color neutralised, leaving the caller's environment alone", async () => {
+  const saved = { ...process.env };
+  process.env.GH_FORCE_TTY = "1";
+  process.env.CLICOLOR_FORCE = "1";
+  try {
+    const envs: (Record<string, string> | undefined)[] = [];
+    const { exec } = fakeExec((_call, opts) => {
+      envs.push(opts.env);
+      return { ok: true, data: "", exitCode: 0 };
+    });
+    await signinGh(exec, { report: recorder().report });
+    await signinGh(exec, { report: recorder().report });
+    expect(envs[0]).toEqual({ NO_COLOR: "1", GH_FORCE_TTY: "", CLICOLOR_FORCE: "" });
+    expect(envs[1]).toEqual(envs[0]);
+    expect(envs[1]).not.toBe(envs[0]);
+    expect(process.env.GH_FORCE_TTY).toBe("1");
+    expect(process.env.CLICOLOR_FORCE).toBe("1");
+  } finally {
+    process.env = saved;
+  }
 });
 
 it("reports a fixed reason when gh fails or is cancelled, never gh's own text", async () => {
