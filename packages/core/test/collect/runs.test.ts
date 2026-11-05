@@ -5,7 +5,7 @@ import { expect, test } from "vitest";
 import { readApprovals, readForkRuns, readTemplateRuns } from "../../src/collect/runs.js";
 import { fleetOf, STACK_REPO as STACK } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
-import { envelopeOf } from "../../src/evidence/index.js";
+import { envelopeOf, type ReadRecord } from "../../src/evidence/index.js";
 import { RecordingExec, ReplayExec } from "../../src/exec/recording.js";
 import { Gh } from "../../src/forge.js";
 import { FIXTURE_NOW } from "../harness.js";
@@ -72,7 +72,8 @@ function approvals(path: string): unknown {
   }
   if (path.includes("pulls?")) return [pr()];
   if (path.includes("/files?")) return files;
-  if (path.endsWith("/343")) return { changed: 2, additions: 90, deletions: 12 };
+  if (path.endsWith("/343"))
+    return { changed: 2, additions: 90, deletions: 12, sha: raw().head_sha };
   throw new Error(`Unexpected fixture request: ${path}`);
 }
 
@@ -105,8 +106,20 @@ test("template run replay preserves conversion, nulls and the bounded history's 
   expect(result.reads[0]).toMatchObject({
     source: STACK,
     observedAt: FIXTURE_NOW.toISOString(),
-    completeness: { kind: "cut", read: 5, total: 8 },
+    completeness: { kind: "complete" },
   });
+  const early = { ...result.reads[0], observedAt: "2026-10-12T00:00:00Z" } as ReadRecord;
+  expect(envelopeOf([early], { now: FIXTURE_NOW.getTime(), intervalMs: 300_000 }).state).toBe(
+    "stale",
+  );
+});
+
+test("a window that returns fewer runs than asked and available is cut", async () => {
+  const result = await replay(
+    (gh) => readTemplateRuns(gh, STACK, ctx()),
+    () => ({ total: 8, runs: [raw(1), raw(2)] }),
+  );
+  expect(result.reads[0]?.completeness).toMatchObject({ kind: "cut", read: 2, total: 5 });
 });
 
 test("fork run failure is isolated, and two interleaved fleets use only their own repositories", async () => {
@@ -143,7 +156,7 @@ test("matches each run to the open PR at its head and reads its files once per h
     if (path.includes("pulls?")) return [pr(), pr(327, older)];
     if (path.includes("/327/files?"))
       return Array.from({ length: 41 }, (_, i) => ({ path: `services/rafs/file-${i}.yaml` }));
-    if (path.endsWith("/327")) return { changed: 41, additions: 2271, deletions: 81 };
+    if (path.endsWith("/327")) return { changed: 41, additions: 2271, deletions: 81, sha: older };
     return approvals(path);
   };
   const first = await replay((gh) => readApprovals(gh, ctx()), fixture);
@@ -178,12 +191,12 @@ test("matches each run to the open PR at its head and reads its files once per h
   expect(first.reads.every((r) => !r.failure && r.completeness.kind === "complete")).toBe(true);
 });
 
-test("a new PR head misses the cache without mutating the caller's state", async () => {
+test("a new PR head misses the cache, the unused key is evicted and the caller's state is not mutated", async () => {
   const state = {
     [`${STACK}#343@old`]: { files: ["old"], changedFiles: 1, additions: 1, deletions: 0 },
   };
   const result = await replay((gh) => readApprovals(gh, ctx(), state), approvals);
-  expect(Object.keys(result.cache)).toHaveLength(2);
+  expect(Object.keys(result.cache)).toEqual([`${STACK}#343@${raw().head_sha}`]);
   expect(Object.keys(state)).toHaveLength(1);
 });
 
@@ -198,7 +211,8 @@ test("approval runs paginate, and open PRs and files use the forge's full pagina
         };
       if (path.includes("/files?"))
         return Array.from({ length: 101 }, (_, i) => ({ path: `file-${i}` }));
-      if (path.endsWith("/343")) return { changed: 101, additions: 102, deletions: 3 };
+      if (path.endsWith("/343"))
+        return { changed: 101, additions: 102, deletions: 3, sha: raw().head_sha };
       return approvals(path);
     },
   );
@@ -213,7 +227,10 @@ test.each(["actions/runs", "pulls?", "/files?", "/343"])(
     const result = await replay(
       (gh) => readApprovals(gh, ctx()),
       (path) =>
-        path.includes(STACK) && path.includes(failing) ? new Error("denied") : approvals(path),
+        path.includes(STACK) &&
+        (failing === "/343" ? path.endsWith(failing) : path.includes(failing))
+          ? new Error("denied")
+          : approvals(path),
     );
     const failed = result.reads.filter((r) => r.failure);
     expect(failed).toHaveLength(1);
@@ -234,7 +251,7 @@ test.each(["runs", "files"])(
           return { total: 2, runs: path.includes("&page=2") ? [] : [raw()] };
         }
         if (area === "files" && path.endsWith("/343"))
-          return { changed: 3001, additions: 90, deletions: 12 };
+          return { changed: 3001, additions: 90, deletions: 12, sha: raw().head_sha };
         return approvals(path);
       },
     );
@@ -261,7 +278,51 @@ test("invalid loaded JSON is discarded with failure evidence before files are re
   const result = await replay((gh) => readApprovals(gh, ctx(), state), approvals);
   expect(result.reads.find((r) => r.source === "persist")).toMatchObject({
     object: "pr-files-cache",
-    failure: expect.stringContaining("Invalid PR-files cache"),
+    failure: expect.stringContaining("Dropped invalid PR-files cache"),
   });
   expect(result.data[STACK]?.[0]?.pr?.files).toEqual(files.map((f) => f.path));
+});
+
+test.each([
+  ["head moved", { changed: 2, sha: "9999999aaaaaaa" }, "head moved"],
+  ["extra files", { changed: 1, sha: raw().head_sha }, "reports 1"],
+])("%s during the files read is a failure and is never cached", async (_name, summary, text) => {
+  const result = await replay(
+    (gh) => readApprovals(gh, ctx()),
+    (path) =>
+      path.endsWith("/343") ? { ...summary, additions: 90, deletions: 12 } : approvals(path),
+  );
+  expect(result.reads.find((r) => r.source === STACK)?.failure).toContain(text);
+  expect(result.cache).toEqual({});
+  expect(result.data[STACK]?.[0]?.pr).toBeUndefined();
+});
+
+test("a bad cache entry is dropped alone and keys of a failed repository are kept", async () => {
+  const good = { files: ["a"], changedFiles: 1, additions: 1, deletions: 0 };
+  const state = {
+    [`${STACK}#1@good`]: good,
+    [`${STACK}#2@bad`]: { files: [], changedFiles: 3, additions: 1, deletions: 0 },
+  };
+  const failed = await replay(
+    (gh) => readApprovals(gh, ctx(), state),
+    (path) =>
+      path.includes(STACK) && path.includes("actions/runs") ? new Error("denied") : approvals(path),
+  );
+  expect(failed.cache).toEqual({ [`${STACK}#1@good`]: good });
+  expect(failed.reads.find((r) => r.source === "persist")?.failure).toContain(`${STACK}#2@bad`);
+  const read = await replay((gh) => readApprovals(gh, ctx(), state), approvals);
+  expect(Object.keys(read.cache)).toEqual([`${STACK}#343@${raw().head_sha}`]);
+});
+
+test("approval runs repeated across pages are counted once", async () => {
+  const result = await replay(
+    (gh) => readApprovals(gh, ctx()),
+    (path) => {
+      if (path.includes(STACK) && path.includes("/actions/runs"))
+        return { total: 2, runs: path.includes("&page=2") ? [raw(1), raw(2, "old")] : [raw(1)] };
+      return approvals(path);
+    },
+  );
+  expect(result.data[STACK]?.map((r) => r.id)).toEqual([1, 2]);
+  expect(result.reads.find((r) => r.source === STACK)?.completeness.kind).toBe("complete");
 });

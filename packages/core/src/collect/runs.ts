@@ -63,18 +63,24 @@ function combine(parts: readonly ReadCompleteness[]): ReadCompleteness {
   };
 }
 
-async function runs(gh: Gh, path: string, historyOnly = false) {
-  const data: RunFact[] = [];
+// A recency window is complete when the API returned all it was asked for; a paged
+// read (`window` undefined) is complete only when every run was read.
+async function runs(gh: Gh, path: string, window?: number) {
+  const byId = new Map<number, RunFact>();
   let total = 0;
+  let wanted = 0;
   for (let page = 1; ; page++) {
     const result = await gh.rest<{ total: number; runs: RawRun[] }>(
-      `${path}${page === 1 ? "" : `&page=${page}`}`, RUN_JQ,
+      `${path}${page === 1 ? "" : `&page=${page}`}`,
+      RUN_JQ,
     );
     total = result.total;
-    data.push(...result.runs.map(toRun));
-    if (historyOnly || data.length >= total || result.runs.length === 0) break;
+    for (const r of result.runs) byId.set(r.id, toRun(r));
+    wanted = window === undefined ? total : Math.min(window, total);
+    if (window !== undefined || byId.size >= total || result.runs.length === 0) break;
   }
-  return { data, completeness: cut(data.length, total, `${path}: run history cut`) };
+  const data = [...byId.values()];
+  return { data, completeness: cut(data.length, wanted, `${path}: run read cut`) };
 }
 
 export async function readTemplateRuns(
@@ -83,7 +89,9 @@ export async function readTemplateRuns(
   const read = record(ctx, repo, "template-runs");
   try {
     const result = await runs(
-      gh, `repos/${repo}/actions/workflows/${SYNC_TEMPLATE_WORKFLOW}/runs?per_page=5`, true,
+      gh,
+      `repos/${repo}/actions/workflows/${SYNC_TEMPLATE_WORKFLOW}/runs?per_page=5`,
+      5,
     );
     return { data: result.data, reads: [{ ...read, completeness: result.completeness }] };
   } catch (error) {
@@ -100,10 +108,10 @@ export async function readForkRuns(
     try {
       const base = `repos/${f.repo}/actions`;
       const [sync, template, cascade, main] = await Promise.all([
-        runs(gh, `${base}/workflows/sync.yml/runs?per_page=10`, true),
-        runs(gh, `${base}/workflows/${SYNC_TEMPLATE_WORKFLOW}/runs?per_page=5`, true),
-        runs(gh, `${base}/workflows/cascade.yml/runs?per_page=5`, true),
-        runs(gh, `${base}/workflows/validate.yml/runs?branch=main&event=push&per_page=5`, true),
+        runs(gh, `${base}/workflows/sync.yml/runs?per_page=10`, 10),
+        runs(gh, `${base}/workflows/${SYNC_TEMPLATE_WORKFLOW}/runs?per_page=5`, 5),
+        runs(gh, `${base}/workflows/cascade.yml/runs?per_page=5`, 5),
+        runs(gh, `${base}/workflows/validate.yml/runs?branch=main&event=push&per_page=5`, 5),
       ]);
       data[f.repo] = { sync: sync.data, template: template.data, cascade: cascade.data, main: main.data };
       return { ...read, completeness: combine([sync, template, cascade, main].map((r) => r.completeness)) };
@@ -117,12 +125,28 @@ export async function readForkRuns(
 export type PrFiles = Pick<OutsidePr, "files" | "changedFiles" | "additions" | "deletions">;
 // Keyed `repo#number@sha`: a PR's files at one head never change.
 export type PrFilesCache = Record<string, PrFiles>;
-export const prFilesCacheSchema = z.record(z.string(), z.strictObject({
-  files: z.array(z.string()),
-  changedFiles: z.int().nonnegative(),
-  additions: z.int().nonnegative(),
-  deletions: z.int().nonnegative(),
-}).refine((p) => p.files.length === p.changedFiles, "Incomplete PR files"));
+const prFilesSchema = z
+  .strictObject({
+    files: z.array(z.string()),
+    changedFiles: z.int().nonnegative(),
+    additions: z.int().nonnegative(),
+    deletions: z.int().nonnegative(),
+  })
+  .refine((p) => p.files.length === p.changedFiles, "Incomplete PR files");
+
+export function loadPrFilesCache(state: unknown): { cache: PrFilesCache; dropped: string[] } {
+  const cache: PrFilesCache = {};
+  if (typeof state !== "object" || state === null || Array.isArray(state)) {
+    return { cache, dropped: ["(whole cache)"] };
+  }
+  const dropped: string[] = [];
+  for (const [key, value] of Object.entries(state)) {
+    const parsed = prFilesSchema.safeParse(value);
+    if (parsed.success) cache[key] = parsed.data;
+    else dropped.push(key);
+  }
+  return { cache, dropped };
+}
 
 interface RawOpenPr {
   number: number;
@@ -134,18 +158,25 @@ interface RawOpenPr {
   sha: string;
 }
 
-async function prFiles(gh: Gh, repo: string, n: number) {
+async function prFiles(gh: Gh, repo: string, n: number, sha: string) {
   const files = await gh.pages<{ path: string; additions: number; deletions: number }>(
     `repos/${repo}/pulls/${n}/files?per_page=100`,
     ".[] | {path: .filename, additions, deletions}",
   );
-  const pr = await gh.rest<{ changed: number; additions: number; deletions: number }>(
-    `repos/${repo}/pulls/${n}`, "{changed: .changed_files, additions, deletions}",
+  const pr = await gh.rest<{ changed: number; additions: number; deletions: number; sha: string }>(
+    `repos/${repo}/pulls/${n}`,
+    "{changed: .changed_files, additions, deletions, sha: .head.sha}",
   );
+  if (pr.sha !== sha) throw new Error(`${repo}#${n}: head moved ${sha.slice(0, 7)} → ${pr.sha.slice(0, 7)} during the read`);
+  if (files.length > pr.changed) {
+    throw new Error(`${repo}#${n}: read ${files.length} files but the PR reports ${pr.changed}`);
+  }
   return {
     data: {
-      files: files.map((f) => f.path), changedFiles: pr.changed,
-      additions: pr.additions, deletions: pr.deletions,
+      files: files.map((f) => f.path),
+      changedFiles: pr.changed,
+      additions: pr.additions,
+      deletions: pr.deletions,
     },
     completeness: cut(files.length, pr.changed, `${repo}#${n}: PR files cut`),
   };
@@ -155,8 +186,10 @@ async function prFiles(gh: Gh, repo: string, n: number) {
 export async function readApprovals(
   gh: Gh, ctx: CoreContext, state: unknown = {},
 ): Promise<Read<Record<string, WaitingRun[]>> & { cache: PrFilesCache }> {
-  const parsed = prFilesCacheSchema.safeParse(state);
-  const cache: PrFilesCache = parsed.success ? parsed.data : {};
+  const { cache: loaded, dropped } = loadPrFilesCache(state);
+  const cache: PrFilesCache = { ...loaded };
+  const used = new Set<string>();
+  const failedRepos = new Set<string>();
   const data: Record<string, WaitingRun[]> = {};
   const reads = await pool(ctx.fleet.repos, 4, async (repo): Promise<ReadRecord> => {
     const read = record(ctx, repo, "approvals");
@@ -179,12 +212,13 @@ export async function readApprovals(
           try {
             let files = cache[key];
             if (!files) {
-              const result = await prFiles(gh, repo, p.number);
+              const result = await prFiles(gh, repo, p.number, p.sha);
               parts.push(result.completeness);
               if (result.completeness.kind === "cut") continue;
               files = result.data;
               cache[key] = files;
             }
+            used.add(key);
             const { sha, ...rest } = p;
             live.set(p.number, { ...rest, headSha: sha, ...files });
           } catch (error) {
@@ -201,14 +235,19 @@ export async function readApprovals(
     } catch (error) {
       failures.push(errorText(error));
     }
+    if (failures.length) failedRepos.add(repo);
     return {
       ...read, completeness: combine(parts),
       ...(failures.length ? { failure: failures.join("; ") } : {}),
     };
   });
-  if (!parsed.success) reads.push({
+  if (dropped.length) reads.push({
     ...record(ctx, "persist", "pr-files-cache"),
-    failure: `Invalid PR-files cache: ${parsed.error.message}`,
+    failure: `Dropped invalid PR-files cache entries: ${dropped.join(", ")}`,
   });
-  return { data, cache, reads };
+  const kept: PrFilesCache = {};
+  for (const [key, files] of Object.entries(cache)) {
+    if (used.has(key) || [...failedRepos].some((r) => key.startsWith(`${r}#`))) kept[key] = files;
+  }
+  return { data, cache: kept, reads };
 }

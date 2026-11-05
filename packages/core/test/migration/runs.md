@@ -42,3 +42,12 @@ functions. No rib test is deleted by this bead.
   counts describe the cut subreads, not unrelated complete subreads.
 
 Job detail, lifecycle, polling and Keelson Store are outside this module.
+
+## Council round 1 deltas
+
+- Recency windows (template 5, fork sync 10, others 5) are complete when the API returns min(window, total_count) runs; they are cut only on a short read.
+- `prFiles` takes the expected head sha and fails the PR for this sweep if the fetched head differs; nothing is cached.
+- A PR reads complete and is cached only when files read equals `changed_files`; more files than reported is failed evidence.
+- The cache loads per entry: bad entries are dropped with a `persist` failure record, the rest are kept.
+- The cache persists only keys used this sweep plus keys of repositories whose read failed.
+- Approval runs are de-duplicated by id across pages.
