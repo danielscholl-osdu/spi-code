@@ -22,6 +22,7 @@ script. The smoke uses a fresh directory under Electron's app-data directory,
 checks a renderer ping and malformed-message rejection, kills and restarts the
 host, and verifies its SQLite row and event survived. It checks both live process
 ids with `lsof` on macOS or `netstat -ano` on Windows before and after restart.
+Windows smoke rejects unrecognized or localized TCP state labels explicitly.
 The success report is asserted before
 being written, and includes Electron's main and utility-process Node versions
 and the observed `DatabaseSync.isTransaction` support. Failure writes an `error`

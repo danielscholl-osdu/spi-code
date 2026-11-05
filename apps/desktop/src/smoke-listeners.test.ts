@@ -39,6 +39,11 @@ describe("Windows TCP listener evidence", () => {
     expect(windowsListeners(row, 42)).toEqual([]);
   });
 
+  it.each(["ABHÖREN", "UNKNOWN"])("rejects an unrecognized TCP state: %s", (state) => {
+    const row = `  TCP    0.0.0.0:9222           0.0.0.0:0              ${state}       42`;
+    expect(() => windowsListeners(row, 42)).toThrow("Unexpected netstat TCP state");
+  });
+
   it("requests both IP families from netstat and checks process liveness", () => {
     const platform = process.platform;
     const exec = vi.mocked(execFileSync).mockReturnValue(output);

@@ -4,6 +4,22 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 
+const englishTcpStates = new Set([
+  "BOUND",
+  "CLOSED",
+  "LISTENING",
+  "SYN_SENT",
+  "SYN_RECEIVED",
+  "ESTABLISHED",
+  "FIN_WAIT_1",
+  "FIN_WAIT_2",
+  "CLOSE_WAIT",
+  "CLOSING",
+  "LAST_ACK",
+  "TIME_WAIT",
+  "DELETE_TCB",
+]);
+
 export function windowsListeners(output: string, pid: number): string[] {
   const rows = output.split(/\r?\n/).filter((line) => /^\s*TCP(?:v6)?\s/i.test(line));
   return rows.filter((line) => {
@@ -12,6 +28,7 @@ export function windowsListeners(output: string, pid: number): string[] {
       fields.length === 5 && /^\d+$/.test(fields[4] ?? ""),
       `Unexpected netstat TCP row: ${line}`,
     );
+    assert(englishTcpStates.has(fields[3] ?? ""), `Unexpected netstat TCP state: ${fields[3]}`);
     return Number(fields[4]) === pid && fields[3] === "LISTENING";
   });
 }
