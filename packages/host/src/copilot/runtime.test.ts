@@ -14,6 +14,7 @@ import {
   streamTurn,
   stubToolSource,
   tokenLifetimeSeconds,
+  unpackRuntimePath,
 } from "./runtime.js";
 
 const fake = vi.hoisted(() => ({
@@ -39,6 +40,21 @@ vi.mock("@github/copilot-sdk", () => ({
 }));
 
 describe("Copilot runtime boundary", () => {
+  it("resolves only the archive path segment to its unpacked sibling on both platforms", () => {
+    expect(unpackRuntimePath("/App/Resources/app.asar/node_modules/runtime")).toBe(
+      "/App/Resources/app.asar.unpacked/node_modules/runtime",
+    );
+    expect(unpackRuntimePath("C:\\App\\resources\\app.asar\\node_modules\\runtime.exe")).toBe(
+      "C:\\App\\resources\\app.asar.unpacked\\node_modules\\runtime.exe",
+    );
+    for (const path of [
+      "/dev/node_modules/runtime",
+      "/App/Resources/app.asar.unpacked/node_modules/runtime",
+      "/app.asar-backup/node_modules/runtime",
+    ])
+      expect(unpackRuntimePath(path)).toBe(path);
+  });
+
   beforeEach(() => {
     vi.resetAllMocks();
     fake.start.mockResolvedValue(undefined);

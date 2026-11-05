@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "tsc -b",
+    "package:mac": "node scripts/package-mac.mjs",
     "lint": "biome check .",
     "typecheck": "tsc -b",
     "test": "vitest run",

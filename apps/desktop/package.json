@@ -2,6 +2,9 @@
   "name": "@spi-code/desktop",
   "version": "0.0.0",
   "private": true,
+  "description": "Desktop workbench for the OSDU SPI program",
+  "author": "Daniel Scholl",
+  "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
   "exports": {
@@ -19,6 +22,53 @@
   "dependencies": {
     "@spi-code/contracts": "workspace:*",
     "@spi-code/host": "workspace:*"
+  },
+  "build": {
+    "appId": "com.danielscholl.spicode",
+    "productName": "SPI Code",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/@github/copilot-sdk-*/prebuilds/**/*"
+    ],
+    "npmRebuild": false,
+    "files": [
+      "apps/desktop/dist/**/*",
+      "apps/desktop/src/preload.cjs",
+      "apps/window/build/**/*",
+      "packages/*/dist/**/*",
+      "scripts/packaged-host.mjs"
+    ],
+    "mac": {
+      "identity": null,
+      "notarize": false,
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "dmg": {
+      "filesystem": "APFS"
+    }
   },
   "devDependencies": {
     "electron": "44.10.0",

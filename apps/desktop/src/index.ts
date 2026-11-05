@@ -30,8 +30,12 @@ const reportPath =
     ? process.argv[reportFlag + 1]
     : (process.env.SPI_CODE_SMOKE_REPORT ?? join(app.getPath("temp"), "spi-code-smoke.json"));
 const desktopDir = fileURLToPath(new URL("..", import.meta.url));
-const hostEntry = fileURLToPath(new URL("../../../packages/host/dist/main.js", import.meta.url));
-const windowEntry = fileURLToPath(new URL("../../window/build/index.html", import.meta.url));
+const hostEntry = app.isPackaged
+  ? join(app.getAppPath(), "scripts/packaged-host.mjs")
+  : fileURLToPath(new URL("../../../packages/host/dist/main.js", import.meta.url));
+const windowEntry = app.isPackaged
+  ? join(app.getAppPath(), "apps/window/build/index.html")
+  : fileURLToPath(new URL("../../window/build/index.html", import.meta.url));
 let child: UtilityProcess | undefined;
 let stopping = false;
 let failing = false;
@@ -132,7 +136,9 @@ async function run(): Promise<void> {
     height: 650,
     show: !smoke,
     webPreferences: {
-      preload: join(desktopDir, "src/preload.cjs"),
+      preload: app.isPackaged
+        ? join(app.getAppPath(), "apps/desktop/src/preload.cjs")
+        : join(desktopDir, "src/preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,

@@ -26,3 +26,17 @@ being written, and includes Electron's main and utility-process Node versions
 and the observed `DatabaseSync.isTransaction` support. Failure writes an `error`
 report and exits nonzero; success exits zero. Smoke databases remain under
 app data for inspection.
+
+`pnpm run package:mac` builds unsigned macOS arm64 DMG and ZIP artifacts under
+`build/package-mac/artifacts`, using an isolated, hoisted production dependency
+layout. The preload and window are shipped inside `app.asar`; the SDK platform
+prebuilds are explicitly unpacked beside it. Signing discovery is disabled and
+`ELECTRON_RUN_AS_NODE` is removed before launching the packaged executable.
+
+The packaged host bootstrap performs a real SDK stdio `ping` and `getStatus`
+handshake against that shipped runtime before the stub-driven smoke starts.
+The script reads both reports back, validates the existing smoke assertions,
+checks the runtime path and host pid, and writes the combined evidence to
+`build/package-mac/smoke.json`. A missing or failing report fails the command;
+no live sign-in is needed. Normal packaged launches still use gh authentication.
+Windows x64 NSIS is configured but is not built by this macOS command.

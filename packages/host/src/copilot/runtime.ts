@@ -93,14 +93,20 @@ export function resolveRuntimePath(): string {
   const platform = `${process.platform}-${process.arch}`;
   const require = createRequire(import.meta.url);
   const root = dirname(require.resolve(`@github/copilot-sdk-${platform}/package.json`));
-  const path = join(
-    root,
-    "prebuilds",
-    platform,
-    process.platform === "win32" ? "copilot-runtime.exe" : "copilot-runtime",
+  const path = unpackRuntimePath(
+    join(
+      root,
+      "prebuilds",
+      platform,
+      process.platform === "win32" ? "copilot-runtime.exe" : "copilot-runtime",
+    ),
   );
   accessSync(path, constants.X_OK);
   return path;
+}
+
+export function unpackRuntimePath(path: string): string {
+  return path.replace(/([\\/])app\.asar([\\/])/, "$1app.asar.unpacked$2");
 }
 
 export function buildClientOptions(options: RuntimeOptions): CopilotClientOptions {
