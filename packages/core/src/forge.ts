@@ -43,6 +43,7 @@ export class GraphqlBudget {
   private inFlight = 0;
   private probe: Promise<void> | null = null;
   private state: GraphqlBudgetSnapshot = { remaining: null, resetAt: null, spent: 0, calls: 0 };
+  private parent: GraphqlBudget | undefined;
 
   constructor(
     private readonly clock: Clock = systemClock,
@@ -50,12 +51,29 @@ export class GraphqlBudget {
   ) {}
 
   snapshot(): GraphqlBudgetSnapshot {
+    if (this.parent) return {
+      ...this.parent.snapshot(), spent: this.state.spent, calls: this.state.calls,
+    };
     return { ...this.state };
+  }
+
+  /** Shares reservations and rate limits while attributing charges to this caller only. */
+  scope(): GraphqlBudget {
+    const scoped = new GraphqlBudget(this.clock, this.sleep);
+    scoped.parent = this;
+    return scoped;
   }
 
   // Reservations are serialised; the calls they pay for run concurrently once the
   // remaining budget is known. While it is unknown, one call probes it and the rest wait.
   async run<T>(estimate: number, call: () => Promise<{ value: T; rate?: Rate }>): Promise<T> {
+    if (this.parent) return this.parent.run(estimate, async () => {
+      this.state.calls++;
+      this.state.spent += estimate;
+      const result = await call();
+      if (result.rate) this.state.spent += result.rate.cost - estimate;
+      return result;
+    });
     if (!Number.isSafeInteger(estimate) || estimate < 1) {
       throw new ForgeError("GraphQL cost estimate must be a positive integer", null);
     }

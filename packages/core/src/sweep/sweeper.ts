@@ -53,7 +53,7 @@ export interface SweeperOptions<C> {
   readonly emptyCache: () => C;
   readonly prune?: (facts: Facts, cache: C, now: Date) => void;
   readonly context?: (facts: Facts, cache: C) => CoreContext;
-  readonly beforeSweep?: () => void;
+  readonly beforeSweep?: (state: SweepState<C>) => void;
   readonly afterAreas?: (input: SweepInput<C>) => Promise<void>;
   readonly replay?: () => Promise<unknown>;
 }
@@ -172,12 +172,12 @@ export class Sweeper<C> {
       const prior = this.reads[area.name];
       const records: readonly ReadRecord[] = prior?.length ? prior : [{
         source: area.name, object: area.name,
-        observedAt: previous.at ?? at, completeness: { kind: "complete" },
+        observedAt: at, completeness: { kind: "complete" }, failure,
       }];
       this.reads[area.name] = records.map((record) => {
-        const retainedFrom = previous.data === undefined || !prior?.includes(record)
+        const retainedFrom = previous.data === undefined
           ? undefined
-          : record.retainedFrom ?? record.observedAt;
+          : record.retainedFrom ?? (record.failure === undefined ? record.observedAt : undefined);
         return {
           ...record, observedAt: at, failure,
           ...(retainedFrom === undefined ? {} : { retainedFrom }),
@@ -198,7 +198,7 @@ export class Sweeper<C> {
       return;
     }
     await this.load();
-    this.opts.beforeSweep?.();
+    this.opts.beforeSweep?.({ facts: this.facts, cache: this.cache, reads: this.reads });
     const started = this.clock.now();
     let calls = 0;
     let errors = 0;

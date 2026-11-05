@@ -11,7 +11,9 @@ import {
 } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
 import { RecordingExec, ReplayExec } from "../../src/exec/index.js";
+import type { ExecOutput } from "../../src/exec/port.js";
 import { AREAS, emptyFacts, type Facts } from "../../src/facts.js";
+import { GraphqlBudget } from "../../src/forge.js";
 import { createSweeper } from "../../src/sweep/areas.js";
 import { cacheSchema, emptyCache, pruneCache } from "../../src/sweep/cache.js";
 import { due } from "../../src/sweep/cadence.js";
@@ -27,6 +29,7 @@ function harness(repo = "owner/partition", remaining = 4000) {
   let offline = false;
   let retry = true;
   let stored: unknown;
+  let route: ((cmd: string, args: string[]) => ExecOutput | undefined) | undefined;
   const costs: number[] = [];
   const queries: string[] = [];
   const log: string[] = [];
@@ -36,6 +39,8 @@ function harness(repo = "owner/partition", remaining = 4000) {
   });
   const exec = new RecordingExec(
     async (cmd, args) => {
+      const overridden = route?.(cmd, args);
+      if (overridden) return overridden;
       if (offline) return { stdout: "", stderr: `${cmd} unavailable`, exit: 1 };
       const path =
         args.find(
@@ -165,6 +170,9 @@ function harness(repo = "owner/partition", remaining = 4000) {
     costs,
     queries,
     log,
+    setRoute: (next: typeof route) => {
+      route = next;
+    },
     setOffline: () => {
       offline = true;
     },
@@ -299,7 +307,23 @@ test("a total outage keeps last-good radar and per-fork/approval evidence throug
 
 test("snapshot replay performs no reads or writes and keeps recorded envelopes", async () => {
   const h = harness();
-  const frame = { facts: emptyFacts(), cache: emptyCache(), reads: {} };
+  const facts = emptyFacts();
+  facts.sweep = { at: START, calls: 17, errors: 0, ms: 42 };
+  facts.github = { at: START, data: { repos: {}, planned: { recorded: true } } };
+  const frame: SweepState<ReturnType<typeof emptyCache>> = {
+    facts,
+    cache: emptyCache(),
+    reads: {
+      github: [
+        {
+          source: "github",
+          object: "recorded",
+          observedAt: START,
+          completeness: { kind: "cut", read: 1, total: 2, reason: "recorded cut" },
+        },
+      ],
+    },
+  };
   const sweeper = createSweeper({
     ...h.options,
     replay: async () => frame,
@@ -313,6 +337,223 @@ test("snapshot replay performs no reads or writes and keeps recorded envelopes",
   await sweeper.sweep();
   expect(h.log).toHaveLength(0);
   expect(sweeper.facts).toEqual(frame.facts);
+  expect(sweeper.reads).toEqual(frame.reads);
+});
+
+test("cut run-job listings are retried until the Java Build is observed", async () => {
+  const h = harness();
+  let complete = false;
+  let calls = 0;
+  const job = (id: number, name: string) => ({
+    id,
+    name,
+    status: "completed",
+    conclusion: "success",
+    started_at: START,
+    completed_at: START,
+    html_url: "u",
+    steps: [],
+    run_attempt: 1,
+  });
+  h.setRoute((_cmd, args) => {
+    const path = args[1] ?? "";
+    if (!path.includes("/attempts/1/jobs?")) return;
+    calls++;
+    return {
+      stdout: JSON.stringify({
+        total: 2,
+        jobs: complete ? [job(1, "Prepare"), job(2, "Java Build")] : [job(1, "Prepare")],
+      }),
+      stderr: "",
+      exit: 0,
+    };
+  });
+  const sweeper = createSweeper(h.options);
+  await sweeper.sweep();
+  expect(
+    sweeper.cache.lifecycle.runJobs["5#1"]?.reads.some((r) => r.completeness.kind === "cut"),
+  ).toBe(true);
+  const before = calls;
+  complete = true;
+  await sweeper.sweep();
+  expect(calls).toBeGreaterThan(before);
+  expect(
+    sweeper.facts.runs.data?.["owner/partition"]?.cascadeRunJobs?.[5]?.map((j) => j.name),
+  ).toContain("Java Build");
+  const settled = calls;
+  await sweeper.sweep();
+  expect(calls).toBe(settled);
+});
+
+test("partial upstream failures retain queued commits and retry the failed fork before cadence", async () => {
+  const h = harness();
+  let failedProject: string | undefined;
+  let fail = true;
+  let retries = 0;
+  h.setRoute((cmd, args) => {
+    const query = args.find((a) => a.startsWith("query=")) ?? "";
+    if (cmd === "gh" && query.includes("stack: repository"))
+      return {
+        stdout: JSON.stringify({
+          data: {
+            stack: {
+              object: {
+                text: "forks:\n  - service: partition\n    repo: owner/partition\n  - service: storage\n    repo: owner/storage\n",
+              },
+            },
+            template: { object: null },
+            spicodeBudget: { cost: 2, remaining: 4000, resetAt: "2099-01-01T00:00:00Z" },
+          },
+        }),
+        stderr: "",
+        exit: 0,
+      };
+    const path = args.at(-1) ?? "";
+    if (
+      failedProject &&
+      path.includes(encodeURIComponent(failedProject)) &&
+      path.includes("/repository/branches/")
+    ) {
+      retries++;
+      if (fail) return { stdout: "", stderr: "storage unavailable", exit: 1 };
+    }
+  });
+  const sweeper = createSweeper(h.options);
+  await sweeper.sweep();
+  const old = sweeper.facts.upstream.data?.storage;
+  if (!old) throw new Error("storage was not read");
+  old.commits = [{ sha: "queued", title: "Queued", at: START, url: "u" }];
+  const good = structuredClone(old);
+  failedProject = sweeper.facts.radar.data?.services.storage?.project;
+  expect(failedProject).toBeDefined();
+  for (let i = 0; i < 2; i++) {
+    h.advance(1);
+    await sweeper.sweep({ force: i === 0 });
+    expect(sweeper.facts.upstream.data?.storage).toEqual(good);
+    expect(sweeper.reads.upstream?.find((r) => r.source === failedProject)).toMatchObject({
+      failure: expect.stringContaining("storage unavailable"),
+      retainedFrom: START,
+    });
+    expect(sweeper.facts.radar.data?.services.storage?.queued[0]?.sha).toBe("queued");
+    const fresh = sweeper.reads.upstream?.find((r) => r.source !== failedProject);
+    expect(fresh?.failure).toBeUndefined();
+    expect(fresh?.retainedFrom).toBeUndefined();
+  }
+  expect(retries).toBe(2);
+  fail = false;
+  h.advance(1);
+  await sweeper.sweep();
+  expect(retries).toBe(3);
+  expect(sweeper.reads.upstream?.find((r) => r.source === failedProject)?.failure).toBeUndefined();
+  expect(sweeper.facts.upstream.data?.storage?.commits).toEqual([]);
+});
+
+test("shared budget accounts attribute interleaved sweeps only their own GraphQL charges", async () => {
+  const a = harness("owner/one");
+  const b = harness("owner/two");
+  const budget = new GraphqlBudget(a.options.ctx.clock);
+  const one = createSweeper({ ...a.options, budget });
+  const two = createSweeper({ ...b.options, budget });
+  await Promise.all([one.sweep(), two.sweep()]);
+  expect(one.cache.budget.cost).toBe(a.costs.reduce((sum, cost) => sum + cost, 0));
+  expect(two.cache.budget.cost).toBe(b.costs.reduce((sum, cost) => sum + cost, 0));
+  expect(one.cache.budget.calls).toBe(a.costs.length);
+  expect(two.cache.budget.calls).toBe(b.costs.length);
+  expect(budget.snapshot().spent).toBe(one.cache.budget.cost + two.cache.budget.cost);
+  const costs = a.costs.length;
+  await one.sweep({ force: true });
+  expect(one.cache.budget.cost).toBe(a.costs.slice(costs).reduce((sum, cost) => sum + cost, 0));
+});
+
+test("failed detail rereads retain only their previous job and observation", async () => {
+  const h = harness();
+  const sweeper = createSweeper(h.options);
+  await sweeper.sweep();
+  const repo = "owner/partition";
+  const entry = sweeper.facts.github.data?.repos[repo];
+  if (!entry) throw new Error("missing repository");
+  entry.prs = [
+    {
+      repo,
+      number: 1,
+      title: "Failing PR",
+      url: "u",
+      createdAt: START,
+      updatedAt: START,
+      draft: false,
+      head: "feature",
+      base: "main",
+      headSha: "sha",
+      labels: [],
+      checks: [901, 902].map((id) => ({
+        id,
+        name: `Check ${id}`,
+        workflow: "CI",
+        status: "COMPLETED",
+        conclusion: "FAILURE",
+      })),
+    },
+  ];
+  const job = { id: 901, name: "Check 901", status: "in_progress", url: "u", steps: [] };
+  sweeper.facts.details.data = { [`${repo}#901`]: job };
+  sweeper.reads.details = [
+    {
+      source: "github",
+      object: `repos/${repo}/actions/jobs/901`,
+      observedAt: START,
+      completeness: { kind: "complete" },
+    },
+  ];
+  h.setRoute((_cmd, args) => {
+    if (args.some((a) => a.startsWith("query=") && /r_(template|fork0):/.test(a)))
+      return { stdout: "", stderr: "github unavailable", exit: 1 };
+    if (args[1]?.endsWith("/actions/jobs/901"))
+      return { stdout: "", stderr: "job unavailable", exit: 1 };
+    if (args[1]?.endsWith("/actions/jobs/902"))
+      return {
+        stdout: JSON.stringify({
+          id: 902,
+          name: "Check 902",
+          status: "completed",
+          conclusion: "success",
+          started_at: START,
+          completed_at: START,
+          html_url: "u",
+          steps: [],
+        }),
+        stderr: "",
+        exit: 0,
+      };
+  });
+  h.advance(1);
+  await sweeper.sweep();
+  expect(sweeper.facts.details.data?.[`${repo}#901`]).toEqual(job);
+  expect(sweeper.facts.details.data?.[`${repo}#902`]?.id).toBe(902);
+  expect(sweeper.reads.details?.find((r) => r.object.endsWith("/901"))).toMatchObject({
+    retainedFrom: START,
+    failure: expect.stringContaining("job unavailable"),
+  });
+});
+
+test("an auth exception cannot accumulate deferred entries across sweeps", async () => {
+  const h = harness("owner/partition", 50);
+  let throwAuth = false;
+  const sweeper = createSweeper({
+    ...h.options,
+    exec: {
+      runJSON: h.options.exec.runJSON.bind(h.options.exec),
+      runText: async (...args) => {
+        if (throwAuth && args[1][0] === "auth") throw new Error("auth transport failed");
+        return h.options.exec.runText(...args);
+      },
+    },
+  });
+  await sweeper.sweep();
+  const deferred = structuredClone(sweeper.cache.budget.deferred);
+  throwAuth = true;
+  await sweeper.sweep();
+  expect(sweeper.facts.auth.error).toContain("auth transport failed");
+  expect(sweeper.cache.budget.deferred).toEqual(deferred);
 });
 
 test("cache loading rejects malformed pin times and pruning bounds every collector cache", () => {

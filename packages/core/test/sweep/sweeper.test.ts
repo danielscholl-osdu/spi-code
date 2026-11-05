@@ -320,7 +320,7 @@ describe("Sweeper shell", () => {
     },
   );
 
-  it("retains provenance when the last-good data already carried a partial failure", async () => {
+  it("does not turn a prior failed attempt into a retained observation", async () => {
     const h = harness();
     let fails = false;
     const sweeper = new Sweeper({
@@ -340,14 +340,13 @@ describe("Sweeper shell", () => {
       ],
     });
     await sweeper.sweep();
-    const original = sweeper.reads.github?.[0]?.observedAt;
     fails = true;
-    h.advance();
-    await sweeper.sweep();
-    expect(sweeper.reads.github?.[0]).toMatchObject({
-      failure: "offline",
-      retainedFrom: original,
-    });
+    for (let i = 0; i < 2; i++) {
+      h.advance();
+      await sweeper.sweep();
+      expect(sweeper.reads.github?.[0]?.failure).toBe("offline");
+      expect(sweeper.reads.github?.[0]?.retainedFrom).toBeUndefined();
+    }
   });
 
   it("round-trips facts, cache and reads through the persist port without sharing references", async () => {

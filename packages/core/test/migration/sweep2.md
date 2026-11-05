@@ -6,6 +6,8 @@ Every GitHub collector, including radar's ledger/pin readers and releases,
 uses the same fleet-local GraphQL account. `cache.budget` records each sweep's
 charged cost, GraphQL calls, remaining points, reset time and deferred reasons.
 Cut-body retries retain the forge account's estimate when no cost is readable.
+Injected shared accounts use caller-local scopes: reservations and remaining
+points are shared, but each sweep's cost/calls/history count only its own calls.
 Optional areas respect the pacer's floor; core reads continue. Release reads
 and their envelopes remain in `cache.releases`, separate from `Facts`.
 
@@ -28,3 +30,9 @@ diff replay envelopes and retained filters), `test/collect/pins.test.ts`
 (head/pin evidence and removal retry), and the shell's no-invented-provenance
 case when persisted reads are empty. Total outages preserve prior per-fork
 and approval records; no timestamp is synthesized from an area's `at`.
+Failed records without an earlier retained observation do not acquire one.
+Partial upstream failures retain only the failed fork's facts and provenance,
+and stay retryable before cadence; complete forks remain fresh. Incomplete
+run-job listings are retried instead of becoming permanent cache hits. Failed
+job-detail rereads retain their own last-good job and timestamp. Populated
+snapshot replay restores both Facts and non-empty read envelopes.
