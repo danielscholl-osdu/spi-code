@@ -23,6 +23,9 @@ const ledgerSchema = z.object({
   portPrs: z.record(z.string(), z.object({
     watermark: z.iso.datetime({ offset: true }).optional(),
     prs: z.record(z.string(), prSchema), open: z.array(prSchema).optional(),
+    pending: z.record(z.string(), z.object({
+      fact: prSchema, read: z.number().int().nonnegative(), total: z.number().int().nonnegative(),
+    })).optional(),
   })),
   observed: z.record(z.string(), z.iso.datetime({ offset: true })),
 });
@@ -163,11 +166,12 @@ export async function readPortPrs(gh: Gh, state: LedgerState, ctx: CoreContext):
   let errors: Awaited<ReturnType<Gh["graphql"]>>["errors"] = [];
   let failure: unknown;
   try {
-    ({ data, errors } = await gh.graphql<typeof data>(`query { ${fields.join(" ")} }`));
+    // Two searches per fork, each with up to 100 nested commit connections.
+    ({ data, errors } = await gh.graphql<typeof data>(`query { ${fields.join(" ")} }`, forks.length * 2));
   } catch (error) {
     failure = error;
   }
-  forks.forEach((f, i) => {
+  for (const [i, f] of forks.entries()) {
     const key = `port:${f.id}`;
     const base = record(ctx, f.repo, "port PRs", state.observed[key]);
     const open = data[`port_o${i}`];
@@ -177,43 +181,83 @@ export async function readPortPrs(gh: Gh, state: LedgerState, ctx: CoreContext):
     const searches = [open, merged];
     const cut = searches.find((s) => s && (
       s.issueCount > (s.nodes?.length ?? 0) || s.pageInfo?.hasNextPage !== false));
-    const commitCut = searches.flatMap((s) => s?.nodes ?? []).find((n) => n?.number && (
-      !n.commits?.nodes || n.commits.pageInfo?.hasNextPage !== false ||
-      n.commits.totalCount > n.commits.nodes.length));
-    if (failure !== undefined || error || !open?.nodes || !merged?.nodes || cut || commitCut) {
+    if (failure !== undefined || error || !open?.nodes || !merged?.nodes || cut) {
       const known = state.portPrs[f.id];
       if (known?.open) out[f.id] = [...known.open, ...Object.values(known.prs)];
-      const count = commitCut?.commits;
       reads.push(failure !== undefined || error || !open?.nodes || !merged?.nodes ? {
         ...base, failure: error?.message ?? (failure === undefined ? "Port PRs are not readable" : errorText(failure)),
       } : {
         ...base, completeness: {
-          kind: "cut", reason: count ? "PR commit messages are incomplete" : "Port PR search is incomplete",
-          read: count?.nodes?.length ?? cut?.nodes?.length ?? 0,
-          total: count?.totalCount ?? cut?.issueCount ?? 1,
+          kind: "cut", reason: "Port PR search is incomplete",
+          read: cut?.nodes?.length ?? 0,
+          total: cut?.issueCount ?? 1,
         },
       });
-      return;
+      continue;
     }
-    const fact = (n: NonNullable<NonNullable<RawSearch["nodes"]>[number]>, kind: ForkPrFact["state"]) => {
+    const known: PortPrState = state.portPrs[f.id] ?? { prs: {} };
+    const pending: NonNullable<PortPrState["pending"]> = {};
+    const completeCommits = async (fact: ForkPrFact, count: number, total: number, inspected = 0) => {
+      const object = `pulls/${fact.number}/commits`;
+      try {
+        const messages = await gh.pages<string>(`repos/${f.repo}/${object}?per_page=100`, ".[].commit.message");
+        if (messages.length < total) throw new Error(`Expected ${total} commits, read ${messages.length}`);
+        read.commits += messages.length;
+        reads.push(record(ctx, f.repo, object));
+        return { ...fact, refs: [...new Set([...fact.refs, ...mrRefs(messages)])] };
+      } catch (error) {
+        read.commits += inspected;
+        pending[String(fact.number)] = { fact, read: count, total };
+        reads.push({
+          ...record(ctx, f.repo, object), failure: errorText(error),
+          completeness: { kind: "cut", reason: "PR commit messages are incomplete", read: count, total },
+        });
+        return fact;
+      }
+    };
+    const fact = async (n: NonNullable<NonNullable<RawSearch["nodes"]>[number]>, kind: ForkPrFact["state"]) => {
       const messages = (n.commits?.nodes ?? []).map((c) => c.commit.message);
       read.prs++;
+      const result = { number: n.number ?? 0, url: n.url ?? "", state: kind, refs: mrRefs([n.bodyText ?? "", ...messages]) };
+      if (!n.commits?.nodes || n.commits.pageInfo?.hasNextPage !== false ||
+        n.commits.totalCount > messages.length) {
+        return completeCommits(result, messages.length, n.commits?.totalCount ?? messages.length + 1, messages.length);
+      }
       read.commits += messages.length;
-      return { number: n.number ?? 0, url: n.url ?? "", state: kind, refs: mrRefs([n.bodyText ?? "", ...messages]) };
+      return result;
     };
-    const known = state.portPrs[f.id] ?? { prs: {} };
+    // A failed merged PR must be retried even after the search watermark passes it.
+    const current = new Set([...merged.nodes, ...open.nodes].map((n) => n?.number));
+    for (const retry of Object.values(known.pending ?? {})) {
+      if (retry.fact.state !== "merged" || current.has(retry.fact.number)) continue;
+      read.prs++;
+      known.prs[String(retry.fact.number)] = await completeCommits(retry.fact, retry.read, retry.total);
+    }
     let watermark = known.watermark;
     for (const n of merged.nodes) {
       if (!n?.number) continue;
-      known.prs[String(n.number)] = fact(n, "merged");
+      known.prs[String(n.number)] = await fact(n, "merged");
       if (n.mergedAt && (!watermark || n.mergedAt > watermark)) watermark = n.mergedAt;
     }
-    const openPrs = open.nodes.flatMap((n) => n?.number ? [fact(n, "open")] : []);
-    state.portPrs[f.id] = { ...(watermark ? { watermark } : {}), prs: known.prs, open: openPrs };
+    const openPrs: ForkPrFact[] = [];
+    for (const n of open.nodes) if (n?.number) openPrs.push(await fact(n, "open"));
+    state.portPrs[f.id] = { ...(watermark ? { watermark } : {}), prs: known.prs, open: openPrs, pending };
     out[f.id] = [...openPrs, ...Object.values(known.prs)];
+    const incomplete = Object.values(pending);
+    if (incomplete.length) {
+      reads.push({
+        ...base,
+        completeness: {
+          kind: "cut", reason: "Some PR commit messages remain unread",
+          read: incomplete.reduce((sum, p) => sum + p.read, 0),
+          total: incomplete.reduce((sum, p) => sum + p.total, 0),
+        },
+      });
+      continue;
+    }
     const success = record(ctx, f.repo, "port PRs");
     state.observed[key] = success.observedAt;
     reads.push(success);
-  });
+  }
   return { prs: out, read, reads };
 }

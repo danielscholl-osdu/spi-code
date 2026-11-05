@@ -45,10 +45,19 @@ All clocks are fixed.
   Failed/cut reads preserve prior lists and their original observation times,
   rather than dropping a previously read list on a cut response.
 - `readPortPrs` adds `reads` to its original result. Alias-scoped GraphQL errors
-  fail only the affected fork. Query failures, missing aliases, search cuts and
-  commit cuts preserve last-good state without advancing watermarks. The query
+  fail only the affected fork. Query failures, missing aliases and search cuts
+  preserve last-good state without advancing watermarks. The query
   now requests pageInfo and commit totalCount so nested 50-commit connections
-  cannot silently truncate. Complete PR matching and counters are unchanged.
+  cannot silently truncate. Truncated PR commits are read fully through
+  `Gh.pages` on the REST commits endpoint. These calls use the forge call
+  counter; REST requests do not consume GraphQL points. The GraphQL query
+  reserves two points per seeded fork for its nested search connections.
+- A failed commit-page read emits PR-specific failure/cut evidence but publishes
+  the references already read and permits other PRs and the watermark to advance.
+  A zod-validated `pending` map retains unresolved PR facts and counts. Merged
+  pending PRs are retried independently of the search window, including after
+  serialization/reload, and removed after successful paging. Open PRs are
+  retried from the current open search; closed unmerged PRs are discarded.
 - Cut connections with no exact total use `read + 1`, explicitly labelled as a
   lower bound. Partial data is not published as a complete ledger.
 - Last-good observation times are updated only by complete successful reads;
@@ -56,3 +65,17 @@ All clocks are fixed.
   through the existing `Gh` budget account, tested against cost 17.
 - `mrRefs`, seed/day handling, GitLab batch size, MR conversion, PR-number
   retention, watermark advancement and URL/body/commit matching are unchanged.
+
+## Council round 1
+
+- Known limit: a PR search exceeding 100 results is explicitly cut and does not
+  advance that fork's watermark. In particular a merged window with over 100
+  PRs can remain stuck indefinitely. Cursor pagination (and GitHub search's
+  1,000-result cap/date-window splitting) needs a follow-up bead; it is not
+  implemented in this revision.
+- Upstream compare exceptions intentionally still omit that fork's partial fact.
+  At rib `59d6895`, `out[fork.id] = fact` occurs only after the awaited compare,
+  so a thrown compare never publishes its branch-only fact. The core retains
+  this publication boundary while emitting project-isolated failure evidence.
+  A timeout response, unlike an exception, returns a partial fact with cut
+  evidence as previously documented.

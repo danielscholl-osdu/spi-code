@@ -54,13 +54,22 @@ const mr = (hasNextPage = false) => ({
   mergeRequests: { pageInfo: { hasNextPage }, nodes: [node] },
 });
 
-function exec(data: unknown, errors: unknown[] = []) {
+function exec(data: unknown, errors: unknown[] = [], commits: string[] | Error = []) {
   const queries: string[] = [];
   return {
     queries,
     exec: new RecordingExec(
       async (_cmd, args) => {
         queries.push(args.join(" "));
+        if (args.includes("--paginate")) {
+          return commits instanceof Error
+            ? { stdout: "", stderr: commits.message, exit: 1 }
+            : {
+                stdout: commits.map((message) => JSON.stringify(message)).join("\n"),
+                stderr: "",
+                exit: 0,
+              };
+        }
         return data instanceof Error
           ? { stdout: "", stderr: data.message, exit: 1 }
           : {
@@ -172,29 +181,94 @@ test("unread projects and alias-scoped GraphQL errors have their own failure rec
   expect(result.reads.filter((r) => r.failure).map((r) => r.source)).toEqual([services[1]?.repo]);
 });
 
-test("PR searches and nested commit connections cannot silently truncate or advance the watermark", async () => {
-  for (const open of [
-    search([pr(3, null, "")], 101),
-    search([
-      {
-        ...pr(3, null, ""),
-        commits: { totalCount: 51, nodes: [], pageInfo: { hasNextPage: true } },
-      },
-    ]),
-  ]) {
-    const state = emptyLedgerState();
+test("PR searches above 100 results remain explicitly cut without advancing the watermark", async () => {
+  const state = emptyLedgerState();
+  const result = await readPortPrs(
+    new Gh(
+      exec({ port_o0: search([pr(3, null, "")], 101), port_m0: search() }).exec,
+      undefined,
+      new GraphqlBudget(ctx.clock),
+    ),
+    state,
+    ctx,
+  );
+  expect(result.prs.partition).toBeUndefined();
+  expect(result.reads[0]?.completeness.kind).toBe("cut");
+  expect(state.portPrs).toEqual({});
+});
+
+const longPr = {
+  ...pr(37, "2026-09-01T10:00:00Z", `https://community.opengroup.org/${ENT}/-/merge_requests/955`),
+  commits: {
+    totalCount: 51,
+    pageInfo: { hasNextPage: true },
+    nodes: Array.from({ length: 50 }, () => ({ commit: { message: "first fifty" } })),
+  },
+};
+const fullMessages = [
+  ...Array.from({ length: 50 }, () => "first fifty"),
+  `https://community.opengroup.org/${ENT}/-/merge_requests/956`,
+];
+
+test("a 51-commit merged PR pages all commits through Gh and advances the watermark", async () => {
+  const calls = exec({ port_o0: search(), port_m0: search([longPr]) }, [], fullMessages);
+  const counter = { calls: 0 };
+  const budget = new GraphqlBudget(ctx.clock);
+  const state = emptyLedgerState();
+  const result = await readPortPrs(new Gh(calls.exec, counter, budget), state, ctx);
+  expect(result.prs.partition?.[0]?.refs).toEqual([`${ENT}!955`, `${ENT}!956`]);
+  expect(result.read).toEqual({ prs: 1, commits: 51 });
+  expect(state.portPrs.partition?.watermark).toBe(longPr.mergedAt);
+  expect(state.portPrs.partition?.pending).toEqual({});
+  expect(calls.queries[1]).toBe(
+    "api --paginate repos/Azure/osdu-spi-partition/pulls/37/commits?per_page=100 --jq .[].commit.message",
+  );
+  expect(counter.calls).toBe(2);
+  expect(budget.snapshot()).toMatchObject({ calls: 1, spent: 4 });
+});
+
+test("failed commit paging does not freeze other PRs or lose retries behind the watermark", async () => {
+  const state = emptyLedgerState();
+  const complete = pr(39, "2026-10-01T10:00:00Z", "");
+  const first = exec(
+    { port_o0: search(), port_m0: search([longPr, complete]) },
+    [],
+    new Error("HTTP 502"),
+  );
+  const failed = await readPortPrs(
+    new Gh(first.exec, undefined, new GraphqlBudget(ctx.clock)),
+    state,
+    ctx,
+  );
+  expect(failed.prs.partition?.map((p) => p.number)).toEqual([37, 39]);
+  expect(state.portPrs.partition?.watermark).toBe(complete.mergedAt);
+  expect(failed.reads.find((r) => r.object === "pulls/37/commits")).toMatchObject({
+    failure: expect.stringContaining("502"),
+    completeness: { kind: "cut", read: 50, total: 51 },
+  });
+  expect(
+    failed.reads.find((r) => r.object === "port PRs" && r.source === services[0]?.repo)
+      ?.completeness.kind,
+  ).toBe("cut");
+  expect(state.observed["port:partition"]).toBeUndefined();
+  const restored = loadLedgerState(JSON.parse(JSON.stringify(state)), ctx).state;
+  for (const response of [new Error("still unavailable"), fullMessages]) {
+    const calls = exec({ port_o0: search(), port_m0: search() }, [], response);
     const result = await readPortPrs(
-      new Gh(
-        exec({ port_o0: open, port_m0: search() }).exec,
-        undefined,
-        new GraphqlBudget(ctx.clock),
-      ),
-      state,
-      ctx,
+      new Gh(calls.exec, undefined, new GraphqlBudget(ctx.clock)),
+      restored,
+      later,
     );
-    expect(result.prs.partition).toBeUndefined();
-    expect(result.reads[0]?.completeness.kind).toBe("cut");
-    expect(state.portPrs).toEqual({});
+    expect(calls.queries[0]).toContain("merged:>=2026-10-01");
+    expect(calls.queries[1]).toContain("/pulls/37/commits");
+    expect(result.prs.partition?.map((p) => p.number)).toEqual([37, 39]);
+    if (response instanceof Error) {
+      expect(restored.portPrs.partition?.pending?.["37"]).toBeDefined();
+    } else {
+      expect(result.prs.partition?.[0]?.refs).toEqual([`${ENT}!955`, `${ENT}!956`]);
+      expect(restored.portPrs.partition?.pending).toEqual({});
+      expect(result.reads.some((r) => r.failure && r.source === services[0]?.repo)).toBe(false);
+    }
   }
 });
 

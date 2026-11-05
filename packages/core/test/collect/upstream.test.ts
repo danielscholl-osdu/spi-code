@@ -16,7 +16,7 @@ const ctx = createContext({ fleet: fleetOf([fork]), clock: { now: () => FIXTURE_
 const expected = fixture.upstream.data.partition;
 const repos = fixture.github.data.repos;
 
-function recording(timeout = false) {
+function recording(timeout = false, failCompare = false) {
   let log = "";
   const calls: string[] = [];
   const exec = new RecordingExec(
@@ -24,6 +24,8 @@ function recording(timeout = false) {
       const path = args.at(-1) ?? "";
       calls.push(path);
       if (path.includes("broken")) return { stdout: "", stderr: "project unavailable", exit: 1 };
+      if (failCompare && path.includes("/compare?"))
+        return { stdout: "", stderr: "compare unavailable", exit: 1 };
       const data = path.includes("/compare?")
         ? {
             commits: expected.commits.map((c) => ({
@@ -91,8 +93,19 @@ test("a timed-out compare is incomplete, is not cached, and never reports a meas
     read: expected.commits.length,
     total: expected.commits.length + 1,
   });
+
   expect(result.upstream.partition?.lag).toBeUndefined();
   expect(compares).toEqual({});
+});
+
+test("a compare exception omits the partial fact as in the pinned rib", async () => {
+  const result = await readUpstream(new Glab(recording(false, true).exec), repos, {}, ctx);
+  expect(result.upstream.partition).toBeUndefined();
+  expect(result.reads[0]?.failure).toBeUndefined();
+  expect(result.reads[1]).toMatchObject({
+    object: expect.stringContaining("repository/compare?"),
+    failure: expect.stringContaining("compare unavailable"),
+  });
 });
 
 test("equal head and synced SHAs need no compare; a missing trailer leaves lag unmeasured", async () => {
