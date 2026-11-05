@@ -4,8 +4,8 @@
 // Run after pnpm build: TZ=UTC bun scripts/watch-snapshot.ts
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { projectWatch } from "../packages/host/src/watch/project";
-import { fixtureInput, snapshotPath } from "../packages/host/src/watch/snapshot-fixture";
+import { projectWatch } from "../packages/host/src/watch/project.js";
+import { fixtureInput, snapshotPath } from "../packages/host/src/watch/snapshot-fixture.js";
 
 process.env.TZ = "UTC";
 mkdirSync(dirname(snapshotPath), { recursive: true });
