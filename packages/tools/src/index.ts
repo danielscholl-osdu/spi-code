@@ -2,6 +2,15 @@
 // SPDX-License-Identifier: MIT
 
 export {
+  type Clock,
+  createWindowsGitInstaller,
+  type GitPin,
+  MacGitInstaller,
+  type Runner,
+  run,
+  WindowsGitInstaller,
+} from "./git/installer.js";
+export {
   createToolInstaller,
   type Extractor,
   extractBinary,

@@ -220,12 +220,16 @@ export class ToolInstaller {
       await access(join(payload, this.binDirectory(), this.binary(tool)));
       const files: string[] = [];
       async function flush(directory: string, prefix = ""): Promise<void> {
+        signal?.throwIfAborted();
         for (const entry of await readdir(directory, { withFileTypes: true })) {
+          signal?.throwIfAborted();
           const relative = join(prefix, entry.name);
           const path = join(directory, entry.name);
           if (entry.isDirectory()) await flush(path, relative);
           else if (entry.isFile()) {
-            const handle = await open(path, "r+");
+            // Read-only handles preserve extracted permissions while flushing payload bytes
+            // before publication; directory-only sync would not flush those bytes.
+            const handle = await open(path, "r");
             try {
               await handle.sync();
             } finally {
@@ -253,6 +257,7 @@ export class ToolInstaller {
         )
           throw error;
         for (const file of files) {
+          signal?.throwIfAborted();
           const binary = await readFile(join(payload, file));
           const existing = await readFile(join(target, file)).catch(() => undefined);
           if (!existing?.equals(binary)) {
@@ -263,6 +268,7 @@ export class ToolInstaller {
             const repair = join(bin, `.repair-${staging.split(/[\\/]/).pop()}`);
             try {
               await writeDurable(repair, binary, 0o755);
+              signal?.throwIfAborted();
               await rename(repair, join(target, file));
             } finally {
               await rm(repair, { force: true });

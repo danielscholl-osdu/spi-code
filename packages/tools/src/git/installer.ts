@@ -132,12 +132,19 @@ export class MacGitInstaller {
   ) {
     if (!Number.isFinite(deadlineMs) || deadlineMs <= 0) throw new Error("Invalid Git deadline");
   }
-  async readiness(signal?: AbortSignal): Promise<Readiness> {
-    if (this.state) return this.state;
+  private async probe(signal?: AbortSignal): Promise<Readiness | undefined> {
     const result = await this.runner("git", ["--version"], signal);
-    return result.code === 0
-      ? { state: "ready", version: result.stdout.trim() }
-      : { state: "missing" };
+    const version = result.stdout.trim().match(/^git version (\d+\.\d+\.\d+)(?:\s|\.|$)/)?.[1];
+    return result.code === 0 && version ? { state: "ready", version } : undefined;
+  }
+  async readiness(signal?: AbortSignal): Promise<Readiness> {
+    if (this.state?.state === "installing") return this.state;
+    const ready = await this.probe(signal);
+    if (ready) {
+      this.state = undefined;
+      return ready;
+    }
+    return this.state ?? { state: "missing" };
   }
   async install(signal?: AbortSignal): Promise<void> {
     if (this.state?.state === "installing") throw new Error("Git install already running");
@@ -149,15 +156,19 @@ export class MacGitInstaller {
     const end = this.clock.now() + this.deadlineMs;
     try {
       bounded.throwIfAborted();
-      const prompt = await this.runner("xcode-select", ["--install"], bounded);
+      if (await this.probe(bounded)) {
+        bounded.throwIfAborted();
+        this.state = undefined;
+        return;
+      }
+      await this.runner("xcode-select", ["--install"], bounded);
       bounded.throwIfAborted();
-      if (prompt.code !== 0) throw new Error(`xcode-select --install exited ${prompt.code}`);
       while (this.clock.now() < end) {
         bounded.throwIfAborted();
-        const probe = await this.runner("git", ["--version"], bounded);
+        const ready = await this.probe(bounded);
         bounded.throwIfAborted();
         if (this.clock.now() >= end) break;
-        if (probe.code === 0) {
+        if (ready) {
           this.state = undefined;
           return;
         }

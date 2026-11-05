@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -13,7 +13,7 @@ import {
   MacGitInstaller,
   type Runner,
   WindowsGitInstaller,
-} from "./installer.js";
+} from "../index.js";
 
 const homes: string[] = [];
 afterEach(async () => {
@@ -86,6 +86,19 @@ test("SFX failure falls back to MinGit; bad checksums never execute an archive",
   expect(await readdir(join(home, "bad"))).toEqual([]);
 });
 
+test("read-only extracted files can be flushed and published", async () => {
+  const { home, pin, runner } = await fixture();
+  const installer = new WindowsGitInstaller(home, pin, async (cmd, args, signal) => {
+    const result = await runner(cmd, args, signal);
+    const payload = args[1]?.slice(2);
+    if (!payload) throw new Error("Missing SFX destination");
+    await chmod(join(payload, "mingw64", "bin", "runtime.dll"), 0o444);
+    return result;
+  });
+  await installer.install();
+  expect((await installer.readiness()).state).toBe("ready");
+});
+
 test("a failed or aborted update keeps the existing current", async () => {
   const { home, pin, runner } = await fixture();
   const installer = new WindowsGitInstaller(home, pin, runner);
@@ -123,14 +136,18 @@ test("macOS probes git, not an xcode-select path, and polls after the fake insta
   );
   expect(await installer.readiness()).toEqual({ state: "missing" });
   await installer.install();
-  expect(runner.mock.calls[1]?.slice(0, 2)).toEqual(["xcode-select", ["--install"]]);
-  expect(now).toBe(2000);
-  expect((await installer.readiness()).state).toBe("ready");
+  expect(runner.mock.calls[2]?.slice(0, 2)).toEqual(["xcode-select", ["--install"]]);
+  expect(now).toBe(1000);
+  expect(await installer.readiness()).toEqual({ state: "ready", version: "2.50.0" });
 });
 
-test("macOS cancellation, prompt failure and bounded deadline surface failed states", async () => {
+test("macOS late completion recovers after timeout, including a nonzero install prompt", async () => {
   let now = 0;
-  const runner: Runner = async (cmd) => ({ code: cmd === "git" ? 1 : 0, stdout: "" });
+  let available = false;
+  const runner: Runner = async (cmd) => ({
+    code: cmd === "git" && available ? 0 : 1,
+    stdout: available ? "git version 2.39.5 (Apple Git-154)" : "",
+  });
   const installer = new MacGitInstaller(
     runner,
     {
@@ -144,43 +161,74 @@ test("macOS cancellation, prompt failure and bounded deadline surface failed sta
   await expect(installer.install()).rejects.toThrow("Timed out");
   expect(now).toBe(1500);
   expect((await installer.readiness()).state).toBe("failed");
+  available = true;
+  expect(await installer.readiness()).toEqual({ state: "ready", version: "2.39.5" });
+  available = false;
+  expect(await installer.readiness()).toEqual({ state: "missing" });
   await expect(installer.install(AbortSignal.abort())).rejects.toThrow();
-  await expect(
-    new MacGitInstaller(async () => ({ code: 1, stdout: "" })).install(),
-  ).rejects.toThrow("xcode-select --install exited 1");
 });
 
-test.skipIf(process.platform !== "win32")(
-  "Windows executes a fake SFX process and publishes its runtime",
-  async () => {
-    const { home, pin } = await fixture();
-    // A copied Node executable is the fake SFX; --require supplies its extraction script.
-    const { execPath } = process;
-    const bytes = await readFile(execPath);
-    const path = join(home, "fake.7z.exe");
-    await writeFile(path, bytes);
-    const script = join(home, "extract.cjs");
-    await writeFile(
-      script,
-      `const fs=require('node:fs');const p=require('node:path');
+test("macOS skips the prompt for working git and rejects empty probe output", async () => {
+  const runner = vi.fn<Runner>(async () => ({
+    code: 0,
+    stdout: "git version 2.39.5 (Apple Git-154)",
+  }));
+  const installer = new MacGitInstaller(runner);
+  await installer.install();
+  expect(runner.mock.calls.map(([cmd]) => cmd)).toEqual(["git"]);
+  runner.mockResolvedValue({ code: 0, stdout: " \n" });
+  expect(await installer.readiness()).toEqual({ state: "missing" });
+});
+
+test("macOS keeps polling after a nonzero prompt until git works", async () => {
+  let now = 0;
+  const runner = vi.fn<Runner>(async (cmd) => ({
+    code: cmd === "git" && now >= 1000 ? 0 : 1,
+    stdout: "git version 2.39.5 (Apple Git-154)",
+  }));
+  const installer = new MacGitInstaller(
+    runner,
+    {
+      now: () => now,
+      sleep: async (ms) => {
+        now += ms;
+      },
+    },
+    2000,
+  );
+  await installer.install();
+  expect(now).toBe(1000);
+  expect(await installer.readiness()).toEqual({ state: "ready", version: "2.39.5" });
+});
+
+test("executes a fake SFX process and publishes its runtime on every platform", async () => {
+  const { home, pin } = await fixture();
+  const bytes = Buffer.from("fake SFX process input");
+  const path = join(home, "fake.7z.exe");
+  await writeFile(path, bytes);
+  const script = join(home, "extract.cjs");
+  await writeFile(
+    script,
+    `const fs=require('node:fs');const p=require('node:path');
 const out=process.argv.find(x=>x.startsWith('-o')).slice(2);
 fs.mkdirSync(p.join(out,'cmd'),{recursive:true});fs.writeFileSync(p.join(out,'cmd','git.exe'),'fake');
 process.exit(0);`,
-    );
-    const { run } = await import("./installer.js");
-    const runner: Runner = async (cmd, args, signal) => {
-      const { promisify } = await import("node:util");
-      const { execFile } = await import("node:child_process");
-      await promisify(execFile)(cmd, ["--require", script, "--", ...args], { signal });
-      return { code: 0, stdout: "" };
-    };
-    pin.portable = {
-      url: pathToFileURL(path).href,
-      sha256: createHash("sha256").update(bytes).digest("hex"),
-    };
-    const installer = new WindowsGitInstaller(join(home, "app"), pin, runner);
-    await installer.install();
-    expect((await installer.readiness()).state).toBe("ready");
-    expect((await run(join(home, "missing.exe"), [])).code).toBe(127);
-  },
-);
+  );
+  const { run } = await import("./installer.js");
+  const runner: Runner = async (cmd, args, signal) => {
+    const { promisify } = await import("node:util");
+    const { execFile } = await import("node:child_process");
+    await promisify(execFile)(process.execPath, ["--require", script, "--", cmd, ...args], {
+      signal,
+    });
+    return { code: 0, stdout: "" };
+  };
+  pin.portable = {
+    url: pathToFileURL(path).href,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+  };
+  const installer = new WindowsGitInstaller(join(home, "app"), pin, runner);
+  await installer.install();
+  expect((await installer.readiness()).state).toBe("ready");
+  expect((await run(join(home, "missing.exe"), [])).code).toBe(127);
+});
