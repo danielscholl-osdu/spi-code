@@ -3579,6 +3579,19 @@
         },
         "inferred": false
       }
+    },
+    {
+      "path": "/releases",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
     }
   ],
   "selection": null

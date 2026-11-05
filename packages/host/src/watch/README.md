@@ -36,13 +36,14 @@ names github and runs. Values that judge the whole model (headline, summary,
 focus, rest, ready, themes, horizon) name every swept area. An unknown label or
 branch falls back to a superset rather than fewer areas. Bindings never guess
 from record sources or object names. The running version names lifecycle, or
-github and lifecycle when only the declared version is known. Each release line
-names the fleet area and carries an `envelope` for the release reader's own
-ReadRecords. This non-area envelope leaves Facts areas as swept collectors and
-avoids changes to the sweeper or snapshot store. It uses core's `envelopeOf`
-and the release reader's cadence, including retained times, cuts, failures and
-inferred-only status. The Releases section badges it alongside the fleet
-envelope; non-fresh release evidence marks each line in both list and detail.
+github and lifecycle when only the declared version is known. The `/releases`
+section and each release line name the fleet area and carry an `envelope` for
+the release reader's own ReadRecords. This non-area envelope leaves Facts areas
+as swept collectors and avoids changes to the sweeper or snapshot store. It
+uses core's `envelopeOf` and the release reader's cadence, including retained
+times, cuts, failures and inferred-only status. The section envelope is present
+even when there are no release lines. The Releases section badges it alongside
+the fleet envelope; non-fresh release evidence marks each line in both list and detail.
 A line says inferred only when its release reads and feeding areas are all
 inferred. The contract rejects a snapshot whose provenance
 path does not resolve or names an area without an envelope.

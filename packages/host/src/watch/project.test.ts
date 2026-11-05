@@ -15,7 +15,7 @@ import {
 } from "@spi-code/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { appActions, projectReleases, projectWatch } from "./project.js";
-import { briefingProvenance, stationAreas } from "./provenance.js";
+import { briefingProvenance, releaseProvenance, stationAreas } from "./provenance.js";
 import {
   fixtureInput,
   fixtureRoot,
@@ -230,6 +230,49 @@ describe("Watch projection", () => {
   });
 
   it.each(["failed", "stale"] as const)(
+    "preserves the release reader's %s envelope in a valid snapshot with no release lines",
+    (state) => {
+      const input = fixtureInput();
+      const now = input.context.clock.now();
+      const observedAt = new Date(now.getTime() - 2 * RELEASES_EVERY_MS - 1).toISOString();
+      const record: ReadRecord = {
+        source: "github-releases",
+        object: "Azure/osdu-spi",
+        observedAt,
+        completeness: { kind: "complete" },
+        inferred: true,
+        ...(state === "failed"
+          ? { failure: "offline", observedAt: now.toISOString(), retainedFrom: observedAt }
+          : {}),
+      };
+      const projected = projectWatch({ ...input, releaseRecords: [record] });
+      const snapshot = {
+        ...projected,
+        releases: { ...projected.releases, lines: [] },
+        provenance: [
+          ...projected.provenance.filter(({ path }) => !path.startsWith("/releases")),
+          ...releaseProvenance([], [record], now),
+        ],
+      };
+      expect(ViewSnapshotSchema.parse(snapshot)).toEqual(snapshot);
+      expect(snapshot.provenance.filter(({ path }) => path.startsWith("/releases"))).toEqual([
+        {
+          path: "/releases",
+          areas: ["fleet"],
+          envelope: {
+            source: "releases",
+            state,
+            observedAt,
+            completeness: { kind: "complete" },
+            inferred: true,
+          },
+        },
+      ]);
+      expect(snapshot.reads).toContainEqual(record);
+    },
+  );
+
+  it.each(["failed", "stale"] as const)(
     "binds the release reader's own %s envelope to every release line",
     (state) => {
       const input = onlyInferred([]);
@@ -251,7 +294,7 @@ describe("Watch projection", () => {
       };
       const snapshot = projectWatch({ ...input, releaseRecords: [record] });
       expect(snapshot.releases.lines.length).toBeGreaterThan(1);
-      expect(snapshot.provenance.filter(({ path }) => path.startsWith("/releases"))).toEqual(
+      expect(snapshot.provenance.filter(({ path }) => path.startsWith("/releases/lines/"))).toEqual(
         snapshot.releases.lines.map((_, i) => ({
           path: `/releases/lines/${i}`,
           areas: ["fleet"],
@@ -782,7 +825,7 @@ describe("area envelopes and provenance", () => {
     const { provenance } = projectWatch(fixtureInput());
     expect(
       provenance
-        .filter(({ path }) => path.startsWith("/releases"))
+        .filter(({ path }) => path.startsWith("/releases/lines/"))
         .map(({ path, areas }) => ({ path, areas })),
     ).toEqual(lines.map((_, i) => ({ path: `/releases/lines/${i}`, areas: ["fleet"] })));
   });
@@ -803,13 +846,14 @@ describe("area envelopes and provenance", () => {
         "/stations",
         "/briefing/flow",
         "/briefing/environment",
-        "/releases",
         "/releases/lines",
       ]) {
         expect(paths.has(coarse), coarse).toBe(false);
       }
       const covered = (leaf: string): boolean =>
-        [...paths].some((path) => leaf === path || leaf.startsWith(`${path}/`));
+        [...paths].some(
+          (path) => path !== "/releases" && (leaf === path || leaf.startsWith(`${path}/`)),
+        );
       const missing = renderedLeaves({
         briefing: snapshot.briefing,
         stations: snapshot.stations,

@@ -199,14 +199,21 @@ export function stationProvenance(
   );
 }
 
-/** monthFacts reads the release ledger and the fleet's component list, not other Facts areas. */
+/** The section and each line bind the release ledger and fleet, even when no lines exist. */
 export function releaseProvenance(
   lines: readonly unknown[],
   records: readonly ReadRecord[],
   now: Date,
 ): ValueSource[] {
   const envelope = readEnvelope("releases", records, RELEASES_EVERY_MS, now);
-  return lines.map((_, i) => ({ path: `/releases/lines/${i}`, areas: ["fleet"], envelope }));
+  return [
+    ...lines.map<ValueSource>((_, i) => ({
+      path: `/releases/lines/${i}`,
+      areas: ["fleet"],
+      envelope,
+    })),
+    { path: "/releases", areas: ["fleet"], envelope },
+  ];
 }
 
 function readEnvelope(
