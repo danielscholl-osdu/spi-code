@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { forkOf, SYNC_TEMPLATE_WORKFLOW } from "../config.js";
+import { type ForkDef, forkOf, SYNC_TEMPLATE_WORKFLOW } from "../config.js";
 import { type LaneLoad, laneRoom } from "../model/lanes.js";
 import { heldBecause, type TemplateModel, type TemplateRow } from "../model/template.js";
 
@@ -34,8 +34,8 @@ function names(list: readonly string[]): string {
 }
 
 // Why a fork never takes a fleet button: a mirror (ADR-039) never runs Sync Template.
-function mirrored(repo: string): string | undefined {
-  const mirror = forkOf(repo)?.mirror;
+function mirrored(repo: string, forks: readonly ForkDef[]): string | undefined {
+  const mirror = forkOf(repo, forks)?.mirror;
   return mirror ? "mirror" : mirror === null ? "sync mode unread" : undefined;
 }
 
@@ -65,14 +65,18 @@ function inflight(load: LaneLoad | undefined, repo: string): string | undefined 
 }
 
 // A fork to dispatch: behind main, no Sync Template running, and no PR already at main.
-export function syncTargets(t: TemplateModel, load?: LaneLoad): Paced & { skipped: string[] } {
+export function syncTargets(
+  t: TemplateModel,
+  forks: readonly ForkDef[],
+  load?: LaneLoad,
+): Paced & { skipped: string[] } {
   const head = t.head?.sha;
   const eligible: Target[] = [];
   const skipped: string[] = [];
   for (const row of t.rows) {
     if (!head || !row.behind) continue;
     if (row.pr?.headMarker === head) continue;
-    const mirror = mirrored(row.repo);
+    const mirror = mirrored(row.repo, forks);
     if (mirror) {
       skipped.push(`${row.service} (${mirror})`);
       continue;
@@ -93,6 +97,7 @@ export function syncTargets(t: TemplateModel, load?: LaneLoad): Paced & { skippe
 
 export function rolloutTargets(
   t: TemplateModel,
+  forks: readonly ForkDef[],
   load?: LaneLoad,
 ): Paced & { held: { row: TemplateRow; why: string }[] } {
   const targets: Target[] = [];
@@ -100,7 +105,7 @@ export function rolloutTargets(
   for (const row of t.rows) {
     const pr = row.pr;
     if (!pr) continue;
-    const mirror = mirrored(row.repo);
+    const mirror = mirrored(row.repo, forks);
     const why =
       (mirror === "mirror"
         ? "is a mirror"
@@ -184,11 +189,12 @@ export function rolloutActions(
   t: TemplateModel,
   binding: { swept: string },
   now: Date,
+  forks: readonly ForkDef[],
   blocked?: string,
   load?: LaneLoad,
 ): ActionItem[] {
   const item = ROLLOUT_ITEM;
-  const sync = syncTargets(t, load);
+  const sync = syncTargets(t, forks, load);
   const head = t.steps[0]?.label ?? "main";
   const next = t.nextSync ? ` instead of at ${stamp(t.nextSync, now)}` : "";
   const syncDisabled =
@@ -199,7 +205,7 @@ export function rolloutActions(
           ? `nothing to dispatch: ${names(sync.skipped)}`
           : `every fork is on ${head} or its PR carries it`))
       : undefined);
-  const roll = rolloutTargets(t, load);
+  const roll = rolloutTargets(t, forks, load);
   const held = heldText(roll.held);
   const rollDisabled =
     blocked ??

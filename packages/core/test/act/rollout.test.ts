@@ -24,6 +24,7 @@ import { settled } from "../flow-states.js";
 import { FIXTURE_NOW, NEW_HEAD, releasedFacts } from "../harness.js";
 
 const SWEPT = { swept: "2026-10-12T21:58:14.428Z" };
+const FORKS = fixtureContext.fleet.forks;
 
 function model(edit?: (f: Facts) => void) {
   const f = settled(releasedFacts());
@@ -48,7 +49,7 @@ function readyModel() {
 
 describe("Sync all forks", () => {
   test("dispatches every fork behind main whose PR does not carry it", () => {
-    const { targets, skipped } = syncTargets(model().template);
+    const { targets, skipped } = syncTargets(model().template, FORKS);
     expect(targets.map((t) => t.label).sort()).toEqual([
       "entitlements",
       "file",
@@ -73,7 +74,7 @@ describe("Sync all forks", () => {
       if (runs && last)
         runs.template = [{ ...last, id: 1, status: "in_progress" }, ...runs.template];
     });
-    const { targets, skipped } = syncTargets(m.template);
+    const { targets, skipped } = syncTargets(m.template, FORKS);
     expect(targets.map((t) => t.label).sort()).toEqual(["entitlements", "partition", "schema"]);
     expect(skipped).toEqual(["file (Sync Template running)"]);
   });
@@ -82,10 +83,10 @@ describe("Sync all forks", () => {
 describe("Roll out", () => {
   test("nothing is ready while every PR needs review and is red on the stack", () => {
     const m = model();
-    const { targets, held } = rolloutTargets(m.template);
+    const { targets, held } = rolloutTargets(m.template, FORKS);
     expect(targets).toEqual([]);
     expect(held.map((h) => h.why)).toEqual(Array(5).fill("is red on the stack"));
-    const [, roll] = rolloutActions(m.template, SWEPT, FIXTURE_NOW);
+    const [, roll] = rolloutActions(m.template, SWEPT, FIXTURE_NOW, FORKS);
     expect(roll).toMatchObject({ label: "Roll out · 0 ready", disabled: true });
     expect(roll?.reason).toMatch(/^nothing is ready: /);
     expect(roll?.confirm).toBeUndefined();
@@ -106,7 +107,7 @@ describe("Roll out", () => {
       );
       if (part) part.mergeState = "DIRTY";
     });
-    const { targets, held } = rolloutTargets(m.template);
+    const { targets, held } = rolloutTargets(m.template, FORKS);
     expect(targets.map((t) => t.label)).toEqual(["legal #33", "schema #37"]);
     expect(targets[0]).toMatchObject({ kind: "pr", state: "open", number: 33 });
     const first = targets[0];
@@ -117,7 +118,7 @@ describe("Roll out", () => {
       entitlements: "needs review",
       file: "is red on the stack",
     });
-    const [, roll] = rolloutActions(m.template, SWEPT, FIXTURE_NOW);
+    const [, roll] = rolloutActions(m.template, SWEPT, FIXTURE_NOW, FORKS);
     expect(roll?.label).toBe("Roll out · 2 ready");
     expect(roll?.pendingLabel).toBe("Merging 2…");
     expect(roll?.confirm?.irreversible).toBe(true);
@@ -152,7 +153,7 @@ describe("Roll out", () => {
 
 describe("lane pacing and eligibility", () => {
   test("paces by distinct repo in board order, reserves claims, and leaves uncapped presses alone", () => {
-    const eligible = rolloutTargets(readyModel().template).targets;
+    const eligible = rolloutTargets(readyModel().template, FORKS).targets;
     const first = eligible[0];
     if (!first) throw new Error("fixture has a merge target");
     const targets = [first, { ...first, label: "another PR" }, ...eligible.slice(1)];
@@ -177,7 +178,7 @@ describe("lane pacing and eligibility", () => {
       [{ cap: 1, inflight: [busy] }, "1 of 1 lanes in flight;"],
       [{ cap: 2, inflight: [], unread: "PR checks" }, "lanes unknown until PR checks are read"],
     ] satisfies [LaneLoad, string][]) {
-      for (const action of rolloutActions(template, SWEPT, FIXTURE_NOW, undefined, load)) {
+      for (const action of rolloutActions(template, SWEPT, FIXTURE_NOW, FORKS, undefined, load)) {
         expect(action.disabled).toBe(true);
         expect(action.reason).toContain(why);
         expect(action.confirm).toBeUndefined();
@@ -199,16 +200,16 @@ describe("lane pacing and eligibility", () => {
         { repo: "Azure/osdu-spi-legal", service: "legal", what: "main Validation running" },
       ],
     };
-    expect(syncTargets(template, load).skipped).toEqual([
+    expect(syncTargets(template, FORKS, load).skipped).toEqual([
       "partition (Sync Template dispatched)",
       "legal (main Validation running)",
     ]);
-    const roll = rolloutTargets(template, load);
+    const roll = rolloutTargets(template, FORKS, load);
     expect(roll.targets.map((t) => t.label)).toEqual(["schema #37"]);
     expect(heldText(roll.held)).toContain(
       "legal #33 has a lane in flight (main Validation running)",
     );
-    const sync = syncTargets(template, load);
+    const sync = syncTargets(template, FORKS, load);
     expect(paceText(load, sync.waiting)).toEqual([
       "Paced to 2 lanes on the shared environment: 1 in flight now (legal), and a press only tops up to 2.",
       "2 more forks wait for the next press: schema and file.",
@@ -221,22 +222,28 @@ describe("lane pacing and eligibility", () => {
 
   test("blocked reasons override eligibility and no-PR or current fleets cannot confirm", () => {
     const template = readyModel().template;
-    for (const action of rolloutActions(template, SWEPT, FIXTURE_NOW, "missing repo scope")) {
+    for (const action of rolloutActions(
+      template,
+      SWEPT,
+      FIXTURE_NOW,
+      FORKS,
+      "missing repo scope",
+    )) {
       expect(action).toMatchObject({ disabled: true, reason: "missing repo scope" });
       expect(action.confirm).toBeUndefined();
     }
     const rows = template.rows.map((r) => ({ ...r, behind: 0, pr: undefined }));
-    const [sync, roll] = rolloutActions({ ...template, rows }, SWEPT, FIXTURE_NOW);
+    const [sync, roll] = rolloutActions({ ...template, rows }, SWEPT, FIXTURE_NOW, FORKS);
     expect(sync?.reason).toBe("every fork is on v1.3.0 or its PR carries it");
     expect(roll?.reason).toBe("no template-sync PR is open");
     expect(sync?.confirm).toBeUndefined();
     expect(roll?.confirm).toBeUndefined();
-    expect(syncTargets({ ...template, head: undefined }).targets).toEqual([]);
+    expect(syncTargets({ ...template, head: undefined }, FORKS).targets).toEqual([]);
   });
 
   test("enabled sync confirmations carry exact commands and capped merge confirmations count only targets", () => {
     const template = readyModel().template;
-    const [sync, roll] = rolloutActions(template, SWEPT, FIXTURE_NOW, undefined, {
+    const [sync, roll] = rolloutActions(template, SWEPT, FIXTURE_NOW, FORKS, undefined, {
       cap: 1,
       inflight: [],
     });
@@ -258,5 +265,56 @@ describe("lane pacing and eligibility", () => {
       label: "Type 1: the number of PRs this merges into main",
     });
     expect(roll?.confirm?.body).toContain("Calls: gh pr merge 33 -R Azure/osdu-spi-legal --merge.");
+  });
+});
+
+describe("caller fleet sync modes", () => {
+  test("holds mirror and unread forks without confirming either button, independently of another fleet", () => {
+    const original = readyModel().template;
+    const template = {
+      ...original,
+      rows: original.rows.filter((row) => row.service === "legal" || row.service === "schema"),
+    };
+    const forks = FORKS.map((fork) => ({
+      ...fork,
+      mirror: fork.id === "legal" ? true : fork.id === "schema" ? null : false,
+    }));
+    expect(syncTargets(template, forks)).toEqual({
+      targets: [],
+      waiting: [],
+      skipped: ["legal (mirror)", "schema (sync mode unread)"],
+    });
+    const roll = rolloutTargets(template, forks);
+    expect(roll.targets).toEqual([]);
+    expect(roll.waiting).toEqual([]);
+    expect(roll.held.map(({ row, why }) => [row.service, why])).toEqual([
+      ["legal", "is a mirror"],
+      ["schema", "has its sync mode unread"],
+    ]);
+    const assertHeld = () => {
+      const actions = rolloutActions(template, SWEPT, FIXTURE_NOW, forks);
+      expect(actions.map((action) => action.reason)).toEqual([
+        "nothing to dispatch: legal (mirror) and schema (sync mode unread)",
+        "nothing is ready: legal #33 is a mirror; schema #37 has its sync mode unread",
+      ]);
+      for (const action of actions) {
+        expect(action.disabled).toBe(true);
+        expect(action.confirm).toBeUndefined();
+      }
+    };
+    assertHeld();
+    const normal = FORKS.map((fork) => ({ ...fork, mirror: false }));
+    const [sync, merge] = rolloutActions(template, SWEPT, FIXTURE_NOW, normal);
+    expect(sync?.disabled).toBeUndefined();
+    expect(sync?.confirm?.body).toContain(
+      "Calls: gh workflow run sync-template.yml -R Azure/osdu-spi-legal; gh workflow run sync-template.yml -R Azure/osdu-spi-schema.",
+    );
+    expect(merge?.disabled).toBeUndefined();
+    expect(merge?.confirm).toMatchObject({ irreversible: true, subject: "2" });
+    expect(bindingSchema.parse(merge?.binding).targets.map((target) => target.label)).toEqual([
+      "legal #33",
+      "schema #37",
+    ]);
+    assertHeld();
   });
 });
