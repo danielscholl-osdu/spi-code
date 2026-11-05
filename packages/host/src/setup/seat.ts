@@ -1,6 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { mkdir } from "node:fs/promises";
+import { join } from "node:path";
 import { CopilotClient, type CopilotClientOptions, type SessionConfig } from "@github/copilot-sdk";
 import {
   buildClientOptions,
@@ -15,7 +17,7 @@ import { ghAuthToken } from "../env/shell-environment.js";
 export type SeatResult =
   | { kind: "seat-ok"; models: string[] }
   | { kind: "no-seat"; reason: string }
-  | { kind: "sign-in"; reason: string }
+  | { kind: "sign-in"; reason: string; classicToken?: true }
   | { kind: "error"; reason: string };
 
 interface ProbeSession {
@@ -24,7 +26,6 @@ interface ProbeSession {
 
 export interface SeatClient {
   start(): Promise<void>;
-  getAuthStatus(): Promise<{ isAuthenticated: boolean }>;
   createSession(config: SessionConfig): Promise<ProbeSession>;
   rpc: { models: { list(token: { gitHubToken: string }): Promise<{ models: { id: string }[] }> } };
   stop(): Promise<Error[]>;
@@ -44,6 +45,12 @@ class ProbeTimeout extends Error {
   }
 }
 
+// Gemini observed models.list failures "Failed to fetch Copilot user info: 403 Forbidden"
+// and "404 Not Found". Operator bead spicode-t1k.73 will confirm the live no-seat text.
+const noSeatPattern =
+  /\b40[34]\b|forbidden|not authorized|no access to Copilot|no (?:copilot )?(?:seat|subscription|entitlement)|no entitled models|not entitled|access denied/iu;
+const signInPattern = /\b401\b|unauthorized|bad credentials|not authenticated/iu;
+
 async function bounded<T>(operation: Promise<T>, timeoutMs: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -62,13 +69,16 @@ function errorText(error: unknown, token: string): string {
   const text =
     error instanceof AggregateError
       ? [error.message, ...error.errors.map((entry) => errorText(entry, token))].join("; ")
-      : error instanceof Error
+      : error !== null &&
+          typeof error === "object" &&
+          "message" in error &&
+          typeof error.message === "string"
         ? error.message
         : typeof error === "string"
           ? error
           : "Unknown Copilot SDK error.";
   return (token ? text.replaceAll(token, "[redacted]") : text).replace(
-    /\b(?:gh[opsu]_|github_pat_)[A-Za-z0-9_]+/gu,
+    /\b(?:gh[oprsu]_|github_pat_)[A-Za-z0-9_]+/gu,
     "[redacted]",
   );
 }
@@ -87,7 +97,6 @@ export async function probeCopilotSeat(options: SeatProbeOptions): Promise<SeatR
   let token = "";
   let client: SeatClient | undefined;
   let session: ProbeSession | undefined;
-  let authenticated = false;
   let phase = "configuration";
   let timedOut = false;
   let result: SeatResult;
@@ -104,45 +113,37 @@ export async function probeCopilotSeat(options: SeatProbeOptions): Promise<SeatR
     if (token.startsWith("ghp_")) {
       return {
         kind: "sign-in",
+        classicToken: true,
         reason: "A classic ghp_ token cannot authenticate Copilot. Sign in with gh OAuth.",
       };
     }
+    phase = "configuration";
+    await bounded(mkdir(join(options.appDataDir, "copilot"), { recursive: true }), timeoutMs);
     client = (options.createClient ?? ((config) => new CopilotClient(config)))({
       ...config,
       gitHubToken: token,
     });
     phase = "startup";
     await bounded(client.start(), timeoutMs);
-    phase = "authentication";
-    authenticated = (await bounded(client.getAuthStatus(), timeoutMs)).isAuthenticated;
-    if (!authenticated) {
-      result = { kind: "sign-in", reason: "Copilot is not authenticated. Sign in with gh OAuth." };
-    } else {
-      phase = "session";
-      const { gitHubTokenProvider: _, ...sessionConfig } = buildSessionOptions(
-        async () => token,
-        stubToolSource,
-      );
-      session = await bounded(client.createSession(sessionConfig), timeoutMs);
-      phase = "models";
-      const { models } = await bounded(listModelsWithToken(client, token), timeoutMs);
-      result = models.length
-        ? { kind: "seat-ok", models: models.map((model) => model.id) }
-        : { kind: "no-seat", reason: "Copilot returned no entitled models." };
-    }
+    phase = "session";
+    const { gitHubTokenProvider: _, ...sessionConfig } = buildSessionOptions(
+      async () => token,
+      stubToolSource,
+    );
+    session = await bounded(client.createSession(sessionConfig), timeoutMs);
+    phase = "models";
+    const { models } = await bounded(listModelsWithToken(client, token), timeoutMs);
+    result = models.length
+      ? { kind: "seat-ok", models: models.map((model) => model.id) }
+      : { kind: "no-seat", reason: "Copilot returned no entitled models." };
   } catch (error) {
     timedOut = error instanceof ProbeTimeout;
     const reason = errorText(error, token);
+    const sessionOrModels = phase === "session" || phase === "models";
     const kind =
-      !timedOut &&
-      (phase === "credential" ||
-        /\b401\b|unauthorized|bad credentials|not authenticated/iu.test(reason))
+      !timedOut && (phase === "credential" || (sessionOrModels && signInPattern.test(reason)))
         ? "sign-in"
-        : authenticated &&
-            !timedOut &&
-            /\b403\b|forbidden|no (?:copilot )?(?:seat|subscription|entitlement)|not entitled|access denied/iu.test(
-              reason,
-            )
+        : sessionOrModels && !timedOut && noSeatPattern.test(reason)
           ? "no-seat"
           : "error";
     result = { kind, reason };

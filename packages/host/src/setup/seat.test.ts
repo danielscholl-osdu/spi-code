@@ -1,18 +1,22 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtempSync } from "node:fs";
+import { access, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { CopilotClientOptions } from "@github/copilot-sdk";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { probeCopilotSeat, type SeatClient } from "./seat.js";
 
+const fixtureDirectories: string[] = [];
+
 function fixture() {
+  const appDataDir = mkdtempSync(join(tmpdir(), "spicode-seat-fixture-"));
+  fixtureDirectories.push(appDataDir);
   const session = { disconnect: vi.fn().mockResolvedValue(undefined) };
   const client = {
     start: vi.fn().mockResolvedValue(undefined),
-    getAuthStatus: vi.fn().mockResolvedValue({ isAuthenticated: true }),
     createSession: vi.fn().mockResolvedValue(session),
     rpc: { models: { list: vi.fn().mockResolvedValue({ models: [{ id: "seat-model" }] }) } },
     stop: vi.fn().mockResolvedValue([]),
@@ -20,7 +24,7 @@ function fixture() {
   } satisfies SeatClient;
   const createClient = vi.fn((_options: CopilotClientOptions): SeatClient => client);
   const options = {
-    appDataDir: join(tmpdir(), "spicode-seat-fixture"),
+    appDataDir,
     capturedPath: "/usr/bin:/bin",
     readToken: vi.fn().mockResolvedValue("gho_fixture"),
     createClient,
@@ -28,8 +32,10 @@ function fixture() {
   return { session, client, options };
 }
 
-afterEach(() => {
-  vi.useRealTimers();
+afterEach(async () => {
+  await Promise.all(
+    fixtureDirectories.splice(0).map((path) => rm(path, { recursive: true, force: true })),
+  );
 });
 
 describe("Copilot seat probe", () => {
@@ -46,26 +52,76 @@ describe("Copilot seat probe", () => {
     expect(client.stop).toHaveBeenCalledOnce();
   });
 
-  it.each(["session", "models", "empty"])("reports authenticated-no-seat at %s", async (phase) => {
+  it.each(["success", "403", "404"])(
+    "ignores the misleading unauthenticated status when the actual outcome is %s",
+    async (outcome) => {
+      const { client, options } = fixture();
+      const getAuthStatus = vi.fn().mockResolvedValue({ isAuthenticated: false });
+      Object.assign(client, { getAuthStatus });
+      if (outcome !== "success") {
+        client.rpc.models.list.mockRejectedValue(
+          new Error(`Failed to fetch Copilot user info: ${outcome}`),
+        );
+      }
+      expect(await probeCopilotSeat(options)).toMatchObject({
+        kind: outcome === "success" ? "seat-ok" : "no-seat",
+      });
+      expect(client.createSession).toHaveBeenCalledOnce();
+      expect(client.rpc.models.list).toHaveBeenCalledOnce();
+      expect(getAuthStatus).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["session", "models"])(
+    "reports no-seat from %s without an auth-status check",
+    async (phase) => {
+      for (const message of [
+        "403 Forbidden",
+        "404 Not Found",
+        "Failed to fetch Copilot user info: 403 Forbidden",
+        "Failed to fetch Copilot user info: 404 Not Found",
+        "forbidden",
+        "not authorized",
+        "no access to Copilot",
+        "no entitled models",
+      ]) {
+        const { session, client, options } = fixture();
+        const operation = phase === "session" ? client.createSession : client.rpc.models.list;
+        operation.mockRejectedValue(new Error(message));
+        expect(await probeCopilotSeat(options)).toEqual({ kind: "no-seat", reason: message });
+        expect(session.disconnect).toHaveBeenCalledTimes(phase === "session" ? 0 : 1);
+        expect(client.stop).toHaveBeenCalledOnce();
+      }
+    },
+  );
+
+  it("reports no-seat for an empty entitled-model list", async () => {
     const { session, client, options } = fixture();
-    if (phase === "session") client.createSession.mockRejectedValue(new Error("403 Forbidden"));
-    if (phase === "models") client.rpc.models.list.mockRejectedValue(new Error("403 Forbidden"));
-    if (phase === "empty") client.rpc.models.list.mockResolvedValue({ models: [] });
+    client.rpc.models.list.mockResolvedValue({ models: [] });
     expect(await probeCopilotSeat(options)).toMatchObject({ kind: "no-seat" });
-    expect(session.disconnect).toHaveBeenCalledTimes(phase === "session" ? 0 : 1);
+    expect(session.disconnect).toHaveBeenCalledOnce();
     expect(client.stop).toHaveBeenCalledOnce();
   });
 
-  it.each(["credential", "status", "401"])("reports sign-in at %s", async (phase) => {
+  it("reports sign-in when gh has no credential", async () => {
     const { client, options } = fixture();
-    if (phase === "credential")
-      options.readToken.mockRejectedValue(new Error("gh auth token failed."));
-    if (phase === "status") client.getAuthStatus.mockResolvedValue({ isAuthenticated: false });
-    if (phase === "401") client.rpc.models.list.mockRejectedValue(new Error("401 Unauthorized"));
+    options.readToken.mockRejectedValue(new Error("gh auth token failed."));
     expect(await probeCopilotSeat(options)).toMatchObject({ kind: "sign-in" });
-    expect(client.stop).toHaveBeenCalledTimes(phase === "credential" ? 0 : 1);
-    if (phase !== "401") expect(client.createSession).not.toHaveBeenCalled();
+    expect(client.createSession).not.toHaveBeenCalled();
   });
+
+  it.each(["session", "models"])(
+    "reports sign-in for rejected credentials at %s",
+    async (phase) => {
+      for (const message of ["401 Unauthorized", "Bad credentials"]) {
+        const { client, options } = fixture();
+        const operation = phase === "session" ? client.createSession : client.rpc.models.list;
+        operation.mockRejectedValue(new Error(message));
+        expect(await probeCopilotSeat(options)).toEqual({ kind: "sign-in", reason: message });
+        expect(client.stop).toHaveBeenCalledOnce();
+      }
+    },
+  );
 
   it("explains classic ghp_ credentials without sending or exposing the token", async () => {
     const { options } = fixture();
@@ -73,6 +129,7 @@ describe("Copilot seat probe", () => {
     const result = await probeCopilotSeat(options);
     expect(result).toMatchObject({
       kind: "sign-in",
+      classicToken: true,
       reason: expect.stringMatching(/classic ghp_.*OAuth/u),
     });
     expect(JSON.stringify(result)).not.toContain("ghp_classicSecret");
@@ -89,13 +146,12 @@ describe("Copilot seat probe", () => {
     },
   );
 
-  it.each(["startup", "authentication", "session", "models"])(
+  it.each(["startup", "session", "models"])(
     "keeps SDK/network failures distinct from no-seat at %s and redacts errors",
     async (phase) => {
       const { session, client, options } = fixture();
       const failure = new Error("network failed gho_fixture github_pat_otherSecret");
       if (phase === "startup") client.start.mockRejectedValue(failure);
-      if (phase === "authentication") client.getAuthStatus.mockRejectedValue(failure);
       if (phase === "session") client.createSession.mockRejectedValue(failure);
       if (phase === "models") client.rpc.models.list.mockRejectedValue(failure);
       expect(await probeCopilotSeat(options)).toEqual({
@@ -110,7 +166,6 @@ describe("Copilot seat probe", () => {
   it.each(["credential", "startup", "session", "models", "disconnect", "stop"])(
     "bounds a hung %s and still stops the owned client",
     async (phase) => {
-      vi.useFakeTimers();
       const { session, client, options } = fixture();
       const hanging = () => new Promise<never>(() => {});
       if (phase === "credential") options.readToken.mockImplementation(hanging);
@@ -120,7 +175,6 @@ describe("Copilot seat probe", () => {
       if (phase === "disconnect") session.disconnect.mockImplementation(hanging);
       if (phase === "stop") client.stop.mockImplementation(hanging);
       const pending = probeCopilotSeat({ ...options, timeoutMs: 10, cleanupTimeoutMs: 5 });
-      await vi.runAllTimersAsync();
       expect(await pending).toMatchObject({
         kind: "error",
         reason: expect.stringContaining("timed out"),
@@ -135,6 +189,34 @@ describe("Copilot seat probe", () => {
     },
   );
 
+  it.each(["gho_", "ghp_", "ghr_", "ghs_", "ghu_", "github_pat_"])(
+    "redacts %s tokens from non-Error SDK rejections",
+    async (prefix) => {
+      for (const rejection of [
+        `SDK failed ${prefix}otherSecret`,
+        { message: `SDK failed ${prefix}otherSecret` },
+      ]) {
+        const { client, options } = fixture();
+        client.rpc.models.list.mockRejectedValue(rejection);
+        expect(await probeCopilotSeat(options)).toEqual({
+          kind: "error",
+          reason: "SDK failed [redacted]",
+        });
+      }
+    },
+  );
+
+  it("creates the first-launch cwd and isolated directory before starting the client", async () => {
+    const { client, options } = fixture();
+    options.appDataDir = join(options.appDataDir, "not-created", "app");
+    client.start.mockImplementation(async () => {
+      await access(options.appDataDir);
+      await access(join(options.appDataDir, "copilot"));
+    });
+    expect(await probeCopilotSeat(options)).toMatchObject({ kind: "seat-ok" });
+    expect(client.start).toHaveBeenCalledOnce();
+  });
+
   it("reports failed shutdown and force-stop without leaking credentials", async () => {
     const { client, options } = fixture();
     client.stop.mockResolvedValue([new Error("stop gho_fixture")]);
@@ -146,6 +228,7 @@ describe("Copilot seat probe", () => {
   });
 
   it("writes only within the runtime's isolated app-data directory", async () => {
+    // Proves the probe's writes/configuration with a cooperative fake, not SDK filesystem isolation.
     const root = await mkdtemp(join(tmpdir(), "spicode-seat-"));
     try {
       const home = join(root, "home");
@@ -163,7 +246,7 @@ describe("Copilot seat probe", () => {
         });
         expect(config.env).not.toHaveProperty("GH_TOKEN");
         client.start.mockImplementation(async () => {
-          await mkdir(config.baseDirectory ?? "", { recursive: true });
+          await access(config.baseDirectory ?? "");
           await writeFile(join(config.baseDirectory ?? "", "session"), "probe");
         });
         return client;
