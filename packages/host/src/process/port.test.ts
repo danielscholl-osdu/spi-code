@@ -3,7 +3,7 @@
 
 import { type Message, PROTOCOL_VERSION, parseMessage } from "@spi-code/contracts";
 import { expect, it, vi } from "vitest";
-import { attachHostPort, type HostPort } from "./port.js";
+import { attachHostPort, type HostPort, type HostRequestQueue } from "./port.js";
 
 it("validates both directions and never dispatches malformed ping messages", () => {
   const sent: unknown[] = [];
@@ -126,4 +126,45 @@ it("serializes turns and refreshes, rejects malformed dispatch, and recovers fro
     { type: "error", payload: { code: "host_failed" } },
   ]);
   expect(JSON.stringify(sent)).not.toContain("private credential");
+});
+
+it("logs a failed error reply and lets the next queued request run", async () => {
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    let receive: (event: { data: unknown }) => void = () => {};
+    const queue: HostRequestQueue = { pending: Promise.resolve() };
+    const handler = vi.fn(async (message: Message) => {
+      if (message.id === "first") throw new Error("private credential");
+    });
+    attachHostPort(
+      {
+        on(_event, listener) {
+          receive = listener;
+        },
+        postMessage(message) {
+          const parsed = parseMessage(message);
+          if (parsed.ok && parsed.message.type === "error")
+            throw new Error("private transport detail");
+        },
+        start() {},
+      },
+      123,
+      handler,
+      queue,
+    );
+    const request = {
+      version: PROTOCOL_VERSION,
+      kind: "request",
+      type: "models.list",
+      payload: {},
+    };
+    receive({ data: { ...request, id: "first" } });
+    await expect(queue.pending).resolves.toBeUndefined();
+    expect(log).toHaveBeenCalledExactlyOnceWith("Host request failure response could not be sent");
+    receive({ data: { ...request, id: "second" } });
+    await queue.pending;
+    expect(handler.mock.calls.map(([message]) => message.id)).toEqual(["first", "second"]);
+  } finally {
+    log.mockRestore();
+  }
 });

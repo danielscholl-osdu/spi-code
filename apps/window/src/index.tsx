@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { type Message, PROTOCOL_VERSION, parseMessage } from "@spi-code/contracts";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Shell } from "./app/Shell.js";
 import { hostMessageHandler } from "./host-message.js";
@@ -37,6 +37,7 @@ function App() {
   const [text, setText] = useState("");
   const [tools, setTools] = useState<string[]>([]);
   const [activeRequestId, setActiveRequestId] = useState<string>();
+  const activeTurn = useRef<string | undefined>(undefined);
   const busy = activeRequestId !== undefined;
   const [ended, setEnded] = useState("");
   useEffect(() => {
@@ -44,7 +45,8 @@ function App() {
     return window.spi.onMessage(
       hostMessageHandler(
         (message) => {
-          setActiveRequestId((current) => settleTurn(current, message));
+          activeTurn.current = settleTurn(activeTurn.current, message);
+          setActiveRequestId(activeTurn.current);
           switch (message.type) {
             case "host.hello":
               send({
@@ -75,10 +77,12 @@ function App() {
               );
               if (window.spi.proof && !proofStarted && selected) {
                 proofStarted = true;
-                setActiveRequestId("proof-turn");
+                const id = crypto.randomUUID();
+                activeTurn.current = id;
+                setActiveRequestId(id);
                 send({
                   version: PROTOCOL_VERSION,
-                  id: "proof-turn",
+                  id,
                   kind: "request",
                   type: "turn.start",
                   payload: {
@@ -108,6 +112,7 @@ function App() {
           }
         },
         () => setStatus("Invalid host message rejected"),
+        () => activeTurn.current,
       ),
     );
   }, []);
@@ -135,6 +140,7 @@ function App() {
         onSubmit={(event) => {
           event.preventDefault();
           const id = crypto.randomUUID();
+          activeTurn.current = id;
           setActiveRequestId(id);
           setEnded("");
           setText("");

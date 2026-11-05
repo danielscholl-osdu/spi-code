@@ -59,7 +59,10 @@ export function attachHostPort(
             type: "error",
             payload: { code: "host_failed", message: "Host request failed" },
           }),
-        );
+        )
+        .catch(() => {
+          console.error("Host request failure response could not be sent");
+        });
       return;
     }
     send({

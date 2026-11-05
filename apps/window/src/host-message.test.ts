@@ -8,7 +8,7 @@ import { hostMessageHandler } from "./host-message.js";
 it("rejects malformed host messages and wrong-way requests without dispatching or replying", () => {
   const accept = vi.fn();
   const reject = vi.fn();
-  const receive = hostMessageHandler(accept, reject);
+  const receive = hostMessageHandler(accept, reject, () => undefined);
   receive(null);
   receive({
     version: PROTOCOL_VERSION,
@@ -29,4 +29,38 @@ it("rejects malformed host messages and wrong-way requests without dispatching o
   };
   receive(hello);
   expect(accept).toHaveBeenCalledExactlyOnceWith(hello);
+});
+
+it("ignores stale turn output after reload and while another turn is active", () => {
+  const accept = vi.fn();
+  const reject = vi.fn();
+  let active: string | undefined;
+  const receive = hostMessageHandler(accept, reject, () => active);
+  const delta = {
+    version: PROTOCOL_VERSION,
+    id: "before-reload",
+    kind: "event",
+    type: "turn.delta",
+    payload: { text: "Old response" },
+  };
+  const tool = {
+    version: PROTOCOL_VERSION,
+    id: "before-reload",
+    kind: "event",
+    type: "tool.call",
+    payload: { callId: "call", name: "spi_brief", arguments: {}, outcome: "completed" },
+  };
+  receive(delta);
+  receive(tool);
+  active = "current";
+  receive(delta);
+  receive(tool);
+  expect(accept).not.toHaveBeenCalled();
+  receive({ ...delta, id: active });
+  receive({ ...tool, id: active });
+  expect(accept).toHaveBeenCalledTimes(2);
+  active = undefined;
+  receive({ ...delta, id: "current" });
+  expect(accept).toHaveBeenCalledTimes(2);
+  expect(reject).not.toHaveBeenCalled();
 });

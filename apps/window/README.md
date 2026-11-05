@@ -16,6 +16,8 @@ streamed text and gated tool outcomes. Refresh sign-in and models re-reads gh;
 when CP-03 replaces the runtime, the host announces that the previous session
 ended. Only validated contract messages cross the MessagePort. Tool arguments,
 results, SDK errors and credentials are not forwarded to the renderer.
+Streamed text and tool events are accepted only for the window's active turn,
+so an earlier turn cannot populate a reloaded window or a later response.
 
 From the repository root:
 
@@ -36,6 +38,8 @@ renderer permission and observes its denial, and checks that a permission query
 reports denied. Round-trips, rejection and TCP
 listeners in the report come from the probes; a failed observation fails the
 report check. The desktop denies all session permission requests by default.
+Smoke waits for probe replies by message ID, including error replies, before
+checking their types and outcomes rather than waiting only for successful results.
 
 `--live-report` automatically sends a short prompt requesting `spi_brief` with
 the first returned model. It records sign-in, model count, streamed delta count

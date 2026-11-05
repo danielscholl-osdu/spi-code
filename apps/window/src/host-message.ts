@@ -6,6 +6,7 @@ import { type Message, parseMessage } from "@spi-code/contracts";
 export function hostMessageHandler(
   accept: (message: Message) => void,
   reject: () => void,
+  activeRequestId: () => string | undefined,
 ): (input: unknown) => void {
   return (input) => {
     const parsed = parseMessage(input);
@@ -13,6 +14,11 @@ export function hostMessageHandler(
       reject();
       return;
     }
+    if (
+      (parsed.message.type === "turn.delta" || parsed.message.type === "tool.call") &&
+      parsed.message.id !== activeRequestId()
+    )
+      return;
     accept(parsed.message);
   };
 }

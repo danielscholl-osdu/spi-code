@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { EventEmitter, once } from "node:events";
+import { once } from "node:events";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,6 +20,7 @@ import {
 } from "electron";
 import { externalLinkHandlers } from "./external-links.js";
 import { hostLaunch } from "./host-launch.js";
+import { smokeMessages } from "./smoke-messages.js";
 import { assertSmokeReport, assertSmokeTools, type SmokeReport } from "./smoke-report.js";
 
 const smoke = process.argv.includes("--smoke");
@@ -171,8 +172,8 @@ async function run(): Promise<void> {
   window.webContents.on("did-finish-load", () => {
     if (child) transferHostPort(window, child);
   });
-  const messages: Message[] = [];
-  const received = new EventEmitter();
+  const messages = smokeMessages();
+  const wait = messages.wait;
   const evidence = {
     signedIn: false,
     modelCount: 0,
@@ -189,7 +190,6 @@ async function run(): Promise<void> {
         return;
       }
       messages.push(parsed.message);
-      received.emit("message");
       const message = parsed.message;
       if (message.type === "signin.state") evidence.signedIn = message.payload.signedIn;
       if (message.type === "models.result") evidence.modelCount = message.payload.models.length;
@@ -214,25 +214,6 @@ async function run(): Promise<void> {
       }
     });
   }
-  const wait = (predicate: (message: Message) => boolean): Promise<Message> =>
-    new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        received.off("message", check);
-        reject(new Error("Timed out waiting for a host message"));
-      }, 10000);
-      function check() {
-        const index = messages.findIndex(predicate);
-        const message = messages[index];
-        if (message) {
-          messages.splice(index, 1);
-          clearTimeout(timeout);
-          received.off("message", check);
-          resolve(message);
-        }
-      }
-      received.on("message", check);
-      check();
-    });
   await window.loadFile(windowEntry);
   const storePath = join(dataDir, "runs.sqlite");
   if (!smoke) {
@@ -242,10 +223,10 @@ async function run(): Promise<void> {
   const rowId = randomUUID();
   const probePath = join(dataDir, "probe.json");
   const hostPid = await startHost(window, [storePath, "write", rowId, probePath]);
-  const hello = await wait((message) => message.type === "host.hello");
+  const hello = await wait("hello");
   assert(hello.type === "host.hello");
   assert.equal(hello.payload.pid, hostPid);
-  const pong = await wait((message) => message.type === "pong" && message.id === "window-ping");
+  const pong = await wait("window-ping");
   const turn = await wait((message) => message.type === "turn.end");
   assert(turn.type === "turn.end" && turn.payload.reason === "completed");
   const tools = evidence.toolEvents
@@ -257,9 +238,7 @@ async function run(): Promise<void> {
   const deniedBuiltIn = evidence.toolEvents.find(({ name }) => name === "builtin:shell");
   assertSmokeTools(tools, deniedBuiltIn);
   window.webContents.send("smoke:malformed");
-  const malformed = await wait(
-    (message) => message.type === "error" && message.payload.code === "invalid_message",
-  );
+  const malformed = await wait("invalid");
   const permission: unknown = await window.webContents.executeJavaScript(
     "Notification.requestPermission()",
   );
@@ -267,23 +246,22 @@ async function run(): Promise<void> {
   const permissionQuery: unknown = await window.webContents.executeJavaScript(
     "navigator.permissions.query({ name: 'notifications' }).then(result => result.state)",
   );
-  messages.length = 0;
+  messages.clear();
   const loaded = once(window.webContents, "did-finish-load");
   window.webContents.reload();
   await loaded;
-  const reloadedHello = await wait((message) => message.type === "host.hello");
-  const reloadedPong = await wait(
-    (message) => message.type === "pong" && message.id === "window-ping",
-  );
+  const reloadedHello = await wait("hello");
+  const reloadedPong = await wait("window-ping");
   const reloadTurn = await wait((message) => message.type === "turn.end");
   assert(reloadTurn.type === "turn.end" && reloadTurn.payload.reason === "completed");
   const listeners = [...listenersOf(process.pid), ...listenersOf(hostPid)];
   await stopHost();
   const restartedHostPid = await startHost(window, [storePath, "read", rowId, probePath]);
-  const restartedHello = await wait((message) => message.type === "host.hello");
+  const restartedHello = await wait("hello");
   assert(restartedHello.type === "host.hello");
   assert.equal(restartedHello.payload.pid, restartedHostPid);
-  await wait((message) => message.type === "pong" && message.id === "window-ping");
+  const restartedPong = await wait("window-ping");
+  assert.equal(restartedPong.type, "pong");
   listeners.push(...listenersOf(process.pid), ...listenersOf(restartedHostPid));
   const probe: unknown = JSON.parse(readFileSync(probePath, "utf8"));
   assert(probe !== null && typeof probe === "object");
@@ -298,7 +276,6 @@ async function run(): Promise<void> {
     mainNodeVersion: process.versions.node,
     hostNodeVersion: probe.nodeVersion,
     sqliteIsTransaction: probe.sqliteIsTransaction,
-    // These waits fail fast on timeout; a report is emitted only after the matching observations.
     rendererRoundTrip: pong.type === "pong",
     reloadRoundTrip:
       reloadedHello.type === "host.hello" &&
