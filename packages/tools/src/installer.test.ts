@@ -3,7 +3,7 @@
 
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { renameSync, symlinkSync } from "node:fs";
+import { mkdirSync, renameSync, symlinkSync, writeFileSync } from "node:fs";
 import {
   chmod,
   lutimes,
@@ -20,7 +20,7 @@ import {
 } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
@@ -320,30 +320,105 @@ test.skipIf(process.platform === "win32").each(Object.keys(tornShapes))(
   },
 );
 
-test.skipIf(process.platform === "win32")(
-  "repairing a directory current never deletes through it after a swap to an outside symlink",
-  async () => {
-    const appData = join(home, "torn-race");
-    const root = join(appData, "tools", "gh");
-    const current = join(root, "current");
-    const outside = join(home, "outside");
-    await mkdir(join(current, "bin"), { recursive: true });
-    await writeFile(join(current, "bin", "gh"), "torn");
-    await mkdir(outside);
-    await writeFile(join(outside, "sentinel"), "keep");
+async function plantTornDirectory(name: string) {
+  const appData = join(home, name);
+  const root = join(appData, "tools", "gh");
+  const current = join(root, "current");
+  const outside = join(home, `${name}-outside`);
+  await mkdir(join(current, "bin"), { recursive: true });
+  await writeFile(join(current, "bin", "gh"), "torn");
+  await mkdir(outside);
+  await writeFile(join(outside, "sentinel"), "keep");
+  return { root, current, outside, installer: new ToolInstaller(appData, manifest(), platform) };
+}
+
+async function quarantines(root: string): Promise<string[]> {
+  return (await readdir(root)).filter((name) => name.startsWith(".torn-current-"));
+}
+
+test.skipIf(process.platform === "win32").each(["current", "quarantine", "nested"])(
+  "a torn directory swapped for an outside symlink at the %s never loses outside data",
+  async (location) => {
+    const { current, outside, installer } = await plantTornDirectory(`race-${location}`);
+    let staged = "";
     let swapped = false;
+    fsHooks.rename = (from, to) => {
+      if (from === current && !staged) staged = to;
+    };
     const swap = (path: string) => {
-      if (swapped || !(path === current || basename(path).startsWith(".torn-current-"))) return;
+      const target =
+        location === "current"
+          ? current
+          : staged && join(staged, location === "nested" ? "bin" : "");
+      if (swapped || !target || path !== target) return;
       swapped = true;
-      renameSync(current, join(home, "displaced"));
-      symlinkSync(outside, current);
+      renameSync(path, join(home, `displaced-${location}`));
+      symlinkSync(outside, path);
     };
     fsHooks.readdir = swap;
     fsHooks.readdirCallback = swap;
-    await new ToolInstaller(appData, manifest(), platform).install("gh").catch(() => undefined);
-    expect(swapped).toBe(true);
+    await installer.install("gh").catch(() => undefined);
     expect(await readFile(join(outside, "sentinel"), "utf8")).toBe("keep");
-    expect(await readdir(root)).toEqual(["1.0.0", "current"]);
+    expect(await installer.readiness("gh")).toEqual({ state: "ready", version: "1.0.0" });
+  },
+);
+
+test.skipIf(process.platform === "win32")(
+  "a collision at the quarantine destination keeps the pre-existing entry",
+  async () => {
+    const { current, installer } = await plantTornDirectory("collision");
+    let collision = "";
+    fsHooks.rename = (from, to) => {
+      if (from !== current) return;
+      collision = to;
+      mkdirSync(to);
+      writeFileSync(join(to, "sentinel"), "pre-existing");
+    };
+    await expect(installer.install("gh")).rejects.toMatchObject({ code: "ENOTEMPTY" });
+    expect(await readFile(join(collision, "sentinel"), "utf8")).toBe("pre-existing");
+    expect(await readFile(join(current, "bin", "gh"), "utf8")).toBe("torn");
+  },
+);
+
+test.skipIf(process.platform === "win32")(
+  "a quarantined entry that became a symlink is unlinked without following it",
+  async () => {
+    const { root, current, outside, installer } = await plantTornDirectory("quarantine-link");
+    let staged = "";
+    fsHooks.rename = (from, to) => {
+      if (from !== current) return;
+      staged = to;
+      renameSync(current, join(home, "displaced-link"));
+      symlinkSync(outside, current);
+    };
+    await installer.install("gh");
+    expect(staged).toContain(".torn-current-");
+    expect(await readFile(join(outside, "sentinel"), "utf8")).toBe("keep");
+    expect(await quarantines(root)).toEqual([]);
+    expect(await installer.binDir("gh")).toBe(join(root, "1.0.0", "bin"));
+  },
+);
+
+test.skipIf(process.platform === "win32")(
+  "quarantined torn directories stay on disk and never affect version or later installs",
+  async () => {
+    const { root, current, installer } = await plantTornDirectory("leftover");
+    await installer.install("gh");
+    const [first, ...others] = await quarantines(root);
+    expect(others).toEqual([]);
+    const kept = join(root, String(first), "current", "bin", "gh");
+    expect(await readFile(kept, "utf8")).toBe("torn");
+    expect(await installer.binDir("gh")).toBe(join(root, "1.0.0", "bin"));
+    const old = new Date(Date.now() - 72 * 60 * 60_000);
+    await utimes(join(root, String(first)), old, old);
+    await rm(current);
+    await mkdir(join(current, "bin"), { recursive: true });
+    await installer.install("gh");
+    expect(await quarantines(root)).toHaveLength(2);
+    expect(await readFile(kept, "utf8")).toBe("torn");
+    const fresh = new ToolInstaller(join(home, "leftover"), manifest(), platform);
+    expect(await fresh.readiness("gh")).toEqual({ state: "ready", version: "1.0.0" });
+    expect(await fresh.binDir("gh")).toBe(join(root, "1.0.0", "bin"));
   },
 );
 

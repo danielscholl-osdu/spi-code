@@ -78,17 +78,15 @@ function torn(error: unknown): boolean {
   );
 }
 
-// Each entry is lstat-checked, so a symlink is unlinked and never traversed.
-async function removeWithoutFollowing(path: string): Promise<void> {
-  const stats = await lstat(path);
-  if (stats.isDirectory()) {
-    for (const name of await readdir(path)) await removeWithoutFollowing(join(path, name));
-    await rmdir(path);
-  } else if (stats.isSymbolicLink() && process.platform === "win32") {
-    // Windows directory symlinks and junctions are removed with rmdir, which does not follow them.
-    await unlink(path).catch(() => rmdir(path));
-  } else {
-    await unlink(path);
+// A quarantined pointer is never traversed: a symlink or file is unlinked, a directory stays on disk.
+async function discardQuarantine(quarantine: string): Promise<void> {
+  const entry = join(quarantine, "current");
+  try {
+    const stats = await lstat(entry);
+    if (stats.isSymbolicLink() || stats.isFile()) await unlink(entry);
+    await rmdir(quarantine);
+  } catch {
+    // A directory-shaped or locked entry stays quarantined; version() never reads it.
   }
 }
 
@@ -263,7 +261,7 @@ export class ToolInstaller {
     this.states.set(tool, { state: "installing" });
     let staging: string | undefined;
     let pointer: string | undefined;
-    let torn: string | undefined;
+    let quarantined: string | undefined;
     try {
       await mkdir(this.appData, { recursive: true });
       const cutoff = Date.now() - staleAfterMs;
@@ -396,11 +394,18 @@ export class ToolInstaller {
       else await symlink(pin.version, pointer);
       signal?.throwIfAborted();
       const current = join(root, "current");
-      // A file rename cannot replace a directory, so a torn directory pointer is moved aside first.
-      // rename never follows a final symlink, so a concurrent swap of current moves only the link.
+      // A file rename cannot replace a directory, so a torn directory pointer is quarantined in a
+      // fresh directory first. rename never follows a final symlink, so a concurrent swap of
+      // current moves only the link.
       if ((await lstat(current).catch(() => undefined))?.isDirectory()) {
-        torn = join(root, `.torn-current-${staging.split(/[\\/]/).pop()}`);
-        await rename(current, torn);
+        const quarantine = await mkdtemp(join(root, ".torn-current-"));
+        try {
+          await rename(current, join(quarantine, "current"));
+        } catch (error) {
+          await rmdir(quarantine).catch(() => undefined);
+          throw error;
+        }
+        quarantined = quarantine;
       }
       await rename(pointer, current);
       this.states.delete(tool);
@@ -413,7 +418,7 @@ export class ToolInstaller {
     } finally {
       this.active.delete(tool);
       if (pointer) await rm(pointer, { force: true });
-      if (torn) await removeWithoutFollowing(torn).catch(() => undefined);
+      if (quarantined) await discardQuarantine(quarantined);
       if (staging) await rm(staging, { recursive: true, force: true });
     }
   }
