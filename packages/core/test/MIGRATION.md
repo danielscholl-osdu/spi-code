@@ -13,32 +13,32 @@ rib still runs before switching to core.
 
 | Rib file (`test/`) | Rib tests | Destination | Moved to core | Staying in rib |
 |---|---:|---|---:|---:|
-| act.test.ts | 19 | rib | - | - |
-| approve.test.ts | 9 | rib | - | - |
-| boards.test.ts | 13 | rib | - | - |
-| brief.test.ts | 35 | split | - | - |
+| act.test.ts | 19 | rib | 0 | 19 |
+| approve.test.ts | 9 | rib | 0 | 9 |
+| boards.test.ts | 13 | rib | 0 | 13 |
+| brief.test.ts | 35 | split | 35 | 0 |
 | checks.test.ts | 5 | core | 5 | 0 |
-| collect.test.ts | 23 | rib | - | - |
-| console.test.ts | 22 | rib | - | - |
-| engineering.test.ts | 9 | split | - | - |
-| fleet.test.ts | 39 | split | - | - |
-| flow.test.ts | 27 | split | - | - |
+| collect.test.ts | 23 | rib | 0 | 23 |
+| console.test.ts | 22 | rib | 0 | 22 |
+| engineering.test.ts | 9 | split | 3 | 6 |
+| fleet.test.ts | 39 | split | 12 | 27 |
+| flow.test.ts | 27 | split | 12 | 15 |
 | history.test.ts | 13 | core | 13 | 0 |
-| inspect.test.ts | 15 | rib | - | - |
-| ledgers.test.ts | 16 | split | - | - |
-| marks.test.ts | 3 | rib | - | - |
+| inspect.test.ts | 15 | rib | 0 | 15 |
+| ledgers.test.ts | 16 | split | 9 | 7 |
+| marks.test.ts | 3 | rib | 0 | 3 |
 | model.test.ts | 31 | core | 31 | 0 |
 | next.test.ts | 6 | split | 5 | 1 |
 | radar.test.ts | 14 | split | 13 | 1 |
 | reason.test.ts | 11 | core | 11 | 0 |
-| releases.test.ts | 32 | split | - | - |
+| releases.test.ts | 32 | split | 10 | 22 |
 | repos.test.ts | 15 | core | 15 | 0 |
-| repositories.test.ts | 14 | split | - | - |
-| rib.test.ts | 19 | rib | - | - |
+| repositories.test.ts | 14 | split | 6 | 8 |
+| rib.test.ts | 19 | rib | 0 | 19 |
 | rollout.test.ts | 10 | split | 0 | 10 |
-| security.test.ts | 4 | rib | - | - |
+| security.test.ts | 4 | rib | 0 | 4 |
 | stack.test.ts | 10 | core | 10 | 0 |
-| sweep.test.ts | 5 | rib | - | - |
+| sweep.test.ts | 5 | rib | 0 | 5 |
 | upstream.test.ts | 45 | split | 18 | 27 |
 | work.test.ts | 5 | split | 4 | 1 |
 | **Baseline total** | **469** | **28 files** | | |
@@ -116,3 +116,33 @@ Runner imports, MIT headers and repository formatting are the only other
 changes. Bun's two `toStartWith` assertions become equivalent
 `startsWith(...).toBe(true)` assertions. Per-file source comparison evidence
 and five inverted-assertion failures are recorded on `spicode-2u4.9`.
+
+## Briefing and release port: spicode-2u4.4
+
+The seven assigned files move 87 pinned cases and leave 85 in the rib. Every
+assigned row adds up to its count in `test-count.json`. The ten `rib` rows
+record 0 moved and all 132 cases staying. The six rows owned by spicode-2u4.9
+remain untouched; whichever port lands second reconciles the 469-case total.
+
+Mixed cases stay whole in the rib, including cases that assert model output
+and then inspect a board. Releases moves the two body parsers, six month-facts
+cases and two document-model cases; collector, notes I/O, PDF, board and agent
+cases stay. The rollout brief in `rollout.test.ts` belongs to spicode-2u4.9.
+
+Bodies and assertions are unchanged except for equivalent anchored `toMatch`
+checks replacing Bun's `toStartWith` and `toEndWith`. Imports use Vitest and
+core's extracted release and notes types. No ported case needs `Bun.sleep`.
+The existing recorded release and rollout JSON fixtures are structurally
+identical to the pinned rib fixtures and are reused at their baseline paths.
+
+`briefing-setup.ts` reproduces Bun's UTC default and `test/preload.ts`'s
+five-fork fixture fleet, restoring the prior fleet after each file. Briefing
+tests supply the recorded clear doctor input rather than importing a board:
+the recorded sweep has successful auth probes, no read errors and 4,889
+GraphQL points remaining. Explicit dark, partial and waiting inputs remain.
+`flow-states.ts` ports the pure pinned `test/states.ts`; `release-fixtures.ts`
+ports its notes `skeleton` input helper. The shared `harness.ts` is unchanged.
+
+Per-file source comparisons, moved/staying counts and five inverted-assertion
+failures are recorded on the bead. Core source and runner configuration are
+unchanged.
