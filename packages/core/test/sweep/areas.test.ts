@@ -537,6 +537,38 @@ test("a permanently failing upstream retries only that fork without rerunning ra
   expect(radarLists).toBeGreaterThan(initialLists);
 });
 
+test("forks dropped from the declaration leave the upstream data and reads", async () => {
+  const h = harness();
+  let forks =
+    "  - service: partition\n    repo: owner/partition\n  - service: storage\n    repo: owner/storage\n";
+  h.setRoute((cmd, args) => {
+    const query = args.find((a) => a.startsWith("query=")) ?? "";
+    if (cmd === "gh" && query.includes("stack: repository"))
+      return {
+        stdout: JSON.stringify({
+          data: {
+            stack: { object: { text: `forks:\n${forks}` } },
+            template: { object: null },
+            spicodeBudget: { cost: 2, remaining: 4000, resetAt: "2099-01-01T00:00:00Z" },
+          },
+        }),
+        stderr: "",
+        exit: 0,
+      };
+  });
+  const sweeper = createSweeper(h.options);
+  await sweeper.sweep();
+  const storage = sweeper.facts.radar.data?.services.storage?.project;
+  expect(storage).toBeDefined();
+  expect(sweeper.facts.upstream.data?.storage).toBeDefined();
+  expect(sweeper.reads.upstream?.some((r) => r.source === storage)).toBe(true);
+  forks = "  - service: partition\n    repo: owner/partition\n";
+  h.advance(1);
+  await sweeper.sweep({ force: true });
+  expect(Object.keys(sweeper.facts.upstream.data ?? {})).toEqual(["partition"]);
+  expect(sweeper.reads.upstream?.some((r) => r.source === storage)).toBe(false);
+});
+
 test("partial upstream failures retain queued commits and retry the failed fork before cadence", async () => {
   const h = harness();
   let failedProject: string | undefined;

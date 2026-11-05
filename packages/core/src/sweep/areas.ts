@@ -227,10 +227,14 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
       !result.upstream[idOf(r)] && failures.has(r.source)
         ? { ...r, failure: r.failure ?? `Upstream frame incomplete: ${failures.get(r.source)}` } : r);
     const retained = retain(result.upstream, facts.upstream.data, records, reads.upstream ?? [], idOf);
-    const data = { ...facts.upstream.data, ...retained.data };
+    // Carry other forks' last reads, but only for forks still in the fleet.
+    const ids = new Set(ctx.fleet.forks.map((fork) => fork.id));
+    const live = new Set(ctx.fleet.forks.map((fork) => fork.upstream));
+    const data = Object.fromEntries(Object.entries({ ...facts.upstream.data, ...retained.data })
+      .filter(([id]) => ids.has(id)));
     upstreamChanged = !isDeepStrictEqual(data, facts.upstream.data);
     return { data, reads: [
-      ...(reads.upstream ?? []).filter((r) => !sources.has(r.source)),
+      ...(reads.upstream ?? []).filter((r) => !sources.has(r.source) && live.has(r.source)),
       ...retained.reads,
     ] };
   });
