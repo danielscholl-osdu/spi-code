@@ -688,15 +688,24 @@ describe("area envelopes and provenance", () => {
     }
   });
 
-  it("binds the environment figure to github when only the declared version is known", () => {
+  it("binds the declared-version fallback to the lifecycle read that found no running version", () => {
     const input = fixtureInput();
     const snapshot = projectWatch({
       ...input,
       facts: { ...input.facts, lifecycle: {} },
     });
-    const figure = snapshot.provenance.find(({ path }) => path === "/briefing/facts/0/figure");
+    const areasAt = (at: string) => snapshot.provenance.find(({ path }) => path === at)?.areas;
     expect(snapshot.briefing.facts[0]?.figure).not.toBe("?");
-    expect(figure?.areas).toEqual(["github"]);
+    expect(areasAt("/briefing/facts/0/figure")).toEqual(["github", "lifecycle"]);
+    const running = snapshot.briefing.environment.facts.findIndex(
+      ({ label }) => label === "Running",
+    );
+    expect(running).toBeGreaterThanOrEqual(0);
+    expect(snapshot.briefing.environment.facts[running]?.figure).not.toBe("?");
+    expect(areasAt(`/briefing/environment/facts/${running}/figure`)).toEqual([
+      "github",
+      "lifecycle",
+    ]);
   });
 });
 

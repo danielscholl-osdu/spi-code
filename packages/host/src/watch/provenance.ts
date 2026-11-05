@@ -37,10 +37,12 @@ const LINES = [...FLOW, "template", "details"] as const satisfies readonly AreaN
 /** buildQueue and themes read the whole model, which adds approvals and security alerts. */
 const MODEL = [...LINES, "approvals", "security"] as const satisfies readonly AreaName[];
 
-/** The environment figure is the running version (lifecycle), else the declared one (github). */
+/**
+ * The environment figure is the running version (lifecycle). The declared one (github) is
+ * reached only when lifecycle found no running version, so by precedence it binds both.
+ */
 function versionAreas(stack: StackModel): readonly AreaName[] {
-  if (stack.running) return LIFECYCLE;
-  return stack.declared ? GITHUB : STACK;
+  return stack.running ? LIFECYCLE : STACK;
 }
 
 function briefFactAreas(label: string, stack: StackModel): readonly AreaName[] {
