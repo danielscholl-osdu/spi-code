@@ -126,15 +126,7 @@ async function probe() {
     let invalid = false;
     const readToken = () => (invalid ? Promise.resolve(invalidToken) : ghAuthToken(authEnv));
     report.tokenLength = realToken.length;
-    const env = {
-      ...authEnv,
-      HOME: home,
-      USERPROFILE: home,
-      XDG_CONFIG_HOME: join(home, ".config"),
-      XDG_CACHE_HOME: join(home, ".cache"),
-      LOCALAPPDATA: join(home, "AppData", "Local"),
-      COPILOT_HOME: join(home, ".copilot"),
-    };
+    const env = authEnv;
     const options = { appDataDir, capturedPath: captured.path, env };
     runtime = new CopilotRuntime({ ...options, credentialMode: "session" }, readToken);
     await runtime.start();

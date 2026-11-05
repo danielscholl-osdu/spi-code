@@ -235,12 +235,13 @@ describe("Copilot runtime boundary", () => {
       "XDG_CACHE_HOME",
       "XDG_CONFIG_HOME",
       "XDG_STATE_HOME",
+      "XDG_DATA_HOME",
       "LOCALAPPDATA",
       "APPDATA",
       "COPILOT_HOME",
     ];
     const env = Object.fromEntries(
-      names.flatMap((name) => [
+      [...names, "HOMEDRIVE", "HOMEPATH", "HomeDrive", "HomePath"].flatMap((name) => [
         [name, "/operator"],
         [name.toLowerCase(), "/operator-lowercase"],
       ]),
@@ -259,6 +260,12 @@ describe("Copilot runtime boundary", () => {
       expect(relative(appDataDir, path ?? "").startsWith("..")).toBe(false);
       expect(options.env).not.toHaveProperty(name.toLowerCase());
     }
+    expect(Object.keys(options.env ?? {}).map((name) => name.toUpperCase())).not.toEqual(
+      expect.arrayContaining(["HOMEDRIVE"]),
+    );
+    expect(Object.keys(options.env ?? {}).map((name) => name.toUpperCase())).not.toEqual(
+      expect.arrayContaining(["HOMEPATH"]),
+    );
     expect(env).toEqual(original);
     expect(process.env).toEqual(before);
   });

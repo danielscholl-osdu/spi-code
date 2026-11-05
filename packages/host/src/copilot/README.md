@@ -4,10 +4,11 @@ The host starts the SDK 1.0.26 platform package's `prebuilds/<platform>/copilot-
 (`.exe` on Windows) by absolute `connection.path`, over stdio. Empty mode uses
 `<appDataDir>/copilot`; the environment comes from `buildToolEnvironment`.
 Only the runtime child's environment redirects `HOME`, `USERPROFILE`,
-`XDG_CACHE_HOME`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `LOCALAPPDATA`, `APPDATA`
+`XDG_CACHE_HOME`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `XDG_DATA_HOME`, `LOCALAPPDATA`, `APPDATA`
 and `COPILOT_HOME` beneath app data. This includes the runtime's macOS caches
 and Microsoft device ID. Token lookup uses a separate scrubbed environment
-with the operator's original home and gh configuration.
+with the operator's original home and gh configuration. The runtime child drops
+`HOMEDRIVE` and `HOMEPATH` so they cannot override its isolated `USERPROFILE`.
 The packaging bead must leave the complete platform runtime package unpacked.
 Startup cleanup, credential-keyed warm-client handling, and streamed delta
 subscription are ported from Keelson's `copilot/factory.ts` and `provider.ts`.
@@ -52,6 +53,9 @@ Run `SPICODE_LIVE_COPILOT_ISOLATION=1 pnpm vitest run packages/host/src/copilot/
 to check filesystem isolation with the real runtime. It skips unless explicitly
 enabled and gh credentials are available; enabling it requires network access
 and a Copilot seat. It opens a session, lists models, stops the runtime, and
-compares file listings in a disposable scratch home outside app data, printing
-the before/after evidence and app-data listing. It never uses the operator's
+compares file and directory listings in a disposable scratch home outside app data.
+It also checks existence, size and modification time of the real home's Copilot
+cache and Microsoft device-ID files without writing to them; absent files are
+recorded as absent. It prints the before/after evidence and app-data listing.
+It never uses the operator's
 real home for the runtime or alters their Copilot cache.

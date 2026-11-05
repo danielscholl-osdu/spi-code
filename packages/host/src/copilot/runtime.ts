@@ -131,13 +131,18 @@ export function buildClientOptions(options: RuntimeOptions): CopilotClientOption
     XDG_CACHE_HOME: join(home, ".cache"),
     XDG_CONFIG_HOME: join(home, ".config"),
     XDG_STATE_HOME: join(home, ".local", "state"),
+    XDG_DATA_HOME: join(home, ".local", "share"),
     LOCALAPPDATA: join(home, "AppData", "Local"),
     APPDATA: join(home, "AppData", "Roaming"),
+    // The SDK overwrites COPILOT_HOME with baseDirectory when spawning the runtime.
     COPILOT_HOME: join(options.appDataDir, "copilot"),
   };
   const env = buildAuthEnvironment(options);
   for (const name of Object.keys(env)) {
-    if (Object.hasOwn(homes, name.toUpperCase())) delete env[name];
+    const upper = name.toUpperCase();
+    if (Object.hasOwn(homes, upper) || upper === "HOMEDRIVE" || upper === "HOMEPATH") {
+      delete env[name];
+    }
   }
   return {
     connection: { kind: "stdio", path: cliPath },
