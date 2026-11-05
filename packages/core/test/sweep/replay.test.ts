@@ -3,12 +3,14 @@
 
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { z } from "zod";
+import { DECLARATION_PATH } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
 import { ReplayExec } from "../../src/exec/index.js";
 import { type Exec, type ExecOptions, execRedactor } from "../../src/exec/port.js";
 import type { ExecLogEntry } from "../../src/exec/recording.js";
+import { redact } from "../../src/exec/redact.js";
 import { AREAS, type Facts } from "../../src/facts.js";
 import { GraphqlBudget } from "../../src/forge.js";
 import { createSweeper } from "../../src/sweep/areas.js";
@@ -49,13 +51,27 @@ function result(entry: ExecLogEntry): string {
   return JSON.stringify([entry.stdout, entry.stderr, entry.exit, entry.error ?? null]);
 }
 
+// The lifecycle reader caches a run's declaration by commit only after its read returns, and
+// reads two workflows' runs at once (spicode-t1k.109), so two runs at one commit read the stack's
+// declaration once or twice depending on which returns first. Only that read, with one answer
+// recorded, may be served a number of times other than recorded: once to DECLARATION_RACE times.
+const DECLARATION_READ = new RegExp(
+  `^repos/[^/]+/[^/]+/contents/${DECLARATION_PATH.replace(/[.]/g, "\\.")}\\?ref=[0-9a-f]{40}$`,
+);
+const DECLARATION_RACE = 2;
+
+function raced(cmd: string, args: readonly string[]): boolean {
+  return cmd === "gh" && args[0] === "api" && DECLARATION_READ.test(args[1] ?? "");
+}
+
 /** Core's ReplayExec, one per distinct call. The sweep reads areas concurrently, so the
- * recorded order across calls is timing; the order of one call's answers is not. A call
- * recorded more than once with the same answer each time is one read: the lifecycle reader
- * caches a run's declaration by commit only after reading it, so runs of two workflows at
- * one commit read it once or twice depending on which finishes first. */
+ * recorded order across calls is timing; the order of one call's answers is not. Each recorded
+ * entry is served once and must be served, except the declaration race above. */
 class SweepReplay implements Exec {
-  private readonly calls = new Map<string, { lines: string[]; exec: ReplayExec; served: number }>();
+  private readonly calls = new Map<
+    string,
+    { lines: string[]; exec: ReplayExec; served: number; min: number; max: number }
+  >();
   readonly unexpected: string[] = [];
 
   constructor(jsonl: string) {
@@ -66,9 +82,18 @@ class SweepReplay implements Exec {
       lines.set(id, [...(lines.get(id) ?? []), line]);
     }
     for (const [id, recorded] of lines) {
+      const first = JSON.parse(recorded[0] as string) as ExecLogEntry;
       const answers = new Set(recorded.map((line) => result(JSON.parse(line) as ExecLogEntry)));
-      const kept = answers.size === 1 ? recorded.slice(0, 1) : recorded;
-      this.calls.set(id, { lines: kept, exec: new ReplayExec(kept.join("\n")), served: 0 });
+      const race =
+        raced(first.cmd, first.args) && answers.size === 1 && recorded.length <= DECLARATION_RACE;
+      const kept = race ? recorded.slice(0, 1) : recorded;
+      this.calls.set(id, {
+        lines: kept,
+        exec: new ReplayExec(kept.join("\n")),
+        served: 0,
+        min: kept.length,
+        max: race ? DECLARATION_RACE : kept.length,
+      });
     }
   }
 
@@ -80,18 +105,19 @@ class SweepReplay implements Exec {
       this.unexpected.push(id.slice(0, 300));
       throw new Error(`Unexpected exec call: ${id.slice(0, 300)}`);
     }
+    if (call.served >= call.max) {
+      this.unexpected.push(`more often than recorded: ${id.slice(0, 300)}`);
+      throw new Error(`Exec call made more often than recorded (${call.max}): ${id.slice(0, 300)}`);
+    }
     call.served++;
-    if (call.lines.length === 1 && call.served > 1) return new ReplayExec(call.lines[0] as string);
-    if (call.served > call.lines.length)
-      this.unexpected.push(`more than recorded: ${id.slice(0, 300)}`);
-    return call.exec;
+    return call.served > call.lines.length ? new ReplayExec(call.lines[0] as string) : call.exec;
   }
 
-  runText(cmd: string, args: string[], opts: ExecOptions = {}) {
+  async runText(cmd: string, args: string[], opts: ExecOptions = {}) {
     return this.next(cmd, args, opts).runText(cmd, args, opts);
   }
 
-  runJSON<T = unknown>(cmd: string, args: string[], opts: ExecOptions = {}) {
+  async runJSON<T = unknown>(cmd: string, args: string[], opts: ExecOptions = {}) {
     return this.next(cmd, args, opts).runJSON<T>(cmd, args, opts);
   }
 
@@ -99,10 +125,60 @@ class SweepReplay implements Exec {
     return [...this.calls.values()].reduce((sum, call) => sum + call.served, 0);
   }
 
+  /** The declaration reads served other than as recorded, for the report. */
+  get raced(): number {
+    return [...this.calls.values()].filter(
+      (call) => call.max > call.min && call.served !== call.lines.length,
+    ).length;
+  }
+
   assertExhausted(): void {
     for (const call of this.calls.values()) call.exec.assertExhausted();
   }
 }
+
+describe("SweepReplay", () => {
+  const STACK = "Azure/osdu-spi-stack";
+  const entry = (args: string[], stdout = "{}") =>
+    JSON.stringify({ cmd: "gh", args, stdin: null, stdout, stderr: "", exit: 0, ms: 1 });
+  const log = (...lines: string[]) => lines.join("\n");
+  const call = (exec: Exec, args: string[]) => exec.runText("gh", args);
+  const rate = ["api", "rate_limit"];
+  const declaration = ["api", `repos/${STACK}/contents/${DECLARATION_PATH}?ref=${"a".repeat(40)}`];
+
+  test("serves each recorded answer once", async () => {
+    const exec = new SweepReplay(log(entry(rate)));
+    await call(exec, rate);
+    await expect(call(exec, rate)).rejects.toThrow(/more often than recorded/);
+    expect(exec.unexpected).toHaveLength(1);
+  });
+
+  test("a call recorded twice with the same answer must be made twice", async () => {
+    const exec = new SweepReplay(log(entry(rate), entry(rate)));
+    await call(exec, rate);
+    expect(() => exec.assertExhausted()).toThrow(/Unconsumed exec entry/);
+    await call(exec, rate);
+    exec.assertExhausted();
+  });
+
+  test("a lifecycle declaration read at one commit may run once or twice, never more", async () => {
+    const once = new SweepReplay(log(entry(declaration)));
+    expect(() => once.assertExhausted()).toThrow(/Unconsumed exec entry/);
+    await call(once, declaration);
+    await call(once, declaration);
+    once.assertExhausted();
+    await expect(call(once, declaration)).rejects.toThrow(/more often than recorded/);
+    const twice = new SweepReplay(log(entry(declaration), entry(declaration)));
+    await call(twice, declaration);
+    twice.assertExhausted();
+  });
+
+  test("a lifecycle declaration read with differing answers is replayed strictly", async () => {
+    const exec = new SweepReplay(log(entry(declaration, "{}"), entry(declaration, "[]")));
+    await call(exec, declaration);
+    expect(() => exec.assertExhausted()).toThrow(/Unconsumed exec entry/);
+  });
+});
 
 /** Splits what the sweep's account charged into GitHub's reported costs and the reservations
  * of calls that reported none (a failed or fenced call keeps its reservation charged). */
@@ -148,12 +224,43 @@ function recordedCosts(entries: readonly ExecLogEntry[]) {
   return { cost, unpriced };
 }
 
+type PortFacts = {
+  radar?: {
+    data?: {
+      portRead?: { prs: number; commits: number };
+      services?: Record<string, { forkPrs?: { state: string }[] }>;
+    };
+  };
+};
+
+// The rib reads one page of a fork's port PRs and, past it, leaves the fork out of forkPrs and
+// portRead; core pages on (spicode-cp9).
+const RIB_PORT_PAGE = 100;
+
+/** The forks core read past the rib's page: forkPrs on core's side only, with more open or
+ * merged PRs than one page holds. */
+function pagedPastRib(core: PortFacts, rib: PortFacts): string[] {
+  const ribServices = rib.radar?.data?.services ?? {};
+  return Object.entries(core.radar?.data?.services ?? {}).flatMap(([id, service]) => {
+    const prs = service.forkPrs;
+    if (!prs || ribServices[id]?.forkPrs) return [];
+    const open = prs.filter((pr) => pr.state === "open").length;
+    return open > RIB_PORT_PAGE || prs.length - open > RIB_PORT_PAGE ? [id] : [];
+  });
+}
+
 /** Facts both sides read differently by design, each named with its reason. */
-function comparable(facts: Record<string, unknown>, side: "core" | "rib") {
+function comparable(facts: Record<string, unknown>, side: "core" | "rib", paged: string[] = []) {
   const copy = structuredClone(facts) as {
     github: { data?: Record<string, unknown> };
     sweep: Record<string, unknown>;
-  };
+  } & PortFacts;
+  // A fork core paged past the rib's page is compared by count, with portRead, on its own.
+  for (const id of paged) {
+    const service = copy.radar?.data?.services?.[id];
+    if (side === "core" && service) delete service.forkPrs;
+  }
+  if (paged.length) delete copy.radar?.data?.portRead;
   // The rib reports GitHub's rate limit in Facts; core accounts it in the sweep's budget
   // account (cache.budget), which this test checks against the log on its own.
   if (side === "rib" && copy.github.data) delete copy.github.data.rate;
@@ -161,6 +268,17 @@ function comparable(facts: Record<string, unknown>, side: "core" | "rib") {
   // counts each read; the rib reads first pages. Core's count is checked against the log.
   delete copy.sweep.calls;
   return copy;
+}
+
+/** Core's Facts from the live sweep that wrote the log, as the replay must read them: the log
+ * holds redacted output, so live strings are redacted the same way, and the live count of calls
+ * is the log's length, which the replay's own count is checked against with the race allowed. */
+function asLogged(value: unknown): unknown {
+  if (typeof value === "string") return redact(value);
+  if (Array.isArray(value)) return value.map(asLogged);
+  if (value && typeof value === "object")
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, asLogged(v)]));
+  return value;
 }
 
 test.skipIf(!sweep)(
@@ -183,7 +301,12 @@ test.skipIf(!sweep)(
     const rib = JSON.parse(readFileSync(join(dir, "rib-facts.json"), "utf8")) as Record<
       string,
       unknown
-    >;
+    > &
+      PortFacts;
+    const live = asLogged(JSON.parse(readFileSync(join(dir, "core-facts.json"), "utf8"))) as Record<
+      string,
+      unknown
+    > & { sweep: { calls?: number } };
     const now = new Date(meta.recordedAt);
     const exec = new SweepReplay(jsonl);
     const budget = new BudgetLedger({ now: () => now });
@@ -202,9 +325,24 @@ test.skipIf(!sweep)(
     expect(exec.unexpected).toEqual([]);
     exec.assertExhausted();
     expect(sweeper.facts.sweep?.calls).toBe(exec.served);
+    expect(live.sweep.calls).toBe(entries.length);
+    expect(exec.served).toBeGreaterThanOrEqual(entries.length - exec.raced);
+    expect(exec.served).toBeLessThanOrEqual(entries.length + exec.raced);
     expect(comparable(sweeper.facts as unknown as Record<string, unknown>, "core")).toEqual(
-      comparable(rib, "rib"),
+      comparable(live, "core"),
     );
+    const core = sweeper.facts as unknown as Record<string, unknown> & PortFacts;
+    const paged = pagedPastRib(core, rib);
+    expect(comparable(core, "core", paged)).toEqual(comparable(rib, "rib", paged));
+    if (paged.length) {
+      const read = (facts: PortFacts) => facts.radar?.data?.portRead ?? { prs: 0, commits: 0 };
+      const extra = paged.reduce(
+        (sum, id) => sum + (core.radar?.data?.services?.[id]?.forkPrs?.length ?? 0),
+        0,
+      );
+      expect(read(core).prs).toBe(read(rib).prs + extra);
+      expect(read(core).commits).toBeGreaterThan(read(rib).commits);
+    }
     const recorded = recordedCosts(entries);
     expect(budget.reported).toBe(recorded.cost);
     expect(budget.unpriced.calls).toBe(recorded.unpriced);

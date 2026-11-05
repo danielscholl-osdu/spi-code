@@ -5,14 +5,24 @@
  *   pnpm build && bun scripts/record-sweep.ts [--rib /tmp/rib-record] [--out <directory>]
  * The core Sweeper runs over HostExec with RecordingExec, a fixed clock and an empty cache, on
  * the fleet's public forks only: services.json pins them, and a fence refuses, without running
- * it, any call that names a repository that is not public (the core library's releases).
- * Every repository the log names has its visibility checked now. The same log then replays
- * through the rib's Sweeper in a scratch checkout of keelson-rib-spi at RIB_REVISION, in a
- * child bun process with a clean environment, to give rib-facts.json. The audit runs last.
- * Output goes to fixtures/exec/local/sweep-<date>/, which git ignores until D2 is decided.
+ * it, any call that names a repository that is not public (the core library's releases) and any
+ * call whose shape the audit's grammar cannot read. The same log then replays through the
+ * rib's Sweeper in a scratch checkout of keelson-rib-spi at RIB_REVISION, in a child bun
+ * process with a clean environment, to give rib-facts.json. Every repository, project and group
+ * the directory then names has its visibility checked now, and the audit runs last.
+ * Output goes to fixtures/exec/local/sweep-<date>/, which git ignores until D2 is decided; an
+ * output directory that already holds anything is refused, never cleared.
  */
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -32,6 +42,7 @@ import { createSweeper } from "../packages/core/src/sweep/areas.js";
 import { HostExec } from "../packages/host/src/exec/host-exec.js";
 import {
   auditSweep,
+  callTargets,
   FENCE_MARK,
   fenced,
   LOG_FILE,
@@ -39,6 +50,7 @@ import {
   report,
   scrubEmails,
   scrubJwts,
+  sweepReferences,
   VISIBILITY_FILE,
   type Visibility,
   type VisibilityFile,
@@ -111,9 +123,12 @@ function githubVisibility(name: string): Visibility {
   }
 }
 
-async function gitlabVisibility(path: string): Promise<Visibility> {
+async function gitlabVisibility(
+  path: string,
+  kind: "projects" | "groups" = "projects",
+): Promise<Visibility> {
   const encoded = encodeURIComponent(path);
-  const anonymous = await fetch(`https://${GITLAB}/api/v4/projects/${encoded}`).catch(
+  const anonymous = await fetch(`https://${GITLAB}/api/v4/${kind}/${encoded}`).catch(
     () => undefined,
   );
   if (anonymous?.ok) {
@@ -122,7 +137,7 @@ async function gitlabVisibility(path: string): Promise<Visibility> {
   }
   if (anonymous?.status !== 404) return "unknown";
   try {
-    const out = execFileSync("glab", ["api", "--hostname", GITLAB, `projects/${encoded}`], {
+    const out = execFileSync("glab", ["api", "--hostname", GITLAB, `${kind}/${encoded}`], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
       timeout: 30_000,
@@ -135,22 +150,22 @@ async function gitlabVisibility(path: string): Promise<Visibility> {
   }
 }
 
-async function checkVisibility(log: string, now: Date): Promise<VisibilityFile> {
-  const refs = references(log);
-  const file: VisibilityFile = { checkedAt: now.toISOString(), github: {}, gitlab: {} };
-  await pool([...refs.github].sort(), 6, async (name) => {
-    file.github[name] = githubVisibility(name);
-  });
-  await pool([...refs.gitlab].sort(), 6, async (path) => {
-    file.gitlab[path] = await gitlabVisibility(path);
-  });
-  file.github = Object.fromEntries(
-    Object.entries(file.github).sort(([a], [b]) => a.localeCompare(b)),
-  );
-  file.gitlab = Object.fromEntries(
-    Object.entries(file.gitlab).sort(([a], [b]) => a.localeCompare(b)),
-  );
-  return file;
+/** The visibility now of everything the recorded directory names, fenced calls included. */
+async function checkVisibility(out: string, now: Date): Promise<VisibilityFile> {
+  const refs = sweepReferences(out);
+  const seen = async (names: Set<string>, check: (name: string) => Promise<Visibility>) => {
+    const found: Record<string, Visibility> = {};
+    await pool([...names].sort(), 6, async (name) => {
+      found[name] = await check(name);
+    });
+    return Object.fromEntries(Object.entries(found).sort(([a], [b]) => a.localeCompare(b)));
+  };
+  return {
+    checkedAt: now.toISOString(),
+    github: await seen(refs.github, async (name) => githubVisibility(name)),
+    gitlab: await seen(refs.gitlab, (path) => gitlabVisibility(path)),
+    gitlabGroups: await seen(refs.gitlabGroups, (path) => gitlabVisibility(path, "groups")),
+  };
 }
 
 function tokens(): Record<string, string> {
@@ -189,11 +204,15 @@ function fence(
   refused: Record<string, number>,
 ): ExecRunner {
   return async (cmd: string, args: string[], opts: ExecOptions): Promise<ExecOutput> => {
-    const named = references([cmd, ...args, opts.stdin ?? ""].join("\n")).github;
+    const targets = callTargets(cmd, args);
+    const refuse = (what: string, why: string): ExecOutput => {
+      refused[what] = (refused[what] ?? 0) + 1;
+      return { stdout: "", stderr: `${FENCE_MARK} ${what} ${why}; not read\n`, exit: 1 };
+    };
+    if (!targets) return refuse(cmd, "call of a shape the audit cannot read");
+    const named = references([cmd, ...args, opts.stdin ?? ""].join("\n"), targets).github;
     const hit = [...named].find((name) => closed.has(name.toLowerCase()));
-    if (!hit) return runner(cmd, args, opts);
-    refused[hit] = (refused[hit] ?? 0) + 1;
-    return { stdout: "", stderr: `${FENCE_MARK} ${hit} is not public; not read\n`, exit: 1 };
+    return hit ? refuse(hit, "is not public") : runner(cmd, args, opts);
   };
 }
 
@@ -215,12 +234,19 @@ function publicFleet(): {
   return { services: KNOWN_SERVICES.filter((s) => !s.repo || seen[s.repo] === "public"), excluded };
 }
 
+/** Makes the output directory, refusing one that already holds anything: a recording never
+ * deletes what it did not write. */
+export function prepareOut(out: string): void {
+  if (existsSync(out) && readdirSync(out).length)
+    throw new Error(`${out} is not empty; remove it or pass another --out`);
+  mkdirSync(out, { recursive: true });
+}
+
 async function record(out: string, rib: string): Promise<void> {
+  prepareOut(out);
   const now = new Date(Math.floor(Date.now() / 1000) * 1000);
   const clock = { now: () => now };
   const appData = mkdtempSync(join(tmpdir(), "spi-code-record-"));
-  rmSync(out, { recursive: true, force: true });
-  mkdirSync(out, { recursive: true });
   const lines: string[] = [];
   const counts = { emails: 0, jwts: 0, repairs: 0 };
   const refused: Record<string, number> = {};
@@ -278,11 +304,11 @@ async function record(out: string, rib: string): Promise<void> {
         `scrubbed ${counts.emails} with emails, ${counts.jwts} with JWTs; repaired ${counts.repairs} redactions)` +
         `; areas with errors: ${AREAS.filter((a) => sweeper.facts[a].error).join(", ") || "none"}`,
     );
-    writeJson(join(out, VISIBILITY_FILE), await checkVisibility(lines.join(""), now));
   } finally {
     rmSync(appData, { recursive: true, force: true });
   }
   oracle(out, rib);
+  writeJson(join(out, VISIBILITY_FILE), await checkVisibility(out, now));
   const result = auditSweep(out);
   console.log(report(out, result));
   if (result.findings.length) process.exitCode = 1;
