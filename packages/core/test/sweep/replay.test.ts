@@ -64,66 +64,6 @@ function raced(cmd: string, args: readonly string[]): boolean {
   return cmd === "gh" && args[0] === "api" && DECLARATION_READ.test(args[1] ?? "");
 }
 
-// The recorder writes private/redacted-<n> for each repository that is not public: as a path
-// (/ or %2F), as GraphQL's owner and name, or as redacted-<n> for the name alone.
-const NAME = String.raw`[A-Za-z0-9_.-]+?`;
-const PLACEHOLDERS = new RegExp(
-  [
-    String.raw`owner:\s*\\?"private\\?"\s*,\s*name:\s*\\?"redacted-(\d+)\\?"`,
-    String.raw`name:\s*\\?"redacted-(\d+)\\?"\s*,\s*owner:\s*\\?"private\\?"`,
-    String.raw`private(\/|%2F)redacted-(\d+)`,
-    String.raw`redacted-(\d+)`,
-  ].join("|"),
-  "gi",
-);
-const escapeText = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-type Slot = { n: string; kind: "owner" | "name" | "path" | "part"; separator?: string };
-
-/** A recorded argument as a pattern a live argument matches, naming what each placeholder
- * stands for; undefined when it holds none. A GitHub repository has two segments, a GitLab
- * project two or more. */
-function placeholderPattern(
-  cmd: string,
-  recorded: string,
-): { pattern: RegExp; slots: Slot[] } | undefined {
-  const slots: Slot[] = [];
-  let source = "";
-  let at = 0;
-  for (const match of recorded.matchAll(PLACEHOLDERS)) {
-    source += escapeText(recorded.slice(at, match.index));
-    at = (match.index as number) + match[0].length;
-    const [text, ownerFirst, nameFirst, separator, path, part] = match;
-    const pair = ownerFirst ?? nameFirst;
-    if (pair) {
-      const pieces = text.split(/(private|redacted-\d+)/i);
-      source += pieces
-        .map((piece) => {
-          if (/^private$/i.test(piece)) {
-            slots.push({ n: pair, kind: "owner" });
-            return `(${NAME})`;
-          }
-          if (/^redacted-\d+$/i.test(piece)) {
-            slots.push({ n: pair, kind: "name" });
-            return `(${NAME})`;
-          }
-          return escapeText(piece);
-        })
-        .join("");
-    } else if (path) {
-      slots.push({ n: path, kind: "path", separator });
-      const sep = escapeText(separator as string);
-      source += `(${NAME}(?:${sep}${NAME})${cmd === "gh" ? "" : "+"})`;
-    } else {
-      slots.push({ n: part as string, kind: "part" });
-      source += `(${NAME})`;
-    }
-  }
-  if (!slots.length) return undefined;
-  source += escapeText(recorded.slice(at));
-  return { pattern: new RegExp(`^${source}$`), slots };
-}
-
 /** Core's ReplayExec, one per distinct call. The sweep reads areas concurrently, so the
  * recorded order across calls is timing; the order of one call's answers is not. Each recorded
  * entry is served once and must be served, except the declaration race above. */
@@ -132,8 +72,6 @@ class SweepReplay implements Exec {
     string,
     { lines: string[]; exec: ReplayExec; served: number; min: number; max: number }
   >();
-  // What each placeholder stands for, one private repository each, once a call has bound it.
-  private readonly bound = new Map<string, string>();
   readonly unexpected: string[] = [];
 
   constructor(jsonl: string) {
@@ -159,91 +97,10 @@ class SweepReplay implements Exec {
     }
   }
 
-  /** The recorded call, with placeholders, that this live call is, binding each placeholder to
-   * the one repository it stands for across the whole replay. */
-  private unify(cmd: string, args: readonly string[], stdin: string | null): string | undefined {
-    for (const [id, call] of this.calls) {
-      if (call.served >= call.max) continue;
-      const [recordedCmd, recordedArgs, recordedStdin] = JSON.parse(id) as [
-        string,
-        string[],
-        string | null,
-      ];
-      if (recordedCmd !== cmd || recordedArgs.length !== args.length || recordedStdin !== stdin)
-        continue;
-      const names = new Map<
-        string,
-        { full?: string; owner?: string; name?: string; part?: string }
-      >();
-      let same = true;
-      let placeholders = 0;
-      recordedArgs.forEach((recorded, i) => {
-        if (!same) return;
-        const live = args[i] as string;
-        const shape = placeholderPattern(cmd, recorded);
-        if (!shape) {
-          same = recorded === live;
-          return;
-        }
-        const match = shape.pattern.exec(live);
-        if (!match) {
-          same = false;
-          return;
-        }
-        shape.slots.forEach((slot, j) => {
-          placeholders++;
-          const value = (match[j + 1] as string).toLowerCase();
-          const name = names.get(slot.n) ?? {};
-          const set = (field: "full" | "owner" | "name" | "part", to: string) => {
-            if (name[field] !== undefined && name[field] !== to) same = false;
-            name[field] = to;
-          };
-          if (slot.kind === "path")
-            set("full", value.split((slot.separator as string).toLowerCase()).join("/"));
-          else set(slot.kind, value);
-          names.set(slot.n, name);
-        });
-      });
-      if (!same || !placeholders) continue;
-      const bindings: [string, string | undefined, string][] = [];
-      for (const [n, name] of names) {
-        const pair = name.owner && name.name ? `${name.owner}/${name.name}` : undefined;
-        const full = name.full ?? pair ?? this.bound.get(n);
-        if (name.full && pair && name.full !== pair) same = false;
-        const last = full?.split("/").at(-1);
-        for (const part of [name.name, name.part]) if (part && last && part !== last) same = false;
-        if (!full && !this.bound.has(n)) same = false;
-        bindings.push([n, full, last ?? ""]);
-      }
-      for (const [n, full] of bindings) {
-        if (!full) continue;
-        const was = this.bound.get(n);
-        if (was !== undefined && was !== full) same = false;
-        for (const [other, value] of this.bound) if (other !== n && value === full) same = false;
-      }
-      if (!same) continue;
-      for (const [n, full] of bindings) if (full) this.bound.set(n, full);
-      return id;
-    }
-    return undefined;
-  }
-
-  private next(
-    cmd: string,
-    args: string[],
-    opts: ExecOptions,
-  ): { exec: ReplayExec; args: string[] } {
+  private next(cmd: string, args: string[], opts: ExecOptions): ReplayExec {
     const safe = execRedactor(opts);
-    const stdin = opts.stdin === undefined ? null : safe(opts.stdin);
-    let id = key(safe(cmd), args.map(safe), stdin);
-    let call = this.calls.get(id);
-    if (!call) {
-      const unified = this.unify(safe(cmd), args.map(safe), stdin);
-      if (unified) {
-        id = unified;
-        call = this.calls.get(id);
-      }
-    }
+    const id = key(safe(cmd), args.map(safe), opts.stdin === undefined ? null : safe(opts.stdin));
+    const call = this.calls.get(id);
     if (!call) {
       this.unexpected.push(id.slice(0, 300));
       throw new Error(`Unexpected exec call: ${id.slice(0, 300)}`);
@@ -253,20 +110,15 @@ class SweepReplay implements Exec {
       throw new Error(`Exec call made more often than recorded (${call.max}): ${id.slice(0, 300)}`);
     }
     call.served++;
-    const recorded = (JSON.parse(id) as [string, string[]])[1];
-    const exec =
-      call.served > call.lines.length ? new ReplayExec(call.lines[0] as string) : call.exec;
-    return { exec, args: recorded };
+    return call.served > call.lines.length ? new ReplayExec(call.lines[0] as string) : call.exec;
   }
 
   async runText(cmd: string, args: string[], opts: ExecOptions = {}) {
-    const { exec, args: recorded } = this.next(cmd, args, opts);
-    return exec.runText(cmd, recorded, opts);
+    return this.next(cmd, args, opts).runText(cmd, args, opts);
   }
 
   async runJSON<T = unknown>(cmd: string, args: string[], opts: ExecOptions = {}) {
-    const { exec, args: recorded } = this.next(cmd, args, opts);
-    return exec.runJSON<T>(cmd, recorded, opts);
+    return this.next(cmd, args, opts).runJSON<T>(cmd, args, opts);
   }
 
   get served(): number {
@@ -319,25 +171,6 @@ describe("SweepReplay", () => {
     const twice = new SweepReplay(log(entry(declaration), entry(declaration)));
     await call(twice, declaration);
     twice.assertExhausted();
-  });
-
-  test("serves a recorded placeholder as the one private repository it stands for", async () => {
-    const releases = (repo: string) => ["api", `repos/${repo}/releases`];
-    const graphql = (owner: string, name: string) => [
-      "api",
-      "graphql",
-      "-f",
-      `query=query { r: repository(owner: "${owner}", name: "${name}") { id } }`,
-    ];
-    const exec = new SweepReplay(
-      log(entry(releases("private/redacted-1")), entry(graphql("private", "redacted-1"))),
-    );
-    await call(exec, releases("acme/vault"));
-    await expect(call(exec, graphql("acme", "other"))).rejects.toThrow(/Unexpected exec call/);
-    await call(exec, graphql("acme", "vault"));
-    exec.assertExhausted();
-    const other = new SweepReplay(log(entry(releases("private/redacted-1"))));
-    await expect(call(other, releases("acme/vault/extra"))).rejects.toThrow(/Unexpected/);
   });
 
   test("a lifecycle declaration read with differing answers is replayed strictly", async () => {

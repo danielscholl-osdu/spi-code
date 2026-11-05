@@ -4,11 +4,13 @@
 /** Audit a recorded exec log before it may leave this machine:
  *   bun scripts/audit-exec-log.ts <sweep directory>
  * The directory holds exec.jsonl and the visibility.json written at record time. Every
- * recorded field is scanned for credentials, email addresses and repositories that were not
- * public when the log was recorded, in every call and response, from either forge. The recorder
- * replaces each repository that was not public with a placeholder, private/redacted-<n>, which
- * names no repository; a private name left anywhere is a finding. Exits 1 with one line per
- * finding.
+ * recorded field of every file, visibility.json included, is scanned for credentials and email
+ * addresses, as written and with its JSON strings decoded. Every call, a fenced one included,
+ * must have a shape the call grammar reads, and must target only repositories, projects and
+ * groups that were public when the log was recorded, on either forge: no recorded call reads a
+ * private repository. A call the recorder fenced read nothing and may name the one private
+ * repository it refused. A private name quoted in a response is allowed (maintainer decision,
+ * 2026-11-05); its contents are not, since no call read them. Exits 1 with one line per finding.
  */
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -20,19 +22,27 @@ export const EMAIL_MARK = "<email>";
 export const JWT_MARK = "<jwt>";
 // The recorder refuses, without running it, any call that names a repository that is not public.
 export const FENCE_MARK = "spi-code record fence:";
-// What the recorder writes in place of a repository, project or group that is not public.
-export const PRIVATE_OWNER = "private";
-export const REDACTED = "redacted-";
-export const PLACEHOLDER = /^private(?:\/|%2F)redacted-\d+$/i;
-export const META_FILE = "meta.json";
 
 const JWT_SOURCE = "\\beyJ[A-Za-z0-9_-]{8,}\\.eyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}";
 const FIELDS = ["cmd", "args", "stdin", "stdout", "stderr", "exit", "ms", "error"] as const;
 
 const VALUE_CHAR = String.raw`[^\s"'&;,<>(){}$\[\]\\]|\\+(?![nrtbfu"/\\])`;
 const VALUE_END = String.raw`(?=$|[\s"'&;,]|\\+[nrtbfu"/])`;
-const PLACEHOLDER_WORDS =
-  "todo|tbd|tobeupdated|to_be_updated|changeme|changeit|replace_?me|placeholder|dummy|example|none|null|undefined|your[_-][A-Za-z0-9_-]*|x{3,}|\\*{3,}";
+// Whole values that stand in for a credential. <...>, ${...}, {{...}} and empty values never
+// match, since a value must be six value characters. The last line lists values the live
+// sweep recorded that hold no secret.
+// The pattern is case-sensitive so CODE_REFERENCE can read camelCase; words match in any case.
+const anyCase = (words: string) =>
+  words.replace(/[A-Za-z]/g, (c) => `[${c.toLowerCase()}${c.toUpperCase()}]`);
+const PLACEHOLDERS = [
+  anyCase("todo|tbd|to_?be_?updated|changeme|changeit|replace_?me|placeholder|dummy|example"),
+  anyCase("none|null|undefined"),
+  `${anyCase("your")}[_-][A-Za-z0-9_-]*[_-]${anyCase("here")}|${anyCase("x")}{3,}|\\*{3,}`,
+  anyCase("client-secret"),
+].join("|");
+// Code that reads a credential from a variable or property: an unquoted camelCase name whose
+// last word is the credential (userPassword, config.dbPassword). secretsauce is not one.
+const CODE_REFERENCE = String.raw`(?<!["'])(?:[A-Za-z_]\w*\.)*[a-z][a-z0-9]*(?:[A-Z][a-z0-9]*)*(?:Password|Passwd|Secret|Key|Token)`;
 
 export const TOKEN_PATTERNS: readonly { name: string; pattern: RegExp }[] = [
   { name: "GitHub token", pattern: /(?:gh[opsur]_|github_pat_)[A-Za-z0-9_]{8,}/ },
@@ -50,17 +60,17 @@ export const TOKEN_PATTERNS: readonly { name: string; pattern: RegExp }[] = [
   { name: "AWS access key", pattern: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/ },
   { name: "Slack token", pattern: /\bxox[abposr]-[A-Za-z0-9-]{10,}/ },
   // A credential assigned with "=" (environment lines, connection strings, query strings).
-  // Code that assigns a variable or a call, a ${placeholder}, a redaction, a placeholder word or
-  // a value of letters that names the credential it stands for (client-secret) holds no secret. A backslash that begins a JSON escape (\n, \t, \", \uXXXX) ends the value,
+  // A redaction, a placeholder or code that reads a variable, property or call holds no secret;
+  // any other value of six or more characters does. A backslash that begins a JSON escape (\n, \t, \", \uXXXX) ends the value,
   // so a diff nested in JSON is read line by line; any other backslash is part of the value. A
   // password that itself holds a backslash before one of those letters is read only up to it.
   {
     name: "credential assignment",
     pattern: new RegExp(
-      `(?<![A-Za-z0-9])(?:password|passwd|secret|client_secret|api_?key|access_?key)[ \\t]*=[ \\t]*["']?` +
-        `(?!<redacted>)(?!(?:${PLACEHOLDER_WORDS})${VALUE_END})(?![A-Za-z_.-]*(?:pass|secret|key|token)[A-Za-z_.-]*${VALUE_END})` +
+      `(?<![A-Za-z0-9])(?:${anyCase("password|passwd|secret|client_secret|api_?key|access_?key")})[ \\t]*=[ \\t]*["']?` +
+        `(?!<redacted>)(?!(?:${PLACEHOLDERS})${VALUE_END})(?!${CODE_REFERENCE}${VALUE_END})` +
         `(?:${VALUE_CHAR}){6,}${VALUE_END}`,
-      "im",
+      "m",
     ),
   },
 ];
@@ -84,6 +94,13 @@ const JWT = new RegExp(JWT_SOURCE, "g");
 export function scrubJwts(text: string): string {
   return text.replace(JWT, JWT_MARK);
 }
+
+/** What a fenced call returns in place of running: the one line that names why. */
+export function fenceMessage(what: string, why: string): string {
+  return `${FENCE_MARK} ${what} ${why}; not read\n`;
+}
+
+export const NOT_PUBLIC = "is not public";
 
 /** A call the recorder refused without running: it returned no output. */
 export function fenced(entry: { stdout?: unknown; stderr?: unknown; exit?: unknown }): boolean {
@@ -170,20 +187,14 @@ function decoded(path: string): string {
   }
 }
 
-/** A placeholder the recorder wrote names no repository, project or group. An organisation
- * that is really called "private" would be read as one too; none is in the program's fleet. */
-export function isPlaceholder(path: string): boolean {
-  return PLACEHOLDER.test(decoded(path).replace(/\.git$/, ""));
-}
-
 function addGithub(into: References, owner: string | undefined, name: string | undefined): void {
   if (!owner || !name || GITHUB_RESERVED.has(owner.toLowerCase())) return;
   const repo = repoName(owner, name);
-  if (!repo.endsWith("/") && !isPlaceholder(repo)) into.github.add(repo);
+  if (!repo.endsWith("/")) into.github.add(repo);
 }
 
 function addGitlab(into: Set<string>, path: string): void {
-  if (!isPlaceholder(path)) into.add(path);
+  into.add(path);
 }
 
 /** A GitLab URL path: before /-/ it is exactly one project or, after /groups/, one group;
@@ -201,7 +212,6 @@ function addGitlabUrl(into: References, path: string, exact: boolean): void {
     if (segments.length > 1) addGitlab(into.gitlabGroups, segments.slice(1).join("/"));
     return;
   }
-  if (segments.length > 1 && isPlaceholder(segments.slice(0, 2).join("/"))) return;
   if (exact) {
     if (segments.length > 1) addGitlab(into.gitlab, segments.join("/"));
     return;
@@ -422,28 +432,47 @@ function decodings(text: string, depth = 0, into: string[] = [text]): string[] {
   return into;
 }
 
-function scan(where: string, text: string, findings: string[], refs: References | undefined): void {
+function scan(where: string, text: string, findings: string[]): void {
   const texts = decodings(text);
   for (const { name, pattern } of TOKEN_PATTERNS) {
     if (texts.some((each) => pattern.test(each))) findings.push(`${where}: ${name}`);
   }
   const emails = new Set(texts.flatMap((each) => each.match(EMAIL) ?? []));
   if (emails.size) findings.push(`${where}: email address (${emails.size})`);
-  if (refs) for (const each of texts) references(each, refs);
+}
+
+/** One recorded call's targets, and the repository it was fenced on, if it read nothing. */
+interface Call {
+  targets: References;
+  /** The repository a fenced call was refused on; it read nothing of it. */
+  fencedOn: string | undefined;
 }
 
 interface Collected {
   entries: number;
   fields: number;
   refs: References;
+  calls: Call[];
   findings: string[];
 }
 
-/** Scans exec.jsonl and every other recorded JSON file in a sweep directory. Every field of
- * every call names repositories on both forges, a fenced call's included. */
+/** The repository a call was fenced on: a call that returned only the fence line naming it. */
+function fencedOn(entry: Record<string, unknown>): string | undefined {
+  if (entry.stdout !== "" || entry.exit !== 1 || entry.error !== undefined) return undefined;
+  const [prefix, suffix] = fenceMessage("\0", NOT_PUBLIC).split("\0") as [string, string];
+  const { stderr } = entry;
+  if (typeof stderr !== "string" || !stderr.startsWith(prefix) || !stderr.endsWith(suffix))
+    return undefined;
+  const what = stderr.slice(prefix.length, -suffix.length);
+  return /^\S+$/.test(what) ? what : undefined;
+}
+
+/** Scans exec.jsonl and every other recorded JSON file in a sweep directory for credentials
+ * and email addresses, and reads what each call targets, a fenced call's included. */
 function collect(directory: string): Collected {
   const findings: string[] = [];
   const refs = noReferences();
+  const calls: Call[] = [];
   const lines = readFileSync(join(directory, LOG_FILE), "utf8")
     .split("\n")
     .filter((line) => line.trim());
@@ -461,68 +490,37 @@ function collect(directory: string): Collected {
       if (!(FIELDS as readonly string[]).includes(key))
         findings.push(`${where}: unexpected field ${key}`);
     }
-    {
-      const { cmd, args } = entry;
-      const targets =
-        typeof cmd === "string" && Array.isArray(args) && args.every((a) => typeof a === "string")
-          ? callTargets(cmd, args as string[])
-          : undefined;
-      if (targets) merge(refs, targets);
-      else
-        findings.push(
-          `${where}: unrecognised call ${[cmd, ...(Array.isArray(args) ? args : [])].join(" ")}`.slice(
-            0,
-            300,
-          ),
-        );
+    const { cmd, args } = entry;
+    const targets =
+      typeof cmd === "string" && Array.isArray(args) && args.every((a) => typeof a === "string")
+        ? callTargets(cmd, args as string[])
+        : undefined;
+    if (targets) {
+      merge(refs, targets);
+      calls.push({ targets, fencedOn: fencedOn(entry) });
+    } else {
+      const call = [cmd, ...(Array.isArray(args) ? args : [])].join(" ");
+      findings.push(`${where}: unrecognised call ${call}`.slice(0, 300));
     }
     for (const field of FIELDS) {
       const value = entry[field];
       if (value === undefined || value === null || typeof value === "number") continue;
       for (const [i, text] of (Array.isArray(value) ? value : [value]).entries()) {
         fields++;
-        scan(
-          `${where} ${field}${Array.isArray(value) ? `[${i}]` : ""}`,
-          String(text),
-          findings,
-          refs,
-        );
+        scan(`${where} ${field}${Array.isArray(value) ? `[${i}]` : ""}`, String(text), findings);
       }
     }
   });
   for (const name of readdirSync(directory).sort()) {
     if (name === LOG_FILE || !name.endsWith(".json")) continue;
     fields++;
-    // visibility.json names every repository by design; it is scanned for credentials only.
-    const named = name === VISIBILITY_FILE ? undefined : refs;
-    const text = readFileSync(join(directory, name), "utf8");
-    scan(name, text, findings, named);
-    if (name === META_FILE) metaNames(text, findings);
+    scan(name, readFileSync(join(directory, name), "utf8"), findings);
   }
-  return { entries: lines.length, fields, refs, findings };
+  return { entries: lines.length, fields, refs, calls, findings };
 }
 
-/** meta.json keys the repositories the recorder excluded or fenced; each must be a placeholder. */
-function metaNames(text: string, findings: string[]): void {
-  let meta: Record<string, unknown>;
-  try {
-    meta = JSON.parse(text);
-  } catch {
-    findings.push(`${META_FILE}: not JSON`);
-    return;
-  }
-  for (const key of ["excluded", "fenced"]) {
-    const map = meta[key];
-    if (!map || typeof map !== "object") continue;
-    for (const name of Object.keys(map)) {
-      if (name.includes("/") && !isPlaceholder(name))
-        findings.push(`${META_FILE}: ${key} names ${name}`);
-    }
-  }
-}
-
-/** Every repository, project and group a sweep directory names: what the recorder checks the
- * visibility of. */
+/** Every repository, project and group a recorded call targets, fenced calls included: what
+ * the recorder checks the visibility of. */
 export function sweepReferences(directory: string): References {
   return collect(directory).refs;
 }
@@ -535,7 +533,7 @@ const FORGES = [
 
 /** Audits exec.jsonl and every other recorded JSON file in a sweep directory. */
 export function auditSweep(directory: string): AuditResult {
-  const { entries, fields, refs, findings } = collect(directory);
+  const { entries, fields, refs, calls, findings } = collect(directory);
   const visibilityPath = join(directory, VISIBILITY_FILE);
   const visibility: VisibilityFile | undefined = existsSync(visibilityPath)
     ? JSON.parse(readFileSync(visibilityPath, "utf8"))
@@ -543,11 +541,16 @@ export function auditSweep(directory: string): AuditResult {
   if (!visibility)
     findings.push(`${VISIBILITY_FILE}: missing; visibility is checked at record time`);
   for (const [forge, label] of FORGES) {
-    for (const name of [...refs[forge]].sort()) {
+    // A call fenced on a repository read nothing of it; any other call reads what it targets.
+    const read = new Set(
+      calls.flatMap(({ targets, fencedOn }) =>
+        [...targets[forge]].filter((name) => name.toLowerCase() !== fencedOn?.toLowerCase()),
+      ),
+    );
+    for (const name of [...read].sort()) {
       const seen = visibility ? lookup(visibility[forge], name) : undefined;
-      if (visibility && !ALLOWED.has(seen ?? "unknown")) {
+      if (visibility && !ALLOWED.has(seen ?? "unknown"))
         findings.push(`${label} ${name}: ${seen ?? "not checked at record time"}`);
-      }
     }
   }
   return {
