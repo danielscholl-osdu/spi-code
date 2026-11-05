@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type CoreContext, defaultContext } from "../context.js";
+import type { CoreContext } from "../context.js";
 import type { ForkRuns, RepoFact } from "../facts.js";
 import { latestChecks } from "./checks.js";
 
@@ -26,7 +26,7 @@ export interface LaneLoad {
   claims?: LaneInFlight[];
 }
 
-export function laneCap(context: CoreContext = defaultContext): Pick<LaneLoad, "cap" | "capFrom"> {
+export function laneCap(context: CoreContext): Pick<LaneLoad, "cap" | "capFrom"> {
   const override = context.paths.lanesOverride;
   if (override) return { cap: override, capFrom: "RIB_SPI_LANES" };
   const lanes = context.rollout?.lanes;
@@ -42,7 +42,7 @@ export function laneLoad(input: {
   prsRead: boolean;
   dispatched?: Record<string, string>;
   pressed?: Record<string, string>;
-}, context: CoreContext = defaultContext): LaneLoad {
+}, context: CoreContext): LaneLoad {
   const inflight: LaneInFlight[] = [];
   const claims: LaneInFlight[] = [];
   for (const fork of context.fleet.forks) {

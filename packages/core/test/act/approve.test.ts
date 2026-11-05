@@ -7,6 +7,7 @@ import { bindingSchema } from "../../src/act/verbs.js";
 import type { OutsidePr, WaitingRun } from "../../src/facts.js";
 import { buildModel } from "../../src/model/index.js";
 import type { ApprovePr } from "../../src/model/queue.js";
+import { fixtureContext } from "../briefing-setup.js";
 import { FIXTURE_NOW, fixtureFacts } from "../harness.js";
 
 const STACK = "Azure/osdu-spi-stack";
@@ -172,7 +173,7 @@ const WAITING: WaitingRun[] = [
 function modelWith(waiting: WaitingRun[]) {
   const facts = fixtureFacts();
   facts.approvals.data = { ...facts.approvals.data, [STACK]: waiting };
-  return buildModel(facts, FIXTURE_NOW);
+  return buildModel(facts, FIXTURE_NOW, {}, fixtureContext);
 }
 
 describe("waiting runs in the queue", () => {

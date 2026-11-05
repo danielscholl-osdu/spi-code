@@ -8,7 +8,7 @@ import {
   SYNC_UPSTREAM_CRON,
 } from "../config.js";
 import type { LifecycleRun } from "../facts.js";
-import { type CoreContext, defaultContext } from "../context.js";
+import type { CoreContext } from "../context.js";
 import type { Model } from "../model/index.js";
 import type { LineModel } from "../model/lines.js";
 import { type ItemClass, itemClass, nextText, verbOf } from "../model/next.js";
@@ -744,7 +744,7 @@ function relatedOf(model: Model, item: QueueItem, themes: readonly Theme[]): Rel
   return out;
 }
 
-export function readItem(model: Model, item: QueueItem, now: Date | undefined = undefined, context: CoreContext = defaultContext): Reading {
+export function readItem(model: Model, item: QueueItem, now: Date | undefined = undefined, context: CoreContext): Reading {
   now ??= context.clock.now();
   if (item.kind === "rollout" && model.rollout) {
     const w = rolloutWords(model.rollout, now);
@@ -1330,7 +1330,7 @@ function environmentOf(model: Model, env: BriefFact | undefined, now: Date): Env
 }
 
 // Pure: the same model, doctor and clock always write the same briefing.
-export function buildBriefing(model: Model, doctor: DoctorView, now: Date | undefined = undefined, context: CoreContext = defaultContext): Briefing {
+export function buildBriefing(model: Model, doctor: DoctorView, now: Date | undefined = undefined, context: CoreContext): Briefing {
   now ??= context.clock.now();
   const nextIso = syncAt(now);
   const next = clock(nextIso);

@@ -5,6 +5,7 @@ import { describe, expect, test } from "vitest";
 import { buildModel } from "../src/model/index";
 import { CLASS_VERB, itemClass, nextText, verbOf } from "../src/model/next";
 import type { QueueItem } from "../src/model/queue";
+import { fixtureContext } from "./briefing-setup";
 import { FIXTURE_NOW, fixtureFacts } from "./harness";
 
 function item(over: Partial<QueueItem>): QueueItem {
@@ -164,7 +165,7 @@ describe("the banner on the recorded sweep", () => {
       title: "chore: release 1.4.0",
       url: `${fork.url}/pull/5`,
     });
-    const model = buildModel(f, FIXTURE_NOW);
+    const model = buildModel(f, FIXTURE_NOW, {}, fixtureContext);
     const releases = model.queue.items.find((i) => i.kind === "releases");
     expect(releases?.text).toBe(
       "2 release PRs · osdu-spi v1.2.1 and 1 first release · review required",

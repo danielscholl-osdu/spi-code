@@ -47,7 +47,7 @@ describe("a change only on main", () => {
     const item = m.queue.items.find((i) => i.id === "rollout");
     expect(item).toMatchObject({ rung: 1, cls: "ROLLOUT", scope: "fleet" });
     expect(m.queue.items.some((i) => i.id === "template-set")).toBe(false);
-    const b = buildBriefing(m, { state: "clear", problems: [] }, FIXTURE_NOW);
+    const b = buildBriefing(m, { state: "clear", problems: [] }, FIXTURE_NOW, context);
     const focus = b.focus.find((f) => f.id === "rollout");
     expect(focus?.verb).toBe("Start rollout");
     expect(focus?.next).toBe("Start the rollout: dispatch Sync Template to the first 2 forks.");
@@ -181,7 +181,7 @@ describe("the words around a rollout", () => {
 
   test("the evidence leads with main's sha and how far the forks trail it", () => {
     const m = buildModel(readyFacts(), FIXTURE_NOW, {}, context);
-    const b = buildBriefing(m, { state: "clear", problems: [] }, FIXTURE_NOW);
+    const b = buildBriefing(m, { state: "clear", problems: [] }, FIXTURE_NOW, context);
     const evidence = b.focus.find((f) => f.id === "rollout")?.evidence.map((e) => e.label);
     expect(evidence?.slice(0, 2)).toEqual(["main c0de000", "forks on ea9a2e1"]);
   });

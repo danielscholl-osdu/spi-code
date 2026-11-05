@@ -137,12 +137,30 @@ describe("explicit core context", () => {
       expect(model).toEqual(buildModel(releasedFacts(), date, {}, context));
       const item = model.queue.items[0];
       if (!item) throw new Error("fixture has a queue item");
-      expect(readItem(model, item, undefined, context)).toEqual(readItem(model, item, date));
+      expect(readItem(model, item, undefined, context)).toEqual(
+        readItem(model, item, date, context),
+      );
       const crons = toCrons(["0 8 * * 1-5"]);
       expect(cadence(crons, "unscheduled", undefined, context)).toBe(
-        cadence(crons, "unscheduled", date),
+        cadence(crons, "unscheduled", date, context),
       );
     }
+  });
+
+  test("tsc rejects a buildModel, buildBriefing or readItem call that omits the context", () => {
+    const facts = releasedFacts();
+    const model = buildModel(facts, FIXTURE_NOW, {}, fixtureContext);
+    const item = model.queue.items[0];
+    if (!item) throw new Error("fixture has a queue item");
+    const omitted = [
+      // @ts-expect-error the context is required
+      () => buildModel(facts, FIXTURE_NOW, {}),
+      // @ts-expect-error the context is required
+      () => buildBriefing(model, { state: "clear", problems: [] }, FIXTURE_NOW),
+      // @ts-expect-error the context is required
+      () => readItem(model, item, FIXTURE_NOW),
+    ];
+    expect(omitted).toHaveLength(3);
   });
 
   test("environment adapters snapshot paths and contexts detach mutable fleet and rollout inputs", () => {

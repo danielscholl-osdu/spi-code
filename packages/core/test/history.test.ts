@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "vitest";
+import { defaultContext } from "../src/context";
 import type { LifecycleRun } from "../src/facts";
 import {
   behindDays,
@@ -53,9 +54,11 @@ describe("schedules", () => {
     if (!cron) throw new Error("parses");
     expect(firesOn(cron, Date.parse("2026-10-12T00:00:00Z"))).toBe(true);
     expect(firesOn(cron, Date.parse("2026-10-10T00:00:00Z"))).toBe(false);
-    expect(cadence([cron])).toBe("weekdays 04:00");
-    expect(cadence(toCrons(["0 8 * * *"]))).toBe("daily 08:00");
-    expect(cadence([], "on bump")).toBe("on bump");
+    expect(cadence([cron], undefined, undefined, defaultContext)).toBe("weekdays 04:00");
+    expect(cadence(toCrons(["0 8 * * *"]), undefined, undefined, defaultContext)).toBe(
+      "daily 08:00",
+    );
+    expect(cadence([], "on bump", undefined, defaultContext)).toBe("on bump");
   });
 
   test("the next run skips the weekend", () => {
@@ -66,11 +69,18 @@ describe("schedules", () => {
   test("a cadence reads in local time, so a UTC weekday cron runs Sunday to Thursday evening in Chicago", () => {
     inZone("America/Chicago", () => {
       const now = new Date("2026-10-13T12:00:00Z");
-      expect(cadence(toCrons(["0 4 * * 1-5"]), undefined, now)).toBe("Sun-Thu 23:00");
-      expect(cadence(toCrons(["0 8 * * *"]), undefined, now)).toBe("daily 03:00");
-      expect(cadence(toCrons(["0 8 * * *"]), undefined, new Date("2026-11-10T12:00:00Z"))).toBe(
-        "daily 02:00",
+      expect(cadence(toCrons(["0 4 * * 1-5"]), undefined, now, defaultContext)).toBe(
+        "Sun-Thu 23:00",
       );
+      expect(cadence(toCrons(["0 8 * * *"]), undefined, now, defaultContext)).toBe("daily 03:00");
+      expect(
+        cadence(
+          toCrons(["0 8 * * *"]),
+          undefined,
+          new Date("2026-11-10T12:00:00Z"),
+          defaultContext,
+        ),
+      ).toBe("daily 02:00");
     });
   });
 

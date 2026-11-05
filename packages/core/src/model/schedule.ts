@@ -1,6 +1,6 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
-import { type CoreContext, defaultContext } from "../context.js";
+import type { CoreContext } from "../context.js";
 
 // Five-field cron as GitHub Actions reads it: UTC, with day-of-month and
 // day-of-week OR'ed when both are restricted.
@@ -158,7 +158,7 @@ export function cadence(
   crons: readonly Cron[],
   unscheduled = "unscheduled",
   now: Date | undefined = undefined,
-  context: CoreContext = defaultContext,
+  context: CoreContext,
 ): string {
   now ??= context.clock.now();
   const cron = crons[0];

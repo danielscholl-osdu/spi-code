@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { type ServiceDef, STACK_REPO, TEMPLATE_REPO } from "../config.js";
-import { type CoreContext, defaultContext } from "../context.js";
+import type { CoreContext } from "../context.js";
 import type {
   CodeAlertFact,
   DependencyAlertFact,
@@ -477,7 +477,7 @@ export function buildRepos(input: {
   alerts: Measured<Record<string, RepoAlerts>>;
   filters?: RadarFacts["filters"];
   synced?: SyncedPaths;
-}, context: CoreContext = defaultContext): ReposModel {
+}, context: CoreContext): ReposModel {
   const FORKS = context.fleet.forks;
   const alerts = input.alerts.data;
   const program = (repo: string, name: string): RepoRow =>

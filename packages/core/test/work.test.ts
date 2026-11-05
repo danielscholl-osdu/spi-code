@@ -3,6 +3,7 @@
 
 import { describe, expect, test } from "vitest";
 import { FORKS, STACK_REPO } from "../src/config";
+import { defaultContext } from "../src/context";
 import type { Facts, IssueFact, PrFact } from "../src/facts";
 import { buildWork, issueKind, prKind } from "../src/model/work";
 import { fixtureFacts } from "./harness";
@@ -81,7 +82,7 @@ function seeded(repo = STACK_REPO): Facts {
 
 describe("open work", () => {
   test("people, bot and pipeline PRs split by class, with outside authors and drafts apart", () => {
-    const work = buildWork(seeded().github.data?.repos ?? {});
+    const work = buildWork(seeded().github.data?.repos ?? {}, defaultContext);
     expect([work.template.name, work.stack.name]).toEqual(["osdu-spi", "osdu-spi-stack"]);
     expect(work.forks.map((r) => r.name)).toEqual(FORKS.map((f) => f.id));
     const { stack } = work;
@@ -94,7 +95,7 @@ describe("open work", () => {
   });
 
   test("automation issues stand apart from bugs, enhancements and the rest", () => {
-    const { stack } = buildWork(seeded().github.data?.repos ?? {});
+    const { stack } = buildWork(seeded().github.data?.repos ?? {}, defaultContext);
     expect(stack.issues.bug.map((i) => i.number)).toEqual([324, 321]);
     expect(stack.issues.enhancement.map((i) => i.number)).toEqual([133]);
     expect(stack.issues.other.map((i) => i.number)).toEqual([300]);
@@ -105,7 +106,7 @@ describe("open work", () => {
   });
 
   test("the fixture's sync engine PRs and issues never count as people work", () => {
-    const { forks } = buildWork(fixtureFacts().github.data?.repos ?? {});
+    const { forks } = buildWork(fixtureFacts().github.data?.repos ?? {}, defaultContext);
     const legal = forks.find((r) => r.name === "legal");
     expect(legal?.prs.people).toEqual([]);
     expect(legal?.issues.automation.length).toBe(1);
@@ -120,7 +121,7 @@ describe("open work", () => {
   test("a fork's open work counts its people, outside authors and issues; an unread fork is unread", () => {
     const f = seeded("Azure/osdu-spi-file");
     delete f.github.data?.repos["Azure/osdu-spi-schema"];
-    const { forks } = buildWork(f.github.data?.repos ?? {});
+    const { forks } = buildWork(f.github.data?.repos ?? {}, defaultContext);
     const fork = (name: string) => forks.find((r) => r.name === name);
     expect(fork("schema")?.read).toBe(false);
     const file = fork("file");

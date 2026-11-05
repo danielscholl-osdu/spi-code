@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { forkOf, githubUrl, SYNC_UPSTREAM_CRON, TEMPLATE_REPO } from "../config.js";
-import { type CoreContext, defaultContext } from "../context.js";
+import type { CoreContext } from "../context.js";
 import type { ForkRuns, JobDetail, PastPrFact, RunFact, TemplateChange } from "../facts.js";
 import { type Judgement, judgeRun, type OrderRule } from "../rollout.js";
 import { names, stamp } from "../util.js";
@@ -322,7 +322,7 @@ export function buildRollout(input: {
   held?: string;
   radar?: RadarModel;
   now: Date;
-}, context: CoreContext = defaultContext): RolloutModel | undefined {
+}, context: CoreContext): RolloutModel | undefined {
   const { template: t, lines, runs, lanes, now } = input;
   const head = t.head;
   if (!head || t.rows.length === 0) return undefined;

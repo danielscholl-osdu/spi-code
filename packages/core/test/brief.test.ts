@@ -54,7 +54,7 @@ const RELEASES = item({
 });
 
 describe("the recorded sweep", () => {
-  const b = buildBriefing(fixtureModel(), CLEAR, FIXTURE_NOW);
+  const b = buildBriefing(fixtureModel(), CLEAR, FIXTURE_NOW, fixtureContext);
 
   test("the headline names two causes as imperatives and counts the rest", () => {
     expect(b.headline).toBe("Restore the environment. Unhalt entitlements. 2 more causes below.");
@@ -159,14 +159,14 @@ describe("the recorded sweep", () => {
 
 describe("other days", () => {
   test("a quiet day says nothing needs you and when the next sync runs", () => {
-    const b = buildBriefing(withQueue([]), CLEAR, FIXTURE_NOW);
+    const b = buildBriefing(withQueue([]), CLEAR, FIXTURE_NOW, fixtureContext);
     expect(b.headline).toBe("Nothing needs you. Next sync at 00:00.");
     expect(b.focus).toEqual([]);
     expect(b.facts[1]).toMatchObject({ figure: "0 of 5", tone: "ok" });
   });
 
   test("a day with only ready work says nothing is broken", () => {
-    const b = buildBriefing(withQueue([RELEASES]), CLEAR, FIXTURE_NOW);
+    const b = buildBriefing(withQueue([RELEASES]), CLEAR, FIXTURE_NOW, fixtureContext);
     expect(b.headline).toBe("Nothing is broken. 2 PRs are ready for review.");
     expect(b.summary).not.toContain("ready for review");
   });
@@ -190,7 +190,7 @@ describe("other days", () => {
         cause: [{ label: "value", value: "Java 25" }],
       }),
     ]);
-    const b = buildBriefing(m, CLEAR, FIXTURE_NOW);
+    const b = buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext);
     expect(b.headline).toBe("Move legal to Java 25 before partition follows at 00:00.");
     expect(b.focus[1]?.sub).toBe(
       "2 commits queued · syncs at 00:00 · expected to fail the way legal's did",
@@ -211,7 +211,7 @@ describe("other days", () => {
         cause: [{ label: "value", value: "Java 25" }],
       }),
     ]);
-    expect(buildBriefing(m, CLEAR, FIXTURE_NOW).headline).toBe(
+    expect(buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext).headline).toBe(
       "Move partition to Java 25 before the 00:00 sync.",
     );
   });
@@ -225,7 +225,7 @@ describe("other days", () => {
       item({ id: "conflict:c", kind: "conflict", rung: 0, scope: "c", incident: true }),
       item({ id: "gate1:d", scope: "d", cls: "BUILD", incident: true }),
     ]);
-    const b = buildBriefing(m, CLEAR, FIXTURE_NOW);
+    const b = buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext);
     expect(b.headline).toBe("Restore the environment. Unhalt a. 3 more causes below.");
     expect(b.focus).toHaveLength(5);
     expect(b.more).toBe(1);
@@ -237,20 +237,20 @@ describe("other days", () => {
 
   test("a dark GitHub leads with the source and its last read", () => {
     const dark: DoctorView = { state: "dark", problems: ["⚠ GitHub unread since 11:20"] };
-    const b = buildBriefing(fixtureModel(), dark, FIXTURE_NOW);
+    const b = buildBriefing(fixtureModel(), dark, FIXTURE_NOW, fixtureContext);
     expect(b.headline).toBe("GitHub unread since 11:20. Figures are from the last good read.");
   });
 
   test("a partial read opens the summary with the source that failed", () => {
     const partial: DoctorView = { state: "partial", problems: ["⚠ GitLab unread since 09:10"] };
-    const b = buildBriefing(fixtureModel(), partial, FIXTURE_NOW);
+    const b = buildBriefing(fixtureModel(), partial, FIXTURE_NOW, fixtureContext);
     expect(b.summary.startsWith("GitLab unread since 09:10.")).toBe(true);
   });
 
   test("before the first sweep there is nothing to brief", () => {
     const m = fixtureModel();
     m.measured = false;
-    const b = buildBriefing(m, { state: "waiting", problems: [] }, FIXTURE_NOW);
+    const b = buildBriefing(m, { state: "waiting", problems: [] }, FIXTURE_NOW, fixtureContext);
     expect(b.headline).toBe("The first sweep has not finished.");
     expect(b.facts).toEqual([]);
   });
@@ -269,7 +269,7 @@ describe("the horizon", () => {
   test("a quiet sweep says nothing new reaches the forks", () => {
     const m = withQueue([]);
     m.radar.services = {};
-    const b = buildBriefing(m, CLEAR, FIXTURE_NOW);
+    const b = buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext);
     expect(b.horizon.headline).toBe("Nothing new reaches the forks at the next sync.");
     expect(b.themes.every((t) => t.kind === "deadline")).toBe(true);
   });
@@ -282,7 +282,7 @@ describe("the horizon", () => {
       cls: "HALT",
       halt: { fork: "legal", code: "UNKNOWN_TOP_LEVEL", entries: ["schemathesis-tests"] },
     });
-    const b = buildBriefing(withQueue([radarHalt]), CLEAR, FIXTURE_NOW);
+    const b = buildBriefing(withQueue([radarHalt]), CLEAR, FIXTURE_NOW, fixtureContext);
     expect(b.themes.find((t) => t.kind === "halt")?.inspect).toBe("radar:legal");
     expect(b.themes.find((t) => t.kind === "toolchain")?.inspect).toBeUndefined();
     expect(b.themes.find((t) => t.kind === "port")?.inspect).toBeUndefined();
@@ -294,7 +294,7 @@ describe("the horizon", () => {
     const java = m.radar.services.legal!.certain.find((v) => v.bucket === "Toolchain")!;
     svc.certain = [...svc.certain, java];
     svc.possible = svc.possible.filter((v) => v.bucket !== "Toolchain");
-    const b = buildBriefing(m, CLEAR, FIXTURE_NOW);
+    const b = buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext);
     expect(b.horizon.headline).toBe(
       "Java 25 reaches partition and legal at 00:00. One filter entry would stop 4 future halts.",
     );
@@ -310,9 +310,9 @@ describe("wording", () => {
       rung: 2,
       text: "env bump to v0.28.6 is open; merging it starts env-upgrade",
     });
-    expect(buildBriefing(withQueue([bump]), CLEAR, FIXTURE_NOW).ready[0]?.text).toBe(
-      "env bump to v0.28.6 is open",
-    );
+    expect(
+      buildBriefing(withQueue([bump]), CLEAR, FIXTURE_NOW, fixtureContext).ready[0]?.text,
+    ).toBe("env bump to v0.28.6 is open");
   });
 });
 
@@ -323,7 +323,7 @@ describe("the environment", () => {
 
   function envOf(facts: Facts) {
     const m = buildModel(facts, FIXTURE_NOW, {}, fixtureContext);
-    return { m, env: buildBriefing(m, CLEAR, FIXTURE_NOW).environment };
+    return { m, env: buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext).environment };
   }
 
   // The recorded in-flight upgrade, finished green at 21:58 with maintenance cleared.
@@ -491,14 +491,19 @@ describe("one item as the inspector reads it", () => {
   const read = (id: string) => {
     const found = model.queue.items.find((i) => i.id === id);
     if (!found) throw new Error(`fixture has no ${id}`);
-    return readItem(model, found, FIXTURE_NOW);
+    return readItem(model, found, FIXTURE_NOW, fixtureContext);
   };
 
   test("a gap shows only when the item names what the fork has and what upstream needs", () => {
     expect(read("gate1:legal").gap).toEqual({ have: "Java 17", need: "Java 25" });
     expect(read("halt:entitlements").gap).toBeUndefined();
     expect(
-      readItem(model, item({ cls: "TOOLCHAIN", text: "requires Java 25" }), FIXTURE_NOW).gap,
+      readItem(
+        model,
+        item({ cls: "TOOLCHAIN", text: "requires Java 25" }),
+        FIXTURE_NOW,
+        fixtureContext,
+      ).gap,
     ).toBeUndefined();
   });
 
@@ -514,7 +519,7 @@ describe("one item as the inspector reads it", () => {
   });
 
   test("the title is the console's, and a port names its count rather than its trees", () => {
-    const b = buildBriefing(model, CLEAR, FIXTURE_NOW);
+    const b = buildBriefing(model, CLEAR, FIXTURE_NOW, fixtureContext);
     const legal = b.focus.find((f) => f.id === "gate1:legal");
     expect(read("gate1:legal").title).toBe(legal?.title ?? "");
     expect(read("port:entitlements").title).toBe("2 upstream MRs not ported");

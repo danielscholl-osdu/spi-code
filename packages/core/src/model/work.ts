@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { STACK_REPO, TEMPLATE_REPO } from "../config.js";
-import { type CoreContext, defaultContext } from "../context.js";
+import type { CoreContext } from "../context.js";
 import type { IssueFact, PrFact, RepoFact } from "../facts.js";
 import { classifyPr, type PrClass } from "./attribution.js";
 
@@ -98,7 +98,7 @@ export interface WorkModel {
 }
 
 // Every open PR and issue on every repository, whether or not it sits on a line.
-export function buildWork(repos: Record<string, RepoFact>, context: CoreContext = defaultContext): WorkModel {
+export function buildWork(repos: Record<string, RepoFact>, context: CoreContext): WorkModel {
   return {
     template: workRow(TEMPLATE_REPO, "osdu-spi", repos[TEMPLATE_REPO]),
     stack: workRow(STACK_REPO, "osdu-spi-stack", repos[STACK_REPO]),

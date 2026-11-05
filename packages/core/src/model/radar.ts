@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type CoreContext, defaultContext } from "../context.js";
+import type { CoreContext } from "../context.js";
 import type { DiffFact, LibraryPins, MrFact, RadarFacts } from "../facts.js";
 import { type FilterMap, parseFilter, type UpstreamFilter } from "./filter.js";
 import type { LineModel } from "./lines.js";
@@ -331,7 +331,7 @@ export function predict(
   };
 }
 
-export function predictAll(radar: RadarFacts | undefined, context: CoreContext = defaultContext): Record<string, Prediction> {
+export function predictAll(radar: RadarFacts | undefined, context: CoreContext): Record<string, Prediction> {
   const out: Record<string, Prediction> = {};
   if (!radar) return out;
   const filters = Object.fromEntries(

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { forkOf, githubUrl, shortRepo, TEMPLATE_REPO } from "../config.js";
-import { type CoreContext, defaultContext } from "../context.js";
+import type { CoreContext } from "../context.js";
 import type { OutsidePr, PrFact, RepoFact, WaitingRun } from "../facts.js";
 import { governing, type Judgement } from "../rollout.js";
 import { clip, plural, releaseTag, short, stamp } from "../util.js";
@@ -1272,7 +1272,7 @@ export function buildQueue(input: {
   repositories?: ReposModel;
   dismissed?: readonly DismissEntry[];
   now: Date;
-}, context: CoreContext = defaultContext): Queue {
+}, context: CoreContext): Queue {
   const { stack, lines, template, repos, details, approvals, radar, now } = input;
   const items: QueueItem[] = [];
   items.push(...stackItems(stack, lines, now).items);

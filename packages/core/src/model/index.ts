@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { type ServiceDef, STACK_REPO, TEMPLATE_REPO } from "../config.js";
-import { type CoreContext, defaultContext } from "../context.js";
+import type { CoreContext } from "../context.js";
 import type { Facts } from "../facts.js";
 import type { DismissEntry } from "./dismiss.js";
 import { buildGates, type Gates } from "./gates.js";
@@ -55,24 +55,24 @@ export function buildModel(
     pressed?: Record<string, string>;
     dismissed?: readonly DismissEntry[];
   } = {},
-  context: CoreContext = defaultContext,
+  context: CoreContext,
 ): Model {
   now ??= context.clock.now();
-  const { forks: FORKS, planned: PLANNED } = context.fleet;
+  const { forks, planned } = context.fleet;
   const { repos, ignored } = withoutNoise(facts.github.data?.repos ?? {});
   const details = facts.details.data ?? {};
   const stack = buildStack(
     repos[STACK_REPO],
     facts.lifecycle.data,
     now,
-    FORKS.flatMap((f) => {
+    forks.flatMap((f) => {
       const repo = repos[f.repo];
       return repo ? [{ fork: f.id, deployments: repo.deployments }] : [];
     }),
   );
   const templateRepo = repos[TEMPLATE_REPO];
   const predictions = predictAll(facts.radar.data, context);
-  const lines = FORKS.map((fork) =>
+  const lines = forks.map((fork) =>
     buildLine({
       fork,
       repo: repos[fork.repo],
@@ -90,7 +90,7 @@ export function buildModel(
   );
   const radar = buildRadar(predictions, lines, facts.radar.data);
   const template = buildTemplate(templateRepo, facts.template.data, lines, {
-    syncCrons: [...new Set(FORKS.flatMap((f) => repos[f.repo]?.syncCrons ?? []))],
+    syncCrons: [...new Set(forks.flatMap((f) => repos[f.repo]?.syncCrons ?? []))],
     now,
     details,
   });
@@ -145,7 +145,7 @@ export function buildModel(
     upstreamAt: facts.upstream.at,
     stack,
     lines,
-    planned: PLANNED.map((service) => ({
+    planned: planned.map((service) => ({
       service,
       exists: facts.github.data?.planned[service.id] ?? false,
     })),

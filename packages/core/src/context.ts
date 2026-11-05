@@ -44,6 +44,6 @@ export function contextFromEnv(
   return createContext({ paths, fleet: fleetOf(builtInFleet(paths.servicesFile ?? null)), clock });
 }
 
-export function replayFile(context: CoreContext = defaultContext): string | undefined {
+export function replayFile(context: CoreContext): string | undefined {
   return context.paths.factsFile;
 }

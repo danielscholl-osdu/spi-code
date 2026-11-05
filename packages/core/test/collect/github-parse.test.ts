@@ -236,6 +236,6 @@ describe("open work", () => {
     expect(fact.issues[0]).toMatchObject({ author: "osdu-spi-automation", bot: true });
     expect(fact.openPrs).toBe(41);
     expect(fact.openIssues).toBe(1);
-    expect(buildWork({ [STACK_REPO]: fact }).stack.unreadPrs).toBe(40);
+    expect(buildWork({ [STACK_REPO]: fact }, context).stack.unreadPrs).toBe(40);
   });
 });

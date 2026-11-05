@@ -8,7 +8,7 @@ import {
   type ReleaseReads,
 } from "../releases.js";
 import { CORE_LIB_REPO, STACK_REPO, TEMPLATE_REPO } from "../config.js";
-import { type CoreContext, defaultContext } from "../context.js";
+import type { CoreContext } from "../context.js";
 
 export type ComponentKind = "template" | "stack" | "library" | "service";
 export type ChangeType = "breaking" | "new" | "improved" | "fixed" | "security";
@@ -87,7 +87,7 @@ const ID_OF: Readonly<Record<string, string>> = Object.freeze({
   [CORE_LIB_REPO]: "core-lib-azure",
 });
 
-export function componentId(repo: string, context: CoreContext = defaultContext): string {
+export function componentId(repo: string, context: CoreContext): string {
   return ID_OF[repo] ?? context.fleet.forks.find((f) => f.repo === repo)?.id ?? repo;
 }
 
@@ -218,7 +218,7 @@ function firstLine(c: Component, tag: string): string {
   return `First ${c.id} release (${tag})`;
 }
 
-export function monthFacts(reads: ReleaseReads, month: string, now: Date, context: CoreContext = defaultContext): MonthFacts {
+export function monthFacts(reads: ReleaseReads, month: string, now: Date, context: CoreContext): MonthFacts {
   const { forks: FORKS, releaseRepos: RELEASE_REPOS } = context.fleet;
   const { start, end } = bounds(month);
   const open = now.getTime() < end.getTime();
