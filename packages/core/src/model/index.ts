@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type ServiceDef, STACK_REPO, TEMPLATE_REPO } from "../config.js";
+import { type ServiceDef, TEMPLATE_REPO } from "../config.js";
 import type { CoreContext } from "../context.js";
 import type { Facts } from "../facts.js";
 import type { DismissEntry } from "./dismiss.js";
@@ -62,7 +62,7 @@ export function buildModel(
   const { repos, ignored } = withoutNoise(facts.github.data?.repos ?? {});
   const details = facts.details.data ?? {};
   const stack = buildStack(
-    repos[STACK_REPO],
+    repos[context.stackRepo],
     facts.lifecycle.data,
     now,
     forks.flatMap((f) => {

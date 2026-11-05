@@ -141,6 +141,34 @@ it("passes the query fleet to the GitHub parser for planned aliases", async () =
   });
 });
 
+it("queries and reports the context stack rather than the default repository", async () => {
+  const custom = createContext({ clock, fleet: fleetOf([]), stackRepo: "custom/environment" });
+  const queries = buildQueries(custom).join("\n");
+  expect(queries).toContain('r_stack: repository(owner: "custom", name: "environment")');
+  expect(queries).not.toContain('name: "osdu-spi-stack"');
+  await replay(
+    [
+      response(
+        {
+          r_template: base.r_template,
+          r_stack: { nameWithOwner: "custom/environment" },
+        },
+        3,
+        97,
+      ),
+    ],
+    async (exec) => {
+      const { facts, records } = await readGithub(new Gh(exec), custom, parseGithub);
+      expect(facts.repos["custom/environment"]?.repo).toBe("custom/environment");
+      expect(records.find((r) => r.object === "custom/environment")).toMatchObject({
+        source: "github",
+        completeness: { kind: "complete" },
+      });
+      expect(records.some((r) => r.object === STACK_REPO)).toBe(false);
+    },
+  );
+});
+
 it("marks a truncated pulls connection cut without affecting other repos", async () => {
   const raw = { ...forks(0, 5), r_fork0: { pullRequests: { totalCount: 41, nodes: [{}] } } };
   await replay([response(base, 3, 97), response(raw, 9, 88)], async (exec) => {

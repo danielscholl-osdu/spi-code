@@ -3,7 +3,7 @@
 
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { buildBriefing, readItem } from "../src/brief/index";
-import { fleetOf, forkOf } from "../src/config";
+import { fleetOf, forkOf, STACK_REPO } from "../src/config";
 import { type CoreContext, contextFromEnv, createContext, defaultContext } from "../src/context";
 import { buildModel } from "../src/model/index";
 import { noiseRule, withoutNoise } from "../src/model/noise";
@@ -25,6 +25,48 @@ function briefing(context: CoreContext) {
 }
 
 describe("explicit core context", () => {
+  test("stack identity drives repository lists and model reads without changing the default", () => {
+    expect(defaultContext.stackRepo).toBe(STACK_REPO);
+    const facts = releasedFacts();
+    const original = facts.github.data?.repos[STACK_REPO];
+    if (!original?.declaration || !facts.github.data)
+      throw new Error("fixture has a stack declaration");
+    const contexts = ["one/stack", "two/stack"].map((stackRepo) =>
+      createContext({ ...fixtureContext, stackRepo }),
+    );
+    for (const context of contexts) {
+      facts.github.data.repos[context.stackRepo] = {
+        ...original,
+        repo: context.stackRepo,
+        declaration: { ...original.declaration, stackVersion: context.stackRepo },
+      };
+    }
+    for (const context of [...contexts, ...[...contexts].reverse()]) {
+      expect(context.fleet.repos).toContain(context.stackRepo);
+      expect(context.fleet.releaseRepos).toContain(context.stackRepo);
+      expect(context.fleet.repos).not.toContain(STACK_REPO);
+      expect(context.fleet.releaseRepos).not.toContain(STACK_REPO);
+      const model = buildModel(facts, FIXTURE_NOW, {}, context);
+      expect(model.stack.declared).toBe(context.stackRepo);
+      expect(model.work.stack).toMatchObject({ repo: context.stackRepo, read: true });
+      expect(
+        model.repositories.rows.filter((r) => r.group === "program").map((r) => r.repo),
+      ).toContain(context.stackRepo);
+      const customReleases = {
+        ...releases,
+        releases: {
+          ...releases.releases,
+          [context.stackRepo]: releases.releases[STACK_REPO] ?? [],
+        },
+      };
+      expect(monthFacts(customReleases, "2026-10", FIXTURE_NOW, context).components).toContainEqual(
+        expect.objectContaining({ repo: context.stackRepo, id: "spi-stack", kind: "stack" }),
+      );
+    }
+    expect(defaultContext.fleet.repos).toContain(STACK_REPO);
+    expect(fixtureContext.fleet.repos).toContain(STACK_REPO);
+  });
+
   test("fork lookup requires a fleet and keeps identities isolated", () => {
     const repo = "custom/shared";
     const a = fleetOf([{ id: "a", repo, upstream: "upstream/a", mirror: true }]);

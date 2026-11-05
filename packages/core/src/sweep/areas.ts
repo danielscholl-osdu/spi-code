@@ -233,7 +233,8 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
     } : undefined, ctx));
 
   return new Sweeper({
-    ...options, areas, cacheSchema, emptyCache, prune: pruneCache,
+    ...options, areas, cacheSchema, emptyCache,
+    prune: (facts, cache) => pruneCache(facts, cache, options.ctx),
     context: (facts) => {
       if (!facts.fleet.data?.forks && !options.fleetFiles?.services && !facts.fleet.data?.rollout)
         return options.ctx;

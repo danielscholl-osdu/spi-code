@@ -286,6 +286,57 @@ test("two interleaved fleets keep facts, caches and budgets independent", async 
   expect(two.cache.budget).toEqual(budget);
 });
 
+test("sweeper pruning uses its context stack after fleet context rebuilding", async () => {
+  const sweepers = ["one/environment", "two/environment"].map((stackRepo, i) => {
+    const h = harness(`owner/fork${i}`);
+    return createSweeper({
+      ...h.options,
+      ctx: createContext({ ...h.options.ctx, stackRepo }),
+    });
+  });
+  await Promise.all(sweepers.map((sweeper) => sweeper.sweep()));
+  for (const [i, sweeper] of sweepers.entries()) {
+    const stackRepo = `${i === 0 ? "one" : "two"}/environment`;
+    const job = { id: 9, name: "Deploy", status: "completed", url: "u", steps: [] };
+    sweeper.facts.lifecycle.data = {
+      refresh: [
+        {
+          id: 7,
+          name: "Refresh",
+          path: "env-refresh.yml",
+          event: "workflow_dispatch",
+          status: "completed",
+          createdAt: START,
+          updatedAt: START,
+          sha: "abc",
+          title: "Refresh",
+          url: "u",
+          attempt: 1,
+          kind: "refresh",
+          jobs: [job],
+        },
+      ],
+      upgrade: [],
+      smoke: [],
+      sweeper: [],
+    };
+    sweeper.cache.details[`${stackRepo}#9`] = {
+      data: job,
+      reads: [
+        {
+          source: "github",
+          object: `repos/${stackRepo}/actions/jobs/9`,
+          observedAt: START,
+          completeness: { kind: "complete" },
+        },
+      ],
+    };
+    sweeper.prune();
+    expect(sweeper.cache.details[`${stackRepo}#9`]?.data).toEqual(job);
+    expect(sweeper.model.work.stack.repo).toBe(stackRepo);
+  }
+});
+
 test("a total outage keeps last-good radar and per-fork/approval evidence through repeated sweeps", async () => {
   const h = harness();
   const sweeper = createSweeper(h.options);
@@ -621,7 +672,7 @@ test("cache loading rejects malformed pin times and pruning bounds every collect
   cache.radar.pins.latestAt = "bad";
   expect(cacheSchema.safeParse(cache).success).toBe(false);
   delete cache.radar.pins.latestAt;
-  pruneCache(facts, cache);
+  pruneCache(facts, cache, createContext());
   expect(cache.lifecycle.runJobs).toEqual({});
   expect(cache.lifecycle.files).toEqual({});
   expect(cache.approvals).toEqual({});

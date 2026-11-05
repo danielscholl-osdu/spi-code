@@ -9,6 +9,7 @@ import { emptyRadarState, pruneRadar } from "../collect/radar.js";
 import { emptyReads, releaseStateSchema } from "../collect/releases.js";
 import { prFilesSchema } from "../collect/runs.js";
 import { templateStateSchema } from "../collect/template.js";
+import type { CoreContext } from "../context.js";
 import type { Facts } from "../facts.js";
 import { readRecordSchema } from "./record.js";
 
@@ -48,7 +49,7 @@ export function emptyCache(): CollectorCache {
   };
 }
 
-export function pruneCache(facts: Facts, cache: CollectorCache): void {
+export function pruneCache(facts: Facts, cache: CollectorCache, ctx: CoreContext): void {
   const details = new Set(Object.keys(facts.details.data ?? {}));
   const runs = new Set<string>();
   const files = new Set<string>();
@@ -56,7 +57,7 @@ export function pruneCache(facts: Facts, cache: CollectorCache): void {
     for (const run of list) {
       runs.add(jobsKey(run));
       files.add(run.sha);
-      for (const job of run.jobs ?? []) details.add(`Azure/osdu-spi-stack#${job.id}`);
+      for (const job of run.jobs ?? []) details.add(`${ctx.stackRepo}#${job.id}`);
     }
   }
   for (const [repo, entry] of Object.entries(facts.runs.data ?? {})) {

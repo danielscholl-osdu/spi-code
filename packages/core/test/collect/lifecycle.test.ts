@@ -141,6 +141,40 @@ test("ported lifecycle rerun reads the second attempt and clears maintenance on 
   expect(settled.reads.every((r) => !r.failure)).toBe(true);
 });
 
+test("lifecycle lists, job reads, declarations and polling use the context stack", async () => {
+  const stackRepo = "custom/environment";
+  const ctx = createContext({ ...context(), stackRepo });
+  const fixture: Fixture = (path) => {
+    expect(path).toMatch(/^repos\/custom\/environment\//);
+    if (path.includes("/contents/")) return { text: "stackVersion: v0.35.2\n" };
+    if (path.endsWith("/actions/runs/7")) return rawRun();
+    const value = lifecycle()(path);
+    if (path.includes("/workflows/env-upgrade.yml/runs"))
+      return { total: 1, runs: [{ ...rawRun(), display_title: "Upgrade" }] };
+    return value;
+  };
+  const result = await replay((gh) => readLifecycle(gh, {}, empty(), ctx), fixture);
+  expect(Object.keys(result.cache)).toEqual([`${stackRepo}#1`]);
+  const upgrade = result.data.upgrade[0];
+  if (!upgrade) throw new Error("fixture has an upgrade run");
+  expect(upgrade.target).toBe("v0.35.2");
+  const polled = await replay(
+    (gh) =>
+      pollRun(
+        gh,
+        result.cache,
+        {
+          data: upgrade,
+          reads: result.reads,
+        },
+        ctx,
+      ),
+    fixture,
+  );
+  expect(polled.reads.some((r) => r.object.startsWith(`repos/${STACK}/`))).toBe(false);
+  expect(polled.reads.some((r) => r.object.startsWith(`repos/${stackRepo}/contents/`))).toBe(true);
+});
+
 test.each([
   ["Environment", "failure", 1, "environment"],
   [null, "failure", 1, "real"],

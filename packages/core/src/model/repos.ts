@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type ServiceDef, STACK_REPO, TEMPLATE_REPO } from "../config.js";
+import { type ServiceDef, TEMPLATE_REPO } from "../config.js";
 import type { CoreContext } from "../context.js";
 import type {
   CodeAlertFact,
@@ -492,7 +492,7 @@ export function buildRepos(input: {
   const forkMap = new Map(FORKS.map((f) => [f.repo, f] as const));
   const rows = [
     program(TEMPLATE_REPO, TEMPLATE_REPO.split("/")[1] as string),
-    program(STACK_REPO, STACK_REPO.split("/")[1] as string),
+    program(context.stackRepo, context.stackRepo.split("/")[1] as string),
     ...FORKS.map((f) => {
       const text = input.filters?.[f.id]?.text;
       const owned = text

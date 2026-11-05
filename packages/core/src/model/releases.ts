@@ -7,7 +7,7 @@ import {
   type ReleaseFact,
   type ReleaseReads,
 } from "../releases.js";
-import { CORE_LIB_REPO, STACK_REPO, TEMPLATE_REPO } from "../config.js";
+import { CORE_LIB_REPO, TEMPLATE_REPO } from "../config.js";
 import type { CoreContext } from "../context.js";
 
 export type ComponentKind = "template" | "stack" | "library" | "service";
@@ -77,21 +77,21 @@ const MONTHS = Object.freeze([
 
 const KIND_OF: Readonly<Record<string, ComponentKind>> = Object.freeze({
   [TEMPLATE_REPO]: "template",
-  [STACK_REPO]: "stack",
   [CORE_LIB_REPO]: "library",
 });
 
 const ID_OF: Readonly<Record<string, string>> = Object.freeze({
   [TEMPLATE_REPO]: "spi-template",
-  [STACK_REPO]: "spi-stack",
   [CORE_LIB_REPO]: "core-lib-azure",
 });
 
 export function componentId(repo: string, context: CoreContext): string {
+  if (repo === context.stackRepo) return "spi-stack";
   return ID_OF[repo] ?? context.fleet.forks.find((f) => f.repo === repo)?.id ?? repo;
 }
 
-function kindOf(repo: string): ComponentKind {
+function kindOf(repo: string, context: CoreContext): ComponentKind {
+  if (repo === context.stackRepo) return "stack";
   return KIND_OF[repo] ?? "service";
 }
 
@@ -238,7 +238,7 @@ export function monthFacts(reads: ReleaseReads, month: string, now: Date, contex
     const upTo = before(list, end);
     const within = upTo.filter((r) => Date.parse(r.at) >= start.getTime());
     const latest = upTo[0];
-    const kind = kindOf(repo);
+    const kind = kindOf(repo, context);
     const c: Component = {
       id: componentId(repo, context),
       repo,

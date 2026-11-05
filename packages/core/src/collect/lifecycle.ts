@@ -3,7 +3,7 @@
 
 import { z } from "zod";
 import {
-  DECLARATION_PATH, HISTORY_DAYS, LIFECYCLE_WORKFLOWS, type LifecycleKind, STACK_REPO,
+  DECLARATION_PATH, HISTORY_DAYS, LIFECYCLE_WORKFLOWS, type LifecycleKind,
 } from "../config.js";
 import type { CoreContext } from "../context.js";
 import type { ReadRecord } from "../evidence/index.js";
@@ -251,8 +251,8 @@ export async function readRunJobs(
   return { data, cache, reads };
 }
 
-function declarationPath(sha: string): string {
-  return `repos/${STACK_REPO}/contents/${DECLARATION_PATH}?ref=${encodeURIComponent(sha)}`;
+function declarationPath(sha: string, ctx: CoreContext): string {
+  return `repos/${ctx.stackRepo}/contents/${DECLARATION_PATH}?ref=${encodeURIComponent(sha)}`;
 }
 
 async function targetOf(
@@ -262,7 +262,7 @@ async function targetOf(
   if (title) return title;
   const known = files[run.sha];
   if (known) { reads.push(...known.reads); return known.data; }
-  const path = declarationPath(run.sha);
+  const path = declarationPath(run.sha, ctx);
   const evidence: ReadRecord[] = [];
   const file = await observe(ctx, evidence, path, () => gh.rest<{ text: string }>(path, "{text: (.content | @base64d)}"));
   const version = file && parseDeclaration(file.text)?.stackVersion;
@@ -291,7 +291,7 @@ export async function readLifecycle(gh: Gh, detailState: unknown, previous: unkn
     let failed = false;
     const evidence: ReadRecord[] = [];
     for (let page = 1; ; page++) {
-      const path = `repos/${STACK_REPO}/actions/workflows/${LIFECYCLE_WORKFLOWS[kind]}/runs?per_page=60&created=${encodeURIComponent(`>=${since}`)}&page=${page}`;
+      const path = `repos/${ctx.stackRepo}/actions/workflows/${LIFECYCLE_WORKFLOWS[kind]}/runs?per_page=60&created=${encodeURIComponent(`>=${since}`)}&page=${page}`;
       const result = await observe(ctx, evidence, path, () => gh.rest<{ total: number; runs: RawRun[] }>(
         path, "{total: .total_count, runs: [.workflow_runs[] | {id, name, path, event, status, conclusion, created_at, updated_at, head_branch, head_sha, display_title, html_url, run_attempt}]}",
       ));
@@ -320,7 +320,7 @@ export async function readLifecycle(gh: Gh, detailState: unknown, previous: unkn
           settledJobReads(known.reads) && known.data.every((j) => j.status === "completed" && timed(j));
         if (settled) { entry.jobs = known.data; runReads.push(...known.reads); }
         else {
-          const jobs = await readRunJobs(gh, detail.cache, STACK_REPO, run, ctx, known);
+          const jobs = await readRunJobs(gh, detail.cache, ctx.stackRepo, run, ctx, known);
           Object.assign(detail.cache, jobs.cache);
           runReads.push(...jobs.reads);
           entry.jobs = jobs.data;
@@ -347,20 +347,20 @@ export async function pollRun(
   gh: Gh, state: unknown, previous: LifecycleRead<LifecycleRun>, ctx: CoreContext,
 ) {
   const { cache, reads } = details(state, ctx);
-  const path = `repos/${STACK_REPO}/actions/runs/${previous.data.id}`;
+  const path = `repos/${ctx.stackRepo}/actions/runs/${previous.data.id}`;
   const raw = await observe(ctx, reads, path, () => gh.rest<RawRun>(
     path, "{id, name, path, event, status, conclusion, created_at, updated_at, head_branch, head_sha, display_title, html_url, run_attempt}",
   ));
   if (!raw) return { data: retain(previous, reads) ?? previous.data, cache, reads };
   const fresh = toRun(raw);
   const sameAttempt = fresh.attempt === previous.data.attempt;
-  const jobs = await readRunJobs(gh, cache, STACK_REPO, fresh, ctx,
+  const jobs = await readRunJobs(gh, cache, ctx.stackRepo, fresh, ctx,
     sameAttempt && previous.data.jobs ? {
       data: previous.data.jobs, reads: previous.reads.filter((r) =>
         r.object.includes("/jobs?") || r.object.includes("/check-runs/") || r.object.endsWith("/logs")),
     } : undefined);
   const data = { ...previous.data, ...fresh, jobs: jobs.data };
   const targetReads = previous.data.target === undefined ? [] : previous.reads.filter((r) =>
-    r.source === "github" && r.object === declarationPath(previous.data.sha));
+    r.source === "github" && r.object === declarationPath(previous.data.sha, ctx));
   return { data, cache: jobs.cache, reads: [...reads, ...jobs.reads, ...targetReads] };
 }

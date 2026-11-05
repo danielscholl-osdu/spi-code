@@ -8,7 +8,6 @@ import {
   type LifecycleKind,
   MARKER_PATH,
   plannedRepo,
-  STACK_REPO,
   SYNC_TEMPLATE_WORKFLOW,
   TEMPLATE_REPO,
 } from "../config.js";
@@ -98,7 +97,7 @@ export function buildQueries(ctx: CoreContext, perQuery = FORKS_PER_QUERY): stri
   const queries = [
     query([
       repoField("r_template", TEMPLATE_REPO, "...Base ...Template"),
-      repoField("r_stack", STACK_REPO, "...Base ...Stack"),
+      repoField("r_stack", ctx.stackRepo, "...Base ...Stack"),
       ...ctx.fleet.planned.map((p, i) => repoField(`p_${i}`, plannedRepo(p), "nameWithOwner")),
     ]),
   ];
@@ -164,7 +163,7 @@ export async function readGithub<T>(
   );
   const entries = [
     { alias: "r_template", repo: TEMPLATE_REPO, batch: 0 },
-    { alias: "r_stack", repo: STACK_REPO, batch: 0 },
+    { alias: "r_stack", repo: ctx.stackRepo, batch: 0 },
     ...ctx.fleet.forks.map((f, i) => ({
       alias: `r_fork${i}`, repo: f.repo, batch: 1 + Math.floor(i / perQuery),
     })),
