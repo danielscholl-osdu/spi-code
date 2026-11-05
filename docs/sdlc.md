@@ -98,7 +98,7 @@ Skill: `bead-land`. `scripts/land <id>`:
 
 1. Refuses while a `main-broken` bead is open, unless this bead is that fix.
 2. Takes the merge slot, so landings happen one at a time.
-3. Syncs `main` from the remote if there is one, rebases the bead onto it, and runs `scripts/check`.
+3. Syncs `main` from the remote if there is one, rebases the bead onto it, installs the pinned dependencies (the rebase may bring new ones), and runs `scripts/check`.
 4. Verifies the review: a pass whose patch-id matches, from a provider other than the author's.
 5. Checks again that `main` isn't broken, then fast-forwards `main` to the exact commit it checked. It pushes, closes the bead with "Landed <sha>", and cleans up worktrees under `.worktrees/`. If the push fails, the bead stays open, and rerunning the script finishes the landing.
 

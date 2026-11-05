@@ -91,6 +91,10 @@ base=$(git -C "$root" rev-parse main)
 [[ $(git -C "$root" merge-base "$base" "$head") == "$base" ]] || die "$branch is not on top of main after the rebase"
 [[ $head != "$base" ]] || die "$branch has no changes against main"
 
+# The rebase may bring dependencies main gained since the worktree was installed.
+if [[ -f "$worktree/package.json" ]]; then
+  (cd "$worktree" && pnpm install --frozen-lockfile --silent) || die "pnpm install failed on $branch"
+fi
 (cd "$worktree" && scripts/check) || die "scripts/check failed on $branch"
 [[ $(git -C "$worktree" rev-parse HEAD) == "$head" ]] || die "$branch moved while checks ran"
 [[ -z $(git -C "$worktree" status --porcelain) ]] || die "checks left changes in $worktree"
