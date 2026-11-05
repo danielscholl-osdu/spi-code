@@ -1,0 +1,13 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "exactOptionalPropertyTypes": false
+  },
+  "include": ["**/*.ts"],
+  "references": [{ "path": "../tsconfig.build.json" }]
+}

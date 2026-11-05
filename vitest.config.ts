@@ -23,7 +23,10 @@ export default defineConfig({
       ].map((directory) => ({
         test: {
           name: directory,
-          include: [`${directory}/src/**/*.test.{ts,tsx}`],
+          include: [
+            `${directory}/src/**/*.test.{ts,tsx}`,
+            ...(directory === "packages/core" ? [`${directory}/test/**/*.test.ts`] : []),
+          ],
           environment: "node",
         },
       })),
