@@ -1,0 +1,24 @@
+{
+  "revision": "59d6895d140e9482ed788a3307177855d10883f0",
+  "bun": "1.3.13",
+  "now": "2026-10-21T15:00:00.000Z",
+  "timezone": "UTC",
+  "locale": "en-US",
+  "files": {
+    "briefing.json": "e3d0ded8afb5d1c8983cd1071543fef0a5b999fb9eb22a28712791d1ab17abd6",
+    "console.html": "5e594ebf1da3d5fb5a313c1a2224ab0258d06c6c38b23463c00815a9a8946dc3",
+    "environment-place.json": "23a1ca4819f1c564430e1ba6c527c91d6183f79c7535a3d1c4c24449b4129205",
+    "inspect/ACCESS.json": "1ec00c5e0b36d1bd2331187004f66996dc36a79b3a0343fdc179c5d3bf8035c3",
+    "inspect/BUILD.json": "88eb3d6c2e4aaebd68bff0a64d0cdbaa64f904a18f1404a6412a072772f89649",
+    "inspect/CONFLICT.json": "2f5afb99ad85fe54f0187c76d43c71932d5327790ba78efbdb40be838e5fa6d7",
+    "inspect/ENV.json": "45c39415f1f93a8e8a223f1a03e5ad6ee01a42ad1d7ee0dd3cc22c985a84ad14",
+    "inspect/HALT.json": "1fc531eede20ee377ff7d45f4b687a6242ba030d509ac4c6688cc3cfb65c6999",
+    "inspect/INFRA.json": "cc889eb20bcd69db6b819cc949f7f83f2415aa65e72ca69804f30dba9725fec1",
+    "inspect/POLICY.json": "1c54a7c5b84fdde6f5a36031e6143ad5c8b13e893c7f07e60e1985dab6346acc",
+    "inspect/TEST.json": "c244545cc59f3fe29129b0c30652e2151276af93a26d203f4853488c90864201",
+    "inspect/TOOLCHAIN.json": "471482920f7699a37816d8129d3fc75d26fcb732c19e93c56f1a10cf1b1663aa",
+    "inspect/UNREAD.json": "b7f23c61178315d52734e78d2235cda3298cfe921d6bca0f504ad3b625ebad3d",
+    "lines.json": "f5718d67fe53eb31b419e96f7d4fb57462bebe22c103b28eda7d3f743549d904",
+    "releases.json": "b74d05eb5023b097b54b82378467c7ba25a059021a11c1920e0afd22c9f0d5dc"
+  }
+}

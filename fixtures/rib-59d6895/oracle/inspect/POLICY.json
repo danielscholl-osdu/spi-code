@@ -1,0 +1,50 @@
+{
+  "view": "board",
+  "title": "",
+  "header": {
+    "status": {
+      "label": "P1 · POLICY",
+      "tone": "caution"
+    },
+    "chip": "svc"
+  },
+  "sections": [
+    {
+      "kind": "rows",
+      "items": [
+        {
+          "text": ". Nothing else waits on it."
+        }
+      ]
+    },
+    {
+      "kind": "cards",
+      "title": "Next step",
+      "items": [
+        {
+          "title": "Open the failed job; the reason is in the cause above.",
+          "edge": "brand"
+        }
+      ]
+    },
+    {
+      "kind": "actions",
+      "items": [
+        {
+          "type": "dismiss",
+          "label": "Dismiss",
+          "pendingLabel": "Dismissing…",
+          "payload": {
+            "id": "x",
+            "fingerprint": "5db5365e05d3d533"
+          },
+          "confirm": {
+            "title": "Dismiss svc · sync PR?",
+            "body": "It leaves the queue and the badge until its inputs change: a new head, run, failure or entry brings it back. The decision is kept in the rib's data dir; nothing is written to GitHub.",
+            "confirmLabel": "Dismiss"
+          }
+        }
+      ]
+    }
+  ]
+}

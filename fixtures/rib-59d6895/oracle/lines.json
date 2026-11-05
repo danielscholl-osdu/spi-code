@@ -1,0 +1,287 @@
+{
+  "columns": ["Sync PR", "Cascade", "Sync to Main", "Main run"],
+  "flow": [
+    {
+      "fork": "legal",
+      "line": [
+        {
+          "text": "red",
+          "tone": "bad"
+        },
+        {
+          "text": "·",
+          "tone": "neutral"
+        },
+        {
+          "text": "·",
+          "tone": "neutral"
+        },
+        {
+          "text": "·",
+          "tone": "neutral"
+        }
+      ]
+    },
+    {
+      "fork": "entitlements",
+      "line": [
+        {
+          "text": "halt",
+          "tone": "bad"
+        },
+        {
+          "text": "·",
+          "tone": "neutral"
+        },
+        {
+          "text": "·",
+          "tone": "neutral"
+        },
+        {
+          "text": "·",
+          "tone": "neutral"
+        }
+      ]
+    },
+    {
+      "fork": "partition",
+      "line": [
+        {
+          "text": "·",
+          "tone": "neutral"
+        },
+        {
+          "text": "·",
+          "tone": "neutral"
+        },
+        {
+          "text": "·",
+          "tone": "neutral"
+        },
+        {
+          "text": "·",
+          "tone": "neutral"
+        }
+      ]
+    },
+    {
+      "fork": "schema",
+      "line": [
+        {
+          "text": "·",
+          "tone": "neutral"
+        },
+        {
+          "text": "·",
+          "tone": "neutral"
+        },
+        {
+          "text": "·",
+          "tone": "neutral"
+        },
+        {
+          "text": "·",
+          "tone": "neutral"
+        }
+      ]
+    },
+    {
+      "fork": "file",
+      "line": [
+        {
+          "text": "·",
+          "tone": "neutral"
+        },
+        {
+          "text": "·",
+          "tone": "neutral"
+        },
+        {
+          "text": "·",
+          "tone": "neutral"
+        },
+        {
+          "text": "·",
+          "tone": "neutral"
+        }
+      ]
+    }
+  ],
+  "services": [
+    {
+      "fork": "partition",
+      "stations": [
+        {
+          "id": "upstream",
+          "state": "idle",
+          "text": "0 behind"
+        },
+        {
+          "id": "sync",
+          "state": "idle",
+          "text": "clean"
+        },
+        {
+          "id": "cascade",
+          "state": "idle",
+          "text": "idle"
+        },
+        {
+          "id": "main",
+          "state": "idle",
+          "text": "idle"
+        },
+        {
+          "id": "release",
+          "state": "idle",
+          "text": "v1.3.1"
+        },
+        {
+          "id": "lane",
+          "state": "stopped",
+          "text": "blocked by the stack"
+        }
+      ]
+    },
+    {
+      "fork": "entitlements",
+      "stations": [
+        {
+          "id": "upstream",
+          "state": "waiting",
+          "text": "2 behind · held by the halt · will halt on schemathesis-tests"
+        },
+        {
+          "id": "sync",
+          "state": "stopped",
+          "text": "halted: UNKNOWN_TOP_LEVEL"
+        },
+        {
+          "id": "cascade",
+          "state": "idle",
+          "text": "idle"
+        },
+        {
+          "id": "main",
+          "state": "idle",
+          "text": "idle"
+        },
+        {
+          "id": "release",
+          "state": "idle",
+          "text": "v1.2.0"
+        },
+        {
+          "id": "lane",
+          "state": "stopped",
+          "text": "blocked by the stack"
+        }
+      ]
+    },
+    {
+      "fork": "legal",
+      "stations": [
+        {
+          "id": "upstream",
+          "state": "waiting",
+          "text": "4 behind · in the sync PR · Java 25 queued"
+        },
+        {
+          "id": "sync",
+          "state": "stopped",
+          "text": "PR #31 red"
+        },
+        {
+          "id": "cascade",
+          "state": "idle",
+          "text": "idle"
+        },
+        {
+          "id": "main",
+          "state": "idle",
+          "text": "idle"
+        },
+        {
+          "id": "release",
+          "state": "idle",
+          "text": "v1.2.0"
+        },
+        {
+          "id": "lane",
+          "state": "stopped",
+          "text": "blocked by the stack"
+        }
+      ]
+    },
+    {
+      "fork": "schema",
+      "stations": [
+        {
+          "id": "upstream",
+          "state": "idle",
+          "text": "0 behind"
+        },
+        {
+          "id": "sync",
+          "state": "idle",
+          "text": "clean"
+        },
+        {
+          "id": "cascade",
+          "state": "idle",
+          "text": "idle"
+        },
+        {
+          "id": "main",
+          "state": "idle",
+          "text": "idle"
+        },
+        {
+          "id": "release",
+          "state": "idle",
+          "text": "v1.2.0"
+        },
+        {
+          "id": "lane",
+          "state": "stopped",
+          "text": "blocked by the stack"
+        }
+      ]
+    },
+    {
+      "fork": "file",
+      "stations": [
+        {
+          "id": "upstream",
+          "state": "idle",
+          "text": "0 behind"
+        },
+        {
+          "id": "sync",
+          "state": "idle",
+          "text": "clean"
+        },
+        {
+          "id": "cascade",
+          "state": "idle",
+          "text": "idle"
+        },
+        {
+          "id": "main",
+          "state": "idle",
+          "text": "idle"
+        },
+        {
+          "id": "release",
+          "state": "idle",
+          "text": "v1.2.0"
+        },
+        {
+          "id": "lane",
+          "state": "stopped",
+          "text": "blocked by the stack"
+        }
+      ]
+    }
+  ]
+}

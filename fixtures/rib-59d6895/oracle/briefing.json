@@ -1,0 +1,1301 @@
+{
+  "sweptAt": "2026-10-12T21:58:14.428Z",
+  "nextSyncAt": "2026-10-22T00:00:00.000Z",
+  "doctor": {
+    "state": "clear",
+    "problems": []
+  },
+  "headline": "Restore the environment. Unhalt entitlements. 2 more causes below.",
+  "summary": "2 forks have been stopped for 13 days. 1 PR is ready for review.",
+  "facts": [
+    {
+      "label": "Environment",
+      "figure": "v0.28.0",
+      "sub": "upgrade running · at verify · declares v0.28.2",
+      "tone": "warn"
+    },
+    {
+      "label": "Upstream sync",
+      "figure": "2 of 5",
+      "sub": "forks stopped · entitlements and legal",
+      "tone": "bad"
+    },
+    {
+      "label": "Template · main bb49a03",
+      "figure": "0 of 5",
+      "sub": "on main · 4 changes reach the forks · 5 of 5 on v1.2.0",
+      "tone": "warn"
+    }
+  ],
+  "focus": [
+    {
+      "id": "stack:38181620856",
+      "ids": ["stack:38181620856"],
+      "rung": 0,
+      "cls": "ENV",
+      "scope": "Environment",
+      "title": "Maintenance mode",
+      "sub": "env-upgrade v0.28.2 in verify › Azure login (OIDC) now · folds 8 effects · 9d",
+      "cause": "Maintenance mode; env-upgrade v0.28.2 in verify › Azure login (OIDC) now.",
+      "effect": "10-11 22:44 · env-upgrade v0.28.1 failed in provision › spi up: GitLab API unreachable while resolving images · set maintenance. 10-12 04:16 · env-refresh v0.28.1 failed in Verify stack version and source suspension are unchanged: deployed v0.28.0 drifted from declared v0.28.1. 10-12 20:20 · env-upgrade v0.28.1 (dispatched) cancelled after 1h 2m in verify › Wait for Flux Kustomizations to be Ready.",
+      "next": "Wait for the run in flight; if it fails, fix its cause and re-dispatch.",
+      "verb": "Re-dispatch",
+      "evidence": [
+        {
+          "label": "first env-upgrade v0.28.1 failed in provision › spi up: GitLab API unreachable while resolving images",
+          "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38181620856"
+        },
+        {
+          "label": "last env-upgrade v0.28.2 in verify › Azure login (OIDC)",
+          "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38312331838"
+        },
+        {
+          "label": "run",
+          "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38203142060"
+        },
+        {
+          "label": "run",
+          "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38303533757"
+        }
+      ]
+    },
+    {
+      "id": "halt:entitlements",
+      "ids": ["halt:entitlements"],
+      "rung": 0,
+      "cls": "HALT",
+      "scope": "entitlements",
+      "title": "Sync halted on schemathesis-tests",
+      "sub": "2 commits held · 13d · the same entry is missing from 4 other filters",
+      "cause": "Upstream adds schemathesis-tests, a top-level entry the fork's filter has no rule for, so Sync Upstream stops with UNKNOWN_TOP_LEVEL.",
+      "effect": "4 daily Sync Upstream runs failed since the halt. 2 upstream commits wait behind the halt.",
+      "next": "Add a rule for schemathesis-tests to .github/upstream-filter.yml, then dispatch sync.",
+      "verb": "Classify entry",
+      "evidence": [
+        {
+          "label": "issue #47",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/issues/47"
+        },
+        {
+          "label": "run",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38187922977"
+        }
+      ]
+    },
+    {
+      "id": "rollout",
+      "ids": ["rollout"],
+      "rung": 1,
+      "cls": "ROLLOUT",
+      "scope": "fleet",
+      "title": "Rollout to template bb49a03",
+      "sub": "0 of 5 merged · 0 of 5 lanes busy",
+      "cause": "osdu-spi main bb49a03 is on its way to the fleet: 0 of 5 forks merged.",
+      "effect": "The change reaches images, actions and workflows, so every PR and every merge takes a deploy lane: 10 lanes, 5 at a time still to go.",
+      "next": "Wait for the environment: env-upgrade in verify. Nothing that deploys starts until it reads deployable.",
+      "verb": "Wait for the environment",
+      "evidence": [
+        {
+          "label": "main bb49a03",
+          "url": "https://github.com/Azure/osdu-spi/commit/bb49a034a3dcdaa922a1905e708ec66bde930888"
+        },
+        {
+          "label": "forks on ea9a2e1",
+          "url": "https://github.com/Azure/osdu-spi/compare/ea9a2e1975c3e62588a85b2947ba77a32d6fcfb9...bb49a034a3dcdaa922a1905e708ec66bde930888"
+        }
+      ],
+      "more": [
+        {
+          "label": "Plan",
+          "text": "1 wave · lanes 5 from rollout.json"
+        },
+        {
+          "label": "Watch",
+          "text": "Upstream sync at 10-22 00:00 opens 1 PR (entitlements halts instead) that share these lanes."
+        },
+        {
+          "label": "Reaches",
+          "text": "build/Dockerfile · java-build action · setup-maven action · build.yml · cascade.yml · copilot-setup-steps.yml · acceptance-image action · validate.yml · build/acceptance.Dockerfile"
+        }
+      ]
+    },
+    {
+      "id": "gate1:legal",
+      "ids": ["gate1:legal"],
+      "rung": 1,
+      "cls": "TOOLCHAIN",
+      "scope": "legal",
+      "title": "Sync PR #31 fails Java Build",
+      "sub": "upstream requires Java 25, the fork builds on 17 · 4 commits held · 13d",
+      "cause": "Upstream requires Java 25; the fork builds on 17.",
+      "effect": "4 upstream commits wait on this PR.",
+      "next": "Move the fork's Java pin to 25, the version upstream now requires.",
+      "verb": "Absorb toolchain",
+      "evidence": [
+        {
+          "label": "PR #31",
+          "url": "https://github.com/Azure/osdu-spi-legal/pull/31"
+        },
+        {
+          "label": "check Java Build › Run Java Build",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37706140110/job/113081034815"
+        }
+      ]
+    },
+    {
+      "id": "approvals:Azure/osdu-spi-stack",
+      "ids": ["approvals:Azure/osdu-spi-stack"],
+      "rung": 1,
+      "cls": "GATE",
+      "scope": "osdu-spi-stack",
+      "title": "1 outside PR waits for workflow approval",
+      "sub": "10d",
+      "cause": "Outside contributors' runs wait until a maintainer approves them.",
+      "effect": "feat: cannot run their checks until a maintainer approves them.",
+      "next": "Read each outside PR's diff, then approve its runs below.",
+      "verb": "Approve runs",
+      "evidence": []
+    }
+  ],
+  "more": 1,
+  "rest": [
+    {
+      "id": "port:entitlements",
+      "ids": ["port:entitlements", "port:legal"],
+      "rung": 1,
+      "cls": "PORT",
+      "scope": "2 forks",
+      "title": "3 upstream provider changes not ported",
+      "sub": "entitlements 2 · legal 1",
+      "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+      "effect": "Until each MR is ported, entitlements and legal drift from upstream.",
+      "next": "Port !963 into testing/entitlements-v2-test-azure; cite the MR URL in the PR body.",
+      "verb": "Port",
+      "evidence": [
+        {
+          "label": "!963",
+          "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963"
+        },
+        {
+          "label": "!956",
+          "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956"
+        },
+        {
+          "label": "!783",
+          "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/merge_requests/783"
+        }
+      ]
+    }
+  ],
+  "ready": [
+    {
+      "id": "releases",
+      "text": "1 release PR",
+      "count": 1
+    }
+  ],
+  "themes": [
+    {
+      "id": "toolchain:Java 25",
+      "kind": "toolchain",
+      "title": "Java 25",
+      "sub": "blocked: legal · open MRs: partition and schema",
+      "certain": [
+        {
+          "fork": "legal",
+          "state": "blocked · PR #31",
+          "url": "https://github.com/Azure/osdu-spi-legal/pull/31"
+        }
+      ],
+      "possible": [
+        {
+          "fork": "partition",
+          "state": "open MR !830",
+          "url": "https://community.opengroup.org/osdu/platform/system/partition/-/merge_requests/830",
+          "inspect": "mr:partition:830"
+        },
+        {
+          "fork": "schema",
+          "state": "open MR !867",
+          "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/merge_requests/867",
+          "inspect": "mr:schema:867"
+        }
+      ],
+      "exposed": [],
+      "tone": "bad",
+      "next": "Move one fork's Java pin to 25 and repeat it for the others before the next sync carries it.",
+      "when": "13d",
+      "inspect": "gate1:legal"
+    },
+    {
+      "id": "halt:top_level:schemathesis-tests",
+      "kind": "halt",
+      "title": "schemathesis-tests",
+      "sub": "halted: entitlements · 4 other filters lack it · open MRs bring it to legal and file",
+      "certain": [
+        {
+          "fork": "entitlements",
+          "state": "halted 13d",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/issues/47"
+        }
+      ],
+      "possible": [
+        {
+          "fork": "legal",
+          "state": "open MR !756",
+          "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/merge_requests/756",
+          "inspect": "mr:legal:756"
+        },
+        {
+          "fork": "file",
+          "state": "open MR !752",
+          "url": "https://community.opengroup.org/osdu/platform/system/file/-/merge_requests/752",
+          "inspect": "mr:file:752"
+        }
+      ],
+      "exposed": ["partition", "schema"],
+      "tone": "bad",
+      "next": "Add a rule for schemathesis-tests to every fork's .github/upstream-filter.yml, starting with entitlements.",
+      "when": "13d",
+      "inspect": "halt:entitlements"
+    },
+    {
+      "id": "port",
+      "kind": "port",
+      "title": "Provider changes to port",
+      "sub": "3 merged MRs · entitlements 2, legal 1",
+      "certain": [
+        {
+          "fork": "entitlements",
+          "state": "2 owed",
+          "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963"
+        },
+        {
+          "fork": "legal",
+          "state": "1 owed",
+          "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/merge_requests/783"
+        }
+      ],
+      "possible": [],
+      "exposed": [],
+      "when": "37d",
+      "tone": "neutral",
+      "next": "Port each MR into its fork-owned tree and cite the MR URL in the PR body.",
+      "inspect": "port:entitlements"
+    },
+    {
+      "id": "deadline:azure-removal",
+      "kind": "deadline",
+      "title": "Azure removal upstream",
+      "sub": "0 pending · 5 established · 0 fork-only",
+      "certain": [
+        {
+          "fork": "partition",
+          "state": "established"
+        },
+        {
+          "fork": "entitlements",
+          "state": "established"
+        },
+        {
+          "fork": "legal",
+          "state": "established"
+        },
+        {
+          "fork": "schema",
+          "state": "established"
+        },
+        {
+          "fork": "file",
+          "state": "established"
+        }
+      ],
+      "possible": [],
+      "exposed": [],
+      "when": "23 days left",
+      "tone": "neutral",
+      "next": "Upstream removes the Azure provider code at the deadline; forks keep their own copy."
+    }
+  ],
+  "horizon": {
+    "headline": "One filter entry would stop 4 future halts."
+  },
+  "flow": {
+    "mode": "planning",
+    "headline": "6 upstream commits wait across 2 forks. 2 forks move their toolchain, so start with one pilot.",
+    "sub": "1 sync PR is prepared. Nothing syncs until you merge one.",
+    "tiles": [
+      {
+        "label": "Behind upstream",
+        "value": "2 of 5",
+        "sub": "2 to 4 commits · 6 in all",
+        "tone": "neutral"
+      },
+      {
+        "label": "Toolchain move",
+        "value": "2",
+        "sub": "1 to os-core-common 8.2.0 · 1 to Java 25",
+        "tone": "warn"
+      },
+      {
+        "label": "Will halt",
+        "value": "1",
+        "sub": "entitlements · schemathesis-tests has no filter rule",
+        "tone": "bad"
+      },
+      {
+        "label": "Lanes",
+        "value": "0 of 5",
+        "sub": "shared with the template rollout",
+        "tone": "neutral",
+        "meter": {
+          "busy": 0,
+          "cap": 5
+        }
+      }
+    ],
+    "rows": [
+      {
+        "fork": "legal",
+        "inspect": "upstream:legal",
+        "tag": "wave 1",
+        "behind": "4",
+        "carries": "Java 25",
+        "ready": {
+          "text": "template PR #33 first",
+          "tone": "warn"
+        },
+        "plan": {
+          "text": "Wave 1",
+          "tone": "neutral",
+          "kind": "wave"
+        },
+        "line": [
+          {
+            "text": "red",
+            "tone": "bad"
+          },
+          {
+            "text": "·",
+            "tone": "neutral"
+          },
+          {
+            "text": "·",
+            "tone": "neutral"
+          },
+          {
+            "text": "·",
+            "tone": "neutral"
+          }
+        ],
+        "next": {
+          "text": "its sync PR is red",
+          "tone": "neutral",
+          "strong": false
+        },
+        "detail": {
+          "title": "legal · wave 1",
+          "lines": [
+            "4 upstream commits not yet in fork_upstream · carries Java 25.",
+            "Line: Sync PR red · Cascade · · Sync to Main · · Main run ·.",
+            "Waits: its sync PR is red."
+          ]
+        }
+      },
+      {
+        "fork": "entitlements",
+        "inspect": "upstream:entitlements",
+        "tag": "held",
+        "behind": "2",
+        "carries": "schemathesis-tests",
+        "ready": {
+          "text": "halted · add a filter rule",
+          "tone": "bad"
+        },
+        "plan": {
+          "text": "Held",
+          "tone": "neutral",
+          "kind": "held"
+        },
+        "line": [
+          {
+            "text": "halt",
+            "tone": "bad"
+          },
+          {
+            "text": "·",
+            "tone": "neutral"
+          },
+          {
+            "text": "·",
+            "tone": "neutral"
+          },
+          {
+            "text": "·",
+            "tone": "neutral"
+          }
+        ],
+        "next": {
+          "text": "filter rule first",
+          "tone": "neutral",
+          "strong": false
+        },
+        "detail": {
+          "title": "entitlements · held",
+          "lines": [
+            "2 upstream commits not yet in fork_upstream · carries schemathesis-tests.",
+            "Line: Sync PR halt · Cascade · · Sync to Main · · Main run ·.",
+            "Held: the sync halts on schemathesis-tests. It clears once the fork's filter carries a rule for it.",
+            "Waits: the sync halted; add a filter rule."
+          ]
+        }
+      },
+      {
+        "fork": "partition",
+        "inspect": "upstream:partition",
+        "tag": "",
+        "behind": "0",
+        "carries": "no toolchain move",
+        "ready": {
+          "text": "template PR #174 first",
+          "tone": "warn"
+        },
+        "plan": {
+          "text": "current",
+          "tone": "neutral",
+          "kind": "none"
+        },
+        "line": [
+          {
+            "text": "·",
+            "tone": "neutral"
+          },
+          {
+            "text": "·",
+            "tone": "neutral"
+          },
+          {
+            "text": "·",
+            "tone": "neutral"
+          },
+          {
+            "text": "·",
+            "tone": "neutral"
+          }
+        ],
+        "next": {
+          "text": "current",
+          "tone": "neutral",
+          "strong": false
+        },
+        "detail": {
+          "title": "partition",
+          "lines": [
+            "fork_upstream carries every upstream commit.",
+            "Line: Sync PR · · Cascade · · Sync to Main · · Main run ·."
+          ]
+        }
+      },
+      {
+        "fork": "schema",
+        "inspect": "upstream:schema",
+        "tag": "",
+        "behind": "0",
+        "carries": "no toolchain move",
+        "ready": {
+          "text": "template PR #37 first",
+          "tone": "warn"
+        },
+        "plan": {
+          "text": "current",
+          "tone": "neutral",
+          "kind": "none"
+        },
+        "line": [
+          {
+            "text": "·",
+            "tone": "neutral"
+          },
+          {
+            "text": "·",
+            "tone": "neutral"
+          },
+          {
+            "text": "·",
+            "tone": "neutral"
+          },
+          {
+            "text": "·",
+            "tone": "neutral"
+          }
+        ],
+        "next": {
+          "text": "current",
+          "tone": "neutral",
+          "strong": false
+        },
+        "detail": {
+          "title": "schema",
+          "lines": [
+            "fork_upstream carries every upstream commit.",
+            "Line: Sync PR · · Cascade · · Sync to Main · · Main run ·."
+          ]
+        }
+      },
+      {
+        "fork": "file",
+        "inspect": "upstream:file",
+        "tag": "",
+        "behind": "0",
+        "carries": "no toolchain move",
+        "ready": {
+          "text": "template PR #51 first",
+          "tone": "warn"
+        },
+        "plan": {
+          "text": "current",
+          "tone": "neutral",
+          "kind": "none"
+        },
+        "line": [
+          {
+            "text": "·",
+            "tone": "neutral"
+          },
+          {
+            "text": "·",
+            "tone": "neutral"
+          },
+          {
+            "text": "·",
+            "tone": "neutral"
+          },
+          {
+            "text": "·",
+            "tone": "neutral"
+          }
+        ],
+        "next": {
+          "text": "current",
+          "tone": "neutral",
+          "strong": false
+        },
+        "detail": {
+          "title": "file",
+          "lines": [
+            "fork_upstream carries every upstream commit.",
+            "Line: Sync PR · · Cascade · · Sync to Main · · Main run ·."
+          ]
+        }
+      }
+    ],
+    "plan": {
+      "title": "1 fork in 1 wave, 1 held",
+      "lines": [
+        {
+          "label": "Wave 1",
+          "text": "legal"
+        },
+        {
+          "label": "Held",
+          "text": "entitlements (filter rule)"
+        }
+      ],
+      "note": "Waves size to 5 lanes. A fork with a template PR open waits for it to merge first.",
+      "button": "Open in inspector · Plan upstream syncs"
+    },
+    "schedule": {
+      "title": "At 10-22 00:00 if you do nothing",
+      "text": "Sync Upstream updates 1 prepared PR in place."
+    },
+    "next": {
+      "title": "Nothing waits on you",
+      "text": "",
+      "button": "Open the plan",
+      "quiet": true
+    },
+    "also": [],
+    "inspect": "upstream"
+  },
+  "environment": {
+    "headline": "An upgrade to v0.28.2 is running, at verify.",
+    "facts": [
+      {
+        "label": "Running",
+        "figure": "v0.28.0",
+        "sub": "upgrade running · at verify · declares v0.28.2",
+        "tone": "warn"
+      },
+      {
+        "label": "Deployable · 21 days",
+        "figure": "35%",
+        "sub": "4 holds over an hour, 13 d 7 h in all · held since 10-11 22:44",
+        "tone": "warn"
+      },
+      {
+        "label": "Last proof",
+        "figure": "26 min",
+        "sub": "smoke · fresh cluster · 9 d 5 h ago · 7 in a row",
+        "tone": "ok"
+      }
+    ],
+    "lanes": [
+      {
+        "id": "upgrade",
+        "label": "Upgrade",
+        "events": [
+          {
+            "id": "38312331838",
+            "start": "2026-10-12T21:42:47Z",
+            "state": "running",
+            "label": "v0.28.2",
+            "detail": "running · at verify",
+            "inspect": "stack:38181620856"
+          }
+        ]
+      },
+      {
+        "id": "refresh",
+        "label": "Refresh",
+        "events": []
+      },
+      {
+        "id": "smoke",
+        "label": "Smoke",
+        "events": []
+      },
+      {
+        "id": "holds",
+        "label": "Held",
+        "events": [
+          {
+            "id": "1791758673000",
+            "start": "2026-10-11T22:44:33.000Z",
+            "state": "held",
+            "label": "9 d 16 h",
+            "detail": "in maintenance for 9 d 16 h so far",
+            "inspect": "stack:38181620856"
+          }
+        ]
+      }
+    ],
+    "from": "2026-10-20T15:00:00.000Z",
+    "to": "2026-10-21T15:00:00.000Z",
+    "note": "No fork lane deployed today. Deploys are counted per day, so the timeline leaves them out."
+  },
+  "repositories": {
+    "headline": "In SPI-owned shipped code: 3 high vulnerabilities and 13 high code-scanning alerts.",
+    "facts": [
+      {
+        "label": "Issues",
+        "figure": "13",
+        "sub": "2 human-required · 5 bugs · 6 enhancements · 2 from the sync engine",
+        "tone": "bad"
+      },
+      {
+        "label": "Pull Requests",
+        "figure": "3",
+        "sub": "2 feat · 1 untyped · 2 with conflicts or red checks",
+        "tone": "warn"
+      },
+      {
+        "label": "Dependabot Bumps",
+        "figure": "0",
+        "sub": "none open",
+        "tone": "neutral"
+      },
+      {
+        "label": "Vulnerabilities · ours",
+        "figure": "3",
+        "sub": "critical or high in shipped code · 1 package · 3 more from upstream",
+        "tone": "warn"
+      },
+      {
+        "label": "Code scanning · ours",
+        "figure": "13",
+        "sub": "critical or high in shipped code · 3 rules · 2 more from upstream",
+        "tone": "warn"
+      }
+    ],
+    "rows": [
+      {
+        "id": "repo:osdu-spi",
+        "name": "osdu-spi",
+        "group": "program",
+        "cells": {
+          "changes": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 7",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "2",
+            "tone": "warn",
+            "rest": " · 0",
+            "fade": true
+          }
+        },
+        "title": "High code-scanning alert: Branch-Protection",
+        "tone": "bad",
+        "sub": "1 alert in SPI-owned shipped code at repository settings, found by Scorecard.",
+        "sections": [
+          {
+            "title": "Issues",
+            "count": "7",
+            "lines": [
+              {
+                "tag": "bug",
+                "tone": "neutral",
+                "text": "validate: duplicate PR runs push the same image tag and break the deploy lane pin · #250",
+                "sub": "opened 13d ago · 0 comments"
+              },
+              {
+                "tag": "bug",
+                "tone": "neutral",
+                "text": "Template sync skips file removal when the template tip is unchanged · #245",
+                "sub": "opened 15d ago · 0 comments"
+              },
+              {
+                "tag": "enhancement",
+                "tone": "neutral",
+                "text": "Deploy lane: optional nightly run against the shared stack · #241",
+                "sub": "opened 15d ago · 0 comments"
+              }
+            ]
+          },
+          {
+            "title": "Code scanning",
+            "count": "7 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Branch-Protection · 1 alert",
+                "sub": "SPI · shipped · repository settings · found by Scorecard"
+              },
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Code-Review · 1 alert",
+                "sub": "SPI · shipped · repository settings · found by Scorecard"
+              },
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "Fuzzing · 1 alert",
+                "sub": "SPI · shipped · repository settings · found by Scorecard"
+              }
+            ],
+            "rest": " · 0 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 4 more alert groups; 1 pipeline PR, on Flow. The inspector lists every item."
+      },
+      {
+        "id": "repo:osdu-spi-stack",
+        "name": "osdu-spi-stack",
+        "group": "program",
+        "cells": {
+          "changes": {
+            "text": "2",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 4",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "3",
+            "tone": "warn",
+            "rest": " · 0",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          }
+        },
+        "title": "1 pull request has conflicts",
+        "tone": "warn",
+        "sub": "#323 onboard Seismic Store V3.",
+        "sections": [
+          {
+            "title": "Issues",
+            "count": "4",
+            "lines": [
+              {
+                "tag": "bug",
+                "tone": "neutral",
+                "text": "[bug] spi up --declaration rejects absent identities with ParentResourceNotFound · #324",
+                "sub": "opened 12d ago · 0 comments"
+              },
+              {
+                "tag": "bug",
+                "tone": "neutral",
+                "text": "Pin refusal for a moved tag should say re-run all jobs · #321",
+                "sub": "opened 13d ago · 0 comments"
+              },
+              {
+                "tag": "bug",
+                "tone": "neutral",
+                "text": "Restore can start the canonical schema loader against the outgoing borrowed pod · #320",
+                "sub": "opened 13d ago · 0 comments"
+              }
+            ]
+          },
+          {
+            "title": "Pull Requests",
+            "count": "2",
+            "lines": [
+              {
+                "tag": "feat",
+                "tone": "neutral",
+                "text": "add RAFS service · #327",
+                "sub": "behind · opened 10d ago · by contributor-a"
+              },
+              {
+                "tag": "feat",
+                "tone": "bad",
+                "text": "onboard Seismic Store V3 · #323",
+                "sub": "conflicts · opened 12d ago · by contributor-a"
+              }
+            ]
+          },
+          {
+            "title": "Vulnerabilities",
+            "count": "1 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "virtualenv · 4 vulnerabilities",
+                "sub": "SPI · shipped · uv.lock · fixed in 21.7.13"
+              }
+            ],
+            "rest": " · 0 upstream",
+            "weight": "quiet"
+          }
+        ]
+      },
+      {
+        "id": "repo:partition",
+        "name": "partition",
+        "group": "fork",
+        "cells": {
+          "changes": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 3",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "2",
+            "tone": "warn",
+            "rest": " · 0",
+            "fade": true
+          }
+        },
+        "title": "High code-scanning alert: Disabled Spring CSRF protection",
+        "tone": "bad",
+        "sub": "2 alerts in SPI-owned shipped code at provider/partition-azure, found by CodeQL. Also ours on entitlements, legal, schema and 1 more.",
+        "sections": [
+          {
+            "title": "Vulnerabilities",
+            "count": "0 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "jackson-databind · 5 vulnerabilities",
+                "sub": "Upstream · shipped · pom.xml · fixed in 2.21.7",
+                "upstream": true
+              }
+            ],
+            "rest": " · 1 upstream",
+            "weight": "quiet"
+          },
+          {
+            "title": "Code scanning",
+            "count": "2 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Disabled Spring CSRF protection · 2 alerts",
+                "sub": "SPI · shipped · provider/partition-azure · found by CodeQL · also ours on entitlements, legal, schema and 1 more"
+              },
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "Log Injection · 1 alert",
+                "sub": "SPI · shipped · provider/partition-azure · found by CodeQL · also ours on schema and file"
+              }
+            ],
+            "rest": " · 0 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 2 more alert groups, 2 in tests; 1 pipeline PR, on Flow. The inspector lists every item."
+      },
+      {
+        "id": "repo:entitlements",
+        "name": "entitlements",
+        "group": "fork",
+        "cells": {
+          "changes": {
+            "text": "1",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "1",
+            "tone": "bad",
+            "rest": " · 0",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "2",
+            "tone": "warn",
+            "rest": " · 0",
+            "fade": true
+          }
+        },
+        "title": "1 issue needs a person",
+        "tone": "bad",
+        "sub": "#47 🔄 Upstream Sync Failed 2026-10-08, open 13d.",
+        "sections": [
+          {
+            "title": "Issues",
+            "count": "1 human-required",
+            "lines": [
+              {
+                "tag": "human-required",
+                "tone": "bad",
+                "text": "🔄 Upstream Sync Failed 2026-10-08 · #47",
+                "sub": "opened 13d ago · 4 comments · from the sync engine"
+              }
+            ],
+            "rest": " · 0 other"
+          },
+          {
+            "title": "Pull Requests",
+            "count": "1",
+            "lines": [
+              {
+                "tag": "untyped",
+                "tone": "bad",
+                "text": "Test External Contribution flow · #49",
+                "sub": "red · opened 12d ago · by contributor-b"
+              }
+            ]
+          },
+          {
+            "title": "Vulnerabilities",
+            "count": "0 ours",
+            "lines": [
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "log4j-core · 3 vulnerabilities",
+                "sub": "Upstream · shipped · pom.xml · fixed in 2.25.4",
+                "upstream": true
+              },
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "log4j-api · 1 vulnerability",
+                "sub": "Upstream · shipped · pom.xml · fixed in 2.25.5",
+                "upstream": true
+              }
+            ],
+            "rest": " · 2 upstream",
+            "weight": "quiet"
+          },
+          {
+            "title": "Code scanning",
+            "count": "1 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Disabled Spring CSRF protection · 2 alerts",
+                "sub": "SPI · shipped · provider/entitlements-v2-azure · found by CodeQL · also ours on partition, legal, schema and 1 more"
+              },
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "Information exposure through an error message · 5 alerts",
+                "sub": "Upstream · shipped · entitlements-v2-core · found by CodeQL",
+                "upstream": true
+              }
+            ],
+            "rest": " · 1 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 4 more alert groups, 4 in tests; 1 pipeline PR, on Flow. The inspector lists every item."
+      },
+      {
+        "id": "repo:legal",
+        "name": "legal",
+        "group": "fork",
+        "cells": {
+          "changes": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "1",
+            "tone": "bad",
+            "rest": " · 0",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "2",
+            "tone": "warn",
+            "rest": " · 0",
+            "fade": true
+          }
+        },
+        "title": "1 issue needs a person",
+        "tone": "bad",
+        "sub": "#32 📥 Upstream Sync Ready for Review - 2026-10-08, open 13d.",
+        "sections": [
+          {
+            "title": "Issues",
+            "count": "1 human-required",
+            "lines": [
+              {
+                "tag": "human-required",
+                "tone": "bad",
+                "text": "📥 Upstream Sync Ready for Review - 2026-10-08 · #32",
+                "sub": "opened 13d ago · 0 comments · from the sync engine"
+              }
+            ],
+            "rest": " · 0 other"
+          },
+          {
+            "title": "Code scanning",
+            "count": "1 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Disabled Spring CSRF protection · 2 alerts",
+                "sub": "SPI · shipped · provider/legal-azure · found by CodeQL · also ours on partition, entitlements, schema and 1 more"
+              }
+            ],
+            "rest": " · 0 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 3 more alert groups, 3 in tests; 2 pipeline PRs, on Flow. The inspector lists every item."
+      },
+      {
+        "id": "repo:schema",
+        "name": "schema",
+        "group": "fork",
+        "cells": {
+          "changes": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "3",
+            "tone": "warn",
+            "rest": " · 0",
+            "fade": true
+          }
+        },
+        "title": "High code-scanning alert: Disabled Spring CSRF protection",
+        "tone": "bad",
+        "sub": "3 alerts in SPI-owned shipped code at provider/schema-azure, found by CodeQL. Also ours on partition, entitlements, legal and 1 more.",
+        "sections": [
+          {
+            "title": "Code scanning",
+            "count": "2 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Disabled Spring CSRF protection · 3 alerts",
+                "sub": "SPI · shipped · provider/schema-azure · found by CodeQL · also ours on partition, entitlements, legal and 1 more"
+              },
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "Log Injection · 2 alerts",
+                "sub": "SPI · shipped · provider/schema-azure · found by CodeQL · also ours on partition and file"
+              }
+            ],
+            "rest": " · 0 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 13 more alert groups, 5 in tests; 1 pipeline PR, on Flow. The inspector lists every item."
+      },
+      {
+        "id": "repo:file",
+        "name": "file",
+        "group": "fork",
+        "cells": {
+          "changes": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "dependabot": {
+            "text": "0",
+            "tone": "neutral"
+          },
+          "issues": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          },
+          "vulnerabilities": {
+            "text": "0",
+            "tone": "neutral",
+            "rest": " · 0",
+            "fade": true
+          },
+          "codeScanning": {
+            "text": "2",
+            "tone": "warn",
+            "rest": " · 2",
+            "fade": true
+          }
+        },
+        "title": "High code-scanning alert: Disabled Spring CSRF protection",
+        "tone": "bad",
+        "sub": "2 alerts in SPI-owned shipped code at provider/file-azure, found by CodeQL. Also ours on partition, entitlements, legal and 1 more.",
+        "sections": [
+          {
+            "title": "Vulnerabilities",
+            "count": "0 ours",
+            "lines": [
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "log4j-api · 1 vulnerability",
+                "sub": "Upstream · shipped · pom.xml · fixed in 2.25.5",
+                "upstream": true
+              },
+              {
+                "tag": "Low",
+                "tone": "neutral",
+                "text": "logback-core · 3 vulnerabilities",
+                "sub": "Upstream · shipped · pom.xml · fixed in 1.5.34",
+                "upstream": true
+              }
+            ],
+            "rest": " · 2 upstream",
+            "weight": "quiet"
+          },
+          {
+            "title": "Code scanning",
+            "count": "2 ours",
+            "lines": [
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Disabled Spring CSRF protection · 2 alerts",
+                "sub": "SPI · shipped · provider/file-azure · found by CodeQL · also ours on partition, entitlements, legal and 1 more"
+              },
+              {
+                "tag": "Medium",
+                "tone": "warn",
+                "text": "Log Injection · 4 alerts",
+                "sub": "SPI · shipped · provider/file-azure · found by CodeQL · also ours on partition and schema"
+              },
+              {
+                "tag": "High",
+                "tone": "bad",
+                "text": "Implicit narrowing conversion in compound assignment · 1 alert",
+                "sub": "Upstream · shipped · file-core · found by CodeQL",
+                "upstream": true
+              }
+            ],
+            "rest": " · 3 upstream",
+            "weight": "quiet"
+          }
+        ],
+        "note": "Not shown here: 7 more alert groups, 5 in tests; 1 pipeline PR, on Flow. The inspector lists every item."
+      }
+    ],
+    "first": "repo:osdu-spi-stack"
+  }
+}

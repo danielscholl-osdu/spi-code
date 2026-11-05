@@ -1,0 +1,65 @@
+{
+  "view": "board",
+  "title": "",
+  "header": {
+    "status": {
+      "label": "P1 · BUILD",
+      "tone": "caution"
+    },
+    "chip": "svc"
+  },
+  "sections": [
+    {
+      "kind": "rows",
+      "items": [
+        {
+          "text": ". Nothing else waits on it."
+        }
+      ]
+    },
+    {
+      "kind": "cards",
+      "title": "Next step",
+      "items": [
+        {
+          "title": "Open the failed job (Java Build › Run Java Build); the reason is in the cause above.",
+          "edge": "brand"
+        }
+      ]
+    },
+    {
+      "kind": "cards",
+      "items": [
+        {
+          "title": "Why",
+          "prose": true,
+          "fields": [
+            {
+              "label": "Failed check",
+              "value": "Java Build › Run Java Build"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "actions",
+      "items": [
+        {
+          "type": "dismiss",
+          "label": "Dismiss",
+          "pendingLabel": "Dismissing…",
+          "payload": {
+            "id": "x",
+            "fingerprint": "4c174c95a944e9ec"
+          },
+          "confirm": {
+            "title": "Dismiss svc · release PR failing?",
+            "body": "It leaves the queue and the badge until its inputs change: a new head, run, failure or entry brings it back. The decision is kept in the rib's data dir; nothing is written to GitHub.",
+            "confirmLabel": "Dismiss"
+          }
+        }
+      ]
+    }
+  ]
+}

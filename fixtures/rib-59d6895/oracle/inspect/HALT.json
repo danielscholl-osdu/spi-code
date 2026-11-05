@@ -1,0 +1,50 @@
+{
+  "view": "board",
+  "title": "Sync halted on schemathesis-tests",
+  "header": {
+    "status": {
+      "label": "P0 · HALT",
+      "tone": "error"
+    },
+    "chip": "svc"
+  },
+  "sections": [
+    {
+      "kind": "rows",
+      "items": [
+        {
+          "text": "Upstream adds schemathesis-tests, a top-level entry the fork's filter has no rule for, so Sync Upstream stops with UNKNOWN_TOP_LEVEL. Nothing else waits on it."
+        }
+      ]
+    },
+    {
+      "kind": "cards",
+      "title": "Next step",
+      "items": [
+        {
+          "title": "Add a rule for schemathesis-tests to .github/upstream-filter.yml, then dispatch sync.",
+          "edge": "brand"
+        }
+      ]
+    },
+    {
+      "kind": "actions",
+      "items": [
+        {
+          "type": "dismiss",
+          "label": "Dismiss",
+          "pendingLabel": "Dismissing…",
+          "payload": {
+            "id": "x",
+            "fingerprint": "7c4e7b321a447385"
+          },
+          "confirm": {
+            "title": "Dismiss svc · sync halted?",
+            "body": "It leaves the queue and the badge until its inputs change: a new head, run, failure or entry brings it back. The decision is kept in the rib's data dir; nothing is written to GitHub.",
+            "confirmLabel": "Dismiss"
+          }
+        }
+      ]
+    }
+  ]
+}

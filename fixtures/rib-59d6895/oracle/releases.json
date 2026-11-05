@@ -1,0 +1,222 @@
+{
+  "lines": [
+    {
+      "id": "release:2026-10",
+      "month": "2026-10",
+      "name": "2026.10",
+      "open": true,
+      "stateText": "In progress, closes Oct 31",
+      "notes": "approved",
+      "headline": "All 13 services <now> ship from SPI forks.",
+      "stats": [
+        {
+          "figure": "5/5",
+          "short": "Services released",
+          "label": "services released from SPI forks",
+          "anchor": "components"
+        },
+        {
+          "short": "Releases",
+          "figure": "37",
+          "label": "releases across 8 repositories",
+          "anchor": "components"
+        },
+        {
+          "short": "Actions",
+          "figure": "1",
+          "label": "required action",
+          "tone": "bad",
+          "anchor": "action"
+        },
+        {
+          "short": "Open issues",
+          "figure": "1",
+          "label": "open known issue",
+          "anchor": "issues"
+        }
+      ],
+      "keyChanges": []
+    },
+    {
+      "id": "release:2026-09",
+      "month": "2026-09",
+      "name": "2026.09",
+      "open": false,
+      "stateText": "Closed Sep 30",
+      "notes": "none",
+      "headline": "28 releases across 2 repositories in September 2026.",
+      "stats": [
+        {
+          "figure": "1/5",
+          "short": "Services released",
+          "label": "services released from SPI forks, 4 forked this month",
+          "anchor": "components"
+        },
+        {
+          "short": "Releases",
+          "figure": "28",
+          "label": "releases across 2 repositories",
+          "anchor": "components"
+        },
+        {
+          "short": "Actions",
+          "figure": "?",
+          "label": "actions not reviewed yet",
+          "anchor": "action"
+        },
+        {
+          "short": "Open issues",
+          "figure": "?",
+          "label": "known issues not reviewed yet",
+          "anchor": "issues"
+        }
+      ],
+      "keyChanges": []
+    },
+    {
+      "id": "release:2026-08",
+      "month": "2026-08",
+      "name": "2026.08",
+      "open": false,
+      "stateText": "Closed Aug 31",
+      "notes": "none",
+      "headline": "11 releases across 2 repositories in August 2026.",
+      "stats": [
+        {
+          "figure": "1/5",
+          "short": "Services released",
+          "label": "services released from SPI forks",
+          "anchor": "components"
+        },
+        {
+          "short": "Releases",
+          "figure": "11",
+          "label": "releases across 2 repositories",
+          "anchor": "components"
+        },
+        {
+          "short": "Actions",
+          "figure": "?",
+          "label": "actions not reviewed yet",
+          "anchor": "action"
+        },
+        {
+          "short": "Open issues",
+          "figure": "?",
+          "label": "known issues not reviewed yet",
+          "anchor": "issues"
+        }
+      ],
+      "keyChanges": []
+    },
+    {
+      "id": "release:2026-07",
+      "month": "2026-07",
+      "name": "2026.07",
+      "open": false,
+      "stateText": "Closed Jul 31",
+      "notes": "none",
+      "headline": "1 release across 1 repository in July 2026.",
+      "stats": [
+        {
+          "figure": "1/5",
+          "short": "Services released",
+          "label": "services released from SPI forks",
+          "anchor": "components"
+        },
+        {
+          "short": "Releases",
+          "figure": "1",
+          "label": "release across 1 repository",
+          "anchor": "components"
+        },
+        {
+          "short": "Actions",
+          "figure": "?",
+          "label": "actions not reviewed yet",
+          "anchor": "action"
+        },
+        {
+          "short": "Open issues",
+          "figure": "?",
+          "label": "known issues not reviewed yet",
+          "anchor": "issues"
+        }
+      ],
+      "keyChanges": []
+    },
+    {
+      "id": "release:2026-04",
+      "month": "2026-04",
+      "name": "2026.04",
+      "open": false,
+      "stateText": "Closed Apr 30",
+      "notes": "none",
+      "headline": "1 release across 1 repository in April 2026.",
+      "stats": [
+        {
+          "figure": "1/5",
+          "short": "Services released",
+          "label": "services released from SPI forks",
+          "anchor": "components"
+        },
+        {
+          "short": "Releases",
+          "figure": "1",
+          "label": "release across 1 repository",
+          "anchor": "components"
+        },
+        {
+          "short": "Actions",
+          "figure": "?",
+          "label": "actions not reviewed yet",
+          "anchor": "action"
+        },
+        {
+          "short": "Open issues",
+          "figure": "?",
+          "label": "known issues not reviewed yet",
+          "anchor": "issues"
+        }
+      ],
+      "keyChanges": []
+    },
+    {
+      "id": "release:2026-03",
+      "month": "2026-03",
+      "name": "2026.03",
+      "open": false,
+      "stateText": "Closed Mar 31",
+      "notes": "none",
+      "headline": "1 release across 1 repository in March 2026.",
+      "stats": [
+        {
+          "figure": "0/5",
+          "short": "Services released",
+          "label": "services released from SPI forks",
+          "anchor": "components"
+        },
+        {
+          "short": "Releases",
+          "figure": "1",
+          "label": "release across 1 repository",
+          "anchor": "components"
+        },
+        {
+          "short": "Actions",
+          "figure": "?",
+          "label": "actions not reviewed yet",
+          "anchor": "action"
+        },
+        {
+          "short": "Open issues",
+          "figure": "?",
+          "label": "known issues not reviewed yet",
+          "anchor": "issues"
+        }
+      ],
+      "keyChanges": []
+    }
+  ],
+  "reading": false
+}

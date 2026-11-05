@@ -1,0 +1,52 @@
+{
+  "from": "2026-10-20T15:00:00.000Z",
+  "to": "2026-10-21T15:00:00.000Z",
+  "lanes": [
+    {
+      "id": "upgrade",
+      "placed": [
+        {
+          "e": {
+            "id": "38312331838",
+            "start": "2026-10-12T21:42:47Z",
+            "state": "running",
+            "label": "v0.28.2",
+            "detail": "running · at verify",
+            "inspect": "stack:38181620856"
+          },
+          "left": 0,
+          "width": 100,
+          "tier": 0,
+          "flip": true
+        }
+      ]
+    },
+    {
+      "id": "refresh",
+      "placed": []
+    },
+    {
+      "id": "smoke",
+      "placed": []
+    },
+    {
+      "id": "holds",
+      "placed": [
+        {
+          "e": {
+            "id": "1791758673000",
+            "start": "2026-10-11T22:44:33.000Z",
+            "state": "held",
+            "label": "9 d 16 h",
+            "detail": "in maintenance for 9 d 16 h so far",
+            "inspect": "stack:38181620856"
+          },
+          "left": 0,
+          "width": 100,
+          "tier": 0,
+          "flip": true
+        }
+      ]
+    }
+  ]
+}
