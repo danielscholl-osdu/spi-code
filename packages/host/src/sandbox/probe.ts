@@ -3,14 +3,22 @@
 
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { once } from "node:events";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { credentialPaths, runSeatbelt, sandboxEnvironment } from "./seatbelt.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function ghConfigPath(home: string, source: NodeJS.ProcessEnv = process.env): string {
+  return resolve(
+    source.GH_CONFIG_DIR || join(source.XDG_CONFIG_HOME || join(home, ".config"), "gh"),
+  );
 }
 
 async function javaHome(scratch: string): Promise<{ home: string; source: string }> {
@@ -79,9 +87,7 @@ export async function runSandboxProbe() {
     const fixtureHome = join(root, "fixture-home");
     for (const directory of [worktree, scratchHome, fixtureHome]) mkdirSync(directory);
     const jdk = await javaHome(scratchHome);
-    const ghConfig =
-      process.env.GH_CONFIG_DIR ??
-      join(process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"), "gh");
+    const ghConfig = ghConfigPath(homedir());
     const options = {
       worktree,
       scratchHome,
@@ -134,6 +140,56 @@ export async function runSandboxProbe() {
         readable: result.stdout === "true",
       };
     });
+    const symlinkHome = join(root, "symlink-home");
+    const credentialTarget = join(worktree, "credential-target");
+    mkdirSync(join(symlinkHome, ".config"), { recursive: true });
+    mkdirSync(credentialTarget);
+    writeFileSync(join(credentialTarget, "probe-fixture"), "public probe fixture");
+    symlinkSync(credentialTarget, join(symlinkHome, ".config/gh"));
+    const symlinkReads = [
+      join(symlinkHome, ".config/gh/probe-fixture"),
+      join(credentialTarget, "probe-fixture"),
+    ].map((path) => {
+      const before = spawnSync("/bin/sh", ["-c", readCheck, "probe", path], { encoding: "utf8" });
+      const result = runSeatbelt(
+        { ...options, protectedHome: symlinkHome, ghConfig: join(symlinkHome, ".config/gh") },
+        "/bin/sh",
+        ["-c", readCheck, "probe", path],
+      );
+      if (
+        before.status !== 0 ||
+        before.stdout !== "true" ||
+        result.status !== 0 ||
+        !["true", "false"].includes(result.stdout)
+      ) {
+        throw new Error("Symlink credential readability probe failed");
+      }
+      return {
+        path: path.slice(root.length + 1),
+        readableBefore: true,
+        readable: result.stdout === "true",
+      };
+    });
+    const socketPath = join(root, "fixture.sock");
+    const server = createServer((socket) => socket.destroy());
+    let unixSocket: { connectedBefore: boolean; connected: boolean };
+    try {
+      server.listen(socketPath);
+      await once(server, "listening");
+      const args = ["-w", "1", "-U", socketPath];
+      const before = spawnSync("/usr/bin/nc", args, { encoding: "utf8", timeout: 5_000 });
+      if (before.error) throw before.error;
+      if (before.status !== 0)
+        throw new Error(`Fixture Unix socket is not reachable before sandboxing: ${before.stderr}`);
+      const result = runSeatbelt(options, "/usr/bin/nc", args);
+      unixSocket = { connectedBefore: true, connected: result.status === 0 };
+    } finally {
+      if (server.listening) {
+        await new Promise<void>((resolve, reject) =>
+          server.close((error) => (error ? reject(error) : resolve())),
+        );
+      }
+    }
     const writeCheck = '( printf fixture > "$1" ) 2>/dev/null';
     const outside = runSeatbelt(options, "/bin/sh", [
       "-c",
@@ -155,6 +211,8 @@ export async function runSandboxProbe() {
       java: { source: jdk.source, status: java.status, version: java.stderr.trim() },
       reads,
       fixtureReads,
+      symlinkReads,
+      unixSocket,
       writes: { outside: outside.status === 0, inside: inside.status === 0 },
       environment: env.stdout
         .trim()
@@ -166,6 +224,8 @@ export async function runSandboxProbe() {
     if (
       reads.some((read) => read.readable) ||
       fixtureReads.some((read) => read.readable) ||
+      symlinkReads.some((read) => read.readable) ||
+      unixSocket.connected ||
       report.writes.outside ||
       !report.writes.inside
     ) {

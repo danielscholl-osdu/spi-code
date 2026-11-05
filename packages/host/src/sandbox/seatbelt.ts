@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 import { spawnSync } from "node:child_process";
-import { realpathSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, realpathSync } from "node:fs";
+import { join, resolve } from "node:path";
 
 export interface SeatbeltOptions {
   worktree: string;
@@ -45,15 +45,29 @@ export function seatbeltProfile(options: SeatbeltOptions): string {
     home,
     ...(options.readonlyPaths ?? []).map((path) => realpathSync(path)),
   ];
-  const denied = credentialPaths(options.protectedHome, options.ghConfig);
+  const protectedHome = resolve(options.protectedHome);
+  const protectedHomes = new Set([protectedHome]);
+  if (existsSync(protectedHome)) protectedHomes.add(realpathSync(protectedHome));
+  const denied = new Set<string>();
+  for (const protectedPath of protectedHomes) {
+    for (const path of credentialPaths(protectedPath, options.ghConfig)) {
+      const lexical = resolve(path);
+      denied.add(lexical);
+      if (existsSync(lexical)) denied.add(realpathSync(lexical));
+    }
+  }
   return [
     "(version 1)",
     "(deny default)",
-    "(allow process* sysctl-read mach-lookup network*)",
+    "(allow process* sysctl-read mach-lookup)",
+    "(allow system-socket)",
+    "(allow network-outbound (remote ip))",
+    "(allow network-inbound (local ip))",
+    '(allow network-outbound (remote unix-socket (path-literal "/private/var/run/mDNSResponder")))',
     "(allow file-read-metadata)",
     `(allow file-read* ${read.map(subpath).join(" ")} (literal "/") (literal "/dev/null") (literal "/dev/urandom"))`,
     `(allow file-write* ${[worktree, home].map(subpath).join(" ")} (literal "/dev/null"))`,
-    `(deny file-read* file-write* ${denied.map(subpath).join(" ")})`,
+    `(deny file-read* file-write* ${[...denied].map(subpath).join(" ")})`,
   ].join("\n");
 }
 
@@ -66,6 +80,8 @@ export function sandboxEnvironment(
     TMPDIR: realpathSync(scratchHome),
     XDG_CONFIG_HOME: join(realpathSync(scratchHome), ".config"),
     PATH: "/usr/bin:/bin:/usr/sbin:/sbin",
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_GLOBAL: "/dev/null",
   };
   for (const key of ["LANG", "LC_ALL", "TZ"]) {
     if (source[key] !== undefined) env[key] = source[key];

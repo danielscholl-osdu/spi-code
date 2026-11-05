@@ -11,7 +11,7 @@ From the bead worktree, run:
 ```sh
 pnpm exec vitest run --project packages/host packages/host/src/sandbox/seatbelt.test.ts
 pnpm run typecheck
-node --experimental-strip-types packages/host/dist/sandbox/probe.js
+node packages/host/dist/sandbox/probe.js
 ```
 
 The macOS integration test is skipped on other platforms. The runner uses a
@@ -40,21 +40,30 @@ OpenJDK 64-Bit Server VM Homebrew (build 17.0.21.0.3+0, mixed mode, sharing)
 |---|---|
 | Login keychain, `.ssh`, `.kube`, `.azure`, gh config | Each `readable: false` |
 | Public file in each credential-shaped fixture directory | Each `readableBefore: true`, `readable: false` |
+| Credential directory symlink into allowed checkout, and direct target | Each `readableBefore: true`, `readable: false` |
+| Host listening on fixture Unix socket in temporary root | `connectedBefore: true`, `connected: false` |
 | Write outside temporary checkout and scratch HOME | Failed |
 | Write inside temporary checkout | Succeeded |
-| Child environment names | `HOME`, `LANG`, `PATH`, `TMPDIR`, `XDG_CONFIG_HOME` |
+| Child environment names | `GIT_CONFIG_GLOBAL`, `GIT_CONFIG_NOSYSTEM`, `HOME`, `LANG`, `PATH`, `TMPDIR`, `XDG_CONFIG_HOME` |
 | Windows restricted token | **Pending: no Windows runner exists yet** |
 
 The environment is constructed from an allow-list, not copied and scrubbed.
 `GH_TOKEN`, `GITHUB_TOKEN`, `AZURE_*`, `ARM_*`, `SSH_AUTH_SOCK`, injected
-`NODE_OPTIONS`, git-helper configuration and the caller's PATH are not inherited.
+`NODE_OPTIONS`, git configuration environment overrides and the caller's PATH
+are not inherited. `GIT_CONFIG_NOSYSTEM=1` and `GIT_CONFIG_GLOBAL=/dev/null`
+disable Git's system and global config loading; they do not forbid helper execution.
 HOME, temporary storage and XDG config point into scratch storage.
+Empty gh/XDG config overrides are treated as unset, and relative overrides
+are resolved from the host's working directory.
 When no local JDK exists, the runner downloads a Temurin 17 archive using
 Adoptium metadata and verifies its SHA-256 before extraction into scratch.
 That fallback was not exercised on this machine.
 
 The profile defaults to deny, with system/JDK reads, checkout/scratch writes,
-explicit credential subtree denies and network access left on. macOS 27.2 dyld
+explicit credential subtree denies covering both lexical and existing canonical
+paths. IP networking remains allowed; Unix socket connections are denied except
+the system mDNSResponder socket for DNS. The host fixture listener verifies
+connection denial independently of file-read rules. macOS 27.2 dyld
 aborted without a read grant for the root directory **itself**; `(literal "/")`
 resolved this without granting its descendants. Sandbox startup errors throw;
 there is no unsandboxed retry. This does not prove CT-08 git-folder isolation,
