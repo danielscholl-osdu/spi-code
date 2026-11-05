@@ -50,8 +50,11 @@ All clocks are fixed.
   now requests pageInfo and commit totalCount so nested 50-commit connections
   cannot silently truncate. Truncated PR commits are read fully through
   `Gh.pages` on the REST commits endpoint. These calls use the forge call
-  counter; REST requests do not consume GraphQL points. The GraphQL query
-  reserves two points per seeded fork for its nested search connections.
+  counter; REST requests do not consume GraphQL points. Each search page now
+  reserves two GraphQL points (rounding up the search and its 100 nested commit
+  connections): four per seeded fork for the initial batch, then two per
+  continuation or split-window request. Reported costs still reconcile through
+  the shared forge account.
 - A failed commit-page read emits PR-specific failure/cut evidence but publishes
   the references already read and permits other PRs and the watermark to advance.
   A zod-validated `pending` map retains unresolved PR facts and counts. Merged
@@ -66,7 +69,7 @@ All clocks are fixed.
 - `mrRefs`, seed/day handling, GitLab batch size, MR conversion, PR-number
   retention, watermark advancement and URL/body/commit matching are unchanged.
 
-## Council round 1
+## Council round 1 (historical)
 
 - Known limit: a PR search exceeding 100 results is explicitly cut and does not
   advance that fork's watermark. In particular a merged window with over 100
@@ -97,5 +100,24 @@ All clocks are fixed.
   the PR is still in the search window) preserve its references and emit
   PR-specific and aggregate cut evidence without another REST request.
   Non-cap shortfalls and transport failures remain retryable.
-- The accepted over-100-result search limit is unchanged; the maintainer is
-  filing its follow-up bead.
+- The accepted over-100-result search limit was unchanged at that revision;
+  its follow-up is implemented below.
+
+## Port-PR search pagination (spicode-cp9)
+
+- Open and merged searches follow `hasNextPage`/`endCursor`, preserving the
+  initial per-fork batch. Continuation requests use the same forge budget.
+  A synthetic recorded exec log replays 150 merged PRs across two pages,
+  publishes all 150, advances the watermark, reproduces the ledger state and
+  exhausts the log. The same case covers open PR pagination.
+- Merged searches use inclusive UTC date bounds from the seed/watermark day
+  through the current clock day. Windows over GitHub's 1,000-result search cap
+  split into disjoint day ranges recursively; each resulting window pages
+  independently. A 1,200-result case publishes both windows without duplicates.
+- A single day still above the cap, or an open search above the cap (which
+  cannot be split by merge date), emits a cut and retains the prior ledger,
+  observation time and watermark. Missing/repeated cursors and incomplete
+  totals also remain explicit cuts; failed continuation reads emit failures.
+  No partially read search is published or allowed to advance a watermark.
+- Commit paging, retryable `pending` entries, permanent 250-commit cuts, encoded
+  multiline messages and PR-number retention keep their existing behavior.

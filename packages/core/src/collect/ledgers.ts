@@ -132,7 +132,7 @@ export function mrRefs(texts: readonly string[]): string[] {
 
 interface RawSearch {
   issueCount: number;
-  pageInfo?: { hasNextPage?: boolean };
+  pageInfo?: { hasNextPage?: boolean; endCursor?: string | null };
   nodes?: ({
     number?: number; url?: string; mergedAt?: string | null; bodyText?: string;
     commits?: {
@@ -145,6 +145,68 @@ interface RawSearch {
 const PR_NODE =
   "... on PullRequest { number url mergedAt bodyText commits(first: 50) { totalCount pageInfo { hasNextPage } nodes { commit { message } } } }";
 
+// Round up the search plus 100 nested commit connections for each requested page.
+const SEARCH_PAGE_COST = 2;
+const SEARCH_CAP = 1000;
+const DAY_MS = 86_400_000;
+
+function portSearchField(alias: string, query: string, cursor?: string): string {
+  return `${alias}: search(query: ${JSON.stringify(query)}, type: ISSUE, first: ${PAGE}${cursor ? `, after: ${JSON.stringify(cursor)}` : ""}) { issueCount pageInfo { hasNextPage endCursor } nodes { ${PR_NODE} } }`;
+}
+
+async function portSearchPage(gh: Gh, query: string, cursor?: string): Promise<RawSearch> {
+  const { data, errors } = await gh.graphql<{ port_page?: RawSearch | null }>(
+    `query { ${portSearchField("port_page", query, cursor)} }`, SEARCH_PAGE_COST,
+  );
+  const error = errors.find((e) => !e.path?.length || e.path[0] === "port_page");
+  if (error) throw new Error(error.message);
+  if (!data.port_page?.nodes) throw new Error("Port PRs are not readable");
+  return data.port_page;
+}
+
+async function completePortSearch(
+  gh: Gh, query: string, first: RawSearch, window?: { repo: string; since: string; until: string },
+): Promise<RawSearch> {
+  if (!first.nodes) return first;
+  if (first.issueCount > SEARCH_CAP) {
+    if (!window || window.since >= window.until) return first;
+    const start = Date.parse(window.since);
+    const end = Date.parse(window.until);
+    const middle = start + Math.floor((end - start) / DAY_MS / 2) * DAY_MS;
+    const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+    const nodes: NonNullable<RawSearch["nodes"]> = [];
+    for (const [since, until] of [
+      [window.since, day(middle)], [day(middle + DAY_MS), window.until],
+    ] as const) {
+      const part = { repo: window.repo, since, until };
+      const subquery = mergedPortQuery(part);
+      const result = await completePortSearch(gh, subquery, await portSearchPage(gh, subquery), part);
+      if (!result.nodes || result.issueCount > result.nodes.length ||
+        result.pageInfo?.hasNextPage !== false) return result;
+      nodes.push(...result.nodes);
+    }
+    return { issueCount: nodes.length, nodes, pageInfo: { hasNextPage: false } };
+  }
+  const nodes = [...first.nodes];
+  const cursors = new Set<string>();
+  let page = first;
+  let total = first.issueCount;
+  while (page.pageInfo?.hasNextPage === true && nodes.length < SEARCH_CAP) {
+    const cursor = page.pageInfo.endCursor;
+    if (!cursor || cursors.has(cursor) || !page.nodes?.length) break;
+    cursors.add(cursor);
+    page = await portSearchPage(gh, query, cursor);
+    if (page.issueCount > SEARCH_CAP) return completePortSearch(gh, query, page, window);
+    total = Math.max(total, page.issueCount);
+    nodes.push(...(page.nodes ?? []));
+  }
+  return { issueCount: total, nodes, ...(page.pageInfo ? { pageInfo: page.pageInfo } : {}) };
+}
+
+function mergedPortQuery(window: { repo: string; since: string; until: string }): string {
+  return `repo:${window.repo} is:pr is:merged merged:>=${window.since} merged:<=${window.until}`;
+}
+
 export interface PortPrRead {
   prs: Record<string, ForkPrFact[]>;
   read: { prs: number; commits: number };
@@ -153,11 +215,12 @@ export interface PortPrRead {
 
 export async function readPortPrs(gh: Gh, state: LedgerState, ctx: CoreContext): Promise<PortPrRead> {
   const forks = ctx.fleet.forks.filter((f) => seedOf(f));
+  const until = ctx.clock.now().toISOString().slice(0, 10);
   const fields = forks.flatMap((f, i) => {
     const since = (state.portPrs[f.id]?.watermark ?? seedOf(f) ?? "").slice(0, 10);
     return [
-      `port_o${i}: search(query: "repo:${f.repo} is:pr is:open", type: ISSUE, first: ${PAGE}) { issueCount pageInfo { hasNextPage } nodes { ${PR_NODE} } }`,
-      `port_m${i}: search(query: "repo:${f.repo} is:pr is:merged merged:>=${since}", type: ISSUE, first: ${PAGE}) { issueCount pageInfo { hasNextPage } nodes { ${PR_NODE} } }`,
+      portSearchField(`port_o${i}`, `repo:${f.repo} is:pr is:open`),
+      portSearchField(`port_m${i}`, mergedPortQuery({ repo: f.repo, since, until })),
     ];
   });
   const out: Record<string, ForkPrFact[]> = {};
@@ -168,29 +231,43 @@ export async function readPortPrs(gh: Gh, state: LedgerState, ctx: CoreContext):
   let errors: Awaited<ReturnType<Gh["graphql"]>>["errors"] = [];
   let failure: unknown;
   try {
-    // Two searches per fork, each with up to 100 nested commit connections.
-    ({ data, errors } = await gh.graphql<typeof data>(`query { ${fields.join(" ")} }`, forks.length * 2));
+    ({ data, errors } = await gh.graphql<typeof data>(
+      `query { ${fields.join(" ")} }`, fields.length * SEARCH_PAGE_COST,
+    ));
   } catch (error) {
     failure = error;
   }
   for (const [i, f] of forks.entries()) {
     const key = `port:${f.id}`;
     const base = record(ctx, f.repo, "port PRs", state.observed[key]);
-    const open = data[`port_o${i}`];
-    const merged = data[`port_m${i}`];
+    let open = data[`port_o${i}`];
+    let merged = data[`port_m${i}`];
     const error = errors.find((e) => !e.path?.length ||
       e.path[0] === `port_o${i}` || e.path[0] === `port_m${i}`);
+    let searchFailure = failure;
+    if (searchFailure === undefined && !error && open?.nodes && merged?.nodes) {
+      try {
+        open = await completePortSearch(gh, `repo:${f.repo} is:pr is:open`, open);
+        const since = (state.portPrs[f.id]?.watermark ?? seedOf(f) ?? "").slice(0, 10);
+        const window = { repo: f.repo, since, until };
+        merged = await completePortSearch(gh, mergedPortQuery(window), merged, window);
+      } catch (error) {
+        searchFailure = error;
+      }
+    }
     const searches = [open, merged];
     const cut = searches.find((s) => s && (
       s.issueCount > (s.nodes?.length ?? 0) || s.pageInfo?.hasNextPage !== false));
-    if (failure !== undefined || error || !open?.nodes || !merged?.nodes || cut) {
+    if (searchFailure !== undefined || error || !open?.nodes || !merged?.nodes || cut) {
       const known = state.portPrs[f.id];
       if (known?.open) out[f.id] = [...known.open, ...Object.values(known.prs)];
-      reads.push(failure !== undefined || error || !open?.nodes || !merged?.nodes ? {
-        ...base, failure: error?.message ?? (failure === undefined ? "Port PRs are not readable" : errorText(failure)),
+      reads.push(searchFailure !== undefined || error || !open?.nodes || !merged?.nodes ? {
+        ...base, failure: error?.message ?? (searchFailure === undefined ? "Port PRs are not readable" : errorText(searchFailure)),
       } : {
         ...base, completeness: {
-          kind: "cut", reason: "Port PR search is incomplete",
+          kind: "cut", reason: (cut?.issueCount ?? 0) > SEARCH_CAP
+            ? "GitHub PR search limit is 1000 per date window; search is incomplete"
+            : "Port PR search is incomplete",
           read: cut?.nodes?.length ?? 0,
           total: cut?.issueCount ?? 1,
         },

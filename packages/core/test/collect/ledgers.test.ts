@@ -11,7 +11,7 @@ import {
 } from "../../src/collect/ledgers.js";
 import { fleetOf } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
-import { RecordingExec } from "../../src/exec/recording.js";
+import { RecordingExec, ReplayExec } from "../../src/exec/recording.js";
 import { Gh, Glab, GraphqlBudget } from "../../src/forge.js";
 import { FIXTURE_NOW } from "../harness.js";
 
@@ -185,7 +185,7 @@ test("unread projects and alias-scoped GraphQL errors have their own failure rec
   expect(result.reads.filter((r) => r.failure).map((r) => r.source)).toEqual([services[1]?.repo]);
 });
 
-test("PR searches above 100 results remain explicitly cut without advancing the watermark", async () => {
+test("incomplete PR searches remain explicitly cut without advancing the watermark", async () => {
   const state = emptyLedgerState();
   const result = await readPortPrs(
     new Gh(
@@ -200,6 +200,152 @@ test("PR searches above 100 results remain explicitly cut without advancing the 
   expect(result.reads[0]?.completeness.kind).toBe("cut");
   expect(state.portPrs).toEqual({});
 });
+
+const singleFork = createContext({
+  fleet: fleetOf(services.slice(0, 1)),
+  clock: ctx.clock,
+});
+const searchPage = (nodes: unknown[], issueCount: number, endCursor: string | null = null) => ({
+  ...search(nodes, issueCount),
+  pageInfo: { hasNextPage: endCursor !== null, endCursor },
+});
+
+test.each(["merged", "open"] as const)(
+  "150 %s PRs across two pages publish completely on recording and replay",
+  async (kind) => {
+    const nodes = Array.from({ length: 150 }, (_, i) =>
+      pr(i + 1, kind === "merged" ? "2026-10-01T10:00:00Z" : null, ""),
+    );
+    const alias = kind === "merged" ? "port_m0" : "port_o0";
+    const log: string[] = [];
+    const queries: string[] = [];
+    const recording = new RecordingExec(
+      async (_cmd, args) => {
+        const query = args.at(-1) ?? "";
+        queries.push(query);
+        const data =
+          queries.length === 1
+            ? {
+                port_o0: search(),
+                port_m0: search(),
+                [alias]: searchPage(nodes.slice(0, 100), 150, 'cursor"100'),
+              }
+            : { port_page: searchPage(nodes.slice(100), 150) };
+        return { stdout: JSON.stringify({ data }), stderr: "", exit: 0 };
+      },
+      (line) => {
+        log.push(line);
+      },
+    );
+    const state = emptyLedgerState();
+    const budget = new GraphqlBudget(ctx.clock);
+    const result = await readPortPrs(new Gh(recording, undefined, budget), state, singleFork);
+    expect(result.prs.partition?.map((p) => p.number)).toEqual(nodes.map((p) => p.number));
+    expect(result.read).toEqual({ prs: 150, commits: 0 });
+    expect(result.reads[0]?.completeness.kind).toBe("complete");
+    expect(state.portPrs.partition?.watermark).toBe(
+      kind === "merged" ? nodes[0]?.mergedAt : undefined,
+    );
+    expect(queries).toHaveLength(2);
+    expect(queries[1]).toContain('after: "cursor\\"100"');
+    expect(budget.snapshot()).toMatchObject({ calls: 2, spent: 6 });
+    const replay = new ReplayExec(log.join(""));
+    const restored = emptyLedgerState();
+    expect(await readPortPrs(new Gh(replay), restored, singleFork)).toEqual(result);
+    expect(restored).toEqual(state);
+    replay.assertExhausted();
+  },
+);
+
+test("merged searches over 1000 split into disjoint date windows and page every window", async () => {
+  const nodes = Array.from({ length: 1200 }, (_, i) =>
+    pr(i + 1, i < 600 ? "2026-08-04T10:00:00Z" : "2026-10-12T10:00:00Z", ""),
+  );
+  const queries: string[] = [];
+  const calls = new RecordingExec(
+    async (_cmd, args) => {
+      const query = args.at(-1) ?? "";
+      queries.push(query);
+      const dates = /merged:>=([\d-]+) merged:<=([\d-]+)/.exec(query);
+      expect(dates).not.toBeNull();
+      const matching = nodes.filter((p) => {
+        const day = p.mergedAt?.slice(0, 10) ?? "";
+        return day >= (dates?.[1] ?? "") && day <= (dates?.[2] ?? "");
+      });
+      const offset = Number(/after: "(\d+)"/.exec(query)?.[1] ?? 0);
+      const page = searchPage(
+        matching.slice(offset, offset + 100),
+        matching.length,
+        offset + 100 < matching.length ? String(offset + 100) : null,
+      );
+      const data =
+        queries.length === 1 ? { port_o0: search(), port_m0: page } : { port_page: page };
+      return { stdout: JSON.stringify({ data }), stderr: "", exit: 0 };
+    },
+    () => {},
+  );
+  const state = emptyLedgerState();
+  const budget = new GraphqlBudget(ctx.clock);
+  const result = await readPortPrs(new Gh(calls, undefined, budget), state, singleFork);
+  expect(result.prs.partition).toHaveLength(1200);
+  expect(new Set(result.prs.partition?.map((p) => p.number)).size).toBe(1200);
+  expect(state.portPrs.partition?.watermark).toBe("2026-10-12T10:00:00Z");
+  expect(result.reads[0]?.completeness.kind).toBe("complete");
+  expect(queries).toHaveLength(13);
+  expect(budget.snapshot()).toMatchObject({ calls: 13, spent: 28 });
+});
+
+test.each(["open cap", "single-day merged cap", "missing cursor", "repeated cursor", "page error"])(
+  "%s retains the last good ledger and watermark with explicit evidence",
+  async (scenario) => {
+    const state = emptyLedgerState();
+    state.portPrs.partition = {
+      watermark: "2026-10-12T00:00:00Z",
+      prs: { "1": { number: 1, url: "u", state: "merged", refs: [] } },
+      open: [],
+    };
+    state.observed["port:partition"] = "2026-10-11T00:00:00Z";
+    const previous = structuredClone(state);
+    const nodes = [pr(2, "2026-10-12T10:00:00Z", "")];
+    const overCap = scenario.endsWith("cap");
+    const first =
+      scenario === "missing cursor"
+        ? { ...search(nodes, 150), pageInfo: { hasNextPage: true } }
+        : searchPage(nodes, overCap ? 1001 : 150, "same");
+    let count = 0;
+    const calls = new RecordingExec(
+      async () => {
+        count++;
+        const data =
+          count === 1
+            ? {
+                port_o0: scenario === "open cap" ? first : search(),
+                port_m0: scenario === "open cap" ? search() : first,
+              }
+            : { port_page: first };
+        return {
+          stdout: JSON.stringify({
+            data,
+            errors:
+              count > 1 && scenario === "page error"
+                ? [{ path: ["port_page"], message: "page denied" }]
+                : [],
+          }),
+          stderr: "",
+          exit: 0,
+        };
+      },
+      () => {},
+    );
+    const result = await readPortPrs(new Gh(calls), state, singleFork);
+    expect(state).toEqual(previous);
+    expect(result.prs.partition).toEqual(Object.values(previous.portPrs.partition?.prs ?? {}));
+    expect(result.reads[0]?.retainedFrom).toBe("2026-10-11T00:00:00Z");
+    if (scenario === "page error") expect(result.reads[0]?.failure).toBe("page denied");
+    else expect(result.reads[0]?.completeness.kind).toBe("cut");
+    expect(count).toBe(scenario === "repeated cursor" || scenario === "page error" ? 2 : 1);
+  },
+);
 
 const longPr = {
   ...pr(37, "2026-09-01T10:00:00Z", `https://community.opengroup.org/${ENT}/-/merge_requests/955`),
@@ -228,7 +374,7 @@ test("a 51-commit merged PR pages all commits through Gh and advances the waterm
     "api --paginate repos/Azure/osdu-spi-partition/pulls/37/commits?per_page=100 --jq .[].commit.message | tojson",
   );
   expect(counter.calls).toBe(2);
-  expect(budget.snapshot()).toMatchObject({ calls: 1, spent: 4 });
+  expect(budget.snapshot()).toMatchObject({ calls: 1, spent: 8 });
 });
 
 test("failed commit paging does not freeze other PRs or lose retries behind the watermark", async () => {
