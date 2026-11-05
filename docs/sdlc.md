@@ -53,6 +53,12 @@ The scaffold uses Node 22.16 or newer, matching `engines` in `package.json`, and
 The header check covers tracked and untracked, non-ignored sources, including
 extensionless shebang scripts. Build output and dependencies are ignored.
 
+`scripts/check` repeats Vitest with `SPI_TEST_CLOCK_SHIFT=1`, moving the wall
+clock 400 days forward to catch expiring fixtures before they break main.
+The shifted clock still ticks, leaves real timers alone, and allows explicit
+fake clocks. Both passes respect `VITEST_MAX_WORKERS`. Tests with dated fixtures
+should inject a clock or pin their own fake time rather than read today's date.
+
 `scripts/check` also validates production dependency licenses offline and writes
 `build/THIRD_PARTY_NOTICES.md`. `package:mac` repeats generation against the staged
 production install plus the renderer's production dependency closure, then ships

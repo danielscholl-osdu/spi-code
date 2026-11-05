@@ -12,6 +12,8 @@ if [[ -f package.json ]]; then
     pnpm install --frozen-lockfile
   fi
   pnpm run check
+  echo "check: testing with the wall clock 400 days forward"
+  SPI_TEST_CLOCK_SHIFT=1 pnpm run test
   node scripts/third-party-notices.mjs
   exit 0
 fi
