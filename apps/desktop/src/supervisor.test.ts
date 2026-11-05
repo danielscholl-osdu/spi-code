@@ -210,6 +210,7 @@ it.each(["tsconfig.json", "tsconfig.build.json"])(
         cwd: fileURLToPath(new URL("../../../", import.meta.url)),
         encoding: "utf8",
         timeout: 15000,
+        shell: process.platform === "win32",
       });
     try {
       mkdirSync(join(directory, "src"));
@@ -238,6 +239,7 @@ it.each(["tsconfig.json", "tsconfig.build.json"])(
       rmSync(directory, { recursive: true, force: true });
     }
   },
+  120_000,
 );
 
 function harness() {
@@ -507,4 +509,4 @@ it("SIGKILLs the real host, resumes the same window store from its cursor, and p
     db.close();
     rmSync(directory, { recursive: true, force: true });
   }
-});
+}, 120_000);

@@ -220,7 +220,7 @@ it("keeps the mounted snapshot across reconnect and shows the supervisor's schem
         message: "Host stopped after repeated crashes. Restart SPI Code to reconnect.",
       },
     });
-    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+    expect(container.querySelector('main > p[role="alert"]')?.textContent).toBe(
       "Host stopped after repeated crashes. Restart SPI Code to reconnect.",
     );
     expect(watchStore.getState().snapshot?.cursor).toBe(12);
