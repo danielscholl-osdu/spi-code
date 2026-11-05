@@ -9,7 +9,9 @@
  * call whose shape the audit's grammar cannot read. The same log then replays through the
  * rib's Sweeper in a scratch checkout of keelson-rib-spi at RIB_REVISION, in a child bun
  * process with a clean environment, to give rib-facts.json. Every repository, project and group
- * the directory then names has its visibility checked now, and the audit runs last.
+ * the directory then names has its visibility checked now; each that is not public, from either
+ * forge, is replaced everywhere with a placeholder, private/redacted-<n>, and the recording is
+ * refused if the Facts name one or a name is left. The audit runs last.
  * Output goes to fixtures/exec/local/sweep-<date>/, which git ignores until D2 is decided; an
  * output directory that already holds anything is refused, never cleared.
  */
@@ -46,6 +48,9 @@ import {
   FENCE_MARK,
   fenced,
   LOG_FILE,
+  META_FILE,
+  PRIVATE_OWNER,
+  REDACTED,
   references,
   report,
   scrubEmails,
@@ -57,7 +62,7 @@ import {
 } from "./audit-exec-log.js";
 
 export const RIB_REVISION = "59d6895";
-export const META_FILE = "meta.json";
+export { META_FILE };
 export const RIB_FACTS_FILE = "rib-facts.json";
 export const ORACLE_FILE = "oracle.json";
 export const SERVICES_FILE = "services.json";
@@ -76,6 +81,8 @@ export interface SweepMeta {
   fleetFiles: { services: string };
   excluded: Record<string, Visibility>;
   fenced: Record<string, number>;
+  /** How many private names the scrub replaced with a placeholder. */
+  scrubbed?: number;
 }
 
 function option(name: string): string | undefined {
@@ -168,6 +175,95 @@ async function checkVisibility(out: string, now: Date): Promise<VisibilityFile> 
   };
 }
 
+/** The visibility of what the scrubbed directory still names: the checks already made, and any
+ * name the scrub left that was not checked before. */
+async function recheckVisibility(
+  out: string,
+  checked: VisibilityFile,
+  now: Date,
+): Promise<VisibilityFile> {
+  const refs = sweepReferences(out);
+  const kept = async (
+    names: Set<string>,
+    before: Record<string, Visibility> | undefined,
+    check: (name: string) => Promise<Visibility>,
+  ) => {
+    const found: Record<string, Visibility> = {};
+    await pool([...names].sort(), 6, async (name) => {
+      found[name] = before?.[name] ?? (await check(name));
+    });
+    return Object.fromEntries(Object.entries(found).sort(([a], [b]) => a.localeCompare(b)));
+  };
+  return {
+    checkedAt: now.toISOString(),
+    github: await kept(refs.github, checked.github, async (name) => githubVisibility(name)),
+    gitlab: await kept(refs.gitlab, checked.gitlab, (path) => gitlabVisibility(path)),
+    gitlabGroups: await kept(refs.gitlabGroups, checked.gitlabGroups, (path) =>
+      gitlabVisibility(path, "groups"),
+    ),
+  };
+}
+
+const PUBLIC: ReadonlySet<Visibility> = new Set(["public", "missing"]);
+// Facts the sweep and the rib oracle derived: a private name in them is data, not a mention,
+// and scrubbing it would change what the replay compares.
+const FACTS_FILES = ["core-facts.json", "rib-facts.json"];
+
+/** Replaces every repository, project and group that is not public, from either forge, with a
+ * placeholder everywhere in the directory, then refuses the recording if one is left. */
+function scrubPrivate(out: string, checked: VisibilityFile): void {
+  const meta = JSON.parse(readFileSync(join(out, META_FILE), "utf8")) as SweepMeta;
+  const names = [
+    ...Object.keys(meta.excluded),
+    ...[checked.github, checked.gitlab, checked.gitlabGroups].flatMap((seen) =>
+      Object.entries(seen ?? {}).flatMap(([name, visibility]) =>
+        PUBLIC.has(visibility) ? [] : [name],
+      ),
+    ),
+  ];
+  const scrub = privateScrub(names);
+  for (const file of FACTS_FILES) {
+    const named = scrub.leftovers(readFileSync(join(out, file), "utf8"));
+    if (named.length)
+      throw new Error(
+        `${file} names ${named.length} private repositories; scrubbing them would change the Facts`,
+      );
+  }
+  const entries = readFileSync(join(out, LOG_FILE), "utf8")
+    .split("\n")
+    .filter((line) => line.trim())
+    .map((line) => JSON.stringify(scrub.entry(JSON.parse(line) as ExecLogEntry)));
+  writeFileSync(join(out, LOG_FILE), entries.map((line) => `${line}\n`).join(""));
+  const keyed = (map: Record<string, unknown>) =>
+    Object.fromEntries(
+      Object.entries(map).map(([name, value]) => [
+        scrub.placeholders.get(name.toLowerCase()) ?? scrub.text(name),
+        value,
+      ]),
+    );
+  writeJson(join(out, META_FILE), {
+    ...meta,
+    excluded: keyed(meta.excluded),
+    fenced: keyed(meta.fenced),
+    scrubbed: scrub.placeholders.size,
+  });
+  for (const file of readdirSync(out).sort()) {
+    if (file === LOG_FILE || file === META_FILE || FACTS_FILES.includes(file)) continue;
+    if (!file.endsWith(".json")) continue;
+    const text = readFileSync(join(out, file), "utf8");
+    const scrubbed = scrub.text(text);
+    if (scrubbed !== text) writeFileSync(join(out, file), scrubbed);
+  }
+  const left = readdirSync(out)
+    .sort()
+    .flatMap((file) => {
+      const named = scrub.leftovers(readFileSync(join(out, file), "utf8"));
+      return named.length ? [`${file}: ${named.length}`] : [];
+    });
+  if (left.length) throw new Error(`private names left after the scrub: ${left.join(", ")}`);
+  console.log(`scrubbed ${scrub.placeholders.size} private repositories, projects and groups`);
+}
+
 function tokens(): Record<string, string> {
   return Object.fromEntries(
     Object.entries(process.env).filter(
@@ -195,6 +291,98 @@ function repaired(entry: ExecLogEntry): ExecLogEntry {
     stdout: fix(entry.stdout),
     stderr: fix(entry.stderr),
     ...(entry.error === undefined ? {} : { error: fix(entry.error) }),
+  };
+}
+
+const escapeRegex = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// A name ends where a repository name cannot go on; a .git suffix is a clone address of it.
+const NAME_END = String.raw`(?![A-Za-z0-9_-]|\.(?!git\b)[A-Za-z0-9_-])`;
+
+export interface PrivateScrub {
+  /** Each private name, lowercased, and the placeholder that stands for it. */
+  placeholders: ReadonlyMap<string, string>;
+  entry(entry: ExecLogEntry): ExecLogEntry;
+  /** Scrubs a recorded text that is not a call: a response, or a file the recorder wrote. */
+  text(text: string): string;
+  /** The private names a text still holds, as a full path or by its last segment. */
+  leftovers(text: string): string[];
+}
+
+/** Replaces each private repository, project or group, from either forge, with one stable
+ * placeholder, private/redacted-<n>, numbered in name order: as a path (with / or %2F), as
+ * GraphQL's owner/name pair, as a call's name=<name> argument, and in responses by its last
+ * segment alone, which then becomes redacted-<n>. Longer names go first. */
+export function privateScrub(names: Iterable<string>): PrivateScrub {
+  const unique = [...new Set([...names].map((name) => name.toLowerCase()))].sort();
+  const placeholders = new Map(
+    unique.map((name, i) => [name, `${PRIVATE_OWNER}/${REDACTED}${i + 1}`]),
+  );
+  const rules = [...unique]
+    .sort((a, b) => b.length - a.length || a.localeCompare(b))
+    .map((name) => {
+      const placeholder = placeholders.get(name) as string;
+      const part = placeholder.slice(PRIVATE_OWNER.length + 1);
+      const segments = name.split("/");
+      const last = escapeRegex(segments.at(-1) as string);
+      const [first, ...rest] = segments.map(escapeRegex);
+      const path = new RegExp(
+        `(?<![A-Za-z0-9_.-])${first}(/|%2F)${rest.join("(?:/|%2F)")}${NAME_END}`,
+        "gi",
+      );
+      const bare = new RegExp(`(?<![A-Za-z0-9_-])${last}${NAME_END}`, "gi");
+      const pairs =
+        segments.length === 2
+          ? [
+              [
+                new RegExp(
+                  `(owner:\\s*)(\\\\?")${first}\\2(\\s*,\\s*name:\\s*)\\2${last}\\2`,
+                  "gi",
+                ),
+                `$1$2${PRIVATE_OWNER}$2$3$2${part}$2`,
+              ],
+              [
+                new RegExp(
+                  `(name:\\s*)(\\\\?")${last}\\2(\\s*,\\s*owner:\\s*)\\2${first}\\2`,
+                  "gi",
+                ),
+                `$1$2${part}$2$3$2${PRIVATE_OWNER}$2`,
+              ],
+            ]
+          : [];
+      const argument = new RegExp(`^(\\w+=)${last}$`, "i");
+      return { placeholder, part, path, bare, pairs: pairs as [RegExp, string][], argument };
+    });
+  const qualified = (text: string) =>
+    rules.reduce(
+      (out, rule) =>
+        rule.pairs
+          .reduce((each, [pattern, to]) => each.replace(pattern, to), out)
+          .replace(rule.path, (_, separator: string) => `${PRIVATE_OWNER}${separator}${rule.part}`),
+      text,
+    );
+  const text = (value: string) =>
+    rules.reduce((out, rule) => out.replace(rule.bare, rule.part), qualified(value));
+  const arg = (value: string) =>
+    rules.reduce((out, rule) => out.replace(rule.argument, `$1${rule.part}`), qualified(value));
+  return {
+    placeholders,
+    entry: (entry) => ({
+      ...entry,
+      args: entry.args.map(arg),
+      stdin: entry.stdin === null ? null : qualified(entry.stdin),
+      stdout: text(entry.stdout),
+      stderr: text(entry.stderr),
+      ...(entry.error === undefined ? {} : { error: text(entry.error) }),
+    }),
+    text,
+    leftovers: (value) =>
+      unique.filter((name) => {
+        const rule = rules.find((each) => each.placeholder === placeholders.get(name));
+        if (!rule) return false;
+        rule.path.lastIndex = 0;
+        rule.bare.lastIndex = 0;
+        return rule.path.test(value) || rule.bare.test(value);
+      }),
   };
 }
 
@@ -308,7 +496,9 @@ async function record(out: string, rib: string): Promise<void> {
     rmSync(appData, { recursive: true, force: true });
   }
   oracle(out, rib);
-  writeJson(join(out, VISIBILITY_FILE), await checkVisibility(out, now));
+  const checked = await checkVisibility(out, now);
+  scrubPrivate(out, checked);
+  writeJson(join(out, VISIBILITY_FILE), await recheckVisibility(out, checked, now));
   const result = auditSweep(out);
   console.log(report(out, result));
   if (result.findings.length) process.exitCode = 1;

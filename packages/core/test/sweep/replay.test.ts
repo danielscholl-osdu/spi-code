@@ -64,6 +64,66 @@ function raced(cmd: string, args: readonly string[]): boolean {
   return cmd === "gh" && args[0] === "api" && DECLARATION_READ.test(args[1] ?? "");
 }
 
+// The recorder writes private/redacted-<n> for each repository that is not public: as a path
+// (/ or %2F), as GraphQL's owner and name, or as redacted-<n> for the name alone.
+const NAME = String.raw`[A-Za-z0-9_.-]+?`;
+const PLACEHOLDERS = new RegExp(
+  [
+    String.raw`owner:\s*\\?"private\\?"\s*,\s*name:\s*\\?"redacted-(\d+)\\?"`,
+    String.raw`name:\s*\\?"redacted-(\d+)\\?"\s*,\s*owner:\s*\\?"private\\?"`,
+    String.raw`private(\/|%2F)redacted-(\d+)`,
+    String.raw`redacted-(\d+)`,
+  ].join("|"),
+  "gi",
+);
+const escapeText = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+type Slot = { n: string; kind: "owner" | "name" | "path" | "part"; separator?: string };
+
+/** A recorded argument as a pattern a live argument matches, naming what each placeholder
+ * stands for; undefined when it holds none. A GitHub repository has two segments, a GitLab
+ * project two or more. */
+function placeholderPattern(
+  cmd: string,
+  recorded: string,
+): { pattern: RegExp; slots: Slot[] } | undefined {
+  const slots: Slot[] = [];
+  let source = "";
+  let at = 0;
+  for (const match of recorded.matchAll(PLACEHOLDERS)) {
+    source += escapeText(recorded.slice(at, match.index));
+    at = (match.index as number) + match[0].length;
+    const [text, ownerFirst, nameFirst, separator, path, part] = match;
+    const pair = ownerFirst ?? nameFirst;
+    if (pair) {
+      const pieces = text.split(/(private|redacted-\d+)/i);
+      source += pieces
+        .map((piece) => {
+          if (/^private$/i.test(piece)) {
+            slots.push({ n: pair, kind: "owner" });
+            return `(${NAME})`;
+          }
+          if (/^redacted-\d+$/i.test(piece)) {
+            slots.push({ n: pair, kind: "name" });
+            return `(${NAME})`;
+          }
+          return escapeText(piece);
+        })
+        .join("");
+    } else if (path) {
+      slots.push({ n: path, kind: "path", separator });
+      const sep = escapeText(separator as string);
+      source += `(${NAME}(?:${sep}${NAME})${cmd === "gh" ? "" : "+"})`;
+    } else {
+      slots.push({ n: part as string, kind: "part" });
+      source += `(${NAME})`;
+    }
+  }
+  if (!slots.length) return undefined;
+  source += escapeText(recorded.slice(at));
+  return { pattern: new RegExp(`^${source}$`), slots };
+}
+
 /** Core's ReplayExec, one per distinct call. The sweep reads areas concurrently, so the
  * recorded order across calls is timing; the order of one call's answers is not. Each recorded
  * entry is served once and must be served, except the declaration race above. */
@@ -72,6 +132,8 @@ class SweepReplay implements Exec {
     string,
     { lines: string[]; exec: ReplayExec; served: number; min: number; max: number }
   >();
+  // What each placeholder stands for, one private repository each, once a call has bound it.
+  private readonly bound = new Map<string, string>();
   readonly unexpected: string[] = [];
 
   constructor(jsonl: string) {
@@ -97,10 +159,91 @@ class SweepReplay implements Exec {
     }
   }
 
-  private next(cmd: string, args: string[], opts: ExecOptions): ReplayExec {
+  /** The recorded call, with placeholders, that this live call is, binding each placeholder to
+   * the one repository it stands for across the whole replay. */
+  private unify(cmd: string, args: readonly string[], stdin: string | null): string | undefined {
+    for (const [id, call] of this.calls) {
+      if (call.served >= call.max) continue;
+      const [recordedCmd, recordedArgs, recordedStdin] = JSON.parse(id) as [
+        string,
+        string[],
+        string | null,
+      ];
+      if (recordedCmd !== cmd || recordedArgs.length !== args.length || recordedStdin !== stdin)
+        continue;
+      const names = new Map<
+        string,
+        { full?: string; owner?: string; name?: string; part?: string }
+      >();
+      let same = true;
+      let placeholders = 0;
+      recordedArgs.forEach((recorded, i) => {
+        if (!same) return;
+        const live = args[i] as string;
+        const shape = placeholderPattern(cmd, recorded);
+        if (!shape) {
+          same = recorded === live;
+          return;
+        }
+        const match = shape.pattern.exec(live);
+        if (!match) {
+          same = false;
+          return;
+        }
+        shape.slots.forEach((slot, j) => {
+          placeholders++;
+          const value = (match[j + 1] as string).toLowerCase();
+          const name = names.get(slot.n) ?? {};
+          const set = (field: "full" | "owner" | "name" | "part", to: string) => {
+            if (name[field] !== undefined && name[field] !== to) same = false;
+            name[field] = to;
+          };
+          if (slot.kind === "path")
+            set("full", value.split((slot.separator as string).toLowerCase()).join("/"));
+          else set(slot.kind, value);
+          names.set(slot.n, name);
+        });
+      });
+      if (!same || !placeholders) continue;
+      const bindings: [string, string | undefined, string][] = [];
+      for (const [n, name] of names) {
+        const pair = name.owner && name.name ? `${name.owner}/${name.name}` : undefined;
+        const full = name.full ?? pair ?? this.bound.get(n);
+        if (name.full && pair && name.full !== pair) same = false;
+        const last = full?.split("/").at(-1);
+        for (const part of [name.name, name.part]) if (part && last && part !== last) same = false;
+        if (!full && !this.bound.has(n)) same = false;
+        bindings.push([n, full, last ?? ""]);
+      }
+      for (const [n, full] of bindings) {
+        if (!full) continue;
+        const was = this.bound.get(n);
+        if (was !== undefined && was !== full) same = false;
+        for (const [other, value] of this.bound) if (other !== n && value === full) same = false;
+      }
+      if (!same) continue;
+      for (const [n, full] of bindings) if (full) this.bound.set(n, full);
+      return id;
+    }
+    return undefined;
+  }
+
+  private next(
+    cmd: string,
+    args: string[],
+    opts: ExecOptions,
+  ): { exec: ReplayExec; args: string[] } {
     const safe = execRedactor(opts);
-    const id = key(safe(cmd), args.map(safe), opts.stdin === undefined ? null : safe(opts.stdin));
-    const call = this.calls.get(id);
+    const stdin = opts.stdin === undefined ? null : safe(opts.stdin);
+    let id = key(safe(cmd), args.map(safe), stdin);
+    let call = this.calls.get(id);
+    if (!call) {
+      const unified = this.unify(safe(cmd), args.map(safe), stdin);
+      if (unified) {
+        id = unified;
+        call = this.calls.get(id);
+      }
+    }
     if (!call) {
       this.unexpected.push(id.slice(0, 300));
       throw new Error(`Unexpected exec call: ${id.slice(0, 300)}`);
@@ -110,15 +253,20 @@ class SweepReplay implements Exec {
       throw new Error(`Exec call made more often than recorded (${call.max}): ${id.slice(0, 300)}`);
     }
     call.served++;
-    return call.served > call.lines.length ? new ReplayExec(call.lines[0] as string) : call.exec;
+    const recorded = (JSON.parse(id) as [string, string[]])[1];
+    const exec =
+      call.served > call.lines.length ? new ReplayExec(call.lines[0] as string) : call.exec;
+    return { exec, args: recorded };
   }
 
   async runText(cmd: string, args: string[], opts: ExecOptions = {}) {
-    return this.next(cmd, args, opts).runText(cmd, args, opts);
+    const { exec, args: recorded } = this.next(cmd, args, opts);
+    return exec.runText(cmd, recorded, opts);
   }
 
   async runJSON<T = unknown>(cmd: string, args: string[], opts: ExecOptions = {}) {
-    return this.next(cmd, args, opts).runJSON<T>(cmd, args, opts);
+    const { exec, args: recorded } = this.next(cmd, args, opts);
+    return exec.runJSON<T>(cmd, recorded, opts);
   }
 
   get served(): number {
@@ -171,6 +319,25 @@ describe("SweepReplay", () => {
     const twice = new SweepReplay(log(entry(declaration), entry(declaration)));
     await call(twice, declaration);
     twice.assertExhausted();
+  });
+
+  test("serves a recorded placeholder as the one private repository it stands for", async () => {
+    const releases = (repo: string) => ["api", `repos/${repo}/releases`];
+    const graphql = (owner: string, name: string) => [
+      "api",
+      "graphql",
+      "-f",
+      `query=query { r: repository(owner: "${owner}", name: "${name}") { id } }`,
+    ];
+    const exec = new SweepReplay(
+      log(entry(releases("private/redacted-1")), entry(graphql("private", "redacted-1"))),
+    );
+    await call(exec, releases("acme/vault"));
+    await expect(call(exec, graphql("acme", "other"))).rejects.toThrow(/Unexpected exec call/);
+    await call(exec, graphql("acme", "vault"));
+    exec.assertExhausted();
+    const other = new SweepReplay(log(entry(releases("private/redacted-1"))));
+    await expect(call(other, releases("acme/vault/extra"))).rejects.toThrow(/Unexpected/);
   });
 
   test("a lifecycle declaration read with differing answers is replayed strictly", async () => {
@@ -228,7 +395,7 @@ type PortFacts = {
   radar?: {
     data?: {
       portRead?: { prs: number; commits: number };
-      services?: Record<string, { forkPrs?: { state: string }[] }>;
+      services?: Record<string, { forkPrs?: { state: string; url?: string }[] }>;
     };
   };
 };
@@ -269,6 +436,200 @@ function comparable(facts: Record<string, unknown>, side: "core" | "rib", paged:
   delete copy.sweep.calls;
   return copy;
 }
+
+type SearchNode = {
+  number?: number;
+  commits?: {
+    totalCount: number;
+    pageInfo?: { hasNextPage?: boolean };
+    nodes?: unknown[];
+  };
+};
+
+function queryOf(entry: ExecLogEntry): string {
+  return entry.args.find((arg) => arg.startsWith("query="))?.slice("query=".length) ?? "";
+}
+
+function searchData(entry: ExecLogEntry): Record<string, { nodes?: (SearchNode | null)[] } | null> {
+  try {
+    return JSON.parse(entry.stdout)?.data ?? {};
+  } catch {
+    return {};
+  }
+}
+
+/** What core read of these forks' port PRs, from the log: each PR node its searches returned
+ * (the batch's port_o/port_m aliases for the fork and its port_page pages), with the commit
+ * messages it counted for each, inline or, for a node whose commits were cut, from the REST
+ * pages it then read. */
+function portReadOf(entries: readonly ExecLogEntry[], repos: readonly string[]) {
+  const read = { prs: 0, commits: 0 };
+  const rest = (repo: string, number: number) =>
+    entries.find(
+      (entry) =>
+        entry.cmd === "gh" &&
+        entry.exit === 0 &&
+        entry.args.some((arg) => arg.startsWith(`repos/${repo}/pulls/${number}/commits?`)),
+    );
+  for (const repo of repos) {
+    const search = (alias: string) =>
+      new RegExp(
+        `\\b(${alias}): search\\(query: "repo:${repo.replace(/[.]/g, "\\.")} is:pr[ "]`,
+        "g",
+      );
+    for (const entry of entries) {
+      if (entry.cmd !== "gh" || entry.exit !== 0) continue;
+      const query = queryOf(entry);
+      const aliases = [...query.matchAll(search("port_[om]\\d+|port_page"))].map((m) => m[1]);
+      for (const alias of aliases) {
+        for (const node of searchData(entry)[alias as string]?.nodes ?? []) {
+          if (!node) continue;
+          read.prs++;
+          const inline = node.commits?.nodes?.length ?? 0;
+          const whole =
+            node.commits?.nodes &&
+            node.commits.pageInfo?.hasNextPage === false &&
+            node.commits.totalCount <= inline;
+          const paged = whole ? undefined : rest(repo, node.number ?? 0);
+          read.commits += paged ? paged.stdout.split("\n").filter((l) => l.trim()).length : inline;
+        }
+      }
+    }
+  }
+  return read;
+}
+
+/** A fork core paged past the rib's page adds exactly what core read of it to portRead. */
+function expectPagedPortRead(
+  core: PortFacts,
+  rib: PortFacts,
+  paged: readonly string[],
+  entries: readonly ExecLogEntry[],
+): void {
+  const read = (facts: PortFacts) => facts.radar?.data?.portRead ?? { prs: 0, commits: 0 };
+  const services = core.radar?.data?.services ?? {};
+  const prs = paged.flatMap((id) => services[id]?.forkPrs ?? []);
+  const repos = [
+    ...new Set(
+      prs.flatMap((pr) => /github\.com\/([^/]+\/[^/]+)\/pull\//.exec(pr.url ?? "")?.[1] ?? []),
+    ),
+  ];
+  const delta = portReadOf(entries, repos);
+  expect(delta.prs).toBe(prs.length);
+  expect(read(core)).toEqual({
+    prs: read(rib).prs + delta.prs,
+    commits: read(rib).commits + delta.commits,
+  });
+}
+
+describe("paged port reads", () => {
+  const node = (number: number, commits: number, cut = false): SearchNode => ({
+    number,
+    commits: {
+      totalCount: cut ? 60 : commits,
+      pageInfo: { hasNextPage: cut },
+      nodes: Array.from({ length: commits }, () => ({ commit: { message: "m" } })),
+    },
+  });
+  const search = (alias: string, query: string) =>
+    `${alias}: search(query: ${JSON.stringify(query)}, type: ISSUE, first: 100) { nodes }`;
+  const gh = (args: string[], stdout: string): ExecLogEntry => ({
+    cmd: "gh",
+    args,
+    stdin: null,
+    stdout,
+    stderr: "",
+    exit: 0,
+    ms: 1,
+  });
+  const repo = "acme/big";
+  const entries = [
+    gh(
+      [
+        "api",
+        "graphql",
+        "-f",
+        `query=query { ${search("port_o0", "repo:acme/small is:pr is:open")} ${search("port_o1", `repo:${repo} is:pr is:open`)} ${search("port_m1", `repo:${repo} is:pr is:merged merged:>=2026-01-01`)} }`,
+      ],
+      JSON.stringify({
+        data: {
+          port_o0: { nodes: [node(9, 7)] },
+          port_o1: { nodes: [node(1, 2)] },
+          port_m1: { nodes: Array.from({ length: 100 }, (_, i) => node(i + 10, 1)) },
+        },
+      }),
+    ),
+    gh(
+      [
+        "api",
+        "graphql",
+        "-f",
+        `query=query { ${search("port_page", `repo:${repo} is:pr is:merged`)} }`,
+      ],
+      JSON.stringify({ data: { port_page: { nodes: [node(2, 3), node(3, 50, true)] } } }),
+    ),
+    gh(["api", `repos/${repo}/pulls/3/commits?per_page=100`, "--paginate"], '"a"\n"b"\n"c"\n"d"\n'),
+  ];
+  const facts = (prs: number, commits: number, forkPrs?: number): PortFacts => ({
+    radar: {
+      data: {
+        portRead: { prs, commits },
+        services: forkPrs
+          ? {
+              big: {
+                forkPrs: Array.from({ length: forkPrs }, (_, i) => ({
+                  state: "merged",
+                  url: `https://github.com/${repo}/pull/${i + 1}`,
+                })),
+              },
+            }
+          : {},
+      },
+    },
+  });
+
+  test("reads the paged fork's PRs and commits from the log", () => {
+    expect(portReadOf(entries, [repo])).toEqual({ prs: 103, commits: 2 + 100 + 3 + 4 });
+  });
+
+  test("passes a rib portRead short by exactly that read", () => {
+    expectPagedPortRead(facts(110, 119, 103), facts(7, 10), ["big"], entries);
+  });
+
+  test.each([0, 9, 11, 119])(
+    "fails a rib portRead of %i commits, not exactly short by it",
+    (commits) => {
+      expect(() =>
+        expectPagedPortRead(facts(110, 119, 103), facts(7, commits), ["big"], entries),
+      ).toThrow();
+    },
+  );
+
+  test.skipIf(!sweep)("fails the recorded rib portRead with any other commit count", () => {
+    const dir = sweep as string;
+    const load = (name: string) => JSON.parse(readFileSync(join(dir, name), "utf8")) as PortFacts;
+    const core = load("core-facts.json");
+    const rib = load("rib-facts.json");
+    const logged = readFileSync(join(dir, "exec.jsonl"), "utf8")
+      .split("\n")
+      .filter((line) => line.trim())
+      .map((line) => JSON.parse(line) as ExecLogEntry);
+    const paged = pagedPastRib(core, rib);
+    expect(paged.length).toBeGreaterThan(0);
+    expectPagedPortRead(core, rib, paged, logged);
+    const commits = rib.radar?.data?.portRead?.commits ?? 0;
+    for (const wrong of [
+      0,
+      commits - 1,
+      commits + 1,
+      (core.radar?.data?.portRead?.commits ?? 0) - 3,
+    ]) {
+      const mutated = structuredClone(rib);
+      if (mutated.radar?.data?.portRead) mutated.radar.data.portRead.commits = wrong;
+      expect(() => expectPagedPortRead(core, mutated, paged, logged)).toThrow();
+    }
+  });
+});
 
 /** Core's Facts from the live sweep that wrote the log, as the replay must read them: the log
  * holds redacted output, so live strings are redacted the same way, and the live count of calls
@@ -334,15 +695,7 @@ test.skipIf(!sweep)(
     const core = sweeper.facts as unknown as Record<string, unknown> & PortFacts;
     const paged = pagedPastRib(core, rib);
     expect(comparable(core, "core", paged)).toEqual(comparable(rib, "rib", paged));
-    if (paged.length) {
-      const read = (facts: PortFacts) => facts.radar?.data?.portRead ?? { prs: 0, commits: 0 };
-      const extra = paged.reduce(
-        (sum, id) => sum + (core.radar?.data?.services?.[id]?.forkPrs?.length ?? 0),
-        0,
-      );
-      expect(read(core).prs).toBe(read(rib).prs + extra);
-      expect(read(core).commits).toBeGreaterThan(read(rib).commits);
-    }
+    if (paged.length) expectPagedPortRead(core, rib, paged, entries);
     const recorded = recordedCosts(entries);
     expect(budget.reported).toBe(recorded.cost);
     expect(budget.unpriced.calls).toBe(recorded.unpriced);

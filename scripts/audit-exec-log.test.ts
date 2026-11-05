@@ -24,7 +24,7 @@ import {
   scrubJwts,
   sweepReferences,
 } from "./audit-exec-log.js";
-import { prepareOut } from "./record-sweep.js";
+import { prepareOut, privateScrub } from "./record-sweep.js";
 
 const AUDIT = join(import.meta.dirname, "..", "fixtures", "exec", "audit");
 const temps: string[] = [];
@@ -111,26 +111,21 @@ describe("audit-exec-log", () => {
     );
   });
 
-  test("allows a fenced call to name a private repository it never read", () => {
+  test("fails a fenced call that still names a private repository; its placeholder passes", () => {
     const dir = copyOfClean();
-    const call = {
-      cmd: "gh",
-      args: ["api", "repos/acme/vault/releases"],
-      stdin: null,
-      exit: 1,
-      ms: 0,
-    };
-    const add = (entry: object) =>
-      writeFileSync(
-        join(dir, "exec.jsonl"),
-        `${readFileSync(join(dir, "exec.jsonl"), "utf8").trimEnd()}\n${JSON.stringify(entry)}\n`,
-      );
-    const visibility = JSON.parse(readFileSync(join(dir, "visibility.json"), "utf8"));
-    visibility.github["acme/vault"] = "private";
-    writeFileSync(join(dir, "visibility.json"), JSON.stringify(visibility));
-    add({ ...call, stdout: "", stderr: `${FENCE_MARK} acme/vault is private` });
+    const call = { cmd: "gh", stdin: null, stdout: "", exit: 1, ms: 0 };
+    setVisibility(dir, "github", "acme/vault", "private");
+    append(dir, {
+      ...call,
+      args: ["api", "repos/private/redacted-1/releases"],
+      stderr: `${FENCE_MARK} private/redacted-1 is not public; not read\n`,
+    });
     expect(auditSweep(dir).findings).toEqual([]);
-    add({ ...call, stdout: "[]", stderr: `${FENCE_MARK} acme/vault is private` });
+    append(dir, {
+      ...call,
+      args: ["api", "repos/acme/vault/releases"],
+      stderr: `${FENCE_MARK} acme/vault is not public; not read\n`,
+    });
     expect(auditSweep(dir).findings).toEqual(["github acme/vault: private"]);
   });
 
@@ -442,7 +437,7 @@ describe("audit of shapes, decoded strings and new credentials", () => {
     ]);
   });
 
-  test("reads a response's names on its own forge only: the other forge's names are people's text", () => {
+  test("fails a private name from either forge in any response", () => {
     const dir = copyOfClean();
     append(dir, {
       cmd: "glab",
@@ -465,8 +460,45 @@ describe("audit of shapes, decoded strings and new credentials", () => {
     });
     setVisibility(dir, "github", "acme/vault", "private");
     setVisibility(dir, "gitlab", "osdu/secret/thing", "private");
+    expect(auditSweep(dir).findings).toEqual([
+      "github acme/vault: private",
+      "gitlab osdu/secret/thing: private",
+    ]);
+    expect(sweepReferences(dir).github.has("acme/vault")).toBe(true);
+  });
+
+  test("reads a placeholder as no repository", () => {
+    const dir = copyOfClean();
+    append(dir, {
+      cmd: "gh",
+      args: ["api", "repos/acme/widgets/pulls"],
+      ...ok,
+      stdout: JSON.stringify([
+        {
+          body:
+            "Fork: https://github.com/private/redacted-2, private/redacted-2#4, " +
+            "https://community.opengroup.org/private/redacted-3/-/issues/1",
+        },
+      ]),
+    });
     expect(auditSweep(dir).findings).toEqual([]);
-    expect(sweepReferences(dir).github.has("acme/vault")).toBe(false);
+    expect(auditSweep(dir).references).toEqual({ github: 2, gitlab: 1, gitlabGroups: 0 });
+  });
+
+  test("fails a meta.json that names an excluded or fenced repository", () => {
+    const dir = copyOfClean();
+    const meta = (excluded: string, fencedName: string) =>
+      writeFileSync(
+        join(dir, "meta.json"),
+        JSON.stringify({ excluded: { [excluded]: "private" }, fenced: { [fencedName]: 1, gh: 1 } }),
+      );
+    meta("private/redacted-1", "private/redacted-1");
+    expect(auditSweep(dir).findings).toEqual([]);
+    meta("acme/vault", "acme/vault");
+    expect(auditSweep(dir).findings).toEqual([
+      "meta.json: excluded names acme/vault",
+      "meta.json: fenced names acme/vault",
+    ]);
   });
 
   test("still fails a private repository named in its own forge's response", () => {
@@ -487,6 +519,9 @@ describe("audit of shapes, decoded strings and new credentials", () => {
     ["credential assignment", "jdbc:x;user=sa;password=Hunter2pass9;"],
     ["credential assignment", "CLIENT_SECRET=s3cr3tValue42"],
     ["credential assignment", String.raw`password=Hunter2pass9\\n-port=8080`],
+    // A literal backslash in a password (JSON-encoded in the raw line) does not end it.
+    ["credential assignment", String.raw`password=Hunter\\2pass9`],
+    ["credential assignment", "password=CorrectHorseBatteryStaple"],
   ])("fails a planted %s", (name, secret) => {
     const dir = copyOfClean();
     plant(dir, 0, "Token: <redacted>", `Token: <redacted> ${secret}`);
@@ -502,6 +537,11 @@ describe("audit of shapes, decoded strings and new credentials", () => {
     // A diff nested in JSON: its escaped newlines and brackets still end the value.
     String.raw`-db.password=TODO\\n-server.port=8080`,
     String.raw`-AZURE_CLIENT_SECRET=\\u003cclient_secret\\u003e\\n-PORT=8080`,
+    // Placeholder words, and values that only name the credential they stand for.
+    "AUTHORIZE_API_KEY=tobeupdated",
+    "api_key=your_api_key_here",
+    "PASSWORD=config.dbPassword",
+    String.raw`export CLIENT_SECRET=\"client-secret\"`,
   ])("passes code that names a credential without holding one: %s", (text) => {
     const dir = copyOfClean();
     plant(dir, 0, "Token: <redacted>", `Token: <redacted> ${text}`);
@@ -521,5 +561,64 @@ describe("record-sweep", () => {
     expect(existsSync(fresh)).toBe(true);
     mkdirSync(join(dir, "empty"));
     prepareOut(join(dir, "empty"));
+  });
+
+  test("scrubs private repositories from either forge to one placeholder each", () => {
+    const scrub = privateScrub(["Azure/osdu-spi-unit", "acme/vault", "osdu/secret/thing"]);
+    expect([...scrub.placeholders]).toEqual([
+      ["acme/vault", "private/redacted-1"],
+      ["azure/osdu-spi-unit", "private/redacted-2"],
+      ["osdu/secret/thing", "private/redacted-3"],
+    ]);
+    const entry = {
+      cmd: "gh",
+      args: [
+        "api",
+        "graphql",
+        "-f",
+        'query=query { a: repository(owner: "Azure", name: "osdu-spi-unit") { id } ' +
+          'b: repository(name: \\"vault\\", owner: \\"acme\\") { id } }',
+        "-f",
+        "name=vault",
+        "repos/acme/vault-tools",
+      ],
+      stdin: null,
+      stdout: JSON.stringify({
+        body:
+          "Fork: https://github.com/Azure/osdu-spi-unit and git@github.com:acme/vault.git, " +
+          "see azure/osdu-spi-unit#3; image osdu-spi-unit:sha-1; " +
+          "not osdu-spi-unit-extra or Azure/osdu-spi-unit2",
+        issue:
+          "https://community.opengroup.org/osdu/secret/thing/-/issues/1 projects/osdu%2Fsecret%2Fthing",
+      }),
+      stderr: `${FENCE_MARK} acme/vault is not public; not read\n`,
+      exit: 0,
+      ms: 1,
+    };
+    const out = scrub.entry(entry);
+    expect(out.args).toEqual([
+      "api",
+      "graphql",
+      "-f",
+      'query=query { a: repository(owner: "private", name: "redacted-2") { id } ' +
+        'b: repository(name: \\"redacted-1\\", owner: \\"private\\") { id } }',
+      "-f",
+      "name=redacted-1",
+      "repos/acme/vault-tools",
+    ]);
+    expect(JSON.parse(out.stdout)).toEqual({
+      body:
+        "Fork: https://github.com/private/redacted-2 and git@github.com:private/redacted-1.git, " +
+        "see private/redacted-2#3; image redacted-2:sha-1; " +
+        "not osdu-spi-unit-extra or Azure/osdu-spi-unit2",
+      issue:
+        "https://community.opengroup.org/private/redacted-3/-/issues/1 projects/private%2Fredacted-3",
+    });
+    expect(out.stderr).toBe(`${FENCE_MARK} private/redacted-1 is not public; not read\n`);
+    expect(scrub.leftovers(JSON.stringify(out))).toEqual([]);
+    expect(scrub.leftovers("see Azure/OSDU-SPI-UNIT and the thing")).toEqual([
+      "azure/osdu-spi-unit",
+      "osdu/secret/thing",
+    ]);
   });
 });

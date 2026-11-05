@@ -5,8 +5,10 @@
  *   bun scripts/audit-exec-log.ts <sweep directory>
  * The directory holds exec.jsonl and the visibility.json written at record time. Every
  * recorded field is scanned for credentials, email addresses and repositories that were not
- * public when the log was recorded. A call the recorder fenced read nothing, so the names in
- * it are not data from that repository. Exits 1 with one line per finding.
+ * public when the log was recorded, in every call and response, from either forge. The recorder
+ * replaces each repository that was not public with a placeholder, private/redacted-<n>, which
+ * names no repository; a private name left anywhere is a finding. Exits 1 with one line per
+ * finding.
  */
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -18,9 +20,19 @@ export const EMAIL_MARK = "<email>";
 export const JWT_MARK = "<jwt>";
 // The recorder refuses, without running it, any call that names a repository that is not public.
 export const FENCE_MARK = "spi-code record fence:";
+// What the recorder writes in place of a repository, project or group that is not public.
+export const PRIVATE_OWNER = "private";
+export const REDACTED = "redacted-";
+export const PLACEHOLDER = /^private(?:\/|%2F)redacted-\d+$/i;
+export const META_FILE = "meta.json";
 
 const JWT_SOURCE = "\\beyJ[A-Za-z0-9_-]{8,}\\.eyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}";
 const FIELDS = ["cmd", "args", "stdin", "stdout", "stderr", "exit", "ms", "error"] as const;
+
+const VALUE_CHAR = String.raw`[^\s"'&;,<>(){}$\[\]\\]|\\+(?![nrtbfu"/\\])`;
+const VALUE_END = String.raw`(?=$|[\s"'&;,]|\\+[nrtbfu"/])`;
+const PLACEHOLDER_WORDS =
+  "todo|tbd|tobeupdated|to_be_updated|changeme|changeit|replace_?me|placeholder|dummy|example|none|null|undefined|your[_-][A-Za-z0-9_-]*|x{3,}|\\*{3,}";
 
 export const TOKEN_PATTERNS: readonly { name: string; pattern: RegExp }[] = [
   { name: "GitHub token", pattern: /(?:gh[opsur]_|github_pat_)[A-Za-z0-9_]{8,}/ },
@@ -38,13 +50,18 @@ export const TOKEN_PATTERNS: readonly { name: string; pattern: RegExp }[] = [
   { name: "AWS access key", pattern: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/ },
   { name: "Slack token", pattern: /\bxox[abposr]-[A-Za-z0-9-]{10,}/ },
   // A credential assigned with "=" (environment lines, connection strings, query strings).
-  // Code that assigns a variable or a call, a ${placeholder} or a redaction holds no secret, so
-  // the value must be a literal with a digit in it. A backslash ends it, so a diff nested in JSON
-  // is read line by line (its decoded strings are scanned as well).
+  // Code that assigns a variable or a call, a ${placeholder}, a redaction, a placeholder word or
+  // a value of letters that names the credential it stands for (client-secret) holds no secret. A backslash that begins a JSON escape (\n, \t, \", \uXXXX) ends the value,
+  // so a diff nested in JSON is read line by line; any other backslash is part of the value. A
+  // password that itself holds a backslash before one of those letters is read only up to it.
   {
     name: "credential assignment",
-    pattern:
-      /(?<![A-Za-z0-9])(?:password|passwd|secret|client_secret|api_?key|access_?key)[ \t]*=[ \t]*["']?(?!<redacted>)(?=[^\s"'&;,<>(){}$\\]*\d)[^\s"'&;,<>(){}$\\]{6,}(?=$|[\s"'&;,\\])/im,
+    pattern: new RegExp(
+      `(?<![A-Za-z0-9])(?:password|passwd|secret|client_secret|api_?key|access_?key)[ \\t]*=[ \\t]*["']?` +
+        `(?!<redacted>)(?!(?:${PLACEHOLDER_WORDS})${VALUE_END})(?![A-Za-z_.-]*(?:pass|secret|key|token)[A-Za-z_.-]*${VALUE_END})` +
+        `(?:${VALUE_CHAR}){6,}${VALUE_END}`,
+      "im",
+    ),
   },
 ];
 
@@ -153,10 +170,20 @@ function decoded(path: string): string {
   }
 }
 
+/** A placeholder the recorder wrote names no repository, project or group. An organisation
+ * that is really called "private" would be read as one too; none is in the program's fleet. */
+export function isPlaceholder(path: string): boolean {
+  return PLACEHOLDER.test(decoded(path).replace(/\.git$/, ""));
+}
+
 function addGithub(into: References, owner: string | undefined, name: string | undefined): void {
   if (!owner || !name || GITHUB_RESERVED.has(owner.toLowerCase())) return;
   const repo = repoName(owner, name);
-  if (!repo.endsWith("/")) into.github.add(repo);
+  if (!repo.endsWith("/") && !isPlaceholder(repo)) into.github.add(repo);
+}
+
+function addGitlab(into: Set<string>, path: string): void {
+  if (!isPlaceholder(path)) into.add(path);
 }
 
 /** A GitLab URL path: before /-/ it is exactly one project or, after /groups/, one group;
@@ -171,17 +198,18 @@ function addGitlabUrl(into: References, path: string, exact: boolean): void {
   const first = segments[0]?.toLowerCase();
   if (!first || GITLAB_RESERVED.has(first)) return;
   if (first === "groups") {
-    if (segments.length > 1) into.gitlabGroups.add(segments.slice(1).join("/"));
+    if (segments.length > 1) addGitlab(into.gitlabGroups, segments.slice(1).join("/"));
     return;
   }
+  if (segments.length > 1 && isPlaceholder(segments.slice(0, 2).join("/"))) return;
   if (exact) {
-    if (segments.length > 1) into.gitlab.add(segments.join("/"));
+    if (segments.length > 1) addGitlab(into.gitlab, segments.join("/"));
     return;
   }
   for (let end = 1; end <= segments.length; end++) {
     const prefix = segments.slice(0, end).join("/");
-    if (end < segments.length) into.gitlabGroups.add(prefix);
-    if (end > 1) into.gitlab.add(prefix);
+    if (end < segments.length) addGitlab(into.gitlabGroups, prefix);
+    if (end > 1) addGitlab(into.gitlab, prefix);
   }
 }
 
@@ -192,14 +220,14 @@ export function references(text: string, into: References = noReferences()): Ref
   for (const [, name, owner] of text.matchAll(GITHUB_SWAPPED)) addGithub(into, owner, name);
   for (const pattern of GITLAB_PROJECT_PATTERNS)
     for (const [, project] of text.matchAll(pattern))
-      if (project) into.gitlab.add(decoded(project));
+      if (project) addGitlab(into.gitlab, decoded(project));
   for (const pattern of GITLAB_GROUP_PATTERNS)
     for (const [, group] of text.matchAll(pattern))
-      if (group) into.gitlabGroups.add(decoded(group));
+      if (group) addGitlab(into.gitlabGroups, decoded(group));
   for (const [, field, path] of text.matchAll(FULL_PATH)) {
     if (!path) continue;
-    if (field !== "group") into.gitlab.add(path);
-    if (field !== "project") into.gitlabGroups.add(path);
+    if (field !== "group") addGitlab(into.gitlab, path);
+    if (field !== "project") addGitlab(into.gitlabGroups, path);
   }
   for (const [, path, dash] of text.matchAll(GITLAB_URL))
     if (path) addGitlabUrl(into, path, dash !== undefined);
@@ -411,24 +439,9 @@ interface Collected {
   findings: string[];
 }
 
-// What a response can reveal of each forge. A GitLab response cannot carry a private GitHub
-// repository's data, nor a GitHub response a private GitLab project's: the other forge's names
-// in it are text a person wrote on a source that is itself checked public. git reads either.
-const RESPONSE_FORGES: Record<string, readonly (keyof References)[]> = {
-  gh: ["github"],
-  glab: ["gitlab", "gitlabGroups"],
-};
-const RESPONSE_FIELDS: readonly string[] = ["stdout", "stderr", "error"];
-
-function onForges(refs: References, forges: readonly (keyof References)[]): References {
-  const kept = noReferences();
-  for (const forge of forges) kept[forge] = refs[forge];
-  return kept;
-}
-
-/** Scans exec.jsonl and every other recorded JSON file in a sweep directory. A fenced call's
- * names are left out of refs unless withFenced; a response's names count on its own forge. */
-function collect(directory: string, withFenced: boolean): Collected {
+/** Scans exec.jsonl and every other recorded JSON file in a sweep directory. Every field of
+ * every call names repositories on both forges, a fenced call's included. */
+function collect(directory: string): Collected {
   const findings: string[] = [];
   const refs = noReferences();
   const lines = readFileSync(join(directory, LOG_FILE), "utf8")
@@ -448,14 +461,13 @@ function collect(directory: string, withFenced: boolean): Collected {
       if (!(FIELDS as readonly string[]).includes(key))
         findings.push(`${where}: unexpected field ${key}`);
     }
-    const named = !withFenced && fenced(entry) ? undefined : refs;
-    if (named) {
+    {
       const { cmd, args } = entry;
       const targets =
         typeof cmd === "string" && Array.isArray(args) && args.every((a) => typeof a === "string")
           ? callTargets(cmd, args as string[])
           : undefined;
-      if (targets) merge(named, targets);
+      if (targets) merge(refs, targets);
       else
         findings.push(
           `${where}: unrecognised call ${[cmd, ...(Array.isArray(args) ? args : [])].join(" ")}`.slice(
@@ -464,19 +476,16 @@ function collect(directory: string, withFenced: boolean): Collected {
           ),
         );
     }
-    const forges = typeof entry.cmd === "string" ? RESPONSE_FORGES[entry.cmd] : undefined;
     for (const field of FIELDS) {
       const value = entry[field];
       if (value === undefined || value === null || typeof value === "number") continue;
-      const into =
-        named && forges && RESPONSE_FIELDS.includes(field) ? onForges(named, forges) : named;
       for (const [i, text] of (Array.isArray(value) ? value : [value]).entries()) {
         fields++;
         scan(
           `${where} ${field}${Array.isArray(value) ? `[${i}]` : ""}`,
           String(text),
           findings,
-          into,
+          refs,
         );
       }
     }
@@ -486,15 +495,36 @@ function collect(directory: string, withFenced: boolean): Collected {
     fields++;
     // visibility.json names every repository by design; it is scanned for credentials only.
     const named = name === VISIBILITY_FILE ? undefined : refs;
-    scan(name, readFileSync(join(directory, name), "utf8"), findings, named);
+    const text = readFileSync(join(directory, name), "utf8");
+    scan(name, text, findings, named);
+    if (name === META_FILE) metaNames(text, findings);
   }
   return { entries: lines.length, fields, refs, findings };
 }
 
-/** Every repository, project and group a sweep directory names, fenced calls included: what
- * the recorder checks the visibility of. */
+/** meta.json keys the repositories the recorder excluded or fenced; each must be a placeholder. */
+function metaNames(text: string, findings: string[]): void {
+  let meta: Record<string, unknown>;
+  try {
+    meta = JSON.parse(text);
+  } catch {
+    findings.push(`${META_FILE}: not JSON`);
+    return;
+  }
+  for (const key of ["excluded", "fenced"]) {
+    const map = meta[key];
+    if (!map || typeof map !== "object") continue;
+    for (const name of Object.keys(map)) {
+      if (name.includes("/") && !isPlaceholder(name))
+        findings.push(`${META_FILE}: ${key} names ${name}`);
+    }
+  }
+}
+
+/** Every repository, project and group a sweep directory names: what the recorder checks the
+ * visibility of. */
 export function sweepReferences(directory: string): References {
-  return collect(directory, true).refs;
+  return collect(directory).refs;
 }
 
 const FORGES = [
@@ -505,7 +535,7 @@ const FORGES = [
 
 /** Audits exec.jsonl and every other recorded JSON file in a sweep directory. */
 export function auditSweep(directory: string): AuditResult {
-  const { entries, fields, refs, findings } = collect(directory, false);
+  const { entries, fields, refs, findings } = collect(directory);
   const visibilityPath = join(directory, VISIBILITY_FILE);
   const visibility: VisibilityFile | undefined = existsSync(visibilityPath)
     ? JSON.parse(readFileSync(visibilityPath, "utf8"))
