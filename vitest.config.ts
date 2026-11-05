@@ -27,7 +27,7 @@ export default defineConfig({
             `${directory}/src/**/*.test.{ts,tsx}`,
             ...(directory === "packages/core" ? [`${directory}/test/**/*.test.ts`] : []),
           ],
-          environment: "node",
+          environment: directory === "apps/window" ? "happy-dom" : "node",
         },
       })),
     ],

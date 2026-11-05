@@ -1,0 +1,76 @@
+/* Copyright 2026, Daniel Scholl
+ * SPDX-License-Identifier: MIT */
+
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+:root,
+:root[data-theme="dark"] {
+  --chrome: #0f1a1b;
+  --sidebar: #132021;
+  --surface: #162324;
+  --surface-raised: #1d2d2e;
+  --border: #2b3d3d;
+  --border-soft: #213132;
+  --text: #e4dfd1;
+  --text-strong: #f6f2e6;
+  --text-muted: #a59d8a;
+  --placeholder-fill: #7d7666;
+  --placeholder: #9a927f;
+  --accent: #5cc4b2;
+  --accent-text: #5cc4b2;
+  --accent-surface: #173b37;
+  --error: #ec8a6e;
+  --error-text: #ec8a6e;
+  --error-surface: #3a211b;
+  --warning: #e2b45c;
+  --warning-text: #e2b45c;
+  --warning-surface: #33291a;
+  --success: #8fcf86;
+  --success-text: #8fcf86;
+  --agent: #c3a2e8;
+  --agent-text: #c3a2e8;
+  --on-fill: #0f1a1b;
+  --chart-1: #3fb8a5;
+  --chart-2: #c9a05a;
+  --chart-3: #a884de;
+  --chart-4: #d66c5c;
+  --chart-5: #66aacc;
+  --chart-6: #d65c85;
+}
+
+:root[data-theme="light"] {
+  --chrome: #f3efe4;
+  --sidebar: #ece6d7;
+  --surface: #fbf9f3;
+  --surface-raised: #f2ede1;
+  --border: #dcd3bf;
+  --border-soft: #e8e1d0;
+  --text: #23211c;
+  --text-strong: #15130f;
+  --text-muted: #665f4f;
+  --placeholder-fill: #8a8170;
+  --placeholder: #6c6557;
+  --accent: #1d7a6c;
+  --accent-text: #1b7366;
+  --accent-surface: #d9ece7;
+  --error: #bb4a2b;
+  --error-text: #ac4428;
+  --error-surface: #f4dfd6;
+  --warning: #a07b3a;
+  --warning-text: #80622e;
+  --warning-surface: #f3e8cf;
+  --success: #3a7633;
+  --success-text: #356c2f;
+  --agent: #8a5cc0;
+  --agent-text: #7e4cba;
+  --on-fill: #ffffff;
+  --chart-1: #1d8a7a;
+  --chart-2: #a07b3a;
+  --chart-3: #8a5cc0;
+  --chart-4: #ca5e16;
+  --chart-5: #387ba8;
+  --chart-6: #566321;
+}
