@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { readFileSync } from "node:fs";
-import type { PermissionRequest } from "@github/copilot-sdk";
+import type { PermissionRequest, PermissionRequestResult } from "@github/copilot-sdk";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { FakeSession } from "../testing/fake-session.js";
@@ -30,14 +30,16 @@ describe("appendix A session boundary", () => {
     const config = createStubSessionConfig(allow);
     const unique = [...new Map(expected.map((tool) => [tool.name, tool])).values()];
     expect(unique.length).toBeGreaterThan(40);
-    expect(config.tools.map(({ name, tier }) => ({ name, tier }))).toEqual(unique);
+    expect(config.registry.map(({ name, tier }) => ({ name, tier }))).toEqual(unique);
     expect(new Set(config.tools.map((tool) => tool.name)).size).toBe(config.tools.length);
     expect(config.availableTools).toEqual(unique.map(({ name }) => `custom:${name}`));
     const session = new FakeSession(config);
-    for (const tool of config.tools) {
+    for (const { tool, milestone } of config.registry) {
       expect(tool.defer).toBe("never");
       expect(tool.skipPermission).toBe(true);
-      expect(await session.callTool(tool.name, {})).toBe(`ships at ${tool.milestone}`);
+      expect(tool).not.toHaveProperty("tier");
+      expect(tool).not.toHaveProperty("milestone");
+      expect(await session.callTool(tool.name, {})).toBe(`ships at ${milestone}`);
     }
   });
 
@@ -108,15 +110,14 @@ describe("appendix A session boundary", () => {
       effect,
     );
     const session = new FakeSession({
-      tools: [tool],
+      tools: [tool.tool],
       availableTools: [],
       onPermissionRequest: buildPermissionGate(),
     });
     await expect(session.callTool("hidden", {})).rejects.toThrow("not available");
-    await expect(session.callTool("builtin:bash", {})).rejects.toThrow("not available");
     expect(effect).not.toHaveBeenCalled();
     const offered = new FakeSession({
-      tools: [tool],
+      tools: [tool.tool],
       availableTools: ["custom:hidden"],
       onPermissionRequest: buildPermissionGate(),
     });
@@ -148,7 +149,7 @@ describe("handler policy boundary", () => {
         effect,
       );
       const session = new FakeSession({
-        tools: [tool],
+        tools: [tool.tool],
         availableTools: ["custom:probe"],
         onPermissionRequest: buildPermissionGate(),
       });
@@ -174,7 +175,7 @@ describe("handler policy boundary", () => {
         check,
         effect,
       );
-      await expect(tool.handler({}, invocation)).rejects.toThrow("refused");
+      await expect(tool.tool.handler({}, invocation)).rejects.toThrow("refused");
       expect(effect).not.toHaveBeenCalled();
     }
     const effect = vi.fn();
@@ -185,7 +186,9 @@ describe("handler policy boundary", () => {
       check,
       effect,
     );
-    await expect(tool.handler({ bypass: true }, invocation)).rejects.toThrow("arguments refused");
+    await expect(tool.tool.handler({ bypass: true }, invocation)).rejects.toThrow(
+      "arguments refused",
+    );
     expect(check).not.toHaveBeenCalled();
     expect(effect).not.toHaveBeenCalled();
   });
@@ -206,7 +209,7 @@ describe("handler policy boundary", () => {
         throw new Error("outside failed");
       },
     );
-    await expect(tool.handler({ id: 7 }, invocation)).rejects.toThrow("outside failed");
+    await expect(tool.tool.handler({ id: 7 }, invocation)).rejects.toThrow("outside failed");
     expect(order).toEqual(["check", "effect"]);
   });
 
@@ -219,7 +222,7 @@ describe("handler policy boundary", () => {
         undefined,
         effect,
       );
-      await expect(tool.handler({}, invocation)).rejects.toThrow("refused");
+      await expect(tool.tool.handler({}, invocation)).rejects.toThrow("refused");
       expect(effect).not.toHaveBeenCalled();
     }
   });
@@ -282,16 +285,59 @@ describe("SDK permission boundary", () => {
     expect(effect).toHaveBeenCalledOnce();
   });
 
+  it.each(["approved", "no-result"] as const)("executes the effect for %s", async (kind) => {
+    const effect = vi.fn(() => "outside");
+    const session = new FakeSession({
+      ...createStubSessionConfig(),
+      onPermissionRequest: () => ({ kind }),
+    });
+    await expect(session.requestPermission({ kind: "memory", fact: "test" }, effect)).resolves.toBe(
+      "outside",
+    );
+    expect(effect).toHaveBeenCalledOnce();
+  });
+
+  it.each<PermissionRequestResult>([
+    { kind: "reject" },
+    { kind: "denied-by-rules", rules: [] },
+    { kind: "denied-no-approval-rule-and-could-not-request-from-user" },
+    { kind: "denied-interactively-by-user" },
+    { kind: "denied-by-content-exclusion-policy", path: "/tmp/test", message: "excluded" },
+    { kind: "denied-by-permission-request-hook" },
+    { kind: "user-not-available" },
+    { kind: "cancelled" },
+  ])("refuses explicit $kind decisions without an effect", async (decision) => {
+    const effect = vi.fn();
+    const session = new FakeSession({
+      ...createStubSessionConfig(),
+      onPermissionRequest: () => decision,
+    });
+    await expect(
+      session.requestPermission({ kind: "memory", fact: "test" }, effect),
+    ).rejects.toThrow("permission refused");
+    expect(effect).not.toHaveBeenCalled();
+  });
+
   it.each(requests)("denies $kind without running its outside effect", async (request) => {
     const effect = vi.fn();
-    const session = new FakeSession(createStubSessionConfig());
+    const config = createStubSessionConfig();
+    const session = new FakeSession(config);
+    expect(
+      await config.onPermissionRequest(request, { sessionId: session.sessionId }),
+    ).toMatchObject({ kind: "reject" });
     await expect(session.requestPermission(request, effect)).rejects.toThrow("permission refused");
     expect(effect).not.toHaveBeenCalled();
   });
 
   it("denies unknown runtime kinds rather than inheriting Keelson's pass-through", async () => {
     const effect = vi.fn();
-    const session = new FakeSession(createStubSessionConfig());
+    const config = createStubSessionConfig();
+    const session = new FakeSession(config);
+    expect(
+      await config.onPermissionRequest(JSON.parse('{"kind":"future-kind"}'), {
+        sessionId: session.sessionId,
+      }),
+    ).toMatchObject({ kind: "reject" });
     await expect(
       session.requestPermission(JSON.parse('{"kind":"future-kind"}'), effect),
     ).rejects.toThrow("permission refused");

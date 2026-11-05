@@ -34,12 +34,13 @@ export const checkStubTier: TierCheck = ({ tier }) => {
   }
 };
 
-export type GatedTool = Tool &
-  ToolMetadata & {
+export type GatedTool = ToolMetadata & {
+  tool: Tool & {
     defer: "never";
     skipPermission: true;
     handler: ToolHandler;
   };
+};
 
 export function buildGatedTool<S extends z.ZodType>(
   metadata: ToolMetadata,
@@ -49,45 +50,53 @@ export function buildGatedTool<S extends z.ZodType>(
 ): GatedTool {
   return {
     ...metadata,
-    description: `${metadata.tier} tool; ships at ${metadata.milestone}.`,
-    parameters: z.toJSONSchema(argsSchema),
-    defer: "never",
-    skipPermission: true,
-    async handler(args, invocation) {
-      const parsed = argsSchema.safeParse(args);
-      if (!parsed.success) {
-        throw new ToolRefusedError(`${metadata.name}: arguments refused: ${parsed.error.message}`);
-      }
-      let decision: PolicyDecision;
-      try {
-        decision = decisionSchema.parse(
-          await check({ ...metadata, args: parsed.data, invocation }),
-        );
-      } catch (cause) {
-        throw new ToolRefusedError(`${metadata.name}: refused: policy check failed.`, { cause });
-      }
-      if (!decision.allowed) {
-        throw new ToolRefusedError(`${metadata.name}: refused: ${decision.reason}`);
-      }
-      return effect(parsed.data, invocation);
+    tool: {
+      name: metadata.name,
+      description: `${metadata.tier} tool; ships at ${metadata.milestone}.`,
+      parameters: z.toJSONSchema(argsSchema),
+      defer: "never",
+      skipPermission: true,
+      async handler(args, invocation) {
+        const parsed = argsSchema.safeParse(args);
+        if (!parsed.success) {
+          throw new ToolRefusedError(
+            `${metadata.name}: arguments refused: ${parsed.error.message}`,
+          );
+        }
+        let decision: PolicyDecision;
+        try {
+          decision = decisionSchema.parse(
+            await check({ ...metadata, args: parsed.data, invocation }),
+          );
+        } catch (cause) {
+          throw new ToolRefusedError(`${metadata.name}: refused: policy check failed.`, { cause });
+        }
+        if (!decision.allowed) {
+          throw new ToolRefusedError(`${metadata.name}: refused: ${decision.reason}`);
+        }
+        return effect(parsed.data, invocation);
+      },
     },
   };
 }
 
 export type StubSessionConfig = Pick<SessionConfig, "onPermissionRequest"> & {
-  tools: GatedTool[];
+  registry: GatedTool[];
+  tools: GatedTool["tool"][];
   availableTools: string[];
   onPermissionRequest: NonNullable<SessionConfig["onPermissionRequest"]>;
 };
 
 // The check is host-supplied, never taken from model arguments; M0 has no approval store.
 export function createStubSessionConfig(check: TierCheck = checkStubTier): StubSessionConfig {
-  const tools = APPENDIX_A_TOOLS.map((metadata) =>
+  const registry = APPENDIX_A_TOOLS.map((metadata) =>
     buildGatedTool(metadata, z.strictObject({}), check, () => `ships at ${metadata.milestone}`),
   );
-  return {
+  const tools = registry.map(({ tool }) => tool);
+  const config = {
     tools,
     ...buildSessionToolFilter(tools.map((tool) => tool.name)),
     onPermissionRequest: buildPermissionGate(),
   } satisfies Pick<SessionConfig, "tools" | "availableTools" | "onPermissionRequest">;
+  return { ...config, registry };
 }

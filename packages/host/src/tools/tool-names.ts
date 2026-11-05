@@ -71,10 +71,12 @@ export const APPENDIX_A_TOOLS: readonly ToolMetadata[] = [
   { name: "dispatch_env_refresh", tier: "Change", milestone: "M4" },
   { name: "dispatch_env_upgrade", tier: "Change", milestone: "M4" },
   { name: "open_issue", tier: "Change", milestone: "M4" },
+  // Assumed M4: appendix A names open_pr, but the milestone rows do not schedule it.
   { name: "open_pr", tier: "Change", milestone: "M4" },
   { name: "open_upstream_mr", tier: "Change", milestone: "M6" },
   { name: "comment", tier: "Change", milestone: "M4" },
   { name: "assign_coding_agent", tier: "Change", milestone: "M4" },
+  // Assumed M4: appendix A names sync_all_forks, but M4 does not identify its eleven verbs.
   { name: "sync_all_forks", tier: "Consequential", milestone: "M4" },
   { name: "roll_out", tier: "Consequential", milestone: "M4" },
   { name: "start_upstream", tier: "Consequential", milestone: "M4" },

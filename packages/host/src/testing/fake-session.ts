@@ -42,16 +42,15 @@ export class FakeSession {
   async requestPermission(request: PermissionRequest, effect: () => unknown): Promise<unknown> {
     const result = await this.config.onPermissionRequest(request, { sessionId: this.sessionId });
     const decision = result.kind === "attributed" ? result.result : result;
-    switch (decision.kind) {
-      case "approve-once":
-      case "approve-for-session":
-      case "approve-read-only-for-session":
-      case "approve-for-location":
-      case "approve-permanently":
-        return effect();
-      default:
-        throw new Error(`${request.kind}: permission refused (${decision.kind}).`);
+    if (
+      decision.kind === "reject" ||
+      decision.kind.startsWith("denied-") ||
+      decision.kind === "user-not-available" ||
+      decision.kind === "cancelled"
+    ) {
+      throw new Error(`${request.kind}: permission refused (${decision.kind}).`);
     }
+    return effect();
   }
 
   async run(script: readonly FakeSessionStep[]): Promise<unknown[]> {
