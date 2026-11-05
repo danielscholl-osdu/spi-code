@@ -25,8 +25,9 @@ type Manifest = Partial<Record<(typeof sections)[number], Record<string, string>
 
 function forbiddenSpecifier(owner: Package, specifier: string, file: string): boolean {
   if (
-    (owner === "contracts" || owner === "window") &&
-    /^(electron(?:\/|$)|node:)/.test(specifier)
+    ((owner === "contracts" || owner === "window") && specifier.startsWith("node:")) ||
+    ((owner === "contracts" || owner === "window" || owner === "core") &&
+      /^electron(?:\/|$)/.test(specifier))
   ) {
     return true;
   }
@@ -37,6 +38,7 @@ function forbiddenSpecifier(owner: Package, specifier: string, file: string): bo
       const packagePath = resolve(root, config.path);
       return path === packagePath || path.startsWith(`${packagePath}${sep}`);
     })?.[0];
+    if (target === undefined) return true;
     if (target === owner) return false;
   }
   const allows: readonly string[] = graph[owner].allows;
@@ -140,6 +142,32 @@ it.each([
   ]);
 });
 
+it.each([
+  ["../../../apps/desktop/src/main.js", "import"],
+  ["../../../apps/desktop/src/main.js", "export"],
+  ["../../../scripts/check.js", "dynamic"],
+  ["../../../scripts/check.js", "require"],
+  ["../../core-other/src/index.js", "import"],
+] as const)("rejects planted core escapes to %s via %s", (specifier, form) => {
+  const source = {
+    import: `import "${specifier}";`,
+    export: `export * from "${specifier}";`,
+    dynamic: `const outside = import("${specifier}");`,
+    require: `const outside = require("${specifier}");`,
+  }[form];
+  expect(forbiddenImports(source, "core")).toEqual([specifier]);
+});
+
+it.each(["electron", "electron/main"])(
+  "rejects planted core imports and dependencies on %s",
+  (specifier) => {
+    expect(forbiddenImports(`import "${specifier}";`, "core")).toEqual([specifier]);
+    expect(forbiddenDependencies("core", { dependencies: { [specifier]: "1.0.0" } })).toEqual([
+      specifier,
+    ]);
+  },
+);
+
 it("allows exactly the D3 edges, including relative imports", () => {
   for (const owner of Object.keys(graph) as Package[]) {
     for (const target of Object.keys(graph) as Package[]) {
@@ -151,6 +179,8 @@ it("allows exactly the D3 edges, including relative imports", () => {
   }
   expect(forbiddenImports('import "../../contracts/src/index.js";', "core")).toEqual([]);
   expect(forbiddenImports('import "./watch/index.js";')).toEqual([]);
+  expect(forbiddenImports('import "node:fs";', "core")).toEqual([]);
+  expect(forbiddenDependencies("core", { dependencies: { "node:fs": "*" } })).toEqual([]);
 });
 
 it("does not mistake comments or strings for imports", () => {
