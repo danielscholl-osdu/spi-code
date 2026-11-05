@@ -498,6 +498,9 @@ describe("audit of shapes, decoded strings and new credentials", () => {
     ["credential assignment", "password=monkey"],
     ["credential assignment", "client_secret=abcdefghijklmnop"],
     ["credential assignment", String.raw`password = \"secretPassword\";`],
+    // Mixed case is not code: an assignment outside a statement holds the value it names.
+    ["credential assignment", "PASSWORD = monKey"],
+    ["credential assignment", "password=Hunter2.pass"],
   ])("fails a planted %s", (name, secret) => {
     const dir = copyOfClean();
     plant(dir, 0, "Token: <redacted>", `Token: <redacted> ${secret}`);
@@ -522,14 +525,37 @@ describe("audit of shapes, decoded strings and new credentials", () => {
     "password=TODO",
     "password=",
     "api_key=your_api_key_here",
-    // Code that reads a credential from a variable or a property.
+    // Code that reads a credential from a property, or a statement that copies a variable.
     "PASSWORD=config.dbPassword",
+    "API_KEY=process.env.API_KEY",
+    "apiKey = this.config.apiKey;",
   ])("passes code that names a credential without holding one: %s", (text) => {
     const dir = copyOfClean();
     plant(dir, 0, "Token: <redacted>", `Token: <redacted> ${text}`);
     expect(auditSweep(dir).findings).toEqual([]);
   });
 });
+
+// A .env file in a diff nested in JSON: a mixed-case value is a password, not a code reference.
+test.each(["PASSWORD", "Password", "pAsSwOrD", "Client_Secret", "API_KEY"])(
+  "fails %s=monKey in a JSON-wrapped .env diff",
+  (key) => {
+    const dir = copyOfClean();
+    append(dir, {
+      cmd: "glab",
+      args: [
+        "api",
+        ...GITLAB_HOST,
+        "projects/osdu%2Fplatform%2Fsystem%2Fwidgets/repository/commits/abc/diff",
+      ],
+      ...ok,
+      stdout: JSON.stringify({ diff: `+.env\n+${key}=monKey\n` }),
+    });
+    const { findings } = auditSweep(dir);
+    expect(findings.length).toBeGreaterThan(0);
+    for (const finding of findings) expect(finding).toMatch(/ stdout: credential assignment$/);
+  },
+);
 
 // Values the live sweep recorded that are not secrets; each is exempt by name.
 test.each(["AUTHORIZE_API_KEY=tobeupdated", String.raw`export CLIENT_SECRET=\"client-secret\"`])(

@@ -31,7 +31,7 @@ const VALUE_END = String.raw`(?=$|[\s"'&;,]|\\+[nrtbfu"/])`;
 // Whole values that stand in for a credential. <...>, ${...}, {{...}} and empty values never
 // match, since a value must be six value characters. The last line lists values the live
 // sweep recorded that hold no secret.
-// The pattern is case-sensitive so CODE_REFERENCE can read camelCase; words match in any case.
+// The pattern is case-sensitive; credential and placeholder words match in any case.
 const anyCase = (words: string) =>
   words.replace(/[A-Za-z]/g, (c) => `[${c.toLowerCase()}${c.toUpperCase()}]`);
 const PLACEHOLDERS = [
@@ -40,9 +40,16 @@ const PLACEHOLDERS = [
   `${anyCase("your")}[_-][A-Za-z0-9_-]*[_-]${anyCase("here")}|${anyCase("x")}{3,}|\\*{3,}`,
   anyCase("client-secret"),
 ].join("|");
-// Code that reads a credential from a variable or property: an unquoted camelCase name whose
-// last word is the credential (userPassword, config.dbPassword). secretsauce is not one.
-const CODE_REFERENCE = String.raw`(?<!["'])(?:[A-Za-z_]\w*\.)*[a-z][a-z0-9]*(?:[A-Z][a-z0-9]*)*(?:Password|Passwd|Secret|Key|Token)`;
+// Code that reads a credential rather than holding one, in two forms only: a property read whose
+// last name is the credential (config.dbPassword, process.env.API_KEY), and a statement that
+// copies a variable (password = userPassword;). A bare value is never code, whatever its case,
+// so PASSWORD=monKey in a .env file is a password.
+const IDENTIFIER = String.raw`[A-Za-z_$][\w$]*`;
+const CREDENTIAL_NAME = String.raw`[\w$]*(?:${anyCase("password|passwd|secret|key|token")})[\w$]*`;
+const CODE_REFERENCE = [
+  String.raw`(?<!["'])(?:${IDENTIFIER}\.)+${CREDENTIAL_NAME}${VALUE_END}`,
+  String.raw`(?<=[ \t]=[ \t]+)${IDENTIFIER}[ \t]*;`,
+].join("|");
 
 export const TOKEN_PATTERNS: readonly { name: string; pattern: RegExp }[] = [
   { name: "GitHub token", pattern: /(?:gh[opsur]_|github_pat_)[A-Za-z0-9_]{8,}/ },
@@ -68,7 +75,7 @@ export const TOKEN_PATTERNS: readonly { name: string; pattern: RegExp }[] = [
     name: "credential assignment",
     pattern: new RegExp(
       `(?<![A-Za-z0-9])(?:${anyCase("password|passwd|secret|client_secret|api_?key|access_?key")})[ \\t]*=[ \\t]*["']?` +
-        `(?!<redacted>)(?!(?:${PLACEHOLDERS})${VALUE_END})(?!${CODE_REFERENCE}${VALUE_END})` +
+        `(?!<redacted>)(?!(?:${PLACEHOLDERS})${VALUE_END})(?!${CODE_REFERENCE})` +
         `(?:${VALUE_CHAR}){6,}${VALUE_END}`,
       "m",
     ),
