@@ -64,3 +64,24 @@ it("ignores stale turn output after reload and while another turn is active", ()
   expect(accept).toHaveBeenCalledTimes(2);
   expect(reject).not.toHaveBeenCalled();
 });
+
+it("ignores errors for requests not started by this window but keeps its catalog errors", () => {
+  const accept = vi.fn();
+  const receive = hostMessageHandler(
+    accept,
+    vi.fn(),
+    () => undefined,
+    (id) => id === "catalog",
+  );
+  const error = {
+    version: PROTOCOL_VERSION,
+    id: "before-reload",
+    kind: "response",
+    type: "error",
+    payload: { code: "copilot_failed", message: "Old failure" },
+  };
+  receive(error);
+  expect(accept).not.toHaveBeenCalled();
+  receive({ ...error, id: "catalog" });
+  expect(accept).toHaveBeenCalledExactlyOnceWith({ ...error, id: "catalog" });
+});

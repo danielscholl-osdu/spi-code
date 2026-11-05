@@ -9,12 +9,13 @@ import {
   mkdtemp,
   readdir,
   readFile,
+  realpath,
   rm,
   stat,
   symlink,
   writeFile,
 } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { generateNotices } from "./third-party-notices.mjs";
 
@@ -69,15 +70,19 @@ function record(value) {
 
 /** @param {string} root @param {string} stage */
 export async function stageWorkspace(root, stage) {
-  for (const directory of [
+  root = await realpath(root);
+  const projects = /** @type {{path: string}[]} */ (
+    JSON.parse(
+      execFileSync("pnpm", ["list", "--recursive", "--depth", "-1", "--json"], {
+        cwd: root,
+        encoding: "utf8",
+      }),
+    )
+  );
+  for (const directory of new Set([
     ".",
-    "apps/desktop",
-    "apps/window",
-    "packages/contracts",
-    "packages/core",
-    "packages/tools",
-    "packages/host",
-  ]) {
+    ...projects.map((project) => relative(root, project.path)),
+  ])) {
     await mkdir(join(stage, directory), { recursive: true });
     await cp(join(root, directory, "package.json"), join(stage, directory, "package.json"));
   }

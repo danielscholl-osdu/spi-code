@@ -7,6 +7,7 @@ export function hostMessageHandler(
   accept: (message: Message) => void,
   reject: () => void,
   activeRequestId: () => string | undefined,
+  ownsRequestId: (id: string) => boolean = (id) => id === activeRequestId(),
 ): (input: unknown) => void {
   return (input) => {
     const parsed = parseMessage(input);
@@ -19,6 +20,7 @@ export function hostMessageHandler(
       parsed.message.id !== activeRequestId()
     )
       return;
+    if (parsed.message.type === "error" && !ownsRequestId(parsed.message.id)) return;
     accept(parsed.message);
   };
 }

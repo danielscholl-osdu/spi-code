@@ -70,8 +70,10 @@ remain supplied by electron-builder.
 `package:mac` copies the workspace manifests and tested `pnpm-lock.yaml` into
 staging and installs production dependencies with `--frozen-lockfile` before
 adapting the manifests for electron-builder. A manifest/lockfile mismatch fails
-packaging. The packaged smoke test runs the app extracted from the generated ZIP,
-including the shipped runtime handshake, rather than the builder's app directory.
+packaging. Manifest discovery uses pnpm's workspace patterns and exclusions rather
+than a separate directory list. The packaged smoke test runs the app extracted from
+the generated ZIP, including the shipped runtime handshake, rather than the
+builder's app directory.
 
 Pinned notice repairs in `scripts/third-party-notices.mjs` cover npm archives
 that omit their upstream MIT text: Copilot SDK/platform 1.0.26 uses the GitHub

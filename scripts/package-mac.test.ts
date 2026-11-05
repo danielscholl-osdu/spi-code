@@ -21,22 +21,18 @@ describe("production staging lockfile", () => {
   async function fixture() {
     const root = await mkdtemp(join(tmpdir(), "spi-package-lock-"));
     fixtures.push(root);
-    for (const directory of [
-      ".",
-      "apps/desktop",
-      "apps/window",
-      "packages/contracts",
-      "packages/core",
-      "packages/tools",
-      "packages/host",
-    ]) {
+    const directories = [".", "apps/example", "modules/plugin"];
+    for (const directory of [...directories, "modules/ignored"]) {
       await mkdir(join(root, directory), { recursive: true });
       await writeFile(
         join(root, directory, "package.json"),
         JSON.stringify({ name: directory.replaceAll("/", "-"), version: "1.0.0" }),
       );
     }
-    await writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - apps/*\n  - packages/*\n");
+    await writeFile(
+      join(root, "pnpm-workspace.yaml"),
+      "packages:\n  - apps/*\n  - modules/*\n  - '!modules/ignored'\n",
+    );
     const lockfile = `lockfileVersion: '9.0'
 
 settings:
@@ -44,21 +40,7 @@ settings:
   excludeLinksFromLockfile: false
 
 importers:
-
-  .: {}
-
-  apps/desktop: {}
-
-  apps/window: {}
-
-  packages/contracts: {}
-
-  packages/core: {}
-
-  packages/host: {}
-
-  packages/tools: {}
-`;
+${directories.map((directory) => `\n  ${directory}: {}\n`).join("")}`;
     await writeFile(join(root, "pnpm-lock.yaml"), lockfile);
     const stage = join(root, "stage");
     await stageWorkspace(root, stage);
@@ -67,7 +49,15 @@ importers:
 
   it("installs a copied workspace lockfile without rewriting it", async () => {
     const { stage, lockfile } = await fixture();
-    installProductionDependencies(stage, process.env);
+    for (const directory of ["apps/example", "modules/plugin"]) {
+      expect(
+        JSON.parse(await readFile(join(stage, directory, "package.json"), "utf8")),
+      ).toHaveProperty("version", "1.0.0");
+    }
+    await expect(readFile(join(stage, "modules/ignored/package.json"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    installProductionDependencies(stage, { ...process.env, CI: "false" });
     expect(await readFile(join(stage, "pnpm-lock.yaml"), "utf8")).toBe(lockfile);
   });
 
@@ -76,12 +66,12 @@ importers:
     await writeFile(
       join(stage, "pnpm-lock.yaml"),
       lockfile.replace(
-        "packages/host: {}",
-        "packages/host:\n    dependencies:\n      zod:\n        specifier: 4.6.7\n        version: 4.6.7",
+        "modules/plugin: {}",
+        "modules/plugin:\n    dependencies:\n      zod:\n        specifier: 4.6.7\n        version: 4.6.7",
       ),
     );
     try {
-      installProductionDependencies(stage, process.env);
+      installProductionDependencies(stage, { ...process.env, CI: "false" });
     } catch (error) {
       if (!(error instanceof Error)) throw error;
       expect(error.message).toContain("ERR_PNPM_OUTDATED_LOCKFILE");

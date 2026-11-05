@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { type Message, PROTOCOL_VERSION, parseMessage } from "@spi-code/contracts";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { Shell } from "./app/Shell.js";
 import { hostMessageHandler } from "./host-message.js";
@@ -38,6 +38,11 @@ function App() {
   const [tools, setTools] = useState<string[]>([]);
   const [activeRequestId, setActiveRequestId] = useState<string>();
   const activeTurn = useRef<string | undefined>(undefined);
+  const requestIds = useRef(new Set<string>());
+  const request = useCallback((message: Message): void => {
+    requestIds.current.add(message.id);
+    send(message);
+  }, []);
   const busy = activeRequestId !== undefined;
   const [ended, setEnded] = useState("");
   useEffect(() => {
@@ -49,14 +54,14 @@ function App() {
           setActiveRequestId(activeTurn.current);
           switch (message.type) {
             case "host.hello":
-              send({
+              request({
                 version: PROTOCOL_VERSION,
                 id: "window-ping",
                 kind: "request",
                 type: "ping",
                 payload: {},
               });
-              send({
+              request({
                 version: PROTOCOL_VERSION,
                 id: "catalog",
                 kind: "request",
@@ -80,7 +85,7 @@ function App() {
                 const id = crypto.randomUUID();
                 activeTurn.current = id;
                 setActiveRequestId(id);
-                send({
+                request({
                   version: PROTOCOL_VERSION,
                   id,
                   kind: "request",
@@ -113,9 +118,10 @@ function App() {
         },
         () => setStatus("Invalid host message rejected"),
         () => activeTurn.current,
+        (id) => requestIds.current.has(id),
       ),
     );
-  }, []);
+  }, [request]);
   return (
     <div className="turn-panel">
       <h2>Copilot</h2>
@@ -125,7 +131,7 @@ function App() {
         type="button"
         disabled={busy}
         onClick={() =>
-          send({
+          request({
             version: PROTOCOL_VERSION,
             id: "refresh",
             kind: "request",
@@ -145,7 +151,7 @@ function App() {
           setEnded("");
           setText("");
           setTools([]);
-          send({
+          request({
             version: PROTOCOL_VERSION,
             id,
             kind: "request",

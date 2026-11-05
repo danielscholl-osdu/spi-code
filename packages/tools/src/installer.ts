@@ -20,7 +20,7 @@ import {
   stat,
   symlink,
 } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
@@ -137,7 +137,7 @@ async function reclaimStale(
   directory: string,
   matches: (name: string) => boolean,
   cutoff: number,
-  descend: (name: string) => boolean = () => false,
+  descend: (path: string) => boolean = () => false,
 ): Promise<void> {
   // Reclaim is best effort: a locked or unreadable leftover must never block an install.
   let entries: Dirent[];
@@ -154,8 +154,8 @@ async function reclaimStale(
         if ((await lstat(path)).mtimeMs < cutoff) {
           await rm(path, { recursive: entry.isDirectory(), force: true });
         }
-      } else if (entry.isDirectory() && descend(entry.name)) {
-        await reclaimStale(path, matches, cutoff, () => true);
+      } else if (entry.isDirectory() && descend(path)) {
+        await reclaimStale(path, matches, cutoff, descend);
       }
     } catch {
       // Leave it for a later install to retry.
@@ -244,11 +244,9 @@ export class ToolInstaller {
     try {
       await mkdir(this.appData, { recursive: true });
       const cutoff = Date.now() - staleAfterMs;
-      // Older unqualified .install-* names cannot be safely attributed to a tool.
-      const stagingName = new RegExp(`^\\.install-${tool}-[A-Za-z0-9]{6}$`);
+      const stagingName = new RegExp(`^\\.install-(?:${tool}-)?[A-Za-z0-9]{6}$`);
       await reclaimStale(this.appData, (name) => stagingName.test(name), cutoff);
       await reclaimStale(this.root(tool), (name) => name.startsWith(".current-"), cutoff);
-      await reclaimStale(this.root(tool), (name) => name.startsWith(".repair-"), cutoff, isVersion);
       staging = await mkdtemp(join(this.appData, `.install-${tool}-`));
       const asset = pin.platforms[this.platform];
       const archive = join(
@@ -322,6 +320,22 @@ export class ToolInstaller {
       const root = this.root(tool);
       await mkdir(root, { recursive: true });
       const target = join(root, pin.version);
+      const repairDirectories = new Set([target]);
+      for (const file of files) {
+        for (
+          let directory = dirname(join(target, file));
+          directory !== target;
+          directory = dirname(directory)
+        ) {
+          repairDirectories.add(directory);
+        }
+      }
+      await reclaimStale(
+        root,
+        (name) => name.startsWith(".repair-"),
+        cutoff,
+        (path) => repairDirectories.has(path),
+      );
       try {
         await rename(payload, target);
       } catch (error) {

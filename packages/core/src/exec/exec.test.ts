@@ -6,6 +6,21 @@ import { RecordingExec, ReplayExec, type ExecOptions, type ExecOutput } from "./
 import { execOutputDelivery, execRedactor } from "./port.js";
 
 describe("exec recording and replay", () => {
+  it.each(["Bearer\n", "Authorization:\r\n", "Authorization:\n\n", "bEaReR \r\n "])(
+    "holds a multiline credential introducer %j until its value is redacted",
+    (header) => {
+      const chunks: string[] = [];
+      const delivery = execOutputDelivery({ onOutput: (_stream, text) => chunks.push(text) });
+      delivery.push("stderr", header);
+      expect(chunks).toEqual([]);
+      delivery.push("stderr", "opaque-value");
+      delivery.push("stderr", "\nDone!\n");
+      delivery.finish();
+      expect(chunks.join("")).toBe(execRedactor({})(`${header}opaque-value\nDone!\n`));
+      expect(chunks.join("")).not.toContain("opaque-value");
+    },
+  );
+
   it.each([
     ["opaque.g", "opaque.gh", { stdin: "opaque.g\n" }],
     ["opaque.gh", "opaque.ghp_", { stdin: "opaque.gh" }],
@@ -72,6 +87,9 @@ describe("exec recording and replay", () => {
     ["glpat-planted", {}],
     ["Authorization: Basic credential", {}],
     ["Bearer credential", {}],
+    ["Authorization:\r\nBasic credential", {}],
+    ["Authorization:\n\ncredential", {}],
+    ["Bearer\ncredential", {}],
     ["opaque.credential", { stdin: "opaque.credential\n" }],
     ["environment.credential", { env: { SERVICE_TOKEN: "environment.credential" } }],
   ] satisfies [string, ExecOptions][])("redacts %s across every chunk boundary", (secret, opts) => {
@@ -85,6 +103,7 @@ describe("exec recording and replay", () => {
       delivery.push("stdout", "\n");
       delivery.finish();
       const text = chunks.join("");
+      expect(text).toBe(execRedactor(opts)(`${secret}\n`));
       expect(text).not.toContain(secret);
       expect(text).not.toContain("credential");
       expect(text).toContain("<redacted>");

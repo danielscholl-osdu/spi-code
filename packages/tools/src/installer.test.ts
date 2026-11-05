@@ -32,11 +32,16 @@ import { parseManifest } from "./manifest.js";
 
 const fsHooks = vi.hoisted(() => ({
   rename: undefined as undefined | ((from: string, to: string) => void),
+  readdir: undefined as undefined | ((path: string) => void),
 }));
 vi.mock("node:fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs/promises")>();
   return {
     ...actual,
+    readdir: async (...args: Parameters<typeof actual.readdir>) => {
+      fsHooks.readdir?.(String(args[0]));
+      return actual.readdir(...args);
+    },
     rename: async (from: string, to: string) => {
       fsHooks.rename?.(from, to);
       return actual.rename(from, to);
@@ -87,6 +92,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   fsHooks.rename = undefined;
+  fsHooks.readdir = undefined;
   vi.unstubAllEnvs();
   vi.useRealTimers();
   await new Promise<void>((resolve, reject) =>
@@ -299,15 +305,17 @@ test("install reclaims only stale same-tool temporary entries and never follows 
   const stalePointer = join(root, ".current-abandoned");
   const stale = [
     join(appData, ".install-gh-Ab1234"),
+    join(appData, ".install-Ab1234"),
     stalePointer,
-    join(bin, ".repair-abandoned"),
-    join(root, "0.9.0", "bin", ".repair-abandoned"),
+    join(root, "2.0.0", "bin", ".repair-abandoned"),
   ];
   const kept = [
     join(appData, ".install-gh-Fresh1"),
     join(appData, ".install-glab-Ab1234"),
     join(appData, ".install-gh-other-Ab1234"),
-    join(appData, ".install-Ab1234"),
+    join(appData, ".install-Fresh1"),
+    join(bin, ".repair-abandoned"),
+    join(root, "0.9.0", "bin", ".repair-abandoned"),
     join(root, ".current-fresh"),
     join(bin, ".repair-fresh"),
     join(root, "1.0.0", "keep"),
@@ -330,18 +338,45 @@ test("install reclaims only stale same-tool temporary entries and never follows 
     await symlink("1.0.0", stalePointer);
     await lutimes(stalePointer, old, old);
   }
-  const update = new ToolInstaller(appData, manifest("2.0.0"), platform, async () => {
-    for (const path of stale) await expect(stat(path)).rejects.toMatchObject({ code: "ENOENT" });
-    for (const path of kept) expect(await stat(path)).toBeDefined();
-    expect(await installer.binDir("gh")).toBe(bin);
-    expect(await readFile(join(bin, binary))).toEqual(executable);
-    throw new Error("interrupted after reclaim");
-  });
-  await expect(update.install("gh")).rejects.toThrow("interrupted after reclaim");
-  expect(await installer.binDir("gh")).toBe(bin);
-  await installer.install("gh");
+  await new ToolInstaller(appData, manifest("2.0.0"), platform).install("gh");
+  for (const path of stale) await expect(stat(path)).rejects.toMatchObject({ code: "ENOENT" });
+  for (const path of kept) expect(await stat(path)).toBeDefined();
+  expect(await installer.binDir("gh")).toBe(join(root, "2.0.0", "bin"));
   expect(await readFile(join(bin, binary))).toEqual(executable);
 });
+
+test("repair reclaim does not traverse unrelated installed version trees", async () => {
+  const appData = join(home, "bounded-reclaim");
+  const oldTree = join(appData, "tools", "gh", "0.9.0");
+  await mkdir(join(oldTree, "deep", "portable-git"), { recursive: true });
+  const visited: string[] = [];
+  fsHooks.readdir = (path) => visited.push(path);
+  await new ToolInstaller(appData, manifest(), platform).install("gh");
+  expect(visited.filter((path) => path.startsWith(oldTree))).toEqual([]);
+});
+
+test.skipIf(process.platform === "win32")(
+  "repair reclaim never follows a payload directory symlink",
+  async () => {
+    const appData = join(home, "symlink-reclaim");
+    const foreign = join(home, "foreign");
+    const version = join(appData, "tools", "gh", "1.0.0");
+    await mkdir(foreign);
+    await mkdir(version, { recursive: true });
+    await symlink(foreign, join(version, "bin"));
+    const repair = join(foreign, ".repair-abandoned");
+    await writeFile(repair, "unrelated");
+    const old = new Date(Date.now() - 48 * 60 * 60_000);
+    await utimes(repair, old, old);
+    fsHooks.rename = () => {
+      throw new Error("stop after reclaim");
+    };
+    await expect(new ToolInstaller(appData, manifest(), platform).install("gh")).rejects.toThrow(
+      "stop after reclaim",
+    );
+    expect(await readFile(repair, "utf8")).toBe("unrelated");
+  },
+);
 
 test.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
   "a stale entry that cannot be removed never blocks the install",
@@ -351,9 +386,10 @@ test.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
     const appData = join(home, "locked");
     const installer = new ToolInstaller(appData, manifest(), platform);
     await installer.install("gh");
-    const lockedBin = join(appData, "tools", "gh", "0.9.0", "bin");
+    const lockedBin = join(appData, "tools", "gh", "2.0.0", "bin");
     const locked = join(lockedBin, ".repair-abandoned");
     await mkdir(lockedBin, { recursive: true });
+    await writeFile(join(lockedBin, binary), executable);
     await writeFile(locked, "temporary");
     const old = new Date(Date.now() - 48 * 60 * 60_000);
     await utimes(locked, old, old);

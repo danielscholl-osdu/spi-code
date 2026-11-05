@@ -70,7 +70,7 @@ function ToolRow({ tool }: { tool: Tool }) {
       </p>
       {tool.reason && !attention && <p>{tool.reason}</p>}
       {!!tool.missingScopes?.length && <p>Required scopes: {tool.missingScopes.join(", ")}</p>}
-      {tool.action && (
+      {tool.action && !(tool.tool === "git" && tool.action === "signin") && (
         <button
           type="button"
           disabled={!!busy}

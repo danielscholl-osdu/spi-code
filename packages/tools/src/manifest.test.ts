@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { execFile } from "node:child_process";
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,11 +15,23 @@ test("the packaged dist-only layout loads both installers and the exact pinned m
   const stage = await mkdtemp(join(tmpdir(), "spi-tools-packaged-"));
   try {
     // pnpm is a .cmd shim on Windows, which only a shell can launch.
-    await exec("pnpm", ["--filter", "@spi-code/tools", "build"], {
-      cwd: root,
-      shell: process.platform === "win32",
-    });
-    await cp(join(root, "packages/tools/dist"), join(stage, "dist"), { recursive: true });
+    await exec(
+      "pnpm",
+      [
+        "exec",
+        "tsc",
+        "--project",
+        "packages/tools/tsconfig.json",
+        "--outDir",
+        join(stage, "dist"),
+        "--tsBuildInfoFile",
+        join(stage, "tools.tsbuildinfo"),
+      ],
+      {
+        cwd: root,
+        shell: process.platform === "win32",
+      },
+    );
     await writeFile(join(stage, "package.json"), '{"type":"module"}');
     const { stdout } = await exec(
       process.execPath,

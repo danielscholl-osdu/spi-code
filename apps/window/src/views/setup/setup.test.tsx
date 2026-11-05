@@ -70,8 +70,9 @@ it.each(cases)(
       const row = container.querySelector(`section[aria-label="${name}"]`);
       expect(row?.querySelector("p")?.textContent).toBe(label);
       const buttons = row?.querySelectorAll<HTMLButtonElement>("button");
-      expect(buttons).toHaveLength(action ? 1 : 0);
-      if (action) expect(buttons?.[0]?.disabled).toBe(status === "installing");
+      const offered = action && !(name === "git" && action === "signin");
+      expect(buttons).toHaveLength(offered ? 1 : 0);
+      if (offered) expect(buttons?.[0]?.disabled).toBe(status === "installing");
     }
   },
 );

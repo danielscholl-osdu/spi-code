@@ -30,6 +30,26 @@ it("ignores other ids and observes the matching message arriving later", async (
   expect(await inbox.wait("other")).toMatchObject({ id: "other" });
 });
 
+it("waits for the requested turn instead of consuming an earlier turn end", async () => {
+  const inbox = smokeMessages();
+  const end: Message = {
+    version: PROTOCOL_VERSION,
+    id: "old",
+    kind: "event",
+    type: "turn.end",
+    payload: { reason: "completed" },
+  };
+  inbox.push(end);
+  const observed = inbox.waitForTurn("current");
+  inbox.push({ ...reply, id: "current" });
+  expect(await observed).toEqual({ ...reply, id: "current" });
+  expect(await inbox.wait("old")).toEqual(end);
+  const next = inbox.waitForTurn("next");
+  inbox.push({ ...end, id: "unrelated" });
+  inbox.push({ ...end, id: "next" });
+  expect(await next).toEqual({ ...end, id: "next" });
+});
+
 it("times out without an observation and can still wait for a later message", async () => {
   vi.useFakeTimers();
   try {

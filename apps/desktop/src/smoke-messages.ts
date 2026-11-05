@@ -15,6 +15,11 @@ export function smokeMessages() {
     clear(): void {
       messages.length = 0;
     },
+    waitForTurn(id: string): Promise<Message> {
+      return this.wait(
+        (message) => message.id === id && (message.type === "turn.end" || message.type === "error"),
+      );
+    },
     wait(match: string | ((message: Message) => boolean)): Promise<Message> {
       const predicate =
         typeof match === "string" ? (message: Message) => message.id === match : match;
