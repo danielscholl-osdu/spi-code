@@ -35,16 +35,26 @@ export interface GraphqlBudgetSnapshot {
   calls: number;
 }
 
+export type Sleep = (ms: number) => Promise<void>;
+const realSleep: Sleep = (ms) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 export class GraphqlBudget {
   private queue: Promise<void> = Promise.resolve();
+  private inFlight = 0;
+  private probe: Promise<void> | null = null;
   private state: GraphqlBudgetSnapshot = { remaining: null, resetAt: null, spent: 0, calls: 0 };
 
-  constructor(private readonly clock: Clock = systemClock) {}
+  constructor(
+    private readonly clock: Clock = systemClock,
+    private readonly sleep: Sleep = realSleep,
+  ) {}
 
   snapshot(): GraphqlBudgetSnapshot {
     return { ...this.state };
   }
 
+  // Reservations are serialised; the calls they pay for run concurrently once the
+  // remaining budget is known. While it is unknown, one call probes it and the rest wait.
   async run<T>(estimate: number, call: () => Promise<{ value: T; rate?: Rate }>): Promise<T> {
     if (!Number.isSafeInteger(estimate) || estimate < 1) {
       throw new ForgeError("GraphQL cost estimate must be a positive integer", null);
@@ -53,31 +63,57 @@ export class GraphqlBudget {
     let release = () => {};
     this.queue = new Promise<void>((resolve) => { release = resolve; });
     await previous;
+    let settle: (() => void) | undefined;
     try {
+      while (this.state.remaining === null && this.probe) await this.probe;
       const reset = this.state.resetAt === null ? null : Date.parse(this.state.resetAt);
       if (reset !== null && reset <= this.clock.now().getTime()) this.state.remaining = null;
       if (this.state.remaining !== null && this.state.remaining < estimate) {
         if (reset === null) throw new ForgeError("GraphQL budget exhausted; reset time unknown", null);
-        await new Promise<void>((resolve) => setTimeout(resolve, Math.max(0, reset - this.clock.now().getTime())));
+        await this.sleep(Math.max(0, reset - this.clock.now().getTime()));
         this.state.remaining = null;
       }
       this.state.calls++;
       this.state.spent += estimate;
       if (this.state.remaining !== null) this.state.remaining -= estimate;
-      // A cut body cannot report its cost. Keep the reservation charged in that case.
-      const { value, rate } = await call();
-      if (rate) {
-        this.state.spent += rate.cost - estimate;
-        this.state.remaining = rate.remaining;
-        this.state.resetAt = rate.resetAt;
+      this.inFlight += estimate;
+      if (this.state.remaining === null) {
+        this.probe = new Promise<void>((resolve) => { settle = resolve; });
       }
-      return value;
     } finally {
       release();
     }
+    try {
+      // A cut body cannot report its cost. Keep the reservation charged in that case.
+      const { value, rate } = await call();
+      if (rate) this.reconcile(estimate, rate);
+      return value;
+    } finally {
+      this.inFlight -= estimate;
+      if (settle) {
+        this.probe = null;
+        settle();
+      }
+    }
+  }
+
+  private reconcile(estimate: number, rate: Rate): void {
+    this.state.spent += rate.cost - estimate;
+    const current = this.state.resetAt === null ? null : Date.parse(this.state.resetAt);
+    const reported = Date.parse(rate.resetAt);
+    if (current !== null && reported < current) return;
+    // Other reservations still in flight are not yet in GitHub's figure.
+    const remaining = Math.max(0, rate.remaining - (this.inFlight - estimate));
+    const sameWindow = current === reported && this.state.remaining !== null;
+    this.state.remaining = sameWindow ? Math.min(this.state.remaining ?? remaining, remaining) : remaining;
+    this.state.resetAt = rate.resetAt;
   }
 }
 
+export const BUDGET_KEY = "spicodeBudget";
+
+// Adds an aliased rateLimit selection to the operation's root, never to a fragment,
+// so the caller's own rateLimit selections, aliases and directives cannot hide it.
 function budgetQuery(query: string): { query: string; key: string } {
   const tokens = [...query.matchAll(/"""[\s\S]*?"""|"(?:\\.|[^"\\])*"|#[^\r\n]*|[_A-Za-z][_0-9A-Za-z]*|[^\s,]/g)]
     .filter((token) => !token[0].startsWith('"') && !token[0].startsWith("#"));
@@ -85,39 +121,30 @@ function budgetQuery(query: string): { query: string; key: string } {
   let parens = 0;
   let fragment = false;
   let root: number | undefined;
-  for (const [i, token] of tokens.entries()) {
+  for (const token of tokens) {
     const text = token[0];
+    if (text === BUDGET_KEY) throw new ForgeError(`GraphQL query may not use the name ${BUDGET_KEY}`, null);
     if (text === "(") parens++;
     if (text === ")") parens--;
     if (parens !== 0) continue;
+    if (depth === 0 && (text === "mutation" || text === "subscription")) {
+      throw new ForgeError(`GraphQL ${text} operations are not supported`, null);
+    }
     if (depth === 0 && text === "fragment") fragment = true;
     if (text === "{") {
-      if (root === undefined && !fragment) root = token.index;
+      if (depth === 0 && !fragment) {
+        if (root !== undefined) throw new ForgeError("GraphQL document must hold one operation", null);
+        root = token.index;
+      }
       depth++;
     }
     if (text === "}") depth--;
     if (text === "}" && depth === 0) fragment = false;
-    if (root !== undefined && depth === 0) break;
-    if (root !== undefined && depth === 1 && text === "rateLimit" && tokens[i + 1]?.[0] !== ":") {
-      const key = tokens[i - 1]?.[0] === ":" ? tokens[i - 2]?.[0] : "rateLimit";
-      const selection = tokens.slice(i + 1).find((next) => next[0] === "{");
-      if (selection?.[0] !== "{") throw new ForgeError("rateLimit must select budget fields", null);
-      const start = tokens.indexOf(selection) + 1;
-      let end = start;
-      while (tokens[end] && tokens[end]?.[0] !== "}") end++;
-      const fields = tokens.slice(start, end).map((field) => field[0]);
-      const missing = ["cost", "remaining", "resetAt"].filter((field) => !fields.includes(field));
-      const at = selection.index + 1;
-      return {
-        query: missing.length ? `${query.slice(0, at)} ${missing.join(" ")} ${query.slice(at)}` : query,
-        key: key ?? "rateLimit",
-      };
-    }
   }
   if (root === undefined) throw new ForgeError("GraphQL query has no selection set", null);
   return {
-    query: `${query.slice(0, root + 1)} rateLimit { cost remaining resetAt } ${query.slice(root + 1)}`,
-    key: "rateLimit",
+    query: `${query.slice(0, root + 1)} ${BUDGET_KEY}: rateLimit { cost remaining resetAt } ${query.slice(root + 1)}`,
+    key: BUDGET_KEY,
   };
 }
 
@@ -176,6 +203,7 @@ export class Gh {
       if (!body) continue;
       const errors = body.errors ?? [];
       if (!body.data) throw new ForgeError(`gh api graphql: ${errors[0]?.message ?? "no data"}`, null);
+      delete body.data[prepared.key];
       return { data: body.data, errors };
     }
     throw new ForgeError(

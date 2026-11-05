@@ -7,11 +7,12 @@ import { encodeProject, Gh, Glab, GraphqlBudget, tokenScopes } from "./forge.js"
 
 const resetAt = "2026-11-05T08:00:00Z";
 const query = "{viewer{login}}";
-const chargedQuery = "{ rateLimit { cost remaining resetAt } viewer{login}}";
+const charge = "spicodeBudget: rateLimit { cost remaining resetAt }";
+const chargedQuery = `{ ${charge} viewer{login}}`;
 const output = (stdout: string, exit = 0): ExecOutput => ({ stdout, stderr: "", exit });
 const body = (cost: number, remaining: number) =>
   JSON.stringify({
-    data: { viewer: { login: "someone" }, rateLimit: { cost, remaining, resetAt } },
+    data: { viewer: { login: "someone" }, spicodeBudget: { cost, remaining, resetAt } },
   });
 
 async function replay(
@@ -88,7 +89,7 @@ describe("forge replay", () => {
         output("", 1),
         output(
           JSON.stringify({
-            data: { missing: null, rateLimit: { cost: 2, remaining: 40, resetAt } },
+            data: { missing: null, spicodeBudget: { cost: 2, remaining: 40, resetAt } },
             errors,
           }),
           1,
@@ -136,47 +137,112 @@ describe("forge replay", () => {
   });
 
   it.each([
-    [query, chargedQuery],
-    [chargedQuery, chargedQuery],
+    [query, `{ ${charge} viewer{login}}`],
     [
       'query($s:String="{rateLimit}") {viewer{login}} # rateLimit',
-      'query($s:String="{rateLimit}") { rateLimit { cost remaining resetAt } viewer{login}} # rateLimit',
+      `query($s:String="{rateLimit}") { ${charge} viewer{login}} # rateLimit`,
     ],
     [
       "{quota:rateLimit { cost remaining resetAt }}",
-      "{quota:rateLimit { cost remaining resetAt }}",
+      `{ ${charge} quota:rateLimit { cost remaining resetAt }}`,
     ],
     [
       "fragment User on User {login} query {viewer{...User}}",
-      "fragment User on User {login} query { rateLimit { cost remaining resetAt } viewer{...User}}",
+      `fragment User on User {login} query { ${charge} viewer{...User}}`,
     ],
-    ["{rateLimit { remaining }}", "{rateLimit { cost resetAt  remaining }}"],
-  ])("injects budget fields once at the root of %s", async (input, expected) => {
-    let log = "";
-    const recording = new RecordingExec(
-      async (cmd, args) => {
-        expect(cmd).toBe("gh");
-        expect(args).toEqual(["api", "graphql", "-f", `query=${expected}`]);
-        return output(
-          JSON.stringify({
-            data: {
-              [input.includes("quota:") ? "quota" : "rateLimit"]: {
-                cost: 1,
-                remaining: 10,
-                resetAt,
-              },
-            },
-          }),
-        );
-      },
-      (line) => {
-        log += line;
-      },
-    );
-    await new Gh(recording).graphql(input);
-    const exec = new ReplayExec(log);
-    await new Gh(exec).graphql(input);
+    [
+      "{ ...rateLimit } fragment rateLimit on Query { viewer { login } }",
+      `{ ${charge}  ...rateLimit } fragment rateLimit on Query { viewer { login } }`,
+    ],
+    [
+      "{rateLimit { used:cost remaining resetAt }}",
+      `{ ${charge} rateLimit { used:cost remaining resetAt }}`,
+    ],
+    [
+      "{viewer{login} rateLimit @skip(if:true) {cost remaining resetAt}}",
+      `{ ${charge} viewer{login} rateLimit @skip(if:true) {cost remaining resetAt}}`,
+    ],
+    ["{ rateLimit: viewer { login } }", `{ ${charge}  rateLimit: viewer { login } }`],
+  ])(
+    "injects one aliased budget selection at the operation root of %s",
+    async (input, expected) => {
+      let log = "";
+      const recording = new RecordingExec(
+        async (cmd, args) => {
+          expect(cmd).toBe("gh");
+          expect(args).toEqual(["api", "graphql", "-f", `query=${expected}`]);
+          return output(
+            JSON.stringify({
+              data: { rateLimit: { used: 9 }, spicodeBudget: { cost: 1, remaining: 10, resetAt } },
+            }),
+          );
+        },
+        (line) => {
+          log += line;
+        },
+      );
+      const gh = new Gh(recording);
+      expect((await gh.graphql(input)).data).toEqual({ rateLimit: { used: 9 } });
+      expect(gh.budget.snapshot()).toEqual({ remaining: 10, resetAt, spent: 1, calls: 1 });
+      const exec = new ReplayExec(log);
+      await new Gh(exec).graphql(input);
+      exec.assertExhausted();
+    },
+  );
+
+  it.each([
+    ['mutation { addStar(input:{starrableId:"x"}) { clientMutationId } }', "mutation operations"],
+    ["subscription { x }", "subscription operations"],
+    ["{ spicodeBudget: viewer { login } }", "may not use the name spicodeBudget"],
+    ["query A { a } query B { b }", "one operation"],
+  ])("refuses %s before calling gh", async (input, message) => {
+    const exec = new ReplayExec("");
+    await expect(new Gh(exec).graphql(input)).rejects.toThrow(message);
     exec.assertExhausted();
+  });
+
+  it("probes an unknown budget with one call, then runs calls concurrently and reconciles in-flight reservations", async () => {
+    let active = 0;
+    let peak = 0;
+    const releases: (() => void)[] = [];
+    const exec = new RecordingExec(
+      async () => {
+        active++;
+        peak = Math.max(peak, active);
+        await new Promise<void>((resolve) => releases.push(resolve));
+        active--;
+        return output(body(1, 100));
+      },
+      () => {},
+    );
+    const budget = new GraphqlBudget();
+    const gh = new Gh(exec, undefined, budget);
+    const probe = gh.graphql(query, 5);
+    const waiting = gh.graphql(query, 5);
+    await vi.waitFor(() => expect(releases).toHaveLength(1));
+    releases[0]?.();
+    await probe;
+    await vi.waitFor(() => expect(releases).toHaveLength(2));
+    const third = gh.graphql(query, 5);
+    await vi.waitFor(() => expect(releases).toHaveLength(3));
+    expect(peak).toBe(2);
+    releases[1]?.();
+    await waiting;
+    expect(budget.snapshot().remaining).toBe(90);
+    releases[2]?.();
+    await third;
+    expect(budget.snapshot()).toEqual({ remaining: 90, resetAt, spent: 3, calls: 3 });
+  });
+
+  it("waits on the injected sleep rather than wall time", async () => {
+    const sleeps: number[] = [];
+    const clock = { now: () => new Date("2026-11-05T07:59:00Z") };
+    const budget = new GraphqlBudget(clock, async (ms) => {
+      sleeps.push(ms);
+    });
+    await budget.run(1, async () => ({ value: 1, rate: { cost: 1, remaining: 0, resetAt } }));
+    await budget.run(1, async () => ({ value: 2 }));
+    expect(sleeps).toEqual([60_000]);
   });
 
   it("ports the status-scope case, including a fine-grained token without scopes", async () => {
