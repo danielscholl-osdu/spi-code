@@ -139,6 +139,16 @@ export function cutsOf(raw: unknown): Cut[] {
   return cuts;
 }
 
+function missingMarker(error: GqlError): boolean {
+  if (error.type !== "NOT_FOUND" || !error.path) return false;
+  const [, field, nodes, index, ref, target, file] = error.path;
+  if (error.path.length === 2 && field === "marker") return true;
+  return error.path.length === 7 &&
+    field === "pullRequests" && nodes === "nodes" &&
+    typeof index === "number" && Number.isSafeInteger(index) && index >= 0 &&
+    ref === "headRef" && target === "target" && file === "file";
+}
+
 export async function readGithub<T>(
   gh: Pick<Gh, "graphql">,
   ctx: CoreContext,
@@ -176,7 +186,8 @@ export async function readGithub<T>(
     if (!result) throw new Error(`Missing GraphQL batch ${batch}`);
     const raw = result.data[alias];
     const errors = result.errors.filter(
-      (error) => !error.path?.length || error.path[0] === alias,
+      (error) => (!error.path?.length || error.path[0] === alias) &&
+        !(objectOf(raw) && missingMarker(error)),
     );
     const absentPlanned = alias.startsWith("p_") && raw === null &&
       errors.every((error) => error.type === "NOT_FOUND");

@@ -4,11 +4,11 @@
 import { describe, expect, it } from "vitest";
 import { parseGithub } from "../../src/collect/github-parse.js";
 import { buildQueries, cutsOf, mergeReads, readGithub } from "../../src/collect/github-read.js";
-import { fleetOf, plannedRepo, STACK_REPO, TEMPLATE_REPO } from "../../src/config.js";
+import { fleetOf, MARKER_PATH, plannedRepo, STACK_REPO, TEMPLATE_REPO } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
 import { envelopeOf } from "../../src/evidence/index.js";
 import { type Exec, RecordingExec, ReplayExec } from "../../src/exec/index.js";
-import { Gh, GraphqlBudget } from "../../src/forge.js";
+import { Gh, type GqlError, GraphqlBudget } from "../../src/forge.js";
 
 const now = "2026-11-05T07:00:00.000Z";
 const resetAt = "2026-11-05T08:00:00Z";
@@ -38,12 +38,25 @@ const forks = (start: number, end: number) =>
       return [`r_fork${i}`, { nameWithOwner: `example/fork${i}` }];
     }),
   );
-const response = (data: Record<string, unknown>, cost: number, remaining: number) => ({
-  stdout: JSON.stringify({ data: { ...data, spicodeBudget: { cost, remaining, resetAt } } }),
+const response = (
+  data: Record<string, unknown>,
+  cost: number,
+  remaining: number,
+  errors: GqlError[] = [],
+) => ({
+  stdout: JSON.stringify({
+    data: { ...data, spicodeBudget: { cost, remaining, resetAt } },
+    errors,
+  }),
   stderr: "",
-  exit: 0,
+  exit: errors.length ? 1 : 0,
 });
 const parse = (data: Record<string, unknown>) => data;
+const missingMarker = {
+  type: "NOT_FOUND",
+  message: `Could not resolve file for path '${MARKER_PATH}'.`,
+};
+const headMarkerPath = ["pullRequests", "nodes", 0, "headRef", "target", "file"];
 
 async function replay(
   outputs: { stdout: string; stderr: string; exit: number }[],
@@ -121,6 +134,133 @@ it("replays two queries, merges repos and charges both costs only to the account
     expect(gh.budget.snapshot()).toEqual({ spent: 12, remaining: 88, resetAt, calls: 2 });
   });
 });
+
+it("keeps missing PR-head and main markers absent and the GitHub area fresh", async () => {
+  const pr = {
+    number: 7,
+    title: "Update template",
+    url: "https://github.com/example/fork0/pull/7",
+    createdAt: now,
+    updatedAt: now,
+    isDraft: false,
+    headRefName: "sync-template",
+    baseRefName: "main",
+    headRefOid: "head-sha",
+    headRef: { target: { file: null } },
+  };
+  await replay(
+    [
+      response(
+        {
+          ...base,
+          r_template: { ...base.r_template, pullRequests: { totalCount: 1, nodes: [pr] } },
+        },
+        3,
+        97,
+        [{ ...missingMarker, path: ["r_template", ...headMarkerPath] }],
+      ),
+      response(
+        {
+          r_fork0: {
+            nameWithOwner: "example/fork0",
+            marker: null,
+            pullRequests: {
+              totalCount: 2,
+              nodes: [
+                pr,
+                {
+                  ...pr,
+                  number: 8,
+                  headRef: { target: { file: { object: { text: "adopted\n" } } } },
+                },
+              ],
+            },
+          },
+        },
+        2,
+        95,
+        [
+          { ...missingMarker, path: ["r_fork0", "marker"] },
+          { ...missingMarker, path: ["r_fork0", ...headMarkerPath] },
+        ],
+      ),
+    ],
+    async (exec) => {
+      const gh = new Gh(exec, undefined, new GraphqlBudget(clock));
+      const { facts, records } = await readGithub(gh, context(1), parseGithub);
+      expect(facts.repos[TEMPLATE_REPO]?.prs[0]?.headMarker).toBeUndefined();
+      expect(facts.repos["example/fork0"]?.marker).toBeUndefined();
+      expect(facts.repos["example/fork0"]?.prs).toMatchObject([
+        { number: 7, title: pr.title, headMarker: undefined },
+        { number: 8, headMarker: "adopted" },
+      ]);
+      expect(records.every((r) => r.failure === undefined)).toBe(true);
+      expect(envelopeOf(records, { intervalMs: 300_000, now: Date.parse(now) }).state).toBe(
+        "fresh",
+      );
+      expect(gh.budget.snapshot()).toMatchObject({ calls: 2, spent: 5, remaining: 95 });
+    },
+  );
+});
+
+it.each(
+  [
+    [{ type: "FORBIDDEN", message: "marker denied", path: ["r_fork0", ...headMarkerPath] }],
+    [{ ...missingMarker, path: ["r_fork0", "syncTemplate"] }],
+    [{ ...missingMarker, path: ["r_fork0", "pullRequests", "nodes", 0, "headRef"] }],
+    [{ ...missingMarker }],
+    [
+      { ...missingMarker, path: ["r_fork0", ...headMarkerPath] },
+      { type: "INTERNAL", message: "checks unavailable", path: ["r_fork0", "pullRequests"] },
+    ],
+  ].map((errors) => [errors]),
+)("still fails reads with other partial GraphQL errors: %j", async (errors) => {
+  await replay([response(base, 3, 97), response(forks(0, 1), 2, 95, errors)], async (exec) => {
+    const { records } = await readGithub(
+      new Gh(exec, undefined, new GraphqlBudget(clock)),
+      context(1),
+      parseGithub,
+    );
+    const failures = records.filter((r) => r.failure);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toMatchObject({
+      object: "example/fork0",
+      failure: errors.at(-1)?.message,
+    });
+    expect(envelopeOf(records, { intervalMs: 300_000, now: Date.parse(now) }).state).toBe("failed");
+  });
+});
+
+it.each([undefined, null, { r_fork0: null }])(
+  "does not excuse a missing marker when repository data is absent: %j",
+  async (data) => {
+    await replay(
+      [
+        response(base, 3, 97),
+        {
+          stdout: JSON.stringify({
+            data,
+            errors: [{ ...missingMarker, path: ["r_fork0", ...headMarkerPath] }],
+          }),
+          stderr: "",
+          exit: 1,
+        },
+      ],
+      async (exec) => {
+        const { facts, records } = await readGithub(
+          new Gh(exec, undefined, new GraphqlBudget(clock)),
+          context(1),
+          parseGithub,
+        );
+        expect(facts.repos["example/fork0"]).toBeUndefined();
+        expect(records.find((r) => r.object === "example/fork0")?.failure).toBeTruthy();
+        expect(envelopeOf(records, { intervalMs: 300_000, now: Date.parse(now) }).state).toBe(
+          "failed",
+        );
+      },
+    );
+  },
+);
 
 it("passes the query fleet to the GitHub parser for planned aliases", async () => {
   const custom = createContext({
