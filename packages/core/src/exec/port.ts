@@ -63,6 +63,7 @@ export function execOutputDelivery(opts: ExecOptions, env: Record<string, string
       );
       if (header >= 0) end = Math.min(end, header);
     }
+    if (!final && end > 0 && text[end - 1] === "\\") end--;
     if (end === 0) return;
     const emitted = end === text.length ? redacted : safe(text.slice(0, end));
     // A held prefix can overlap a complete secret. Keep the whole buffer if splitting
