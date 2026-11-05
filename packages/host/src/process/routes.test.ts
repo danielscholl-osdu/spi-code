@@ -29,6 +29,7 @@ import {
 } from "@spi-code/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import { mrBoard } from "../../../core/src/inspect/mr.js";
 import { createLeaseStore } from "../store/leases.js";
 import { createSnapshotStore } from "../store/snapshots.js";
 import { openRunStore } from "../store/store.js";
@@ -326,6 +327,87 @@ describe("inspect.request", () => {
   const areas = projectWatch(input).areas;
   const steps = model.template.steps.map((step) => `${STEP_PREFIX}${step.marker}`);
   const documents = projectReleases(input.releases, input.appData, ctx.clock.now(), ctx).documents;
+
+  it("inspects every non-queue MR id from the persisted fixture sweep", async () => {
+    const ids = Object.entries(model.radar.services).flatMap(([fork, service]) =>
+      [...new Set(service.possible.flatMap((v) => (v.mr ? [v.mr.iid] : [])))].map(
+        (iid) => `mr:${fork}:${iid}`,
+      ),
+    );
+    expect(ids.length).toBeGreaterThan(0);
+    const storedAreas = areas.map(({ area }) => ({
+      area,
+      envelope: { source: area, state: "unread" as const },
+    }));
+    writeSnapshot(undefined, undefined, storedAreas);
+    db.close();
+    db = new DatabaseSync(path);
+    const port = host(routes());
+    for (const id of ids) {
+      expect(model.queue.items.some((item) => item.id === id)).toBe(false);
+      port.request("inspect.request", { id }, id);
+    }
+    await settle();
+    for (const id of ids) {
+      const response = port.sent.find((message) => message.id === id);
+      expect(response, id).toMatchObject({ type: "inspect.result", payload: { id } });
+      const result = InspectResultSchema.parse(response?.payload);
+      expect(result.areas).toEqual(storedAreas);
+      expect(result.provenance).toEqual([]);
+      expect(result.approval).toBeNull();
+      expect(result.actions).toEqual([]);
+      const board = mrBoard(model, id, ctx.clock.now(), ctx);
+      expect(result).toMatchObject({
+        class: board.header.status.label === "NO BREAK" ? "READY" : board.header.status.label,
+        cause: board.sections[0]?.items[0]?.text,
+        effect: board.header.chip,
+        next: "",
+        why: board.header.status.label,
+        evidence: [],
+        related: board.sections.flatMap((section) =>
+          section.items.map((row) => ({
+            text: [row.text, row.detail].filter(Boolean).join(": "),
+            state: [section.title, row.trailing].filter(Boolean).join(" · "),
+            ...(row.href ? { url: row.href } : {}),
+          })),
+        ),
+      });
+    }
+    expect(calls).toBe(0);
+  });
+
+  it.each([
+    "mr:",
+    "mr:legal",
+    "mr:legal:1",
+    "mr:unknown:756",
+    "mr:legal:756:extra",
+    "mr:legal:756\n",
+    "mr:legal%3A756",
+    "mr%3Alegal%3A756",
+    "mr:legal:%37%35%36",
+    "MR:legal:756",
+    "mr:Legal:756",
+    "mr:__proto__:756",
+    "mr:constructor:756",
+    "mr:toString:756",
+    "mr:legal:0",
+    "mr:legal:0756",
+    "mr:legal:-756",
+    "mr:legal:7.56",
+    "mr:legal:7e2",
+    "mr:legal:9007199254740992",
+  ])("returns not_found for malformed or unknown MR id %s", async (id) => {
+    writeSnapshot();
+    const port = host(routes());
+    port.request("inspect.request", { id });
+    await settle();
+    expect(port.sent[1]).toMatchObject({
+      type: "error",
+      payload: { code: "not_found" },
+    });
+    expect(calls).toBe(0);
+  });
 
   it.each(["step", "release"] as const)(
     "inspects non-queue %s ids from the persisted fixture sweep",

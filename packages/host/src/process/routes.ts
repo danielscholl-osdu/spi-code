@@ -35,7 +35,10 @@ import {
   inspectStep,
   isMonth,
   type Model,
+  type MrInspection,
   monthFacts,
+  mrBoard,
+  mrTitle,
   NOTES_LABEL,
   type QueueItem,
   RELEASE_PREFIX,
@@ -220,6 +223,34 @@ function stepResult(
   });
 }
 
+function mrResult(board: MrInspection, id: string, areas: readonly AreaEnvelope[]): InspectResult {
+  return InspectResultSchema.parse({
+    id,
+    class:
+      board.header.status.label === "HALT"
+        ? "HALT"
+        : board.header.status.label === "TOOLCHAIN"
+          ? "TOOLCHAIN"
+          : "READY",
+    cause: board.sections[0]?.items[0]?.text ?? "",
+    effect: board.header.chip ?? "",
+    next: "",
+    why: board.header.status.label,
+    evidence: [],
+    related: board.sections.flatMap((section) =>
+      section.items.map((row) => ({
+        text: [row.text, row.detail].filter(Boolean).join(": "),
+        state: [section.title, row.trailing].filter(Boolean).join(" · "),
+        ...webUrl(row.href),
+      })),
+    ),
+    approval: null,
+    actions: [],
+    areas,
+    provenance: [],
+  });
+}
+
 function releaseResult(doc: ReleaseDoc, areas: readonly AreaEnvelope[]): InspectResult {
   const actionText = (action: ReleaseDoc["required"][number]) =>
     [
@@ -279,7 +310,7 @@ function releaseResult(doc: ReleaseDoc, areas: readonly AreaEnvelope[]): Inspect
 }
 
 /**
- * Watch requests over the port, including queue items, template steps and release documents.
+ * Watch requests over the port, including queue items, template steps, MRs and release documents.
  * One window subscribes at a time: a reload's subscription replaces the previous connection's.
  */
 export class WatchRoutes {
@@ -384,6 +415,8 @@ export class WatchRoutes {
       );
     } else if (model.template.steps.some((step) => `${STEP_PREFIX}${step.marker}` === id)) {
       result = stepResult(model, id, ctx, latest.view.areas);
+    } else if (mrTitle(model, id)) {
+      result = mrResult(mrBoard(model, id, now, ctx), id, latest.view.areas);
     } else if (id.startsWith(RELEASE_PREFIX)) {
       const month = id.slice(RELEASE_PREFIX.length);
       if (
