@@ -38,6 +38,8 @@ export interface SupervisionReport {
   sameRenderer: true;
   freshChannel: true;
   giveUpAcrossReload: true;
+  reloadExactlyOnce: true;
+  lateSubframeNoReconnect: true;
 }
 
 async function displayed(window: BrowserWindow, text: string): Promise<void> {
@@ -70,6 +72,27 @@ export async function exerciseSupervision(options: {
 }): Promise<SupervisionReport> {
   const { window, messages, channels, storePath, firstCursor, clock } = options;
   await displayed(window, initialHeadline);
+  assert.equal(
+    channels.length,
+    2,
+    "Initial connection and main-frame reload must transfer once each",
+  );
+  const frameLoaded = once(window.webContents, "did-frame-finish-load");
+  const frameStopped = once(window.webContents, "did-stop-loading");
+  await window.webContents.executeJavaScript(`{
+    const frame = document.createElement("iframe");
+    frame.id = "spi-smoke-late-frame";
+    frame.hidden = true;
+    frame.srcdoc = "<!doctype html><title>Late smoke frame</title>";
+    void document.body.appendChild(frame);
+  }`);
+  const [, isMainFrame] = await frameLoaded;
+  assert.equal(isMainFrame, false, "Late iframe must finish a real subframe load");
+  await frameStopped;
+  assert.equal(channels.length, 2, "Late subframe must not transfer another host channel");
+  await window.webContents.executeJavaScript(
+    'document.getElementById("spi-smoke-late-frame").remove()',
+  );
   const token = randomUUID();
   await window.webContents.executeJavaScript(
     `document.documentElement.dataset.smokeDocument = ${JSON.stringify(token)}`,
@@ -141,6 +164,7 @@ export async function exerciseSupervision(options: {
     assert(giveUp.type === "error");
     await displayed(window, giveUp.payload.message);
     messages.clear();
+    const transfersBeforeReload = channels.length;
     const reloaded = once(window.webContents, "did-finish-load");
     window.webContents.reload();
     await reloaded;
@@ -149,6 +173,7 @@ export async function exerciseSupervision(options: {
     );
     assert.deepEqual(replayed, giveUp);
     await displayed(window, giveUp.payload.message);
+    assert.equal(channels.length, transfersBeforeReload + 1);
     assert.equal(loads, 1);
     assert.equal(new Set(hostPids).size, 8);
     return {
@@ -161,6 +186,8 @@ export async function exerciseSupervision(options: {
       sameRenderer: true,
       freshChannel: true,
       giveUpAcrossReload: true,
+      reloadExactlyOnce: true,
+      lateSubframeNoReconnect: true,
     };
   } finally {
     window.webContents.off("did-finish-load", loaded);

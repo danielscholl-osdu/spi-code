@@ -42,6 +42,16 @@ interface HostWindow<Port> {
   webContents: {
     isLoadingMainFrame(): boolean;
     postMessage(channel: string, message: null, ports: Port[]): void;
+    on(
+      event: "did-start-navigation",
+      listener: (event: unknown, url: string, isInPlace: boolean, isMainFrame: boolean) => void,
+    ): unknown;
+    off(
+      event: "did-start-navigation",
+      listener: (event: unknown, url: string, isInPlace: boolean, isMainFrame: boolean) => void,
+    ): unknown;
+    on(event: "render-process-gone", listener: () => void): unknown;
+    off(event: "render-process-gone", listener: () => void): unknown;
     on(event: "did-stop-loading", listener: () => void): unknown;
     off(event: "did-stop-loading", listener: () => void): unknown;
   };
@@ -54,6 +64,7 @@ export function hostPortCallbacks<Port extends ChannelPort>(
   let host: ConnectedHost<Port> | undefined;
   let failure: HostFailure | undefined;
   let failurePort: Port | undefined;
+  let mainFrameLoadPending = false;
   const connect = () => {
     if (window.isDestroyed() || window.webContents.isLoadingMainFrame() || (!host && !failure))
       return;
@@ -82,7 +93,25 @@ export function hostPortCallbacks<Port extends ChannelPort>(
     window.webContents.postMessage("host:port", null, [port1]);
     if (failure) port2.postMessage(failure);
   };
-  window.webContents.on("did-stop-loading", connect);
+  const navigationStarted = (
+    _event: unknown,
+    _url: string,
+    isInPlace: boolean,
+    isMainFrame: boolean,
+  ) => {
+    if (isMainFrame && !isInPlace) mainFrameLoadPending = true;
+  };
+  const rendererGone = () => {
+    mainFrameLoadPending = false;
+  };
+  const loadingStopped = () => {
+    if (!mainFrameLoadPending || window.webContents.isLoadingMainFrame()) return;
+    mainFrameLoadPending = false;
+    connect();
+  };
+  window.webContents.on("did-start-navigation", navigationStarted);
+  window.webContents.on("render-process-gone", rendererGone);
+  window.webContents.on("did-stop-loading", loadingStopped);
   return {
     onSpawn(spawned: ConnectedHost<Port>) {
       host = spawned;
@@ -98,7 +127,9 @@ export function hostPortCallbacks<Port extends ChannelPort>(
       connect();
     },
     dispose() {
-      window.webContents.off("did-stop-loading", connect);
+      window.webContents.off("did-start-navigation", navigationStarted);
+      window.webContents.off("render-process-gone", rendererGone);
+      window.webContents.off("did-stop-loading", loadingStopped);
       failurePort?.close();
     },
   };

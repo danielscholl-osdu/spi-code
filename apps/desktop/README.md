@@ -40,6 +40,11 @@ is displayed both before and after a renderer reload. Only this remaining
 give-up probe accelerates restart timers; the stable-run timer is never shortened,
 and no accelerated clock exists without `--smoke`.
 
+The smoke also verifies that each main-frame reload transfers exactly one fresh
+host channel, while a late iframe load transfers none. Reconnects wait for the
+main-frame navigation's `did-stop-loading`, not `did-finish-load`, and renderer
+crashes clear any pending reconnect until the next main-frame navigation.
+
 The host's explicit `--smoke --stub-model` path bypasses live Setup and forbids
 external commands: no real gh/glab, seat lookup or sweep runs. Normal and
 development-stub launches retain production Setup. The smoke has a 45-second

@@ -68,6 +68,8 @@ export function assertSmokeReport(value: unknown): asserts value is SmokeReport 
   assert.equal(supervision.sameRenderer, true);
   assert.equal(supervision.freshChannel, true);
   assert.equal(supervision.giveUpAcrossReload, true);
+  assert.equal(supervision.reloadExactlyOnce, true);
+  assert.equal(supervision.lateSubframeNoReconnect, true);
 }
 
 export function assertSmokeTools(
