@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: MIT
 
 import { dirname } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { type Message, PROTOCOL_VERSION, parseMessage } from "@spi-code/contracts";
+import { contextFromEnv, type Exec } from "@spi-code/core";
+import { createToolInstaller } from "@spi-code/tools";
+import { captureLoginShellPath } from "./env/shell-environment.js";
+import { HostExec } from "./exec/host-exec.js";
 import { attachHostConnections, type HostConnection } from "./process/connections.js";
 import {
   type ConversationBackend,
@@ -10,6 +15,7 @@ import {
   createConversationBackend,
 } from "./process/conversation.js";
 import { attachHostPort, type HostPort, type HostRequestQueue } from "./process/port.js";
+import { WatchRoutes, watchFleet } from "./process/routes.js";
 import { probeStore } from "./process/store-probe.js";
 import { openRunStore } from "./store/store.js";
 
@@ -31,6 +37,40 @@ const parentPort = (
   }
 ).parentPort;
 if (!parentPort) throw new Error("Host must run inside an Electron utilityProcess");
+const appData = dirname(storePath);
+const ctx = contextFromEnv(process.env);
+let watchDb: DatabaseSync | undefined;
+let hostExec: Promise<HostExec> | undefined;
+function resolveExec(): Promise<HostExec> {
+  hostExec ??= (async () =>
+    new HostExec({
+      appData,
+      capturedPath: (await captureLoginShellPath()).path,
+      installer: await createToolInstaller(appData),
+    }))().catch((error: unknown) => {
+    hostExec = undefined;
+    throw error;
+  });
+  return hostExec;
+}
+const exec: Exec = {
+  runJSON: async (cmd, args, opts) => (await resolveExec()).runJSON(cmd, args, opts),
+  runText: async (cmd, args, opts) => (await resolveExec()).runText(cmd, args, opts),
+};
+// A SweepService for this fleet writes through watch.sweeper() so commits reach the subscriber.
+const watch = new WatchRoutes({
+  db: () => {
+    if (!watchDb) {
+      watchDb = new DatabaseSync(storePath);
+      watchDb.exec("PRAGMA busy_timeout = 5000");
+    }
+    return watchDb;
+  },
+  fleet: watchFleet(ctx),
+  ctx,
+  exec,
+  onError: console.error,
+});
 let activeBackend: ConversationBackend | undefined;
 let connectedPort: HostPort | undefined;
 let requestId = "startup";
@@ -77,8 +117,12 @@ attachHostConnections(
         await handler(message);
       },
       requestQueue,
+      watch.routes,
     );
   },
   console.error,
 );
-process.once("exit", () => store.close());
+process.once("exit", () => {
+  watchDb?.close();
+  store.close();
+});

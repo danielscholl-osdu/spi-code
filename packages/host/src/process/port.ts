@@ -13,16 +13,35 @@ export interface HostRequestQueue {
   pending: Promise<void>;
 }
 
+export type HostSend = (message: Message) => void;
+export type HostRoute = (message: Message, send: HostSend) => void | Promise<void>;
+/** Requests answered outside the serialized conversation queue, keyed by message type. */
+export type HostRoutes = Partial<Record<Message["type"], HostRoute>>;
+
 export function attachHostPort(
   port: HostPort,
   pid: number,
   handler?: (message: Message, send: (message: Message) => void) => Promise<void>,
   queue: HostRequestQueue = { pending: Promise.resolve() },
+  routes: HostRoutes = {},
 ): void {
   const send = (message: Message) => {
     const parsed = parseMessage(message);
     if (!parsed.ok) throw new Error("Host generated an invalid message");
     port.postMessage(parsed.message);
+  };
+  const failed = (id: string) => {
+    try {
+      send({
+        version: PROTOCOL_VERSION,
+        id,
+        kind: "response",
+        type: "error",
+        payload: { code: "host_failed", message: "Host request failed" },
+      });
+    } catch {
+      console.error("Host request failure response could not be sent");
+    }
   };
   port.on("message", ({ data }) => {
     const parsed = parseMessage(data);
@@ -51,18 +70,14 @@ export function attachHostPort(
     if (handler && (message.type === "models.list" || message.type === "turn.start")) {
       queue.pending = queue.pending
         .then(() => handler(message, send))
-        .catch(() =>
-          send({
-            version: PROTOCOL_VERSION,
-            id: message.id,
-            kind: "response",
-            type: "error",
-            payload: { code: "host_failed", message: "Host request failed" },
-          }),
-        )
-        .catch(() => {
-          console.error("Host request failure response could not be sent");
-        });
+        .catch(() => failed(message.id));
+      return;
+    }
+    const route = Object.hasOwn(routes, message.type) ? routes[message.type] : undefined;
+    if (route) {
+      void Promise.resolve()
+        .then(() => route(message, send))
+        .catch(() => failed(message.id));
       return;
     }
     send({

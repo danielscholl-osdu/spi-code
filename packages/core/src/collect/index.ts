@@ -33,3 +33,4 @@ export * from "./runs.js";
 export * from "./security.js";
 export * from "./template.js";
 export * from "./upstream.js";
+export { Gh, Glab } from "../forge.js";
