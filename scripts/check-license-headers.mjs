@@ -56,9 +56,15 @@ export function checkLicenseHeaders(root) {
     },
   );
   return [...new Set(files.split("\0").filter(Boolean))].sort().filter((file) => {
-    const path = resolve(root, file);
-    if (!lstatSync(path, { throwIfNoEntry: false })?.isFile()) {
-      return false;
+    const segments = file.split("/");
+    let path = root;
+    // Git on Windows can list files beneath junctions, unlike POSIX directory symlinks.
+    for (const [index, segment] of segments.entries()) {
+      path = resolve(path, segment);
+      const entry = lstatSync(path, { throwIfNoEntry: false });
+      if (!entry || (index === segments.length - 1 ? !entry.isFile() : !entry.isDirectory())) {
+        return false;
+      }
     }
     const source = readFileSync(path, "utf8");
     return (extensions.has(extname(file)) || source.startsWith("#!")) && !hasLicenseHeader(source);

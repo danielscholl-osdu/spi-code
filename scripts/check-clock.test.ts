@@ -88,23 +88,43 @@ describe("vitest project diagnostics", () => {
 it.each(["2040-01-01T00:00:00.998Z", "2040-01-01T00:00:00.999Z"])(
   "scripts/check rejects expiry and preserves fake clocks with Date text sampled at %s",
   (boundary) => {
-    const directory = mkdtempSync(join(tmpdir(), "spi-code-clock-"));
+    const directory = mkdtempSync(join(tmpdir(), "spi code clock-"));
     const root = fileURLToPath(new URL("../", import.meta.url));
     const header = "// Copyright 2026, Daniel Scholl\n// SPDX-License-Identifier: MIT\n";
     const now = performance.timeOrigin + performance.now();
     const expiry = now + 200 * 24 * 60 * 60 * 1_000;
-    const command = (report: string) =>
-      `"${process.execPath}" "${join(root, "node_modules/vitest/vitest.mjs")}" run --config "${join(root, "vitest.config.ts")}" --maxWorkers=1 --reporter=default --reporter=json --outputFile.json="${join(directory, report)}"`;
+    const args = [
+      join(root, "node_modules/vitest/vitest.mjs"),
+      "run",
+      "--config",
+      join(root, "vitest.config.ts"),
+      "--maxWorkers=1",
+      "--reporter=default",
+      "--reporter=json",
+    ];
     try {
       execFileSync("git", ["init", "--quiet", directory]);
       cpSync(join(root, "scripts/check"), join(directory, "check"));
       symlinkSync(join(root, "node_modules"), join(directory, "node_modules"), "junction");
       expect(unresolvedEnvironments(projects, directory)).toEqual([]);
       writeFileSync(
+        join(directory, "run-vitest.mjs"),
+        `${header}
+import { spawnSync } from "node:child_process";
+const result = spawnSync(process.execPath, [...${JSON.stringify(args)}, "--outputFile.json=" + process.argv[2]], { stdio: "inherit" });
+if (result.error) throw result.error;
+if (result.status === null) throw new Error("Vitest terminated by signal " + result.signal);
+process.exitCode = result.status;
+`,
+      );
+      writeFileSync(
         join(directory, "package.json"),
         JSON.stringify({
           type: "module",
-          scripts: { check: command("check.json"), test: command("test.json") },
+          scripts: {
+            check: "node run-vitest.mjs check.json",
+            test: "node run-vitest.mjs test.json",
+          },
         }),
       );
       const fixture = `${header}

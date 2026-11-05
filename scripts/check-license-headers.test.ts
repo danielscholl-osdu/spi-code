@@ -2,7 +2,15 @@
 // SPDX-License-Identifier: MIT
 
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -57,10 +65,14 @@ describe("license headers", () => {
 
   it("checks untracked sources and extensionless scripts but ignores generated files", () => {
     const directory = mkdtempSync(join(tmpdir(), "spi-code-headers-"));
+    const linked = mkdtempSync(join(tmpdir(), "spi-code-linked-headers-"));
     directories.push(directory);
+    directories.push(linked);
     execFileSync("git", ["init", "--quiet", directory]);
     writeFileSync(join(directory, ".gitignore"), "generated.js\n");
     symlinkSync(directory, join(directory, "linked"), "junction");
+    writeFileSync(join(linked, "outside.ts"), "export {};\n");
+    symlinkSync(linked, join(directory, "outside"), "junction");
     writeFileSync(join(directory, "deleted.ts"), "export {};\n");
     execFileSync("git", ["add", "deleted.ts"], { cwd: directory });
     unlinkSync(join(directory, "deleted.ts"));
@@ -70,10 +82,13 @@ describe("license headers", () => {
     writeFileSync(join(directory, "missing.mjs"), "export {};\n");
     writeFileSync(join(directory, "missing.sh"), "echo ok\n");
     writeFileSync(join(directory, "script"), "#!/usr/bin/env bash\necho ok\n");
+    mkdirSync(join(directory, "nested"));
+    writeFileSync(join(directory, "nested", "missing.ts"), "export {};\n");
     expect(checkLicenseHeaders(directory)).toEqual([
       "missing.mjs",
       "missing.sh",
       "missing.tsx",
+      "nested/missing.ts",
       "script",
     ]);
     const checker = fileURLToPath(new URL("./check-license-headers.mjs", import.meta.url));
@@ -85,6 +100,7 @@ describe("license headers", () => {
     writeFileSync(join(directory, "missing.mjs"), `${header}export {};\n`);
     writeFileSync(join(directory, "missing.sh"), `${shellHeader}echo ok\n`);
     writeFileSync(join(directory, "script"), `#!/usr/bin/env bash\n${shellHeader}echo ok\n`);
+    writeFileSync(join(directory, "nested", "missing.ts"), `${header}export {};\n`);
     expect(checkLicenseHeaders(directory)).toEqual([]);
     const passed = spawnSync(process.execPath, [checker], { cwd: directory, encoding: "utf8" });
     expect(passed.status).toBe(0);
