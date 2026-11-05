@@ -1,8 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { SetupSigninSchema, type SetupState } from "@spi-code/contracts";
-import { useRef, useState } from "react";
+import { type SetupSigninProgress, SetupSigninSchema, type SetupState } from "@spi-code/contracts";
+import { useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { watchStore } from "../../store/watch.js";
 
@@ -46,26 +46,38 @@ function CopyText({ label, value }: { label: string; value: string }) {
   );
 }
 
-function GlabSignin({ disabled }: { disabled: boolean }) {
+type Progress = SetupSigninProgress | undefined;
+const GLAB_FAILED = "glab sign-in failed. Check the GitLab token and try again.";
+
+function GlabSignin({ busy, progress, tool }: { busy: boolean; progress: Progress; tool: Tool }) {
   const field = useRef<HTMLInputElement>(null);
   const [filled, setFilled] = useState(false);
   const [error, setError] = useState("");
+  const [sent, setSent] = useState<{ progress: Progress; tool: Tool } | null>(null);
+  const disabled = busy || (sent !== null && sent.progress === progress && sent.tool === tool);
+  useEffect(() => {
+    if (progress?.state !== "completed" && progress?.state !== "failed") return;
+    if (field.current) field.current.value = "";
+    setFilled(false);
+  }, [progress]);
   return (
     <form
       aria-label="glab sign-in"
       onSubmit={(event) => {
         event.preventDefault();
         const input = field.current;
-        if (!input) return;
+        if (!input || disabled) return;
         const token = input.value.trim();
         input.value = "";
         setFilled(false);
+        if (!token) return;
         const parsed = SetupSigninSchema.safeParse({ tool: "glab", token });
         if (!parsed.success) {
           setError(parsed.error.issues[0]?.message ?? "Enter a valid GitLab token.");
           return;
         }
         setError("");
+        setSent({ progress, tool });
         watchStore.getState().requestSetup("setup.signin", "glab", token);
       }}
     >
@@ -113,7 +125,9 @@ function ToolRow({ tool }: { tool: Tool }) {
       </p>
       {tool.reason && !attention && <p>{tool.reason}</p>}
       {!!tool.missingScopes?.length && <p>Required scopes: {tool.missingScopes.join(", ")}</p>}
-      {tool.tool === "glab" && tool.action === "signin" && <GlabSignin disabled={!!busy} />}
+      {tool.tool === "glab" && tool.action === "signin" && (
+        <GlabSignin busy={!!busy} progress={progress} tool={tool} />
+      )}
       {tool.action && !(tool.action === "signin" && ["git", "glab"].includes(tool.tool)) && (
         <button
           type="button"
@@ -145,7 +159,11 @@ function ToolRow({ tool }: { tool: Tool }) {
       )}
       {progress && progress.state !== "device-code" && (
         <p role={progress.state === "failed" ? "alert" : "status"}>
-          {progress.state === "failed" ? progress.reason : `Sign-in ${progress.state}`}
+          {progress.state !== "failed"
+            ? `Sign-in ${progress.state}`
+            : progress.tool === "glab"
+              ? GLAB_FAILED
+              : progress.reason}
         </p>
       )}
     </section>

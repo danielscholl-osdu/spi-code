@@ -67,7 +67,10 @@ it("sends a glab token only with glab sign-in and keeps it out of store state", 
   const send = vi.fn();
   const store = createWatchStore(send);
   const token = "glpat-Secret0123456789";
+  const before = store.getState();
   store.getState().requestSetup("setup.signin", "glab", token);
+  expect(store.getState()).toBe(before);
+  expect(JSON.stringify(store.getState())).not.toContain(token);
   store.getState().requestSetup("setup.signin", "gh");
   expect(send.mock.calls.map(([message]) => WatchMessageSchema.parse(message).payload)).toEqual([
     { tool: "glab", token },

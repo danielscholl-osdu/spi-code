@@ -183,12 +183,19 @@ it("never echoes, logs, stores or persists the glab token, and clears it on succ
     expect(container.innerHTML).not.toContain(token);
     expect(JSON.stringify(watchStore.getState())).not.toContain(token);
     await act(async () => glab().button.click());
+    expect(JSON.stringify(watchStore.getState())).not.toContain(token);
     expect(sent()).toEqual([{ type: "setup.signin", payload: { tool: "glab", token } }]);
     expect(glab().field.value).toBe("");
     expect(glab().button.disabled).toBe(true);
     await receive("setup.signin.progress", { tool: "glab", state: "starting" });
     expect(glab().field.disabled).toBe(true);
     await receive("setup.signin.progress", outcome);
+    if (outcome.state === "failed") {
+      expect(glab().row.querySelector('[role="alert"]')?.textContent).toBe(
+        "glab sign-in failed. Check the GitLab token and try again.",
+      );
+      expect(container.textContent).not.toContain(outcome.reason);
+    }
     expect(glab().field.disabled).toBe(false);
     expect(glab().field.value).toBe("");
     expect(container.innerHTML).not.toContain(token);
@@ -204,6 +211,43 @@ it("never echoes, logs, stores or persists the glab token, and clears it on succ
     expect(stored.join("\n")).not.toContain(token);
   }
   for (const log of logs) expect(JSON.stringify(log.mock.calls)).not.toContain(token);
+});
+
+it.each(["failed", "completed"])(
+  "locks the field once a token is sent and clears a token pasted before %s",
+  async (end) => {
+    const late = "glpat-LateToken0123456789";
+    await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+    await render();
+    await paste(token);
+    await act(async () => glab().button.click());
+    expect(glab().field.disabled).toBe(true);
+    await paste(late);
+    expect(glab().button.disabled).toBe(true);
+    await act(async () => glab().button.click());
+    expect(sent()).toHaveLength(1);
+    await receive("setup.signin.progress", { tool: "glab", state: "starting" });
+    await receive(
+      "setup.signin.progress",
+      end === "failed"
+        ? { tool: "glab", state: end, reason: "Rejected" }
+        : { tool: "glab", state: end },
+    );
+    expect(glab().field.value).toBe("");
+    expect(glab().field.disabled).toBe(false);
+    expect(glab().button.disabled).toBe(true);
+  },
+);
+
+it("unlocks the field when the host resets before any sign-in progress", async () => {
+  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+  await render();
+  await paste(token);
+  await act(async () => glab().button.click());
+  expect(glab().field.disabled).toBe(true);
+  await receive("host.hello", { pid: 456 });
+  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+  expect(glab().field.disabled).toBe(false);
 });
 
 it("keeps Copilot and gh sign-in tokenless with no token field", async () => {
