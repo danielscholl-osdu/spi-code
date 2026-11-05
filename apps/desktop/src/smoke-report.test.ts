@@ -36,6 +36,7 @@ const report: SmokeReport = {
     giveUpAcrossReload: true,
     reloadExactlyOnce: true,
     lateSubframeNoReconnect: true,
+    canceledNavigationNoReconnect: true,
   },
 };
 
@@ -80,6 +81,7 @@ it.each([
   { giveUpAcrossReload: false },
   { reloadExactlyOnce: false },
   { lateSubframeNoReconnect: false },
+  { canceledNavigationNoReconnect: false },
 ])("rejects incomplete supervision evidence: %j", (failure) => {
   expect(() =>
     assertSmokeReport({ ...report, supervision: { ...report.supervision, ...failure } }),

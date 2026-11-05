@@ -137,19 +137,54 @@ it("transfers fresh peer ports to each respawned host and the window through the
   }
 });
 
+type Contents = ReturnType<typeof channels>["window"]["webContents"];
+
+const INDEX = "file:///index.html";
+
+// Event orders below follow traces recorded from Electron 44.10.0.
+function startNavigation(
+  contents: Contents,
+  url: string,
+  { isMainFrame = true, isSameDocument = false } = {},
+) {
+  const event = { url, isMainFrame, isSameDocument, frame: null, initiator: null };
+  contents.emit("did-start-navigation", event, url, isSameDocument, isMainFrame, 1, 1);
+}
+
+function beginMainFrameLoad(contents: Contents, url = INDEX) {
+  contents.isLoadingMainFrame.mockReturnValue(true);
+  contents.emit("did-start-loading");
+  startNavigation(contents, url);
+}
+
+function commitMainFrame(contents: Contents, url = INDEX) {
+  contents.emit("did-frame-navigate", {}, url, -1, "", true, 1, 1);
+  contents.emit("did-navigate", {}, url, -1, "");
+  contents.emit("did-frame-finish-load", {}, true, 1, 1);
+  contents.emit("did-finish-load");
+}
+
+function stopLoading(contents: Contents) {
+  contents.isLoadingMainFrame.mockReturnValue(false);
+  contents.emit("did-stop-loading");
+}
+
+function reload(contents: Contents) {
+  beginMainFrameLoad(contents);
+  commitMainFrame(contents);
+  stopLoading(contents);
+}
+
 it("reconnects once after each reload when the main frame stops loading after did-finish-load", () => {
   const { makeChannel, window, callbacks } = channels();
   const host = new Host();
   try {
     callbacks.onSpawn(host);
     for (const count of [2, 3]) {
-      window.webContents.isLoadingMainFrame.mockReturnValue(true);
-      window.webContents.emit("did-start-navigation", {}, "file:///index.html", false, true);
-      window.webContents.emit("did-start-loading");
-      window.webContents.emit("did-finish-load");
+      beginMainFrameLoad(window.webContents);
+      commitMainFrame(window.webContents);
       expect(makeChannel).toHaveBeenCalledTimes(count - 1);
-      window.webContents.isLoadingMainFrame.mockReturnValue(false);
-      window.webContents.emit("did-stop-loading");
+      stopLoading(window.webContents);
       expect(makeChannel).toHaveBeenCalledTimes(count);
       const channel = makeChannel.mock.results[count - 1]?.value;
       const previous = makeChannel.mock.results[count - 2]?.value;
@@ -175,21 +210,52 @@ it("reconnects once after each reload when the main frame stops loading after di
 it("keeps the existing channel when a late subframe finishes loading", () => {
   const { makeChannel, window, callbacks } = channels();
   try {
-    window.webContents.isLoadingMainFrame.mockReturnValue(true);
-    window.webContents.emit("did-start-navigation", {}, "file:///index.html", false, true);
+    beginMainFrameLoad(window.webContents);
     callbacks.onSpawn(new Host());
-    window.webContents.emit("did-finish-load");
+    commitMainFrame(window.webContents);
     expect(makeChannel).not.toHaveBeenCalled();
-    window.webContents.isLoadingMainFrame.mockReturnValue(false);
-    window.webContents.emit("did-stop-loading");
+    stopLoading(window.webContents);
     expect(makeChannel).toHaveBeenCalledOnce();
 
-    window.webContents.emit("did-start-navigation", {}, "about:blank", false, false);
     window.webContents.emit("did-start-loading");
-    window.webContents.emit("did-frame-finish-load", {}, false);
+    startNavigation(window.webContents, "about:srcdoc", { isMainFrame: false });
+    window.webContents.emit("did-frame-navigate", {}, "about:srcdoc", -1, "", false, 1, 2);
+    window.webContents.emit("did-frame-finish-load", {}, false, 1, 2);
     window.webContents.emit("did-stop-loading");
     expect(makeChannel).toHaveBeenCalledOnce();
     expect(window.webContents.postMessage).toHaveBeenCalledOnce();
+  } finally {
+    callbacks.dispose();
+  }
+});
+
+it("keeps the existing channel when will-navigate blocks a main-frame navigation", () => {
+  const { makeChannel, window, callbacks } = channels();
+  try {
+    callbacks.onSpawn(new Host());
+    beginMainFrameLoad(window.webContents, "file:///other.html");
+    window.webContents.emit("will-navigate", { url: "file:///other.html", isMainFrame: true });
+    stopLoading(window.webContents);
+    expect(makeChannel).toHaveBeenCalledOnce();
+    window.webContents.emit("did-stop-loading");
+    expect(makeChannel).toHaveBeenCalledOnce();
+    reload(window.webContents);
+    expect(makeChannel).toHaveBeenCalledTimes(2);
+  } finally {
+    callbacks.dispose();
+  }
+});
+
+it("keeps the existing channel when reload() is followed by stop() before the reload commits", () => {
+  const { makeChannel, window, callbacks } = channels();
+  try {
+    callbacks.onSpawn(new Host());
+    beginMainFrameLoad(window.webContents);
+    stopLoading(window.webContents);
+    expect(makeChannel).toHaveBeenCalledOnce();
+    expect(window.webContents.postMessage).toHaveBeenCalledOnce();
+    reload(window.webContents);
+    expect(makeChannel).toHaveBeenCalledTimes(2);
   } finally {
     callbacks.dispose();
   }
@@ -199,19 +265,24 @@ it("reconnects once when a reload replaces an in-flight main-frame load", () => 
   const { makeChannel, window, callbacks } = channels();
   try {
     callbacks.onSpawn(new Host());
-    window.webContents.isLoadingMainFrame.mockReturnValue(true);
-    window.webContents.emit("did-start-navigation", {}, "file:///index.html", false, true);
-    window.webContents.emit("did-start-loading");
-    window.webContents.emit("did-start-navigation", {}, "file:///index.html", false, true);
+    beginMainFrameLoad(window.webContents);
+    startNavigation(window.webContents, INDEX);
     window.webContents.emit("did-stop-loading");
     expect(makeChannel).toHaveBeenCalledOnce();
-    window.webContents.emit("did-finish-load");
+    commitMainFrame(window.webContents);
     expect(makeChannel).toHaveBeenCalledOnce();
-    window.webContents.isLoadingMainFrame.mockReturnValue(false);
-    window.webContents.emit("did-stop-loading");
+    stopLoading(window.webContents);
     expect(makeChannel).toHaveBeenCalledTimes(2);
     window.webContents.emit("did-stop-loading");
     expect(makeChannel).toHaveBeenCalledTimes(2);
+
+    beginMainFrameLoad(window.webContents);
+    window.webContents.emit("did-navigate", {}, INDEX, -1, "");
+    startNavigation(window.webContents, INDEX);
+    window.webContents.emit("did-stop-loading");
+    expect(makeChannel).toHaveBeenCalledTimes(2);
+    stopLoading(window.webContents);
+    expect(makeChannel).toHaveBeenCalledTimes(3);
   } finally {
     callbacks.dispose();
   }
@@ -221,17 +292,31 @@ it("does not leave a reconnect armed after a renderer crash and reconnects on re
   const { makeChannel, window, callbacks } = channels();
   try {
     callbacks.onSpawn(new Host());
-    window.webContents.isLoadingMainFrame.mockReturnValue(true);
-    window.webContents.emit("did-start-navigation", {}, "file:///index.html", false, true);
+    beginMainFrameLoad(window.webContents);
+    commitMainFrame(window.webContents);
     window.webContents.emit("render-process-gone", {}, { reason: "crashed", exitCode: 1 });
-    window.webContents.isLoadingMainFrame.mockReturnValue(false);
-    window.webContents.emit("did-stop-loading");
+    stopLoading(window.webContents);
     expect(makeChannel).toHaveBeenCalledOnce();
-    window.webContents.isLoadingMainFrame.mockReturnValue(true);
-    window.webContents.emit("did-start-navigation", {}, "file:///index.html", false, true);
+    window.webContents.emit("render-process-gone", {}, { reason: "crashed", exitCode: 1 });
+    reload(window.webContents);
+    expect(makeChannel).toHaveBeenCalledTimes(2);
+  } finally {
+    callbacks.dispose();
+  }
+});
+
+it("waits for a committed document after a load fails into an error page", () => {
+  const { makeChannel, window, callbacks } = channels();
+  try {
+    callbacks.onSpawn(new Host());
+    beginMainFrameLoad(window.webContents, "file:///missing.html");
+    window.webContents.emit("did-fail-provisional-load", {}, -6, "", "file:///missing.html", true);
+    window.webContents.emit("did-fail-load", {}, -6, "", "file:///missing.html", true);
+    window.webContents.emit("did-frame-finish-load", {}, true, 1, 1);
     window.webContents.emit("did-finish-load");
-    window.webContents.isLoadingMainFrame.mockReturnValue(false);
-    window.webContents.emit("did-stop-loading");
+    stopLoading(window.webContents);
+    expect(makeChannel).toHaveBeenCalledOnce();
+    reload(window.webContents);
     expect(makeChannel).toHaveBeenCalledTimes(2);
   } finally {
     callbacks.dispose();
@@ -242,9 +327,12 @@ it("does not arm a reconnect for a same-document navigation followed by a subfra
   const { makeChannel, window, callbacks } = channels();
   try {
     callbacks.onSpawn(new Host());
-    window.webContents.emit("did-start-navigation", {}, "file:///index.html#section", true, true);
-    window.webContents.emit("did-start-navigation", {}, "about:blank", false, false);
     window.webContents.emit("did-start-loading");
+    startNavigation(window.webContents, `${INDEX}#section`, { isSameDocument: true });
+    window.webContents.emit("did-navigate-in-page", {}, `${INDEX}#section`, true, 1, 1);
+    window.webContents.emit("did-stop-loading");
+    window.webContents.emit("did-start-loading");
+    startNavigation(window.webContents, "about:blank", { isMainFrame: false });
     window.webContents.emit("did-stop-loading");
     expect(makeChannel).toHaveBeenCalledOnce();
   } finally {
@@ -256,13 +344,15 @@ it("disposes navigation, crash and load listeners without reconnecting", () => {
   const { makeChannel, window, callbacks } = channels();
   callbacks.onSpawn(new Host());
   callbacks.dispose();
-  expect(window.webContents.listenerCount("did-start-navigation")).toBe(0);
-  expect(window.webContents.listenerCount("render-process-gone")).toBe(0);
-  expect(window.webContents.listenerCount("did-finish-load")).toBe(0);
-  expect(window.webContents.listenerCount("did-stop-loading")).toBe(0);
-  window.webContents.emit("did-start-navigation", {}, "file:///index.html", false, true);
-  window.webContents.emit("did-finish-load");
-  window.webContents.emit("did-stop-loading");
+  for (const event of [
+    "did-start-navigation",
+    "did-navigate",
+    "render-process-gone",
+    "did-finish-load",
+    "did-stop-loading",
+  ])
+    expect(window.webContents.listenerCount(event)).toBe(0);
+  reload(window.webContents);
   expect(makeChannel).toHaveBeenCalledOnce();
 });
 
@@ -276,14 +366,12 @@ it("retains give-up across an in-progress reload and replays it on later reloads
     payload: { code: "host_unavailable", message: "Host stopped after repeated crashes." },
   };
   try {
-    window.webContents.isLoadingMainFrame.mockReturnValue(true);
-    window.webContents.emit("did-start-navigation", {}, "file:///index.html", false, true);
+    beginMainFrameLoad(window.webContents);
     callbacks.onGiveUp(message);
     expect(makeChannel).not.toHaveBeenCalled();
-    window.webContents.emit("did-finish-load");
+    commitMainFrame(window.webContents);
     expect(makeChannel).not.toHaveBeenCalled();
-    window.webContents.isLoadingMainFrame.mockReturnValue(false);
-    window.webContents.emit("did-stop-loading");
+    stopLoading(window.webContents);
     const first = makeChannel.mock.results[0]?.value;
     expect(window.webContents.postMessage).toHaveBeenCalledExactlyOnceWith("host:port", null, [
       first?.port1,
@@ -291,12 +379,10 @@ it("retains give-up across an in-progress reload and replays it on later reloads
     expect(first?.port2.start).toHaveBeenCalledOnce();
     expect(first?.port2.postMessage).toHaveBeenCalledExactlyOnceWith(message);
     expect(parseMessage(first?.port2.postMessage.mock.calls[0]?.[0]).ok).toBe(true);
-    window.webContents.isLoadingMainFrame.mockReturnValue(true);
-    window.webContents.emit("did-start-navigation", {}, "file:///index.html", false, true);
-    window.webContents.emit("did-finish-load");
+    beginMainFrameLoad(window.webContents);
+    commitMainFrame(window.webContents);
     expect(makeChannel).toHaveBeenCalledOnce();
-    window.webContents.isLoadingMainFrame.mockReturnValue(false);
-    window.webContents.emit("did-stop-loading");
+    stopLoading(window.webContents);
     const second = makeChannel.mock.results[1]?.value;
     expect(second?.port1).not.toBe(first?.port1);
     expect(first?.port2.close).toHaveBeenCalledOnce();

@@ -40,6 +40,7 @@ export interface SupervisionReport {
   giveUpAcrossReload: true;
   reloadExactlyOnce: true;
   lateSubframeNoReconnect: true;
+  canceledNavigationNoReconnect: true;
 }
 
 async function displayed(window: BrowserWindow, text: string): Promise<void> {
@@ -92,6 +93,28 @@ export async function exerciseSupervision(options: {
   assert.equal(channels.length, 2, "Late subframe must not transfer another host channel");
   await window.webContents.executeJavaScript(
     'document.getElementById("spi-smoke-late-frame").remove()',
+  );
+  const kept = randomUUID();
+  await window.webContents.executeJavaScript(
+    `document.documentElement.dataset.smokeKept = ${JSON.stringify(kept)}`,
+  );
+  const blocked = once(window.webContents, "will-navigate");
+  const blockedStopped = once(window.webContents, "did-stop-loading");
+  await window.webContents.executeJavaScript('location.href = "spi-smoke-blocked.html"');
+  await Promise.all([blocked, blockedStopped]);
+  const canceledStopped = once(window.webContents, "did-stop-loading");
+  window.webContents.reload();
+  window.webContents.stop();
+  await canceledStopped;
+  assert.equal(
+    await window.webContents.executeJavaScript("document.documentElement.dataset.smokeKept"),
+    kept,
+    "Canceled main-frame navigations must keep the current document",
+  );
+  assert.equal(
+    channels.length,
+    2,
+    "Canceled main-frame navigations must not transfer another host channel",
   );
   const token = randomUUID();
   await window.webContents.executeJavaScript(
@@ -188,6 +211,7 @@ export async function exerciseSupervision(options: {
       giveUpAcrossReload: true,
       reloadExactlyOnce: true,
       lateSubframeNoReconnect: true,
+      canceledNavigationNoReconnect: true,
     };
   } finally {
     window.webContents.off("did-finish-load", loaded);
