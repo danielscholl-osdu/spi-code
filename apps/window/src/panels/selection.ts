@@ -39,6 +39,8 @@ export type SelectionState = {
   request: string | null;
   result: InspectResult | null;
   error: string | null;
+  // The host holds nothing under the selected id: a quiet state, not an error.
+  missing: string | null;
   tab: PanelTab;
   select(id: string): void;
   clear(): void;
@@ -53,6 +55,7 @@ export function createSelectionStore(port: InspectPort) {
     request: null,
     result: null,
     error: null,
+    missing: null,
     tab: "inspector",
     select(id) {
       const parsed = parseMessage({
@@ -69,11 +72,12 @@ export function createSelectionStore(port: InspectPort) {
         request: parsed.message.id,
         result: result?.id === id ? result : null,
         error: null,
+        missing: null,
       });
       port.postMessage(parsed.message);
     },
     clear() {
-      set({ selected: null, request: null, result: null, error: null });
+      set({ selected: null, request: null, result: null, error: null, missing: null });
     },
     setTab(tab) {
       set({ tab });
@@ -96,7 +100,9 @@ export function createSelectionStore(port: InspectPort) {
       if (request === null || message.id !== request) return;
       if (message.type === "inspect.result") {
         if (message.payload.id !== selected) return;
-        set({ result: message.payload, request: null, error: null });
+        set({ result: message.payload, request: null, error: null, missing: null });
+      } else if (message.type === "error" && message.payload.code === "not_found") {
+        set({ request: null, result: null, missing: message.payload.message });
       } else if (message.type === "error") {
         set({ request: null, error: message.payload.message });
       }

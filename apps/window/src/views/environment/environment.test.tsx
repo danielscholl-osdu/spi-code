@@ -301,3 +301,55 @@ it.each([
     container.remove();
   }
 });
+
+it("hands the inspector an id for every event: its queue item, else its run or hold", async () => {
+  const store = createWatchStore(vi.fn());
+  const smoke = { ...first, id: "38190000001", label: "smoke", inspect: undefined };
+  const hold = {
+    ...first,
+    id: "1791700000000",
+    state: "held" as const,
+    label: "2h",
+    inspect: undefined,
+  };
+  const { inspect: _, ...bare } = smoke;
+  const { inspect: __, ...closed } = hold;
+  store.getState().receive({
+    version: PROTOCOL_VERSION,
+    id: "snapshot",
+    kind: "event",
+    type: "view.snapshot",
+    payload: {
+      ...snapshot,
+      briefing: {
+        ...snapshot.briefing,
+        environment: {
+          ...environment,
+          lanes: [
+            { id: "upgrade", label: "Upgrade", events: [first] },
+            { id: "smoke", label: "Smoke", events: [bare] },
+            { id: "holds", label: "Held", events: [closed] },
+          ],
+        },
+      },
+    },
+  });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const pick = async (key: string) => {
+    const bar = container.querySelector<HTMLButtonElement>(`[data-event="${key}"]`);
+    expect(bar).not.toBeNull();
+    await act(async () => bar?.click());
+    return store.getState().selection?.id;
+  };
+  try {
+    await act(async () => root.render(<Environment store={store} />));
+    expect(await pick(`smoke:${bare.id}`)).toBe(`run:${bare.id}`);
+    expect(await pick(`holds:${closed.id}`)).toBe(`hold:${closed.id}`);
+    expect(await pick(`upgrade:${first.id}`)).toBe(first.inspect);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});

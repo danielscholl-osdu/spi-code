@@ -122,6 +122,7 @@ export function RightPanel({ store }: { store: SelectionStore }) {
   const request = useStore(store, (state) => state.request);
   const result = useStore(store, (state) => state.result);
   const error = useStore(store, (state) => state.error);
+  const missing = useStore(store, (state) => state.missing);
   const tab = useStore(store, (state) => state.tab);
   const setTab = useStore(store, (state) => state.setTab);
   const onKeyDown = (event: KeyboardEvent) => {
@@ -140,6 +141,8 @@ export function RightPanel({ store }: { store: SelectionStore }) {
       <p className="panel-empty">No selection</p>
     ) : error !== null ? (
       <p role="alert">{error}</p>
+    ) : missing !== null ? (
+      <p className="panel-empty">{missing}</p>
     ) : result === null ? (
       <p className="panel-empty" role="status">
         Reading {selected}…

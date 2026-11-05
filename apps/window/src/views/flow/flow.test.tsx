@@ -236,41 +236,44 @@ it("selects fork and theme details and sends their inspector selections", async 
     expect(button).not.toBeNull();
     await act(async () => button?.click());
   };
+  const sent = () =>
+    send.mock.calls.map(([message]) => {
+      expect(message).toMatchObject({
+        version: PROTOCOL_VERSION,
+        kind: "request",
+        type: "inspect.request",
+      });
+      return message.payload.id;
+    });
   try {
     await act(async () => root.render(<Flow />));
     await click('button[data-up="entitlements"]');
     expect(dom.querySelector<HTMLElement>('[data-up-detail="entitlements"]')?.hidden).toBe(false);
+    expect(watchStore.getState().selection?.id).toBe("upstream:entitlements");
     await click('[data-inspect="upstream:entitlements"]');
     expect(watchStore.getState().selection?.id).toBe("upstream:entitlements");
-    expect(send).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        version: PROTOCOL_VERSION,
-        kind: "request",
-        type: "inspect.request",
-        payload: { id: "upstream:entitlements" },
-      }),
-    );
     await click('[data-up-detail="entitlements"] button[data-up="plan"]');
     expect(dom.querySelector<HTMLElement>('[data-up-detail="plan"]')?.hidden).toBe(false);
+    expect(watchStore.getState().selection?.id).toBe("upstream");
     await act(async () => root.render(<Horizon />));
     await click('[data-theme-sel="halt:top_level:schemathesis-tests"]');
     expect(
       dom.querySelector<HTMLElement>('[data-theme-detail="halt:top_level:schemathesis-tests"]')
         ?.hidden,
     ).toBe(false);
+    expect(watchStore.getState().selection?.id).toBe("halt:entitlements");
     await click('[data-inspect="mr:legal:756"]');
     expect(watchStore.getState().selection?.id).toBe("mr:legal:756");
-    expect(send).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        version: PROTOCOL_VERSION,
-        kind: "request",
-        type: "inspect.request",
-        payload: { id: "mr:legal:756" },
-      }),
-    );
-    expect(send).toHaveBeenCalledTimes(2);
+    await click('[data-theme-sel="deadline:azure-removal"]');
+    expect(watchStore.getState().selection?.id).toBe("theme:deadline:azure-removal");
+    expect(sent()).toEqual([
+      "upstream:entitlements",
+      "upstream:entitlements",
+      "upstream",
+      "halt:entitlements",
+      "mr:legal:756",
+      "theme:deadline:azure-removal",
+    ]);
   } finally {
     await act(async () => root.unmount());
   }

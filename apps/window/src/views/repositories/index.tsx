@@ -173,7 +173,10 @@ export default function Repositories() {
                                 key={repo.id}
                                 data-repo={repo.id}
                                 aria-pressed={repo.id === selected}
-                                onClick={() => pick(repo.id)}
+                                onClick={() => {
+                                  pick(repo.id);
+                                  watchStore.getState().select(repo.id);
+                                }}
                               >
                                 <span data-pointer={pointer}>
                                   {repo.name}

@@ -28,6 +28,11 @@ export function eventKey(lane: EnvLane, e: EnvEvent): string {
   return `${lane.id}:${e.id}`;
 }
 
+// The inspector's id for an event: the queue item it folds into, else the run or the hold itself.
+export function inspectId(lane: EnvLane, e: EnvEvent): string {
+  return e.inspect ?? `${lane.id === "holds" ? "hold" : "run"}:${e.id}`;
+}
+
 export function pctOf(t: number, from: number, to: number): number {
   return Math.min(100, Math.max(0, ((t - from) / Math.max(1, to - from)) * 100));
 }

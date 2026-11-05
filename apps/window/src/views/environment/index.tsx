@@ -13,6 +13,7 @@ import {
   firstEvent,
   fixed,
   hourTicks,
+  inspectId,
   pctOf,
   place,
   TIER_PX,
@@ -134,7 +135,10 @@ export default function Environment({ store = watchStore }: { store?: typeof wat
                           aria-pressed={key === active?.key}
                           title={name}
                           aria-label={name}
-                          onClick={() => setSelected(key)}
+                          onClick={() => {
+                            setSelected(key);
+                            store.getState().select(inspectId(lane, p.e));
+                          }}
                           style={{
                             left: `${fixed(p.left)}%`,
                             width: `${fixed(p.width)}%`,

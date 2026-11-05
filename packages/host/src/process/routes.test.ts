@@ -861,6 +861,68 @@ describe("inspect.request", () => {
     });
   });
 
+  it("resolves every selection Repositories, Environment, Flow, Horizon and the tree hand over", async () => {
+    writeSnapshot();
+    const { briefing, tree } = projectWatch(input);
+    const selections: [string, string][] = [
+      ...briefing.repositories.rows.map((row): [string, string] => ["repositories", row.id]),
+      ...briefing.environment.lanes.flatMap((lane) =>
+        lane.events.map((e): [string, string] => [
+          `environment ${lane.id}`,
+          e.inspect ?? (lane.id === "holds" ? `hold:${e.id}` : `run:${e.id}`),
+        ]),
+      ),
+      ["flow plan", briefing.flow.inspect],
+      ...briefing.flow.rows.map((row): [string, string] => ["flow row", row.inspect]),
+      ...briefing.flow.also.flatMap((also): [string, string][] =>
+        also.inspect ? [["flow also", also.inspect]] : [],
+      ),
+      ...briefing.themes.flatMap((theme): [string, string][] => [
+        ["horizon theme", theme.inspect ?? `theme:${theme.id}`],
+        ...[...theme.certain, ...theme.possible].flatMap((fork): [string, string][] =>
+          fork.inspect ? [["horizon fork", fork.inspect]] : [],
+        ),
+      ]),
+      ...tree
+        .filter((node) => node.id.startsWith("service:") || node.id.startsWith("run:"))
+        .map((node): [string, string] => ["tree", node.id]),
+    ];
+    const where = new Set(selections.map(([view]) => view.split(" ")[0]));
+    expect([...where].sort()).toEqual(["environment", "flow", "horizon", "repositories", "tree"]);
+    expect(selections.some(([, id]) => id.startsWith("run:"))).toBe(true);
+    expect(selections.some(([, id]) => id.startsWith("service:"))).toBe(true);
+    expect(selections.some(([, id]) => id.startsWith("theme:"))).toBe(true);
+    const port = host(routes());
+    for (const [, id] of selections) port.request("inspect.request", { id }, `select-${id}`);
+    await settle();
+    const unresolved = selections.filter(([, id]) => {
+      const reply = port.sent.find((m) => m.id === `select-${id}`);
+      return reply?.type !== "inspect.result" || InspectResultSchema.parse(reply.payload).id !== id;
+    });
+    expect(unresolved).toEqual([]);
+  });
+
+  it("resolves a fork run and a lifecycle run from the persisted facts", async () => {
+    writeSnapshot();
+    const fork = Object.entries(input.facts.runs.data ?? {}).flatMap(([repo, w]) =>
+      w.sync.map((run) => ({ repo, run })),
+    )[0];
+    const life = Object.values(input.facts.lifecycle.data ?? {}).flat()[0];
+    if (!fork || !life) throw new Error("Fixture runs missing");
+    const port = host(routes());
+    for (const run of [fork.run, life]) {
+      port.request("inspect.request", { id: `run:${run.id}` }, `run-${run.id}`);
+    }
+    await settle();
+    for (const run of [fork.run, life]) {
+      const reply = port.sent.find((m) => m.id === `run-${run.id}`);
+      expect(reply).toMatchObject({ type: "inspect.result" });
+      const result = InspectResultSchema.parse(reply?.payload);
+      expect(result.id).toBe(`run:${run.id}`);
+      expect(result.related).toContainEqual(expect.objectContaining({ url: run.url }));
+    }
+  });
+
   it("answers not_found before any sweep has been persisted", async () => {
     const port = host(routes());
     port.request("inspect.request", { id: "halt:entitlements" });

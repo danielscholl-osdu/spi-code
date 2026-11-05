@@ -87,7 +87,10 @@ export default function Flow() {
                           type="button"
                           data-up={row.fork}
                           aria-pressed={selected === row.fork}
-                          onClick={() => setPicked(row.fork)}
+                          onClick={() => {
+                            setPicked(row.fork);
+                            inspect(row.inspect);
+                          }}
                         >
                           {row.fork}
                         </button>
@@ -235,7 +238,14 @@ export default function Flow() {
                 hidden={selected !== row.fork}
               >
                 <p>
-                  <button type="button" data-up="plan" onClick={() => setPicked("plan")}>
+                  <button
+                    type="button"
+                    data-up="plan"
+                    onClick={() => {
+                      setPicked("plan");
+                      inspect(view.inspect);
+                    }}
+                  >
                     Plan
                   </button>{" "}
                   › {row.fork}

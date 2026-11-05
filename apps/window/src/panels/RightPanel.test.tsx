@@ -160,6 +160,36 @@ it("shows a host error for the selection in place", async () => {
   }
 });
 
+it("renders an id the sweep does not hold as a quiet empty state, not an error", async () => {
+  const port = fakePort();
+  const view = await mount(port.store);
+  try {
+    await act(async () => port.store.getState().select("repositories"));
+    await act(async () =>
+      port.store.getState().receive({
+        version: PROTOCOL_VERSION,
+        id: port.sent().id,
+        kind: "response",
+        type: "error",
+        payload: { code: "not_found", message: "Nothing in the latest sweep has this id" },
+      }),
+    );
+    const empty = view.container.querySelector('[role="tabpanel"] .panel-empty');
+    expect(empty?.textContent).toBe("Nothing in the latest sweep has this id");
+    expect(empty?.getAttribute("role")).toBeNull();
+    expect(view.container.querySelector('[role="alert"]')).toBeNull();
+    expect(view.container.querySelector("aside")?.getAttribute("aria-busy")).toBe("false");
+
+    const result = inspectFromOracle(board("HALT"), "halt:entitlements");
+    await act(async () => port.store.getState().select(result.id));
+    await port.reply(result);
+    expect(view.container.querySelector('[role="tabpanel"] .panel-empty')).toBeNull();
+    expect(view.text("cause")).toBe(result.cause);
+  } finally {
+    await view.cleanup();
+  }
+});
+
 it("reissues an in-flight inspection on a new host and settles only the replacement request", async () => {
   const port = fakePort();
   const view = await mount(port.store);

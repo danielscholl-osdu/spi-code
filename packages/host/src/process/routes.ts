@@ -4,6 +4,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import {
   type AreaEnvelope,
+  type Briefing,
   type InspectResult,
   InspectResultSchema,
   type Message,
@@ -37,6 +38,7 @@ import {
   inspectUpstreamFork,
   inspectUpstreamPlan,
   isMonth,
+  itemClass,
   type Model,
   type MrInspection,
   monthFacts,
@@ -48,6 +50,7 @@ import {
   REPO_PREFIX,
   type ReleaseDoc,
   type RepoInspection,
+  type RunFact,
   releaseDoc,
   STEP_PREFIX,
   UPSTREAM_ITEM,
@@ -441,9 +444,168 @@ export function upstreamForkResult(
   });
 }
 
+const SERVICE_PREFIX = "service:";
+const RUN_PREFIX = "run:";
+const HOLD_PREFIX = "hold:";
+const THEME_PREFIX = "theme:";
+const FAILED = new Set(["failure", "timed_out", "startup_failure"]);
+
+type Theme = Briefing["themes"][number];
+type EnvEvent = Briefing["environment"]["lanes"][number]["events"][number];
+
+interface RunHit {
+  run: RunFact;
+  repo: string;
+  workflow: string;
+}
+
+/** A workflow run the sweep read, wherever it was read: a fork lane, the stack, or an approval. */
+function findRun(facts: Facts, id: number, stackRepo: string): RunHit | undefined {
+  if (!Number.isSafeInteger(id)) return undefined;
+  for (const [repo, lanes] of Object.entries(facts.runs.data ?? {})) {
+    for (const workflow of ["sync", "template", "cascade", "main"] as const) {
+      const run = lanes[workflow].find((r) => r.id === id);
+      if (run) return { run, repo, workflow };
+    }
+  }
+  for (const [workflow, list] of Object.entries(facts.lifecycle.data ?? {})) {
+    const run = list.find((r) => r.id === id);
+    if (run) {
+      const repo = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/actions\/runs\//.exec(run.url)?.[1];
+      return { run, repo: repo ?? stackRepo, workflow };
+    }
+  }
+  for (const [repo, list] of Object.entries(facts.approvals.data ?? {})) {
+    const run = list.find((r) => r.id === id);
+    if (run) return { run, repo, workflow: "approval" };
+  }
+  return undefined;
+}
+
+/** The queue item that folds this run, as the Environment lanes and lane runs name it. */
+function coveringItem(model: Model, run: RunFact): QueueItem | undefined {
+  const stack = model.queue.items.find((item) => item.kind === "stack");
+  if (stack && model.stack.attempts.some((a) => a.run.id === run.id)) return stack;
+  return model.queue.items.find(
+    (item) =>
+      item.lanes?.some((lane) => lane.runId === run.id) ||
+      item.url === run.url ||
+      item.url?.startsWith(`${run.url}/`),
+  );
+}
+
+function runResult(
+  id: string,
+  { run, repo, workflow }: RunHit,
+  item: QueueItem | undefined,
+  areas: readonly AreaEnvelope[],
+): InspectResult {
+  const outcome = run.status === "completed" ? (run.conclusion ?? "completed") : run.status;
+  return InspectResultSchema.parse({
+    id,
+    class: item ? itemClass(item) : FAILED.has(run.conclusion ?? "") ? "INCIDENT" : "READY",
+    cause: `${run.name} #${run.id} on ${repo}`,
+    effect: `${workflow} run ${outcome}`,
+    next: item ? item.text : "",
+    why: [
+      run.event,
+      run.branch ? `on ${run.branch}` : undefined,
+      run.sha ? `at ${run.sha.slice(0, 7)}` : undefined,
+      `attempt ${run.attempt}`,
+    ]
+      .filter(Boolean)
+      .join(" "),
+    evidence: [],
+    related: [
+      { text: run.title || run.name, state: "On GitHub", ...webUrl(run.url) },
+      ...(item ? [{ text: item.text, state: "In the queue", inspect: item.id }] : []),
+    ],
+    approval: null,
+    actions: [],
+    areas,
+    provenance: [],
+  });
+}
+
+/** A maintenance hold the Environment's Held lane draws, with the runs it overlaps. */
+function holdResult(
+  id: string,
+  hold: EnvEvent,
+  briefing: Briefing,
+  areas: readonly AreaEnvelope[],
+): InspectResult {
+  const from = Date.parse(hold.start);
+  const to = hold.end === undefined ? Number.POSITIVE_INFINITY : Date.parse(hold.end);
+  const runs = briefing.environment.lanes
+    .filter((lane) => lane.id !== "holds")
+    .flatMap((lane) =>
+      lane.events
+        .filter((e) => {
+          const start = Date.parse(e.start);
+          const end = e.end === undefined ? Number.POSITIVE_INFINITY : Date.parse(e.end);
+          return start <= to && end >= from;
+        })
+        .map((e) => ({
+          text: `${lane.label} ${e.label}`,
+          state: e.detail,
+          inspect: e.inspect ?? `${RUN_PREFIX}${e.id}`,
+        })),
+    );
+  return InspectResultSchema.parse({
+    id,
+    class: hold.end === undefined ? "GATE" : "READY",
+    cause: `Held ${hold.label}`,
+    effect: hold.detail,
+    next: "",
+    why: `${hold.start} to ${hold.end ?? "now"}`,
+    evidence: [],
+    related: runs,
+    approval: null,
+    actions: [],
+    areas,
+    provenance: [],
+  });
+}
+
+const THEME_CLASS: Readonly<Record<Theme["kind"], InspectResult["class"]>> = {
+  halt: "HALT",
+  toolchain: "TOOLCHAIN",
+  port: "PORT",
+  rollout: "ROLLOUT",
+  deadline: "GATE",
+};
+
+/** A Horizon theme no queue item carries, told from the persisted briefing. */
+function themeResult(id: string, theme: Theme, areas: readonly AreaEnvelope[]): InspectResult {
+  const fork = (state: string) => (f: Theme["certain"][number]) => ({
+    text: f.fork,
+    state: `${state} · ${f.state}`,
+    ...(f.inspect ? { inspect: f.inspect } : webUrl(f.url)),
+  });
+  return InspectResultSchema.parse({
+    id,
+    class: THEME_CLASS[theme.kind],
+    cause: theme.title,
+    effect: theme.sub,
+    next: theme.next,
+    why: theme.when ?? "",
+    evidence: [],
+    related: [
+      ...theme.certain.map(fork("certain")),
+      ...theme.possible.map(fork("possible")),
+      ...theme.exposed.map((name) => ({ text: name, state: "exposed" })),
+    ],
+    approval: null,
+    actions: [],
+    areas,
+    provenance: [],
+  });
+}
+
 /**
- * Watch requests over the port, including queue items, steps, MRs, releases, repositories
- * and the upstream plan and its forks.
+ * Watch requests over the port, including queue items, steps, MRs, releases, repositories,
+ * the upstream plan and its forks, and what the tree and views select: services, workflow runs,
+ * maintenance holds and Horizon themes.
  * One window subscribes at a time: a reload's subscription replaces the previous connection's.
  */
 export class WatchRoutes {
@@ -575,6 +737,23 @@ export class WatchRoutes {
     } else if (id.startsWith(REPO_PREFIX)) {
       const repo = inspectRepo(model, id, now);
       if (repo) result = repoResult(id, repo, latest.view.areas);
+    } else if (id.startsWith(SERVICE_PREFIX)) {
+      const service = id.slice(SERVICE_PREFIX.length);
+      const fork = inspectUpstreamFork(model, service, now);
+      const repo = fork ? undefined : inspectRepo(model, `${REPO_PREFIX}${service}`, now);
+      if (fork) result = upstreamForkResult(id, fork, latest.view.areas);
+      else if (repo) result = repoResult(id, repo, latest.view.areas);
+    } else if (id.startsWith(RUN_PREFIX)) {
+      const hit = findRun(facts, Number(id.slice(RUN_PREFIX.length)), ctx.stackRepo);
+      if (hit) result = runResult(id, hit, coveringItem(model, hit.run), latest.view.areas);
+    } else if (id.startsWith(HOLD_PREFIX)) {
+      const hold = latest.view.briefing.environment.lanes
+        .find((lane) => lane.id === "holds")
+        ?.events.find((e) => `${HOLD_PREFIX}${e.id}` === id);
+      if (hold) result = holdResult(id, hold, latest.view.briefing, latest.view.areas);
+    } else if (id.startsWith(THEME_PREFIX)) {
+      const theme = latest.view.briefing.themes.find((t) => `${THEME_PREFIX}${t.id}` === id);
+      if (theme) result = themeResult(id, theme, latest.view.areas);
     }
     if (!result) {
       notFound("Nothing in the latest sweep has this id");

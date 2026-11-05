@@ -66,7 +66,12 @@ it("matches every repository value and detail in the frozen rib console and sele
   ).toBe(body.briefing.repositories.first);
   for (const repo of body.briefing.repositories.rows) {
     const row = container.querySelector<HTMLButtonElement>(`[data-repo="${repo.id}"]`);
+    send.mockClear();
     await act(async () => row?.click());
+    expect(watchStore.getState().selection).toEqual({ id: repo.id });
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "inspect.request", payload: { id: repo.id } }),
+    );
     const detail = container.querySelector<HTMLElement>(`[data-repo-detail="${repo.id}"]`);
     expect(row?.getAttribute("aria-pressed")).toBe("true");
     expect(detail?.hidden).toBe(false);
@@ -82,8 +87,8 @@ it("matches every repository value and detail in the frozen rib console and sele
         payload: { id: repo.id },
       }),
     );
+    expect(send).toHaveBeenCalledTimes(2);
   }
-  expect(send).toHaveBeenCalledTimes(body.briefing.repositories.rows.length);
 });
 
 it("matches every release line and detail in the frozen rib console and selects each month", async () => {

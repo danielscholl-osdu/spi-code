@@ -39,7 +39,10 @@ export default function Horizon() {
                 data-theme-sel={theme.id}
                 data-pointer={`/briefing/themes/${index}`}
                 aria-pressed={theme.id === selected}
-                onClick={() => setPicked(theme.id)}
+                onClick={() => {
+                  setPicked(theme.id);
+                  inspect(theme.inspect ?? `theme:${theme.id}`);
+                }}
               >
                 <span>{theme.title}</span>
                 <InferredMark evidence={evidence} pointer={`/briefing/themes/${index}`} />{" "}
