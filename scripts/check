@@ -12,6 +12,7 @@ if [[ -f package.json ]]; then
     pnpm install --frozen-lockfile
   fi
   pnpm run check
+  node scripts/third-party-notices.mjs
   exit 0
 fi
 

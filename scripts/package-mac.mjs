@@ -6,6 +6,7 @@ import { execFileSync } from "node:child_process";
 import { cp, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { generateNotices } from "./third-party-notices.mjs";
 
 /** @param {NodeJS.ProcessEnv} inherited */
 export function packagingEnvironment(inherited) {
@@ -129,6 +130,11 @@ async function packageMac() {
     await json(join(stage, "package.json"), manifest);
     await writeFile(join(stage, "pnpm-workspace.yaml"), "packages: []\nnodeLinker: hoisted\n");
     run(["install", "--prod", "--ignore-scripts", "--config.auto-install-peers=false"], stage);
+    assert(desktop.devDependencies.electron, "Electron must have a pinned version");
+    await writeFile(
+      join(stage, "THIRD_PARTY_NOTICES.md"),
+      await generateNotices([stage, join(root, "apps/window")], desktop.devDependencies.electron),
+    );
     for (const path of [
       "apps/desktop/dist",
       "apps/desktop/src/preload.cjs",

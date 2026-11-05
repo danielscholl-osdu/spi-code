@@ -53,6 +53,23 @@ The scaffold uses Node 22.16 or newer, matching `engines` in `package.json`, and
 The header check covers tracked and untracked, non-ignored sources, including
 extensionless shebang scripts. Build output and dependencies are ignored.
 
+`scripts/check` also validates production dependency licenses offline and writes
+`build/THIRD_PARTY_NOTICES.md`. `package:mac` repeats generation against the staged
+production install plus the renderer's production dependency closure, then ships
+the result in `Contents/Resources/THIRD_PARTY_NOTICES.md`. Missing license text or
+an identifier outside the generator's allowlist fails the build. Electron's
+`LICENSE.electron.txt` and `LICENSES.chromium.html`
+remain supplied by electron-builder.
+
+Pinned notice repairs in `scripts/third-party-notices.mjs` cover npm archives
+that omit their upstream MIT text: Copilot SDK/platform 1.0.26 uses the GitHub
+MIT notice from `github/copilot-sdk` LICENSE (blob
+`28a50fa22639e32febe14e4ffc7a732b0ba8c90a`); Koffi platform 3.2.1 uses the
+matching installed `koffi` package's LICENSE.txt. Other missing notices fail;
+version updates require rechecking these repairs. Supplemental shipped notices
+are retained too. `scripts/licenses/t3-code-MIT.txt` preserves T3 Code's LICENSE
+for copied/ported portions, following its `docs/internals/open-source-licenses.md`.
+
 ## 5. Review
 
 Skill: `bead-review`. The reviewer comes from a different provider than the author. The review is read-only against the bead's acceptance and `git diff main...bead/<id>`.

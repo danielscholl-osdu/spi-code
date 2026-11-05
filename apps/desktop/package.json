@@ -31,6 +31,12 @@
       "node_modules/@github/copilot-sdk-*/prebuilds/**/*"
     ],
     "npmRebuild": false,
+    "extraResources": [
+      {
+        "from": "THIRD_PARTY_NOTICES.md",
+        "to": "THIRD_PARTY_NOTICES.md"
+      }
+    ],
     "files": [
       "apps/desktop/dist/**/*",
       "apps/desktop/src/preload.cjs",
