@@ -71,10 +71,11 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
       import: "./dist/index.js",
     });
 
+    const npmPaths = ["--prefix", arg(temporary), "--cache", arg(join(temporary, "cache"))];
     try {
       await exec(
         npm,
-        ["view", "yaml@2.9.1", "version", "--fetch-retries=0", "--fetch-timeout=5000"],
+        ["view", "yaml@2.9.1", "version", "--fetch-retries=0", "--fetch-timeout=5000", ...npmPaths],
         { cwd: temporary, timeout: 10_000, shell },
       );
     } catch (error) {
@@ -89,8 +90,7 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
         "--no-fund",
         "--fetch-retries=0",
         "--fetch-timeout=15000",
-        "--cache",
-        arg(join(temporary, "cache")),
+        ...npmPaths,
         arg(tarball),
       ],
       { cwd: temporary, timeout: 60_000, shell },
