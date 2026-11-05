@@ -12,11 +12,12 @@ import {
   type WatchMessage,
 } from "@spi-code/contracts";
 import { createStore } from "zustand/vanilla";
+import { createSelectionStore, type SelectionStore, selectionStore } from "../panels/selection.js";
 
 export type Snapshot = { cursor: number; body: ViewSnapshot };
 type WatchState = {
   snapshot: Snapshot | null;
-  selection: { id: string } | null;
+  readonly selection: { readonly id: string } | null;
   select(id: string): void;
   clear(): void;
   sweep: SweepStatus | null;
@@ -34,15 +35,20 @@ type WatchState = {
   receive(input: unknown): void;
 };
 
-export function createWatchStore(send: (message: Message) => void) {
-  return createStore<WatchState>((set, get) => ({
+const selectionOf = (selected: string | null) => (selected === null ? null : { id: selected });
+
+export function createWatchStore(
+  send: (message: Message) => void,
+  inspector: SelectionStore = createSelectionStore({ postMessage: send }),
+) {
+  const store = createStore<WatchState>((set, get) => ({
     snapshot: null,
-    selection: null,
+    selection: selectionOf(inspector.getState().selected),
     select(id) {
-      set({ selection: { id } });
+      inspector.getState().select(id);
     },
     clear() {
-      set({ selection: null });
+      inspector.getState().clear();
     },
     sweep: null,
     setup: null,
@@ -103,6 +109,14 @@ export function createWatchStore(send: (message: Message) => void) {
       }
     },
   }));
+  inspector.subscribe(({ selected }) => {
+    if (store.getState().selection?.id !== (selected ?? undefined))
+      store.setState({ selection: selectionOf(selected) });
+  });
+  return store;
 }
 
-export const watchStore = createWatchStore((message) => window.spi.postMessage(message));
+export const watchStore = createWatchStore(
+  (message) => window.spi.postMessage(message),
+  selectionStore,
+);

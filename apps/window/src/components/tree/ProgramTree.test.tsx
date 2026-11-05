@@ -8,6 +8,8 @@ import { expect, it, vi } from "vitest";
 import briefing from "../../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import releases from "../../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
 import { routes } from "../../app/routes.js";
+import { RightPanel } from "../../panels/RightPanel.js";
+import { createSelectionStore, type SelectionStore } from "../../panels/selection.js";
 import { testSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore } from "../../store/watch.js";
 import { ProgramTree } from "./ProgramTree.js";
@@ -60,18 +62,27 @@ const snapshot = testSnapshot(briefing, releases, {
   },
 });
 
-function Harness({ store }: { store: ReturnType<typeof createWatchStore> }) {
+function Harness({
+  store,
+  inspector,
+}: {
+  store: ReturnType<typeof createWatchStore>;
+  inspector: SelectionStore;
+}) {
   const [route, setRoute] = useState<(typeof routes)[number]>(routes[0]);
   return (
     <>
       <ProgramTree store={store} route={route} onNavigate={setRoute} />
       <h1>{route.label}</h1>
+      <RightPanel store={inspector} />
     </>
   );
 }
 
 async function mount(body: unknown = snapshot) {
-  const store = createWatchStore(vi.fn());
+  const port = { postMessage: vi.fn() };
+  const inspector = createSelectionStore(port);
+  const store = createWatchStore(vi.fn(), inspector);
   const receive = (payload: unknown) =>
     store.getState().receive({
       version: PROTOCOL_VERSION,
@@ -84,9 +95,11 @@ async function mount(body: unknown = snapshot) {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
-  await act(async () => root.render(<Harness store={store} />));
+  await act(async () => root.render(<Harness store={store} inspector={inspector} />));
   return {
     container,
+    store,
+    port,
     receive,
     async dispose() {
       await act(async () => root.unmount());
@@ -166,6 +179,36 @@ it("navigates through existing routes and retains the selected service in Flow",
       expect(entry?.getAttribute("aria-current")).toBe("page");
       expect(window.location.hash).toBe(hash);
     }
+  } finally {
+    await view.dispose();
+  }
+});
+
+it("opens a selected tree node in the inspector and follows a selection made elsewhere", async () => {
+  const view = await mount();
+  const inspector = () => view.container.querySelector('[aria-label="Inspector"]')?.textContent;
+  try {
+    expect(inspector()).toContain("No selection");
+    const entry = view.container.querySelector<HTMLAnchorElement>(
+      '[data-selection-id="service:legal"]',
+    );
+    await act(async () => entry?.click());
+    expect(view.port.postMessage).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        kind: "request",
+        type: "inspect.request",
+        payload: { id: "service:legal" },
+      }),
+    );
+    expect(view.store.getState().selection).toEqual({ id: "service:legal" });
+    expect(entry?.getAttribute("aria-current")).toBe("page");
+    expect(inspector()).toContain("Reading service:legal");
+    await act(async () => view.store.getState().select("upstream:legal"));
+    expect(entry?.getAttribute("aria-current")).toBeNull();
+    expect(
+      view.container.querySelector('[aria-current="page"]')?.getAttribute("data-selection-id"),
+    ).toBe("flow");
+    expect(inspector()).toContain("Reading upstream:legal");
   } finally {
     await view.dispose();
   }

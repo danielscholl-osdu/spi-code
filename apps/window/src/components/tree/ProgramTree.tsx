@@ -72,7 +72,8 @@ export function ProgramTree({
   onNavigate(route: Route): void;
 }) {
   const snapshot = useStore(store, (state) => state.snapshot);
-  const [selection, setSelection] = useState<{ id: string; route: Route }>();
+  const selected = useStore(store, (state) => state.selection?.id);
+  const select = useStore(store, (state) => state.select);
   const [externalError, setExternalError] = useState("");
   async function openEvidence(url: string) {
     setExternalError("");
@@ -90,9 +91,21 @@ export function ProgramTree({
   );
   const tree = parsed.success ? parsed.data : [];
   const status = (id: string): Status => tree.find((node) => node.id === id)?.status ?? "unread";
-  const active = selection?.route === route ? selection.id : route.id;
   const services = tree.filter((node) => node.id.startsWith("service:"));
   const runs = tree.filter((node) => node.id.startsWith("run:"));
+  const targets = new Map<string, Route>([
+    ["today", today],
+    ["template", flow],
+    ["repositories", repositories],
+    ["releases", releases],
+    ["environment", environment],
+    ["flow", flow],
+    ["horizon", horizon],
+    ["setup", setup],
+    ...services.map((node): [string, Route] => [node.id, flow]),
+    ...runs.map((node): [string, Route] => [node.id, environment]),
+  ]);
+  const active = selected !== undefined && targets.get(selected) === route ? selected : route.id;
   const runDetails = workflowRuns(body);
   const heading = (id: string, label: string) => (
     <h2 className="tree-heading" data-selection-id={id}>
@@ -100,14 +113,15 @@ export function ProgramTree({
       {label}
     </h2>
   );
-  const entry = (id: string, label: string, target: Route) => {
+  const entry = (id: string, label: string) => {
+    const target = targets.get(id) ?? today;
     const props = {
       className: "tree-entry",
       "data-selection-id": id,
       "aria-current": active === id ? ("page" as const) : undefined,
       onClick: (event: MouseEvent<HTMLElement>) => {
         event.preventDefault();
-        setSelection({ id, route: target });
+        select(id);
         onNavigate(target);
       },
       children: (
@@ -123,20 +137,19 @@ export function ProgramTree({
       <a key={id} href={`#${target.id}/${encodeURIComponent(id)}`} {...props} />
     );
   };
-  const service = (node: TreeStatus[number]) =>
-    entry(node.id, node.id.slice("service:".length), flow);
+  const service = (node: TreeStatus[number]) => entry(node.id, node.id.slice("service:".length));
   return (
     <nav aria-label="Program" className="program-tree">
-      {entry("today", "Today", today)}
+      {entry("today", "Today")}
       {heading("system", "System")}
-      {entry("template", "Template", flow)}
-      {entry("repositories", "Repositories", repositories)}
-      {entry("releases", "Releases", releases)}
+      {entry("template", "Template")}
+      {entry("repositories", "Repositories")}
+      {entry("releases", "Releases")}
       {heading("stack", "Stack")}
-      {entry("environment", "Shared environment", environment)}
+      {entry("environment", "Shared environment")}
       {heading("services", "Services")}
-      {entry("flow", "Flow", flow)}
-      {entry("horizon", "Horizon", horizon)}
+      {entry("flow", "Flow")}
+      {entry("horizon", "Horizon")}
       {!parsed.success && <p role="alert">Invalid program tree: {parsed.error.message}</p>}
       {services.slice(0, 5).map(service)}
       {services.length > 5 && (
@@ -155,7 +168,7 @@ export function ProgramTree({
           const evidence = runDetails.get(node.id);
           return (
             <div key={node.id}>
-              {entry(node.id, evidence?.label ?? `GitHub run #${node.id.slice(4)}`, environment)}
+              {entry(node.id, evidence?.label ?? `GitHub run #${node.id.slice(4)}`)}
               {evidence && (
                 <a
                   className="tree-entry"
@@ -175,7 +188,7 @@ export function ProgramTree({
         {externalError && <p role="alert">{externalError}</p>}
         <h3>App runs</h3>
         <p className="tree-empty">No app runs yet</p>
-        {entry("setup", "Setup", setup)}
+        {entry("setup", "Setup")}
       </div>
     </nav>
   );

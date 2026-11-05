@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { ViewSnapshot } from "@spi-code/contracts";
+import { useEffect } from "react";
 import { useStore } from "zustand";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import "./today.css";
@@ -16,8 +17,13 @@ export default function Today({
   store?: ReturnType<typeof createWatchStore>;
 }) {
   const snapshot = useStore(store, (state) => state.snapshot);
-  const selection = useStore(store, (state) => state.selection);
+  const selectedId = useStore(store, (state) => state.selection?.id);
   const select = useStore(store, (state) => state.select);
+  const focus = snapshot ? [...snapshot.body.briefing.focus].sort((a, b) => a.rung - b.rung) : [];
+  const first = focus[0]?.id;
+  useEffect(() => {
+    if (selectedId === undefined && first !== undefined) select(first);
+  }, [selectedId, first, select]);
   if (!snapshot)
     return (
       <section className="today">
@@ -26,8 +32,6 @@ export default function Today({
       </section>
     );
   const brief = snapshot.body.briefing;
-  const focus = [...brief.focus].sort((a, b) => a.rung - b.rung);
-  const selectedId = selection?.id ?? focus[0]?.id;
   const row = (item: FocusItem) => {
     const tone = item.rung === 0 ? "bad" : item.cls === "PORT" ? "neutral" : "warn";
     return (

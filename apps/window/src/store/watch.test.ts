@@ -5,6 +5,7 @@ import { PROTOCOL_VERSION, type ViewSnapshot, WatchMessageSchema } from "@spi-co
 import { expect, it, vi } from "vitest";
 import briefing from "../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import releases from "../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
+import { createSelectionStore } from "../panels/selection.js";
 import { testSnapshot as snapshotFromOracles } from "./test-snapshot.js";
 import { createWatchStore } from "./watch.js";
 
@@ -67,6 +68,7 @@ it.each([
   const store = createWatchStore(send);
   store.getState().receive(event("view.snapshot", testSnapshot({ cursor: 9 })));
   store.getState().select("halt:legal");
+  send.mockClear();
   const state = store.getState();
   const changed = vi.fn();
   store.subscribe(changed);
@@ -108,6 +110,24 @@ it("sets, retains a vanished selection across snapshots and reset, and clears ex
   store.getState().clear();
   expect(store.getState().selection).toBeNull();
   expect(store.getState().snapshot?.cursor).toBe(2);
+});
+
+it("forwards select and clear to the inspector selection, its one source", () => {
+  const postMessage = vi.fn();
+  const inspector = createSelectionStore({ postMessage });
+  inspector.getState().select("halt:legal");
+  const store = createWatchStore(vi.fn(), inspector);
+  expect(store.getState().selection).toEqual({ id: "halt:legal" });
+  store.getState().select("rollout");
+  expect(inspector.getState().selected).toBe("rollout");
+  expect(postMessage).toHaveBeenLastCalledWith(
+    expect.objectContaining({ type: "inspect.request", payload: { id: "rollout" } }),
+  );
+  inspector.getState().select("halt:entitlements");
+  expect(store.getState().selection).toEqual({ id: "halt:entitlements" });
+  store.getState().clear();
+  expect(inspector.getState().selected).toBeNull();
+  expect(store.getState().selection).toBeNull();
 });
 
 it("subscribes on every hello with zero initially and the last cursor after reset", () => {
