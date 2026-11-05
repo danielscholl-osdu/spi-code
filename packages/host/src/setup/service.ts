@@ -12,6 +12,7 @@ import {
   type SetupState,
   SetupStateSchema,
   type SetupToolSchema,
+  signinRunningReason,
 } from "@spi-code/contracts";
 import type { DoctorView, Exec } from "@spi-code/core";
 import type { Readiness } from "@spi-code/tools";
@@ -59,10 +60,6 @@ export interface SetupServiceOptions {
 export const GITLAB_AREAS_REASON =
   "The GitLab areas (upstream, radar) are disabled until glab is ready.";
 const GLAB_TOKEN_NEEDED = "Paste a GitLab token to sign in glab.";
-const SIGNIN_RUNNING = {
-  gh: "A gh sign-in is already running.",
-  glab: "A glab sign-in is already running.",
-};
 const SEAT_FAILED = "The Copilot seat check did not complete.";
 const COPILOT_NEEDS_GH = "Copilot signs in through gh. Install gh and sign in first.";
 const WATCH_OFF = "Watch is off:";
@@ -244,7 +241,7 @@ export class SetupService {
     const tool = request.tool;
     const key = tool === "glab" ? "glab" : "gh";
     if (this.flows.has(key)) {
-      this.emit({ requestId, tool, state: "failed", reason: SIGNIN_RUNNING[key] });
+      this.emit({ requestId, tool, state: "failed", reason: signinRunningReason(key) });
       return;
     }
     const flow: SigninFlow = { abort: new AbortController(), retired: false };

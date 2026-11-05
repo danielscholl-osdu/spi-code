@@ -118,6 +118,51 @@ it("applies sign-in progress only for each tool's pending request", () => {
   expect(store.getState().signinOutcome).toEqual({});
 });
 
+it.each(["gh", "copilot"] as const)(
+  "keeps the first pending %s sign-in when a second is requested before any progress",
+  (tool) => {
+    const send = vi.fn();
+    const store = createWatchStore(send);
+    store.getState().requestSetup("setup.signin", tool);
+    store.getState().requestSetup("setup.signin", tool);
+    expect(send).toHaveBeenCalledTimes(1);
+    const first = WatchMessageSchema.parse(send.mock.calls[0]?.[0]).id;
+    expect(store.getState().signinRequest).toEqual({ [tool]: first });
+    for (const step of [
+      { state: "starting" },
+      { state: "device-code", deviceCode: "AAAA-BBBB", url: "https://github.com/login/device" },
+    ])
+      store.getState().receive(event("setup.signin.progress", { requestId: first, tool, ...step }));
+    expect(store.getState().signin[tool]).toMatchObject({ state: "device-code" });
+    store
+      .getState()
+      .receive(event("setup.signin.progress", { requestId: first, tool, state: "completed" }));
+    store.getState().requestSetup("setup.signin", tool);
+    expect(send).toHaveBeenCalledTimes(2);
+  },
+);
+
+it.each([
+  ["gh", undefined],
+  ["glab", "glpat-Secret0123456789"],
+] as const)("leaves no pending %s sign-in when the request cannot be sent", (tool, token) => {
+  const send = vi.fn().mockImplementationOnce(() => {
+    throw new Error("Host port is not connected");
+  });
+  const store = createWatchStore(send);
+  const request = () =>
+    tool === "glab"
+      ? store.getState().requestSetup("setup.signin", tool, token as string)
+      : store.getState().requestSetup("setup.signin", tool);
+  expect(request).toThrow("Host port is not connected");
+  expect(store.getState().signinRequest).toEqual({});
+  request();
+  expect(send).toHaveBeenCalledTimes(2);
+  expect(store.getState().signinRequest).toEqual({
+    [tool]: WatchMessageSchema.parse(send.mock.calls[1]?.[0]).id,
+  });
+});
+
 it("keeps the newest full snapshot and ignores late and duplicate cursors", () => {
   const store = createWatchStore(vi.fn());
   const body = testSnapshot({ cursor: 9 });

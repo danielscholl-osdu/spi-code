@@ -27,7 +27,10 @@ type WatchState = {
   signinOutcome: Partial<Record<SetupSigninProgress["tool"], SetupSigninProgress>>;
   /** Bumps on every host.hello, so views can drop state tied to the previous connection. */
   epoch: number;
-  /** The setup.signin request each row waits on. Progress for any other request is dropped. */
+  /**
+   * The setup.signin request each row waits on. Progress for any other request is dropped, and a
+   * tool with a pending request sends no other until that request ends or the host reconnects.
+   */
   signinRequest: Partial<Record<SetupSigninProgress["tool"], string>>;
   requestSetup(
     ...request:
@@ -92,8 +95,18 @@ export function createWatchStore(
         payload: token === undefined ? { tool } : { tool, token },
       });
       if (!parsed.ok) throw new Error("Invalid setup request");
-      if (type === "setup.signin") set({ signinRequest: { ...get().signinRequest, [tool]: id } });
-      send(parsed.message);
+      if (type !== "setup.signin") return send(parsed.message);
+      // One pending sign-in per tool: a second request would replace the id the host's flow reports.
+      if (get().signinRequest[tool] !== undefined) return;
+      set({ signinRequest: { ...get().signinRequest, [tool]: id } });
+      try {
+        send(parsed.message);
+      } catch (error) {
+        const signinRequest = { ...get().signinRequest };
+        if (signinRequest[tool] === id) delete signinRequest[tool];
+        set({ signinRequest });
+        throw error;
+      }
     },
     receive(input) {
       const parsed = parseMessage(input);

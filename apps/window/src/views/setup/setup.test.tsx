@@ -5,6 +5,7 @@ import {
   PROTOCOL_VERSION,
   SetupSigninSchema,
   type SetupState,
+  signinRunningReason,
   WatchMessageSchema,
 } from "@spi-code/contracts";
 import { act, type ReactNode } from "react";
@@ -433,6 +434,69 @@ it("keeps Copilot and gh sign-in tokenless with no token field", async () => {
     { type: "setup.signin", payload: { tool: "copilot" } },
     { type: "setup.signin", payload: { tool: "gh" } },
   ]);
+});
+
+it.each([
+  ["copilot", "Copilot"],
+  ["gh", "gh"],
+] as const)(
+  "disables %s Sign in as soon as it is clicked and keeps the first flow's device code",
+  async (tool, name) => {
+    await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+    await render();
+    const button = () =>
+      container.querySelector<HTMLButtonElement>(`section[aria-label="${name}"] button`);
+    await act(async () => button()?.click());
+    expect(button()?.disabled).toBe(true);
+    await act(async () => button()?.click());
+    expect(sent()).toEqual([{ type: "setup.signin", payload: { tool } }]);
+    await progress({ tool, state: "starting" });
+    await progress({
+      tool,
+      state: "device-code",
+      deviceCode: "AAAA-BBBB",
+      url: "https://github.com/login/device",
+    });
+    expect(container.querySelector<HTMLInputElement>("input[readonly]")?.value).toBe("AAAA-BBBB");
+    await progress({ tool, state: "failed", reason: "Device code expired" });
+    expect(button()?.disabled).toBe(false);
+  },
+);
+
+it("keeps the glab form usable when the sign-in cannot be sent", async () => {
+  send.mockImplementationOnce(() => {
+    throw new Error("Host port is not connected");
+  });
+  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+  await render();
+  await paste(token);
+  await act(async () => glab().button.click());
+  expect(glab().row.querySelector('[role="alert"]')?.textContent).toBe(
+    "Could not send the sign-in to SPI Code. Try again.",
+  );
+  expect(glab().field.disabled).toBe(false);
+  expect(glab().field.value).toBe("");
+  expect(watchStore.getState().signinRequest).toEqual({});
+  expect(JSON.stringify(watchStore.getState())).not.toContain(token);
+  expect(container.innerHTML).not.toContain(token);
+  await paste(token);
+  expect(glab().button.disabled).toBe(false);
+  await act(async () => glab().button.click());
+  expect(send).toHaveBeenCalledTimes(2);
+  expect(glab().field.disabled).toBe(true);
+  expect(glab().row.querySelector('[role="alert"]')).toBeNull();
+});
+
+it("shows the host's reason when a glab sign-in is already running", async () => {
+  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+  await render();
+  await paste(token);
+  await act(async () => glab().button.click());
+  await progress({ tool: "glab", state: "failed", reason: signinRunningReason("glab") });
+  expect(glab().row.querySelector('[role="alert"]')?.textContent).toBe(
+    "A glab sign-in is already running.",
+  );
+  expect(glab().field.disabled).toBe(false);
 });
 
 it("shows attention explanations without sending an install or sign-in", async () => {

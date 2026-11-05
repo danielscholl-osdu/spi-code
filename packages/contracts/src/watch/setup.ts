@@ -76,6 +76,8 @@ export const SetupSigninProgressSchema = z.discriminatedUnion("state", [
   z.strictObject({ ...signinSteps.running, ...requestId }),
   z.strictObject({ ...signinSteps.failed, ...requestId }),
 ]);
+/** The failed reason the host sends for a sign-in requested while the same flow runs. */
+export const signinRunningReason = (flow: "gh" | "glab") => `A ${flow} sign-in is already running.`;
 export type SetupState = z.infer<typeof SetupStateSchema>;
 export type SetupSigninStep = z.infer<typeof SetupSigninStepSchema>;
 export type SetupSigninProgress = z.infer<typeof SetupSigninProgressSchema>;

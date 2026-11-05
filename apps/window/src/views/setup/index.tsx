@@ -1,7 +1,12 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type SetupSigninProgress, SetupSigninSchema, type SetupState } from "@spi-code/contracts";
+import {
+  type SetupSigninProgress,
+  SetupSigninSchema,
+  type SetupState,
+  signinRunningReason,
+} from "@spi-code/contracts";
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { watchStore } from "../../store/watch.js";
@@ -48,6 +53,7 @@ function CopyText({ label, value }: { label: string; value: string }) {
 
 type Progress = SetupSigninProgress | undefined;
 const GLAB_FAILED = "glab sign-in failed. Check the GitLab token and try again.";
+const GLAB_UNSENT = "Could not send the sign-in to SPI Code. Try again.";
 
 function GlabSignin({ busy, progress }: { busy: boolean; progress: Progress }) {
   const field = useRef<HTMLInputElement>(null);
@@ -76,9 +82,14 @@ function GlabSignin({ busy, progress }: { busy: boolean; progress: Progress }) {
           setError(parsed.error.issues[0]?.message ?? "Enter a valid GitLab token.");
           return;
         }
+        try {
+          watchStore.getState().requestSetup("setup.signin", "glab", token);
+        } catch {
+          setError(GLAB_UNSENT);
+          return;
+        }
         setError("");
         setSent({ progress });
-        watchStore.getState().requestSetup("setup.signin", "glab", token);
       }}
     >
       <label>
@@ -106,9 +117,14 @@ function ToolRow({ tool }: { tool: Tool }) {
     tool.tool === "git" ? undefined : (state.signin[tool.tool] ?? state.signinOutcome[tool.tool]),
   );
   const epoch = useStore(watchStore, (state) => state.epoch);
+  const pending = useStore(
+    watchStore,
+    (state) => tool.tool !== "git" && state.signinRequest[tool.tool] !== undefined,
+  );
   const [attention, setAttention] = useState(false);
   const busy =
     tool.state === "installing" ||
+    pending ||
     (progress && ["starting", "device-code", "waiting"].includes(progress.state));
   const reason =
     tool.reason ??
@@ -162,7 +178,7 @@ function ToolRow({ tool }: { tool: Tool }) {
         <p role={progress.state === "failed" ? "alert" : "status"}>
           {progress.state !== "failed"
             ? `Sign-in ${progress.state}`
-            : progress.tool === "glab"
+            : progress.tool === "glab" && progress.reason !== signinRunningReason("glab")
               ? GLAB_FAILED
               : progress.reason}
         </p>
