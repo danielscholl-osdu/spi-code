@@ -21,11 +21,11 @@ import {
   type DoctorView,
   type Exec,
   type ExecOptions,
+  GraphqlBudget,
   INFLIGHT_POLL_MS,
   SWEEP_MS,
   sweepStateSchema,
 } from "@spi-code/core";
-import { GraphqlBudget } from "../../../core/dist/forge.js";
 import { createLeaseStore, type LeaseIdentity } from "../store/leases.js";
 import { createSnapshotStore } from "../store/snapshots.js";
 import { projectWatch } from "../watch/project.js";
