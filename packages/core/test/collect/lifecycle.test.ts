@@ -316,6 +316,70 @@ test("manual targets read the declaration at the commit once and persist their o
   );
 });
 
+async function sharedCommitSweep(declaration: unknown, previous: unknown = empty()) {
+  const manual = (id: number) => ({ ...rawRun(), id, display_title: "manual" });
+  let jobsAnswered = 0;
+  let bothAsked: () => void = () => {};
+  const asked = new Promise<void>((resolve) => {
+    bothAsked = resolve;
+  });
+  const contents: string[] = [];
+  const answer = (value: unknown) =>
+    value instanceof Error
+      ? { stdout: "", stderr: value.message, exit: 1 }
+      : { stdout: JSON.stringify(value), stderr: "", exit: 0 };
+  const exec = new RecordingExec(
+    async (_cmd, args) => {
+      const path = args[1] ?? "";
+      if (path.includes("/contents/")) {
+        contents.push(path);
+        await asked;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        return answer(declaration);
+      }
+      if (path.includes("/workflows/env-upgrade")) return answer({ total: 1, runs: [manual(7)] });
+      if (path.includes("/workflows/env-refresh")) return answer({ total: 1, runs: [manual(8)] });
+      if (path.includes("/workflows/")) return answer({ total: 0, runs: [] });
+      if (path.includes("/jobs?")) {
+        if (++jobsAnswered === 2) bothAsked();
+        return answer({ total: 1, jobs: [rawJob()] });
+      }
+      throw new Error(`Unexpected read ${path}`);
+    },
+    () => {},
+  );
+  const result = await readLifecycle(new Gh(exec), {}, previous, context());
+  return { result, contents };
+}
+
+test("two runs at one commit share a single declaration read whatever the timing", async () => {
+  const { result, contents } = await sharedCommitSweep({ text: "stackVersion: v0.36.0\n" });
+  expect(contents).toEqual([`repos/${STACK}/contents/${DECLARATION_PATH}?ref=abc`]);
+  expect(result.data.refresh[0]?.target).toBe("v0.36.0");
+  expect(result.data.upgrade[0]?.target).toBe("v0.36.0");
+  const declarations = result.reads.filter((r) => r.object.includes("/contents/"));
+  expect(declarations).toHaveLength(2);
+  expect(declarations.every((r) => r.failure === undefined)).toBe(true);
+  expect(result.state.files.abc?.data).toBe("v0.36.0");
+});
+
+test("a failed shared declaration read is read once per sweep and retried by the next", async () => {
+  const first = await sharedCommitSweep(new Error("not found"));
+  expect(first.contents).toHaveLength(1);
+  expect(first.result.data.refresh[0]?.target).toBeUndefined();
+  expect(first.result.data.upgrade[0]?.target).toBeUndefined();
+  const failures = first.result.reads.filter((r) => r.object.includes("/contents/"));
+  expect(failures).toHaveLength(2);
+  expect(failures.every((r) => r.failure?.includes("not found"))).toBe(true);
+  expect(first.result.state.files).toEqual({});
+  const second = await sharedCommitSweep(
+    { text: "stackVersion: v0.36.0\n" },
+    { ...JSON.parse(JSON.stringify(first.result.state)), runJobs: {} },
+  );
+  expect(second.contents).toHaveLength(1);
+  expect(second.result.data.upgrade[0]?.target).toBe("v0.36.0");
+});
+
 test("failed lifecycle and job reads keep prior data and the last good observation through repeated failures", async () => {
   const first = await replay((gh) => readLifecycle(gh, {}, empty(), context()), lifecycle());
   const next = new Date(NOW.getTime() + 60_000);

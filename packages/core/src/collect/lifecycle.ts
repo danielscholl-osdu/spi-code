@@ -255,14 +255,12 @@ export function declarationPath(sha: string, ctx: CoreContext): string {
   return `repos/${ctx.stackRepo}/contents/${DECLARATION_PATH}?ref=${encodeURIComponent(sha)}`;
 }
 
-async function targetOf(
-  gh: Gh, run: RunFact, files: LifecycleState["files"], reads: ReadRecord[], ctx: CoreContext,
-): Promise<string | undefined> {
-  const title = /stackVersion to (v\d+\.\d+\.\d+)/.exec(run.title)?.[1];
-  if (title) return title;
-  const known = files[run.sha];
-  if (known) { reads.push(...known.reads); return known.data; }
-  const path = declarationPath(run.sha, ctx);
+type Declarations = Map<string, Promise<LifecycleRead<string | undefined>>>;
+
+async function readDeclaration(
+  gh: Gh, sha: string, files: LifecycleState["files"], ctx: CoreContext,
+): Promise<LifecycleRead<string | undefined>> {
+  const path = declarationPath(sha, ctx);
   const evidence: ReadRecord[] = [];
   const file = await observe(ctx, evidence, path, () => gh.rest<{ text: string }>(path, "{text: (.content | @base64d)}"));
   const version = file && parseDeclaration(file.text)?.stackVersion;
@@ -270,9 +268,26 @@ async function targetOf(
     const read = evidence.pop();
     if (read) evidence.push({ ...read, failure: "Declaration has no valid stackVersion" });
   }
-  if (version) files[run.sha] = { data: version, reads: evidence };
+  if (version) files[sha] = { data: version, reads: evidence };
+  return { data: version, reads: evidence };
+}
+
+async function targetOf(
+  gh: Gh, run: RunFact, files: LifecycleState["files"], pending: Declarations,
+  reads: ReadRecord[], ctx: CoreContext,
+): Promise<string | undefined> {
+  const title = /stackVersion to (v\d+\.\d+\.\d+)/.exec(run.title)?.[1];
+  if (title) return title;
+  const known = files[run.sha];
+  if (known) { reads.push(...known.reads); return known.data; }
+  let read = pending.get(run.sha);
+  if (!read) {
+    read = readDeclaration(gh, run.sha, files, ctx);
+    pending.set(run.sha, read);
+  }
+  const { data, reads: evidence } = await read;
   reads.push(...evidence);
-  return version;
+  return data;
 }
 
 export async function readLifecycle(gh: Gh, detailState: unknown, previous: unknown, ctx: CoreContext) {
@@ -286,6 +301,7 @@ export async function readLifecycle(gh: Gh, detailState: unknown, previous: unkn
   const data: LifecycleData = { refresh: [], upgrade: [], smoke: [], sweeper: [] };
   const since = new Date(ctx.clock.now().getTime() - HISTORY_DAYS * 86_400_000).toISOString().slice(0, 10);
   const kinds = Object.keys(LIFECYCLE_WORKFLOWS) as LifecycleKind[];
+  const declarations: Declarations = new Map();
   const perKind = await pool(kinds, 2, async (kind) => {
     const byId = new Map<number, RunFact>();
     let failed = false;
@@ -329,7 +345,7 @@ export async function readLifecycle(gh: Gh, detailState: unknown, previous: unkn
             run: settledJobReads(jobs.reads) ? { status: run.status, updatedAt: run.updatedAt } : known?.run,
           };
         }
-        entry.target = await targetOf(gh, run, state.files, runReads, ctx);
+        entry.target = await targetOf(gh, run, state.files, declarations, runReads, ctx);
         return { entry, reads: runReads };
       });
       data[kind] = entries.map((r) => r.entry);
