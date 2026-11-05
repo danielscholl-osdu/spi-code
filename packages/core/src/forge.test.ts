@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type Exec, type ExecOutput, RecordingExec, ReplayExec } from "./exec/index.js";
 import { encodeProject, Gh, Glab, GraphqlBudget, tokenScopes } from "./forge.js";
 
@@ -42,6 +42,13 @@ async function replay(
 afterEach(() => vi.useRealTimers());
 
 describe("forge replay", () => {
+  // Fixtures carry fixed rate-limit windows and the budget discards expired ones, so the
+  // suite runs inside the first window rather than against the wall clock.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-05T07:00:00Z"));
+  });
+
   it("ports REST, paginated jq lines, text, GitLab paging and GraphQL", async () => {
     await replay(
       [
