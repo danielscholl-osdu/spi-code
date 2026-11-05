@@ -3,6 +3,7 @@
 
 import type { DatabaseSync } from "node:sqlite";
 import {
+  type AreaEnvelope,
   type InspectResult,
   InspectResultSchema,
   type Message,
@@ -34,10 +35,12 @@ import {
   type Model,
   type QueueItem,
   verbsOf,
+  writeBlocked,
 } from "@spi-code/core";
 import { z } from "zod";
 import { createSnapshotStore, type SnapshotRecord } from "../store/snapshots.js";
 import { appActions } from "../watch/project.js";
+import { inspectProvenance } from "../watch/provenance.js";
 import type { HostRoutes, HostSend } from "./port.js";
 
 export interface WatchRoutesOptions {
@@ -107,13 +110,18 @@ function webUrl(url: string | undefined): { url: string } | Record<string, never
   return url !== undefined && WebUrlSchema.safeParse(url).success ? { url } : {};
 }
 
-/** Core inspection mapped to the contract, with the FILTERS read for a checkable halt. */
+/**
+ * Core inspection mapped to the contract, with the FILTERS read for a checkable halt. Each
+ * value names the Facts areas behind it; areas are the envelopes of the sweep the model was
+ * built from.
+ */
 export async function inspectResult(
   model: Model,
   item: QueueItem,
   now: Date,
   ctx: CoreContext,
   exec: Exec,
+  areas: readonly AreaEnvelope[],
   opts: InspectOptions = {},
 ): Promise<InspectResult> {
   const entries = checkable(item.halt)
@@ -132,6 +140,27 @@ export async function inspectResult(
     const parsed = readRecord(record);
     evidence.set(JSON.stringify(parsed), parsed);
   }
+  const actions = [
+    ...verbsOf(item, model, ctx, opts),
+    ...(approvals?.items.flatMap((entry) => entry.actions) ?? []),
+  ];
+  const drawn = appActions(actions);
+  const sameEntry = inspection.sameEntry?.rows ?? [];
+  const provenance = inspectProvenance({
+    item,
+    related: {
+      themes: inspection.related.length,
+      evidence: inspection.evidence.length,
+      sameEntry: sameEntry.length,
+    },
+    approval: approvals !== undefined,
+    actions,
+    drawn,
+    blocked: writeBlocked(model.sweptAt, opts.scopes),
+    deployable: model.stack.deployable.state === "yes",
+    entries,
+    now,
+  });
   return InspectResultSchema.parse({
     id: item.id,
     class: inspection.class,
@@ -151,17 +180,16 @@ export async function inspectResult(
         state: field.label,
         ...webUrl(field.href),
       })),
-      ...(inspection.sameEntry?.rows ?? []).map((row) => ({
+      ...sameEntry.map((row) => ({
         text: row.trailing ? `${row.text} · ${row.trailing}` : row.text,
         state: row.chip?.label ?? "",
         ...webUrl(row.href),
       })),
     ],
     approval: approvals ? { id: item.id, state: "pending", reason: approvals.title } : null,
-    actions: appActions([
-      ...verbsOf(item, model, ctx, opts),
-      ...(approvals?.items.flatMap((entry) => entry.actions) ?? []),
-    ]),
+    actions: drawn,
+    areas,
+    provenance,
   });
 }
 
@@ -247,8 +275,9 @@ export class WatchRoutes {
         type: "error",
         payload: { code: "not_found", message: text },
       });
-    const facts = this.latest()?.facts;
-    if (!facts) {
+    const latest = this.latest();
+    const facts = latest?.facts;
+    if (!latest || !facts) {
       notFound("No sweep has been persisted for this fleet");
       return;
     }
@@ -265,7 +294,15 @@ export class WatchRoutes {
       id: message.id,
       kind: "response",
       type: "inspect.result",
-      payload: await inspectResult(model, item, now, ctx, this.options.exec, this.options.inspect),
+      payload: await inspectResult(
+        model,
+        item,
+        now,
+        ctx,
+        this.options.exec,
+        latest.view.areas,
+        this.options.inspect,
+      ),
     });
   }
 }

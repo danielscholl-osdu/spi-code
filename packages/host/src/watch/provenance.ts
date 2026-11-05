@@ -1,12 +1,20 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { AreaEnvelope, Envelope, ValueSource } from "@spi-code/contracts";
+import type {
+  ActionItem as ActionItemWire,
+  AreaEnvelope,
+  Envelope,
+  ValueSource,
+} from "@spi-code/contracts";
 import {
+  type ActionItem,
   AREAS,
   type AreaName,
   type Briefing,
   envelopeOf,
+  type ForkEntry,
+  type QueueItem,
   RELEASES_EVERY_MS,
   type ReadRecord,
   type StackModel,
@@ -243,4 +251,168 @@ export function areaEnvelopes(
     area,
     envelope: readEnvelope(area, reads[area] ?? [], intervalOf(area), now),
   }));
+}
+
+/**
+ * The areas buildQueue read to make each kind of item: its text, cause facts, note and URL.
+ * A kind this file does not know binds the whole model.
+ */
+const ITEM_AREAS = {
+  // Lifecycle attempts, the stack repository (github) and the failed runs' job details.
+  stack: ["github", "lifecycle", "details"],
+  maintenance: LIFECYCLE,
+  // Lane PRs and their checks (github, details) against the stack's deployability (lifecycle).
+  lanes: ["github", "lifecycle", "details"],
+  // The sync-failed issue (github), the failing Sync Upstream run (runs) and the upstream lag.
+  halt: ["github", "runs", "upstream"],
+  "sync-run": GITHUB_RUNS,
+  conflict: GITHUB,
+  cascade: GITHUB,
+  labels: GITHUB,
+  main: ["runs"],
+  "template-run": ["runs"],
+  gate1: ["github", "details", "upstream"],
+  gate2: ["github", "details"],
+  access: ["github", "details"],
+  "release-red": ["github", "details"],
+  releases: ["github", "details"],
+  "template-pr": ["github", "details"],
+  "template-red": ["github", "details", "template"],
+  "template-set": LINES,
+  rollout: LINES,
+  approvals: ["approvals"],
+  bump: STACK,
+  radar: LINES,
+  port: ["radar"],
+  security: REPO,
+} as const satisfies Record<QueueItem["kind"], readonly AreaName[]>;
+
+function itemAreas(item: QueueItem): readonly AreaName[] {
+  return (ITEM_AREAS as Partial<Record<string, readonly AreaName[]>>)[item.kind] ?? MODEL;
+}
+
+/** A radar item's effect counts every incident in the queue, so it reads the whole model. */
+function effectAreas(item: QueueItem): readonly AreaName[] {
+  return item.kind === "radar" ? MODEL : itemAreas(item);
+}
+
+/**
+ * A label core computed from reads, chosen by the branch core took. The dispatch labels are
+ * fixed text and bind nothing. laneActions offers "Re-run when deployable" on the stack's
+ * deployability alone; when deployable, "Re-run lanes · N" also counts the lanes the lane load
+ * (github, runs) leaves room for and their judged checks.
+ */
+function labelAreas(verb: string, deployable: boolean): readonly AreaName[] | undefined {
+  switch (verb) {
+    case "approve-runs":
+      return ["approvals"];
+    case "rerun":
+      return deployable ? ["github", "runs", "lifecycle", "details"] : LIFECYCLE;
+    case "sync-template":
+    case "roll-out":
+      return LINES;
+    case "dispatch-env-refresh":
+    case "dispatch-env-upgrade":
+      return undefined;
+    default:
+      return MODEL;
+  }
+}
+
+/**
+ * A reason core derived from reads, by the branch that set it. A write block is host and
+ * sweep-marker state and never reaches here. A re-run's stop judgement (laneActions) outranks
+ * the rest; past it, a deployable stack leaves only the lane load, and a held one leaves host
+ * state (no durable ops, a wait already held), which binds nothing.
+ */
+function reasonAreas(
+  verb: string,
+  item: QueueItem,
+  deployable: boolean,
+): readonly AreaName[] | undefined {
+  switch (verb) {
+    case "dispatch-env-refresh":
+    case "dispatch-env-upgrade":
+      // The only other reason is a lifecycle run already queued or running.
+      return LIFECYCLE;
+    case "rerun":
+      if (item.judgement?.response === "stop") return ["github", "details"];
+      return deployable ? GITHUB_RUNS : undefined;
+    case "sync-template":
+    case "roll-out":
+      return LINES;
+    case "approve-runs":
+      return undefined;
+    default:
+      return MODEL;
+  }
+}
+
+export interface InspectSources {
+  readonly item: QueueItem;
+  /** Rows in the result's related list, in the order the route writes them. */
+  readonly related: {
+    readonly themes: number;
+    readonly evidence: number;
+    readonly sameEntry: number;
+  };
+  readonly approval: boolean;
+  /** Core's actions and the contract actions mapped from them, one to one and in order. */
+  readonly actions: readonly ActionItem[];
+  readonly drawn: readonly Pick<ActionItemWire, "label" | "eligibilityReason">[];
+  /** core's writeBlocked for this request. */
+  readonly blocked: string | undefined;
+  /** Whether the stack read deployable, the branch laneActions takes. */
+  readonly deployable: boolean;
+  /** The FILTERS read across forks, when the item is a checkable halt. */
+  readonly entries: readonly ForkEntry[] | undefined;
+  readonly now: Date;
+}
+
+/**
+ * Provenance for an inspect result, keyed by RFC 6901 pointer into it. Values from the
+ * inspector's on-demand reads bind fleet with an envelope judged at the request: those reads
+ * have no sweep interval and were observed for this request.
+ */
+export function inspectProvenance(sources: InspectSources): ValueSource[] {
+  const { item, related, entries, now } = sources;
+  const out: ValueSource[] = [];
+  const add = (path: string, areas: readonly AreaName[], envelope?: Envelope): void => {
+    out.push({ path, areas: ordered(areas), ...(envelope ? { envelope } : {}) });
+  };
+  const own = itemAreas(item);
+  const onDemand = entries
+    ? readEnvelope(
+        "filters",
+        entries.flatMap((entry) => entry.reads),
+        0,
+        now,
+      )
+    : undefined;
+  add("/class", own);
+  add("/cause", own);
+  add("/effect", effectAreas(item));
+  if (onDemand && entries?.some((entry) => entry.state === "listed")) {
+    add("/next", [...own, "fleet"], onDemand);
+  } else {
+    add("/next", own);
+  }
+  // why lists the cause facts the cause and effect sentences did not already say.
+  add("/why", [...own, ...effectAreas(item)]);
+  let row = 0;
+  for (let i = 0; i < related.themes; i++) add(`/related/${row++}`, MODEL);
+  for (let i = 0; i < related.evidence; i++) add(`/related/${row++}`, own);
+  for (let i = 0; i < related.sameEntry; i++) add(`/related/${row++}`, ["fleet"], onDemand);
+  if (sources.approval) add("/approval/reason", ["approvals"]);
+  sources.actions.forEach((action, i) => {
+    const verb = typeof action.binding?.verb === "string" ? action.binding.verb : "";
+    const label = labelAreas(verb, sources.deployable);
+    if (label && sources.drawn[i]?.label === action.label) add(`/actions/${i}/label`, label);
+    const reason = action.reason;
+    if (reason === undefined || reason === sources.blocked) return;
+    if (sources.drawn[i]?.eligibilityReason !== reason) return;
+    const areas = reasonAreas(verb, item, sources.deployable);
+    if (areas) add(`/actions/${i}/eligibilityReason`, areas);
+  });
+  return out;
 }

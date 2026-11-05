@@ -6,6 +6,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import {
+  AREAS,
+  type InspectResult,
   InspectResultSchema,
   type Message,
   PROTOCOL_VERSION,
@@ -31,7 +33,7 @@ import { createSnapshotStore } from "../store/snapshots.js";
 import { openRunStore } from "../store/store.js";
 import { SweepService } from "../sweep/service.js";
 import { projectWatch } from "../watch/project.js";
-import { fixtureInput, oracle } from "../watch/snapshot-fixture.js";
+import { fixtureInput, mixedFixtureInput, oracle } from "../watch/snapshot-fixture.js";
 import { attachHostPort, type HostPort } from "./port.js";
 import { inspectResult, WatchRoutes, watchFleet } from "./routes.js";
 
@@ -314,6 +316,7 @@ describe("view.subscribe", () => {
 
 describe("inspect.request", () => {
   const model = buildModel(input.facts, ctx.clock.now(), {}, ctx);
+  const areas = projectWatch(input).areas;
   const base: QueueItem = {
     id: "x",
     kind: "gate1",
@@ -336,14 +339,29 @@ describe("inspect.request", () => {
     return found;
   };
   const approve = ["Approve #343 · 2 runs", "Approve #344 · 2 runs", "Approve #345 · 2 runs"];
+  const approvalBound = {
+    "/approval/reason": ["approvals"],
+    "/actions/0/label": ["approvals"],
+    "/actions/1/label": ["approvals"],
+    "/actions/2/label": ["approvals"],
+  };
+  const bindings = (result: InspectResult) =>
+    new Map((result.provenance ?? []).map((source) => [source.path, source]));
   interface Case {
     item: Partial<QueueItem>;
     opts?: InspectOptions;
     labels: string[];
     approval?: string;
+    bound?: Record<string, string[]>;
+    unbound?: string[];
   }
+  const LINES = ["github", "runs", "lifecycle", "details", "upstream", "radar", "template"];
   const classes: Record<ItemClass, Case> = {
-    ENV: { ...real("wait for deployable"), labels: ["Re-run when deployable"] },
+    ENV: {
+      ...real("wait for deployable"),
+      labels: ["Re-run when deployable"],
+      bound: { "/actions/0/label": ["lifecycle"] },
+    },
     ACCESS: {
       item: {
         kind: "access",
@@ -371,6 +389,11 @@ describe("inspect.request", () => {
       item: { ...real("busy lifecycle").item, cls: "INFRA" },
       opts: real("busy lifecycle").opts,
       labels: ["Re-dispatch env-upgrade", "Re-dispatch env-refresh"],
+      bound: {
+        "/actions/0/eligibilityReason": ["lifecycle"],
+        "/actions/1/eligibilityReason": ["lifecycle"],
+      },
+      unbound: ["/actions/0/label", "/actions/1/label"],
     },
     BUILD: { item: { kind: "release-red", cls: "BUILD" }, labels: [] },
     UNREAD: { item: { cls: "UNREAD" }, labels: [] },
@@ -380,13 +403,25 @@ describe("inspect.request", () => {
       item: { ...real("template actions").item, cls: "ROLLOUT" },
       opts: real("template actions").opts,
       labels: ["Sync all forks · 0", "Roll out · 0 ready"],
+      bound: {
+        "/actions/0/label": LINES,
+        "/actions/0/eligibilityReason": LINES,
+        "/actions/1/label": LINES,
+        "/actions/1/eligibilityReason": LINES,
+      },
     },
-    INCIDENT: { ...real("approval waiting"), labels: approve, approval: "Outside PRs · 3" },
+    INCIDENT: {
+      ...real("approval waiting"),
+      labels: approve,
+      approval: "Outside PRs · 3",
+      bound: approvalBound,
+    },
     GATE: {
       item: { ...real("approval waiting").item, incident: false },
       opts: real("approval waiting").opts,
       labels: approve,
       approval: "Outside PRs · 3",
+      bound: approvalBound,
     },
     READY: { item: { incident: false, rung: 2, kind: "releases" }, labels: [] },
   };
@@ -395,7 +430,7 @@ describe("inspect.request", () => {
     "%s maps to a schema-valid result with every write disabled",
     async (cls, { item: override, opts, labels, approval }) => {
       const item = { ...base, ...override } as QueueItem;
-      const result = await inspectResult(model, item, ctx.clock.now(), ctx, failing, opts);
+      const result = await inspectResult(model, item, ctx.clock.now(), ctx, failing, areas, opts);
       expect(InspectResultSchema.safeParse(result).success).toBe(true);
       expect(result.class).toBe(cls);
       expect(result.actions.map((action) => action.label)).toEqual(labels);
@@ -409,12 +444,96 @@ describe("inspect.request", () => {
     },
   );
 
+  it.each(Object.entries(classes))(
+    "%s binds each value it draws to the areas behind it",
+    async (_, { item: override, opts, bound = {}, unbound = [] }) => {
+      const item = { ...base, ...override } as QueueItem;
+      const result = await inspectResult(model, item, ctx.clock.now(), ctx, failing, areas, opts);
+      expect(InspectResultSchema.safeParse(result).success).toBe(true);
+      expect(result.areas).toEqual(areas);
+      expect(result.areas?.map(({ area }) => area)).toEqual([...AREAS]);
+      const sources = bindings(result);
+      for (const path of ["/class", "/cause", "/effect", "/next", "/why"]) {
+        expect(sources.get(path)?.areas.length).toBeGreaterThan(0);
+      }
+      for (const i of result.related.keys()) expect(sources.has(`/related/${i}`)).toBe(true);
+      for (const [path, named] of Object.entries(bound)) {
+        expect(sources.get(path)?.areas).toEqual(named);
+      }
+      for (const path of unbound) expect(sources.has(path)).toBe(false);
+    },
+  );
+
+  it("leaves a write-blocked reason unbound while its label stays bound", async () => {
+    const { item: override, opts } = classes.ENV;
+    const item = { ...base, ...override } as QueueItem;
+    const blocked = { ...opts, scopes: [] };
+    const result = await inspectResult(model, item, ctx.clock.now(), ctx, failing, areas, blocked);
+    expect(result.actions[0]?.eligibilityReason).toMatch(/lacks the repo scope/);
+    const sources = bindings(result);
+    expect(sources.get("/actions/0/label")?.areas).toEqual(["lifecycle"]);
+    expect(sources.has("/actions/0/eligibilityReason")).toBe(false);
+  });
+
+  it("binds a stop-the-line reason to the judged checks", async () => {
+    const { item: override, opts } = classes.ENV;
+    const judgement = { class: "real", response: "stop" } as const;
+    const item = { ...base, ...override, judgement } as QueueItem;
+    const result = await inspectResult(model, item, ctx.clock.now(), ctx, failing, areas, opts);
+    expect(result.actions[0]?.eligibilityReason).toMatch(/^stop the line/);
+    expect(bindings(result).get("/actions/0/eligibilityReason")?.areas).toEqual([
+      "github",
+      "details",
+    ]);
+  });
+
+  it("keeps inferred-only values apart from values that also read observed areas", async () => {
+    const mixed = mixedFixtureInput();
+    const mixedModel = buildModel(mixed.facts, ctx.clock.now(), {}, mixed.context);
+    const mixedAreas = projectWatch(mixed).areas;
+    const inferred = new Set(
+      mixedAreas.filter(({ envelope }) => envelope.inferred === true).map(({ area }) => area),
+    );
+    expect([...inferred]).toEqual(["lifecycle"]);
+    const isInferred = (result: InspectResult, path: string) => {
+      const source = bindings(result).get(path);
+      if (!source) return false;
+      if (source.envelope && source.envelope.inferred !== true) return false;
+      return source.areas.every((area) => inferred.has(area));
+    };
+    const inspect = (override: Partial<QueueItem>, opts?: InspectOptions) =>
+      inspectResult(
+        mixedModel,
+        { ...base, ...override } as QueueItem,
+        ctx.clock.now(),
+        mixed.context,
+        failing,
+        mixedAreas,
+        opts,
+      );
+    const maintenance = await inspect({ kind: "maintenance", cls: "ENV", rung: 0 });
+    expect(InspectResultSchema.safeParse(maintenance).success).toBe(true);
+    expect(isInferred(maintenance, "/cause")).toBe(true);
+    const env = await inspect(classes.ENV.item, classes.ENV.opts);
+    expect(env.actions[0]?.label).toBe("Re-run when deployable");
+    expect(isInferred(env, "/actions/0/label")).toBe(true);
+    expect(bindings(env).get("/cause")?.areas).toContain("lifecycle");
+    expect(isInferred(env, "/cause")).toBe(false);
+  });
+
   it("records the failed FILTERS read as evidence for a checkable halt", async () => {
     const item = { ...base, ...classes.HALT.item } as QueueItem;
-    const result = await inspectResult(model, item, ctx.clock.now(), ctx, failing);
+    const result = await inspectResult(model, item, ctx.clock.now(), ctx, failing, areas);
     expect(calls).toBeGreaterThan(0);
     expect(result.evidence.length).toBeGreaterThan(0);
     expect(result.evidence.every((record) => record.failure !== undefined)).toBe(true);
+    expect(result.related.length).toBeGreaterThan(0);
+    for (const i of result.related.keys()) {
+      expect(bindings(result).get(`/related/${i}`)).toMatchObject({
+        areas: ["fleet"],
+        envelope: { source: "filters", state: "failed" },
+      });
+    }
   });
 
   it("answers each queued item over the port and an unknown id with not_found", async () => {
@@ -432,7 +551,13 @@ describe("inspect.request", () => {
         payload: { id },
       });
     }
-    const actions = replies.flatMap((m) => (m.type === "inspect.result" ? m.payload.actions : []));
+    const results = replies.flatMap((m) => (m.type === "inspect.result" ? [m.payload] : []));
+    const stored = projectWatch(input).areas;
+    for (const result of results) {
+      expect(result.areas).toEqual(stored);
+      expect(result.provenance?.length).toBeGreaterThan(0);
+    }
+    const actions = results.flatMap((result) => result.actions);
     expect(actions.length).toBeGreaterThan(0);
     expect(actions.every((action) => action.disabledReason === "writes arrive at M4")).toBe(true);
     expect(replies.find((m) => m.id === "inspect-missing")).toMatchObject({

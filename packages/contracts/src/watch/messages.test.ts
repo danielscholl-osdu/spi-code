@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { parseMessage } from "../index.js";
 import { BriefingSchema } from "./briefing.js";
 import { AREAS, EnvelopeSchema, type ReadRecord, ReadRecordSchema } from "./evidence.js";
-import { ItemClassSchema } from "./inspect.js";
+import { InspectResultSchema, ItemClassSchema } from "./inspect.js";
 import { PROTOCOL_VERSION, type WatchMessage, WatchMessageSchema } from "./messages.js";
 import { ReleasesPaneSchema, type ViewSnapshot } from "./snapshot.js";
 import { ServiceStationsSchema, StationIdSchema } from "./stations.js";
@@ -312,6 +312,53 @@ describe("Watch protocol", () => {
     { ...inspect, approval: { ...inspect.approval, extra: true } },
   ])("rejects planted nested-invalid inspector fields", (payload) => {
     expect(parseMessage({ ...messages[1], payload }).ok).toBe(false);
+  });
+  describe("inspector provenance", () => {
+    const areas = AREAS.map((area) => ({
+      area,
+      envelope: { source: area, state: "unread" as const },
+    }));
+    const provenance = [
+      { path: "/cause", areas: ["github"] },
+      { path: "/actions/0/eligibilityReason", areas: ["lifecycle"] },
+    ];
+    const issues = (payload: unknown) =>
+      InspectResultSchema.safeParse(payload).error?.issues.map((issue) => issue.message) ?? [];
+    it("accepts a result that predates per-value provenance", () => {
+      expect(parseMessage(messages[1]).ok).toBe(true);
+      expect(issues(inspect)).toEqual([]);
+    });
+    it("accepts area envelopes with value bindings", () => {
+      expect(parseMessage({ ...messages[1], payload: { ...inspect, areas, provenance } }).ok).toBe(
+        true,
+      );
+    });
+    it.each([
+      [{ ...inspect, areas }, "Areas and provenance must be present together"],
+      [{ ...inspect, provenance }, "Areas and provenance must be present together"],
+      [{ ...inspect, areas: areas.slice(1), provenance }, "Area fleet has no envelope"],
+      [{ ...inspect, areas: [...areas, areas[0]], provenance }, "Area fleet repeats"],
+      [
+        {
+          ...inspect,
+          areas: areas.map((a) =>
+            a.area === "runs" ? { ...a, envelope: { ...a.envelope, source: "github" } } : a,
+          ),
+          provenance,
+        },
+        "Envelope source github is not area runs",
+      ],
+      [
+        { ...inspect, areas, provenance: [...provenance, provenance[0]] },
+        "Provenance repeats /cause",
+      ],
+      [
+        { ...inspect, areas, provenance: [{ path: "/actions/1/label", areas: ["github"] }] },
+        "Provenance path /actions/1/label does not resolve",
+      ],
+    ])("rejects inconsistent inspector provenance", (payload, message) => {
+      expect(issues(payload)).toContain(message);
+    });
   });
   it.each([
     { ...messages[2], payload: { remaining: -1, resetAt: at, deferredAreas: [] } },
