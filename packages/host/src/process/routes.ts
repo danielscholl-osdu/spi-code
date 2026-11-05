@@ -28,7 +28,6 @@ import {
   emptyFacts,
   entryAcrossForks,
   type Facts,
-  type ForkEntry,
   Gh,
   Glab,
   type InspectOptions,
@@ -40,7 +39,6 @@ import {
 import { z } from "zod";
 import { createSnapshotStore, type SnapshotRecord } from "../store/snapshots.js";
 import { appActions } from "../watch/project.js";
-import { type InspectBody, inspectProvenance } from "../watch/provenance.js";
 import type { HostRoutes, HostSend } from "./port.js";
 
 export interface WatchRoutesOptions {
@@ -110,29 +108,44 @@ function webUrl(url: string | undefined): { url: string } | Record<string, never
   return url !== undefined && WebUrlSchema.safeParse(url).success ? { url } : {};
 }
 
-/** Core's inspection of an item mapped to the contract's shown values. */
-function inspectBody(
+/**
+ * Core inspection mapped to the contract, with the FILTERS read for a checkable halt. Areas are
+ * the sweep's stored envelopes. Provenance is empty: no value is bound to a source until core
+ * records which reads produced it, so the window shows none as inferred.
+ */
+export async function inspectResult(
   model: Model,
   item: QueueItem,
   now: Date,
   ctx: CoreContext,
-  entries: readonly ForkEntry[] | undefined,
-  opts: InspectOptions,
-): InspectBody {
+  exec: Exec,
+  areas: readonly AreaEnvelope[],
+  opts: InspectOptions = {},
+): Promise<InspectResult> {
+  const entries = checkable(item.halt)
+    ? await entryAcrossForks(new Gh(exec), new Glab(exec), item.halt, ctx)
+    : undefined;
   const inspection = inspectItem(
     model,
     item,
     now,
     ctx,
-    entries ? { others: { id: item.id, entries: [...entries] } } : {},
+    entries ? { others: { id: item.id, entries } } : {},
   );
   const approvals = approvalSection(item, model, opts);
-  return {
+  const evidence = new Map<string, ReadRecord>();
+  for (const record of (entries ?? []).flatMap((entry) => entry.reads)) {
+    const parsed = readRecord(record);
+    evidence.set(JSON.stringify(parsed), parsed);
+  }
+  return InspectResultSchema.parse({
+    id: item.id,
     class: inspection.class,
     cause: inspection.cause,
     effect: inspection.effect,
     next: inspection.next,
     why: inspection.why.map((field) => `${field.label}: ${field.value}`).join("; "),
+    evidence: [...evidence.values()],
     related: [
       ...inspection.related.map((r) => ({
         text: r.text,
@@ -155,48 +168,8 @@ function inspectBody(
       ...verbsOf(item, model, ctx, opts),
       ...(approvals?.items.flatMap((entry) => entry.actions) ?? []),
     ]),
-  };
-}
-
-/**
- * Core inspection mapped to the contract, with the FILTERS read for a checkable halt. Each
- * value names the Facts areas behind it, found by rebuilding the model from the sweep's facts;
- * areas are that sweep's envelopes.
- */
-export async function inspectResult(
-  model: Model,
-  item: QueueItem,
-  now: Date,
-  ctx: CoreContext,
-  exec: Exec,
-  sweep: { readonly areas: readonly AreaEnvelope[]; readonly facts?: Facts },
-  opts: InspectOptions = {},
-): Promise<InspectResult> {
-  const entries = checkable(item.halt)
-    ? await entryAcrossForks(new Gh(exec), new Glab(exec), item.halt, ctx)
-    : undefined;
-  const show = (from: Model, shown: QueueItem, others: readonly ForkEntry[] | undefined) =>
-    inspectBody(from, shown, now, ctx, others, opts);
-  const evidence = new Map<string, ReadRecord>();
-  for (const record of (entries ?? []).flatMap((entry) => entry.reads)) {
-    const parsed = readRecord(record);
-    evidence.set(JSON.stringify(parsed), parsed);
-  }
-  const provenance = inspectProvenance({
-    facts: sweep.facts,
-    model,
-    item,
-    entries,
-    now,
-    rebuild: (facts) => buildModel(facts, now, {}, ctx),
-    show,
-  });
-  return InspectResultSchema.parse({
-    id: item.id,
-    ...show(model, item, entries),
-    evidence: [...evidence.values()],
-    areas: sweep.areas,
-    provenance,
+    areas,
+    provenance: [],
   });
 }
 
@@ -307,7 +280,7 @@ export class WatchRoutes {
         now,
         ctx,
         this.options.exec,
-        { areas: latest.view.areas, facts },
+        latest.view.areas,
         this.options.inspect,
       ),
     });

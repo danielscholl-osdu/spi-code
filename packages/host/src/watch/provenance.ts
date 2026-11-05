@@ -1,18 +1,12 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { isDeepStrictEqual } from "node:util";
-import type { AreaEnvelope, Envelope, InspectResult, ValueSource } from "@spi-code/contracts";
+import type { AreaEnvelope, Envelope, ValueSource } from "@spi-code/contracts";
 import {
   AREAS,
   type AreaName,
   type Briefing,
-  emptyFacts,
   envelopeOf,
-  type Facts,
-  type ForkEntry,
-  type Model,
-  type QueueItem,
   RELEASES_EVERY_MS,
   type ReadRecord,
   type StackModel,
@@ -249,139 +243,4 @@ export function areaEnvelopes(
     area,
     envelope: readEnvelope(area, reads[area] ?? [], intervalOf(area), now),
   }));
-}
-
-/** The values an inspect result shows: everything but its id, the FILTERS reads and evidence. */
-export type InspectBody = Pick<
-  InspectResult,
-  "class" | "cause" | "effect" | "next" | "why" | "related" | "approval" | "actions"
->;
-
-interface Shown {
-  readonly path: string;
-  /** Finds the same value in another body: a pointer, a row's content or an action's id. */
-  readonly key: string;
-  readonly value: string;
-}
-
-/**
- * Every non-empty value a body shows. A related row is matched by its content, so a row that
- * only moved still counts as unchanged; an action by its id, which is stable per type.
- */
-function shownOf(body: InspectBody): Shown[] {
-  const out: Shown[] = [];
-  const scalar = (path: string, value: string | undefined) => {
-    if (value) out.push({ path, key: path, value });
-  };
-  scalar("/class", body.class);
-  scalar("/cause", body.cause);
-  scalar("/effect", body.effect);
-  scalar("/next", body.next);
-  scalar("/why", body.why);
-  const seen = new Map<string, number>();
-  body.related.forEach((row, i) => {
-    const value = JSON.stringify(row);
-    const k = seen.get(value) ?? 0;
-    seen.set(value, k + 1);
-    out.push({ path: `/related/${i}`, key: `related ${k} ${value}`, value });
-  });
-  scalar("/approval/reason", body.approval?.reason);
-  body.actions.forEach((action, i) => {
-    out.push({ path: `/actions/${i}/label`, key: `${action.id} label`, value: action.label });
-    if (action.eligibilityReason) {
-      out.push({
-        path: `/actions/${i}/eligibilityReason`,
-        key: `${action.id} eligibilityReason`,
-        value: action.eligibilityReason,
-      });
-    }
-  });
-  return out;
-}
-
-/** The values of shown that other does not show the same; all of them when other is absent. */
-function changed(shown: readonly Shown[], other: InspectBody | undefined): Shown[] {
-  if (other === undefined) return [...shown];
-  const index = new Map(shownOf(other).map((v) => [v.key, v.value]));
-  return shown.filter((v) => index.get(v.key) !== v.value);
-}
-
-function filtersEnvelope(entries: readonly ForkEntry[], now: Date): Envelope {
-  return readEnvelope(
-    "filters",
-    entries.flatMap((entry) => entry.reads),
-    0,
-    now,
-  );
-}
-
-export interface InspectSources {
-  /** The sweep's facts the model was built from; without them no model value is bound. */
-  readonly facts: Facts | undefined;
-  readonly model: Model;
-  readonly item: QueueItem;
-  /** The FILTERS read across forks, when the item is a checkable halt. */
-  readonly entries: readonly ForkEntry[] | undefined;
-  readonly now: Date;
-  /** Core's model for a set of facts, built as the result's model was. */
-  rebuild(facts: Facts): Model;
-  /** The body the route shows for an item, built by core from a model and FILTERS read. */
-  show(model: Model, item: QueueItem, entries: readonly ForkEntry[] | undefined): InspectBody;
-}
-
-/**
- * Provenance for an inspect result, keyed by RFC 6901 pointer into it, found by asking core
- * rather than by restating it. A value binds a Facts area exactly when rebuilding the model
- * with that area empty changes the value or drops the item; it binds the on-demand FILTERS
- * reads (fleet, with an envelope judged now from those reads alone) when leaving them out
- * changes it. Core's per-value producers are private and buildModel reads every area for the
- * whole queue at once, so per-value read tracking is out of reach; the counterfactual follows
- * core wherever it changes. A value bound to nothing (a fixed label, a host write block) or
- * shown from a model its facts do not rebuild stays unbound.
- */
-export function inspectProvenance(sources: InspectSources): ValueSource[] {
-  const { facts, model, item, entries, now } = sources;
-  const shown = shownOf(sources.show(model, item, entries));
-  const areas = new Map<string, Set<AreaName>>();
-  const bind = (path: string, area: AreaName) => {
-    const set = areas.get(path) ?? new Set<AreaName>();
-    set.add(area);
-    areas.set(path, set);
-  };
-  const variant = (from: Model, others: readonly ForkEntry[] | undefined) => {
-    const found = from.queue.items.find((entry) => entry.id === item.id);
-    return found && sources.show(from, found, others);
-  };
-  if (
-    facts !== undefined &&
-    changed(shown, variant(sources.rebuild(facts), entries)).length === 0
-  ) {
-    const empty = emptyFacts();
-    for (const area of AREAS) {
-      if (isDeepStrictEqual(facts[area], empty[area])) continue;
-      const ablated = sources.rebuild({ ...facts, [area]: empty[area] });
-      for (const { path } of changed(shown, variant(ablated, entries))) bind(path, area);
-    }
-  }
-  const reads = new Map<string, ForkEntry[]>();
-  if (entries !== undefined && entries.length > 0) {
-    for (const { path } of changed(shown, variant(model, undefined))) reads.set(path, []);
-    for (const entry of entries) {
-      const rest = entries.filter((other) => other !== entry);
-      for (const { path } of changed(shown, variant(model, rest))) {
-        reads.set(path, [...(reads.get(path) ?? []), entry]);
-      }
-    }
-    for (const path of reads.keys()) bind(path, "fleet");
-  }
-  return shown.flatMap(({ path }) => {
-    const named = areas.get(path);
-    if (named === undefined) return [];
-    const behind = reads.get(path);
-    const envelope =
-      behind === undefined
-        ? undefined
-        : filtersEnvelope(behind.length > 0 ? behind : (entries ?? []), now);
-    return [{ path, areas: ordered([...named]), ...(envelope ? { envelope } : {}) }];
-  });
 }

@@ -7,15 +7,11 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import {
   AREAS,
-  type AreaEnvelope,
-  type InspectResult,
   InspectResultSchema,
   type Message,
   PROTOCOL_VERSION,
   parseMessage,
-  resolvePointer,
   SweepStatusSchema,
-  type ValueSource,
 } from "@spi-code/contracts";
 import {
   BudgetPacer,
@@ -24,7 +20,6 @@ import {
   type createSweeper,
   type Exec,
   emptyCache,
-  emptyFacts,
   type Facts,
   type InspectOptions,
   type ItemClass,
@@ -37,7 +32,7 @@ import { createSnapshotStore } from "../store/snapshots.js";
 import { openRunStore } from "../store/store.js";
 import { SweepService } from "../sweep/service.js";
 import { projectWatch } from "../watch/project.js";
-import { fixtureInput, mixedFixtureInput, oracle } from "../watch/snapshot-fixture.js";
+import { fixtureInput, oracle } from "../watch/snapshot-fixture.js";
 import { attachHostPort, type HostPort } from "./port.js";
 import { inspectResult, WatchRoutes, watchFleet } from "./routes.js";
 
@@ -343,8 +338,6 @@ describe("inspect.request", () => {
     return found;
   };
   const approve = ["Approve #343 · 2 runs", "Approve #344 · 2 runs", "Approve #345 · 2 runs"];
-  const bindings = (result: InspectResult) =>
-    new Map((result.provenance ?? []).map((source) => [source.path, source]));
   interface Case {
     item: Partial<QueueItem>;
     opts?: InspectOptions;
@@ -404,15 +397,7 @@ describe("inspect.request", () => {
     "%s maps to a schema-valid result with every write disabled",
     async (cls, { item: override, opts, labels, approval }) => {
       const item = { ...base, ...override } as QueueItem;
-      const result = await inspectResult(
-        model,
-        item,
-        ctx.clock.now(),
-        ctx,
-        failing,
-        { areas },
-        opts,
-      );
+      const result = await inspectResult(model, item, ctx.clock.now(), ctx, failing, areas, opts);
       expect(InspectResultSchema.safeParse(result).success).toBe(true);
       expect(result.class).toBe(cls);
       expect(result.actions.map((action) => action.label)).toEqual(labels);
@@ -427,329 +412,26 @@ describe("inspect.request", () => {
   );
 
   it.each(Object.entries(classes))(
-    "%s leaves model values unbound when the sweep's facts do not rebuild its item",
+    "%s carries the stored area envelopes and binds no value to a source",
     async (_, { item: override, opts }) => {
       const item = { ...base, ...override } as QueueItem;
-      const result = await inspectResult(
-        model,
-        item,
-        ctx.clock.now(),
-        ctx,
-        failing,
-        { areas, facts: input.facts },
-        opts,
-      );
+      const result = await inspectResult(model, item, ctx.clock.now(), ctx, failing, areas, opts);
       expect(InspectResultSchema.safeParse(result).success).toBe(true);
       expect(result.areas).toEqual(areas);
       expect(result.areas?.map(({ area }) => area)).toEqual([...AREAS]);
-      // Only the FILTERS read this request made can stand behind a value of an item core never queued.
-      for (const source of result.provenance ?? []) expect(source.areas).toEqual(["fleet"]);
+      // Nothing is inferred until core records which reads produced each value.
+      expect(result.provenance).toEqual([]);
     },
   );
 
-  const mixed = mixedFixtureInput();
-  const mixedCtx = mixed.context;
-  const mixedModel = buildModel(mixed.facts, ctx.clock.now(), {}, mixedCtx);
-  const mixedAreas = projectWatch(mixed).areas;
-  const inspectMixed = (facts: Facts, pick: (item: QueueItem) => boolean, exec = failing) => {
-    const built = buildModel(facts, ctx.clock.now(), {}, mixedCtx);
-    const item = built.queue.items.find(pick);
-    if (!item) throw new Error("fixture must queue the item");
-    return inspectResult(built, item, ctx.clock.now(), mixedCtx, exec, {
-      areas: mixedAreas,
-      facts,
-    });
-  };
-  const windowInferred = async () => {
-    const evidence = new URL("../../../../apps/window/src/store/evidence.ts", import.meta.url);
-    const { isInferred } = (await import(/* @vite-ignore */ evidence.href)) as {
-      isInferred: (
-        snapshot: { areas: readonly AreaEnvelope[]; provenance: ValueSource[] },
-        p: string,
-      ) => boolean;
-    };
-    return (result: InspectResult, p: string, envelopes = result.areas ?? []) =>
-      isInferred({ areas: envelopes, provenance: result.provenance ?? [] }, p);
-  };
-
-  it("binds each queued value to the areas whose facts change it", async () => {
-    const expected: Record<string, Record<string, string[]>> = {
-      "stack:38181620856": {
-        "/class": ["lifecycle"],
-        "/cause": ["lifecycle"],
-        "/why": ["github", "lifecycle"],
-        "/actions/0/label": ["lifecycle"],
-        "/actions/0/eligibilityReason": ["lifecycle"],
-      },
-      "gate1:legal": {
-        "/cause": ["github", "details"],
-        "/effect": ["github", "upstream"],
-        "/related/0": ["github", "details", "radar"],
-      },
-      "port:legal": { "/class": ["radar"], "/cause": ["radar"], "/related/0": ["radar"] },
-      "approvals:Azure/osdu-spi-stack": { "/cause": ["approvals"], "/why": ["approvals"] },
-      releases: { "/cause": ["github"], "/next": ["github"] },
-    };
-    for (const item of mixedModel.queue.items) {
-      const result = await inspectMixed(mixed.facts, (entry) => entry.id === item.id);
-      const sources = bindings(result);
-      for (const path of ["/class", "/cause", "/effect", "/next"]) {
-        expect(sources.get(path)?.areas.length, `${item.id} ${path}`).toBeGreaterThan(0);
-      }
-      for (const [path, named] of Object.entries(expected[item.id] ?? {})) {
-        expect(sources.get(path)?.areas, `${item.id} ${path}`).toEqual(named);
-      }
-    }
-  });
-
-  it("binds no area whose facts its value did not read, and every area that it did", async () => {
-    const empty = emptyFacts();
-    const scalars = ["/class", "/cause", "/effect", "/next", "/why", "/approval/reason"];
-    for (const item of mixedModel.queue.items) {
-      const result = await inspectMixed(mixed.facts, (entry) => entry.id === item.id);
-      const sources = bindings(result);
-      for (const area of AREAS) {
-        const ablated = buildModel(
-          { ...mixed.facts, [area]: empty[area] },
-          ctx.clock.now(),
-          {},
-          mixedCtx,
-        );
-        const counterpart = ablated.queue.items.find((entry) => entry.id === item.id);
-        const other =
-          counterpart &&
-          (await inspectResult(ablated, counterpart, ctx.clock.now(), mixedCtx, failing, {
-            areas: mixedAreas,
-          }));
-        const rows = new Set(other?.related.map((row) => JSON.stringify(row)));
-        const changed = (path: string): boolean => {
-          if (other === undefined) return true;
-          const [, field, index, key] = path.split("/");
-          if (field === "related") {
-            return !rows.has(JSON.stringify(result.related[Number(index)]));
-          }
-          if (field === "actions") {
-            const action = result.actions[Number(index)];
-            const twin = other.actions.find((candidate) => candidate.id === action?.id);
-            const name = key as "label" | "eligibilityReason";
-            return twin?.[name] !== action?.[name];
-          }
-          return resolvePointer(other, path).value !== resolvePointer(result, path).value;
-        };
-        for (const source of result.provenance ?? []) {
-          if (area === "fleet" && source.envelope) continue;
-          if (source.areas.includes(area)) {
-            expect(changed(source.path), `${item.id} ${source.path} binds ${area}`).toBe(true);
-          }
-        }
-        for (const path of scalars) {
-          const value = resolvePointer(result, path);
-          if (!value.found || !value.value) continue;
-          expect(
-            sources.get(path)?.areas.includes(area) ?? false,
-            `${item.id} ${path} and ${area}`,
-          ).toBe(changed(path));
-        }
-      }
-    }
-  });
-
-  it("binds a stack cause to the lifecycle reads alone, whatever GitHub or details say", async () => {
-    const isInferred = await windowInferred();
-    const inspectStack = async (facts: Facts) => {
-      const result = await inspectMixed(facts, (item) => item.kind === "stack");
-      return {
-        cause: result.cause,
-        areas: bindings(result).get("/cause")?.areas,
-        inferred: isInferred(result, "/cause"),
-      };
-    };
-    const pinned = await inspectStack(mixed.facts);
-    expect(pinned).toMatchObject({ areas: ["lifecycle"], inferred: true });
-
-    const repos = structuredClone(mixed.facts.github.data?.repos ?? {});
-    const stackRepo = repos[mixedCtx.stackRepo];
-    if (!stackRepo?.declaration) throw new Error("fixture must declare the stack");
-    stackRepo.declaration.stackVersion = "v9.9.9";
-    const redeclared = await inspectStack({
-      ...mixed.facts,
-      github: { ...mixed.facts.github, data: { ...mixed.facts.github.data, repos } },
-    } as Facts);
-    expect(redeclared).toEqual({ ...pinned });
-
-    const undetailed = await inspectStack({ ...mixed.facts, details: emptyFacts().details });
-    expect(undetailed).toEqual({ ...pinned });
-  });
-
-  it("keeps inferred-only values apart from values that also read observed areas", async () => {
-    const isInferred = await windowInferred();
-    expect(
-      mixedAreas.filter(({ envelope }) => envelope.inferred === true).map(({ area }) => area),
-    ).toEqual(["lifecycle"]);
-    const stack = await inspectMixed(mixed.facts, (item) => item.kind === "stack");
-    expect(isInferred(stack, "/cause")).toBe(true);
-    expect(isInferred(stack, "/actions/0/label")).toBe(true);
-    expect(isInferred(stack, "/why")).toBe(false);
-    const rollout = await inspectMixed(mixed.facts, (item) => item.kind === "rollout");
-    expect(bindings(rollout).get("/next")?.areas).toContain("lifecycle");
-    expect(isInferred(rollout, "/next")).toBe(false);
-  });
-
-  it("judges each same-entry row by its own fork's FILTERS read", async () => {
-    const filter = Buffer.from("top_level:\n  schemathesis-tests: strip\n").toString("base64");
-    const listed = (request: string) => request.includes("partition") || request.includes("legal");
-    const exec: Exec = {
-      runJSON: async <T>(cmd: string, args: readonly string[]) => {
-        calls += 1;
-        const request = `${cmd} ${args.join(" ")}`;
-        if (request.includes("osdu-spi-legal/contents")) {
-          return { ok: false, error: "legal filter offline", code: 1 };
-        }
-        if (cmd === "gh") return { ok: true, data: { sha: "abc", content: filter } as T };
-        return { ok: true, data: (listed(request) ? [{ name: "schemathesis-tests" }] : []) as T };
-      },
-      runText: async (_cmd, args) => {
-        calls += 1;
-        const entries = listed(args.join(" ")) ? [{ name: "schemathesis-tests" }] : [];
-        return { ok: true, data: JSON.stringify(entries) };
-      },
-    };
-    const result = await inspectMixed(mixed.facts, (item) => item.kind === "halt", exec);
-    expect(calls).toBeGreaterThan(0);
-    const row = (match: (entry: InspectResult["related"][number]) => boolean) => {
-      const i = result.related.findIndex(match);
-      expect(i, "row must be shown").toBeGreaterThanOrEqual(0);
-      return bindings(result).get(`/related/${i}`);
-    };
-    expect(row(({ text }) => text.startsWith("partition"))).toMatchObject({
-      areas: expect.arrayContaining(["fleet"]),
-      envelope: { source: "filters", state: "fresh" },
-    });
-    expect(row(({ text, state }) => text === "legal" && state === "?")?.envelope).toMatchObject({
-      state: "failed",
-    });
-    expect(row(({ text }) => text.includes("no such entry"))?.envelope).toMatchObject({
-      state: "fresh",
-    });
-    expect(bindings(result).get("/next")?.envelope).toMatchObject({ state: "fresh" });
-  });
-
-  it("does not bind lifecycle to a template-set cause when there is no ENV failure", async () => {
-    const facts = structuredClone(mixed.facts);
-    const templateRepo = facts.github.data?.repos["Azure/osdu-spi"];
-    if (!templateRepo) throw new Error("fixture must carry the template repo");
-    delete templateRepo.head;
-    for (const repo of Object.values(facts.github.data?.repos ?? {})) {
-      for (const pr of repo.prs) {
-        if (pr.head.startsWith("template-sync/") || pr.labels.includes("template-sync")) {
-          pr.checks = [];
-        }
-      }
-    }
-    const result = await inspectMixed(facts, (item) => item.kind === "template-set");
-    expect(result.cause).toContain("mergeable together");
-    expect(bindings(result).get("/cause")?.areas).not.toContain("lifecycle");
-  });
-
-  it("does not bind unrelated queue sources to a HALT radar effect", async () => {
-    const facts = structuredClone(mixed.facts);
-    for (const repo of Object.values(facts.github.data?.repos ?? {})) {
-      repo.issues = repo.issues.filter((issue) => !issue.labels.includes("sync-failed"));
-      repo.prs = repo.prs.filter((pr) => !pr.head.startsWith("sync/upstream-"));
-    }
-    const result = await inspectMixed(
-      facts,
-      (item) => item.kind === "radar" && item.cls === "HALT",
-    );
-    const effect = bindings(result).get("/effect")?.areas;
-    expect(effect?.length).toBeGreaterThan(0);
-    for (const area of ["approvals", "security", "lifecycle"] as const) {
-      expect(effect).not.toContain(area);
-    }
-  });
-
-  it("does not bind lifecycle, upstream or radar to the rolling rollout cause", async () => {
-    const result = await inspectMixed(mixed.facts, (item) => item.kind === "rollout");
-    const cause = bindings(result).get("/cause")?.areas;
-    expect(cause?.length).toBeGreaterThan(0);
-    for (const area of ["lifecycle", "upstream", "radar"] as const) {
-      expect(cause).not.toContain(area);
-    }
-  });
-
-  it("keeps a green template PR's cause independent of details", async () => {
-    const facts = structuredClone(mixed.facts);
-    const repo = facts.github.data?.repos["Azure/osdu-spi"];
-    const seed = repo?.prs[0];
-    if (!repo || !seed) throw new Error("fixture must carry a template PR");
-    repo.prs.push({
-      ...seed,
-      number: 9999,
-      head: "feature/review-probe",
-      labels: [],
-      draft: false,
-      title: "feat: review probe",
-      checks: [],
-    });
-    const result = await inspectMixed(facts, (item) => item.kind === "template-pr");
-    expect(bindings(result).get("/cause")?.areas).toEqual(["github"]);
-  });
-
-  it("keeps a program-repository security cause security-only", async () => {
-    const isInferred = await windowInferred();
-    const at = ctx.clock.now().toISOString();
-    const facts = emptyFacts();
-    facts.security = {
-      at,
-      data: {
-        "Azure/osdu-spi": {
-          dependabot: [
-            {
-              number: 1,
-              severity: "critical",
-              package: "review-package",
-              ecosystem: "maven",
-              manifest: "pom.xml",
-              scope: "runtime",
-              fixed: "2.0.0",
-              advisory: "review-advisory",
-              summary: "Review probe",
-              url: "https://github.com/Azure/osdu-spi/security/dependabot/1",
-              createdAt: at,
-            },
-          ],
-        },
-      },
-    };
-    const result = await inspectMixed(facts, (item) => item.kind === "security");
-    expect(result.cause).toContain("review-package");
-    expect(bindings(result).get("/cause")?.areas).toEqual(["security"]);
-    const securityOnly = mixedAreas.map(({ area }) => ({
-      area,
-      envelope: {
-        source: area,
-        state: "fresh" as const,
-        observedAt: at,
-        completeness: { kind: "complete" as const },
-        inferred: area === "security",
-      },
-    }));
-    expect(isInferred(result, "/cause", securityOnly)).toBe(true);
-  });
-
   it("records the failed FILTERS read as evidence for a checkable halt", async () => {
     const item = { ...base, ...classes.HALT.item } as QueueItem;
-    const result = await inspectResult(model, item, ctx.clock.now(), ctx, failing, { areas });
+    const result = await inspectResult(model, item, ctx.clock.now(), ctx, failing, areas);
     expect(calls).toBeGreaterThan(0);
     expect(result.evidence.length).toBeGreaterThan(0);
     expect(result.evidence.every((record) => record.failure !== undefined)).toBe(true);
     expect(result.related.length).toBeGreaterThan(0);
-    for (const i of result.related.keys()) {
-      expect(bindings(result).get(`/related/${i}`)).toMatchObject({
-        areas: ["fleet"],
-        envelope: { source: "filters", state: "failed" },
-      });
-    }
+    expect(result.provenance).toEqual([]);
   });
 
   it("answers each queued item over the port and an unknown id with not_found", async () => {
@@ -771,7 +453,7 @@ describe("inspect.request", () => {
     const stored = projectWatch(input).areas;
     for (const result of results) {
       expect(result.areas).toEqual(stored);
-      expect(result.provenance?.length).toBeGreaterThan(0);
+      expect(result.provenance).toEqual([]);
     }
     const actions = results.flatMap((result) => result.actions);
     expect(actions.length).toBeGreaterThan(0);
