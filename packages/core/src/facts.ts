@@ -1,0 +1,448 @@
+// Copyright 2026, Daniel Scholl
+// SPDX-License-Identifier: MIT
+
+import type { LifecycleKind } from "./config.js";
+
+// What the sweep read, before any judgment. The model module turns these into
+// lines, incidents and the queue; nothing here is derived.
+
+export interface CheckFact {
+  id: number;
+  name: string;
+  workflow?: string;
+  runId?: number;
+  status: string;
+  conclusion?: string;
+  startedAt?: string;
+  completedAt?: string;
+  url?: string;
+}
+
+export interface PrFact {
+  repo: string;
+  number: number;
+  title: string;
+  url: string;
+  createdAt: string;
+  updatedAt: string;
+  draft: boolean;
+  head: string;
+  base: string;
+  headSha: string;
+  // The template marker at the PR head: where a template-sync PR takes the fork.
+  headMarker?: string;
+  mergeState?: string;
+  reviewDecision?: string;
+  author?: string;
+  // True when GitHub reads the author as a Bot (an app), undefined when not read.
+  authorApp?: boolean;
+  // GitHub's authorAssociation: OWNER, MEMBER, COLLABORATOR, CONTRIBUTOR, NONE...
+  association?: string;
+  labels: string[];
+  checks: CheckFact[];
+}
+
+export interface IssueFact {
+  repo: string;
+  number: number;
+  title: string;
+  url: string;
+  createdAt: string;
+  updatedAt: string;
+  author?: string;
+  association?: string;
+  // Opened by a GitHub App, such as the sync engine.
+  bot?: boolean;
+  labels: string[];
+  comments: number;
+  halt?: string;
+}
+
+// A merged or closed PR, for the 21-day history of each line's gates.
+export interface PastPrFact {
+  number: number;
+  title: string;
+  url: string;
+  head: string;
+  base: string;
+  createdAt: string;
+  mergedAt?: string;
+  closedAt?: string;
+  author?: string;
+}
+
+export interface PastIssueFact {
+  number: number;
+  url: string;
+  createdAt: string;
+  closedAt?: string;
+  labels: string[];
+}
+
+export interface ReleaseFact {
+  tag: string;
+  at: string;
+  url: string;
+}
+
+export interface DeploymentFact {
+  createdAt: string;
+  ref?: string;
+  sha?: string;
+  state?: string;
+  statusAt?: string;
+}
+
+export interface Declaration {
+  stackVersion?: string;
+  location?: string;
+  profile?: string;
+  forks: string[];
+}
+
+export interface RepoFact {
+  repo: string;
+  url: string;
+  autoMergeAllowed?: boolean;
+  head?: { sha: string; at: string };
+  release?: { tag: string; at: string; url: string };
+  marker?: string;
+  upstreamSha?: { sha: string; at: string };
+  declaration?: Declaration;
+  prs: PrFact[];
+  issues: IssueFact[];
+  // Open totals, which can exceed the page of PRs and issues read.
+  openPrs?: number;
+  openIssues?: number;
+  deployments: DeploymentFact[];
+  pastPrs?: PastPrFact[];
+  pastIssues?: PastIssueFact[];
+  releases?: ReleaseFact[];
+  // Cron expressions per lifecycle workflow, read from the workflow files on main.
+  schedules?: Partial<Record<LifecycleKind, string[]>>;
+  // Sync Template's cron expressions, read from the fork's workflow file on main.
+  syncCrons?: string[];
+}
+
+export interface GithubFacts {
+  repos: Record<string, RepoFact>;
+  planned: Record<string, boolean>;
+  // `cost` is what this sweep's query spent, so the rib's own share is visible.
+  rate?: { remaining: number; resetAt: string; cost?: number };
+}
+
+export interface RunFact {
+  id: number;
+  name: string;
+  path: string;
+  event: string;
+  status: string;
+  conclusion?: string;
+  createdAt: string;
+  updatedAt: string;
+  branch?: string;
+  sha: string;
+  title: string;
+  url: string;
+  attempt: number;
+}
+
+// An open PR from outside the repository, as a maintainer weighs approving its runs.
+export interface OutsidePr {
+  number: number;
+  title: string;
+  url: string;
+  author: string;
+  association: string;
+  draft: boolean;
+  headSha: string;
+  files: string[];
+  changedFiles: number;
+  additions: number;
+  deletions: number;
+}
+
+// `pr` is null when no open PR has the run's head any more, and absent when unread.
+export interface WaitingRun extends RunFact {
+  pr?: OutsidePr | null;
+}
+
+export interface StepFact {
+  number: number;
+  name: string;
+  status: string;
+  conclusion?: string;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export interface JobDetail {
+  id: number;
+  name: string;
+  status: string;
+  conclusion?: string;
+  startedAt?: string;
+  completedAt?: string;
+  url: string;
+  steps: StepFact[];
+  failedStep?: string;
+  reason?: string;
+  // Messages of failure-level annotations titled Environment; undefined while annotations are unread.
+  environment?: string[];
+  attempt?: number;
+}
+
+// The fork workflows the sweep follows per repository.
+export interface ForkRuns {
+  sync: RunFact[];
+  template: RunFact[];
+  cascade: RunFact[];
+  main: RunFact[];
+  // Jobs of the completed main runs read, newest first, by run id.
+  mainRunJobs?: Record<string, JobDetail[]>;
+  // Jobs of the newest cascade run, read only when it failed.
+  cascadeRunJobs?: Record<string, JobDetail[]>;
+  // fork_integration's head, read only while the newest cascade run failed.
+  integration?: { sha: string; at: string };
+}
+
+export interface LifecycleRun extends RunFact {
+  kind: LifecycleKind;
+  jobs?: JobDetail[];
+  target?: string;
+}
+
+export interface UpstreamFact {
+  service: string;
+  head?: { sha: string; at: string; url: string };
+  synced?: string;
+  lag?: number;
+  commits: { sha: string; title: string; at: string; url: string }[];
+}
+
+export interface TemplateChange {
+  sha: string;
+  parent?: string;
+  title: string;
+  pr?: number;
+  url: string;
+  at: string;
+}
+
+export interface TemplateCompare {
+  marker: string;
+  head: string;
+  label: string;
+  aheadBy: number;
+  shas: string[];
+  changes: TemplateChange[];
+}
+
+// The template paths .github/sync-config.json copies into every fork.
+export interface SyncedPaths {
+  dirs: string[];
+  files: string[];
+}
+
+export interface TemplateFacts {
+  latestTag?: string;
+  mainAhead?: number;
+  compares: Record<string, TemplateCompare>;
+  targets?: Record<string, string>;
+  synced?: SyncedPaths;
+  files?: Record<string, string[]>;
+}
+
+export interface AuthFacts {
+  gh: { ok: boolean; detail: string; scopes?: string[] };
+  glab: { ok: boolean; detail: string };
+}
+
+// One area of the last sweep: the last good data, and the newest failure when
+// the latest read did not succeed. A failed read never erases good data.
+export interface Measured<T> {
+  at?: string;
+  data?: T;
+  error?: string;
+  errorAt?: string;
+}
+
+// An upstream change's paths; undefined until its diff was read, never an empty stand-in.
+export interface DiffFact {
+  sha: string;
+  title: string;
+  at: string;
+  url: string;
+  paths?: string[];
+  // The + and - lines of each pom.xml and .fossa.yml it changes.
+  hunks?: Record<string, string[]>;
+}
+
+export interface MrFact {
+  iid: number;
+  title: string;
+  author: string;
+  draft: boolean;
+  labels: string[];
+  createdAt: string;
+  updatedAt: string;
+  headSha: string;
+  url: string;
+  pipeline?: string;
+  paths?: string[];
+  hunks?: Record<string, string[]>;
+}
+
+// An upstream MR merged to master since the fork was seeded.
+export interface MergedMrFact {
+  iid: number;
+  title: string;
+  url: string;
+  mergedAt: string;
+  headSha: string;
+  paths?: string[];
+  deleted?: string[];
+}
+
+export interface LibraryPins {
+  osCoreCommon?: string;
+  coreLibAzure?: string;
+}
+
+// A fork PR, open or merged since the seed, and the upstream MRs its body or commits cite.
+export interface ForkPrFact {
+  number: number;
+  url: string;
+  state: "open" | "merged";
+  // "osdu/platform/system/partition!826"
+  refs: string[];
+}
+
+export interface RadarFacts {
+  services: Record<
+    string,
+    {
+      project: string;
+      mrs: MrFact[];
+      queued: DiffFact[];
+      // Undefined while unread; a list cut short by paging stays unread.
+      merged?: MergedMrFact[];
+      forkPrs?: ForkPrFact[];
+      // Library pins read from the fork's root and Azure provider poms and upstream's root pom.
+      pins?: { fork?: LibraryPins; upstream?: LibraryPins };
+    }
+  >;
+  filters: Record<string, { sha: string; text: string }>;
+  // The SPI fork labels on the M28 removal issues, by upstream project, and the milestone's due date.
+  removal?: { due?: string; labels: Record<string, "pending" | "established"> };
+  // The newest release of each library, from its GitLab tags.
+  latest?: LibraryPins;
+  // How many fork PRs and commit messages the port match read this time.
+  portRead?: { prs: number; commits: number };
+}
+
+export type Severity = "critical" | "high" | "medium" | "low";
+
+export interface DependencyAlertFact {
+  number: number;
+  severity: Severity;
+  package: string;
+  ecosystem: string;
+  manifest: string;
+  scope?: "runtime" | "development";
+  // The first patched version; undefined while no fix is published.
+  fixed?: string;
+  advisory: string;
+  cve?: string;
+  summary: string;
+  url: string;
+  createdAt: string;
+}
+
+export interface CodeAlertFact {
+  number: number;
+  // Undefined for a rule that carries no security severity.
+  severity?: Severity;
+  ruleSeverity?: string;
+  rule: string;
+  description: string;
+  tool: string;
+  path?: string;
+  url: string;
+  createdAt: string;
+}
+
+// A list is undefined when the repository does not show it to this token.
+export interface RepoAlerts {
+  dependabot?: DependencyAlertFact[];
+  code?: CodeAlertFact[];
+}
+
+// One fork as the stack declares it in `forks:`.
+export interface FleetEntry {
+  service: string;
+  repo: string;
+  canonicalSource?: string;
+}
+
+// A fork's repository variables the rib reads; null is a fork whose variables it cannot see.
+export interface ForkVars {
+  upstreamUrl?: string;
+  syncMode?: string;
+}
+
+export interface FleetFacts {
+  // Undefined when RIB_SPI_SERVICES_FILE pins the fleet.
+  forks?: FleetEntry[];
+  vars: Record<string, ForkVars | null>;
+  varsAt?: string;
+  // The rollout file's text, null when it does not exist; undefined when RIB_SPI_ROLLOUT_FILE is set.
+  rollout?: string | null;
+  rolloutFrom?: string;
+}
+
+export interface Facts {
+  fleet: Measured<FleetFacts>;
+  github: Measured<GithubFacts>;
+  runs: Measured<Record<string, ForkRuns>>;
+  approvals: Measured<Record<string, WaitingRun[]>>;
+  lifecycle: Measured<Record<LifecycleKind, LifecycleRun[]>>;
+  details: Measured<Record<string, JobDetail>>;
+  upstream: Measured<Record<string, UpstreamFact>>;
+  radar: Measured<RadarFacts>;
+  template: Measured<TemplateFacts>;
+  auth: Measured<AuthFacts>;
+  security: Measured<Record<string, RepoAlerts>>;
+  sweep?: { at: string; ms: number; calls: number; errors: number };
+}
+
+export const AREAS = [
+  "fleet",
+  "github",
+  "runs",
+  "approvals",
+  "lifecycle",
+  "details",
+  "upstream",
+  "radar",
+  "template",
+  "auth",
+  "security",
+] as const;
+export type AreaName = (typeof AREAS)[number];
+
+export function emptyFacts(): Facts {
+  return {
+    fleet: {},
+    github: {},
+    runs: {},
+    approvals: {},
+    lifecycle: {},
+    details: {},
+    upstream: {},
+    radar: {},
+    template: {},
+    auth: {},
+    security: {},
+  };
+}

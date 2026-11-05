@@ -1,0 +1,89 @@
+// Copyright 2026, Daniel Scholl
+// SPDX-License-Identifier: MIT
+
+import type { CheckFact, ForkRuns, JobDetail, PrFact, RunFact } from "../facts.js";
+
+export const FAILED_CONCLUSIONS = new Set([
+  "FAILURE",
+  "TIMED_OUT",
+  "STARTUP_FAILURE",
+  "ACTION_REQUIRED",
+  "CANCELLED",
+]);
+
+const SUMMARY = "Validation Summary";
+
+// Only the newest check per workflow and name counts, so a stale failure on a
+// re-run does not stay red. Two Validation lanes exist and one always skips,
+// so a skipped check loses to a real one of the same name.
+export function latestChecks(checks: readonly CheckFact[]): CheckFact[] {
+  const byKey = new Map<string, CheckFact>();
+  for (const c of checks) {
+    const key = `${c.workflow ?? ""}\u0000${c.name}`;
+    const prev = byKey.get(key);
+    if (!prev) {
+      byKey.set(key, c);
+      continue;
+    }
+    const cSkipped = c.conclusion === "SKIPPED";
+    const prevSkipped = prev.conclusion === "SKIPPED";
+    if (cSkipped !== prevSkipped) {
+      if (!cSkipped) byKey.set(key, c);
+      continue;
+    }
+    if (c.id > prev.id) byKey.set(key, c);
+  }
+  return [...byKey.values()];
+}
+
+export function failedChecks(pr: PrFact): CheckFact[] {
+  const failed = latestChecks(pr.checks).filter(
+    (c) => c.status === "COMPLETED" && FAILED_CONCLUSIONS.has(c.conclusion ?? ""),
+  );
+  const real = failed.filter((c) => c.name !== SUMMARY);
+  return real.length > 0 ? real : failed;
+}
+
+// External apps (a CLA bot) can sit queued forever, so only Actions checks
+// count as pending.
+export function pendingChecks(pr: PrFact): CheckFact[] {
+  return latestChecks(pr.checks).filter((c) => c.workflow && c.status !== "COMPLETED");
+}
+
+export type PrVerdict = "red" | "pending" | "green" | "none";
+
+export function prVerdict(pr: PrFact): PrVerdict {
+  if (failedChecks(pr).length > 0) return "red";
+  if (pendingChecks(pr).length > 0) return "pending";
+  return latestChecks(pr.checks).some((c) => c.workflow) ? "green" : "none";
+}
+
+function needsReview(pr: PrFact): boolean {
+  return pr.reviewDecision === "REVIEW_REQUIRED" || pr.reviewDecision === "CHANGES_REQUESTED";
+}
+
+export function prReady(pr: PrFact, failures: readonly { hidden: boolean }[]): boolean {
+  return (
+    failures.every((f) => f.hidden) && prVerdict(pr) === "green" && !pr.draft && !needsReview(pr)
+  );
+}
+
+// A main run proves main only when its Java Build ran; a skipped build says nothing.
+export function javaBuilt(jobs: readonly JobDetail[]): boolean {
+  return jobs.some(
+    (j) => /Java Build/i.test(j.name) && (j.conclusion === "success" || j.conclusion === "failure"),
+  );
+}
+
+// The newest completed main run whose Java Build ran, walking only runs whose jobs were read.
+export function provingRun(
+  runs: ForkRuns | undefined,
+): { run: RunFact; jobs: JobDetail[] } | undefined {
+  for (const run of runs?.main ?? []) {
+    if (run.status !== "completed") continue;
+    const jobs = runs?.mainRunJobs?.[String(run.id)];
+    if (!jobs) return undefined;
+    if (javaBuilt(jobs)) return { run, jobs };
+  }
+  return undefined;
+}

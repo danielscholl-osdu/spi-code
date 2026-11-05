@@ -37,6 +37,13 @@
       "arrowParentheses": "always"
     }
   },
+  "overrides": [
+    {
+      "includes": ["packages/core/src/**", "!packages/core/src/*.test.ts"],
+      "formatter": { "enabled": false },
+      "assist": { "enabled": false }
+    }
+  ],
   "linter": {
     "enabled": true,
     "rules": {
