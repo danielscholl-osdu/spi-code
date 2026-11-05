@@ -46,7 +46,7 @@ The agent claims the bead atomically with `bd update --claim`, under a worker na
 
 Skill: `bead-build`. Work happens only in the bead's worktree, on branch `bead/<id>`, never in the main checkout. Commits use `aipr` with a `Bead: <id>` trailer. Run `scripts/check` before asking for review. Anything outside the bead's acceptance becomes a new bead.
 
-The scaffold uses Node 22.12 or newer and pnpm 10 (the exact pnpm version is in `package.json`).
+The scaffold uses Node 22.16 or newer, matching `engines` in `package.json`, and pnpm 10 (the exact pnpm version is in `package.json`). `node:sqlite` is unflagged from 22.13, but the host store also needs `DatabaseSync.isTransaction`, which arrived in 22.16.
 `pnpm run build` compiles all six workspaces; `pnpm run lint`, `pnpm run typecheck`,
 `pnpm run test` and `pnpm run check:headers` run individual checks. Vitest discovers
 `src/**/*.test.ts` and `src/**/*.test.tsx` in each workspace, plus script tests.
