@@ -117,6 +117,11 @@ if (result.status === null) throw new Error("Vitest terminated by signal " + res
 process.exitCode = result.status;
 `,
       );
+      mkdirSync(join(directory, "scripts"), { recursive: true });
+      writeFileSync(
+        join(directory, "scripts/third-party-notices.mjs"),
+        `${header}\nconsole.log("third-party notices: fixture stub ran");\n`,
+      );
       writeFileSync(
         join(directory, "package.json"),
         JSON.stringify({
@@ -198,10 +203,14 @@ it("accepts Date text sampled before or across a simulated second boundary", () 
         expect(summary.problems, `${report}\n${summary.text}\n\n${output}`).toEqual([]);
       }
       expect(result.status, output).toBe(1);
+      expect(output).not.toContain("third-party notices: fixture stub ran");
       expect(output).toContain(`${projects.length * 4} passed`);
-      expect(output).toContain("wall clock 400 days forward");
-      expect(output).toContain(`${projects.length} failed | ${projects.length * 3} passed`);
-      expect(output).toContain("expires at a fixed future date");
+      const shifted = output.indexOf("wall clock 400 days forward");
+      expect(shifted, output).toBeGreaterThan(-1);
+      const shiftedOutput = output.slice(shifted);
+      expect(shiftedOutput).toContain(`${projects.length} failed | ${projects.length * 3} passed`);
+      expect(shiftedOutput).toContain("expires at a fixed future date");
+      expect(shiftedOutput).toMatch(/ELIFECYCLE\s+Test failed/);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
