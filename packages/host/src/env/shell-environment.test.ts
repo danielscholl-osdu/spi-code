@@ -78,6 +78,16 @@ describe("login-shell PATH", () => {
     },
   );
 
+  it.each([
+    { Path: "C:\\stale", PATH: "C:\\current" },
+    { PATH: "C:\\current", Path: "C:\\stale" },
+    { path: "C:\\stale", Path: "C:\\current" },
+    { path: "C:\\stale", Path: "C:\\older", PATH: "C:\\current" },
+  ])("uses Node's sorted-key precedence for conflicting Windows PATH names: %j", async (env) => {
+    const result = await captureLoginShellPath({ platform: "win32", env });
+    expect(result.path).toBe("C:\\current");
+  });
+
   it.skipIf(process.platform === "win32")("falls back on garbage and spawn failure", async () => {
     const directory = await fixture();
     const shell = await script(directory, "shell", "printf 'startup garbage'");
@@ -140,6 +150,19 @@ describe("login-shell PATH", () => {
 });
 
 describe("tool environment", () => {
+  it("preserves guard-bypass lookalikes that are not whole underscore-separated components", () => {
+    const lookalikes = {
+      SKIP_GUARDIAN_CHECKS: "enabled",
+      SKIPPING_GUARD: "enabled",
+      GUARD_BYPASSING: "enabled",
+      GUARD_DISABLED: "enabled",
+    };
+    const env = toolEnvironment("/usr/bin", lookalikes);
+    for (const [name, value] of Object.entries(lookalikes)) {
+      expect(env[name]).toBe(value);
+    }
+  });
+
   it("scrubs inherited credentials and guard bypasses without mutating process.env", () => {
     for (const name of [
       "GH_TOKEN",
@@ -199,12 +222,14 @@ describe.skipIf(process.platform === "win32")("gh auth token", () => {
       "gh",
       [
         'test -z "$SPI_SKIP_GUARD$SPI_BYPASS_GUARD$OTHER_DISABLE_GUARD$SPI_GUARD_BYPASS" || exit 2',
+        'test "$SKIP_GUARDIAN_CHECKS" = "enabled" || exit 5',
         `test "$GH_TOKEN" = '${secret}' || exit 3`,
         `test "$GITHUB_TOKEN" = '${secret}' || exit 4`,
         "printf 'oauth-fixture\\n'",
       ].join("\n"),
     );
     const env = toolEnvironment(directory);
+    env.SKIP_GUARDIAN_CHECKS = "enabled";
     for (const name of [
       "SPI_SKIP_GUARD",
       "SPI_BYPASS_GUARD",

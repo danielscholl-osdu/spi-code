@@ -55,7 +55,11 @@ export interface ToolEnvironmentOptions {
 }
 
 function isGuardBypass(name: string): boolean {
-  return /(?:SKIP|BYPASS|DISABLE).*GUARD|GUARD.*(?:SKIP|BYPASS|DISABLE)/u.test(name.toUpperCase());
+  const components = name.toUpperCase().split("_");
+  return (
+    components.includes("GUARD") &&
+    components.some((component) => ["SKIP", "BYPASS", "DISABLE"].includes(component))
+  );
 }
 
 function scrubEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
@@ -71,7 +75,10 @@ function scrubEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 
 function readPath(env: NodeJS.ProcessEnv, platform: NodeJS.Platform): string | undefined {
   if (platform === "win32") {
-    return Object.entries(env).find(([name]) => name.toUpperCase() === "PATH")?.[1];
+    const name = Object.keys(env)
+      .sort()
+      .find((name) => name.toUpperCase() === "PATH");
+    return name === undefined ? undefined : env[name];
   }
   return env.PATH ?? env.Path ?? env.path;
 }
