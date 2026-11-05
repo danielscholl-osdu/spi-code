@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPI Code visual design</title>
+
+<script>
+(function(){var q=new URLSearchParams(location.search).get('theme');if(q==='light'||q==='dark')document.documentElement.setAttribute('data-theme',q);})();
+</script>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f3f5f4;--surface:#ffffff;--surface-2:#e9eeec;--line:#cbd5d0;--line-strong:#697b72;
+  --ink:#1a2320;--ink-2:#48554f;--ink-3:#53665c;
+  --o1:#3d5aa8;--o1-bg:#e6ebf8;--o1-ink:#2b4180;
+  --o2:#7a4aa6;--o2-bg:#efe6f7;--o2-ink:#5a3380;
+  --o3:#0e7070;--o3-bg:#dcf2f1;--o3-ink:#0a5a5a;
+  --o4:#566873;--o4-bg:#eaeef0;--o4-ink:#45535c;
+  --pill-ink:#ffffff;--ok:#246c43;--ok-bg:#dff0e5;--warn:#7a5200;--warn-bg:#f6e9c8;--bad:#a03228;--bad-bg:#f5dcd8;
+  --term:#14201d;--term-ink:#dfe8e4;--term-dim:#a5b9af;--term-red:#f08a7e;--term-green:#7fd1a0;--term-cyan:#7cc8c8;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media(prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#121817;--surface:#1a2220;--surface-2:#222d2a;--line:#41544b;--line-strong:#91a59a;
+    --ink:#e6ecea;--ink-2:#b3bfba;--ink-3:#a1b2a9;
+    --o1:#8b9ae6;--o1-bg:#232b49;--o1-ink:#c3cbf5;
+    --o2:#b08ad9;--o2-bg:#2c2140;--o2-ink:#d9c6f0;
+    --o3:#45bdbd;--o3-bg:#123636;--o3-ink:#a3e3e3;
+    --o4:#93a3ad;--o4-bg:#242d33;--o4-ink:#c4cfd6;
+    --pill-ink:#121817;--ok:#7fd1a0;--ok-bg:#173226;--warn:#e3b964;--warn-bg:#3a2d10;--bad:#f08a7e;--bad-bg:#3d1f1b;--term:#0c1311;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#121817;--surface:#1a2220;--surface-2:#222d2a;--line:#41544b;--line-strong:#91a59a;
+  --ink:#e6ecea;--ink-2:#b3bfba;--ink-3:#a1b2a9;
+  --o1:#8b9ae6;--o1-bg:#232b49;--o1-ink:#c3cbf5;
+  --o2:#b08ad9;--o2-bg:#2c2140;--o2-ink:#d9c6f0;
+  --o3:#45bdbd;--o3-bg:#123636;--o3-ink:#a3e3e3;
+  --o4:#93a3ad;--o4-bg:#242d33;--o4-ink:#c4cfd6;
+  --pill-ink:#121817;--ok:#7fd1a0;--ok-bg:#173226;--warn:#e3b964;--warn-bg:#3a2d10;--bad:#f08a7e;--bad-bg:#3d1f1b;--term:#0c1311;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55}
+.wrap{max-width:1120px;margin:0 auto;padding:32px 20px 64px}
+h1{font-size:clamp(26px,4vw,36px);font-weight:600;letter-spacing:-.01em;margin:0 0 10px;text-wrap:balance}
+h2{font-size:22px;font-weight:600;margin:0 0 8px;text-wrap:balance}
+h3{font-size:16px;font-weight:600;margin:0 0 6px}
+p{margin:0 0 10px;max-width:76ch;color:var(--ink-2)}
+p.lead{font-size:17px;color:var(--ink);max-width:66ch}
+a{color:var(--o1-ink);text-underline-offset:3px;overflow-wrap:anywhere}
+a:focus-visible{outline:2px solid var(--o1);outline-offset:3px}
+section{margin-top:40px;padding-top:26px;border-top:1px solid var(--line)}
+code{font-family:var(--mono);font-size:.92em;overflow-wrap:anywhere}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:0 0 6px}
+.problem{margin-top:22px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px 22px}
+.problem p{max-width:78ch}
+.problem p:last-child{margin-bottom:0}
+.legend-label{margin-top:24px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:14px}
+.owner{display:inline-flex;align-items:baseline;gap:7px;font-weight:600}
+.owner::before{content:"";width:10px;height:10px;border-radius:2px;background:var(--c);flex:none}
+.o-o1{--c:var(--o1);color:var(--o1-ink)}.o-o2{--c:var(--o2);color:var(--o2-ink)}
+.o-o3{--c:var(--o3);color:var(--o3-ink)}.o-o4{--c:var(--o4);color:var(--o4-ink)}
+.status{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:4px}
+.status.ok{background:var(--ok-bg);color:var(--ok)}.status.bad{background:var(--bad-bg);color:var(--bad)}
+.status.warn{background:var(--warn-bg);color:var(--warn)}.status.note{background:var(--surface-2);color:var(--ink-2)}
+.sev{white-space:nowrap}.legend .status{margin-right:6px}.legend span{color:var(--ink-2)}
+.flow{margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 16px;overflow-x:auto}
+.flow svg{display:block;width:100%;height:auto;min-width:1000px}
+.flow text{font-family:var(--sans);fill:var(--ink);font-size:12px}
+.flow .t{font-size:14px;font-weight:600}.flow .mono{font-family:var(--mono)}
+.flow .sub{fill:var(--ink-2)}.flow .tiny{fill:var(--ink-3);font-size:11px}
+.flow .box{rx:8;stroke-width:1.3}
+.flow .b-o1{fill:var(--o1-bg);stroke:var(--o1)}.flow .b-o2{fill:var(--o2-bg);stroke:var(--o2)}
+.flow .b-o3{fill:var(--o3-bg);stroke:var(--o3)}.flow .b-o4{fill:var(--o4-bg);stroke:var(--o4)}
+.flow .b-ok{fill:var(--ok-bg);stroke:var(--ok)}.flow .b-warn{fill:var(--warn-bg);stroke:var(--warn)}.flow .b-bad{fill:var(--bad-bg);stroke:var(--bad)}
+.flow .b-mute{fill:var(--surface-2);stroke:var(--line-strong);stroke-dasharray:4 3}
+.flow .decision{fill:var(--surface-2);stroke:var(--line-strong);stroke-width:1.3}
+.flow .chip{rx:4;fill:var(--surface-2);stroke:var(--line-strong);stroke-width:1.1}
+.flow .chip-dashed{stroke-dasharray:4 3}.flow .chipt{font-size:12px;fill:var(--ink)}
+.flow .p-o1{fill:var(--o1)}.flow .p-o2{fill:var(--o2)}.flow .p-o3{fill:var(--o3)}.flow .p-o4{fill:var(--o4)}
+.flow .pillt{font-size:11px;font-weight:600;fill:var(--pill-ink)}
+.flow .arrow{stroke:var(--line-strong);stroke-width:1.5;fill:none}
+.flow .arrow.ok{stroke:var(--ok)}.flow .arrow.bad{stroke:var(--bad);stroke-dasharray:5 4}
+.flow .lanebg{rx:10;fill:none;stroke:var(--line);stroke-dasharray:3 4}
+.flow .lanelbl{font-size:12px;font-weight:600;letter-spacing:.06em;fill:var(--ink-3)}
+.note{font-size:13px;color:var(--ink-3);margin-top:10px}
+.tblwrap{overflow-x:auto;margin-top:16px}
+.tbl{width:100%;min-width:640px;border-collapse:collapse;background:var(--surface);font-size:14px}
+.tbl th{text-align:left;font-size:12px;color:var(--ink-3);font-weight:600;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.tbl th:first-child{width:20%;min-width:140px}
+.tbl td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink-2);overflow-wrap:anywhere}
+.tbl tr:last-child td{border-bottom:none}.tbl.compact td{padding:8px 12px}
+.cond{font-family:var(--mono);font-size:13px;line-height:1.5;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto;color:var(--ink)}
+.cond code{overflow-wrap:normal}
+.terminal{margin-top:16px;background:var(--term);color:var(--term-ink);border-radius:10px;padding:16px 18px;font-family:var(--mono);font-size:13px;line-height:1.5;overflow-x:auto;white-space:pre}
+.terminal .d{color:var(--term-dim)}.terminal .r{color:var(--term-red)}.terminal .g{color:var(--term-green)}.terminal .c{color:var(--term-cyan)}
+.callout{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--ink-2);border-radius:10px;padding:12px 16px;margin-top:14px;color:var(--ink-2)}
+.appendix{margin-top:48px;padding-top:26px;border-top:3px solid var(--line)}
+.appendix h2{font-size:20px}.appendix section{margin-top:26px;padding-top:20px}
+@media(max-width:520px){.wrap{padding:24px 16px 40px}.problem{padding:16px}.tbl th,.tbl td{padding:8px}}
+@media print{body{background:white;color:black}.wrap{max-width:none;padding:0}.flow svg{min-width:0}.flow,.tblwrap{overflow:visible}section{break-inside:avoid}.problem{break-inside:avoid}}
+
+.tblwrap .tbl{margin-top:0}
+.tbl td.mono,.tbl td code{font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+.tbl td b{color:var(--ink)}
+.tbl.compact td{font-size:13.5px}
+ul.plain{margin:0 0 10px;padding-left:20px;max-width:76ch;color:var(--ink-2)}
+ul.plain li{margin:3px 0}
+ol.seq{margin:0 0 10px;padding-left:22px;max-width:76ch;color:var(--ink-2)}
+ol.seq li{margin:4px 0}
+.callout b{color:var(--ink)}
+.tag{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 7px;border-radius:4px;white-space:nowrap;background:var(--surface-2);color:var(--ink);border:1px solid var(--line-strong)}
+.tier{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 7px;border-radius:4px;white-space:nowrap}
+.tier.read{background:var(--ok-bg);color:var(--ok)}
+.tier.change{background:var(--warn-bg);color:var(--warn)}
+.tier.cons{background:var(--bad-bg);color:var(--bad)}
+.tier.local{background:var(--o3-bg);color:var(--o3-ink)}
+.tier.cmd{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line-strong)}
+.tier.never{background:var(--surface-2);color:var(--ink-3);border:1px dashed var(--line-strong)}
+.docnav{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13.5px;margin-top:14px}
+.docnav span{color:var(--ink-3)}
+.docnav b{color:var(--ink)}
+.mockwrap + p,.flow + p,.swatches + p,.tblwrap + p{margin-top:14px}
+.reqid{font-family:var(--mono);font-size:12px;color:var(--ink);white-space:nowrap}
+.ms{font-family:var(--mono);font-size:12px;min-width:5.5em;color:var(--ink-2)}
+/* ---------- app mockup: Shore light, fixed so it reads the same in either page theme ---------- */
+.mockwrap{margin-top:18px;overflow-x:auto;border-radius:12px;border:1px solid var(--line)}
+.app{--a-bg:#f3efe4;--a-soft:#ece6d7;--a-card:#fbf9f3;--a-card2:#f2ede1;--a-border:#dcd3bf;--a-bsoft:#e8e1d0;--a-fg:#23211c;--a-strong:#15130f;--a-muted:#665f4f;--a-dim:#8a8170;--a-accent:#1d7a6c;--a-acc-bg:#d9ece7;--a-green:#3a7633;--a-yellow:#a07b3a;--a-red:#bb4a2b;--a-red-bg:#f4dfd6;--a-yel-bg:#f3e8cf;--a-mag:#8a5cc0;
+  min-width:1040px;display:grid;grid-template-columns:232px 1fr 300px;grid-template-rows:34px 1fr;height:640px;background:var(--a-bg);color:var(--a-fg);font:12.5px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+.app.dark{--a-bg:#0f1a1b;--a-soft:#132021;--a-card:#162324;--a-card2:#1d2d2e;--a-border:#2b3d3d;--a-bsoft:#213132;--a-fg:#e4dfd1;--a-strong:#f6f2e6;--a-muted:#a59d8a;--a-dim:#7d7666;--a-accent:#5cc4b2;--a-acc-bg:#173b37;--a-green:#8fcf86;--a-yellow:#e2b45c;--a-red:#ec8a6e;--a-red-bg:#3a211b;--a-yel-bg:#33291a;--a-mag:#c3a2e8}
+.app .bar{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:0 12px;background:var(--a-soft);border-bottom:1px solid var(--a-border);font-size:12px;color:var(--a-muted)}
+.app .dots{display:flex;gap:6px}.app .dots i{width:11px;height:11px;border-radius:50%;background:var(--a-border);display:block}
+.app .bar b{color:var(--a-strong);font-weight:600}
+.app .bar .sp{flex:1}
+.app .side{background:var(--a-soft);border-right:1px solid var(--a-border);padding:10px 8px;overflow:hidden;display:flex;flex-direction:column}
+.app .grp{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--a-dim);font-weight:600;margin:12px 8px 4px}
+.app .it{display:flex;align-items:center;gap:8px;padding:3px 8px;border-radius:6px;color:var(--a-fg);white-space:nowrap}
+.app .it.on{background:var(--a-card);box-shadow:inset 0 0 0 1px var(--a-border);color:var(--a-strong);font-weight:600}
+.app .it .n{margin-left:auto;font-size:11px;color:var(--a-dim)}
+.app .it .pip{margin-left:auto;font-size:10.5px;font-weight:700;color:#fff;background:var(--a-red);border-radius:8px;padding:0 6px}
+.app .d{width:7px;height:7px;border-radius:50%;flex:none;background:var(--a-green)}
+.app .d.r{background:var(--a-red)} .app .d.y{background:var(--a-yellow)} .app .d.m{background:var(--a-dim)}
+.app .it.th{color:var(--a-muted)} .app .it.th::before{content:"";width:7px;height:7px;flex:none;border-radius:2px;border:1.3px solid var(--a-dim)}
+.app .foot{margin-top:auto;border-top:1px solid var(--a-border);padding-top:8px}
+.app .main{display:flex;flex-direction:column;min-width:0;background:var(--a-card)}
+.app .tabs{display:flex;gap:2px;padding:8px 14px 0;border-bottom:1px solid var(--a-bsoft);font-size:12px}
+.app .tabs span{padding:5px 10px;color:var(--a-muted);border-bottom:2px solid transparent}
+.app .tabs span.on{color:var(--a-strong);border-color:var(--a-accent);font-weight:600}
+.app .tabs .stamp{margin-left:auto;font-size:11px;color:var(--a-dim);border:0}
+.app .body{padding:14px 18px;overflow:hidden;flex:1}
+.app .head{font-size:15px;color:var(--a-strong);font-weight:600;line-height:1.4;margin-bottom:10px;max-width:60ch}
+.app .facts{display:flex;gap:8px;margin-bottom:12px}
+.app .fact{flex:1;background:var(--a-bg);border:1px solid var(--a-bsoft);border-radius:8px;padding:7px 10px}
+.app .fact .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--a-dim);font-weight:600}
+.app .fact .v{font-size:15px;color:var(--a-strong);font-weight:600}
+.app .fact .s{font-size:11px;color:var(--a-muted)}
+.app .row{display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--a-bsoft);border-radius:8px;margin-bottom:6px;background:var(--a-card)}
+.app .row.sel{box-shadow:inset 3px 0 0 var(--a-accent);border-color:var(--a-border);background:var(--a-card2)}
+.app .pr{font-size:10.5px;font-weight:700;border-radius:4px;padding:1px 0;text-align:center}
+.app .p0{background:var(--a-red-bg);color:var(--a-red)} .app .p1{background:var(--a-yel-bg);color:var(--a-yellow)} .app .p2{background:var(--a-acc-bg);color:var(--a-accent)}
+.app .row .t{color:var(--a-strong);font-weight:600}
+.app .row .s{color:var(--a-muted);font-size:11.5px}
+.app .btn{font-size:11.5px;border:1px solid var(--a-border);background:var(--a-card);border-radius:6px;padding:3px 9px;color:var(--a-fg);white-space:nowrap}
+.app .btn.pri{background:var(--a-accent);border-color:var(--a-accent);color:#fff}
+.app .ready{font-size:12px;color:var(--a-muted);margin-top:8px}
+.app .comp{margin:0 14px 12px;border:1px solid var(--a-border);border-radius:10px;background:var(--a-card);padding:8px 10px}
+.app .comp .ph{color:var(--a-dim);margin-bottom:8px}
+.app .comp .ctl{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--a-muted)}
+.app .chipx{border:1px solid var(--a-bsoft);border-radius:5px;padding:1px 7px;background:var(--a-bg)}
+.app .chipx.anc{border-color:var(--a-accent);color:var(--a-accent);background:var(--a-acc-bg)}
+.app .right{border-left:1px solid var(--a-border);background:var(--a-bg);display:flex;flex-direction:column;min-width:0}
+.app .rtabs{display:flex;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--a-border);font-size:11.5px}
+.app .rtabs span{padding:4px 8px;color:var(--a-muted);border-bottom:2px solid transparent}
+.app .rtabs span.on{color:var(--a-strong);border-color:var(--a-accent);font-weight:600}
+.app .rtabs .pip{font-size:10px;font-weight:700;color:#fff;background:var(--a-yellow);border-radius:7px;padding:0 5px;margin-left:3px}
+.app .ins{padding:12px;overflow:hidden}
+.app .ins .h{font-size:13.5px;font-weight:600;color:var(--a-strong);margin:4px 0 2px}
+.app .ins .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--a-dim);font-weight:600;margin-top:9px}
+.app .ins .v{color:var(--a-fg);font-size:12px}
+.app .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.app .appr{margin-top:12px;border:1px solid var(--a-yellow);border-radius:8px;background:var(--a-card);padding:9px 10px}
+.app .appr .lbl{font-size:10.5px;font-weight:700;color:var(--a-yellow);letter-spacing:.06em;text-transform:uppercase}
+.app .appr code{display:block;font:11px/1.4 ui-monospace,Menlo,monospace;background:var(--a-bg);border:1px solid var(--a-bsoft);border-radius:5px;padding:5px 7px;margin:6px 0;color:var(--a-strong);white-space:pre-wrap}
+.app .appr .bind{font-size:11px;color:var(--a-muted)}
+
+.setup{min-width:760px;background:#fbf9f3;color:#23211c;font:12.5px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px 18px}
+.setup .g{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8a8170;font-weight:600;margin:12px 0 6px}
+.setup .r{display:grid;grid-template-columns:150px 120px 1fr auto;gap:12px;align-items:center;padding:7px 10px;border:1px solid #e8e1d0;border-radius:8px;margin-bottom:5px;background:#fff}
+.setup .nm{font-weight:600;color:#15130f}
+.setup .st{font-size:11px;font-weight:700;border-radius:4px;padding:1px 7px;justify-self:start}
+.setup .ok{background:#e1eedc;color:#3a7633} .setup .in{background:#d9ece7;color:#1d7a6c} .setup .si{background:#f3e8cf;color:#8f6207} .setup .at{background:#f4dfd6;color:#bb4a2b} .setup .off{background:#ece6d7;color:#665f4f}
+.setup .why{color:#665f4f;font-size:12px}
+.setup .b{font-size:11.5px;border:1px solid #dcd3bf;background:#fbf9f3;border-radius:6px;padding:3px 10px;white-space:nowrap}
+.setup .b.p{background:#1d7a6c;border-color:#1d7a6c;color:#fff}
+
+
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px;margin-top:14px}
+.sw{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface);font-size:11.5px}
+.sw .c{height:30px;display:flex}
+.sw .c i{flex:1}
+.sw .l{padding:5px 8px;color:var(--ink-2)}
+.sw .l b{color:var(--ink);font-weight:600;display:block}
+.sw .l code{font-size:11px}
+.app .pr.p1{color:var(--a-yel-ink,var(--a-yellow))}
+.app .appr .lbl{color:var(--a-yel-ink,var(--a-yellow))}
+.app{--a-dim:#6c6557;--a-acc-ink:#1b7366;--a-yel-ink:#80622e;--a-red-ink:#ac4428;--a-mag-ink:#7e4cba;--a-grn-ink:#356c2f;--a-on-fill:#fff}
+.app.dark{--a-dim:#9a927f;--a-acc-ink:#5cc4b2;--a-yel-ink:#e2b45c;--a-red-ink:#ec8a6e;--a-mag-ink:#c3a2e8;--a-grn-ink:#8fcf86;--a-on-fill:#0f1a1b}
+.app .p2{color:var(--a-acc-ink)}
+.app .chipx.anc{color:var(--a-acc-ink)}
+.app .btn.pri{background:var(--a-acc-ink);border-color:var(--a-acc-ink);color:var(--a-on-fill)}
+.app .it .pip{background:var(--a-red-ink);color:var(--a-on-fill)}
+.app .rtabs .pip{background:var(--a-yel-ink);color:var(--a-on-fill)}
+.setup .g{color:#6c6557} .setup .ok{color:#356c2f} .setup .in{color:#1b7366} .setup .si{color:#80622e} .setup .at{color:#ac4428}
+.setup .b.p{background:#1b7366;border-color:#1b7366}
+.app .p0{color:var(--a-red-ink)}
+.app .copilot{color:var(--a-mag-ink);font-weight:600}
+.app .tl{display:flex;flex-direction:column;gap:8px}
+.app .msg{max-width:92%;border-radius:8px;padding:7px 10px;border:1px solid var(--a-bsoft);background:var(--a-card)}
+.app .msg.me{align-self:flex-end;background:var(--a-card2)}
+.app .msg.ai{border-left:3px solid var(--a-mag)}
+.app .work{font-size:11.5px;color:var(--a-muted);border:1px dashed var(--a-border);border-radius:6px;padding:4px 8px}
+.app .work b{color:var(--a-fg);font-weight:600}
+.app .chip{display:inline-block;font-size:10.5px;font-weight:600;border-radius:4px;padding:0 6px;border:1px solid var(--a-border);color:var(--a-muted);background:var(--a-bg)}
+.app .chip.fresh{color:var(--a-grn-ink);border-color:var(--a-green)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.app.kit{display:block;min-width:0;height:auto;padding:14px 16px}
+.anat text{font-family:var(--sans)}
+.app .chip.stale{color:var(--a-yel-ink);border-color:var(--a-yellow)}
+.app .chip.bad{color:var(--a-red-ink);border-color:var(--a-red)}
+.app .chip.inf{border-style:dashed}
+.app .strip{margin:0 14px 6px;border:1px solid var(--a-yellow);border-radius:8px;background:var(--a-yel-bg);padding:7px 10px;font-size:11.5px;display:flex;gap:8px;align-items:center}
+.app .strip .lbl{font-weight:700;color:var(--a-yel-ink);text-transform:uppercase;font-size:10.5px;letter-spacing:.06em}
+.app .term{height:96px;background:#14201d;color:#dfe8e4;font:11px/1.45 ui-monospace,Menlo,monospace;padding:6px 12px;border-top:1px solid var(--a-border);white-space:pre;overflow:hidden}
+.app .term .tt{display:flex;gap:12px;color:#a5b9af;margin-bottom:4px}
+.app .term .tt b{color:#dfe8e4}
+.app.short{height:560px}
+.cardset{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-top:8px}
+.app .acard{border:1px solid var(--a-border);border-left-width:3px;border-radius:8px;background:var(--a-card);padding:8px 10px;font-size:12px;color:var(--a-muted)}
+.app .acard .hd{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:3px}
+.app .acard .hd b{color:var(--a-strong);font-weight:600}
+.app .acard .st{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.app .acard.pending{border-left-color:var(--a-yellow)} .app .acard.pending .st{color:var(--a-yel-ink)}
+.app .acard.run{border-left-color:var(--a-accent)} .app .acard.run .st{color:var(--a-acc-ink)}
+.app .acard.bad{border-left-color:var(--a-red)} .app .acard.bad .st{color:var(--a-red-ink)}
+.app .acard.ok{border-left-color:var(--a-green)} .app .acard.ok .st{color:var(--a-grn-ink)}
+.app .acard.mute{border-left-color:var(--a-border);border-style:dashed} .app .acard.mute .st{color:var(--a-muted)}
+.app .acard .acts{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+.app .tier{background:var(--a-card);border:1px solid var(--a-border);color:var(--a-fg);font-size:10.5px}
+.app .tier.read{color:var(--a-grn-ink);border-color:var(--a-green)}
+.app .tier.local,.app .tier.cmd{color:var(--a-acc-ink);border-color:var(--a-accent)}
+.app .tier.change{color:var(--a-yel-ink);border-color:var(--a-yellow)}
+.app .tier.cons{color:var(--a-red-ink);border-color:var(--a-red)}
+.app .tier.never{color:var(--a-muted);border-style:dashed}
+.app.kit .kh{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--a-dim);font-weight:600;margin:12px 0 6px}
+.app.kit .kh:first-child{margin-top:0}
+.app .thd{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--a-bsoft);font-size:11.5px;color:var(--a-muted)}
+.app .thd b{color:var(--a-strong);font-size:13px}
+.app .chg{font:11.5px/1.6 ui-monospace,Menlo,monospace;color:var(--a-fg)}
+.app .chg .a{color:var(--a-grn-ink)} .app .chg .m{color:var(--a-yel-ink)}
+.app .ins .bind{font-size:11px;color:var(--a-muted)}
+.lg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px;border:1px solid var(--line)}
+.lg i.dash{border-radius:2px;border:1.5px dashed var(--ink-3);background:transparent}
+
+@page{size:1180px 1560px;margin:40px}
+@media print{
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .flow,.tblwrap{overflow:visible}
+  section{break-inside:auto}
+  h2,h3{break-after:avoid}
+  .app,.setup,.flow,figure,.swatches,.callout,tr{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+<header>
+    <p class="eyebrow">spi-code · visual design · exploratory proposal</p>
+    <h1>SPI Code visual design</h1>
+    <p class="lead">The window, the Shore palette in semantic roles, and the component kit, with the T3 Code or Keelson source each piece is built from.</p>
+    <nav class="docnav" aria-label="Design documents">
+      <span><a href="spi-code-product-brief.md">Product brief</a></span>
+      <span><a href="spi-code-prd.md">Product requirements</a></span>
+      <span><b>Visual design</b> (this page)</span>
+      <span><a href="spi-code-design.pdf">Original combined design (PDF)</a></span>
+    </nav>
+  </header>
+
+  <div class="problem">
+    <p>The program is read today through the keelson-rib-spi console, which draws boards inside Keelson's own window, and through a terminal. The original combined design sketched an SPI Code window in two mockups. Its inspector gave the wrong fix path for a Prove failure, it had no dark or code-thread view, and several of its light-mockup text colors fell below WCAG AA contrast.</p>
+    <p>This document sets the window's layout, the colors and their jobs, and the components the requirements name. The structure comes from T3 Code: its three-pane layout, right-panel tabs, approval strip, work log and terminal drawer, and its semantic theme roles. The colors come from Keelson's Shore palette, with darker text variants where Shore's light values are fills. Each piece names the file it is copied from, ported from or modeled on, so the window can be assembled from working code.</p>
+    <p>Every mockup on this page is a drawn proposal, not a screenshot; names, counts, SHAs and PR numbers are examples. It does not specify icons glyph by glyph, motion timing or the onboarding copy. The contrast figures are computed from the hex values with the WCAG 2 formula; no built window has been measured.</p>
+  </div>
+
+  <p class="eyebrow legend-label">Colors in the mockups</p>
+  <div class="legend lg" aria-label="Mockup colors">
+    <span><i style="background:#bb4a2b"></i>P0, error, a failed read</span>
+    <span><i style="background:#a07b3a"></i>P1, waiting, a pending card, stale evidence</span>
+    <span><i style="background:#1d7a6c"></i>P2, selection, primary action, anchor</span>
+    <span><i style="background:#3a7633"></i>Healthy, applied, fresh evidence</span>
+    <span><i style="background:#8a5cc0"></i>Copilot's own words</span>
+    <span><i class="dash"></i>Inferred, not read</span>
+  </div>
+
+  <section>
+    <h2>Where the window comes from</h2>
+    <p>Three sources supply nearly everything. The verbs match the source and borrow map in the <a href="spi-code-prd.md">product requirements</a>: <b>Copy</b> takes the file and keeps its MIT notice, <b>Port</b> rewrites it without Effect or T3 Code's provider model, <b>Emulate</b> builds the idea fresh, and <b>Reference</b> is read only.</p>
+    <div class="tblwrap"><table class="tbl">
+      <thead><tr><th style="width:20%">Source</th><th style="width:36%">What it supplies</th><th>How SPI Code uses it</th></tr></thead>
+      <tbody>
+        <tr><td><b>T3 Code</b><br><code>/Users/danielscholl/source/github/t3code</code> at <code>43bf0babd4</code></td><td>Window layout, sidebar, right-panel tabs, approval strip and timeline row, work log, terminal drawer, changed-files tree, command palette, theme role model, title bar options</td><td><span class="tag">Copy</span> components that import no Effect; <span class="tag">Port</span> the sidebar, terminal drawer, command palette and right-panel store; <span class="tag">Emulate</span> the role model, cut down. Appendix A lists each file.</td></tr>
+        <tr><td><b>Keelson</b><br><code>/Users/danielscholl/keelson/keelson</code> at <code>da5da474</code></td><td>Shore token values for both appearances, WCAG contrast and palette validation functions</td><td><span class="tag">Copy</span> the Shore values and <code>palette.ts</code> into the app's theme package; the validator runs in CI.</td></tr>
+        <tr><td><b>Original combined design</b><br><code>design/spi-code-design.html</code> at <code>119b304</code>; the PDF beside this page is a print of it</td><td>The window mockup, Setup mockup and their CSS</td><td>The mockups below reuse its markup and CSS with corrected text and contrast.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Window anatomy</h2>
+    <p>The window has five regions. A console view or a thread fills the middle; the left tree chooses what the middle shows, and the right panel describes the selection in the middle. The terminal drawer exists only in code threads.</p>
+    <div class="flow" tabindex="0" role="region" aria-label="Window anatomy, scroll horizontally on small screens">
+      <svg class="anat" viewBox="0 0 1000 470" role="img" aria-labelledby="anat-title" aria-describedby="anat-desc">
+        <title id="anat-title">SPI Code window regions</title>
+        <desc id="anat-desc">A title bar across the top. Below it, from left to right: the program tree at 232 pixels, the middle panel holding a console view or a thread timeline with the composer under it, and the right panel at 300 pixels. In code threads a terminal drawer sits under the composer. Each region names the T3 Code file it is built from.</desc>
+        <rect x="20" y="16" width="960" height="40" class="decision" rx="8"/>
+        <text x="36" y="41" class="t">Title bar</text>
+        <text x="130" y="41" class="sub">app name, environment line with its evidence, ⌘K · emulates DesktopWindow.ts getWindowTitleBarOptions</text>
+        <rect x="20" y="66" width="210" height="388" class="decision" rx="8"/>
+        <text x="36" y="92" class="t">Program tree</text>
+        <text x="36" y="112" class="sub">232 px, resizable</text>
+        <text x="36" y="140" class="sub">Today</text>
+        <text x="36" y="160" class="sub">System · Stack · Services</text>
+        <text x="36" y="180" class="sub">Threads</text>
+        <text x="36" y="200" class="sub">Runs · Setup (footer)</text>
+        <text x="36" y="420" class="tiny">port: Sidebar.tsx</text>
+        <text x="36" y="438" class="tiny">copy: ui/sidebar.tsx</text>
+        <rect x="242" y="66" width="496" height="214" class="decision" rx="8"/>
+        <text x="258" y="92" class="t">Middle panel</text>
+        <text x="258" y="112" class="sub">view tabs and the sweep stamp, then a console view or a thread timeline</text>
+        <text x="258" y="132" class="sub">reads on the lightest surface</text>
+        <text x="258" y="262" class="tiny">emulate: AppSidebarLayout.tsx · copy: WorkLog.tsx, TimelinePendingApprovalRow.tsx</text>
+        <rect x="242" y="290" width="496" height="70" class="decision" rx="8"/>
+        <text x="258" y="314" class="t">Composer</text>
+        <text x="258" y="334" class="sub">anchor chip always shown; approval strip for a pending card</text>
+        <text x="258" y="351" class="tiny">emulate: ChatComposer.tsx · copy: ComposerPendingApprovalActions.tsx</text>
+        <rect x="242" y="370" width="496" height="84" class="box b-mute"/>
+        <text x="258" y="394" class="t">Terminal drawer</text>
+        <text x="258" y="414" class="sub">code threads only: approved commands, and the operator's own shell</text>
+        <text x="258" y="440" class="tiny">port: ThreadTerminalDrawer.tsx · copy: ChatTerminalDrawers.tsx</text>
+        <rect x="750" y="66" width="230" height="388" class="decision" rx="8"/>
+        <text x="766" y="92" class="t">Right panel</text>
+        <text x="766" y="112" class="sub">300 px</text>
+        <text x="766" y="140" class="sub">context tabs first:</text>
+        <text x="766" y="160" class="sub">Inspector, or Changes</text>
+        <text x="766" y="180" class="sub">and Checks in a code thread</text>
+        <text x="766" y="208" class="sub">then Approvals, then Log</text>
+        <text x="766" y="402" class="tiny">copy: RightPanelTabs.tsx,</text>
+        <text x="766" y="420" class="tiny">ChatRightPanel.tsx</text>
+        <text x="766" y="438" class="tiny">port: rightPanelStore.ts</text>
+      </svg>
+    </div>
+    <p>These rules hold in every view:</p>
+    <ul class="plain">
+      <li>Reading happens in the middle panel on the card surface, the lightest one in the light appearance. The tree, title bar and right panel use the chrome surfaces around it.</li>
+      <li>One selection drives the right panel. Selecting a queue row, a fork or a run fills the inspector; nothing opens a modal.</li>
+      <li>Every view states the sweep time and whether every source was read, in the view tab row.</li>
+      <li>The composer always shows its anchor, so the operator knows what context Copilot starts from.</li>
+      <li>A disabled action states why, in place.</li>
+      <li>Color never carries meaning alone. Priorities are written as P0, P1 and P2; card states and evidence chips are words.</li>
+    </ul>
+    <p>On macOS the title bar uses <code>hiddenInset</code> with the traffic lights inset, and on Windows a hidden title bar with <code>titleBarOverlay</code>, as T3 Code's <code>apps/desktop/src/window/DesktopWindow.ts</code> <code>getWindowTitleBarOptions</code> (line 235) does. Its heights there are 52 and 40 pixels; SPI Code's are not set yet. Below a window width of 980 pixels the right panel becomes a popover, using T3 Code's <code>RIGHT_PANEL_INLINE_LAYOUT_MEDIA_QUERY</code> from <code>apps/web/src/rightPanelLayout.ts</code>, and the tree can collapse to T3 Code's 3rem icon rail (<code>ui/sidebar.tsx</code> <code>SIDEBAR_WIDTH_ICON</code>, line 30).</p>
+  </section>
+
+  <section>
+    <h2>Today</h2>
+    <p>Today is the default view. It shows the briefing headline, three fact tiles, the focus queue in P0, P1, P2 order, and the ready line. The selected row fills the inspector. This mockup corrects the original's inspector, which sent a Prove failure to <code>fork_integration</code>; a Prove failure on the open release PR is fixed on that PR's head branch (product requirements, Code threads).</p>
+    <div class="mockwrap">
+      <div class="app">
+        <div class="bar"><span class="dots"><i></i><i></i><i></i></span><b>SPI Code</b><span>· shared environment deployable · inferred</span><span class="sp"></span><span>⌘K</span></div>
+        <div class="side">
+          <div class="it on"><span class="d r"></span>Today<span class="pip">3</span></div>
+          <div class="grp">System</div>
+          <div class="it"><span class="d"></span>Template<span class="n">v1.3.0 +6</span></div>
+          <div class="it"><span class="d y"></span>Repositories<span class="n">2 critical</span></div>
+          <div class="it"><span class="d m"></span>Releases<span class="n">Oct</span></div>
+          <div class="grp">Stack</div>
+          <div class="it"><span class="d"></span>Shared environment<span class="n">0.35.1</span></div>
+          <div class="grp">Services</div>
+          <div class="it"><span class="d"></span>Flow · Horizon</div>
+          <div class="it"><span class="d r"></span>entitlements</div>
+          <div class="it"><span class="d y"></span>schema</div>
+          <div class="it"><span class="d"></span>partition</div>
+          <div class="it"><span class="d"></span>legal</div>
+          <div class="it"><span class="d"></span>storage<span class="n">+8 more</span></div>
+          <div class="grp">Threads</div>
+          <div class="it th">Why is entitlements red</div>
+          <div class="it th">Classify schema's new entry</div>
+          <div class="foot"><div class="it"><span class="d y"></span>Runs<span class="n">1 waiting</span></div><div class="it"><span class="d"></span>Setup<span class="n">ready</span></div></div>
+        </div>
+        <div class="main">
+          <div class="tabs"><span class="on">Today</span><span>Focus</span><span>Ready</span><span class="stamp">swept 2 min ago · all sources read</span></div>
+          <div class="body">
+            <div class="head">Fix entitlements' release PR, which fails at Prove on a test failure. Classify the new shared entry before schema halts at the 00:00 sync.</div>
+            <div class="facts">
+              <div class="fact"><div class="k">Environment</div><div class="v">Deployable</div><div class="s">refresh green 34 min · 6 h ago</div></div>
+              <div class="fact"><div class="k">Template</div><div class="v">v1.3.0 +6</div><div class="s">11 of 13 forks at main</div></div>
+              <div class="fact"><div class="k">Upstream</div><div class="v">2 will break</div><div class="s">1 halt · 1 toolchain</div></div>
+            </div>
+            <div class="row sel"><span class="pr p0">P0</span><div><div class="t">entitlements · release PR fails at Prove</div><div class="s">TEST · 3 suites red after 14 upstream commits · 5 h</div></div><span class="btn">Diagnose</span></div>
+            <div class="row"><span class="pr p1">P1</span><div><div class="t">schema · halts at next sync</div><div class="s">HALT · unclassified shared entry in upstream MR · before 00:00</div></div><span class="btn">Hand off</span></div>
+            <div class="row"><span class="pr p1">P1</span><div><div class="t">partition · 1 outside PR waits for run approval</div><div class="s">Actions run held · PR head matched · 2 h</div></div><span class="btn">Approve run</span></div>
+            <div class="ready">Ready: 2 Dependabot bumps and 1 template sync PR are green and waiting for review.</div>
+          </div>
+          <div class="comp">
+            <div class="ph">Ask about entitlements, or tell Copilot what to do…</div>
+            <div class="ctl"><span class="chipx anc">⚓ entitlements · release PR</span><span class="chipx">Copilot · auto</span><span class="chipx">Changes need approval</span><span style="margin-left:auto">⏎ send</span></div>
+          </div>
+        </div>
+        <div class="right">
+          <div class="rtabs"><span class="on">Inspector</span><span>Approvals<span class="pip">1</span></span><span>Log</span></div>
+          <div class="ins">
+            <div class="k">P0 · TEST · entitlements</div>
+            <div class="h">Release PR fails at Prove</div>
+            <div class="k">Cause</div><div class="v">Three acceptance suites fail on release PR #212 after the cascade brought 14 upstream commits. The environment was deployable during the run.</div>
+            <div class="k">Effect</div><div class="v">Main does not advance. The cascade stays held while the release PR is open.</div>
+            <div class="k">Next</div><div class="v">Diagnose the failing suites, then fix them in a code thread on the release PR's branch.</div>
+            <div class="acts"><span class="btn pri">Diagnose</span><span class="btn" style="opacity:.55" aria-disabled="true">Re-run failed</span><span class="btn">Open PR</span></div>
+            <div class="bind" style="margin-top:6px">Re-run is offered for ENV and INFRA failures. This one is TEST.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Proposed, light appearance. The tree's status dots come from the latest sweep: red has a P0, amber a P1, green nothing waiting, gray nothing measured. The Today pip counts focus items; the Approvals pip counts pending cards and shows the same number on every screen.</p>
+  </section>
+
+  <section>
+    <h2>Program tree</h2>
+    <p>The tree follows the program's nouns, not repositories or chat sessions. Each entry renders from the same core model the rib console uses.</p>
+    <div class="tblwrap"><table class="tbl compact">
+      <thead><tr><th style="width:16%">Group</th><th style="width:34%">Entries</th><th style="width:28%">Count or label on the right</th><th>Model in @spi-code/core</th></tr></thead>
+      <tbody>
+        <tr><td><b>Today</b></td><td>Briefing, focus queue, ready line</td><td>Focus items, as a red pip</td><td><code>buildBriefing</code>, <code>model/queue.ts</code></td></tr>
+        <tr><td><b>System</b></td><td>Template, Repositories, Releases</td><td>Template version and drift, critical alerts, release month</td><td><code>model/rollout.ts</code>, security, release notes</td></tr>
+        <tr><td><b>Stack</b></td><td>Shared environment</td><td>Running stack version</td><td><code>model/stack.ts</code></td></tr>
+        <tr><td><b>Services</b></td><td>Flow and Horizon, then one entry per service line</td><td>Overflow count after the first five</td><td><code>model/lines.ts</code>, <code>model/radar.ts</code></td></tr>
+        <tr><td><b>Threads</b></td><td>Operate and code threads, newest first</td><td>None; a square marker, not a dot</td><td>ThreadStore</td></tr>
+        <tr><td><b>Footer</b></td><td>Runs, Setup</td><td>Runs waiting; Setup readiness</td><td>IntentLedger; Setup probes</td></tr>
+      </tbody>
+    </table></div>
+    <p>The row shape, the selected state and the collapse behavior come from T3 Code's <code>Sidebar.tsx</code> and <code>ThreadStatusIndicators.tsx</code>. Both import Effect and are built around projects and chat threads, so they are ported. The <code>ui/sidebar.tsx</code> primitive is copied.</p>
+  </section>
+
+  <section>
+    <h2>Right panel</h2>
+    <p>The right panel's tabs come in a fixed order: the context tabs for what is selected, then Approvals, then Log. On a console view the context tab is Inspector. In a code thread it is Changes and Checks. Approvals is one inbox for every pending card in the app, and Log is the selected object's runs and the sweep's read history for it.</p>
+    <p>A card has one id and one state, held in the host's ApprovalStore, and appears wherever it is relevant. It is decided in one place per origin. A card requested in a thread is decided in that thread's composer strip, and its timeline row and inbox row point there. A card requested by a button is decided on the card itself. A button never writes; it creates the card. The card states are drawn in the product requirements, Authority, tiers and approvals.</p>
+    <p>T3 Code's <code>RightPanelTabs.tsx</code> and <code>ChatRightPanel.tsx</code> import no Effect and are copied. <code>rightPanelStore.ts</code> (1,258 lines) is ported down to the selection and each context's chosen tab, which is all the window keeps itself.</p>
+  </section>
+
+  <section>
+    <h2>Code thread</h2>
+    <p>A code thread works in a worktree on one fork branch. Its header names the local branch, the remote target, and the base and head. The timeline interleaves the operator's messages, Copilot's replies, work log entries and cards. A pending card sits in the composer strip. The drawer has two tabs: the read-only record of approved commands, and the operator's own login shell, labeled as outside the sandbox.</p>
+    <div class="mockwrap">
+      <div class="app dark">
+        <div class="bar"><span class="dots"><i></i><i></i><i></i></span><b>SPI Code</b><span>· shared environment deployable · inferred</span><span class="sp"></span><span>⌘K</span></div>
+        <div class="side">
+          <div class="it"><span class="d r"></span>Today<span class="pip">3</span></div>
+          <div class="grp">Services</div>
+          <div class="it"><span class="d r"></span>entitlements</div>
+          <div class="it"><span class="d y"></span>schema</div>
+          <div class="it"><span class="d"></span>partition</div>
+          <div class="it"><span class="d"></span>storage<span class="n">+9 more</span></div>
+          <div class="grp">Threads</div>
+          <div class="it th on">Fix entitlements Prove suites</div>
+          <div class="it th">Why is entitlements red</div>
+          <div class="it th">Classify schema's new entry</div>
+          <div class="foot"><div class="it"><span class="d y"></span>Runs<span class="n">1 waiting</span></div><div class="it"><span class="d"></span>Setup<span class="n">ready</span></div></div>
+        </div>
+        <div class="main">
+          <div class="thd"><b>Fix entitlements Prove suites</b><span class="chip">Code thread</span><span>spi/fix-members-suite → release/upstream-20251104</span><span>base 4e1c2a9 · head 9b07f31</span><span class="chip fresh">push lease held</span></div>
+          <div class="body">
+            <div class="tl">
+              <div class="msg me">Fix the three failing acceptance suites on release PR #212.</div>
+              <div class="msg ai"><span class="copilot">Copilot</span> · The suites call the members endpoint with a page-size parameter the synced commits renamed. I'll update the test client and compile the test module.</div>
+              <div class="work"><b>Read</b> 6 files · <b>Edited</b> 2 files in testing/entitlements-test-core</div>
+              <div class="work"><b>Command</b> mvn -q -o -pl testing/entitlements-test-core test-compile · approved · exit 0 · 41 s</div>
+              <div class="msg ai"><span class="copilot">Copilot</span> · Both edits compile. One commit is ready for release/upstream-20251104. Pushing it re-runs validate on PR #212.</div>
+            </div>
+          </div>
+          <div class="strip"><span class="lbl">Change</span><span>push_branch · 9b07f31 to release/upstream-20251104, fast-forward from 4e1c2a9</span><span class="sp" style="flex:1"></span><span class="btn">Decline</span><span class="btn pri">Approve</span></div>
+          <div class="comp">
+            <div class="ph">Reply to Copilot…</div>
+            <div class="ctl"><span class="chipx anc">⚓ entitlements · PR #212</span><span class="chipx">Copilot · auto</span><span class="chipx">Commands sandboxed</span><span style="margin-left:auto">⏎ send</span></div>
+          </div>
+          <div class="term"><div class="tt"><b>Approved commands</b><span>Login shell · outside the sandbox</span></div>$ mvn -q -o -pl testing/entitlements-test-core test-compile
+exit 0 · 41 s</div>
+        </div>
+        <div class="right">
+          <div class="rtabs"><span class="on">Changes</span><span>Checks</span><span>Approvals<span class="pip">1</span></span><span>Log</span></div>
+          <div class="ins">
+            <div class="k">Worktree</div><div class="v">spi/fix-members-suite · 1 commit unpushed · clean</div>
+            <div class="k">Changed</div>
+            <div class="chg"><span class="m">M</span> …/client/MembersClient.java<br><span class="m">M</span> …/MembersQueryTest.java</div>
+            <div class="k">Target</div><div class="v">release/upstream-20251104, head of PR #212 · Prove failed · TEST</div>
+            <div class="k">After the push</div><div class="v">Watches validate on PR #212 at the pushed commit, then links to the PR for review. A reviewer merges on GitHub.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Proposed, dark appearance. The push card is a Change-tier card decided in the composer strip; it names the exact commit and the commit the remote must still be at. The terminal follows the appearance, as T3 Code's <code>terminalThemeFromApp</code> in <code>ThreadTerminalDrawer.tsx</code> does.</p>
+  </section>
+
+  <section>
+    <h2>Setup</h2>
+    <p>Setup lists every tool the app depends on, grouped by what it enables, with one state and one action per row. A group that is not ready disables the views that need it and says so.</p>
+    <div class="mockwrap">
+      <div class="setup">
+        <div class="g">Watch · read the program</div>
+        <div class="r"><span class="nm">Copilot</span><span class="st ok">Ready</span><span class="why">Runtime inside the app · uses the gh sign-in below</span><span></span></div>
+        <div class="r"><span class="nm">git</span><span class="st ok">Ready</span><span class="why">Found on the login-shell PATH</span><span></span></div>
+        <div class="r"><span class="nm">gh</span><span class="st si">Sign in</span><span class="why">Installed by SPI Code · needs repo and workflow scopes</span><span class="b p">Sign in with browser</span></div>
+        <div class="r"><span class="nm">glab</span><span class="st in">Install</span><span class="why">For community.opengroup.org · pinned release, checksum verified</span><span class="b p">Install</span></div>
+        <div class="g">Code · worktrees and builds</div>
+        <div class="r"><span class="nm">Worktree folder</span><span class="st ok">Ready</span><span class="why">App data · each fork cloned once and shared by its worktrees</span><span></span></div>
+        <div class="r"><span class="nm">JDK 25 · Maven</span><span class="st in">Install</span><span class="why">Release archives, checksum verified · one shared Maven repository</span><span class="b p">Install</span></div>
+        <div class="r"><span class="nm">Command sandbox</span><span class="st ok">Ready</span><span class="why">Sandbox profile checked · code threads can run commands</span><span></span></div>
+        <div class="g">Operate · stack and Azure</div>
+        <div class="r"><span class="nm">uv · Python</span><span class="st ok">Ready</span><span class="why">Installed by SPI Code · Python managed by uv under app data</span><span></span></div>
+        <div class="r"><span class="nm">az</span><span class="st si">Sign in</span><span class="why">Installed with uv · k8s-configuration extension added · sign in to the stack's tenant</span><span class="b p">Sign in</span></div>
+        <div class="r"><span class="nm">spi</span><span class="st at">Attention</span><span class="why">0.35.0 installed · the stack declares 0.35.1</span><span class="b p">Update</span></div>
+        <div class="r"><span class="nm">kubectl · kubelogin · flux · helm</span><span class="st ok">Ready</span><span class="why">Installed by SPI Code · app-scoped kubeconfig</span><span></span></div>
+      </div>
+    </div>
+    <p class="note">Proposed, light appearance. Install, Sign in and Attention are the only states that carry an action. What each install does is in the product requirements, Setup and tools.</p>
+    <p>The readiness states follow T3 Code's provider installation model (<code>apps/server/src/provider/CodexInstallation.ts</code>, ported). The first-run flow is modeled on <code>apps/web/src/components/onboarding/FirstRunGate.tsx</code> and <code>WelcomeWizard.tsx</code>, and a status banner on <code>chat/ProviderStatusBanner.tsx</code> reports a Copilot sign-in that lapses after setup.</p>
+  </section>
+
+  <section>
+    <h2>Shore in semantic roles</h2>
+    <p>SPI Code has one palette, Shore, in a light and a dark appearance. The appearance follows the system unless Settings pins one; there is no palette picker. Components never name a hex value or a Shore key. They name a role, following T3 Code's role model in <code>packages/shared/src/themePalettes.ts</code> (<code>THEME_COLOR_ROLES</code>, line 30), cut down to the roles this app uses. T3 Code has error, warning and update roles but no success role, so SPI Code adds one. It also adds an agent role for Copilot's words.</p>
+    <div class="tblwrap"><table class="tbl compact">
+      <thead><tr><th style="width:17%">Role</th><th style="width:31%">Used for</th><th style="width:13%">Shore key</th><th style="width:13%">Light</th><th style="width:13%">Dark</th><th>Text variant</th></tr></thead>
+      <tbody>
+        <tr><td><code>chrome</code></td><td>Title bar, right panel, tile backgrounds</td><td><code>bg</code></td><td><code>#f3efe4</code></td><td><code>#0f1a1b</code></td><td></td></tr>
+        <tr><td><code>sidebar</code></td><td>Program tree, title bar strip</td><td><code>bgSoft</code></td><td><code>#ece6d7</code></td><td><code>#132021</code></td><td></td></tr>
+        <tr><td><code>surface</code></td><td>Middle panel, cards, rows</td><td><code>card</code></td><td><code>#fbf9f3</code></td><td><code>#162324</code></td><td></td></tr>
+        <tr><td><code>surfaceRaised</code></td><td>Selected row, own messages</td><td><code>card2</code></td><td><code>#f2ede1</code></td><td><code>#1d2d2e</code></td><td></td></tr>
+        <tr><td><code>border</code></td><td>Panel edges, card outlines</td><td><code>border</code>, <code>borderSoft</code></td><td><code>#dcd3bf</code></td><td><code>#2b3d3d</code></td><td></td></tr>
+        <tr><td><code>text</code></td><td>Body text, titles</td><td><code>fg</code>, <code>fgStrong</code></td><td><code>#23211c</code></td><td><code>#e4dfd1</code></td><td>Same</td></tr>
+        <tr><td><code>textMuted</code></td><td>Secondary lines, reasons</td><td><code>muted</code></td><td><code>#665f4f</code></td><td><code>#a59d8a</code></td><td>Same</td></tr>
+        <tr><td><code>placeholder</code></td><td>Group labels, stamps, counts</td><td><code>dim</code></td><td><code>#8a8170</code></td><td><code>#7d7666</code></td><td><code>#6c6557</code> · <code>#9a927f</code></td></tr>
+        <tr><td><code>accent</code></td><td>Selection, primary action, anchor, P2</td><td><code>accent</code></td><td><code>#1d7a6c</code></td><td><code>#5cc4b2</code></td><td><code>#1b7366</code> · same</td></tr>
+        <tr><td><code>error</code></td><td>P0, binding failed, failed read</td><td><code>red</code></td><td><code>#bb4a2b</code></td><td><code>#ec8a6e</code></td><td><code>#ac4428</code> · same</td></tr>
+        <tr><td><code>warning</code></td><td>P1, pending card, stale evidence</td><td><code>yellow</code></td><td><code>#a07b3a</code></td><td><code>#e2b45c</code></td><td><code>#80622e</code> · same</td></tr>
+        <tr><td><code>success</code> (new)</td><td>Healthy, applied, fresh evidence</td><td><code>green</code></td><td><code>#3a7633</code></td><td><code>#8fcf86</code></td><td><code>#356c2f</code> · same</td></tr>
+        <tr><td><code>agent</code> (new)</td><td>Copilot's messages and proposals</td><td><code>magenta</code></td><td><code>#8a5cc0</code></td><td><code>#c3a2e8</code></td><td><code>#7e4cba</code> · same</td></tr>
+      </tbody>
+    </table></div>
+    <p>Shore's light accent, red, yellow, green, magenta and dim values work as fills, dots and borders, but all six fall below 4.5:1 as small text on at least one light surface. Each such role gets a darker text variant in the light appearance; dark Shore values pass as text and are used unchanged, except <code>dim</code>, which is lightened. Appendix B has the computed ratios. A filled badge or primary button puts the light-appearance text variant behind white text, and the dark value behind the dark chrome color.</p>
+    <div class="swatches">
+      <div class="sw"><div class="c"><i style="background:#f3efe4"></i><i style="background:#0f1a1b"></i></div><div class="l"><b>chrome</b><code>#f3efe4 · #0f1a1b</code></div></div>
+      <div class="sw"><div class="c"><i style="background:#fbf9f3"></i><i style="background:#162324"></i></div><div class="l"><b>surface</b><code>#fbf9f3 · #162324</code></div></div>
+      <div class="sw"><div class="c"><i style="background:#23211c"></i><i style="background:#e4dfd1"></i></div><div class="l"><b>text</b><code>#23211c · #e4dfd1</code></div></div>
+      <div class="sw"><div class="c"><i style="background:#1d7a6c"></i><i style="background:#5cc4b2"></i></div><div class="l"><b>accent</b><code>#1d7a6c · #5cc4b2</code></div></div>
+      <div class="sw"><div class="c"><i style="background:#bb4a2b"></i><i style="background:#ec8a6e"></i></div><div class="l"><b>error · P0</b><code>#bb4a2b · #ec8a6e</code></div></div>
+      <div class="sw"><div class="c"><i style="background:#a07b3a"></i><i style="background:#e2b45c"></i></div><div class="l"><b>warning · P1</b><code>#a07b3a · #e2b45c</code></div></div>
+      <div class="sw"><div class="c"><i style="background:#3a7633"></i><i style="background:#8fcf86"></i></div><div class="l"><b>success</b><code>#3a7633 · #8fcf86</code></div></div>
+      <div class="sw"><div class="c"><i style="background:#8a5cc0"></i><i style="background:#c3a2e8"></i></div><div class="l"><b>agent · Copilot</b><code>#8a5cc0 · #c3a2e8</code></div></div>
+    </div>
+    <p class="note">Each swatch shows light, then dark. Values from Keelson <code>packages/shared/src/design-tokens.ts</code>, <code>SHORE_LIGHT</code> (line 154) and <code>SHORE_DARK</code> (line 124).</p>
+    <p>Charts in the Stack and Releases views draw from Shore's six-color <code>series</code>. CI checks every text pair in the table with Keelson's <code>wcagContrast</code> and the series with <code>validateCategoricalPalette</code>, both from <code>packages/shared/src/palette.ts</code> (lines 84 and 189), so a token change that breaks contrast or color-blind separation fails the build (product requirements, NF-07).</p>
+  </section>
+
+  <section>
+    <h2>Component kit</h2>
+    <p>The same components in both appearances. Each is a role-based React component; none carries its own colors.</p>
+    <div class="mockwrap">
+      <div class="app kit">
+        <div class="kh">Queue rows</div>
+        <div class="row sel"><span class="pr p0">P0</span><div><div class="t">entitlements · release PR fails at Prove</div><div class="s">TEST · 3 suites red · 5 h</div></div><span class="btn">Diagnose</span></div>
+        <div class="row"><span class="pr p2">P2</span><div><div class="t">legal · template sync PR is green</div><div class="s">Ready for review · 1 d</div></div><span class="btn">Open PR</span></div>
+        <div class="kh">Evidence chips</div>
+        <div class="chips"><span class="chip fresh">fresh · 2 min</span><span class="chip stale">stale · 3 h</span><span class="chip stale">incomplete · 40 of 52</span><span class="chip bad">read failed · Actions</span><span class="chip">unread · GitLab</span><span class="chip inf">inferred</span></div>
+        <div class="kh">Tier badges</div>
+        <div class="chips"><span class="tier read">Read</span><span class="tier local">Local</span><span class="tier cmd">Command</span><span class="tier change">Change</span><span class="tier cons">Consequential</span><span class="tier never">Not offered</span></div>
+        <div class="kh">Approval cards</div>
+        <div class="cardset">
+          <div class="acard pending"><div class="hd"><b>Re-run cascade</b><span class="st">Pending</span></div>partition · fork_integration at 7c21d0e<div class="acts"><span class="btn">Decline</span><span class="btn pri">Approve</span></div></div>
+          <div class="acard run"><div class="hd"><b>Push branch</b><span class="st">Executing</span></div>9b07f31 to release/upstream-20251104</div>
+          <div class="acard bad"><div class="hd"><b>Approve run</b><span class="st">Binding failed</span></div>PR head moved from 3f9a1b2 to 8d04c6e</div>
+          <div class="acard ok"><div class="hd"><b>Classify entry</b><span class="st">Applied</span></div>schema · upstream-filter.yml · PR #87</div>
+          <div class="acard pending"><div class="hd"><b>Dispatch refresh</b><span class="st">Unknown</span></div>No run found yet · retry disabled until a lookup succeeds</div>
+          <div class="acard mute"><div class="hd"><b>Close issue</b><span class="st">Declined</span></div>Nothing ran</div>
+        </div>
+        <div class="kh">Composer and disabled actions</div>
+        <div class="chips"><span class="chipx anc">⚓ schema · halt</span><span class="chipx">Copilot · auto</span><span class="btn pri">Diagnose</span><span class="btn" style="opacity:.55" aria-disabled="true">Re-run failed</span></div>
+        <div class="bind" style="font-size:11px;color:var(--a-muted);margin-top:4px">Re-run is offered for ENV and INFRA failures. This one is TEST.</div>
+      </div>
+    </div>
+    <div class="mockwrap">
+      <div class="app kit dark">
+        <div class="kh">Queue rows</div>
+        <div class="row sel"><span class="pr p0">P0</span><div><div class="t">entitlements · release PR fails at Prove</div><div class="s">TEST · 3 suites red · 5 h</div></div><span class="btn">Diagnose</span></div>
+        <div class="row"><span class="pr p2">P2</span><div><div class="t">legal · template sync PR is green</div><div class="s">Ready for review · 1 d</div></div><span class="btn">Open PR</span></div>
+        <div class="kh">Evidence chips</div>
+        <div class="chips"><span class="chip fresh">fresh · 2 min</span><span class="chip stale">stale · 3 h</span><span class="chip stale">incomplete · 40 of 52</span><span class="chip bad">read failed · Actions</span><span class="chip">unread · GitLab</span><span class="chip inf">inferred</span></div>
+        <div class="kh">Tier badges</div>
+        <div class="chips"><span class="tier read">Read</span><span class="tier local">Local</span><span class="tier cmd">Command</span><span class="tier change">Change</span><span class="tier cons">Consequential</span><span class="tier never">Not offered</span></div>
+        <div class="kh">Approval cards</div>
+        <div class="cardset">
+          <div class="acard pending"><div class="hd"><b>Re-run cascade</b><span class="st">Pending</span></div>partition · fork_integration at 7c21d0e<div class="acts"><span class="btn">Decline</span><span class="btn pri">Approve</span></div></div>
+          <div class="acard run"><div class="hd"><b>Push branch</b><span class="st">Executing</span></div>9b07f31 to release/upstream-20251104</div>
+          <div class="acard bad"><div class="hd"><b>Approve run</b><span class="st">Binding failed</span></div>PR head moved from 3f9a1b2 to 8d04c6e</div>
+          <div class="acard ok"><div class="hd"><b>Classify entry</b><span class="st">Applied</span></div>schema · upstream-filter.yml · PR #87</div>
+          <div class="acard pending"><div class="hd"><b>Dispatch refresh</b><span class="st">Unknown</span></div>No run found yet · retry disabled until a lookup succeeds</div>
+          <div class="acard mute"><div class="hd"><b>Close issue</b><span class="st">Declined</span></div>Nothing ran</div>
+        </div>
+        <div class="kh">Composer and disabled actions</div>
+        <div class="chips"><span class="chipx anc">⚓ schema · halt</span><span class="chipx">Copilot · auto</span><span class="btn pri">Diagnose</span><span class="btn" style="opacity:.55" aria-disabled="true">Re-run failed</span></div>
+        <div class="bind" style="font-size:11px;color:var(--a-muted);margin-top:4px">Re-run is offered for ENV and INFRA failures. This one is TEST.</div>
+      </div>
+    </div>
+    <p class="note">Proposed. Card titles, branches and SHAs are examples. Not applied and Invalidated look like Declined with their own word.</p>
+    <div class="tblwrap"><table class="tbl compact">
+      <thead><tr><th style="width:17%">Component</th><th style="width:45%">Behavior</th><th>Built from</th></tr></thead>
+      <tbody>
+        <tr><td><b>Queue row</b></td><td>Priority written as P0 to P2, title, class and cause with age, one primary action. The selected row gets the accent bar and fills the inspector.</td><td>Emulates the rib console's focus rows; data from <code>model/queue.ts</code></td></tr>
+        <tr><td><b>Fact tile</b></td><td>Label, value, one line of evidence</td><td>Emulates the rib briefing's facts</td></tr>
+        <tr><td><b>Inspector</b></td><td>Class, title, cause, effect, next action, actions, and a reason under any disabled action</td><td>Copies <code>chat/ChatRightPanel.tsx</code> for the frame; content from <code>readItem</code></td></tr>
+        <tr><td><b>Evidence chip</b></td><td>Fresh, stale, incomplete, failed, unread or inferred, with the age or count. Inferred is a dashed outline, not a color.</td><td>Emulated; the dot form follows <code>ConnectionStatusDot.tsx</code></td></tr>
+        <tr><td><b>Tier badge</b></td><td>One of six tiers, outlined, on every card and tool row</td><td>Emulated; tiers from the product requirements, appendix A</td></tr>
+        <tr><td><b>Approval card</b></td><td>Title, state word, bindings in one line, actions only while pending. The left edge carries the state color.</td><td>Copies <code>chat/TimelinePendingApprovalRow.tsx</code> and <code>chat/ComposerPendingApprovalActions.tsx</code>, extended from approve and decline to SPI Code's eight states</td></tr>
+        <tr><td><b>Composer</b></td><td>Text field, anchor chip, model chip, mode chip, approval strip above it when a card is pending</td><td>Emulates <code>chat/ChatComposer.tsx</code> (3,587 lines; SPI Code needs no attachments, slash menu or provider picker)</td></tr>
+        <tr><td><b>Work log entry</b></td><td>Dashed row per batch of reads, edits or an approved command, with its result</td><td>Copies <code>chat/WorkLog.tsx</code> (170 lines)</td></tr>
+        <tr><td><b>Changes list</b></td><td>Changed files with status letters; opens a diff</td><td>Copies <code>chat/ChangedFilesTree.tsx</code>; ports <code>DiffPanel.tsx</code></td></tr>
+        <tr><td><b>Terminal drawer</b></td><td>Two tabs, approved commands and login shell, the second labeled outside the sandbox</td><td>Ports <code>ThreadTerminalDrawer.tsx</code>; copies <code>chat/ChatTerminalDrawers.tsx</code> and <code>chat/ShellCommandBlock.tsx</code></td></tr>
+        <tr><td><b>Command palette</b></td><td>⌘K or Ctrl+K: go to any tree entry, thread or tool</td><td>Ports <code>CommandPalette.tsx</code> (2,901 lines, imports Effect)</td></tr>
+        <tr><td><b>Setup row</b></td><td>Tool, state, reason, at most one action</td><td>Emulates the original design's Setup mockup; readiness from <code>CodexInstallation.ts</code></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Type and spacing</h2>
+    <p>SPI Code uses T3 Code's type scale and geometry tokens from <code>apps/web/src/index.css</code>, so copied components keep their proportions.</p>
+    <div class="tblwrap"><table class="tbl compact">
+      <thead><tr><th style="width:24%">Token</th><th style="width:30%">T3 Code value</th><th>SPI Code use</th></tr></thead>
+      <tbody>
+        <tr><td><code>--font-sans</code></td><td><code>-apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui</code> (line 171)</td><td>All UI text. Whether to bundle Inter is open.</td></tr>
+        <tr><td><code>--font-mono</code></td><td><code>ui-monospace, "SF Mono", Menlo, Consolas</code> (line 173)</td><td>Branches, SHAs, commands, file paths, the terminal</td></tr>
+        <tr><td><code>text-sm</code>, <code>text-xs</code></td><td>14 px, 12 px (Tailwind)</td><td>Reading text in threads and the inspector; rows and tabs</td></tr>
+        <tr><td><code>--text-2xs</code>, <code>--text-3xs</code></td><td>11 px, 10 px (lines 183 to 186)</td><td>Metadata, counts and chips; group labels and badges</td></tr>
+        <tr><td><code>--radius</code>, <code>--control-radius</code></td><td>0.5rem (lines 1115 and 103)</td><td>Cards, rows, buttons, chips</td></tr>
+        <tr><td><code>--sidebar-content-inset</code></td><td>0.5rem (line 104)</td><td>Tree row inset and gap</td></tr>
+        <tr><td><code>SIDEBAR_WIDTH</code></td><td>16rem; icon rail 3rem (<code>ui/sidebar.tsx</code> line 28)</td><td>Tree at 232 px by default so all three panes fit at 1280 px; the rail as in T3 Code</td></tr>
+        <tr><td><code>--ease-drawer</code></td><td><code>cubic-bezier(0.32, 0.72, 0, 1)</code></td><td>The terminal drawer and popovers. Reduced-motion turns it off.</td></tr>
+      </tbody>
+    </table></div>
+    <p>Icons come from <code>lucide-react</code>, which T3 Code already uses (<code>apps/web/package.json</code>), so copied components need no icon changes.</p>
+  </section>
+
+  <section>
+    <h2>Open questions</h2>
+    <div class="tblwrap"><table class="tbl">
+      <thead><tr><th style="width:34%">Question</th><th style="width:42%">Why it matters</th><th>Who decides, by when</th></tr></thead>
+      <tbody>
+        <tr><td>Bundle Inter Variable, or use the system stack only?</td><td>T3 Code bundles <code>@fontsource-variable/inter</code>. Without it, Windows renders Segoe UI and macOS SF, and copied components' widths shift slightly.</td><td>Maintainer, before M2</td></tr>
+        <tr><td>Which terminal renderer does the drawer use?</td><td>T3 Code builds libghostty to WebAssembly (<code>build:ghostty-wasm</code> in <code>apps/web/package.json</code>). Porting that adds a native build step; xterm.js is the common alternative.</td><td>Maintainer, before M5</td></tr>
+        <tr><td>Title bar heights</td><td>T3 Code uses 52 px on macOS and 40 px on Windows. The mockups use 34 px; a lower bar leaves more room for the tree but crowds the traffic lights.</td><td>Maintainer, at the M0 spike</td></tr>
+        <tr><td>Does the agent role need its own name, or reuse T3 Code's <code>accent</code> slots?</td><td>A separate role keeps Copilot's words visually apart from SPI Code's own selection color, which the requirements rely on to tell inference from read facts.</td><td>Maintainer, before M3</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <div class="appendix">
+    <h2>Reference detail</h2>
+
+    <section>
+      <h3>Appendix A: window reference map</h3>
+      <p>Paths are relative to each repository's root. T3 Code at <code>43bf0babd4</code>, Keelson at <code>da5da474</code>. Line counts were read with <code>wc -l</code> at those commits. "Imports Effect" was checked with a grep for <code>from "effect</code> in each file.</p>
+      <div class="tblwrap"><table class="tbl compact">
+        <thead><tr><th style="width:24%">Piece</th><th style="width:40%">Source</th><th style="width:11%">Action</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Title bar options</td><td>T3 <code>apps/desktop/src/window/DesktopWindow.ts</code> <code>getWindowTitleBarOptions</code> (line 235)</td><td><span class="tag">Emulate</span></td><td>hiddenInset on macOS, overlay on Windows</td></tr>
+          <tr><td>App layout</td><td>T3 <code>apps/web/src/components/AppSidebarLayout.tsx</code> (482)</td><td><span class="tag">Emulate</span></td><td>Imports Effect</td></tr>
+          <tr><td>Program tree</td><td>T3 <code>components/Sidebar.tsx</code> (3,648), <code>ThreadStatusIndicators.tsx</code> (893)</td><td><span class="tag">Port</span></td><td>Both import Effect</td></tr>
+          <tr><td>Sidebar primitive</td><td>T3 <code>components/ui/sidebar.tsx</code> (867)</td><td><span class="tag">Copy</span></td><td>One Effect import to remove</td></tr>
+          <tr><td>Right-panel tabs</td><td>T3 <code>components/RightPanelTabs.tsx</code> (1,577), <code>chat/ChatRightPanel.tsx</code> (51)</td><td><span class="tag">Copy</span></td><td>No Effect; cut to SPI Code's tabs</td></tr>
+          <tr><td>Right-panel state</td><td>T3 <code>apps/web/src/rightPanelStore.ts</code> (1,258), <code>rightPanelLayout.ts</code> (3)</td><td><span class="tag">Port</span></td><td>Keep the 980 px breakpoint</td></tr>
+          <tr><td>Approval strip and timeline row</td><td>T3 <code>chat/ComposerPendingApprovalActions.tsx</code> (141), <code>chat/TimelinePendingApprovalRow.tsx</code> (122)</td><td><span class="tag">Copy</span></td><td>Extend to eight card states</td></tr>
+          <tr><td>Composer</td><td>T3 <code>chat/ChatComposer.tsx</code> (3,587)</td><td><span class="tag">Emulate</span></td><td>Take the layout, not the code</td></tr>
+          <tr><td>Work log</td><td>T3 <code>chat/WorkLog.tsx</code> (170)</td><td><span class="tag">Copy</span></td><td></td></tr>
+          <tr><td>Changed files and diff</td><td>T3 <code>chat/ChangedFilesTree.tsx</code> (419), <code>DiffPanel.tsx</code> (1,495)</td><td><span class="tag">Copy</span> / <span class="tag">Port</span></td><td>DiffPanel imports Effect</td></tr>
+          <tr><td>Terminal drawer</td><td>T3 <code>components/ThreadTerminalDrawer.tsx</code> (1,914) <code>terminalThemeFromApp</code> (line 320); <code>chat/ChatTerminalDrawers.tsx</code> (107); <code>chat/ShellCommandBlock.tsx</code> (62)</td><td><span class="tag">Port</span> / <span class="tag">Copy</span></td><td>Renderer is open; PTY from <code>apps/server/src/terminal/NodePtyAdapter.ts</code></td></tr>
+          <tr><td>Command palette</td><td>T3 <code>components/CommandPalette.tsx</code> (2,901)</td><td><span class="tag">Port</span></td><td>Imports Effect</td></tr>
+          <tr><td>Status dot</td><td>T3 <code>components/ConnectionStatusDot.tsx</code> (75)</td><td><span class="tag">Reference</span></td><td></td></tr>
+          <tr><td>Provider status banner</td><td>T3 <code>chat/ProviderStatusBanner.tsx</code> (192)</td><td><span class="tag">Copy</span></td><td>For a lapsed Copilot sign-in</td></tr>
+          <tr><td>First run</td><td>T3 <code>components/onboarding/FirstRunGate.tsx</code>, <code>WelcomeWizard.tsx</code></td><td><span class="tag">Emulate</span></td><td>Leads into Setup</td></tr>
+          <tr><td>Appearance setting</td><td>T3 <code>components/settings/AppearanceSettingsPanel.tsx</code> (486)</td><td><span class="tag">Port</span></td><td>Cut to System, Light, Dark</td></tr>
+          <tr><td>Theme role model</td><td>T3 <code>packages/shared/src/themePalettes.ts</code> <code>THEME_COLOR_ROLES</code> (line 30)</td><td><span class="tag">Emulate</span></td><td>Cut down; adds success and agent</td></tr>
+          <tr><td>Type and geometry tokens</td><td>T3 <code>apps/web/src/index.css</code> (lines 103, 171 to 186, 1115)</td><td><span class="tag">Copy</span></td><td></td></tr>
+          <tr><td>Shore values</td><td>Keelson <code>packages/shared/src/design-tokens.ts</code> <code>SHORE_DARK</code> (124), <code>SHORE_LIGHT</code> (154), <code>DESIGN_TOKEN_CSS_VARS</code> (198)</td><td><span class="tag">Copy</span></td><td>Plus the light text variants in appendix B</td></tr>
+          <tr><td>Shore as CSS</td><td>Keelson <code>apps/web/src/app.css</code> <code>[data-palette="shore"]</code> (lines 157 and 215)</td><td><span class="tag">Reference</span></td><td></td></tr>
+          <tr><td>Contrast and palette checks</td><td>Keelson <code>packages/shared/src/palette.ts</code> <code>wcagContrast</code> (84), <code>validateCategoricalPalette</code> (189)</td><td><span class="tag">Copy</span></td><td>Runs in CI (NF-07)</td></tr>
+          <tr><td>Mockup markup and CSS</td><td><code>design/spi-code-design.html</code> at <code>119b304</code>, the app mockup and Setup styles</td><td><span class="tag">Reference</span></td><td>This page's mockups</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section>
+      <h3>Appendix B: text contrast</h3>
+      <p>Computed with the WCAG 2 relative luminance formula. Each ratio is the lowest across the four light surfaces (<code>#f3efe4</code>, <code>#ece6d7</code>, <code>#fbf9f3</code>, <code>#f2ede1</code>) or the four dark surfaces (<code>#0f1a1b</code>, <code>#132021</code>, <code>#162324</code>, <code>#1d2d2e</code>). AA for small text is 4.5:1.</p>
+      <div class="tblwrap"><table class="tbl compact">
+        <thead><tr><th style="width:18%">Role</th><th style="width:24%">Shore value as text, light</th><th style="width:22%">Text variant, light</th><th>Dark value as text</th></tr></thead>
+        <tbody>
+          <tr><td><code>placeholder</code></td><td><code>#8a8170</code> · 3.09</td><td><code>#6c6557</code> · 4.64</td><td><code>#7d7666</code> · 3.17; lightened to <code>#9a927f</code> · 4.63</td></tr>
+          <tr><td><code>accent</code></td><td><code>#1d7a6c</code> · 4.16</td><td><code>#1b7366</code> · 4.57</td><td><code>#5cc4b2</code> · 6.81</td></tr>
+          <tr><td><code>warning</code></td><td><code>#a07b3a</code> · 3.13</td><td><code>#80622e</code> · 4.55</td><td><code>#e2b45c</code> · 7.44</td></tr>
+          <tr><td><code>error</code></td><td><code>#bb4a2b</code> · 4.09</td><td><code>#ac4428</code> · 4.67</td><td><code>#ec8a6e</code> · 5.74</td></tr>
+          <tr><td><code>success</code></td><td><code>#3a7633</code> · 4.42</td><td><code>#356c2f</code> · 5.05</td><td><code>#8fcf86</code> · 7.80</td></tr>
+          <tr><td><code>agent</code></td><td><code>#8a5cc0</code> · 3.86</td><td><code>#7e4cba</code> · 4.65</td><td><code>#c3a2e8</code> · 6.58</td></tr>
+          <tr><td><code>textMuted</code></td><td><code>#665f4f</code> · 5.09</td><td>Same</td><td><code>#a59d8a</code> · 5.31</td></tr>
+          <tr><td><code>text</code></td><td><code>#23211c</code> · 12.92</td><td>Same</td><td><code>#e4dfd1</code> · 10.75</td></tr>
+        </tbody>
+      </table></div>
+      <p>Filled pairs: white on <code>#1b7366</code> is 5.69, on <code>#ac4428</code> 5.81, on <code>#80622e</code> 5.67. Dark chrome <code>#0f1a1b</code> on <code>#e2b45c</code> is 9.22 and on <code>#ec8a6e</code> 7.12. Tinted badges in the light appearance: <code>#ac4428</code> on <code>#f4dfd6</code> 4.53, <code>#80622e</code> on <code>#f3e8cf</code> 4.66, <code>#1b7366</code> on <code>#d9ece7</code> 4.63, <code>#356c2f</code> on <code>#e1eedc</code> 5.23. The original combined design used the Shore values directly as text and white on <code>#a07b3a</code> (3.9) for the Approvals count.</p>
+    </section>
+  </div>
+
+</main>
+</body>
+</html>
