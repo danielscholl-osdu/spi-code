@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { DatabaseSync } from "node:sqlite";
+// Imports built output: run `tsc -b` (scripts/check does) before running this test alone.
 import { createLeaseStore } from "../../../dist/store/leases.js";
 
 const [path, owner] = process.argv.slice(2);
