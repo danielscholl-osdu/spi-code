@@ -768,6 +768,8 @@ export interface VisibilityFile {
   github: Record<string, Visibility>;
   gitlab: Record<string, Visibility>;
   gitlabGroups?: Record<string, Visibility>;
+  /** The visibility of every project an item of a group read belongs to, by numeric id. */
+  gitlabProjectIds?: Record<string, Visibility>;
 }
 
 // "missing" is a repository the recording account could not see, so no data from it was read.
@@ -817,6 +819,28 @@ function decodings(text: string, depth = 0, into: string[] = [text]): string[] {
     decodings(value, depth + 1, into);
   }
   return into;
+}
+
+/** The project id of every item a group read returned, or undefined when one has none. A public
+ * group does not make its projects public: a group read can hold items of a private project the
+ * recording account sees, so each item's project is checked on its own. */
+export function itemProjects(stdout: string): string[] | undefined {
+  if (!stdout.trim()) return [];
+  const values = jsonValues(stdout);
+  if (!values) return undefined;
+  const ids: string[] = [];
+  for (const value of values) {
+    if (!Array.isArray(value)) return undefined;
+    for (const item of value) {
+      const id =
+        item && typeof item === "object"
+          ? (item as { project_id?: unknown }).project_id
+          : undefined;
+      if (typeof id !== "number" || !Number.isSafeInteger(id) || id <= 0) return undefined;
+      ids.push(String(id));
+    }
+  }
+  return ids;
 }
 
 /** The JSON values a field holds: the whole text, or one per line (a paginated jq read). */
@@ -962,6 +986,8 @@ interface Collected {
   fields: number;
   refs: References;
   calls: Call[];
+  /** The project of every item a group read returned. */
+  itemProjects: Set<string>;
   findings: string[];
 }
 
@@ -983,6 +1009,7 @@ function collect(directory: string, visibility?: VisibilityFile): Collected {
   const findings: string[] = [];
   const refs = noReferences();
   const calls: Call[] = [];
+  const projects = new Set<string>();
   const lines = readFileSync(join(directory, LOG_FILE), "utf8")
     .split("\n")
     .filter((line) => line.trim());
@@ -1018,7 +1045,13 @@ function collect(directory: string, visibility?: VisibilityFile): Collected {
       // A call routed elsewhere did not read what its shape names: none of its stdout is exempt.
       call = routed.length ? undefined : classified;
       merge(refs, classified.targets);
-      calls.push({ targets: classified.targets, fencedOn: fencedOn(entry) });
+      const fenced = fencedOn(entry);
+      calls.push({ targets: classified.targets, fencedOn: fenced });
+      if (classified.targets.gitlabGroups.size && fenced === undefined && entry.exit === 0) {
+        const ids = itemProjects(typeof entry.stdout === "string" ? entry.stdout : "");
+        if (ids) for (const id of ids) projects.add(id);
+        else findings.push(`${where}: group read: an item without a project`);
+      }
     } else {
       const detail =
         classified?.detail ?? [cmd, ...(Array.isArray(args) ? args : [])].map(String).join(" ");
@@ -1046,7 +1079,7 @@ function collect(directory: string, visibility?: VisibilityFile): Collected {
     const text = readFileSync(join(directory, name), "utf8");
     scan(name, text, findings, FACTS_FILES.has(name) ? strictFacts(text, visibility) : text);
   }
-  return { entries: lines.length, fields, refs, calls, findings };
+  return { entries: lines.length, fields, refs, calls, itemProjects: projects, findings };
 }
 
 /** Every repository, project and group a recorded call targets, fenced calls included: what
@@ -1055,13 +1088,19 @@ export function sweepReferences(directory: string): References {
   return collect(directory).refs;
 }
 
+/** The project of every item a recorded group read returned: what the recorder checks the
+ * visibility of besides sweepReferences. */
+export function sweepItemProjects(directory: string): Set<string> {
+  return collect(directory).itemProjects;
+}
+
 /** Audits exec.jsonl and every other recorded JSON file in a sweep directory. */
 export function auditSweep(directory: string): AuditResult {
   const visibilityPath = join(directory, VISIBILITY_FILE);
   const visibility: VisibilityFile | undefined = existsSync(visibilityPath)
     ? JSON.parse(readFileSync(visibilityPath, "utf8"))
     : undefined;
-  const { entries, fields, refs, calls, findings } = collect(directory, visibility);
+  const { entries, fields, refs, calls, itemProjects, findings } = collect(directory, visibility);
   if (!visibility)
     findings.push(`${VISIBILITY_FILE}: missing; visibility is checked at record time`);
   for (const [forge, label] of FORGES) {
@@ -1076,6 +1115,14 @@ export function auditSweep(directory: string): AuditResult {
       if (visibility && !ALLOWED.has(seen ?? "unknown"))
         findings.push(`${label} ${name}: ${seen ?? "not checked at record time"}`);
     }
+  }
+  // An item of a group read was read in full: its project must have been public, not missing.
+  for (const id of [...itemProjects].sort((a, b) => Number(a) - Number(b))) {
+    const seen = visibility?.gitlabProjectIds?.[id];
+    if (visibility && seen !== "public")
+      findings.push(
+        `gitlab project ${id} in a group read: ${seen ?? "not checked at record time"}`,
+      );
   }
   return {
     entries,

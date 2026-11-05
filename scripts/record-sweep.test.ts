@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -10,7 +10,7 @@ import type { ExecOptions, ExecOutput } from "../packages/core/src/exec/port.js"
 import type { ExecLogEntry } from "../packages/core/src/exec/recording.js";
 import { BUDGET_KEY } from "../packages/core/src/forge.js";
 import { callTargets, fenced, type Visibility } from "./audit-exec-log.js";
-import { type CheckVisibility, type Forge, fence, recordSweep } from "./record-sweep.js";
+import { type Checked, type CheckVisibility, fence, recordSweep } from "./record-sweep.js";
 
 const NOW = new Date("2026-11-05T12:00:00Z");
 const outs: string[] = [];
@@ -20,9 +20,13 @@ afterEach(() => {
 });
 
 type Call = { cmd: string; args: string[] };
+type Answer = (call: Call) => ExecOutput | undefined;
+/** A call the anonymous runner ran: its arguments, the environment and working directory it
+ * ran with, and what that configuration directory held when it ran. */
+type Anonymous = Call & { env: NodeJS.ProcessEnv; cwd?: string; configHeld?: string[] };
 
 /** Answers GraphQL with a known budget, so the paced release reads run, and refuses the rest. */
-function fakeRunner(calls: Call[], answer?: (call: Call) => ExecOutput | undefined) {
+function fakeRunner(calls: Call[], answer?: Answer) {
   return async (cmd: string, args: string[], _opts: ExecOptions): Promise<ExecOutput> => {
     const call = { cmd, args };
     calls.push(call);
@@ -36,28 +40,82 @@ function fakeRunner(calls: Call[], answer?: (call: Call) => ExecOutput | undefin
   };
 }
 
-function visibility(hidden: Partial<Record<Forge, string[]>> = {}): CheckVisibility {
+function visibility(hidden: Partial<Record<Checked, string[]>> = {}): CheckVisibility {
   return async (forge, name) =>
     hidden[forge]?.some((h) => h.toLowerCase() === name.toLowerCase()) ? "private" : "public";
 }
 
-async function record(check: CheckVisibility, answer?: (call: Call) => ExecOutput | undefined) {
+const isGroupRead = (call: Call) =>
+  call.cmd === "glab" && call.args.some((arg) => arg.startsWith("groups/"));
+
+/** A group issues page holding one issue of each project id given. */
+const issuesOf = (...projects: number[]): ExecOutput => ({
+  stdout: JSON.stringify(
+    projects.map((id, i) => ({
+      id: i + 1,
+      project_id: id,
+      references: { full: `osdu/platform/p${id}#${i + 1}` },
+      description: `ISSUE-BODY-${id}`,
+      milestone: null,
+    })),
+  ),
+  stderr: "",
+  exit: 0,
+});
+
+const SIGNED_IN: NodeJS.ProcessEnv = {
+  PATH: "/usr/bin:/bin",
+  HOME: "/Users/someone",
+  GITLAB_TOKEN: "glpat-recording-account",
+  GLAB_TOKEN: "glpat-recording-account",
+  GITLAB_ACCESS_TOKEN: "glpat-recording-account",
+  OAUTH_TOKEN: "oauth-recording-account",
+  CI_JOB_TOKEN: "job-token",
+  GLAB_ENABLE_CI_AUTOLOGIN: "true",
+  GITLAB_CI: "true",
+  GITLAB_HOST: "gitlab.example",
+  GH_TOKEN: "gho_recording-account",
+  GLAB_CONFIG_DIR: "/Users/someone/.config/glab-cli",
+  XDG_CONFIG_HOME: "/Users/someone/.config",
+};
+
+async function attempt(check: CheckVisibility, answer?: Answer) {
   const out = mkdtempSync(join(tmpdir(), "spi-code-record-test-"));
   outs.push(out);
   const calls: Call[] = [];
-  const result = await recordSweep({
+  const anonymous: Anonymous[] = [];
+  const signedIn = fakeRunner(calls, answer);
+  const run = recordSweep({
     out,
-    runner: fakeRunner(calls, answer),
+    runner: signedIn,
+    env: SIGNED_IN,
+    anonymous: (env) => async (cmd, args, opts) => {
+      const dir = env.GLAB_CONFIG_DIR;
+      anonymous.push({
+        cmd,
+        args,
+        env,
+        ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
+        ...(dir && existsSync(dir) ? { configHeld: readdirSync(dir) } : {}),
+      });
+      return answer?.({ cmd, args }) ?? { stdout: "[]", stderr: "", exit: 0 };
+    },
     check,
     now: NOW,
     secrets: {},
     bun: "test",
   });
+  return { run, out, calls, anonymous };
+}
+
+async function record(check: CheckVisibility, answer?: Answer) {
+  const { run, out, calls, anonymous } = await attempt(check, answer);
+  const result = await run;
   const entries = readFileSync(join(out, "exec.jsonl"), "utf8")
     .split("\n")
     .filter(Boolean)
     .map((line) => JSON.parse(line) as ExecLogEntry);
-  return { ...result, out, calls, entries };
+  return { ...result, out, calls, anonymous, entries };
 }
 
 const naming = (calls: Call[], name: string) =>
@@ -117,6 +175,56 @@ describe("recordSweep", () => {
       ...release,
       body: "curl -H Authorization:\n<redacted>\nnext",
     });
+  });
+});
+
+describe("group-scoped reads", () => {
+  // A public group does not make its projects public: a signed-in group read can return issues
+  // of private projects the account sees, and of confidential issues in public ones.
+  it("run anonymously: no GitLab credential and an empty glab configuration", async () => {
+    const { anonymous, calls, entries } = await record(
+      visibility({ github: [CORE_LIB_REPO] }),
+      (call) => (isGroupRead(call) ? issuesOf(42) : undefined),
+    );
+    expect(calls.filter(isGroupRead)).toEqual([]);
+    expect(anonymous.length).toBeGreaterThan(0);
+    for (const call of anonymous) {
+      expect(isGroupRead(call)).toBe(true);
+      const names = Object.keys(call.env);
+      expect(names.filter((n) => /TOKEN|^GITLAB_|^GL_|^CI(_|$)/i.test(n))).toEqual([]);
+      expect(names.filter((n) => /^GLAB_/i.test(n))).toEqual(["GLAB_CONFIG_DIR"]);
+      const dir = call.env.GLAB_CONFIG_DIR as string;
+      expect(dir).not.toBe(SIGNED_IN.GLAB_CONFIG_DIR);
+      expect(call.configHeld).toEqual([]);
+      expect(call.env.XDG_CONFIG_HOME).toBe(dir);
+      expect(call.env.HOME).toBe(dir);
+      expect(call.cwd).toBe(dir);
+      expect(call.env.PATH).toBe(SIGNED_IN.PATH);
+      expect(existsSync(dir)).toBe(false);
+    }
+    expect(entries.filter(isGroupRead).length).toBe(anonymous.length);
+  });
+
+  it("aborts the recording before writing anything when an item's project is not public", async () => {
+    const { run, out } = await attempt(
+      visibility({ github: [CORE_LIB_REPO], gitlabProjectIds: ["7777"] }),
+      (call) => (isGroupRead(call) ? issuesOf(42, 7777) : undefined),
+    );
+    const failure = await run.then(
+      () => undefined,
+      (error: unknown) => String(error),
+    );
+    expect(failure).toMatch(/GitLab project 7777 .*not public/);
+    expect(failure).not.toMatch(/ISSUE-BODY|p7777|osdu\/platform/);
+    expect(readdirSync(out)).toEqual([]);
+  });
+
+  it("aborts when a group read returns an item without a project", async () => {
+    const { run, out } = await attempt(visibility({ github: [CORE_LIB_REPO] }), (call) =>
+      isGroupRead(call) ? { stdout: '[{"id":1}]', stderr: "", exit: 0 } : undefined,
+    );
+    await expect(run).rejects.toThrow(/group read/);
+    expect(readdirSync(out)).toEqual([]);
   });
 });
 

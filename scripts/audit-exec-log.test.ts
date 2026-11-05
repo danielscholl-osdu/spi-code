@@ -439,6 +439,75 @@ describe("audit of shapes, decoded strings and new credentials", () => {
     expect(auditSweep(dir).findings).toEqual(["gitlab group osdu/hidden: private"]);
   });
 
+  // A public group does not make its projects public: a group read must carry evidence that
+  // every item's project was public when recorded.
+  describe("a group issues read", () => {
+    const issues = (...items: object[]) => {
+      const dir = copyOfClean();
+      setVisibility(dir, "gitlabGroups", "osdu/platform", "public");
+      append(dir, {
+        cmd: "glab",
+        args: [
+          "api",
+          ...GITLAB_HOST,
+          "groups/osdu%2Fplatform/issues?labels=x&state=all&per_page=100&page=1",
+        ],
+        ...ok,
+        stdout: JSON.stringify(items),
+      });
+      return dir;
+    };
+    const issue = (project: number) => ({
+      id: 1,
+      project_id: project,
+      references: { full: `osdu/platform/p${project}#1` },
+      description: "an issue body",
+    });
+
+    test("fails an item of a private project, hand-inserted", () => {
+      const dir = issues(issue(42), issue(7777));
+      setVisibility(dir, "gitlabProjectIds", "42", "public");
+      setVisibility(dir, "gitlabProjectIds", "7777", "private");
+      expect(auditSweep(dir).findings).toEqual(["gitlab project 7777 in a group read: private"]);
+    });
+
+    test("fails an item whose project was never checked, or was missing", () => {
+      const dir = issues(issue(42), issue(43));
+      setVisibility(dir, "gitlabProjectIds", "43", "missing");
+      expect(auditSweep(dir).findings).toEqual([
+        "gitlab project 42 in a group read: not checked at record time",
+        "gitlab project 43 in a group read: missing",
+      ]);
+    });
+
+    test("fails an item without a project, and a response that is not a list", () => {
+      expect(auditSweep(issues({ id: 1 })).findings).toEqual([
+        "exec.jsonl:5: group read: an item without a project",
+      ]);
+      const dir = copyOfClean();
+      setVisibility(dir, "gitlabGroups", "osdu/platform", "public");
+      append(dir, {
+        cmd: "glab",
+        args: [
+          "api",
+          ...GITLAB_HOST,
+          "groups/osdu%2Fplatform/issues?labels=x&state=all&per_page=100&page=1",
+        ],
+        ...ok,
+        stdout: '{"message":"x"}',
+      });
+      expect(auditSweep(dir).findings).toEqual([
+        "exec.jsonl:5: group read: an item without a project",
+      ]);
+    });
+
+    test("passes when every item's project was public", () => {
+      const dir = issues(issue(42), issue(42));
+      setVisibility(dir, "gitlabProjectIds", "42", "public");
+      expect(auditSweep(dir).findings).toEqual([]);
+    });
+  });
+
   test("fails credentials and emails hidden behind JSON escapes", () => {
     const dir = copyOfClean();
     plant(dir, 1, '\\"author\\": \\"octo\\"', '\\"author\\": \\"jane\\\\u0040example.com\\"');

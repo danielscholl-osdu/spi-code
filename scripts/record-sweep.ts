@@ -7,10 +7,14 @@
  * the fleet's public forks only: services.json pins them, and the core library joins the fleet's
  * release reads only when it is public. A fence refuses, without running it, any call that names
  * a repository, project or group not verified public, each checked when first named, and any
- * call whose shape the audit's grammar cannot read. The same log then replays through the
+ * call whose shape the audit's grammar cannot read. A public group does not make its projects
+ * public, so a group-scoped read runs anonymously (no GitLab credential, an empty glab
+ * configuration) and every item it returns must belong to a project verified public; one that
+ * does not aborts the recording before anything is written. The same log then replays through the
  * rib's Sweeper in a scratch checkout of keelson-rib-spi at RIB_REVISION, in a child bun
  * process with a clean environment, to give rib-facts.json. Every repository, project and group
- * a recorded call targets then has its visibility checked now, and the audit runs last.
+ * a recorded call targets, and every project a group read returned an item of, then has its
+ * visibility checked now, and the audit runs last.
  * Output goes to fixtures/exec/local/sweep-<date>/, which git ignores until D2 is decided; an
  * output directory that already holds anything is refused, never cleared.
  */
@@ -48,12 +52,14 @@ import {
   fenced,
   fenceMessage,
   GITHUB_HOST,
+  itemProjects,
   LOG_FILE,
   NOT_PUBLIC,
   type References,
   report,
   scrubEmails,
   scrubJwts,
+  sweepItemProjects,
   sweepReferences,
   VISIBILITY_FILE,
   type Visibility,
@@ -181,7 +187,7 @@ async function gitlabVisibility(
 }
 
 /** The visibility now of every repository, project and group a recorded call targets, fenced
- * calls included. */
+ * calls included, and of every project a group read returned an item of. */
 async function checkVisibility(out: string, now: Date): Promise<VisibilityFile> {
   const refs = sweepReferences(out);
   const seen = async (names: Set<string>, check: (name: string) => Promise<Visibility>) => {
@@ -196,6 +202,7 @@ async function checkVisibility(out: string, now: Date): Promise<VisibilityFile> 
     github: await seen(refs.github, async (name) => githubVisibility(name)),
     gitlab: await seen(refs.gitlab, (path) => gitlabVisibility(path)),
     gitlabGroups: await seen(refs.gitlabGroups, (path) => gitlabVisibility(path, "groups")),
+    gitlabProjectIds: await seen(sweepItemProjects(out), (id) => gitlabVisibility(id)),
   };
 }
 
@@ -209,23 +216,70 @@ function tokens(): Record<string, string> {
 
 export type Forge = keyof References;
 const FORGE_NAMES: readonly Forge[] = ["github", "gitlab", "gitlabGroups"];
+/** What a visibility check names: a repository, project or group, or a GitLab project by id. */
+export type Checked = Forge | "gitlabProjectIds";
 
-/** The visibility now of one GitHub repository, GitLab project or GitLab group. */
-export type CheckVisibility = (forge: Forge, name: string) => Promise<Visibility>;
+/** The visibility now of one GitHub repository, GitLab project (by path or id) or GitLab group. */
+export type CheckVisibility = (checked: Checked, name: string) => Promise<Visibility>;
 
-const liveVisibility: CheckVisibility = async (forge, name) =>
-  forge === "github"
+const liveVisibility: CheckVisibility = async (checked, name) =>
+  checked === "github"
     ? githubVisibility(name)
-    : gitlabVisibility(name, forge === "gitlab" ? "projects" : "groups");
+    : gitlabVisibility(name, checked === "gitlabGroups" ? "groups" : "projects");
+
+// What can carry a GitLab credential or point glab at a configuration, a host or a CI login.
+const GITLAB_CREDENTIAL = /TOKEN|PASSWORD|SECRET|^GITLAB_|^GLAB_|^GL_|^CI(_|$)|^XDG_CONFIG_DIRS$/i;
+
+/** The environment of an anonymous glab call: no variable that can carry a credential or
+ * configuration, and glab's configuration, XDG configuration and home all at an empty
+ * directory, so glab finds no host entry and never consults the keyring. */
+export function anonymousEnv(env: NodeJS.ProcessEnv, dir: string): NodeJS.ProcessEnv {
+  return {
+    ...Object.fromEntries(Object.entries(env).filter(([name]) => !GITLAB_CREDENTIAL.test(name))),
+    GLAB_CONFIG_DIR: dir,
+    XDG_CONFIG_HOME: dir,
+    HOME: dir,
+  };
+}
+
+/** Runs a group-scoped read on the anonymous runner, in the empty configuration directory so
+ * glab finds no per-repository configuration either, and every other call signed in. A group
+ * read whose items are not all of projects verified public is withheld, and abort is told
+ * why, naming the project id only. */
+export function groupReadsAnonymously(
+  signedIn: ExecRunner,
+  anonymous: ExecRunner,
+  dir: string,
+  check: CheckVisibility,
+  abort: (reason: string) => void,
+): ExecRunner {
+  return async (cmd, args, opts) => {
+    if (!callTargets(cmd, args)?.gitlabGroups.size) return signedIn(cmd, args, opts);
+    const { env: _env, ...rest } = opts;
+    const output = await anonymous(cmd, args, { ...rest, cwd: dir });
+    if (output.exit !== 0) return { ...output, stdout: "" };
+    const withheld = (reason: string): ExecOutput => {
+      abort(reason);
+      return { stdout: "", stderr: "spi-code record: group read withheld", exit: 1 };
+    };
+    const ids = itemProjects(output.stdout);
+    if (!ids) return withheld("a group read returned an item without a project");
+    for (const id of [...new Set(ids)].sort((a, b) => Number(a) - Number(b))) {
+      if ((await check("gitlabProjectIds", id)) !== "public")
+        return withheld(`GitLab project ${id} in a group read is not public`);
+    }
+    return output;
+  };
+}
 
 /** Checks each name once, whatever its case; a check that fails leaves the name unknown. */
 export function onceEach(check: CheckVisibility): CheckVisibility {
   const seen = new Map<string, Promise<Visibility>>();
-  return (forge, name) => {
-    const key = `${forge}:${name.toLowerCase()}`;
+  return (checked, name) => {
+    const key = `${checked}:${name.toLowerCase()}`;
     let found = seen.get(key);
     if (!found) {
-      found = check(forge, name).catch((): Visibility => "unknown");
+      found = check(checked, name).catch((): Visibility => "unknown");
       seen.set(key, found);
     }
     return found;
@@ -283,8 +337,12 @@ export function prepareOut(out: string): void {
 
 export interface RecordOptions {
   out: string;
-  /** Runs one call; the fence decides whether it is asked to. */
+  /** Runs one call signed in; the fence decides whether it is asked to. */
   runner: ExecRunner;
+  /** A runner over the environment given, for group-scoped reads: no credential reaches it. */
+  anonymous: (env: NodeJS.ProcessEnv) => ExecRunner;
+  /** The environment the anonymous one is derived from; process.env when not given. */
+  env?: NodeJS.ProcessEnv;
   check: CheckVisibility;
   now: Date;
   /** Values RecordingExec redacts beyond core's own patterns. */
@@ -293,7 +351,9 @@ export interface RecordOptions {
 }
 
 /** Records one sweep of the public fleet into an empty directory: services.json, exec.jsonl,
- * core-facts.json and meta.json. The core library is read only when it is public. */
+ * core-facts.json and meta.json. The core library is read only when it is public. Nothing is
+ * written until the sweep ends, and nothing at all when a group read held an item of a project
+ * not verified public. */
 export async function recordSweep(options: RecordOptions): Promise<{
   meta: SweepMeta;
   ctx: CoreContext;
@@ -310,9 +370,20 @@ export async function recordSweep(options: RecordOptions): Promise<{
   const library = await check("github", CORE_LIB_REPO);
   const coreLib = library === "public" ? CORE_LIB_REPO : null;
   if (!coreLib) excluded[CORE_LIB_REPO] = library;
-  writeJson(join(out, SERVICES_FILE), services);
+  const servicesJson = `${JSON.stringify(services, null, 2)}\n`;
+  let aborted: string | undefined;
+  const config = mkdtempSync(join(tmpdir(), "spi-code-glab-anonymous-"));
+  const runner = groupReadsAnonymously(
+    options.runner,
+    options.anonymous(anonymousEnv(options.env ?? process.env, config)),
+    config,
+    check,
+    (reason) => {
+      aborted ??= reason;
+    },
+  );
   const exec = new RecordingExec(
-    fence(options.runner, check, refused),
+    fence(runner, check, refused),
     (jsonl) => {
       const line = jsonl.replace(/\n$/, "");
       const emails = scrubEmails(line);
@@ -329,10 +400,17 @@ export async function recordSweep(options: RecordOptions): Promise<{
     exec,
     persist: { load: async () => undefined, save: async () => {} },
     fleetFiles: { services: SERVICES_FILE },
-    readFile: (path) => readFileSync(join(out, path), "utf8"),
+    readFile: (path) =>
+      path === SERVICES_FILE ? servicesJson : readFileSync(join(out, path), "utf8"),
     factsSchema,
   });
-  await sweeper.sweep({ force: true });
+  try {
+    await sweeper.sweep({ force: true });
+  } finally {
+    rmSync(config, { recursive: true, force: true });
+  }
+  if (aborted) throw new Error(`recording aborted, nothing written: ${aborted}`);
+  writeFileSync(join(out, SERVICES_FILE), servicesJson);
   writeFileSync(join(out, LOG_FILE), lines.join(""));
   writeJson(join(out, "core-facts.json"), sweeper.facts);
   const entries = lines.map((line) => JSON.parse(line) as ExecLogEntry);
@@ -357,14 +435,15 @@ async function record(out: string, rib: string): Promise<void> {
   const now = new Date(Math.floor(Date.now() / 1000) * 1000);
   const appData = mkdtempSync(join(tmpdir(), "spi-code-record-"));
   try {
-    const host = new HostExec({
+    const host = {
       appData,
       capturedPath: process.env.PATH ?? "",
       installer: { binDir: async () => undefined },
-    });
+    };
     const { meta, facts } = await recordSweep({
       out,
-      runner: host.run,
+      runner: new HostExec(host).run,
+      anonymous: (env) => new HostExec({ ...host, env }).run,
       check: liveVisibility,
       now,
       secrets: tokens(),
