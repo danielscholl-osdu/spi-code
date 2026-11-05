@@ -41,7 +41,7 @@ async function script(directory: string, name: string, body: string) {
 }
 
 async function waitForPid(file: string): Promise<number> {
-  const deadline = Date.now() + 3000;
+  const deadline = Date.now() + PROCESS_WAIT.timeout;
   while (Date.now() < deadline) {
     try {
       const pid = Number(await readFile(file, "utf8"));

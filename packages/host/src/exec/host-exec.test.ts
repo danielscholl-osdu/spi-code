@@ -4,6 +4,7 @@
 import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { ToolInstaller } from "@spi-code/tools";
 import { afterEach, expect, it, vi } from "vitest";
 import { createManagedToolEnvironment } from "../env/tool-environment.js";
@@ -11,6 +12,21 @@ import { HostExec } from "./host-exec.js";
 
 // Real processes start slowly when the machine is busy; waitFor defaults to 1s.
 const PROCESS_WAIT = { timeout: 15_000 };
+
+// Polls on the real clock: vi.waitFor would advance fake timers and fire the exec timeout early.
+async function waitForPid(file: string): Promise<number> {
+  const deadline = Date.now() + PROCESS_WAIT.timeout;
+  while (Date.now() < deadline) {
+    try {
+      const pid = Number(await readFile(file, "utf8"));
+      if (Number.isInteger(pid) && pid > 0) return pid;
+    } catch (error) {
+      if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error;
+    }
+    await delay(10);
+  }
+  throw new Error("Child did not report readiness.");
+}
 
 const directories: string[] = [];
 afterEach(async () => {
@@ -162,10 +178,7 @@ it("kills the entire hung process tree including a SIGTERM-ignoring grandchild",
   });
   let pid = 0;
   try {
-    await vi.waitFor(async () => {
-      pid = Number(await readFile(pidFile, "utf8"));
-      expect(pid).toBeGreaterThan(0);
-    }, PROCESS_WAIT);
+    pid = await waitForPid(pidFile);
     if (process.platform !== "win32") process.kill(pid, "SIGTERM");
     process.kill(pid, 0);
   } finally {
