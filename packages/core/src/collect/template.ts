@@ -24,11 +24,11 @@ const compareSchema = positionSchema.extend({
 const pathsSchema = z.object({ dirs: z.array(z.string()), files: z.array(z.string()) });
 const completenessSchema = z.union([
   z.object({ kind: z.literal("complete") }),
-  z.object({ kind: z.literal("cut"), reason: z.string(), read: z.int().nonnegative(), total: z.int().nonnegative() }),
+  z.object({ kind: z.literal("cut"), reason: z.string().min(1), read: z.int().nonnegative(), total: z.int().nonnegative() }),
 ]).refine((value) => value.kind === "complete" || value.read <= value.total, "Read count exceeds total");
 const recordSchema = z.object({
-  source: z.string(), object: z.string(), observedAt: z.iso.datetime({ offset: true }),
-  completeness: completenessSchema, failure: z.string().optional(),
+  source: z.string().min(1), object: z.string().min(1), observedAt: z.iso.datetime({ offset: true }),
+  completeness: completenessSchema, failure: z.string().min(1).optional(),
   retainedFrom: z.iso.datetime({ offset: true }).optional(),
 });
 export type TemplateState = Record<string, { value: unknown; record: ReadRecord }>;
@@ -97,7 +97,7 @@ export async function readTemplate(
 
   async function read<T>(
     object: string, schema: z.ZodType<T>, load: () => Promise<Loaded<T>>,
-    retained?: ReadRecord, cacheKey = object,
+    retained?: ReadRecord, cacheKey = object, reuseCut = false,
   ): Promise<T | undefined> {
     let cached = state[cacheKey];
     if (cached) {
@@ -106,7 +106,7 @@ export async function readTemplate(
         invalid(cacheKey, checked.error.message);
         delete state[cacheKey];
         cached = undefined;
-      } else if (cached.record.failure === undefined && cached.record.completeness.kind === "complete") {
+      } else if (cached.record.failure === undefined && (cached.record.completeness.kind === "complete" || reuseCut)) {
         reads.push(cached.record);
         return checked.data;
       }
@@ -164,12 +164,13 @@ export async function readTemplate(
     else if (priorAhead) facts.mainAhead = previous?.mainAhead;
   }
 
-  async function label(marker: string): Promise<string> {
+  async function label(marker: string, priorLabel?: string): Promise<string> {
     for (const tag of tags.slice(0, LABEL_TAGS)) {
       const path = comparePath(tag, marker);
       const cmp = await read(path, positionSchema, async () => ({ value: await gh.rest(path, POSITION_JQ) }),
-        undefined, `position:${path}`);
-      if (!cmp) break;
+        priorLabel === undefined ? undefined : previous?.reads.find((r) => r.object === path),
+        `position:${path}`);
+      if (!cmp) return priorLabel ?? short(marker);
       if (cmp.status === "identical") return tag;
       if (cmp.status === "ahead") return `${tag} +${cmp.ahead_by}`;
     }
@@ -182,15 +183,22 @@ export async function readTemplate(
     const prior = previous?.compares[marker];
     const priorRead = prior && previous.reads.find((r) => r.object.startsWith(comparePath(marker, "")));
     const cmp = await read(path, compareSchema, async () => {
-      const commits: RawCommit[] = [];
-      let result: z.infer<typeof compareSchema> | undefined;
-      for (let page = 1; page <= TEMPLATE_COMPARE_PAGES; page++) {
-        result = compareSchema.parse(await gh.rest(`${path}?per_page=100&page=${page}`, COMPARE_JQ));
-        commits.push(...result.commits);
-        if (commits.length >= result.total_commits) return { value: { ...result, commits } };
-        if (result.commits.length === 0) throw new Error("Template compare ended before total_commits");
+      const result = compareSchema.parse(await gh.rest(`${path}?per_page=100&page=1`, COMPARE_JQ));
+      const newest: RawCommit[] = [];
+      let pages = 1;
+      if (result.commits.length === 0 && result.total_commits > 0) {
+        throw new Error("Template compare ended before total_commits");
       }
-      if (!result) throw new Error("Template compare has no pages");
+      // Compare pages are oldest-first. Spend the remaining calls on the head's
+      // end of the history so even a cut walk includes the newest changes.
+      for (let page = Math.ceil(result.total_commits / 100); page > 1 && pages < TEMPLATE_COMPARE_PAGES; page--) {
+        const batch = compareSchema.parse(await gh.rest(`${path}?per_page=100&page=${page}`, COMPARE_JQ));
+        if (batch.commits.length === 0) throw new Error("Template compare ended before total_commits");
+        newest.unshift(...batch.commits);
+        pages++;
+      }
+      const commits = [...result.commits, ...newest];
+      if (commits.length >= result.total_commits) return { value: { ...result, commits } };
       return {
         value: { ...result, commits },
         completeness: { kind: "cut", reason: "Template commit page limit", read: commits.length, total: result.total_commits },
@@ -198,7 +206,7 @@ export async function readTemplate(
     }, priorRead);
     if (cmp) {
       facts.compares[marker] = {
-        marker, head, label: await label(marker),
+        marker, head, label: await label(marker, prior?.label),
         aheadBy: cmp.status === "identical" ? 0 : cmp.ahead_by,
         shas: cmp.commits.map((c) => c.sha), changes: firstParentChanges(head, cmp.commits),
       };
@@ -212,14 +220,17 @@ export async function readTemplate(
   for (const c of new Map(changes.map((c) => [c.sha, c])).values()) {
     if (!c.parent) continue;
     const path = comparePath(c.parent, c.sha);
-    const files = await read(`files:${path}`, z.array(z.string()), async () => {
+    const object = `files:${path}`;
+    const priorFiles = previous?.files?.[c.sha];
+    const files = await read(object, z.array(z.string()), async () => {
       const value = z.array(z.string()).parse(await gh.rest(path, "[.files[]?.filename]"));
       // GitHub only returns files on the first compare page, capped at 300.
       return { value, ...(value.length >= 300 ? {
         completeness: { kind: "cut" as const, reason: "GitHub compare file limit (total unknown)", read: value.length, total: value.length },
       } : {}) };
-    }, undefined, `files:${path}`);
-    if (files) facts.files[c.sha] = files;
+    }, priorFiles === undefined ? undefined : previous?.reads.find((r) => r.object === object), object, true);
+    const retainedFiles = files ?? priorFiles;
+    if (retainedFiles !== undefined) facts.files[c.sha] = retainedFiles;
   }
 
   const syncPath = `repos/${TEMPLATE_REPO}/contents/.github/sync-config.json?ref=${head}`;
@@ -232,7 +243,7 @@ export async function readTemplate(
   const moved = new Set(ctx.fleet.forks.flatMap((f) =>
     (repos[f.repo]?.prs ?? []).map((p) => p.headMarker).filter((m): m is string => !!m && m !== repos[f.repo]?.marker)));
   const targets: Record<string, string> = {};
-  for (const sha of moved) targets[sha] = await label(sha);
+  for (const sha of moved) targets[sha] = await label(sha, previous?.targets?.[sha]);
   if (moved.size > 0) facts.targets = targets;
   facts.reads = [...new Map(reads.map((r) => [`${r.source}:${r.object}`, r])).values()];
   return facts;

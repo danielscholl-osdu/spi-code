@@ -7,6 +7,7 @@ import {
   firstParentChanges,
   readTemplate,
   TEMPLATE_COMPARE_PAGES,
+  templateStateSchema,
 } from "../../src/collect/template.js";
 import { fleetOf, TEMPLATE_REPO } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
@@ -146,10 +147,14 @@ test("a commit is named by the newest release it contains, even from a cached co
     updatedAt: now,
     headSha: "pr-head",
   });
+  let failPositions = false;
   const fake = routed((path) => {
     if (path.includes("/tags?")) return ["v1.2.0", "v1.3.0", "v1.1.0"];
     if (path.includes("?per_page=100&page=")) return compare([], 0);
     if (path.includes("/contents/")) return { dirs: [], files: [] };
+    if (failPositions && (path.endsWith(`...${marker}`) || path.endsWith(`...${target}`))) {
+      return new Error("label offline");
+    }
     const key = path.split("/compare/")[1];
     const values: Record<string, { status: string; ahead_by: number }> = {
       [`v1.3.0...${marker}`]: { status: "behind", ahead_by: 0 },
@@ -169,6 +174,24 @@ test("a commit is named by the newest release it contains, even from a cached co
   expect(second.reads.every((r) => r.observedAt === now && !r.failure)).toBe(true);
   expect(fake.calls.filter((p) => p.includes("/tags"))).toHaveLength(1);
   expect(fake.calls.filter((p) => p.includes(`v1.2.0...${marker}`))).toHaveLength(1);
+  failPositions = true;
+  const failed = await readTemplate(ctx("2026-10-15T18:00:00.000Z"), gh, input, {}, second);
+  const again = await readTemplate(
+    ctx("2026-10-16T18:00:00.000Z"),
+    gh,
+    input,
+    failed.state,
+    failed,
+  );
+  expect(again.compares[marker]?.label).toBe("v1.2.0");
+  expect(again.targets?.[target]).toBe("v1.2.0 +14");
+  for (const sha of [marker, target]) {
+    expect(again.reads.find((r) => r.object.endsWith(`v1.3.0...${sha}`))).toMatchObject({
+      failure: expect.stringContaining("label offline"),
+      retainedFrom: now,
+      observedAt: "2026-10-16T18:00:00.000Z",
+    });
+  }
 });
 
 test("an Exec recording replays the template facts, sync paths and file reads", async () => {
@@ -212,38 +235,49 @@ test("compares read every page and the commit walk at its page limit is explicit
     "complete",
   );
 
-  const cut = routed((path) =>
-    path.includes("?per_page=100&page=")
-      ? compare(
-          Array.from({ length: 100 }, (_, i) =>
-            commit(
-              `page-${new URL(`https://api.github.com/${path}`).searchParams.get("page")}-${i}`,
-              [],
-              "fix",
-            ),
-          ),
-          TEMPLATE_COMPARE_PAGES * 100 + 1,
-        )
-      : baseRoute(path),
+  const commits = Array.from({ length: 1050 }, (_, i) =>
+    commit(`commit-${i + 1}`, [i === 0 ? "marker" : `commit-${i}`], `fix: ${i + 1}`),
   );
-  const partial = await readTemplate(ctx(), new Gh(cut.exec), repos());
+  const cut = routed((path) => {
+    if (!path.includes("?per_page=100&page=")) return baseRoute(path);
+    const page = Number(new URL(`https://api.github.com/${path}`).searchParams.get("page"));
+    return compare(commits.slice((page - 1) * 100, page * 100), commits.length);
+  });
+  const partial = await readTemplate(ctx(), new Gh(cut.exec), repos("commit-1050"));
   expect(cut.calls.filter((p) => p.includes("?per_page=100&page="))).toHaveLength(
     TEMPLATE_COMPARE_PAGES,
   );
-  expect(partial.reads.find((r) => r.object.endsWith("marker...head"))?.completeness).toMatchObject(
-    { kind: "cut", read: TEMPLATE_COMPARE_PAGES * 100, total: TEMPLATE_COMPARE_PAGES * 100 + 1 },
+  expect(
+    cut.calls
+      .filter((p) => p.includes("?per_page=100&page="))
+      .map((p) => Number(new URL(`https://api.github.com/${p}`).searchParams.get("page"))),
+  ).toEqual([1, 11, 10, 9, 8, 7, 6, 5, 4, 3]);
+  expect(partial.compares.marker?.changes.map((c) => c.sha)).toEqual(
+    commits
+      .slice(200)
+      .reverse()
+      .map((c) => c.sha),
   );
+  expect(
+    partial.reads.find((r) => r.object.endsWith("marker...commit-1050"))?.completeness,
+  ).toMatchObject({ kind: "cut", read: 950, total: 1050 });
   const recovered = await readTemplate(
     ctx(),
-    new Gh(routed(baseRoute).exec),
-    repos(),
+    new Gh(
+      routed((path) =>
+        path.includes("?per_page=100&page=")
+          ? compare([commit("commit-1050", ["marker"], "fix (#251)")])
+          : baseRoute(path),
+      ).exec,
+    ),
+    repos("commit-1050"),
     partial.state,
     partial,
   );
   expect(recovered.compares.marker?.changes.map((c) => c.pr)).toEqual([251]);
-  expect(recovered.reads.find((r) => r.object.endsWith("marker...head"))?.completeness.kind).toBe(
-    "complete",
-  );
+  expect(
+    recovered.reads.find((r) => r.object.endsWith("marker...commit-1050"))?.completeness.kind,
+  ).toBe("complete");
 });
 
 test("repeated failed compares retain the previous changes and original observedAt", async () => {
@@ -296,7 +330,63 @@ test("invalid saved state is discarded with failure evidence; capped files are i
   });
   expect(result.reads.find((r) => r.source === "persist")?.failure).toBeTruthy();
   expect(result.reads.find((r) => r.object.startsWith("files:"))?.completeness.kind).toBe("cut");
+  const before = fake.calls.length;
+  const cached = await readTemplate(
+    ctx("2026-10-14T18:00:00.000Z"),
+    new Gh(fake.exec),
+    repos(),
+    result.state,
+    result,
+  );
+  expect(fake.calls).toHaveLength(before);
+  expect(cached.reads.find((r) => r.object.startsWith("files:"))).toEqual(
+    result.reads.find((r) => r.object.startsWith("files:")),
+  );
 });
+
+test("discarded state retains prior files and their original observation across failures", async () => {
+  const good = await readTemplate(ctx(), new Gh(routed(baseRoute).exec), repos());
+  const fake = routed((path) =>
+    path.includes("/compare/") && !path.includes("?per_page=")
+      ? new Error("files offline")
+      : baseRoute(path),
+  );
+  const failed = await readTemplate(
+    ctx("2026-10-14T18:00:00.000Z"),
+    new Gh(fake.exec),
+    repos(),
+    { invalid: null },
+    good,
+  );
+  const again = await readTemplate(
+    ctx("2026-10-15T18:00:00.000Z"),
+    new Gh(fake.exec),
+    repos(),
+    failed.state,
+    failed,
+  );
+  expect(again.files).toEqual(good.files);
+  expect(again.reads.find((r) => r.object.startsWith("files:"))).toMatchObject({
+    failure: expect.stringContaining("files offline"),
+    retainedFrom: now,
+  });
+});
+
+test.each(["source", "object", "reason", "failure"])(
+  "saved records reject an empty %s",
+  (field) => {
+    const record = {
+      source: TEMPLATE_REPO,
+      object: "compare",
+      observedAt: now,
+      completeness: { kind: "cut", reason: "limit", read: 1, total: 2 },
+      failure: "offline",
+    };
+    if (field === "reason") record.completeness.reason = "";
+    else Object.assign(record, { [field]: "" });
+    expect(templateStateSchema.safeParse({ entry: { value: [], record } }).success).toBe(false);
+  },
+);
 
 test("an early empty page fails explicitly, with no retainedFrom on a cold read", async () => {
   const fake = routed((path) =>

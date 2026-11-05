@@ -39,7 +39,9 @@ and radar cases stay there until their owning collector beads move them.
   `ctx.clock`. No head still means no remote reads.
 - A local `read` helper records every logical API read (all pages of a compare
   form one read). Complete immutable responses reuse their original records;
-  failed and cut responses retry. Failures are explicit records instead of
+  failed and cut commit walks retry. Immutable cut file lists reuse their
+  original record, because another request cannot bypass GitHub's file ceiling.
+  Failures are explicit records instead of
   escaping the entire collector or disappearing in helper catches. Repeated
   failures preserve the original retainedFrom. Returned reads are deduplicated
   by source/object; file and position caches have separate keys from commit
@@ -50,11 +52,17 @@ and radar cases stay there until their owning collector beads move them.
   latest release remains part of its cache key.
 - `label` is now local so its individual tag comparisons use the evidence
   helper. It keeps the five-tag bound, identical/ahead selection and short-SHA
-  fallback. Cached raw comparisons replace the derived label map and are
-  reused when a newer release causes older tags to be checked again.
+  fallback when no previous label exists. A failed tag comparison instead
+  retains a known marker or target label; its matching previous read supplies
+  retainedFrom, including across repeated failures after state is discarded.
+  Cached raw comparisons replace the derived label map and are reused when a
+  newer release causes older tags to be checked again.
 - Main-ahead reads retain their previous value with evidence on failure.
   Marker comparisons paginate 100 commits per page, at most ten pages, using
-  `total_commits`. The first-parent walk and shas still use the returned commits.
+  `total_commits`. After page one establishes the total, remaining calls read
+  backwards from the last page, keeping the head and newest first-parent
+  changes even when capped. Returned shas remain oldest-first by page.
+  The first-parent walk and shas still use the returned commits.
   Hitting the page bound returns partial data with a cut record. An empty page
   before total_commits is a failed read, not an apparently complete walk.
   On failure, a marker's prior TemplateCompare, including its changes and head,
@@ -64,7 +72,10 @@ and radar cases stay there until their owning collector beads move them.
   unread. Changes shared by forks are deduplicated before reading. GitHub's
   unpageable compare-files limit of 300 is conservatively marked cut when
   reached; the record's total is the known count, and its reason explicitly
-  says the actual total is unknown. File records have a `files:` object prefix
+  says the actual total is unknown. These immutable cut lists are not fetched
+  again for the same parent/sha. If saved state is discarded, a failed file read
+  retains previous files and their matching original read record.
+  File records have a `files:` object prefix
   so they cannot mask commit-walk evidence for the same compare endpoint.
 - `syncedPaths` is inlined; its projection and head-specific cache remain.
   Previous sync paths are passed in via `previous`, retained on failure and
@@ -75,3 +86,8 @@ and radar cases stay there until their owning collector beads move them.
 Additional cases cover RecordingExec/ReplayExec equality and exhaustion, complete
 multi-page reads, cut walks, repeated retention, independent fleets, missing
 heads, invalid saved state and GitHub's file ceiling. No dependency was added.
+Council regressions cover a 1,050-commit comparison (950 commits read in ten
+requests, including all 850 newest first-parent changes), retained marker and
+target labels after repeated tag-read failures, retained files after discarded
+state, and no repeated fetch for immutable cut files. Saved record source,
+object, cut reason and failure strings must be nonempty, matching the sweeper.
