@@ -14,11 +14,13 @@ import {
 } from "@spi-code/contracts";
 import {
   type ActionItem,
+  AREAS,
   type AreaName,
   buildBriefing,
   buildModel,
   type CoreContext,
   type DoctorView,
+  type EvidenceState,
   envelopeOf,
   type Facts,
   isMonth,
@@ -112,20 +114,36 @@ export interface WatchInput {
   readonly reading?: boolean;
 }
 
+const SEVERITY = { unread: 0, fresh: 1, stale: 2, incomplete: 3, failed: 4 } as const;
+
 function treeOf(input: WatchInput, now: Date): TreeStatus {
   const records = (areas: readonly AreaName[]) => areas.flatMap((area) => input.reads[area] ?? []);
-  const node = (id: string, reads: readonly ReadRecord[]) => ({
-    id,
-    status: envelopeOf(reads, { intervalMs: input.intervalMs, now: now.getTime() }).state,
-  });
+  const intervalOf = new Map<ReadRecord, number>();
+  for (const area of AREAS) {
+    const interval = input.intervals?.[area] ?? input.intervalMs;
+    for (const record of input.reads[area] ?? []) {
+      if (!intervalOf.has(record)) intervalOf.set(record, interval);
+    }
+  }
+  const stateOf = (reads: readonly ReadRecord[]): EvidenceState => {
+    const groups = new Map<number, ReadRecord[]>();
+    for (const record of reads) {
+      const interval = intervalOf.get(record) ?? input.intervalMs;
+      groups.set(interval, [...(groups.get(interval) ?? []), record]);
+    }
+    let worst: EvidenceState = "unread";
+    for (const [intervalMs, group] of groups) {
+      const { state } = envelopeOf(group, { intervalMs, now: now.getTime() });
+      if (SEVERITY[state] > SEVERITY[worst]) worst = state;
+    }
+    return worst;
+  };
+  const node = (id: string, reads: readonly ReadRecord[]) => ({ id, status: stateOf(reads) });
   const all = [...Object.values(input.reads).flat(), ...input.releaseRecords];
   const environment = records(["github", "lifecycle"]);
   const services = records(["github", "runs", "upstream", "radar", "template"]);
   const sharedTemplateReads = records(["template"]).filter((record) => {
-    const state = envelopeOf([record], {
-      intervalMs: input.intervalMs,
-      now: now.getTime(),
-    }).state;
+    const state = stateOf([record]);
     return state === "failed" || state === "stale";
   });
   const areaFailures = (["github", "runs", "upstream", "radar"] as const).flatMap((area) =>

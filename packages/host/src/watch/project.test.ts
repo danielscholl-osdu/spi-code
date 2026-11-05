@@ -504,6 +504,50 @@ describe("area envelopes and provenance", () => {
     expect(at(1_200_001)).toMatchObject({ runs: "stale", github: "stale" });
   });
 
+  it("judges each tree dot's records against their own area's sweep interval", () => {
+    const input = fixtureInput();
+    const start = input.context.clock.now().getTime();
+    let now = start;
+    const context = { ...input.context, clock: { now: () => new Date(now) } };
+    const read = (area: string): ReadRecord => ({
+      source: area,
+      object: area,
+      observedAt: new Date(start).toISOString(),
+      completeness: { kind: "complete" },
+    });
+    const at = (ms: number, intervals?: Partial<Record<AreaName, number>>) => {
+      now = start + ms;
+      const { tree } = projectWatch({
+        ...input,
+        context,
+        intervalMs: 600_000,
+        ...(intervals === undefined ? {} : { intervals }),
+        reads: { runs: [read("runs")], github: [read("github")] },
+      });
+      return Object.fromEntries(
+        tree
+          .filter(({ id }) => ["runs", "repositories", "services"].includes(id))
+          .map(({ id, status }) => [id, status]),
+      );
+    };
+    const perArea = { runs: 60_000 };
+    expect(at(0, perArea)).toEqual({ runs: "fresh", repositories: "fresh", services: "fresh" });
+    expect(at(120_000, perArea)).toEqual({
+      runs: "fresh",
+      repositories: "fresh",
+      services: "fresh",
+    });
+    expect(at(120_001, perArea)).toEqual({
+      runs: "stale",
+      repositories: "fresh",
+      services: "stale",
+    });
+    expect(at(120_001)).toEqual({ runs: "fresh", repositories: "fresh", services: "fresh" });
+    expect(at(1_200_000, perArea)).toMatchObject({ repositories: "fresh" });
+    expect(at(1_200_001, perArea)).toMatchObject({ repositories: "stale" });
+    expect(at(1_200_001)).toEqual({ runs: "stale", repositories: "stale", services: "stale" });
+  });
+
   it("names the feeding areas for every drawn value with resolving, unique paths", () => {
     const snapshot = projectWatch(fixtureInput());
     const paths = snapshot.provenance.map(({ path }) => path);
