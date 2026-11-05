@@ -11,7 +11,8 @@
   },
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "probe:copilot": "pnpm run build && node dist/copilot/probe.js"
   },
   "dependencies": {
     "@github/copilot-sdk": "1.0.26",
