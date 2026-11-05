@@ -292,7 +292,10 @@ export async function generate(rib: string) {
       settings.revision,
     );
     execFileSync("bun", ["install", "--frozen-lockfile"], { ...options, cwd: scratch });
-    execFileSync("bun", [fileURLToPath(import.meta.url), "--render", scratch, output], options);
+    execFileSync("bun", [fileURLToPath(import.meta.url), "--render", scratch, output], {
+      ...options,
+      cwd: scratch,
+    });
     cpSync(output, destination, { recursive: true });
     console.log(JSON.stringify(verifyOracle(destination), null, 2));
   } finally {
