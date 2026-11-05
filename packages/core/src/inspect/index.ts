@@ -6,5 +6,6 @@ export * from "./item.js";
 export * from "./mr.js";
 export * from "./repo.js";
 export * from "./step.js";
+export * from "./upstream-fork.js";
 export * from "./upstream-plan.js";
 export * from "./upstream-shared.js";

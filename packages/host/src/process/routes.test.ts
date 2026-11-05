@@ -25,10 +25,12 @@ import {
   type ItemClass,
   inspectRepo,
   inspectStep,
+  inspectUpstreamFork,
   inspectUpstreamPlan,
   type QueueItem,
   REPO_PREFIX,
   STEP_PREFIX,
+  UPSTREAM_PREFIX,
 } from "@spi-code/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
@@ -472,6 +474,50 @@ describe("inspect.request", () => {
     expect(calls).toBe(0);
   });
 
+  it("inspects every upstream fork from a reopened snapshot without running commands", async () => {
+    const forks = model.upstream.forks;
+    expect(new Set(forks.map((f) => f.phase)).size).toBeGreaterThan(1);
+    const storedAreas = areas.map(({ area }) => ({
+      area,
+      envelope: { source: area, state: "unread" as const },
+    }));
+    writeSnapshot(undefined, undefined, storedAreas);
+    db.close();
+    db = new DatabaseSync(path);
+    const port = host(routes());
+    for (const f of forks) {
+      port.request("inspect.request", { id: `${UPSTREAM_PREFIX}${f.service}` }, f.service);
+    }
+    await settle();
+    for (const f of forks) {
+      const id = `${UPSTREAM_PREFIX}${f.service}`;
+      const response = port.sent.find((message) => message.id === f.service);
+      expect(response).toMatchObject({ type: "inspect.result", payload: { id } });
+      const result = InspectResultSchema.parse(response?.payload);
+      const board = inspectUpstreamFork(model, f.service, ctx.clock.now());
+      if (!board) throw new Error(`Missing fork ${f.service}`);
+      expect(result.cause).toBe(board.title);
+      expect(result.why).toBe(board.header.status.label);
+      expect(result.class).toBe(
+        ({ halted: "HALT", unread: "UNREAD", stopped: "TOOLCHAIN", current: "READY" } as const)[
+          f.phase as string
+        ] ?? "ROLLOUT",
+      );
+      expect(result.areas).toEqual(storedAreas);
+      expect(result.provenance).toEqual([]);
+      expect(result.approval).toBeNull();
+      expect(result.actions.length).toBeGreaterThan(0);
+      expect(result.actions.every((a) => a.disabledReason === "writes arrive at M4")).toBe(true);
+      expect(result.related).toContainEqual({
+        text: "Back to the upstream plan",
+        state: "",
+        inspect: "upstream",
+      });
+      expect(result.related.some((row) => row.state.endsWith(" line"))).toBe(true);
+    }
+    expect(calls).toBe(0);
+  });
+
   it.each(["step", "release"] as const)(
     "inspects non-queue %s ids from the persisted fixture sweep",
     async (kind) => {
@@ -554,6 +600,22 @@ describe("inspect.request", () => {
     "upstream ",
     "upstream%3A",
     "upstream%2Fx",
+    "upstream:nope",
+    "upstream:Partition",
+    "UPSTREAM:partition",
+    "Upstream:partition",
+    "upstream: partition",
+    "upstream:partition ",
+    "upstream:partition\n",
+    "upstream:partition:x",
+    "upstream:partition/x",
+    "upstream%3Apartition",
+    "upstream:partition%2Fx",
+    "upstream:%70artition",
+    "upstream::partition",
+    "upstream:__proto__",
+    "upstream:constructor",
+    "upstream:toString",
   ])("answers not_found for malformed or unknown id %s", async (id) => {
     writeSnapshot();
     const port = host(routes());

@@ -34,6 +34,7 @@ import {
   inspectItem,
   inspectRepo,
   inspectStep,
+  inspectUpstreamFork,
   inspectUpstreamPlan,
   isMonth,
   type Model,
@@ -50,6 +51,7 @@ import {
   releaseDoc,
   STEP_PREFIX,
   UPSTREAM_ITEM,
+  UPSTREAM_PREFIX,
   type UpstreamBoard,
   verbsOf,
 } from "@spi-code/core";
@@ -411,9 +413,37 @@ export function upstreamPlanResult(
   });
 }
 
+export function upstreamForkResult(
+  id: string,
+  board: UpstreamBoard,
+  areas: readonly AreaEnvelope[],
+): InspectResult {
+  const { label, tone } = board.header.status;
+  const lead = board.sections[0];
+  return InspectResultSchema.parse({
+    ...upstreamPlanResult(board, areas),
+    id,
+    class:
+      label === "SYNC HALTS"
+        ? "HALT"
+        : label === "UNREAD"
+          ? "UNREAD"
+          : tone === "error"
+            ? "TOOLCHAIN"
+            : tone === "ok"
+              ? "READY"
+              : "ROLLOUT",
+    cause: board.title,
+    effect:
+      lead?.kind === "rows" && lead.title === undefined
+        ? (lead.items[0]?.text ?? "")
+        : board.header.chip,
+  });
+}
+
 /**
  * Watch requests over the port, including queue items, steps, MRs, releases, repositories
- * and the upstream plan.
+ * and the upstream plan and its forks.
  * One window subscribes at a time: a reload's subscription replaces the previous connection's.
  */
 export class WatchRoutes {
@@ -522,6 +552,9 @@ export class WatchRoutes {
       result = mrResult(mrBoard(model, id, now, ctx), id, latest.view.areas);
     } else if (id === UPSTREAM_ITEM) {
       result = upstreamPlanResult(inspectUpstreamPlan(model, now), latest.view.areas);
+    } else if (id.startsWith(UPSTREAM_PREFIX)) {
+      const fork = inspectUpstreamFork(model, id.slice(UPSTREAM_PREFIX.length), now);
+      if (fork) result = upstreamForkResult(id, fork, latest.view.areas);
     } else if (id.startsWith(RELEASE_PREFIX)) {
       const month = id.slice(RELEASE_PREFIX.length);
       if (
