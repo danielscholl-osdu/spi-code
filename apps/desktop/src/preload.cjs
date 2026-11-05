@@ -6,6 +6,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 let port;
 const listeners = new Set();
 contextBridge.exposeInMainWorld("spi", {
+  proof: process.argv.includes("--spi-proof"),
   postMessage(message) {
     if (!port) throw new Error("Host port is not connected");
     port.postMessage(message);
@@ -21,7 +22,7 @@ ipcRenderer.on("host:port", (event) => {
   if (!port) throw new Error("Host port was not transferred");
   port.onmessage = ({ data }) => {
     for (const listener of listeners) listener(data);
-    if (process.argv.includes("--spi-smoke")) ipcRenderer.send("smoke:message", data);
+    if (process.argv.includes("--spi-proof")) ipcRenderer.send("proof:message", data);
   };
   port.start();
 });

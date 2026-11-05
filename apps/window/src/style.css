@@ -1,0 +1,33 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+:root {
+  color-scheme: light dark;
+  --bg: #f3efe4;
+  --card: #fbf9f3;
+  --fg: #23211c;
+  --border: #dcd3bf;
+  --accent: #1d7a6c;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1a1b;
+    --card: #162324;
+    --fg: #e4dfd1;
+    --border: #2b3d3d;
+    --accent: #5cc4b2;
+  }
+}
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, sans-serif; }
+main { max-width: 800px; margin: auto; padding: 16px; }
+h1, h2 { margin: 0 0 8px; }
+h1 { font-size: 24px; }
+h2 { font-size: 16px; }
+p { margin: 8px 0; }
+form { display: grid; gap: 6px; margin: 12px 0; }
+select, textarea, button { font: inherit; padding: 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--fg); }
+textarea { min-height: 45px; resize: vertical; }
+button { cursor: pointer; color: var(--accent); }
+button:disabled { cursor: default; opacity: 0.6; }
+section { background: var(--card); padding: 12px; margin: 8px 0; border: 1px solid var(--border); border-radius: 8px; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }

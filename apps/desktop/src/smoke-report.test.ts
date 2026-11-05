@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { expect, it } from "vitest";
+import { APPENDIX_A_TOOLS } from "../../../packages/host/src/tools/tool-names.js";
 import { assertSmokeReport, type SmokeReport } from "./smoke-report.js";
 
 const report: SmokeReport = {
@@ -15,6 +16,11 @@ const report: SmokeReport = {
   malformed: "rejected",
   rowSurvived: true,
   listeners: "none",
+  tools: APPENDIX_A_TOOLS.map(({ name, tier }) => ({
+    name,
+    outcome: tier === "Read" ? "completed" : "refused",
+  })),
+  deniedBuiltIn: { name: "builtin:shell", outcome: "refused" },
 };
 
 it("accepts the terminal smoke report", () => {
@@ -32,6 +38,11 @@ it.each([
   { rendererRoundTrip: false },
   { hostNodeVersion: "22.15.0" },
   { mainNodeVersion: "invalid" },
+  { tools: report.tools.slice(1) },
+  { tools: [...report.tools, report.tools[0]] },
+  { tools: report.tools.map((tool) => ({ ...tool, outcome: "completed" })) },
+  { deniedBuiltIn: { name: "builtin:shell", outcome: "completed" } },
+  { deniedBuiltIn: undefined },
 ])("rejects a failed smoke check: %j", (failure) => {
   expect(() => assertSmokeReport({ ...report, ...failure })).toThrow();
 });

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import assert from "node:assert/strict";
+import { APPENDIX_A_TOOLS } from "../../../packages/host/dist/tools/tool-names.js";
 
 export interface SmokeReport {
   mainPid: number;
@@ -14,6 +15,8 @@ export interface SmokeReport {
   malformed: "rejected";
   rowSurvived: true;
   listeners: "none";
+  tools: { name: string; outcome: "completed" | "refused" | "error" }[];
+  deniedBuiltIn: { name: string; outcome: "refused" };
 }
 
 export function assertSmokeReport(value: unknown): asserts value is SmokeReport {
@@ -35,4 +38,14 @@ export function assertSmokeReport(value: unknown): asserts value is SmokeReport 
   assert.equal(report.malformed, "rejected");
   assert.equal(report.rowSurvived, true);
   assert.equal(report.listeners, "none");
+  assert(Array.isArray(report.tools));
+  const tools = report.tools as SmokeReport["tools"];
+  assert.equal(tools.length, APPENDIX_A_TOOLS.length);
+  assert.equal(new Set(tools.map(({ name }) => name)).size, APPENDIX_A_TOOLS.length);
+  for (const { name, tier } of APPENDIX_A_TOOLS) {
+    const observed = tools.find((tool) => tool.name === name);
+    assert(observed, `Missing tool: ${name}`);
+    assert.equal(observed.outcome, tier === "Read" ? "completed" : "refused");
+  }
+  assert.deepEqual(report.deniedBuiltIn, { name: "builtin:shell", outcome: "refused" });
 }

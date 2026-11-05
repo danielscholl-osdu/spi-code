@@ -9,12 +9,17 @@ export interface HostPort {
   start(): void;
 }
 
-export function attachHostPort(port: HostPort, pid: number): void {
+export function attachHostPort(
+  port: HostPort,
+  pid: number,
+  handler?: (message: Message, send: (message: Message) => void) => Promise<void>,
+): void {
   const send = (message: Message) => {
     const parsed = parseMessage(message);
     if (!parsed.ok) throw new Error("Host generated an invalid message");
     port.postMessage(parsed.message);
   };
+  let pending = Promise.resolve();
   port.on("message", ({ data }) => {
     const parsed = parseMessage(data);
     if (!parsed.ok) {
@@ -36,6 +41,20 @@ export function attachHostPort(port: HostPort, pid: number): void {
         type: "pong",
         payload: {},
       });
+      return;
+    }
+    if (handler && (message.type === "models.list" || message.type === "turn.start")) {
+      pending = pending
+        .then(() => handler(message, send))
+        .catch(() =>
+          send({
+            version: 1,
+            id: message.id,
+            kind: "response",
+            type: "error",
+            payload: { code: "host_failed", message: "Host request failed" },
+          }),
+        );
       return;
     }
     send({

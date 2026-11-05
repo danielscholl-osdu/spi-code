@@ -16,6 +16,18 @@ export const MessageSchema = z.discriminatedUnion("type", [
   z.strictObject({
     ...envelope,
     kind: z.literal("event"),
+    type: z.literal("signin.state"),
+    payload: z.strictObject({ signedIn: z.boolean() }),
+  }),
+  z.strictObject({
+    ...envelope,
+    kind: z.literal("event"),
+    type: z.literal("session.ended"),
+    payload: z.strictObject({ reason: z.enum(["credential_changed", "authentication_failed"]) }),
+  }),
+  z.strictObject({
+    ...envelope,
+    kind: z.literal("event"),
     type: z.literal("host.hello"),
     payload: z.strictObject({ pid: z.number().int().positive() }),
   }),
@@ -73,6 +85,7 @@ export const MessageSchema = z.discriminatedUnion("type", [
       callId: identifier,
       name: identifier,
       arguments: z.record(z.string(), z.json()),
+      outcome: z.enum(["completed", "refused", "error"]).optional(),
     }),
   }),
   z.strictObject({

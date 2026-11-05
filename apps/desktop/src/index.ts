@@ -20,6 +20,9 @@ import {
 import { assertSmokeReport, type SmokeReport } from "./smoke-report.js";
 
 const smoke = process.argv.includes("--smoke");
+const liveFlag = process.argv.indexOf("--live-report");
+const livePath = liveFlag >= 0 ? process.argv[liveFlag + 1] : undefined;
+const proof = smoke || liveFlag >= 0;
 const reportFlag = process.argv.indexOf("--smoke-report");
 const reportPath =
   reportFlag >= 0
@@ -102,6 +105,10 @@ async function startHost(window: BrowserWindow, args: string[]): Promise<number>
 
 async function run(): Promise<void> {
   if (!reportPath) throw new Error("--smoke-report requires a path");
+  if (liveFlag >= 0 && (!livePath || livePath.startsWith("--")))
+    throw new Error("--live-report requires a path");
+  if (liveFlag >= 0 && process.env.SPI_CODE_STUB_MODEL === "1")
+    throw new Error("--live-report requires the real Copilot runtime");
   await app.whenReady();
   const dataDir = smoke
     ? join(app.getPath("userData"), "smoke", randomUUID())
@@ -116,15 +123,21 @@ async function run(): Promise<void> {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      additionalArguments: smoke ? ["--spi-smoke"] : [],
+      additionalArguments: proof ? ["--spi-proof", ...(smoke ? ["--spi-smoke"] : [])] : [],
     },
   });
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.webContents.on("will-navigate", (event) => event.preventDefault());
   const messages: Message[] = [];
   const received = new EventEmitter();
-  if (smoke) {
-    ipcMain.on("smoke:message", (event, input: unknown) => {
+  const evidence = {
+    signedIn: false,
+    modelCount: 0,
+    streamedDeltaCount: 0,
+    toolEvents: [] as Extract<Message, { type: "tool.call" }>["payload"][],
+  };
+  if (proof) {
+    ipcMain.on("proof:message", (event, input: unknown) => {
       if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame)
         return;
       const parsed = parseMessage(input);
@@ -134,6 +147,28 @@ async function run(): Promise<void> {
       }
       messages.push(parsed.message);
       received.emit("message");
+      const message = parsed.message;
+      if (message.type === "signin.state") evidence.signedIn = message.payload.signedIn;
+      if (message.type === "models.result") evidence.modelCount = message.payload.models.length;
+      if (message.type === "turn.delta") evidence.streamedDeltaCount++;
+      if (message.type === "tool.call") evidence.toolEvents.push(message.payload);
+      if (livePath && message.type === "error") {
+        fail(new Error("Live proof request failed"));
+        return;
+      }
+      if (livePath && message.type === "turn.end") {
+        void (async () => {
+          assert.equal(message.payload.reason, "completed");
+          assert(evidence.signedIn && evidence.modelCount > 0 && evidence.streamedDeltaCount > 0);
+          assert(evidence.toolEvents.length > 0, "Live turn did not reach a gated tool");
+          mkdirSync(dirname(livePath), { recursive: true });
+          writeFileSync(livePath, `${JSON.stringify(evidence, null, 2)}\n`);
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          writeFileSync(`${livePath}.png`, (await window.webContents.capturePage()).toPNG());
+          await stopHost();
+          app.exit(0);
+        })().catch(fail);
+      }
     });
   }
   const wait = (predicate: (message: Message) => boolean): Promise<Message> =>
@@ -168,6 +203,16 @@ async function run(): Promise<void> {
   assert(hello.type === "host.hello");
   assert.equal(hello.payload.pid, hostPid);
   await wait((message) => message.type === "pong" && message.id === "window-ping");
+  const turn = await wait((message) => message.type === "turn.end");
+  assert(turn.type === "turn.end" && turn.payload.reason === "completed");
+  const tools = evidence.toolEvents
+    .filter(({ name }) => !name.startsWith("builtin:"))
+    .map(({ name, outcome }) => {
+      assert(outcome, "Missing observed tool outcome");
+      return { name, outcome };
+    });
+  const deniedBuiltIn = evidence.toolEvents.find(({ name }) => name === "builtin:shell");
+  assert(deniedBuiltIn?.outcome === "refused", "Built-in refusal was not observed");
   window.webContents.send("smoke:malformed");
   await wait((message) => message.type === "error" && message.payload.code === "invalid_message");
   assertNoListeners(process.pid);
@@ -197,6 +242,8 @@ async function run(): Promise<void> {
     malformed: "rejected",
     rowSurvived: probe.rowSurvived,
     listeners: "none",
+    tools,
+    deniedBuiltIn: { name: deniedBuiltIn.name, outcome: deniedBuiltIn.outcome },
   };
   assertSmokeReport(report);
   await stopHost();
@@ -210,5 +257,9 @@ app.on("will-quit", () => {
   stopping = true;
   child?.kill();
 });
-if (smoke) setTimeout(() => fail(new Error("Smoke exceeded 30 seconds")), 30000).unref();
+if (proof)
+  setTimeout(
+    () => fail(new Error("Proof exceeded its time limit")),
+    smoke ? 30000 : 120000,
+  ).unref();
 void run().catch(fail);
