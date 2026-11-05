@@ -7,6 +7,25 @@ import { execOutputDelivery, execRedactor } from "./port.js";
 
 describe("exec recording and replay", () => {
   it.each([
+    "Authorization:\nopaque-credential",
+    'Bearer "opaque-credential"',
+  ])("records parseable JSON and replays a redacted %j", async (body) => {
+    let log = "";
+    const stdout = JSON.stringify({ body, unchanged: "kept" });
+    const recording = new RecordingExec(async () => ({ stdout, stderr: "", exit: 0 }),
+      (line) => { log += line; });
+    expect(await recording.runJSON("gh", ["api"])).toMatchObject({
+      ok: true, data: { body, unchanged: "kept" },
+    });
+    expect(log).not.toContain("opaque-credential");
+    const replay = new ReplayExec(log);
+    expect(await replay.runJSON("gh", ["api"])).toMatchObject({
+      ok: true, data: { body: expect.stringContaining("<redacted>"), unchanged: "kept" },
+    });
+    replay.assertExhausted();
+  });
+
+  it.each([
     ["Authorization\n", ": opaque-value"],
     ["Bearer\n", "opaque-value"],
   ])("holds the split introducer %j before any credential can stream", (header, value) => {
@@ -110,6 +129,11 @@ describe("exec recording and replay", () => {
     ["Bearer\ncredential", {}],
     ["Authorization\n: credential", {}],
     ["Bearer\n opaque-value", {}],
+    [JSON.stringify({ body: "Authorization:\nopaque-credential" }), {}],
+    [JSON.stringify({ body: 'Bearer "opaque-credential"' }), {}],
+    [JSON.stringify({ body: "Authorization:\nBearer \"opaque-credential\"" }), {}],
+    [JSON.stringify({ body: "Authorization: opaque\\credential" }), {}],
+    [JSON.stringify({ body: "Bearer opaque\\credential" }), {}],
     ["opaque.credential", { stdin: "opaque.credential\n" }],
     ["environment.credential", { env: { SERVICE_TOKEN: "environment.credential" } }],
   ] satisfies [string, ExecOptions][])("redacts %s across every chunk boundary", (secret, opts) => {
