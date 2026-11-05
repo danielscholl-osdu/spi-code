@@ -138,13 +138,13 @@ export class SweepService {
     if (!this.started) {
       try {
         this.prune.run(this.now() - 7 * DAY_MS);
+        try {
+          this.trimBudgetLog();
+        } catch (error) {
+          this.options.onError(error);
+        }
       } catch (error) {
         return Promise.reject(error);
-      }
-      try {
-        this.trimBudgetLog();
-      } catch (error) {
-        this.options.onError(error);
       }
       this.started = true;
       this.generation++;
@@ -196,7 +196,12 @@ export class SweepService {
     try {
       await this.running;
     } catch (error) {
-      if (!holder?.abort.signal.aborted || error !== holder.abort.signal.reason) throw error;
+      if (
+        error !== this.stopReason &&
+        (!holder?.abort.signal.aborted || error !== holder.abort.signal.reason)
+      ) {
+        throw error;
+      }
     } finally {
       if (holder) this.leases.release(holder.identity.fleet, this.owner, holder.identity.fence);
     }
@@ -224,15 +229,35 @@ export class SweepService {
     this.cancellations.push(() => cancel());
   }
 
-  private trimBudgetLog(): void {
+  private readBudgetLog(): string {
     const path = join(this.options.appData, "sweep-budget.jsonl");
-    let text: string;
+    let bytes: Buffer;
     try {
-      text = readFileSync(path, "utf8");
+      bytes = readFileSync(path);
     } catch (error) {
-      if (error instanceof Error && "code" in error && error.code === "ENOENT") return;
+      if (error instanceof Error && "code" in error && error.code === "ENOENT") return "";
       throw error;
     }
+    const text = bytes.toString("utf8");
+    if (!bytes.length || bytes.at(-1) === 10) return text;
+    const end = bytes.lastIndexOf(10) + 1;
+    const fragment = bytes.subarray(end);
+    try {
+      JSON.parse(fragment.toString("utf8"));
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error;
+      // Quarantine exact bytes before repairing, including any partial UTF-8 sequence.
+      writeFileSync(`${path}.${randomUUID()}.torn`, fragment, { flag: "wx" });
+      const prefix = bytes.subarray(0, end);
+      this.replaceBudgetLog(prefix);
+      return prefix.toString("utf8");
+    }
+    appendFileSync(path, "\n");
+    return `${text}\n`;
+  }
+
+  private trimBudgetLog(): void {
+    const text = this.readBudgetLog();
     const cutoff = this.now() - DAY_MS;
     const retained = text.split("\n").filter((line) => {
       if (!line.trim()) return false;
@@ -248,11 +273,14 @@ export class SweepService {
       }
       return Date.parse(record.endedAt) >= cutoff;
     });
+    if (text) this.replaceBudgetLog(retained.length ? `${retained.join("\n")}\n` : "");
+  }
+
+  private replaceBudgetLog(contents: string | Buffer): void {
+    const path = join(this.options.appData, "sweep-budget.jsonl");
     const temporary = `${path}.${randomUUID()}.tmp`;
     try {
-      writeFileSync(temporary, retained.length ? `${retained.join("\n")}\n` : "", {
-        flag: "wx",
-      });
+      writeFileSync(temporary, contents, { flag: "wx" });
       renameSync(temporary, path);
     } finally {
       rmSync(temporary, { force: true });
@@ -414,6 +442,7 @@ export class SweepService {
             : {}),
         };
         mkdirSync(this.options.appData, { recursive: true });
+        this.readBudgetLog();
         appendFileSync(
           join(this.options.appData, "sweep-budget.jsonl"),
           `${JSON.stringify(line)}\n`,

@@ -3,7 +3,7 @@
 
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -479,6 +479,43 @@ it("coalesces requests, aborts on stop and sends no further Exec calls after can
   expect(createLeaseStore(db).acquire("test", "next", 3000, Date.now())).toBe(2);
 });
 
+it.each([false, true])(
+  "resolves concurrent and repeated stops while a sweep unwinds (restart: %s)",
+  async (restart) => {
+    let finish: (() => void) | undefined;
+    const first = service([
+      {
+        name: "auth",
+        read: async () => {
+          await new Promise<void>((resolve) => {
+            finish = resolve;
+          });
+          return { data: auth, reads: [] };
+        },
+      },
+    ]);
+    const rejected = expect(first.start()).rejects.toThrow("Sweep service stopped");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(finish).toBeTypeOf("function");
+    const stopped = first.stop();
+    const restarted = restart
+      ? expect(first.start()).rejects.toThrow("Sweep service stopped")
+      : undefined;
+    const stops = expect(Promise.all([stopped, first.stop()])).resolves.toEqual([
+      undefined,
+      undefined,
+    ]);
+    finish?.();
+    await stops;
+    await rejected;
+    await restarted;
+    await expect(first.stop()).resolves.toBeUndefined();
+    expect(vi.getTimerCount()).toBe(0);
+    expect(budgets()).toHaveLength(1);
+    expect(createLeaseStore(db).acquire("test", "next", 3000, Date.now())).toBe(2);
+  },
+);
+
 it("does not report intentional stop cancellation from a background sweep", async () => {
   const onError = vi.fn();
   let blocked = false;
@@ -588,6 +625,92 @@ it("trims budget logs on startup across sessions shorter than a day", async () =
     await vi.advanceTimersByTimeAsync(60 * 60_000);
     await next.stop();
   }
+});
+
+it.each(["startup", "append", "daily trim"])(
+  "quarantines a torn budget-log tail before %s and keeps trimming",
+  async (recovery) => {
+    const onError = vi.fn();
+    const first = service([], { intervalMs: 2 * DAY_MS, ttlMs: 3 * DAY_MS, onError });
+    await first.start();
+    const record = budgets()[0];
+    const old = { ...record, endedAt: new Date(epoch - 2 * DAY_MS).toISOString() };
+    const log = join(directory, "sweep-budget.jsonl");
+    const fragment = Buffer.concat([
+      Buffer.from('{"fleet":"torn","cost":7,"detail":"'),
+      Buffer.from([0xe2, 0x82]),
+    ]);
+    writeFileSync(
+      log,
+      Buffer.concat([
+        Buffer.from(`${[old, record].map((line) => JSON.stringify(line)).join("\n")}\n`),
+        fragment,
+      ]),
+    );
+    if (recovery === "startup") {
+      await first.stop();
+      await first.start();
+    } else if (recovery === "append") {
+      await first.sweep(true);
+    } else {
+      await vi.advanceTimersByTimeAsync(DAY_MS);
+    }
+    const quarantines = readdirSync(directory).filter((name) =>
+      /^sweep-budget\.jsonl\..+\.torn$/.test(name),
+    );
+    expect(quarantines).toHaveLength(1);
+    expect(readFileSync(join(directory, quarantines[0] ?? ""))).toEqual(fragment);
+    expect(onError).not.toHaveBeenCalled();
+    expect(budgets()).toContainEqual(record);
+    if (recovery !== "append") expect(budgets()).not.toContainEqual(old);
+    await first.sweep(true);
+    expect(budgets().at(-1)?.cursor).toBe(recovery === "daily trim" ? 2 : 3);
+    await vi.advanceTimersByTimeAsync(DAY_MS);
+    expect(budgets()).not.toContainEqual(old);
+    expect(readFileSync(join(directory, quarantines[0] ?? ""))).toEqual(fragment);
+    expect(onError).not.toHaveBeenCalled();
+  },
+);
+
+it("quarantines a wholly torn budget log before the next sweep", async () => {
+  const fragment = '{"fleet":"test","cost":';
+  writeFileSync(join(directory, "sweep-budget.jsonl"), fragment);
+  const first = service();
+  await expect(first.start()).resolves.toBe(true);
+  expect(budgets()).toHaveLength(1);
+  const quarantines = readdirSync(directory).filter((name) => name.endsWith(".torn"));
+  expect(quarantines).toHaveLength(1);
+  expect(readFileSync(join(directory, quarantines[0] ?? ""), "utf8")).toBe(fragment);
+});
+
+it("separates a complete unterminated budget record from the next append", async () => {
+  const first = service();
+  await first.start();
+  const record = budgets()[0];
+  writeFileSync(join(directory, "sweep-budget.jsonl"), JSON.stringify(record));
+  await first.sweep(true);
+  expect(budgets()).toEqual([record, { ...record, cursor: 2 }]);
+  expect(readdirSync(directory).filter((name) => name.endsWith(".torn"))).toEqual([]);
+});
+
+it("rejects asynchronously when the startup trim error sink throws", async () => {
+  const log = join(directory, "sweep-budget.jsonl");
+  const contents = "{not-json}\n";
+  writeFileSync(log, contents);
+  const failure = new Error("error sink failed");
+  const onError = vi.fn(() => {
+    throw failure;
+  });
+  const first = service([], { onError });
+  let started: Promise<boolean> | undefined;
+  expect(() => {
+    started = first.start();
+  }).not.toThrow();
+  await expect(started).rejects.toBe(failure);
+  expect(onError).toHaveBeenCalledWith(expect.any(SyntaxError));
+  expect(readFileSync(log, "utf8")).toBe(contents);
+  expect(first.latest()).toBeUndefined();
+  expect(vi.getTimerCount()).toBe(0);
 });
 
 it("reports malformed startup budget evidence without blocking the immediate sweep", async () => {
