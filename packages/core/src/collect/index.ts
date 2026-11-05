@@ -12,3 +12,13 @@ export {
   readUpstreamPins,
   type RemovalRead,
 } from "./pins.js";
+export {
+  type DiffEntry,
+  diffEntry,
+  emptyRadarState,
+  mrKey,
+  pruneRadar,
+  type RadarRead,
+  type RadarState as RadarCollectorState,
+  readRadar,
+} from "./radar.js";
