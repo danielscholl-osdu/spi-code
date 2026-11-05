@@ -3,6 +3,7 @@
 
 import { type ReactNode, useEffect, useState } from "react";
 import { ProgramTree } from "../components/tree/ProgramTree.js";
+import { RightPanel, selectionStore } from "../panels/index.js";
 import { watchStore } from "../store/watch.js";
 import { createAppearance } from "./appearance.js";
 import { routes, useSetupLanding } from "./routes.js";
@@ -18,6 +19,7 @@ export function Shell({ children }: { children?: ReactNode }) {
     const controller = createAppearance();
     setAppearance(controller);
     const unsubscribe = window.spi.onMessage((message) => {
+      selectionStore.getState().receive(message);
       try {
         watchStore.getState().receive(message);
       } catch (reason) {
@@ -61,10 +63,7 @@ export function Shell({ children }: { children?: ReactNode }) {
           {children}
         </details>
       </main>
-      <aside aria-label="Inspector">
-        <h2>Inspector</h2>
-        <p>No selection</p>
-      </aside>
+      <RightPanel store={selectionStore} />
     </div>
   );
 }
