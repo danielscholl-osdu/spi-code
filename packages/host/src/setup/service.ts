@@ -8,6 +8,7 @@ import {
   type SetupInstallSchema,
   type SetupSigninProgress,
   type SetupSigninSchema,
+  type SetupSigninStep,
   type SetupState,
   SetupStateSchema,
   type SetupToolSchema,
@@ -23,6 +24,7 @@ import { GH_HOST, ghStatus, glabStatus } from "./status.js";
 type ToolRow = z.infer<typeof SetupToolSchema>;
 type InstallTool = z.infer<typeof SetupInstallSchema>["tool"];
 type SigninRequest = z.infer<typeof SetupSigninSchema>;
+type SigninFlow = { readonly abort: AbortController; retired: boolean };
 
 /** The managed tool installer: gh and glab. */
 export interface SetupTools {
@@ -57,6 +59,10 @@ export interface SetupServiceOptions {
 export const GITLAB_AREAS_REASON =
   "The GitLab areas (upstream, radar) are disabled until glab is ready.";
 const GLAB_TOKEN_NEEDED = "Paste a GitLab token to sign in glab.";
+const SIGNIN_RUNNING = {
+  gh: "A gh sign-in is already running.",
+  glab: "A glab sign-in is already running.",
+};
 const SEAT_FAILED = "The Copilot seat check did not complete.";
 const COPILOT_NEEDS_GH = "Copilot signs in through gh. Install gh and sign in first.";
 const WATCH_OFF = "Watch is off:";
@@ -125,7 +131,7 @@ export class SetupService {
   private sweep: { instance: SetupSweep; failed: boolean } | undefined;
   private timer: ReturnType<typeof setInterval> | undefined;
   // copilot and gh share one gh auth login flow.
-  private readonly signingIn = new Set<"gh" | "glab">();
+  private readonly flows = new Map<"gh" | "glab", SigninFlow>();
   private stopped = false;
   private sequence = 0;
 
@@ -136,7 +142,7 @@ export class SetupService {
     },
     "setup.signin": async (message) => {
       if (message.type !== "setup.signin") return;
-      await this.signin(message.payload);
+      await this.signin(message.payload, message.id);
     },
   };
 
@@ -150,8 +156,15 @@ export class SetupService {
   /**
    * Replaces the window sender, sends it the last state at once, and re-reads every tool so a
    * change made outside the app (a sign-out, an account switch) reaches the window and the gate.
+   * Sign-in flows started for the previous connection are cancelled and retired: none of their
+   * progress reaches the new one, and its next sign-in request starts a fresh flow.
    */
   connect(send: HostSend): void {
+    for (const flow of this.flows.values()) {
+      flow.retired = true;
+      flow.abort.abort();
+    }
+    this.flows.clear();
     this.sender = send;
     if (this.state) this.post(this.state);
     void this.refresh().catch(this.options.onError);
@@ -227,26 +240,32 @@ export class SetupService {
     await this.refresh();
   }
 
-  private async signin(request: SigninRequest): Promise<void> {
+  private async signin(request: SigninRequest, requestId: string): Promise<void> {
     const tool = request.tool;
-    const flow = tool === "glab" ? "glab" : "gh";
-    if (this.signingIn.has(flow)) return;
-    this.signingIn.add(flow);
-    const report = (progress: SetupSigninProgress) =>
-      this.emit(tool === "copilot" ? { ...progress, tool } : progress);
+    const key = tool === "glab" ? "glab" : "gh";
+    if (this.flows.has(key)) {
+      this.emit({ requestId, tool, state: "failed", reason: SIGNIN_RUNNING[key] });
+      return;
+    }
+    const flow: SigninFlow = { abort: new AbortController(), retired: false };
+    this.flows.set(key, flow);
+    const report = (step: SetupSigninStep) => {
+      if (!flow.retired) this.emit({ ...step, tool, requestId });
+    };
+    const signal = flow.abort.signal;
     try {
-      if (tool === "glab") {
-        if (request.tool === "glab" && request.token !== undefined) {
-          await signinGlab(this.options.exec, request.token, { report });
+      if (request.tool === "glab") {
+        if (request.token !== undefined) {
+          await signinGlab(this.options.exec, request.token, { report, signal });
         } else {
           report({ tool: "glab", state: "failed", reason: GLAB_TOKEN_NEEDED });
         }
       } else {
-        await signinGh(this.options.exec, { report });
+        await signinGh(this.options.exec, { report, signal });
         this.seat = undefined;
       }
     } finally {
-      this.signingIn.delete(flow);
+      if (this.flows.get(key) === flow) this.flows.delete(key);
     }
     await this.refresh();
   }

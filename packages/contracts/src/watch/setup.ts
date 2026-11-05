@@ -52,15 +52,30 @@ export const SetupSigninSchema = z.discriminatedUnion("tool", [
       .optional(),
   }),
 ]);
-export const SetupSigninProgressSchema = z.discriminatedUnion("state", [
-  z.strictObject({
+const signinSteps = {
+  deviceCode: {
     tool: SigninToolSchema,
     state: z.literal("device-code"),
     deviceCode: IdentifierSchema,
     url: WebUrlSchema,
-  }),
-  z.strictObject({ tool: SigninToolSchema, state: z.enum(["starting", "waiting", "completed"]) }),
-  z.strictObject({ tool: SigninToolSchema, state: z.literal("failed"), reason: IdentifierSchema }),
+  },
+  running: { tool: SigninToolSchema, state: z.enum(["starting", "waiting", "completed"]) },
+  failed: { tool: SigninToolSchema, state: z.literal("failed"), reason: IdentifierSchema },
+};
+/** One step of a sign-in flow, before the host ties it to the request that started the flow. */
+export const SetupSigninStepSchema = z.discriminatedUnion("state", [
+  z.strictObject(signinSteps.deviceCode),
+  z.strictObject(signinSteps.running),
+  z.strictObject(signinSteps.failed),
+]);
+// requestId is the id of the setup.signin request that started the flow. It is required: host and
+// window ship together, so progress without it is rejected rather than applied to any request.
+const requestId = { requestId: IdentifierSchema };
+export const SetupSigninProgressSchema = z.discriminatedUnion("state", [
+  z.strictObject({ ...signinSteps.deviceCode, ...requestId }),
+  z.strictObject({ ...signinSteps.running, ...requestId }),
+  z.strictObject({ ...signinSteps.failed, ...requestId }),
 ]);
 export type SetupState = z.infer<typeof SetupStateSchema>;
+export type SetupSigninStep = z.infer<typeof SetupSigninStepSchema>;
 export type SetupSigninProgress = z.infer<typeof SetupSigninProgressSchema>;

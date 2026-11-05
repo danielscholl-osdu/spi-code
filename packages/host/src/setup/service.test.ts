@@ -337,7 +337,12 @@ it("reports the GitLab areas disabled while glab is missing, without blocking Wa
 
   await service.routes["setup.signin"]?.(request("setup.signin", { tool: "glab" }), () => {});
   expect(progress()).toEqual<SetupSigninProgress[]>([
-    { tool: "glab", state: "failed", reason: "Paste a GitLab token to sign in glab." },
+    {
+      requestId: "req-setup.signin",
+      tool: "glab",
+      state: "failed",
+      reason: "Paste a GitLab token to sign in glab.",
+    },
   ]);
 });
 
@@ -471,4 +476,210 @@ it("runs one gh sign-in flow when copilot and gh ask together", async () => {
   release();
   await copilot;
   expect(logins).toHaveBeenCalledOnce();
+});
+
+type Held = {
+  cmd: string;
+  args: string[];
+  opts: Parameters<Exec["runText"]>[2];
+  release: (data?: string) => void;
+};
+
+/** An Exec whose sign-in calls wait until the test releases them; other calls answer at once. */
+function heldExec(answer: (cmd: string, args: string[]) => string | undefined = () => undefined) {
+  const held: Held[] = [];
+  const exec: Exec = {
+    runText: async (cmd, args, opts) => {
+      const signin =
+        (cmd === "gh" && args[1] === "login") ||
+        (cmd === "glab" && args[0] === "api" && !!opts?.env?.GITLAB_TOKEN) ||
+        (cmd === "glab" && args[1] === "login");
+      if (!signin) {
+        const data = answer(cmd, args);
+        return data === undefined
+          ? { ok: false, error: "absent", code: null }
+          : { ok: true, data, exitCode: 0 };
+      }
+      // Ignores the abort signal, the worst case: the old flow runs to its end.
+      return new Promise((resolve) => {
+        held.push({
+          cmd,
+          args,
+          opts,
+          release: (data) =>
+            resolve(
+              data === undefined
+                ? { ok: false, error: "absent", code: null }
+                : { ok: true, data, exitCode: 0 },
+            ),
+        });
+      });
+    },
+    runJSON: async () => ({ ok: false, error: "unused", code: null }),
+  };
+  return { exec, held };
+}
+
+/** Releases every held call, including ones made later, until the flow settles. */
+async function drain(flow: unknown, held: Held[], data?: string) {
+  let done = false;
+  void Promise.resolve(flow).then(() => {
+    done = true;
+  });
+  await vi.waitFor(() => {
+    for (const call of held) call.release(data);
+    expect(done).toBe(true);
+  });
+}
+
+function signinRequest(id: string, payload: { tool: string; token?: string }) {
+  return { ...request("setup.signin", payload), id };
+}
+
+const DEVICE_OUTPUT =
+  "! First copy your one-time code: WXYZ-9876\nOpen this URL to continue in your web browser: https://github.com/login/device\n";
+const PAT_SELF = JSON.stringify({ scopes: ["api"] });
+
+function progressOf(messages: Message[]) {
+  return messages.flatMap((message) =>
+    message.type === "setup.signin.progress" ? [message.payload] : [],
+  );
+}
+
+it("stamps every sign-in progress with the id of the request that started it", async () => {
+  const { exec, held } = heldExec();
+  const { service, progress } = setup({ exec, tools: async () => managedGh });
+  const flow = service.routes["setup.signin"]?.(signinRequest("req-gh", { tool: "gh" }), () => {});
+  await vi.waitFor(() => expect(held).toHaveLength(1));
+  held[0]?.opts?.onOutput?.("stderr", DEVICE_OUTPUT);
+  held[0]?.release("");
+  await flow;
+  expect(progress()).toEqual([
+    { requestId: "req-gh", tool: "gh", state: "starting" },
+    {
+      requestId: "req-gh",
+      tool: "gh",
+      state: "device-code",
+      deviceCode: "WXYZ-9876",
+      url: "https://github.com/login/device",
+    },
+    { requestId: "req-gh", tool: "gh", state: "waiting" },
+    { requestId: "req-gh", tool: "gh", state: "completed" },
+  ]);
+});
+
+it("retires an in-flight gh flow on reconnect: none of its progress reaches the new connection, and a new request starts fresh", async () => {
+  const { exec, held } = heldExec();
+  const { service, progress: before } = setup({ exec, tools: async () => managedGh });
+  const old = service.routes["setup.signin"]?.(signinRequest("req-old", { tool: "gh" }), () => {});
+  await vi.waitFor(() => expect(held).toHaveLength(1));
+
+  const after: Message[] = [];
+  service.connect((message) => after.push(message));
+  expect(held[0]?.opts?.signal?.aborted).toBe(true);
+
+  const fresh = service.routes["setup.signin"]?.(
+    signinRequest("req-new", { tool: "copilot" }),
+    () => {},
+  );
+  await vi.waitFor(() => expect(held).toHaveLength(2));
+  // The old flow's late device code, waiting and terminal arrive during the new pending request.
+  held[0]?.opts?.onOutput?.("stderr", DEVICE_OUTPUT);
+  held[0]?.release("");
+  await old;
+  expect(progressOf(after)).toEqual([{ requestId: "req-new", tool: "copilot", state: "starting" }]);
+
+  held[1]?.opts?.onOutput?.("stderr", DEVICE_OUTPUT);
+  held[1]?.release("");
+  await fresh;
+  expect(progressOf(after).map(({ requestId, state }) => `${requestId}:${state}`)).toEqual([
+    "req-new:starting",
+    "req-new:device-code",
+    "req-new:waiting",
+    "req-new:completed",
+  ]);
+  expect(before()).toEqual([{ requestId: "req-old", tool: "gh", state: "starting" }]);
+});
+
+it.each(["accepts", "rejects"] as const)(
+  "retires an in-flight glab flow on reconnect so no terminal reaches the new connection when GitLab %s the token",
+  async (end) => {
+    const token = "glpat-OldFlow0123456789";
+    const { exec, held } = heldExec((cmd, args) =>
+      cmd === "glab" && args[0] === "api" ? PAT_SELF : undefined,
+    );
+    const { service, progress: before } = setup({ exec, tools: async () => managedGh });
+    const old = service.routes["setup.signin"]?.(
+      signinRequest("req-old", { tool: "glab", token }),
+      () => {},
+    );
+    await vi.waitFor(() => expect(held).toHaveLength(1));
+    expect(before().map(({ state }) => state)).toEqual(["starting", "waiting"]);
+
+    const after: Message[] = [];
+    service.connect((message) => after.push(message));
+    held[0]?.release(end === "accepts" ? PAT_SELF : undefined);
+    await drain(old, held, "");
+    expect(progressOf(after)).toEqual([]);
+    expect(before().map(({ state }) => state)).toEqual(["starting", "waiting"]);
+  },
+);
+
+it("answers a second request for a running flow on the same connection instead of dropping it", async () => {
+  const { exec, held } = heldExec();
+  const { service, progress } = setup({ exec, tools: async () => managedGh });
+  const first = service.routes["setup.signin"]?.(signinRequest("req-gh", { tool: "gh" }), () => {});
+  await vi.waitFor(() => expect(held).toHaveLength(1));
+  await service.routes["setup.signin"]?.(
+    signinRequest("req-copilot", { tool: "copilot" }),
+    () => {},
+  );
+  expect(progress()).toContainEqual({
+    requestId: "req-copilot",
+    tool: "copilot",
+    state: "failed",
+    reason: "A gh sign-in is already running.",
+  });
+  held[0]?.release("");
+  await first;
+  expect(held).toHaveLength(1);
+});
+
+it("keeps a planted glab token out of every message, on both connections, and every error", async () => {
+  const token = "glpat-Planted0123456789abcdef";
+  const errors: unknown[] = [];
+  const logs = (["log", "info", "warn", "error", "debug"] as const).map((method) =>
+    vi.spyOn(console, method),
+  );
+  const cases = [
+    { probe: undefined, reconnect: false, last: "failed" },
+    { probe: JSON.stringify({ scopes: ["read_user"] }), reconnect: false, last: "failed" },
+    { probe: PAT_SELF, reconnect: false, last: "completed" },
+    { probe: PAT_SELF, reconnect: true, last: "waiting" },
+  ];
+  for (const [index, { probe, reconnect, last }] of cases.entries()) {
+    const { exec, held } = heldExec((cmd, args) =>
+      cmd === "glab" && args[0] === "api" ? PAT_SELF : undefined,
+    );
+    const { service, sent, progress } = setup({
+      exec,
+      tools: async () => managedGh,
+      onError: (error) => errors.push(error),
+    });
+    const later: Message[] = [];
+    const flow = service.routes["setup.signin"]?.(
+      signinRequest(`req-${index}`, { tool: "glab", token }),
+      () => {},
+    );
+    await vi.waitFor(() => expect(held).toHaveLength(1));
+    if (reconnect) service.connect((message) => later.push(message));
+    held[0]?.release(probe);
+    await drain(flow, held, "");
+    expect(progress().at(-1)?.state).toBe(last);
+    const scanned = JSON.stringify([sent, later]);
+    expect(scanned).not.toContain(token);
+    expect(scanned).not.toContain("Planted");
+  }
+  expect(JSON.stringify(errors.map(String))).not.toContain(token);
+  for (const log of logs) expect(JSON.stringify(log.mock.calls)).not.toContain(token);
 });

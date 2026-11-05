@@ -36,7 +36,7 @@ beforeEach(() => {
     snapshot: null,
     signin: {},
     signinOutcome: {},
-    glabFenced: false,
+    signinRequest: {},
   });
   container = document.createElement("div");
   document.body.append(container);
@@ -51,7 +51,7 @@ afterEach(async () => {
     snapshot: null,
     signin: {},
     signinOutcome: {},
-    glabFenced: false,
+    signinRequest: {},
   });
   vi.restoreAllMocks();
   window.spi = previous;
@@ -62,6 +62,17 @@ const receive = (type: string, payload: unknown) =>
     watchStore
       .getState()
       .receive({ version: PROTOCOL_VERSION, kind: "event", id: "host", type, payload });
+  });
+type SigninTool = "copilot" | "gh" | "glab";
+/** Host progress for the tool's pending request, or for `requestId` when given. */
+const progress = (
+  payload: { tool: SigninTool; state: string; [key: string]: unknown },
+  requestId = watchStore.getState().signinRequest[payload.tool],
+) => receive("setup.signin.progress", { requestId, ...payload });
+/** Marks sign-ins pending for tests that start from host progress rather than a click. */
+const pending = (requests: Partial<Record<SigninTool, string>>) =>
+  act(async () => {
+    watchStore.setState({ signinRequest: { ...watchStore.getState().signinRequest, ...requests } });
   });
 const state = (overrides: Partial<Tool> = {}): SetupState => ({
   watchReady: false,
@@ -231,8 +242,8 @@ it("never echoes, logs, stores or persists the glab token, and clears it on succ
   expect(field.autocomplete).toBe("off");
   expect(field.getAttribute("autocomplete")).toBe("off");
   for (const outcome of [
-    { tool: "glab", state: "failed", reason: "GitLab rejected the token" },
-    { tool: "glab", state: "completed" },
+    { tool: "glab", state: "failed", reason: "GitLab rejected the token" } as const,
+    { tool: "glab", state: "completed" } as const,
   ]) {
     send.mockClear();
     await paste(token);
@@ -245,9 +256,9 @@ it("never echoes, logs, stores or persists the glab token, and clears it on succ
     expect(sent()).toEqual([{ type: "setup.signin", payload: { tool: "glab", token } }]);
     expect(glab().field.value).toBe("");
     expect(glab().button.disabled).toBe(true);
-    await receive("setup.signin.progress", { tool: "glab", state: "starting" });
+    await progress({ tool: "glab", state: "starting" });
     expect(glab().field.disabled).toBe(true);
-    await receive("setup.signin.progress", outcome);
+    await progress(outcome);
     if (outcome.state === "failed") {
       expect(glab().row.querySelector('[role="alert"]')?.textContent).toBe(
         "glab sign-in failed. Check the GitLab token and try again.",
@@ -284,9 +295,8 @@ it.each(["failed", "completed"])(
     expect(glab().button.disabled).toBe(true);
     await act(async () => glab().button.click());
     expect(sent()).toHaveLength(1);
-    await receive("setup.signin.progress", { tool: "glab", state: "starting" });
-    await receive(
-      "setup.signin.progress",
+    await progress({ tool: "glab", state: "starting" });
+    await progress(
       end === "failed"
         ? { tool: "glab", state: end, reason: "Rejected" }
         : { tool: "glab", state: end },
@@ -323,21 +333,23 @@ it("unlocks and empties the field on host.hello alone before any sign-in progres
   expect(glab().button.disabled).toBe(true);
 });
 
-const stale: [string, unknown[]][] = [
-  ["starting", [{ tool: "glab", state: "starting" }]],
-  ["waiting", [{ tool: "glab", state: "waiting" }]],
-  ["completed", [{ tool: "glab", state: "completed" }]],
-  ["failed", [{ tool: "glab", state: "failed", reason: "Old flow failed" }]],
+const OLD = "req-before-reconnect";
+const stale: [string, { tool: SigninTool; state: string; [key: string]: unknown }][] = [
+  ["starting", { tool: "glab", state: "starting" }],
+  ["waiting", { tool: "glab", state: "waiting" }],
+  ["completed", { tool: "glab", state: "completed" }],
+  ["failed", { tool: "glab", state: "failed", reason: "Old flow failed" }],
 ];
 it.each(stale)(
-  "ignores an old flow's %s after host.hello until a new glab sign-in is sent",
-  async (_state, events) => {
+  "ignores an old glab flow's %s after host.hello before any new sign-in",
+  async (_state, payload) => {
     const typed = "glpat-Typed0123456789";
     await receive("setup.state", state({ state: "signed-out", action: "signin" }));
     await render();
+    await pending({ glab: OLD });
     await receive("host.hello", { pid: 456 });
     await paste(typed);
-    for (const payload of events) await receive("setup.signin.progress", payload);
+    await progress(payload, OLD);
     expect(glab().field.disabled).toBe(false);
     expect(glab().field.value).toBe(typed);
     expect(glab().button.disabled).toBe(false);
@@ -347,23 +359,65 @@ it.each(stale)(
   },
 );
 
-it("applies glab progress again once the window sends a new sign-in after host.hello", async () => {
-  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
-  await render();
-  await receive("host.hello", { pid: 456 });
-  await paste(token);
-  await act(async () => glab().button.click());
-  await receive("setup.signin.progress", { tool: "glab", state: "starting" });
-  expect(glab().field.disabled).toBe(true);
-  await receive("setup.signin.progress", { tool: "glab", state: "failed", reason: "Rejected" });
-  expect(glab().row.querySelector('[role="alert"]')?.textContent).toBe(
-    "glab sign-in failed. Check the GitLab token and try again.",
-  );
-  expect(glab().field.disabled).toBe(false);
-});
+it.each(stale)(
+  "ignores an old glab flow's %s that arrives after a new glab sign-in, then applies the new one",
+  async (_state, payload) => {
+    await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+    await render();
+    await pending({ glab: OLD });
+    await receive("host.hello", { pid: 456 });
+    await paste(token);
+    await act(async () => glab().button.click());
+    expect(glab().field.disabled).toBe(true);
+    await progress(payload, OLD);
+    expect(glab().field.disabled).toBe(true);
+    expect(glab().button.disabled).toBe(true);
+    expect(glab().row.querySelector('[role="status"], [role="alert"]')).toBeNull();
+    expect(watchStore.getState().signin.glab).toBeUndefined();
+    expect(watchStore.getState().signinOutcome.glab).toBeUndefined();
+    await progress({ tool: "glab", state: "starting" });
+    expect(watchStore.getState().signin.glab?.state).toBe("starting");
+    await progress({ tool: "glab", state: "failed", reason: "Rejected" });
+    expect(glab().row.querySelector('[role="alert"]')?.textContent).toBe(
+      "glab sign-in failed. Check the GitLab token and try again.",
+    );
+    expect(glab().field.disabled).toBe(false);
+  },
+);
 
-it.todo(
-  "ignores an old flow's terminal progress that arrives after a new glab sign-in (needs a request id on progress: spicode-t1k.123)",
+const ghStale = (["copilot", "gh"] as const).flatMap((tool) =>
+  [
+    { state: "starting" },
+    { state: "device-code", deviceCode: "OLD-CODE", url: "https://github.com/login/device" },
+    { state: "waiting" },
+    { state: "completed" },
+    { state: "failed", reason: "Old flow failed" },
+  ].map((step) => [tool, step.state, { tool, ...step }] as const),
+);
+it.each(ghStale)(
+  "ignores an old %s flow's %s after host.hello and after a new sign-in",
+  async (tool, _state, payload) => {
+    const name = tool === "copilot" ? "Copilot" : "gh";
+    const button = () =>
+      container.querySelector<HTMLButtonElement>(`section[aria-label="${name}"] button`);
+    await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+    await render();
+    await pending({ [tool]: OLD });
+    await receive("host.hello", { pid: 456 });
+    await progress(payload, OLD);
+    expect(watchStore.getState().signin[tool]).toBeUndefined();
+    expect(watchStore.getState().signinOutcome[tool]).toBeUndefined();
+    expect(button()?.disabled).toBe(false);
+    await act(async () => button()?.click());
+    await progress(payload, OLD);
+    expect(watchStore.getState().signin[tool]).toBeUndefined();
+    expect(watchStore.getState().signinOutcome[tool]).toBeUndefined();
+    expect(container.textContent).not.toContain("OLD-CODE");
+    expect(container.textContent).not.toContain("Old flow failed");
+    await progress({ tool, state: "starting" });
+    expect(watchStore.getState().signin[tool]?.state).toBe("starting");
+    expect(button()?.disabled).toBe(true);
+  },
 );
 
 it("keeps Copilot and gh sign-in tokenless with no token field", async () => {
@@ -404,13 +458,14 @@ it("shows live device codes and URLs independently for each tool, then errors an
   const copy = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
   await receive("setup.state", state({ state: "signed-out", action: "signin" }));
   await render();
-  await receive("setup.signin.progress", {
+  await pending({ gh: "req-gh", glab: "req-glab" });
+  await progress({
     tool: "gh",
     state: "device-code",
     deviceCode: "ABCD-1234",
     url: "https://github.com/login/device",
   });
-  await receive("setup.signin.progress", { tool: "glab", state: "starting" });
+  await progress({ tool: "glab", state: "starting" });
   const fields = container.querySelectorAll<HTMLInputElement>("input[readonly]");
   expect(Array.from(fields, (field) => field.value)).toEqual([
     "ABCD-1234",
@@ -424,9 +479,9 @@ it("shows live device codes and URLs independently for each tool, then errors an
   expect(
     container.querySelector<HTMLButtonElement>('section[aria-label="gh"] button')?.disabled,
   ).toBe(true);
-  await receive("setup.signin.progress", { tool: "gh", state: "waiting" });
+  await progress({ tool: "gh", state: "waiting" });
   expect(container.querySelector<HTMLInputElement>("input")?.value).toBe("ABCD-1234");
-  await receive("setup.signin.progress", {
+  await progress({
     tool: "gh",
     state: "failed",
     reason: "Device code expired",
@@ -439,14 +494,15 @@ it("shows live device codes and URLs independently for each tool, then errors an
   expect(
     container.querySelector<HTMLButtonElement>('section[aria-label="gh"] button')?.disabled,
   ).toBe(false);
-  await receive("setup.signin.progress", { tool: "glab", state: "completed" });
+  await progress({ tool: "glab", state: "completed" });
   expect(container.textContent).toContain("Sign-in completed");
   expect(watchStore.getState().signin.glab).toBeUndefined();
 });
 
 it("clears interrupted sign-in on reconnect so Sign in is enabled again", async () => {
   await receive("setup.state", state({ state: "signed-out", action: "signin" }));
-  await receive("setup.signin.progress", {
+  await pending({ gh: "req-gh" });
+  await progress({
     tool: "gh",
     state: "device-code",
     deviceCode: "OLD-CODE",
@@ -468,7 +524,8 @@ it("clears interrupted sign-in on reconnect so Sign in is enabled again", async 
 it("reports clipboard failures with a manual copy fallback", async () => {
   vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(new Error("Denied"));
   await receive("setup.state", state());
-  await receive("setup.signin.progress", {
+  await pending({ gh: "req-gh" });
+  await progress({
     tool: "gh",
     state: "device-code",
     deviceCode: "CODE",

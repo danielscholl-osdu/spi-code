@@ -69,7 +69,10 @@ it("sends a glab token only with glab sign-in and keeps it out of store state", 
   const token = "glpat-Secret0123456789";
   const before = store.getState();
   store.getState().requestSetup("setup.signin", "glab", token);
-  expect(store.getState()).toBe(before);
+  const { signinRequest, ...after } = store.getState();
+  const { signinRequest: _unset, ...rest } = before;
+  expect(after).toEqual(rest);
+  expect(signinRequest).toEqual({ glab: WatchMessageSchema.parse(send.mock.calls[0]?.[0]).id });
   expect(JSON.stringify(store.getState())).not.toContain(token);
   store.getState().requestSetup("setup.signin", "gh");
   expect(send.mock.calls.map(([message]) => WatchMessageSchema.parse(message).payload)).toEqual([
@@ -84,15 +87,35 @@ it("sends a glab token only with glab sign-in and keeps it out of store state", 
   expect(send).toHaveBeenCalledTimes(2);
 });
 
-it("fences glab progress from host.hello until a new glab sign-in, leaving gh progress alone", () => {
-  const store = createWatchStore(vi.fn());
-  store.getState().receive(event("host.hello", { pid: 1 }));
-  store.getState().receive(event("setup.signin.progress", { tool: "glab", state: "starting" }));
-  store.getState().receive(event("setup.signin.progress", { tool: "gh", state: "starting" }));
-  expect(store.getState().signin).toEqual({ gh: { tool: "gh", state: "starting" } });
+it("applies sign-in progress only for each tool's pending request", () => {
+  const send = vi.fn();
+  const store = createWatchStore(send);
+  const progress = (requestId: string, tool: string, state: string) =>
+    store.getState().receive(event("setup.signin.progress", { requestId, tool, state }));
+  const sentId = (call: number) => WatchMessageSchema.parse(send.mock.calls[call]?.[0]).id;
+  progress("unknown", "gh", "starting");
+  expect(store.getState().signin).toEqual({});
+  store.getState().requestSetup("setup.signin", "gh");
   store.getState().requestSetup("setup.signin", "glab", "glpat-Secret0123456789");
-  store.getState().receive(event("setup.signin.progress", { tool: "glab", state: "starting" }));
-  expect(store.getState().signin.glab).toEqual({ tool: "glab", state: "starting" });
+  const gh = sentId(0);
+  const glab = sentId(1);
+  progress(glab, "gh", "starting");
+  progress(gh, "glab", "starting");
+  expect(store.getState().signin).toEqual({});
+  progress(gh, "gh", "starting");
+  progress(glab, "glab", "starting");
+  expect(store.getState().signin).toEqual({
+    gh: { requestId: gh, tool: "gh", state: "starting" },
+    glab: { requestId: glab, tool: "glab", state: "starting" },
+  });
+  progress(gh, "gh", "completed");
+  expect(store.getState().signinRequest).toEqual({ glab });
+  progress(gh, "gh", "starting");
+  expect(store.getState().signin.gh).toBeUndefined();
+  store.getState().receive(event("host.hello", { pid: 1 }));
+  expect(store.getState().signinRequest).toEqual({});
+  progress(glab, "glab", "completed");
+  expect(store.getState().signinOutcome).toEqual({});
 });
 
 it("keeps the newest full snapshot and ignores late and duplicate cursors", () => {

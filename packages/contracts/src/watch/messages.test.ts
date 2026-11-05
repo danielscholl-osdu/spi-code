@@ -130,6 +130,7 @@ const messages = [
     kind: "event",
     type: "setup.signin.progress",
     payload: {
+      requestId: "signin-1",
       tool: "gh",
       state: "device-code",
       deviceCode: "ABCD-1234",
@@ -386,7 +387,15 @@ describe("Watch protocol", () => {
         tools: [...messages[3].payload.tools, ...messages[3].payload.tools],
       },
     },
-    { ...messages[6], payload: { tool: "gh", state: "device-code", url: "https://github.com" } },
+    {
+      ...messages[6],
+      payload: {
+        requestId: "signin-1",
+        tool: "gh",
+        state: "device-code",
+        url: "https://github.com",
+      },
+    },
     { ...messages[6], payload: { ...messages[6].payload, url: "javascript:alert(1)" } },
     { ...messages[7], payload: { fromCursor: -1 } },
     { ...messages[7], payload: { fromCursor: 1.5 } },
@@ -399,12 +408,32 @@ describe("Watch protocol", () => {
       const message = {
         ...messages[6],
         payload: {
+          requestId: "signin-1",
           tool: "glab",
           state,
           ...(state === "failed" ? { reason: "Sign-in failed" } : {}),
         },
       };
       expect(parseMessage(JSON.parse(JSON.stringify(message)))).toEqual({ ok: true, message });
+    },
+  );
+  it.each(["starting", "waiting", "completed", "failed", "device-code"] as const)(
+    "rejects sign-in progress %s without the id of the request that started it",
+    (state) => {
+      const { requestId, ...payload } = {
+        ...messages[6].payload,
+        state,
+        ...(state === "failed" ? { reason: "Sign-in failed" } : {}),
+      };
+      const shaped =
+        state === "device-code"
+          ? payload
+          : (({ deviceCode, url, ...rest }) => rest)(payload as (typeof messages)[6]["payload"]);
+      expect(parseMessage({ ...messages[6], payload: { ...shaped, requestId } }).ok).toBe(true);
+      expect(parseMessage({ ...messages[6], payload: shaped }).ok).toBe(false);
+      expect(parseMessage({ ...messages[6], payload: { ...shaped, requestId: "" } }).ok).toBe(
+        false,
+      );
     },
   );
 });

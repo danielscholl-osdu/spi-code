@@ -27,8 +27,8 @@ type WatchState = {
   signinOutcome: Partial<Record<SetupSigninProgress["tool"], SetupSigninProgress>>;
   /** Bumps on every host.hello, so views can drop state tied to the previous connection. */
   epoch: number;
-  /** Set on host.hello: glab progress belongs to an older flow until the window starts a new one. */
-  glabFenced: boolean;
+  /** The setup.signin request each row waits on. Progress for any other request is dropped. */
+  signinRequest: Partial<Record<SetupSigninProgress["tool"], string>>;
   requestSetup(
     ...request:
       | [
@@ -81,18 +81,18 @@ export function createWatchStore(
     signin: {},
     signinOutcome: {},
     epoch: 0,
-    glabFenced: false,
+    signinRequest: {},
     requestSetup(type, tool, token?: string) {
+      const id = crypto.randomUUID();
       const parsed = parseMessage({
         version: PROTOCOL_VERSION,
-        id: crypto.randomUUID(),
+        id,
         kind: "request",
         type,
         payload: token === undefined ? { tool } : { tool, token },
       });
       if (!parsed.ok) throw new Error("Invalid setup request");
-      if (type === "setup.signin" && tool === "glab" && get().glabFenced)
-        set({ glabFenced: false });
+      if (type === "setup.signin") set({ signinRequest: { ...get().signinRequest, [tool]: id } });
       send(parsed.message);
     },
     receive(input) {
@@ -113,23 +113,26 @@ export function createWatchStore(
       if (message.type === "setup.state") set({ setup: message.payload });
       if (message.type === "setup.signin.progress") {
         const progress = message.payload;
-        if (progress.tool === "glab" && get().glabFenced) return;
+        if (progress.requestId !== get().signinRequest[progress.tool]) return;
         const previous = get().signin[progress.tool];
         const signin = { ...get().signin };
         const signinOutcome = { ...get().signinOutcome };
         if (progress.state === "completed" || progress.state === "failed") {
+          const signinRequest = { ...get().signinRequest };
+          delete signinRequest[progress.tool];
           delete signin[progress.tool];
           signinOutcome[progress.tool] = progress;
-        } else {
-          delete signinOutcome[progress.tool];
-          if (progress.state !== "waiting" || previous?.state !== "device-code") {
-            signin[progress.tool] = progress;
-          }
+          set({ signin, signinOutcome, signinRequest });
+          return;
+        }
+        delete signinOutcome[progress.tool];
+        if (progress.state !== "waiting" || previous?.state !== "device-code") {
+          signin[progress.tool] = progress;
         }
         set({ signin, signinOutcome });
       }
       if (message.type === "host.hello") {
-        set({ signin: {}, signinOutcome: {}, epoch: get().epoch + 1, glabFenced: true });
+        set({ signin: {}, signinOutcome: {}, signinRequest: {}, epoch: get().epoch + 1 });
         const outgoing = parseMessage({
           version: PROTOCOL_VERSION,
           id: crypto.randomUUID(),

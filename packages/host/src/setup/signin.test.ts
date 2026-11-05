@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { SetupSigninProgressSchema } from "@spi-code/contracts";
+import { SetupSigninStepSchema } from "@spi-code/contracts";
 import type { Exec, ExecOptions, ExecResult } from "@spi-code/core";
 import { expect, it } from "vitest";
 import { HostExec, type HostExecLog } from "../exec/host-exec.js";
@@ -151,8 +151,7 @@ it("sends the gh device code as soon as it appears, split across chunks, before 
   finish({ ok: true, data: "", exitCode: 0 });
   expect(await pending).toEqual({ state: "completed" });
   expect(progress.at(-1)).toEqual({ tool: "gh", state: "completed" });
-  for (const entry of progress)
-    expect(SetupSigninProgressSchema.safeParse(entry).success).toBe(true);
+  for (const entry of progress) expect(SetupSigninStepSchema.safeParse(entry).success).toBe(true);
 });
 
 it("runs gh with forced TTY and color neutralised, leaving the caller's environment alone", async () => {

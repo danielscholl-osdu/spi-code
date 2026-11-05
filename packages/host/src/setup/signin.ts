@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type SetupSigninProgress, SetupSigninProgressSchema } from "@spi-code/contracts";
+import { type SetupSigninStep, SetupSigninStepSchema } from "@spi-code/contracts";
 import { type Exec, GITLAB_HOST } from "@spi-code/core";
 import {
   GH_HOST,
@@ -12,7 +12,7 @@ import {
   hasGlabScope,
 } from "./status.js";
 
-export type SigninProgress = SetupSigninProgress;
+export type SigninProgress = SetupSigninStep;
 export type SigninOutcome = { state: "completed" } | { state: "failed"; reason: string };
 
 export interface SigninOptions {
@@ -71,7 +71,7 @@ export function isTokenShaped(token: string): boolean {
 }
 
 function emit(options: SigninOptions, progress: SigninProgress): void {
-  options.report(SetupSigninProgressSchema.parse(progress));
+  options.report(SetupSigninStepSchema.parse(progress));
 }
 
 function failed(options: SigninOptions, tool: "gh" | "glab", reason: string): SigninOutcome {
