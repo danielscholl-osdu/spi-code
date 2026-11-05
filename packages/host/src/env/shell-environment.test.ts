@@ -13,8 +13,8 @@ import {
   parseLoginShellPath,
 } from "./shell-environment.js";
 
-const start = "__T3CODE_ENV_PATH_START__";
-const end = "__T3CODE_ENV_PATH_END__";
+const start = "__SPICODE_ENV_PATH_START__";
+const end = "__SPICODE_ENV_PATH_END__";
 const secret = "sensitive-env-fixture";
 const directories: string[] = [];
 
@@ -52,27 +52,31 @@ describe("login-shell PATH", () => {
     expect(parseLoginShellPath(`banner\r\n${start}\r\n/opt/bin:/usr/bin\r\n${end}\r\nbye`)).toBe(
       "/opt/bin:/usr/bin",
     );
+    expect(parseLoginShellPath(`prefix${start}\n/opt/bin\n${end}suffix`)).toBe("/opt/bin");
+    expect(parseLoginShellPath(`prefix${start}/opt/bin${end}suffix`)).toBe("/opt/bin");
     for (const output of [
       "/opt/bin",
       `${start}\n/opt/bin`,
       `${start}\n\n${end}`,
       `${start}\n/opt/bin\nnoise\n${end}`,
       `${start}\n/opt/bin\0\n${end}`,
-      `prefix${start}\n/opt/bin\n${end}`,
     ]) {
       expect(parseLoginShellPath(output)).toBeUndefined();
     }
   });
 
-  it("uses the process PATH on Windows without running a shell", async () => {
-    expect(
-      await captureLoginShellPath({
-        platform: "win32",
-        env: { Path: "C:\\Windows;C:\\Tools" },
-        shells: ["/does/not/exist"],
-      }),
-    ).toEqual({ path: "C:\\Windows;C:\\Tools", captured: false, failures: [] });
-  });
+  it.each(["PATH", "Path", "path", "pAtH"])(
+    "uses Windows %s without running a shell",
+    async (name) => {
+      expect(
+        await captureLoginShellPath({
+          platform: "win32",
+          env: { [name]: "C:\\Windows;C:\\Tools" },
+          shells: ["/does/not/exist"],
+        }),
+      ).toEqual({ path: "C:\\Windows;C:\\Tools", captured: false, failures: [] });
+    },
+  );
 
   it.skipIf(process.platform === "win32")("falls back on garbage and spawn failure", async () => {
     const directory = await fixture();
@@ -188,6 +192,33 @@ describe("tool environment", () => {
 });
 
 describe.skipIf(process.platform === "win32")("gh auth token", () => {
+  it("defensively strips caller guard bypasses while preserving configured tokens", async () => {
+    const directory = await fixture();
+    await script(
+      directory,
+      "gh",
+      [
+        'test -z "$SPI_SKIP_GUARD$SPI_BYPASS_GUARD$OTHER_DISABLE_GUARD$SPI_GUARD_BYPASS" || exit 2',
+        `test "$GH_TOKEN" = '${secret}' || exit 3`,
+        `test "$GITHUB_TOKEN" = '${secret}' || exit 4`,
+        "printf 'oauth-fixture\\n'",
+      ].join("\n"),
+    );
+    const env = toolEnvironment(directory);
+    for (const name of [
+      "SPI_SKIP_GUARD",
+      "SPI_BYPASS_GUARD",
+      "OTHER_DISABLE_GUARD",
+      "SPI_GUARD_BYPASS",
+      "GH_TOKEN",
+      "GITHUB_TOKEN",
+    ]) {
+      env[name] = secret;
+    }
+    expect(await ghAuthToken(env)).toBe("oauth-fixture");
+    expect(env.SPI_SKIP_GUARD === secret).toBe(true);
+  });
+
   it("finds gh only on the captured PATH and returns its stdout with no inherited tokens", async () => {
     const directory = await fixture();
     const logs = ["log", "info", "warn", "error", "debug"] as const;

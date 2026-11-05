@@ -25,8 +25,8 @@ import { spawn } from "node:child_process";
 import { userInfo } from "node:os";
 import { basename } from "node:path";
 
-const pathStart = "__T3CODE_ENV_PATH_START__";
-const pathEnd = "__T3CODE_ENV_PATH_END__";
+const pathStart = "__SPICODE_ENV_PATH_START__";
+const pathEnd = "__SPICODE_ENV_PATH_END__";
 const tokenNames = ["GH_TOKEN", "GITHUB_TOKEN", "COPILOT_GITHUB_TOKEN"] as const;
 type TokenName = (typeof tokenNames)[number];
 type Failure = "failed" | "timeout" | "invalid-output" | "output-limit";
@@ -54,20 +54,25 @@ export interface ToolEnvironmentOptions {
   readonly configuredTokens?: Partial<Record<TokenName, string>>;
 }
 
+function isGuardBypass(name: string): boolean {
+  return /(?:SKIP|BYPASS|DISABLE).*GUARD|GUARD.*(?:SKIP|BYPASS|DISABLE)/u.test(name.toUpperCase());
+}
+
 function scrubEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return Object.fromEntries(
     Object.entries(env).filter(([name, value]) => {
       const upper = name.toUpperCase();
       return (
-        value !== undefined &&
-        !tokenNames.some((token) => upper === token) &&
-        !/(?:SKIP|BYPASS|DISABLE).*GUARD|GUARD.*(?:SKIP|BYPASS|DISABLE)/u.test(upper)
+        value !== undefined && !tokenNames.some((token) => upper === token) && !isGuardBypass(name)
       );
     }),
   );
 }
 
-function readPath(env: NodeJS.ProcessEnv): string | undefined {
+function readPath(env: NodeJS.ProcessEnv, platform: NodeJS.Platform): string | undefined {
+  if (platform === "win32") {
+    return Object.entries(env).find(([name]) => name.toUpperCase() === "PATH")?.[1];
+  }
   return env.PATH ?? env.Path ?? env.path;
 }
 
@@ -90,10 +95,15 @@ function mergePaths(platform: NodeJS.Platform, ...paths: (string | undefined)[])
 }
 
 export function parseLoginShellPath(output: string): string | undefined {
-  const lines = output.split(/\r?\n/u);
-  const start = lines.indexOf(pathStart);
-  if (start < 0 || lines[start + 2] !== pathEnd) return undefined;
-  const path = lines[start + 1];
+  const start = output.indexOf(pathStart);
+  if (start < 0) return undefined;
+  const valueStart = start + pathStart.length;
+  const end = output.indexOf(pathEnd, valueStart);
+  if (end < 0) return undefined;
+  const path = output
+    .slice(valueStart, end)
+    .replace(/^\r?\n/u, "")
+    .replace(/\r?\n$/u, "");
   return path?.trim() && !/[\r\n\0]/u.test(path) ? path : undefined;
 }
 
@@ -215,7 +225,7 @@ export async function captureLoginShellPath(
   const platform = options.platform ?? process.platform;
   const env = scrubEnvironment(options.env ?? process.env);
   const baseline =
-    mergePaths(platform, readPath(env)) || (platform === "win32" ? "" : "/usr/bin:/bin");
+    mergePaths(platform, readPath(env, platform)) || (platform === "win32" ? "" : "/usr/bin:/bin");
   const failures: Failure[] = [];
   if (platform === "win32") return { path: baseline, captured: false, failures };
   for (const shell of options.shells ?? loginShells(platform, env)) {
@@ -262,7 +272,10 @@ export async function ghAuthToken(
 ): Promise<string> {
   let output: string;
   try {
-    output = await commandOutput("gh", ["auth", "token"], env, options.timeoutMs ?? 5000);
+    const toolEnv = Object.fromEntries(
+      Object.entries(env).filter(([name]) => !isGuardBypass(name)),
+    );
+    output = await commandOutput("gh", ["auth", "token"], toolEnv, options.timeoutMs ?? 5000);
   } catch (error) {
     if (!(error instanceof CommandError)) throw error;
     throw new Error(
