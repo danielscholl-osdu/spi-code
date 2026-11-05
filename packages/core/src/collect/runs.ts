@@ -12,7 +12,7 @@ import { errorText, pool } from "../util.js";
 const RUN_JQ =
   "{total: .total_count, runs: [.workflow_runs[] | {id, name, path, event, status, conclusion, created_at, updated_at, head_branch, head_sha, display_title, html_url, run_attempt}]}";
 
-interface RawRun {
+export interface RawRun {
   id: number;
   name: string;
   path: string;
@@ -28,7 +28,7 @@ interface RawRun {
   run_attempt: number;
 }
 
-function toRun(r: RawRun): RunFact {
+export function toRun(r: RawRun): RunFact {
   return {
     id: r.id, name: r.name, path: r.path, event: r.event, status: r.status,
     conclusion: r.conclusion ?? undefined, createdAt: r.created_at, updatedAt: r.updated_at,
