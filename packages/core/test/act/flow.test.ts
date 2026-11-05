@@ -62,6 +62,8 @@ describe("flow action planning", () => {
     });
     expect(start.confirm?.body).toContain("file merges only after legal and schema");
     expect(start.confirm?.body).toContain("Upstream sync at");
+    expect(start.confirm?.irreversible).toBeUndefined();
+    expect(start.confirm?.subject).toBeUndefined();
   });
 
   test("merges the approved PRs into the free lanes and holds an ordered fork", () => {
@@ -89,7 +91,7 @@ describe("flow action planning", () => {
     expect(merge.confirm?.subject).toBe("1");
   });
 
-  test("without an Environment title stops the line: merges pause and the job is linked", () => {
+  test("without an Environment title stops the line: merges pause and retarget waits", () => {
     const f = settled(fixtureFacts());
     merged(f, "partition", { conclusion: "failure", jobs: [job([])] });
     ready(f, "legal");
@@ -159,6 +161,8 @@ describe("flow action planning", () => {
     });
     const { primary: rerun } = actions(model(f));
     expect(rerun.label).toBe("Re-run partition once · environment failure, attempt 1");
+    expect(rerun.confirm?.irreversible).toBeUndefined();
+    expect(rerun.confirm?.subject).toBeUndefined();
     const binding = bindingSchema.parse(rerun.binding);
     expect(binding.verb).toBe(RERUN_LANES.id);
     expect(binding.targets).toEqual([
@@ -172,7 +176,7 @@ describe("flow action planning", () => {
     ]);
   });
 
-  test("offers Fleet Release with publish off, and the Template card counts against main", () => {
+  test("offers Fleet Release with publish off and no secondary actions", () => {
     const f = doneFacts();
     const { primary: release, secondary } = actions(model(f));
     expect(release.label).toBe("Run Fleet Release · target bb49a03 · publish off");
@@ -184,6 +188,8 @@ describe("flow action planning", () => {
       `gh workflow run fleet-release.yml -R Azure/osdu-spi -f template_target=${headSha(f)} -f publish=false`,
     );
     expect(release.confirm?.body).toContain("no fleet release is cut");
+    expect(release.confirm?.irreversible).toBeUndefined();
+    expect(release.confirm?.subject).toBeUndefined();
     expect(secondary).toEqual([]);
   });
 

@@ -18,15 +18,16 @@ No barrel changes, dependencies, execution code or helper rewrites are included.
 
 `test/act/flow.test.ts` calls `flowActions` directly rather than inspecting a
 Keelson board. The fixtures and explicit context/clock are core's existing ones.
-These original case names retain their action-planning assertions:
+These cases retain the original action-planning assertions (names narrowed
+where board assertions stay in the rib):
 
 1. Start rollout dispatches the first wave, carrying main's sha, and the rest wait
 2. merges the approved PRs into the free lanes and holds an ordered fork
 3. with one lane free the second merge waits and the button says so
-4. without an Environment title stops the line: merges pause and the job is linked
+4. without an Environment title stops the line: merges pause and retarget waits
 5. once a fix lands on main, Retarget dispatches every fork whose PR lacks it
 6. with an Environment title on attempt 1 it is re-run once, not a stop
-7. offers Fleet Release with publish off, and the Template card counts against main
+7. offers Fleet Release with publish off and no secondary actions
 8. pauses every press that deploys and keeps the re-run for after the hold
 
 The board-only portions of these mixed cases stay in the rib: inspector cards,
