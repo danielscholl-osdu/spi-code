@@ -25,5 +25,7 @@ Run lifecycle transitions, intents, approvals and threads are outside this slice
 
 The crash test drives a child through committed appends, kills it with `SIGKILL`
 without closing the connection, then reopens the store to verify every committed
-event and its contiguous sequence. The child mirrors the store's append
-transaction using `node:sqlite` and acknowledges each commit before proceeding.
+event and its contiguous sequence. The child imports the compiled production
+store and calls `openRunStore` and `appendEvent`, acknowledging each commit
+before proceeding. `scripts/check` builds that output before running Vitest;
+run `pnpm run typecheck` before a standalone store test to refresh it.
