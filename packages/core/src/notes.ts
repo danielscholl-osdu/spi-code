@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { parse } from "yaml";
 import { z } from "zod";
 
 // The written half of a month's release notes: what GitHub cannot say. A person
@@ -65,3 +66,25 @@ export type NotesRead =
   | { state: "missing"; path: string }
   | { state: "invalid"; path: string; error: string }
   | { state: "ok"; path: string; notes: Notes };
+
+export function parseNotes(path: string, raw: string | undefined): NotesRead {
+  if (raw === undefined) return { state: "missing", path };
+  let value: unknown;
+  try {
+    value = parse(raw);
+  } catch (err) {
+    return {
+      state: "invalid",
+      path,
+      error: `not YAML: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+  const parsed = notesSchema.safeParse(value);
+  if (parsed.success) return { state: "ok", path, notes: parsed.data };
+  const issue = parsed.error.issues[0];
+  return {
+    state: "invalid",
+    path,
+    error: issue ? `${issue.path.join(".") || "file"}: ${issue.message}` : "does not match",
+  };
+}

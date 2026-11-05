@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { readdirSync, readFileSync } from "node:fs";
+import { builtinModules } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -21,7 +22,11 @@ import { createVirtualFileSystem } from "typescript/unstable/fs";
 import { API } from "typescript/unstable/sync";
 import { describe, expect, it } from "vitest";
 
-function analyze(source: string, jsx = false): { forbidden: string[]; modules: number } {
+function analyze(
+  source: string,
+  jsx = false,
+  noBuiltins = false,
+): { forbidden: string[]; modules: number } {
   const directory = dirname(fileURLToPath(import.meta.url));
   const configPath = join(directory, "dependency-lint.virtual.json");
   const path = join(directory, jsx ? "dependency-lint.virtual.tsx" : "dependency-lint.virtual.ts");
@@ -62,7 +67,11 @@ function analyze(source: string, jsx = false): { forbidden: string[]; modules: n
       if (
         specifier &&
         isStringLiteralLikeNode(specifier) &&
-        /^(?:@keelson(?:\/|$)|keelson(?:\/|$)|bun(?:[:/]|$)|electron(?:\/|$))/.test(specifier.text)
+        (/^(?:@keelson(?:\/|$)|keelson(?:\/|$)|bun(?:[:/]|$)|electron(?:\/|$))/.test(
+          specifier.text,
+        ) ||
+          (noBuiltins &&
+            (specifier.text.startsWith("node:") || builtinModules.includes(specifier.text))))
       ) {
         found.push(specifier.text);
       }
@@ -106,6 +115,14 @@ describe("plain Node dependency boundary", () => {
     const result = scan(files);
     expect(result.modules).toBeGreaterThan(0);
     expect(result.violations).toEqual([]);
+  });
+
+  it("keeps notes parsing free of Node built-ins", () => {
+    const path = join(dirname(fileURLToPath(import.meta.url)), "notes.ts");
+    expect(analyze(readFileSync(path, "utf8"), false, true).forbidden).toEqual([]);
+    for (const name of ["node:fs", "fs", "node:path"]) {
+      expect(analyze(`import * as io from "${name}";`, false, true).forbidden).toEqual([name]);
+    }
   });
 
   it.each(["@keelson/shared", "keelson", "bun", "bun:test", "electron"])(
