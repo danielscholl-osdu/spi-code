@@ -7,13 +7,16 @@ import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import {
+  type CollectorCache,
   type CollectorOptions,
+  cacheSchema,
   createSweeper,
   type DoctorView,
   type Exec,
   type ExecOptions,
   INFLIGHT_POLL_MS,
   SWEEP_MS,
+  sweepStateSchema,
 } from "@spi-code/core";
 import { createLeaseStore, type LeaseIdentity } from "../store/leases.js";
 import { createSnapshotStore } from "../store/snapshots.js";
@@ -53,6 +56,16 @@ interface Holder {
   cancelRenew?: () => void;
   sweeper: ReturnType<typeof createSweeper>;
   saves: number;
+  cursor: number;
+}
+
+interface QueuedSweep {
+  force: boolean;
+  promise: Promise<boolean>;
+}
+
+function resetBudget(cache: CollectorCache): void {
+  cache.budget = { ...cache.budget, cost: 0, calls: 0, deferred: [] };
 }
 
 /** One owner per service lifetime, never a reusable PID or configured fleet id. */
@@ -66,6 +79,8 @@ export class SweepService {
   private readonly prune;
   private holder: Holder | undefined;
   private running: Promise<boolean> | undefined;
+  private polling = false;
+  private queuedSweep: QueuedSweep | undefined;
   private started = false;
   private cancellations: (() => void)[] = [];
 
@@ -110,6 +125,11 @@ export class SweepService {
 
   start(): Promise<boolean> {
     if (!this.started) {
+      try {
+        this.prune.run(this.now() - 7 * DAY_MS);
+      } catch (error) {
+        return Promise.reject(error);
+      }
       this.started = true;
       this.repeat(this.interval, () => this.sweep());
       this.repeat(INFLIGHT_POLL_MS, () => this.poll());
@@ -123,6 +143,21 @@ export class SweepService {
   /** False means another owner holds the fleet; concurrent requests coalesce. */
   sweep(force = false): Promise<boolean> {
     if (!this.started) return Promise.reject(new Error("Sweep service is stopped"));
+    if (this.polling && this.running) {
+      if (this.queuedSweep) this.queuedSweep.force ||= force;
+      else {
+        const queued: QueuedSweep = {
+          force,
+          promise: this.running
+            .then(() => this.sweep(queued.force))
+            .finally(() => {
+              if (this.queuedSweep === queued) this.queuedSweep = undefined;
+            }),
+        };
+        this.queuedSweep = queued;
+      }
+      return this.queuedSweep.promise;
+    }
     this.running ??= this.run(false, force).finally(() => {
       this.running = undefined;
     });
@@ -201,7 +236,16 @@ export class SweepService {
         ...this.options,
         exec,
         persist: {
-          load: async () => this.snapshots.latestSnapshot(identity.fleet)?.facts,
+          load: async () => {
+            const latest = this.snapshots.latestSnapshot(identity.fleet);
+            holder.cursor = latest?.cursor ?? 0;
+            const parsed = sweepStateSchema(this.options.factsSchema, cacheSchema).safeParse(
+              latest?.facts,
+            );
+            if (!parsed.success) return latest?.facts;
+            resetBudget(parsed.data.cache);
+            return parsed.data;
+          },
           save: async (state) => {
             holder.saves++;
             this.guard(holder);
@@ -226,7 +270,7 @@ export class SweepService {
             });
             this.guard(holder);
             try {
-              this.snapshots.writeSnapshot(identity, state, view, this.now());
+              holder.cursor = this.snapshots.writeSnapshot(identity, state, view, this.now());
             } catch (error) {
               this.lose(holder);
               throw error;
@@ -234,7 +278,7 @@ export class SweepService {
           },
         },
       });
-      holder = { identity, expiresAt: now + this.ttl, abort, sweeper, saves: 0 };
+      holder = { identity, expiresAt: now + this.ttl, abort, sweeper, saves: 0, cursor: 0 };
       this.holder = holder;
       const renew = () => {
         holder.cancelRenew = this.timers.after(Math.floor(this.ttl / 3), () => {
@@ -266,8 +310,10 @@ export class SweepService {
 
   private poll(): Promise<boolean> {
     if (this.running || !this.holder?.sweeper.hasInflight()) return Promise.resolve(false);
+    this.polling = true;
     this.running = this.run(true, false).finally(() => {
       this.running = undefined;
+      this.polling = false;
     });
     return this.running;
   }
@@ -275,20 +321,24 @@ export class SweepService {
   private async run(poll: boolean, force: boolean): Promise<boolean> {
     const holder = this.holder ?? (poll ? undefined : this.acquire());
     if (!holder) return false;
+    this.guard(holder);
+    resetBudget(holder.sweeper.cache);
     const startedAt = this.options.ctx.clock.now().toISOString();
     const previousSaves = holder.saves;
+    let failure: { error: unknown } | undefined;
     try {
-      this.guard(holder);
       if (poll) await holder.sweeper.pollInflight();
       else await holder.sweeper.sweep({ force });
       this.guard(holder);
-      return true;
-    } finally {
-      // A settled in-flight run can itself trigger a full sweep in core.
-      if (!poll || holder.saves !== previousSaves) {
+    } catch (error) {
+      failure = { error };
+    }
+    // A settled in-flight run can itself trigger a full sweep in core.
+    if (!poll || holder.saves !== previousSaves) {
+      try {
         const line = {
           fleet: this.options.fleet,
-          cursor: this.snapshots.latestSnapshot(this.options.fleet)?.cursor ?? 0,
+          cursor: holder.cursor,
           startedAt,
           endedAt: this.options.ctx.clock.now().toISOString(),
           ...holder.sweeper.cache.budget,
@@ -298,7 +348,20 @@ export class SweepService {
           join(this.options.appData, "sweep-budget.jsonl"),
           `${JSON.stringify(line)}\n`,
         );
+      } catch (error) {
+        if (failure) {
+          throw new AggregateError(
+            [failure.error, error],
+            "Sweep failed and budget logging failed",
+            {
+              cause: failure.error,
+            },
+          );
+        }
+        throw error;
       }
     }
+    if (failure) throw failure.error;
+    return true;
   }
 }

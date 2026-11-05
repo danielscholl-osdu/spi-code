@@ -3,7 +3,7 @@
 
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -262,6 +262,129 @@ it("logs the real collector's per-sweep GraphQL charges rather than accumulating
   expect(budgets()[0].deferred).toContainEqual({ area: "security", reason: expect.any(String) });
 });
 
+it("does not log an attempt rejected by the first guard as another sweep", async () => {
+  const afterAreas = vi.fn(async ({ cache }: SweepInput<ReturnType<typeof emptyCache>>) => {
+    cache.budget = {
+      ...cache.budget,
+      cost: 7,
+      calls: 3,
+      deferred: [{ area: "security", reason: "floor" }],
+    };
+  });
+  const first = service([], {
+    createSweeper: (options) =>
+      new Sweeper({
+        ...options,
+        areas: [],
+        cacheSchema,
+        emptyCache,
+        afterAreas,
+      }),
+  });
+  await first.start();
+  vi.setSystemTime(epoch + 3000);
+  await expect(first.sweep()).rejects.toThrow("Lease lost");
+  expect(afterAreas).toHaveBeenCalledTimes(1);
+  expect(budgets().map(({ cost, calls }) => [cost, calls])).toEqual([[7, 3]]);
+});
+
+it.each([false, true])(
+  "resets prior charges before a sweep fails (restored: %s)",
+  async (restore) => {
+    let fail = false;
+    const failure = new Error("collector failed before updating the budget");
+    const options: Partial<SweepServiceOptions> = {
+      createSweeper: (options) =>
+        new Sweeper({
+          ...options,
+          areas: [],
+          cacheSchema,
+          emptyCache,
+          afterAreas: async ({ cache }) => {
+            if (fail) throw failure;
+            cache.budget = {
+              ...cache.budget,
+              cost: 7,
+              calls: 3,
+              deferred: [{ area: "security", reason: "floor" }],
+            };
+          },
+        }),
+    };
+    const charged = service([], options);
+    await charged.start();
+    fail = true;
+    if (restore) {
+      await charged.stop();
+      await expect(service([], options).start()).rejects.toBe(failure);
+    } else {
+      await expect(charged.sweep()).rejects.toBe(failure);
+    }
+    expect(budgets().map(({ cost, calls, deferred }) => ({ cost, calls, deferred }))).toEqual([
+      { cost: 7, calls: 3, deferred: [{ area: "security", reason: "floor" }] },
+      { cost: 0, calls: 0, deferred: [] },
+    ]);
+  },
+);
+
+it("logs the returned commit cursor without decoding the saved snapshot again", async () => {
+  let restore: (() => void) | undefined;
+  const first = service([], {
+    createSweeper: (options) =>
+      new Sweeper({
+        ...options,
+        areas: [],
+        cacheSchema,
+        emptyCache,
+        persist: {
+          load: options.persist.load,
+          save: async (state) => {
+            await options.persist.save(state);
+            const parse = vi.spyOn(JSON, "parse").mockImplementation(() => {
+              throw new Error("Unexpected snapshot decode after commit");
+            });
+            restore = () => parse.mockRestore();
+          },
+        },
+      }),
+  });
+  try {
+    expect(await first.start()).toBe(true);
+  } finally {
+    restore?.();
+  }
+  expect(budgets()).toHaveLength(1);
+  expect(budgets()[0].cursor).toBe(1);
+});
+
+it("preserves the sweep failure alongside a budget-log failure", async () => {
+  const failure = new Error("original collector failure");
+  mkdirSync(join(directory, "sweep-budget.jsonl"));
+  const first = service([], {
+    createSweeper: (options) =>
+      new Sweeper({
+        ...options,
+        areas: [],
+        cacheSchema,
+        emptyCache,
+        afterAreas: async () => {
+          throw failure;
+        },
+      }),
+  });
+  await expect(first.start()).rejects.toMatchObject({
+    cause: failure,
+    errors: [failure, expect.objectContaining({ code: "EISDIR" })],
+  });
+});
+
+it("rejects a budget-log failure even when the sweep itself succeeds", async () => {
+  mkdirSync(join(directory, "sweep-budget.jsonl"));
+  const first = service();
+  await expect(first.start()).rejects.toMatchObject({ code: "EISDIR" });
+  expect(first.latest()?.cursor).toBe(1);
+});
+
 it("coalesces requests, aborts on stop and sends no further Exec calls after cancellation", async () => {
   let signal: AbortSignal | undefined;
   const runText = vi.fn<Exec["runText"]>(
@@ -304,19 +427,35 @@ it("prunes daily on the injected clock, retaining seven days and each fleet's la
   const leases = createLeaseStore(db);
   const snapshots = createSnapshotStore(db);
   const old = epoch - 8 * DAY_MS;
+  leases.acquire("old", "writer", 2 * DAY_MS, old);
+  const lease = { fleet: "old", owner: "writer", fence: 1 };
+  snapshots.writeSnapshot(lease, {}, {}, old);
+  snapshots.writeSnapshot(lease, {}, {}, epoch - 7 * DAY_MS + 1);
+  snapshots.writeSnapshot(lease, {}, {}, epoch - 7 * DAY_MS + 2);
+  const first = service([], { intervalMs: 2 * DAY_MS, ttlMs: 3 * DAY_MS });
+  await first.start();
+  expect(snapshots.snapshotsSince(0).map((row) => row.cursor)).toEqual([2, 3, 4]);
+  await vi.advanceTimersByTimeAsync(DAY_MS - 1);
+  expect(snapshots.snapshotsSince(0)).toHaveLength(3);
+  await vi.advanceTimersByTimeAsync(1);
+  expect(snapshots.snapshotsSince(0).map((row) => row.cursor)).toEqual([3, 4]);
+  await first.stop();
+  await vi.advanceTimersByTimeAsync(DAY_MS);
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it("prunes on startup even as a lease contender, retaining every fleet's latest cursor", async () => {
+  const leases = createLeaseStore(db);
+  const snapshots = createSnapshotStore(db);
+  const old = epoch - 8 * DAY_MS;
   leases.acquire("old", "writer", 100, old);
   const lease = { fleet: "old", owner: "writer", fence: 1 };
   snapshots.writeSnapshot(lease, {}, {}, old);
   snapshots.writeSnapshot(lease, {}, {}, old + 1);
-  const first = service([], { intervalMs: 2 * DAY_MS, ttlMs: 3 * DAY_MS });
-  await first.start();
-  await vi.advanceTimersByTimeAsync(DAY_MS - 1);
-  expect(snapshots.snapshotsSince(0)).toHaveLength(3);
-  await vi.advanceTimersByTimeAsync(1);
-  expect(snapshots.snapshotsSince(0).map((row) => row.cursor)).toEqual([2, 3]);
-  await first.stop();
-  await vi.advanceTimersByTimeAsync(DAY_MS);
-  expect(vi.getTimerCount()).toBe(0);
+  leases.acquire("test", "other holder", 3000, epoch);
+  const first = service();
+  await expect(first.start()).resolves.toBe(false);
+  expect(snapshots.snapshotsSince(0).map((row) => row.cursor)).toEqual([2]);
 });
 
 it("polls in-flight work between sweeps without overlapping a full sweep", async () => {
@@ -339,6 +478,44 @@ it("polls in-flight work between sweeps without overlapping a full sweep", async
   poll.mockResolvedValueOnce({ changed: true, settled: true });
   await vi.advanceTimersByTimeAsync(INFLIGHT_POLL_MS);
   expect(poll).toHaveBeenCalledTimes(2);
+  expect(budgets()).toHaveLength(2);
+  expect(first.latest()?.cursor).toBe(2);
+});
+
+it("queues a full forced sweep behind a poll instead of joining it", async () => {
+  const forces: boolean[] = [];
+  let finishPoll: (() => void) | undefined;
+  const first = service([], {
+    createSweeper: (options) =>
+      new Sweeper({
+        ...options,
+        areas: [],
+        cacheSchema,
+        emptyCache,
+        afterAreas: async (input) => {
+          forces.push(input.force);
+        },
+        inflight: {
+          has: () => true,
+          poll: async () => {
+            await new Promise<void>((resolve) => {
+              finishPoll = resolve;
+            });
+            return { changed: false, settled: false };
+          },
+        },
+      }),
+  });
+  await first.start();
+  await vi.advanceTimersByTimeAsync(INFLIGHT_POLL_MS);
+  expect(finishPoll).toBeTypeOf("function");
+  const queued = first.sweep();
+  const forced = first.sweep(true);
+  expect(forced).toBe(queued);
+  expect(forces).toEqual([false]);
+  finishPoll?.();
+  await expect(forced).resolves.toBe(true);
+  expect(forces).toEqual([false, true]);
   expect(budgets()).toHaveLength(2);
   expect(first.latest()?.cursor).toBe(2);
 });
@@ -381,6 +558,7 @@ it("a SIGKILLed holder is excluded until expiry, then its successor resumes stat
     expect(await next.start()).toBe(false);
     child.kill("SIGKILL");
     await exited;
+    expect(child.signalCode).toBe("SIGKILL");
     expect(await next.sweep()).toBe(false);
     now += 3000;
     expect(await next.sweep()).toBe(true);
