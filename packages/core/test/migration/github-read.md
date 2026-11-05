@@ -31,9 +31,12 @@ not this reader. Other collector suites remain with their corresponding beads.
   FORGE injects its own rate selection and is the only budget authority.
   `mergeReads` strips legacy rateLimit fields instead of aggregating them;
   parsed facts do not receive a collector-local cost or remaining value.
-- Add totalCount to every bounded nodes connection (including nested labels,
-  commits, checks, history and releases) so `cutsOf(raw)` can detect truncation.
-  Existing limits and all other selections are unchanged.
+- Add totalCount only to connections whose truncation loses data: open pull
+  requests, open issues, labels and check contexts. Recency windows (commits(last: 1),
+  upstream history, deployments, pastPrs, pastIssues, releases) keep their original
+  selections, so a healthy repo with a long history is complete.
+- `repoField` JSON-encodes owner and name so a malformed repo cannot alter the query.
+  `readGithub` takes the batch size once and uses it for queries and batch numbering.
 - `cutsOf` recursively returns every cut with its connection path and counts;
   null nodes are not counted as reads. A repo record carries the first cut,
   consistent with the evidence envelope's first-cut summary. Counts without

@@ -21,7 +21,7 @@ const PULLS = `pullRequests(states: OPEN, first: 40, orderBy: {field: CREATED_AT
   author { __typename login } authorAssociation
   headRef { target { ... on Commit { file(path: "${MARKER_PATH}") { object { ... on Blob { text } } } } } }
   labels(first: 15) { totalCount nodes { name } }
-  commits(last: 1) { totalCount nodes { commit { statusCheckRollup { contexts(first: 80) { totalCount nodes {
+  commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 80) { totalCount nodes {
     __typename
     ... on CheckRun { databaseId name status conclusion startedAt completedAt detailsUrl checkSuite { workflowRun { databaseId workflow { name } } } }
   } } } } } }
@@ -32,12 +32,12 @@ const ISSUES = `issues(states: OPEN, first: 50, orderBy: {field: CREATED_AT, dir
   labels(first: 15) { totalCount nodes { name } } comments { totalCount } body
 } }`;
 
-const PAST_PULLS = `pastPrs: pullRequests(states: [MERGED, CLOSED], first: 100, orderBy: {field: UPDATED_AT, direction: DESC}) { totalCount nodes {
+const PAST_PULLS = `pastPrs: pullRequests(states: [MERGED, CLOSED], first: 100, orderBy: {field: UPDATED_AT, direction: DESC}) { nodes {
   number title url createdAt mergedAt closedAt headRefName baseRefName author { login }
 } }`;
 
 const HALT_LABELS = Object.freeze(["sync-failed", "conflict", "cascade-blocked", "cascade-failed"]);
-const PAST_ISSUES = `pastIssues: issues(states: CLOSED, first: 30, labels: ${JSON.stringify(HALT_LABELS)}, orderBy: {field: UPDATED_AT, direction: DESC}) { totalCount nodes {
+const PAST_ISSUES = `pastIssues: issues(states: CLOSED, first: 30, labels: ${JSON.stringify(HALT_LABELS)}, orderBy: {field: UPDATED_AT, direction: DESC}) { nodes {
   number url createdAt closedAt labels(first: 15) { totalCount nodes { name } }
 } }`;
 
@@ -57,25 +57,25 @@ fragment Base on Repository {
 }
 fragment Template on Repository {
   ${PAST_PULLS}
-  releases(first: 10, orderBy: {field: CREATED_AT, direction: DESC}) { totalCount nodes { tagName publishedAt url isDraft } }
+  releases(first: 10, orderBy: {field: CREATED_AT, direction: DESC}) { nodes { tagName publishedAt url isDraft } }
 }
 fragment Fork on Repository {
   syncTemplate: object(expression: "main:.github/workflows/${SYNC_TEMPLATE_WORKFLOW}") { ... on Blob { text } }
   marker: object(expression: "main:${MARKER_PATH}") { ... on Blob { text } }
-  upstreamLog: ref(qualifiedName: "refs/heads/fork_upstream") { target { ... on Commit { history(first: 10) { totalCount nodes { oid message committedDate } } } } }
-  deployments(environments: ["${LANE_ENVIRONMENT}"], first: 60, orderBy: {field: CREATED_AT, direction: DESC}) { totalCount nodes { createdAt commitOid ref { name } latestStatus { state createdAt } } }
+  upstreamLog: ref(qualifiedName: "refs/heads/fork_upstream") { target { ... on Commit { history(first: 10) { nodes { oid message committedDate } } } } }
+  deployments(environments: ["${LANE_ENVIRONMENT}"], first: 60, orderBy: {field: CREATED_AT, direction: DESC}) { nodes { createdAt commitOid ref { name } latestStatus { state createdAt } } }
   ${PAST_PULLS}
   ${PAST_ISSUES}
 }
 fragment Stack on Repository {
   declaration: object(expression: "main:${DECLARATION_PATH}") { ... on Blob { text } }
-  releases(first: 40, orderBy: {field: CREATED_AT, direction: DESC}) { totalCount nodes { tagName publishedAt url isDraft } }
+  releases(first: 40, orderBy: {field: CREATED_AT, direction: DESC}) { nodes { tagName publishedAt url isDraft } }
   ${WORKFLOW_FILES}
 }`;
 
 function repoField(alias: string, repo: string, spread: string): string {
-  const [owner, name] = repo.split("/");
-  return `${alias}: repository(owner: "${owner}", name: "${name}") { ${spread} }`;
+  const [owner = "", name = ""] = repo.split("/");
+  return `${alias}: repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(name)}) { ${spread} }`;
 }
 
 export const FORKS_PER_QUERY = 5;
@@ -144,9 +144,10 @@ export async function readGithub<T>(
   gh: Pick<Gh, "graphql">,
   ctx: CoreContext,
   parse: (raw: Record<string, unknown>, ctx: CoreContext) => T,
+  perQuery = FORKS_PER_QUERY,
 ): Promise<{ facts: T; records: ReadRecord[] }> {
   const reads = await Promise.all(
-    buildQueries(ctx).map(async (q): Promise<{
+    buildQueries(ctx, perQuery).map(async (q): Promise<{
       data: Record<string, unknown>; errors: GqlError[]; observedAt: string;
     }> => {
       try {
@@ -165,7 +166,7 @@ export async function readGithub<T>(
     { alias: "r_template", repo: TEMPLATE_REPO, batch: 0 },
     { alias: "r_stack", repo: STACK_REPO, batch: 0 },
     ...ctx.fleet.forks.map((f, i) => ({
-      alias: `r_fork${i}`, repo: f.repo, batch: 1 + Math.floor(i / FORKS_PER_QUERY),
+      alias: `r_fork${i}`, repo: f.repo, batch: 1 + Math.floor(i / perQuery),
     })),
     ...ctx.fleet.planned.map((p, i) => ({
       alias: `p_${i}`, repo: plannedRepo(p), batch: 0,

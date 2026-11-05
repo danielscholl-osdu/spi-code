@@ -191,3 +191,58 @@ it("detects nested and nullable-node cuts, not total-only counts or complete con
     }),
   ).toEqual([{ kind: "cut", reason: "issues.nodes[0].labels", read: 1, total: 2 }]);
 });
+
+it("keeps recency windows out of cut detection so a healthy fork is complete", () => {
+  const q = buildQueries(ctx).join("\n");
+  for (const window of [
+    "commits(last: 1) { nodes",
+    "history(first: 10) { nodes",
+    "first: 60, orderBy: {field: CREATED_AT, direction: DESC}) { nodes",
+    "pastPrs: pullRequests(states: [MERGED, CLOSED], first: 100, orderBy: {field: UPDATED_AT, direction: DESC}) { nodes",
+    "releases(first: 10, orderBy: {field: CREATED_AT, direction: DESC}) { nodes",
+    "releases(first: 40, orderBy: {field: CREATED_AT, direction: DESC}) { nodes",
+  ])
+    expect(q).toContain(window);
+  const fork = {
+    pullRequests: {
+      totalCount: 2,
+      nodes: [{ commits: { nodes: [{}] }, labels: { totalCount: 1, nodes: [{}] } }, {}],
+    },
+    issues: { totalCount: 0, nodes: [] },
+    upstreamLog: { target: { history: { nodes: Array.from({ length: 10 }, () => ({})) } } },
+    deployments: { nodes: Array.from({ length: 60 }, () => ({})) },
+    pastPrs: { nodes: Array.from({ length: 100 }, () => ({})) },
+  };
+  expect(cutsOf(fork)).toEqual([]);
+  expect(cutsOf({ ...fork, pullRequests: { totalCount: 41, nodes: [{}] } })).toEqual([
+    { kind: "cut", reason: "pullRequests", read: 1, total: 41 },
+  ]);
+});
+
+it("encodes repository names so a malformed repo cannot alter the query", () => {
+  const evil = createContext({
+    clock,
+    fleet: fleetOf([{ id: "x", repo: 'a/b") { id } evil: repository(owner: "c', upstream: "u/x" }]),
+  });
+  const q = buildQueries(evil)[1] ?? "";
+  expect(q).toContain('name: "b\\") { id } evil: repository(owner: \\"c"');
+  expect(q).not.toContain('evil: repository(owner: "c');
+});
+
+it("uses the supplied batch size for queries and batch numbering", async () => {
+  const seen: string[] = [];
+  const gh = {
+    graphql: async <T>(query: string) => {
+      seen.push(query);
+      const data = query.includes("r_template:")
+        ? base
+        : Object.fromEntries(
+            [...query.matchAll(/(r_fork\d+):/g)].map((m) => [m[1], { nameWithOwner: "x" }]),
+          );
+      return { data: data as T, errors: [] };
+    },
+  };
+  const { records } = await readGithub(gh, context(4), parse, 2);
+  expect(seen).toHaveLength(3);
+  expect(records.every((r) => !r.failure)).toBe(true);
+});
