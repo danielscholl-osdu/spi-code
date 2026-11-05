@@ -27,7 +27,13 @@ export const ReadRecordSchema = z.strictObject({
   inferred: z.boolean().optional(),
 });
 export const EnvelopeSchema = z.union([
-  z.strictObject({ source: IdentifierSchema, state: z.literal("unread") }),
+  z.strictObject({
+    source: IdentifierSchema,
+    state: z.literal("unread"),
+    // Core reports an unread area as complete and not inferred; a cut makes no sense with no read.
+    completeness: z.strictObject({ kind: z.literal("complete") }).optional(),
+    inferred: z.literal(false).optional(),
+  }),
   z
     .strictObject({
       source: IdentifierSchema,

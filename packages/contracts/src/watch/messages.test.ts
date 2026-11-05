@@ -217,6 +217,10 @@ it("round-trips strict read records, area envelopes, tree status and six station
     [EnvelopeSchema, { source: "github", state: "unread" }],
     [
       EnvelopeSchema,
+      { source: "github", state: "unread", completeness: { kind: "complete" }, inferred: false },
+    ],
+    [
+      EnvelopeSchema,
       { source: "github", state: "incomplete", observedAt: at, completeness: record.completeness },
     ],
     [
@@ -280,6 +284,13 @@ it("round-trips strict read records, area envelopes, tree status and six station
     completeness: { kind: "complete" },
   });
   expect(timeless.error?.issues[0]?.path).toEqual(["observedAt"]);
+  expect(
+    EnvelopeSchema.safeParse({
+      source: "github",
+      state: "unread",
+      completeness: record.completeness,
+    }).success,
+  ).toBe(false);
   for (const state of ["fresh", "stale"]) {
     const cut = EnvelopeSchema.safeParse({
       source: "github",
