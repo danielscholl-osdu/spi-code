@@ -286,17 +286,20 @@ test("two interleaved fleets keep facts, caches and budgets independent", async 
   expect(two.cache.budget).toEqual(budget);
 });
 
-test("sweeper pruning uses its context stack after fleet context rebuilding", async () => {
-  const sweepers = ["one/environment", "two/environment"].map((stackRepo, i) => {
+test("sweeper fleet reads and pruning use its context stack after fleet context rebuilding", async () => {
+  const runs = ["one", "two"].map((owner, i) => {
     const h = harness(`owner/fork${i}`);
-    return createSweeper({
+    const sweeper = createSweeper({
       ...h.options,
-      ctx: createContext({ ...h.options.ctx, stackRepo }),
+      ctx: createContext({ ...h.options.ctx, stackRepo: `${owner}/environment` }),
     });
+    return { owner, h, sweeper };
   });
-  await Promise.all(sweepers.map((sweeper) => sweeper.sweep()));
-  for (const [i, sweeper] of sweepers.entries()) {
-    const stackRepo = `${i === 0 ? "one" : "two"}/environment`;
+  await Promise.all(runs.map(({ sweeper }) => sweeper.sweep()));
+  for (const { owner, h, sweeper } of runs) {
+    const stackRepo = `${owner}/environment`;
+    const declaration = h.queries.find((q) => q.includes("stack: repository"));
+    expect(declaration).toContain(`stack: repository(owner: "${owner}", name: "environment")`);
     const job = { id: 9, name: "Deploy", status: "completed", url: "u", steps: [] };
     sweeper.facts.lifecycle.data = {
       refresh: [

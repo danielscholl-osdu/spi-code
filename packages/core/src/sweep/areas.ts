@@ -120,7 +120,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
   area("fleet", true, 1, 0, async ({ facts, reads, clock }, gh) => {
     const { reads: records, ...data } = await readFleet(gh,
       facts.fleet.data ? { ...facts.fleet.data, reads: reads.fleet } : undefined,
-      clock.now(), options.fleetFiles);
+      clock.now(), options.fleetFiles, options.ctx.stackRepo);
     view = fleetView({ ...data, reads: records }, options.fleetFiles ?? {}, {
       now: clock.now(), readFile: options.readFile, previous: view,
     });
