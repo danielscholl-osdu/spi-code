@@ -128,6 +128,7 @@ describe("Watch protocol", () => {
     { tool: "gh", token: "opaque.credential" },
     { tool: "copilot", token: "opaque.credential" },
     { tool: "glab", token: "" },
+    { tool: "glab", token: "x".repeat(7) },
     { tool: "glab", token: "x".repeat(4097) },
     ...[
       " leading",
@@ -146,10 +147,14 @@ describe("Watch protocol", () => {
   });
   it("accepts the credential length boundary and keeps the sign-in object strict", () => {
     expect(
+      parseMessage({ ...messages[5], payload: { tool: "glab", token: "x".repeat(8) } }).ok,
+    ).toBe(true);
+    expect(
       parseMessage({ ...messages[5], payload: { tool: "glab", token: "x".repeat(4096) } }).ok,
     ).toBe(true);
     expect(
-      parseMessage({ ...messages[5], payload: { tool: "glab", token: "x", extra: true } }).ok,
+      parseMessage({ ...messages[5], payload: { tool: "glab", token: "x".repeat(8), extra: true } })
+        .ok,
     ).toBe(false);
   });
   it("rejects credential fields in every progress and status shape", () => {

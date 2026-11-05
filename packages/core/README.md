@@ -14,10 +14,13 @@ replay entry. Recording forwards cancellation to its runner and replays deliver
 the recorded stdout and stderr through the same callback (without timing or
 cross-stream ordering guarantees).
 
-Stdin is transient: its trimmed value is stripped from recordings, progress,
-stderr and errors even when it has no recognizable token prefix. Never persist
-or log the original options. The additive `setup.signin` request accepts an
-optional `token` only for `glab` (1-4096 characters, no whitespace); setup state
+Credential stdin is transient: trimmed values of at least eight characters are
+stripped from recordings, progress, stderr and errors even without a recognizable
+token prefix. Short interactive responses such as `y` are preserved.
+Recordings store credential stdin as `<redacted>`, so replay does not verify its
+contents. Never persist or log the original options.
+The additive `setup.signin` request accepts an
+optional `token` only for `glab` (8-4096 characters, no whitespace); setup state
 and progress messages remain strict and have no credential field.
 
 ## Vendoring version 0.1.0

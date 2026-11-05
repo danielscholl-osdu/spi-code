@@ -3,9 +3,69 @@
 
 import { describe, expect, it } from "vitest";
 import { RecordingExec, ReplayExec, type ExecOptions, type ExecOutput } from "./index.js";
-import { execOutputDelivery } from "./port.js";
+import { execOutputDelivery, execRedactor } from "./port.js";
 
 describe("exec recording and replay", () => {
+  it.each([
+    ["opaque.g", "opaque.gh", { stdin: "opaque.g\n" }],
+    ["opaque.gh", "opaque.ghp_", { stdin: "opaque.gh" }],
+    ["opaque.b", "opaque.bear", { env: { SERVICE_TOKEN: "opaque.b" } }],
+    ["opaque.credential", "opaque.credentialX", {
+      stdin: "opaque.credential", env: { SERVICE_TOKEN: "credentialXYZ" },
+    }],
+  ] satisfies [string, string, ExecOptions][])(
+    "keeps overlapping secret %s intact during redaction",
+    (secret, first, opts) => {
+      const chunks: string[] = [];
+      const delivery = execOutputDelivery({
+        ...opts, onOutput: (_stream, text) => chunks.push(text),
+      });
+      delivery.push("stdout", first);
+      expect(chunks).toEqual([]);
+      delivery.push("stdout", "!\n");
+      delivery.finish();
+      expect(chunks.join("")).toBe(execRedactor(opts)(`${first}!\n`));
+      expect(chunks.join("")).not.toContain(secret);
+      expect(chunks.join("")).not.toContain("opaque.");
+    },
+  );
+
+  it.each([
+    ["opaque.gh", { stdin: "opaque.gh\n" }],
+    ["environment.credential", { env: { SERVICE_TOKEN: "environment.credential" } }],
+    ["ghp_planted", {}],
+  ] satisfies [string, ExecOptions][])("protects %s split across three or more chunks", (secret, opts) => {
+    for (let first = 1; first < secret.length - 1; first++) {
+      for (let second = first + 1; second < secret.length; second++) {
+        const chunks: string[] = [];
+        const delivery = execOutputDelivery({
+          ...opts, onOutput: (_stream, text) => chunks.push(text),
+        });
+        for (const chunk of [
+          secret.slice(0, first), secret.slice(first, second), secret.slice(second), "!\n",
+        ]) delivery.push("stderr", chunk);
+        delivery.finish();
+        expect(chunks.join("")).toBe("<redacted>!\n");
+      }
+    }
+  });
+
+  it.each([
+    ["y\n", "my repository error", "my repository error"],
+    ["1234567\n", "input 1234567 failed", "input 1234567 failed"],
+    ["12345678\n", "input 12345678 failed", "input <redacted> failed"],
+  ])("redacts stdin only at the minimum secret length: %j", (stdin, text, expected) => {
+    const opts = { stdin };
+    expect(execRedactor(opts)(text)).toBe(expected);
+    const chunks: string[] = [];
+    const delivery = execOutputDelivery({
+      ...opts, onOutput: (_stream, chunk) => chunks.push(chunk),
+    });
+    for (const character of text) delivery.push("stdout", character);
+    delivery.finish();
+    expect(chunks.join("")).toBe(expected);
+  });
+
   it.each([
     ["ghp_planted", {}],
     ["github_pat_planted", {}],

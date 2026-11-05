@@ -6,7 +6,7 @@ export const REDACTED = "<redacted>";
 
 // Shorter *TOKEN* values (flags such as TOKENIZERS_PARALLELISM=false) are not secrets, and
 // replacing them would corrupt ordinary output.
-const MIN_SECRET_LENGTH = 8;
+export const MIN_SECRET_LENGTH = 8;
 
 export function redact(text: string, env: Record<string, string> = {}): string {
   let safe = text;

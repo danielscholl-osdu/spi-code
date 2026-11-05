@@ -46,7 +46,7 @@ export const SetupSigninSchema = z.discriminatedUnion("tool", [
     tool: z.literal("glab"),
     token: z
       .string()
-      .min(1)
+      .min(8)
       .max(4096)
       .refine((token) => !/\s/.test(token), "Credential must not contain whitespace")
       .optional(),

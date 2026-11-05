@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { REDACTED, redact } from "./redact.js";
+import { MIN_SECRET_LENGTH, REDACTED, redact } from "./redact.js";
 
 export type ExecResult<T> =
   | { ok: true; data: T; exitCode?: number | null }
@@ -22,21 +22,23 @@ export function execRedactor(opts: ExecOptions, env: Record<string, string> = {}
   const secrets = { ...env, ...opts.env };
   const input = opts.stdin?.trim();
   return (text: string): string =>
-    redact(input ? text.split(input).join(REDACTED) : text, secrets);
+    redact(input && input.length >= MIN_SECRET_LENGTH ? text.split(input).join(REDACTED) : text, secrets);
 }
 
 export function execOutputDelivery(opts: ExecOptions, env: Record<string, string> = {}) {
   const safe = execRedactor(opts, env);
   const secrets = Object.entries({ ...env, ...opts.env })
-    .filter(([name, value]) => /TOKEN/i.test(name) && value.length >= 8)
+    .filter(([name, value]) => /TOKEN/i.test(name) && value.length >= MIN_SECRET_LENGTH)
     .map(([, value]) => value);
-  if (opts.stdin?.trim()) secrets.push(opts.stdin.trim());
+  const input = opts.stdin?.trim();
+  if (input && input.length >= MIN_SECRET_LENGTH) secrets.push(input);
   const prefixes = ["gho_", "ghp_", "ghs_", "ghu_", "ghr_", "github_pat_", "glpat-", "authorization", "bearer"];
   const pending = { stdout: "", stderr: "" };
   const push = (stream: "stdout" | "stderr", chunk: string, final = false) => {
     if (!opts.onOutput || opts.signal?.aborted) return;
     pending[stream] += chunk;
     const text = pending[stream];
+    const redacted = safe(text);
     let end = text.length;
     if (!final) {
       // Do not publish a suffix whose redaction can change when the next chunk arrives.
@@ -58,8 +60,12 @@ export function execOutputDelivery(opts: ExecOptions, env: Record<string, string
       if (header >= 0) end = Math.min(end, header);
     }
     if (end === 0) return;
+    const emitted = end === text.length ? redacted : safe(text.slice(0, end));
+    // A held prefix can overlap a complete secret. Keep the whole buffer if splitting
+    // would undo any redaction, rather than emitting either side of that match.
+    if (emitted + safe(text.slice(end)) !== redacted) return;
     pending[stream] = pending[stream].slice(end);
-    opts.onOutput(stream, safe(text.slice(0, end)));
+    opts.onOutput(stream, emitted);
   };
   return {
     push,
