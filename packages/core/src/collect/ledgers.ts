@@ -353,7 +353,7 @@ export async function readPortPrs(gh: Gh, state: LedgerState, ctx: CoreContext):
     const incomplete = [...Object.values(pending), ...Object.values(permanentCuts)];
     if (incomplete.length) {
       reads.push({
-        ...base,
+        ...record(ctx, f.repo, "port PRs"),
         completeness: {
           kind: "cut", reason: "Some PR commit messages remain unread",
           read: incomplete.reduce((sum, p) => sum + p.read, 0),

@@ -20,18 +20,21 @@ functions. No rib test is deleted by this bead.
 
 - Replace the Apache header with the MIT header.
 - `toRun` retains its mapping. The run helper returns total-count evidence as
-  well as runs. Bounded template/fork histories keep their original 5/10 limits
-  and report cut evidence when more runs exist. Approval runs follow pages;
-  early empty pages report cut evidence.
+  well as runs. Bounded template/fork histories keep their original 5/10
+  recency windows; a window is complete when the API returns
+  min(window, total_count) runs and cut only on a short read. Approval runs
+  follow pages; early empty pages report cut evidence.
 - `readTemplateRuns(gh, repo, ctx)` and `readForkRuns(gh, ctx)` return
   `{data, reads}`. Forks come only from `ctx.fleet.forks`; each fork has its own
   record and failure boundary. A failed fork is omitted, not reported empty.
 - `readApprovals(gh, ctx, state)` returns `{data, reads, cache}`. Repositories
   come only from `ctx.fleet.repos`. All record times use `ctx.clock`.
   Reads have one record per repository, including empty approval lists.
-- The head-keyed cache is cloned/validated through exported
-  `prFilesCacheSchema`; invalid loaded state is discarded with a separate
-  persistence failure record. The caller's value is never mutated.
+- The head-keyed cache loads through exported `loadPrFilesCache`, which
+  validates each entry with `prFilesSchema`. Invalid entries (or the whole
+  cache, when the state is not an object) are dropped and named in one
+  `persist` failure record; valid entries are kept. The caller's value is
+  never mutated.
 - Open PRs and PR files use `Gh.pages`. File count is checked against the PR
   summary, including GitHub's 3000-file ceiling. Incomplete files are neither
   cached nor attached as an approval-ready PR; their record is cut.

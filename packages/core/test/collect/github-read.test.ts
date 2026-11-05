@@ -238,6 +238,9 @@ it("detects nested and nullable-node cuts, not total-only counts or complete con
       releases: { totalCount: 0, nodes: [] },
     }),
   ).toEqual([{ kind: "cut", reason: "issues.nodes[0].labels", read: 1, total: 2 }]);
+  expect(cutsOf({ totalCount: 3, nodes: [{}] })).toEqual([
+    { kind: "cut", reason: "root", read: 1, total: 3 },
+  ]);
 });
 
 it("keeps recency windows out of cut detection so a healthy fork is complete", () => {

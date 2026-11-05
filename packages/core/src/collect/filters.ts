@@ -33,7 +33,7 @@ const CHECKED: Readonly<Record<string, { readonly section: string; readonly path
 };
 
 export function checkable(halt: HaltEntries | undefined): halt is HaltEntries {
-  return !!halt && halt.entries.length > 0 && halt.code in CHECKED;
+  return !!halt && halt.entries.length > 0 && Object.hasOwn(CHECKED, halt.code);
 }
 
 // The filter is a flat `section:` then indented `name: verdict` map, so a line
@@ -87,7 +87,7 @@ export async function entryAcrossForks(
   halt: HaltEntries,
   ctx: Pick<CoreContext, "fleet" | "clock">,
 ): Promise<ForkEntry[]> {
-  const where = CHECKED[halt.code];
+  const where = Object.hasOwn(CHECKED, halt.code) ? CHECKED[halt.code] : undefined;
   if (!where) return [];
   const others = ctx.fleet.forks.filter((f) => f.id !== halt.fork);
   const object = `repository/tree?ref=master${where.path ? `&path=${encodeURIComponent(where.path)}` : ""}`;

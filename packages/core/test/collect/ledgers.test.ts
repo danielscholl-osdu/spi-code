@@ -357,7 +357,7 @@ const longPr = {
 };
 const fullMessages = [
   ...Array.from({ length: 50 }, () => "first fifty"),
-  `https://community.opengroup.org/${ENT}/-/merge_requests/956`,
+  `Port "the \\fix"\n\nhttps://community.opengroup.org/${ENT}/-/merge_requests/956\n`,
 ];
 
 test("a 51-commit merged PR pages all commits through Gh and advances the watermark", async () => {
@@ -456,6 +456,7 @@ test("the 250-commit REST cap preserves read references and persists a cut witho
   const capped = { ...longPr, commits: { ...longPr.commits, totalCount: 251 } };
   const messages = [...Array.from({ length: 249 }, () => "commit"), fullMessages[50] ?? ""];
   const state = emptyLedgerState();
+  state.observed["port:partition"] = "2026-10-01T00:00:00Z";
   const calls = exec({ port_o0: search(), port_m0: search([capped]) }, [], messages);
   const result = await readPortPrs(
     new Gh(calls.exec, undefined, new GraphqlBudget(ctx.clock)),
@@ -474,6 +475,14 @@ test("the 250-commit REST cap preserves read references and persists a cut witho
   });
   expect(state.portPrs.partition?.pending).toEqual({});
   expect(state.portPrs.partition?.permanentCuts?.["37"]?.read).toBe(250);
+  const portRead = (reads: typeof result.reads) =>
+    reads.find((r) => r.object === "port PRs" && r.source === services[0]?.repo);
+  expect(portRead(result.reads)).toEqual({
+    source: services[0]?.repo,
+    object: "port PRs",
+    observedAt: FIXTURE_NOW.toISOString(),
+    completeness: expect.objectContaining({ kind: "cut", read: 250, total: 251 }),
+  });
   const restored = loadLedgerState(JSON.parse(JSON.stringify(state)), ctx).state;
   for (const nodes of [[capped], []]) {
     const laterCalls = exec(
@@ -495,10 +504,12 @@ test("the 250-commit REST cap preserves read references and persists a cut witho
       read: 250,
       total: 251,
     });
-    expect(
-      laterResult.reads.find((r) => r.object === "port PRs" && r.source === services[0]?.repo)
-        ?.completeness.kind,
-    ).toBe("cut");
+    expect(portRead(laterResult.reads)).toEqual({
+      source: services[0]?.repo,
+      object: "port PRs",
+      observedAt: "2026-10-13T00:00:00.000Z",
+      completeness: expect.objectContaining({ kind: "cut", read: 250, total: 251 }),
+    });
     expect(restored.portPrs.partition?.pending).toEqual({});
   }
 });

@@ -64,7 +64,10 @@ All clocks are fixed.
 - Cut connections with no exact total use `read + 1`, explicitly labelled as a
   lower bound. Partial data is not published as a complete ledger.
 - Last-good observation times are updated only by complete successful reads;
-  repeated failures/cuts carry `retainedFrom`. Every GitHub GraphQL request goes
+  repeated failures and search cuts carry `retainedFrom`. A fork whose searches
+  were read but whose PR commits remain pending or permanently capped is cut
+  at the current time, without `retainedFrom`, because its published facts
+  are this read's. Every GitHub GraphQL request goes
   through the existing `Gh` budget account, tested against cost 17.
 - `mrRefs`, seed/day handling, GitLab batch size, MR conversion, PR-number
   retention, watermark advancement and URL/body/commit matching are unchanged.

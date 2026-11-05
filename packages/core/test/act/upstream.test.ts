@@ -122,6 +122,7 @@ describe("upstream planning", () => {
     const m = modelOf(heldFacts());
     const s = fork(m, "storage");
     expect(s.stop?.fixLanded).toBe(true);
+    expect(m.upstream.reruns).toEqual([]);
     const own = forkActions(m.upstream, s, opts(m)).primary;
     expect(own.disabled).toBe(true);
     expect(own.label).toBe("Re-run the cascade · the environment is held");
@@ -141,6 +142,7 @@ describe("upstream planning", () => {
     const m = modelOf(waveFacts());
     const open = planActions(m.upstream, opts(m));
     const blocked = planActions(m.upstream, { ...opts(m), blocked: "no repo scope" });
+    expect(blocked.secondary).toHaveLength(open.secondary.length);
     for (const [i, a] of [open.primary, ...open.secondary].entries()) {
       const off = [blocked.primary, ...blocked.secondary][i];
       expect(off).toEqual(

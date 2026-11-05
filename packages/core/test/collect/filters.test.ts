@@ -137,25 +137,24 @@ describe("filter reads", () => {
         },
       ]);
     }
-    for (const c of calls) {
-      expect(c.args[0]).toBe("api");
-      expect(c.args).not.toContain("-X");
-    }
     exec.assertExhausted();
   });
 
-  test("a halt on something other than an entry is not checked across forks", async () => {
-    const exec = replay([]);
-    expect(
-      await entryAcrossForks(
-        new Gh(exec),
-        new Glab(exec),
-        { ...halt, code: "CONFIG_INVALID", entries: ["line 4"] },
-        context(["legal"]),
-      ),
-    ).toEqual([]);
-    exec.assertExhausted();
-  });
+  test.each(["CONFIG_INVALID", "constructor", "toString"])(
+    "a %s halt is not checked across forks",
+    async (code) => {
+      const exec = replay([]);
+      expect(
+        await entryAcrossForks(
+          new Gh(exec),
+          new Glab(exec),
+          { ...halt, code, entries: ["line 4"] },
+          context(["legal"]),
+        ),
+      ).toEqual([]);
+      exec.assertExhausted();
+    },
+  );
 
   test("readFilterFile preserves the SHA and decodes base64 whitespace and UTF-8", async () => {
     const text = `${FILTER}# caf\u00e9\n`;
@@ -173,6 +172,9 @@ describe("filter reads", () => {
     expect(checkable({ ...halt, code: "CONFIG_INVALID" })).toBe(false);
     expect(checkable(halt)).toBe(true);
     expect(checkable({ ...halt, code: "UNKNOWN_TESTING_ENTRY" })).toBe(true);
+    for (const code of ["constructor", "toString", "__proto__"]) {
+      expect(checkable({ ...halt, code })).toBe(false);
+    }
   });
 
   test("testing entries use the testing map and tree, reading every page", async () => {

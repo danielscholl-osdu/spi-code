@@ -27,9 +27,13 @@ No source tests are deleted here. Existing core `model/filter.ts` owns
   does not hide a successful upstream absence. No state or persistence is added.
 - `readTree` takes the tree query object built from the checked halt's path.
   Use the existing `Glab.restAll` to exhaust 100-entry pages rather than silently
-  truncating at the rib's first page. Only a fully successful tree is complete;
-  a failed later page emits failure evidence and produces unread entries.
+  truncating at the rib's first page. A failed later page discards the pages
+  already read: the tree record carries the failure (with `completeness`
+  left `complete`, as on every failed read, since no partial count survives)
+  and its entries are unread. A failure outranks completeness in the envelope.
   The tree query object is also the evidence object; its source is the project.
+- `checkable` and `entryAcrossForks` look up `CHECKED` with `Object.hasOwn`, so
+  an inherited name such as `constructor` is not a checked halt.
 - `readFilterFile`, `readFilter`, `checkable`, classification order, verdicts,
   links and result order otherwise retain the source behavior. File-read errors
   still reject directly; `entryAcrossForks` captures them into its read records.
@@ -37,5 +41,7 @@ No source tests are deleted here. Existing core `model/filter.ts` owns
 - Tests use Vitest and replayed Exec JSONL instead of Bun and RibExec. Additional
   cases cover file decoding/SHA, checkability, testing-path pagination, later-page
   failure, evidence and interleaved fleets with independent fixed clocks.
+  ReplayExec matches every command exactly, so the replayed GETs are the only
+  commands issued.
 
 No dependencies, barrels or shared configuration changed.

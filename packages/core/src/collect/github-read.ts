@@ -129,7 +129,7 @@ export function cutsOf(raw: unknown): Cut[] {
       if (typeof value.totalCount === "number" && Array.isArray(value.nodes)) {
         const read = value.nodes.filter((node) => node !== null).length;
         if (value.totalCount > read)
-          cuts.push({ kind: "cut", reason: path, read, total: value.totalCount });
+          cuts.push({ kind: "cut", reason: path || "root", read, total: value.totalCount });
       }
       for (const [key, child] of Object.entries(value))
         visit(child, path ? `${path}.${key}` : key);

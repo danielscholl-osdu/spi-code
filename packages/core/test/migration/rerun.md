@@ -73,7 +73,7 @@ runners. The other five approval cases are not claimed as core migrations.
 
 Two new core-only cases cover disabled/singular/draft approval presentation and
 multiple runs for one PR with differing failed steps. All thirteen core cases
-appear in `pnpm vitest list`; the full check passes 61 files and 718 tests.
+appear in `pnpm vitest list`, and the full check passes.
 
 A direct comparison with the pinned rib passes **11,520 lane**, **72 dispatch**
 and **192 approval** input combinations, comparing complete `ActionItem` objects
