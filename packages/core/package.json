@@ -1,8 +1,13 @@
 {
   "name": "@spi-code/core",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -11,7 +16,8 @@
   },
   "scripts": {
     "build": "tsc -b",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "pack": "node scripts/pack.mjs"
   },
   "dependencies": {
     "@spi-code/contracts": "workspace:*",
