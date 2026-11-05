@@ -30,10 +30,17 @@ export interface HostExecOptions extends Omit<ManagedToolEnvironmentOptions, "pl
   log?: (entry: HostExecLog) => void;
 }
 
+const PIPE_GRACE_MS = 1000;
+
 async function killTree(pid: number): Promise<void> {
   if (process.platform === "win32") {
     const taskkill = join(process.env.SystemRoot ?? "C:\\Windows", "System32", "taskkill.exe");
-    await promisify(execFile)(taskkill, ["/pid", String(pid), "/T", "/F"], { timeout: 5000 });
+    try {
+      await promisify(execFile)(taskkill, ["/pid", String(pid), "/T", "/F"], { timeout: 5000 });
+    } catch (error) {
+      // 128: the process exited on its own before taskkill reached it.
+      if (!(error instanceof Error) || !("code" in error) || error.code !== 128) throw error;
+    }
     return;
   }
   try {
@@ -89,16 +96,35 @@ export class HostExec implements Exec {
         let stdout = "";
         let stderr = "";
         let error: string | undefined;
+        let spawnFailed = false;
+        let settled = false;
         let termination: Promise<void> | undefined;
+        const finish = (exit: number | null) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve({
+            stdout,
+            stderr: safe(stderr),
+            exit: spawnFailed ? null : exit,
+            ...(error === undefined ? {} : { error }),
+          });
+        };
         const fail = (message: string) => {
           error ??= safe(message);
           if (child.pid !== undefined && termination === undefined) {
-            termination = killTree(child.pid).catch((failure: unknown) => {
-              error = `${error} Process-tree termination failed: ${safe(String(failure))}`;
-              child.kill("SIGKILL");
-              child.stdout.destroy();
-              child.stderr.destroy();
-            });
+            termination = killTree(child.pid)
+              .catch((failure: unknown) => {
+                error = `${error} Process-tree termination failed: ${safe(String(failure))}`;
+                child.kill("SIGKILL");
+              })
+              .then(() => {
+                // A descendant outside the process group can still hold the pipes open,
+                // so the result cannot wait for them to close.
+                child.stdout.destroy();
+                child.stderr.destroy();
+                setTimeout(() => finish(child.exitCode), PIPE_GRACE_MS);
+              });
           }
         };
         const timer = setTimeout(() => fail(`Command timed out after ${timeoutMs}ms.`), timeoutMs);
@@ -114,17 +140,13 @@ export class HostExec implements Exec {
           if (failure.code !== "EPIPE") fail(failure.message);
         });
         child.on("error", (failure) => {
-          error = safe(failure.message);
+          if (child.pid === undefined) spawnFailed = true;
+          error ??= safe(failure.message);
         });
         child.on("close", async (exit) => {
           clearTimeout(timer);
           await termination;
-          resolve({
-            stdout,
-            stderr: safe(stderr),
-            exit,
-            ...(error === undefined ? {} : { error }),
-          });
+          finish(exit);
         });
         child.stdin.end(opts.stdin);
       });
@@ -134,9 +156,9 @@ export class HostExec implements Exec {
     this.options.log?.({
       cmd: safe(cmd),
       args: args.map(safe),
-      stderr: safe(output.stderr),
+      stderr: output.stderr,
       exit: output.exit,
-      ...(output.error === undefined ? {} : { error: safe(output.error) }),
+      ...(output.error === undefined ? {} : { error: output.error }),
     });
     return output;
   };

@@ -172,3 +172,25 @@ it("kills the entire hung process tree including a SIGTERM-ignoring grandchild",
   vi.useRealTimers();
   await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow());
 });
+
+it.skipIf(process.platform === "win32")(
+  "returns at timeout while a detached descendant still holds the pipes",
+  async () => {
+    const options = await fixture();
+    const pidFile = join(options.appData, "pid");
+    const holder = `require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); setTimeout(() => {}, 20000)`;
+    const parent = `require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(holder)}], {stdio: 'inherit', detached: true}); setInterval(() => {}, 1000)`;
+    const started = Date.now();
+    const result = await new HostExec(options).runText(process.execPath, ["-e", parent], {
+      timeoutMs: 500,
+    });
+    try {
+      expect(result).toMatchObject({ ok: false, error: "Command timed out after 500ms." });
+      expect(Date.now() - started).toBeLessThan(5000);
+    } finally {
+      const pid = Number(await readFile(pidFile, "utf8").catch(() => "0"));
+      if (pid > 0) process.kill(pid, "SIGKILL");
+    }
+  },
+  10_000,
+);
