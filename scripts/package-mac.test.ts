@@ -1,8 +1,95 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { describe, expect, it } from "vitest";
-import { assertRuntimeEvidence, packagingEnvironment } from "./package-mac.mjs";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import {
+  assertRuntimeEvidence,
+  installProductionDependencies,
+  packagingEnvironment,
+  stageWorkspace,
+} from "./package-mac.mjs";
+
+describe("production staging lockfile", () => {
+  const fixtures: string[] = [];
+  afterEach(async () => {
+    await Promise.all(fixtures.splice(0).map((path) => rm(path, { recursive: true, force: true })));
+  });
+
+  async function fixture() {
+    const root = await mkdtemp(join(tmpdir(), "spi-package-lock-"));
+    fixtures.push(root);
+    for (const directory of [
+      ".",
+      "apps/desktop",
+      "apps/window",
+      "packages/contracts",
+      "packages/core",
+      "packages/tools",
+      "packages/host",
+    ]) {
+      await mkdir(join(root, directory), { recursive: true });
+      await writeFile(
+        join(root, directory, "package.json"),
+        JSON.stringify({ name: directory.replaceAll("/", "-"), version: "1.0.0" }),
+      );
+    }
+    await writeFile(join(root, "pnpm-workspace.yaml"), "packages:\n  - apps/*\n  - packages/*\n");
+    const lockfile = `lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .: {}
+
+  apps/desktop: {}
+
+  apps/window: {}
+
+  packages/contracts: {}
+
+  packages/core: {}
+
+  packages/host: {}
+
+  packages/tools: {}
+`;
+    await writeFile(join(root, "pnpm-lock.yaml"), lockfile);
+    const stage = join(root, "stage");
+    await stageWorkspace(root, stage);
+    return { stage, lockfile };
+  }
+
+  it("installs a copied workspace lockfile without rewriting it", async () => {
+    const { stage, lockfile } = await fixture();
+    installProductionDependencies(stage, process.env);
+    expect(await readFile(join(stage, "pnpm-lock.yaml"), "utf8")).toBe(lockfile);
+  });
+
+  it("fails the staging install when its lockfile does not match a manifest", async () => {
+    const { stage, lockfile } = await fixture();
+    await writeFile(
+      join(stage, "pnpm-lock.yaml"),
+      lockfile.replace(
+        "packages/host: {}",
+        "packages/host:\n    dependencies:\n      zod:\n        specifier: 4.6.7\n        version: 4.6.7",
+      ),
+    );
+    try {
+      installProductionDependencies(stage, process.env);
+    } catch (error) {
+      if (!(error instanceof Error) || !("stdout" in error)) throw error;
+      expect(String(error.stdout)).toContain("ERR_PNPM_OUTDATED_LOCKFILE");
+      return;
+    }
+    expect.fail("A mismatched staging lockfile must fail the install");
+  });
+});
 
 describe("packaged smoke gate", () => {
   const resources = "/artifacts/SPI Code.app/Contents/Resources";

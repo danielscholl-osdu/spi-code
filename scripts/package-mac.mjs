@@ -3,7 +3,17 @@
 
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { cp, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import {
+  cp,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { generateNotices } from "./third-party-notices.mjs";
@@ -57,6 +67,37 @@ function record(value) {
   return /** @type {Record<string, unknown>} */ (value);
 }
 
+/** @param {string} root @param {string} stage */
+export async function stageWorkspace(root, stage) {
+  for (const directory of [
+    ".",
+    "apps/desktop",
+    "apps/window",
+    "packages/contracts",
+    "packages/core",
+    "packages/tools",
+    "packages/host",
+  ]) {
+    await mkdir(join(stage, directory), { recursive: true });
+    await cp(join(root, directory, "package.json"), join(stage, directory, "package.json"));
+  }
+  await cp(join(root, "pnpm-lock.yaml"), join(stage, "pnpm-lock.yaml"));
+  await writeFile(
+    join(stage, "pnpm-workspace.yaml"),
+    `${await readFile(join(root, "pnpm-workspace.yaml"), "utf8")}\nnodeLinker: hoisted\n`,
+  );
+}
+
+/** @param {string} stage @param {NodeJS.ProcessEnv} env */
+export function installProductionDependencies(stage, env) {
+  return execFileSync("pnpm", ["install", "--prod", "--frozen-lockfile", "--ignore-scripts"], {
+    cwd: stage,
+    env,
+    stdio: "pipe",
+    timeout: 600000,
+  });
+}
+
 /**
  * @typedef {{name: string, version: string, description: string, author: string,
  * license: string, dependencies: Record<string, string>,
@@ -72,6 +113,7 @@ async function packageMac() {
   const output = join(root, "build/package-mac");
   await mkdir(output, { recursive: true });
   const stage = await mkdtemp(join(output, "stage-"));
+  const extracted = await mkdtemp(join(output, "zip-smoke-"));
   const artifacts = join(output, "artifacts");
   const env = packagingEnvironment(process.env);
   /** @param {string[]} args @param {string} [cwd] */
@@ -83,6 +125,8 @@ async function packageMac() {
   const json = (path, value) => writeFile(path, `${JSON.stringify(value, null, 2)}\n`);
   try {
     run(["--filter", "@spi-code/desktop", "build"]);
+    await stageWorkspace(root, stage);
+    process.stdout.write(installProductionDependencies(stage, env));
     const desktop = /** @type {Manifest} */ (
       await readJson(join(root, "apps/desktop/package.json"))
     );
@@ -116,6 +160,10 @@ async function packageMac() {
           ]),
         ),
       });
+      const installed = join(stage, "node_modules", manifest.name);
+      await mkdir(dirname(installed), { recursive: true });
+      await rm(installed, { recursive: true, force: true });
+      await symlink(`../../packages/${name}`, installed);
     }
     const manifest = {
       name: "spi-code",
@@ -128,8 +176,6 @@ async function packageMac() {
       dependencies,
     };
     await json(join(stage, "package.json"), manifest);
-    await writeFile(join(stage, "pnpm-workspace.yaml"), "packages: []\nnodeLinker: hoisted\n");
-    run(["install", "--prod", "--ignore-scripts", "--config.auto-install-peers=false"], stage);
     assert(desktop.devDependencies.electron, "Electron must have a pinned version");
     await writeFile(
       join(stage, "THIRD_PARTY_NOTICES.md"),
@@ -168,7 +214,13 @@ async function packageMac() {
       assert(files[0]);
       assert((await stat(join(artifacts, files[0]))).size > 0);
     }
-    const bundle = join(artifacts, "mac-arm64/SPI Code.app/Contents");
+    const zip = (await readdir(artifacts)).find((name) => name.endsWith(".zip"));
+    assert(zip);
+    execFileSync("ditto", ["-x", "-k", join(artifacts, zip), extracted], {
+      stdio: "inherit",
+      timeout: 120000,
+    });
+    const bundle = join(extracted, "SPI Code.app/Contents");
     const reportPath = join(output, "smoke.json");
     const runtimeReportPath = join(output, "runtime.json");
     for (const path of [reportPath, runtimeReportPath]) await rm(path, { force: true });
@@ -189,10 +241,11 @@ async function packageMac() {
     const written = await readJson(reportPath);
     assertSmokeReport(written);
     assertRuntimeEvidence(written, record(written).runtime, join(bundle, "Resources"));
-    console.log(`Packaged smoke passed: ${reportPath}`);
+    console.log(`ZIP-extracted packaged smoke passed (${zip}): ${reportPath}`);
     console.log(JSON.stringify(combined, null, 2));
   } finally {
     await rm(stage, { recursive: true, force: true });
+    await rm(extracted, { recursive: true, force: true });
   }
 }
 
