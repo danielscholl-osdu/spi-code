@@ -821,26 +821,37 @@ function decodings(text: string, depth = 0, into: string[] = [text]): string[] {
   return into;
 }
 
-/** The project id of every item a group read returned, or undefined when one has none. A public
- * group does not make its projects public: a group read can hold items of a private project the
- * recording account sees, so each item's project is checked on its own. */
-export function itemProjects(stdout: string): string[] | undefined {
+/** One item a group read returned: its project's numeric id, its iid, and whether it is
+ * confidential. */
+export interface GroupItem {
+  project: string;
+  iid: string;
+  confidential: boolean;
+}
+
+/** Every item a group read returned, or undefined when one has no project. A public group does
+ * not make its projects public: a group read can hold items of a private project the recording
+ * account sees, so each item's project is checked on its own; and a confidential issue of a
+ * public project is not public either. */
+export function groupItems(stdout: string): GroupItem[] | undefined {
   if (!stdout.trim()) return [];
   const values = jsonValues(stdout);
   if (!values) return undefined;
-  const ids: string[] = [];
+  const items: GroupItem[] = [];
   for (const value of values) {
     if (!Array.isArray(value)) return undefined;
     for (const item of value) {
-      const id =
-        item && typeof item === "object"
-          ? (item as { project_id?: unknown }).project_id
-          : undefined;
+      if (!item || typeof item !== "object") return undefined;
+      const { project_id: id, iid, confidential } = item as Record<string, unknown>;
       if (typeof id !== "number" || !Number.isSafeInteger(id) || id <= 0) return undefined;
-      ids.push(String(id));
+      items.push({
+        project: String(id),
+        iid: typeof iid === "number" ? String(iid) : "?",
+        confidential: confidential !== undefined && confidential !== false,
+      });
     }
   }
-  return ids;
+  return items;
 }
 
 /** The JSON values a field holds: the whole text, or one per line (a paginated jq read). */
@@ -1045,12 +1056,22 @@ function collect(directory: string, visibility?: VisibilityFile): Collected {
       // A call routed elsewhere did not read what its shape names: none of its stdout is exempt.
       call = routed.length ? undefined : classified;
       merge(refs, classified.targets);
-      const fenced = fencedOn(entry);
-      calls.push({ targets: classified.targets, fencedOn: fenced });
-      if (classified.targets.gitlabGroups.size && fenced === undefined && entry.exit === 0) {
-        const ids = itemProjects(typeof entry.stdout === "string" ? entry.stdout : "");
-        if (ids) for (const id of ids) projects.add(id);
-        else findings.push(`${where}: group read: an item without a project`);
+      calls.push({ targets: classified.targets, fencedOn: fencedOn(entry) });
+      // Whatever the exit, a group read's stdout is what it read; only an empty one, a fenced
+      // call's included, holds nothing.
+      if (classified.targets.gitlabGroups.size) {
+        const { stdout } = entry;
+        const items = groupItems(
+          typeof stdout === "string" ? stdout : stdout == null ? "" : JSON.stringify(stdout),
+        );
+        if (!items) findings.push(`${where}: group read: an item without a project`);
+        for (const item of items ?? []) {
+          projects.add(item.project);
+          if (item.confidential)
+            findings.push(
+              `gitlab project ${item.project} issue ${item.iid} in a group read: confidential`,
+            );
+        }
       }
     } else {
       const detail =

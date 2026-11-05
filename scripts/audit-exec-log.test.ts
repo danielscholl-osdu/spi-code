@@ -501,6 +501,31 @@ describe("audit of shapes, decoded strings and new credentials", () => {
       ]);
     });
 
+    test("fails a confidential issue, even of a public project", () => {
+      const dir = issues(issue(42), { ...issue(42), iid: 7, confidential: true });
+      setVisibility(dir, "gitlabProjectIds", "42", "public");
+      expect(auditSweep(dir).findings).toEqual([
+        "gitlab project 42 issue 7 in a group read: confidential",
+      ]);
+    });
+
+    test("checks a failed call's group response too; only an empty one holds nothing", () => {
+      const dir = copyOfClean();
+      setVisibility(dir, "gitlabGroups", "osdu/platform", "public");
+      const path = "groups/osdu%2Fplatform/issues?labels=x&state=all&per_page=100&page=1";
+      append(dir, {
+        cmd: "glab",
+        args: ["api", ...GITLAB_HOST, path],
+        ...ok,
+        exit: 1,
+        stdout: JSON.stringify([issue(7777)]),
+      });
+      append(dir, { cmd: "glab", args: ["api", ...GITLAB_HOST, path], ...ok, exit: 1, stdout: "" });
+      expect(auditSweep(dir).findings).toEqual([
+        "gitlab project 7777 in a group read: not checked at record time",
+      ]);
+    });
+
     test("passes when every item's project was public", () => {
       const dir = issues(issue(42), issue(42));
       setVisibility(dir, "gitlabProjectIds", "42", "public");

@@ -9,8 +9,9 @@
  * a repository, project or group not verified public, each checked when first named, and any
  * call whose shape the audit's grammar cannot read. A public group does not make its projects
  * public, so a group-scoped read runs anonymously (no GitLab credential, an empty glab
- * configuration) and every item it returns must belong to a project verified public; one that
- * does not aborts the recording before anything is written. The same log then replays through the
+ * configuration, an environment built from an allowlist) and every item it returns must be a
+ * non-confidential item of a project verified public; one that is not aborts the recording
+ * before anything is written. The same log then replays through the
  * rib's Sweeper in a scratch checkout of keelson-rib-spi at RIB_REVISION, in a child bun
  * process with a clean environment, to give rib-facts.json. Every repository, project and group
  * a recorded call targets, and every project a group read returned an item of, then has its
@@ -29,7 +30,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { z } from "zod";
 import {
@@ -52,7 +53,7 @@ import {
   fenced,
   fenceMessage,
   GITHUB_HOST,
-  itemProjects,
+  groupItems,
   LOG_FILE,
   NOT_PUBLIC,
   type References,
@@ -227,25 +228,32 @@ const liveVisibility: CheckVisibility = async (checked, name) =>
     ? githubVisibility(name)
     : gitlabVisibility(name, checked === "gitlabGroups" ? "groups" : "projects");
 
-// What can carry a GitLab credential or point glab at a configuration, a host or a CI login.
-const GITLAB_CREDENTIAL = /TOKEN|PASSWORD|SECRET|^GITLAB_|^GLAB_|^GL_|^CI(_|$)|^XDG_CONFIG_DIRS$/i;
+// What an anonymous glab call inherits: its search path and locale, nothing else. Anything more
+// can name a credential or a place glab or git finds one (GIT_DIR, a token, a config directory).
+const ANONYMOUS_INHERITS = new Set(["PATH", "LANG", "LC_ALL", "LC_CTYPE", "TZ", "SYSTEMROOT"]);
 
-/** The environment of an anonymous glab call: no variable that can carry a credential or
- * configuration, and glab's configuration, XDG configuration and home all at an empty
- * directory, so glab finds no host entry and never consults the keyring. */
+/** The environment of an anonymous glab call, built from an allowlist: the search path and
+ * locale inherited, and glab's configuration, XDG configuration and home all at an empty
+ * directory, so glab finds no host entry and never consults the keyring. Git discovery, which
+ * glab uses to find a repository's own glab configuration, stops at that directory and reads
+ * no system configuration. */
 export function anonymousEnv(env: NodeJS.ProcessEnv, dir: string): NodeJS.ProcessEnv {
   return {
-    ...Object.fromEntries(Object.entries(env).filter(([name]) => !GITLAB_CREDENTIAL.test(name))),
+    ...Object.fromEntries(
+      Object.entries(env).filter(([name]) => ANONYMOUS_INHERITS.has(name.toUpperCase())),
+    ),
     GLAB_CONFIG_DIR: dir,
     XDG_CONFIG_HOME: dir,
     HOME: dir,
+    GIT_CEILING_DIRECTORIES: dirname(dir),
+    GIT_CONFIG_NOSYSTEM: "1",
   };
 }
 
 /** Runs a group-scoped read on the anonymous runner, in the empty configuration directory so
  * glab finds no per-repository configuration either, and every other call signed in. A group
- * read whose items are not all of projects verified public is withheld, and abort is told
- * why, naming the project id only. */
+ * read holding an item of a project not verified public, or a confidential item, is withheld,
+ * and abort is told why, naming the project id and issue iid only. */
 export function groupReadsAnonymously(
   signedIn: ExecRunner,
   anonymous: ExecRunner,
@@ -262,9 +270,15 @@ export function groupReadsAnonymously(
       abort(reason);
       return { stdout: "", stderr: "spi-code record: group read withheld", exit: 1 };
     };
-    const ids = itemProjects(output.stdout);
-    if (!ids) return withheld("a group read returned an item without a project");
-    for (const id of [...new Set(ids)].sort((a, b) => Number(a) - Number(b))) {
+    const items = groupItems(output.stdout);
+    if (!items) return withheld("a group read returned an item without a project");
+    const confidential = items.find((item) => item.confidential);
+    if (confidential)
+      return withheld(
+        `GitLab project ${confidential.project} issue ${confidential.iid} in a group read is confidential`,
+      );
+    const ids = [...new Set(items.map((item) => item.project))];
+    for (const id of ids.sort((a, b) => Number(a) - Number(b))) {
       if ((await check("gitlabProjectIds", id)) !== "public")
         return withheld(`GitLab project ${id} in a group read is not public`);
     }

@@ -1,14 +1,24 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { CORE_LIB_REPO, TEMPLATE_REPO } from "../packages/core/src/config.js";
-import type { ExecOptions, ExecOutput } from "../packages/core/src/exec/port.js";
+import type { ExecOptions, ExecOutput, ExecRunner } from "../packages/core/src/exec/port.js";
 import type { ExecLogEntry } from "../packages/core/src/exec/recording.js";
 import { BUDGET_KEY } from "../packages/core/src/forge.js";
+import { HostExec } from "../packages/host/src/exec/host-exec.js";
 import { callTargets, fenced, type Visibility } from "./audit-exec-log.js";
 import { type Checked, type CheckVisibility, fence, recordSweep } from "./record-sweep.js";
 
@@ -77,9 +87,18 @@ const SIGNED_IN: NodeJS.ProcessEnv = {
   GH_TOKEN: "gho_recording-account",
   GLAB_CONFIG_DIR: "/Users/someone/.config/glab-cli",
   XDG_CONFIG_HOME: "/Users/someone/.config",
+  GIT_DIR: "/Users/someone/work/.git",
+  GIT_CONFIG_GLOBAL: "/Users/someone/.gitconfig",
+  SSH_AUTH_SOCK: "/tmp/agent.sock",
+  LANG: "en_US.UTF-8",
+  TZ: "UTC",
 };
 
-async function attempt(check: CheckVisibility, answer?: Answer) {
+async function attempt(
+  check: CheckVisibility,
+  answer?: Answer,
+  real?: { env: NodeJS.ProcessEnv; anonymous: (env: NodeJS.ProcessEnv) => ExecRunner },
+) {
   const out = mkdtempSync(join(tmpdir(), "spi-code-record-test-"));
   outs.push(out);
   const calls: Call[] = [];
@@ -88,18 +107,20 @@ async function attempt(check: CheckVisibility, answer?: Answer) {
   const run = recordSweep({
     out,
     runner: signedIn,
-    env: SIGNED_IN,
-    anonymous: (env) => async (cmd, args, opts) => {
-      const dir = env.GLAB_CONFIG_DIR;
-      anonymous.push({
-        cmd,
-        args,
-        env,
-        ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
-        ...(dir && existsSync(dir) ? { configHeld: readdirSync(dir) } : {}),
-      });
-      return answer?.({ cmd, args }) ?? { stdout: "[]", stderr: "", exit: 0 };
-    },
+    env: real?.env ?? SIGNED_IN,
+    anonymous:
+      real?.anonymous ??
+      ((env) => async (cmd, args, opts) => {
+        const dir = env.GLAB_CONFIG_DIR;
+        anonymous.push({
+          cmd,
+          args,
+          env,
+          ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
+          ...(dir && existsSync(dir) ? { configHeld: readdirSync(dir) } : {}),
+        });
+        return answer?.({ cmd, args }) ?? { stdout: "[]", stderr: "", exit: 0 };
+      }),
     check,
     now: NOW,
     secrets: {},
@@ -108,8 +129,12 @@ async function attempt(check: CheckVisibility, answer?: Answer) {
   return { run, out, calls, anonymous };
 }
 
-async function record(check: CheckVisibility, answer?: Answer) {
-  const { run, out, calls, anonymous } = await attempt(check, answer);
+async function record(
+  check: CheckVisibility,
+  answer?: Answer,
+  real?: Parameters<typeof attempt>[2],
+) {
+  const { run, out, calls, anonymous } = await attempt(check, answer, real);
   const result = await run;
   const entries = readFileSync(join(out, "exec.jsonl"), "utf8")
     .split("\n")
@@ -190,9 +215,17 @@ describe("group-scoped reads", () => {
     expect(anonymous.length).toBeGreaterThan(0);
     for (const call of anonymous) {
       expect(isGroupRead(call)).toBe(true);
-      const names = Object.keys(call.env);
-      expect(names.filter((n) => /TOKEN|^GITLAB_|^GL_|^CI(_|$)/i.test(n))).toEqual([]);
-      expect(names.filter((n) => /^GLAB_/i.test(n))).toEqual(["GLAB_CONFIG_DIR"]);
+      // An allowlist: nothing else inherited reaches glab, GIT_DIR and SSH_AUTH_SOCK included.
+      expect(Object.keys(call.env).sort()).toEqual([
+        "GIT_CEILING_DIRECTORIES",
+        "GIT_CONFIG_NOSYSTEM",
+        "GLAB_CONFIG_DIR",
+        "HOME",
+        "LANG",
+        "PATH",
+        "TZ",
+        "XDG_CONFIG_HOME",
+      ]);
       const dir = call.env.GLAB_CONFIG_DIR as string;
       expect(dir).not.toBe(SIGNED_IN.GLAB_CONFIG_DIR);
       expect(call.configHeld).toEqual([]);
@@ -218,6 +251,79 @@ describe("group-scoped reads", () => {
     expect(failure).not.toMatch(/ISSUE-BODY|p7777|osdu\/platform/);
     expect(readdirSync(out)).toEqual([]);
   });
+
+  it("aborts before writing anything on a confidential issue, even of a public project", async () => {
+    const { run, out } = await attempt(visibility({ github: [CORE_LIB_REPO] }), (call) =>
+      isGroupRead(call)
+        ? {
+            stdout: JSON.stringify([
+              { id: 1, iid: 3, project_id: 42, confidential: false, description: "fine" },
+              { id: 2, iid: 7, project_id: 42, confidential: true, description: "SECRET-BODY" },
+            ]),
+            stderr: "",
+            exit: 0,
+          }
+        : undefined,
+    );
+    const failure = await run.then(
+      () => undefined,
+      (error: unknown) => String(error),
+    );
+    expect(failure).toMatch(/GitLab project 42 issue 7 .*confidential/);
+    expect(failure).not.toMatch(/SECRET-BODY/);
+    expect(readdirSync(out)).toEqual([]);
+  });
+
+  // Sol's probe: real HostExec, and a glab that finds its credentials the way glab does: the
+  // token variables, its configuration directory, and the repository `git rev-parse --git-dir`
+  // names. An inherited GIT_DIR names a repository whose glab configuration holds a token.
+  it.skipIf(process.platform === "win32")(
+    "no inherited git or glab discovery reaches the anonymous glab",
+    async () => {
+      const root = mkdtempSync(join(tmpdir(), "spi-code-record-glab-"));
+      outs.push(root);
+      const bin = join(root, "bin");
+      const repo = join(root, "repo");
+      const home = join(root, "home");
+      mkdirSync(bin);
+      execFileSync("git", ["init", "-q", repo]);
+      for (const dir of [join(repo, ".git", "glab-cli"), join(home, ".config", "glab-cli")]) {
+        mkdirSync(dir, { recursive: true });
+        writeFileSync(
+          join(dir, "config.yml"),
+          "hosts:\n  community.opengroup.org:\n    token: glpat-x\n",
+        );
+      }
+      const item = (confidential: boolean, body: string) =>
+        JSON.stringify([{ id: 1, iid: 7, project_id: 42, confidential, description: body }]);
+      writeFileSync(
+        join(bin, "glab"),
+        [
+          "#!/bin/sh",
+          'signed="$GITLAB_TOKEN$GITLAB_ACCESS_TOKEN$OAUTH_TOKEN$GLAB_TOKEN"',
+          'config="$HOME/.config/glab-cli/config.yml"',
+          '[ -n "$XDG_CONFIG_HOME" ] && config="$XDG_CONFIG_HOME/glab-cli/config.yml"',
+          '[ -n "$GLAB_CONFIG_DIR" ] && config="$GLAB_CONFIG_DIR/config.yml"',
+          'grep -qs token "$config" && signed=config',
+          'gitdir=$(git rev-parse --git-dir 2>/dev/null) && grep -qs token "$gitdir/glab-cli/config.yml" && signed=repo',
+          `if [ -n "$signed" ]; then printf '%s' '${item(true, "CONFIDENTIAL-BODY")}'; else printf '%s' '${item(false, "PUBLIC-BODY")}'; fi`,
+          "",
+        ].join("\n"),
+        { mode: 0o755 },
+      );
+      const capturedPath = `${bin}:${process.env.PATH ?? ""}`;
+      const appData = join(root, "app");
+      const { entries } = await record(visibility({ github: [CORE_LIB_REPO] }), undefined, {
+        env: { PATH: capturedPath, HOME: home, GIT_DIR: join(repo, ".git") },
+        anonymous: (env) =>
+          new HostExec({ appData, capturedPath, installer: { binDir: async () => undefined }, env })
+            .run,
+      });
+      const reads = entries.filter(isGroupRead);
+      expect(reads.length).toBeGreaterThan(0);
+      for (const read of reads) expect(read.stdout).toContain("PUBLIC-BODY");
+    },
+  );
 
   it("aborts when a group read returns an item without a project", async () => {
     const { run, out } = await attempt(visibility({ github: [CORE_LIB_REPO] }), (call) =>
