@@ -69,7 +69,9 @@ function repositoryFactAreas(label: string): readonly AreaName[] {
 function flowTileAreas(label: string): readonly AreaName[] {
   if (label === "Behind upstream") return ["upstream"];
   if (label === "Lanes") return GITHUB_RUNS;
-  if (["Toolchain move", "Will halt", "On main", "Stopped"].includes(label)) return PHASE;
+  // A fork is stopped on a conflict issue or stop label with no cascade PR open: github alone.
+  if (label === "Stopped") return GITHUB;
+  if (["Toolchain move", "Will halt", "On main"].includes(label)) return PHASE;
   // "Waiting on you" counts presses that fit the lanes and the stack hold, so it reads FLOW.
   return FLOW;
 }
@@ -88,6 +90,9 @@ function ordered(areas: readonly AreaName[]): AreaName[] {
 
 /**
  * The areas buildLine read for a station, by station and by the branch that produced its text.
+ * buildLine tries branches in precedence order, so a later branch also binds the areas whose
+ * absence let core reach it: "held" is a label (github) read once no cascade runs (runs), and a
+ * plain "N behind" means neither a halt or sync PR (github) nor a radar verdict was read.
  * An unrecognised branch takes the union of that station's branches.
  */
 export function stationAreas(station: { id: string; state: string; text: string }): AreaName[] {

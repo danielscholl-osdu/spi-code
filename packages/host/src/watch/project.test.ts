@@ -14,7 +14,7 @@ import {
 } from "@spi-code/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { appActions, projectReleases, projectWatch } from "./project.js";
-import { stationAreas } from "./provenance.js";
+import { briefingProvenance, stationAreas } from "./provenance.js";
 import {
   fixtureInput,
   fixtureRoot,
@@ -590,6 +590,26 @@ describe("area envelopes and provenance", () => {
     expect(at("release", "waiting", "gate 3 · PR #2")).toEqual(["github"]);
     expect(at("lane", "idle", "last run ok")).toEqual(["github", "lifecycle"]);
     expect(at("lane", "waiting", "last run failed")).toEqual(["github", "lifecycle"]);
+    // Precedence: a later branch also reads the absences that let core reach it.
+    expect(at("upstream", "waiting", "3 behind")).toEqual(["github", "upstream", "radar"]);
+    expect(at("cascade", "waiting", "held")).toEqual(["github", "runs"]);
+  });
+
+  it("binds the flight tiles to the areas their forks' phases read", () => {
+    const { briefing } = projectWatch(fixtureInput());
+    const tile = (label: string) => ({ label, value: "1", sub: "", tone: "neutral" as const });
+    const flight = {
+      ...briefing,
+      flow: { ...briefing.flow, tiles: [tile("On main"), tile("Stopped")] },
+    };
+    type Args = Parameters<typeof briefingProvenance>;
+    const areas = (i: number) =>
+      briefingProvenance(flight as Args[0], {} as Args[1]).find(
+        ({ path }) => path === `/briefing/flow/tiles/${i}`,
+      )?.areas;
+    expect(areas(0)).toEqual(["github", "runs", "upstream", "radar"]);
+    // A stopped phase is a conflict issue or stop label with no cascade PR: github alone.
+    expect(areas(1)).toEqual(["github"]);
   });
 
   it("covers every rendered briefing and station value with provenance at it or an ancestor", () => {
