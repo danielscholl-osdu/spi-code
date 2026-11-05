@@ -26,26 +26,33 @@ export default function Today({
       </section>
     );
   const brief = snapshot.body.briefing;
-  const row = (item: FocusItem) => (
-    <button
-      type="button"
-      className="today-row"
-      key={item.id}
-      data-selection-id={item.id}
-      aria-pressed={selection?.id === item.id}
-      onClick={() => select(item.id)}
-    >
-      <span className="today-priority" data-priority={item.rung}>
-        P{item.rung}
-      </span>
-      <span>
-        <strong className="today-item-title">{item.title}</strong>{" "}
-        <span className="today-muted">{item.scope}</span>{" "}
-        <span className="today-class">{item.cls}</span>
-        <span className="today-sub">{item.sub}</span>
-      </span>
-    </button>
-  );
+  const focus = [...brief.focus].sort((a, b) => a.rung - b.rung);
+  const selectedId = selection?.id ?? focus[0]?.id;
+  const row = (item: FocusItem) => {
+    const tone = item.rung === 0 ? "bad" : item.cls === "PORT" ? "neutral" : "warn";
+    return (
+      <button
+        type="button"
+        className="today-row"
+        key={item.id}
+        data-selection-id={item.id}
+        aria-pressed={selectedId === item.id}
+        onClick={() => select(item.id)}
+      >
+        <span className="today-priority" data-priority={item.rung} data-tone={tone}>
+          P{item.rung}
+        </span>
+        <span>
+          <strong className="today-item-title">{item.title}</strong>{" "}
+          <span className="today-muted">{item.scope}</span>{" "}
+          <span className="today-class" data-tone={tone}>
+            {item.cls}
+          </span>
+          <span className="today-sub">{item.sub}</span>
+        </span>
+      </button>
+    );
+  };
   const forks = (entries: Theme["certain"], className: string) => (
     <ul className={className}>
       {entries.map((fork) => (
@@ -73,42 +80,46 @@ export default function Today({
   return (
     <section className="today" aria-label="Today">
       <h1>{brief.headline}</h1>
-      <p className="today-summary">{brief.summary}</p>
-      <div className="today-facts">
-        {brief.facts.map((fact) => (
-          <div className="today-fact" data-tone={fact.tone} key={fact.label}>
-            <div className="today-fact-label">{fact.label}</div>
-            <strong className="today-figure">{fact.figure}</strong>
-            <div className="today-fact-sub">{fact.sub}</div>
+      {brief.summary && <p className="today-summary">{brief.summary}</p>}
+      {brief.facts.length > 0 && (
+        <>
+          <div className="today-facts">
+            {brief.facts.map((fact) => (
+              <div className="today-fact" data-tone={fact.tone} key={fact.label}>
+                <div className="today-fact-label">{fact.label}</div>
+                <strong className="today-figure">{fact.figure}</strong>
+                <div className="today-fact-sub">{fact.sub}</div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <section className="today-focus" aria-label="Focus">
-        {[...brief.focus].sort((a, b) => a.rung - b.rung).map(row)}
-        {brief.rest.length > 0 && (
-          <details>
-            <summary>{brief.more} more in the queue</summary>
-            {[...brief.rest].sort((a, b) => a.rung - b.rung).map(row)}
-          </details>
-        )}
-      </section>
-      {brief.ready.length > 0 && (
-        <p className="today-ready">
-          <strong>Ready, no rush:</strong>{" "}
-          {brief.ready.map((item, index) => (
-            <span key={item.id}>
-              {index > 0 && " · "}
-              <button
-                type="button"
-                className="today-link"
-                data-selection-id={item.id}
-                onClick={() => select(item.id)}
-              >
-                {item.text}
-              </button>
-            </span>
-          ))}
-        </p>
+          <section className="today-focus" aria-label="Focus">
+            {focus.map(row)}
+            {brief.rest.length > 0 && (
+              <details>
+                <summary>{brief.more} more in the queue</summary>
+                {[...brief.rest].sort((a, b) => a.rung - b.rung).map(row)}
+              </details>
+            )}
+          </section>
+          {brief.ready.length > 0 && (
+            <p className="today-ready">
+              <strong>Ready, no rush:</strong>{" "}
+              {brief.ready.map((item, index) => (
+                <span key={item.id}>
+                  {index > 0 && " · "}
+                  <button
+                    type="button"
+                    className="today-link"
+                    data-selection-id={item.id}
+                    onClick={() => select(item.id)}
+                  >
+                    {item.text}
+                  </button>
+                </span>
+              ))}
+            </p>
+          )}
+        </>
       )}
       {brief.themes.length > 0 && (
         <section className="today-themes" aria-label="Themes">

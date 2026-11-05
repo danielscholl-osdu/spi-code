@@ -38,15 +38,14 @@
   font-size: 24px;
 }
 .today [data-tone="bad"] .today-figure,
-.today-priority[data-priority="0"] {
+.today :is(.today-priority, .today-class)[data-tone="bad"] {
   color: var(--error-text);
 }
 .today [data-tone="warn"] .today-figure,
-.today-priority[data-priority="1"] {
+.today :is(.today-priority, .today-class)[data-tone="warn"] {
   color: var(--warning-text);
 }
-.today [data-tone="ok"] .today-figure,
-.today-priority[data-priority="2"] {
+.today [data-tone="ok"] .today-figure {
   color: var(--success-text);
 }
 .today-row {

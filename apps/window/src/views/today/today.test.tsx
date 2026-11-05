@@ -92,7 +92,98 @@ it("selects focus, overflow, ready and theme targets in the watch store", async 
         expect(button.getAttribute("aria-pressed")).toBe("true");
     }
     await act(async () => store.getState().clear());
+    expect(
+      container.querySelector('.today-row[aria-pressed="true"]')?.getAttribute("data-selection-id"),
+    ).toBe(oracle.briefing.focus[0]?.id);
+  } finally {
+    await cleanup();
+  }
+});
+
+it("highlights the oracle's first focus locally until an explicit selection is made", async () => {
+  const { container, store, cleanup } = await mount();
+  try {
+    expect(store.getState().selection).toBeNull();
+    expect(text(container, '.today-row[aria-pressed="true"] .today-item-title')).toEqual([
+      oracle.briefing.focus[0]?.title,
+    ]);
+    const target = oracle.briefing.rest[0];
+    if (!target) throw new Error("Oracle must contain an overflow item");
+    await act(async () => store.getState().select(target.id));
+    expect(text(container, '.today-row[aria-pressed="true"] .today-item-title')).toEqual([
+      target.title,
+    ]);
+    await act(async () => store.getState().select("another-view"));
     expect(container.querySelector('.today-row[aria-pressed="true"]')).toBeNull();
+  } finally {
+    await cleanup();
+  }
+});
+
+it("omits empty summary, facts and focus for the unmeasured briefing shape", async () => {
+  const headline = "The first sweep has not finished.";
+  const { container, receive, store, cleanup } = await mount({
+    ...oracle,
+    briefing: {
+      ...oracle.briefing,
+      doctor: { state: "waiting", problems: [] },
+      headline,
+      summary: "",
+      facts: [],
+      focus: [],
+      rest: [],
+      more: 0,
+      ready: [],
+      themes: [],
+    },
+  });
+  try {
+    expect(container.querySelector("h1")?.textContent).toBe(headline);
+    expect(container.querySelector(".today-summary")).toBeNull();
+    expect(container.querySelector(".today-facts")).toBeNull();
+    expect(container.querySelector(".today-focus")).toBeNull();
+    expect(container.querySelector(".today-ready")).toBeNull();
+    await act(async () => receive({ ...oracle, cursor: 2 }));
+    expect(container.querySelector(".today-facts")).not.toBeNull();
+    expect(container.querySelector(".today-focus")).not.toBeNull();
+    expect(
+      container.querySelector('.today-row[aria-pressed="true"]')?.getAttribute("data-selection-id"),
+    ).toBe(oracle.briefing.focus[0]?.id);
+    expect(store.getState().selection).toBeNull();
+  } finally {
+    await cleanup();
+  }
+});
+
+it("uses the rib's bad, neutral PORT and warning tones on both rung and class", async () => {
+  const port = oracle.briefing.rest.find((item) => item.cls === "PORT");
+  const seed = oracle.briefing.focus[0];
+  if (!port || !seed) throw new Error("Oracle must contain PORT and focus items");
+  const { container, cleanup } = await mount({
+    ...oracle,
+    briefing: {
+      ...oracle.briefing,
+      rest: [
+        ...oracle.briefing.rest,
+        { ...port, id: "port:p0", rung: 0 },
+        { ...port, id: "port:p2", rung: 2 },
+        { ...seed, id: "other:p2", rung: 2 },
+      ],
+    },
+  });
+  try {
+    for (const [id, tone] of [
+      [seed.id, "bad"],
+      [oracle.briefing.focus[2]?.id, "warn"],
+      [port.id, "neutral"],
+      ["port:p0", "bad"],
+      ["port:p2", "neutral"],
+      ["other:p2", "warn"],
+    ]) {
+      const row = container.querySelector(`[data-selection-id="${id}"]`);
+      expect(row?.querySelector(".today-priority")?.getAttribute("data-tone")).toBe(tone);
+      expect(row?.querySelector(".today-class")?.getAttribute("data-tone")).toBe(tone);
+    }
   } finally {
     await cleanup();
   }
