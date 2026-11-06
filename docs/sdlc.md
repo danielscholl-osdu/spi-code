@@ -45,6 +45,7 @@ The agent claims the bead atomically with `bd update --claim`, under a worker na
 ## 4. Build
 
 Skill: `bead-build`. Work happens only in the bead's worktree, on branch `bead/<id>`, never in the main checkout. Commits use `aipr` with a `Bead: <id>` trailer. Run `scripts/check` before asking for review. Anything outside the bead's acceptance becomes a new bead.
+`scripts/land` rejects AI co-author trailers and "Generated with" lines in incoming commits; human co-authors and existing `main` history are allowed.
 
 The scaffold uses Node 22.16 or newer, matching `engines` in `package.json`, and pnpm 10 (the exact pnpm version is in `package.json`). `node:sqlite` is unflagged from 22.13, but the host store also needs `DatabaseSync.isTransaction`, which arrived in 22.16.
 `pnpm run build` compiles all six workspaces; `pnpm run lint`, `pnpm run typecheck`,

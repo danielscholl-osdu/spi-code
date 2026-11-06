@@ -91,6 +91,16 @@ base=$(git -C "$root" rev-parse main)
 [[ $(git -C "$root" merge-base "$base" "$head") == "$base" ]] || die "$branch is not on top of main after the rebase"
 [[ $head != "$base" ]] || die "$branch has no changes against main"
 
+ai_agent='(^|[^[:alnum:]])(copilot|claude|codex|gpt|gemini|muse)([^[:alnum:]]|$)|noreply@(anthropic|openai)\.com([>[:space:]]|$)'
+commits=$(git -C "$root" rev-list "$base..$head")
+while IFS= read -r commit; do
+  message=$(git -C "$root" show -s --format=%B "$commit")
+  if { grep -Ei '^[[:blank:]]*Co-authored-by:' <<<"$message" | grep -Ei "$ai_agent" >/dev/null; } ||
+    grep -Ei 'generated[[:blank:]]+with([[:blank:]]|$)' <<<"$message" >/dev/null; then
+    die "commit $commit on $branch has AI attribution; in $worktree run git rebase -i main and mark $commit as reword to remove it (keep the Bead trailer)"
+  fi
+done <<<"$commits"
+
 # The rebase may bring dependencies main gained since the worktree was installed.
 if [[ -f "$worktree/package.json" ]]; then
   (cd "$worktree" && pnpm install --frozen-lockfile --silent) || die "pnpm install failed on $branch"
