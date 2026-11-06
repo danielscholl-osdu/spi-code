@@ -61,3 +61,13 @@ export async function waitForRuntimeReport(path: string, timeout: number): Promi
   }
   return report;
 }
+
+/** Reads the report first: once a failed host is replaced, a scan of it would mask the report's error. */
+export async function scanAfterRuntimeReport<T>(
+  reportPath: string | undefined,
+  timeout: number,
+  scan: () => Promise<T>,
+): Promise<T> {
+  if (reportPath) await waitForRuntimeReport(reportPath, timeout);
+  return scan();
+}

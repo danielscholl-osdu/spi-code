@@ -4,8 +4,14 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, expect, it } from "vitest";
-import { publishRuntimeProbe, waitForFile, waitForRuntimeReport } from "./smoke-runtime-report.js";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { assertNoProcessListeners, type Exec } from "./smoke-listeners.js";
+import {
+  publishRuntimeProbe,
+  scanAfterRuntimeReport,
+  waitForFile,
+  waitForRuntimeReport,
+} from "./smoke-runtime-report.js";
 
 let dir: string;
 let report: string;
@@ -63,4 +69,44 @@ it("gives the desktop the first host's scan error at once while the replacement 
     failure: { message: expect.stringContaining("found TCP listeners") },
   });
   expect(existsSync(`${report}.partial`)).toBe(false);
+});
+
+it("rejects with the report's error, not the process-tree error, once the failed host is replaced", async () => {
+  const originalPlatform = process.platform;
+  Object.defineProperty(process, "platform", { value: "darwin" });
+  try {
+    const scanError = new Error("Packaged smoke found TCP listeners: 7:127.0.0.1:4000");
+    await expect(
+      publishRuntimeProbe(report, handshake, async () => {
+        throw new AggregateError([scanError], "Packaged runtime probe failed");
+      }),
+    ).rejects.toThrow("Packaged runtime probe failed");
+    const originalHost = 250;
+    const exec = vi.fn<Exec>(async () => ({
+      status: 0,
+      stdout: [
+        "  100     1 /Applications/SPI Code.app/Contents/MacOS/SPI Code --smoke",
+        "  200   100 SPI Code Helper (Renderer) --type=renderer",
+        "  300   100 SPI Code Helper --type=utility",
+      ].join("\n"),
+      stderr: "",
+    }));
+    const scan = () => assertNoProcessListeners(100, originalHost, { exec });
+    await expect(scan()).rejects.toThrow("Smoke host is outside the app process tree");
+
+    await expect(scanAfterRuntimeReport(report, 5000, scan)).rejects.toThrow(
+      "Packaged runtime probe failed: Packaged smoke found TCP listeners: 7:127.0.0.1:4000",
+    );
+    expect(exec).toHaveBeenCalledTimes(1);
+  } finally {
+    Object.defineProperty(process, "platform", { value: originalPlatform });
+  }
+});
+
+it("scans after a passing report, and without a report outside the packaged app", async () => {
+  await publishRuntimeProbe(report, handshake, async () => ({ listeners: [] }));
+  const scan = vi.fn(async () => "scanned");
+  await expect(scanAfterRuntimeReport(report, 5000, scan)).resolves.toBe("scanned");
+  await expect(scanAfterRuntimeReport(undefined, 5000, scan)).resolves.toBe("scanned");
+  expect(scan).toHaveBeenCalledTimes(2);
 });
