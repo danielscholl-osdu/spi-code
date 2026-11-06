@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "vitest";
+import snapshot from "../../../fixtures/watch/snapshot-mixed-59d6895.json";
 import { releaseDoc } from "../src/brief/release";
 import { STACK_REPO, TEMPLATE_REPO } from "../src/config";
+import { buildModel } from "../src/model/index";
 import { monthFacts, parseBody, releaseMonths } from "../src/model/releases";
 import type { NotesRead } from "../src/notes";
 import type { ReleaseReads } from "../src/releases";
 import { FORKS, fixtureContext } from "./briefing-setup";
 import fixture from "./fixtures/rib-59d6895/releases.json";
+import { fixtureFacts } from "./harness";
 import { skeleton } from "./release-fixtures";
 
 const NOW = new Date("2026-10-21T15:00:00Z");
@@ -139,6 +142,62 @@ describe("a calendar month from the recorded release read", () => {
       releases: null,
       state: "unread",
     });
+  });
+});
+
+describe("release history and the current service gate", () => {
+  const repo = "Azure/osdu-spi-entitlements";
+
+  test("the mixed fixture keeps the October 12 GitHub station separate from October 21 release history, as the rib does", () => {
+    const facts = fixtureFacts();
+    const r = reads();
+    const row = releaseDoc(monthFacts(r, "2026-10", NOW, fixtureContext), undefined, NOW).rows.find(
+      (row) => row.id === "entitlements",
+    );
+    const station = buildModel(facts, NOW, {}, fixtureContext)
+      .lines.find((line) => line.fork.id === "entitlements")
+      ?.stations.find((station) => station.id === "release");
+
+    expect(row).toMatchObject({
+      version: "new → v1.2.1",
+      to: r.releases[repo]?.[0]?.tag,
+      releases: 2,
+      state: "released",
+    });
+    expect(station).toEqual({ id: "release", state: "idle", text: "v1.2.0" });
+    expect(station?.text).toBe(facts.github.data?.repos[repo]?.release?.tag);
+    expect(
+      snapshot.stations
+        .find((line) => line.service === "entitlements")
+        ?.stations.find((station) => station.id === "release"),
+    ).toMatchObject(station);
+    expect(
+      snapshot.services
+        .find((service) => service.service === "entitlements")
+        ?.releases.find((row) => row.month === "2026-10"),
+    ).toMatchObject({
+      ...row,
+      month: "2026-10",
+      gate: { state: station?.state, text: station?.text },
+    });
+  });
+
+  test("refreshing GitHub's latest release advances the station without changing release history", () => {
+    const facts = fixtureFacts();
+    const r = reads();
+    const github = facts.github.data?.repos[repo];
+    const latest = r.releases[repo]?.[0];
+    if (!github?.release || !latest) throw new Error("fixture has entitlements releases");
+    const before = releaseDoc(monthFacts(r, "2026-10", NOW, fixtureContext), undefined, NOW);
+    github.release = { ...github.release, tag: latest.tag, at: latest.at };
+    const station = buildModel(facts, NOW, {}, fixtureContext)
+      .lines.find((line) => line.fork.id === "entitlements")
+      ?.stations.find((station) => station.id === "release");
+
+    expect(station).toEqual({ id: "release", state: "idle", text: "v1.2.1" });
+    expect(releaseDoc(monthFacts(r, "2026-10", NOW, fixtureContext), undefined, NOW)).toEqual(
+      before,
+    );
   });
 });
 
