@@ -916,11 +916,28 @@ function canonicalBase64(content: unknown): Buffer | undefined {
 // The shapes whose stdout is a file-content envelope as the forge returns it, with no jq.
 const FILE_CONTENT_SHAPES = new Set(["upstream filter", "blob", "upstream pom"]);
 
-// An envelope's field name as JSON writes it, behind any number of string escapes.
-const ENVELOPE_FIELD = /\\*"(?:encoding|content)\\*"\s*:/i;
-
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
+
+/** Whether a value holds an object with an envelope field at any depth, reading into every
+ * string that is itself JSON, so a field name is compared as JSON decodes it. */
+function holdsEnvelope(value: unknown): boolean {
+  if (typeof value === "string") {
+    if (!/^\s*["[{]/.test(value)) return false;
+    try {
+      return holdsEnvelope(JSON.parse(value));
+    } catch {
+      return false;
+    }
+  }
+  if (Array.isArray(value)) return value.some(holdsEnvelope);
+  if (!isRecord(value)) return false;
+  return (
+    Object.hasOwn(value, "encoding") ||
+    Object.hasOwn(value, "content") ||
+    Object.values(value).some(holdsEnvelope)
+  );
+}
 
 /** A valid RFC 1950 header: deflate method, a window of at most 32K, and its check bits. */
 function zlibHeader(bytes: Buffer): boolean {
@@ -978,7 +995,7 @@ export function fileContentFindings(stdout: string): string[] {
   const findings = new Set<string>();
   const walk = (value: unknown): void => {
     if (typeof value === "string") {
-      if (ENVELOPE_FIELD.test(value)) findings.add("JSON-string-wrapped envelope");
+      if (holdsEnvelope(value)) findings.add("JSON-string-wrapped envelope");
       return;
     }
     if (Array.isArray(value)) {
@@ -1000,7 +1017,7 @@ export function fileContentFindings(stdout: string): string[] {
       const compressed = compression(bytes);
       if (compressed) findings.add(`compressed content (${compressed})`);
       const text = bytes.toString("utf8");
-      if ((text.trim() && canonicalBase64(text)) || ENVELOPE_FIELD.test(text))
+      if ((text.trim() && canonicalBase64(text)) || holdsEnvelope(text))
         findings.add("double-encoded base64");
     }
   };

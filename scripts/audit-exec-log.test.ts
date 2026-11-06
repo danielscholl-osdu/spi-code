@@ -1211,6 +1211,18 @@ describe("base64 content", () => {
       expect(audited(read, envelope(read, { encoding: "base64", content: b64(text) }))).toEqual([]);
     });
 
+    test.each(reads)("passes YAML and XML text that quotes an envelope field in %s", (read) => {
+      const yaml = 'top_level:\n  "content": shared\n';
+      const xml = pom('x<!-- {"content":"generated files"} -->');
+      for (const text of [yaml, xml])
+        expect(audited(read, envelope(read, { encoding: "base64", content: b64(text) }))).toEqual(
+          [],
+        );
+    });
+
+    // An envelope written with its field names as JSON escapes, as text no regex reads as one.
+    const escaped = () => `{"\\u0065ncoding":"utf-8","\\u0063ontent":"${b64(token())}"}`;
+
     const cases: [string, (read: Read) => string, string][] = [
       [
         "an unsupported encoding",
@@ -1324,6 +1336,16 @@ describe("base64 content", () => {
               JSON.stringify(JSON.stringify({ encoding: "utf-8", content: b64(token()) })),
             ),
           }),
+        "double-encoded base64",
+      ],
+      [
+        "a JSON string holding an envelope with escaped field names",
+        () => JSON.stringify({ data: escaped() }),
+        "JSON-string-wrapped envelope",
+      ],
+      [
+        "base64 content holding an envelope with escaped field names",
+        (read) => envelope(read, { encoding: "base64", content: b64(escaped()) }),
         "double-encoded base64",
       ],
       ["raw base64 stdout", () => b64(token()), "not a JSON object"],
