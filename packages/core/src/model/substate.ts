@@ -24,18 +24,20 @@ function prNeedsApproval(pr: PrFact, approvals: readonly WaitingRun[]): boolean 
   );
 }
 
+function prStopped(pr: PrFact): boolean {
+  return (
+    pr.mergeState === "DIRTY" ||
+    failedChecks(pr).some((check) => check.conclusion !== "ACTION_REQUIRED")
+  );
+}
+
 function prSubstate(
   pr: PrFact,
   approvals: readonly WaitingRun[],
   autoMerge = false,
 ): StationSubstate {
+  if (prStopped(pr)) return "stopped";
   const failed = failedChecks(pr);
-  if (
-    pr.mergeState === "DIRTY" ||
-    failed.some((check) => check.conclusion !== "ACTION_REQUIRED")
-  ) {
-    return "stopped";
-  }
   if (
     failed.some((check) => check.conclusion === "ACTION_REQUIRED") ||
     prNeedsApproval(pr, approvals)
@@ -133,6 +135,7 @@ export function stationSubstateOf(
           checks: pendingChecks(pr).filter((check) => check.workflow === "Validation"),
         }))
         .filter(({ checks }) => checks.length > 0);
+      if (validating.some(({ pr }) => prStopped(pr))) return "stopped";
       if (
         validating.some(
           ({ pr, checks }) =>

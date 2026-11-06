@@ -113,6 +113,40 @@ describe("typed station substates", () => {
       facts.approvals.data[repository.repo] = [{ ...recordedRun, sha: "an older head" }];
       expect(lane(facts, "file")).toBe("in-progress");
     });
+
+    function validating(facts: Facts, service: string): PrFact {
+      const pr = facts.github.data?.repos[`Azure/osdu-spi-${service}`]?.prs.find((pr) =>
+        pendingChecks(pr).some((check) => check.workflow === "Validation"),
+      );
+      if (!pr) throw new Error("Missing recorded Validation PR");
+      return pr;
+    }
+
+    test.each(["file", "schema", "partition"])(
+      "%s stops on a failed check or a merge conflict while Validation still runs",
+      (service) => {
+        const facts = upstreamFacts();
+        const pr = validating(facts, service);
+        expect(lane(facts, service)).toBe("in-progress");
+
+        const check = pendingChecks(pr).find((check) => check.workflow === "Validation");
+        if (!check) throw new Error("Missing recorded Validation check");
+        pr.checks.push({
+          ...check,
+          name: "Code Quality",
+          workflow: "Build",
+          status: "COMPLETED",
+          conclusion: "FAILURE",
+        });
+        expect(lane(facts, service)).toBe("stopped");
+        check.status = "WAITING";
+        expect(lane(facts, service)).toBe("stopped");
+
+        const conflicted = upstreamFacts();
+        validating(conflicted, service).mergeState = "DIRTY";
+        expect(lane(conflicted, service)).toBe("stopped");
+      },
+    );
   });
 
   test("queued upstream work waits for the daily sync, not for a person", () => {
