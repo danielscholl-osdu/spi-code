@@ -9,23 +9,66 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, it, vi } from "vitest";
 
+type Killer = (pid: number) => Promise<string | undefined>;
+
 async function killTree(pid: number, platform: NodeJS.Platform = process.platform) {
   if (platform === "win32") {
-    await new Promise<void>((resolve) => {
-      execFile("taskkill", ["/pid", String(pid), "/T", "/F"], { timeout: 10_000 }, () => resolve());
+    return new Promise<string | undefined>((resolve) => {
+      execFile(
+        "taskkill",
+        ["/pid", String(pid), "/T", "/F"],
+        { timeout: 10_000 },
+        (error, _stdout, stderr) =>
+          resolve(error ? `${error.message} ${stderr}`.trim() : undefined),
+      );
     });
-    return;
   }
   try {
     process.kill(-pid, "SIGKILL");
+    return undefined;
   } catch (error) {
-    if (!(error instanceof Error && "code" in error && error.code === "ESRCH")) throw error;
+    if (error instanceof Error && "code" in error && error.code === "ESRCH") return undefined;
+    return String(error);
   }
 }
 
-type Run = { step: string; budget: number; cwd: string; env?: NodeJS.ProcessEnv; shell?: boolean };
+async function within<T>(promise: Promise<T>, ms: number, fallback: T) {
+  let timer: NodeJS.Timeout | undefined;
+  const expired = new Promise<T>((resolve) => {
+    timer = setTimeout(() => resolve(fallback), ms);
+  });
+  try {
+    return await Promise.race([promise, expired]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
-async function run(file: string, args: string[], { step, budget, cwd, env, shell = false }: Run) {
+type Run = {
+  step: string;
+  budget: number;
+  cwd: string;
+  env?: NodeJS.ProcessEnv;
+  shell?: boolean;
+  kill?: Killer;
+  killBound?: number;
+  closeGrace?: number;
+};
+
+async function run(
+  file: string,
+  args: string[],
+  {
+    step,
+    budget,
+    cwd,
+    env,
+    shell = false,
+    kill = killTree,
+    killBound = 15_000,
+    closeGrace = 2_000,
+  }: Run,
+) {
   const child = spawn(file, args, {
     cwd,
     env,
@@ -42,24 +85,41 @@ async function run(file: string, args: string[], { step, budget, cwd, env, shell
   child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
     stderr += chunk;
   });
-  let killed: Promise<void> | undefined;
-  const timer = setTimeout(() => {
-    if (child.pid !== undefined) killed = killTree(child.pid);
-  }, budget);
+  const closed = new Promise<[number | null, NodeJS.Signals | null]>((resolve, reject) => {
+    child.once("error", reject);
+    child.once("close", (code, signal) => resolve([code, signal]));
+  });
+  let timer: NodeJS.Timeout | undefined;
+  const expired = new Promise<"expired">((resolve) => {
+    timer = setTimeout(() => resolve("expired"), budget);
+  });
   try {
-    const [code, signal] = await new Promise<[number | null, NodeJS.Signals | null]>(
-      (resolve, reject) => {
-        child.once("error", reject);
-        child.once("close", (code, signal) => resolve([code, signal]));
-      },
-    );
-    if (killed !== undefined) {
-      await killed;
-      throw Object.assign(new Error(`${step} timed out after ${budget} ms\n${stderr}`), {
-        stdout,
-        stderr,
-      });
+    const outcome = await Promise.race([closed, expired]);
+    if (outcome === "expired") {
+      const pid = child.pid;
+      const failure =
+        pid === undefined
+          ? undefined
+          : await within(
+              kill(pid).catch((error: unknown) => String(error)),
+              killBound,
+              `did not finish within ${killBound} ms`,
+            );
+      await within(
+        closed.then(
+          () => undefined,
+          () => undefined,
+        ),
+        closeGrace,
+        undefined,
+      );
+      const diagnostic = failure === undefined ? "" : `; tree kill failed: ${failure}`;
+      throw Object.assign(
+        new Error(`${step} timed out after ${budget} ms${diagnostic}\n${stderr}`),
+        { stdout, stderr },
+      );
     }
+    const [code, signal] = outcome;
     if (code !== 0) {
       const status = signal === null ? `exit code ${code}` : `signal ${signal}`;
       throw Object.assign(new Error(`${step} failed with ${status}\n${stderr}`), {
@@ -70,7 +130,6 @@ async function run(file: string, args: string[], { step, budget, cwd, env, shell
     return { stdout, stderr };
   } finally {
     clearTimeout(timer);
-    await killed;
   }
 }
 
@@ -131,34 +190,41 @@ it.each<[NodeJS.Platform, string]>([
   await expect(cleanup("unused", platform, remove)).rejects.toBe(error);
 });
 
+const alive = (pid: number) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error instanceof Error && "code" in error && error.code === "EPERM";
+  }
+};
+
 it("kills a timed-out step's whole process tree and names the step and budget", async () => {
   const script = [
     "const { spawn } = require('node:child_process');",
-    "const sleeper = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 30000)'], { stdio: 'ignore' });",
+    "const sleeper = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 20000)'], { stdio: 'ignore' });",
     "console.log(process.pid + ' ' + sleeper.pid);",
-    "setTimeout(() => {}, 30000);",
+    "setTimeout(() => {}, 20000);",
   ].join("\n");
-  const alive = (pid: number) => {
-    try {
-      process.kill(pid, 0);
-      return true;
-    } catch (error) {
-      return error instanceof Error && "code" in error && error.code === "EPERM";
-    }
-  };
   let pids: number[] = [];
   try {
-    const failure = await run(process.execPath, ["-e", script], {
-      step: "sleeper",
-      budget: 4_000,
-      cwd: tmpdir(),
-    }).catch((error: unknown) => error);
-    expect(failure).toBeInstanceOf(Error);
-    expect((failure as Error).message).toMatch(/^sleeper timed out after 4000 ms/);
-    pids = String((failure as { stdout?: string }).stdout)
-      .trim()
-      .split(" ")
-      .map(Number);
+    for (const budget of [1_000, 4_000, 8_000]) {
+      const failure = await run(process.execPath, ["-e", script], {
+        step: "sleeper",
+        budget,
+        cwd: tmpdir(),
+      }).catch((error: unknown) => error);
+      expect(failure).toBeInstanceOf(Error);
+      expect((failure as Error).message).toMatch(
+        new RegExp(`^sleeper timed out after ${budget} ms\n`),
+      );
+      pids = String((failure as { stdout?: string }).stdout)
+        .trim()
+        .split(" ")
+        .filter(Boolean)
+        .map(Number);
+      if (pids.length > 0) break;
+    }
     expect(pids).toHaveLength(2);
     await vi.waitFor(() => expect(pids.filter(alive)).toEqual([]), {
       timeout: 5_000,
@@ -167,7 +233,41 @@ it("kills a timed-out step's whole process tree and names the step and budget", 
   } finally {
     for (const pid of pids.filter(alive)) process.kill(pid, "SIGKILL");
   }
-}, 30_000);
+}, 45_000);
+
+it.each<[string, Killer, string]>([
+  [
+    "fails",
+    async () => "taskkill exited 1: Access is denied.",
+    "taskkill exited 1: Access is denied.",
+  ],
+  ["never settles", () => new Promise<never>(() => {}), "did not finish within 100 ms"],
+])(
+  "rejects with the step and budget when the tree kill %s",
+  async (_case, killer, diagnostic) => {
+    let pid: number | undefined;
+    const kill: Killer = (target) => {
+      pid = target;
+      return killer(target);
+    };
+    try {
+      await expect(
+        run(process.execPath, ["-e", "setTimeout(() => {}, 20000)"], {
+          step: "npm install",
+          budget: 25,
+          cwd: tmpdir(),
+          kill,
+          killBound: 100,
+          closeGrace: 100,
+        }),
+      ).rejects.toThrow(`npm install timed out after 25 ms; tree kill failed: ${diagnostic}`);
+      expect(pid).toBeDefined();
+    } finally {
+      if (pid !== undefined && alive(pid)) process.kill(pid, "SIGKILL");
+    }
+  },
+  10_000,
+);
 
 it("keeps the README vendoring version aligned with the package manifest", async () => {
   const manifest = JSON.parse(await readFile(join(core, "package.json"), "utf8"));
