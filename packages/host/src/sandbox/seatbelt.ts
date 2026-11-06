@@ -136,17 +136,24 @@ export function sandboxEnvironment(
 
 export function runSeatbelt(options: SeatbeltOptions, command: string, args: string[] = []) {
   if (process.platform !== "darwin") throw new Error("Seatbelt is only supported on macOS");
-  const result = spawnSync(
-    "/usr/bin/sandbox-exec",
-    ["-p", seatbeltProfile(options), command, ...args],
-    {
-      cwd: realpathSync(options.worktree),
-      env: sandboxEnvironment(options.scratchHome),
-      encoding: "utf8",
-      timeout: 30_000,
-      maxBuffer: 1024 * 1024,
-    },
-  );
+  return runSeatbeltProfile(seatbeltProfile(options), options, command, args);
+}
+
+// Launches under a profile built earlier by seatbeltProfile; its hard-link scan is as old as the profile.
+export function runSeatbeltProfile(
+  profile: string,
+  options: Pick<SeatbeltOptions, "worktree" | "scratchHome">,
+  command: string,
+  args: string[] = [],
+) {
+  if (process.platform !== "darwin") throw new Error("Seatbelt is only supported on macOS");
+  const result = spawnSync("/usr/bin/sandbox-exec", ["-p", profile, command, ...args], {
+    cwd: realpathSync(options.worktree),
+    env: sandboxEnvironment(options.scratchHome),
+    encoding: "utf8",
+    timeout: 30_000,
+    maxBuffer: 1024 * 1024,
+  });
   if (result.error) throw result.error;
   if (result.signal)
     throw new Error(`Sandbox command terminated by ${result.signal}: ${result.stderr}`);
