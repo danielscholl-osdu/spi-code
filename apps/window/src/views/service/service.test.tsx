@@ -511,6 +511,29 @@ it("refreshes a selected service line's Detail after a sweep inserts a line befo
   ]);
 });
 
+it("keeps a selected upgrade's Detail when a refresh drops it and leaves its same-id hold", async () => {
+  const body = mixedSnapshot(mixed);
+  const { watch } = await renderBoth(body);
+  const upgrade = container.querySelector<HTMLElement>(
+    '.environment [data-lane="upgrade"] [data-event]',
+  );
+  const hold = container.querySelector<HTMLElement>(
+    '.environment [data-lane="holds"] [data-event]',
+  );
+  if (!upgrade || !hold) throw new Error("Recorded fixture needs upgrade and hold events");
+  expect(hold.dataset.selectionId).toBe(upgrade.dataset.selectionId);
+  await click(upgrade);
+  const title = () => container.querySelector("aside[aria-label='Detail'] .detail-title");
+  expect(title()?.textContent).toBe("v0.28.2");
+  const next = structuredClone(body);
+  next.cursor = body.cursor + 1;
+  const lane = next.briefing.environment.lanes.find(({ id }) => id === "upgrade");
+  if (!lane) throw new Error("Recorded fixture needs an upgrade lane");
+  lane.events = [];
+  await act(async () => watch.setState({ snapshot: { cursor: next.cursor, body: next } }));
+  expect(title()?.textContent).toBe("v0.28.2");
+});
+
 it("keeps unidentified stack lines unselectable in source order on both pages, and arrows past them", async () => {
   const body = mixedSnapshot(mixed);
   const issues = body.briefing.repositories.rows
