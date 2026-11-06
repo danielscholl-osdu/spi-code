@@ -25,9 +25,9 @@ Pin keeps the centre live beside the sheet; Unpin closes it. The pin survives a
 reload. Quiet service rows fold into one expandable line. Detected campaign chips
 filter to their member forks, with membership in a separate column; selecting the
 chip again clears the filter. Station glyphs name their typed sub-state, and cells
-open their own Detail reading. The recorded November 6 fixture is
-`fixtures/watch/snapshot-1106.json`, projected from the core recording by
-`TZ=UTC bun scripts/watch-snapshot.ts` after `pnpm build`.
+open their own Detail reading. The campaign filter test uses the recorded
+`CodeQL: java/log-injection` campaign in `fixtures/watch/snapshot-59d6895.json`,
+whose member forks are file, partition and schema.
 
 The Zustand Watch store keeps the highest snapshot cursor and the latest cursorless
 sweep and setup states. Each `host.hello` sends a validated `view.subscribe` from
