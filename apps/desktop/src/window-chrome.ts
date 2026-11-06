@@ -21,7 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import type { BrowserWindowConstructorOptions } from "electron";
+import type { BrowserWindowConstructorOptions, TitleBarOverlayOptions } from "electron";
 
 /** Height of the window's integrated title bar; apps/window/src/style.css draws its row at the same height. */
 export const TITLEBAR_HEIGHT = 40;
@@ -54,4 +54,42 @@ export function windowTitleBarOptions(
       symbolColor: shouldUseDarkColors ? TITLEBAR_DARK_SYMBOL_COLOR : TITLEBAR_LIGHT_SYMBOL_COLOR,
     },
   };
+}
+
+export const WINDOW_APPEARANCE_CHANNEL = "window:appearance";
+
+type AppearanceEvent = { sender: unknown; senderFrame: unknown };
+
+/** Redraws the Windows caption symbols in the theme the window's renderer shows, until the window closes. */
+export function bindTitleBarAppearance(
+  ipc: {
+    handle(channel: string, listener: (event: AppearanceEvent, theme: unknown) => boolean): void;
+    removeHandler(channel: string): void;
+  },
+  window: {
+    readonly webContents: { readonly mainFrame: unknown };
+    isDestroyed(): boolean;
+    once(event: "closed", listener: () => void): unknown;
+    setTitleBarOverlay(options: TitleBarOverlayOptions): void;
+  },
+  platform: NodeJS.Platform,
+): () => void {
+  const contents = window.webContents;
+  ipc.handle(WINDOW_APPEARANCE_CHANNEL, (event, theme) => {
+    if (window.isDestroyed()) return false;
+    if (event.sender !== contents || event.senderFrame !== contents.mainFrame) return false;
+    if (theme !== "light" && theme !== "dark") return false;
+    const { titleBarOverlay } = windowTitleBarOptions(theme === "dark", platform);
+    if (typeof titleBarOverlay !== "object") return false;
+    window.setTitleBarOverlay(titleBarOverlay);
+    return true;
+  });
+  let bound = true;
+  const dispose = () => {
+    if (!bound) return;
+    bound = false;
+    ipc.removeHandler(WINDOW_APPEARANCE_CHANNEL);
+  };
+  window.once("closed", dispose);
+  return dispose;
 }

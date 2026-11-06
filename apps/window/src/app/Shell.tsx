@@ -56,7 +56,9 @@ export function Shell() {
   const [appearance, setAppearance] = useState<ReturnType<typeof createAppearance>>();
   const [error, setError] = useState("");
   useEffect(() => {
-    const controller = createAppearance();
+    const controller = createAppearance(undefined, undefined, undefined, (theme) => {
+      void window.spi.setAppearance?.(theme);
+    });
     setAppearance(controller);
     const unsubscribe = window.spi.onMessage((message) => {
       selectionStore.getState().receive(message);

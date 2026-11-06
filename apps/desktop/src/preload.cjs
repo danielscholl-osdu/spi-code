@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld("spi", {
   openExternal(url) {
     return ipcRenderer.invoke("external:open", url);
   },
+  setAppearance(theme) {
+    return ipcRenderer.invoke("window:appearance", theme);
+  },
   postMessage(message) {
     if (!port) throw new Error("Host port is not connected");
     if (

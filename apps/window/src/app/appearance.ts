@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 export type Appearance = "system" | "light" | "dark";
+export type Theme = "light" | "dark";
 export function createAppearance(
   storage: Pick<Storage, "getItem" | "setItem" | "removeItem"> = localStorage,
   media: {
@@ -10,13 +11,18 @@ export function createAppearance(
     removeEventListener(type: "change", listener: () => void): void;
   } = matchMedia("(prefers-color-scheme: dark)"),
   target: HTMLElement = document.documentElement,
+  onTheme: (theme: Theme) => void = () => {},
 ) {
   const saved = storage.getItem("spi-code.appearance");
   let pin: Appearance = saved === "light" || saved === "dark" ? saved : "system";
+  let shown: Theme | undefined;
   const apply = () => {
-    const theme = pin === "system" ? (media.matches ? "dark" : "light") : pin;
+    const theme: Theme = pin === "system" ? (media.matches ? "dark" : "light") : pin;
     target.dataset.theme = theme;
     target.style.colorScheme = theme;
+    if (theme === shown) return;
+    shown = theme;
+    onTheme(theme);
   };
   media.addEventListener("change", apply);
   apply();

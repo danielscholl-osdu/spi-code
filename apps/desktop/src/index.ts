@@ -27,7 +27,7 @@ import { smokeMessages } from "./smoke-messages.js";
 import { assertSmokeReport, assertSmokeTools, type SmokeReport } from "./smoke-report.js";
 import { HostSupervisor, hostPortCallbacks } from "./supervisor.js";
 import { createSweepTray, trayChannel } from "./tray.js";
-import { windowTitleBarOptions } from "./window-chrome.js";
+import { bindTitleBarAppearance, windowTitleBarOptions } from "./window-chrome.js";
 
 const smoke = process.argv.includes("--smoke");
 const liveFlag = process.argv.indexOf("--live-report");
@@ -174,6 +174,7 @@ async function run(): Promise<void> {
   });
   ipcMain.handle("external:open", externalLinks.openFromRenderer);
   window.on("closed", () => ipcMain.removeHandler("external:open"));
+  bindTitleBarAppearance(ipcMain, window, process.platform);
   window.webContents.setWindowOpenHandler(externalLinks.windowOpen);
   window.webContents.on("will-navigate", (event) => event.preventDefault());
   const messages = smokeMessages();

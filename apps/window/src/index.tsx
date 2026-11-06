@@ -13,6 +13,7 @@ declare global {
     spi: {
       proof: boolean;
       openExternal(url: string): Promise<boolean>;
+      setAppearance?(theme: "light" | "dark"): Promise<boolean>;
       postMessage(message: Message): void;
       onMessage(listener: (message: unknown) => void): () => void;
     };
