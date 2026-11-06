@@ -15,7 +15,8 @@ export interface ExecOptions {
   stdin?: string;
   signal?: AbortSignal;
   /**
-   * Redacted output, including a final buffered snapshot on cancellation or timeout.
+   * Redacted output, including a final buffered snapshot when cancellation, a timeout or a
+   * failure interrupts the command.
    * Native delivery sets phase to identify already-redacted chunks to wrappers.
    */
   onOutput?: (stream: "stdout" | "stderr", text: string, phase?: "live" | "terminal") => void;
@@ -97,7 +98,9 @@ export function execOutputDelivery(opts: ExecOptions, env: Record<string, string
   };
   return {
     push,
-    finish: (reason?: "timeout") => {
+    /** The redacted text an interrupted run leaves, with a held real-secret prefix masked. */
+    snapshot: interruptedSnapshot,
+    finish: (reason?: "timeout" | "interrupted") => {
       if (finished) return;
       finished = true;
       const failures: unknown[] = [];
@@ -107,7 +110,7 @@ export function execOutputDelivery(opts: ExecOptions, env: Record<string, string
         try {
           if (text) opts.onOutput?.(
             stream,
-            opts.signal?.aborted || reason === "timeout" ? interruptedSnapshot(text) : safe(text),
+            opts.signal?.aborted || reason !== undefined ? interruptedSnapshot(text) : safe(text),
             "terminal",
           );
         } catch (failure) {

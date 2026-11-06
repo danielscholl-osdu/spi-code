@@ -51,7 +51,7 @@ export class RecordingExec implements Exec {
         finished = true;
         if (!streamed.has("stdout")) delivery.push("stdout", result.stdout);
         if (!streamed.has("stderr")) delivery.push("stderr", result.stderr);
-        delivery.finish();
+        delivery.finish(result.error === undefined ? undefined : "interrupted");
         return result;
       }).catch((failure: unknown): ExecOutput => ({
         stdout: "", stderr: "", exit: null,
@@ -61,8 +61,10 @@ export class RecordingExec implements Exec {
     const written = (async () => {
       const result = await output;
       const ms = performance.now() - started;
+      // A cancelled or failed run records the snapshot it delivered, never a held secret prefix.
+      const text = opts.signal?.aborted || result.error !== undefined ? delivery.snapshot : safe;
       const entry: ExecLogEntry = {
-        ...call, stdout: safe(result.stdout), stderr: safe(result.stderr), exit: result.exit, ms,
+        ...call, stdout: text(result.stdout), stderr: text(result.stderr), exit: result.exit, ms,
         ...(result.error === undefined ? {} : { error: safe(result.error) }),
       };
       await previous;

@@ -100,7 +100,7 @@ export class HostExec implements Exec {
         let stderr = "";
         let error: string | undefined;
         let spawnFailed = false;
-        let timedOut = false;
+        let interrupted = false;
         let settled = false;
         let termination: Promise<void> | undefined;
         const delivery = execOutputDelivery(opts, secrets);
@@ -110,18 +110,20 @@ export class HostExec implements Exec {
           clearTimeout(timer);
           opts.signal?.removeEventListener("abort", abort);
           try {
-            delivery.finish(timedOut ? "timeout" : undefined);
+            delivery.finish(interrupted ? "interrupted" : undefined);
           } catch (failure) {
             error ??= safe(String(failure));
           }
           resolve({
-            stdout,
-            stderr: safe(stderr),
+            // An interrupted command's output is cut, so it leaves the same snapshot it delivered.
+            stdout: interrupted ? delivery.snapshot(stdout) : stdout,
+            stderr: interrupted ? delivery.snapshot(stderr) : safe(stderr),
             exit: spawnFailed ? null : exit,
             ...(error === undefined ? {} : { error }),
           });
         };
         const fail = (message: string) => {
+          interrupted = true;
           error ??= safe(message);
           if (child.pid !== undefined && termination === undefined) {
             termination = killTree(child.pid)
@@ -139,7 +141,6 @@ export class HostExec implements Exec {
           }
         };
         const timer = setTimeout(() => {
-          timedOut = true;
           fail(`Command timed out after ${timeoutMs}ms.`);
         }, timeoutMs);
         const abort = () => fail("Command aborted.");

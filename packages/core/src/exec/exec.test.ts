@@ -484,6 +484,34 @@ describe("exec recording and replay", () => {
     expect(chunks).toEqual(["<redacted>"]);
   });
 
+  it.each(["timeout", "cancel"] as const)(
+    "recording a buffered runner's %s masks a held secret prefix in delivery and the JSONL",
+    async (path) => {
+      const controller = new AbortController();
+      const chunks = { stdout: "", stderr: "" };
+      let log = "";
+      const recording = new RecordingExec(async () => {
+        if (path === "cancel") controller.abort();
+        return {
+          stdout: "useful output!\ndone", stderr: "warning!\ndone", exit: null,
+          ...(path === "timeout" ? { error: "Command timed out after 1000ms." } : {}),
+        };
+      }, (line) => { log += line; });
+      const result = await recording.runText("fixture", [], {
+        env: { REVIEW_TOKEN: "done-not-a-real-token" },
+        signal: controller.signal,
+        onOutput: (stream, text) => { chunks[stream] += text; },
+      });
+      expect(result).toMatchObject({ ok: false });
+      expect(JSON.parse(log)).toMatchObject({
+        stdout: "useful output!\n<redacted>", stderr: "warning!\n<redacted>",
+      });
+      expect(chunks).toEqual(path === "timeout"
+        ? { stdout: "useful output!\n<redacted>", stderr: "warning!\n<redacted>" }
+        : { stdout: "", stderr: "" });
+    },
+  );
+
   it("delivers live and replay output redacted, without recording transient stdin", async () => {
     let log = "";
     const chunks: [string, string][] = [];

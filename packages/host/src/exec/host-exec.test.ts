@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import type { ChildProcess } from "node:child_process";
 import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -9,7 +10,21 @@ import { type ExecOptions, RecordingExec } from "@spi-code/core";
 import { ToolInstaller } from "@spi-code/tools";
 import { afterEach, expect, it, vi } from "vitest";
 import { createManagedToolEnvironment } from "../env/tool-environment.js";
-import { HostExec } from "./host-exec.js";
+import { HostExec, type HostExecLog } from "./host-exec.js";
+
+const spawned = vi.hoisted(() => [] as ChildProcess[]);
+vi.mock("node:child_process", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:child_process")>();
+  const spawn = actual.spawn as (...args: unknown[]) => ChildProcess;
+  return {
+    ...actual,
+    spawn: (...args: unknown[]) => {
+      const child = spawn(...args);
+      spawned.push(child);
+      return child;
+    },
+  };
+});
 
 // Real processes start slowly when the machine is busy; waitFor defaults to 1s.
 const PROCESS_WAIT = { timeout: 15_000 };
@@ -282,6 +297,146 @@ it.each([
     await delay(25);
     expect(JSON.stringify(chunks)).toBe(snapshot);
     expect(snapshot).not.toContain("late output");
+  },
+  25_000,
+);
+
+it.each([
+  ["HostExec", "cancel"],
+  ["HostExec", "timeout"],
+  ["HostExec", "stream error"],
+  ["RecordingExec-over-HostExec", "cancel"],
+  ["RecordingExec-over-HostExec", "timeout"],
+  ["RecordingExec-over-HostExec", "stream error"],
+] as const)(
+  "%s on %s logs and records the redacted terminal text it delivered, not a held secret prefix",
+  async (runner, path) => {
+    const options = await fixture();
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(([name]) => !/TOKEN/i.test(name)),
+    );
+    const ready = join(options.appData, "ready");
+    const logs: HostExecLog[] = [];
+    const lines: string[] = [];
+    const chunks = { stdout: [] as string[], stderr: [] as string[] };
+    const child = `
+      const bytes = (stream, text) => new Promise((done) => {
+        let i = 0;
+        const next = () => {
+          if (i === text.length) return done();
+          stream.write(text[i++]);
+          setTimeout(next, 10);
+        };
+        next();
+      });
+      bytes(process.stdout, 'useful output!\\ndone')
+        .then(() => bytes(process.stderr, 'warning!\\ndone'))
+        .then(() => {
+          require('node:fs').writeFileSync(${JSON.stringify(ready)}, String(process.pid));
+          setInterval(() => {}, 1000);
+        });
+    `;
+    if (path === "timeout") vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const controller = new AbortController();
+    const host = new HostExec({ ...options, env, log: (entry) => logs.push(entry) });
+    const exec =
+      runner === "HostExec" ? host : new RecordingExec(host.run, (line) => void lines.push(line));
+    const run = exec.runText(process.execPath, ["-e", child], {
+      env: { REVIEW_TOKEN: "done-not-a-real-token" },
+      signal: controller.signal,
+      timeoutMs: path === "timeout" ? 1000 : 20_000,
+      onOutput: (stream, chunk) => chunks[stream].push(chunk),
+    });
+    try {
+      await waitForPid(ready);
+      await delay(100);
+      expect(chunks.stdout.join("")).toBe("useful output!\n");
+      expect(chunks.stderr.join("")).toBe("warning!\n");
+      const started = spawned.at(-1);
+      if (path === "cancel") controller.abort();
+      if (path === "stream error") started?.stdout?.destroy(new Error("stream failed"));
+    } catch (failure) {
+      controller.abort();
+      throw failure;
+    } finally {
+      if (path === "timeout") await vi.advanceTimersByTimeAsync(1000);
+      await run;
+    }
+    const error = {
+      cancel: "Command aborted.",
+      timeout: "Command timed out after 1000ms.",
+      "stream error": "stream failed",
+    }[path];
+    expect(await run).toMatchObject({ ok: false, error });
+    expect(chunks.stdout.join("")).toBe("useful output!\n<redacted>");
+    expect(chunks.stderr.join("")).toBe("warning!\n<redacted>");
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toMatchObject({ stderr: chunks.stderr.join(""), error });
+    if (runner === "RecordingExec-over-HostExec") {
+      expect(lines).toHaveLength(1);
+      expect(JSON.parse(lines[0] ?? "")).toMatchObject({
+        stdout: chunks.stdout.join(""),
+        stderr: chunks.stderr.join(""),
+        error,
+      });
+    }
+  },
+  25_000,
+);
+
+it.each(["HostExec", "RecordingExec-over-HostExec"])(
+  "%s with a throwing listener logs, records and delivers the redacted terminal text",
+  async (runner) => {
+    const options = await fixture();
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(([name]) => !/TOKEN/i.test(name)),
+    );
+    const logs: HostExecLog[] = [];
+    const lines: string[] = [];
+    const chunks = { stdout: [] as string[], stderr: [] as string[] };
+    const child = `
+      const bytes = (stream, text) => new Promise((done) => {
+        let i = 0;
+        const next = () => {
+          if (i === text.length) return done();
+          stream.write(text[i++]);
+          setTimeout(next, 10);
+        };
+        next();
+      });
+      bytes(process.stderr, 'warning!\\ndone')
+        .then(() => bytes(process.stdout, 'ready!\\n'))
+        .then(() => setInterval(() => {}, 1000));
+    `;
+    let thrown = false;
+    const host = new HostExec({ ...options, env, log: (entry) => logs.push(entry) });
+    const exec =
+      runner === "HostExec" ? host : new RecordingExec(host.run, (line) => void lines.push(line));
+    const result = await exec.runText(process.execPath, ["-e", child], {
+      env: { REVIEW_TOKEN: "done-not-a-real-token" },
+      timeoutMs: 20_000,
+      onOutput: (stream, chunk) => {
+        chunks[stream].push(chunk);
+        if (!thrown && chunks.stdout.join("").endsWith("\n")) {
+          thrown = true;
+          throw new Error("listener failed");
+        }
+      },
+    });
+    const error = "Error: listener failed";
+    expect(result).toMatchObject({ ok: false, error });
+    expect(chunks.stdout.join("")).toBe("ready!\n");
+    expect(chunks.stderr.join("")).toBe("warning!\n<redacted>");
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toMatchObject({ stderr: chunks.stderr.join(""), error });
+    if (runner === "RecordingExec-over-HostExec") {
+      expect(lines).toHaveLength(1);
+      expect(JSON.parse(lines[0] ?? "")).toMatchObject({
+        stdout: chunks.stdout.join(""),
+        stderr: chunks.stderr.join(""),
+        error,
+      });
+    }
   },
   25_000,
 );
