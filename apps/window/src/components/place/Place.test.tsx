@@ -175,6 +175,119 @@ it("omits Pin without a callback and invokes the supplied callback from the head
   expect(container.querySelector("header button")).toBeNull();
 });
 
+it("renders supplied header actions beside Pin, with no action space when absent", async () => {
+  const onPin = vi.fn();
+  const onAction = vi.fn();
+  const { container, render } = await mount();
+  const header = container.querySelector("header");
+  expect(header?.children).toHaveLength(1);
+  const actions = (
+    <button type="button" onClick={() => onAction()}>
+      Line view
+    </button>
+  );
+  await render({ actions });
+  expect(text(container, "header > *")).toEqual(["Upstream", "Line view"]);
+  const action = header?.querySelector<HTMLButtonElement>("button");
+  await act(async () => action?.click());
+  expect(onAction).toHaveBeenCalledExactlyOnceWith();
+  expect(onPin).not.toHaveBeenCalled();
+  await render({ actions, onPin });
+  expect(text(container, "header > *")).toEqual(["Upstream", "Line view", "Pin"]);
+  await render({});
+  expect(text(container, "header > *")).toEqual(["Upstream"]);
+});
+
+it("selects named, keyboard-reachable row buttons and marks only the selected item", async () => {
+  const onSelect = vi.fn();
+  const { container, render, onNavigate } = await mount({ onSelect });
+  const buttons = [...container.querySelectorAll<HTMLButtonElement>("button[data-selection-id]")];
+  expect(buttons).toHaveLength(5);
+  for (const button of buttons) {
+    expect(button.type).toBe("button");
+    expect(button.tabIndex).toBe(0);
+    expect(button.getAttribute("aria-label")).toContain("Review ");
+    expect(button.getAttribute("aria-pressed")).toBe("false");
+    expect(button.querySelector("button")).toBeNull();
+    button.focus();
+    expect(document.activeElement).toBe(button);
+  }
+  const target = buttons[0];
+  if (!target) throw new Error("Missing selectable item");
+  await act(async () => target.click());
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith("partition:halt");
+  expect(onNavigate).not.toHaveBeenCalled();
+  await render({ selectedId: "partition:halt" });
+  expect(
+    container.querySelector('button[aria-pressed="true"]')?.getAttribute("data-selection-id"),
+  ).toBe("partition:halt");
+  expect(container.querySelectorAll('button[aria-pressed="true"]')).toHaveLength(1);
+  expect(container.querySelector(".place-item[data-selected]")?.getAttribute("data-item-id")).toBe(
+    "partition:halt",
+  );
+  expect(container.querySelectorAll(".place-item[data-selected]")).toHaveLength(1);
+  onSelect.mockClear();
+  const scope = container.querySelector<HTMLButtonElement>("button.place-scope");
+  await act(async () => scope?.click());
+  expect(onSelect).not.toHaveBeenCalled();
+  expect(onNavigate).toHaveBeenCalledExactlyOnceWith({ kind: "service", id: "partition" });
+});
+
+it("keeps item content static without onSelect, even when selectedId is supplied", async () => {
+  const { container } = await mount({ selectedId: "partition:halt" });
+  expect(
+    container.querySelector("[data-selection-id], [aria-pressed], [data-selected]"),
+  ).toBeNull();
+  expect(
+    [...container.querySelectorAll(".place-item-content")].map((element) => element.tagName),
+  ).toEqual(["DIV", "DIV", "DIV", "DIV", "DIV"]);
+});
+
+it("renders all three measures without duplicate-key warnings when their labels match", async () => {
+  const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    const { container } = await mount({
+      reading: {
+        ...reading,
+        content: {
+          ...content,
+          tiles: [
+            { ...content.tiles[0], label: "Count" },
+            { ...content.tiles[1], label: "Count" },
+            { ...content.tiles[2], label: "Count" },
+          ],
+        },
+      },
+    });
+    expect(text(container, ".place-tile-value")).toEqual(["107", "8 forks", "25"]);
+    expect(errors.mock.calls.filter(([message]) => String(message).includes("same key"))).toEqual(
+      [],
+    );
+  } finally {
+    errors.mockRestore();
+  }
+});
+
+it("ends each item with its next step and omits that part when the step is empty", async () => {
+  const { container } = await mount({
+    reading: {
+      ...reading,
+      content: {
+        ...content,
+        items: [
+          { ...item("halt", "partition", "Before 18:00", 1), next: "Add a filter rule" },
+          { ...item("hold", "legal", "Before 18:00", 1), next: "" },
+        ],
+      },
+    },
+  });
+  expect(text(container, ".place-item-next")).toEqual(["Add a filter rule"]);
+  expect(container.querySelector('[data-item-id="halt"]')?.textContent?.trim()).toMatch(
+    /Add a filter rule$/,
+  );
+  expect(container.querySelector('[data-item-id="hold"] .place-item-next')).toBeNull();
+});
+
 it("renders each rank, scope, attention, due time and ownership from the contract", async () => {
   const { container } = await mount();
   const visible = [
