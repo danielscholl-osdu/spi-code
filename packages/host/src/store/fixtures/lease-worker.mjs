@@ -7,9 +7,18 @@ import { createLeaseStore } from "../../../dist/store/leases.js";
 
 const [path, owner] = process.argv.slice(2);
 const db = new DatabaseSync(path);
-db.exec("PRAGMA busy_timeout = 2000");
 const leases = createLeaseStore(db);
-process.on("message", ({ now }) => {
-  process.send(leases.acquire("a", owner, 100, now) ?? null);
+process.on("message", (request) => {
+  if (request === "lock") {
+    db.exec("BEGIN IMMEDIATE");
+    process.send("locked");
+  } else if (request === "commit") {
+    setTimeout(() => {
+      db.exec("COMMIT");
+      process.send("committed");
+    }, 2500);
+  } else {
+    process.send(leases.acquire("a", owner, request.ttl, request.now) ?? null);
+  }
 });
 process.send("ready");

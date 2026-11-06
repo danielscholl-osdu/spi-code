@@ -23,6 +23,13 @@ ascending order, with a default page size of 1000. Use the last returned sequenc
 as the next cursor; `lastSeq` returns the ceiling (0 for no events).
 Run lifecycle transitions, intents, approvals and threads are outside this slice.
 
+`createLeaseStore` uses an already migrated connection and configures the same
+five-second writer-lock timeout itself, including on newly opened connections.
+Acquisition and renewal cap that wait at their TTL and restore the connection's
+five-second timeout afterward. SQLite waits for transient contention; an exhausted
+wait still throws rather than reporting a competing owner. The atomic conditional
+upsert, owner/fence checks and expiry comparisons are unchanged.
+
 The crash test drives a child through committed appends, kills it with `SIGKILL`
 without closing the connection, then reopens the store to verify every committed
 event and its contiguous sequence. The child imports the compiled production

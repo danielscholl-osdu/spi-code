@@ -39,18 +39,34 @@ afterEach(async () => {
 async function worker(owner: string): Promise<ChildProcess> {
   const child = fork(new URL("./fixtures/lease-worker.mjs", import.meta.url), [path, owner], {
     stdio: ["ignore", "ignore", "inherit", "ipc"],
-    timeout: 5000,
+    timeout: 30_000,
     killSignal: "SIGKILL",
   });
   children.push(child);
-  expect((await once(child, "message"))[0]).toBe("ready");
+  expect(await message(child)).toBe("ready");
   return child;
 }
 
-async function acquire(child: ChildProcess, now: number): Promise<unknown> {
-  const reply = once(child, "message");
-  child.send({ now });
-  return (await reply)[0];
+async function message(
+  child: ChildProcess,
+  request?: "lock" | "commit" | { now: number; ttl: number },
+): Promise<unknown> {
+  const controller = new AbortController();
+  const options = { signal: controller.signal };
+  const reply = once(child, "message", options);
+  const exited = once(child, "exit", options).then(([code, signal]) => {
+    throw new Error(`Lease worker exited before replying: code=${code}, signal=${signal}`);
+  });
+  try {
+    if (request !== undefined) child.send(request);
+    return (await Promise.race([reply, exited]))[0];
+  } finally {
+    controller.abort();
+  }
+}
+
+function acquire(child: ChildProcess, now: number, ttl = 100): Promise<unknown> {
+  return message(child, { now, ttl });
 }
 
 it("checks owner and fence, expires exactly at ttl, and never reuses a released fence", () => {
@@ -81,12 +97,45 @@ it("checks owner and fence, expires exactly at ttl, and never reuses a released 
 
 it("gives exactly one owner to two forked processes racing acquire", async () => {
   const [a, b] = await Promise.all([worker("first"), worker("second")]);
-  const results = await Promise.all([acquire(a, 1000), acquire(b, 1000)]);
+  const results = await Promise.all([acquire(a, 1000, 60_000), acquire(b, 1000, 60_000)]);
   expect(results.sort()).toEqual([1, null]);
   expect(db.prepare("SELECT fence, expires_at FROM leases").all()).toEqual([
-    { fence: 1, expires_at: 1100 },
+    { fence: 1, expires_at: 61_000 },
   ]);
-}, 8000);
+});
+
+it("opens a lease store during a write transaction and waits until it commits", async () => {
+  const holder = await worker("holder");
+  expect(await message(holder, "lock")).toBe("locked");
+  db.close();
+  db = new DatabaseSync(path);
+  const leases = createLeaseStore(db);
+  const committed = message(holder, "commit");
+  try {
+    expect(leases.acquire("a", "next", 60_000, 1000)).toBe(1);
+  } finally {
+    expect(await committed).toBe("committed");
+  }
+  expect(db.prepare("SELECT owner, fence FROM leases").get()).toEqual({
+    owner: "next",
+    fence: 1,
+  });
+});
+
+it("bounds the writer wait by the lease ttl and preserves ownership on timeout", async () => {
+  const holder = await worker("holder");
+  expect(await acquire(holder, 1000)).toBe(1);
+  expect(await message(holder, "lock")).toBe("locked");
+  const leases = createLeaseStore(db);
+  const started = performance.now();
+  expect(() => leases.acquire("a", "next", 25, 1100)).toThrow("database is locked");
+  expect(performance.now() - started).toBeLessThan(1000);
+  expect(db.prepare("SELECT owner, fence, expires_at FROM leases").get()).toEqual({
+    owner: "holder",
+    fence: 1,
+    expires_at: 1100,
+  });
+});
 
 it("does not recover a SIGKILLed owner's lease before its injected expiry", async () => {
   const owner = await worker("first");
@@ -97,7 +146,7 @@ it("does not recover a SIGKILLed owner's lease before its injected expiry", asyn
   const next = await worker("second");
   expect(await acquire(next, 1099)).toBeNull();
   expect(await acquire(next, 1100)).toBe(2);
-}, 8000);
+});
 
 it("rejects invalid clocks and ttl without changing ownership", () => {
   const leases = createLeaseStore(db);
