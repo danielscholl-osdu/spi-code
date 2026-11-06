@@ -248,7 +248,13 @@ async function mountRelated(kind: "flow" | "repository", width = 1280) {
         type: "view.snapshot",
         payload: body,
       });
-      root.render(<RightPanelFrame store={store} snapshot={body} />);
+      root.render(
+        <RightPanelFrame
+          store={store}
+          snapshot={body}
+          sweepEvidence={<p data-sweep-evidence="">Sweep evidence {body.cursor}</p>}
+        />,
+      );
       store.getState().visit("#inbox", routeSelectionIds(body, { kind: "inbox" }), 0);
     });
   };
@@ -291,6 +297,20 @@ async function mountRelated(kind: "flow" | "repository", width = 1280) {
       matches.mockRestore();
     },
   };
+}
+
+function withoutRelatedTarget(target: SelectionRow) {
+  const next = structuredClone(snapshot);
+  next.cursor++;
+  next.provenance = [];
+  const fork = next.briefing.flow.rows.find(({ inspect }) => inspect === target.id)?.fork;
+  next.briefing.flow.rows = next.briefing.flow.rows.filter(({ inspect }) => inspect !== target.id);
+  next.stations = next.stations.filter(({ service }) => service !== fork);
+  next.briefing.repositories.rows = next.briefing.repositories.rows.filter(
+    ({ id }) => id !== target.id,
+  );
+  expect(JSON.stringify(next)).not.toContain(JSON.stringify(target.id));
+  return ViewSnapshotSchema.parse(next);
 }
 
 it.each(["flow", "repository"] as const)(
@@ -345,18 +365,7 @@ it.each(
       expect(view.store.getState().result?.cause).toBe("Completed reading from the old sweep");
       expect(view.store.getState().selected).toBe(view.target.id);
       expect(view.container.querySelector("#app-right-panel")).not.toBeNull();
-      const next = structuredClone(snapshot);
-      next.cursor++;
-      next.provenance = [];
-      const fork = next.briefing.flow.rows.find(({ inspect }) => inspect === view.target.id)?.fork;
-      next.briefing.flow.rows = next.briefing.flow.rows.filter(
-        ({ inspect }) => inspect !== view.target.id,
-      );
-      next.stations = next.stations.filter(({ service }) => service !== fork);
-      next.briefing.repositories.rows = next.briefing.repositories.rows.filter(
-        ({ id }) => id !== view.target.id,
-      );
-      expect(JSON.stringify(next)).not.toContain(JSON.stringify(view.target.id));
+      const next = withoutRelatedTarget(view.target);
       await act(async () =>
         view.store.getState().receive({
           version: PROTOCOL_VERSION,
@@ -402,6 +411,43 @@ it.each(
       await view.refresh(ViewSnapshotSchema.parse({ ...next, cursor: next.cursor + 1 }));
       expect(view.store.getState().selected).toBeNull();
       expect(view.container.querySelector("#app-right-panel")).toBeNull();
+    } finally {
+      await view.cleanup();
+    }
+  },
+);
+
+it.each(["flow", "repository"] as const)(
+  "keeps sweep Evidence open at 1280 px when the Related %s disappears",
+  async (kind) => {
+    const view = await mountRelated(kind, 1280);
+    try {
+      await act(async () => view.store.getState().openSweepEvidence());
+      expect(view.store.getState()).toMatchObject({
+        selected: view.target.id,
+        open: true,
+        tab: "evidence",
+        evidenceScope: "sweep",
+      });
+      expect(view.container.querySelector("[data-sweep-evidence]")?.textContent).toBe(
+        `Sweep evidence ${snapshot.cursor}`,
+      );
+      const next = withoutRelatedTarget(view.target);
+      await view.refresh(next);
+      expect(view.store.getState()).toMatchObject({
+        selected: null,
+        row: null,
+        request: null,
+        result: null,
+        open: true,
+        tab: "evidence",
+        evidenceScope: "sweep",
+      });
+      expect(view.container.querySelector("#app-right-panel")).not.toBeNull();
+      expect(view.container.querySelector("[data-sweep-evidence]")?.textContent).toBe(
+        `Sweep evidence ${next.cursor}`,
+      );
+      expect(view.container.querySelector(".detail-title")).toBeNull();
     } finally {
       await view.cleanup();
     }

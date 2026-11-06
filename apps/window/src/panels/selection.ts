@@ -172,7 +172,7 @@ export function createSelectionStore(port: InspectPort) {
           !snapshotHasSelection(message.payload, selected)
         ) {
           get().clear();
-          set({ open: false });
+          if (get().evidenceScope !== "sweep") set({ open: false });
         }
         return;
       }
