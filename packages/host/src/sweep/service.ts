@@ -30,7 +30,7 @@ import {
 } from "@spi-code/core";
 import { createLeaseStore, type LeaseIdentity } from "../store/leases.js";
 import { createSnapshotStore } from "../store/snapshots.js";
-import { type AttentionInput, previousAttention } from "../watch/attention.js";
+import { type AttentionInput, previousAttention, projectedAttention } from "../watch/attention.js";
 import { projectWatch } from "../watch/project.js";
 import { sweepEvidence } from "./evidence.js";
 
@@ -387,7 +387,7 @@ export class SweepService {
                 view,
                 () => this.now(),
               );
-              holder.seen = previousAttention(view);
+              holder.seen = projectedAttention(view);
             } catch (error) {
               this.lose(holder);
               throw error;

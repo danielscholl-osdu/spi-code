@@ -1331,6 +1331,11 @@ function environmentOf(model: Model, env: BriefFact | undefined, now: Date): Env
   };
 }
 
+// The briefing's themes without the rest of the briefing.
+export function briefThemes(model: Model, now: Date): Theme[] {
+  return model.measured ? themesOf(model, now, clock(syncAt(now))) : [];
+}
+
 // Pure: the same model, doctor and clock always write the same briefing.
 export function buildBriefing(model: Model, doctor: DoctorView, now: Date | undefined = undefined, context: CoreContext): Briefing {
   now ??= context.clock.now();

@@ -385,6 +385,8 @@ it("projects with a two-hour lead time by default and each sweep's items as the 
   expect(LEAD_TIME_MS).toBe(2 * 60 * 60 * 1000);
   const carried = project.projectWatch(fixtureInput()).briefing.focus[0];
   if (!carried) throw new Error("Missing fixture item");
+  const { id, ids, rung, attention, owned } = carried;
+  const prior = { id, ids, rung, attention, owned };
   const real = project.projectWatch;
   const watch = vi.spyOn(project, "projectWatch").mockImplementation((input) => {
     const view = real(input);
@@ -396,7 +398,7 @@ it("projects with a two-hour lead time by default and each sweep's items as the 
   await first.sweep(true);
   expect(watch.mock.calls.map(([input]) => input.attention)).toEqual([
     { leadTimeMs: LEAD_TIME_MS, previous: [] },
-    { leadTimeMs: LEAD_TIME_MS, previous: [carried], previousThemes: [] },
+    { leadTimeMs: LEAD_TIME_MS, previous: [prior], previousThemes: [] },
   ]);
   await first.stop();
 
@@ -405,7 +407,7 @@ it("projects with a two-hour lead time by default and each sweep's items as the 
   await next.start();
   expect(watch.mock.calls[0]?.[0].attention).toEqual({
     leadTimeMs: 60_000,
-    previous: [carried],
+    previous: [prior],
     previousThemes: [],
   });
   expect(() => service([], { leadTimeMs: -1 })).toThrow(RangeError);
