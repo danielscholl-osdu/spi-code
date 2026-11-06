@@ -1430,7 +1430,80 @@
       "anchor": {
         "kind": "environment"
       },
-      "content": null
+      "content": {
+        "headline": "v0.28.0 is not deployable while an upgrade to v0.28.2 runs.",
+        "tiles": [
+          {
+            "label": "Version",
+            "value": "v0.28.0",
+            "counts": "running · latest release v0.28.2 · declares v0.28.2 · landed 50 min after its release"
+          },
+          {
+            "label": "Lane",
+            "value": "Stopped",
+            "counts": "fork lanes · 5 forks · newest deploy passed on 0 of 5"
+          },
+          {
+            "label": "Stack repository",
+            "value": "6",
+            "counts": "open · 4 issues (3 bugs) · 2 pull requests"
+          }
+        ],
+        "items": [
+          {
+            "id": "stack:38181620856",
+            "ids": ["stack:38181620856"],
+            "rung": 0,
+            "cls": "ENV",
+            "scope": "Environment",
+            "title": "Maintenance mode",
+            "sub": "env-upgrade v0.28.2 in verify › Azure login (OIDC) now · folds 8 effects · 9d",
+            "cause": "Maintenance mode; env-upgrade v0.28.2 in verify › Azure login (OIDC) now.",
+            "effect": "10-11 22:44 · env-upgrade v0.28.1 failed in provision › spi up: GitLab API unreachable while resolving images · set maintenance. 10-12 04:16 · env-refresh v0.28.1 failed in Verify stack version and source suspension are unchanged: deployed v0.28.0 drifted from declared v0.28.1. 10-12 20:20 · env-upgrade v0.28.1 (dispatched) cancelled after 1h 2m in verify › Wait for Flux Kustomizations to be Ready.",
+            "next": "Wait for the run in flight; if it fails, fix its cause and re-dispatch.",
+            "verb": "Re-dispatch",
+            "evidence": [
+              {
+                "label": "first env-upgrade v0.28.1 failed in provision › spi up: GitLab API unreachable while resolving images",
+                "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38181620856"
+              },
+              {
+                "label": "last env-upgrade v0.28.2 in verify › Azure login (OIDC)",
+                "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38312331838"
+              },
+              {
+                "label": "run",
+                "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38203142060"
+              },
+              {
+                "label": "run",
+                "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38303533757"
+              }
+            ],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Stopped"
+          },
+          {
+            "id": "approvals:Azure/osdu-spi-stack",
+            "ids": ["approvals:Azure/osdu-spi-stack"],
+            "rung": 1,
+            "cls": "GATE",
+            "scope": "osdu-spi-stack",
+            "title": "1 outside PR waits for workflow approval",
+            "sub": "10d",
+            "cause": "Outside contributors' runs wait until a maintainer approves them.",
+            "effect": "feat: cannot run their checks until a maintainer approves them.",
+            "next": "Read each outside PR's diff, then approve its runs below.",
+            "verb": "Approve runs",
+            "evidence": [],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Needs a decision"
+          }
+        ],
+        "folded": "Open in osdu-spi-stack: feat: add RAFS service #327, and 5 more."
+      }
     },
     {
       "anchor": {
