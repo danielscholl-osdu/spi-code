@@ -2374,7 +2374,28 @@
       "anchor": {
         "kind": "environment"
       },
-      "content": null
+      "content": {
+        "headline": "v0.35.3 is deployable, green since 04:20.",
+        "tiles": [
+          {
+            "label": "Version",
+            "value": "v0.35.3",
+            "counts": "running · the latest release · landed 3 h 32 min after its release"
+          },
+          {
+            "label": "Lane",
+            "value": "Clear",
+            "counts": "fork lanes · newest deploy passed on 13 of 13"
+          },
+          {
+            "label": "Stack repository",
+            "value": "2",
+            "counts": "open · 2 issues (1 bug) · 0 pull requests"
+          }
+        ],
+        "items": [],
+        "folded": "Open in osdu-spi-stack: [bug] spi build fails on Dockerfiles with FROM --platform: ACR dependency scan rejects it #463, and 1 more."
+      }
     },
     {
       "anchor": {
