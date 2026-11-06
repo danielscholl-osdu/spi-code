@@ -10,6 +10,7 @@ import Horizon from "../views/horizon/index.js";
 import Inbox from "../views/inbox/index.js";
 import Releases, { ReleaseMonth } from "../views/releases/index.js";
 import Repositories from "../views/repositories/index.js";
+import ServicePage from "../views/service/index.js";
 import Setup from "../views/setup/index.js";
 import { WatchGate } from "../views/setup/WatchGate.js";
 import Template from "../views/template/index.js";
@@ -178,6 +179,8 @@ export function RouteView({ route }: { route: Route }) {
         <Releases />
       ) : route.kind === "release" ? (
         <ReleaseMonth month={route.month} />
+      ) : route.kind === "service" ? (
+        <ServicePage id={route.id} />
       ) : route.kind === "lens" ? (
         route.lens === "flow" ? (
           <Flow />

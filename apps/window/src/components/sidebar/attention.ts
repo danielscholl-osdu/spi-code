@@ -39,7 +39,7 @@ const CLASS_WORDS: Record<FocusItem["cls"], string> = {
   READY: "ready",
 };
 
-function inScope(item: FocusItem, id: string, services: readonly string[]): boolean {
+export function inScope(item: FocusItem, id: string, services: readonly string[]): boolean {
   const route = scopeRoute(item.scope, services);
   if (id.startsWith("service:")) {
     const service = id.slice("service:".length);

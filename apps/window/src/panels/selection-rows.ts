@@ -11,6 +11,7 @@ export type SelectionKind =
   | "plan"
   | "repository"
   | "repository-line"
+  | "run"
   | "template-step"
   | "theme"
   | "environment"
