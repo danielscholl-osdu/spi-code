@@ -9,6 +9,7 @@ export interface SmokeReport {
   mainPid: number;
   hostPid: number;
   restartedHostPid: number;
+  rendererPids: number[];
   mainNodeVersion: string;
   hostNodeVersion: string;
   sqliteIsTransaction: true;
@@ -31,6 +32,11 @@ export function assertSmokeReport(value: unknown): asserts value is SmokeReport 
     assert(Number.isSafeInteger(report[key]) && Number(report[key]) > 0, `${key} must be a pid`);
   }
   assert.equal(new Set([report.mainPid, report.hostPid, report.restartedHostPid]).size, 3);
+  assert(Array.isArray(report.rendererPids) && report.rendererPids.length > 0);
+  for (const pid of report.rendererPids) {
+    assert(Number.isSafeInteger(pid) && pid > 0, "rendererPids must contain pids");
+    assert(![report.mainPid, report.hostPid, report.restartedHostPid].includes(pid));
+  }
   for (const key of ["mainNodeVersion", "hostNodeVersion"]) {
     assert(typeof report[key] === "string" && /^\d+\.\d+\.\d+$/.test(report[key]));
     const [major, minor] = report[key].split(".").map(Number);

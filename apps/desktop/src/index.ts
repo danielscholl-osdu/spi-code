@@ -20,7 +20,7 @@ import {
 } from "electron";
 import { externalLinkHandlers } from "./external-links.js";
 import { hostLaunch } from "./host-launch.js";
-import { listenersOf } from "./smoke-listeners.js";
+import { assertNoProcessListeners } from "./smoke-listeners.js";
 import { smokeMessages } from "./smoke-messages.js";
 import { assertSmokeReport, assertSmokeTools, type SmokeReport } from "./smoke-report.js";
 import { HostSupervisor, hostPortCallbacks } from "./supervisor.js";
@@ -250,7 +250,7 @@ async function run(): Promise<void> {
   const reloadedPong = await wait("window-ping");
   const reloadTurn = await messages.waitForStartedTurn();
   assert(reloadTurn.type === "turn.end" && reloadTurn.payload.reason === "completed");
-  const listeners = [...listenersOf(process.pid), ...listenersOf(hostPid)];
+  const { listeners, rendererPids } = assertNoProcessListeners(process.pid, hostPid);
   const supervision = await exerciseSupervision({
     window,
     messages,
@@ -276,6 +276,7 @@ async function run(): Promise<void> {
     mainPid: process.pid,
     hostPid,
     restartedHostPid,
+    rendererPids,
     mainNodeVersion: process.versions.node,
     hostNodeVersion: probe.nodeVersion,
     sqliteIsTransaction: probe.sqliteIsTransaction,

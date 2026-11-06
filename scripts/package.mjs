@@ -41,7 +41,7 @@ export function packagingEnvironment(inherited) {
 }
 
 /**
- * @param {{hostPid: number}} report
+ * @param {{mainPid: number, hostPid: number}} report
  * @param {unknown} evidence
  * @param {string} resources
  * @param {NodeJS.Platform} [platform]
@@ -56,6 +56,19 @@ export function assertRuntimeEvidence(
 ) {
   const runtime = record(evidence);
   assert.equal(runtime.hostPid, report.hostPid, "Handshake must run in the packaged host");
+  const listenerCheck = record(runtime.listenerCheck);
+  assert.equal(listenerCheck.mainPid, report.mainPid);
+  assert.equal(listenerCheck.hostPid, report.hostPid);
+  const checkedPids = new Set([report.mainPid, report.hostPid]);
+  for (const key of ["runtimePids", "rendererPids"]) {
+    const pids = listenerCheck[key];
+    assert(Array.isArray(pids) && pids.length > 0, `Missing ${key} listener evidence`);
+    for (const pid of pids) {
+      assert(Number.isSafeInteger(pid) && pid > 0 && !checkedPids.has(pid), `Invalid ${key}`);
+      checkedPids.add(pid);
+    }
+  }
+  assert.deepEqual(listenerCheck.listeners, [], "Packaged process tree has TCP listeners");
   assert.equal(runtime.transport, "stdio");
   assert(
     (platform === "darwin" && arch === "arm64") || (platform === "win32" && arch === "x64"),

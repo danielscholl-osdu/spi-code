@@ -144,10 +144,17 @@ describe("packaged smoke gate", () => {
     transport: "stdio",
     ping: { message: "pong: spi-code-packaged-smoke", timestamp: "2026-11-05T00:00:00Z" },
     status: { protocolVersion: 1, version: "1.0.103" },
+    listenerCheck: {
+      mainPid: 41,
+      hostPid: 42,
+      runtimePids: [43],
+      rendererPids: [44, 45],
+      listeners: [],
+    },
   };
   it("accepts a protocol response from the shipped binary in the observed host", () => {
     expect(() =>
-      assertRuntimeEvidence({ hostPid: 42 }, evidence, resources, "darwin", "arm64"),
+      assertRuntimeEvidence({ mainPid: 41, hostPid: 42 }, evidence, resources, "darwin", "arm64"),
     ).not.toThrow();
   });
   it("accepts only the Windows x64 unpacked executable for Windows evidence", () => {
@@ -158,7 +165,7 @@ describe("packaged smoke gate", () => {
     );
     const check = (path: string) =>
       assertRuntimeEvidence(
-        { hostPid: 42 },
+        { mainPid: 41, hostPid: 42 },
         { ...evidence, runtimePath: path },
         windowsResources,
         "win32",
@@ -182,9 +189,18 @@ describe("packaged smoke gate", () => {
     { ...evidence, status: { protocolVersion: 0, version: "1.0.103" } },
     { ...evidence, ping: { message: "pong: spi-code-packaged-smoke", timestamp: "invalid" } },
     { ...evidence, status: { protocolVersion: 1 } },
+    { ...evidence, listenerCheck: undefined },
+    { ...evidence, listenerCheck: { ...evidence.listenerCheck, mainPid: 40 } },
+    { ...evidence, listenerCheck: { ...evidence.listenerCheck, runtimePids: [] } },
+    { ...evidence, listenerCheck: { ...evidence.listenerCheck, rendererPids: [] } },
+    { ...evidence, listenerCheck: { ...evidence.listenerCheck, runtimePids: [42] } },
+    {
+      ...evidence,
+      listenerCheck: { ...evidence.listenerCheck, listeners: ["TCP *:9222 (LISTEN)"] },
+    },
   ])("rejects missing or mismatched runtime proof %#", (invalid) => {
     expect(() =>
-      assertRuntimeEvidence({ hostPid: 42 }, invalid, resources, "darwin", "arm64"),
+      assertRuntimeEvidence({ mainPid: 41, hostPid: 42 }, invalid, resources, "darwin", "arm64"),
     ).toThrow();
   });
   it("removes Node boot and signing overrides without enabling environment stub mode", () => {

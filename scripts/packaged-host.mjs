@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { CopilotClient } from "@github/copilot-sdk";
+import { assertNoProcessListeners } from "../apps/desktop/dist/smoke-listeners.js";
 import { buildClientOptions, resolveRuntimePath } from "../packages/host/dist/copilot/runtime.js";
 
 if (process.argv.includes("--stub-model") && process.argv[3] === "write") {
@@ -34,7 +35,15 @@ if (process.argv.includes("--stub-model") && process.argv[3] === "write") {
     const status = await client.getStatus();
     assert.equal(ping.message, "pong: spi-code-packaged-smoke");
     assert(Number.isSafeInteger(status.protocolVersion) && status.protocolVersion > 0);
-    evidence = { hostPid: process.pid, runtimePath, transport: "stdio", ping, status };
+    const listenerCheck = assertNoProcessListeners(process.ppid, process.pid, runtimePath);
+    evidence = {
+      hostPid: process.pid,
+      runtimePath,
+      transport: "stdio",
+      ping,
+      status,
+      listenerCheck,
+    };
   } catch (error) {
     failure = error;
   }

@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import type { BrowserWindow, MessageChannelMain, UtilityProcess } from "electron";
-import { listenersOf } from "./smoke-listeners.js";
+import { assertNoProcessListeners } from "./smoke-listeners.js";
 import type { smokeMessages } from "./smoke-messages.js";
 import {
   initialHeadline,
@@ -166,7 +166,7 @@ export async function exerciseSupervision(options: {
     assert.notEqual(fresh.port1, previous.port1);
     assert.notEqual(fresh.port2, previous.port2);
     assert.equal((await messages.wait("window-ping")).type, "pong");
-    options.listeners.push(...listenersOf(process.pid), ...listenersOf(hello.payload.pid));
+    options.listeners.push(...assertNoProcessListeners(process.pid, hello.payload.pid).listeners);
     const persistedCursors = smokeSnapshotCursors(storePath);
     assert.deepEqual(persistedCursors, [firstCursor, resumedCursor]);
 

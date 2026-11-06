@@ -9,6 +9,7 @@ const report: SmokeReport = {
   mainPid: 101,
   hostPid: 102,
   restartedHostPid: 103,
+  rendererPids: [110],
   mainNodeVersion: "24.15.0",
   hostNodeVersion: "24.15.0",
   sqliteIsTransaction: true,
@@ -47,6 +48,10 @@ it("accepts the terminal smoke report", () => {
 it.each([
   { hostPid: 101 },
   { restartedHostPid: 102 },
+  { rendererPids: undefined },
+  { rendererPids: [] },
+  { rendererPids: [101] },
+  { rendererPids: [-1] },
   { hostPid: -1 },
   { malformed: "accepted" },
   { rowSurvived: false },
