@@ -16,9 +16,14 @@ The strict Watch snapshot adds `substate` on every station, `attention`, optiona
 `WatchBriefingSchema` requires the item additions at the snapshot boundary.
 `substate.ts`, `attention.ts`, `campaigns.ts`, `readings.ts` and `seen.ts` own
 typed hooks, wired once in `project.ts`, for later feature computations.
-`WatchInput.attention` supplies `AttentionInput` (lead time in milliseconds and
-previous projected items) to `itemAttention`; its absent-input default is two
-hours and no previous items. The context clock is already on `WatchInput.context`.
+`WatchInput.attention` supplies `AttentionInput` (lead time in milliseconds,
+previous projected items and theme ids, and later owners and cards) to
+`itemAttention`, which returns core's `attentionOf` tier for the item; its
+absent-input default is two hours (`LEAD_TIME_MS`) and no previous items. The
+sweep service reads the lead time from its `leadTimeMs` setting (two hours by
+default) and passes the last saved view's items and themes as the previous
+state. Core's `interruptCount` gives the Today count of distinct Interrupt
+items. The context clock is already on `WatchInput.context`.
 `WatchInput.baseline` supplies `SeenBaseline` (acknowledged cursor and item states).
 `seenState` also receives the current projected briefing, including item tiers,
 so both features can compare states without changing the projection wiring.

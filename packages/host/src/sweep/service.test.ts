@@ -19,6 +19,7 @@ import {
   type Facts,
   fleetOf,
   INFLIGHT_POLL_MS,
+  LEAD_TIME_MS,
   SWEEP_MS,
   type SweepArea,
   Sweeper,
@@ -29,6 +30,8 @@ import { z } from "zod";
 import { createLeaseStore } from "../store/leases.js";
 import { createSnapshotStore } from "../store/snapshots.js";
 import { openRunStore } from "../store/store.js";
+import * as project from "../watch/project.js";
+import { fixtureInput } from "../watch/snapshot-fixture.js";
 import { DAY_MS, SweepService, type SweepServiceOptions } from "./service.js";
 
 let directory: string;
@@ -377,6 +380,36 @@ it.each([false, true])(
     ]);
   },
 );
+
+it("projects with a two-hour lead time by default and each sweep's items as the previous", async () => {
+  expect(LEAD_TIME_MS).toBe(2 * 60 * 60 * 1000);
+  const carried = project.projectWatch(fixtureInput()).briefing.focus[0];
+  if (!carried) throw new Error("Missing fixture item");
+  const real = project.projectWatch;
+  const watch = vi.spyOn(project, "projectWatch").mockImplementation((input) => {
+    const view = real(input);
+    return { ...view, briefing: { ...view.briefing, focus: [carried] } };
+  });
+  const first = service();
+  expect(first.leadTime).toBe(LEAD_TIME_MS);
+  await first.start();
+  await first.sweep(true);
+  expect(watch.mock.calls.map(([input]) => input.attention)).toEqual([
+    { leadTimeMs: LEAD_TIME_MS, previous: [] },
+    { leadTimeMs: LEAD_TIME_MS, previous: [carried], previousThemes: [] },
+  ]);
+  await first.stop();
+
+  watch.mockClear();
+  const next = service([], { leadTimeMs: 60_000 });
+  await next.start();
+  expect(watch.mock.calls[0]?.[0].attention).toEqual({
+    leadTimeMs: 60_000,
+    previous: [carried],
+    previousThemes: [],
+  });
+  expect(() => service([], { leadTimeMs: -1 })).toThrow(RangeError);
+});
 
 it("logs the returned commit cursor without decoding the saved snapshot again", async () => {
   let restore: (() => void) | undefined;

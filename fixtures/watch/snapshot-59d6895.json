@@ -61,7 +61,7 @@
             "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38303533757"
           }
         ],
-        "attention": "ambient",
+        "attention": "interrupt",
         "owned": false
       },
       {
@@ -86,7 +86,7 @@
             "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38187922977"
           }
         ],
-        "attention": "ambient",
+        "attention": "interrupt",
         "owned": false
       },
       {
@@ -125,7 +125,7 @@
             "text": "build/Dockerfile · java-build action · setup-maven action · build.yml · cascade.yml · copilot-setup-steps.yml · acceptance-image action · validate.yml · build/acceptance.Dockerfile"
           }
         ],
-        "attention": "ambient",
+        "attention": "surface",
         "owned": false
       },
       {
@@ -150,7 +150,7 @@
             "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37706140110/job/113081034815"
           }
         ],
-        "attention": "ambient",
+        "attention": "surface",
         "owned": false
       },
       {
@@ -166,7 +166,7 @@
         "next": "Read each outside PR's diff, then approve its runs below.",
         "verb": "Approve runs",
         "evidence": [],
-        "attention": "ambient",
+        "attention": "surface",
         "owned": false
       }
     ],
@@ -198,7 +198,7 @@
             "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/merge_requests/783"
           }
         ],
-        "attention": "ambient",
+        "attention": "surface",
         "owned": false
       }
     ],
@@ -1687,7 +1687,7 @@
                 "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38187922977"
               }
             ],
-            "attention": "ambient",
+            "attention": "interrupt",
             "owned": false,
             "group": "Stopped"
           }
@@ -1742,7 +1742,7 @@
                 "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37706140110/job/113081034815"
               }
             ],
-            "attention": "ambient",
+            "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
           }

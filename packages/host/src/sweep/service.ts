@@ -24,11 +24,13 @@ import {
   type ExecOptions,
   GraphqlBudget,
   INFLIGHT_POLL_MS,
+  LEAD_TIME_MS,
   SWEEP_MS,
   sweepStateSchema,
 } from "@spi-code/core";
 import { createLeaseStore, type LeaseIdentity } from "../store/leases.js";
 import { createSnapshotStore } from "../store/snapshots.js";
+import { type AttentionInput, previousAttention } from "../watch/attention.js";
 import { projectWatch } from "../watch/project.js";
 import { sweepEvidence } from "./evidence.js";
 
@@ -54,6 +56,8 @@ export interface SweepServiceOptions extends Omit<CollectorOptions, "persist" | 
   readonly doctor: () => DoctorView;
   readonly ttlMs?: number;
   readonly intervalMs?: number;
+  /** How long before its due time an unowned item interrupts; two hours by default. */
+  readonly leadTimeMs?: number;
   readonly timers?: SweepTimers;
   readonly onError: (error: unknown) => void;
   readonly createSweeper?: typeof createSweeper;
@@ -68,6 +72,7 @@ interface Holder {
   saves: number;
   cursor: number;
   budget: GraphqlBudget;
+  seen: Pick<AttentionInput, "previous" | "previousThemes">;
 }
 
 interface QueuedSweep {
@@ -87,6 +92,7 @@ export class SweepService {
   private readonly snapshots;
   private readonly ttl;
   private readonly interval;
+  readonly leadTime: number;
   private readonly timers;
   private readonly prune;
   private holder: Holder | undefined;
@@ -102,6 +108,10 @@ export class SweepService {
     this.pacer = options.pacer ?? new BudgetPacer({ floor: 100, resetBudget: 5000 });
     this.ttl = options.ttlMs ?? 60_000;
     this.interval = options.intervalMs ?? SWEEP_MS;
+    this.leadTime = options.leadTimeMs ?? LEAD_TIME_MS;
+    if (!Number.isSafeInteger(this.leadTime) || this.leadTime < 0) {
+      throw new RangeError("The attention lead time must be non-negative integer milliseconds");
+    }
     for (const ms of [this.ttl, this.interval]) {
       if (!Number.isSafeInteger(ms) || ms < 3 || ms > 2_147_483_647) {
         throw new RangeError(
@@ -332,6 +342,7 @@ export class SweepService {
           load: async () => {
             const latest = this.snapshots.latestSnapshot(identity.fleet);
             holder.cursor = latest?.cursor ?? 0;
+            holder.seen = previousAttention(latest?.envelope);
             const parsed = sweepStateSchema(this.options.factsSchema, cacheSchema).safeParse(
               latest?.facts,
             );
@@ -360,6 +371,7 @@ export class SweepService {
               appData: this.options.appData,
               intervalMs: this.interval,
               cursor: 0,
+              attention: { leadTimeMs: this.leadTime, ...holder.seen },
             });
             this.guard(holder);
             try {
@@ -375,6 +387,7 @@ export class SweepService {
                 view,
                 () => this.now(),
               );
+              holder.seen = previousAttention(view);
             } catch (error) {
               this.lose(holder);
               throw error;
@@ -382,7 +395,16 @@ export class SweepService {
           },
         },
       });
-      holder = { identity, expiresAt: now + this.ttl, abort, sweeper, saves: 0, cursor: 0, budget };
+      holder = {
+        identity,
+        expiresAt: now + this.ttl,
+        abort,
+        sweeper,
+        saves: 0,
+        cursor: 0,
+        budget,
+        seen: { previous: [] },
+      };
       this.holder = holder;
       const renew = () => {
         holder.cancelRenew = this.timers.after(Math.floor(this.ttl / 3), () => {

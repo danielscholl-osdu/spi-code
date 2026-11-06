@@ -78,7 +78,10 @@ describe("Watch projection", () => {
     const items = [...snapshot.briefing.focus, ...snapshot.briefing.rest];
     expect(items.length).toBeGreaterThan(0);
     for (const item of items) {
-      expect(item).toMatchObject({ attention: "ambient", owned: false });
+      expect(item).toMatchObject({
+        attention: item.rung === 0 ? "interrupt" : "surface",
+        owned: false,
+      });
       expect(item).not.toHaveProperty("due");
     }
     const input = fixtureInput();
