@@ -2407,7 +2407,55 @@
       "anchor": {
         "kind": "releases"
       },
-      "content": null
+      "content": {
+        "headline": "13 release PRs open, 1 failing (#89).",
+        "tiles": [
+          {
+            "label": "Release PRs open",
+            "value": "13",
+            "counts": "1 ready to merge, 12 wait for review"
+          },
+          {
+            "label": "Failing",
+            "value": "1",
+            "counts": "entitlements #89"
+          },
+          {
+            "label": "Current release",
+            "value": "not read yet",
+            "counts": "the release months"
+          }
+        ],
+        "items": [
+          {
+            "id": "release-red:Azure/osdu-spi-entitlements#89",
+            "ids": ["release-red:Azure/osdu-spi-entitlements#89"],
+            "rung": 1,
+            "cls": "BUILD",
+            "scope": "entitlements",
+            "title": "Release PR #89 fails Code Coverage",
+            "sub": "16d",
+            "cause": "Release PR #89 fails 📊 Code Coverage.",
+            "effect": "Nothing else waits on it.",
+            "next": "Open the failed job (📊 Code Coverage › Setup Maven); the reason is in the cause above.",
+            "verb": "Investigate",
+            "evidence": [
+              {
+                "label": "PR #89",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/pull/89"
+              },
+              {
+                "label": "check 📊 Code Coverage › Setup Maven",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/42109055691/job/127532471691"
+              }
+            ],
+            "attention": "surface",
+            "owned": false,
+            "group": "Needs a decision"
+          }
+        ],
+        "folded": "Ready to merge: file v1.2.1 #55. Waiting for review: osdu-spi v1.5.0 #263, partition v1.3.4 #198, legal v1.2.2 #48, schema v1.2.1 #40, storage v1.4.2 #57, indexer v1.4.1 #33, search v1.4.1 #29, workflow v1.3.2 #38, indexer-queue v1.5.0 #45, unit v1.4.1 #21, crs-catalog v1.4.1 #19 and crs-conversion v1.4.1 #17."
+      }
     },
     {
       "anchor": {
