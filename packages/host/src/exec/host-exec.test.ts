@@ -45,44 +45,64 @@ async function fixture() {
 }
 
 it("delivers redacted device progress before exit, retaining the buffered stdout", async () => {
-  const options = await fixture();
+  // A host *TOKEN* value that starts like the tail of the payload would hold that byte back.
+  const env = Object.fromEntries(
+    Object.entries(process.env).filter(([name]) => !/TOKEN/i.test(name)),
+  );
+  const options = { ...(await fixture()), env };
   const controller = new AbortController();
-  let release = (_text: string) => {};
-  const progress = new Promise<string>((resolve) => {
+  const progress = "<redacted> ABCD-1234 https://github.com/login/device\n";
+  let release = () => {};
+  const received = new Promise<void>((resolve) => {
     release = resolve;
   });
-  const chunks: string[] = [];
+  const chunks: ["stdout" | "stderr", string][] = [];
+  const joined = (stream: "stdout" | "stderr") =>
+    chunks
+      .filter(([from]) => from === stream)
+      .map(([, text]) => text)
+      .join("");
   let completed = false;
+  // Every byte is its own write, a tick apart, so a chunk can end at any boundary.
+  const child = `
+    const bytes = (fd, text) => new Promise((done) => {
+      let i = 0;
+      const next = () => {
+        if (i === text.length) return done();
+        (fd === 1 ? process.stdout : process.stderr).write(text[i++]);
+        setTimeout(next, 10);
+      };
+      next();
+    });
+    bytes(1, 'payload')
+      .then(() => bytes(2, 'ghp_planted ABCD-1234 https://github.com/login/device\\n'))
+      .then(() => setInterval(() => {}, 1000));
+  `;
   const run = new HostExec(options)
-    .runText(
-      process.execPath,
-      [
-        "-e",
-        "process.stdout.write('payload'); process.stderr.write('gh'); setTimeout(() => process.stderr.write('p_planted ABCD-1234 https://github.com/login/device\\n'), 30); setInterval(() => {}, 1000)",
-      ],
-      {
-        signal: controller.signal,
-        timeoutMs: 20_000,
-        onOutput: (stream, text) => {
-          chunks.push(text);
-          if (stream === "stderr") release(text);
-        },
+    .runText(process.execPath, ["-e", child], {
+      signal: controller.signal,
+      timeoutMs: 20_000,
+      onOutput: (stream, text) => {
+        chunks.push([stream, text]);
+        if (joined("stderr").endsWith("\n")) release();
       },
-    )
+    })
     .then((result) => {
       completed = true;
       return result;
     });
   try {
-    expect(await progress).toBe("<redacted> ABCD-1234 https://github.com/login/device\n");
+    await received;
+    expect(joined("stderr")).toBe(progress);
+    await vi.waitFor(() => expect(joined("stdout")).toBe("payload"), PROCESS_WAIT);
     expect(completed).toBe(false);
-    expect(chunks).toContain("payload");
-    expect(chunks.join("")).not.toContain("ghp_planted");
   } finally {
     controller.abort();
   }
   expect(await run).toMatchObject({ ok: false, error: "Command aborted." });
-  expect(chunks).toContain("payload");
+  expect(joined("stdout")).toBe("payload");
+  expect(joined("stderr")).toBe(progress);
+  expect(chunks.map(([, text]) => text).join("")).not.toMatch(/ghp_|planted/);
   const output = await new HostExec(options).run(process.execPath, [
     "-e",
     "process.stdout.write('unchanged')",
