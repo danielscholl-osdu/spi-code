@@ -39,6 +39,9 @@ export function writeSmokeSnapshot(path: string, { headline, service }: SmokeMar
     const view = ViewSnapshotSchema.parse({
       cursor: 0,
       sweptAt,
+      campaigns: [],
+      readings: [],
+      seen: { cursor: null },
       briefing: {
         sweptAt,
         nextSyncAt: sweptAt,

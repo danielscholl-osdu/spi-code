@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 import {
-  type Briefing,
-  type FocusItem,
+  type WatchBriefing as Briefing,
+  type WatchItem as FocusItem,
   type SweepStatus,
   ViewSnapshotSchema,
 } from "@spi-code/contracts";

@@ -31,7 +31,7 @@ const snapshot = testSnapshot(briefing, '{"lines":[],"reading":false}', {
   stations: StationsSchema.parse(
     lineOracle.services.map((service) => ({
       service: service.fork,
-      stations: service.stations,
+      stations: service.stations.map((station) => ({ ...station, substate: "ready" })),
     })),
   ),
 });

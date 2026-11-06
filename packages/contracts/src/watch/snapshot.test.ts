@@ -98,6 +98,97 @@ describe("ViewSnapshot areas and provenance", () => {
   });
 });
 
+describe("window reading contract", () => {
+  const populated = structuredClone(snapshot);
+  const item = populated.briefing.focus[0];
+  if (!item) throw new Error("Fixture needs a focus item");
+  item.due = { at: snapshot.sweptAt, before: "next sync" };
+  populated.campaigns = [
+    { id: "boot", kind: "toolchain", fact: "Boot 4", forks: ["legal", "file"] },
+  ];
+  populated.readings = [
+    {
+      anchor: { kind: "upstream" },
+      content: {
+        headline: "Two forks carry Boot 4",
+        qualifier: "The radar read was cut",
+        tiles: [
+          { label: "Incoming", value: "2", counts: "forks" },
+          { label: "Toolchain", value: "1", counts: "moves" },
+          { label: "Largest", value: "3", counts: "commits" },
+        ],
+        items: [{ ...item, group: "Before the next sync" }],
+        folded: "One more item",
+      },
+    },
+  ];
+  const fields: [string, unknown][] = [
+    ["/stations/0/stations/0/substate", "unknown"],
+    ["/briefing/focus/0/attention", "loud"],
+    ["/briefing/focus/0/owned", "false"],
+    ["/briefing/focus/0/due/at", "tomorrow"],
+    ["/briefing/focus/0/due/before", 1],
+    ["/campaigns", {}],
+    ["/campaigns/0/id", 1],
+    ["/campaigns/0/kind", "other"],
+    ["/campaigns/0/fact", 1],
+    ["/campaigns/0/forks", "legal"],
+    ["/readings", {}],
+    ["/readings/0/anchor", { kind: "elsewhere" }],
+    ["/readings/0/content", {}],
+    ["/readings/0/content/headline", 1],
+    ["/readings/0/content/tiles", []],
+    ["/readings/0/content/tiles/0/label", 1],
+    ["/readings/0/content/tiles/0/value", 1],
+    ["/readings/0/content/tiles/0/counts", 1],
+    ["/readings/0/content/items", {}],
+    ["/readings/0/content/items/0/id", 1],
+    ["/readings/0/content/items/0/group", 1],
+    ["/readings/0/content/items/0/attention", "loud"],
+    ["/readings/0/content/items/0/owned", 1],
+    ["/readings/0/content/folded", 1],
+    ["/seen", 1],
+    ["/seen/cursor", -1],
+  ];
+  it("accepts computed content and absent optional due times and qualifiers", () => {
+    expect(ViewSnapshotSchema.parse(populated)).toEqual(populated);
+    expect(ViewSnapshotSchema.parse(snapshot)).toEqual(snapshot);
+    const withoutQualifier = structuredClone(populated);
+    if (withoutQualifier.readings[0]?.content)
+      delete withoutQualifier.readings[0].content.qualifier;
+    expect(ViewSnapshotSchema.parse(withoutQualifier)).toEqual(withoutQualifier);
+  });
+  it.each(fields)("rejects missing and mistyped %s", (path, invalid) => {
+    for (const value of [undefined, invalid]) {
+      const bad = structuredClone(populated);
+      const offset = path.lastIndexOf("/");
+      const parent = resolvePointer(bad, path.slice(0, offset));
+      if (!parent.found || typeof parent.value !== "object" || parent.value === null)
+        throw new Error(`Missing mutation parent: ${path}`);
+      const key = path.slice(offset + 1);
+      if (value === undefined) Reflect.deleteProperty(parent.value, key);
+      else Reflect.set(parent.value, key, value);
+      expect(ViewSnapshotSchema.safeParse(bad).success).toBe(false);
+    }
+  });
+  it("rejects malformed optional fields, extra keys, excess items and non-three tile counts", () => {
+    const reading = populated.readings[0];
+    if (!reading?.content) throw new Error("Missing populated reading");
+    const content = reading.content;
+    for (const bad of [
+      { ...populated, briefing: { ...populated.briefing, focus: [{ ...item, due: null }] } },
+      ...[
+        { ...content, qualifier: 1 },
+        { ...content, extra: true },
+        { ...content, tiles: content.tiles.slice(1) },
+        { ...content, tiles: [...content.tiles, content.tiles[0]] },
+        { ...content, items: Array(6).fill(content.items[0]) },
+      ].map((content) => ({ ...populated, readings: [{ ...reading, content }] })),
+    ])
+      expect(ViewSnapshotSchema.safeParse(bad).success).toBe(false);
+  });
+});
+
 describe("resolvePointer", () => {
   it("follows RFC 6901 escapes and canonical array indices", () => {
     const document = { "a/b": { "m~n": [10, 20] } };

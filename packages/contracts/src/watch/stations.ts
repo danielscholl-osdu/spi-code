@@ -5,6 +5,7 @@ import { z } from "zod";
 import { IdentifierSchema, ObservedAtSchema } from "./evidence.js";
 import { WebUrlSchema } from "./inspect.js";
 import { DocRowSchema } from "./panes.js";
+import { StationSubstateSchema } from "./reading.js";
 import { SelectionIdSchema } from "./tree.js";
 
 export const StationIdSchema = z.enum(["upstream", "sync", "cascade", "main", "release", "lane"]);
@@ -12,6 +13,7 @@ const StationStateSchema = z.enum(["idle", "moving", "waiting", "stopped", "unkn
 export const StationSchema = z.strictObject({
   id: StationIdSchema,
   state: StationStateSchema,
+  substate: StationSubstateSchema,
   text: z.string(),
   inspect: SelectionIdSchema.optional(),
 });

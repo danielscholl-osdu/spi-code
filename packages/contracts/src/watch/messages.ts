@@ -4,6 +4,7 @@
 import { z } from "zod";
 import { IdentifierSchema, ObservedAtSchema } from "./evidence.js";
 import { InspectRequestSchema, InspectResultSchema } from "./inspect.js";
+import { ViewAcknowledgeSchema } from "./reading.js";
 import {
   SetupInstallSchema,
   SetupSigninProgressSchema,
@@ -75,6 +76,12 @@ export const WatchMessageSchema = z.discriminatedUnion("type", [
     kind: z.literal("request"),
     type: z.literal("view.subscribe"),
     payload: ViewSubscribeSchema,
+  }),
+  z.strictObject({
+    ...envelope,
+    kind: z.literal("request"),
+    type: z.literal("view.acknowledge"),
+    payload: ViewAcknowledgeSchema,
   }),
 ]);
 export type WatchMessage = z.infer<typeof WatchMessageSchema>;

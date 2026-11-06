@@ -60,7 +60,9 @@
             "label": "run",
             "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38303533757"
           }
-        ]
+        ],
+        "attention": "ambient",
+        "owned": false
       },
       {
         "id": "halt:entitlements",
@@ -83,7 +85,9 @@
             "label": "run",
             "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38187922977"
           }
-        ]
+        ],
+        "attention": "ambient",
+        "owned": false
       },
       {
         "id": "rollout",
@@ -120,7 +124,9 @@
             "label": "Reaches",
             "text": "build/Dockerfile · java-build action · setup-maven action · build.yml · cascade.yml · copilot-setup-steps.yml · acceptance-image action · validate.yml · build/acceptance.Dockerfile"
           }
-        ]
+        ],
+        "attention": "ambient",
+        "owned": false
       },
       {
         "id": "gate1:legal",
@@ -143,7 +149,9 @@
             "label": "check Java Build › Run Java Build",
             "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37706140110/job/113081034815"
           }
-        ]
+        ],
+        "attention": "ambient",
+        "owned": false
       },
       {
         "id": "approvals:Azure/osdu-spi-stack",
@@ -157,7 +165,9 @@
         "effect": "feat: cannot run their checks until a maintainer approves them.",
         "next": "Read each outside PR's diff, then approve its runs below.",
         "verb": "Approve runs",
-        "evidence": []
+        "evidence": [],
+        "attention": "ambient",
+        "owned": false
       }
     ],
     "more": 1,
@@ -187,7 +197,9 @@
             "label": "!783",
             "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/merge_requests/783"
           }
-        ]
+        ],
+        "attention": "ambient",
+        "owned": false
       }
     ],
     "ready": [
@@ -1362,6 +1374,125 @@
       "first": "repo:osdu-spi-stack"
     }
   },
+  "campaigns": [],
+  "readings": [
+    {
+      "anchor": {
+        "kind": "program"
+      },
+      "content": null
+    },
+    {
+      "anchor": {
+        "kind": "upstream"
+      },
+      "content": null
+    },
+    {
+      "anchor": {
+        "kind": "environment"
+      },
+      "content": null
+    },
+    {
+      "anchor": {
+        "kind": "engineering"
+      },
+      "content": null
+    },
+    {
+      "anchor": {
+        "kind": "releases"
+      },
+      "content": null
+    },
+    {
+      "anchor": {
+        "kind": "security"
+      },
+      "content": null
+    },
+    {
+      "anchor": {
+        "kind": "service",
+        "id": "partition"
+      },
+      "content": null
+    },
+    {
+      "anchor": {
+        "kind": "service",
+        "id": "entitlements"
+      },
+      "content": null
+    },
+    {
+      "anchor": {
+        "kind": "service",
+        "id": "legal"
+      },
+      "content": null
+    },
+    {
+      "anchor": {
+        "kind": "service",
+        "id": "schema"
+      },
+      "content": null
+    },
+    {
+      "anchor": {
+        "kind": "service",
+        "id": "file"
+      },
+      "content": null
+    },
+    {
+      "anchor": {
+        "kind": "release-month",
+        "month": "2026-10"
+      },
+      "content": null
+    },
+    {
+      "anchor": {
+        "kind": "release-month",
+        "month": "2026-09"
+      },
+      "content": null
+    },
+    {
+      "anchor": {
+        "kind": "release-month",
+        "month": "2026-08"
+      },
+      "content": null
+    },
+    {
+      "anchor": {
+        "kind": "release-month",
+        "month": "2026-07"
+      },
+      "content": null
+    },
+    {
+      "anchor": {
+        "kind": "release-month",
+        "month": "2026-04"
+      },
+      "content": null
+    },
+    {
+      "anchor": {
+        "kind": "release-month",
+        "month": "2026-03"
+      },
+      "content": null
+    }
+  ],
+  "seen": {
+    "cursor": null
+  },
   "releases": {
     "lines": [
       {
@@ -1591,36 +1722,42 @@
         {
           "id": "upstream",
           "state": "idle",
+          "substate": "ready",
           "text": "0 behind",
           "inspect": "upstream:partition"
         },
         {
           "id": "sync",
           "state": "idle",
+          "substate": "ready",
           "text": "clean",
           "inspect": "upstream:partition"
         },
         {
           "id": "cascade",
           "state": "idle",
+          "substate": "ready",
           "text": "idle",
           "inspect": "upstream:partition"
         },
         {
           "id": "main",
           "state": "idle",
+          "substate": "ready",
           "text": "idle",
           "inspect": "upstream:partition"
         },
         {
           "id": "release",
           "state": "idle",
+          "substate": "ready",
           "text": "v1.3.1",
           "inspect": "station:partition:release"
         },
         {
           "id": "lane",
           "state": "stopped",
+          "substate": "stopped",
           "text": "blocked by the stack",
           "inspect": "station:partition:lane"
         }
@@ -1632,36 +1769,42 @@
         {
           "id": "upstream",
           "state": "waiting",
+          "substate": "ready",
           "text": "2 behind · held by the halt · will halt on schemathesis-tests",
           "inspect": "upstream:entitlements"
         },
         {
           "id": "sync",
           "state": "stopped",
+          "substate": "stopped",
           "text": "halted: UNKNOWN_TOP_LEVEL",
           "inspect": "upstream:entitlements"
         },
         {
           "id": "cascade",
           "state": "idle",
+          "substate": "ready",
           "text": "idle",
           "inspect": "upstream:entitlements"
         },
         {
           "id": "main",
           "state": "idle",
+          "substate": "ready",
           "text": "idle",
           "inspect": "upstream:entitlements"
         },
         {
           "id": "release",
           "state": "idle",
+          "substate": "ready",
           "text": "v1.2.0",
           "inspect": "station:entitlements:release"
         },
         {
           "id": "lane",
           "state": "stopped",
+          "substate": "stopped",
           "text": "blocked by the stack",
           "inspect": "station:entitlements:lane"
         }
@@ -1673,36 +1816,42 @@
         {
           "id": "upstream",
           "state": "waiting",
+          "substate": "ready",
           "text": "4 behind · in the sync PR · Java 25 queued",
           "inspect": "upstream:legal"
         },
         {
           "id": "sync",
           "state": "stopped",
+          "substate": "stopped",
           "text": "PR #31 red",
           "inspect": "upstream:legal"
         },
         {
           "id": "cascade",
           "state": "idle",
+          "substate": "ready",
           "text": "idle",
           "inspect": "upstream:legal"
         },
         {
           "id": "main",
           "state": "idle",
+          "substate": "ready",
           "text": "idle",
           "inspect": "upstream:legal"
         },
         {
           "id": "release",
           "state": "idle",
+          "substate": "ready",
           "text": "v1.2.0",
           "inspect": "station:legal:release"
         },
         {
           "id": "lane",
           "state": "stopped",
+          "substate": "stopped",
           "text": "blocked by the stack",
           "inspect": "station:legal:lane"
         }
@@ -1714,36 +1863,42 @@
         {
           "id": "upstream",
           "state": "idle",
+          "substate": "ready",
           "text": "0 behind",
           "inspect": "upstream:schema"
         },
         {
           "id": "sync",
           "state": "idle",
+          "substate": "ready",
           "text": "clean",
           "inspect": "upstream:schema"
         },
         {
           "id": "cascade",
           "state": "idle",
+          "substate": "ready",
           "text": "idle",
           "inspect": "upstream:schema"
         },
         {
           "id": "main",
           "state": "idle",
+          "substate": "ready",
           "text": "idle",
           "inspect": "upstream:schema"
         },
         {
           "id": "release",
           "state": "idle",
+          "substate": "ready",
           "text": "v1.2.0",
           "inspect": "station:schema:release"
         },
         {
           "id": "lane",
           "state": "stopped",
+          "substate": "stopped",
           "text": "blocked by the stack",
           "inspect": "station:schema:lane"
         }
@@ -1755,36 +1910,42 @@
         {
           "id": "upstream",
           "state": "idle",
+          "substate": "ready",
           "text": "0 behind",
           "inspect": "upstream:file"
         },
         {
           "id": "sync",
           "state": "idle",
+          "substate": "ready",
           "text": "clean",
           "inspect": "upstream:file"
         },
         {
           "id": "cascade",
           "state": "idle",
+          "substate": "ready",
           "text": "idle",
           "inspect": "upstream:file"
         },
         {
           "id": "main",
           "state": "idle",
+          "substate": "ready",
           "text": "idle",
           "inspect": "upstream:file"
         },
         {
           "id": "release",
           "state": "idle",
+          "substate": "ready",
           "text": "v1.2.0",
           "inspect": "station:file:release"
         },
         {
           "id": "lane",
           "state": "stopped",
+          "substate": "stopped",
           "text": "blocked by the stack",
           "inspect": "station:file:lane"
         }

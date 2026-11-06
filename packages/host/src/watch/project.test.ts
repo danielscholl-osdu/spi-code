@@ -39,6 +39,42 @@ afterEach(() => {
 });
 
 describe("Watch projection", () => {
+  it("projects window defaults for every station, queue item and place anchor", () => {
+    const snapshot = projectWatch(fixtureInput());
+    const stations = snapshot.stations.flatMap((row) => row.stations);
+    expect(stations.length).toBeGreaterThan(0);
+    for (const station of stations) {
+      expect(station.substate).toBe(
+        station.state === "stopped"
+          ? "stopped"
+          : station.state === "moving"
+            ? "in-progress"
+            : "ready",
+      );
+    }
+    const items = [...snapshot.briefing.focus, ...snapshot.briefing.rest];
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) {
+      expect(item).toMatchObject({ attention: "ambient", owned: false });
+      expect(item).not.toHaveProperty("due");
+    }
+    expect(snapshot.campaigns).toEqual([]);
+    expect(snapshot.seen).toEqual({ cursor: null });
+    expect(snapshot.readings).toEqual([
+      ...["program", "upstream", "environment", "engineering", "releases", "security"].map(
+        (kind) => ({ anchor: { kind }, content: null }),
+      ),
+      ...snapshot.stations.map(({ service }) => ({
+        anchor: { kind: "service", id: service },
+        content: null,
+      })),
+      ...snapshot.releases.lines.map(({ month }) => ({
+        anchor: { kind: "release-month", month },
+        content: null,
+      })),
+    ]);
+  });
+
   it("matches the frozen briefing, Releases pane, flow rows and six service stations", () => {
     const snapshot = projectWatch(fixtureInput());
     const legacy = withoutAdditions(snapshot);
@@ -345,6 +381,10 @@ describe("Watch projection", () => {
       ...legacy,
       briefing: {
         ...snapshot.briefing,
+        focus: snapshot.briefing.focus.map(
+          ({ attention: _a, due: _d, owned: _o, ...item }) => item,
+        ),
+        rest: snapshot.briefing.rest.map(({ attention: _a, due: _d, owned: _o, ...item }) => item),
         repositories: {
           ...snapshot.briefing.repositories,
           rows: snapshot.briefing.repositories.rows.map((row) => ({
@@ -358,7 +398,7 @@ describe("Watch projection", () => {
       },
       stations: snapshot.stations.map(({ service, stations }) => ({
         service,
-        stations: stations.map(({ inspect: _inspect, ...station }) => station),
+        stations: stations.map(({ inspect: _inspect, substate: _substate, ...station }) => station),
       })),
     };
   }

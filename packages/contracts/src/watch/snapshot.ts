@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { z } from "zod";
-import { BriefingSchema } from "./briefing.js";
+import { WatchBriefingSchema } from "./briefing.js";
 import {
   AREAS,
   AreaEnvelopeSchema,
@@ -13,6 +13,7 @@ import {
   ValueSourceSchema,
 } from "./evidence.js";
 import { ReleaseLineSchema } from "./panes.js";
+import { CampaignSchema, ReadingSchema, SeenStateSchema } from "./reading.js";
 import { ServiceReleaseSchema, ServiceRunSchema, StationsSchema } from "./stations.js";
 import { SelectionIdSchema, TreeStatusSchema } from "./tree.js";
 
@@ -24,7 +25,10 @@ export const ViewSnapshotSchema = z
   .strictObject({
     cursor: z.int().nonnegative(),
     sweptAt: ObservedAtSchema,
-    briefing: BriefingSchema,
+    briefing: WatchBriefingSchema,
+    campaigns: z.array(CampaignSchema),
+    readings: z.array(ReadingSchema),
+    seen: SeenStateSchema,
     releases: ReleasesPaneSchema,
     stations: StationsSchema,
     services: z

@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type Briefing, ViewSnapshotSchema } from "@spi-code/contracts";
+import { type WatchBriefing as Briefing, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";

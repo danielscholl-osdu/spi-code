@@ -57,21 +57,29 @@ function oracle(name: string): unknown {
     ),
   );
 }
+const briefing = BriefingSchema.parse(oracle("briefing"));
 const snapshot = {
   cursor: 1,
   sweptAt: at,
-  briefing: BriefingSchema.parse(oracle("briefing")),
+  briefing: {
+    ...briefing,
+    focus: briefing.focus.map((item) => ({ ...item, attention: "ambient", owned: false })),
+    rest: briefing.rest.map((item) => ({ ...item, attention: "ambient", owned: false })),
+  },
+  campaigns: [],
+  readings: [],
+  seen: { cursor: null },
   releases: ReleasesPaneSchema.parse(oracle("releases")),
   stations: [
     {
       service: "legal",
       stations: [
-        { id: "upstream", state: "moving", text: "4 commits held" },
-        { id: "sync", state: "stopped", text: "Java Build failed" },
-        { id: "cascade", state: "idle", text: "" },
-        { id: "main", state: "unknown", text: "" },
-        { id: "release", state: "waiting", text: "Needs review" },
-        { id: "lane", state: "stopped", text: "Environment held" },
+        { id: "upstream", state: "moving", substate: "in-progress", text: "4 commits held" },
+        { id: "sync", state: "stopped", substate: "stopped", text: "Java Build failed" },
+        { id: "cascade", state: "idle", substate: "ready", text: "" },
+        { id: "main", state: "unknown", substate: "ready", text: "" },
+        { id: "release", state: "waiting", substate: "waiting-on-person", text: "Needs review" },
+        { id: "lane", state: "stopped", substate: "stopped", text: "Environment held" },
       ],
     },
   ],
@@ -139,7 +147,9 @@ const messages = [
   },
   { ...envelope, kind: "request", type: "view.subscribe", payload: { fromCursor: 0 } },
   { ...envelope, kind: "event", type: "view.snapshot", payload: snapshot },
+  { ...envelope, kind: "request", type: "view.acknowledge", payload: { cursor: 1 } },
 ] satisfies [
+  WatchMessage,
   WatchMessage,
   WatchMessage,
   WatchMessage,
@@ -152,6 +162,19 @@ const messages = [
 ];
 
 describe("Watch protocol", () => {
+  it("round-trips an acknowledgement and rejects missing, invalid or extra fields", () => {
+    const message = messages[9];
+    expect(WatchMessageSchema.parse(message)).toEqual(message);
+    for (const payload of [
+      {},
+      { cursor: -1 },
+      { cursor: 1.5 },
+      { cursor: "1" },
+      { cursor: 1, pins: [] },
+    ]) {
+      expect(WatchMessageSchema.safeParse({ ...message, payload }).success).toBe(false);
+    }
+  });
   it("accepts legacy payloads and optional service, line and inspect additions", () => {
     expect(WatchMessageSchema.parse(messages[8])).toEqual(messages[8]);
     expect(InspectResultSchema.parse(inspect)).toEqual(inspect);
@@ -542,6 +565,7 @@ it("round-trips strict read records, area envelopes, tree status and six station
         stations: StationIdSchema.options.map((id) => ({
           id,
           state: "waiting",
+          substate: "waiting-on-person",
           text: "Needs review",
         })),
       },
@@ -550,7 +574,12 @@ it("round-trips strict read records, area envelopes, tree status and six station
   for (const [schema, value] of schemasAndValues) {
     expect(schema.parse(JSON.parse(JSON.stringify(value)))).toEqual(value);
   }
-  const stations = StationIdSchema.options.map((id) => ({ id, state: "waiting", text: "" }));
+  const stations = StationIdSchema.options.map((id) => ({
+    id,
+    state: "waiting",
+    substate: "waiting-on-person",
+    text: "",
+  }));
   expect(
     ServiceStationsSchema.safeParse({
       service: "storage",

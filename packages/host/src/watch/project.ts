@@ -21,6 +21,7 @@ import {
   type CoreContext,
   type DoctorView,
   type Facts,
+  type FocusItem,
   isMonth,
   monthFacts,
   parseNotes,
@@ -33,6 +34,8 @@ import {
   STACK_REPO,
   type SweepReads,
 } from "@spi-code/core";
+import { itemAttention } from "./attention.js";
+import { detectedCampaigns } from "./campaigns.js";
 import {
   areaEnvelopes,
   briefingProvenance,
@@ -40,8 +43,11 @@ import {
   releaseProvenance,
   stationProvenance,
 } from "./provenance.js";
+import { placeReadings } from "./readings.js";
 import { recordedRuns, runProvenance } from "./recorded-runs.js";
 import { repositoryLines } from "./repository-lines.js";
+import { seenState } from "./seen.js";
+import { stationSubstate } from "./substate.js";
 
 export function appActions(items: readonly ActionItem[]): AppAction[] {
   const reserved = new Set(items.map((item) => item.type));
@@ -216,8 +222,11 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
   const now = input.context.clock.now();
   const model = buildModel(input.facts, now, {}, input.context);
   const coreBriefing = buildBriefing(model, input.doctor, now, input.context);
+  const projectItem = (item: FocusItem) => ({ ...item, ...itemAttention(item, model, input) });
   const briefing = {
     ...coreBriefing,
+    focus: coreBriefing.focus.map(projectItem),
+    rest: coreBriefing.rest.map(projectItem),
     repositories: repositoryLines(coreBriefing.repositories, model, now),
   };
   const { pane: releases, documents } = projectReleases(
@@ -232,6 +241,7 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     service: line.fork.id,
     stations: line.stations.map((station) => ({
       ...station,
+      substate: stationSubstate(station, line, input),
       inspect:
         station.id === "release" || station.id === "lane"
           ? `station:${line.fork.id}:${station.id}`
@@ -271,10 +281,14 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
         }),
     ),
   }));
+  const campaigns = detectedCampaigns(model, input);
   return ViewSnapshotSchema.parse({
     cursor: input.cursor,
     sweptAt: model.sweptAt ?? now.toISOString(),
     briefing,
+    campaigns,
+    readings: placeReadings(model, input, briefing, documents, campaigns),
+    seen: seenState(model, input),
     releases,
     stations,
     services,

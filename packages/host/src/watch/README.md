@@ -8,6 +8,29 @@ Before the first sweep, the required top-level `sweptAt` is the projection time,
 not evidence of a completed sweep. `briefing.sweptAt` remains absent/undefined;
 consumers must use that field to tell whether a sweep has occurred.
 
+## Window projection seams
+
+The strict Watch snapshot adds `substate` on every station, `attention`, optional
+`due: { at, before }` and `owned` on every focus/rest item, plus `campaigns`,
+`readings` and `seen`. The legacy `BriefingSchema` stays oracle-compatible;
+`WatchBriefingSchema` requires the item additions at the snapshot boundary.
+`substate.ts`, `attention.ts`, `campaigns.ts`, `readings.ts` and `seen.ts` own
+typed hooks, wired once in `project.ts`, for later feature computations.
+Stopped and moving stations trivially map to stopped and in-progress. All other
+stations use neutral `ready` until the sub-state classifier ships; this default
+does not assert health or distinguish a person from a clock. Items default to
+ambient, unowned and no due time. Detected campaigns default to none.
+
+Each program/place/service/release-month anchor has a reading entry whose
+`content: null` means not computed, not an empty reading. The window must omit
+it. Computed content has a headline, optional qualifier, exactly three tiles
+(`label`, `value`, `counts`), up to five grouped items with the same strict
+shape and identity as focus/rest records, and `folded` (null when nothing remains).
+Campaign anchors use the same shape. Pins are window-local, not snapshot data.
+`seen.cursor: null` means no acknowledged baseline. The window request
+`view.acknowledge` carries `{ cursor }`; this bead defines its shape only,
+not persistence or request handling.
+
 The tree uses evidence states, not service health: a stopped service can have
 fresh evidence. Service dots use records naming that service, its repository or upstream;
 whole-area failures use the sweeper's exact `source: area, object: area` shape

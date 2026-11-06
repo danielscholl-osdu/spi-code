@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { AREAS, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
+import { AREAS, BriefingSchema, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 
 export function testSnapshot(
   briefing: string,
@@ -9,21 +9,29 @@ export function testSnapshot(
   overrides: Partial<ViewSnapshot> = {},
 ): ViewSnapshot {
   const sweptAt = "2026-10-12T21:58:14.428Z";
+  const core = BriefingSchema.parse(JSON.parse(briefing));
   return ViewSnapshotSchema.parse({
     cursor: 1,
     sweptAt,
-    briefing: JSON.parse(briefing),
+    briefing: {
+      ...core,
+      focus: core.focus.map((item) => ({ ...item, attention: "ambient", owned: false })),
+      rest: core.rest.map((item) => ({ ...item, attention: "ambient", owned: false })),
+    },
+    campaigns: [],
+    readings: [],
+    seen: { cursor: null },
     releases: JSON.parse(releases),
     stations: [
       {
         service: "legal",
         stations: [
-          { id: "upstream", state: "moving", text: "Commits queued" },
-          { id: "sync", state: "stopped", text: "Sync halted" },
-          { id: "cascade", state: "idle", text: "" },
-          { id: "main", state: "unknown", text: "" },
-          { id: "release", state: "waiting", text: "Needs review" },
-          { id: "lane", state: "stopped", text: "Environment held" },
+          { id: "upstream", state: "moving", substate: "in-progress", text: "Commits queued" },
+          { id: "sync", state: "stopped", substate: "stopped", text: "Sync halted" },
+          { id: "cascade", state: "idle", substate: "ready", text: "" },
+          { id: "main", state: "unknown", substate: "ready", text: "" },
+          { id: "release", state: "waiting", substate: "ready", text: "Needs review" },
+          { id: "lane", state: "stopped", substate: "stopped", text: "Environment held" },
         ],
       },
     ],

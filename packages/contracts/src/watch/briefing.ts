@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { z } from "zod";
-import { ObservedAtSchema } from "./evidence.js";
+import { IdentifierSchema, ObservedAtSchema } from "./evidence.js";
 import { ItemClassSchema } from "./inspect.js";
 import { BriefFactSchema, RepositoriesSchema, ToneSchema, UpstreamViewSchema } from "./panes.js";
 
@@ -93,7 +93,20 @@ export const BriefingSchema = z.strictObject({
   environment: EnvironmentSchema,
   repositories: RepositoriesSchema,
 });
+export const ItemAttentionSchema = z.strictObject({
+  attention: z.enum(["interrupt", "surface", "ambient"]),
+  due: z.strictObject({ at: ObservedAtSchema, before: IdentifierSchema }).optional(),
+  owned: z.boolean(),
+});
+export const WatchItemSchema = FocusItemSchema.extend(ItemAttentionSchema.shape);
+export const WatchBriefingSchema = BriefingSchema.extend({
+  focus: z.array(WatchItemSchema),
+  rest: z.array(WatchItemSchema),
+});
 
+export type WatchItem = z.infer<typeof WatchItemSchema>;
+export type WatchBriefing = z.infer<typeof WatchBriefingSchema>;
+export type ItemAttention = z.infer<typeof ItemAttentionSchema>;
 export type Link = z.infer<typeof LinkSchema>;
 export type FocusItem = z.infer<typeof FocusItemSchema>;
 export type ReadyLine = z.infer<typeof ReadyLineSchema>;
