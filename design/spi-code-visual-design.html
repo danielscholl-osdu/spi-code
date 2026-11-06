@@ -505,7 +505,7 @@ ul.plain li{margin:3px 0}
 <body>
 <main class="wrap">
 <header>
-    <p class="eyebrow">spi-code · visual design · v2, revision 2</p>
+    <p class="eyebrow">spi-code · visual design · v2, revision 3</p>
     <h1>SPI Code visual design</h1>
     <p class="lead">T3 Code's workbench with SPI awareness: the program's state drawn in the window, acted on through cards, and handed to Copilot as structured context instead of re-read from GitHub.</p>
     <nav class="docnav" aria-label="Design documents">
@@ -876,11 +876,11 @@ ul.plain li{margin:3px 0}
         <tr><td><b>Flow row</b></td><td><code>upstream:&lt;fork&gt;</code></td><td>The inspect result; behind, carries, ready, plan, line, next, detail lines from the row</td><td></td></tr>
         <tr><td><b>Plan</b> (Flow toolbar)</td><td><code>upstream</code></td><td>Title, lines, note, the schedule</td><td></td></tr>
         <tr><td><b>Repository row</b>, <b>template step</b></td><td><code>repo:&lt;id&gt;</code>, <code>step:&lt;marker&gt;</code></td><td>The inspect result; a repository's tabs and links flatten into related</td><td></td></tr>
-        <tr><td><b>Theme</b>, <b>environment event</b></td><td>An optional <code>inspect</code> on the row (<code>theme:</code>, <code>hold:</code> or <code>run:</code>)</td><td>The inspect result when the row has an id; otherwise the row's own fields (title, sub, forks, next; label, state, detail) and nothing invented</td><td></td></tr>
+        <tr><td><b>Theme</b>, <b>environment event</b></td><td>The row's <code>inspect</code>, else <code>theme:&lt;id&gt;</code>, <code>hold:&lt;id&gt;</code> or <code>run:&lt;id&gt;</code> by lane, as today's window derives them</td><td>The inspect result, always; a hold's related lists the runs it covered</td><td></td></tr>
         <tr><td><b>Station</b></td><td>None for the station itself</td><td>Label, state word, text. Upstream, Sync PR, Cascade and Sync to main add the fork's upstream inspect. Release and Stack lane show state and text only</td><td>Station inspect ids</td></tr>
         <tr><td><b>Repository line</b> (PR, issue, alert)</td><td>None; the line has tag, text, sub and an upstream flag</td><td>Not selectable until it has an id. Drawn as text in its section</td><td>Repo-line ids and URLs</td></tr>
         <tr><td><b>Release month</b></td><td><code>release:&lt;month&gt;</code></td><td>The inspect result: READY or UNREAD, the headline as cause, state as effect, required actions as next, notes state and stats as why; <code>related</code> holds key changes, highlights, changelog, issues, per-fork rows with URLs and links, and is the month page's document source</td><td></td></tr>
-        <tr><td><b>Run</b></td><td><code>run:&lt;id&gt;</code> resolves, but no snapshot row carries one</td><td>Not drawn as a row</td><td>Workflow runs with their facts</td></tr>
+        <tr><td><b>Run</b></td><td><code>run:&lt;id&gt;</code></td><td>Drawn as an Environment lane event and inspected through <code>run:&lt;id&gt;</code>; only a service page's Runs list waits</td><td>Workflow runs with their facts, for the Runs section</td></tr>
         <tr><td><b>Card</b> (M4), <b>thread artifact</b> (M3)</td><td>The approval store id; the thread store key</td><td>The card's bindings and state; the artifact's kind, key, thread and whether a sweep has confirmed it</td><td></td></tr>
       </tbody>
     </table></div>
@@ -963,7 +963,7 @@ ul.plain li{margin:3px 0}
         <tr><td><b>The reading</b></td><td>The compact inspect result: class, cause, effect, next, why, the action ids with their disabled reasons, related ids</td></tr>
         <tr><td><b>Its evidence</b></td><td>The read records behind it (source, object, observed at, inferred, completeness) or, when the result predates per-value provenance, the evidence references it lists</td></tr>
         <tr><td><b>Its freshness</b></td><td>The sweep time it came from, the provenance areas with their states, and completeness in the words the Evidence tab uses</td></tr>
-        <tr><td><b>By kind</b></td><td>What the Detail-by-kind table gives that kind: the inspect result where one resolves; a station's label, state, text and upstream inspect; a theme's or event's own fields when it has no inspect id. A repository line cannot be a chip until it has an id</td></tr>
+        <tr><td><b>By kind</b></td><td>What the Detail-by-kind table gives that kind: the inspect result for every kind with an id, themes and environment events included; a station's label, state, text and upstream inspect. A repository line cannot be a chip until it has an id</td></tr>
         <tr><td><b>Never</b></td><td>Raw pages, logs, diffs or issue bodies. Copilot fetches those with read tools if it needs them, and the work log shows that it did</td></tr>
       </tbody>
     </table></div>
@@ -1373,7 +1373,7 @@ exit 0 · 38 s</div>
         <div class="kh">Queue rows, a thread row, a pending artifact</div>
         <div class="sec"><div class="sh"><h2>Attention</h2><span class="n">2</span><span class="ev">github issues and prs stale · 2 more</span></div>
           <div class="row sel"><span class="pr p0">P0</span><span><span class="t"><span class="scope">entitlements</span>Cascade stopped on a merge conflict<span class="cls">conflict</span></span><span class="s"><span class="thm">▣ Why is the cascade stopped</span> · validation fails after the sync</span></span><span class="age">4 d</span></div>
-          <div class="row thr code"><span class="d wait"></span><span><span class="t">Fix the sync conflict<span class="cls">code · Waiting on you</span></span><span class="s">spi/sync-conflict → fork_integration · 2 cards wait</span></span><span class="age">open</span></div>
+          <div class="row thr code"><span class="d run"></span><span><span class="t">Fix the sync conflict<span class="cls">code · Working</span></span><span class="s">spi/sync-conflict → fork_integration · push applied · PR opened</span></span><span class="age">open</span></div>
           <ul class="lines"><li class="pend"><span class="tag">pull request</span><span>Resolve the sync conflict · #1207<span class="s">opened by the thread · pending · not yet in a sweep</span></span></li></ul>
         </div>
         <div class="kh">Context chips</div>
@@ -1407,7 +1407,7 @@ exit 0 · 38 s</div>
         <div class="kh">Queue rows, a thread row, a pending artifact</div>
         <div class="sec"><div class="sh"><h2>Attention</h2><span class="n">2</span><span class="ev">github issues and prs stale · 2 more</span></div>
           <div class="row sel"><span class="pr p0">P0</span><span><span class="t"><span class="scope">entitlements</span>Cascade stopped on a merge conflict<span class="cls">conflict</span></span><span class="s"><span class="thm">▣ Why is the cascade stopped</span> · validation fails after the sync</span></span><span class="age">4 d</span></div>
-          <div class="row thr code"><span class="d wait"></span><span><span class="t">Fix the sync conflict<span class="cls">code · Waiting on you</span></span><span class="s">spi/sync-conflict → fork_integration · 2 cards wait</span></span><span class="age">open</span></div>
+          <div class="row thr code"><span class="d run"></span><span><span class="t">Fix the sync conflict<span class="cls">code · Working</span></span><span class="s">spi/sync-conflict → fork_integration · push applied · PR opened</span></span><span class="age">open</span></div>
           <ul class="lines"><li class="pend"><span class="tag">pull request</span><span>Resolve the sync conflict · #1207<span class="s">opened by the thread · pending · not yet in a sweep</span></span></li></ul>
         </div>
         <div class="kh">Context chips</div>
