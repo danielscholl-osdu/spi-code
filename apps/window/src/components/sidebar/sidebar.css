@@ -19,6 +19,7 @@
 .app-sidebar [data-slot="sidebar-menu-button"]:hover { background: var(--surface-raised); }
 .app-sidebar [data-slot="sidebar-menu-button"][data-active="true"] { background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); color: var(--text-strong); font-weight: 600; }
 .find-or-ask { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text-muted); font-size: 12.5px; text-align: left; cursor: default; }
+.find-or-ask:hover { color: var(--text); }
 .find-or-ask kbd { margin-left: auto; font: 11px var(--font-mono); color: var(--text-muted); }
 .find-glyph { width: 8px; height: 8px; border: 1.5px solid currentColor; border-radius: 50%; }
 .section-header { display: flex; align-items: center; gap: 8px; width: 100%; height: 26px; margin-top: 6px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; text-align: left; }

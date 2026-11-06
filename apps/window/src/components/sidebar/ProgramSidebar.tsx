@@ -70,10 +70,12 @@ export function ProgramSidebar({
   store,
   route,
   onNavigate,
+  onFind,
 }: {
   store: ReturnType<typeof createWatchStore>;
   route: Route;
   onNavigate(route: Route): void;
+  onFind?(): void;
 }) {
   const body = useStore(store, (state) => state.snapshot?.body);
   const { tree, sweptAt, briefing } = body ?? {};
@@ -84,7 +86,6 @@ export function ProgramSidebar({
   const inbox = briefing ? inboxCount(briefing) : 0;
   const { isMobile, setOpenMobile } = useSidebar();
   const { collapsed, toggle } = useGroupCollapse();
-  const findReason = useId();
   const ids = { program: useId(), services: useId(), lenses: useId(), settled: useId() };
   const active = rowFor(route);
   const services = (tree ?? [])
@@ -156,17 +157,17 @@ export function ProgramSidebar({
         <button
           type="button"
           className="find-or-ask"
-          aria-disabled="true"
-          aria-describedby={findReason}
+          aria-haspopup="dialog"
           aria-keyshortcuts={ariaShortcut("k")}
+          onClick={() => {
+            if (isMobile) setOpenMobile(false);
+            onFind?.();
+          }}
         >
           <span aria-hidden className="find-glyph" />
           <span>Find or ask</span>
           <kbd>{shortcutLabel("k")}</kbd>
         </button>
-        <span id={findReason} className="visually-hidden">
-          Find or ask is not available yet
-        </span>
         <SidebarMenu aria-label="Inbox">
           {row(
             "inbox",

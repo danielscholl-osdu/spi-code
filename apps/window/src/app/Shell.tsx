@@ -7,6 +7,7 @@ import { SweepEvidence } from "../components/evidence/EvidenceTab.js";
 import { SweepLine } from "../components/evidence/SweepLine.js";
 import { ProgramSidebar } from "../components/sidebar/ProgramSidebar.js";
 import { SidebarProvider } from "../components/sidebar/ui-sidebar.js";
+import { CommandPalette } from "../palette/CommandPalette.js";
 import { selectionStore } from "../panels/index.js";
 import { RightPanelFrame } from "../panels/RightPanelFrame.js";
 import { routeSelectionIds } from "../panels/selection-rows.js";
@@ -29,6 +30,7 @@ export function Shell() {
     [],
   );
   const openSweepEvidence = useCallback(() => selectionStore.getState().openSweepEvidence(), []);
+  const [findOpen, setFindOpen] = useState(false);
   const middle = useRef<HTMLElement>(null);
   const position = useRef({ route: routeHash(route), top: 0 });
   useLayoutEffect(() => {
@@ -102,7 +104,18 @@ export function Shell() {
           <PanelControls rightPanelOpen={rightPanelOpen} onToggleRightPanel={toggleRightPanel} />
         </div>
       </header>
-      <ProgramSidebar store={watchStore} route={route} onNavigate={navigate} />
+      <ProgramSidebar
+        store={watchStore}
+        route={route}
+        onNavigate={navigate}
+        onFind={() => setFindOpen(true)}
+      />
+      <CommandPalette
+        store={watchStore}
+        open={findOpen}
+        onOpenChange={setFindOpen}
+        onNavigate={navigate}
+      />
       <main
         className="middle-frame"
         ref={middle}

@@ -1,0 +1,117 @@
+// Copyright 2026, Daniel Scholl
+// SPDX-License-Identifier: MIT
+//
+// Copyright (c) 2026 T3 Tools Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+import type { Briefing } from "@spi-code/contracts";
+import { LENSES, type Route, routeLabel } from "../app/routes.js";
+import { treeServices } from "../views/inbox/queue.js";
+import { foldSearchQuery, rankSearchGroups, scoreSearchTerms } from "./search.js";
+
+export type PaletteTarget = { kind: "route"; route: Route } | { kind: "queue"; id: string };
+
+export type PaletteItem = {
+  value: string;
+  label: string;
+  /** The muted text at the row's right edge. */
+  kind: string;
+  /** Extra words the query may match besides the label. */
+  keywords: readonly string[];
+  priority?: 0 | 1 | 2;
+  target: PaletteTarget;
+};
+
+export type PaletteGroup = {
+  value: "go-to" | "services" | "lenses" | "queue";
+  label: string;
+  items: PaletteItem[];
+};
+
+export type DisabledRow = { value: "threads" | "ask"; label: string; reason: string };
+
+/** Rows the design places for threads, which do not exist yet; they stay in view whatever the query. */
+export const DISABLED_ROWS: readonly DisabledRow[] = [
+  { value: "threads", label: "Threads", reason: "Threads are not available yet" },
+  { value: "ask", label: "Ask", reason: "Asking needs threads, which are not available yet" },
+];
+
+const GO_TO: readonly Route[] = [
+  { kind: "inbox" },
+  { kind: "template" },
+  { kind: "environment" },
+  { kind: "releases" },
+  { kind: "setup" },
+];
+
+type SnapshotBody = {
+  briefing: Pick<Briefing, "focus" | "rest">;
+  tree?: readonly { id: string }[] | undefined;
+};
+
+function routeItem(route: Route, kind: string, keywords: readonly string[] = []): PaletteItem {
+  const label = routeLabel(route);
+  const id = route.kind === "service" ? route.id : route.kind === "lens" ? route.lens : "";
+  return {
+    value: `route:${route.kind}${id ? `:${id}` : ""}`,
+    label,
+    kind,
+    keywords,
+    target: { kind: "route", route },
+  };
+}
+
+/** Go to, Services, Lenses and Queue, from the routes and the snapshot; empty groups are left out. */
+export function buildPaletteGroups(body: SnapshotBody | undefined): PaletteGroup[] {
+  const services = treeServices(body?.tree).map((id) =>
+    routeItem({ kind: "service", id }, "service"),
+  );
+  const lenses = LENSES.map((lens) => routeItem({ kind: "lens", lens }, "lens"));
+  const queue = [...(body?.briefing.focus ?? []), ...(body?.briefing.rest ?? [])].map(
+    (item): PaletteItem => ({
+      value: `queue:${item.id}`,
+      label: `${item.scope} · ${item.title}`,
+      kind: `P${item.rung}`,
+      keywords: [item.cls],
+      priority: item.rung,
+      target: { kind: "queue", id: item.id },
+    }),
+  );
+  const groups: PaletteGroup[] = [
+    { value: "go-to", label: "Go to", items: GO_TO.map((route) => routeItem(route, "page")) },
+    { value: "services", label: "Services", items: services },
+    { value: "lenses", label: "Lenses", items: lenses },
+    { value: "queue", label: "Queue", items: queue },
+  ];
+  return groups.filter(({ items }) => items.length > 0);
+}
+
+/** The groups whose rows match every word of the query, best matches first. */
+export function filterPaletteGroups(
+  groups: readonly PaletteGroup[],
+  query: string,
+): PaletteGroup[] {
+  const normalized = foldSearchQuery(query);
+  if (normalized.length === 0) return [...groups];
+  return rankSearchGroups(
+    groups.map((group) => ({ group, items: group.items })),
+    (item) => scoreSearchTerms(normalized, [item.label, item.kind, ...item.keywords]),
+  ).map(({ group, items }) => ({ ...group, items: [...items] }));
+}
