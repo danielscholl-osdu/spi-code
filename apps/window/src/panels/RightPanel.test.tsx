@@ -680,3 +680,31 @@ it("leaves a run's empty workflow or result out of Detail", async () => {
     await view.cleanup();
   }
 });
+
+it.each(["", "not-an-instant"])("leaves a run's unusable time %j out of Detail", async (time) => {
+  const snapshot = mixedSnapshot(mixed);
+  const recorded = snapshot.services?.[0]?.runs[0];
+  if (!recorded) throw new Error("Recorded sweep needs a run");
+  const view = await mountDetail(snapshot);
+  try {
+    await view.select(runRow({ ...recorded, time }, 0));
+    expect(view.fields().map(([label]) => label)).toEqual(["Workflow", "Result", "Link"]);
+    expect(view.container.querySelector(".detail-row-fields time")).toBeNull();
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("leaves a run's empty URL out of Detail", async () => {
+  const snapshot = mixedSnapshot(mixed);
+  const recorded = snapshot.services?.[0]?.runs[0];
+  if (!recorded) throw new Error("Recorded sweep needs a run");
+  const view = await mountDetail(snapshot);
+  try {
+    await view.select(runRow({ ...recorded, url: "" }, 0));
+    expect(view.fields().map(([label]) => label)).toEqual(["Workflow", "Result", "When"]);
+    expect(view.container.querySelector(".detail-row-fields a")).toBeNull();
+  } finally {
+    await view.cleanup();
+  }
+});

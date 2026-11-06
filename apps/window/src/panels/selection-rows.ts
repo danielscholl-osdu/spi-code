@@ -96,8 +96,10 @@ export function runRow(run: ServiceRun, serviceIndex: number): SelectionRow {
     fields: [
       ...(run.workflow ? [{ label: "Workflow", value: run.workflow }] : []),
       ...(run.result ? [{ label: "Result", value: run.result }] : []),
-      { label: "When", value: utc(run.time), dateTime: run.time },
-      { label: "Link", value: run.url, href: run.url },
+      ...(run.time && !Number.isNaN(Date.parse(run.time))
+        ? [{ label: "When", value: utc(run.time), dateTime: run.time }]
+        : []),
+      ...(run.url ? [{ label: "Link", value: run.url, href: run.url }] : []),
     ],
   };
 }
