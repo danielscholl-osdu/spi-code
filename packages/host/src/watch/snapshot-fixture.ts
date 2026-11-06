@@ -126,11 +126,7 @@ export function mixedFixtureInput(): WatchInput {
   };
 }
 
-/**
- * The 6 Nov recorded sweep. It records no release reads, no rollout and no render
- * time: releases are empty, the rollout is the 59d6895 one, and the clock is the
- * sweep's own start. Radar keeps its recorded per-service reads.
- */
+/** The 6 Nov sweep: no releases, the 59d6895 rollout (same as it recorded), its start as clock. */
 export function recordedInput(): WatchInput {
   const facts: Facts = {
     ...emptyFacts(),
