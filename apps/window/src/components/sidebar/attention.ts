@@ -2,12 +2,23 @@
 // SPDX-License-Identifier: MIT
 
 import type { FocusItem, ViewSnapshot } from "@spi-code/contracts";
+import { useState } from "react";
 import { queueGroups, scopeRoute, treeServices } from "../../views/inbox/queue.js";
 
-type SidebarAttention = {
+export type SidebarAttention = {
   dot: "p0" | "p1" | "p2" | "unread" | undefined;
   word: string | undefined;
 };
+
+export function useSidebarAttention(body: ViewSnapshot | undefined): Map<string, SidebarAttention> {
+  const [attention, setAttention] = useState(() => ({ body, rows: sidebarAttention(body) }));
+  if (attention.body !== body) {
+    const rows = sidebarAttention(body, attention.rows);
+    setAttention({ body, rows });
+    return rows;
+  }
+  return attention.rows;
+}
 
 const CLASS_WORDS: Record<FocusItem["cls"], string> = {
   ENV: "environment",

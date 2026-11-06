@@ -26,6 +26,8 @@ import { Dialog } from "@base-ui/react/dialog";
 import { useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { INBOX, type Route } from "../app/routes.js";
+import { AttentionDot } from "../components/AttentionDot.js";
+import { useSidebarAttention } from "../components/sidebar/attention.js";
 import type { createWatchStore } from "../store/watch.js";
 import {
   buildPaletteGroups,
@@ -52,6 +54,8 @@ export function CommandPalette({
   onNavigate(route: Route): void;
 }) {
   const popupRef = useRef<HTMLDivElement>(null);
+  const body = useStore(store, (state) => state.snapshot?.body);
+  const attention = useSidebarAttention(body);
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -64,6 +68,7 @@ export function CommandPalette({
         >
           <PaletteContent
             store={store}
+            attention={attention}
             onNavigate={onNavigate}
             onClose={() => onOpenChange(false)}
           />
@@ -75,10 +80,12 @@ export function CommandPalette({
 
 function PaletteContent({
   store,
+  attention,
   onNavigate,
   onClose,
 }: {
   store: ReturnType<typeof createWatchStore>;
+  attention: ReturnType<typeof useSidebarAttention>;
   onNavigate(route: Route): void;
   onClose(): void;
 }) {
@@ -130,22 +137,33 @@ function PaletteContent({
             <Autocomplete.GroupLabel className="palette-group">
               {group.label}
             </Autocomplete.GroupLabel>
-            {group.items.map((item) => (
-              <Autocomplete.Item
-                key={item.value}
-                value={item.value}
-                className="palette-row"
-                onClick={() => run(item)}
-              >
-                {item.priority !== undefined && (
-                  <span className="palette-priority" data-rung={item.priority}>
-                    P{item.priority}
-                  </span>
-                )}
-                <span className="palette-label">{item.label}</span>
-                <span className="palette-kind">{item.kind}</span>
-              </Autocomplete.Item>
-            ))}
+            {group.items.map((item) => {
+              const route = item.target.kind === "route" ? item.target.route : undefined;
+              const service = route?.kind === "service" ? route : undefined;
+              const mark = service ? attention.get(`service:${service.id}`) : undefined;
+              const kind = service ? mark?.word : item.kind;
+              return (
+                <Autocomplete.Item
+                  key={item.value}
+                  value={item.value}
+                  className="palette-row"
+                  onClick={() => run(item)}
+                >
+                  {service && <AttentionDot dot={mark?.dot} />}
+                  {item.priority !== undefined && (
+                    <span className="palette-priority" data-rung={item.priority}>
+                      P{item.priority}
+                    </span>
+                  )}
+                  <span className="palette-label">{item.label}</span>
+                  {kind && (
+                    <span className="palette-kind" title={service ? kind : undefined}>
+                      {kind}
+                    </span>
+                  )}
+                </Autocomplete.Item>
+              );
+            })}
           </Autocomplete.Group>
         ))}
         {DISABLED_ROWS.map((row) => (

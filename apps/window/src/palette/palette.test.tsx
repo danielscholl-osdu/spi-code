@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { ViewSnapshotSchema } from "@spi-code/contracts";
+import { PROTOCOL_VERSION, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -54,6 +54,35 @@ const rows = (group: string) =>
     (row) => row.textContent,
   );
 const highlighted = () => palette()?.querySelector("[data-highlighted]")?.textContent;
+const serviceIds = ["partition", "entitlements", "legal", "schema", "file"];
+const serviceAttention = (id: string, surface: "palette" | "sidebar" = "palette") => {
+  const row =
+    surface === "palette"
+      ? [...(palette()?.querySelectorAll('[data-group="services"] .palette-row') ?? [])].find(
+          (element) => element.querySelector(".palette-label")?.textContent === id,
+        )
+      : container.querySelector(`[data-sidebar-row="service/${id}"]`);
+  expect(row, `${surface} service ${id}`).toBeTruthy();
+  const dot = row?.querySelector(".sidebar-attention-dot");
+  return {
+    dot: dot?.getAttribute("data-attention") ?? null,
+    priority: dot?.getAttribute("aria-label") ?? null,
+    word:
+      row?.querySelector(surface === "palette" ? ".palette-kind" : ".sidebar-row-note")
+        ?.textContent ?? null,
+  };
+};
+async function receive(body: ViewSnapshot) {
+  await act(async () =>
+    watchStore.getState().receive({
+      version: PROTOCOL_VERSION,
+      id: `palette-snapshot-${body.cursor}`,
+      kind: "event",
+      type: "view.snapshot",
+      payload: body,
+    }),
+  );
+}
 
 const shortcut = (init: KeyboardEventInit) =>
   act(async () => {
@@ -125,9 +154,13 @@ it("lists Go to, Services, Lenses and Queue from the routes and the snapshot, wi
     "Releasespage",
     "Setuppage",
   ]);
-  expect(rows("services")).toEqual(
-    ["partition", "entitlements", "legal", "schema", "file"].map((id) => `${id}service`),
-  );
+  expect(rows("services")).toEqual([
+    "partitionunread",
+    "entitlementshalt",
+    "legaltoolchain",
+    "schemaunread",
+    "fileunread",
+  ]);
   expect(rows("lenses")).toEqual(["Flowlens", "Repositorieslens", "Horizonlens"]);
   expect(rows("queue")).toEqual([
     "P0Environment · Maintenance modeP0",
@@ -138,6 +171,92 @@ it("lists Go to, Services, Lenses and Queue from the routes and the snapshot, wi
     "P12 forks · 3 upstream provider changes not portedP1",
   ]);
 });
+
+it("mirrors every recorded service's sidebar attention dot and word, not counts", async () => {
+  await shortcut({ ctrlKey: true });
+  const marks = serviceIds.map((id) => serviceAttention(id));
+  expect(marks).toEqual([
+    { dot: "unread", priority: "Unread", word: "unread" },
+    { dot: "p0", priority: "P0", word: "halt" },
+    { dot: "p1", priority: "P1", word: "toolchain" },
+    { dot: "unread", priority: "Unread", word: "unread" },
+    { dot: "unread", priority: "Unread", word: "unread" },
+  ]);
+  expect(marks).toEqual(serviceIds.map((id) => serviceAttention(id, "sidebar")));
+  expect(palette()?.querySelector('[data-group="services"] .sidebar-pip')).toBeNull();
+});
+
+it("uses hollow for empty unread scopes and no dot for empty read scopes", async () => {
+  const next = structuredClone(body);
+  next.cursor += 1;
+  next.tree = next.tree.map((node) =>
+    node.id === "service:file" ? { ...node, status: "fresh" } : node,
+  );
+  await receive(next);
+  await shortcut({ ctrlKey: true });
+  expect(serviceAttention("partition")).toEqual({
+    dot: "unread",
+    priority: "Unread",
+    word: "unread",
+  });
+  expect(serviceAttention("file")).toEqual({ dot: null, priority: null, word: null });
+  for (const id of serviceIds) {
+    expect(serviceAttention(id)).toEqual(serviceAttention(id, "sidebar"));
+  }
+});
+
+it.each([false, true])(
+  "retains sidebar attention across failed reads while the palette is open: %s",
+  async (open) => {
+    const read = structuredClone(body);
+    read.cursor += 1;
+    read.tree = read.tree.map((node) =>
+      node.id === "service:file" ? { ...node, status: "fresh" } : node,
+    );
+    await receive(read);
+    if (open) await shortcut({ ctrlKey: true });
+    const before = serviceIds.map((id) => serviceAttention(id, "sidebar"));
+    const failed = structuredClone(read);
+    failed.cursor += 1;
+    failed.tree = failed.tree.map((node) => ({ ...node, status: "failed" }));
+    failed.areas = failed.areas.map((area) => ({
+      ...area,
+      envelope: {
+        ...area.envelope,
+        state: "failed",
+        completeness: area.envelope.completeness ?? { kind: "complete" },
+      },
+    }));
+    failed.briefing.focus = failed.briefing.focus.map((item) => ({
+      ...item,
+      scope: "Environment",
+      cls: "READY",
+    }));
+    failed.briefing.rest = failed.briefing.rest.map((item) => ({
+      ...item,
+      scope: "Environment",
+      cls: "READY",
+    }));
+    await receive(failed);
+    if (!open) await shortcut({ ctrlKey: true });
+    expect(serviceIds.map((id) => serviceAttention(id))).toEqual(before);
+    expect(serviceIds.map((id) => serviceAttention(id, "sidebar"))).toEqual(before);
+    await key("Escape");
+    await shortcut({ ctrlKey: true });
+    expect(serviceIds.map((id) => serviceAttention(id))).toEqual(before);
+
+    await receive({
+      ...read,
+      cursor: failed.cursor + 1,
+      tree: read.tree.map((node) => ({ ...node, status: "fresh" })),
+    });
+    expect(serviceAttention("partition")).toEqual({ dot: null, priority: null, word: null });
+    expect(serviceAttention("entitlements")).toEqual({ dot: "p0", priority: "P0", word: "halt" });
+    for (const id of serviceIds) {
+      expect(serviceAttention(id)).toEqual(serviceAttention(id, "sidebar"));
+    }
+  },
+);
 
 it("keeps Threads and Ask in view but disabled, saying threads are not available yet", async () => {
   await act(async () => findField()?.click());
@@ -165,9 +284,9 @@ it("moves with the arrows, opens with Enter, and filters as the operator types",
 
   await type("legal");
   expect(labels()).toEqual(["Services", "Queue", "Threads", "Ask"]);
-  expect(rows("services")).toEqual(["legalservice"]);
+  expect(rows("services")).toEqual(["legaltoolchain"]);
   expect(rows("queue")).toEqual(["P1legal · Sync PR #31 fails Java BuildP1"]);
-  expect(highlighted()).toBe("legalservice");
+  expect(highlighted()).toBe("legaltoolchain");
   await key("Enter");
   expect(palettes()).toHaveLength(0);
   expect(window.location.hash).toBe("#service/legal");

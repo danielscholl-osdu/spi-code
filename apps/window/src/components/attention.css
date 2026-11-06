@@ -1,0 +1,8 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.sidebar-attention-dot { flex: none; width: 7px; height: 7px; box-sizing: border-box; border-radius: 50%; }
+.sidebar-attention-dot[data-attention="p0"] { background: var(--error); }
+.sidebar-attention-dot[data-attention="p1"] { background: var(--warning); }
+.sidebar-attention-dot[data-attention="p2"] { background: var(--accent); }
+.sidebar-attention-dot[data-attention="unread"] { border: 1px solid var(--placeholder); background: transparent; }
