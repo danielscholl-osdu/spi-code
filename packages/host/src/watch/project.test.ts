@@ -17,10 +17,14 @@ import {
   TEMPLATE_REPO,
 } from "@spi-code/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { appActions, projectReleases, projectWatch } from "./project.js";
+import * as attention from "./attention.js";
+import * as campaigns from "./campaigns.js";
+import { appActions, projectReleases, projectWatch, type WatchInput } from "./project.js";
 import { briefingProvenance, releaseProvenance, stationAreas } from "./provenance.js";
+import { readingFor } from "./readings.js";
 import { runProvenance } from "./recorded-runs.js";
 import { repositoryLines } from "./repository-lines.js";
+import * as seen from "./seen.js";
 import {
   fixtureInput,
   fixtureRoot,
@@ -29,11 +33,13 @@ import {
   oracle,
   snapshotPath,
 } from "./snapshot-fixture.js";
+import { stationSubstate } from "./substate.js";
 
 process.env.TZ = "UTC";
 
 const temporary: string[] = [];
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllEnvs();
   for (const path of temporary.splice(0)) rmSync(path, { recursive: true, force: true });
 });
@@ -59,7 +65,7 @@ describe("Watch projection", () => {
       expect(item).not.toHaveProperty("due");
     }
     expect(snapshot.campaigns).toEqual([]);
-    expect(snapshot.seen).toEqual({ cursor: null });
+    expect(snapshot.seen).toEqual({ cursor: null, since: [] });
     expect(snapshot.readings).toEqual([
       ...["program", "upstream", "environment", "engineering", "releases", "security"].map(
         (kind) => ({ anchor: { kind }, content: null }),
@@ -73,6 +79,78 @@ describe("Watch projection", () => {
         content: null,
       })),
     ]);
+  });
+
+  it("maps a moving station to in-progress even when the pinned fleet has none", () => {
+    const input = fixtureInput();
+    const line = buildModel(input.facts, input.context.clock.now(), {}, input.context).lines[0];
+    const station = line?.stations[0];
+    if (!line || !station) throw new Error("Missing fixture station");
+    expect(stationSubstate({ ...station, state: "moving" }, line, input)).toBe("in-progress");
+  });
+
+  it("passes settings, previous states, baseline and projected tiers through the feature seams", () => {
+    const previous = projectWatch(fixtureInput()).briefing;
+    const items = [...previous.focus, ...previous.rest];
+    const first = items[0];
+    if (!first) throw new Error("Missing fixture item");
+    const input: WatchInput = {
+      ...fixtureInput(),
+      cursor: 20,
+      attention: { leadTimeMs: 60_000, previous: items },
+      baseline: { cursor: 3, items },
+    };
+    const tier = vi
+      .spyOn(attention, "itemAttention")
+      .mockReturnValue({ attention: "interrupt", owned: false });
+    const baseline = vi.spyOn(seen, "seenState").mockReturnValue({ cursor: 3, since: [first.id] });
+    const snapshot = projectWatch(input);
+    expect(tier).toHaveBeenCalledWith(
+      expect.objectContaining({ id: first.id }),
+      expect.anything(),
+      input,
+      input.attention,
+    );
+    expect(baseline).toHaveBeenCalledWith(expect.anything(), input, snapshot.briefing);
+    expect(snapshot.briefing.focus.every((item) => item.attention === "interrupt")).toBe(true);
+    expect(snapshot.seen).toEqual({ cursor: 3, since: [first.id] });
+  });
+
+  it("dispatches every reading to its own anchor-kind handler with the full context", () => {
+    const input = fixtureInput();
+    const detected = [
+      {
+        id: "boot",
+        kind: "toolchain" as const,
+        fact: "Boot 4",
+        forks: ["legal", "file"],
+      },
+    ];
+    vi.spyOn(campaigns, "detectedCampaigns").mockReturnValue(detected);
+    const handlers = (
+      [
+        "program",
+        "upstream",
+        "environment",
+        "engineering",
+        "releases",
+        "security",
+        "service",
+        "release-month",
+        "campaign",
+      ] as const
+    ).map((kind) => ({ kind, spy: vi.spyOn(readingFor, kind) }));
+    const snapshot = projectWatch(input);
+    for (const { kind, spy } of handlers) {
+      const entries = snapshot.readings.filter(({ anchor }) => anchor.kind === kind);
+      expect(entries.length).toBeGreaterThan(0);
+      expect(spy).toHaveBeenCalledTimes(entries.length);
+      for (const { anchor } of entries)
+        expect(spy).toHaveBeenCalledWith(
+          anchor,
+          expect.objectContaining({ input, briefing: snapshot.briefing, campaigns: detected }),
+        );
+    }
   });
 
   it("matches the frozen briefing, Releases pane, flow rows and six service stations", () => {

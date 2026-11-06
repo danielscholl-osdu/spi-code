@@ -41,7 +41,7 @@ export function writeSmokeSnapshot(path: string, { headline, service }: SmokeMar
       sweptAt,
       campaigns: [],
       readings: [],
-      seen: { cursor: null },
+      seen: { cursor: null, since: [] },
       briefing: {
         sweptAt,
         nextSyncAt: sweptAt,

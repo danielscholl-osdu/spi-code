@@ -68,7 +68,7 @@ const snapshot = {
   },
   campaigns: [],
   readings: [],
-  seen: { cursor: null },
+  seen: { cursor: null, since: [] },
   releases: ReleasesPaneSchema.parse(oracle("releases")),
   stations: [
     {

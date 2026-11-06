@@ -103,6 +103,7 @@ describe("window reading contract", () => {
   const item = populated.briefing.focus[0];
   if (!item) throw new Error("Fixture needs a focus item");
   item.due = { at: snapshot.sweptAt, before: "next sync" };
+  populated.seen.since = [item.id];
   populated.campaigns = [
     { id: "boot", kind: "toolchain", fact: "Boot 4", forks: ["legal", "file"] },
   ];
@@ -149,6 +150,8 @@ describe("window reading contract", () => {
     ["/readings/0/content/folded", 1],
     ["/seen", 1],
     ["/seen/cursor", -1],
+    ["/seen/since", "item"],
+    ["/seen/since/0", ""],
   ];
   it("accepts computed content and absent optional due times and qualifiers", () => {
     expect(ViewSnapshotSchema.parse(populated)).toEqual(populated);
@@ -170,6 +173,30 @@ describe("window reading contract", () => {
       else Reflect.set(parent.value, key, value);
       expect(ViewSnapshotSchema.safeParse(bad).success).toBe(false);
     }
+  });
+  it("rejects duplicate campaign forks", () => {
+    const campaign = populated.campaigns[0];
+    if (!campaign) throw new Error("Missing campaign fixture");
+    expect(
+      messages({
+        ...populated,
+        campaigns: [{ ...campaign, forks: ["legal", "legal"] }],
+      }),
+    ).toContain("Campaign forks repeat");
+  });
+  it.each([
+    { kind: "program" },
+    { kind: "service", id: "legal" },
+    { kind: "release-month", month: "2026-11" },
+    { kind: "campaign", id: "boot" },
+  ])("rejects duplicate reading anchors: $kind", (anchor) => {
+    const entry = { anchor, content: null };
+    expect(ViewSnapshotSchema.safeParse({ ...populated, readings: [entry] }).success).toBe(true);
+    expect(
+      messages({ ...populated, readings: [entry, entry] }).some(
+        (message) => message.startsWith("Reading anchor") && message.endsWith("repeats"),
+      ),
+    ).toBe(true);
   });
   it("rejects malformed optional fields, extra keys, excess items and non-three tile counts", () => {
     const reading = populated.readings[0];

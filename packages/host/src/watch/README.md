@@ -16,6 +16,12 @@ The strict Watch snapshot adds `substate` on every station, `attention`, optiona
 `WatchBriefingSchema` requires the item additions at the snapshot boundary.
 `substate.ts`, `attention.ts`, `campaigns.ts`, `readings.ts` and `seen.ts` own
 typed hooks, wired once in `project.ts`, for later feature computations.
+`WatchInput.attention` supplies `AttentionInput` (lead time in milliseconds and
+previous projected items) to `itemAttention`; its absent-input default is two
+hours and no previous items. The context clock is already on `WatchInput.context`.
+`WatchInput.baseline` supplies `SeenBaseline` (acknowledged cursor and item states).
+`seenState` also receives the current projected briefing, including item tiers,
+so both features can compare states without changing the projection wiring.
 Stopped and moving stations trivially map to stopped and in-progress. All other
 stations use neutral `ready` until the sub-state classifier ships; this default
 does not assert health or distinguish a person from a clock. Items default to
@@ -27,7 +33,13 @@ it. Computed content has a headline, optional qualifier, exactly three tiles
 (`label`, `value`, `counts`), up to five grouped items with the same strict
 shape and identity as focus/rest records, and `folded` (null when nothing remains).
 Campaign anchors use the same shape. Pins are window-local, not snapshot data.
-`seen.cursor: null` means no acknowledged baseline. The window request
+`readingFor` dispatches each anchor kind to its own handler with the model,
+input, projected briefing, release documents and detected campaigns; reading
+beads fill only their handler. Duplicate reading anchors and duplicate campaign
+forks are invalid.
+`seen.cursor: null` means no acknowledged baseline; `seen.since` lists the
+Interrupt item IDs new or worsened since that baseline, defaulting to `[]`.
+The window request
 `view.acknowledge` carries `{ cursor }`; this bead defines its shape only,
 not persistence or request handling.
 

@@ -20,7 +20,7 @@ export function testSnapshot(
     },
     campaigns: [],
     readings: [],
-    seen: { cursor: null },
+    seen: { cursor: null, since: [] },
     releases: JSON.parse(releases),
     stations: [
       {

@@ -47,6 +47,23 @@ export const ViewSnapshotSchema = z
     selection: SelectionIdSchema.nullable(),
   })
   .superRefine((snapshot, ctx) => {
+    const anchors = new Set<string>();
+    snapshot.readings.forEach(({ anchor }, index) => {
+      const key =
+        anchor.kind === "service" || anchor.kind === "campaign"
+          ? `${anchor.kind}:${anchor.id}`
+          : anchor.kind === "release-month"
+            ? `${anchor.kind}:${anchor.month}`
+            : anchor.kind;
+      if (anchors.has(key)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Reading anchor ${key} repeats`,
+          path: ["readings", index, "anchor"],
+        });
+      }
+      anchors.add(key);
+    });
     const seen = new Set<string>();
     snapshot.areas.forEach(({ area, envelope }, index) => {
       if (seen.has(area)) {

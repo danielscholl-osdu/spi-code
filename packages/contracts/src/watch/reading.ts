@@ -16,7 +16,10 @@ export const CampaignSchema = z.strictObject({
   id: IdentifierSchema,
   kind: z.enum(["toolchain", "engineering", "security", "halt", "port", "deadline"]),
   fact: IdentifierSchema,
-  forks: z.array(IdentifierSchema).min(2),
+  forks: z
+    .array(IdentifierSchema)
+    .min(2)
+    .refine((forks) => new Set(forks).size === forks.length, "Campaign forks repeat"),
 });
 export const AnchorSchema = z.discriminatedUnion("kind", [
   z.strictObject({
@@ -46,7 +49,10 @@ export const ReadingSchema = z.strictObject({
     })
     .nullable(),
 });
-export const SeenStateSchema = z.strictObject({ cursor: z.int().nonnegative().nullable() });
+export const SeenStateSchema = z.strictObject({
+  cursor: z.int().nonnegative().nullable(),
+  since: z.array(IdentifierSchema),
+});
 export const ViewAcknowledgeSchema = z.strictObject({ cursor: z.int().nonnegative() });
 
 export type StationSubstate = z.infer<typeof StationSubstateSchema>;

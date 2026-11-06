@@ -1491,7 +1491,8 @@
     }
   ],
   "seen": {
-    "cursor": null
+    "cursor": null,
+    "since": []
   },
   "releases": {
     "lines": [

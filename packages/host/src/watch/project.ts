@@ -34,7 +34,7 @@ import {
   STACK_REPO,
   type SweepReads,
 } from "@spi-code/core";
-import { itemAttention } from "./attention.js";
+import { type AttentionInput, itemAttention } from "./attention.js";
 import { detectedCampaigns } from "./campaigns.js";
 import {
   areaEnvelopes,
@@ -46,7 +46,7 @@ import {
 import { placeReadings } from "./readings.js";
 import { recordedRuns, runProvenance } from "./recorded-runs.js";
 import { repositoryLines } from "./repository-lines.js";
-import { seenState } from "./seen.js";
+import { type SeenBaseline, seenState } from "./seen.js";
 import { stationSubstate } from "./substate.js";
 
 export function appActions(items: readonly ActionItem[]): AppAction[] {
@@ -121,6 +121,8 @@ export interface WatchInput {
   readonly appData: string;
   readonly cursor: number;
   readonly intervalMs: number;
+  readonly baseline?: SeenBaseline;
+  readonly attention?: AttentionInput;
   /** Per-area sweep intervals; an area without one uses intervalMs. */
   readonly intervals?: Partial<Record<AreaName, number>>;
   /** Confirmed immutable cache reads for envelopes; reads retains the original observations. */
@@ -222,7 +224,10 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
   const now = input.context.clock.now();
   const model = buildModel(input.facts, now, {}, input.context);
   const coreBriefing = buildBriefing(model, input.doctor, now, input.context);
-  const projectItem = (item: FocusItem) => ({ ...item, ...itemAttention(item, model, input) });
+  const projectItem = (item: FocusItem) => ({
+    ...item,
+    ...itemAttention(item, model, input, input.attention),
+  });
   const briefing = {
     ...coreBriefing,
     focus: coreBriefing.focus.map(projectItem),
@@ -288,7 +293,7 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     briefing,
     campaigns,
     readings: placeReadings(model, input, briefing, documents, campaigns),
-    seen: seenState(model, input),
+    seen: seenState(model, input, briefing),
     releases,
     stations,
     services,
