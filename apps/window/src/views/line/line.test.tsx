@@ -5,7 +5,7 @@ import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
+import recorded from "../../../../../fixtures/watch/snapshot-59d6895.json?raw";
 import { closeSheet, navigate, type Route, routeHash } from "../../app/navigation.js";
 import { DEFAULT_REGISTRY } from "../../app/routes.js";
 import { Shell } from "../../app/Shell.js";
@@ -192,28 +192,19 @@ it("folds quiet rows into one named line and expands them in fleet order", async
   expect(services()).not.toContain("legal");
 });
 
-it("filters the recorded 8.5.0 campaign to exactly its eight forks, then clears on a second click", async () => {
+it("filters the recorded log-injection campaign to exactly its three forks, then clears on a second click", async () => {
   await mount();
   await open();
-  const chip = button("os-core-common 8.5.0 · 8 forks");
+  const chip = button("CodeQL: java/log-injection · 3 forks");
   expect(chip.getAttribute("aria-pressed")).toBe("false");
   await click(chip);
   expect(chip.getAttribute("aria-pressed")).toBe("true");
-  expect(services()).toEqual([
-    "schema",
-    "file",
-    "storage",
-    "indexer",
-    "search",
-    "workflow",
-    "unit",
-    "crs-conversion",
-  ]);
+  expect(services()).toEqual(["partition", "schema", "file"]);
   expect([...(sheet()?.querySelectorAll("th") ?? [])].map((cell) => cell.textContent)).toContain(
     "Campaign",
   );
-  expect(sheet()?.querySelectorAll("td[data-campaign]")).toHaveLength(8);
-  expect(sheet()?.textContent?.match(/os-core-common 8\.5\.0/g)).toHaveLength(1);
+  expect(sheet()?.querySelectorAll("td[data-campaign]")).toHaveLength(3);
+  expect(sheet()?.textContent?.match(/CodeQL: java\/log-injection/g)).toHaveLength(1);
   await click(chip);
   expect(chip.getAttribute("aria-pressed")).toBe("false");
   expect(services()).toContain("legal");
