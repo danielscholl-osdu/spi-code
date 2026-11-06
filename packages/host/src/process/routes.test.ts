@@ -923,6 +923,51 @@ describe("inspect.request", () => {
     }
   });
 
+  it("answers not_found for loose spellings of run, hold, theme and service ids", async () => {
+    writeSnapshot();
+    const { briefing, tree } = projectWatch(input);
+    const run = Object.values(input.facts.runs.data ?? {}).flatMap((w) => w.sync)[0]?.id;
+    const hold = briefing.environment.lanes.find((lane) => lane.id === "holds")?.events[0]?.id;
+    const theme = briefing.themes[0]?.id;
+    const service = tree.find((node) => node.id.startsWith("service:"))?.id.slice(8);
+    if (run === undefined || !hold || !theme || !service) throw new Error("Fixture ids missing");
+    const loose = (raw: string) => [
+      `${raw}e0`,
+      `${raw}.0`,
+      `0${raw}`,
+      ` ${raw}`,
+      `${raw} `,
+      `+${raw}`,
+      `-${raw}`,
+      "",
+    ];
+    const ids = [
+      `run:0x${run.toString(16)}`,
+      `run:${run.toExponential()}`,
+      ...loose(String(run)).map((raw) => `run:${raw}`),
+      `hold:0x${Number(hold).toString(16)}`,
+      ...loose(hold).map((raw) => `hold:${raw}`),
+      ...loose(theme).map((raw) => `theme:${raw}`),
+      ...loose(service).map((raw) => `service:${raw}`),
+      `service:${service.toUpperCase()}`,
+    ];
+    const port = host(routes());
+    for (const id of ids) port.request("inspect.request", { id }, `loose-${id}`);
+    port.request("inspect.request", { id: `run:${run}` }, "exact");
+    await settle();
+    expect(port.sent.find((m) => m.id === "exact")).toMatchObject({ type: "inspect.result" });
+    const resolved = ids.filter(
+      (id) => port.sent.find((m) => m.id === `loose-${id}`)?.type !== "error",
+    );
+    expect(resolved).toEqual([]);
+    for (const id of ids) {
+      expect(port.sent.find((m) => m.id === `loose-${id}`)).toMatchObject({
+        type: "error",
+        payload: { code: "not_found" },
+      });
+    }
+  });
+
   it("answers not_found before any sweep has been persisted", async () => {
     const port = host(routes());
     port.request("inspect.request", { id: "halt:entitlements" });

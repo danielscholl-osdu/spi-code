@@ -459,24 +459,27 @@ interface RunHit {
   workflow: string;
 }
 
-/** A workflow run the sweep read, wherever it was read: a fork lane, the stack, or an approval. */
-function findRun(facts: Facts, id: number, stackRepo: string): RunHit | undefined {
-  if (!Number.isSafeInteger(id)) return undefined;
+/**
+ * A workflow run the sweep read, wherever it was read: a fork lane, the stack, or an approval.
+ * The id is matched as text, so only the exact spelling the views hand over resolves.
+ */
+function findRun(facts: Facts, key: string, stackRepo: string): RunHit | undefined {
+  const is = (r: RunFact) => String(r.id) === key;
   for (const [repo, lanes] of Object.entries(facts.runs.data ?? {})) {
     for (const workflow of ["sync", "template", "cascade", "main"] as const) {
-      const run = lanes[workflow].find((r) => r.id === id);
+      const run = lanes[workflow].find(is);
       if (run) return { run, repo, workflow };
     }
   }
   for (const [workflow, list] of Object.entries(facts.lifecycle.data ?? {})) {
-    const run = list.find((r) => r.id === id);
+    const run = list.find(is);
     if (run) {
       const repo = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/actions\/runs\//.exec(run.url)?.[1];
       return { run, repo: repo ?? stackRepo, workflow };
     }
   }
   for (const [repo, list] of Object.entries(facts.approvals.data ?? {})) {
-    const run = list.find((r) => r.id === id);
+    const run = list.find(is);
     if (run) return { run, repo, workflow: "approval" };
   }
   return undefined;
@@ -744,7 +747,7 @@ export class WatchRoutes {
       if (fork) result = upstreamForkResult(id, fork, latest.view.areas);
       else if (repo) result = repoResult(id, repo, latest.view.areas);
     } else if (id.startsWith(RUN_PREFIX)) {
-      const hit = findRun(facts, Number(id.slice(RUN_PREFIX.length)), ctx.stackRepo);
+      const hit = findRun(facts, id.slice(RUN_PREFIX.length), ctx.stackRepo);
       if (hit) result = runResult(id, hit, coveringItem(model, hit.run), latest.view.areas);
     } else if (id.startsWith(HOLD_PREFIX)) {
       const hold = latest.view.briefing.environment.lanes
