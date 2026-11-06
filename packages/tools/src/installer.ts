@@ -3,7 +3,7 @@
 
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { createReadStream, createWriteStream, type Dirent } from "node:fs";
+import { type BigIntStats, createReadStream, createWriteStream } from "node:fs";
 import {
   access,
   chmod,
@@ -76,6 +76,18 @@ function torn(error: unknown): boolean {
     "code" in error &&
     ["ENOENT", "EINVAL", "EISDIR", "ELOOP", "ENOTDIR"].includes(String(error.code))
   );
+}
+
+// rename never follows a final symlink, so a concurrent swap moves only the link.
+async function quarantine(root: string, path: string): Promise<string> {
+  const quarantine = await mkdtemp(join(root, ".torn-current-"));
+  try {
+    await rename(path, join(quarantine, "current"));
+  } catch (error) {
+    await rmdir(quarantine).catch(() => undefined);
+    throw error;
+  }
+  return quarantine;
 }
 
 // A quarantined pointer is never traversed: a symlink or file is unlinked, a directory stays on disk.
@@ -153,29 +165,79 @@ export async function createToolInstaller(
 // A recent entry may belong to another process still downloading or extracting.
 const staleAfterMs = 24 * 60 * 60_000;
 
+// unlink never follows a final symlink. Windows refuses to unlink a read-only file.
+async function unlinkEntry(path: string, stats: BigIntStats): Promise<void> {
+  try {
+    await unlink(path);
+  } catch (error) {
+    if (
+      !(
+        process.platform === "win32" &&
+        stats.isFile() &&
+        (error as NodeJS.ErrnoException).code === "EPERM"
+      )
+    )
+      throw error;
+    await chmod(path, 0o666);
+    await unlink(path);
+  }
+}
+
+// Node has no unlinkat, so each step first confirms the directory is still the one that was
+// listed. A tree replaced by a link or another directory mid-walk is retained, never followed.
+async function removeTree(path: string, identity: BigIntStats): Promise<boolean> {
+  const unchanged = async () => {
+    const now = await lstat(path, { bigint: true }).catch(() => undefined);
+    return now?.isDirectory() === true && now.dev === identity.dev && now.ino === identity.ino;
+  };
+  if (!(await unchanged())) return false;
+  const names = await readdir(path);
+  if (!(await unchanged())) return false;
+  for (const name of names) {
+    const entry = join(path, name);
+    const stats = await lstat(entry, { bigint: true }).catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return undefined;
+      throw error;
+    });
+    if (!(await unchanged())) return false;
+    if (!stats) continue;
+    if (stats.isDirectory()) {
+      if (!(await removeTree(entry, stats))) return false;
+    } else await unlinkEntry(entry, stats);
+  }
+  if (!(await unchanged())) return false;
+  await rmdir(path);
+  return true;
+}
+
+async function removeEntry(path: string, stats: BigIntStats): Promise<void> {
+  if (stats.isDirectory()) await removeTree(path, stats);
+  else await unlinkEntry(path, stats);
+}
+
 async function reclaimStale(
   directory: string,
   matches: (name: string) => boolean,
   cutoff: number,
+  reclaim: (path: string, stats: BigIntStats) => Promise<void>,
   descend: (path: string) => boolean = () => false,
 ): Promise<void> {
   // Reclaim is best effort: a locked or unreadable leftover must never block an install.
-  let entries: Dirent[];
+  let names: string[];
   try {
-    entries = await readdir(directory, { withFileTypes: true });
+    names = await readdir(directory);
   } catch {
     return;
   }
-  for (const entry of entries) {
-    const path = join(directory, entry.name);
+  for (const name of names) {
+    const path = join(directory, name);
     try {
-      if (matches(entry.name)) {
-        // lstat ages the temporary symlink itself, never its installed target.
-        if ((await lstat(path)).mtimeMs < cutoff) {
-          await rm(path, { recursive: entry.isDirectory(), force: true });
-        }
-      } else if (entry.isDirectory() && descend(path)) {
-        await reclaimStale(path, matches, cutoff, descend);
+      // lstat ages and shapes the entry itself, never a symlink's target.
+      const stats = await lstat(path, { bigint: true });
+      if (matches(name)) {
+        if (Number(stats.mtimeMs) < cutoff) await reclaim(path, stats);
+      } else if (stats.isDirectory() && descend(path)) {
+        await reclaimStale(path, matches, cutoff, reclaim, descend);
       }
     } catch {
       // Leave it for a later install to retry.
@@ -260,15 +322,27 @@ export class ToolInstaller {
     this.active.add(tool);
     this.states.set(tool, { state: "installing" });
     let staging: string | undefined;
+    let stagingIdentity: BigIntStats | undefined;
     let pointer: string | undefined;
     let quarantined: string | undefined;
     try {
       await mkdir(this.appData, { recursive: true });
       const cutoff = Date.now() - staleAfterMs;
       const stagingName = new RegExp(`^\\.install-(?:${tool}-)?[A-Za-z0-9]{6}$`);
-      await reclaimStale(this.appData, (name) => stagingName.test(name), cutoff);
-      await reclaimStale(this.root(tool), (name) => name.startsWith(".current-"), cutoff);
+      await reclaimStale(this.appData, (name) => stagingName.test(name), cutoff, removeEntry);
+      const toolRoot = this.root(tool);
+      // A stale pointer directory is quarantined whole, like a torn current.
+      await reclaimStale(
+        toolRoot,
+        (name) => name.startsWith(".current-"),
+        cutoff,
+        async (path, stats) => {
+          if (stats.isDirectory()) await discardQuarantine(await quarantine(toolRoot, path));
+          else await unlinkEntry(path, stats);
+        },
+      );
       staging = await mkdtemp(join(this.appData, `.install-${tool}-`));
+      stagingIdentity = await lstat(staging, { bigint: true });
       const asset = pin.platforms[this.platform];
       const archive = join(
         staging,
@@ -355,6 +429,7 @@ export class ToolInstaller {
         root,
         (name) => name.startsWith(".repair-"),
         cutoff,
+        removeEntry,
         (path) => repairDirectories.has(path),
       );
       try {
@@ -395,17 +470,9 @@ export class ToolInstaller {
       signal?.throwIfAborted();
       const current = join(root, "current");
       // A file rename cannot replace a directory, so a torn directory pointer is quarantined in a
-      // fresh directory first. rename never follows a final symlink, so a concurrent swap of
-      // current moves only the link.
+      // fresh directory first.
       if ((await lstat(current).catch(() => undefined))?.isDirectory()) {
-        const quarantine = await mkdtemp(join(root, ".torn-current-"));
-        try {
-          await rename(current, join(quarantine, "current"));
-        } catch (error) {
-          await rmdir(quarantine).catch(() => undefined);
-          throw error;
-        }
-        quarantined = quarantine;
+        quarantined = await quarantine(root, current);
       }
       await rename(pointer, current);
       this.states.delete(tool);
@@ -419,7 +486,8 @@ export class ToolInstaller {
       this.active.delete(tool);
       if (pointer) await rm(pointer, { force: true });
       if (quarantined) await discardQuarantine(quarantined);
-      if (staging) await rm(staging, { recursive: true, force: true });
+      // A staging tree that cannot be removed safely is left for a later install to reclaim.
+      if (staging && stagingIdentity) await removeTree(staging, stagingIdentity).catch(() => false);
     }
   }
 }

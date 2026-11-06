@@ -20,7 +20,7 @@ import {
 } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import {
@@ -597,3 +597,121 @@ test("another installer leaves a fresh in-progress same-tool staging directory a
   }
   expect(await first.readiness("gh")).toEqual({ state: "ready", version: "1.0.0" });
 });
+
+async function plantOutside(name: string): Promise<string> {
+  const outside = join(home, `${name}-outside`);
+  await mkdir(outside);
+  await writeFile(join(outside, "sentinel"), "keep");
+  return outside;
+}
+
+// Swaps a directory the moment cleanup lists it, as a racing process could.
+function swapOnList(
+  target: () => string,
+  swap: "root-link" | "root-directory" | "nested-link",
+  outside: string,
+) {
+  let swapped = false;
+  const hook = (path: string) => {
+    const at = target();
+    if (swapped || !at || path !== at) return;
+    swapped = true;
+    renameSync(at, `${at}-displaced`);
+    if (swap === "root-directory") {
+      mkdirSync(at);
+      writeFileSync(join(at, "sentinel"), "keep");
+    } else symlinkSync(outside, at);
+  };
+  fsHooks.readdir = hook;
+  fsHooks.readdirCallback = hook;
+}
+
+const stagingSwaps = ["root-link", "root-directory", "nested-link"] as const;
+
+test.skipIf(process.platform === "win32").each(stagingSwaps)(
+  "failed-install staging cleanup retains a tree swapped at the %s and keeps outside data",
+  async (swap) => {
+    const appData = join(home, "staging");
+    const outside = await plantOutside(swap);
+    let staging = "";
+    const installer = new ToolInstaller(appData, manifest(), platform, async (path) => {
+      staging = dirname(path);
+      throw new Error("extract failed");
+    });
+    swapOnList(
+      () => (swap === "nested-link" && staging ? join(staging, "payload") : staging),
+      swap,
+      outside,
+    );
+    await expect(installer.install("gh")).rejects.toThrow("extract failed");
+    expect(await readFile(join(outside, "sentinel"), "utf8")).toBe("keep");
+    if (swap === "root-directory") {
+      expect(await readFile(join(staging, "sentinel"), "utf8")).toBe("keep");
+    }
+  },
+);
+
+test.skipIf(process.platform === "win32").each(stagingSwaps)(
+  "stale staging reclaim retains a tree swapped at the %s and keeps outside data",
+  async (swap) => {
+    const appData = join(home, "staging");
+    const outside = await plantOutside(swap);
+    const stale = join(appData, ".install-gh-Ab1234");
+    await mkdir(join(stale, "payload", "bin"), { recursive: true });
+    await writeFile(join(stale, "archive.tar.gz"), "partial download");
+    await writeFile(join(stale, "payload", "bin", "gh"), "partial");
+    const old = new Date(Date.now() - 48 * 60 * 60_000);
+    await utimes(stale, old, old);
+    swapOnList(() => (swap === "nested-link" ? join(stale, "payload") : stale), swap, outside);
+    const installer = new ToolInstaller(appData, manifest(), platform);
+    await installer.install("gh");
+    expect(await readFile(join(outside, "sentinel"), "utf8")).toBe("keep");
+    if (swap === "root-directory") {
+      expect(await readFile(join(stale, "sentinel"), "utf8")).toBe("keep");
+    }
+    expect(await installer.readiness("gh")).toEqual({ state: "ready", version: "1.0.0" });
+  },
+);
+
+test.skipIf(process.platform === "win32")(
+  "a stale staging tree is removed without following the links inside it",
+  async () => {
+    const appData = join(home, "staging");
+    const outside = await plantOutside("nested-link");
+    const stale = join(appData, ".install-gh-Ab1234");
+    await mkdir(join(stale, "payload", "bin"), { recursive: true });
+    await writeFile(join(stale, "payload", "bin", "gh"), "partial");
+    await symlink(outside, join(stale, "payload", "outside"));
+    await symlink(join(outside, "sentinel"), join(stale, "archive.tar.gz"));
+    const old = new Date(Date.now() - 48 * 60 * 60_000);
+    await utimes(stale, old, old);
+    await new ToolInstaller(appData, manifest(), platform).install("gh");
+    expect(await readdir(appData)).toEqual(["tools"]);
+    expect(await readFile(join(outside, "sentinel"), "utf8")).toBe("keep");
+  },
+);
+
+test.skipIf(process.platform === "win32")(
+  "a stale pointer directory is quarantined whole, never traversed into an outside link",
+  async () => {
+    const appData = join(home, "stale-pointer");
+    const root = join(appData, "tools", "gh");
+    const stale = join(root, ".current-abandoned");
+    await mkdir(join(stale, "bin"), { recursive: true });
+    await writeFile(join(stale, "bin", "gh"), "torn");
+    const old = new Date(Date.now() - 48 * 60 * 60_000);
+    await utimes(stale, old, old);
+    const outside = await plantOutside("root-link");
+    swapOnList(() => stale, "root-link", outside);
+    const installer = new ToolInstaller(appData, manifest(), platform);
+    await installer.install("gh");
+    expect(await readFile(join(outside, "sentinel"), "utf8")).toBe("keep");
+    const [quarantine, ...others] = await quarantines(root);
+    expect(others).toEqual([]);
+    expect(await readFile(join(root, String(quarantine), "current", "bin", "gh"), "utf8")).toBe(
+      "torn",
+    );
+    await expect(stat(stale)).rejects.toMatchObject({ code: "ENOENT" });
+    expect(await installer.binDir("gh")).toBe(join(root, "1.0.0", "bin"));
+  },
+);
