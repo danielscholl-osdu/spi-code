@@ -21,7 +21,7 @@ import {
 } from "electron";
 import { externalLinkHandlers } from "./external-links.js";
 import { hostLaunch } from "./host-launch.js";
-import { createLifecycle, stopHostAndReleaseLeases } from "./lifecycle.js";
+import { createLifecycle, stopHostAndReleaseLeases, stopWithin } from "./lifecycle.js";
 import { assertNoProcessListeners } from "./smoke-listeners.js";
 import { smokeMessages } from "./smoke-messages.js";
 import { assertSmokeReport, assertSmokeTools, type SmokeReport } from "./smoke-report.js";
@@ -80,8 +80,13 @@ function fail(error: unknown): void {
   }
 }
 
+function killHost(): void {
+  if (!child?.pid) throw new Error("Host has no pid to kill");
+  process.kill(child.pid, "SIGKILL");
+}
+
 async function stopHost(): Promise<void> {
-  await stopHostAndReleaseLeases(async () => {
+  const stop = async () => {
     if (supervisor) {
       await supervisor.stop();
       return;
@@ -91,7 +96,8 @@ async function stopHost(): Promise<void> {
     if (!child.kill()) throw new Error("Could not kill host");
     await exited;
     child = undefined;
-  }, storePath);
+  };
+  await stopHostAndReleaseLeases(() => stopWithin(stop, killHost), storePath);
 }
 
 function forkHost(args: string[]): UtilityProcess {

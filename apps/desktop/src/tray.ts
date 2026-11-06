@@ -115,8 +115,12 @@ export function trayChannel<P extends Port<P>>(
       const host = makeChannel();
       window.port2.on("message", ({ data, ports }) => host.port1.postMessage(data, ports));
       host.port1.on("message", ({ data, ports }) => {
-        observe(data);
         window.port2.postMessage(data, ports);
+        try {
+          observe(data);
+        } catch (error) {
+          console.error("Sweep-state dot failed to observe a host message", error);
+        }
       });
       window.port2.start();
       host.port1.start();

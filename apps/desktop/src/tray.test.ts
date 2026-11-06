@@ -164,3 +164,32 @@ it("observes host messages while forwarding both directions and closes old relay
   expect(channels[2]?.port2.close).toHaveBeenCalledOnce();
   expect(channels[3]?.port1.close).toHaveBeenCalledOnce();
 });
+
+it("forwards each host message before observing it, even when the observer throws", () => {
+  const channels: { port1: Port; port2: Port }[] = [];
+  const observe = vi.fn(() => {
+    throw new Error("observer broke");
+  });
+  const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+  trayChannel(() => {
+    const channel = { port1: new Port(), port2: new Port() };
+    channels.push(channel);
+    return channel;
+  }, observe).connect();
+  const first = snapshot(["fresh"]);
+  const second = snapshot(["failed"]);
+  expect(() => {
+    channels[1]?.port1.emit("message", { data: first, ports: [] });
+    channels[1]?.port1.emit("message", { data: second, ports: [] });
+  }).not.toThrow();
+  const forwarded = channels[0]?.port2.postMessage;
+  expect(forwarded?.mock.calls).toEqual([
+    [first, []],
+    [second, []],
+  ]);
+  expect(forwarded?.mock.invocationCallOrder[0]).toBeLessThan(
+    observe.mock.invocationCallOrder[0] ?? 0,
+  );
+  expect(logged).toHaveBeenCalledTimes(2);
+  logged.mockRestore();
+});
