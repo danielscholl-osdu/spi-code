@@ -15,7 +15,7 @@ export interface ExecOptions {
   stdin?: string;
   signal?: AbortSignal;
   /**
-   * Redacted output, including a final buffered snapshot on cancellation.
+   * Redacted output, including a final buffered snapshot on cancellation or timeout.
    * Native delivery sets phase to identify already-redacted chunks to wrappers.
    */
   onOutput?: (stream: "stdout" | "stderr", text: string, phase?: "live" | "terminal") => void;
@@ -38,14 +38,14 @@ export function execOutputDelivery(opts: ExecOptions, env: Record<string, string
   const prefixes = ["gho_", "ghp_", "ghs_", "ghu_", "ghr_", "github_pat_", "glpat-", "authorization", "bearer"];
   const pending = { stdout: "", stderr: "" };
   let finished = false;
-  const prefixStart = (text: string, cancellation = false) => {
+  const prefixStart = (text: string, interrupted = false) => {
     let end = text.length;
     const candidates: [string, string][] = [
-      ...(cancellation ? [] : prefixes.map((prefix): [string, string] => [text.toLowerCase(), prefix])),
+      ...(interrupted ? [] : prefixes.map((prefix): [string, string] => [text.toLowerCase(), prefix])),
       ...secrets.map((secret): [string, string] => [text, secret]),
     ];
     for (const [value, candidate] of candidates) {
-      const minimum = cancellation ? Math.min(4, candidate.length) : 1;
+      const minimum = interrupted ? Math.min(4, candidate.length) : 1;
       for (let length = Math.min(value.length, candidate.length); length >= minimum; length--) {
         if (value.endsWith(candidate.slice(0, length))) {
           end = Math.min(end, text.length - length);
@@ -55,7 +55,7 @@ export function execOutputDelivery(opts: ExecOptions, env: Record<string, string
     }
     return end;
   };
-  const cancelledSnapshot = (text: string) => {
+  const interruptedSnapshot = (text: string) => {
     const redacted = safe(text);
     const end = prefixStart(text, true);
     if (end === text.length) return redacted;
@@ -97,7 +97,7 @@ export function execOutputDelivery(opts: ExecOptions, env: Record<string, string
   };
   return {
     push,
-    finish: () => {
+    finish: (reason?: "timeout") => {
       if (finished) return;
       finished = true;
       const failures: unknown[] = [];
@@ -105,7 +105,11 @@ export function execOutputDelivery(opts: ExecOptions, env: Record<string, string
         const text = pending[stream];
         pending[stream] = "";
         try {
-          if (text) opts.onOutput?.(stream, opts.signal?.aborted ? cancelledSnapshot(text) : safe(text), "terminal");
+          if (text) opts.onOutput?.(
+            stream,
+            opts.signal?.aborted || reason === "timeout" ? interruptedSnapshot(text) : safe(text),
+            "terminal",
+          );
         } catch (failure) {
           failures.push(failure);
         }

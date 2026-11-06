@@ -5,7 +5,7 @@ import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { RecordingExec } from "@spi-code/core";
+import { type ExecOptions, RecordingExec } from "@spi-code/core";
 import { ToolInstaller } from "@spi-code/tools";
 import { afterEach, expect, it, vi } from "vitest";
 import { createManagedToolEnvironment } from "../env/tool-environment.js";
@@ -221,6 +221,71 @@ it.each(["payload", "done"])(
   },
 );
 
+it.each([
+  ["HostExec", "done", { env: { REVIEW_TOKEN: "done-not-a-real-token" } }, "<redacted>"],
+  [
+    "RecordingExec-over-HostExec",
+    "done",
+    {
+      env: { REVIEW_TOKEN: "done-not-a-real-token" },
+    },
+    "<redacted>",
+  ],
+  ["HostExec", "opaque.cre", { stdin: "opaque.credential\n" }, "<redacted>"],
+  ["HostExec", "d", { env: { REVIEW_TOKEN: "dummyvalue1234567890" } }, "d"],
+  ["HostExec", "du", { env: { REVIEW_TOKEN: "dummyvalue1234567890" } }, "du"],
+  ["HostExec", "dum", { env: { REVIEW_TOKEN: "dummyvalue1234567890" } }, "dum"],
+  ["HostExec", "Authorization:", {}, "Authorization:"],
+  ["HostExec", "parallel=false", { env: { TOKENIZERS_PARALLELISM: "false" } }, "parallel=false"],
+  ["HostExec", "Ready", { stdin: "y\n" }, "Ready"],
+] satisfies [string, string, ExecOptions, string][])(
+  "%s timeout snapshots preserve safe byte-split output and redact held real-secret prefixes in %j",
+  async (runner, text, opts, expected) => {
+    const options = await fixture();
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(([name]) => !/TOKEN/i.test(name)),
+    );
+    const chunks = { stdout: [] as string[], stderr: [] as string[] };
+    const child = `
+      const text = 'useful output!\\n' + ${JSON.stringify(text)};
+      let i = 0;
+      const next = () => {
+        if (i === text.length) {
+          process.stderr.write('ready!\\n');
+          return setInterval(() => process.stdout.write('late output'), 1000);
+        }
+        process.stdout.write(text[i++]);
+        setTimeout(next, 10);
+      };
+      next();
+    `;
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const host = new HostExec({ ...options, env });
+    const exec = runner === "HostExec" ? host : new RecordingExec(host.run, () => {});
+    const run = exec.runText(process.execPath, ["-e", child], {
+      ...opts,
+      timeoutMs: 1000,
+      onOutput: (stream, chunk) => chunks[stream].push(chunk),
+    });
+    try {
+      const deadline = Date.now() + PROCESS_WAIT.timeout;
+      while (chunks.stderr.join("") !== "ready!\n" && Date.now() < deadline) await delay(10);
+      expect(chunks.stderr.join("")).toBe("ready!\n");
+    } finally {
+      await vi.advanceTimersByTimeAsync(1000);
+      await run;
+    }
+    expect(await run).toMatchObject({ ok: false, error: "Command timed out after 1000ms." });
+    expect(chunks.stdout.join("")).toBe(`useful output!\n${expected}`);
+    expect(chunks.stderr.join("")).toBe("ready!\n");
+    const snapshot = JSON.stringify(chunks);
+    await delay(25);
+    expect(JSON.stringify(chunks)).toBe(snapshot);
+    expect(snapshot).not.toContain("late output");
+  },
+  25_000,
+);
+
 it("terminates a running child on abort and does not spawn for a pre-aborted signal", async () => {
   const options = await fixture();
   const pidFile = join(options.appData, "abort-pid");
@@ -397,7 +462,7 @@ it("kills the entire hung process tree including a SIGTERM-ignoring grandchild",
     await vi.advanceTimersByTimeAsync(1000);
   }
   expect(await result).toMatchObject({ ok: false, error: "Command timed out after 1000ms." });
-  expect(chunks.join("")).toBe("done");
+  expect(chunks.join("")).toBe("<redacted>");
   vi.useRealTimers();
   await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow(), PROCESS_WAIT);
 });

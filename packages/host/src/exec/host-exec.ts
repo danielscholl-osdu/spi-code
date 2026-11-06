@@ -100,6 +100,7 @@ export class HostExec implements Exec {
         let stderr = "";
         let error: string | undefined;
         let spawnFailed = false;
+        let timedOut = false;
         let settled = false;
         let termination: Promise<void> | undefined;
         const delivery = execOutputDelivery(opts, secrets);
@@ -109,7 +110,7 @@ export class HostExec implements Exec {
           clearTimeout(timer);
           opts.signal?.removeEventListener("abort", abort);
           try {
-            delivery.finish();
+            delivery.finish(timedOut ? "timeout" : undefined);
           } catch (failure) {
             error ??= safe(String(failure));
           }
@@ -137,7 +138,10 @@ export class HostExec implements Exec {
               });
           }
         };
-        const timer = setTimeout(() => fail(`Command timed out after ${timeoutMs}ms.`), timeoutMs);
+        const timer = setTimeout(() => {
+          timedOut = true;
+          fail(`Command timed out after ${timeoutMs}ms.`);
+        }, timeoutMs);
         const abort = () => fail("Command aborted.");
         opts.signal?.addEventListener("abort", abort, { once: true });
         if (opts.signal?.aborted) abort();

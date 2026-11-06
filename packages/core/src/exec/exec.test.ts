@@ -339,9 +339,58 @@ describe("exec recording and replay", () => {
     expect(chunks.join("")).toBe("hello world");
   });
 
-  it.each([false, true])(
-    "terminal delivery drains stderr after stdout throws, then rethrows the first failure (cancelled=%j)",
-    (cancelled) => {
+  it.each([
+    ["d", { env: { REVIEW_TOKEN: "dummyvalue1234567890" } }, "d"],
+    ["du", { env: { REVIEW_TOKEN: "dummyvalue1234567890" } }, "du"],
+    ["dum", { env: { REVIEW_TOKEN: "dummyvalue1234567890" } }, "dum"],
+    ["dumm", { env: { REVIEW_TOKEN: "dummyvalue1234567890" } }, "<redacted>"],
+    ["environment.cre", { env: { REVIEW_TOKEN: "environment.credential" } }, "<redacted>"],
+    ["environment.credential", { env: { REVIEW_TOKEN: "environment.credential" } }, "<redacted>"],
+    ["d", { stdin: "dummyvalue1234567890\n" }, "d"],
+    ["du", { stdin: "dummyvalue1234567890\n" }, "du"],
+    ["dum", { stdin: "dummyvalue1234567890\n" }, "dum"],
+    ["dumm", { stdin: "dummyvalue1234567890\n" }, "<redacted>"],
+    ["Processing", {}, "Processing"],
+    ["gh", {}, "gh"],
+    ["github_pat_", {}, "github_pat_"],
+    ["bEaReR", {}, "bEaReR"],
+    ["Authorization:", {}, "Authorization:"],
+    ["ghp_planted", {}, "<redacted>"],
+    ["parallel=false", { env: { TOKENIZERS_PARALLELISM: "false" } }, "parallel=false"],
+    ["Ready", { stdin: "y\n" }, "Ready"],
+    ["A<re-sec-XYZ1-more", {
+      env: { REVIEW_TOKEN: "<re-sec-XYZ1", OTHER_TOKEN: "XYZ1-more-stuff" },
+    }, "A<redacted>"],
+  ] satisfies [string, ExecOptions, string][])(
+    "timeout snapshots preserve safe text and mask only real secret prefixes of four or more characters in %j",
+    (text, opts, expected) => {
+      for (const stream of ["stdout", "stderr"] as const) {
+        const chunks: string[] = [];
+        const delivery = execOutputDelivery({
+          ...opts, onOutput: (_stream, chunk, phase) => {
+            chunks.push(chunk);
+            if (phase === "terminal") {
+              delivery.push("stdout", "reentrant output");
+              delivery.push("stderr", "reentrant output");
+              delivery.finish();
+            }
+          },
+        });
+        for (const byte of `useful output!\n${text}`) delivery.push(stream, byte);
+        delivery.finish("timeout");
+        expect(chunks.join("")).toBe(`useful output!\n${expected}`);
+        const snapshot = [...chunks];
+        delivery.push("stdout", "late output");
+        delivery.push("stderr", "late output");
+        delivery.finish("timeout");
+        expect(chunks).toEqual(snapshot);
+      }
+    },
+  );
+
+  it.each(["normal", "cancellation", "timeout"] as const)(
+    "terminal delivery drains stderr after stdout throws, then rethrows the first failure (%s)",
+    (reason) => {
       const controller = new AbortController();
       const chunks: [string, string][] = [];
       const first = new Error("stdout listener failed");
@@ -356,9 +405,9 @@ describe("exec recording and replay", () => {
       });
       delivery.push("stdout", "done");
       delivery.push("stderr", "done");
-      if (cancelled) controller.abort();
-      expect(() => delivery.finish()).toThrow(first);
-      const text = cancelled ? "<redacted>" : "done";
+      if (reason === "cancellation") controller.abort();
+      expect(() => delivery.finish(reason === "timeout" ? "timeout" : undefined)).toThrow(first);
+      const text = reason === "normal" ? "done" : "<redacted>";
       expect(chunks).toEqual([["stdout", text], ["stderr", text]]);
       expect(() => delivery.finish()).not.toThrow();
       delivery.push("stderr", "late output");
