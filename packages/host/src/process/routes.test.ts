@@ -13,6 +13,9 @@ import {
   PROTOCOL_VERSION,
   parseMessage,
   SweepStatusSchema,
+  type ViewSnapshot,
+  type WatchBriefing,
+  type WatchItem,
 } from "@spi-code/contracts";
 import {
   BudgetPacer,
@@ -28,6 +31,7 @@ import {
   inspectStep,
   inspectUpstreamFork,
   inspectUpstreamPlan,
+  interruptCount,
   type QueueItem,
   REPO_PREFIX,
   STEP_PREFIX,
@@ -82,14 +86,18 @@ afterEach(() => {
 
 let fence: number | undefined;
 
+type StoredView = Omit<ViewSnapshot, "cursor">;
+
 function writeSnapshot(
   remaining = 4321.5,
   floor?: number,
   areas = projectWatch(input).areas,
+  edit: (view: StoredView) => StoredView = (view) => view,
 ): number {
   fence ??= createLeaseStore(db).acquire(fleet, "sweeper", 60_000, now);
   if (fence === undefined) throw new Error("lease not acquired");
-  const { cursor: _, ...view } = projectWatch(input);
+  const { cursor: _, ...projected } = projectWatch(input);
+  const view = edit(projected);
   return createSnapshotStore(db).writeSnapshot(
     { fleet, owner: "sweeper", fence },
     {
@@ -252,7 +260,10 @@ describe("view.subscribe", () => {
     await settle();
     const { cursor: _, ...stored } = projectWatch(input);
     expect(port.sent.map((m) => m.type)).toEqual(["host.hello", "view.snapshot", "sweep.status"]);
-    expect(port.sent[1]).toMatchObject({ kind: "event", payload: { ...stored, cursor } });
+    expect(port.sent[1]).toMatchObject({
+      kind: "event",
+      payload: { ...stored, cursor, seen: { cursor, since: [] } },
+    });
     expect(port.sent[2]).toMatchObject({
       payload: {
         remaining: 4321,
@@ -501,6 +512,127 @@ describe("view.subscribe", () => {
     await settle();
     expect(opened).toBe(1);
     expect(port.sent.map((m) => m.type)).toEqual(["host.hello"]);
+  });
+});
+
+describe("view.acknowledge", () => {
+  const items = (briefing: WatchBriefing) => [...briefing.focus, ...briefing.rest];
+  const withBriefing =
+    (added: WatchItem[], edit: (item: WatchItem) => WatchItem = (item) => item) =>
+    (view: StoredView): StoredView => ({
+      ...view,
+      briefing: {
+        ...view.briefing,
+        focus: [...view.briefing.focus.map(edit), ...added.map(edit)],
+        rest: view.briefing.rest.map(edit),
+      },
+    });
+  const p0 = (view: ViewSnapshot) => {
+    const item = items(view.briefing).find((i) => i.attention === "interrupt");
+    if (!item) throw new Error("fixture must have an Interrupt item");
+    return item;
+  };
+  const write = (edit: (view: StoredView) => StoredView) =>
+    writeSnapshot(undefined, undefined, undefined, edit);
+
+  async function subscribe(watch = routes()) {
+    const port = host(watch);
+    port.request("view.subscribe", { fromCursor: 0 });
+    await settle();
+    const last = port.sent.filter((m) => m.type === "view.snapshot").at(-1);
+    if (last?.type !== "view.snapshot") throw new Error("no snapshot pushed");
+    return {
+      port,
+      view: last.payload,
+      acknowledge: async (cursor: number) => {
+        port.request("view.acknowledge", { cursor }, `ack-${cursor}`);
+        await settle();
+      },
+    };
+  }
+
+  it("is quiet on first sight and keeps the baseline across a restart", async () => {
+    const first = writeSnapshot();
+    const sight = await subscribe();
+    expect(sight.view.seen).toEqual({ cursor: first, since: [], at: new Date(now).toISOString() });
+    const arrived = { ...p0(sight.view), id: "halt:legal", ids: ["halt:legal"] };
+    const second = write(withBriefing([arrived]));
+    const before = await subscribe();
+    expect(before.view.seen).toMatchObject({ cursor: first, since: ["halt:legal"] });
+    const sent = before.port.sent.length;
+    await before.acknowledge(second);
+    expect(before.port.sent).toHaveLength(sent);
+
+    db.close();
+    db = new DatabaseSync(path);
+    const third = write(withBriefing([arrived]));
+    const after = await subscribe();
+    expect(after.view.cursor).toBe(third);
+    expect(after.view.seen).toEqual({
+      cursor: second,
+      since: [],
+      at: new Date(now).toISOString(),
+    });
+  });
+
+  it("reports a new Interrupt, a P1 turned P0 and a P0 that spread as arrived", async () => {
+    const watch = routes();
+    const first = writeSnapshot();
+    const start = await subscribe(watch);
+    await start.acknowledge(first);
+    const fresh = p0(start.view);
+    const arrived = { ...fresh, id: "halt:legal", ids: ["halt:legal"], title: "Legal halted" };
+    const second = write(withBriefing([arrived]));
+    const added = await subscribe(watch);
+    expect(added.view.seen).toMatchObject({ cursor: first, since: ["halt:legal"] });
+
+    await added.acknowledge(second);
+    const surface = items(added.view.briefing).find((i) => i.rung === 1);
+    if (!surface) throw new Error("fixture must have a P1 item");
+    write(
+      withBriefing([arrived], (item) =>
+        item.id === fresh.id
+          ? { ...item, ids: [...item.ids, "halt:partition"] }
+          : item.id === surface.id
+            ? { ...item, rung: 0, attention: "interrupt" }
+            : item,
+      ),
+    );
+    expect((await subscribe(watch)).view.seen).toMatchObject({
+      cursor: second,
+      since: [fresh.id, surface.id],
+    });
+  });
+
+  it("ignores an older or unknown cursor, so the baseline never moves back", async () => {
+    const watch = routes();
+    const first = writeSnapshot();
+    const fresh = p0((await subscribe(watch)).view);
+    const second = write(withBriefing([{ ...fresh, id: "halt:legal" }]));
+    const current = await subscribe(watch);
+    await current.acknowledge(second);
+    await current.acknowledge(first);
+    await current.acknowledge(second + 100);
+    const after = await subscribe(watch);
+    expect(after.view.seen).toMatchObject({ cursor: second, since: [] });
+    expect(current.port.sent.filter((m) => m.type === "error")).toEqual([]);
+  });
+
+  it("never clears a stopped station or lowers the Interrupt count", async () => {
+    const first = writeSnapshot();
+    const before = await subscribe();
+    const stopped = before.view.stations.flatMap((s) =>
+      s.stations.filter((station) => station.substate === "stopped"),
+    );
+    expect(stopped.length).toBeGreaterThan(0);
+    const count = interruptCount(items(before.view.briefing));
+    expect(count).toBeGreaterThan(0);
+    await before.acknowledge(first);
+    const after = await subscribe(routes());
+    expect(after.view.seen.since).toEqual([]);
+    expect(after.view.stations).toEqual(before.view.stations);
+    expect(after.view.briefing).toEqual(before.view.briefing);
+    expect(interruptCount(items(after.view.briefing))).toBe(count);
   });
 });
 

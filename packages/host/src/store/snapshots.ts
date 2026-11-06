@@ -40,6 +40,7 @@ export function createSnapshotStore(db: DatabaseSync) {
     "SELECT * FROM facts_snapshots WHERE fleet = ? ORDER BY cursor DESC LIMIT 1",
   );
   const since = db.prepare("SELECT * FROM facts_snapshots WHERE cursor > ? ORDER BY cursor");
+  const at = db.prepare("SELECT * FROM facts_snapshots WHERE fleet = ? AND cursor = ?");
   return {
     writeSnapshot(
       lease: LeaseIdentity,
@@ -70,6 +71,11 @@ export function createSnapshotStore(db: DatabaseSync) {
     },
     latestSnapshot(fleet: string): SnapshotRecord | undefined {
       const row = latest.get(fleet) as SnapshotRow | undefined;
+      return row === undefined ? undefined : decode(row);
+    },
+    snapshotAt(fleet: string, cursor: number): SnapshotRecord | undefined {
+      if (!Number.isSafeInteger(cursor) || cursor <= 0) return undefined;
+      const row = at.get(fleet, cursor) as SnapshotRow | undefined;
       return row === undefined ? undefined : decode(row);
     },
     snapshotsSince(cursor: number): SnapshotRecord[] {

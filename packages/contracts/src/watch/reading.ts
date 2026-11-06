@@ -3,7 +3,7 @@
 
 import { z } from "zod";
 import { WatchItemSchema } from "./briefing.js";
-import { IdentifierSchema } from "./evidence.js";
+import { IdentifierSchema, ObservedAtSchema } from "./evidence.js";
 
 export const StationSubstateSchema = z.enum([
   "stopped",
@@ -52,6 +52,7 @@ export const ReadingSchema = z.strictObject({
 export const SeenStateSchema = z.strictObject({
   cursor: z.int().nonnegative().nullable(),
   since: z.array(IdentifierSchema),
+  at: ObservedAtSchema.optional(),
 });
 export const ViewAcknowledgeSchema = z.strictObject({ cursor: z.int().nonnegative() });
 
@@ -60,3 +61,4 @@ export type Campaign = z.infer<typeof CampaignSchema>;
 export type Anchor = z.infer<typeof AnchorSchema>;
 export type Reading = z.infer<typeof ReadingSchema>;
 export type SeenState = z.infer<typeof SeenStateSchema>;
+export type ViewAcknowledge = z.infer<typeof ViewAcknowledgeSchema>;

@@ -27,7 +27,7 @@ const v1 = `
   INSERT INTO run_events VALUES ('run-1', 1, 'tool', NULL, '{"result":42}', 'before');
 `;
 
-describe("store migration v2", () => {
+describe("store migrations", () => {
   const databases: DatabaseSync[] = [];
 
   function open(): DatabaseSync {
@@ -41,48 +41,53 @@ describe("store migration v2", () => {
     for (const db of databases.splice(0)) db.close();
   });
 
-  it.each(["empty", "v1"] as const)("migrates a %s database to all ten NF-04 tables", (from) => {
-    const db = open();
-    if (from === "v1") db.exec(v1);
-    const runs = from === "v1" ? db.prepare("SELECT * FROM runs").all() : [];
-    const events = from === "v1" ? db.prepare("SELECT * FROM run_events").all() : [];
-    migrate(db);
-    expect(
-      db
-        .prepare(
-          `SELECT name FROM sqlite_schema WHERE type = 'table'
+  it.each(["empty", "v1"] as const)(
+    "migrates a %s database to the ten NF-04 tables and the seen baseline",
+    (from) => {
+      const db = open();
+      if (from === "v1") db.exec(v1);
+      const runs = from === "v1" ? db.prepare("SELECT * FROM runs").all() : [];
+      const events = from === "v1" ? db.prepare("SELECT * FROM run_events").all() : [];
+      migrate(db);
+      expect(
+        db
+          .prepare(
+            `SELECT name FROM sqlite_schema WHERE type = 'table'
            AND name NOT IN ('schema_version', 'sqlite_sequence') ORDER BY name`,
-        )
-        .all()
-        .map((row) => row.name),
-    ).toEqual([
-      "approvals",
-      "facts_snapshots",
-      "intents",
-      "leases",
-      "messages",
-      "run_events",
-      "runs",
-      "threads",
-      "waits",
-      "worktrees",
-    ]);
-    expect(db.prepare("SELECT * FROM runs").all()).toEqual(runs);
-    expect(db.prepare("SELECT * FROM run_events").all()).toEqual(events);
-    if (from === "v1") {
-      expect(() => db.exec("UPDATE run_events SET message = 'changed'")).toThrow("append-only");
-      expect(() => db.exec("DELETE FROM run_events")).toThrow("append-only");
-    }
-    const schema = db.prepare("SELECT name, sql FROM sqlite_schema ORDER BY name").all();
-    migrate(db);
-    expect(db.prepare("SELECT name, sql FROM sqlite_schema ORDER BY name").all()).toEqual(schema);
-    expect(db.prepare("SELECT version FROM schema_version ORDER BY version").all()).toEqual([
-      { version: 1 },
-      { version: 2 },
-    ]);
-  });
+          )
+          .all()
+          .map((row) => row.name),
+      ).toEqual([
+        "approvals",
+        "facts_snapshots",
+        "intents",
+        "leases",
+        "messages",
+        "run_events",
+        "runs",
+        "seen_baselines",
+        "threads",
+        "waits",
+        "worktrees",
+      ]);
+      expect(db.prepare("SELECT * FROM runs").all()).toEqual(runs);
+      expect(db.prepare("SELECT * FROM run_events").all()).toEqual(events);
+      if (from === "v1") {
+        expect(() => db.exec("UPDATE run_events SET message = 'changed'")).toThrow("append-only");
+        expect(() => db.exec("DELETE FROM run_events")).toThrow("append-only");
+      }
+      const schema = db.prepare("SELECT name, sql FROM sqlite_schema ORDER BY name").all();
+      migrate(db);
+      expect(db.prepare("SELECT name, sql FROM sqlite_schema ORDER BY name").all()).toEqual(schema);
+      expect(db.prepare("SELECT version FROM schema_version ORDER BY version").all()).toEqual([
+        { version: 1 },
+        { version: 2 },
+        { version: 3 },
+      ]);
+    },
+  );
 
-  it("rolls back v2 without changing v1 data or its migration ledger", () => {
+  it("rolls back v2 and v3 without changing v1 data or its migration ledger", () => {
     const db = open();
     db.exec(v1);
     db.exec("CREATE TABLE facts_snapshots (conflict TEXT)");
@@ -97,6 +102,6 @@ describe("store migration v2", () => {
     expect(db.prepare("SELECT * FROM run_events").all()).toEqual(events);
     db.exec("DROP TABLE facts_snapshots");
     migrate(db);
-    expect(db.prepare("SELECT MAX(version) AS version FROM schema_version").get()?.version).toBe(2);
+    expect(db.prepare("SELECT MAX(version) AS version FROM schema_version").get()?.version).toBe(3);
   });
 });

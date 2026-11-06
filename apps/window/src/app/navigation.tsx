@@ -1,14 +1,18 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { PROTOCOL_VERSION, parseMessage } from "@spi-code/contracts";
 import {
   createContext,
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useSyncExternalStore,
 } from "react";
+import { useStore } from "zustand";
+import { watchStore } from "../store/watch.js";
 
 export const LENSES = ["flow", "repositories", "horizon"] as const;
 export type Lens = (typeof LENSES)[number];
@@ -299,8 +303,95 @@ export type Navigation = {
   closeSheet(): void;
 };
 
+const LAST_PLACE_KEY = "spi-code.last-place";
+/** The hash the window launched on, and whether the first snapshot has decided the landing. */
+let launch: { hash: string; decided: boolean } | null = null;
+/** The newest cursor this window acknowledged, so one cursor is sent once. */
+let acknowledged = 0;
+
+/** A new launch: the next mount restores the last place and decides the landing again. */
+export function relaunch() {
+  launch = null;
+  acknowledged = 0;
+}
+
+/** A launch with no hash opens on the last place; a reload keeps its hash. */
+function restoreLastPlace(registry: Registry) {
+  if (launch) return;
+  let hash = window.location.hash;
+  if (hash === "") {
+    let saved: string | null = null;
+    try {
+      saved = window.localStorage.getItem(LAST_PLACE_KEY);
+    } catch {}
+    const route = saved === null ? undefined : parseRoute(saved);
+    if (route && route.kind !== "setup" && isReachable(route, registry)) {
+      hash = routeHash(route);
+      window.history.replaceState(window.history.state, "", hash);
+    }
+  }
+  launch = { hash, decided: false };
+}
+
+function saveLastPlace(route: Route) {
+  if (route.kind === "setup") return;
+  try {
+    window.localStorage.setItem(LAST_PLACE_KEY, routeHash(route));
+  } catch {}
+}
+
+function sendAcknowledge(cursor: number) {
+  const parsed = parseMessage({
+    version: PROTOCOL_VERSION,
+    id: crypto.randomUUID(),
+    kind: "request",
+    type: "view.acknowledge",
+    payload: { cursor },
+  });
+  if (!parsed.ok) throw new Error("Invalid view.acknowledge");
+  window.spi?.postMessage(parsed.message);
+}
+
+/**
+ * Opens on Today when an Interrupt item arrived since the last acknowledgement, otherwise
+ * on the last place, and acknowledges each snapshot Today shows in the foreground.
+ */
+function useLanding(route: Route, sheet: SheetPresentation, registry: Registry) {
+  const snapshot = useStore(watchStore, (state) => state.snapshot);
+
+  useEffect(() => saveLastPlace(route), [route]);
+
+  useEffect(() => {
+    if (!snapshot || !launch || launch.decided) return;
+    launch.decided = true;
+    // A place the operator, or the setup landing, chose since launch is not overridden.
+    if (window.location.hash !== launch.hash || !registry.views.today) return;
+    // The host lists in `seen.since` the Interrupt items that arrived since the last acknowledgement.
+    if (snapshot.body.seen.since.length > 0) navigate({ kind: "today" });
+  }, [snapshot, registry]);
+
+  useEffect(() => {
+    if (!snapshot || route.kind !== "today" || sheet === "overlay") return;
+    const { cursor } = snapshot;
+    const check = () => {
+      if (document.visibilityState !== "visible" || !document.hasFocus()) return;
+      if (cursor <= (snapshot.body.seen.cursor ?? 0) || cursor <= acknowledged) return;
+      acknowledged = cursor;
+      sendAcknowledge(cursor);
+    };
+    check();
+    window.addEventListener("focus", check);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      window.removeEventListener("focus", check);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, [snapshot, route, sheet]);
+}
+
 /** The current route, kept in the location hash so a reload returns to the same place. */
 export function useNavigation(registry: Registry): Navigation {
+  restoreLastPlace(registry);
   const hash = useSyncExternalStore(subscribe, readHash, readHash);
   const presentation = useSyncExternalStore(subscribe, readPresentation, readPresentation);
   const route = useMemo(() => resolveRoute(hash, registry), [hash, registry]);
@@ -310,5 +401,6 @@ export function useNavigation(registry: Registry): Navigation {
     if (readPresentation() === "closed") openSheet();
     else closeSheet();
   }, [registry.sheet]);
+  useLanding(route, sheet, registry);
   return { route, sheet, navigate, toggleSheet, pinSheet, unpinSheet, closeSheet };
 }

@@ -61,9 +61,11 @@ import {
   verbsOf,
 } from "@spi-code/core";
 import { z } from "zod";
+import { createSeenStore } from "../store/seen.js";
 import { createSnapshotStore, type SnapshotRecord } from "../store/snapshots.js";
 import { appActions, readNotes } from "../watch/project.js";
 import { type RunHit, recordedRuns } from "../watch/recorded-runs.js";
+import { baselineItems, parseSeenItems, type SeenBaseline, seenSince } from "../watch/seen.js";
 import type { HostRoutes, HostSend } from "./port.js";
 
 export interface WatchRoutesOptions {
@@ -873,6 +875,7 @@ function repositoryLineResult(view: ViewSnapshot, id: string): InspectResult | u
  */
 export class WatchRoutes {
   private store: ReturnType<typeof createSnapshotStore> | undefined;
+  private seenStore: ReturnType<typeof createSeenStore> | undefined;
   private subscriber: { send: HostSend; cursor: number } | undefined;
 
   readonly routes: HostRoutes = {
@@ -880,6 +883,10 @@ export class WatchRoutes {
       if (message.type !== "view.subscribe") return;
       this.subscriber = { send, cursor: message.payload.fromCursor };
       this.flush();
+    },
+    "view.acknowledge": (message) => {
+      if (message.type !== "view.acknowledge") return;
+      this.acknowledge(message.payload.cursor);
     },
     "inspect.request": (message, send) => this.inspect(message, send),
   };
@@ -916,6 +923,51 @@ export class WatchRoutes {
     return record ? persisted(record) : undefined;
   }
 
+  private seen() {
+    this.seenStore ??= createSeenStore(this.options.db());
+    return this.seenStore;
+  }
+
+  /** The stored acknowledgement; a row this build cannot read counts as never acknowledged. */
+  private baseline(): SeenBaseline | undefined {
+    const record = this.seen().baseline(this.options.fleet);
+    const items = record ? parseSeenItems(record.items) : undefined;
+    return record && items
+      ? { cursor: record.cursor, at: new Date(record.at).toISOString(), items }
+      : undefined;
+  }
+
+  /**
+   * The baseline for a push. With none stored, the first snapshot pushed becomes it: first
+   * sight is quiet, and only what arrives after it counts as arrived.
+   */
+  private baselineFor(view: ViewSnapshot): SeenBaseline {
+    const stored = this.baseline();
+    if (stored) return stored;
+    const now = this.options.ctx.clock.now().getTime();
+    const items = baselineItems(view.briefing);
+    this.seen().acknowledge(this.options.fleet, view.cursor, items, now);
+    return { cursor: view.cursor, at: new Date(now).toISOString(), items };
+  }
+
+  /**
+   * Records the briefing the window showed at `cursor` as the seen baseline. It writes only the
+   * baseline: stations, the count and the stored snapshots are untouched. Unknown, pruned or
+   * older cursors are ignored.
+   */
+  private acknowledge(cursor: number): void {
+    this.store ??= createSnapshotStore(this.options.db());
+    const record = this.store.snapshotAt(this.options.fleet, cursor);
+    if (!record) return;
+    const items = baselineItems(persisted(record).view.briefing);
+    this.seen().acknowledge(
+      this.options.fleet,
+      cursor,
+      items,
+      this.options.ctx.clock.now().getTime(),
+    );
+  }
+
   private flush(): void {
     const subscriber = this.subscriber;
     if (!subscriber) return;
@@ -927,7 +979,10 @@ export class WatchRoutes {
       id: `snapshot-${cursor}`,
       kind: "event",
       type: "view.snapshot",
-      payload: latest.view,
+      payload: {
+        ...latest.view,
+        seen: seenSince(this.baselineFor(latest.view), latest.view.briefing),
+      },
     });
     subscriber.send({
       version: PROTOCOL_VERSION,
