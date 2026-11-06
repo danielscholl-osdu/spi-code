@@ -4,7 +4,7 @@
 import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import recorded from "../../../../fixtures/watch/snapshot-59d6895.json?raw";
 import { watchStore } from "../store/watch.js";
 import {
@@ -15,6 +15,7 @@ import {
   type Registry,
   type Route,
   type RouteKind,
+  relaunch,
   routeHash,
   routeLabel,
   unpinSheet,
@@ -54,6 +55,7 @@ const sheet = vi.fn((origin: Route, _presentation: string) => (
   <p data-sheet>{routeHash(origin)}</p>
 ));
 const PINNED_KEY = "spi-code.line-sheet.pinned";
+const LAST_PLACE_KEY = "spi-code.last-place";
 
 async function mount(registry: Registry) {
   container = document.createElement("div");
@@ -86,6 +88,7 @@ const setHash = (hash: string) =>
 beforeEach(() => {
   window.location.hash = "";
   localStorage.removeItem(PINNED_KEY);
+  localStorage.removeItem(LAST_PLACE_KEY);
   sheet.mockClear();
   window.spi = {
     proof: false,
@@ -103,6 +106,9 @@ afterEach(async () => {
   window.location.hash = "";
   closeSheet();
   localStorage.removeItem(PINNED_KEY);
+  localStorage.removeItem(LAST_PLACE_KEY);
+  vi.restoreAllMocks();
+  relaunch();
 });
 
 it("renders the registered component for every route id, with its service id and month", async () => {
@@ -307,4 +313,102 @@ it("lists only registered places in the sidebar and Find, and falls back from th
     expect(shown()).toBe("#today");
     expect(place()).toBe("Today");
   }
+});
+
+describe("landing", () => {
+  const recordedBody = ViewSnapshotSchema.parse(JSON.parse(recorded));
+  const registry: Registry = { views: every, sheet, fallback: { kind: "inbox" } };
+  const arrive = (cursor: number, seen: { cursor: number; since: string[] }) =>
+    act(async () => {
+      const body = { ...recordedBody, cursor, seen };
+      watchStore.setState({ snapshot: { cursor, body } });
+    });
+  const acknowledged = () =>
+    vi
+      .mocked(window.spi.postMessage)
+      .mock.calls.map(([message]) => message)
+      .filter((message) => message.type === "view.acknowledge")
+      .map((message) => message.payload);
+  const launch = async (lastPlace?: string) => {
+    if (lastPlace) localStorage.setItem(LAST_PLACE_KEY, lastPlace);
+    await mount(registry);
+  };
+  const restart = async () => {
+    await unmount();
+    relaunch();
+    window.location.hash = "";
+    watchStore.setState({ snapshot: null });
+  };
+
+  beforeEach(() => {
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+  });
+
+  it("lands on the last place after Today was acknowledged and the sweep brought nothing new", async () => {
+    await launch("#upstream");
+    await arrive(4, { cursor: 3, since: ["halt:legal"] });
+    expect(shown()).toBe("#today");
+    expect(acknowledged()).toEqual([{ cursor: 4 }]);
+    await go({ kind: "upstream" });
+
+    await restart();
+    await launch();
+    expect(shown()).toBe("#upstream");
+    await arrive(5, { cursor: 4, since: [] });
+    expect(shown()).toBe("#upstream");
+    expect(acknowledged()).toEqual([{ cursor: 4 }]);
+  });
+
+  it("opens on Today when a new Interrupt arrived, and again when an existing P0 worsens", async () => {
+    await launch("#environment");
+    await arrive(4, { cursor: 3, since: [] });
+    expect(shown()).toBe("#environment");
+
+    await restart();
+    await launch();
+    await arrive(5, { cursor: 4, since: ["halt:legal"] });
+    expect(shown()).toBe("#today");
+    expect(acknowledged()).toEqual([{ cursor: 5 }]);
+    await go({ kind: "environment" });
+
+    await restart();
+    await launch();
+    await arrive(6, { cursor: 5, since: ["stack:38181620856"] });
+    expect(shown()).toBe("#today");
+    expect(acknowledged()).toEqual([{ cursor: 5 }, { cursor: 6 }]);
+  });
+
+  it("keeps a place chosen before the first snapshot, and falls back without a last place", async () => {
+    await launch();
+    expect(shown()).toBe("#inbox");
+    await go({ kind: "security" });
+    await arrive(4, { cursor: 3, since: ["halt:legal"] });
+    expect(shown()).toBe("#security");
+    expect(acknowledged()).toEqual([]);
+  });
+
+  it("acknowledges only while Today is in the foreground, and each cursor once", async () => {
+    await launch();
+    await go({ kind: "today" });
+    await go(LINE);
+    await arrive(4, { cursor: 3, since: ["halt:legal"] });
+    expect(lineSheet()).not.toBeNull();
+    expect(acknowledged()).toEqual([]);
+    await act(async () => closeSheet());
+    expect(acknowledged()).toEqual([{ cursor: 4 }]);
+
+    vi.mocked(document.hasFocus).mockReturnValue(false);
+    await go({ kind: "inbox" });
+    await arrive(5, { cursor: 4, since: [] });
+    await go({ kind: "today" });
+    expect(acknowledged()).toEqual([{ cursor: 4 }]);
+    vi.mocked(document.hasFocus).mockReturnValue(true);
+    await act(async () => window.dispatchEvent(new FocusEvent("focus")));
+    expect(acknowledged()).toEqual([{ cursor: 4 }, { cursor: 5 }]);
+
+    await act(async () => window.dispatchEvent(new FocusEvent("focus")));
+    await go({ kind: "inbox" });
+    await go({ kind: "today" });
+    expect(acknowledged()).toEqual([{ cursor: 4 }, { cursor: 5 }]);
+  });
 });

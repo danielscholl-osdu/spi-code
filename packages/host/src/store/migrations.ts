@@ -94,6 +94,14 @@ const migrations = [
     CREATE INDEX facts_snapshots_fleet_cursor ON facts_snapshots (fleet, cursor);
     CREATE INDEX facts_snapshots_at ON facts_snapshots (at);
   `,
+  `
+    CREATE TABLE seen_baselines (
+      fleet TEXT PRIMARY KEY NOT NULL,
+      cursor INTEGER NOT NULL CHECK (cursor > 0 AND cursor <= 9007199254740991),
+      items TEXT NOT NULL CHECK (json_valid(items)),
+      at INTEGER NOT NULL
+    ) STRICT;
+  `,
 ];
 
 export function migrate(db: DatabaseSync): void {

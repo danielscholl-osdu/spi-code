@@ -58,10 +58,20 @@ same SPI/template ownership rule as Security. Its item names the scanner and
 counts upstream-origin findings separately; hidden lists remain "not read yet".
 Stopped and due items keep priority, and lower-tier overflow folds past five items.
 `seen.cursor: null` means no acknowledged baseline; `seen.since` lists the
-Interrupt item IDs new or worsened since that baseline, defaulting to `[]`.
-The window request
-`view.acknowledge` carries `{ cursor }`; this bead defines its shape only,
-not persistence or request handling.
+Interrupt item IDs that arrived since that baseline, and `seen.at` is when it was
+acknowledged. An item arrived when the baseline has no item sharing one of its ids,
+the baseline item was not Interrupt, its rung is worse (lower), or it now reaches an
+id the acknowledged item did not. Without a baseline nothing is compared: `cursor` is
+null and `since` is empty. `seenSince` is the pure comparison; `seenState` uses `WatchInput.baseline`.
+
+The window sends `view.acknowledge { cursor }` when it shows Today in the foreground.
+`WatchRoutes` looks up that fleet's snapshot at the cursor and stores its items' ids,
+rungs and tiers in the `seen_baselines` table (`store/seen.ts`), only ever moving to a
+newer cursor; unknown or pruned cursors are ignored and no reply is sent. Each pushed
+`view.snapshot` carries `seen` computed from the stored baseline, so it survives a
+restart. When no baseline is stored, the first snapshot pushed becomes it: first sight
+is quiet, and only Interrupt items that arrive after it open the window on Today. Acknowledging writes only the baseline: stations, the
+Interrupt count and stored snapshots are unchanged.
 
 The tree uses evidence states, not service health: a stopped service can have
 fresh evidence. Service dots use records naming that service, its repository or upstream;

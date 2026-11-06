@@ -41,3 +41,10 @@ event and its contiguous sequence. The child imports the compiled production
 store and calls `openRunStore` and `appendEvent`, acknowledging each commit
 before proceeding. `scripts/check` builds that output before running Vitest;
 run `pnpm run typecheck` before a standalone store test to refresh it.
+
+Migration 3 adds `seen_baselines`, one row per fleet. `createSeenStore` reads it
+with `baseline(fleet)` and writes it with `acknowledge(fleet, cursor, items, at)`,
+an upsert that only replaces a row when the cursor is newer, so a late or repeated
+acknowledgement never moves the baseline back. Items are JSON the caller shapes;
+`watch/seen.ts` writes and parses them. `snapshotAt(fleet, cursor)` reads one stored
+snapshot for that acknowledgement.
