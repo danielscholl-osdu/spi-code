@@ -85,11 +85,28 @@ function ruleItem(
     .sort(urgency);
   const source = projected[0];
   const repos = [...new Set(findings.map(({ repo }) => repo.name))];
-  const reaches = [...new Set(findings.map(({ alert: g }) => g.reach))];
+  const programRepos = [
+    ...new Set(findings.filter(({ repo }) => repo.group !== "fork").map(({ repo }) => repo.name)),
+  ];
+  const reaches = [
+    ...new Set(
+      findings.map(({ alert: g }) =>
+        g.source === "code" && !g.where
+          ? "repository settings"
+          : g.reach === "shipped"
+            ? "shipped code"
+            : g.reach,
+      ),
+    ),
+  ];
   const severity = SEVERITY_ORDER.find((level) =>
     findings.some(({ alert: g }) => g.severity === level),
   );
-  const title = `${campaign ? "Detected: " : ""}${groupName(alert)}${
+  const name =
+    alert.source === "code" && alert.tool === "Scorecard"
+      ? `Scorecard: ${groupName(alert).replace(/-/g, " ").toLowerCase()}`
+      : groupName(alert);
+  const title = `${campaign ? "Detected: " : ""}${name}${
     alert.source === "dependabot" ? " vulnerabilities" : ""
   }`;
   return {
@@ -100,7 +117,7 @@ function ruleItem(
       rung: source?.rung ?? 2,
       cls: "SECURITY",
       scope: campaign
-        ? plural(campaign.forks.length, "fork")
+        ? [plural(campaign.forks.length, "fork"), ...programRepos].join(", ")
         : repos.length === 1
           ? first.repo.name
           : plural(repos.length, "repository", "repositories"),
@@ -108,11 +125,11 @@ function ruleItem(
       sub: [
         plural(count, "SPI-owned finding"),
         severity ? `worst ${severity}` : undefined,
-        reaches.map((reach) => (reach === "shipped" ? "shipped code" : reach)).join(", "),
+        reaches.join(", "),
       ]
         .filter(Boolean)
         .join(" · "),
-      cause: `${plural(count, "SPI-owned finding")} for ${groupName(alert)}.`,
+      cause: `${plural(count, "SPI-owned finding")} for ${name}.`,
       effect: "",
       next: campaign ? "" : (source?.next ?? ""),
       verb: campaign ? "" : (source?.verb ?? ""),

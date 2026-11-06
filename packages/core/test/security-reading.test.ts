@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, it } from "vitest";
+import { attentionOf, LEAD_TIME_MS } from "../src/attention.js";
 import { buildBriefing } from "../src/brief/index.js";
 import { repositoriesOf } from "../src/brief/repos.js";
 import type { ReadRecord } from "../src/evidence/index.js";
@@ -70,6 +71,37 @@ describe("Security reading on the recorded sweep", () => {
     expect(readingText(reading).join(" ")).not.toContain("Upstream-only finding");
   });
 
+  it("names Scorecard checks plainly and distinguishes repository settings from file reach", () => {
+    const facts = fixtureFacts();
+    const alerts = facts.security.data;
+    const scorecard = alerts?.["Azure/osdu-spi"]?.code?.filter(
+      (alert) =>
+        alert.tool === "Scorecard" &&
+        ["BranchProtectionID", "CodeReviewID", "TokenPermissionsID"].includes(alert.rule),
+    );
+    if (!alerts || !scorecard?.length) throw new Error("Missing recorded Scorecard findings");
+    for (const repo of Object.keys(alerts)) alerts[repo] = { dependabot: [], code: [] };
+    alerts["Azure/osdu-spi"] = { dependabot: [], code: scorecard };
+    const reading = securityReading(recorded(facts));
+    expect(reading.items).toHaveLength(3);
+    expect(reading.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "Scorecard: branch protection",
+          sub: "1 SPI-owned finding · worst high · repository settings",
+        }),
+        expect.objectContaining({
+          title: "Scorecard: code review",
+          sub: "1 SPI-owned finding · worst high · repository settings",
+        }),
+        expect.objectContaining({
+          title: "Scorecard: token permissions",
+          sub: "5 SPI-owned findings · worst high · tooling",
+        }),
+      ]),
+    );
+  });
+
   it("shows each shared rule once as its detected campaign, not once per fork or path", () => {
     const input = recorded();
     const reading = securityReading(input);
@@ -119,6 +151,45 @@ describe("Security reading on the recorded sweep", () => {
     expect(reading.items.slice(1).every((item) => item.group === "In the background")).toBe(true);
   });
 
+  it("retains a critical shipped rule's projected queue attention and rung", () => {
+    const facts = fixtureFacts();
+    const alerts = facts.security.data;
+    const base = alerts?.["Azure/osdu-spi-file"]?.code?.[0];
+    if (!alerts || !base) throw new Error("Missing recorded file findings");
+    for (const repo of Object.keys(alerts)) alerts[repo] = { dependabot: [], code: [] };
+    alerts["Azure/osdu-spi-file"] = {
+      dependabot: [],
+      code: [
+        {
+          ...base,
+          rule: "synthetic/critical",
+          description: "Critical shipped rule",
+          path: "provider/file-azure/Critical.java",
+          severity: "critical",
+        },
+      ],
+    };
+    const input = recorded(facts);
+    input.items = input.items.map((item) => ({
+      ...item,
+      ...attentionOf(item, input.model, { now: FIXTURE_NOW, leadTimeMs: LEAD_TIME_MS }),
+    }));
+    const queued = input.items.filter((item) => item.cls === "SECURITY");
+    const queueId = "security:code:critical shipped rule";
+    expect(queued).toMatchObject([{ id: queueId, ids: [queueId], attention: "surface", rung: 1 }]);
+    const reading = securityReading(input);
+    expect(reading.items).toMatchObject([
+      {
+        id: "alert:Azure/osdu-spi-file:code:CodeQL:synthetic/critical:provider/file-azure",
+        ids: expect.arrayContaining([queueId]),
+        title: "Critical shipped rule",
+        attention: "surface",
+        rung: 1,
+        group: "Needs attention",
+      },
+    ]);
+  });
+
   it("links a rule on exactly two forks, retaining the earliest projected due time", () => {
     const facts = fixtureFacts();
     for (const service of ["file", "schema"]) {
@@ -164,6 +235,51 @@ describe("Security reading on the recorded sweep", () => {
     expect(reading.folded).not.toContain("Shared rule");
   });
 
+  it("names the template copy in a shared fork campaign's scope, count and evidence", () => {
+    const facts = fixtureFacts();
+    const alerts = facts.security.data;
+    const base = alerts?.["Azure/osdu-spi-file"]?.code?.[0];
+    if (!alerts || !base) throw new Error("Missing recorded file findings");
+    for (const repo of Object.keys(alerts)) alerts[repo] = { dependabot: [], code: [] };
+    for (const name of ["osdu-spi", "osdu-spi-file", "osdu-spi-schema"]) {
+      alerts[`Azure/${name}`] = {
+        dependabot: [],
+        code: [
+          {
+            ...base,
+            rule: "synthetic/shared",
+            description: "Shared rule",
+            url: `https://github.com/Azure/${name}/security/code-scanning/${base.number}`,
+            path:
+              name === "osdu-spi"
+                ? "src/Shared.java"
+                : `provider/${name.replace("osdu-spi-", "")}-azure/Shared.java`,
+          },
+        ],
+      };
+    }
+    const reading = securityReading(recorded(facts));
+    expect(reading.items).toHaveLength(1);
+    expect(reading.items[0]).toMatchObject({
+      id: "campaign:security:CodeQL%3A%20synthetic%2Fshared",
+      title: "Detected: Shared rule",
+      scope: "2 forks, osdu-spi",
+      sub: "3 SPI-owned findings · worst medium · shipped code",
+      ids: expect.arrayContaining([
+        "alert:Azure/osdu-spi:code:CodeQL:synthetic/shared:src",
+        "alert:Azure/osdu-spi-file:code:CodeQL:synthetic/shared:provider/file-azure",
+        "alert:Azure/osdu-spi-schema:code:CodeQL:synthetic/shared:provider/schema-azure",
+      ]),
+      evidence: expect.arrayContaining([
+        expect.objectContaining({ label: "osdu-spi findings" }),
+        expect.objectContaining({ label: "file findings" }),
+        expect.objectContaining({ label: "schema findings" }),
+      ]),
+    });
+    expect(reading.items[0]?.evidence).toHaveLength(3);
+    expect(reading.tiles.map((tile) => tile.value)).toEqual(["0", "3", "0"]);
+  });
+
   it("groups paths by rule identity, not matching descriptions, and strips title emoji", () => {
     const facts = fixtureFacts();
     const alerts = facts.security.data;
@@ -197,8 +313,8 @@ describe("Security reading on the recorded sweep", () => {
     const reading = securityReading(recorded(facts));
     expect(reading.items).toHaveLength(2);
     expect(reading.items.map((item) => item.title)).toEqual([
-      "Same description",
-      "Same description",
+      "Scorecard: same description",
+      "Scorecard: same description",
     ]);
     expect(new Set(reading.items.map((item) => item.id)).size).toBe(2);
     expect(reading.items.map((item) => item.ids.length)).toEqual([2, 1]);
