@@ -9,6 +9,8 @@ import {
   fixtureInput,
   mixedFixtureInput,
   mixedSnapshotPath,
+  recordedInput,
+  recordedSnapshotPath,
   snapshotPath,
 } from "../packages/host/src/watch/snapshot-fixture.js";
 
@@ -17,6 +19,7 @@ mkdirSync(dirname(snapshotPath), { recursive: true });
 for (const [path, input] of [
   [snapshotPath, fixtureInput()],
   [mixedSnapshotPath, mixedFixtureInput()],
+  [recordedSnapshotPath, recordedInput()],
 ] as const) {
   writeFileSync(path, `${JSON.stringify(projectWatch(input), null, 2)}\n`);
 }
