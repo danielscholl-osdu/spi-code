@@ -1444,7 +1444,173 @@
       "anchor": {
         "kind": "security"
       },
-      "content": null
+      "content": {
+        "headline": "16 high or critical findings need SPI fixes.",
+        "tiles": [
+          {
+            "label": "High",
+            "value": "16",
+            "counts": "high or critical in SPI-owned shipped code"
+          },
+          {
+            "label": "Total",
+            "value": "34",
+            "counts": "SPI-owned findings at all severities"
+          },
+          {
+            "label": "Upstream origin",
+            "value": "81",
+            "counts": "upstream-owned findings at all severities"
+          }
+        ],
+        "items": [
+          {
+            "id": "campaign:security:CodeQL%3A%20java%2Fspring-disabled-csrf-protection",
+            "ids": [
+              "alert:Azure/osdu-spi-partition:code:CodeQL:java/spring-disabled-csrf-protection:provider/partition-azure",
+              "alert:Azure/osdu-spi-entitlements:code:CodeQL:java/spring-disabled-csrf-protection:provider/entitlements-v2-azure",
+              "alert:Azure/osdu-spi-legal:code:CodeQL:java/spring-disabled-csrf-protection:provider/legal-azure",
+              "alert:Azure/osdu-spi-schema:code:CodeQL:java/spring-disabled-csrf-protection:provider/schema-azure",
+              "alert:Azure/osdu-spi-file:code:CodeQL:java/spring-disabled-csrf-protection:provider/file-azure"
+            ],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "5 forks",
+            "title": "Detected: Disabled Spring CSRF protection",
+            "sub": "11 SPI-owned findings · worst high · shipped code",
+            "cause": "11 SPI-owned findings for Disabled Spring CSRF protection.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [
+              {
+                "label": "partition findings",
+                "url": "https://github.com/Azure/osdu-spi-partition/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+              },
+              {
+                "label": "entitlements findings",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+              },
+              {
+                "label": "legal findings",
+                "url": "https://github.com/Azure/osdu-spi-legal/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+              },
+              {
+                "label": "schema findings",
+                "url": "https://github.com/Azure/osdu-spi-schema/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+              },
+              {
+                "label": "file findings",
+                "url": "https://github.com/Azure/osdu-spi-file/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+              }
+            ],
+            "attention": "ambient",
+            "owned": false,
+            "group": "In the background"
+          },
+          {
+            "id": "alert:Azure/osdu-spi-stack:dep:uv.lock:virtualenv",
+            "ids": ["alert:Azure/osdu-spi-stack:dep:uv.lock:virtualenv"],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "osdu-spi-stack",
+            "title": "virtualenv vulnerabilities",
+            "sub": "4 SPI-owned findings · worst high · shipped code",
+            "cause": "4 SPI-owned findings for virtualenv.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [
+              {
+                "label": "osdu-spi-stack findings",
+                "url": "https://github.com/Azure/osdu-spi-stack/security/dependabot?q=is%3Aopen%20package%3Avirtualenv%20manifest%3Auv.lock"
+              }
+            ],
+            "attention": "ambient",
+            "owned": false,
+            "group": "In the background"
+          },
+          {
+            "id": "alert:Azure/osdu-spi:code:Scorecard:BranchProtectionID:",
+            "ids": ["alert:Azure/osdu-spi:code:Scorecard:BranchProtectionID:"],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "osdu-spi",
+            "title": "Branch-Protection",
+            "sub": "1 SPI-owned finding · worst high · shipped code",
+            "cause": "1 SPI-owned finding for Branch-Protection.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [
+              {
+                "label": "osdu-spi findings",
+                "url": "https://github.com/Azure/osdu-spi/security/code-scanning/7"
+              }
+            ],
+            "attention": "ambient",
+            "owned": false,
+            "group": "In the background"
+          },
+          {
+            "id": "alert:Azure/osdu-spi:code:Scorecard:CodeReviewID:",
+            "ids": ["alert:Azure/osdu-spi:code:Scorecard:CodeReviewID:"],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "osdu-spi",
+            "title": "Code-Review",
+            "sub": "1 SPI-owned finding · worst high · shipped code",
+            "cause": "1 SPI-owned finding for Code-Review.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [
+              {
+                "label": "osdu-spi findings",
+                "url": "https://github.com/Azure/osdu-spi/security/code-scanning/14"
+              }
+            ],
+            "attention": "ambient",
+            "owned": false,
+            "group": "In the background"
+          },
+          {
+            "id": "campaign:security:CodeQL%3A%20java%2Flog-injection",
+            "ids": [
+              "alert:Azure/osdu-spi-partition:code:CodeQL:java/log-injection:provider/partition-azure",
+              "alert:Azure/osdu-spi-schema:code:CodeQL:java/log-injection:provider/schema-azure",
+              "alert:Azure/osdu-spi-file:code:CodeQL:java/log-injection:provider/file-azure"
+            ],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "3 forks",
+            "title": "Detected: Log Injection",
+            "sub": "7 SPI-owned findings · worst medium · shipped code",
+            "cause": "7 SPI-owned findings for Log Injection.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [
+              {
+                "label": "partition findings",
+                "url": "https://github.com/Azure/osdu-spi-partition/security/code-scanning/5"
+              },
+              {
+                "label": "schema findings",
+                "url": "https://github.com/Azure/osdu-spi-schema/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Flog-injection"
+              },
+              {
+                "label": "file findings",
+                "url": "https://github.com/Azure/osdu-spi-file/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Flog-injection"
+              }
+            ],
+            "attention": "ambient",
+            "owned": false,
+            "group": "In the background"
+          }
+        ],
+        "folded": "6 more rules or packages with SPI-owned findings."
+      }
     },
     {
       "anchor": {

@@ -39,6 +39,13 @@ Campaign anchors use the same shape. Pins are window-local, not snapshot data.
 input, projected briefing, release documents and detected campaigns; reading
 beads fill only their handler. Duplicate reading anchors and duplicate campaign
 forks are invalid.
+Security's reading counts high or critical findings in SPI-owned shipped code
+from the repository security tallies, all SPI/template-owned findings separately,
+and upstream-owned findings apart. Hidden lists remain "not read yet", including
+beside partial counts. Items group code findings by tool and rule and dependency
+findings by package; a detected security campaign supplies the shared rule's id
+instead of per-fork rows. Projected attention and due times order the groups.
+Only failed or incomplete security read records add a qualifier.
 `seen.cursor: null` means no acknowledged baseline; `seen.since` lists the
 Interrupt item IDs new or worsened since that baseline, defaulting to `[]`.
 The window request
