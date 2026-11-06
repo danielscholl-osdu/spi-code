@@ -30,8 +30,7 @@ function ProofTurnHarness() {
     let proofStarted = false;
     return window.spi.onMessage((input) => {
       const parsed = parseMessage(input);
-      if (!parsed.ok || parsed.message.kind === "request")
-        throw new Error("Invalid host message rejected");
+      if (!parsed.ok || parsed.message.kind === "request") return;
       const message = parsed.message;
       switch (message.type) {
         case "host.hello":

@@ -19,6 +19,7 @@ async function mountWindow(proof: boolean) {
   const previous = window.spi;
   const listeners = new Set<(input: unknown) => void>();
   const postMessage = vi.fn<(message: Message) => void>();
+  const forwardToMain = vi.fn<(input: unknown) => void>();
   window.location.hash = "";
   window.spi = {
     proof,
@@ -40,9 +41,11 @@ async function mountWindow(proof: boolean) {
   return {
     container,
     postMessage,
-    receive: (message: Message) =>
+    forwardToMain,
+    receive: (message: unknown) =>
       act(async () => {
         for (const listener of listeners) listener(message);
+        if (proof) forwardToMain(message);
       }),
     async cleanup() {
       await act(async () => root?.unmount());
@@ -67,6 +70,32 @@ const models = (catalog: { id: string; name: string }[]): Message => ({
   kind: "response",
   type: "models.result",
   payload: { models: catalog },
+});
+
+it.each([
+  {
+    version: PROTOCOL_VERSION,
+    id: "invalid-hello",
+    kind: "event",
+    type: "host.hello",
+    payload: { pid: "invalid" },
+  },
+  {
+    version: PROTOCOL_VERSION,
+    id: "unexpected-request",
+    kind: "request",
+    type: "models.list",
+    payload: {},
+  },
+])("rejects $id without throwing or blocking preload's proof forwarding", async (message) => {
+  const app = await mountWindow(true);
+  try {
+    await expect(app.receive(message)).resolves.toBeUndefined();
+    expect(app.forwardToMain).toHaveBeenCalledExactlyOnceWith(message);
+    expect(app.postMessage.mock.calls.some(([sent]) => sent.type === "turn.start")).toBe(false);
+  } finally {
+    await app.cleanup();
+  }
 });
 
 function expectNoTurnUI(container: HTMLElement) {
