@@ -216,6 +216,26 @@ export function selectionRows(snapshot: ViewSnapshot): SelectionRow[] {
   ];
 }
 
+/** An inspect reference elsewhere in the sweep still keeps a Related selection alive. */
+export function snapshotHasSelection(snapshot: ViewSnapshot, id: string): boolean {
+  const { briefing } = snapshot;
+  return (
+    selectionRows(snapshot).some((row) => row.id === id || row.inspectId === id) ||
+    [...briefing.focus, ...briefing.rest].some((item) => item.ids.includes(id)) ||
+    briefing.ready.some((row) => row.id === id) ||
+    briefing.flow.also.some((row) => row.inspect === id) ||
+    briefing.themes.some((theme) =>
+      [...theme.certain, ...theme.possible].some((fork) => fork.inspect === id),
+    ) ||
+    snapshot.tree.some((node) => node.id === id) ||
+    snapshot.selection === id ||
+    (snapshot.services?.some((service) =>
+      [...service.runs, ...service.releases].some((row) => row.id === id),
+    ) ??
+      false)
+  );
+}
+
 /** Membership, not the current DOM, decides whether selection survives a route change. */
 export function routeSelectionIds(snapshot: ViewSnapshot, route: Route): string[] {
   const { briefing } = snapshot;

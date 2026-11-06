@@ -29,7 +29,7 @@ import {
 } from "@spi-code/contracts";
 import { createStore } from "zustand/vanilla";
 import { NARROW_LAYOUT_MEDIA_QUERY } from "../components/sidebar/ui-sidebar.js";
-import type { SelectionRow } from "./selection-rows.js";
+import { type SelectionRow, snapshotHasSelection } from "./selection-rows.js";
 
 export const PANEL_TABS = ["detail", "evidence"] as const;
 export type PanelTab = (typeof PANEL_TABS)[number];
@@ -61,6 +61,7 @@ export type SelectionState = {
 
 export function createSelectionStore(port: InspectPort) {
   let hostPid: number | undefined;
+  let snapshotCursor = -1;
   let route: string | undefined;
   let listedIds = new Set<string>();
   const positions = new Map<
@@ -161,6 +162,20 @@ export function createSelectionStore(port: InspectPort) {
       if (!parsed.ok) return;
       const message = parsed.message;
       const { request, selected } = get();
+      if (message.type === "view.snapshot") {
+        if (message.payload.cursor <= snapshotCursor) return;
+        snapshotCursor = message.payload.cursor;
+        const row = get().row;
+        if (
+          selected !== null &&
+          (row?.kind === "flow" || row?.kind === "repository") &&
+          !snapshotHasSelection(message.payload, selected)
+        ) {
+          get().clear();
+          set({ open: false });
+        }
+        return;
+      }
       if (message.type === "host.hello") {
         const changed = message.payload.pid !== hostPid;
         hostPid = message.payload.pid;

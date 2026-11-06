@@ -193,13 +193,18 @@ export function RightPanel({
         ({ id, kind }) => id === selected && (!ownRow || kind === ownRow.kind),
       )
     : [];
-  // A refresh can move a repository line; its id still finds it when no other line shares it.
+  // A refresh can move a row; its id still finds it when no other row shares it.
   // Folded kinds such as environment events share ids, so only their pointer proves identity.
   const matched =
     candidates.find(
       ({ prefixes }) => !ownRow?.prefixes || prefixes?.join("|") === ownRow.prefixes.join("|"),
     ) ??
-    (ownRow?.kind === "repository-line" && candidates.length === 1 ? candidates[0] : undefined);
+    ((ownRow?.kind === "repository-line" ||
+      ownRow?.kind === "flow" ||
+      ownRow?.kind === "repository") &&
+    candidates.length === 1
+      ? candidates[0]
+      : undefined);
   const row = matched ?? ownRow;
   const onKeyDown = (event: KeyboardEvent) => {
     const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;

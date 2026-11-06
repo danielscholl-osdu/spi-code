@@ -7,9 +7,11 @@ import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import actions from "../../../../fixtures/rib-59d6895/oracle/inspect-actions.json?raw";
 import recorded from "../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
+import { NARROW_LAYOUT_MEDIA_QUERY } from "../components/sidebar/ui-sidebar.js";
 import { RightPanel } from "./RightPanel.js";
+import { RightPanelFrame } from "./RightPanelFrame.js";
 import { createSelectionStore } from "./selection.js";
-import { type SelectionRow, selectionRows } from "./selection-rows.js";
+import { routeSelectionIds, type SelectionRow, selectionRows } from "./selection-rows.js";
 
 const snapshot = ViewSnapshotSchema.parse(JSON.parse(recorded));
 const steps: { steps: { id: string; board: { header: { status: { label: string } } } }[] } =
@@ -224,53 +226,251 @@ it("shows station label/state/text and inspects its upstream or explicit Release
   }
 });
 
+async function mountRelated(kind: "flow" | "repository", width = 1280) {
+  const media = window.matchMedia(NARROW_LAYOUT_MEDIA_QUERY);
+  const matches = vi.spyOn(media, "matches", "get").mockReturnValue(width < 980);
+  const matchMedia = vi.spyOn(window, "matchMedia").mockReturnValue(media);
+  const rows = selectionRows(snapshot);
+  const parent = rows.find((row) => row.kind === "queue");
+  const target = rows.find((row) => row.kind === kind);
+  if (!parent || !target) throw new Error("Missing recorded selection rows");
+  const postMessage = vi.fn();
+  const store = createSelectionStore({ postMessage });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const refresh = async (body: typeof snapshot) => {
+    await act(async () => {
+      store.getState().receive({
+        version: PROTOCOL_VERSION,
+        id: `snapshot-${body.cursor}`,
+        kind: "event",
+        type: "view.snapshot",
+        payload: body,
+      });
+      root.render(<RightPanelFrame store={store} snapshot={body} />);
+      store.getState().visit("#inbox", routeSelectionIds(body, { kind: "inbox" }), 0);
+    });
+  };
+  await refresh(snapshot);
+  expect(routeSelectionIds(snapshot, { kind: "inbox" })).not.toContain(target.id);
+  await act(async () => store.getState().select(parent.id, parent));
+  await act(async () =>
+    store.getState().receive({
+      version: PROTOCOL_VERSION,
+      id: store.getState().request,
+      kind: "response",
+      type: "inspect.result",
+      payload: {
+        id: parent.id,
+        class: "READY",
+        cause: "Recorded queue reading",
+        effect: "",
+        next: "",
+        why: "",
+        actions: [],
+        evidence: [],
+        approval: null,
+        related: [{ text: "Related alias", state: "read", inspect: target.id }],
+      },
+    }),
+  );
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>('ul[aria-label="Related"] button')?.click(),
+  );
+  return {
+    store,
+    postMessage,
+    container,
+    target,
+    refresh,
+    cleanup: async () => {
+      await act(async () => root.unmount());
+      container.remove();
+      matchMedia.mockRestore();
+      matches.mockRestore();
+    },
+  };
+}
+
 it.each(["flow", "repository"] as const)(
   "resolves a Related %s from its snapshot row",
   async (kind) => {
-    const rows = selectionRows(snapshot);
-    const parent = rows.find((row) => row.kind === "queue");
-    const target = rows.find((row) => row.kind === kind);
-    if (!parent || !target) throw new Error("Missing recorded selection rows");
-    const postMessage = vi.fn();
-    const store = createSelectionStore({ postMessage });
-    const container = document.createElement("div");
-    document.body.append(container);
-    const root = createRoot(container);
-    await act(async () => root.render(<RightPanel store={store} snapshot={snapshot} />));
+    const view = await mountRelated(kind);
     try {
-      await act(async () => store.getState().select(parent.id, parent));
+      expect(view.store.getState().row).toEqual(view.target);
+      expect(view.container.querySelector("h2")?.textContent).toBe(view.target.title);
+      for (const field of view.target.fields ?? [])
+        expect(view.container.textContent).toContain(field.value);
+      expect(view.postMessage).toHaveBeenLastCalledWith(
+        expect.objectContaining({ type: "inspect.request", payload: { id: view.target.id } }),
+      );
+    } finally {
+      await view.cleanup();
+    }
+  },
+);
+
+it.each(
+  (["flow", "repository"] as const).flatMap((kind) =>
+    [900, 1280].map((width) => ({ kind, width })),
+  ),
+)(
+  "clears a Related $kind and closes its panel at $width px when the id disappears from the whole snapshot",
+  async ({ kind, width }) => {
+    const view = await mountRelated(kind, width);
+    try {
       await act(async () =>
-        store.getState().receive({
+        view.store.getState().receive({
           version: PROTOCOL_VERSION,
-          id: store.getState().request,
+          id: view.store.getState().request,
           kind: "response",
           type: "inspect.result",
           payload: {
-            id: parent.id,
+            id: view.target.id,
             class: "READY",
-            cause: "Recorded queue reading",
+            cause: "Completed reading from the old sweep",
             effect: "",
             next: "",
             why: "",
             actions: [],
             evidence: [],
             approval: null,
-            related: [{ text: "Related alias", state: "read", inspect: target.id }],
+            related: [],
           },
         }),
       );
+      await act(async () => view.store.getState().select(view.target.id, view.target));
+      const request = view.store.getState().request;
+      expect(view.store.getState().result?.cause).toBe("Completed reading from the old sweep");
+      expect(view.store.getState().selected).toBe(view.target.id);
+      expect(view.container.querySelector("#app-right-panel")).not.toBeNull();
+      const next = structuredClone(snapshot);
+      next.cursor++;
+      next.provenance = [];
+      const fork = next.briefing.flow.rows.find(({ inspect }) => inspect === view.target.id)?.fork;
+      next.briefing.flow.rows = next.briefing.flow.rows.filter(
+        ({ inspect }) => inspect !== view.target.id,
+      );
+      next.stations = next.stations.filter(({ service }) => service !== fork);
+      next.briefing.repositories.rows = next.briefing.repositories.rows.filter(
+        ({ id }) => id !== view.target.id,
+      );
+      expect(JSON.stringify(next)).not.toContain(JSON.stringify(view.target.id));
       await act(async () =>
-        container.querySelector<HTMLButtonElement>('ul[aria-label="Related"] button')?.click(),
+        view.store.getState().receive({
+          version: PROTOCOL_VERSION,
+          id: "replayed-snapshot",
+          kind: "event",
+          type: "view.snapshot",
+          payload: { ...next, cursor: snapshot.cursor },
+        }),
       );
-      expect(store.getState().row).toEqual(target);
-      expect(container.querySelector("h2")?.textContent).toBe(target.title);
-      for (const field of target.fields ?? []) expect(container.textContent).toContain(field.value);
-      expect(postMessage).toHaveBeenLastCalledWith(
-        expect.objectContaining({ type: "inspect.request", payload: { id: target.id } }),
+      expect(view.store.getState().selected).toBe(view.target.id);
+      await view.refresh(ViewSnapshotSchema.parse(next));
+      expect(view.store.getState()).toMatchObject({
+        selected: null,
+        row: null,
+        open: false,
+        request: null,
+        result: null,
+      });
+      expect(view.container.querySelector("#app-right-panel")).toBeNull();
+      expect(view.container.querySelector(".detail-backdrop")).toBeNull();
+      expect(view.container.textContent).not.toContain(view.target.title);
+      await act(async () =>
+        view.store.getState().receive({
+          version: PROTOCOL_VERSION,
+          id: request,
+          kind: "response",
+          type: "inspect.result",
+          payload: {
+            id: view.target.id,
+            class: "READY",
+            cause: "Late reply from the old sweep",
+            effect: "",
+            next: "",
+            why: "",
+            actions: [],
+            evidence: [],
+            approval: null,
+            related: [],
+          },
+        }),
       );
+      expect(view.store.getState().result).toBeNull();
+      await view.refresh(ViewSnapshotSchema.parse({ ...next, cursor: next.cursor + 1 }));
+      expect(view.store.getState().selected).toBeNull();
+      expect(view.container.querySelector("#app-right-panel")).toBeNull();
     } finally {
-      await act(async () => root.unmount());
-      container.remove();
+      await view.cleanup();
+    }
+  },
+);
+
+it.each(["flow", "repository"] as const)(
+  "keeps a Related %s when only a reference elsewhere in the snapshot remains",
+  async (kind) => {
+    const view = await mountRelated(kind);
+    try {
+      const request = view.store.getState().request;
+      const next = structuredClone(snapshot);
+      next.cursor++;
+      next.provenance = [];
+      next.briefing.flow.rows = next.briefing.flow.rows.filter(
+        ({ inspect }) => inspect !== view.target.id,
+      );
+      next.briefing.repositories.rows = next.briefing.repositories.rows.filter(
+        ({ id }) => id !== view.target.id,
+      );
+      if (kind === "repository")
+        next.briefing.flow.also.push({ text: "Related repository", inspect: view.target.id });
+      await view.refresh(ViewSnapshotSchema.parse(next));
+      expect(view.store.getState()).toMatchObject({
+        selected: view.target.id,
+        open: true,
+        request,
+      });
+      expect(view.container.querySelector("#app-right-panel")).not.toBeNull();
+    } finally {
+      await view.cleanup();
+    }
+  },
+);
+
+it.each(["flow", "repository"] as const)(
+  "keeps a Related %s off the current route and refreshes its row after it moves",
+  async (kind) => {
+    const view = await mountRelated(kind);
+    try {
+      const request = view.store.getState().request;
+      const next = structuredClone(snapshot);
+      next.cursor++;
+      next.provenance = [];
+      const currentTitle = "Reading from the latest sweep";
+      if (kind === "flow") {
+        const row = next.briefing.flow.rows.find(({ inspect }) => inspect === view.target.id);
+        if (!row) throw new Error("Missing recorded flow row");
+        row.detail.title = currentTitle;
+        row.behind = "Latest behind count";
+        next.briefing.flow.rows.reverse();
+      } else {
+        const row = next.briefing.repositories.rows.find(({ id }) => id === view.target.id);
+        if (!row) throw new Error("Missing recorded repository row");
+        row.title = currentTitle;
+        next.briefing.repositories.rows.reverse();
+      }
+      await view.refresh(ViewSnapshotSchema.parse(next));
+      expect(view.store.getState()).toMatchObject({
+        selected: view.target.id,
+        open: true,
+        request,
+      });
+      expect(view.container.querySelector("#app-right-panel")).not.toBeNull();
+      expect(view.container.querySelector("h2")?.textContent).toBe(currentTitle);
+      if (kind === "flow") expect(view.container.textContent).toContain("Latest behind count");
+    } finally {
+      await view.cleanup();
     }
   },
 );
