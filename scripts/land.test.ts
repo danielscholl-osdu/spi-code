@@ -107,9 +107,11 @@ describe("landing commit attribution", () => {
     "Co-authored-by: Assistant <noreply@openai.com>",
     "Co-authored-by: Assistant <223556219+Copilot@users.noreply.github.com>",
     "Co-authored-by: Ada Lovelace <ada@example.test>\nCo-authored-by: Copilot <agent@example.test>",
+    "Co-authored-by: Someone\n  Copilot <copilot@users.noreply.github.com>",
+    "Co-authored-by : Copilot <copilot@example.test>",
     "Generated with Copilot",
     "  gEnErAtEd WiTh Claude",
-    "\u{1f916} Generated with Claude",
+    "\u{1f916} Generated with [Claude Code]",
   ])("refuses %s, identifies its commit and explains how to reword", (attribution) => {
     const repo = fixture();
     const offending = repo.commit(`docs: update fixture\n\n${attribution}`);
@@ -132,6 +134,10 @@ describe("landing commit attribution", () => {
     "Co-authored-by: Human Contributor <12345+human@users.noreply.github.com>",
     "Co-authored-by: Elena Musetti <elena@example.test>",
     "Co-authored-by: Ada Lovelace <ada@example.test>\nCo-authored-by: Grace Hopper <grace@example.test>",
+    "Co-authored-by : Ada Lovelace\n  <ada@example.test>",
+    "Co-authored-by: Ada Lovelace <ada@gpt-labs.example>",
+    "snapshots regenerated with vitest",
+    "lockfile is generated with pnpm",
     "",
   ])("allows human or absent attribution: %s, ignoring historical AI trailers", (attribution) => {
     const repo = fixture();
