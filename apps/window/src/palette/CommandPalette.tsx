@@ -125,6 +125,14 @@ function PaletteContent({
         className="palette-input"
         aria-label="Find"
         placeholder="Find a page, service or queue item"
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && (event.nativeEvent.isComposing || event.keyCode === 229)) {
+            // Confirming an IME candidate must not select a row.
+            (
+              event as typeof event & { preventBaseUIHandler?: () => void }
+            ).preventBaseUIHandler?.();
+          }
+        }}
       />
       <Autocomplete.List className="palette-results">
         {shown.length === 0 && <div className="palette-empty">Nothing matches.</div>}

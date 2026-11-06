@@ -157,6 +157,31 @@ it("moves with the arrows, opens with Enter, and filters as the operator types",
   expect(window.location.hash).toBe("#service/legal");
 });
 
+it("lets Enter confirm an IME composition without choosing a row", async () => {
+  await shortcut({ ctrlKey: true });
+  await type("legal");
+  const field = input();
+  const enter = (init: KeyboardEventInit) =>
+    act(async () => {
+      field?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, ...init }));
+    });
+  await act(async () => {
+    field?.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+  });
+  await enter({ isComposing: true, keyCode: 13 });
+  expect(palettes()).toHaveLength(1);
+  await enter({ keyCode: 229 });
+  expect(palettes()).toHaveLength(1);
+  expect(window.location.hash).toBe("");
+
+  await act(async () => {
+    field?.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "" }));
+  });
+  await enter({ keyCode: 13 });
+  expect(palettes()).toHaveLength(0);
+  expect(window.location.hash).toBe("#service/legal");
+});
+
 it("selects a Queue row's item on the Inbox", async () => {
   await shortcut({ ctrlKey: true });
   await type("schemathesis");
