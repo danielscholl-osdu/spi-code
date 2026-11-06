@@ -16,7 +16,7 @@ import {
 } from "../../../packages/core/src/index.js";
 import { openRunStore } from "../../../packages/host/src/store/store.js";
 import { SweepService } from "../../../packages/host/src/sweep/service.js";
-import { reapProcesses, stopHostTree } from "./host-tree.js";
+import { type ProcessIdentity, QUIT_BUDGET_MS, reapProcesses, stopHostTree } from "./host-tree.js";
 import {
   createLifecycle,
   HOST_KILL_WAIT_MS,
@@ -433,11 +433,13 @@ it("quits cleanly when the run store has no leases table", async () => {
 });
 
 function hostTree(...runtimes: number[]) {
-  const live = new Set(runtimes);
+  const live = new Map(runtimes.map((pid) => [pid, `started-${pid}`]));
   const kill = vi.fn((pid: number) => {
     live.delete(pid);
   });
-  const capture = vi.fn(async (_pid: number) => [...runtimes]);
+  const capture = vi.fn(async (_pid: number) =>
+    runtimes.map((pid) => ({ pid, started: `started-${pid}` })),
+  );
   const log = vi.fn();
   return {
     live,
@@ -446,8 +448,15 @@ function hostTree(...runtimes: number[]) {
     log,
     options: {
       capture,
-      reap: (pids: readonly number[]) =>
-        reapProcesses(pids, { platform: "darwin", kill, alive: (pid) => live.has(pid) }),
+      reap: (targets: readonly ProcessIdentity[], waitMs: number) =>
+        reapProcesses(targets, {
+          platform: "darwin",
+          kill: (pid) => kill(pid),
+          alive: (pid) => live.has(pid),
+          identify: async (pids) =>
+            new Map(pids.flatMap((pid) => (live.has(pid) ? [[pid, live.get(pid) ?? ""]] : []))),
+          waitMs,
+        }),
       log,
     },
   };
@@ -601,4 +610,31 @@ it("reaps the runtime but keeps leases when the host's hard kill fails", async (
   } finally {
     store.close();
   }
+});
+
+it("gives the reap what is left of the quit budget, and never less than its own wait", async () => {
+  const reap = vi.fn(async (_targets: readonly ProcessIdentity[], _waitMs: number) => []);
+  let clock = 0;
+  const options = {
+    capture: async () => [{ pid: 508, started: "started-508" }],
+    reap,
+    log: vi.fn(),
+    now: () => clock,
+  };
+  await stopHostTree(
+    48,
+    async () => {
+      clock = 1200;
+    },
+    options,
+  );
+  clock = 0;
+  await stopHostTree(
+    48,
+    async () => {
+      clock = QUIT_BUDGET_MS;
+    },
+    options,
+  );
+  expect(reap.mock.calls.map(([, waitMs]) => waitMs)).toEqual([QUIT_BUDGET_MS - 1200, 500]);
 });
