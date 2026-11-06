@@ -288,9 +288,12 @@ it.skipIf(process.platform === "win32")(
       // Signed out outside the app: the next window connect re-reads gh and stops the sweep.
       rmSync(join(appData, "tools", "gh", "signed-in"));
       const stop = vi.spyOn(sweep as SweepService, "stop");
+      const refresh = vi.spyOn(service, "refresh");
       const reloaded: Message[] = [];
       service.connect((message) => reloaded.push(message));
-      await vi.waitFor(() => expect(stop).toHaveBeenCalledOnce());
+      expect(refresh).toHaveBeenCalledOnce();
+      await refresh.mock.results[0]?.value;
+      expect(stop).toHaveBeenCalledOnce();
       expect(reloaded.at(-1)).toMatchObject({
         type: "setup.state",
         payload: {
