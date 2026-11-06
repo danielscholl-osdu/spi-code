@@ -26,6 +26,7 @@ import { useStore } from "zustand";
 import { LENSES, type Route, routeLabel } from "../../app/routes.js";
 import { ariaShortcut, shortcutLabel } from "../../app/shortcuts.js";
 import type { createWatchStore } from "../../store/watch.js";
+import { inboxCount } from "../../views/inbox/queue.js";
 import { type SidebarGroupId, useGroupCollapse } from "./collapse.js";
 import {
   CollapsibleSectionHeader,
@@ -75,6 +76,8 @@ export function ProgramSidebar({
 }) {
   const tree = useStore(store, (state) => state.snapshot?.body.tree);
   const sweptAt = useStore(store, (state) => state.snapshot?.body.sweptAt);
+  const briefing = useStore(store, (state) => state.snapshot?.body.briefing);
+  const inbox = briefing ? inboxCount(briefing) : 0;
   const { isMobile, setOpenMobile } = useSidebar();
   const { collapsed, toggle } = useGroupCollapse();
   const findReason = useId();
@@ -84,7 +87,7 @@ export function ProgramSidebar({
     .filter((node) => node.id.startsWith(SERVICE_PREFIX))
     .map((node) => node.id.slice(SERVICE_PREFIX.length));
 
-  const row = (key: string, target: Route, label = routeLabel(target)) => (
+  const row = (key: string, target: Route, label = routeLabel(target), pip?: ReactNode) => (
     <SidebarMenuItem key={key}>
       <SidebarMenuButton
         isActive={active === key}
@@ -95,6 +98,7 @@ export function ProgramSidebar({
         }}
       >
         <span>{label}</span>
+        {pip}
       </SidebarMenuButton>
     </SidebarMenuItem>
   );
@@ -139,7 +143,18 @@ export function ProgramSidebar({
         <span id={findReason} className="visually-hidden">
           Find or ask is not available yet
         </span>
-        <SidebarMenu aria-label="Inbox">{row("inbox", { kind: "inbox" })}</SidebarMenu>
+        <SidebarMenu aria-label="Inbox">
+          {row(
+            "inbox",
+            { kind: "inbox" },
+            undefined,
+            inbox > 0 && (
+              <span className="sidebar-pip" title={`${inbox} at P0 or P1`}>
+                {inbox}
+              </span>
+            ),
+          )}
+        </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         {group(

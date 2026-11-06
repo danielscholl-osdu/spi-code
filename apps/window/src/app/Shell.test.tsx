@@ -60,9 +60,7 @@ it("navigates every sidebar thing through the hash, naming the place in the titl
       );
     expect(place()).toBe("Inbox");
     expect(container.querySelector("main h1")?.textContent).toBe("Inbox");
-    expect(container.querySelector("main")?.textContent).toContain(
-      "This page is not available yet.",
-    );
+    expect(container.querySelector("main")?.textContent).toContain("First sweep running");
     for (const [label, hash] of [
       ["Template", "#template"],
       ["Environment", "#environment"],

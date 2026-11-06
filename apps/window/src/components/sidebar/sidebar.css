@@ -31,3 +31,14 @@
   .app-sidebar[data-state="expanded"] { transform: none; box-shadow: 0 8px 24px rgb(0 0 0 / 0.25); }
   .app-sidebar[data-state="collapsed"] { visibility: hidden; }
 }
+.sidebar-pip {
+  flex: none;
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--error);
+  color: var(--on-fill);
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

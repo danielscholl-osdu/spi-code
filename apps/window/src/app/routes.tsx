@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "r
 import { useStore } from "zustand";
 import { watchStore } from "../store/watch.js";
 import Environment from "../views/environment/index.js";
+import Inbox from "../views/inbox/index.js";
 import Releases from "../views/releases/index.js";
 import Setup from "../views/setup/index.js";
 import { WatchGate } from "../views/setup/WatchGate.js";
@@ -163,7 +164,9 @@ export function RouteView({ route }: { route: Route }) {
   const label = routeLabel(route);
   return (
     <WatchGate label={label}>
-      {route.kind === "environment" ? (
+      {route.kind === "inbox" ? (
+        <Inbox onNavigate={navigate} />
+      ) : route.kind === "environment" ? (
         <Environment />
       ) : route.kind === "releases" ? (
         <Releases />

@@ -55,7 +55,8 @@ it("lists the things in order, with services in the recorded fleet order", async
   const { onNavigate } = await render({ kind: "service", id: "legal" });
   const nav = container.querySelector('nav[aria-label="Sidebar"]');
   expect(nav?.querySelector("button")?.textContent).toContain("Find or ask");
-  expect(rows("Inbox")).toEqual(["Inbox"]);
+  expect(rows("Inbox")).toEqual(["Inbox6"]);
+  expect(container.querySelector('ul[aria-label="Inbox"] .sidebar-pip')?.textContent).toBe("6");
   expect(rows("Program")).toEqual(["Template", "Environment", "Releases"]);
   expect(rows("Services")).toEqual(["partition", "entitlements", "legal", "schema", "file"]);
   expect(header("Services")?.textContent).toContain("5");
