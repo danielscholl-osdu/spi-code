@@ -162,5 +162,15 @@ describe("Releases reading on the recorded 6 Nov sweep", () => {
     expect(reading.items).toEqual([]);
     expect(reading.folded).toBeNull();
     expect(readingText(reading).join(" ")).not.toMatch(/\b0\b/);
+
+    // Release PRs read, release months not: only the current-release tile is unread.
+    const monthsUnread = releases({ months: [] });
+    expect(monthsUnread.headline).toBe("13 release PRs open, 1 failing (#89).");
+    expect(monthsUnread.tiles[2]).toEqual({
+      label: "Current release",
+      value: NOT_READ,
+      counts: "the release months",
+    });
+    expect(monthsUnread.folded).not.toContain("Earlier months");
   });
 });

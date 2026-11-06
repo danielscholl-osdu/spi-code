@@ -21,6 +21,12 @@ export interface ReadingContext {
 }
 type PlaceReader = (anchor: Anchor, context: ReadingContext) => Reading["content"];
 
+// The current month's document is drawn from the calendar before any release read, so months
+// reach a reading only once a release read succeeded or kept an earlier one.
+function releasesRead(input: WatchInput): boolean {
+  return input.releaseRecords.some((r) => r.failure === undefined || r.retainedFrom !== undefined);
+}
+
 export const readingFor: Record<Anchor["kind"], PlaceReader> = {
   program: (_anchor, _context) => null,
   upstream: (_anchor, { model, input, briefing, campaigns }) =>
@@ -58,7 +64,7 @@ export const readingFor: Record<Anchor["kind"], PlaceReader> = {
     releasesReading({
       facts: input.facts,
       items: [...briefing.focus, ...briefing.rest],
-      months: documents,
+      months: releasesRead(input) ? documents : [],
       reads: [...input.releaseRecords, ...((input.envelopeReads ?? input.reads).github ?? [])],
       context: input.context,
     }),
