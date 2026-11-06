@@ -201,7 +201,9 @@ export function selectionRows(snapshot: ViewSnapshot): SelectionRow[] {
           id: `station:${service}:${station.id}`,
           inspectId:
             station.inspect ??
-            (station.id === "release" || station.id === "lane" ? null : `upstream:${service}`),
+            (station.id === "release" || station.id === "lane"
+              ? null
+              : `station:${service}:${station.id}`),
           title: `${stationLabels[station.id]} · ${service}`,
           kind: "station",
           prefixes: [`/stations/${serviceIndex}/stations/${index}`],

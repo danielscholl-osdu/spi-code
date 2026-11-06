@@ -57,10 +57,11 @@ async function mount(width: number) {
 }
 
 it.each([980, 1280])(
-  "navigation clears the selection but closes only the narrow sheet at %i px",
+  "starts closed, and navigation clears the selection and closes the panel at %i px",
   async (width) => {
     const view = await mount(width);
     try {
+      expect(view.panel()).toBeNull();
       view.store.getState().visit("repositories", ["repo:legal"], 0);
       view.row.focus();
       await act(async () => view.row.click());
@@ -68,16 +69,13 @@ it.each([980, 1280])(
       await act(async () => view.store.getState().visit("setup", [], 0));
       expect(view.store.getState().selected).toBeNull();
       expect(view.store.getState().request).toBeNull();
-      if (width < 980) {
-        expect(view.panel()).toBeNull();
-        expect(document.activeElement).toBe(view.row);
-      } else {
-        expect(view.panel()?.textContent).toContain("No selection");
-        expect(document.activeElement).toBe(view.row);
-      }
-      await act(async () => view.store.getState().setOpen(false));
+      // PS-11: nothing selected leaves nothing to show, at every width.
+      expect(view.panel()).toBeNull();
+      expect(document.activeElement).toBe(view.row);
+      await act(async () => view.row.click());
       await act(async () => view.store.getState().clear());
       expect(view.panel()).toBeNull();
+      expect(view.container.textContent).not.toContain("No selection");
     } finally {
       await view.cleanup();
     }
@@ -116,6 +114,7 @@ it.each([979, 980])(
 it("keeps an empty inline panel and its focus when it becomes a sheet", async () => {
   const view = await mount(980);
   try {
+    await act(async () => view.trigger.click());
     const detail = view.panel()?.querySelector<HTMLButtonElement>('[role="tab"]');
     if (!detail) throw new Error("Missing Detail tab");
     detail.focus();
@@ -183,3 +182,28 @@ it.each([979, 980])("Escape closes only with focus inside the panel at %i px", a
     await view.cleanup();
   }
 });
+
+it.each([980, 1280])(
+  "keeps the sweep's Evidence reachable with nothing selected at %i px",
+  async (width) => {
+    const view = await mount(width);
+    try {
+      await act(async () => view.store.getState().openSweepEvidence());
+      expect(view.panel()).not.toBeNull();
+      await act(async () => view.store.getState().clear());
+      expect(view.panel()).not.toBeNull();
+      expect(view.store.getState()).toMatchObject({ tab: "evidence", evidenceScope: "sweep" });
+      await act(async () => view.store.getState().setOpen(false));
+      expect(view.panel()).toBeNull();
+      await act(async () => view.trigger.click());
+      expect(view.panel()).not.toBeNull();
+      expect(view.store.getState()).toMatchObject({ tab: "evidence", evidenceScope: "sweep" });
+      await act(async () => view.row.click());
+      await act(async () => view.store.getState().setTab("detail"));
+      await act(async () => view.store.getState().clear());
+      expect(view.panel()).toBeNull();
+    } finally {
+      await view.cleanup();
+    }
+  },
+);

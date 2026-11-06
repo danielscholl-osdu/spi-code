@@ -238,7 +238,8 @@ it.each([900, 979, 980, 1280])(
       row?.focus();
       await act(async () => selectionStore.getState().select("halt:legal"));
       await act(async () => selectionStore.getState().clear());
-      expect(container.querySelector("#app-right-panel") === null).toBe(width < 980);
+      // PS-11: with nothing selected the panel has nothing to show, at every width.
+      expect(container.querySelector("#app-right-panel")).toBeNull();
       expect(document.activeElement).toBe(row);
     } finally {
       await shell.cleanup();
@@ -354,7 +355,7 @@ it.each([900, 1280])(
         }),
       );
       const related = shell.container.querySelector<HTMLButtonElement>(
-        'ul[aria-label="Related"] button',
+        'dl[aria-label="Related"] button',
       );
       expect(related).not.toBeNull();
       await act(async () => related?.click());
@@ -375,7 +376,7 @@ it.each([900, 1280])(
       expect(selectionStore.getState().selected).toBe(item.id);
       await refresh(5, true);
       expect(selectionStore.getState().selected).toBeNull();
-      expect(shell.container.querySelector("#app-right-panel") === null).toBe(width < 980);
+      expect(shell.container.querySelector("#app-right-panel")).toBeNull();
     } finally {
       await shell.cleanup();
       watchStore.setState(previous);

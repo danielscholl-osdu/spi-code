@@ -4,8 +4,10 @@
 import { type InspectResult, PROTOCOL_VERSION, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import actions from "../../../../fixtures/rib-59d6895/oracle/inspect-actions.json?raw";
+import legalStations from "../../../../fixtures/watch/inspect-stations-legal-59d6895.json?raw";
+import projected from "../../../../fixtures/watch/snapshot-59d6895.json?raw";
 import recorded from "../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
 import { NARROW_LAYOUT_MEDIA_QUERY } from "../components/sidebar/ui-sidebar.js";
 import { RightPanel } from "./RightPanel.js";
@@ -184,7 +186,7 @@ it.each(["fresh", "stale", "inferred", "release-stale"] as const)(
   },
 );
 
-it("shows station label/state/text and inspects its upstream or explicit Release/Stack id", async () => {
+it("shows station label/state/text and inspects its own station or explicit Release/Stack id", async () => {
   const body = structuredClone(snapshot);
   for (const strip of body.stations) for (const station of strip.stations) delete station.inspect;
   const service = body.stations[0];
@@ -215,11 +217,145 @@ it("shows station label/state/text and inspects its upstream or explicit Release
         expect(postMessage).toHaveBeenLastCalledWith(
           expect.objectContaining({
             type: "inspect.request",
-            payload: { id: stationId === "release" ? "release:2026-10" : `upstream:${serviceId}` },
+            payload: {
+              id: stationId === "release" ? "release:2026-10" : `station:${serviceId}:${stationId}`,
+            },
           }),
         );
       }
     }
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
+afterEach(() => {
+  window.location.hash = "";
+});
+
+const lineStations = [
+  ["upstream", "Upstream", "Open on GitLab"],
+  ["sync", "Sync PR", "Open on GitHub"],
+  ["cascade", "Cascade", "Open on GitHub"],
+  ["main", "Sync to main", "Open on GitHub"],
+] as const;
+
+async function mountStation(stationId: string) {
+  const body = ViewSnapshotSchema.parse(JSON.parse(projected));
+  const station = body.stations
+    .find(({ service }) => service === "legal")
+    ?.stations.find(({ id }) => id === stationId);
+  const row = selectionRows(body).find(({ id }) => id === `station:legal:${stationId}`);
+  const result = (JSON.parse(legalStations) as InspectResult[]).find(
+    ({ id }) => id === `station:legal:${stationId}`,
+  );
+  if (!station || !row || !result) throw new Error(`Missing recorded legal ${stationId}`);
+  const postMessage = vi.fn();
+  const store = createSelectionStore({ postMessage });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  await act(async () => root.render(<RightPanel store={store} snapshot={body} />));
+  await act(async () => store.getState().select(row.id, row));
+  const request = postMessage.mock.lastCall?.[0];
+  expect(request).toMatchObject({ type: "inspect.request", payload: { id: result.id } });
+  await act(async () =>
+    store.getState().receive({
+      version: PROTOCOL_VERSION,
+      id: request.id,
+      kind: "response",
+      type: "inspect.result",
+      payload: result,
+    }),
+  );
+  return {
+    station,
+    result,
+    container,
+    cleanup: async () => {
+      await act(async () => root.unmount());
+      container.remove();
+    },
+  };
+}
+
+it.each(lineStations)(
+  "leads the recorded legal %s station's Detail with its own reading and offers one action",
+  async (stationId, label, verb) => {
+    const view = await mountStation(stationId);
+    const previous = window.spi;
+    const openExternal = vi.fn(async () => true);
+    window.spi = { ...previous, openExternal };
+    try {
+      const { container, station, result } = view;
+      expect(container.querySelector("h2")?.textContent).toBe(`${label} · legal`);
+      const reading = container.querySelector('dl[aria-label="Row reading"]');
+      const inspector = container.querySelector(".inspector");
+      if (!reading || !inspector) throw new Error("Missing the station's reading");
+      expect(
+        reading.compareDocumentPosition(inspector) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect([...reading.querySelectorAll("dd")].map((dd) => dd.textContent)).toEqual([
+        label,
+        station.state,
+        station.text,
+      ]);
+      expect(container.querySelector('[data-field="cause"]')?.textContent).toBe(station.text);
+      expect(result.related).toContainEqual(
+        expect.objectContaining({ state: "Upstream", inspect: "upstream:legal" }),
+      );
+      const actions = container.querySelectorAll<HTMLButtonElement>("[data-detail-action]");
+      expect(actions).toHaveLength(1);
+      expect(actions[0]?.textContent).toBe(verb);
+      expect(actions[0]?.disabled).toBe(false);
+      await act(async () => actions[0]?.click());
+      const own = result.related.find((related) => related.url && !related.inspect)?.url;
+      expect(own).toBeTruthy();
+      expect(openExternal).toHaveBeenCalledExactlyOnceWith(own);
+    } finally {
+      window.spi = previous;
+      await view.cleanup();
+    }
+  },
+);
+
+it("renders Related as label and value rows, never one paragraph", async () => {
+  const view = await mountStation("sync");
+  try {
+    const { container, result } = view;
+    const related = container.querySelector('dl[aria-label="Related"]');
+    if (!related) throw new Error("Missing Related table");
+    expect(container.querySelector('ul[aria-label="Related"], p[aria-label="Related"]')).toBeNull();
+    const rows = [...related.children];
+    expect(rows).toHaveLength(result.related.length);
+    for (const [index, entry] of result.related.entries()) {
+      const row = rows[index];
+      expect(row?.querySelector("dt")?.textContent).toBe(entry.state);
+      expect(row?.querySelector("dd")?.textContent).toBe(entry.text);
+      expect(row?.querySelector("dd")?.textContent).not.toContain(entry.state);
+    }
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("opens the fork's place as the one action for an upstream sync row", async () => {
+  const body = ViewSnapshotSchema.parse(JSON.parse(projected));
+  const row = selectionRows(body).find(({ id }) => id === "upstream:legal");
+  if (!row) throw new Error("Missing recorded legal Flow row");
+  const store = createSelectionStore({ postMessage: vi.fn() });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  await act(async () => root.render(<RightPanel store={store} snapshot={body} />));
+  try {
+    await act(async () => store.getState().select(row.id, row));
+    const actions = container.querySelectorAll<HTMLButtonElement>("[data-detail-action]");
+    expect(actions).toHaveLength(1);
+    expect(actions[0]?.textContent).toBe("Open legal");
+    await act(async () => actions[0]?.click());
+    expect(window.location.hash).toBe("#service/legal");
   } finally {
     await act(async () => root.unmount());
     container.remove();
@@ -282,7 +418,7 @@ async function mountRelated(kind: "flow" | "repository", width = 1280) {
     }),
   );
   await act(async () =>
-    container.querySelector<HTMLButtonElement>('ul[aria-label="Related"] button')?.click(),
+    container.querySelector<HTMLButtonElement>('dl[aria-label="Related"] button')?.click(),
   );
   return {
     store,
@@ -469,8 +605,7 @@ it.each(["flow", "repository"] as const)(
       next.briefing.repositories.rows = next.briefing.repositories.rows.filter(
         ({ id }) => id !== view.target.id,
       );
-      if (kind === "repository")
-        next.briefing.flow.also.push({ text: "Related repository", inspect: view.target.id });
+      next.briefing.flow.also.push({ text: `Related ${kind}`, inspect: view.target.id });
       await view.refresh(ViewSnapshotSchema.parse(next));
       expect(view.store.getState()).toMatchObject({
         selected: view.target.id,

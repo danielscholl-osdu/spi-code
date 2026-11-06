@@ -1932,28 +1932,28 @@
           "state": "idle",
           "substate": "ready",
           "text": "0 behind",
-          "inspect": "upstream:partition"
+          "inspect": "station:partition:upstream"
         },
         {
           "id": "sync",
           "state": "idle",
           "substate": "ready",
           "text": "clean",
-          "inspect": "upstream:partition"
+          "inspect": "station:partition:sync"
         },
         {
           "id": "cascade",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:partition"
+          "inspect": "station:partition:cascade"
         },
         {
           "id": "main",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:partition"
+          "inspect": "station:partition:main"
         },
         {
           "id": "release",
@@ -1979,28 +1979,28 @@
           "state": "waiting",
           "substate": "stopped",
           "text": "2 behind · held by the halt · will halt on schemathesis-tests",
-          "inspect": "upstream:entitlements"
+          "inspect": "station:entitlements:upstream"
         },
         {
           "id": "sync",
           "state": "stopped",
           "substate": "stopped",
           "text": "halted: UNKNOWN_TOP_LEVEL",
-          "inspect": "upstream:entitlements"
+          "inspect": "station:entitlements:sync"
         },
         {
           "id": "cascade",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:entitlements"
+          "inspect": "station:entitlements:cascade"
         },
         {
           "id": "main",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:entitlements"
+          "inspect": "station:entitlements:main"
         },
         {
           "id": "release",
@@ -2026,28 +2026,28 @@
           "state": "waiting",
           "substate": "waiting-on-clock",
           "text": "4 behind · in the sync PR · Java 25 queued",
-          "inspect": "upstream:legal"
+          "inspect": "station:legal:upstream"
         },
         {
           "id": "sync",
           "state": "stopped",
           "substate": "stopped",
           "text": "PR #31 red",
-          "inspect": "upstream:legal"
+          "inspect": "station:legal:sync"
         },
         {
           "id": "cascade",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:legal"
+          "inspect": "station:legal:cascade"
         },
         {
           "id": "main",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:legal"
+          "inspect": "station:legal:main"
         },
         {
           "id": "release",
@@ -2073,28 +2073,28 @@
           "state": "idle",
           "substate": "ready",
           "text": "0 behind",
-          "inspect": "upstream:schema"
+          "inspect": "station:schema:upstream"
         },
         {
           "id": "sync",
           "state": "idle",
           "substate": "ready",
           "text": "clean",
-          "inspect": "upstream:schema"
+          "inspect": "station:schema:sync"
         },
         {
           "id": "cascade",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:schema"
+          "inspect": "station:schema:cascade"
         },
         {
           "id": "main",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:schema"
+          "inspect": "station:schema:main"
         },
         {
           "id": "release",
@@ -2120,28 +2120,28 @@
           "state": "idle",
           "substate": "ready",
           "text": "0 behind",
-          "inspect": "upstream:file"
+          "inspect": "station:file:upstream"
         },
         {
           "id": "sync",
           "state": "idle",
           "substate": "ready",
           "text": "clean",
-          "inspect": "upstream:file"
+          "inspect": "station:file:sync"
         },
         {
           "id": "cascade",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:file"
+          "inspect": "station:file:cascade"
         },
         {
           "id": "main",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:file"
+          "inspect": "station:file:main"
         },
         {
           "id": "release",

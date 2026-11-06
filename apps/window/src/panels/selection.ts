@@ -71,7 +71,8 @@ export function createSelectionStore(port: InspectPort) {
   return createStore<SelectionState>((set, get) => ({
     selected: null,
     row: null,
-    open: true,
+    // PS-11: the panel is context for the centre, so it starts closed with nothing to show.
+    open: false,
     request: null,
     result: null,
     error: null,
@@ -115,10 +116,16 @@ export function createSelectionStore(port: InspectPort) {
       port.postMessage(parsed.message);
     },
     clear() {
+      const { open, tab, evidenceScope } = get();
       set({
         selected: null,
         row: null,
-        open: get().open && !window.matchMedia(NARROW_LAYOUT_MEDIA_QUERY).matches,
+        // Only the sweep's Evidence still has something to show once the selection is gone.
+        open:
+          open &&
+          tab === "evidence" &&
+          evidenceScope === "sweep" &&
+          !window.matchMedia(NARROW_LAYOUT_MEDIA_QUERY).matches,
         request: null,
         result: null,
         error: null,
@@ -126,7 +133,9 @@ export function createSelectionStore(port: InspectPort) {
       });
     },
     setOpen(open) {
-      set({ open });
+      // With nothing selected, opening the panel shows the sweep's Evidence rather than an empty Detail.
+      if (open && get().selected === null) set({ open, tab: "evidence", evidenceScope: "sweep" });
+      else set({ open });
     },
     visit(nextRoute, ids, scrollTop) {
       const current = get();

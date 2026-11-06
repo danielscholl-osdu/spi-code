@@ -25,6 +25,7 @@ import type { InspectResult, ReadRecord, ViewSnapshot } from "@spi-code/contract
 import { type KeyboardEvent, type ReactNode, useId } from "react";
 import { useStore } from "zustand";
 import { SelectionEvidence, SelectionEvidenceChip } from "../components/evidence/index.js";
+import { detailAction, runDetailAction } from "./detail-action.js";
 import { PANEL_TABS, type PanelTab, type SelectionStore } from "./selection.js";
 import { type SelectionKind, type SelectionRow, selectionRows } from "./selection-rows.js";
 import "./panels.css";
@@ -64,7 +65,6 @@ function Inspector({
   row: SelectionRow | null;
   snapshot: ViewSnapshot | undefined;
 }) {
-  const base = useId();
   return (
     <article className="inspector" data-class={result.class}>
       <p className="inspector-kicker">
@@ -91,42 +91,44 @@ function Inspector({
       {result.related.length > 0 && (
         <>
           <h3>Related</h3>
-          <ul aria-label="Related">
+          <dl className="inspector-related" aria-label="Related">
             {result.related.map((related) => (
-              <li key={`${related.text}/${related.state}`}>
-                {related.inspect ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const id = related.inspect;
-                      const relatedRow = snapshot
-                        ? selectionRows(snapshot).find((candidate) => candidate.id === id)
-                        : undefined;
-                      if (id)
-                        store.getState().select(
-                          id,
-                          relatedRow ?? {
+              <div key={`${related.text}/${related.state}`}>
+                <dt>{related.state}</dt>
+                <dd>
+                  {related.inspect ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const id = related.inspect;
+                        const relatedRow = snapshot
+                          ? selectionRows(snapshot).find((candidate) => candidate.id === id)
+                          : undefined;
+                        if (id)
+                          store.getState().select(
                             id,
-                            title: related.text,
-                            kind: id.startsWith("step:") ? "template-step" : "queue",
-                            ...(row?.prefixes ? { prefixes: row.prefixes } : {}),
-                          },
-                        );
-                    }}
-                  >
-                    {related.text}
-                  </button>
-                ) : related.url ? (
-                  <a href={related.url} target="_blank" rel="noreferrer">
-                    {related.text}
-                  </a>
-                ) : (
-                  related.text
-                )}{" "}
-                · {related.state}
-              </li>
+                            relatedRow ?? {
+                              id,
+                              title: related.text,
+                              kind: id.startsWith("step:") ? "template-step" : "queue",
+                              ...(row?.prefixes ? { prefixes: row.prefixes } : {}),
+                            },
+                          );
+                      }}
+                    >
+                      {related.text}
+                    </button>
+                  ) : related.url ? (
+                    <a href={related.url} target="_blank" rel="noreferrer">
+                      {related.text}
+                    </a>
+                  ) : (
+                    related.text
+                  )}
+                </dd>
+              </div>
             ))}
-          </ul>
+          </dl>
         </>
       )}
       {result.approval && (
@@ -137,26 +139,7 @@ function Inspector({
           </p>
         </>
       )}
-      {result.actions.length > 0 && (
-        <ul className="inspector-actions" aria-label="Actions">
-          {result.actions.map((action) => {
-            const reason = `${base}-${action.id}`;
-            return (
-              <li key={action.id} data-action={action.id}>
-                <button type="button" disabled aria-describedby={reason}>
-                  {action.label}
-                </button>
-                <p id={reason} className="inspector-reason">
-                  {action.disabledReason}
-                </p>
-                {action.eligibilityReason && (
-                  <p className="inspector-reason">{action.eligibilityReason}</p>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      {/* The host's result.actions are writes that arrive at M4; an unshipped action takes no space. */}
     </article>
   );
 }
@@ -206,6 +189,9 @@ export function RightPanel({
       ? candidates[0]
       : undefined);
   const row = matched ?? ownRow;
+  // A station leads with its own label, state word and text; the host's reading follows.
+  const leads = row?.kind === "station";
+  const action = selected === null ? undefined : detailAction(row, result, snapshot);
   const onKeyDown = (event: KeyboardEvent) => {
     const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
     if (step === 0) return;
@@ -296,7 +282,7 @@ export function RightPanel({
                 )}
               </>
             )}
-            {reading}
+            {!leads && reading}
             {row?.fields && (
               <dl className="detail-row-fields" aria-label="Row reading">
                 {row.fields.map(({ label, value, href, dateTime }) => (
@@ -325,17 +311,16 @@ export function RightPanel({
                 ))}
               </dl>
             )}
-            {selected !== null && (
-              <div className="detail-chat-actions">
-                <button type="button" disabled aria-describedby={`${base}-threads-reason`}>
-                  Ask
-                </button>{" "}
-                <button type="button" disabled aria-describedby={`${base}-threads-reason`}>
-                  Add to chat
+            {leads && reading}
+            {action && (
+              <div className="detail-action">
+                <button
+                  type="button"
+                  data-detail-action={action.kind}
+                  onClick={() => runDetailAction(action)}
+                >
+                  {action.label}
                 </button>
-                <p id={`${base}-threads-reason`} className="inspector-reason">
-                  Threads are not available yet.
-                </p>
               </div>
             )}
           </>

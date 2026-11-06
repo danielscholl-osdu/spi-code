@@ -1,0 +1,633 @@
+[
+  {
+    "id": "station:legal:upstream",
+    "title": "legal · Upstream",
+    "class": "PORT",
+    "cause": "4 behind · in the sync PR · Java 25 queued",
+    "effect": "waiting",
+    "next": "",
+    "why": "Legal - migration to java 25; Merge branch 'java25-upgrade' into 'master'; fix(cve): bump jackson to 2.21.7 and Tomcat to 10.1.60",
+    "evidence": [],
+    "related": [
+      {
+        "text": "1 upstream MR changed provider/legal-azure since the seed, none ported",
+        "state": "Upstream",
+        "inspect": "port:legal"
+      },
+      {
+        "text": "ba05b1c",
+        "state": "Upstream head",
+        "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/commit/ba05b1ca05709259375e44dfb7745261d0d06890"
+      },
+      {
+        "text": "legal's sync PR #31 is prepared",
+        "state": "Upstream",
+        "inspect": "upstream:legal"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:23.086Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:24.978Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:24.339Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:26.501Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:23.123Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:27.443Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "stale",
+          "observedAt": "2026-10-13T23:20:48.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:23.122Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:15.134Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:20.000Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "station:legal:sync",
+    "title": "legal · Sync PR",
+    "class": "TOOLCHAIN",
+    "cause": "PR #31 red",
+    "effect": "stopped",
+    "next": "",
+    "why": "RequireJavaVersion: JDK 17.0.20-1 is outside the allowed range [25,)",
+    "evidence": [],
+    "related": [
+      {
+        "text": "sync PR #31 fails Java Build: upstream requires Java 25, the fork builds on 17",
+        "state": "Sync PR",
+        "inspect": "gate1:legal"
+      },
+      {
+        "text": "#31 ⬆️ Sync with upstream ba05b1ca",
+        "state": "Sync PR",
+        "url": "https://github.com/Azure/osdu-spi-legal/pull/31"
+      },
+      {
+        "text": "Sync Upstream · success · 2026-10-12T00:08:53Z",
+        "state": "Sync Upstream run",
+        "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38186901020"
+      },
+      {
+        "text": "legal's sync PR #31 is prepared",
+        "state": "Upstream",
+        "inspect": "upstream:legal"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:23.086Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:24.978Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:24.339Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:26.501Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:23.123Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:27.443Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "stale",
+          "observedAt": "2026-10-13T23:20:48.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:23.122Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:15.134Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:20.000Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "station:legal:cascade",
+    "title": "legal · Cascade",
+    "class": "READY",
+    "cause": "idle",
+    "effect": "idle",
+    "next": "",
+    "why": "",
+    "evidence": [],
+    "related": [
+      {
+        "text": "#32 📥 Upstream Sync Ready for Review - 2026-10-08",
+        "state": "Tracking issue",
+        "url": "https://github.com/Azure/osdu-spi-legal/issues/32"
+      },
+      {
+        "text": "legal's sync PR #31 is prepared",
+        "state": "Upstream",
+        "inspect": "upstream:legal"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:23.086Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:24.978Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:24.339Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:26.501Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:23.123Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:27.443Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "stale",
+          "observedAt": "2026-10-13T23:20:48.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:23.122Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:15.134Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:20.000Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "station:legal:main",
+    "title": "legal · Main",
+    "class": "READY",
+    "cause": "idle",
+    "effect": "idle",
+    "next": "",
+    "why": "",
+    "evidence": [],
+    "related": [
+      {
+        "text": "Validation · success · 2026-10-06T22:02:03Z",
+        "state": "Main run",
+        "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37537951640"
+      },
+      {
+        "text": "legal's sync PR #31 is prepared",
+        "state": "Upstream",
+        "inspect": "upstream:legal"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:23.086Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:24.978Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:24.339Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:26.501Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:23.123Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:27.443Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "stale",
+          "observedAt": "2026-10-13T23:20:48.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:23.122Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:15.134Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "stale",
+          "observedAt": "2026-10-12T21:58:20.000Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      }
+    ],
+    "provenance": []
+  }
+]

@@ -311,7 +311,8 @@ it("fills the right panel's Detail with the selected tile", async () => {
   );
   const request = requested();
   if (!request) throw new Error("No inspect request");
-  const result = inspectFromOracle(JSON.parse(HALT) as OracleBoard, `upstream:${SERVICE}`);
+  expect(request.payload.id).toBe(`station:${SERVICE}:sync`);
+  const result = inspectFromOracle(JSON.parse(HALT) as OracleBoard, request.payload.id);
   await act(async () =>
     selection.getState().receive({
       version: PROTOCOL_VERSION,

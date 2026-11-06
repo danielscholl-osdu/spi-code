@@ -248,10 +248,7 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     stations: line.stations.map((station) => ({
       ...station,
       substate: stationSubstate(station, line, input),
-      inspect:
-        station.id === "release" || station.id === "lane"
-          ? `station:${line.fork.id}:${station.id}`
-          : `upstream:${line.fork.id}`,
+      inspect: `station:${line.fork.id}:${station.id}`,
     })),
   }));
   const services = model.lines.map((line) => ({

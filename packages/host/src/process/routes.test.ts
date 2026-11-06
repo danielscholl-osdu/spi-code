@@ -1,12 +1,13 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import {
   AREAS,
+  type InspectResult,
   InspectResultSchema,
   type Message,
   PROTOCOL_VERSION,
@@ -314,8 +315,114 @@ describe("view.subscribe", () => {
       expect(calls).toBe(0);
     });
 
+    async function inspectStations(ids: string[]): Promise<Map<string, InspectResult>> {
+      writeSnapshot();
+      const port = host(routes());
+      for (const id of ids) port.request("inspect.request", { id }, id);
+      await settle();
+      return new Map(
+        ids.map((id) => [
+          id,
+          InspectResultSchema.parse(port.sent.find((message) => message.id === id)?.payload),
+        ]),
+      );
+    }
+
+    it("gives each line station its own reading, its own facts and the fork's upstream", async () => {
+      const results = await inspectStations([
+        "station:legal:upstream",
+        "station:legal:sync",
+        "station:legal:cascade",
+        "station:legal:main",
+        "station:entitlements:sync",
+      ]);
+      expect(results.get("station:legal:upstream")).toMatchObject({
+        title: "legal · Upstream",
+        cause: "4 behind · in the sync PR · Java 25 queued",
+        effect: "waiting",
+      });
+      const sync = results.get("station:legal:sync");
+      expect(sync).toMatchObject({
+        title: "legal · Sync PR",
+        cause: "PR #31 red",
+        effect: "stopped",
+      });
+      expect(sync?.related).toContainEqual(
+        expect.objectContaining({ state: "Sync PR", text: expect.stringMatching(/^#31 /) }),
+      );
+      expect(results.get("station:legal:cascade")).toMatchObject({
+        title: "legal · Cascade",
+        cause: "idle",
+        effect: "idle",
+        class: "READY",
+      });
+      expect(results.get("station:legal:main")).toMatchObject({
+        title: "legal · Main",
+        cause: "idle",
+        effect: "idle",
+      });
+      expect(results.get("station:entitlements:sync")).toMatchObject({
+        cause: "halted: UNKNOWN_TOP_LEVEL",
+        class: "HALT",
+      });
+      expect(results.get("station:entitlements:sync")?.related).toContainEqual(
+        expect.objectContaining({ state: "Sync PR", inspect: "halt:entitlements" }),
+      );
+      for (const result of results.values()) {
+        expect(result.related).toContainEqual(
+          expect.objectContaining({
+            state: "Upstream",
+            inspect: `upstream:${result.id.split(":")[1]}`,
+          }),
+        );
+      }
+      expect(calls).toBe(0);
+    });
+
+    it("projects the recorded legal station readings the window's Detail tests replay", async () => {
+      const ids = ["upstream", "sync", "cascade", "main"].map((id) => `station:legal:${id}`);
+      const recorded = readFileSync(
+        new URL("../../../../fixtures/watch/inspect-stations-legal-59d6895.json", import.meta.url),
+        "utf8",
+      );
+      expect([...(await inspectStations(ids)).values()]).toEqual(JSON.parse(recorded));
+    });
+
+    it("never shows the cascade's cause on a clean Sync PR station", async () => {
+      const repo = input.facts.github.data?.repos["Azure/osdu-spi-partition"];
+      if (!repo) throw new Error("fixture lost partition");
+      const conflict = {
+        repo: repo.repo,
+        number: 77,
+        title: "Cascade conflict in pom.xml",
+        url: "https://github.com/Azure/osdu-spi-partition/issues/77",
+        createdAt: "2026-10-12T00:00:00Z",
+        updatedAt: "2026-10-12T00:00:00Z",
+        labels: ["conflict"],
+        comments: 0,
+      };
+      repo.issues.push(conflict);
+      try {
+        const results = await inspectStations([
+          "station:partition:sync",
+          "station:partition:cascade",
+        ]);
+        const sync = results.get("station:partition:sync");
+        expect(sync).toMatchObject({ cause: "clean", effect: "idle", class: "READY", why: "" });
+        expect(JSON.stringify(sync)).not.toContain(conflict.title);
+        const cascade = results.get("station:partition:cascade");
+        expect(cascade).toMatchObject({ cause: "conflict", effect: "stopped", class: "CONFLICT" });
+        expect(cascade?.why).toContain(conflict.title);
+        expect(cascade?.related).toContainEqual(
+          expect.objectContaining({ state: "Conflict issue", url: conflict.url }),
+        );
+      } finally {
+        repo.issues.pop();
+      }
+    });
+
     it.each([
-      "station:legal:upstream",
+      "station:legal:lead",
       "station:legal:release:extra",
       "station:missing:lane",
       "station:Legal:lane",

@@ -373,21 +373,15 @@ it.each([
       disabledReason: "Re-run ships in M4; the stack is not deployable now.",
     },
   ],
-])("shows the %s action %o disabled with its reason in place", async (cls, action) => {
+])("takes no space for the unshipped %s action %o", async (cls, action) => {
   const view = await inspect(
     inspectFromOracle(board(cls), `${cls.toLowerCase()}:svc`, { actions: [action] }),
   );
   try {
-    const button = view.container.querySelector<HTMLButtonElement>(
-      `[data-action="${action.id}"] button`,
-    );
-    expect(button?.textContent).toBe(action.label);
-    expect(button?.disabled).toBe(true);
-    const reason = document.getElementById(button?.getAttribute("aria-describedby") ?? "");
-    expect(reason?.textContent).toBe(action.disabledReason);
-    expect(reason?.closest("[data-action]")).toBe(button?.closest("[data-action]"));
-    await act(async () => button?.click());
-    expect(view.postMessage).toHaveBeenCalledTimes(1);
+    expect(view.text("cause")).toBeTruthy();
+    expect(view.container.querySelector("[data-action]")).toBeNull();
+    expect(view.container.textContent).not.toContain(action.label);
+    expect(view.container.textContent).not.toContain(action.disabledReason);
   } finally {
     await view.cleanup();
   }
@@ -400,15 +394,11 @@ it("offers Detail and selection Evidence, but no run logs or threads", async () 
     expect([...tabs].map((tab) => tab.textContent)).toEqual(["Detail", "Evidence", "Log"]);
     expect(tabs[2]?.disabled).toBe(true);
     expect(view.container.textContent).toContain("Run logs are not available yet.");
-    for (const label of ["Ask", "Add to chat"]) {
-      const button = [...view.container.querySelectorAll<HTMLButtonElement>("button")].find(
-        (item) => item.textContent === label,
-      );
-      expect(button?.disabled).toBe(true);
-      expect(
-        document.getElementById(button?.getAttribute("aria-describedby") ?? "")?.textContent,
-      ).toBe("Threads are not available yet.");
-    }
+    // Ask about this and Add to chat ship at M3, so they take no space yet.
+    const labels = [...view.container.querySelectorAll("button")].map((item) => item.textContent);
+    expect(labels).not.toContain("Ask");
+    expect(labels).not.toContain("Add to chat");
+    expect(view.container.textContent).not.toContain("Threads are not available yet.");
     await act(async () => tabs[1]?.click());
     expect(tabs[1]?.getAttribute("aria-selected")).toBe("true");
     expect(view.container.querySelector('[data-evidence="selection"]')).not.toBeNull();
