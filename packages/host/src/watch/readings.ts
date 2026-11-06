@@ -3,6 +3,7 @@
 
 import type { Anchor, Campaign, Reading, ReleaseDoc, WatchBriefing } from "@spi-code/contracts";
 import {
+  engineeringReading,
   environmentReading,
   type Model,
   releasesReading,
@@ -64,7 +65,12 @@ export const readingFor: Record<Anchor["kind"], PlaceReader> = {
       now: input.context.clock.now(),
     });
   },
-  engineering: (_anchor, _context) => null,
+  engineering: (_anchor, { model, input, briefing }) =>
+    engineeringReading({
+      model,
+      items: [...briefing.focus, ...briefing.rest],
+      reads: Object.values(input.envelopeReads ?? input.reads).flatMap((area) => area ?? []),
+    }),
   releases: (_anchor, { input, briefing, documents }) =>
     releasesReading({
       facts: input.facts,
