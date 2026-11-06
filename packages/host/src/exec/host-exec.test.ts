@@ -3,7 +3,7 @@
 
 import { ChildProcess, spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
@@ -520,7 +520,19 @@ it.skipIf(process.platform === "win32")("runs managed gh before login PATH gh", 
   expect(env.PATH).toBe(`${bin}:${login}`);
 });
 
-it("owns configuration dirs and scrubs overrides, keeping only the named token", async () => {
+it("creates app-owned kube and azure configuration directories after a run", async () => {
+  const options = await fixture();
+  const exec = new HostExec(options);
+  expect(await exec.runText(process.execPath, ["-e", ""])).toEqual({
+    ok: true,
+    data: "",
+    exitCode: 0,
+  });
+  expect((await stat(join(options.appData, "kube"))).isDirectory()).toBe(true);
+  expect((await stat(join(options.appData, "azure"))).isDirectory()).toBe(true);
+});
+
+it("assigns app-owned config paths and scrubs overrides, keeping only the named token", async () => {
   const options = await fixture();
   const env = {
     GH_TOKEN: "first-secret",
