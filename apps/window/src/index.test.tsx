@@ -5,97 +5,163 @@ import { type Message, PROTOCOL_VERSION } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { expect, it, vi } from "vitest";
+import mixed from "../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
+import type { Route } from "./app/routes.js";
+import { mixedSnapshot } from "./store/test-snapshot.js";
 
 vi.mock("react-dom/client", async (importOriginal) => {
   const original = await importOriginal<typeof import("react-dom/client")>();
   return { ...original, createRoot: vi.fn(original.createRoot) };
 });
 
-it.each(["restart", "give-up"] as const)(
-  "unblocks the turn controls and displays a turn error after host %s",
-  async (kind) => {
-    vi.resetModules();
-    const previous = window.spi;
-    const listeners = new Set<(input: unknown) => void>();
-    const postMessage = vi.fn<(message: Message) => void>();
-    window.spi = {
-      proof: true,
-      openExternal: vi.fn(),
-      postMessage,
-      onMessage: (listener) => {
-        listeners.add(listener);
-        return () => listeners.delete(listener);
-      },
-    };
-    const container = document.createElement("div");
-    container.id = "root";
-    document.body.append(container);
-    let root: Root | undefined;
-    const receive = (message: Message) =>
+async function mountWindow(proof: boolean) {
+  vi.resetModules();
+  const previous = window.spi;
+  const listeners = new Set<(input: unknown) => void>();
+  const postMessage = vi.fn<(message: Message) => void>();
+  window.location.hash = "";
+  window.spi = {
+    proof,
+    openExternal: vi.fn(),
+    postMessage,
+    onMessage: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+  const container = document.createElement("div");
+  container.id = "root";
+  document.body.append(container);
+  let root: Root | undefined;
+  await act(async () => {
+    await import("./index.js");
+    root = vi.mocked(createRoot).mock.results.at(-1)?.value;
+  });
+  return {
+    container,
+    postMessage,
+    receive: (message: Message) =>
       act(async () => {
         for (const listener of listeners) listener(message);
-      });
-    const hello = (pid: number): Message => ({
-      version: PROTOCOL_VERSION,
-      id: "hello",
-      kind: "event",
-      type: "host.hello",
-      payload: { pid },
-    });
-    try {
-      await act(async () => {
-        await import("./index.js");
-      });
-      root = vi.mocked(createRoot).mock.results.at(-1)?.value;
-      await receive(hello(123));
-      await receive({
-        version: PROTOCOL_VERSION,
-        id: "catalog",
-        kind: "response",
-        type: "models.result",
-        payload: { models: [{ id: "model", name: "Model" }] },
-      });
-      const turn = postMessage.mock.calls
-        .map(([message]) => message)
-        .find(({ type }) => type === "turn.start");
-      expect(turn).toBeDefined();
-      const prompt = container.querySelector("textarea");
-      expect(prompt?.disabled).toBe(true);
-      await receive(hello(123));
-      expect(prompt?.disabled).toBe(true);
-      await receive(
-        kind === "restart"
-          ? hello(456)
-          : {
-              version: PROTOCOL_VERSION,
-              id: "unrelated-supervisor-request",
-              kind: "response",
-              type: "error",
-              payload: {
-                code: "host_unavailable",
-                message: "Host stopped after repeated crashes.",
-              },
-            },
-      );
-      expect(prompt?.disabled).toBe(false);
-      const panel = container.querySelector(".turn-panel");
-      expect(panel?.textContent).toContain(
-        kind === "restart" ? "Turn failed: host restarted." : "Turn failed: host unavailable.",
-      );
-      expect(panel?.querySelector('button[type="submit"]')?.textContent).toBe("Send");
-      if (!turn) throw new Error("Proof did not start a turn");
-      await receive({
-        version: PROTOCOL_VERSION,
-        id: turn.id,
-        kind: "event",
-        type: "turn.delta",
-        payload: { text: "Stale output" },
-      });
-      expect(panel?.textContent).not.toContain("Stale output");
-    } finally {
+      }),
+    async cleanup() {
       await act(async () => root?.unmount());
       container.remove();
       window.spi = previous;
+      expect(listeners.size).toBe(0);
+    },
+  };
+}
+
+const hello = (pid = 123): Message => ({
+  version: PROTOCOL_VERSION,
+  id: "hello",
+  kind: "event",
+  type: "host.hello",
+  payload: { pid },
+});
+
+const models = (catalog: { id: string; name: string }[]): Message => ({
+  version: PROTOCOL_VERSION,
+  id: "catalog",
+  kind: "response",
+  type: "models.result",
+  payload: { models: catalog },
+});
+
+function expectNoTurnUI(container: HTMLElement) {
+  expect(
+    container.querySelector(
+      'textarea, [contenteditable="true"], .turn-panel, [data-slot="composer"], [aria-label="Copilot response"], [aria-label="Tool events"]',
+    ),
+  ).toBeNull();
+  expect(
+    [...container.querySelectorAll("summary")].some(
+      (summary) => summary.textContent === "Copilot turn",
+    ),
+  ).toBe(false);
+  expect(container.querySelector('label[for="prompt"], label[for="model"]')).toBeNull();
+}
+
+it.each([false, true])(
+  "renders no composer or turn panel on every shell route (proof=%s)",
+  async (proof) => {
+    const app = await mountWindow(proof);
+    try {
+      const { LENSES, routeHash, routeLabel } = await import("./app/routes.js");
+      const snapshot = mixedSnapshot(mixed);
+      await app.receive({
+        version: PROTOCOL_VERSION,
+        id: "snapshot",
+        kind: "event",
+        type: "view.snapshot",
+        payload: snapshot,
+      });
+      const routes: Record<Route["kind"], Route[]> = {
+        inbox: [{ kind: "inbox" }],
+        template: [{ kind: "template" }],
+        environment: [{ kind: "environment" }],
+        releases: [{ kind: "releases" }],
+        setup: [{ kind: "setup" }],
+        service: snapshot.stations.map(({ service }) => ({ kind: "service", id: service })),
+        release: snapshot.releases.lines.map(({ month }) => ({ kind: "release", month })),
+        lens: LENSES.map((lens) => ({ kind: "lens", lens })),
+      };
+      for (const route of Object.values(routes).flat()) {
+        await act(async () => {
+          window.location.hash = routeHash(route);
+          window.dispatchEvent(new HashChangeEvent("hashchange"));
+        });
+        expect(app.container.querySelector("header [data-place]")?.textContent).toBe(
+          routeLabel(route),
+        );
+        expectNoTurnUI(app.container);
+      }
+      if (!proof) {
+        await app.receive(hello());
+        await app.receive(models([{ id: "model", name: "Model" }]));
+        expect(app.postMessage.mock.calls.some(([message]) => message.type === "turn.start")).toBe(
+          false,
+        );
+      }
+    } finally {
+      await app.cleanup();
     }
   },
 );
+
+it("keeps the packaged proof harness starting one turn without rendering turn UI", async () => {
+  const app = await mountWindow(true);
+  try {
+    await app.receive(hello());
+    const sent = () => app.postMessage.mock.calls.map(([message]) => message);
+    expect(sent()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "window-ping", type: "ping" }),
+        expect.objectContaining({ id: "catalog", type: "models.list" }),
+      ]),
+    );
+    await app.receive(models([]));
+    expect(sent().filter(({ type }) => type === "turn.start")).toHaveLength(0);
+    await app.receive(models([{ id: "stub-model", name: "Fixture model" }]));
+    const turns = sent().filter(({ type }) => type === "turn.start");
+    expect(turns).toEqual([
+      expect.objectContaining({
+        version: PROTOCOL_VERSION,
+        id: expect.any(String),
+        kind: "request",
+        type: "turn.start",
+        payload: {
+          modelId: "stub-model",
+          prompt: "Call spi_brief with empty arguments, then reply with one short sentence.",
+        },
+      }),
+    ]);
+    await app.receive(hello(456));
+    await app.receive(models([{ id: "stub-model", name: "Fixture model" }]));
+    expect(sent().filter(({ type }) => type === "turn.start")).toEqual(turns);
+    expectNoTurnUI(app.container);
+  } finally {
+    await app.cleanup();
+  }
+});

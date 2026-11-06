@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { PROTOCOL_VERSION } from "@spi-code/contracts";
-import { act, type ReactNode } from "react";
+import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { beforeEach, expect, it, vi } from "vitest";
 import briefing from "../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
@@ -15,7 +15,7 @@ type HappyWindow = { happyDOM: { setViewport(viewport: { width: number; height: 
 const viewport = (width: number, height = 900) =>
   (window as unknown as HappyWindow).happyDOM.setViewport({ width, height });
 
-async function mountShell(children?: ReactNode) {
+async function mountShell() {
   const unsubscribe = vi.fn();
   const previous = window.spi;
   window.spi = {
@@ -27,7 +27,7 @@ async function mountShell(children?: ReactNode) {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
-  await act(async () => root.render(<Shell>{children}</Shell>));
+  await act(async () => root.render(<Shell />));
   return {
     container,
     unsubscribe,
@@ -50,7 +50,7 @@ beforeEach(() => {
 });
 
 it("navigates every sidebar thing through the hash, naming the place in the title bar", async () => {
-  const shell = await mountShell(<p>Turn panel</p>);
+  const shell = await mountShell();
   const { container } = shell;
   try {
     const place = () => container.querySelector("header [data-place]")?.textContent;
@@ -89,7 +89,6 @@ it("navigates every sidebar thing through the hash, naming the place in the titl
       expect(place()).toBe(label);
     }
     expect(button("Releases")?.getAttribute("aria-current")).toBe("true");
-    expect(container.querySelector("details")?.textContent).toContain("Turn panel");
     expect(container.querySelector("header strong")?.textContent).toBe("SPI Code");
     expect(container.querySelector("aside")?.getAttribute("aria-label")).toBe("Inspector");
   } finally {

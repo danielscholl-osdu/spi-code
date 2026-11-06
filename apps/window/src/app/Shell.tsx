@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { WorstEnvelope } from "../components/evidence/WorstEnvelope.js";
@@ -16,7 +16,7 @@ import { windowControls } from "./window-controls.js";
 
 export { watchStore };
 
-export function Shell({ children }: { children?: ReactNode }) {
+export function Shell() {
   const envelopes = useStore(watchStore, useShallow(selectEnvelopes));
   const [route, navigate] = useHashRoute();
   useSetupLanding(navigate);
@@ -78,10 +78,6 @@ export function Shell({ children }: { children?: ReactNode }) {
       <main className="middle-frame">
         {error && <p role="alert">{error}</p>}
         <RouteView route={route} />
-        <details>
-          <summary>Copilot turn</summary>
-          {children}
-        </details>
       </main>
       {rightPanelOpen && (
         <div id="app-right-panel" className="right-panel-frame">

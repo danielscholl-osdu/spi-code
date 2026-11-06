@@ -81,6 +81,10 @@ macOS uses `ps` and `lsof`; Windows uses CIM process ancestry and `netstat -ano`
 Runtime staging excludes compiled `*.test.*` files and `smoke-launch.*`, including
 their declarations and maps, across the desktop and bundled workspace libraries.
 The in-app smoke modules remain bundled; the launcher runs from the build checkout.
+The renderer's turn spike is a headless test harness in `apps/window/src/index.tsx`,
+enabled only by `window.spi.proof` for packaged smoke and live proof runs. No page
+renders a turn panel or composer; the harness still pings the host and starts one
+turn per renderer load when the model catalog arrives.
 
 Pinned notice repairs in `scripts/third-party-notices.mjs` cover npm archives
 that omit their upstream MIT text: Copilot SDK/platform 1.0.26 uses the GitHub
