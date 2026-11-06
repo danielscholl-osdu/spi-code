@@ -8,6 +8,7 @@ import Environment from "../views/environment/index.js";
 import Flow from "../views/flow/index.js";
 import Horizon from "../views/horizon/index.js";
 import Inbox from "../views/inbox/index.js";
+import Line from "../views/line/index.js";
 import Releases, { ReleaseMonth } from "../views/releases/index.js";
 import Repositories from "../views/repositories/index.js";
 import ServicePage from "../views/service/index.js";
@@ -33,7 +34,7 @@ function gated(route: Route, page: ReactNode) {
 }
 
 /**
- * The window's views by route. Upstream, Security and the Line sheet are not registered until
+ * The window's views by route. Upstream and Security are not registered until
  * their components exist, so nothing lists them.
  */
 export const DEFAULT_REGISTRY: Registry = {
@@ -58,6 +59,7 @@ export const DEFAULT_REGISTRY: Registry = {
       ),
     setup: () => <Setup />,
   },
+  sheet: (_origin, presentation) => <Line presentation={presentation} />,
   fallback: { kind: "inbox" },
 };
 
