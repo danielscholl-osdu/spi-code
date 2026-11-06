@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { ViewSnapshotSchema } from "@spi-code/contracts";
+import { PROTOCOL_VERSION, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -28,9 +28,10 @@ afterEach(async () => {
   localStorage.clear();
 });
 
-async function render(route: Route = { kind: "inbox" }, onNavigate = vi.fn()) {
+const recordedBody = ViewSnapshotSchema.parse(JSON.parse(recorded));
+
+async function render(route: Route = { kind: "inbox" }, onNavigate = vi.fn(), body = recordedBody) {
   const store = createWatchStore(vi.fn());
-  const body = ViewSnapshotSchema.parse(JSON.parse(recorded));
   store.setState({ snapshot: { cursor: body.cursor, body } });
   await act(async () =>
     root.render(
@@ -48,14 +49,20 @@ const header = (label: string) =>
   );
 const rows = (label: string) =>
   [...container.querySelectorAll(`ul[aria-label="${label}"] button`)].map(
-    (button) => button.textContent,
+    (button) => button.querySelector(".sidebar-row-label")?.textContent,
   );
+const row = (key: string) => container.querySelector(`[data-sidebar-row="${key}"]`);
+const attention = (key: string) => ({
+  dot: row(key)?.querySelector(".sidebar-attention-dot")?.getAttribute("data-attention") ?? null,
+  priority: row(key)?.querySelector(".sidebar-attention-dot")?.getAttribute("aria-label") ?? null,
+  word: row(key)?.querySelector(".sidebar-row-note")?.textContent ?? null,
+});
 
 it("lists the things in order, with services in the recorded fleet order", async () => {
   const { onNavigate } = await render({ kind: "service", id: "legal" });
   const nav = container.querySelector('nav[aria-label="Sidebar"]');
   expect(nav?.querySelector("button")?.textContent).toContain("Find or ask");
-  expect(rows("Inbox")).toEqual(["Inbox6"]);
+  expect(rows("Inbox")).toEqual(["Inbox"]);
   expect(container.querySelector('ul[aria-label="Inbox"] .sidebar-pip')?.textContent).toBe("6");
   expect(rows("Program")).toEqual(["Template", "Environment", "Releases"]);
   expect(rows("Services")).toEqual(["partition", "entitlements", "legal", "schema", "file"]);
@@ -66,12 +73,147 @@ it("lists the things in order, with services in the recorded fleet order", async
   expect(container.querySelector("time")?.getAttribute("dateTime")).toBe(
     "2026-10-12T21:58:14.428Z",
   );
-  expect(container.querySelector('[aria-current="page"]')?.textContent).toBe("legal");
+  expect(container.querySelector('[aria-current="page"]')?.textContent).toContain("legal");
   const schema = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
-    (button) => button.textContent === "schema",
+    (button) => button.querySelector(".sidebar-row-label")?.textContent === "schema",
   );
   await act(async () => schema?.click());
   expect(onNavigate).toHaveBeenCalledWith({ kind: "service", id: "schema" });
+});
+
+it("shows each recorded service's highest queue priority and class word, not a count", async () => {
+  await render();
+  expect(
+    ["partition", "entitlements", "legal", "schema", "file"].map((id) =>
+      attention(`service/${id}`),
+    ),
+  ).toEqual([
+    { dot: "unread", priority: "Unread", word: "unread" },
+    { dot: "p0", priority: "P0", word: "halt" },
+    { dot: "p1", priority: "P1", word: "toolchain" },
+    { dot: "unread", priority: "Unread", word: "unread" },
+    { dot: "unread", priority: "Unread", word: "unread" },
+  ]);
+  expect(container.querySelectorAll(".sidebar-pip")).toHaveLength(1);
+  expect(container.querySelector('ul[aria-label="Services"] .sidebar-pip')).toBeNull();
+});
+
+it("takes the highest rung across focus and rest, including a folded port's services", async () => {
+  const first = recordedBody.briefing.focus[0];
+  const port = recordedBody.briefing.rest[0];
+  if (!first || !port) throw new Error("Recorded queue required");
+  const body = structuredClone(recordedBody);
+  body.briefing.focus = [
+    { ...first, id: "later:file", scope: "file", rung: 2, cls: "READY" },
+    { ...first, id: "later:legal", scope: "legal", rung: 2, cls: "READY" },
+    { ...first, id: "gate:legal", scope: "legal", rung: 1, cls: "GATE" },
+  ];
+  body.briefing.rest = [
+    { ...first, id: "conflict:legal", scope: "legal", rung: 0, cls: "CONFLICT" },
+    { ...port, ids: ["port:entitlements", "port:schema"] },
+  ];
+  await render(undefined, undefined, body);
+  expect(attention("service/legal")).toEqual({
+    dot: "p0",
+    priority: "P0",
+    word: "conflict",
+  });
+  expect(attention("service/file")).toEqual({ dot: "p2", priority: "P2", word: "ready" });
+  expect(attention("service/schema")).toEqual({ dot: "p1", priority: "P1", word: "port" });
+});
+
+it("carries the Program facts beside their attention dots", async () => {
+  await render();
+  expect(attention("template")).toEqual({ dot: "p1", priority: "P1", word: "0 of 5" });
+  expect(attention("environment")).toEqual({
+    dot: "p0",
+    priority: "P0",
+    word: "v0.28.0",
+  });
+  expect(attention("releases")).toEqual({ dot: null, priority: null, word: "2026.10" });
+});
+
+it("uses hollow only for an empty unread scope, and no dot for an empty read scope", async () => {
+  const body = structuredClone(recordedBody);
+  body.tree = body.tree.map((node) =>
+    node.id === "service:file" ? { ...node, status: "fresh" } : node,
+  );
+  const { store } = await render(undefined, undefined, body);
+  expect(attention("service/partition").dot).toBe("unread");
+  expect(attention("service/file")).toEqual({ dot: null, priority: null, word: null });
+  for (const status of ["stale", "incomplete"] as const) {
+    await act(async () =>
+      store.setState({
+        snapshot: {
+          cursor: body.cursor,
+          body: {
+            ...body,
+            tree: body.tree.map((node) =>
+              node.id === "service:file" ? { ...node, status } : node,
+            ),
+          },
+        },
+      }),
+    );
+    expect(attention("service/file").dot).toBeNull();
+  }
+});
+
+it("leaves every dot unchanged when an area read and the tree scopes fail", async () => {
+  const body = structuredClone(recordedBody);
+  body.tree = body.tree.map((node) =>
+    node.id === "service:file" ? { ...node, status: "fresh" } : node,
+  );
+  const { store } = await render(undefined, undefined, body);
+  const dots = () =>
+    [...container.querySelectorAll("[data-sidebar-row]")].map((element) => [
+      element.getAttribute("data-sidebar-row"),
+      element.querySelector(".sidebar-attention-dot")?.outerHTML ?? null,
+    ]);
+  const before = dots();
+  const failed: ViewSnapshot = {
+    ...body,
+    cursor: body.cursor + 1,
+    areas: body.areas.map((area) => ({
+      ...area,
+      envelope: {
+        ...area.envelope,
+        state: "failed",
+        completeness: area.envelope.completeness ?? { kind: "complete" },
+      },
+    })),
+    tree: body.tree.map((node) => ({ ...node, status: "failed" })),
+  };
+  await act(async () =>
+    store.getState().receive({
+      version: PROTOCOL_VERSION,
+      id: "failed-read",
+      kind: "event",
+      type: "view.snapshot",
+      payload: failed,
+    }),
+  );
+  expect(
+    store.getState().snapshot?.body.areas.every(({ envelope }) => envelope.state === "failed"),
+  ).toBe(true);
+  expect(dots()).toEqual(before);
+  expect(attention("service/partition").dot).toBe("unread");
+  expect(attention("service/file").dot).toBeNull();
+  await act(async () =>
+    store.getState().receive({
+      version: PROTOCOL_VERSION,
+      id: "recovered-read",
+      kind: "event",
+      type: "view.snapshot",
+      payload: {
+        ...body,
+        cursor: failed.cursor + 1,
+        tree: body.tree.map((node) => ({ ...node, status: "fresh" })),
+      },
+    }),
+  );
+  expect(attention("service/partition").dot).toBeNull();
+  expect(attention("service/entitlements").dot).toBe("p0");
 });
 
 it("pins Find or ask and the Inbox above the scrolling groups, and the footer below them", async () => {

@@ -21,12 +21,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { type ReactNode, useId } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { useStore } from "zustand";
 import { LENSES, type Route, routeLabel } from "../../app/routes.js";
 import { ariaShortcut, shortcutLabel } from "../../app/shortcuts.js";
 import type { createWatchStore } from "../../store/watch.js";
 import { inboxCount } from "../../views/inbox/queue.js";
+import { sidebarAttention } from "./attention.js";
 import { type SidebarGroupId, useGroupCollapse } from "./collapse.js";
 import {
   CollapsibleSectionHeader,
@@ -74,9 +75,12 @@ export function ProgramSidebar({
   route: Route;
   onNavigate(route: Route): void;
 }) {
-  const tree = useStore(store, (state) => state.snapshot?.body.tree);
-  const sweptAt = useStore(store, (state) => state.snapshot?.body.sweptAt);
-  const briefing = useStore(store, (state) => state.snapshot?.body.briefing);
+  const body = useStore(store, (state) => state.snapshot?.body);
+  const { tree, sweptAt, briefing } = body ?? {};
+  const [attention, setAttention] = useState(() => ({ body, rows: sidebarAttention(body) }));
+  if (attention.body !== body) {
+    setAttention({ body, rows: sidebarAttention(body, attention.rows) });
+  }
   const inbox = briefing ? inboxCount(briefing) : 0;
   const { isMobile, setOpenMobile } = useSidebar();
   const { collapsed, toggle } = useGroupCollapse();
@@ -87,17 +91,37 @@ export function ProgramSidebar({
     .filter((node) => node.id.startsWith(SERVICE_PREFIX))
     .map((node) => node.id.slice(SERVICE_PREFIX.length));
 
-  const row = (key: string, target: Route, label = routeLabel(target), pip?: ReactNode) => (
+  const row = (
+    key: string,
+    target: Route,
+    label = routeLabel(target),
+    pip?: ReactNode,
+    mark = attention.rows.get(key.replace("service/", SERVICE_PREFIX)),
+  ) => (
     <SidebarMenuItem key={key}>
       <SidebarMenuButton
         isActive={active === key}
+        data-sidebar-row={key}
         aria-current={active === key ? (route.kind === "release" ? "true" : "page") : undefined}
         onClick={() => {
           onNavigate(target);
           if (isMobile) setOpenMobile(false);
         }}
       >
-        <span>{label}</span>
+        {mark?.dot && (
+          <span
+            className="sidebar-attention-dot"
+            data-attention={mark.dot}
+            role="img"
+            aria-label={mark.dot === "unread" ? "Unread" : mark.dot.toUpperCase()}
+          />
+        )}
+        <span className="sidebar-row-label">{label}</span>
+        {mark?.word && (
+          <span className="sidebar-row-note" title={mark.word}>
+            {mark.word}
+          </span>
+        )}
         {pip}
       </SidebarMenuButton>
     </SidebarMenuItem>
