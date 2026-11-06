@@ -5,7 +5,13 @@ body { margin: 0; background: var(--chrome); color: var(--text); font: 14px/1.5 
 .shell { --sidebar-col: 232px; --panel-col: 300px; display: grid; grid-template-columns: var(--sidebar-col) minmax(0, 1fr) var(--panel-col); grid-template-rows: 40px minmax(0, 1fr); height: 100dvh; }
 .shell[data-sidebar-state="collapsed"] { --sidebar-col: 0px; }
 .shell[data-right-panel="closed"] { --panel-col: 0px; }
-.title-bar { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 8px 0 16px; border-bottom: 1px solid var(--border); background: var(--sidebar); font-size: 12.5px; white-space: nowrap; min-width: 0; }
+.title-bar { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 8px 0 16px; border-bottom: 1px solid var(--border); background: var(--sidebar); font-size: 12.5px; white-space: nowrap; min-width: 0; -webkit-app-region: drag; }
+/* Electron 44 inherits app-region; children reset to initial so they add no drag rectangles of their own. */
+.title-bar > * { -webkit-app-region: initial; }
+.title-bar :is(button, select, input, textarea, a, label, summary) { -webkit-app-region: no-drag; }
+/* macOS traffic lights sit at x 16, 14 px apart; Windows caption buttons fill the overlay's right edge. */
+.shell[data-window-controls="inset"] .title-bar { padding-left: 84px; }
+.shell[data-window-controls="overlay"] .title-bar { padding-right: calc(100vw - env(titlebar-area-width, 100vw) - env(titlebar-area-x, 0px) + 8px); }
 .title-bar-place { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .title-bar-place [data-place] { color: var(--text-strong); font-weight: 600; }
 .title-bar-controls { display: flex; align-items: center; gap: 10px; }

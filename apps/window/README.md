@@ -1,11 +1,14 @@
 # Window shell
 
-The shell follows T3 Code's layout: a 40 px title bar naming the current place, with
+The shell follows T3 Code's layout: a 40 px title bar naming the current place, drawn
+in the window's own title bar space (beside the macOS traffic lights, or under the
+Windows caption overlay) and draggable except on its controls, with
 toggles for the sidebar (⌘B), terminal (⌘J, not available yet) and right panel (⌘I),
 using Ctrl on Windows; a 232 px sidebar of things; the middle frame; and the right panel.
 The sidebar lists Find or ask, Inbox, Program (Template, Environment, Releases), the
 services in fleet order, Lenses (Flow, Repositories, Horizon), the Settled shelf and a
-footer with Setup and the sweep time. Its groups fold, and the fold is saved in
+footer with Setup and the sweep time. Find or ask, the Inbox and the footer stay put
+while the groups between them scroll. The groups fold, and the fold is saved in
 localStorage; on a window shorter than 760 px Lenses folds first, then Program, unless
 the operator chose otherwise. Below 980 px wide the sidebar opens off-canvas and Escape
 closes it.

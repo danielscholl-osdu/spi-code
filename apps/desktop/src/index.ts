@@ -14,6 +14,7 @@ import {
   ipcMain,
   MessageChannelMain,
   type MessagePortMain,
+  nativeTheme,
   shell,
   type UtilityProcess,
   utilityProcess,
@@ -24,6 +25,7 @@ import { assertNoProcessListeners } from "./smoke-listeners.js";
 import { smokeMessages } from "./smoke-messages.js";
 import { assertSmokeReport, assertSmokeTools, type SmokeReport } from "./smoke-report.js";
 import { HostSupervisor, hostPortCallbacks } from "./supervisor.js";
+import { windowTitleBarOptions } from "./window-chrome.js";
 
 const smoke = process.argv.includes("--smoke");
 const liveFlag = process.argv.indexOf("--live-report");
@@ -119,6 +121,7 @@ async function run(): Promise<void> {
     width: 900,
     height: 650,
     show: !smoke,
+    ...windowTitleBarOptions(nativeTheme.shouldUseDarkColors, process.platform),
     webPreferences: {
       preload: app.isPackaged
         ? join(app.getAppPath(), "apps/desktop/src/preload.cjs")

@@ -4,7 +4,7 @@
 .app-sidebar { grid-column: 1; grid-row: 2; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; background: var(--sidebar); border-right: 1px solid var(--border); font-size: 13px; }
 .app-sidebar[data-state="collapsed"] { visibility: hidden; border-right: 0; }
 .app-sidebar ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 1px; }
-.app-sidebar [data-slot="sidebar-header"] { padding: 10px 8px 4px; }
+.app-sidebar [data-slot="sidebar-header"] { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 10px 8px 4px; }
 .app-sidebar [data-slot="sidebar-content"] { flex: 1; min-height: 0; overflow: auto; padding: 4px 8px; display: flex; flex-direction: column; gap: 6px; }
 .app-sidebar [data-slot="sidebar-group"] { display: flex; flex-direction: column; gap: 2px; }
 .app-sidebar [data-slot="sidebar-menu-button"] { display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; padding: 3px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--text); text-align: left; }
@@ -21,8 +21,8 @@
 .section-header-chevron { width: 5px; height: 5px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); transition: transform .12s ease-out; }
 .section-header-chevron[data-expanded="false"] { transform: rotate(-45deg); }
 .sidebar-empty { margin: 2px 8px; color: var(--text-muted); font-size: 12px; }
-.settled-shelf { padding: 2px 8px 6px; border-top: 1px solid var(--border); }
-.app-sidebar [data-slot="sidebar-footer"] { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-top: 1px solid var(--border); }
+.settled-shelf { flex: none; padding: 2px 8px 6px; border-top: 1px solid var(--border); }
+.app-sidebar [data-slot="sidebar-footer"] { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-top: 1px solid var(--border); }
 .app-sidebar [data-slot="sidebar-footer"] ul { flex: 1; min-width: 0; }
 .sweep-stamp { flex: none; color: var(--text-muted); font-size: 11px; }
 .sidebar-backdrop { position: fixed; inset: 40px 0 0; z-index: 9; background: color-mix(in srgb, var(--chrome) 60%, transparent); }

@@ -73,6 +73,20 @@ it("lists the things in order, with services in the recorded fleet order", async
   expect(onNavigate).toHaveBeenCalledWith({ kind: "service", id: "schema" });
 });
 
+it("pins Find or ask and the Inbox above the scrolling groups, and the footer below them", async () => {
+  await render();
+  const scroller = container.querySelector('[data-slot="sidebar-content"]');
+  const pinnedTop = container.querySelector('[data-slot="sidebar-header"]');
+  expect(pinnedTop?.querySelector('ul[aria-label="Inbox"]')).not.toBeNull();
+  expect(pinnedTop?.textContent).toContain("Find or ask");
+  expect(scroller?.querySelector('ul[aria-label="Inbox"]')).toBeNull();
+  expect(scroller?.contains(container.querySelector('ul[aria-label="Services"]'))).toBe(true);
+  expect(scroller?.querySelector('ul[aria-label="Setup"]')).toBeNull();
+  expect(
+    container.querySelector('[data-slot="sidebar-footer"] ul[aria-label="Setup"]'),
+  ).not.toBeNull();
+});
+
 it("keeps a folded group folded across a fresh render, from local storage", async () => {
   await render();
   expect(header("Program")?.getAttribute("aria-expanded")).toBe("true");

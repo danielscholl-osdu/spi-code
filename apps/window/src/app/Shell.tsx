@@ -12,6 +12,7 @@ import { selectEnvelopes, watchStore } from "../store/watch.js";
 import { createAppearance } from "./appearance.js";
 import { PanelControls } from "./PanelControls.js";
 import { RouteView, routeLabel, useHashRoute, useSetupLanding } from "./routes.js";
+import { windowControls } from "./window-controls.js";
 
 export { watchStore };
 
@@ -40,7 +41,11 @@ export function Shell({ children }: { children?: ReactNode }) {
     };
   }, []);
   return (
-    <SidebarProvider className="shell" data-right-panel={rightPanelOpen ? "open" : "closed"}>
+    <SidebarProvider
+      className="shell"
+      data-right-panel={rightPanelOpen ? "open" : "closed"}
+      data-window-controls={windowControls()}
+    >
       <header className="title-bar">
         <div className="title-bar-place">
           <strong>SPI Code</strong>

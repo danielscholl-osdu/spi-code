@@ -139,9 +139,9 @@ export function ProgramSidebar({
         <span id={findReason} className="visually-hidden">
           Find or ask is not available yet
         </span>
+        <SidebarMenu aria-label="Inbox">{row("inbox", { kind: "inbox" })}</SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarMenu aria-label="Inbox">{row("inbox", { kind: "inbox" })}</SidebarMenu>
         {group(
           "program",
           "Program",
