@@ -258,7 +258,7 @@ it("shows explicit unread messages before any snapshot arrives", async () => {
   expect(container.textContent).toContain("No releases read yet.");
 });
 
-it("badges repository sections by area and marks only values fed by inferred areas alone", async () => {
+it("gives each repository section one evidence line, never a mark beside a value", async () => {
   const body = mixedSnapshot(mixed, [
     { path: "/briefing/repositories/rows/2/cells/issues", areas: ["lifecycle"] },
     { path: "/briefing/repositories/facts/1/figure", areas: ["lifecycle"] },
@@ -267,25 +267,12 @@ it("badges repository sections by area and marks only values fed by inferred are
   const pane = container.querySelector('[data-view-pane="repositories"]');
   if (!pane) throw new Error("Repositories did not render");
   expectEvidenceMarks(pane, body, {
-    prefixes: ["/briefing/repositories"],
     sections: [
       ["/briefing/repositories/headline"],
       ["/briefing/repositories/facts"],
       ["/briefing/repositories/rows"],
     ],
   });
-  expect(
-    new Set(
-      [...pane.querySelectorAll("[data-inferred]")]
-        .filter((mark) => !mark.closest("[data-envelopes]"))
-        .map((mark) => mark.closest("[data-pointer]")?.getAttribute("data-pointer")),
-    ),
-  ).toEqual(
-    new Set([
-      "/briefing/repositories/rows/2/cells/issues",
-      "/briefing/repositories/facts/1/figure",
-    ]),
-  );
 });
 
 it("marks no repository value from the real mixed fixture, whose repository areas are observed", async () => {
@@ -293,12 +280,18 @@ it("marks no repository value from the real mixed fixture, whose repository area
   await render(<Repositories />, body);
   const pane = container.querySelector('[data-view-pane="repositories"]');
   if (!pane) throw new Error("Repositories did not render");
-  expect(pane.querySelectorAll("[data-envelopes]").length).toBe(3);
+  expectEvidenceMarks(pane, body, {
+    sections: [
+      ["/briefing/repositories/headline"],
+      ["/briefing/repositories/facts"],
+      ["/briefing/repositories/rows"],
+    ],
+  });
   expect(pane.querySelectorAll("[data-inferred]").length).toBe(0);
 });
 
 it.each(["failed", "stale"] as const)(
-  "badges the Releases section and its lines when the real snapshot's release read is %s",
+  "puts a %s release read on the Releases section line and nowhere on the lines",
   async (state) => {
     const body = mixedSnapshot(mixed);
     const releaseSources = body.provenance.filter(({ path }) => path.startsWith("/releases/"));
@@ -321,16 +314,15 @@ it.each(["failed", "stale"] as const)(
     await render(<Releases />, body);
     const pane = container.querySelector('[data-view-pane="releases"]');
     if (!pane) throw new Error("Releases did not render");
-    expect(
-      pane.querySelector(`[data-release-envelopes] [data-envelope="${state}"]`),
-    ).not.toBeNull();
-    for (const line of body.releases.lines) {
-      for (const selector of [`[data-rel="${line.id}"]`, `[data-rel-detail="${line.id}"]`]) {
-        expect(
-          pane.querySelector(`${selector} [data-envelope="${state}"]`),
-          selector,
-        ).not.toBeNull();
-      }
+    const line = pane.querySelectorAll("[data-section-evidence]");
+    expect(line).toHaveLength(1);
+    expect(line[0]?.getAttribute("data-section-evidence")).toBe("/releases");
+    expect(line[0]?.textContent).toContain(
+      `Release lines ${state === "failed" ? "read failed" : "stale"}`,
+    );
+    for (const { id } of body.releases.lines) {
+      for (const selector of [`[data-rel="${id}"]`, `[data-rel-detail="${id}"]`])
+        expect(pane.querySelector(`${selector} [data-envelope]`), selector).toBeNull();
     }
     expect(pane.querySelector("[data-inferred]")).toBeNull();
   },
@@ -342,7 +334,7 @@ it.each([
   ["inferred", false, false],
   ["observed", true, false],
 ] as const)(
-  "marks release lines with fleet %s and release inferred=%s only when all inputs are inferred",
+  "says inferred on the Releases line with fleet %s and release inferred=%s only when every input is",
   async (fleetState, releaseInferred, inferred) => {
     const real = mixedSnapshot(mixed);
     const fleet = {
@@ -377,13 +369,13 @@ it.each([
     await render(<Releases />, body);
     const pane = container.querySelector('[data-view-pane="releases"]');
     if (!pane) throw new Error("Releases did not render");
-    expect(pane.querySelector('[data-envelopes] [data-area="fleet"]')).not.toBeNull();
+    const line = pane.querySelector('[data-section-evidence="/releases"]');
+    expect(line?.hasAttribute("data-inferred") ?? false).toBe(inferred);
+    if (inferred) expect(line?.getAttribute("title")).toContain("Fleet membership");
     for (const [i] of body.releases.lines.entries()) {
       const drawn = pane.querySelectorAll(`[data-pointer="/releases/lines/${i}"]`);
       expect(drawn).toHaveLength(2);
-      for (const element of drawn) {
-        expect(element.querySelectorAll("[data-inferred]")).toHaveLength(inferred ? 1 : 0);
-      }
+      for (const element of drawn) expect(element.querySelector("[data-inferred]")).toBeNull();
     }
   },
 );

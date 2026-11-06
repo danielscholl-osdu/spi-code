@@ -3,12 +3,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useStore } from "zustand";
-import { useShallow } from "zustand/react/shallow";
-import { WorstEnvelope } from "../components/evidence/WorstEnvelope.js";
+import { SweepEvidence } from "../components/evidence/EvidenceTab.js";
+import { SweepLine } from "../components/evidence/SweepLine.js";
 import { ProgramSidebar } from "../components/sidebar/ProgramSidebar.js";
 import { SidebarProvider } from "../components/sidebar/ui-sidebar.js";
 import { RightPanel, selectionStore } from "../panels/index.js";
-import { selectEnvelopes, watchStore } from "../store/watch.js";
+import { watchStore } from "../store/watch.js";
 import { createAppearance } from "./appearance.js";
 import { PanelControls } from "./PanelControls.js";
 import { RouteView, routeLabel, useHashRoute, useSetupLanding } from "./routes.js";
@@ -17,11 +17,16 @@ import { windowControls } from "./window-controls.js";
 export { watchStore };
 
 export function Shell() {
-  const envelopes = useStore(watchStore, useShallow(selectEnvelopes));
+  const snapshot = useStore(watchStore, (state) => state.snapshot?.body ?? null);
+  const sweep = useStore(watchStore, (state) => state.sweep);
   const [route, navigate] = useHashRoute();
   useSetupLanding(navigate);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const toggleRightPanel = useCallback(() => setRightPanelOpen((open) => !open), []);
+  const openSweepEvidence = useCallback(() => {
+    selectionStore.getState().openSweepEvidence();
+    setRightPanelOpen(true);
+  }, []);
   const [appearance, setAppearance] = useState<ReturnType<typeof createAppearance>>();
   const [error, setError] = useState("");
   useEffect(() => {
@@ -53,7 +58,7 @@ export function Shell() {
           <span data-place>{routeLabel(route)}</span>
         </div>
         <div className="title-bar-controls">
-          <WorstEnvelope envelopes={envelopes} />
+          <SweepLine snapshot={snapshot} onOpen={openSweepEvidence} />
           <label>
             Appearance{" "}
             <select
@@ -81,7 +86,10 @@ export function Shell() {
       </main>
       {rightPanelOpen && (
         <div id="app-right-panel" className="right-panel-frame">
-          <RightPanel store={selectionStore} />
+          <RightPanel
+            store={selectionStore}
+            sweepEvidence={<SweepEvidence snapshot={snapshot} sweep={sweep} />}
+          />
         </div>
       )}
     </SidebarProvider>

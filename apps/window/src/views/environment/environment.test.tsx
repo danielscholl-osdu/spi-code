@@ -269,38 +269,35 @@ it("renders oracle lane order, labels, facts and bars; selects details and the i
 it.each([
   ["mixed", mixedSnapshot(mixed)],
   ["plain", snapshot],
-] as const)("badges and marks the %s fixture's environment by area", async (name, body) => {
-  const store = createWatchStore(vi.fn());
-  store.setState({ snapshot: { cursor: 1, body } });
-  const container = document.createElement("div");
-  document.body.append(container);
-  const root = createRoot(container);
-  try {
-    await act(async () => root.render(<Environment store={store} />));
-    if (name === "plain") {
-      expectNoEvidenceMarks(container);
-      return;
+] as const)(
+  "gives the %s fixture's environment sections one evidence line each, never per value",
+  async (name, body) => {
+    const store = createWatchStore(vi.fn());
+    store.setState({ snapshot: { cursor: 1, body } });
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      await act(async () => root.render(<Environment store={store} />));
+      if (name === "plain") {
+        expectNoEvidenceMarks(container);
+        return;
+      }
+      expectEvidenceMarks(container, body, {
+        sections: [
+          ["/briefing/environment/headline"],
+          ["/briefing/environment/facts"],
+          ["/briefing/environment/lanes"],
+          ["/briefing/environment/note"],
+        ],
+      });
+      expect(container.querySelector("[data-pointer] [data-inferred]")).toBeNull();
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
     }
-    expectEvidenceMarks(container, body, {
-      prefixes: ["/briefing/environment"],
-      sections: [
-        ["/briefing/environment/headline"],
-        ["/briefing/environment/facts"],
-        ["/briefing/environment/lanes"],
-        ["/briefing/environment/note"],
-      ],
-    });
-    expect(
-      container.querySelector('[data-pointer="/briefing/environment/note"] [data-inferred]'),
-    ).toBeNull();
-    expect(
-      container.querySelector('[data-pointer="/briefing/environment/headline"] [data-inferred]'),
-    ).not.toBeNull();
-  } finally {
-    await act(async () => root.unmount());
-    container.remove();
-  }
-});
+  },
+);
 
 it("hands the inspector an id for every event: its queue item, else its run or hold", async () => {
   const store = createWatchStore(vi.fn());

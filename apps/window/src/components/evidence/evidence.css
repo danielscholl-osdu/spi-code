@@ -1,0 +1,36 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.evidence-dot { display: inline-block; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+.evidence-dot[data-tone="warn"] { background: var(--warning); }
+.evidence-dot[data-tone="bad"] { background: var(--error); }
+.evidence-dot[data-tone="muted"] { background: var(--text-muted); }
+.evidence-dot[data-tone="inferred"] { background: transparent; border: 1.3px dashed var(--text-muted); width: 5px; height: 5px; }
+
+.sweep-line { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-muted); font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.sweep-line:hover { border-color: var(--border); background: var(--surface); }
+.sweep-line[data-tone="warn"] { color: var(--warning-text); }
+.sweep-line[data-tone="bad"] { color: var(--error-text); }
+
+.section-evidence { display: flex; align-items: center; gap: 6px; margin: 2px 0 6px; color: var(--text-muted); font-size: 11px; }
+.section-evidence[data-tone="warn"] { color: var(--warning-text); }
+.section-evidence[data-tone="bad"] { color: var(--error-text); }
+
+.evidence-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 4px; color: var(--text-strong); font-size: 14px; }
+.evidence-line { margin: 0 0 8px; color: var(--text-muted); }
+.evidence-line[data-tone="warn"] { color: var(--warning-text); }
+.evidence-line[data-tone="bad"] { color: var(--error-text); }
+.evidence h3 { margin: 12px 0 4px; color: var(--text-muted); font-size: 10.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; }
+.evidence-chip { display: inline-block; padding: 0 6px; border: 1px dashed var(--border); border-radius: 4px; background: var(--chrome); color: var(--text-muted); font-size: 10.5px; font-weight: 600; }
+.evidence-table { width: 100%; border-collapse: collapse; }
+.evidence-table th, .evidence-table td { padding: 4px 6px 4px 0; border-bottom: 1px solid var(--border-soft); text-align: left; vertical-align: top; font-weight: 400; }
+.evidence-table th { color: var(--text); }
+.evidence-table td[data-state] { white-space: nowrap; color: var(--text-muted); }
+.evidence-table tr[data-tone="warn"] td[data-state] { color: var(--warning-text); }
+.evidence-table tr[data-tone="bad"] td[data-state] { color: var(--error-text); }
+.evidence-table tr[data-tone="fresh"] td[data-state] { color: var(--success-text); }
+.evidence-list { margin: 4px 0 0; padding: 0; list-style: none; }
+button.evidence-chip { border-style: solid; cursor: pointer; }
+.evidence-chip[data-tone="warn"] { color: var(--warning-text); background: var(--warning-surface); }
+.evidence-chip[data-tone="bad"] { color: var(--error-text); background: var(--error-surface); }
+.evidence-chip[data-tone="inferred"] { border-style: dashed; }

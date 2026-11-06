@@ -3,7 +3,7 @@
 
 import { Fragment, useState } from "react";
 import { useStore } from "zustand";
-import { AreaEnvelopes, InferredMark } from "../../components/evidence/AreaEnvelopes.js";
+import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
 import { lineColumns, Stations } from "../../components/stations/index.js";
 import { watchStore } from "../../store/watch.js";
 
@@ -22,25 +22,16 @@ export default function Flow() {
   const flight = view.mode === "flight";
   const inspect = (id: string) => watchStore.getState().select(id);
   const evidence = snapshot.body;
-  const mark = (pointer: string) => <InferredMark evidence={evidence} pointer={pointer} />;
   return (
     <>
       <div className="watch-flow" data-view-pane="flow">
-        <AreaEnvelopes
+        <SectionEvidence
           evidence={evidence}
           prefixes={["/briefing/flow/mode", "/briefing/flow/headline", "/briefing/flow/sub"]}
         />
-        <h2 data-pointer="/briefing/flow/headline">
-          {view.headline}
-          {mark("/briefing/flow/headline")}
-        </h2>
-        {view.sub && (
-          <p data-pointer="/briefing/flow/sub">
-            {view.sub}
-            {mark("/briefing/flow/sub")}
-          </p>
-        )}
-        <AreaEnvelopes evidence={evidence} prefixes={["/briefing/flow/tiles"]} />
+        <h2 data-pointer="/briefing/flow/headline">{view.headline}</h2>
+        {view.sub && <p data-pointer="/briefing/flow/sub">{view.sub}</p>}
+        <SectionEvidence evidence={evidence} prefixes={["/briefing/flow/tiles"]} />
         <div className="watch-tiles">
           {view.tiles.map((tile, index) => (
             <div
@@ -51,7 +42,6 @@ export default function Flow() {
             >
               <div>{tile.label}</div>
               <b>{tile.value}</b>
-              {mark(`/briefing/flow/tiles/${index}`)}
               {tile.meter && (
                 <meter
                   aria-label={tile.label}
@@ -67,7 +57,7 @@ export default function Flow() {
         <div className="watch-split">
           {view.rows.length > 0 && (
             <div className="watch-table">
-              <AreaEnvelopes evidence={evidence} prefixes={["/briefing/flow/rows"]} />
+              <SectionEvidence evidence={evidence} prefixes={["/briefing/flow/rows"]} />
               <table>
                 <thead>
                   <tr>
@@ -95,7 +85,6 @@ export default function Flow() {
                           {row.fork}
                         </button>
                         {flight && row.tag && <> {row.tag}</>}
-                        {mark(`/briefing/flow/rows/${index}`)}
                       </th>
                       {flight ? (
                         <>
@@ -151,7 +140,7 @@ export default function Flow() {
               data-pointer={flight ? "/briefing/flow/next" : "/briefing/flow/plan"}
               hidden={selected !== "plan"}
             >
-              <AreaEnvelopes
+              <SectionEvidence
                 evidence={evidence}
                 prefixes={
                   flight
@@ -160,10 +149,7 @@ export default function Flow() {
                 }
               />
               <p>{flight ? "Next step" : "Proposed plan"}</p>
-              <h3>
-                {flight ? view.next.title : view.plan.title}
-                {mark(flight ? "/briefing/flow/next" : "/briefing/flow/plan")}
-              </h3>
+              <h3>{flight ? view.next.title : view.plan.title}</h3>
               {flight ? (
                 <>
                   {view.next.text && <p>{view.next.text}</p>}
@@ -191,7 +177,6 @@ export default function Flow() {
                             ) : (
                               item.text
                             )}
-                            {mark(`/briefing/flow/also/${index}`)}
                           </li>
                         ))}
                       </ul>
@@ -220,10 +205,7 @@ export default function Flow() {
                   </button>
                   {view.schedule && (
                     <div data-pointer="/briefing/flow/schedule">
-                      <p>
-                        {view.schedule.title}
-                        {mark("/briefing/flow/schedule")}
-                      </p>
+                      <p>{view.schedule.title}</p>
                       <p>{view.schedule.text}</p>
                     </div>
                   )}
@@ -252,7 +234,6 @@ export default function Flow() {
                 </p>
                 <h3 data-tone={row.next.tone === "run" ? "neutral" : row.next.tone}>
                   {row.detail.title}
-                  {mark(`/briefing/flow/rows/${index}`)}
                 </h3>
                 <p>{row.next.text}</p>
                 <ul>

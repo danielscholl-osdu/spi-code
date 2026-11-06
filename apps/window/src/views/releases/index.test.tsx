@@ -26,7 +26,7 @@ it.each([
   { reading: true, state: "stale" },
   { reading: false, state: "failed" },
 ] as const)(
-  "shows a $state release envelope with no lines while reading=$reading",
+  "shows a $state release read on the section line with no lines while reading=$reading",
   async ({ reading, state }) => {
     const base = testSnapshot(briefing, releases);
     const envelope = {
@@ -44,9 +44,12 @@ it.each([
     document.body.append(container);
     root = createRoot(container);
     await act(async () => root?.render(<Releases />));
-    const badge = container.querySelector("[data-release-envelopes] [data-envelope]");
-    expect(badge?.getAttribute("data-envelope")).toBe(state);
-    expect(badge?.querySelector("[data-inferred]")).not.toBeNull();
+    const line = container.querySelector('[data-section-evidence="/releases"]');
+    expect(line?.getAttribute("data-tone")).toBe(state === "failed" ? "bad" : "warn");
+    expect(line?.textContent).toContain(
+      `Release lines ${state === "failed" ? "read failed" : "stale"}`,
+    );
+    expect(line?.hasAttribute("data-inferred")).toBe(false);
     expect(container.querySelector('[role="status"]')?.textContent).toBe(
       reading ? "Reading releases…" : "No releases read yet.",
     );
@@ -68,8 +71,8 @@ it("finds release evidence beyond the first line and retains it when the lines b
   document.body.append(container);
   root = createRoot(container);
   await act(async () => root?.render(<Releases />));
-  const badge = () => container.querySelector("[data-release-envelopes] [data-envelope]");
-  expect(badge()?.getAttribute("data-envelope")).toBe("failed");
+  const line = () => container.querySelector('[data-section-evidence="/releases"]');
+  expect(line()?.textContent).toContain("Release lines read failed");
   const empty = ViewSnapshotSchema.parse({
     ...base,
     cursor: 2,
@@ -77,12 +80,12 @@ it("finds release evidence beyond the first line and retains it when the lines b
     provenance: [{ path: "/releases/lines", areas: ["fleet"], envelope }],
   });
   await act(async () => watchStore.setState({ snapshot: { cursor: 2, body: empty } }));
-  expect(badge()?.getAttribute("data-envelope")).toBe("failed");
+  expect(line()?.textContent).toContain("Release lines read failed");
   expect(container.querySelector("[data-rel]")).toBeNull();
 });
 
 it.each([true, false])(
-  "preserves inferred=%s on legacy release values without a supplemental envelope",
+  "says inferred=%s once on the section, not per line, for legacy values without a supplemental envelope",
   async (inferred) => {
     const base = testSnapshot(briefing, releases);
     const body = testSnapshot(briefing, releases, {
@@ -109,14 +112,16 @@ it.each([true, false])(
     await act(async () => root?.render(<Releases />));
     const drawn = container.querySelectorAll('[data-pointer="/releases/lines/0"]');
     expect(drawn).toHaveLength(2);
-    for (const element of drawn) {
-      expect(element.querySelectorAll("[data-inferred]")).toHaveLength(inferred ? 1 : 0);
-    }
-    expect(container.querySelector("[data-release-envelopes]")).toBeNull();
+    for (const element of drawn) expect(element.querySelector("[data-inferred]")).toBeNull();
+    const line = container.querySelector('[data-section-evidence="/releases"]');
+    if (inferred) {
+      expect(line?.hasAttribute("data-inferred")).toBe(true);
+      expect(line?.textContent?.trim()).toBe("inferred");
+    } else expect(line).toBeNull();
   },
 );
 
-it("shows the worst envelope under /releases on the section badge, not the first", async () => {
+it("shows the worst release read under /releases on the section line, not the first", async () => {
   const observedAt = testSnapshot(briefing, releases).sweptAt;
   const at = (state: Envelope["state"]) =>
     ({
@@ -135,11 +140,9 @@ it("shows the worst envelope under /releases on the section badge, not the first
   document.body.append(container);
   root = createRoot(container);
   await act(async () => root?.render(<Releases />));
-  expect(
-    container
-      .querySelector("[data-release-envelopes] [data-envelope]")
-      ?.getAttribute("data-envelope"),
-  ).toBe("failed");
+  const line = container.querySelector('[data-section-evidence="/releases"]');
+  expect(line?.getAttribute("data-tone")).toBe("bad");
+  expect(line?.textContent).toContain("Release lines read failed");
 });
 
 const drawnStats = (id: string) =>

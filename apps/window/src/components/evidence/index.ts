@@ -3,5 +3,12 @@
 
 export { Derived } from "./Derived.js";
 export { EnvelopeBadge, envelopeText, InferredMarker } from "./EnvelopeBadge.js";
+export {
+  SelectionEvidence,
+  SelectionEvidenceChip,
+  SweepEvidence,
+  selectionAreas,
+} from "./EvidenceTab.js";
 export { ReadList } from "./ReadList.js";
-export { WorstEnvelope, worstEnvelope } from "./WorstEnvelope.js";
+export { SectionEvidence, sectionSources } from "./SectionEvidence.js";
+export { SweepLine } from "./SweepLine.js";

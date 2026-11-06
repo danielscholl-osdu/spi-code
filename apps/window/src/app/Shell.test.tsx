@@ -173,7 +173,7 @@ it("opens the sidebar off-canvas below 980 px and closes it on Escape, back to i
   }
 });
 
-it("updates the title bar from the worst live area envelope, or unread before a snapshot", async () => {
+it("updates the title-bar sweep line from the live areas with the worst tone, and opens the sweep Evidence", async () => {
   const previous = window.spi;
   const previousState = watchStore.getState();
   let receive: Parameters<typeof window.spi.onMessage>[0] | undefined;
@@ -210,12 +210,13 @@ it("updates the title bar from the worst live area envelope, or unread before a 
   const recovered = testSnapshot(briefing, releases, { cursor: 2, areas: freshAreas });
   try {
     await act(async () => root.render(<Shell />));
-    const badge = () => container.querySelector("header [data-envelope]");
-    expect(badge()?.getAttribute("data-envelope")).toBe("unread");
-    for (const [snapshot, expected] of [
-      [failed, "failed"],
-      [recovered, "fresh"],
-      [failed, "fresh"],
+    const line = () => container.querySelector<HTMLButtonElement>("header [data-sweep-line]");
+    expect(line()?.getAttribute("data-tone")).toBe("muted");
+    expect(line()?.textContent).toContain("waiting for the first sweep");
+    for (const [snapshot, tone, words] of [
+      [failed, "bad", "1 area failed"],
+      [recovered, "fresh", "all fresh"],
+      [failed, "fresh", "all fresh"],
     ] as const) {
       await act(async () =>
         receive?.({
@@ -226,10 +227,18 @@ it("updates the title bar from the worst live area envelope, or unread before a 
           payload: snapshot,
         }),
       );
-      expect(badge()?.getAttribute("data-envelope")).toBe(expected);
-      expect(badge()?.querySelector("[data-inferred]") !== null).toBe(expected === "failed");
-      if (expected === "failed") expect(badge()?.textContent).toContain("read failed · github");
+      expect(line()?.getAttribute("data-tone")).toBe(tone);
+      expect(line()?.textContent).toContain(words);
+      expect(line()?.textContent).not.toContain("inferred");
     }
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[aria-label="Toggle right panel"]')?.click(),
+    );
+    expect(container.querySelector("#app-right-panel")).toBeNull();
+    await act(async () => line()?.click());
+    const sweep = container.querySelector('#app-right-panel [data-evidence="sweep"]');
+    expect(sweep?.querySelectorAll("tr[data-source]").length).toBeGreaterThanOrEqual(11);
+    expect(sweep?.textContent).toContain("GitHub issues and PRs");
   } finally {
     await act(async () => root.unmount());
     container.remove();
@@ -239,7 +248,7 @@ it("updates the title bar from the worst live area envelope, or unread before a 
 });
 
 it.each(["failed", "stale"] as const)(
-  "updates the title bar from a %s non-area release envelope and clears it on recovery",
+  "turns the title-bar sweep line on a %s non-area release envelope and clears it on recovery",
   async (state) => {
     const previous = window.spi;
     const previousState = watchStore.getState();
@@ -284,8 +293,9 @@ it.each(["failed", "stale"] as const)(
     const root = createRoot(container);
     try {
       await act(async () => root.render(<Shell />));
+      const tone = state === "failed" ? "bad" : "warn";
       for (const [snapshot, expected] of [
-        [degraded, state],
+        [degraded, tone],
         [recovered, "fresh"],
         [degraded, "fresh"],
       ] as const) {
@@ -298,9 +308,11 @@ it.each(["failed", "stale"] as const)(
             payload: snapshot,
           }),
         );
-        const badge = container.querySelector("header [data-envelope]");
-        expect(badge?.getAttribute("data-envelope")).toBe(expected);
-        expect(badge?.querySelector("[data-inferred]") !== null).toBe(expected !== "fresh");
+        const line = container.querySelector("header [data-sweep-line]");
+        expect(line?.getAttribute("data-tone")).toBe(expected);
+        expect(line?.textContent).toContain(
+          expected === "fresh" ? "all fresh" : `1 area ${state === "failed" ? "failed" : "stale"}`,
+        );
       }
     } finally {
       await act(async () => root.unmount());

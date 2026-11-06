@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { useStore } from "zustand";
-import { AreaEnvelopes, InferredMark } from "../../components/evidence/AreaEnvelopes.js";
+import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
 import "../../components/stations/stations.css";
 import { watchStore } from "../../store/watch.js";
 
@@ -23,12 +23,9 @@ export default function Horizon() {
   const evidence = snapshot.body;
   return (
     <div className="watch-horizon" data-view-pane="horizon">
-      <AreaEnvelopes evidence={evidence} prefixes={["/briefing/horizon"]} />
-      <h2 data-pointer="/briefing/horizon/headline">
-        {horizon.headline}
-        <InferredMark evidence={evidence} pointer="/briefing/horizon/headline" />
-      </h2>
-      {themes.length > 0 && <AreaEnvelopes evidence={evidence} prefixes={["/briefing/themes"]} />}
+      <SectionEvidence evidence={evidence} prefixes={["/briefing/horizon"]} />
+      <h2 data-pointer="/briefing/horizon/headline">{horizon.headline}</h2>
+      {themes.length > 0 && <SectionEvidence evidence={evidence} prefixes={["/briefing/themes"]} />}
       {themes.length > 0 && (
         <div className="watch-split">
           <div className="watch-themes">
@@ -44,8 +41,7 @@ export default function Horizon() {
                   inspect(theme.inspect ?? `theme:${theme.id}`);
                 }}
               >
-                <span>{theme.title}</span>
-                <InferredMark evidence={evidence} pointer={`/briefing/themes/${index}`} />{" "}
+                <span>{theme.title}</span>{" "}
                 <span data-tone={theme.tone}>{theme.kind.toUpperCase()}</span>
                 <span className="theme-sub">{theme.sub}</span>
                 <small>{theme.when}</small>
@@ -63,10 +59,7 @@ export default function Horizon() {
                 <p>
                   <span data-tone={theme.tone}>{theme.kind.toUpperCase()}</span> {theme.when}
                 </p>
-                <h3>
-                  {theme.title}
-                  <InferredMark evidence={evidence} pointer={`/briefing/themes/${index}`} />
-                </h3>
+                <h3>{theme.title}</h3>
                 {theme.certain.length + theme.possible.length > 0 && (
                   <>
                     <p>Exposure by fork</p>

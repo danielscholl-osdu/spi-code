@@ -4,7 +4,7 @@
 import type { ViewSnapshot } from "@spi-code/contracts";
 import { useEffect } from "react";
 import { useStore } from "zustand";
-import { AreaEnvelopes, InferredMark } from "../../components/evidence/AreaEnvelopes.js";
+import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import "./today.css";
 
@@ -61,7 +61,6 @@ export default function Today({
           <span className="today-class" data-tone={tone}>
             {item.cls}
           </span>
-          <InferredMark evidence={evidence} pointer={pointer} />
           <span className="today-sub">{item.sub}</span>
         </span>
       </button>
@@ -93,20 +92,16 @@ export default function Today({
   );
   return (
     <section className="today" aria-label="Today">
-      <AreaEnvelopes evidence={evidence} prefixes={["/briefing/headline", "/briefing/summary"]} />
-      <h1 data-pointer="/briefing/headline">
-        {brief.headline}
-        <InferredMark evidence={evidence} pointer="/briefing/headline" />
-      </h1>
+      <SectionEvidence evidence={evidence} prefixes={["/briefing/headline", "/briefing/summary"]} />
+      <h1 data-pointer="/briefing/headline">{brief.headline}</h1>
       {brief.summary && (
         <p className="today-summary" data-pointer="/briefing/summary">
           {brief.summary}
-          <InferredMark evidence={evidence} pointer="/briefing/summary" />
         </p>
       )}
       {brief.facts.length > 0 && (
         <>
-          <AreaEnvelopes evidence={evidence} prefixes={["/briefing/facts"]} />
+          <SectionEvidence evidence={evidence} prefixes={["/briefing/facts"]} />
           <div className="today-facts">
             {brief.facts.map((fact, index) => (
               <div
@@ -117,30 +112,26 @@ export default function Today({
               >
                 <div className="today-fact-label">{fact.label}</div>
                 <strong className="today-figure">{fact.figure}</strong>
-                <InferredMark evidence={evidence} pointer={`/briefing/facts/${index}/figure`} />
                 <div className="today-fact-sub">{fact.sub}</div>
               </div>
             ))}
           </div>
           <section className="today-focus" aria-label="Focus">
-            <AreaEnvelopes
+            <SectionEvidence
               evidence={evidence}
               prefixes={["/briefing/focus", "/briefing/rest", "/briefing/more"]}
             />
             {focus.map(row)}
             {brief.rest.length > 0 && (
               <details>
-                <summary data-pointer="/briefing/more">
-                  {brief.more} more in the queue
-                  <InferredMark evidence={evidence} pointer="/briefing/more" />
-                </summary>
+                <summary data-pointer="/briefing/more">{brief.more} more in the queue</summary>
                 {ranked(brief.rest, "/briefing/rest").map(row)}
               </details>
             )}
           </section>
           {brief.ready.length > 0 && (
             <>
-              <AreaEnvelopes evidence={evidence} prefixes={["/briefing/ready"]} />
+              <SectionEvidence evidence={evidence} prefixes={["/briefing/ready"]} />
               <p className="today-ready">
                 <strong>Ready, no rush:</strong>{" "}
                 {brief.ready.map((item, index) => (
@@ -154,7 +145,6 @@ export default function Today({
                     >
                       {item.text}
                     </button>
-                    <InferredMark evidence={evidence} pointer={`/briefing/ready/${index}`} />
                   </span>
                 ))}
               </p>
@@ -165,7 +155,7 @@ export default function Today({
       {brief.themes.length > 0 && (
         <section className="today-themes" aria-label="Themes">
           <h2>Themes</h2>
-          <AreaEnvelopes evidence={evidence} prefixes={["/briefing/themes"]} />
+          <SectionEvidence evidence={evidence} prefixes={["/briefing/themes"]} />
           {brief.themes.map((theme, index) => (
             <article
               className="today-theme"
@@ -174,10 +164,7 @@ export default function Today({
               data-pointer={`/briefing/themes/${index}`}
               key={theme.id}
             >
-              <h3>
-                {theme.title}
-                <InferredMark evidence={evidence} pointer={`/briefing/themes/${index}`} />
-              </h3>
+              <h3>{theme.title}</h3>
               <p className="today-theme-sub">{theme.sub}</p>
               {theme.when && <time>{theme.when}</time>}
               {theme.certain.length > 0 && (

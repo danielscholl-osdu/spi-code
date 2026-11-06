@@ -1,0 +1,228 @@
+// Copyright 2026, Daniel Scholl
+// SPDX-License-Identifier: MIT
+
+import { AREAS, type AreaName, type Envelope, type ViewSnapshot } from "@spi-code/contracts";
+
+/** Appendix C: each area in the words an operator reads. */
+export const AREA_NAMES: Readonly<Record<AreaName, string>> = {
+  fleet: "Fleet membership",
+  github: "GitHub issues and PRs",
+  runs: "Workflow runs",
+  approvals: "Run approvals",
+  lifecycle: "Stack lifecycle runs",
+  details: "Run details",
+  upstream: "Upstream GitLab",
+  radar: "Upstream radar",
+  template: "Template",
+  auth: "Sign-in",
+  security: "Security alerts",
+};
+
+const SOURCE_NAMES: Readonly<Record<string, string>> = { releases: "Release lines" };
+
+export function sourceName(source: string): string {
+  return (AREAS as readonly string[]).includes(source)
+    ? AREA_NAMES[source as AreaName]
+    : (SOURCE_NAMES[source] ?? source);
+}
+
+/** An identifier such as `job_log_char_limit` as words. */
+export function plain(identifier: string): string {
+  return identifier.replaceAll(/[_-]+/g, " ").trim();
+}
+
+const count = (value: number) => value.toLocaleString("en-US");
+
+/** A duration in the largest whole unit: `4 min`, `3 h`, `2 d`. */
+export function span(ms: number): string {
+  const minutes = Math.max(0, Math.round(ms / 60_000));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  return hours < 48 ? `${hours} h` : `${Math.round(hours / 24)} d`;
+}
+
+export function ago(at: string, now: number): string {
+  return now - Date.parse(at) < 60_000 ? "just now" : `${span(now - Date.parse(at))} ago`;
+}
+
+export type EvidenceTone = "fresh" | "warn" | "bad" | "inferred" | "muted";
+
+export function envelopeTone(envelope: Envelope): EvidenceTone {
+  if (envelope.state === "failed") return "bad";
+  if (envelope.state === "stale" || envelope.state === "incomplete") return "warn";
+  if (envelope.state === "unread") return "muted";
+  return envelope.inferred === true ? "inferred" : "fresh";
+}
+
+const STATE_WORDS: Readonly<Record<Envelope["state"], string>> = {
+  fresh: "fresh",
+  stale: "stale",
+  incomplete: "cut",
+  failed: "read failed",
+  unread: "not read yet",
+};
+
+export function stateWord(envelope: Envelope): string {
+  return STATE_WORDS[envelope.state];
+}
+
+/** The short chip text: `fresh · 2 min`, `cut · 40 of 52`, `read failed · showing 25 min old data`. */
+export function chipText(envelope: Envelope, now: number): string {
+  if (envelope.state === "unread") return "not read yet";
+  const { completeness, observedAt } = envelope;
+  if (envelope.state === "failed")
+    return observedAt === undefined
+      ? "read failed · nothing retained"
+      : `read failed · showing ${span(now - Date.parse(observedAt))} old data`;
+  if (completeness.kind === "cut")
+    return `cut · ${count(completeness.read)} of ${count(completeness.total)}`;
+  return observedAt === undefined
+    ? stateWord(envelope)
+    : `${stateWord(envelope)} · ${span(now - Date.parse(observedAt))}`;
+}
+
+/** The row sentence: state, age and completeness in words. */
+export function envelopeSentence(envelope: Envelope, now: number): string {
+  if (envelope.state === "unread") return "not read yet";
+  const { completeness, observedAt } = envelope;
+  const cut =
+    completeness.kind === "cut"
+      ? `${count(completeness.read)} of ${count(completeness.total)} · ${plain(completeness.reason)}`
+      : "";
+  if (envelope.state === "failed") {
+    const kept =
+      observedAt === undefined ? "nothing retained" : `showing data from ${ago(observedAt, now)}`;
+    return cut ? `read failed, ${kept}, ${cut}` : `read failed, ${kept}`;
+  }
+  const read = observedAt === undefined ? "" : `, last read ${ago(observedAt, now)}`;
+  if (envelope.state === "incomplete") return `cut${read}, ${cut || "not every item read"}`;
+  return `${envelope.state}${read}, complete`;
+}
+
+const RANK: Readonly<Record<Envelope["state"], number>> = {
+  failed: 4,
+  incomplete: 3,
+  stale: 2,
+  unread: 1,
+  fresh: 0,
+};
+
+/** Sorts the worst envelope first: failed, cut, stale, not read yet, fresh. */
+export function byWorst(a: Envelope, b: Envelope): number {
+  return RANK[b.state] - RANK[a.state];
+}
+
+export const INFERRED_EVERY_SOURCE = "inferred · every source";
+
+/** Coarse EV-03: inferred only when there is a source and every one of them is inferred. */
+export function everyInferred(envelopes: readonly { inferred?: boolean | undefined }[]): boolean {
+  return envelopes.length > 0 && envelopes.every((envelope) => envelope.inferred === true);
+}
+
+export type EvidenceSource = { key: string; name: string; envelope: Envelope };
+
+/**
+ * One envelope per supplemental source: its worst read, inferred only when every read of it is.
+ */
+export function bySource(
+  entries: readonly { envelope?: Envelope | undefined }[],
+): Map<string, Envelope> {
+  const sources = new Map<string, Envelope>();
+  for (const { envelope } of entries) {
+    if (!envelope) continue;
+    const held = sources.get(envelope.source);
+    if (!held) {
+      sources.set(envelope.source, envelope);
+      continue;
+    }
+    const worst = byWorst(envelope, held) < 0 ? envelope : held;
+    const inferred = held.inferred === true && envelope.inferred === true;
+    sources.set(
+      envelope.source,
+      worst.state === "unread" || (worst.inferred === true) === inferred
+        ? worst
+        : { ...worst, inferred },
+    );
+  }
+  return sources;
+}
+
+/**
+ * Every source a sweep draws from: the eleven areas in appendix C order (an area the snapshot
+ * omits reads as not read yet), then each collector outside the areas once.
+ */
+export function sweepSources(
+  snapshot: Pick<ViewSnapshot, "areas" | "provenance">,
+): EvidenceSource[] {
+  const areas = AREAS.map((area) => ({
+    key: area,
+    name: AREA_NAMES[area],
+    envelope: snapshot.areas.find((entry) => entry.area === area)?.envelope ?? {
+      source: area,
+      state: "unread" as const,
+    },
+  }));
+  const extra = bySource(snapshot.provenance);
+  return [
+    ...areas,
+    ...[...extra].map(([source, envelope]) => ({
+      key: source,
+      name: sourceName(source),
+      envelope,
+    })),
+  ];
+}
+
+const SEVERITY: Readonly<Record<EvidenceTone, number>> = {
+  fresh: 0,
+  inferred: 1,
+  muted: 2,
+  warn: 3,
+  bad: 4,
+};
+
+/** The worst tone; `inferred` only when every envelope is inferred. */
+export function worstTone(envelopes: readonly Envelope[]): EvidenceTone {
+  if (envelopes.length === 0) return "muted";
+  const inferred = everyInferred(envelopes);
+  return envelopes.reduce<EvidenceTone>((worst, envelope) => {
+    const tone = envelopeTone(envelope);
+    const next = tone === "inferred" && !inferred ? "fresh" : tone;
+    return SEVERITY[next] > SEVERITY[worst] ? next : worst;
+  }, "fresh");
+}
+
+export type SweepLineInput = {
+  sources: readonly Envelope[];
+  sweptAt: string;
+  nextSyncAt?: string | undefined;
+  now: number;
+};
+
+/** The title-bar sentence and the worst tone across the sweep's sources. */
+export function sweepLine({ sources, sweptAt, nextSyncAt, now }: SweepLineInput): {
+  text: string;
+  tone: EvidenceTone;
+} {
+  const tally = (state: Envelope["state"]) =>
+    sources.filter((envelope) => envelope.state === state).length;
+  const counts = [
+    [tally("failed"), "failed"],
+    [tally("incomplete"), "cut"],
+    [tally("stale"), "stale"],
+    [tally("unread"), "not read yet"],
+  ] as const;
+  const inferred = everyInferred(sources);
+  const parts = [`swept ${ago(sweptAt, now)}`];
+  let first = true;
+  for (const [n, word] of counts) {
+    if (n === 0) continue;
+    parts.push(first ? `${n} ${n === 1 ? "area" : "areas"} ${word}` : `${n} ${word}`);
+    first = false;
+  }
+  if (first && !inferred) parts.push("all fresh");
+  if (nextSyncAt !== undefined && Date.parse(nextSyncAt) > now)
+    parts.push(`next sync in ${span(Date.parse(nextSyncAt) - now)}`);
+  if (inferred) parts.push("inferred");
+  return { text: parts.join(" · "), tone: worstTone(sources) };
+}

@@ -4,27 +4,17 @@
 import type { RepoCell, RepoEntry } from "@spi-code/contracts";
 import { useState } from "react";
 import { useStore } from "zustand";
-import { AreaEnvelopes, InferredMark } from "../../components/evidence/AreaEnvelopes.js";
-import type { Evidence } from "../../store/evidence.js";
+import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
 import { watchStore } from "../../store/watch.js";
 import "./panes.css";
 
-function Cell({
-  cell,
-  evidence,
-  pointer,
-}: {
-  cell: RepoCell;
-  evidence: Evidence;
-  pointer: string;
-}) {
+function Cell({ cell, pointer }: { cell: RepoCell; pointer: string }) {
   return (
     <span className="repo-cell" data-pointer={pointer}>
       <span data-tone={cell.tone} data-muted={cell.text === "0"}>
         {cell.text}
       </span>
       {cell.rest && <span data-muted={cell.fade || cell.rest === " · 0"}>{cell.rest}</span>}
-      <InferredMark evidence={evidence} pointer={pointer} />
     </span>
   );
 }
@@ -32,12 +22,10 @@ function Cell({
 function Detail({
   repo,
   selected,
-  evidence,
   pointer,
 }: {
   repo: RepoEntry;
   selected: boolean;
-  evidence: Evidence;
   pointer: string;
 }) {
   const sections = [
@@ -47,10 +35,7 @@ function Detail({
   return (
     <section data-repo-detail={repo.id} data-pointer={pointer} hidden={!selected}>
       <p>{repo.name}</p>
-      <h3 data-tone={repo.tone}>
-        {repo.title}
-        <InferredMark evidence={evidence} pointer={pointer} />
-      </h3>
+      <h3 data-tone={repo.tone}>{repo.title}</h3>
       <p>{repo.sub}</p>
       {sections.map((section) => (
         <div key={section.title} data-weight={section.weight}>
@@ -94,14 +79,11 @@ export default function Repositories() {
           <p role="status">No repositories read yet.</p>
         ) : (
           <>
-            <AreaEnvelopes evidence={evidence} prefixes={["/briefing/repositories/headline"]} />
-            <h2 data-pointer="/briefing/repositories/headline">
-              {repositories.headline}
-              <InferredMark evidence={evidence} pointer="/briefing/repositories/headline" />
-            </h2>
+            <SectionEvidence evidence={evidence} prefixes={["/briefing/repositories/headline"]} />
+            <h2 data-pointer="/briefing/repositories/headline">{repositories.headline}</h2>
             {!!repositories.facts.length && (
               <>
-                <AreaEnvelopes evidence={evidence} prefixes={["/briefing/repositories/facts"]} />
+                <SectionEvidence evidence={evidence} prefixes={["/briefing/repositories/facts"]} />
                 <div className="pane-facts">
                   {repositories.facts.map((fact, index) => {
                     const pointer = `/briefing/repositories/facts/${index}/figure`;
@@ -114,7 +96,6 @@ export default function Repositories() {
                       >
                         <div>{fact.label}</div>
                         <strong>{fact.figure}</strong>
-                        <InferredMark evidence={evidence} pointer={pointer} />
                         <div>{fact.sub}</div>
                       </div>
                     );
@@ -123,7 +104,7 @@ export default function Repositories() {
               </>
             )}
             {!!repositories.rows.length && (
-              <AreaEnvelopes evidence={evidence} prefixes={["/briefing/repositories/rows"]} />
+              <SectionEvidence evidence={evidence} prefixes={["/briefing/repositories/rows"]} />
             )}
             {!!repositories.rows.length && (
               <div className="pane-split">
@@ -160,11 +141,7 @@ export default function Repositories() {
                           {rows.map((repo) => {
                             const pointer = `/briefing/repositories/rows/${repositories.rows.indexOf(repo)}`;
                             const cell = (name: keyof RepoEntry["cells"]) => (
-                              <Cell
-                                cell={repo.cells[name]}
-                                evidence={evidence}
-                                pointer={`${pointer}/cells/${name}`}
-                              />
+                              <Cell cell={repo.cells[name]} pointer={`${pointer}/cells/${name}`} />
                             );
                             return (
                               <button
@@ -178,10 +155,7 @@ export default function Repositories() {
                                   watchStore.getState().select(repo.id);
                                 }}
                               >
-                                <span data-pointer={pointer}>
-                                  {repo.name}
-                                  <InferredMark evidence={evidence} pointer={pointer} />
-                                </span>
+                                <span data-pointer={pointer}>{repo.name}</span>
                                 {cell("issues")}
                                 {cell("changes")}
                                 {cell("dependabot")}
@@ -206,7 +180,6 @@ export default function Repositories() {
                       key={repo.id}
                       repo={repo}
                       selected={repo.id === selected}
-                      evidence={evidence}
                       pointer={`/briefing/repositories/rows/${index}`}
                     />
                   ))}

@@ -3,7 +3,7 @@
 
 import type { ServiceStations, Station, UpTone } from "@spi-code/contracts";
 import type { Evidence } from "../../store/evidence.js";
-import { AreaEnvelopes, InferredMark } from "../evidence/AreaEnvelopes.js";
+import { SectionEvidence } from "../evidence/SectionEvidence.js";
 import "./stations.css";
 
 export const lineColumns = ["Sync PR", "Cascade", "Sync to Main", "Main run"];
@@ -38,7 +38,7 @@ export function Stations({
       {services.map(({ service, stations }, row) => (
         <section key={service} data-service={service} aria-label={`${service} stations`}>
           <h3>{service}</h3>
-          <AreaEnvelopes evidence={evidence} prefixes={[`/stations/${row}`]} />
+          <SectionEvidence evidence={evidence} prefixes={[`/stations/${row}`]} />
           <ol>
             {stations.map((station, index) => {
               const pointer = `/stations/${row}/stations/${index}`;
@@ -53,7 +53,6 @@ export function Stations({
                   <strong>{labels[station.id]}</strong>
                   <span data-label="">{station.text}</span>
                   <small>{station.state}</small>
-                  <InferredMark evidence={evidence} pointer={pointer} />
                 </li>
               );
             })}

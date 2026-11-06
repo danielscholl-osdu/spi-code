@@ -8,7 +8,7 @@ import {
   parseMessage,
   type ReadRecord,
 } from "@spi-code/contracts";
-import { act } from "react";
+import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import briefing from "../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
@@ -46,11 +46,11 @@ const board = (cls: string) => {
   return found;
 };
 
-async function mount(store: SelectionStore) {
+async function mount(store: SelectionStore, sweepEvidence?: ReactNode) {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
-  await act(async () => root.render(<RightPanel store={store} />));
+  await act(async () => root.render(<RightPanel store={store} sweepEvidence={sweepEvidence} />));
   return {
     container,
     text: (field: string) => container.querySelector(`[data-field="${field}"]`)?.textContent,
@@ -322,22 +322,63 @@ it("lists the selected object's read records on the Log tab", async () => {
   );
   try {
     const tabs = view.container.querySelectorAll<HTMLButtonElement>('[role="tab"]');
-    expect([...tabs].map((tab) => tab.textContent)).toEqual(["Inspector", "Log"]);
+    expect([...tabs].map((tab) => tab.textContent)).toEqual(["Inspector", "Evidence", "Log"]);
     expect(view.container.querySelector('ul[aria-label="Evidence"]')?.textContent).toContain(
       "github · Azure/osdu-spi-entitlements",
     );
-    await act(async () => tabs[1]?.click());
-    expect(tabs[1]?.getAttribute("aria-selected")).toBe("true");
+    await act(async () => tabs[2]?.click());
+    expect(tabs[2]?.getAttribute("aria-selected")).toBe("true");
     const reads = view.container.querySelectorAll('ul[aria-label="Reads"] li');
     expect([...reads].map((li) => li.getAttribute("data-read"))).toEqual(
       records.map((r) => r.object),
     );
     expect(reads[1]?.textContent).toContain("cut 40 of 52");
     await act(async () =>
-      tabs[1]?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })),
+      tabs[2]?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })),
     );
     expect(tabs[0]?.getAttribute("aria-selected")).toBe("true");
     expect(view.text("class")).toBe("HALT");
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("opens the sweep Evidence from the title bar and returns to the selection's Evidence on select", async () => {
+  const port = fakePort();
+  const view = await mount(port.store, <p data-sweep-stub="">the sweep</p>);
+  try {
+    const selected = () =>
+      view.container.querySelector('[role="tab"][aria-selected="true"]')?.textContent;
+    await act(async () => port.store.getState().openSweepEvidence());
+    expect(selected()).toBe("Evidence");
+    expect(view.container.querySelector("[data-sweep-stub]")).not.toBeNull();
+    await act(async () => port.store.getState().select("halt:entitlements"));
+    await port.reply(
+      inspectFromOracle(board("HALT"), "halt:entitlements", {
+        evidence: [
+          {
+            source: "github",
+            object: "Azure/osdu-spi-entitlements",
+            observedAt: "2026-10-21T15:00:00.000Z",
+            completeness: { kind: "complete" },
+          },
+        ],
+      }),
+    );
+    expect(selected()).toBe("Evidence");
+    expect(view.container.querySelector("[data-sweep-stub]")).toBeNull();
+    const article = view.container.querySelector('[data-evidence="selection"]');
+    expect(article?.querySelector('table[aria-label^="Reads for"]')?.textContent).toContain(
+      "Azure/osdu-spi-entitlements",
+    );
+    await act(async () => port.store.getState().openSweepEvidence());
+    expect(view.container.querySelector("[data-sweep-stub]")).not.toBeNull();
+    await act(async () => view.container.querySelector<HTMLButtonElement>('[role="tab"]')?.click());
+    await act(async () =>
+      [...view.container.querySelectorAll<HTMLButtonElement>('[role="tab"]')][1]?.click(),
+    );
+    expect(view.container.querySelector("[data-sweep-stub]")).toBeNull();
+    expect(view.container.querySelector('[data-evidence="selection"]')).not.toBeNull();
   } finally {
     await view.cleanup();
   }

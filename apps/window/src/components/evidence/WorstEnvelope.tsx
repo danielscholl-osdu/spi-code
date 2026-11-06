@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 import type { Envelope } from "@spi-code/contracts";
-import { EnvelopeBadge } from "./EnvelopeBadge.js";
 
 // Worst first (EV-01 states): a failed read breaks the value outright, unread leaves nothing to
 // draw, incomplete draws part of it, stale draws all of it late, fresh is sound.
@@ -29,14 +28,4 @@ export function worstEnvelope(envelopes: readonly Envelope[]): Envelope {
     }
   }
   return worst ?? UNREAD;
-}
-
-export function WorstEnvelope({
-  envelopes,
-  now,
-}: {
-  envelopes: readonly Envelope[];
-  now?: number | undefined;
-}) {
-  return <EnvelopeBadge envelope={worstEnvelope(envelopes)} now={now} />;
 }

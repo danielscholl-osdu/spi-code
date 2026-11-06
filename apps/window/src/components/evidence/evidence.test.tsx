@@ -5,7 +5,8 @@ import type { Envelope, ReadRecord } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it } from "vitest";
-import { Derived, EnvelopeBadge, ReadList, WorstEnvelope, worstEnvelope } from "./index.js";
+import { Derived, EnvelopeBadge, ReadList } from "./index.js";
+import { worstEnvelope } from "./WorstEnvelope.js";
 
 async function render(node: React.ReactNode) {
   const container = document.createElement("div");
@@ -114,7 +115,7 @@ it("ReadList shows observedAt per record and retainedFrom for a retained read", 
   }
 });
 
-it("worstEnvelope orders failed > unread > incomplete > stale > fresh, empty is unread", async () => {
+it("worstEnvelope orders failed > unread > incomplete > stale > fresh, empty is unread", () => {
   const order = ["failed", "unread", "incomplete", "stale", "fresh"];
   for (let i = 0; i < order.length; i++) {
     const rest = order.slice(i).map((name) => envelopes[name] as Envelope);
@@ -123,10 +124,4 @@ it("worstEnvelope orders failed > unread > incomplete > stale > fresh, empty is 
   expect(worstEnvelope([]).state).toBe("unread");
   const inferred = { ...(envelopes.stale as Envelope), source: "b", inferred: true } as Envelope;
   expect(worstEnvelope([envelopes.stale as Envelope, inferred])).toBe(inferred);
-  const { container, cleanup } = await render(<WorstEnvelope envelopes={[]} />);
-  try {
-    expect(container.querySelector("[data-tone]")?.textContent).toBe("unread · none");
-  } finally {
-    await cleanup();
-  }
 });

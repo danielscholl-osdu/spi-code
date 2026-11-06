@@ -22,13 +22,21 @@
 // SOFTWARE.
 
 import type { InspectResult } from "@spi-code/contracts";
-import { type KeyboardEvent, useId } from "react";
+import { type KeyboardEvent, type ReactNode, useId } from "react";
 import { useStore } from "zustand";
-import { InferredMarker, ReadList } from "../components/evidence/index.js";
+import {
+  ReadList,
+  SelectionEvidence,
+  SelectionEvidenceChip,
+} from "../components/evidence/index.js";
 import { PANEL_TABS, type PanelTab, type SelectionStore } from "./selection.js";
 import "./panels.css";
 
-const TAB_LABEL: Readonly<Record<PanelTab, string>> = { inspector: "Inspector", log: "Log" };
+const TAB_LABEL: Readonly<Record<PanelTab, string>> = {
+  inspector: "Inspector",
+  evidence: "Evidence",
+  log: "Log",
+};
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -39,13 +47,14 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Inspector({ result }: { result: InspectResult }) {
+function Inspector({ result, onEvidence }: { result: InspectResult; onEvidence(): void }) {
   const base = useId();
   return (
     <article className="inspector" data-class={result.class}>
       <p className="inspector-kicker">
         <span data-field="class">{result.class}</span> · {result.id}
       </p>
+      <SelectionEvidenceChip result={result} onOpen={onEvidence} />
       <dl>
         <Field label="Cause" value={result.cause} />
         <Field label="Effect" value={result.effect} />
@@ -59,7 +68,6 @@ function Inspector({ result }: { result: InspectResult }) {
             {result.evidence.map((record) => (
               <li key={`${record.source}/${record.object}`}>
                 {record.source} · {record.object}
-                {record.inferred === true && <InferredMarker />}
               </li>
             ))}
           </ul>
@@ -116,7 +124,14 @@ function Inspector({ result }: { result: InspectResult }) {
   );
 }
 
-export function RightPanel({ store }: { store: SelectionStore }) {
+/** `sweepEvidence` is the Evidence tab's body when the sweep line opened it or nothing is selected. */
+export function RightPanel({
+  store,
+  sweepEvidence,
+}: {
+  store: SelectionStore;
+  sweepEvidence?: ReactNode;
+}) {
   const base = useId();
   const selected = useStore(store, (state) => state.selected);
   const request = useStore(store, (state) => state.request);
@@ -125,6 +140,7 @@ export function RightPanel({ store }: { store: SelectionStore }) {
   const missing = useStore(store, (state) => state.missing);
   const tab = useStore(store, (state) => state.tab);
   const setTab = useStore(store, (state) => state.setTab);
+  const evidenceScope = useStore(store, (state) => state.evidenceScope);
   const onKeyDown = (event: KeyboardEvent) => {
     const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
     if (step === 0) return;
@@ -137,7 +153,11 @@ export function RightPanel({ store }: { store: SelectionStore }) {
     }
   };
   const body =
-    selected === null ? (
+    tab === "evidence" &&
+    sweepEvidence !== undefined &&
+    (evidenceScope === "sweep" || selected === null) ? (
+      sweepEvidence
+    ) : selected === null ? (
       <p className="panel-empty">No selection</p>
     ) : error !== null ? (
       <p role="alert">{error}</p>
@@ -148,7 +168,9 @@ export function RightPanel({ store }: { store: SelectionStore }) {
         Reading {selected}…
       </p>
     ) : tab === "inspector" ? (
-      <Inspector result={result} />
+      <Inspector result={result} onEvidence={() => setTab("evidence")} />
+    ) : tab === "evidence" ? (
+      <SelectionEvidence result={result} />
     ) : result.evidence.length > 0 ? (
       <ReadList records={result.evidence} />
     ) : (

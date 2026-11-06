@@ -29,7 +29,7 @@ import {
 } from "@spi-code/contracts";
 import { createStore } from "zustand/vanilla";
 
-export const PANEL_TABS = ["inspector", "log"] as const;
+export const PANEL_TABS = ["inspector", "evidence", "log"] as const;
 export type PanelTab = (typeof PANEL_TABS)[number];
 
 export type InspectPort = { postMessage(message: Message): void };
@@ -42,9 +42,12 @@ export type SelectionState = {
   // The host holds nothing under the selected id: a quiet state, not an error.
   missing: string | null;
   tab: PanelTab;
+  /** Whose evidence the Evidence tab shows: the selection's, or the sweep's from the title bar. */
+  evidenceScope: "selection" | "sweep";
   select(id: string): void;
   clear(): void;
   setTab(tab: PanelTab): void;
+  openSweepEvidence(): void;
   receive(input: unknown): void;
 };
 
@@ -57,6 +60,7 @@ export function createSelectionStore(port: InspectPort) {
     error: null,
     missing: null,
     tab: "inspector",
+    evidenceScope: "selection",
     select(id) {
       const parsed = parseMessage({
         version: PROTOCOL_VERSION,
@@ -73,6 +77,7 @@ export function createSelectionStore(port: InspectPort) {
         result: result?.id === id ? result : null,
         error: null,
         missing: null,
+        evidenceScope: "selection",
       });
       port.postMessage(parsed.message);
     },
@@ -80,7 +85,10 @@ export function createSelectionStore(port: InspectPort) {
       set({ selected: null, request: null, result: null, error: null, missing: null });
     },
     setTab(tab) {
-      set({ tab });
+      set(tab === "evidence" ? { tab } : { tab, evidenceScope: "selection" });
+    },
+    openSweepEvidence() {
+      set({ tab: "evidence", evidenceScope: "sweep" });
     },
     receive(input) {
       const parsed = parseMessage(input);

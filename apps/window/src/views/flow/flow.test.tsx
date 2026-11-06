@@ -352,14 +352,12 @@ async function mounted(view: React.ReactNode, body = snapshot) {
   return { dom, unmount: () => act(async () => root.unmount()) };
 }
 
-it("badges flow and every service's stations by area and marks the lifecycle-only lane stations", async () => {
+it("gives flow and every service's stations one evidence line per section, never a station mark", async () => {
   const body = mixedSnapshot(mixed);
   const { dom, unmount } = await mounted(<Flow />, body);
   try {
     expectEvidenceMarks(dom, body, {
-      prefixes: ["/briefing/flow", "/stations"],
       // The oracle is planning: the mode only picks the layout, and next is not drawn.
-      skip: ["/briefing/flow/mode", "/briefing/flow/next"],
       sections: [
         ["/briefing/flow/mode", "/briefing/flow/headline", "/briefing/flow/sub"],
         ["/briefing/flow/tiles"],
@@ -368,29 +366,21 @@ it("badges flow and every service's stations by area and marks the lifecycle-onl
         ...body.stations.map((_, row) => [`/stations/${row}`]),
       ],
     });
-    expect(
-      [...dom.querySelectorAll('[data-station="lane"]')].map(
-        (station) => station.querySelector("[data-inferred]") !== null,
-      ),
-    ).toEqual(body.stations.map(() => true));
-    expect(dom.querySelectorAll("li[data-station] [data-inferred]").length).toBe(
-      body.stations.length,
-    );
+    expect(dom.querySelectorAll("li[data-station] [data-inferred]").length).toBe(0);
   } finally {
     await unmount();
   }
 });
 
-it("badges horizon sections by area and marks a theme fed only by inferred areas", async () => {
+it("gives horizon sections one evidence line and no mark on a theme fed only by inferred areas", async () => {
   const body = mixedSnapshot(mixed, [{ path: "/briefing/themes/1", areas: ["lifecycle"] }]);
   const { dom, unmount } = await mounted(<Horizon />, body);
   try {
     expectEvidenceMarks(dom, body, {
-      prefixes: ["/briefing/horizon", "/briefing/themes"],
       sections: [["/briefing/horizon"], ["/briefing/themes"]],
     });
     expect(dom.querySelectorAll('[data-pointer="/briefing/themes/1"] [data-inferred]').length).toBe(
-      2,
+      0,
     );
   } finally {
     await unmount();

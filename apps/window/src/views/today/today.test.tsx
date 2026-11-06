@@ -296,23 +296,13 @@ it("waits for a snapshot and updates reactively without inventing empty content"
   }
 });
 
-it("badges each section's area envelopes and marks only the values fed by inferred areas alone", async () => {
+it("gives each Today section one evidence line and marks no value", async () => {
   const body = mixedSnapshot(mixed);
   const view = await mount(body);
   try {
     const today = view.container.querySelector('[aria-label="Today"]');
     if (!today) throw new Error("Today did not render");
     expectEvidenceMarks(today, body, {
-      prefixes: [
-        "/briefing/headline",
-        "/briefing/summary",
-        "/briefing/facts",
-        "/briefing/focus",
-        "/briefing/rest",
-        "/briefing/more",
-        "/briefing/ready",
-        "/briefing/themes",
-      ],
       sections: [
         ["/briefing/headline", "/briefing/summary"],
         ["/briefing/facts"],
@@ -322,10 +312,8 @@ it("badges each section's area envelopes and marks only the values fed by inferr
       ],
     });
     expect(
-      [...today.querySelectorAll("[data-inferred]")]
-        .filter((mark) => !mark.closest("[data-envelopes]"))
-        .map((mark) => mark.closest("[data-pointer]")?.getAttribute("data-pointer")),
-    ).toEqual(["/briefing/facts/0/figure"]);
+      today.querySelector('[data-pointer="/briefing/facts/0/figure"] [data-inferred]'),
+    ).toBeNull();
   } finally {
     await view.cleanup();
   }

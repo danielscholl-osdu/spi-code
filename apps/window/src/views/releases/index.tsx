@@ -4,10 +4,7 @@
 import type { NotesState, ReleaseLine } from "@spi-code/contracts";
 import { useState } from "react";
 import { useStore } from "zustand";
-import { AreaEnvelopes, InferredMark } from "../../components/evidence/AreaEnvelopes.js";
-import { EnvelopeBadge } from "../../components/evidence/EnvelopeBadge.js";
-import { worstEnvelope } from "../../components/evidence/WorstEnvelope.js";
-import type { Evidence } from "../../store/evidence.js";
+import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
 import { watchStore } from "../../store/watch.js";
 import "../repositories/panes.css";
 
@@ -44,18 +41,6 @@ function keyedStats(stats: ReleaseLine["stats"]) {
   });
 }
 
-function ReleaseEvidence({ evidence, pointer }: { evidence: Evidence; pointer: string }) {
-  const envelope = evidence.provenance.find(({ path }) => path === pointer)?.envelope;
-  return (
-    <>
-      {envelope && envelope.state !== "fresh" && (
-        <EnvelopeBadge envelope={{ ...envelope, inferred: false }} />
-      )}
-      <InferredMark evidence={evidence} pointer={pointer} />
-    </>
-  );
-}
-
 export default function Releases() {
   const evidence = useStore(watchStore, (state) => state.snapshot?.body);
   const releases = evidence?.releases;
@@ -63,20 +48,11 @@ export default function Releases() {
   const selected = releases?.lines.some((line) => line.id === picked)
     ? picked
     : releases?.lines[0]?.id;
-  const envelopes =
-    evidence?.provenance.flatMap(({ path, envelope }) =>
-      envelope && (path === "/releases" || path.startsWith("/releases/")) ? [envelope] : [],
-    ) ?? [];
-  const envelope = envelopes.length ? worstEnvelope(envelopes) : undefined;
   return (
     <>
       <h1>Releases</h1>
       <div className="watch-pane" data-view-pane="releases">
-        {envelope && (
-          <span data-release-envelopes="">
-            releases <EnvelopeBadge envelope={envelope} />
-          </span>
-        )}
+        {evidence && <SectionEvidence evidence={evidence} prefixes={["/releases"]} />}
         {!releases?.lines.length || !evidence ? (
           <h2 role="status">{releases?.reading ? "Reading releases…" : "No releases read yet."}</h2>
         ) : (
@@ -86,7 +62,6 @@ export default function Releases() {
               Each month is built from the GitHub releases of the template, the stack,
               core-lib-azure and every service fork, with reviewed notes laid over it.
             </p>
-            <AreaEnvelopes evidence={evidence} prefixes={["/releases/lines"]} />
             <div className="pane-split">
               <div className="release-list">
                 {releases.lines.map((line, index) => (
@@ -101,7 +76,6 @@ export default function Releases() {
                   >
                     <span>
                       <strong>SPI {line.name}</strong> <Notes line={line} />
-                      <ReleaseEvidence evidence={evidence} pointer={`/releases/lines/${index}`} />
                       <span className="release-summary">{line.headline}</span>
                     </span>
                     <span data-muted>{line.open ? "in progress" : "closed"}</span>
@@ -119,10 +93,7 @@ export default function Releases() {
                     <p>
                       <Notes line={line} /> {line.stateText}
                     </p>
-                    <h3>
-                      SPI {line.name}
-                      <ReleaseEvidence evidence={evidence} pointer={`/releases/lines/${index}`} />
-                    </h3>
+                    <h3>SPI {line.name}</h3>
                     <p>{line.headline}</p>
                     <div className="pane-facts">
                       {keyedStats(line.stats).map(({ key, stat }) => (
