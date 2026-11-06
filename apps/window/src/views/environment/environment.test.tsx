@@ -348,6 +348,106 @@ it("hands the inspector an id for every event: its queue item, else its run or h
   }
 });
 
+it("arrows between recorded upgrade and hold positions sharing one projected inspect id", async () => {
+  const body = mixedSnapshot(mixed);
+  const postMessage = vi.fn();
+  const inspector = createSelectionStore({ postMessage });
+  const store = createWatchStore(vi.fn(), inspector);
+  store.setState({ snapshot: { cursor: body.cursor, body } });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(
+        <>
+          <Environment store={store} inspector={inspector} />
+          <RightPanel store={inspector} snapshot={body} />
+        </>,
+      ),
+    );
+    const upgrade = container.querySelector<HTMLButtonElement>(
+      '[data-lane="upgrade"] [data-event]',
+    );
+    const hold = container.querySelector<HTMLButtonElement>('[data-lane="holds"] [data-event]');
+    if (!upgrade || !hold) throw new Error("Recorded fixture needs upgrade and hold events");
+    expect(upgrade.dataset.selectionId).toBe("stack:38181620856");
+    expect(hold.dataset.selectionId).toBe(upgrade.dataset.selectionId);
+    const press = async (bar: HTMLButtonElement, key: string) =>
+      act(async () => bar.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true })));
+    const expectActive = (active: HTMLButtonElement, inactive: HTMLButtonElement) => {
+      expect(document.activeElement).toBe(active);
+      expect(active.getAttribute("aria-selected")).toBe("true");
+      expect(inactive.getAttribute("aria-selected")).toBe("false");
+      expect(container.querySelectorAll('[data-event][tabindex="0"]')).toHaveLength(1);
+      expect(active.tabIndex).toBe(0);
+      expect(inactive.tabIndex).toBe(-1);
+      expect(inspector.getState().selected).toBe("stack:38181620856");
+      expect(postMessage).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          type: "inspect.request",
+          payload: { id: "stack:38181620856" },
+        }),
+      );
+      expect(container.querySelector(".detail-title")?.textContent).toBe(
+        inspector.getState().row?.title,
+      );
+    };
+    expect(container.querySelectorAll('[data-event][tabindex="0"]')).toHaveLength(1);
+    upgrade.focus();
+    await act(async () => upgrade.click());
+    await press(upgrade, "ArrowDown");
+    expectActive(hold, upgrade);
+    expect(inspector.getState().row?.prefixes).toEqual(["/briefing/environment/lanes/3/events/0"]);
+    await press(hold, "ArrowUp");
+    expectActive(upgrade, hold);
+    expect(inspector.getState().row?.prefixes).toEqual(["/briefing/environment/lanes/0/events/0"]);
+    hold.focus();
+    await act(async () => hold.click());
+    expectActive(hold, upgrade);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
+it.each(["identified", "unidentified"])(
+  "keys repeated %s repository lines by position",
+  async (identity) => {
+    const body = mixedSnapshot(mixed);
+    const section = body.briefing.repositories.rows.find((row) => row.name === "osdu-spi-stack")
+      ?.sections[0];
+    const line = section?.lines[0];
+    if (!section || !line?.id) throw new Error("Missing recorded stack repository line");
+    if (identity === "unidentified") {
+      delete line.id;
+      delete line.url;
+    }
+    section.lines = [line, { ...line }];
+    const store = createWatchStore(vi.fn());
+    store.setState({ snapshot: { cursor: body.cursor, body } });
+    const errors = vi.spyOn(console, "error");
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      await act(async () => root.render(<Environment store={store} />));
+      expect(
+        [...container.querySelectorAll(".env-repo-line")].filter((element) =>
+          element.textContent?.includes(line.text),
+        ),
+      ).toHaveLength(2);
+      expect(
+        errors.mock.calls.filter((args) => args.some((arg) => String(arg).includes("same key"))),
+      ).toHaveLength(0);
+    } finally {
+      await act(async () => root.unmount());
+      errors.mockRestore();
+      container.remove();
+    }
+  },
+);
+
 it("orders recorded lane events, stack lines, Threads and Live cluster; the right panel owns detail", async () => {
   const body = mixedSnapshot(mixed);
   const postMessage = vi.fn();

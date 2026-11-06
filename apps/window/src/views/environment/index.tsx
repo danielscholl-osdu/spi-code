@@ -248,14 +248,14 @@ export default function Environment({
                       className="env-repo-line"
                       type="button"
                       role="option"
-                      key={row.id}
+                      key={pointer}
                       data-pointer={pointer}
                       {...lines.rowProps(row)}
                     >
                       <LineReading line={line} />
                     </button>
                   ) : (
-                    <div className="env-repo-line" key={line.text} data-pointer={pointer}>
+                    <div className="env-repo-line" key={pointer} data-pointer={pointer}>
                       <LineReading line={line} />
                     </div>
                   );

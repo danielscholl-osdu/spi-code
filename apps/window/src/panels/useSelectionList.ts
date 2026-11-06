@@ -18,6 +18,15 @@ export function useSelectionList(
   store: SelectionStore = selectionStore,
 ) {
   const selected = useStore(store, (state) => state.selected);
+  const selectedRow = useStore(store, (state) => state.row);
+  const matches = rows.filter((row) => row.id === selected);
+  // Several readings can fold into one inspect id; their source pointers distinguish the rows.
+  const active =
+    matches.find(
+      (row) =>
+        row.kind === selectedRow?.kind &&
+        row.prefixes?.join("|") === selectedRow?.prefixes?.join("|"),
+    ) ?? matches[0];
   const select = (row: SelectionRow) => store.getState().select(row.id, row);
   return {
     selected,
@@ -25,11 +34,8 @@ export function useSelectionList(
     rowProps(row: SelectionRow) {
       return {
         "data-selection-id": row.id,
-        "aria-selected": selected === row.id,
-        tabIndex:
-          selected === row.id || (!rows.some(({ id }) => id === selected) && rows[0] === row)
-            ? 0
-            : -1,
+        "aria-selected": active === row,
+        tabIndex: row === (active ?? rows[0]) ? 0 : -1,
         onClick: () => select(row),
         onDoubleClick: () => open?.(row),
         onKeyDown(event: KeyboardEvent<HTMLElement>) {
@@ -43,14 +49,13 @@ export function useSelectionList(
           const direction = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
           if (!direction) return;
           event.preventDefault();
-          const next = rows[Math.max(0, Math.min(rows.length - 1, rows.indexOf(row) + direction))];
+          const nextIndex = Math.max(0, Math.min(rows.length - 1, rows.indexOf(row) + direction));
+          const next = rows[nextIndex];
           if (!next) return;
           const siblings =
             event.currentTarget.closest("[data-selection-list]") ??
             event.currentTarget.parentElement;
-          const target = Array.from(
-            siblings?.querySelectorAll<HTMLElement>("[data-selection-id]") ?? [],
-          ).find((element) => element.dataset.selectionId === next.id);
+          const target = siblings?.querySelectorAll<HTMLElement>("[data-selection-id]")[nextIndex];
           target?.focus({ preventScroll: true });
           target?.scrollIntoView?.({ block: "nearest" });
           select(next);
