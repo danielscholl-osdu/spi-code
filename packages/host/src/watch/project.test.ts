@@ -45,19 +45,35 @@ afterEach(() => {
 });
 
 describe("Watch projection", () => {
-  it("projects window defaults for every station, queue item and place anchor", () => {
-    const snapshot = projectWatch(fixtureInput());
-    const stations = snapshot.stations.flatMap((row) => row.stations);
-    expect(stations.length).toBeGreaterThan(0);
-    for (const station of stations) {
-      expect(station.substate).toBe(
-        station.state === "stopped"
-          ? "stopped"
-          : station.state === "moving"
-            ? "in-progress"
-            : "ready",
-      );
+  it("projects core substates for every recorded station", () => {
+    for (const input of [fixtureInput(), mixedFixtureInput()]) {
+      const snapshot = projectWatch(input);
+      expect(
+        snapshot.stations.map(({ service, stations }) => ({
+          service,
+          substates: stations.map(({ substate }) => substate),
+        })),
+      ).toEqual([
+        {
+          service: "partition",
+          substates: ["ready", "ready", "ready", "ready", "ready", "stopped"],
+        },
+        {
+          service: "entitlements",
+          substates: ["stopped", "stopped", "ready", "ready", "ready", "stopped"],
+        },
+        {
+          service: "legal",
+          substates: ["waiting-on-clock", "stopped", "ready", "ready", "ready", "stopped"],
+        },
+        { service: "schema", substates: ["ready", "ready", "ready", "ready", "ready", "stopped"] },
+        { service: "file", substates: ["ready", "ready", "ready", "ready", "ready", "stopped"] },
+      ]);
     }
+  });
+
+  it("projects window defaults for every queue item and place anchor", () => {
+    const snapshot = projectWatch(fixtureInput());
     const items = [...snapshot.briefing.focus, ...snapshot.briefing.rest];
     expect(items.length).toBeGreaterThan(0);
     for (const item of items) {
@@ -87,6 +103,48 @@ describe("Watch projection", () => {
     const station = line?.stations[0];
     if (!line || !station) throw new Error("Missing fixture station");
     expect(stationSubstate({ ...station, state: "moving" }, line, input)).toBe("in-progress");
+  });
+
+  it("projects scheduled syncs and release reviews from their facts", () => {
+    const input = fixtureInput();
+    const repo = input.facts.github.data?.repos["Azure/osdu-spi-partition"];
+    const upstream = input.facts.upstream.data?.partition;
+    const pr = input.facts.github.data?.repos["Azure/osdu-spi"]?.prs.find((pr) =>
+      pr.head.startsWith("release-please--"),
+    );
+    if (!repo || !upstream || !pr) throw new Error("Missing fixture facts");
+    upstream.lag = 3;
+    repo.prs.push({ ...pr, repo: repo.repo });
+    const stations = projectWatch(input).stations.find(
+      (row) => row.service === "partition",
+    )?.stations;
+    expect(stations?.find((station) => station.id === "upstream")?.substate).toBe(
+      "waiting-on-clock",
+    );
+    expect(stations?.find((station) => station.id === "release")?.substate).toBe(
+      "waiting-on-person",
+    );
+  });
+
+  it("rejects a missing or unrecognized station substate at the snapshot boundary", () => {
+    for (const substate of [undefined, "unknown", "waiting"]) {
+      const snapshot = projectWatch(fixtureInput());
+      const row = snapshot.stations[0];
+      if (!row) throw new Error("Missing fixture service");
+      const invalid = {
+        ...snapshot,
+        stations: [
+          {
+            ...row,
+            stations: row.stations.map((station, index) =>
+              index === 0 ? { ...station, substate } : station,
+            ),
+          },
+          ...snapshot.stations.slice(1),
+        ],
+      };
+      expect(ViewSnapshotSchema.safeParse(invalid).success).toBe(false);
+    }
   });
 
   it("passes settings, previous states, baseline and projected tiers through the feature seams", () => {

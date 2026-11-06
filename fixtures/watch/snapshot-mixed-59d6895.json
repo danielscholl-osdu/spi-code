@@ -1770,7 +1770,7 @@
         {
           "id": "upstream",
           "state": "waiting",
-          "substate": "ready",
+          "substate": "stopped",
           "text": "2 behind · held by the halt · will halt on schemathesis-tests",
           "inspect": "upstream:entitlements"
         },
@@ -1817,7 +1817,7 @@
         {
           "id": "upstream",
           "state": "waiting",
-          "substate": "ready",
+          "substate": "waiting-on-clock",
           "text": "4 behind · in the sync PR · Java 25 queued",
           "inspect": "upstream:legal"
         },

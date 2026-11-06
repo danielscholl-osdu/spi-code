@@ -3,6 +3,17 @@
 SPI domain facts, models and briefing for plain Node, compiled as ESM with
 TypeScript declarations.
 
+## Station substates
+
+`stationSubstateOf(station, line, facts)` distinguishes stopped work, work waiting
+on a person, work waiting on the daily upstream sync, work in progress and
+stations with nothing to do. It uses typed model fields and recorded checks,
+runs, approvals and upstream predictions, never station text. Release PRs still
+need a person to merge after approval; an approved, green, clean Sync to Main PR
+can progress automatically when the repository allows auto-merge.
+An unread station retains the neutral `ready` substate; its legacy `unknown`
+state and evidence still describe the missing read, not confirmed health.
+
 ## Exec progress and credentials
 
 `ExecOptions.onOutput(stream, text)` receives redacted stdout and stderr while

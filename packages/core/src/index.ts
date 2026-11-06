@@ -52,3 +52,5 @@ export * from "./brief/repos.js";
 export * from "./brief/rollout.js";
 export * from "./brief/upstream.js";
 export * from "./brief/words.js";
+
+export * from "./model/substate.js";
