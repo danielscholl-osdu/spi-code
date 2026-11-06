@@ -204,8 +204,13 @@ async function run(): Promise<void> {
   }
   const [
     { initialHeadline, writeSmokeSnapshot },
-    { exerciseSupervision, smokeClock, waitForFile },
-  ] = await Promise.all([import("./smoke-snapshot.js"), import("./smoke-supervision.js")]);
+    { exerciseSupervision, smokeClock },
+    { waitForRuntimeReport },
+  ] = await Promise.all([
+    import("./smoke-snapshot.js"),
+    import("./smoke-supervision.js"),
+    import("./smoke-runtime-report.js"),
+  ]);
   const rowId = randomUUID();
   const probePath = join(dataDir, "probe.json");
   const firstCursor = writeSmokeSnapshot(storePath, initialHeadline);
@@ -254,7 +259,7 @@ async function run(): Promise<void> {
   assert(reloadTurn.type === "turn.end" && reloadTurn.payload.reason === "completed");
   const { listeners, rendererPids } = await assertNoProcessListeners(process.pid, hostPid);
   if (app.isPackaged)
-    await waitForFile(
+    await waitForRuntimeReport(
       process.env.SPI_CODE_RUNTIME_REPORT || join(dataDir, "runtime-report.json"),
       15000,
     );

@@ -4,8 +4,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
-import { existsSync } from "node:fs";
-import { setTimeout as sleep } from "node:timers/promises";
 import type { BrowserWindow, MessageChannelMain, UtilityProcess } from "electron";
 import { assertNoProcessListeners } from "./smoke-listeners.js";
 import type { smokeMessages } from "./smoke-messages.js";
@@ -28,14 +26,6 @@ export function smokeClock(argv: readonly string[]) {
       return () => clearTimeout(timer);
     },
   };
-}
-
-export async function waitForFile(path: string, timeout: number): Promise<void> {
-  const deadline = performance.now() + timeout;
-  while (!existsSync(path)) {
-    if (performance.now() >= deadline) throw new Error(`Timed out waiting for ${path}`);
-    await sleep(100);
-  }
 }
 
 export interface SupervisionReport {

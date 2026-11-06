@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 import assert from "node:assert/strict";
-import { renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { CopilotClient } from "@github/copilot-sdk";
 import { assertNoProcessListeners } from "../apps/desktop/dist/smoke-listeners.js";
+import { publishRuntimeProbe } from "../apps/desktop/dist/smoke-runtime-report.js";
 import { buildClientOptions, resolveRuntimePath } from "../packages/host/dist/copilot/runtime.js";
 
 /**
@@ -54,8 +54,9 @@ if (process.argv.includes("--stub-model") && process.argv[3] === "write") {
     clearTimeout(timeout);
   }
   assert(handshake, "Packaged runtime produced no evidence");
-  // Scanned after host.hello is sent; the desktop waits for this report before killing the host.
-  void (async () => {
+  // Scanned after host.hello is sent; the desktop waits for this report, pass or fail, before
+  // killing the host, and the replacement host never writes it.
+  publishRuntimeProbe(reportPath, handshake, async () => {
     let listenerCheck;
     let failure;
     try {
@@ -64,10 +65,8 @@ if (process.argv.includes("--stub-model") && process.argv[3] === "write") {
       failure = error;
     }
     await stopProbe(client, failure);
-    const partial = `${reportPath}.partial`;
-    writeFileSync(partial, `${JSON.stringify({ ...handshake, listenerCheck }, null, 2)}\n`);
-    renameSync(partial, reportPath);
-  })().catch((error) => {
+    return listenerCheck;
+  }).catch((error) => {
     console.error(error);
     process.exit(1);
   });
