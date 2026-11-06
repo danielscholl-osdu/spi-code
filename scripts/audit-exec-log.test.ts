@@ -13,7 +13,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { deflateSync, gzipSync } from "node:zlib";
+import { deflateRawSync, deflateSync, gzipSync, inflateRawSync } from "node:zlib";
 import { afterEach, describe, expect, test } from "vitest";
 import { buildQueries } from "../packages/core/src/collect/github-read.js";
 import {
@@ -70,6 +70,17 @@ describe("audit-exec-log", () => {
     const result = auditSweep(join(AUDIT, "clean"));
     expect(result.findings).toEqual([]);
     expect(result.references).toEqual({ github: 2, gitlab: 1, gitlabGroups: 0 });
+  });
+
+  test("reads the clean log's file-content responses as envelopes", () => {
+    const dir = copyOfClean();
+    for (const line of [4, 5, 6])
+      plant(dir, line, '\\"encoding\\":\\"base64\\"', '\\"encoding\\":\\"utf-8\\"');
+    expect(auditSweep(dir).findings).toEqual(
+      [5, 6, 7].map(
+        (line) => `exec.jsonl:${line} stdout: file content: unsupported encoding "utf-8"`,
+      ),
+    );
   });
 
   test("fails a log that leaks an email address and a private repository", () => {
@@ -420,7 +431,7 @@ describe("audit of shapes, decoded strings and new credentials", () => {
     setVisibility(dir, "github", "acme/vault", "private");
     append(dir, { cmd, args, ...ok, stdout: "{}" });
     expect(auditSweep(dir).findings).toEqual([
-      `exec.jsonl:5: unrecognized command: ${[cmd, ...args].join(" ")}`,
+      `exec.jsonl:8: unrecognized command: ${[cmd, ...args].join(" ")}`,
     ]);
   });
 
@@ -485,7 +496,7 @@ describe("audit of shapes, decoded strings and new credentials", () => {
 
     test("fails an item without a project, and a response that is not a list", () => {
       expect(auditSweep(issues({ id: 1 })).findings).toEqual([
-        "exec.jsonl:5: group read: an item without a project",
+        "exec.jsonl:8: group read: an item without a project",
       ]);
       const dir = copyOfClean();
       setVisibility(dir, "gitlabGroups", "osdu/platform", "public");
@@ -500,7 +511,7 @@ describe("audit of shapes, decoded strings and new credentials", () => {
         stdout: '{"message":"x"}',
       });
       expect(auditSweep(dir).findings).toEqual([
-        "exec.jsonl:5: group read: an item without a project",
+        "exec.jsonl:8: group read: an item without a project",
       ]);
     });
 
@@ -563,7 +574,7 @@ describe("audit of shapes, decoded strings and new credentials", () => {
     });
     expect(auditSweep(dir).findings).toEqual([
       "exec.jsonl:2 stdout: email address (1)",
-      "exec.jsonl:5 stdout: GitHub token",
+      "exec.jsonl:8 stdout: GitHub token",
     ]);
   });
 
@@ -736,7 +747,7 @@ test.each(["PASSWORD", "Password", "pAsSwOrD", "Client_Secret", "API_KEY"])(
       stdout: "[]",
       stderr: JSON.stringify({ diff: `+.env\n+${key}=monKey\n` }),
     });
-    expect(auditSweep(dir).findings).toEqual(["exec.jsonl:5 stderr: credential assignment"]);
+    expect(auditSweep(dir).findings).toEqual(["exec.jsonl:8 stderr: credential assignment"]);
   },
 );
 
@@ -780,7 +791,7 @@ describe("credential assignments by provenance", () => {
     [
       "stdin",
       read("acme/widgets", { stdout: "{}", stdin: LINE }),
-      ["exec.jsonl:5: unrecognized command: stdin"],
+      ["exec.jsonl:8: unrecognized command: stdin"],
       "stdin",
     ],
     [
@@ -789,7 +800,7 @@ describe("credential assignments by provenance", () => {
         args: ["api", "repos/acme/widgets/pulls/1", "--jq", LINE],
         stdout: "[]",
       }),
-      [`exec.jsonl:5: unrecognized command: gh api repos/acme/widgets/pulls/1 --jq ${LINE}`],
+      [`exec.jsonl:8: unrecognized command: gh api repos/acme/widgets/pulls/1 --jq ${LINE}`],
       "args[3]",
     ],
     [
@@ -816,7 +827,7 @@ describe("credential assignments by provenance", () => {
     append(dir, entry);
     const findings = auditSweep(dir).findings;
     expect(findings.filter((f) => f.endsWith(": credential assignment"))).toEqual([
-      `exec.jsonl:5 ${field}: credential assignment`,
+      `exec.jsonl:8 ${field}: credential assignment`,
     ]);
     expect(findings.filter((f) => !f.endsWith(": credential assignment"))).toEqual(more);
   });
@@ -848,7 +859,7 @@ describe("credential assignments by provenance", () => {
       }),
       stdout: JSON.stringify({ data: { spicodeBudget: { note: LINE }, r0: { createdAt: "x" } } }),
     });
-    expect(auditSweep(budget).findings).toEqual(["exec.jsonl:5 stdout: credential assignment"]);
+    expect(auditSweep(budget).findings).toEqual(["exec.jsonl:8 stdout: credential assignment"]);
   });
 
   test("fails a token in public repository stdout and in the Facts files", () => {
@@ -858,8 +869,8 @@ describe("credential assignments by provenance", () => {
     for (const name of ["core-facts.json", "rib-facts.json", "services.json"])
       writeFileSync(join(dir, name), JSON.stringify({ title: tokens }));
     expect(auditSweep(dir).findings).toEqual([
-      "exec.jsonl:5 stdout: GitHub token",
-      "exec.jsonl:5 stdout: GitLab token",
+      "exec.jsonl:8 stdout: GitHub token",
+      "exec.jsonl:8 stdout: GitLab token",
       "core-facts.json: GitHub token",
       "core-facts.json: GitLab token",
       "core-facts.json: credential assignment",
@@ -949,8 +960,8 @@ describe("allowlist", () => {
     ],
   ])("fails a call to %s as unrecognized", (_, cmd, args) => {
     expect(planted(cmd, args)).toEqual([
-      `exec.jsonl:5: unrecognized command: ${[cmd, ...args].join(" ")}`.slice(0, 300),
-      "exec.jsonl:5 stdout: credential assignment",
+      `exec.jsonl:8: unrecognized command: ${[cmd, ...args].join(" ")}`.slice(0, 300),
+      "exec.jsonl:8 stdout: credential assignment",
     ]);
   });
 
@@ -965,8 +976,8 @@ describe("allowlist", () => {
     ],
   ])("fails a call routed by %s as a host override", (_, args, extra, detail) => {
     expect(planted("gh", args, extra)).toEqual([
-      `exec.jsonl:5: host override: ${detail}`,
-      "exec.jsonl:5 stdout: credential assignment",
+      `exec.jsonl:8: host override: ${detail}`,
+      "exec.jsonl:8 stdout: credential assignment",
     ]);
   });
 
@@ -974,9 +985,9 @@ describe("allowlist", () => {
     "fails a call with %s in its environment",
     (name) => {
       expect(planted("gh", ["api", ...PULL], { env: { [name]: "evil.example" } })).toEqual([
-        "exec.jsonl:5: unexpected field env",
-        `exec.jsonl:5: host override: env ${name}`,
-        "exec.jsonl:5 stdout: credential assignment",
+        "exec.jsonl:8: unexpected field env",
+        `exec.jsonl:8: host override: env ${name}`,
+        "exec.jsonl:8 stdout: credential assignment",
       ]);
     },
   );
@@ -990,7 +1001,7 @@ describe("allowlist", () => {
         "--jq",
         jqOf("dependabot alerts"),
       ]),
-    ).toEqual(["exec.jsonl:5 stdout: credential assignment"]);
+    ).toEqual(["exec.jsonl:8 stdout: credential assignment"]);
     expect(planted("gh", ["api", ...PULL])).toEqual([]);
   });
 
@@ -1138,7 +1149,7 @@ describe("base64 content", () => {
   )("fails %s inside the base64 content of %s", (_, read, text, finding) => {
     const stdout = encoded(read as Read, pom(text as string));
     expect(stdout).not.toContain((text as string).slice(0, 12));
-    expect(audited(read as Read, stdout)).toEqual([`exec.jsonl:5 stdout: ${finding}`]);
+    expect(audited(read as Read, stdout)).toEqual([`exec.jsonl:8 stdout: ${finding}`]);
   });
 
   test("fails a planted token in base64 content inside a Facts file", () => {
@@ -1158,7 +1169,7 @@ describe("base64 content", () => {
       ...ok,
       stdout: JSON.stringify({ encoding: "base64", content: b64(LINE) }),
     });
-    expect(auditSweep(dir).findings).toEqual(["exec.jsonl:5 stdout: credential assignment"]);
+    expect(auditSweep(dir).findings).toEqual(["exec.jsonl:8 stdout: credential assignment"]);
   });
 
   test.each([
@@ -1170,14 +1181,15 @@ describe("base64 content", () => {
   ])("fails base64 content with %s", (_, content) => {
     const read = "a GitHub contents read";
     expect(audited(read, JSON.stringify(READS[read].envelope(content)))).toEqual([
-      "exec.jsonl:5 stdout: malformed base64 content",
+      "exec.jsonl:8 stdout: malformed base64 content",
     ]);
   });
 
   test("fails an envelope in stdout that does not parse as JSON", () => {
     const read = "a GitLab file read";
     expect(audited(read, `${encoded(read, pom("x"))} trailing`)).toEqual([
-      "exec.jsonl:5 stdout: malformed base64 content",
+      "exec.jsonl:8 stdout: malformed base64 content",
+      "exec.jsonl:8 stdout: file content: not a JSON object",
     ]);
   });
 
@@ -1191,6 +1203,12 @@ describe("base64 content", () => {
     test.each(reads)("passes an error body and a file too large to hold content in %s", (read) => {
       expect(audited(read, JSON.stringify({ message: "Not Found", status: "404" }))).toEqual([]);
       expect(audited(read, envelope(read, { encoding: "none", content: "" }))).toEqual([]);
+    });
+
+    test.each(reads)("passes text content that also inflates as raw deflate in %s", (read) => {
+      const text = '{\n  "maps": {}\n}\n';
+      expect(inflateRawSync(Buffer.from(text)).length).toBeGreaterThan(0);
+      expect(audited(read, envelope(read, { encoding: "base64", content: b64(text) }))).toEqual([]);
     });
 
     const cases: [string, (read: Read) => string, string][] = [
@@ -1251,6 +1269,66 @@ describe("base64 content", () => {
         "JSON-string-wrapped envelope",
       ],
       ["a JSON value that is not an object", () => "42", "not a JSON object"],
+      ...[9, 10, 11, 12, 13, 14, 15].map((windowBits): [string, (read: Read) => string, string] => [
+        `zlib-compressed content with windowBits ${windowBits}`,
+        (read) =>
+          envelope(read, {
+            encoding: "base64",
+            content: deflateSync(token(), { windowBits }).toString("base64"),
+          }),
+        "compressed content (zlib)",
+      ]),
+      [
+        "raw deflate content",
+        (read) =>
+          envelope(read, {
+            encoding: "base64",
+            content: deflateRawSync(token()).toString("base64"),
+          }),
+        "compressed content (deflate)",
+      ],
+      [
+        "a nested envelope with an unsupported encoding",
+        () => JSON.stringify({ data: { encoding: "utf-8", content: b64(token()) } }),
+        'unsupported encoding "utf-8"',
+      ],
+      [
+        "nested content without an encoding",
+        () => JSON.stringify({ data: [{ content: b64(token()) }] }),
+        "content without an encoding",
+      ],
+      [
+        "a nested envelope of double-encoded base64",
+        () => JSON.stringify({ data: { encoding: "base64", content: b64(b64(token())) } }),
+        "double-encoded base64",
+      ],
+      [
+        "a nested envelope of gzip-compressed content",
+        () =>
+          JSON.stringify({
+            data: { encoding: "base64", content: gzipSync(token()).toString("base64") },
+          }),
+        "compressed content (gzip)",
+      ],
+      [
+        "a nested JSON-string-wrapped envelope",
+        (read) => JSON.stringify({ data: encoded(read, token()) }),
+        "JSON-string-wrapped envelope",
+      ],
+      [
+        "an envelope behind escapes inside base64 content",
+        (read) =>
+          envelope(read, {
+            encoding: "base64",
+            content: b64(
+              JSON.stringify(JSON.stringify({ encoding: "utf-8", content: b64(token()) })),
+            ),
+          }),
+        "double-encoded base64",
+      ],
+      ["raw base64 stdout", () => b64(token()), "not a JSON object"],
+      ["an empty array", () => "[]", "not a JSON object"],
+      ["an array-wrapped envelope", (read) => `[${encoded(read, pom("x"))}]`, "not a JSON object"],
     ];
     test.each(
       reads.flatMap((read) =>
@@ -1259,7 +1337,7 @@ describe("base64 content", () => {
     )("fails %s in %s", (_, read, stdout, finding) => {
       const out = (stdout as (read: Read) => string)(read as Read);
       expect(out).not.toContain("ghp_");
-      expect(audited(read as Read, out)).toEqual([`exec.jsonl:5 stdout: file content: ${finding}`]);
+      expect(audited(read as Read, out)).toEqual([`exec.jsonl:8 stdout: file content: ${finding}`]);
     });
 
     test("leaves other reads' encodings to the detectors", () => {

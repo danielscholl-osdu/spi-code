@@ -22,6 +22,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { inflateRawSync, inflateSync } from "node:zlib";
 
 export const LOG_FILE = "exec.jsonl";
 export const VISIBILITY_FILE = "visibility.json";
@@ -915,52 +916,97 @@ function canonicalBase64(content: unknown): Buffer | undefined {
 // The shapes whose stdout is a file-content envelope as the forge returns it, with no jq.
 const FILE_CONTENT_SHAPES = new Set(["upstream filter", "blob", "upstream pom"]);
 
-const COMPRESSED: readonly [string, (bytes: Buffer) => boolean][] = [
-  ["gzip", (bytes) => bytes[0] === 0x1f && bytes[1] === 0x8b],
-  ["zlib", (bytes) => bytes[0] === 0x78 && [0x01, 0x5e, 0x9c, 0xda].includes(bytes[1] ?? -1)],
-];
+// An envelope's field name as JSON writes it, behind any number of string escapes.
+const ENVELOPE_FIELD = /\\*"(?:encoding|content)\\*"\s*:/i;
 
-/** Why a known file-content response holds content in a form the detectors do not read: an
- * encoding other than base64 (or "none" with no content), content with no encoding, compressed
- * or double-encoded content, or a response that is not a JSON object. A response that is not
- * JSON is left to base64Contents. */
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === "object" && !Array.isArray(value);
+
+/** A valid RFC 1950 header: deflate method, a window of at most 32K, and its check bits. */
+function zlibHeader(bytes: Buffer): boolean {
+  const [cmf = 0, flg = 0] = bytes;
+  return bytes.length >= 2 && (cmf & 0x0f) === 8 && cmf >> 4 <= 7 && (cmf * 256 + flg) % 31 === 0;
+}
+
+const inflates = (inflate: (bytes: Buffer) => Buffer, bytes: Buffer): boolean => {
+  try {
+    return inflate(bytes).length > 0;
+  } catch {
+    return false;
+  }
+};
+
+const TEXT = new TextDecoder("utf-8", { fatal: true });
+/** Whether bytes are UTF-8 text a file read returns: no C0 control but tab, line feed, form
+ * feed and carriage return, and no delete. */
+function isText(bytes: Buffer): boolean {
+  let text: string;
+  try {
+    text = TEXT.decode(bytes);
+  } catch {
+    return false;
+  }
+  for (const char of text) {
+    const code = char.charCodeAt(0);
+    if ((code < 0x20 && !"\t\n\f\r".includes(char)) || code === 0x7f) return false;
+  }
+  return true;
+}
+
+/** The compression decoded content is in, if any: gzip by its magic, zlib by a valid header
+ * that inflates, raw deflate, which has no header, by bytes that are not text and inflate. */
+function compression(bytes: Buffer): string | undefined {
+  if (bytes[0] === 0x1f && bytes[1] === 0x8b) return "gzip";
+  if (zlibHeader(bytes) && inflates(inflateSync, bytes)) return "zlib";
+  if (!isText(bytes) && inflates(inflateRawSync, bytes)) return "deflate";
+  return undefined;
+}
+
+/** Why a known file-content response holds content in a form the detectors do not read: a
+ * nonempty response that is not one JSON object, an envelope at any depth with an encoding
+ * other than base64 (or "none" with no content) or content with no encoding, an envelope
+ * behind a JSON string, or base64 content that is compressed or encodes base64 or an envelope
+ * again. A content-free object, an error body, passes. */
 export function fileContentFindings(stdout: string): string[] {
-  const values = stdout.trim() ? jsonValues(stdout) : undefined;
-  if (!values) return [];
+  if (!stdout.trim()) return [];
+  let response: unknown;
+  try {
+    response = JSON.parse(stdout);
+  } catch {
+    return ["file content: not a JSON object"];
+  }
   const findings = new Set<string>();
-  const check = (value: unknown): void => {
+  const walk = (value: unknown): void => {
     if (typeof value === "string") {
-      findings.add("JSON-string-wrapped envelope");
+      if (ENVELOPE_FIELD.test(value)) findings.add("JSON-string-wrapped envelope");
       return;
     }
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
-      findings.add("not a JSON object");
+    if (Array.isArray(value)) {
+      value.forEach(walk);
       return;
     }
-    const { encoding, content } = value as Record<string, unknown>;
+    if (!isRecord(value)) return;
+    const { encoding, content, ...rest } = value;
+    Object.values(rest).forEach(walk);
     if (encoding === undefined) {
       if (content !== undefined) findings.add("content without an encoding");
-      return;
-    }
-    if (encoding === "none") {
+    } else if (encoding === "none") {
       if (content !== undefined && content !== "") findings.add('content under encoding "none"');
-      return;
-    }
-    if (encoding !== "base64") {
+    } else if (encoding !== "base64") {
       findings.add(`unsupported encoding ${JSON.stringify(encoding)}`);
-      return;
+    } else {
+      const bytes = canonicalBase64(content);
+      if (!bytes) return;
+      const compressed = compression(bytes);
+      if (compressed) findings.add(`compressed content (${compressed})`);
+      const text = bytes.toString("utf8");
+      if ((text.trim() && canonicalBase64(text)) || ENVELOPE_FIELD.test(text))
+        findings.add("double-encoded base64");
     }
-    const bytes = canonicalBase64(content);
-    if (!bytes) return;
-    for (const [name, matches] of COMPRESSED)
-      if (matches(bytes)) findings.add(`compressed content (${name})`);
-    const text = bytes.toString("utf8");
-    if ((text.trim() && canonicalBase64(text)) || RAW_ENVELOPE.test(text))
-      findings.add("double-encoded base64");
   };
-  for (const value of values)
-    if (Array.isArray(value)) value.forEach(check);
-    else check(value);
+  if (typeof response === "string") findings.add("JSON-string-wrapped envelope");
+  else if (!isRecord(response)) findings.add("not a JSON object");
+  else walk(response);
   return [...findings].map((finding) => `file content: ${finding}`);
 }
 
