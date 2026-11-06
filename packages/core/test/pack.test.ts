@@ -125,6 +125,6 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
       { cwd: temporary, env: { ...process.env, NODE_PATH: "" }, timeout: 10_000 },
     );
   } finally {
-    await rm(temporary, { recursive: true, force: true });
+    await rm(temporary, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   }
 }, 180_000);
