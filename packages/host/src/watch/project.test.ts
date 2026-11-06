@@ -113,16 +113,43 @@ describe("Watch projection", () => {
     }
   });
 
-  it("reads the current release as unread when the sweep has no release reads", () => {
-    const input: WatchInput = {
-      ...fixtureInput(),
-      releases: { releases: {}, created: {}, pins: {}, errors: {} },
-      releaseRecords: [],
+  describe("current release tile without a whole release read", () => {
+    const observedAt = "2026-11-06T12:00:00.000Z";
+    const record = (over: Partial<ReadRecord> = {}): ReadRecord => ({
+      source: "github-releases",
+      object: "Azure/osdu-spi-file",
+      observedAt,
+      completeness: { kind: "complete" },
+      ...over,
+    });
+    const currentRelease = (releaseRecords: ReadRecord[]) => {
+      const input: WatchInput = {
+        ...fixtureInput(),
+        releases: { releases: {}, created: {}, pins: {}, errors: {} },
+        releaseRecords,
+      };
+      const releases = projectWatch(input).readings.find(
+        ({ anchor }) => anchor.kind === "releases",
+      );
+      return releases?.content?.tiles[2];
     };
-    const releases = projectWatch(input).readings.find(({ anchor }) => anchor.kind === "releases");
-    expect(releases?.content?.tiles[2]).toMatchObject({
-      label: "Current release",
-      value: "not read yet",
+    const unread = { label: "Current release", value: "not read yet" };
+
+    it.each([
+      ["no release reads", []],
+      [
+        "only a cut read",
+        [record({ completeness: { kind: "cut", reason: "page limit", read: 100, total: 140 } })],
+      ],
+      ["only a failed read", [record({ failure: "HTTP 502" })]],
+    ])("reads not read yet with %s", (_case, records) => {
+      expect(currentRelease(records)).toMatchObject(unread);
+    });
+
+    it("reads the months when a failed read kept an earlier one", () => {
+      expect(
+        currentRelease([record({ failure: "HTTP 502", retainedFrom: "2026-11-05T12:00:00.000Z" })]),
+      ).toMatchObject({ label: "Current release", value: "2026.10" });
     });
   });
 
