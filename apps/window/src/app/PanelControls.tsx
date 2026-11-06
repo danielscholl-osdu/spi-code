@@ -27,13 +27,15 @@ import { ariaShortcut, matchesShortcut, shortcutLabel } from "./shortcuts.js";
 
 export const TERMINAL_UNAVAILABLE = "The terminal is not available yet";
 
-/** The title bar's three toggles: sidebar (B), terminal (J) and right panel (I). */
+/** The title bar's three toggles: sidebar (B), terminal (J) and right panel (I), plus Find (K). */
 export function PanelControls({
   rightPanelOpen,
   onToggleRightPanel,
+  onToggleFind,
 }: {
   rightPanelOpen: boolean;
   onToggleRightPanel(): void;
+  onToggleFind?(): void;
 }) {
   const { toggleSidebar, isMobile, openMobile, setOpenMobile } = useSidebar();
   const terminalReason = useId();
@@ -51,12 +53,13 @@ export function PanelControls({
         closeDetailForSidebar();
         toggleSidebar();
       } else if (matchesShortcut(event, "i")) toggleDetail();
+      else if (onToggleFind && matchesShortcut(event, "k")) onToggleFind();
       else if (!matchesShortcut(event, "j")) return;
       event.preventDefault();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [toggleSidebar, closeDetailForSidebar, toggleDetail]);
+  }, [toggleSidebar, closeDetailForSidebar, toggleDetail, onToggleFind]);
   return (
     <div className="panel-controls">
       <SidebarTrigger

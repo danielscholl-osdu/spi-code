@@ -31,6 +31,7 @@ export function Shell() {
   );
   const openSweepEvidence = useCallback(() => selectionStore.getState().openSweepEvidence(), []);
   const [findOpen, setFindOpen] = useState(false);
+  const toggleFind = useCallback(() => setFindOpen((open) => !open), []);
   const middle = useRef<HTMLElement>(null);
   const position = useRef({ route: routeHash(route), top: 0 });
   useLayoutEffect(() => {
@@ -101,7 +102,11 @@ export function Shell() {
               <option value="dark">Dark</option>
             </select>
           </label>
-          <PanelControls rightPanelOpen={rightPanelOpen} onToggleRightPanel={toggleRightPanel} />
+          <PanelControls
+            rightPanelOpen={rightPanelOpen}
+            onToggleRightPanel={toggleRightPanel}
+            onToggleFind={toggleFind}
+          />
         </div>
       </header>
       <ProgramSidebar

@@ -23,10 +23,9 @@
 
 import { Autocomplete } from "@base-ui/react/autocomplete";
 import { Dialog } from "@base-ui/react/dialog";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { INBOX, type Route } from "../app/routes.js";
-import { matchesShortcut } from "../app/shortcuts.js";
 import type { createWatchStore } from "../store/watch.js";
 import {
   buildPaletteGroups,
@@ -37,8 +36,9 @@ import {
 import "./palette.css";
 
 /**
- * Find (PS-12): Go to, Services, Lenses and Queue. ⌘K or Ctrl+K toggles it from anywhere; the
- * sidebar's field opens it through `onOpenChange`. Esc closes it and focus returns to the opener.
+ * Find (PS-12): Go to, Services, Lenses and Queue. The shell opens it from ⌘K or Ctrl+K (through
+ * PanelControls' shortcuts) and from the sidebar's field. Esc closes it and focus returns to the
+ * opener.
  */
 export function CommandPalette({
   store,
@@ -52,17 +52,6 @@ export function CommandPalette({
   onNavigate(route: Route): void;
 }) {
   const popupRef = useRef<HTMLDivElement>(null);
-  const openRef = useRef(open);
-  openRef.current = open;
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || !matchesShortcut(event, "k")) return;
-      event.preventDefault();
-      onOpenChange(!openRef.current);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onOpenChange]);
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
