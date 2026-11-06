@@ -36,17 +36,14 @@ const resultTone = (result: string) =>
 
 type ServiceRelease = NonNullable<ViewSnapshot["services"]>[number]["releases"][number];
 
-/**
- * The idle gate mirrors GitHub's latest release as of the GitHub read; the row reads release history.
- * The snapshot carries no per-service time for either read, and the aggregate envelopes would name
- * another repository's or a cached pin's time, so the hint names the reads without times.
- */
-function GateHint({ release: { gate, to } }: { release: ServiceRelease }) {
+function GateHint({ release: { gate, to, readTimes } }: { release: ServiceRelease }) {
   if (gate?.state !== "idle" || to === undefined || gate.text === to) return null;
   return (
     <span data-gate-hint="">
-      The gate and this row can differ because they use separate reads: the GitHub read for the gate
-      and the release history read for this row.
+      The gate and this row can differ because they use separate reads: the GitHub read
+      {readTimes?.github ? ` at ${utc(readTimes.github)}` : ""} for the gate and the release history
+      read
+      {readTimes?.history ? ` at ${utc(readTimes.history)}` : ""} for this row.
     </span>
   );
 }

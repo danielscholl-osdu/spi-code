@@ -2147,6 +2147,7 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-partition/releases/tag/v1.3.3",
           "month": "2026-10",
+          "readTimes": {},
           "gate": {
             "state": "idle",
             "text": "v1.3.1"
@@ -2164,7 +2165,8 @@
           "java": "17",
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-partition/releases/tag/v1.3.0",
-          "month": "2026-09"
+          "month": "2026-09",
+          "readTimes": {}
         },
         {
           "id": "partition",
@@ -2178,7 +2180,8 @@
           "java": "17",
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-partition/releases/tag/v1.2.0",
-          "month": "2026-08"
+          "month": "2026-08",
+          "readTimes": {}
         },
         {
           "id": "partition",
@@ -2189,7 +2192,8 @@
           "java": "17",
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-partition/releases/tag/v1.1.0",
-          "month": "2026-07"
+          "month": "2026-07",
+          "readTimes": {}
         },
         {
           "id": "partition",
@@ -2201,7 +2205,8 @@
           "java": "17",
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-partition/releases/tag/v1.1.0",
-          "month": "2026-04"
+          "month": "2026-04",
+          "readTimes": {}
         },
         {
           "id": "partition",
@@ -2209,7 +2214,8 @@
           "version": "no release",
           "releases": 0,
           "state": "unreleased",
-          "month": "2026-03"
+          "month": "2026-03",
+          "readTimes": {}
         }
       ]
     },
@@ -2391,6 +2397,7 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-entitlements/releases/tag/v1.2.1",
           "month": "2026-10",
+          "readTimes": {},
           "gate": {
             "state": "idle",
             "text": "v1.2.0"
@@ -2402,7 +2409,8 @@
           "version": "no release",
           "releases": 0,
           "state": "unreleased",
-          "month": "2026-09"
+          "month": "2026-09",
+          "readTimes": {}
         }
       ]
     },
@@ -2577,6 +2585,7 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-legal/releases/tag/v1.2.1",
           "month": "2026-10",
+          "readTimes": {},
           "gate": {
             "state": "idle",
             "text": "v1.2.0"
@@ -2588,7 +2597,8 @@
           "version": "no release",
           "releases": 0,
           "state": "unreleased",
-          "month": "2026-09"
+          "month": "2026-09",
+          "readTimes": {}
         }
       ]
     },
@@ -2770,6 +2780,7 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-schema/releases/tag/v1.2.0",
           "month": "2026-10",
+          "readTimes": {},
           "gate": {
             "state": "idle",
             "text": "v1.2.0"
@@ -2781,7 +2792,8 @@
           "version": "no release",
           "releases": 0,
           "state": "unreleased",
-          "month": "2026-09"
+          "month": "2026-09",
+          "readTimes": {}
         }
       ]
     },
@@ -2956,6 +2968,7 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-file/releases/tag/v1.2.0",
           "month": "2026-10",
+          "readTimes": {},
           "gate": {
             "state": "idle",
             "text": "v1.2.0"
@@ -2967,7 +2980,8 @@
           "version": "no release",
           "releases": 0,
           "state": "unreleased",
-          "month": "2026-09"
+          "month": "2026-09",
+          "readTimes": {}
         }
       ]
     }

@@ -26,6 +26,12 @@ export const ServiceRunSchema = z.strictObject({
 });
 export const ServiceReleaseSchema = DocRowSchema.extend({
   month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  readTimes: z
+    .strictObject({
+      github: ObservedAtSchema.optional(),
+      history: ObservedAtSchema.optional(),
+    })
+    .optional(),
   releasePr: z
     .strictObject({
       number: z.int().positive(),

@@ -220,10 +220,12 @@ describe("Watch projection", () => {
         })),
       );
       expect(
-        service.releases?.map(({ month, releasePr: _pr, gate: _gate, ...row }) => ({
-          month,
-          row,
-        })),
+        service.releases?.map(
+          ({ month, releasePr: _pr, gate: _gate, readTimes: _times, ...row }) => ({
+            month,
+            row,
+          }),
+        ),
       ).toEqual(
         documents.flatMap((doc) =>
           doc.rows
@@ -254,6 +256,82 @@ describe("Watch projection", () => {
       expect(lines.some((line) => line.id?.startsWith(prefix) && line.url)).toBe(true);
     }
   });
+
+  it("uses each service's GitHub read even when the aggregate is from an older batch", () => {
+    const input = mixedFixtureInput();
+    const repo = "Azure/osdu-spi-entitlements";
+    const own = "2026-10-12T21:59:00.000Z";
+    const older = "2026-10-12T21:50:00.000Z";
+    input.reads.github = [
+      releaseRead("github", "Azure/osdu-spi-partition", older),
+      releaseRead("github", repo, own),
+    ];
+    const snapshot = projectWatch(input);
+    const row = snapshot.services?.find((s) => s.service === "entitlements")?.releases[0];
+    expect(row?.readTimes?.github).toBe(own);
+    expect(snapshot.areas.find((a) => a.area === "github")?.envelope).toMatchObject({
+      observedAt: older,
+    });
+  });
+
+  it("uses the service's release history read, not an older cached pin or another repository", () => {
+    const input = mixedFixtureInput();
+    const repo = "Azure/osdu-spi-entitlements";
+    const history = "2026-10-21T16:00:00.000Z";
+    const pinned = "2026-10-01T08:00:00.000Z";
+    const snapshot = projectWatch({
+      ...input,
+      releaseRecords: [
+        releaseRead("github-pins", `${repo}@v1.2.1`, pinned),
+        releaseRead("github-releases", "Azure/osdu-spi-partition", pinned),
+        releaseRead("github-releases", repo, history),
+      ],
+    });
+    const i = snapshot.services?.findIndex((s) => s.service === "entitlements") ?? -1;
+    expect(snapshot.services?.[i]?.releases[0]?.readTimes?.history).toBe(history);
+    expect(
+      snapshot.provenance.find((p) => p.path === `/services/${i}/releases`)?.envelope,
+    ).toMatchObject({
+      observedAt: pinned,
+    });
+  });
+
+  it.each(["retained", "failed", "missing"] as const)(
+    "keeps per-service read times honest for %s reads without borrowing aggregate times",
+    (state) => {
+      const input = mixedFixtureInput();
+      const repo = "Azure/osdu-spi-entitlements";
+      const attempt = "2026-10-22T12:00:00.000Z";
+      const github = "2026-10-12T21:58:23.086Z";
+      const history = "2026-10-21T15:10:40.718Z";
+      const record = (source: string, retainedFrom: string): ReadRecord[] =>
+        state === "missing"
+          ? []
+          : [
+              {
+                ...releaseRead(source, repo, attempt),
+                failure: "offline",
+                ...(state === "retained" ? { retainedFrom } : {}),
+              },
+            ];
+      const snapshot = projectWatch({
+        ...input,
+        reads: {
+          ...input.reads,
+          github: [releaseRead("github", "github", attempt), ...record("github", github)],
+        },
+        releaseRecords: [
+          releaseRead("releases", "releases", attempt),
+          ...record("github-releases", history),
+        ],
+      });
+      const rows = snapshot.services?.find((s) => s.service === "entitlements")?.releases;
+      expect(rows?.length).toBeGreaterThan(0);
+      for (const row of rows ?? []) {
+        expect(row.readTimes).toEqual(state === "retained" ? { github, history } : {});
+      }
+    },
+  );
 
   it("adds a recorded release PR to this month's service row, never to older months", () => {
     const input = fixtureInput();
@@ -979,6 +1057,10 @@ describe("Watch projection", () => {
     expect(snapshot.briefing.sweptAt).toBeUndefined();
   });
 });
+
+function releaseRead(source: string, object: string, observedAt: string): ReadRecord {
+  return { source, object, observedAt, completeness: { kind: "complete" } };
+}
 
 /** The fixture with one fresh read per area, inferred only for the named areas. */
 function onlyInferred(inferred: readonly AreaName[]) {

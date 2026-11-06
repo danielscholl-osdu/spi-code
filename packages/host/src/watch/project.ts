@@ -47,6 +47,7 @@ import { placeReadings } from "./readings.js";
 import { recordedRuns, runProvenance } from "./recorded-runs.js";
 import { repositoryLines } from "./repository-lines.js";
 import { type SeenBaseline, seenState } from "./seen.js";
+import { serviceReleaseReadTimes } from "./service-release-reads.js";
 import { stationSubstate } from "./substate.js";
 
 export function appActions(items: readonly ActionItem[]): AppAction[] {
@@ -276,6 +277,7 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
           return {
             ...row,
             month: doc.month,
+            readTimes: serviceReleaseReadTimes(line.fork.repo, input),
             ...(doc.month === now.toISOString().slice(0, 7)
               ? {
                   ...(gate ? { gate: { state: gate.state, text: gate.text } } : {}),

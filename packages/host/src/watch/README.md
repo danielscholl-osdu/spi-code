@@ -118,6 +118,12 @@ Only the current month adds the current release station's `gate` (`state`,
 gate is never attached to a historical month. These rows feed the service page
 only; the Releases pane and month documents are unchanged. Release-row evidence
 retains the release reader's envelope alongside fleet and GitHub areas.
+Each row also carries optional `readTimes`: `github` is the service repository's
+GitHub observation, and `history` is its `github-releases` observation. The host
+maps service to repository through the fleet, never a release URL. Retained
+values use `retainedFrom`; a failed read without retained data or a missing
+record contributes no time. Aggregate envelopes and cached pin times do not
+supply these fields. Older snapshots may omit `readTimes`.
 
 Every station has an optional `inspect`: the first four use `upstream:<service>`;
 Release and Stack lane use `station:<service>:release` and
@@ -257,7 +263,9 @@ pnpm biome check --write fixtures/watch/snapshot-59d6895.json fixtures/watch/sna
 
 The mixed fixture (`mixedFixtureInput`) keeps only lifecycle reads inferred and
 marks every other area and the release reads observed, so the window's evidence
-helpers can tell inferred values from observed peers.
+helpers can tell inferred values from observed peers. It also adds synthetic
+per-repository GitHub and release-history records for entitlements, using the
+pinned observations, to exercise the service's read-time hint.
 
 The generator uses the pinned core fixtures, fleet, rollout and clock. It does
 not regenerate or modify the rib oracles. The host parity comparison removes

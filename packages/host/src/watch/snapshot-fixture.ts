@@ -100,9 +100,17 @@ export function mixedFixtureInput(): WatchInput {
       area === "lifecycle" ? records : records?.map(({ inferred: _inferred, ...record }) => record),
     ]),
   );
+  const releaseRecords = input.releaseRecords.map(({ inferred: _inferred, ...record }) => record);
+  const fork = input.context.fleet.forks.find(({ id }) => id === "entitlements");
+  const github = reads.github?.[0];
+  const history = releaseRecords[0];
+  if (!fork || !github || !history) throw new Error("Pinned fixture must have entitlements reads");
   return {
     ...input,
-    reads,
-    releaseRecords: input.releaseRecords.map(({ inferred: _inferred, ...record }) => record),
+    reads: { ...reads, github: [...(reads.github ?? []), { ...github, object: fork.repo }] },
+    releaseRecords: [
+      ...releaseRecords,
+      { ...history, source: "github-releases", object: fork.repo },
+    ],
   };
 }

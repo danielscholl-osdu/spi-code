@@ -144,6 +144,8 @@ const hintOf = (month: string) =>
 
 const UNTIMED =
   "The gate and this row can differ because they use separate reads: the GitHub read for the gate and the release history read for this row.";
+const TIMED =
+  "The gate and this row can differ because they use separate reads: the GitHub read at 2026-10-12 21:58 UTC for the gate and the release history read at 2026-10-21 15:10 UTC for this row.";
 const read = (source: string, object: string, observedAt: string) => ({
   source,
   object,
@@ -151,12 +153,12 @@ const read = (source: string, object: string, observedAt: string) => ({
   completeness: { kind: "complete" as const },
 });
 
-it("says which reads the gate and the release row come from when their versions differ", async () => {
+it("shows entitlements' own read times in the October hint from the mixed fixture", async () => {
   await render();
   const october = section("release")?.querySelector('[data-release="2026-10"]');
   expect(october?.textContent).toContain("new → v1.2.1");
   expect(october?.textContent).toContain("gate idle · v1.2.0");
-  expect(hintOf("2026-10")).toBe(UNTIMED);
+  expect(hintOf("2026-10")).toBe(TIMED);
   expect(hintOf("2026-09")).toBeUndefined();
 });
 
@@ -171,12 +173,16 @@ it("gives no hint when the gate agrees with the release row", async () => {
 it("does not stamp the gate with another repository's GitHub read from a split batch", async () => {
   const body = mixedSnapshot(mixed);
   const earliest = "2026-10-12T21:50:00.000Z";
+  const own = "2026-10-12T21:59:00.000Z";
+  const release = body.services?.find((s) => s.service === SERVICE)?.releases[0];
+  if (!release?.readTimes) throw new Error("Fixture must carry service read times");
+  release.readTimes.github = own;
   await render({
     ...body,
     reads: [
       ...body.reads,
       read("github", "Azure/osdu-spi-partition", earliest),
-      read("github", "Azure/osdu-spi-entitlements", "2026-10-12T21:58:23.086Z"),
+      read("github", "Azure/osdu-spi-entitlements", own),
     ],
     areas: body.areas.map((entry) =>
       entry.area === "github" && entry.envelope.state !== "unread"
@@ -184,17 +190,21 @@ it("does not stamp the gate with another repository's GitHub read from a split b
         : entry,
     ),
   });
-  expect(hintOf("2026-10")).toBe(UNTIMED);
+  expect(hintOf("2026-10")).toBe(TIMED.replace("21:58 UTC", "21:59 UTC"));
 });
 
 it("does not date the release history by a cached build pin", async () => {
   const body = mixedSnapshot(mixed);
   const pinned = "2026-10-01T08:00:00.000Z";
+  const history = "2026-10-21T16:00:00.000Z";
+  const release = body.services?.find((s) => s.service === SERVICE)?.releases[0];
+  if (!release?.readTimes) throw new Error("Fixture must carry service read times");
+  release.readTimes.history = history;
   await render({
     ...body,
     reads: [
       ...body.reads,
-      read("github-releases", "Azure/osdu-spi-entitlements", "2026-10-21T15:10:40.718Z"),
+      read("github-releases", "Azure/osdu-spi-entitlements", history),
       read("github-pins", "Azure/osdu-spi-entitlements@v1.2.1", pinned),
     ],
     provenance: body.provenance.map((source) =>
@@ -203,6 +213,15 @@ it("does not date the release history by a cached build pin", async () => {
         : source,
     ),
   });
+  expect(hintOf("2026-10")).toBe(TIMED.replace("15:10 UTC", "16:00 UTC"));
+});
+
+it("keeps the untimed hint for older snapshots without per-service observations", async () => {
+  const body = mixedSnapshot(mixed);
+  for (const service of body.services ?? []) {
+    for (const release of service.releases) delete release.readTimes;
+  }
+  await render(body);
   expect(hintOf("2026-10")).toBe(UNTIMED);
 });
 
