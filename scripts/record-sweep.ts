@@ -9,8 +9,8 @@
  * a repository, project or group not verified public, each checked when first named, and any
  * call whose shape the audit's grammar cannot read. A public group does not make its projects
  * public, so a group-scoped read never runs glab: the recorder answers it in process with an
- * anonymous GET to GitLab's API on a socket of its own (no credential, no cookie, no proxy, no
- * dispatcher, nothing from the environment) and records glab's output for it. Every item it
+ * anonymous GET to GitLab's API with node:https on an agent of its own (no credential, no
+ * cookie, no proxy, no dispatcher, nothing from the environment) and records glab's output for it. Every item it
  * returns must declare `confidential: false` and belong to a project verified public whose
  * issues are open to everyone; one that does not aborts the recording before anything is
  * written. The same log then replays through the
@@ -31,10 +31,10 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { connect as netConnect } from "node:net";
+import { Agent as HttpAgent, request as httpRequest, type IncomingMessage } from "node:http";
+import { Agent as HttpsAgent, request as httpsRequest } from "node:https";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { connect as tlsConnect } from "node:tls";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { z } from "zod";
 import {
@@ -132,7 +132,10 @@ const UNMANAGED = new Set([
   "GITLAB_HOST",
 ]);
 
-export function managedEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+/** The environment the recorder started with, proxies included: what gh and glab run with. */
+const inherited: NodeJS.ProcessEnv = { ...process.env };
+
+export function managedEnv(env: NodeJS.ProcessEnv = inherited): NodeJS.ProcessEnv {
   return Object.fromEntries(
     Object.entries(env).filter(([name]) => !UNMANAGED.has(name.toUpperCase())),
   );
@@ -273,75 +276,14 @@ export const GITLAB_API = `https://${GITLAB}/api/v4/`;
 const GROUP_API = "/api/v4/groups/";
 const MAX_RESPONSE = 64 * 1024 * 1024;
 
-/** A chunk-size line: hex digits and, optionally, chunk extensions; nothing else. */
-const CHUNK_SIZE = /^([0-9A-Fa-f]{1,13})(?:[ \t]*;[^\r\n]*)?$/;
-/** A trailer field line. */
-const TRAILER = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+:[^\r\n]*$/;
-
-/** A chunked body, decoded, only when its framing is whole: every size line well formed, every
- * chunk followed by its CRLF, the last chunk followed by its trailers and the final CRLF, and
- * nothing after. Anything else, a body cut short included, throws. Trailers are dropped. */
-function dechunk(data: Buffer): Buffer {
-  const parts: Buffer[] = [];
-  let at = 0;
-  const line = () => {
-    const eol = data.indexOf("\r\n", at);
-    if (eol < 0) throw new Error("truncated chunked response");
-    const text = data.subarray(at, eol).toString("latin1");
-    at = eol + 2;
-    return text;
-  };
-  for (;;) {
-    const size = CHUNK_SIZE.exec(line())?.[1];
-    if (size === undefined) throw new Error("malformed chunk size");
-    const length = Number.parseInt(size, 16);
-    if (length === 0) break;
-    if (at + length + 2 > data.length) throw new Error("truncated chunked response");
-    parts.push(data.subarray(at, at + length));
-    at += length;
-    if (data[at] !== 0x0d || data[at + 1] !== 0x0a) throw new Error("malformed chunk data");
-    at += 2;
-  }
-  for (let trailer = line(); trailer !== ""; trailer = line())
-    if (!TRAILER.test(trailer)) throw new Error("malformed chunked trailer");
-  if (at !== data.length) throw new Error("bytes after a chunked response");
-  return Buffer.concat(parts);
-}
-
-/** The status, content type and body of a whole HTTP/1.1 response read to the connection's
- * close. A body is whole when its chunked framing is, when it is exactly its Content-Length, or,
- * with neither, when the server closed the connection cleanly; anything else throws, so the read
- * fails. */
-export function parseResponse(data: Buffer): Answered {
-  const split = data.indexOf("\r\n\r\n");
-  if (split < 0) throw new Error("malformed HTTP response");
-  const [line, ...fields] = data.subarray(0, split).toString("latin1").split("\r\n");
-  const status = /^HTTP\/1\.[01] (\d{3})(?: |$)/.exec(line ?? "")?.[1];
-  if (!status) throw new Error("malformed HTTP response");
-  const headers = new Map<string, string>();
-  for (const field of fields) {
-    const colon = field.indexOf(":");
-    if (colon > 0)
-      headers.set(field.slice(0, colon).trim().toLowerCase(), field.slice(colon + 1).trim());
-  }
-  const encoding = headers.get("content-encoding");
-  if (encoding && encoding.toLowerCase() !== "identity")
-    throw new Error(`unexpected content encoding ${encoding}`);
-  let body = data.subarray(split + 4);
-  const length = headers.get("content-length");
-  if (/\bchunked\b/i.test(headers.get("transfer-encoding") ?? "")) body = dechunk(body);
-  else if (length !== undefined) {
-    if (!/^\d{1,15}$/.test(length)) throw new Error("malformed Content-Length");
-    if (body.length !== Number(length)) throw new Error("body does not match its Content-Length");
-  }
-  return { status: Number(status), type: headers.get("content-type"), body: body.toString("utf8") };
-}
-
-/** One GET on a socket of its own, its HTTP/1.1 written here: node:tls for https (node:net for
- * http, which only tests use), so no proxy, dispatcher, agent, cookie jar or environment
- * variable takes part, under Bun as under Node. It sends Host, Accept, Accept-Encoding,
- * User-Agent and Connection and nothing else, refuses a URL carrying credentials, and verifies
- * the certificate whatever NODE_TLS_REJECT_UNAUTHORIZED says. */
+/** One anonymous GET with Node's own HTTP client, node:https (node:http for http, which only
+ * tests use), on an agent of its own that keeps no connection: never the global agent, so
+ * neither fetch's dispatcher nor NODE_USE_ENV_PROXY takes part. It sends Accept and User-Agent,
+ * with the Host and Connection Node adds, and nothing else; follows no redirect; refuses a URL
+ * carrying credentials and a compressed body; verifies the certificate whatever
+ * NODE_TLS_REJECT_UNAUTHORIZED says; and fails a body cut short, one past MAX_RESPONSE, or no
+ * answer by the time the signal fires. Under Bun, node:http honors proxy variables:
+ * isolateFromProxies, which the recorder runs first, blanks them. */
 export function isolatedGet(url: URL, signal: AbortSignal): Promise<Answered> {
   return new Promise((resolve, reject) => {
     if (url.username || url.password) return reject(new Error("a URL with credentials"));
@@ -349,57 +291,79 @@ export function isolatedGet(url: URL, signal: AbortSignal): Promise<Answered> {
       return reject(new Error(`unsupported protocol ${url.protocol}`));
     if (signal.aborted) return reject(new Error("aborted"));
     const secure = url.protocol === "https:";
-    const host = url.hostname;
-    const port = Number(url.port || (secure ? 443 : 80));
-    const request = [
-      `GET ${url.pathname}${url.search} HTTP/1.1`,
-      `Host: ${url.host}`,
-      "Accept: application/json",
-      "Accept-Encoding: identity",
-      "User-Agent: spi-code-record",
-      "Connection: close",
-      "",
-      "",
-    ].join("\r\n");
-    const socket = secure
-      ? tlsConnect({
-          host,
-          port,
-          servername: host,
-          rejectUnauthorized: true,
-          ALPNProtocols: ["http/1.1"],
-        })
-      : netConnect({ host, port });
-    const chunks: Buffer[] = [];
-    let size = 0;
+    const options = {
+      method: "GET",
+      hostname: url.hostname,
+      port: url.port || undefined,
+      path: `${url.pathname}${url.search}`,
+      headers: { Accept: "application/json", "User-Agent": "spi-code-record" },
+    };
     let settled = false;
     const settle = (done: () => void) => {
       if (settled) return;
       settled = true;
       signal.removeEventListener("abort", abort);
-      socket.destroy();
+      request.destroy();
       done();
     };
     const fail = (error: Error) => settle(() => reject(error));
+    let responded = false;
+    const answer = (response: IncomingMessage) => {
+      responded = true;
+      const encoding = response.headers["content-encoding"];
+      if (encoding && encoding.toLowerCase() !== "identity")
+        return fail(new Error(`unexpected content encoding ${encoding}`));
+      const chunks: Buffer[] = [];
+      let size = 0;
+      response.on("data", (chunk: Buffer) => {
+        size += chunk.length;
+        if (size > MAX_RESPONSE) fail(new Error("response too large"));
+        else chunks.push(chunk);
+      });
+      response.on("error", fail);
+      response.on("aborted", () => fail(new Error("response cut short")));
+      response.on("close", () => {
+        if (!response.complete) fail(new Error("response cut short"));
+      });
+      response.on("end", () => {
+        if (!response.complete) return fail(new Error("response cut short"));
+        const body = Buffer.concat(chunks).toString("utf8");
+        const type = response.headers["content-type"];
+        settle(() => resolve({ status: response.statusCode ?? 0, type, body }));
+      });
+    };
+    const request = secure
+      ? httpsRequest(
+          {
+            ...options,
+            agent: new HttpsAgent({ keepAlive: false }),
+            servername: url.hostname,
+            rejectUnauthorized: true,
+          },
+          answer,
+        )
+      : httpRequest({ ...options, agent: new HttpAgent({ keepAlive: false }) }, answer);
     const abort = () => fail(new Error("aborted"));
     signal.addEventListener("abort", abort, { once: true });
-    socket.once(secure ? "secureConnect" : "connect", () => socket.write(request));
-    socket.on("data", (chunk: Buffer) => {
-      size += chunk.length;
-      if (size > MAX_RESPONSE) fail(new Error("response too large"));
-      else chunks.push(chunk);
+    request.on("error", fail);
+    request.on("close", () => {
+      if (!responded) fail(new Error("connection closed"));
     });
-    socket.on("error", fail);
-    socket.on("end", () => {
-      try {
-        const answered = parseResponse(Buffer.concat(chunks));
-        settle(() => resolve(answered));
-      } catch (error) {
-        fail(error as Error);
-      }
-    });
-    socket.on("close", () => fail(new Error("connection closed")));
+    request.end();
   });
+}
+
+/** Proxy variables, in any case: Bun's node:http honors them. */
+const PROXY = /_proxy$/i;
+
+/** Blanks every proxy variable in this process, and sets NO_PROXY to everything, so no request
+ * the recorder makes in process goes through a proxy, under Bun as under Node. Blanked, not
+ * deleted: Bun keeps its own copy of the environment, which an assignment reaches and a delete
+ * does not. gh and glab still get the proxies the recorder started with. */
+export function isolateFromProxies(env: NodeJS.ProcessEnv = process.env): void {
+  for (const name of Object.keys(env)) if (PROXY.test(name)) env[name] = "";
+  env.NO_PROXY = "*";
+  env.no_proxy = "*";
 }
 
 /** glab's stderr line for a failed response: GitLab's message and the status, or the status.
@@ -647,7 +611,8 @@ async function record(out: string, rib: string): Promise<void> {
   try {
     const host = {
       appData,
-      capturedPath: process.env.PATH ?? "",
+      capturedPath: inherited.PATH ?? "",
+      env: inherited,
       installer: { binDir: async () => undefined },
     };
     const { meta, facts } = await recordSweep({
@@ -951,6 +916,7 @@ async function replayRib(rib: string, out: string): Promise<void> {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  isolateFromProxies();
   if (process.argv[2] === "--oracle") {
     const [rib, out] = process.argv.slice(3);
     if (!rib || !out) throw new Error("usage: --oracle <rib checkout> <sweep directory>");

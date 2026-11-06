@@ -1,11 +1,14 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { execFile, spawnSync } from "node:child_process";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingHttpHeaders } from "node:http";
 import { type AddressInfo, createServer as createTcpServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CORE_LIB_REPO, TEMPLATE_REPO } from "../packages/core/src/config.js";
 import type { ExecOptions, ExecOutput } from "../packages/core/src/exec/port.js";
@@ -25,6 +28,9 @@ import {
 } from "./record-sweep.js";
 
 const NOW = new Date("2026-11-05T12:00:00Z");
+const RECORDER = fileURLToPath(new URL("./record-sweep.ts", import.meta.url));
+const BUN = spawnSync("bun", ["--version"]).status === 0;
+const execFileAsync = promisify(execFile);
 const outs: string[] = [];
 
 afterEach(() => {
@@ -216,6 +222,17 @@ describe("recordSweep", () => {
   });
 });
 
+/** A server that sends a 200 with the head given and part of its body, then drops the
+ * connection. */
+async function cutting(headers: Record<string, string>, part: string) {
+  const server = createServer((_request, response) => {
+    response.writeHead(200, { "content-type": "application/json", ...headers });
+    response.write(part);
+    setTimeout(() => response.socket?.destroy(), 20);
+  });
+  return { server, port: await listening(server) };
+}
+
 describe("group-scoped reads", () => {
   // A public group does not make its projects public: a signed-in group read can return issues
   // of private projects the account sees, and of confidential issues in public ones.
@@ -285,7 +302,6 @@ describe("group-scoped reads", () => {
         for (const headers of seen) {
           expect(Object.keys(headers).sort()).toEqual([
             "accept",
-            "accept-encoding",
             "connection",
             "host",
             "user-agent",
@@ -353,7 +369,7 @@ describe("group-scoped reads", () => {
     }
   });
 
-  it("read a chunked body and follow no redirect", async () => {
+  it("read a whole body, chunked, and follow no redirect", async () => {
     const server = createServer((request, response) => {
       if (request.url?.includes("moved")) {
         response.writeHead(302, { location: "https://elsewhere.example/" });
@@ -382,54 +398,33 @@ describe("group-scoped reads", () => {
     }
   });
 
-  describe("a response whose framing is not whole", () => {
-    /** A server that answers every request with the bytes given, then closes. */
-    async function answering(raw: string) {
-      const server = createTcpServer((socket) => {
-        socket.once("data", () => socket.end(raw));
-      });
-      return { server, port: await listening(server) };
-    }
-    const head = (...fields: string[]) =>
-      ["HTTP/1.1 200 OK", "Content-Type: application/json", ...fields, "", ""].join("\r\n");
-    const chunked = head("Transfer-Encoding: chunked");
-    const failed = { stdout: "", exit: 1 };
-
+  describe("Node's response handling", () => {
     it.each([
-      ["a chunk size with junk after it", `${chunked}2zz\r\n[]\r\n0\r\n\r\n`],
-      ["a chunk size that is not hex", `${chunked}0x2\r\n[]\r\n0\r\n\r\n`],
-      ["chunk data without its CRLF", `${chunked}2\r\n[]0\r\n\r\n`],
-      ["chunk data followed by other bytes", `${chunked}2\r\n[]XY0\r\n\r\n`],
-      ["no CRLF after the last chunk", `${chunked}2\r\n[]\r\n0\r\n`],
-      ["an unterminated trailer", `${chunked}2\r\n[]\r\n0\r\nX-Trailer: 1\r\n`],
-      ["bytes after the last chunk", `${chunked}2\r\n[]\r\n0\r\n\r\n[{"id":1}]`],
-      ["a chunk cut short", `${chunked}a\r\n[{"id":`],
-      ["a body shorter than its Content-Length", `${head("Content-Length: 10")}[]`],
-      ["a body longer than its Content-Length", `${head("Content-Length: 2")}[]{"id":1}`],
-      ["a Content-Length that is not a number", `${head("Content-Length: 2x")}[]`],
-    ])("fail a read on %s", async (_, raw) => {
-      const { server, port } = await answering(raw);
+      ["a body shorter than its Content-Length", { "content-length": "10" }],
+      ["a chunked body without its last chunk", {}],
+    ])("fail a read on %s, the connection closed early", async (_, headers) => {
+      const { server, port } = await cutting(headers, '[{"id":');
       try {
-        expect(await anonymousGroupRead(toLocal(port), "groups/x/issues", {})).toMatchObject(
-          failed,
-        );
+        expect(await anonymousGroupRead(toLocal(port), "groups/x/issues", {})).toMatchObject({
+          stdout: "",
+          exit: 1,
+        });
       } finally {
         await closing(server);
       }
     });
 
-    it.each([
-      ["chunk extensions", `${chunked}2;name=value\r\n[]\r\n0\r\n\r\n`],
-      ["a trailer", `${chunked}1\r\n[\r\n1\r\n]\r\n0\r\nX-Trailer: 1\r\n\r\n`],
-      ["an exact Content-Length", `${head("Content-Length: 2")}[]`],
-      ["a body read to the close", `${head()}[]`],
-    ])("read a whole body with %s", async (_, raw) => {
-      const { server, port } = await answering(raw);
+    it("fail a read on a status that is not 2xx, without its body", async () => {
+      const server = createServer((_request, response) => {
+        response.writeHead(500, { "content-type": "text/plain" });
+        response.end("ISSUE-BODY in an error page");
+      });
+      const port = await listening(server);
       try {
         expect(await anonymousGroupRead(toLocal(port), "groups/x/issues", {})).toEqual({
-          stdout: "[]",
-          stderr: "",
-          exit: 0,
+          stdout: "",
+          stderr: "glab: HTTP 500\n",
+          exit: 1,
         });
       } finally {
         await closing(server);
@@ -437,7 +432,7 @@ describe("group-scoped reads", () => {
     });
 
     it("never records a cut-short body as a successful read", async () => {
-      const { server, port } = await answering(`${chunked}2\r\n[]\r\n0\r\n`);
+      const { server, port } = await cutting({ "content-length": "10" }, "[]");
       try {
         const { entries } = await record(
           visibility({ github: [CORE_LIB_REPO] }),
@@ -451,6 +446,68 @@ describe("group-scoped reads", () => {
         await closing(server);
       }
     });
+  });
+
+  // The recorder runs under Bun, whose node:http honors proxy variables, read on each request.
+  it.skipIf(!BUN)("go direct under Bun once the recorder blanks every proxy variable", async () => {
+    let proxied = 0;
+    const proxy = createTcpServer((socket) => {
+      proxied++;
+      socket.destroy();
+    });
+    const proxyPort = await listening(proxy);
+    const seen: IncomingHttpHeaders[] = [];
+    const server = createServer((request, response) => {
+      seen.push(request.headers);
+      response.setHeader("content-type", "application/json");
+      response.end("[]");
+    });
+    const port = await listening(server);
+    const dir = mkdtempSync(join(tmpdir(), "spi-code-record-bun-"));
+    outs.push(dir);
+    const script = join(dir, "get.ts");
+    writeFileSync(
+      script,
+      [
+        `import { isolatedGet, isolateFromProxies } from ${JSON.stringify(RECORDER)};`,
+        `if (process.argv[2] === "isolate") isolateFromProxies();`,
+        "const url = new URL(process.argv[3]);",
+        "const answered = await isolatedGet(url, AbortSignal.timeout(10_000)).catch(String);",
+        "console.log(JSON.stringify(answered));",
+      ].join("\n"),
+    );
+    const via = `http://proxy-user:proxy-pass@127.0.0.1:${proxyPort}`;
+    const env: NodeJS.ProcessEnv = { ...process.env, ...SIGNED_IN, NO_PROXY: "", no_proxy: "" };
+    for (const name of ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY"]) {
+      env[name] = via;
+      env[name.toLowerCase()] = via;
+    }
+    const issues = `http://127.0.0.1:${port}/api/v4/groups/x/issues`;
+    const run = async (mode: string, url = issues) =>
+      JSON.parse((await execFileAsync("bun", [script, mode, url], { env, cwd: dir })).stdout);
+    try {
+      // Unblanked, Bun does go through the proxy.
+      await run("plain");
+      expect(proxied).toBeGreaterThan(0);
+      expect(seen).toEqual([]);
+      proxied = 0;
+      expect(await run("isolate")).toEqual({ status: 200, type: "application/json", body: "[]" });
+      expect(proxied).toBe(0);
+      expect(seen).toHaveLength(1);
+      for (const name of CREDENTIAL_HEADERS) expect(seen[0]?.[name]).toBeUndefined();
+      expect(JSON.stringify(seen)).not.toMatch(/glpat|oauth-recording|job-token|proxy-pass/);
+      // Bun's node:http fails a body cut short too.
+      const cut = await cutting({ "content-length": "10" }, "[]");
+      try {
+        const url = `http://127.0.0.1:${cut.port}/api/v4/groups/x/issues`;
+        expect(await run("isolate", url)).toBe("Error: response cut short");
+      } finally {
+        await closing(cut.server);
+      }
+    } finally {
+      await closing(server);
+      await closing(proxy);
+    }
   });
 
   it("refuse a URL that carries credentials", async () => {
