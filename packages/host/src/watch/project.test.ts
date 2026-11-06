@@ -100,7 +100,12 @@ describe("Watch projection", () => {
       ...snapshot.campaigns.map(({ id }) => ({ kind: "campaign", id })),
     ]);
     for (const { anchor, content } of snapshot.readings) {
-      if (anchor.kind === "upstream" || anchor.kind === "service" || anchor.kind === "security") {
+      if (
+        anchor.kind === "upstream" ||
+        anchor.kind === "environment" ||
+        anchor.kind === "service" ||
+        anchor.kind === "security"
+      ) {
         expect(content?.tiles).toHaveLength(3);
         expect(content?.items.length).toBeLessThanOrEqual(5);
       } else expect(content).toBeNull();

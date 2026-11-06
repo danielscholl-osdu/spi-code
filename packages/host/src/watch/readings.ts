@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: MIT
 
 import type { Anchor, Campaign, Reading, ReleaseDoc, WatchBriefing } from "@spi-code/contracts";
-import { type Model, securityReading, serviceReading, upstreamReading } from "@spi-code/core";
+import {
+  environmentReading,
+  type Model,
+  securityReading,
+  serviceReading,
+  upstreamReading,
+} from "@spi-code/core";
 import type { WatchInput } from "./project.js";
 
 export interface ReadingContext {
@@ -34,7 +40,18 @@ export const readingFor: Record<Anchor["kind"], PlaceReader> = {
           now: input.context.clock.now(),
         })
       : null,
-  environment: (_anchor, _context) => null,
+  environment: (_anchor, { model, input, briefing }) => {
+    const reads = input.envelopeReads ?? input.reads;
+    return environmentReading({
+      model,
+      items: [...briefing.focus, ...briefing.rest],
+      facts: input.facts,
+      lifecycle: reads.lifecycle ?? [],
+      reads: Object.values(reads).flatMap((area) => area ?? []),
+      stackRepo: input.context.stackRepo,
+      now: input.context.clock.now(),
+    });
+  },
   engineering: (_anchor, _context) => null,
   releases: (_anchor, _context) => null,
   "release-month": (_anchor, _context) => null,

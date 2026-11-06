@@ -59,3 +59,4 @@ export * from "./model/campaigns.js";
 export * from "./readings/index.js";
 
 export * from "./readings/security.js";
+export * from "./readings/environment.js";
