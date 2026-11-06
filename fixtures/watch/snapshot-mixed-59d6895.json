@@ -1713,7 +1713,37 @@
             "counts": "latest release · no release review open"
           }
         ],
-        "items": [],
+        "items": [
+          {
+            "id": "repo:partition",
+            "ids": [
+              "alert:Azure/osdu-spi-partition:code:CodeQL:java/spring-disabled-csrf-protection:provider/partition-azure",
+              "alert:Azure/osdu-spi-partition:code:CodeQL:java/log-injection:provider/partition-azure"
+            ],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "partition",
+            "title": "3 SPI-owned CodeQL findings",
+            "sub": "2 high or critical in SPI-owned shipped code · 7 upstream-origin findings",
+            "cause": "3 SPI-owned CodeQL findings.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [
+              {
+                "label": "Disabled Spring CSRF protection",
+                "url": "https://github.com/Azure/osdu-spi-partition/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+              },
+              {
+                "label": "Log Injection",
+                "url": "https://github.com/Azure/osdu-spi-partition/security/code-scanning/5"
+              }
+            ],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Security"
+          }
+        ],
         "folded": "Template: 14 commits behind osdu-spi; template-sync PR #174 open."
       }
     },
@@ -1771,6 +1801,30 @@
             },
             "owned": false,
             "group": "Stopped"
+          },
+          {
+            "id": "repo:entitlements",
+            "ids": [
+              "alert:Azure/osdu-spi-entitlements:code:CodeQL:java/spring-disabled-csrf-protection:provider/entitlements-v2-azure"
+            ],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "entitlements",
+            "title": "2 SPI-owned CodeQL findings",
+            "sub": "2 high or critical in SPI-owned shipped code · 13 upstream-origin findings",
+            "cause": "2 SPI-owned CodeQL findings.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [
+              {
+                "label": "Disabled Spring CSRF protection",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+              }
+            ],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Security"
           }
         ],
         "folded": "Template: 14 commits behind osdu-spi; template-sync PR #48 open."
@@ -1826,6 +1880,30 @@
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
+          },
+          {
+            "id": "repo:legal",
+            "ids": [
+              "alert:Azure/osdu-spi-legal:code:CodeQL:java/spring-disabled-csrf-protection:provider/legal-azure"
+            ],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "legal",
+            "title": "2 SPI-owned CodeQL findings",
+            "sub": "2 high or critical in SPI-owned shipped code · 4 upstream-origin findings",
+            "cause": "2 SPI-owned CodeQL findings.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [
+              {
+                "label": "Disabled Spring CSRF protection",
+                "url": "https://github.com/Azure/osdu-spi-legal/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+              }
+            ],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Security"
           }
         ],
         "folded": "Template: 14 commits behind osdu-spi; template-sync PR #33 open."
@@ -1855,7 +1933,42 @@
             "counts": "latest release · no release review open"
           }
         ],
-        "items": [],
+        "items": [
+          {
+            "id": "repo:schema",
+            "ids": [
+              "alert:Azure/osdu-spi-schema:code:CodeQL:java/spring-disabled-csrf-protection:provider/schema-azure",
+              "alert:Azure/osdu-spi-schema:code:CodeQL:java/log-injection:provider/schema-azure",
+              "alert:Azure/osdu-spi-schema:dep:testing/schema-test-azure/pom.xml:org.springframework.retry:spring-retry"
+            ],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "schema",
+            "title": "5 SPI-owned CodeQL findings · 1 SPI-owned dependency finding",
+            "sub": "3 high or critical in SPI-owned shipped code · 39 upstream-origin findings",
+            "cause": "5 SPI-owned CodeQL findings · 1 SPI-owned dependency finding.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [
+              {
+                "label": "Disabled Spring CSRF protection",
+                "url": "https://github.com/Azure/osdu-spi-schema/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+              },
+              {
+                "label": "Log Injection",
+                "url": "https://github.com/Azure/osdu-spi-schema/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Flog-injection"
+              },
+              {
+                "label": "spring-retry",
+                "url": "https://github.com/Azure/osdu-spi-schema/security/dependabot/22"
+              }
+            ],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Security"
+          }
+        ],
         "folded": "Template: 12 commits behind osdu-spi; template-sync PR #37 open."
       }
     },
@@ -1883,7 +1996,37 @@
             "counts": "latest release · no release review open"
           }
         ],
-        "items": [],
+        "items": [
+          {
+            "id": "repo:file",
+            "ids": [
+              "alert:Azure/osdu-spi-file:code:CodeQL:java/spring-disabled-csrf-protection:provider/file-azure",
+              "alert:Azure/osdu-spi-file:code:CodeQL:java/log-injection:provider/file-azure"
+            ],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "file",
+            "title": "6 SPI-owned CodeQL findings",
+            "sub": "2 high or critical in SPI-owned shipped code · 18 upstream-origin findings",
+            "cause": "6 SPI-owned CodeQL findings.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [
+              {
+                "label": "Disabled Spring CSRF protection",
+                "url": "https://github.com/Azure/osdu-spi-file/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection"
+              },
+              {
+                "label": "Log Injection",
+                "url": "https://github.com/Azure/osdu-spi-file/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Flog-injection"
+              }
+            ],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Security"
+          }
+        ],
         "folded": "Template: 14 commits behind osdu-spi; template-sync PR #51 open."
       }
     },
