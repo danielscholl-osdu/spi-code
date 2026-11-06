@@ -8,7 +8,9 @@ successful or retained observation, never the retry time. Failure takes
 precedence over a cut, and a cut over staleness. Exactly twice the interval is
 still fresh. All original records remain available, including each cut's
 details, even when the envelope reports failed or stale. The envelope's
-completeness summarizes the first cut; its records preserve every cut.
+completeness sums `read` and `total` across every cut read, with a reason naming
+how many reads were cut, their services and their reasons. A single cut read's
+completeness is kept exactly as recorded.
 An empty area is unread. Only an area with exclusively inferred reads is
 marked inferred.
 
