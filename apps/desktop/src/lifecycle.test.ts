@@ -16,6 +16,7 @@ import {
 } from "../../../packages/core/src/index.js";
 import { openRunStore } from "../../../packages/host/src/store/store.js";
 import { SweepService } from "../../../packages/host/src/sweep/service.js";
+import { reapProcesses, stopHostTree } from "./host-tree.js";
 import {
   createLifecycle,
   HOST_KILL_WAIT_MS,
@@ -295,8 +296,8 @@ function leaseStore(owner: string) {
   };
 }
 
-it("bounds the stop at 3 s of grace and 1 s after a hard kill", () => {
-  expect(HOST_STOP_GRACE_MS).toBe(3000);
+it("bounds the stop at 2 s of grace and 1 s after a hard kill", () => {
+  expect(HOST_STOP_GRACE_MS).toBe(2000);
   expect(HOST_KILL_WAIT_MS).toBe(1000);
 });
 
@@ -307,7 +308,7 @@ it("does not hard-kill a host that stops within its grace", async () => {
   host.exit();
   await stopping;
   expect(host.kill).not.toHaveBeenCalled();
-  expect(timers.pending).toEqual([expect.objectContaining({ ms: 3000, cancelled: true })]);
+  expect(timers.pending).toEqual([expect.objectContaining({ ms: 2000, cancelled: true })]);
 });
 
 it("hard-kills a host that ignores SIGTERM, then Quit releases leases and completes", async () => {
@@ -428,5 +429,176 @@ it("quits cleanly when the run store has no leases table", async () => {
     expect(log).toHaveBeenCalledWith("Run store has no leases table; nothing to release");
   } finally {
     rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+function hostTree(...runtimes: number[]) {
+  const live = new Set(runtimes);
+  const kill = vi.fn((pid: number) => {
+    live.delete(pid);
+  });
+  const capture = vi.fn(async (_pid: number) => [...runtimes]);
+  const log = vi.fn();
+  return {
+    live,
+    kill,
+    capture,
+    log,
+    options: {
+      capture,
+      reap: (pids: readonly number[]) =>
+        reapProcesses(pids, { platform: "darwin", kill, alive: (pid) => live.has(pid) }),
+      log,
+    },
+  };
+}
+
+it("captures the runtime before SIGTERM and kills it when it outlives the host", async () => {
+  const timers = fakeTimers();
+  const host = stubbornHost();
+  const tree = hostTree(501);
+  const store = leaseStore("graceful-host");
+  try {
+    const quitting = stopHostAndReleaseLeases(
+      () =>
+        stopHostTree(
+          41,
+          () => stopWithin(host.stop, host.kill, { schedule: timers.schedule }),
+          tree.options,
+        ),
+      store.path,
+    );
+    await vi.waitFor(() => expect(host.stop).toHaveBeenCalledOnce());
+    expect(tree.capture).toHaveBeenCalledWith(41);
+    expect(tree.capture.mock.invocationCallOrder[0]).toBeLessThan(
+      host.stop.mock.invocationCallOrder[0] ?? 0,
+    );
+    host.exit();
+    await quitting;
+    expect(host.kill).not.toHaveBeenCalled();
+    expect(tree.kill).toHaveBeenCalledWith(501);
+    expect(tree.live.size).toBe(0);
+    expect(tree.log).not.toHaveBeenCalled();
+    expect(store.owner()).toBeNull();
+  } finally {
+    store.close();
+  }
+});
+
+it("kills the runtime when Electron reaps the host before the JS fallback, and Quit completes", async () => {
+  const timers = fakeTimers();
+  const host = stubbornHost();
+  const tree = hostTree(502, 503);
+  const { app, lifecycle } = fixture(
+    true,
+    vi.fn(() =>
+      stopHostTree(
+        42,
+        () => stopWithin(host.stop, host.kill, { schedule: timers.schedule }),
+        tree.options,
+      ),
+    ),
+  );
+  const quitting = lifecycle?.quit();
+  await vi.waitFor(() => expect(host.stop).toHaveBeenCalledOnce());
+  host.exit();
+  await quitting;
+  expect(timers.pending).toEqual([expect.objectContaining({ ms: 2000, cancelled: true })]);
+  expect(host.kill).not.toHaveBeenCalled();
+  expect(tree.kill.mock.calls).toEqual([[502], [503]]);
+  expect(tree.live.size).toBe(0);
+  expect(app.exited).toBe(true);
+});
+
+it("kills the runtime after a hard kill too", async () => {
+  const timers = fakeTimers();
+  const host = stubbornHost();
+  const tree = hostTree(504);
+  const stopping = stopHostTree(
+    43,
+    () => stopWithin(host.stop, host.kill, { schedule: timers.schedule, log: vi.fn() }),
+    tree.options,
+  );
+  await vi.waitFor(() => expect(timers.schedule).toHaveBeenCalledOnce());
+  timers.fire(HOST_STOP_GRACE_MS);
+  await stopping;
+  expect(host.kill).toHaveBeenCalledOnce();
+  expect(tree.kill).toHaveBeenCalledWith(504);
+  expect(tree.live.size).toBe(0);
+});
+
+it("quits normally when the runtime has already exited with the host", async () => {
+  const host = stubbornHost();
+  const tree = hostTree(505);
+  const stopping = stopHostTree(
+    44,
+    async () => {
+      await Promise.resolve();
+      tree.live.delete(505);
+      host.exit();
+    },
+    tree.options,
+  );
+  await stopping;
+  expect(tree.kill).not.toHaveBeenCalled();
+  expect(tree.log).not.toHaveBeenCalled();
+});
+
+it("releases leases and logs when a runtime survives quit, since it never held the store", async () => {
+  const tree = hostTree(506);
+  const store = leaseStore("exited-host");
+  try {
+    await stopHostAndReleaseLeases(
+      () =>
+        stopHostTree(45, async () => {}, {
+          ...tree.options,
+          reap: async (pids) => [...pids],
+        }),
+      store.path,
+    );
+    expect(tree.log).toHaveBeenCalledWith("Host descendants survived quit: 506");
+    expect(store.owner()).toBeNull();
+  } finally {
+    store.close();
+  }
+});
+
+it("still stops the host when its descendants cannot be captured", async () => {
+  const stop = vi.fn(async () => {});
+  const log = vi.fn();
+  const reap = vi.fn(async () => []);
+  await stopHostTree(46, stop, {
+    capture: async () => {
+      throw new Error("pgrep missing");
+    },
+    reap,
+    log,
+  });
+  expect(stop).toHaveBeenCalledOnce();
+  expect(reap).not.toHaveBeenCalled();
+  expect(log).toHaveBeenCalledWith("Host descendants not captured: pgrep missing");
+});
+
+it("reaps the runtime but keeps leases when the host's hard kill fails", async () => {
+  const tree = hostTree(507);
+  const store = leaseStore("stuck-host");
+  try {
+    await expect(
+      stopHostAndReleaseLeases(
+        () =>
+          stopHostTree(
+            47,
+            async () => {
+              throw new Error("kill EPERM");
+            },
+            tree.options,
+          ),
+        store.path,
+      ),
+    ).rejects.toThrow("kill EPERM");
+    expect(tree.kill).toHaveBeenCalledWith(507);
+    expect(store.owner()).toBe("stuck-host");
+  } finally {
+    store.close();
   }
 });

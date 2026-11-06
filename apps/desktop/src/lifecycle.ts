@@ -108,7 +108,7 @@ export function createLifecycle(
   };
 }
 
-export const HOST_STOP_GRACE_MS = 3000;
+export const HOST_STOP_GRACE_MS = 2000;
 export const HOST_KILL_WAIT_MS = 1000;
 
 interface StopBound {

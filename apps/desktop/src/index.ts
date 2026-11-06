@@ -21,6 +21,7 @@ import {
 } from "electron";
 import { externalLinkHandlers } from "./external-links.js";
 import { hostLaunch } from "./host-launch.js";
+import { stopHostTree } from "./host-tree.js";
 import { createLifecycle, stopHostAndReleaseLeases, stopWithin } from "./lifecycle.js";
 import { assertNoProcessListeners } from "./smoke-listeners.js";
 import { smokeMessages } from "./smoke-messages.js";
@@ -97,7 +98,10 @@ async function stopHost(): Promise<void> {
     await exited;
     child = undefined;
   };
-  await stopHostAndReleaseLeases(() => stopWithin(stop, killHost), storePath);
+  await stopHostAndReleaseLeases(
+    () => stopHostTree(child?.pid, () => stopWithin(stop, killHost)),
+    storePath,
+  );
 }
 
 function forkHost(args: string[]): UtilityProcess {
