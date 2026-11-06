@@ -1,0 +1,23 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.line-toolbar { display: flex; align-items: center; gap: 12px; }
+.line-toolbar h1 { margin: 0; font-size: 16px; }
+.line-toolbar > span { color: var(--text-muted); font-size: 12px; }
+.line-controls { display: flex; gap: 6px; margin-left: auto; }
+.line-campaigns { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; padding: 0; border: 0; min-width: 0; }
+.line-campaigns button { padding: 2px 6px; border-radius: 4px; font-size: 11.5px; }
+.line-campaigns button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-surface); }
+.line-grid-scroll { overflow-x: auto; margin-top: 12px; }
+.line-grid { width: 100%; border-collapse: collapse; text-align: left; font-size: 12.5px; }
+.line-grid th, .line-grid td { border-bottom: 1px solid var(--border-soft); padding: 6px; vertical-align: top; }
+.line-grid thead th { color: var(--text-muted); font-size: 11px; font-weight: 500; white-space: nowrap; }
+.line-grid tbody th { font-weight: 500; white-space: nowrap; }
+.line-grid button { padding: 3px; border: 0; border-radius: 4px; background: transparent; color: var(--text); text-align: left; font-size: inherit; }
+.line-grid button:hover, .line-grid button[aria-pressed="true"] { background: var(--surface-raised); }
+.line-grid button[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--accent); }
+.line-glyph { font-family: var(--font-mono); color: var(--text-muted); }
+.line-glyph[data-substate="stopped"] { color: var(--error-text); }
+.line-glyph[data-substate="waiting-on-person"] { color: var(--warning-text); }
+.line-glyph[data-substate="in-progress"] { color: var(--accent-text); }
+.line-grid .line-fold { color: var(--text-muted); }

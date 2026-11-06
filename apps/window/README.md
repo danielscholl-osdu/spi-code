@@ -19,6 +19,16 @@ and `setup`. `app/routes.tsx` parses it and picks the middle frame's view; pages
 are not built yet say so. Appearance follows the system unless pinned in the title
 bar; the pin is saved in localStorage.
 
+The Line sheet opens over any surface with ⌘L (Ctrl+L on Windows), without
+replacing the centre or its selection. Escape or Close returns to that surface.
+Pin keeps the centre live beside the sheet; Unpin closes it. The pin survives a
+reload. Quiet service rows fold into one expandable line. Detected campaign chips
+filter to their member forks, with membership in a separate column; selecting the
+chip again clears the filter. Station glyphs name their typed sub-state, and cells
+open their own Detail reading. The recorded November 6 fixture is
+`fixtures/watch/snapshot-1106.json`, projected from the core recording by
+`TZ=UTC bun scripts/watch-snapshot.ts` after `pnpm build`.
+
 The Zustand Watch store keeps the highest snapshot cursor and the latest cursorless
 sweep and setup states. Each `host.hello` sends a validated `view.subscribe` from
 the retained cursor (zero before the first snapshot). Snapshot bodies remain opaque
