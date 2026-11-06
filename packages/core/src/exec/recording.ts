@@ -62,7 +62,8 @@ export class RecordingExec implements Exec {
       const result = await output;
       const ms = performance.now() - started;
       // A cancelled or failed run records the snapshot it delivered, never a held secret prefix.
-      const text = opts.signal?.aborted || result.error !== undefined ? delivery.snapshot : safe;
+      const text = result.snapshot ? (value: string) => value
+        : opts.signal?.aborted || result.error !== undefined ? delivery.snapshot : safe;
       const entry: ExecLogEntry = {
         ...call, stdout: text(result.stdout), stderr: text(result.stderr), exit: result.exit, ms,
         ...(result.error === undefined ? {} : { error: safe(result.error) }),

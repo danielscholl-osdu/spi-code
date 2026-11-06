@@ -132,6 +132,8 @@ export interface ExecOutput {
   stderr: string;
   exit: number | null;
   error?: string;
+  /** stdout and stderr are already the redacted snapshot the runner delivered; keep them as is. */
+  snapshot?: true;
 }
 
 export type ExecRunner = (cmd: string, args: string[], opts: ExecOptions) => Promise<ExecOutput>;

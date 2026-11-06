@@ -120,6 +120,7 @@ export class HostExec implements Exec {
             stderr: interrupted ? delivery.snapshot(stderr) : safe(stderr),
             exit: spawnFailed ? null : exit,
             ...(error === undefined ? {} : { error }),
+            ...(interrupted ? { snapshot: true as const } : {}),
           });
         };
         const fail = (message: string) => {

@@ -302,15 +302,18 @@ it.each([
 );
 
 it.each([
-  ["HostExec", "cancel"],
-  ["HostExec", "timeout"],
-  ["HostExec", "stream error"],
-  ["RecordingExec-over-HostExec", "cancel"],
-  ["RecordingExec-over-HostExec", "timeout"],
-  ["RecordingExec-over-HostExec", "stream error"],
+  ["HostExec", "cancel", "done-not-a-real-token", "done"],
+  ["HostExec", "timeout", "done-not-a-real-token", "done"],
+  ["HostExec", "stream error", "done-not-a-real-token", "done"],
+  ["RecordingExec-over-HostExec", "cancel", "done-not-a-real-token", "done"],
+  ["RecordingExec-over-HostExec", "timeout", "done-not-a-real-token", "done"],
+  ["RecordingExec-over-HostExec", "stream error", "done-not-a-real-token", "done"],
+  // A secret that spells the marker must not redact the delivered snapshot a second time.
+  ["RecordingExec-over-HostExec", "cancel", "redacted", "reda"],
+  ["RecordingExec-over-HostExec", "timeout", "redacted", "reda"],
 ] as const)(
-  "%s on %s logs and records the redacted terminal text it delivered, not a held secret prefix",
-  async (runner, path) => {
+  "%s on %s logs and records the redacted terminal text it delivered for %j, not its held prefix %j",
+  async (runner, path, token, held) => {
     const options = await fixture();
     const env = Object.fromEntries(
       Object.entries(process.env).filter(([name]) => !/TOKEN/i.test(name)),
@@ -329,8 +332,8 @@ it.each([
         };
         next();
       });
-      bytes(process.stdout, 'useful output!\\ndone')
-        .then(() => bytes(process.stderr, 'warning!\\ndone'))
+      bytes(process.stdout, 'useful output!\\n${held}')
+        .then(() => bytes(process.stderr, 'warning!\\n${held}'))
         .then(() => {
           require('node:fs').writeFileSync(${JSON.stringify(ready)}, String(process.pid));
           setInterval(() => {}, 1000);
@@ -342,19 +345,22 @@ it.each([
     const exec =
       runner === "HostExec" ? host : new RecordingExec(host.run, (line) => void lines.push(line));
     const run = exec.runText(process.execPath, ["-e", child], {
-      env: { REVIEW_TOKEN: "done-not-a-real-token" },
+      env: { REVIEW_TOKEN: token },
       signal: controller.signal,
       timeoutMs: path === "timeout" ? 1000 : 20_000,
       onOutput: (stream, chunk) => chunks[stream].push(chunk),
     });
     try {
-      await waitForPid(ready);
+      const pid = await waitForPid(ready);
       await delay(100);
       expect(chunks.stdout.join("")).toBe("useful output!\n");
       expect(chunks.stderr.join("")).toBe("warning!\n");
-      const started = spawned.at(-1);
       if (path === "cancel") controller.abort();
-      if (path === "stream error") started?.stdout?.destroy(new Error("stream failed"));
+      if (path === "stream error") {
+        const started = spawned.find((spawn) => spawn.pid === pid);
+        expect(started).toBeDefined();
+        started?.stdout?.destroy(new Error("stream failed"));
+      }
     } catch (failure) {
       controller.abort();
       throw failure;
