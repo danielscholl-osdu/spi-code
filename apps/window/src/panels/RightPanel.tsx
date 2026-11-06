@@ -188,15 +188,16 @@ export function RightPanel({
   const setTab = useStore(store, (state) => state.setTab);
   const evidenceScope = useStore(store, (state) => state.evidenceScope);
   const ownRow = useStore(store, (state) => state.row);
-  const matched = snapshot
-    ? selectionRows(snapshot).find(
-        ({ id, kind, prefixes }) =>
-          id === selected &&
-          (!ownRow ||
-            (kind === ownRow.kind &&
-              (!ownRow.prefixes || prefixes?.join("|") === ownRow.prefixes.join("|")))),
+  const candidates = snapshot
+    ? selectionRows(snapshot).filter(
+        ({ id, kind }) => id === selected && (!ownRow || kind === ownRow.kind),
       )
-    : undefined;
+    : [];
+  // A refresh can move a row; its id and kind still find it when no other row shares them.
+  const matched =
+    candidates.find(
+      ({ prefixes }) => !ownRow?.prefixes || prefixes?.join("|") === ownRow.prefixes.join("|"),
+    ) ?? (candidates.length === 1 ? candidates[0] : undefined);
   const row = matched ?? ownRow;
   const onKeyDown = (event: KeyboardEvent) => {
     const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;

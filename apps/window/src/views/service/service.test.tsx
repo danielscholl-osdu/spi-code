@@ -480,6 +480,37 @@ it.each(["service", "environment"] as const)(
   },
 );
 
+it("refreshes a selected service line's Detail after a sweep inserts a line before it", async () => {
+  const body = mixedSnapshot(mixed);
+  const { watch, page } = await renderBoth(body);
+  await click(page.service(STACK_LINE));
+  const next = structuredClone(body);
+  next.cursor = body.cursor + 1;
+  const issues = next.briefing.repositories.rows
+    .find(({ name }) => name === STACK)
+    ?.sections.find(({ title }) => title === "Issues");
+  if (!issues) throw new Error("Recorded stack needs Issues");
+  issues.lines.unshift({
+    ...stackLine(body, STACK_LINE),
+    id: "issue:Azure/osdu-spi-stack:330",
+    url: "https://github.com/Azure/osdu-spi-stack/issues/330",
+    text: "A newer issue",
+  });
+  Object.assign(stackLine(next, STACK_LINE), {
+    text: "Refreshed issue title",
+    tag: "regression",
+    sub: "reopened 1h ago",
+  });
+  await act(async () => watch.setState({ snapshot: { cursor: next.cursor, body: next } }));
+  const panel = container.querySelector("aside[aria-label='Detail']");
+  expect(panel?.querySelector(".detail-title")?.textContent).toBe("Refreshed issue title");
+  expect(detailFields()).toEqual([
+    ["Tag", "regression"],
+    ["Reading", "reopened 1h ago"],
+    ["Link", stackLine(body, STACK_LINE).url],
+  ]);
+});
+
 it("keeps unidentified stack lines unselectable in source order on both pages, and arrows past them", async () => {
   const body = mixedSnapshot(mixed);
   const issues = body.briefing.repositories.rows
