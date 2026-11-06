@@ -542,6 +542,44 @@ test.skipIf(process.platform === "win32")(
   },
 );
 
+const repairSwaps = [
+  ["bin", "link"],
+  ["bin", "directory"],
+  ["version", "link"],
+  ["version", "directory"],
+] as const;
+
+test.each(repairSwaps.filter(([, swap]) => swap !== "link" || process.platform !== "win32"))(
+  "repair reclaim retains an installed %s directory replaced by a %s at readdir",
+  async (level, swap) => {
+    const appData = join(home, "repair-swap");
+    const version = join(appData, "tools", "gh", "1.0.0");
+    const at = level === "bin" ? join(version, "bin") : version;
+    await mkdir(join(version, "bin"), { recursive: true });
+    const outside = join(home, "outside");
+    const leftover = join(outside, ...(level === "bin" ? [] : ["bin"]), ".repair-sentinel");
+    await mkdir(dirname(leftover), { recursive: true });
+    await writeFile(leftover, "keep");
+    const old = new Date(Date.now() - 48 * 60 * 60_000);
+    await utimes(leftover, old, old);
+    fsHooks.readdir = (path) => {
+      if (path !== at) return;
+      fsHooks.readdir = undefined;
+      renameSync(at, `${at}-displaced`);
+      if (swap === "link") symlinkSync(outside, at);
+      else renameSync(outside, at);
+    };
+    fsHooks.rename = (_from, to) => {
+      if (to === version) throw new Error("stop before publish");
+    };
+    await expect(new ToolInstaller(appData, manifest(), platform).install("gh")).rejects.toThrow(
+      "stop before publish",
+    );
+    const survivor = swap === "link" ? leftover : leftover.replace(outside, at);
+    expect(await readFile(survivor, "utf8")).toBe("keep");
+  },
+);
+
 test.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
   "a stale entry that cannot be removed never blocks the install",
   async () => {

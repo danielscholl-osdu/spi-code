@@ -183,13 +183,27 @@ async function unlinkEntry(path: string, stats: BigIntStats): Promise<void> {
   }
 }
 
+interface Traversed {
+  path: string;
+  identity: BigIntStats;
+  // Only the directory a scan starts from may be reached through a link.
+  follow?: boolean;
+}
+
+async function unchangedDirectories(directories: readonly Traversed[]): Promise<boolean> {
+  for (const { path, identity, follow } of directories) {
+    const now = await (follow ? stat(path, { bigint: true }) : lstat(path, { bigint: true })).catch(
+      () => undefined,
+    );
+    if (!(now?.isDirectory() && now.dev === identity.dev && now.ino === identity.ino)) return false;
+  }
+  return true;
+}
+
 // Node has no unlinkat, so each step first confirms the directory is still the one that was
 // listed. A tree replaced by a link or another directory mid-walk is retained, never followed.
 async function removeTree(path: string, identity: BigIntStats): Promise<boolean> {
-  const unchanged = async () => {
-    const now = await lstat(path, { bigint: true }).catch(() => undefined);
-    return now?.isDirectory() === true && now.dev === identity.dev && now.ino === identity.ino;
-  };
+  const unchanged = () => unchangedDirectories([{ path, identity }]);
   if (!(await unchanged())) return false;
   const names = await readdir(path);
   if (!(await unchanged())) return false;
@@ -223,26 +237,37 @@ async function reclaimStale(
   descend: (path: string) => boolean = () => false,
 ): Promise<void> {
   // Reclaim is best effort: a locked or unreadable leftover must never block an install.
-  let names: string[];
-  try {
-    names = await readdir(directory);
-  } catch {
-    return;
-  }
-  for (const name of names) {
-    const path = join(directory, name);
+  async function scan(traversed: readonly Traversed[], directory: string): Promise<void> {
+    let names: string[];
     try {
-      // lstat ages and shapes the entry itself, never a symlink's target.
-      const stats = await lstat(path, { bigint: true });
-      if (matches(name)) {
-        if (Number(stats.mtimeMs) < cutoff) await reclaim(path, stats);
-      } else if (stats.isDirectory() && descend(path)) {
-        await reclaimStale(path, matches, cutoff, reclaim, descend);
-      }
+      names = await readdir(directory);
     } catch {
-      // Leave it for a later install to retry.
+      return;
+    }
+    // A directory replaced before or during the listing named another tree's entries: retain it.
+    if (!(await unchangedDirectories(traversed))) return;
+    for (const name of names) {
+      const path = join(directory, name);
+      try {
+        // lstat ages and shapes the entry itself, never a symlink's target.
+        const stats = await lstat(path, { bigint: true });
+        if (matches(name)) {
+          if (Number(stats.mtimeMs) < cutoff) {
+            // The entry was found through every traversed directory, so each must still be the
+            // one that was listed.
+            if (!(await unchangedDirectories(traversed))) return;
+            await reclaim(path, stats);
+          }
+        } else if (stats.isDirectory() && descend(path)) {
+          await scan([...traversed, { path, identity: stats }], path);
+        }
+      } catch {
+        // Leave it for a later install to retry.
+      }
     }
   }
+  const identity = await stat(directory, { bigint: true }).catch(() => undefined);
+  if (identity?.isDirectory()) await scan([{ path: directory, identity, follow: true }], directory);
 }
 
 export class ToolInstaller {
