@@ -69,7 +69,8 @@ export const readingFor: Record<Anchor["kind"], PlaceReader> = {
     engineeringReading({
       model,
       items: [...briefing.focus, ...briefing.rest],
-      reads: Object.values(input.envelopeReads ?? input.reads).flatMap((area) => area ?? []),
+      reads: input.envelopeReads ?? input.reads,
+      runs: input.facts.runs.data,
     }),
   releases: (_anchor, { input, briefing, documents }) =>
     releasesReading({

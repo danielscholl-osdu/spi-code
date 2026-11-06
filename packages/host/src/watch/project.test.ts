@@ -162,6 +162,54 @@ describe("Watch projection", () => {
     expect(stationSubstate({ ...station, state: "moving" }, line, input)).toBe("in-progress");
   });
 
+  it("does not qualify engineering adoption on a failed radar read from a fork", () => {
+    const input = fixtureInput();
+    const snapshot = projectWatch({
+      ...input,
+      reads: {
+        ...input.reads,
+        radar: [
+          {
+            source: "Azure/osdu-spi-partition",
+            object: "main:provider/partition-azure/pom.xml",
+            observedAt: input.context.clock.now().toISOString(),
+            completeness: { kind: "complete" },
+            failure: "unavailable",
+          },
+        ],
+      },
+    });
+    expect(
+      snapshot.readings.find(({ anchor }) => anchor.kind === "engineering")?.content,
+    ).not.toHaveProperty("qualifier");
+  });
+
+  it.each(["template", "runs"] as const)(
+    "names failed %s reads in the engineering qualifier",
+    (area) => {
+      const input = fixtureInput();
+      const snapshot = projectWatch({
+        ...input,
+        reads: {
+          ...input.reads,
+          [area]: [
+            {
+              source: area === "template" ? TEMPLATE_REPO : "Azure/osdu-spi-partition",
+              object: area === "template" ? "compare" : "actions/runs",
+              observedAt: input.context.clock.now().toISOString(),
+              completeness: { kind: "complete" },
+              failure: "unavailable",
+            },
+          ],
+        },
+      });
+      const source = area === "template" ? "GitHub template" : "GitHub Actions";
+      expect(
+        snapshot.readings.find(({ anchor }) => anchor.kind === "engineering")?.content?.qualifier,
+      ).toBe(`${source} reads failed, so adoption or template changes could be missing.`);
+    },
+  );
+
   it("projects scheduled syncs and release reviews from their facts", () => {
     const input = fixtureInput();
     const repo = input.facts.github.data?.repos["Azure/osdu-spi-partition"];
