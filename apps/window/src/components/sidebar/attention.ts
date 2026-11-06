@@ -9,6 +9,25 @@ type SidebarAttention = {
   word: string | undefined;
 };
 
+const CLASS_WORDS: Record<FocusItem["cls"], string> = {
+  ENV: "environment",
+  ACCESS: "access",
+  TEST: "tests red",
+  HALT: "halt",
+  TOOLCHAIN: "toolchain",
+  CONFLICT: "conflict",
+  POLICY: "policy",
+  INFRA: "infra",
+  BUILD: "build red",
+  UNREAD: "unread",
+  PORT: "port",
+  SECURITY: "security",
+  ROLLOUT: "rollout",
+  INCIDENT: "incident",
+  GATE: "gate",
+  READY: "ready",
+};
+
 function inScope(item: FocusItem, id: string, services: readonly string[]): boolean {
   const route = scopeRoute(item.scope, services);
   if (id.startsWith("service:")) {
@@ -45,13 +64,14 @@ export function sidebarAttention(
         if (status === "failed" && retained) return [id, retained];
         const item = queue.find(({ item }) => inScope(item, id, services))?.item;
         const dot = item ? (`p${item.rung}` as const) : status === "unread" ? "unread" : undefined;
+        const tag = briefing.flow.rows.find(({ fork }) => id === `service:${fork}`)?.tag.trim();
         const word = facts.has(id)
           ? facts.get(id)
           : item
-            ? item.cls === "BUILD"
-              ? "build red"
-              : item.cls.toLowerCase()
-            : undefined;
+            ? CLASS_WORDS[item.cls]
+            : tag && tag !== "·"
+              ? tag
+              : undefined;
         return [
           id,
           {

@@ -98,6 +98,46 @@ it("shows each recorded service's highest queue priority and class word, not a c
   expect(container.querySelector('ul[aria-label="Services"] .sidebar-pip')).toBeNull();
 });
 
+it("shows a read service's flow tag when it has no queue items", async () => {
+  const body = structuredClone(recordedBody);
+  body.briefing.focus = [];
+  body.briefing.rest = [];
+  body.tree = body.tree.map((node) =>
+    node.id === "service:legal" ? { ...node, status: "fresh" } : node,
+  );
+  await render(undefined, undefined, body);
+  expect(attention("service/legal")).toEqual({ dot: null, priority: null, word: "wave 1" });
+});
+
+it.each(["", "  ", "·", " · "])("skips flow tag %j before the unread fallback", async (tag) => {
+  const body = structuredClone(recordedBody);
+  body.briefing.focus = [];
+  body.briefing.rest = [];
+  body.briefing.flow.rows = body.briefing.flow.rows.map((row) =>
+    row.fork === "legal" ? { ...row, tag } : row,
+  );
+  await render(undefined, undefined, body);
+  expect(attention("service/legal")).toEqual({
+    dot: "unread",
+    priority: "Unread",
+    word: "unread",
+  });
+});
+
+it.each([
+  ["TEST", "tests red"],
+  ["ENV", "environment"],
+  ["BUILD", "build red"],
+] as const)("uses the sidebar class word for %s", async (cls, word) => {
+  const first = recordedBody.briefing.focus[0];
+  if (!first) throw new Error("Recorded queue required");
+  const body = structuredClone(recordedBody);
+  body.briefing.focus = [{ ...first, cls, scope: "legal" }];
+  body.briefing.rest = [];
+  await render(undefined, undefined, body);
+  expect(attention("service/legal")).toEqual({ dot: "p0", priority: "P0", word });
+});
+
 it("takes the highest rung across focus and rest, including a folded port's services", async () => {
   const first = recordedBody.briefing.focus[0];
   const port = recordedBody.briefing.rest[0];
