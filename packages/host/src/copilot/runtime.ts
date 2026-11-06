@@ -13,7 +13,11 @@ import {
   type Tool,
 } from "@github/copilot-sdk";
 import type { ToolInstaller } from "@spi-code/tools";
-import { buildToolEnvironment, ghAuthToken } from "../env/shell-environment.js";
+import { ghAuthToken } from "../env/shell-environment.js";
+import {
+  buildManagedToolEnvironment,
+  createManagedToolEnvironment,
+} from "../env/tool-environment.js";
 
 export const tokenLifetimeSeconds = 60;
 export type TokenSource = () => Promise<string>;
@@ -111,23 +115,18 @@ export function unpackRuntimePath(path: string): string {
   return path.replace(/([\\/])app\.asar([\\/])/, "$1app.asar.unpacked$2");
 }
 
-function authEnvironment(options: RuntimeOptions, toolsDir = ""): NodeJS.ProcessEnv {
-  return buildToolEnvironment({
-    toolsDir,
+export async function buildAuthEnvironment(options: RuntimeOptions): Promise<NodeJS.ProcessEnv> {
+  return createManagedToolEnvironment({
+    appData: options.appDataDir,
     capturedPath: options.capturedPath,
-    kubeconfig: join(options.appDataDir, "kubeconfig"),
-    azureConfigDir: join(options.appDataDir, "azure"),
+    installer: options.installer ?? { binDir: async () => undefined },
     ...(options.env ? { env: options.env } : {}),
   });
 }
 
-export async function buildAuthEnvironment(options: RuntimeOptions): Promise<NodeJS.ProcessEnv> {
-  return authEnvironment(options, await options.installer?.binDir("gh"));
-}
-
 export function buildClientOptions(
   options: RuntimeOptions,
-  authPath?: string,
+  authEnvironment?: NodeJS.ProcessEnv | string,
 ): CopilotClientOptions {
   const cliPath = options.cliPath ?? resolveRuntimePath();
   if (!isAbsolute(cliPath) || !isAbsolute(options.appDataDir)) {
@@ -146,7 +145,15 @@ export function buildClientOptions(
     // The SDK overwrites COPILOT_HOME with baseDirectory when spawning the runtime.
     COPILOT_HOME: join(options.appDataDir, "copilot"),
   };
-  const env = authEnvironment(options, authPath);
+  const env =
+    typeof authEnvironment === "object"
+      ? { ...authEnvironment }
+      : buildManagedToolEnvironment({
+          appData: options.appDataDir,
+          capturedPath: options.capturedPath,
+          toolsDir: authEnvironment ?? "",
+          ...(options.env ? { env: options.env } : {}),
+        });
   for (const name of Object.keys(env)) {
     const upper = name.toUpperCase();
     if (Object.hasOwn(homes, upper) || upper === "HOMEDRIVE" || upper === "HOMEPATH") {
@@ -240,7 +247,7 @@ export class CopilotRuntime {
     }
     await this.disposeClient();
     const client = new CopilotClient({
-      ...buildClientOptions(this.options, env.PATH),
+      ...buildClientOptions(this.options, env),
       ...(this.options.credentialMode === "session" ? {} : { gitHubToken: token }),
     });
     try {

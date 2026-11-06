@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { execFile, spawn } from "node:child_process";
+import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import {
@@ -87,6 +88,10 @@ export class HostExec implements Exec {
       }
       if (opts.signal?.aborted) throw new Error("Command aborted.");
       const env = await createManagedToolEnvironment({ ...this.options, env: inherited });
+      await Promise.all([
+        mkdir(join(this.options.appData, "kube"), { recursive: true }),
+        mkdir(join(this.options.appData, "azure"), { recursive: true }),
+      ]);
       if (opts.signal?.aborted) throw new Error("Command aborted.");
       output = await new Promise<ExecOutput>((resolve) => {
         const child = spawn(cmd, args, {

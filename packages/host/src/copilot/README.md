@@ -2,7 +2,9 @@
 
 The host starts the SDK 1.0.26 platform package's `prebuilds/<platform>/copilot-runtime`
 (`.exe` on Windows) by absolute `connection.path`, over stdio. Empty mode uses
-`<appDataDir>/copilot`; the environment comes from `buildToolEnvironment`.
+`<appDataDir>/copilot`; auth and HostExec environments come from
+`createManagedToolEnvironment`. Its shared synchronous builder also supplies
+`buildClientOptions` when no resolved auth environment is passed.
 Only the runtime child's environment redirects `HOME`, `USERPROFILE`,
 `XDG_CACHE_HOME`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `XDG_DATA_HOME`, `LOCALAPPDATA`, `APPDATA`
 and `COPILOT_HOME` beneath app data. This includes the runtime's macOS caches
@@ -10,11 +12,17 @@ and Microsoft device ID. Token lookup uses a separate scrubbed environment
 with the operator's original home and gh configuration. The runtime child drops
 `HOMEDRIVE` and `HOMEPATH` so they cannot override its isolated `USERPROFILE`.
 Setup and the conversation backend pass their tool installer into the runtime.
-Auth environments resolve `installer.binDir("gh")` before each credential read,
-putting the managed `tools/gh/<version>/bin` first on PATH and falling back to
-the captured login-shell PATH when gh is not managed. Each runtime operation
-resolves it once and reuses that PATH if it starts a client. Installing gh after a
-failed lookup does not require restarting the backend. Tokens stay out of these
+Auth environments resolve `installer.binDir("gh")` and `installer.binDir("glab")`
+before each credential read, putting managed gh first, then glab, then the
+captured login-shell PATH. Missing managed tools fall back to the login-shell
+PATH. Both auth and HostExec use `<appDataDir>/kube/config` for `KUBECONFIG`
+and `<appDataDir>/azure` for `AZURE_CONFIG_DIR`. Environment building does not
+create directories; HostExec prepares these tool directories before spawning.
+Legacy `<appDataDir>/kubeconfig` files are left untouched; migration is tracked
+in `spicode-t1k.161`.
+Each runtime operation resolves the tool paths once and reuses the full auth
+environment if it starts a client, changing only the isolated homes. Installing gh
+after a failed lookup does not require restarting the backend. Tokens stay out of these
 environment objects; only the SDK's client credential receives the token.
 `ghAuthToken` defaults to `github.com`; Copilot reads also explicitly select it,
 never gh's default enterprise host, and time out after five seconds (or the

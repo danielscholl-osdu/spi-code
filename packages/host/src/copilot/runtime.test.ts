@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, isAbsolute, join, relative } from "node:path";
 import { inspect } from "node:util";
@@ -9,6 +9,8 @@ import type { CopilotClientOptions } from "@github/copilot-sdk";
 import { createToolInstaller } from "@spi-code/tools";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ghAuthToken } from "../env/shell-environment.js";
+import * as toolEnvironment from "../env/tool-environment.js";
+import { HostExec } from "../exec/host-exec.js";
 import { createConversationBackend } from "../process/conversation.js";
 import { probeCopilotSeat } from "../setup/seat.js";
 import {
@@ -75,6 +77,77 @@ describe("Copilot runtime boundary", () => {
     fake.list.mockResolvedValue({ models: [] });
     fake.configs.length = 0;
   });
+
+  it.each(["normal", "sentinel"] as const)(
+    "shares the %s managed environment between auth, the runtime child and HostExec",
+    async (builder) => {
+      const root = await mkdtemp(join(tmpdir(), "spicode-shared-env-"));
+      const appDataDir = join(root, "app");
+      const ghBin = join(appDataDir, "tools", "gh", "2.83.0", "bin");
+      const glabBin = join(appDataDir, "tools", "glab", "1.0.0", "bin");
+      const shellBin = join(root, "shell-bin");
+      const capturedPath = [shellBin, ghBin].join(delimiter);
+      const env = {
+        PATH: "foreign",
+        KUBECONFIG: "foreign",
+        AZURE_CONFIG_DIR: "foreign",
+        GH_TOKEN: "obviously-fake-inherited-token",
+        GITHUB_TOKEN: "obviously-fake-inherited-token",
+        COPILOT_GITHUB_TOKEN: "obviously-fake-inherited-token",
+      };
+      const installer = {
+        binDir: async (tool: string) =>
+          tool === "gh" ? ghBin : tool === "glab" ? glabBin : undefined,
+      };
+      const options = { appDataDir, capturedPath, installer, env };
+      const runtime = new CopilotRuntime(options, async () => "obviously-fake-sdk-token");
+      const createEnvironment = toolEnvironment.createManagedToolEnvironment;
+      const shared = vi.spyOn(toolEnvironment, "createManagedToolEnvironment");
+      const expected = {
+        PATH:
+          builder === "sentinel"
+            ? join(root, "shared-builder-only")
+            : [ghBin, glabBin, shellBin].join(delimiter),
+        KUBECONFIG:
+          builder === "sentinel"
+            ? join(root, "shared-builder-config")
+            : join(appDataDir, "kube", "config"),
+        AZURE_CONFIG_DIR: join(appDataDir, "azure"),
+      };
+      if (builder === "sentinel") {
+        shared.mockImplementation(async (options) => ({
+          ...(await createEnvironment(options)),
+          ...expected,
+        }));
+      }
+      try {
+        await mkdir(appDataDir);
+        const legacyConfig = join(appDataDir, "kubeconfig");
+        await writeFile(legacyConfig, "legacy configuration fixture");
+        const authEnv = await buildAuthEnvironment(options);
+        const result = await new HostExec({
+          appData: appDataDir,
+          capturedPath,
+          installer,
+          env,
+        }).runJSON(process.execPath, ["-e", "process.stdout.write(JSON.stringify(process.env))"]);
+        expect(result.ok).toBe(true);
+        if (!result.ok) throw new Error(result.error);
+        await runtime.start();
+        for (const actual of [authEnv, result.data, fake.configs.at(-1)?.env]) {
+          expect(actual).toMatchObject(expected);
+          for (const token of ["GH_TOKEN", "GITHUB_TOKEN", "COPILOT_GITHUB_TOKEN"]) {
+            expect(actual).not.toHaveProperty(token);
+          }
+        }
+        expect(await readFile(legacyConfig, "utf8")).toBe("legacy configuration fixture");
+      } finally {
+        await runtime.stop();
+        shared.mockRestore();
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
 
   it.skipIf(process.platform === "win32")(
     "prefers managed gh over a login-shell decoy after installation without leaking credentials",
@@ -291,8 +364,9 @@ describe("Copilot runtime boundary", () => {
     await runtime.listModels();
     await expect(runtime.createSession()).rejects.toThrow("session stub");
     expect(ghRunner).toHaveBeenCalledTimes(3);
-    expect(installer.binDir).toHaveBeenCalledTimes(3);
+    expect(installer.binDir).toHaveBeenCalledTimes(6);
     expect(installer.binDir).toHaveBeenCalledWith("gh");
+    expect(installer.binDir).toHaveBeenCalledWith("glab");
     expect(fake.configs[0]?.env?.PATH?.split(delimiter)).toEqual([bin, "/bin"]);
     for (const [env, options] of ghRunner.mock.calls) {
       expect(options).toEqual({ hostname: "github.com", timeoutMs: 5000 });
@@ -314,12 +388,9 @@ describe("Copilot runtime boundary", () => {
     async (operation) => {
       const firstBin = join("/tmp/spicode", "tools", "gh", "first", "bin");
       const secondBin = join("/tmp/spicode", "tools", "gh", "second", "bin");
+      const ghBins = [firstBin, secondBin, firstBin];
       const installer = {
-        binDir: vi
-          .fn()
-          .mockResolvedValueOnce(firstBin)
-          .mockResolvedValueOnce(secondBin)
-          .mockResolvedValueOnce(firstBin),
+        binDir: vi.fn(async (tool: string) => (tool === "gh" ? ghBins.shift() : undefined)),
       };
       const ghRunner = vi
         .fn()
@@ -342,8 +413,9 @@ describe("Copilot runtime boundary", () => {
         for (const [index, bin] of [firstBin, secondBin, firstBin].entries()) {
           if (index === 2) await runtime.stop();
           await runtime[operation]();
-          expect(installer.binDir).toHaveBeenCalledTimes(index + 1);
-          expect(installer.binDir).toHaveBeenLastCalledWith("gh");
+          expect(installer.binDir).toHaveBeenCalledTimes((index + 1) * 2);
+          expect(installer.binDir).toHaveBeenNthCalledWith(index * 2 + 1, "gh");
+          expect(installer.binDir).toHaveBeenLastCalledWith("glab");
           expect(ghRunner.mock.calls[index]?.[0]).toMatchObject({
             PATH: [bin, "/bin"].join(delimiter),
             HOME: "/operator",
