@@ -1,9 +1,19 @@
 # Window shell
 
-The three-pane Shore shell opens on Today and provides seven routes: Today,
-Repositories, Releases, Environment, Flow, Horizon and Setup. Each route owns its
-view folder; the shell owns the route table. Views and the inspector are placeholders
-until their M2 beads land. Appearance follows the system unless pinned in the title
+The shell follows T3 Code's layout: a 40 px title bar naming the current place, with
+toggles for the sidebar (⌘B), terminal (⌘J, not available yet) and right panel (⌘I),
+using Ctrl on Windows; a 232 px sidebar of things; the middle frame; and the right panel.
+The sidebar lists Find or ask, Inbox, Program (Template, Environment, Releases), the
+services in fleet order, Lenses (Flow, Repositories, Horizon), the Settled shelf and a
+footer with Setup and the sweep time. Its groups fold, and the fold is saved in
+localStorage; on a window shorter than 760 px Lenses folds first, then Program, unless
+the operator chose otherwise. Below 980 px wide the sidebar opens off-canvas and Escape
+closes it.
+
+The location hash holds the route: `inbox` (the landing place), `service/<id>`,
+`template`, `environment`, `releases`, `release/<month>`, `lens/<flow|repositories|horizon>`
+and `setup`. `app/routes.tsx` parses it and picks the middle frame's view; pages that
+are not built yet say so. Appearance follows the system unless pinned in the title
 bar; the pin is saved in localStorage.
 
 The Zustand Watch store keeps the highest snapshot cursor and the latest cursorless

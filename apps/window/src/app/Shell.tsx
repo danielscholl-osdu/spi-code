@@ -1,22 +1,26 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 import { WorstEnvelope } from "../components/evidence/WorstEnvelope.js";
-import { ProgramTree } from "../components/tree/ProgramTree.js";
+import { ProgramSidebar } from "../components/sidebar/ProgramSidebar.js";
+import { SidebarProvider } from "../components/sidebar/ui-sidebar.js";
 import { RightPanel, selectionStore } from "../panels/index.js";
 import { selectEnvelopes, watchStore } from "../store/watch.js";
 import { createAppearance } from "./appearance.js";
-import { routes, useSetupLanding } from "./routes.js";
+import { PanelControls } from "./PanelControls.js";
+import { RouteView, routeLabel, useHashRoute, useSetupLanding } from "./routes.js";
 
 export { watchStore };
 
 export function Shell({ children }: { children?: ReactNode }) {
   const envelopes = useStore(watchStore, useShallow(selectEnvelopes));
-  const [route, setRoute] = useState<(typeof routes)[number]>(routes[0]);
-  useSetupLanding(setRoute);
+  const [route, navigate] = useHashRoute();
+  useSetupLanding(navigate);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const toggleRightPanel = useCallback(() => setRightPanelOpen((open) => !open), []);
   const [appearance, setAppearance] = useState<ReturnType<typeof createAppearance>>();
   const [error, setError] = useState("");
   useEffect(() => {
@@ -35,40 +39,50 @@ export function Shell({ children }: { children?: ReactNode }) {
       unsubscribe();
     };
   }, []);
-  const View = route.View;
   return (
-    <div className="shell">
+    <SidebarProvider className="shell" data-right-panel={rightPanelOpen ? "open" : "closed"}>
       <header className="title-bar">
-        <strong>SPI Code</strong>
-        <WorstEnvelope envelopes={envelopes} />
-        <label>
-          Appearance{" "}
-          <select
-            aria-label="Appearance"
-            key={appearance?.pin}
-            defaultValue={appearance?.pin ?? "system"}
-            onChange={(event) => {
-              const value = event.target.value;
-              if (value === "system" || value === "light" || value === "dark")
-                appearance?.setPin(value);
-            }}
-          >
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
-        </label>
+        <div className="title-bar-place">
+          <strong>SPI Code</strong>
+          <span aria-hidden>·</span>
+          <span data-place>{routeLabel(route)}</span>
+        </div>
+        <div className="title-bar-controls">
+          <WorstEnvelope envelopes={envelopes} />
+          <label>
+            Appearance{" "}
+            <select
+              aria-label="Appearance"
+              key={appearance?.pin}
+              defaultValue={appearance?.pin ?? "system"}
+              onChange={(event) => {
+                const value = event.target.value;
+                if (value === "system" || value === "light" || value === "dark")
+                  appearance?.setPin(value);
+              }}
+            >
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+          <PanelControls rightPanelOpen={rightPanelOpen} onToggleRightPanel={toggleRightPanel} />
+        </div>
       </header>
-      <ProgramTree store={watchStore} route={route} onNavigate={setRoute} />
-      <main>
+      <ProgramSidebar store={watchStore} route={route} onNavigate={navigate} />
+      <main className="middle-frame">
         {error && <p role="alert">{error}</p>}
-        <View />
+        <RouteView route={route} />
         <details>
           <summary>Copilot turn</summary>
           {children}
         </details>
       </main>
-      <RightPanel store={selectionStore} />
-    </div>
+      {rightPanelOpen && (
+        <div id="app-right-panel" className="right-panel-frame">
+          <RightPanel store={selectionStore} />
+        </div>
+      )}
+    </SidebarProvider>
   );
 }

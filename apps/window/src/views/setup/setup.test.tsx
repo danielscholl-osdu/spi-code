@@ -23,6 +23,7 @@ let previous: Window["spi"];
 const send = vi.fn();
 
 beforeEach(() => {
+  window.location.hash = "";
   previous = window.spi;
   window.spi = {
     proof: false,
@@ -621,9 +622,21 @@ it("lands on Setup when the first host state is not ready and gates every Watch 
   await receive("setup.state", state());
   expect(container.querySelector("main h1")?.textContent).toBe("Setup");
   expect(container.querySelector('nav [aria-current="page"]')?.textContent).toBe("Setup");
-  const buttons = container.querySelectorAll<HTMLButtonElement>("nav button");
-  for (let index = 0; index < 6; index++) {
-    await act(async () => buttons[index]?.click());
+  const watchRoutes = [...container.querySelectorAll<HTMLButtonElement>("nav ul button")].filter(
+    (button) => button.textContent !== "Setup",
+  );
+  expect(watchRoutes.map((button) => button.textContent)).toEqual([
+    "Inbox",
+    "Template",
+    "Environment",
+    "Releases",
+    "Flow",
+    "Repositories",
+    "Horizon",
+  ]);
+  for (const button of watchRoutes) {
+    await act(async () => button.click());
+    expect(container.querySelector("main h1")?.textContent).toBe(button.textContent);
     expect(container.querySelector("main [role='status']")?.textContent).toContain(
       state().disabledReason,
     );
@@ -634,8 +647,8 @@ it("lands on Setup when the first host state is not ready and gates every Watch 
   expect(container.textContent).not.toContain("Watch unavailable");
 });
 
-it("keeps Today as the first route when Watch is ready", async () => {
+it("keeps the Inbox as the first route when Watch is ready", async () => {
   await receive("setup.state", { ...state(), watchReady: true, disabledReason: null });
   await render(<Shell />);
-  expect(container.querySelector("main h1")?.textContent).toBe("Today");
+  expect(container.querySelector("main h1")?.textContent).toBe("Inbox");
 });

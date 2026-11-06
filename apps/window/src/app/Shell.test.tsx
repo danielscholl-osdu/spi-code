@@ -2,17 +2,20 @@
 // SPDX-License-Identifier: MIT
 
 import { PROTOCOL_VERSION } from "@spi-code/contracts";
-import { act } from "react";
+import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
-import { expect, it, vi } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
 import briefing from "../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import releases from "../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
 import { testSnapshot } from "../store/test-snapshot.js";
 import { watchStore } from "../store/watch.js";
-import { routes } from "./routes.js";
 import { Shell } from "./Shell.js";
 
-it("renders exactly seven navigable placeholders and the supplied turn panel", async () => {
+type HappyWindow = { happyDOM: { setViewport(viewport: { width: number; height: number }): void } };
+const viewport = (width: number, height = 900) =>
+  (window as unknown as HappyWindow).happyDOM.setViewport({ width, height });
+
+async function mountShell(children?: ReactNode) {
   const unsubscribe = vi.fn();
   const previous = window.spi;
   window.spi = {
@@ -24,30 +27,152 @@ it("renders exactly seven navigable placeholders and the supplied turn panel", a
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
+  await act(async () => root.render(<Shell>{children}</Shell>));
+  return {
+    container,
+    unsubscribe,
+    async cleanup() {
+      await act(async () => root.unmount());
+      container.remove();
+      window.spi = previous;
+    },
+  };
+}
+
+const press = (key: string, init: KeyboardEventInit = { ctrlKey: true }) =>
+  act(async () => {
+    window.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, ...init }));
+  });
+
+beforeEach(() => {
+  window.location.hash = "";
+  viewport(1280);
+});
+
+it("navigates every sidebar thing through the hash, naming the place in the title bar", async () => {
+  const shell = await mountShell(<p>Turn panel</p>);
+  const { container } = shell;
   try {
-    await act(async () =>
-      root.render(
-        <Shell>
-          <p>Turn panel</p>
-        </Shell>,
-      ),
+    const place = () => container.querySelector("header [data-place]")?.textContent;
+    const button = (label: string) =>
+      [...container.querySelectorAll<HTMLButtonElement>("nav button")].find(
+        (item) => item.textContent === label,
+      );
+    expect(place()).toBe("Inbox");
+    expect(container.querySelector("main h1")?.textContent).toBe("Inbox");
+    expect(container.querySelector("main")?.textContent).toContain(
+      "This page is not available yet.",
     );
-    expect(routes).toHaveLength(7);
-    const buttons = container.querySelectorAll<HTMLButtonElement>("nav button");
-    expect(buttons).toHaveLength(7);
-    for (const [index, route] of routes.entries()) {
-      await act(async () => buttons[index]?.click());
-      expect(container.querySelector("main h1")?.textContent).toBe(route.label);
-      expect(buttons[index]?.getAttribute("aria-current")).toBe("page");
+    for (const [label, hash] of [
+      ["Template", "#template"],
+      ["Environment", "#environment"],
+      ["Releases", "#releases"],
+      ["Flow", "#lens/flow"],
+      ["Repositories", "#lens/repositories"],
+      ["Horizon", "#lens/horizon"],
+      ["Setup", "#setup"],
+      ["Inbox", "#inbox"],
+    ] as const) {
+      await act(async () => button(label)?.click());
+      expect(window.location.hash).toBe(hash);
+      expect(container.querySelector("main h1")?.textContent).toBe(label);
+      expect(place()).toBe(label);
+      expect(button(label)?.getAttribute("aria-current")).toBe("page");
     }
+    for (const [hash, label] of [
+      ["#service/legal", "legal"],
+      ["#release/2026-10", "Release 2026-10"],
+    ] as const) {
+      await act(async () => {
+        window.location.hash = hash;
+        window.dispatchEvent(new HashChangeEvent("hashchange"));
+      });
+      expect(container.querySelector("main h1")?.textContent).toBe(label);
+      expect(place()).toBe(label);
+    }
+    expect(button("Releases")?.getAttribute("aria-current")).toBe("true");
     expect(container.querySelector("details")?.textContent).toContain("Turn panel");
     expect(container.querySelector("header strong")?.textContent).toBe("SPI Code");
     expect(container.querySelector("aside")?.getAttribute("aria-label")).toBe("Inspector");
   } finally {
-    await act(async () => root.unmount());
-    expect(unsubscribe).toHaveBeenCalledTimes(1);
-    container.remove();
-    window.spi = previous;
+    await shell.cleanup();
+    expect(shell.unsubscribe).toHaveBeenCalledTimes(1);
+  }
+});
+
+it("toggles the sidebar and right panel from named buttons and Ctrl shortcuts, and explains the terminal", async () => {
+  const shell = await mountShell();
+  const { container } = shell;
+  try {
+    const toggle = (label: string) =>
+      container.querySelector<HTMLButtonElement>(`header button[aria-label="${label}"]`);
+    const sidebar = () => container.querySelector<HTMLElement>('nav[aria-label="Sidebar"]');
+    for (const label of ["Toggle sidebar", "Toggle terminal", "Toggle right panel"]) {
+      expect(toggle(label)?.disabled).toBe(false);
+      expect(toggle(label)?.tabIndex).toBe(0);
+    }
+    expect(toggle("Toggle sidebar")?.getAttribute("aria-keyshortcuts")).toBe("Control+B");
+    expect(sidebar()?.getAttribute("data-state")).toBe("expanded");
+    await act(async () => toggle("Toggle sidebar")?.click());
+    expect(sidebar()?.getAttribute("data-state")).toBe("collapsed");
+    expect(sidebar()?.hasAttribute("inert")).toBe(true);
+    expect(toggle("Toggle sidebar")?.getAttribute("aria-pressed")).toBe("false");
+    await press("b");
+    expect(sidebar()?.getAttribute("data-state")).toBe("expanded");
+    await press("b", { metaKey: true });
+    expect(sidebar()?.getAttribute("data-state")).toBe("expanded");
+
+    expect(container.querySelector("aside")).not.toBeNull();
+    await act(async () => toggle("Toggle right panel")?.click());
+    expect(container.querySelector("aside")).toBeNull();
+    expect(toggle("Toggle right panel")?.getAttribute("aria-pressed")).toBe("false");
+    await press("i");
+    expect(container.querySelector("aside")).not.toBeNull();
+
+    const terminal = toggle("Toggle terminal");
+    expect(terminal?.getAttribute("aria-disabled")).toBe("true");
+    const reason = terminal?.getAttribute("aria-describedby") ?? "";
+    expect(container.querySelector(`[id="${reason}"]`)?.textContent).toBe(
+      "The terminal is not available yet",
+    );
+    await act(async () => terminal?.click());
+    await press("j");
+    expect(sidebar()?.getAttribute("data-state")).toBe("expanded");
+    expect(container.querySelector("aside")).not.toBeNull();
+  } finally {
+    await shell.cleanup();
+  }
+});
+
+it("opens the sidebar off-canvas below 980 px and closes it on Escape, back to its toggle", async () => {
+  viewport(800);
+  const shell = await mountShell();
+  const { container } = shell;
+  try {
+    const sidebar = () => container.querySelector<HTMLElement>('nav[aria-label="Sidebar"]');
+    const trigger = container.querySelector<HTMLButtonElement>(
+      'header button[aria-label="Toggle sidebar"]',
+    );
+    expect(sidebar()?.getAttribute("data-state")).toBe("collapsed");
+    expect(sidebar()?.hasAttribute("inert")).toBe(true);
+    expect(trigger?.getAttribute("aria-pressed")).toBe("false");
+    trigger?.focus();
+    await act(async () => trigger?.click());
+    expect(sidebar()?.getAttribute("data-state")).toBe("expanded");
+    expect(sidebar()?.getAttribute("data-mobile")).toBe("true");
+    expect(sidebar()?.hasAttribute("inert")).toBe(false);
+    expect(sidebar()?.contains(document.activeElement)).toBe(true);
+    expect(container.querySelector('[data-slot="sidebar-backdrop"]')).not.toBeNull();
+    await act(async () => {
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+    });
+    expect(sidebar()?.getAttribute("data-state")).toBe("collapsed");
+    expect(document.activeElement).toBe(trigger);
+    expect(container.querySelector('[data-slot="sidebar-backdrop"]')).toBeNull();
+  } finally {
+    await shell.cleanup();
   }
 });
 
