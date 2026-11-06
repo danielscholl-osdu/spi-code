@@ -5,6 +5,7 @@ import type { Anchor, Campaign, Reading, ReleaseDoc, WatchBriefing } from "@spi-
 import {
   environmentReading,
   type Model,
+  releasesReading,
   securityReading,
   serviceReading,
   upstreamReading,
@@ -53,7 +54,14 @@ export const readingFor: Record<Anchor["kind"], PlaceReader> = {
     });
   },
   engineering: (_anchor, _context) => null,
-  releases: (_anchor, _context) => null,
+  releases: (_anchor, { input, briefing, documents }) =>
+    releasesReading({
+      facts: input.facts,
+      items: [...briefing.focus, ...briefing.rest],
+      months: documents,
+      reads: [...input.releaseRecords, ...((input.envelopeReads ?? input.reads).github ?? [])],
+      context: input.context,
+    }),
   "release-month": (_anchor, _context) => null,
   security: (_anchor, { model, input, briefing, campaigns }) =>
     securityReading({

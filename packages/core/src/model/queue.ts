@@ -801,6 +801,48 @@ function releaseNames(
     : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
+export interface ReleasePr {
+  repo: string;
+  // The fork's service id, or the repository's short name.
+  name: string;
+  pr: PrFact;
+  tag: string;
+  // Whether the repository has cut a release before.
+  released: boolean;
+  failures: Failure[];
+  // Failures that are not policy or environment; any one turns the release PR red.
+  real: Failure[];
+  ready: boolean;
+}
+
+// Every open release PR across the repositories, in the order the queue reads them.
+export function releasePrs(
+  repos: Record<string, RepoFact>,
+  details: Parameters<typeof prFailures>[1],
+  context: CoreContext,
+): ReleasePr[] {
+  const out: ReleasePr[] = [];
+  for (const fact of Object.values(repos)) {
+    for (const pr of fact.prs) {
+      if (!(pr.head.startsWith("release-please--") || pr.labels.includes("autorelease: pending")))
+        continue;
+      const { failures } = prFailures(pr, details);
+      const real = failures.filter((f) => f.cls !== "POLICY" && f.cls !== "ENV");
+      out.push({
+        repo: fact.repo,
+        name: repoName(pr.repo, context),
+        pr,
+        tag: releaseTag(pr.title, fact.release?.tag) ?? `#${pr.number}`,
+        released: Boolean(fact.release),
+        failures,
+        real,
+        ready: real.length === 0 && prReady(pr, failures),
+      });
+    }
+  }
+  return out;
+}
+
 function releaseItems(
   repos: Record<string, RepoFact>,
   details: Parameters<typeof prFailures>[1],
@@ -809,14 +851,8 @@ function releaseItems(
 ): QueueItem[] {
   const open: { repo: string; pr: PrFact; tag: string; ready: boolean }[] = [];
   const items: QueueItem[] = [];
-  for (const fact of Object.values(repos)) {
-    for (const pr of fact.prs) {
-      if (!(pr.head.startsWith("release-please--") || pr.labels.includes("autorelease: pending")))
-        continue;
-      const { failures } = prFailures(pr, details);
-      const real = failures.filter((f) => f.cls !== "POLICY" && f.cls !== "ENV");
-      const tag = releaseTag(pr.title, fact.release?.tag) ?? `#${pr.number}`;
-      if (real.length > 0) {
+  for (const { repo, pr, tag, failures, real, ready } of releasePrs(repos, details, context)) {
+    if (real.length > 0) {
         items.push({
           id: `release-red:${pr.repo}#${pr.number}`,
           kind: "release-red",
@@ -831,9 +867,8 @@ function releaseItems(
           incident: true,
           blocks: 1,
         });
-      } else {
-        open.push({ repo: fact.repo, pr, tag, ready: prReady(pr, failures) });
-      }
+    } else {
+      open.push({ repo, pr, tag, ready });
     }
   }
   if (open.length > 0) {
