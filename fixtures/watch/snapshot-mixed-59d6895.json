@@ -1509,7 +1509,69 @@
       "anchor": {
         "kind": "engineering"
       },
-      "content": null
+      "content": {
+        "headline": "Template rollout is in progress; verification is still pending.",
+        "tiles": [
+          {
+            "label": "Engineering system",
+            "value": "0 of 5",
+            "counts": "forks on bb49a03"
+          },
+          {
+            "label": "Template PRs",
+            "value": "5",
+            "counts": "open across the forks"
+          },
+          {
+            "label": "Rollout",
+            "value": "In progress",
+            "counts": "5 forks left to verify"
+          }
+        ],
+        "items": [
+          {
+            "id": "rollout",
+            "ids": ["rollout"],
+            "rung": 1,
+            "cls": "ROLLOUT",
+            "scope": "fleet",
+            "title": "Rollout to template bb49a03",
+            "sub": "0 of 5 merged · 0 of 5 lanes busy",
+            "cause": "osdu-spi main bb49a03 is on its way to the fleet: 0 of 5 forks merged.",
+            "effect": "The change reaches images, actions and workflows, so every PR and every merge takes a deploy lane: 10 lanes, 5 at a time still to go.",
+            "next": "Wait for the environment: env-upgrade in verify. Nothing that deploys starts until it reads deployable.",
+            "verb": "Wait for the environment",
+            "evidence": [
+              {
+                "label": "main bb49a03",
+                "url": "https://github.com/Azure/osdu-spi/commit/bb49a034a3dcdaa922a1905e708ec66bde930888"
+              },
+              {
+                "label": "forks on ea9a2e1",
+                "url": "https://github.com/Azure/osdu-spi/compare/ea9a2e1975c3e62588a85b2947ba77a32d6fcfb9...bb49a034a3dcdaa922a1905e708ec66bde930888"
+              }
+            ],
+            "more": [
+              {
+                "label": "Plan",
+                "text": "1 wave · lanes 5 from rollout.json"
+              },
+              {
+                "label": "Watch",
+                "text": "Upstream sync at 10-22 00:00 opens 1 PR (entitlements halts instead) that share these lanes."
+              },
+              {
+                "label": "Reaches",
+                "text": "build/Dockerfile · java-build action · setup-maven action · build.yml · cascade.yml · copilot-setup-steps.yml · acceptance-image action · validate.yml · build/acceptance.Dockerfile"
+              }
+            ],
+            "attention": "surface",
+            "owned": false,
+            "group": "New"
+          }
+        ],
+        "folded": "On osdu-spi: PR #248 chore: release 1.2.1 · review required."
+      }
     },
     {
       "anchor": {
