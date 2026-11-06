@@ -1255,14 +1255,14 @@ describe("read-only app actions", () => {
       type: "rerun-when-deployable",
       label: "Re-run when deployable",
       disabled: true,
-      reason: "this Keelson has no durable ops",
+      reason: "SPI Code has no durable ops here",
       confirm: { subject: "legal #1", body: "Wait for a deployable stack" },
     };
     expect(appActions([offer])).toEqual([
       expect.objectContaining({
         label: "Re-run when deployable",
         disabledReason: "writes arrive at M4",
-        eligibilityReason: "this Keelson has no durable ops",
+        eligibilityReason: "SPI Code has no durable ops here",
       }),
     ]);
   });

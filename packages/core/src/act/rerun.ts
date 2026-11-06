@@ -7,6 +7,7 @@ import type { LaneRun, QueueItem } from "../model/queue.js";
 import { runName, type StackModel, stoppedAttempts } from "../model/stack.js";
 import { plural, stamp } from "../util.js";
 import type { AreaName } from "../facts.js";
+import { APP_VOICE, type Voice } from "../voice.js";
 import { JUDGEMENT_SOURCES, loadSources, sourced } from "./reason-sources.js";
 import { paced, paceText, waitSuffix } from "./rollout.js";
 import { type ActionItem, type Target, type Verb, verbAction } from "./verbs.js";
@@ -31,7 +32,7 @@ export const DISPATCH_UPGRADE: Verb = Object.freeze<Verb>({
 });
 
 export const WAIT_ACTION = "rerun-when-deployable";
-export const NO_OPS = "this Keelson has no durable ops";
+export const NO_OPS = APP_VOICE.noOps;
 
 function names(list: readonly string[]): string {
   return list.length <= 1
@@ -78,6 +79,7 @@ export interface LaneOptions {
   blocked?: string;
   // The harness offers registerOp.
   ops: boolean;
+  voice?: Voice;
   // A wait already holds this item.
   waiting?: { id: string; at: string };
   load?: LaneLoad;
@@ -85,6 +87,7 @@ export interface LaneOptions {
 
 // Re-run lanes while the stack is deployable; otherwise a wait that re-runs them once it is.
 export function laneActions(item: QueueItem, stack: StackModel, given: LaneOptions): ActionItem[] {
+  const voice = given.voice ?? APP_VOICE;
   const lanes = item.lanes ?? [];
   if (lanes.length === 0) return [];
   const targets = laneTargets(lanes);
@@ -134,7 +137,7 @@ export function laneActions(item: QueueItem, stack: StackModel, given: LaneOptio
   const disabled =
     opts.blocked ??
     (!opts.ops
-      ? NO_OPS
+      ? voice.noOps
       : opts.waiting
         ? `already waiting since ${stamp(opts.waiting.at, opts.now)} as op ${opts.waiting.id}; run_cancel drops it`
         : undefined);
@@ -149,7 +152,7 @@ export function laneActions(item: QueueItem, stack: StackModel, given: LaneOptio
         title: `Re-run ${plural(n, "failed lane")} when deployable`,
         detail: [
           `The stack is not deployable now (${stack.deployable.reason}). A wait holds ${n === 1 ? "this lane" : `these ${n} lanes`} and, on the first sweep that reads deployable, re-runs ${n === 1 ? "it" : "them"} through the same calls.`,
-          "It stands down without writing if a lifecycle run fails again. A Keelson restart drops the wait and the item stays in the queue.",
+          `It stands down without writing if a lifecycle run fails again. ${voice.restart} drops the wait and the item stays in the queue.`,
           ...(opts.load?.cap
             ? [
                 `When it fires, it re-runs only as many lanes as the ${opts.load.cap}-lane cap leaves room for; the rest stay in the queue for the next press.`,

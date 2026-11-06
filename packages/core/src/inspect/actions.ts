@@ -119,6 +119,7 @@ export function verbsOf(
         swept,
         now: context.clock.now(),
         ops: opts.ops ?? false,
+        voice: context.voice,
         load: model.lanes,
         ...(blocked ? { blocked } : {}),
         ...(opts.waiting ? { waiting: opts.waiting } : {}),

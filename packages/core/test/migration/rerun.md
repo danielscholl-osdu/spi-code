@@ -14,12 +14,22 @@ portion of `src/act/rerun.ts` (through `dispatchActions`, before
   static context boundary. Their fields and commands are unchanged.
 - Leave `DeployableWait` entirely in the rib, including its durable-op
   execution, cancellation, progress and stand-down behavior. Core only
-  describes the `WAIT_ACTION` offer and retains the original `NO_OPS` reason.
-- There are no other non-import deltas. A normalized source comparison
+  describes the `WAIT_ACTION` offer.
+- At extraction there were no other non-import deltas. A normalized source comparison
   verifies identical planning bodies after headers, imports and verb freezes
   are removed. `ActionItem`, `Target` and `Verb` already fit without adaptation.
   The existing config, lane, stack, queue, util and rollout helpers are reused.
   No fleet reads, ambient clocks, verb registration or barrel exports are added.
+
+In spicode-t1k.170, `laneActions` defaults to `APP_VOICE`, and `verbsOf` passes
+`CoreContext.voice`. The no-ops reason reads "SPI Code has no durable ops here";
+the wait confirmation says "An SPI Code restart". `RIB_VOICE` retains the exact
+original "this Keelson has no durable ops" and "A Keelson restart" phrases.
+Voice stores these as two host phrases (`noOps` and `restart`), since neither
+uses the rib actor's name ("the rib") and their articles differ. The exported
+`NO_OPS` is the app's default reason. No wait behavior changes.
+The frozen inspector-action comparisons explicitly use `RIB_VOICE`; app and
+rib context tests cover both reasons and complete restart sentences.
 
 ## Moved cases (11)
 

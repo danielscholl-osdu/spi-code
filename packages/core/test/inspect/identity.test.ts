@@ -15,6 +15,7 @@ import {
 import { inspectItem } from "../../src/inspect/item.js";
 import { buildModel } from "../../src/model/index.js";
 import type { QueueItem } from "../../src/model/queue.js";
+import { RIB_VOICE } from "../../src/voice.js";
 import { fixtureContext } from "../briefing-setup.js";
 import { FIXTURE_NOW, fixtureFacts, laneFacts } from "../harness.js";
 
@@ -34,7 +35,11 @@ function digest(value: unknown): string {
   return createHash("sha256").update(text).digest("hex");
 }
 
-const context = createContext({ ...fixtureContext, clock: { now: () => FIXTURE_NOW } });
+const context = createContext({
+  ...fixtureContext,
+  clock: { now: () => FIXTURE_NOW },
+  voice: RIB_VOICE,
+});
 const models = {
   fixture: buildModel(fixtureFacts(), FIXTURE_NOW, {}, context),
   lanes: buildModel(laneFacts(), FIXTURE_NOW, {}, context),

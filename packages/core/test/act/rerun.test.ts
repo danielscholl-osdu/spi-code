@@ -2,13 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "vitest";
-import {
-  dispatchActions,
-  laneActions,
-  laneTargets,
-  NO_OPS,
-  WAIT_ACTION,
-} from "../../src/act/rerun.js";
+import { dispatchActions, laneActions, laneTargets, WAIT_ACTION } from "../../src/act/rerun.js";
 import { bindingSchema } from "../../src/act/verbs.js";
 import { STACK_REPO } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
@@ -16,6 +10,7 @@ import { verbsOf } from "../../src/inspect/actions.js";
 import { buildModel } from "../../src/model/index.js";
 import type { LaneLoad } from "../../src/model/lanes.js";
 import type { QueueItem } from "../../src/model/queue.js";
+import { APP_VOICE, RIB_VOICE } from "../../src/voice.js";
 import { fixtureContext } from "../briefing-setup.js";
 import { FIXTURE_NOW, fixtureFacts, laneFacts } from "../harness.js";
 
@@ -99,14 +94,17 @@ describe("the environment verbs", () => {
       type: WAIT_ACTION,
       label: "Re-run when deployable",
       disabled: true,
-      reason: NO_OPS,
+      reason: "SPI Code has no durable ops here",
     });
     expect(noOps?.confirm).toBeUndefined();
     const [wait] = laneActions(m.item, m.stack, opts);
     expect(wait?.disabled).toBeUndefined();
     expect(wait?.confirm?.title).toBe("Re-run 5 failed lanes when deployable");
     expect(wait?.confirm?.body).toContain(`not deployable now (${m.stack.deployable.reason})`);
-    expect(wait?.confirm?.body).toContain("A Keelson restart drops the wait");
+    expect(wait?.confirm?.body).toContain(
+      "An SPI Code restart drops the wait and the item stays in the queue.",
+    );
+    expect(wait?.confirm?.body).not.toContain("Keelson");
     expect(wait?.confirm?.body).toContain(
       "gh run rerun 38224682332 --failed -R Azure/osdu-spi-schema",
     );
@@ -117,6 +115,41 @@ describe("the environment verbs", () => {
     expect(held?.reason).toBe("already waiting since 21:45 as op op-7; run_cancel drops it");
     expect(held?.confirm).toBeUndefined();
   });
+
+  test.each([
+    {
+      name: "app",
+      voice: APP_VOICE,
+      reason: "SPI Code has no durable ops here",
+      restart: "An SPI Code restart",
+      other: "Keelson",
+    },
+    {
+      name: "rib",
+      voice: RIB_VOICE,
+      reason: "this Keelson has no durable ops",
+      restart: "A Keelson restart",
+      other: "SPI Code",
+    },
+  ])(
+    "$name inspector uses its context voice for durable-op offers",
+    ({ voice, reason, restart, other }) => {
+      const m = model(true);
+      const context = createContext({
+        ...fixtureContext,
+        clock: { now: () => FIXTURE_NOW },
+        voice,
+      });
+      const [noOps] = verbsOf(m.item, m, context, { scopes: ["repo"] });
+      expect(noOps).toMatchObject({ type: WAIT_ACTION, disabled: true, reason });
+      expect(noOps?.confirm).toBeUndefined();
+      const [wait] = verbsOf(m.item, m, context, { scopes: ["repo"], ops: true });
+      expect(wait?.confirm?.body).toContain(
+        `It stands down without writing if a lifecycle run fails again. ${restart} drops the wait and the item stays in the queue.`,
+      );
+      expect(wait?.confirm?.body).not.toContain(other);
+    },
+  );
 
   test("a failed lifecycle attempt offers both re-dispatches, the one that stopped first", () => {
     const m = model(true);

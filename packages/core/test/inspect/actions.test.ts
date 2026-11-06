@@ -17,10 +17,15 @@ import { inspectStep, ladderSection, STEP_PREFIX, stepTitle } from "../../src/in
 import type { FailureClass } from "../../src/model/attribution.js";
 import { buildModel } from "../../src/model/index.js";
 import type { QueueItem } from "../../src/model/queue.js";
+import { RIB_VOICE } from "../../src/voice.js";
 import { fixtureContext } from "../briefing-setup.js";
 import { FIXTURE_NOW, fixtureFacts, laneFacts } from "../harness.js";
 
-const context = createContext({ ...fixtureContext, clock: { now: () => FIXTURE_NOW } });
+const context = createContext({
+  ...fixtureContext,
+  clock: { now: () => FIXTURE_NOW },
+  voice: RIB_VOICE,
+});
 const model = buildModel(fixtureFacts(), FIXTURE_NOW, {}, context);
 interface Section {
   kind: string;
