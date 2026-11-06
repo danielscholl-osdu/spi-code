@@ -612,29 +612,39 @@ it("reaps the runtime but keeps leases when the host's hard kill fails", async (
   }
 });
 
-it("gives the reap what is left of the quit budget, and never less than its own wait", async () => {
-  const reap = vi.fn(async (_targets: readonly ProcessIdentity[], _waitMs: number) => []);
+function budgetedTree(elapsedMs: number) {
   let clock = 0;
-  const options = {
-    capture: async () => [{ pid: 508, started: "started-508" }],
-    reap,
-    log: vi.fn(),
-    now: () => clock,
-  };
-  await stopHostTree(
+  const reap = vi.fn(async (_targets: readonly ProcessIdentity[], waitMs: number) => {
+    clock += waitMs;
+    return [];
+  });
+  const log = vi.fn();
+  const stopping = stopHostTree(
     48,
     async () => {
-      clock = 1200;
+      clock = elapsedMs;
     },
-    options,
+    { capture: async () => [{ pid: 508, started: "started-508" }], reap, log, now: () => clock },
   );
-  clock = 0;
-  await stopHostTree(
-    48,
-    async () => {
-      clock = QUIT_BUDGET_MS;
-    },
-    options,
-  );
-  expect(reap.mock.calls.map(([, waitMs]) => waitMs)).toEqual([QUIT_BUDGET_MS - 1200, 500]);
+  return { reap, log, stopping, clock: () => clock };
+}
+
+it.each([1200, 4350])("keeps quit within 4.5 s when %i ms are already spent", async (elapsedMs) => {
+  const tree = budgetedTree(elapsedMs);
+  await tree.stopping;
+  expect(tree.reap).toHaveBeenCalledWith(expect.anything(), QUIT_BUDGET_MS - elapsedMs);
+  expect(tree.clock()).toBeLessThanOrEqual(QUIT_BUDGET_MS);
 });
+
+it.each([QUIT_BUDGET_MS, 4600])(
+  "skips the reap and logs once %i ms have spent the quit budget, and Quit still completes",
+  async (elapsedMs) => {
+    const tree = budgetedTree(elapsedMs);
+    await expect(tree.stopping).resolves.toBeUndefined();
+    expect(tree.reap).not.toHaveBeenCalled();
+    expect(tree.clock()).toBe(elapsedMs);
+    expect(tree.log).toHaveBeenCalledWith(
+      "Host descendants not reaped: the 4500 ms quit budget is spent (508)",
+    );
+  },
+);

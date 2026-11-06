@@ -6,7 +6,7 @@ import { type Exec, execText } from "./smoke-listeners.js";
 
 export const DESCENDANT_CAPTURE_MS = 1000;
 export const DESCENDANT_REAP_MS = 500;
-/** Capture, the host's 2 s grace and 1 s kill wait, then at least the reap's own wait. */
+/** Capture, the host's 2 s grace and 1 s kill wait, then the reap's own wait; the reap never extends it. */
 export const QUIT_BUDGET_MS = 4500;
 
 /** A pid with its start time, so a pid reused by an unrelated process never matches. */
@@ -261,10 +261,16 @@ export async function stopHostTree(
   } finally {
     if (descendants.length) {
       try {
-        const waitMs = Math.max(DESCENDANT_REAP_MS, QUIT_BUDGET_MS - (now() - started));
-        const survivors = await reap(descendants, waitMs);
-        if (survivors.length)
-          log(`Host descendants survived quit: ${survivors.map(({ pid }) => pid).join(", ")}`);
+        const waitMs = QUIT_BUDGET_MS - (now() - started);
+        if (waitMs <= 0) {
+          log(
+            `Host descendants not reaped: the ${QUIT_BUDGET_MS} ms quit budget is spent (${descendants.map(({ pid }) => pid).join(", ")})`,
+          );
+        } else {
+          const survivors = await reap(descendants, waitMs);
+          if (survivors.length)
+            log(`Host descendants survived quit: ${survivors.map(({ pid }) => pid).join(", ")}`);
+        }
       } catch (error) {
         log(`Host descendants not reaped: ${error instanceof Error ? error.message : error}`);
       }
