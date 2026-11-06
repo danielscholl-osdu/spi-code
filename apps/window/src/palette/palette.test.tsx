@@ -98,6 +98,22 @@ it("opens one palette from Ctrl+K, ⌘K on a Mac and the sidebar's Find or ask f
   expect(palettes()).toHaveLength(1);
 });
 
+it("ignores Ctrl+K while an IME is composing", async () => {
+  await shortcut({ ctrlKey: true, isComposing: true });
+  expect(palettes()).toHaveLength(0);
+  await shortcut({ ctrlKey: true });
+  await shortcut({ ctrlKey: true, isComposing: true });
+  expect(palettes()).toHaveLength(1);
+});
+
+it("ignores Ctrl+K with the legacy IME keyCode 229", async () => {
+  await shortcut({ ctrlKey: true, keyCode: 229 });
+  expect(palettes()).toHaveLength(0);
+  await shortcut({ ctrlKey: true });
+  await shortcut({ ctrlKey: true, keyCode: 229 });
+  expect(palettes()).toHaveLength(1);
+});
+
 it("lists Go to, Services, Lenses and Queue from the routes and the snapshot, with no Actions group", async () => {
   await act(async () => findField()?.click());
   expect(labels()).toEqual(["Go to", "Services", "Lenses", "Queue", "Threads", "Ask"]);

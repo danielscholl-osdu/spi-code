@@ -53,7 +53,13 @@ export function PanelControls({
         closeDetailForSidebar();
         toggleSidebar();
       } else if (matchesShortcut(event, "i")) toggleDetail();
-      else if (onToggleFind && matchesShortcut(event, "k")) onToggleFind();
+      else if (
+        onToggleFind &&
+        matchesShortcut(event, "k") &&
+        !event.isComposing &&
+        event.keyCode !== 229
+      )
+        onToggleFind();
       else if (!matchesShortcut(event, "j")) return;
       event.preventDefault();
     };
