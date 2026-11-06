@@ -207,6 +207,104 @@ describe("exec recording and replay", () => {
     expect(streamed).toEqual({ stdout: "<redacted>", stderr: "warning" });
   });
 
+  it.each([
+    ["payload", "dummyvalue1234567890", "payloa", "payloa<redacted>"],
+    ["done", "done-not-a-real-token", "", "<redacted>"],
+  ])(
+    "cancellation marks the held secret prefix in %j instead of silently losing it; normal exit keeps it",
+    (text, token, live, terminal) => {
+      for (const stream of ["stdout", "stderr"] as const) {
+        const controller = new AbortController();
+        const chunks: string[] = [];
+        const delivery = execOutputDelivery({
+          env: { REVIEW_TOKEN: token },
+          signal: controller.signal,
+          onOutput: (_stream, chunk) => chunks.push(chunk),
+        });
+        for (const byte of `useful output\n${text}`) delivery.push(stream, byte);
+        expect(chunks.join("")).toBe(`useful output\n${live}`);
+        const count = chunks.length;
+        controller.abort();
+        delivery.push(stream, "late output");
+        expect(chunks).toHaveLength(count);
+        delivery.finish();
+        expect(chunks.join("")).toBe(`useful output\n${terminal}`);
+        expect(chunks).toHaveLength(count + 1);
+        const snapshot = [...chunks];
+        delivery.push(stream, token);
+        delivery.finish();
+        expect(chunks).toEqual(snapshot);
+
+        const normal: string[] = [];
+        const completed = execOutputDelivery({
+          env: { REVIEW_TOKEN: token },
+          onOutput: (_stream, chunk) => normal.push(chunk),
+        });
+        for (const byte of text) completed.push(stream, byte);
+        completed.finish();
+        expect(normal.join("")).toBe(text);
+        completed.push(stream, "late output");
+        completed.finish();
+        expect(normal.join("")).toBe(text);
+      }
+    },
+  );
+
+  it.each([
+    ["environment.cre", { env: { REVIEW_TOKEN: "environment.credential" } }],
+    ["environment.credential", { env: { REVIEW_TOKEN: "environment.credential" } }],
+    ["opaque.cre", { stdin: "opaque.credential\n" }],
+    ["gh", {}],
+    ["github_pat_", {}],
+    ["ghp_planted", {}],
+    ["Authorization: opaque-credential", {}],
+    ["opaque.ghp_", { stdin: "opaque.gh" }],
+    ["<reda.gh", { stdin: "<reda.gh" }],
+    ["opaque.credentialX", {
+      stdin: "opaque.credential", env: { REVIEW_TOKEN: "credentialXYZ" },
+    }],
+  ] satisfies [string, ExecOptions][])(
+    "cancellation replaces held credential fragments in %j with a marker, including overlapping secrets",
+    (text, opts) => {
+      const controller = new AbortController();
+      const chunks: string[] = [];
+      const delivery = execOutputDelivery({
+        ...opts, signal: controller.signal, onOutput: (_stream, chunk) => chunks.push(chunk),
+      });
+      for (const byte of `useful output\n${text}`) delivery.push("stderr", byte);
+      expect(chunks.join("")).toBe("useful output\n");
+      controller.abort();
+      delivery.finish();
+      expect(chunks.join("")).toMatch(/^useful output\n(?:Authorization: )?<redacted>$/);
+    },
+  );
+
+  it("cancellation preserves held non-secret escapes and seals both streams before terminal callbacks", () => {
+    const controller = new AbortController();
+    const chunks: [string, string][] = [];
+    const delivery = execOutputDelivery({
+      signal: controller.signal,
+      onOutput: (stream, text) => {
+        chunks.push([stream, text]);
+        if (controller.signal.aborted) {
+          delivery.push("stderr", "reentrant output");
+          delivery.finish();
+        }
+      },
+    });
+    delivery.push("stdout", "useful\\");
+    delivery.push("stderr", String.raw`\u00`);
+    controller.abort();
+    delivery.finish();
+    expect(chunks).toEqual([
+      ["stdout", "useful"], ["stdout", "\\"], ["stderr", String.raw`\u00`],
+    ]);
+    delivery.push("stdout", "late output");
+    delivery.push("stderr", "late output");
+    delivery.finish();
+    expect(chunks).toHaveLength(3);
+  });
+
   it("forwards the signal to the recording runner and stops replay progress on abort", async () => {
     const controller = new AbortController();
     let log = "";

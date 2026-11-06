@@ -137,6 +137,79 @@ it("never exposes an echoed opaque stdin token through chunks, logs or errors", 
   expect(chunks).toEqual(["<redacted>\n"]);
 });
 
+it.each([
+  ["payload", "dummyvalue1234567890", "payloa", "payloa<redacted>"],
+  ["done", "done-not-a-real-token", "", "<redacted>"],
+  ["dummyvalue1234", "dummyvalue1234567890", "", "<redacted>"],
+])(
+  "cancellation preserves safe output and marks the held secret prefix in %j, never resuming live output",
+  async (text, token, live, terminal) => {
+    const options = await fixture();
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter(([name]) => !/TOKEN/i.test(name)),
+    );
+    const controller = new AbortController();
+    const chunks = { stdout: [] as string[], stderr: [] as string[] };
+    const child = `
+      const text = 'useful output\\n' + ${JSON.stringify(text)};
+      let i = 0;
+      const next = () => {
+        if (i === text.length) {
+          process.stderr.write('ready!\\n');
+          return setInterval(() => process.stdout.write('late output'), 1000);
+        }
+        process.stdout.write(text[i++]);
+        setTimeout(next, 10);
+      };
+      next();
+    `;
+    const run = new HostExec({ ...options, env }).runText(process.execPath, ["-e", child], {
+      env: { REVIEW_TOKEN: token },
+      signal: controller.signal,
+      timeoutMs: 20_000,
+      onOutput: (stream, chunk) => chunks[stream].push(chunk),
+    });
+    try {
+      await vi.waitFor(() => expect(chunks.stderr.join("")).toBe("ready!\n"), PROCESS_WAIT);
+      expect(chunks.stdout.join("")).toBe(`useful output\n${live}`);
+      const count = chunks.stdout.length;
+      controller.abort();
+      expect(await run).toMatchObject({ ok: false, error: "Command aborted." });
+      expect(chunks.stdout.join("")).toBe(`useful output\n${terminal}`);
+      expect(chunks.stdout).toHaveLength(count + 1);
+      const snapshot = JSON.stringify(chunks);
+      await delay(25);
+      expect(JSON.stringify(chunks)).toBe(snapshot);
+      expect(snapshot).not.toContain(token);
+      expect(snapshot).not.toContain("late output");
+    } finally {
+      controller.abort();
+      await run;
+    }
+  },
+  25_000,
+);
+
+it.each(["payload", "done"])(
+  "normal exit preserves the held ordinary text %j unchanged despite a secret-prefix overlap",
+  async (text) => {
+    const options = await fixture();
+    const chunks: string[] = [];
+    const result = await new HostExec(options).runText(
+      process.execPath,
+      ["-e", `for (const byte of ${JSON.stringify(text)}) process.stdout.write(byte)`],
+      {
+        env: {
+          REVIEW_TOKEN: text === "payload" ? "dummyvalue1234567890" : "done-not-a-real-token",
+        },
+        onOutput: (_stream, chunk) => chunks.push(chunk),
+      },
+    );
+    expect(result).toMatchObject({ ok: true, data: text });
+    expect(chunks.join("")).toBe(text);
+  },
+);
+
 it("terminates a running child on abort and does not spawn for a pre-aborted signal", async () => {
   const options = await fixture();
   const pidFile = join(options.appData, "abort-pid");
@@ -294,12 +367,15 @@ it("redacts argv, stderr and spawn errors before the host log", async () => {
 
 it("kills the entire hung process tree including a SIGTERM-ignoring grandchild", async () => {
   const options = await fixture();
+  const chunks: string[] = [];
   const pidFile = join(options.appData, "pid");
   const grandchild = `process.on('SIGTERM', () => {}); require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); setInterval(() => {}, 1000)`;
-  const parent = `process.on('SIGTERM', () => {}); require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(grandchild)}], {stdio: 'inherit'}); setInterval(() => {}, 1000)`;
+  const parent = `process.stdout.write('done'); process.on('SIGTERM', () => {}); require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(grandchild)}], {stdio: 'inherit'}); setInterval(() => {}, 1000)`;
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   const result = new HostExec(options).runText(process.execPath, ["-e", parent], {
     timeoutMs: 1000,
+    env: { REVIEW_TOKEN: "done-not-a-real-token" },
+    onOutput: (_stream, chunk) => chunks.push(chunk),
   });
   let pid = 0;
   try {
@@ -310,6 +386,7 @@ it("kills the entire hung process tree including a SIGTERM-ignoring grandchild",
     await vi.advanceTimersByTimeAsync(1000);
   }
   expect(await result).toMatchObject({ ok: false, error: "Command timed out after 1000ms." });
+  expect(chunks.join("")).toBe("done");
   vi.useRealTimers();
   await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow(), PROCESS_WAIT);
 });
