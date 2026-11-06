@@ -2,7 +2,37 @@
 // SPDX-License-Identifier: MIT
 
 import assert from "node:assert/strict";
-import { type ExecFileSyncOptionsWithStringEncoding, execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
+
+export interface ExecResult {
+  status: number;
+  stdout: string;
+  stderr: string;
+}
+
+export type Exec = (file: string, args: readonly string[], timeout: number) => Promise<ExecResult>;
+
+export const execText: Exec = (file, args, timeout) =>
+  new Promise((resolve, reject) => {
+    const child = execFile(
+      file,
+      [...args],
+      { encoding: "utf8", timeout, windowsHide: true, maxBuffer: 32 * 1024 * 1024 },
+      (error, stdout, stderr) => {
+        if (!error) resolve({ status: 0, stdout, stderr });
+        else if (typeof error.code === "number" && !error.killed && !error.signal)
+          resolve({ status: error.code, stdout, stderr });
+        else reject(error);
+      },
+    );
+    child.stdin?.end();
+  });
+
+async function run(exec: Exec, file: string, args: readonly string[], timeout: number) {
+  const result = await exec(file, args, timeout);
+  assert.equal(result.status, 0, `${file} failed (${result.status}): ${result.stderr.trim()}`);
+  return result.stdout;
+}
 
 const englishTcpStates = new Set([
   "BOUND",
@@ -20,7 +50,8 @@ const englishTcpStates = new Set([
   "DELETE_TCB",
 ]);
 
-export function windowsListeners(output: string, pid: number): string[] {
+export function windowsListeners(output: string, pids: Iterable<number>): string[] {
+  const scanned = new Set(pids);
   const rows = output.split(/\r?\n/).filter((line) => /^\s*TCP(?:v6)?\s/i.test(line));
   return rows.filter((line) => {
     const fields = line.trim().split(/\s+/);
@@ -29,45 +60,34 @@ export function windowsListeners(output: string, pid: number): string[] {
       `Unexpected netstat TCP row: ${line}`,
     );
     assert(englishTcpStates.has(fields[3] ?? ""), `Unexpected netstat TCP state: ${fields[3]}`);
-    return Number(fields[4]) === pid && fields[3] === "LISTENING";
+    return scanned.has(Number(fields[4])) && fields[3] === "LISTENING";
   });
 }
 
-export function listenersOf(pid: number): string[] {
-  process.kill(pid, 0);
+export async function listenersOf(
+  pids: readonly number[],
+  exec: Exec = execText,
+): Promise<string[]> {
+  for (const pid of pids) process.kill(pid, 0);
   let listeners: string[];
   if (process.platform === "win32") {
-    listeners = windowsListeners(
-      execFileSync("netstat.exe", ["-ano"], {
-        encoding: "utf8",
-        timeout: 10000,
-        stdio: ["ignore", "pipe", "pipe"],
-      }),
-      pid,
-    );
+    listeners = windowsListeners(await run(exec, "netstat.exe", ["-ano"], 10000), pids);
   } else {
-    try {
-      const output = execFileSync(
-        "lsof",
-        ["-nP", "-a", "-p", String(pid), "-iTCP", "-sTCP:LISTEN"],
-        { encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "pipe"] },
-      );
-      listeners = output.trim() ? output.trim().split("\n") : [];
-    } catch (error) {
-      const noMatches =
-        error !== null &&
-        typeof error === "object" &&
-        "status" in error &&
-        error.status === 1 &&
-        "stdout" in error &&
-        error.stdout === "" &&
-        "stderr" in error &&
-        error.stderr === "";
-      if (!noMatches) throw error;
-      listeners = [];
-    }
+    const result = await exec(
+      "lsof",
+      ["-nP", "-a", "-p", pids.join(","), "-iTCP", "-sTCP:LISTEN"],
+      5000,
+    );
+    const noMatches = result.status === 1 && result.stdout === "" && result.stderr === "";
+    assert(
+      result.status === 0 || noMatches,
+      `lsof failed (${result.status}): ${result.stderr.trim()}`,
+    );
+    listeners = result.stdout
+      .split("\n")
+      .filter((line) => line.trim() && !/^COMMAND\s+PID\s/.test(line));
   }
-  process.kill(pid, 0);
+  for (const pid of pids) process.kill(pid, 0);
   return listeners;
 }
 
@@ -77,14 +97,10 @@ interface ProcessRow {
   command: string;
 }
 
-function processTree(): ProcessRow[] {
-  const options: ExecFileSyncOptionsWithStringEncoding = {
-    encoding: "utf8",
-    timeout: 10000,
-    stdio: ["ignore", "pipe", "pipe"],
-  };
+async function processTree(exec: Exec): Promise<ProcessRow[]> {
   if (process.platform === "win32") {
-    const output = execFileSync(
+    const output = await run(
+      exec,
       "powershell.exe",
       [
         "-NoProfile",
@@ -92,7 +108,7 @@ function processTree(): ProcessRow[] {
         "-Command",
         '$ErrorActionPreference = "Stop"; [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Json -Compress',
       ],
-      options,
+      10000,
     );
     const parsed: unknown = JSON.parse(output);
     return (Array.isArray(parsed) ? parsed : [parsed]).map((row: unknown) => {
@@ -109,7 +125,7 @@ function processTree(): ProcessRow[] {
       };
     });
   }
-  return execFileSync("ps", ["-axww", "-o", "pid=,ppid=,command="], options)
+  return (await run(exec, "ps", ["-axww", "-o", "pid=,ppid=,command="], 10000))
     .split("\n")
     .filter((line) => line.trim())
     .map((line) => {
@@ -119,8 +135,13 @@ function processTree(): ProcessRow[] {
     });
 }
 
-export function assertNoProcessListeners(mainPid: number, hostPid: number, runtimePath?: string) {
-  const processes = processTree();
+export async function assertNoProcessListeners(
+  mainPid: number,
+  hostPid: number,
+  options: { runtimePath?: string; exec?: Exec } = {},
+) {
+  const { runtimePath, exec = execText } = options;
+  const processes = await processTree(exec);
   assert(
     processes.some(({ pid }) => pid === mainPid),
     "App main process is missing",
@@ -151,8 +172,8 @@ export function assertNoProcessListeners(mainPid: number, hostPid: number, runti
         .map(({ pid }) => pid)
     : [];
   assert(!runtimePath || runtimePids.length > 0, "No Copilot runtime in the host process tree");
-  const pids = new Set([mainPid, hostPid, ...runtimePids, ...rendererPids]);
-  const listeners = [...pids].flatMap(listenersOf);
+  const pids = [...new Set([mainPid, hostPid, ...runtimePids, ...rendererPids])];
+  const listeners = await listenersOf(pids, exec);
   assert.deepEqual(listeners, [], "TCP listener found in the app process tree");
   return { mainPid, hostPid, runtimePids, rendererPids, listeners };
 }

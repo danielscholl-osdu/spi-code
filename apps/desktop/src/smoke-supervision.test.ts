@@ -1,8 +1,24 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { expect, it, vi } from "vitest";
-import { smokeClock } from "./smoke-supervision.js";
+import { smokeClock, waitForFile } from "./smoke-supervision.js";
+
+it("waits for the packaged runtime report and fails when it never appears", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "spi-smoke-report-"));
+  try {
+    const report = join(dir, "runtime.json");
+    const waiting = waitForFile(report, 5000);
+    setTimeout(() => writeFileSync(report, "{}"), 150);
+    await expect(waiting).resolves.toBeUndefined();
+    await expect(waitForFile(join(dir, "missing.json"), 150)).rejects.toThrow("Timed out");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 it("has no accelerated supervisor hook outside explicit smoke mode", () => {
   expect(smokeClock(["electron", ".", "--stub-model"])).toBeUndefined();

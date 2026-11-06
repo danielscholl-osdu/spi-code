@@ -1,11 +1,14 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { execFileSync } from "node:child_process";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { assertNoProcessListeners, listenersOf, windowsListeners } from "./smoke-listeners.js";
-
-vi.mock("node:child_process", () => ({ execFileSync: vi.fn() }));
+import {
+  assertNoProcessListeners,
+  type Exec,
+  execText,
+  listenersOf,
+  windowsListeners,
+} from "./smoke-listeners.js";
 
 const ipv4 = "  TCP    0.0.0.0:9222           0.0.0.0:0              LISTENING       42";
 const ipv6 = "  TCP    [::]:9223              [::]:0                 LISTENING       42";
@@ -22,15 +25,75 @@ const output = [
   "  UDP    0.0.0.0:5353           *:*                                    42",
   "  UDP    [::]:5353              *:*                                    42",
 ].join("\r\n");
+const lsofHeader = "COMMAND   PID USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME";
+
+function ok(stdout: string) {
+  return Promise.resolve({ status: 0, stdout, stderr: "" });
+}
 
 describe("TCP listener evidence", () => {
-  it("finds IPv4 and IPv6 listeners for exactly the requested pid", () => {
-    expect(windowsListeners(output, 42)).toEqual([ipv4, ipv6]);
-    expect(windowsListeners(output, 7)).toEqual([]);
+  const originalPlatform = process.platform;
+
+  beforeEach(() => {
+    vi.spyOn(process, "kill").mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    Object.defineProperty(process, "platform", { value: originalPlatform });
+    vi.restoreAllMocks();
+  });
+
+  it("finds IPv4 and IPv6 listeners for exactly the requested pids", () => {
+    expect(windowsListeners(output, [42])).toEqual([ipv4, ipv6]);
+    expect(windowsListeners(output, [7])).toEqual([]);
+    expect(windowsListeners(output, [7, 42, 142])).toEqual([
+      ipv4,
+      ipv6,
+      "  TCP    0.0.0.0:9224           0.0.0.0:0              LISTENING       142",
+    ]);
+  });
+
+  it.each(["darwin", "win32"])(
+    "takes one %s socket snapshot for several pids",
+    async (platform) => {
+      Object.defineProperty(process, "platform", { value: platform });
+      const exec = vi.fn<Exec>((file) =>
+        file === "netstat.exe"
+          ? ok(output)
+          : ok(`${lsofHeader}\nnode       42 user   12u  IPv4 0x1      0t0  TCP *:9222 (LISTEN)\n`),
+      );
+      const listeners = await listenersOf([7, 42, 99], exec);
+      expect(listeners).toHaveLength(platform === "win32" ? 2 : 1);
+      expect(exec).toHaveBeenCalledTimes(1);
+      if (platform === "win32") expect(exec).toHaveBeenCalledWith("netstat.exe", ["-ano"], 10000);
+      else
+        expect(exec).toHaveBeenCalledWith(
+          "lsof",
+          ["-nP", "-a", "-p", "7,42,99", "-iTCP", "-sTCP:LISTEN"],
+          5000,
+        );
+      expect(new Set(vi.mocked(process.kill).mock.calls.map(([pid]) => pid))).toEqual(
+        new Set([7, 42, 99]),
+      );
+      expect(vi.mocked(process.kill)).toHaveBeenCalledTimes(6);
+    },
+  );
+
+  it("treats lsof's empty no-match exit as no listeners and other failures as errors", async () => {
+    Object.defineProperty(process, "platform", { value: "darwin" });
+    await expect(
+      listenersOf([42], () => Promise.resolve({ status: 1, stdout: "", stderr: "" })),
+    ).resolves.toEqual([]);
+    await expect(
+      listenersOf([42], () => Promise.resolve({ status: 1, stdout: "", stderr: "lsof: denied" })),
+    ).rejects.toThrow("lsof");
+    Object.defineProperty(process, "platform", { value: "win32" });
+    await expect(
+      listenersOf([42], () => Promise.resolve({ status: 1, stdout: "", stderr: "" })),
+    ).rejects.toThrow("netstat");
   });
 
   describe.each(["darwin", "win32"])("%s app process-tree listener check", (platform) => {
-    const originalPlatform = process.platform;
     const runtimePath = "/app/copilot-runtime";
     const tree = [
       { pid: 100, parentPid: 1, command: "/app/SPI Code" },
@@ -44,44 +107,42 @@ describe("TCP listener evidence", () => {
     ];
 
     function fixture(listeningPid?: number, processes = tree) {
-      vi.mocked(execFileSync).mockImplementation((file, args) => {
+      return vi.fn<Exec>((file, args) => {
         if (file === "ps")
-          return processes
-            .map(({ pid, parentPid, command }) => `${pid} ${parentPid} ${command}`)
-            .join("\n");
+          return ok(
+            processes
+              .map(({ pid, parentPid, command }) => `${pid} ${parentPid} ${command}`)
+              .join("\n"),
+          );
         if (file === "powershell.exe")
-          return JSON.stringify(
-            processes.map(({ pid, parentPid, command }) => ({
-              ProcessId: pid,
-              ParentProcessId: parentPid,
-              CommandLine: command,
-            })),
+          return ok(
+            JSON.stringify(
+              processes.map(({ pid, parentPid, command }) => ({
+                ProcessId: pid,
+                ParentProcessId: parentPid,
+                CommandLine: command,
+              })),
+            ),
           );
         if (file === "netstat.exe")
-          return listeningPid ? `TCP 0.0.0.0:9222 0.0.0.0:0 LISTENING ${listeningPid}` : "";
+          return ok(listeningPid ? `TCP 0.0.0.0:9222 0.0.0.0:0 LISTENING ${listeningPid}` : "");
         if (file === "lsof") {
-          const pid = Number(args?.[3]);
-          if (pid === listeningPid) return `runtime ${pid} TCP *:9222 (LISTEN)`;
-          throw { status: 1, stdout: "", stderr: "" };
+          const pids = String(args[3]).split(",").map(Number);
+          if (listeningPid && pids.includes(listeningPid))
+            return ok(`${lsofHeader}\nruntime ${listeningPid} TCP *:9222 (LISTEN)`);
+          return Promise.resolve({ status: 1, stdout: "", stderr: "" });
         }
-        throw new Error(`Unexpected command: ${file}`);
+        return Promise.reject(new Error(`Unexpected command: ${file}`));
       });
     }
 
     beforeEach(() => {
-      vi.clearAllMocks();
       Object.defineProperty(process, "platform", { value: platform });
-      vi.spyOn(process, "kill").mockReturnValue(true);
     });
 
-    afterEach(() => {
-      Object.defineProperty(process, "platform", { value: originalPlatform });
-      vi.restoreAllMocks();
-    });
-
-    it("collects runtime and all renderer descendants, excluding unrelated matching processes", () => {
-      fixture(202);
-      expect(assertNoProcessListeners(100, 101, runtimePath)).toEqual({
+    it("collects runtime and all renderer descendants, excluding unrelated matching processes", async () => {
+      const exec = fixture(202);
+      await expect(assertNoProcessListeners(100, 101, { runtimePath, exec })).resolves.toEqual({
         mainPid: 100,
         hostPid: 101,
         runtimePids: [102],
@@ -91,115 +152,158 @@ describe("TCP listener evidence", () => {
       expect(new Set(vi.mocked(process.kill).mock.calls.map(([pid]) => pid))).toEqual(
         new Set([100, 101, 102, 103, 104]),
       );
+      expect(exec).toHaveBeenCalledTimes(2);
       if (platform === "win32")
-        expect(execFileSync).toHaveBeenCalledWith(
+        expect(exec).toHaveBeenCalledWith(
           "powershell.exe",
           expect.arrayContaining(["-NoProfile", "-NonInteractive"]),
-          expect.objectContaining({ timeout: 10000 }),
+          10000,
         );
-      else
-        expect(execFileSync).toHaveBeenCalledWith(
-          "ps",
-          ["-axww", "-o", "pid=,ppid=,command="],
-          expect.objectContaining({ timeout: 10000 }),
-        );
+      else expect(exec).toHaveBeenCalledWith("ps", ["-axww", "-o", "pid=,ppid=,command="], 10000);
     });
 
-    it.each([100, 101, 102, 103, 104])("fails when app pid %i has a listener", (pid) => {
-      fixture(pid);
-      expect(() => assertNoProcessListeners(100, 101, runtimePath)).toThrow("TCP listener");
+    it("lets a timer scheduled before the scan fire while the scan is pending", async () => {
+      const exec = fixture();
+      let fired = false;
+      let release!: () => void;
+      const released = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const gated: Exec = async (...args) => {
+        await released;
+        return exec(...args);
+      };
+      setTimeout(() => {
+        fired = true;
+        release();
+      }, 0);
+      const scan = assertNoProcessListeners(100, 101, { runtimePath, exec: gated });
+      expect(fired).toBe(false);
+      await expect(scan).resolves.toMatchObject({ listeners: [] });
+      expect(fired).toBe(true);
     });
 
-    it("fails closed if the runtime is missing during the packaged handshake", () => {
-      fixture(
+    it.each([100, 101, 102, 103, 104])("fails when app pid %i has a listener", async (pid) => {
+      await expect(
+        assertNoProcessListeners(100, 101, { runtimePath, exec: fixture(pid) }),
+      ).rejects.toThrow("TCP listener");
+    });
+
+    it("fails closed if the runtime is missing during the packaged handshake", async () => {
+      const exec = fixture(
         undefined,
         tree.filter(({ pid }) => pid !== 102),
       );
-      expect(() => assertNoProcessListeners(100, 101, runtimePath)).toThrow("runtime");
+      await expect(assertNoProcessListeners(100, 101, { runtimePath, exec })).rejects.toThrow(
+        "runtime",
+      );
     });
 
-    it("rejects a matching runtime outside the host subtree", () => {
-      fixture(
+    it("rejects a matching runtime outside the host subtree", async () => {
+      const exec = fixture(
         undefined,
         tree.map((entry) => (entry.pid === 102 ? { ...entry, parentPid: 100 } : entry)),
       );
-      expect(() => assertNoProcessListeners(100, 101, runtimePath)).toThrow("runtime");
+      await expect(assertNoProcessListeners(100, 101, { runtimePath, exec })).rejects.toThrow(
+        "runtime",
+      );
     });
 
-    it("fails closed if no renderer belongs to the main process", () => {
-      fixture(
+    it("fails closed if no renderer belongs to the main process", async () => {
+      const exec = fixture(
         undefined,
         tree.filter(({ pid }) => pid !== 103 && pid !== 104),
       );
-      expect(() => assertNoProcessListeners(100, 101, runtimePath)).toThrow("renderer");
+      await expect(assertNoProcessListeners(100, 101, { runtimePath, exec })).rejects.toThrow(
+        "renderer",
+      );
     });
 
-    it("rejects a host outside the main process tree", () => {
-      fixture(
+    it("fails closed if the main process is missing", async () => {
+      const exec = fixture(
+        undefined,
+        tree.filter(({ pid }) => pid !== 100),
+      );
+      await expect(assertNoProcessListeners(100, 101, { runtimePath, exec })).rejects.toThrow(
+        "main process",
+      );
+    });
+
+    it("rejects a host outside the main process tree", async () => {
+      const exec = fixture(
         undefined,
         tree.map((entry) => (entry.pid === 101 ? { ...entry, parentPid: 1 } : entry)),
       );
-      expect(() => assertNoProcessListeners(100, 101, runtimePath)).toThrow("host");
+      await expect(assertNoProcessListeners(100, 101, { runtimePath, exec })).rejects.toThrow(
+        "host",
+      );
     });
 
-    it("still checks renderer pids after the packaged runtime has stopped", () => {
-      fixture(
+    it("still checks renderer pids after the packaged runtime has stopped", async () => {
+      const exec = fixture(
         undefined,
         tree.filter(({ pid }) => pid !== 102),
       );
-      expect(assertNoProcessListeners(100, 101).rendererPids).toEqual([103, 104]);
+      await expect(assertNoProcessListeners(100, 101, { exec })).resolves.toMatchObject({
+        rendererPids: [103, 104],
+      });
     });
 
-    it("propagates process-tree command failures", () => {
-      vi.mocked(execFileSync).mockImplementation(() => {
-        throw new Error("Process tree unavailable");
-      });
-      expect(() => assertNoProcessListeners(100, 101, runtimePath)).toThrow(
+    it("propagates process-tree command failures", async () => {
+      const exec: Exec = () => Promise.reject(new Error("Process tree unavailable"));
+      await expect(assertNoProcessListeners(100, 101, { runtimePath, exec })).rejects.toThrow(
         "Process tree unavailable",
+      );
+    });
+
+    it("rejects a process-tree command that exits non-zero", async () => {
+      const exec: Exec = () => Promise.resolve({ status: 1, stdout: "", stderr: "denied" });
+      await expect(assertNoProcessListeners(100, 101, { runtimePath, exec })).rejects.toThrow(
+        "denied",
       );
     });
   });
 
   it("also parses an explicit TCPv6 protocol label", () => {
     const row = "  TCPv6  [::]:9223              [::]:0                 LISTENING       42";
-    expect(windowsListeners(row, 42)).toEqual([row]);
+    expect(windowsListeners(row, [42])).toEqual([row]);
   });
 
   it("does not mistake SYN_SENT with a zero foreign port for a listener", () => {
     const row = "  TCP    192.0.2.1:5000         0.0.0.0:0              SYN_SENT        42";
-    expect(windowsListeners(row, 42)).toEqual([]);
+    expect(windowsListeners(row, [42])).toEqual([]);
   });
 
   it.each(["ABHÖREN", "UNKNOWN"])("rejects an unrecognized TCP state: %s", (state) => {
     const row = `  TCP    0.0.0.0:9222           0.0.0.0:0              ${state}       42`;
-    expect(() => windowsListeners(row, 42)).toThrow("Unexpected netstat TCP state");
-  });
-
-  it("requests both IP families from netstat and checks process liveness", () => {
-    const platform = process.platform;
-    const exec = vi.mocked(execFileSync).mockReturnValue(output);
-    const kill = vi.spyOn(process, "kill").mockReturnValue(true);
-    Object.defineProperty(process, "platform", { value: "win32" });
-    try {
-      expect(listenersOf(42)).toEqual([ipv4, ipv6]);
-      expect(exec).toHaveBeenCalledWith(
-        "netstat.exe",
-        ["-ano"],
-        expect.objectContaining({ encoding: "utf8", timeout: 10000 }),
-      );
-      expect(kill.mock.calls).toEqual([
-        [42, 0],
-        [42, 0],
-      ]);
-    } finally {
-      Object.defineProperty(process, "platform", { value: platform });
-      vi.restoreAllMocks();
-    }
+    expect(() => windowsListeners(row, [42])).toThrow("Unexpected netstat TCP state");
   });
 
   it("rejects malformed TCP evidence rather than treating it as no listeners", () => {
-    expect(() => windowsListeners("  TCP    0.0.0.0:80    0.0.0.0:0", 42)).toThrow(
+    expect(() => windowsListeners("  TCP    0.0.0.0:80    0.0.0.0:0", [42])).toThrow(
       "Unexpected netstat TCP row",
     );
+  });
+
+  it("runs commands without blocking the event loop", async () => {
+    const ticks: string[] = [];
+    const timer = setInterval(() => ticks.push("tick"), 5);
+    try {
+      const result = await execText(
+        process.execPath,
+        ["-e", "setTimeout(() => process.stdout.write('done'), 200)"],
+        5000,
+      );
+      expect(result).toEqual({ status: 0, stdout: "done", stderr: "" });
+    } finally {
+      clearInterval(timer);
+    }
+    expect(ticks.length).toBeGreaterThan(0);
+  });
+
+  it("reports a non-zero exit with its output instead of throwing", async () => {
+    await expect(
+      execText(process.execPath, ["-e", "process.stderr.write('no'); process.exit(3)"], 5000),
+    ).resolves.toEqual({ status: 3, stdout: "", stderr: "no" });
   });
 });

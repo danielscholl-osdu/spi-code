@@ -2,11 +2,24 @@
 // SPDX-License-Identifier: MIT
 
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { CopilotClient } from "@github/copilot-sdk";
 import { assertNoProcessListeners } from "../apps/desktop/dist/smoke-listeners.js";
 import { buildClientOptions, resolveRuntimePath } from "../packages/host/dist/copilot/runtime.js";
+
+/**
+ * @param {CopilotClient} client
+ * @param {unknown} failure
+ */
+async function stopProbe(client, failure) {
+  const errors = await client.stop();
+  if (failure || errors.length)
+    throw new AggregateError(
+      failure ? [failure, ...errors] : errors,
+      "Packaged runtime probe failed",
+    );
+}
 
 if (process.argv.includes("--stub-model") && process.argv[3] === "write") {
   const storePath = process.argv[2];
@@ -27,35 +40,37 @@ if (process.argv.includes("--stub-model") && process.argv[3] === "write") {
     console.error("Packaged runtime handshake timed out");
     process.exit(1);
   }, 8000);
-  let evidence;
-  let failure;
+  let handshake;
   try {
     await client.start();
     const ping = await client.ping("spi-code-packaged-smoke");
     const status = await client.getStatus();
     assert.equal(ping.message, "pong: spi-code-packaged-smoke");
     assert(Number.isSafeInteger(status.protocolVersion) && status.protocolVersion > 0);
-    const listenerCheck = assertNoProcessListeners(process.ppid, process.pid, runtimePath);
-    evidence = {
-      hostPid: process.pid,
-      runtimePath,
-      transport: "stdio",
-      ping,
-      status,
-      listenerCheck,
-    };
+    handshake = { hostPid: process.pid, runtimePath, transport: "stdio", ping, status };
   } catch (error) {
-    failure = error;
+    await stopProbe(client, error);
+  } finally {
+    clearTimeout(timeout);
   }
-  const errors = await client.stop();
-  clearTimeout(timeout);
-  if (failure || errors.length)
-    throw new AggregateError(
-      failure ? [failure, ...errors] : errors,
-      "Packaged runtime probe failed",
-    );
-  assert(evidence, "Packaged runtime produced no evidence");
-  writeFileSync(reportPath, `${JSON.stringify(evidence, null, 2)}\n`);
+  assert(handshake, "Packaged runtime produced no evidence");
+  // Scanned after host.hello is sent; the desktop waits for this report before killing the host.
+  void (async () => {
+    let listenerCheck;
+    let failure;
+    try {
+      listenerCheck = await assertNoProcessListeners(process.ppid, process.pid, { runtimePath });
+    } catch (error) {
+      failure = error;
+    }
+    await stopProbe(client, failure);
+    const partial = `${reportPath}.partial`;
+    writeFileSync(partial, `${JSON.stringify({ ...handshake, listenerCheck }, null, 2)}\n`);
+    renameSync(partial, reportPath);
+  })().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
 }
 
 await import("../packages/host/dist/main.js");

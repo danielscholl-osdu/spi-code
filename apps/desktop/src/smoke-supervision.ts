@@ -4,6 +4,8 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
+import { existsSync } from "node:fs";
+import { setTimeout as sleep } from "node:timers/promises";
 import type { BrowserWindow, MessageChannelMain, UtilityProcess } from "electron";
 import { assertNoProcessListeners } from "./smoke-listeners.js";
 import type { smokeMessages } from "./smoke-messages.js";
@@ -26,6 +28,14 @@ export function smokeClock(argv: readonly string[]) {
       return () => clearTimeout(timer);
     },
   };
+}
+
+export async function waitForFile(path: string, timeout: number): Promise<void> {
+  const deadline = performance.now() + timeout;
+  while (!existsSync(path)) {
+    if (performance.now() >= deadline) throw new Error(`Timed out waiting for ${path}`);
+    await sleep(100);
+  }
 }
 
 export interface SupervisionReport {
@@ -166,7 +176,8 @@ export async function exerciseSupervision(options: {
     assert.notEqual(fresh.port1, previous.port1);
     assert.notEqual(fresh.port2, previous.port2);
     assert.equal((await messages.wait("window-ping")).type, "pong");
-    options.listeners.push(...assertNoProcessListeners(process.pid, hello.payload.pid).listeners);
+    const scan = await assertNoProcessListeners(process.pid, hello.payload.pid);
+    options.listeners.push(...scan.listeners);
     const persistedCursors = smokeSnapshotCursors(storePath);
     assert.deepEqual(persistedCursors, [firstCursor, resumedCursor]);
 
