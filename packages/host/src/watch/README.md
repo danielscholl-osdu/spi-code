@@ -25,7 +25,9 @@ so both features can compare states without changing the projection wiring.
 Stopped and moving stations trivially map to stopped and in-progress. All other
 stations use neutral `ready` until the sub-state classifier ships; this default
 does not assert health or distinguish a person from a clock. Items default to
-ambient, unowned and no due time. Detected campaigns default to none.
+ambient, unowned and no due time. `campaigns.ts` calls core's `detectCampaigns`
+for shared toolchain targets and SPI/template-owned security rules. Detection
+does not adopt a campaign or expose a Track action.
 
 Each program/place/service/release-month anchor has a reading entry whose
 `content: null` means not computed, not an empty reading. The window must omit

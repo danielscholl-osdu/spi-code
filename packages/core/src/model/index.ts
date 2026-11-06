@@ -4,10 +4,11 @@
 import { type ServiceDef, TEMPLATE_REPO } from "../config.js";
 import type { CoreContext } from "../context.js";
 import type { Facts } from "../facts.js";
+import { toolchainCampaigns } from "./campaigns.js";
 import type { DismissEntry } from "./dismiss.js";
 import { buildGates, type Gates } from "./gates.js";
 import { type LaneLoad, laneLoad } from "./lanes.js";
-import { buildLine, type LineModel } from "./lines.js";
+import { buildLine, type LineModel, upstreamStation } from "./lines.js";
 import { withoutNoise } from "./noise.js";
 import { buildQueue, type Queue } from "./queue.js";
 import { buildRadar, predictAll, type RadarModel } from "./radar.js";
@@ -126,6 +127,18 @@ export function buildModel(
     held: heldText(stack),
     now,
   });
+  const campaigns = toolchainCampaigns(upstream);
+  for (const line of lines) {
+    const shared = new Set(
+      campaigns.filter((campaign) => campaign.forks.includes(line.fork.id)).map((c) => c.fact),
+    );
+    if (shared.size === 0) continue;
+    line.stations = line.stations.map((station) =>
+      station.id === "upstream"
+        ? upstreamStation(line, predictions[line.fork.id]?.certain, shared)
+        : station,
+    );
+  }
   const queue = buildQueue({
     stack,
     lines,

@@ -11,6 +11,7 @@ import {
   type AreaName,
   buildBriefing,
   buildModel,
+  detectCampaigns,
   RELEASES_EVERY_MS,
   type ReadRecord,
   repositoriesOf,
@@ -80,7 +81,10 @@ describe("Watch projection", () => {
       expect(item).toMatchObject({ attention: "ambient", owned: false });
       expect(item).not.toHaveProperty("due");
     }
-    expect(snapshot.campaigns).toEqual([]);
+    const input = fixtureInput();
+    expect(snapshot.campaigns).toEqual(
+      detectCampaigns(buildModel(input.facts, input.context.clock.now(), {}, input.context)),
+    );
     expect(snapshot.seen).toEqual({ cursor: null, since: [] });
     expect(snapshot.readings).toEqual([
       ...["program", "upstream", "environment", "engineering", "releases", "security"].map(
@@ -94,6 +98,7 @@ describe("Watch projection", () => {
         anchor: { kind: "release-month", month },
         content: null,
       })),
+      ...snapshot.campaigns.map(({ id }) => ({ anchor: { kind: "campaign", id }, content: null })),
     ]);
   });
 

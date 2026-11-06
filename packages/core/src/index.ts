@@ -54,3 +54,4 @@ export * from "./brief/upstream.js";
 export * from "./brief/words.js";
 
 export * from "./model/substate.js";
+export * from "./model/campaigns.js";

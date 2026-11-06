@@ -17,6 +17,20 @@ makes that lane wait on a person.
 An unread station retains the neutral `ready` substate; its legacy `unknown`
 state and evidence still describe the missing read, not confirmed health.
 
+## Detected campaigns
+
+`detectCampaigns(model)` groups the upstream model's toolchain targets and
+SPI/template-owned code-scanning rules shared by at least two forks. Upstream
+targets exclude forks held on their own halt or SNAPSHOT, which keep their
+individual hold items; open merge requests are not queued moves. Security groups
+use tool and rule identity, across paths and severities,
+and exclude upstream-owned findings and program repositories.
+
+IDs derive from kind and fact, not fork order or sweep time. `campaignItemText`
+returns the detected item's words without an action; detection adopts no plan
+and grants no write. Shared targets stay in radar and flow Detail but no longer
+repeat in per-fork station labels or flow-row `carries`.
+
 ## Exec progress and credentials
 
 `ExecOptions.onOutput(stream, text)` receives redacted stdout and stderr while

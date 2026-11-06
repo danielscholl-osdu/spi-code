@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { type DetectedCampaign, toolchainCampaigns } from "../model/campaigns.js";
 import type { CellTone } from "../model/rollout.js";
 import {
   planStep,
@@ -215,7 +216,13 @@ function detailOf(f: UpFork, row: Omit<UpRow, "detail">): UpRow["detail"] {
   return { title: `${f.service}${row.tag ? ` · ${row.tag}` : ""}`, lines };
 }
 
-function rowOf(u: UpstreamModel, f: UpFork, step: ReturnType<typeof planStep>, voice: Voice): UpRow {
+function rowOf(
+  u: UpstreamModel,
+  f: UpFork,
+  step: ReturnType<typeof planStep>,
+  voice: Voice,
+  campaigns: readonly DetectedCampaign[],
+): UpRow {
   const line = [f.cells.sync, f.cells.cascade, f.cells.toMain, f.cells.main].map((c) => ({
     text: c.text,
     tone: TONE[c.tone],
@@ -231,7 +238,13 @@ function rowOf(u: UpstreamModel, f: UpFork, step: ReturnType<typeof planStep>, v
     line,
     next: nextText(u, f, step, voice),
   };
-  return { ...row, detail: detailOf(f, row) };
+  return {
+    ...row,
+    carries: campaigns.some((campaign) => campaign.fact === row.carries && campaign.forks.includes(f.service))
+      ? ""
+      : row.carries,
+    detail: detailOf(f, row),
+  };
 }
 
 function stepTitle(u: UpstreamModel, step: ReturnType<typeof planStep>): string {
@@ -522,6 +535,7 @@ export function planOrder(u: UpstreamModel): UpFork[] {
 }
 
 export function upstreamView(u: UpstreamModel, now: Date, voice: Voice = APP_VOICE): UpstreamView {
+  const campaigns = toolchainCampaigns(u);
   const step = planStep(u);
   const words = u.mode === "flight" ? flightWords(u) : planningWords(u);
   const also: UpstreamView["also"] = [
@@ -546,7 +560,7 @@ export function upstreamView(u: UpstreamModel, now: Date, voice: Voice = APP_VOI
     tiles: tilesOf(u, voice),
     rows: planOrder(u)
       .filter((f) => f.phase !== "unread" || u.mode === "quiet")
-      .map((f) => rowOf(u, f, step, voice)),
+      .map((f) => rowOf(u, f, step, voice, campaigns)),
     plan: planCard(u),
     ...(() => {
       const s = scheduleCard(u, now, voice);

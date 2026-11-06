@@ -26,7 +26,7 @@ import {
 } from "./attribution.js";
 import { provingRun, prVerdict } from "./checks.js";
 import { type LineHistory, lineHistory, windowDays } from "./history.js";
-import { certainText, type Prediction } from "./radar.js";
+import { certainText, type Prediction, type Verdict } from "./radar.js";
 import type { StackModel } from "./stack.js";
 
 export type StationId = "upstream" | "sync" | "cascade" | "main" | "release" | "lane";
@@ -137,6 +137,24 @@ export interface LineModel {
   // Merged and closed PRs; undefined when the history was not read.
   past?: PastPrFact[];
   history?: LineHistory;
+}
+
+export function upstreamStation(
+  line: Pick<LineModel, "upstream" | "halt" | "syncPr">,
+  certain: readonly Verdict[] = [],
+  sharedFacts: ReadonlySet<string> = new Set(),
+): Station {
+  const lag = line.upstream?.lag;
+  if (lag === undefined) return { id: "upstream", state: "unknown", text: "lag unmeasured" };
+  if (lag === 0) return { id: "upstream", state: "idle", text: "0 behind" };
+  const verdict = certainText(
+    certain.filter((v) => v.bucket !== "Toolchain" || !v.value || !sharedFacts.has(v.value)),
+  );
+  return {
+    id: "upstream",
+    state: "waiting",
+    text: `${lag} behind${line.halt ? " · held by the halt" : line.syncPr ? " · in the sync PR" : ""}${verdict ? ` · ${verdict}` : ""}`,
+  };
 }
 
 const CASCADE_STOP = Object.freeze(["cascade-failed", "cascade-blocked", "conflict", "validation-failed"]);
@@ -284,18 +302,7 @@ export function buildLine(input: {
       (!!templateHead && Date.parse(templateHead.at) > Date.parse(templateRun.createdAt)));
 
   const stations: Station[] = [];
-  // upstream
-  if (lag === undefined)
-    stations.push({ id: "upstream", state: "unknown", text: "lag unmeasured" });
-  else if (lag === 0) stations.push({ id: "upstream", state: "idle", text: "0 behind" });
-  else {
-    const verdict = radar ? certainText(radar.certain) : undefined;
-    stations.push({
-      id: "upstream",
-      state: "waiting",
-      text: `${lag} behind${halt ? " · held by the halt" : syncPr ? " · in the sync PR" : ""}${verdict ? ` · ${verdict}` : ""}`,
-    });
-  }
+  stations.push(upstreamStation({ upstream, halt, syncPr }, radar?.certain));
   // sync
   if (halt) stations.push({ id: "sync", state: "stopped", text: `halted: ${halt.code}` });
   else if (syncPr && prRed(syncPr))

@@ -1374,7 +1374,20 @@
       "first": "repo:osdu-spi-stack"
     }
   },
-  "campaigns": [],
+  "campaigns": [
+    {
+      "id": "campaign:security:CodeQL%3A%20java%2Flog-injection",
+      "kind": "security",
+      "fact": "CodeQL: java/log-injection",
+      "forks": ["file", "partition", "schema"]
+    },
+    {
+      "id": "campaign:security:CodeQL%3A%20java%2Fspring-disabled-csrf-protection",
+      "kind": "security",
+      "fact": "CodeQL: java/spring-disabled-csrf-protection",
+      "forks": ["entitlements", "file", "legal", "partition", "schema"]
+    }
+  ],
   "readings": [
     {
       "anchor": {
@@ -1486,6 +1499,20 @@
       "anchor": {
         "kind": "release-month",
         "month": "2026-03"
+      },
+      "content": null
+    },
+    {
+      "anchor": {
+        "kind": "campaign",
+        "id": "campaign:security:CodeQL%3A%20java%2Flog-injection"
+      },
+      "content": null
+    },
+    {
+      "anchor": {
+        "kind": "campaign",
+        "id": "campaign:security:CodeQL%3A%20java%2Fspring-disabled-csrf-protection"
       },
       "content": null
     }
