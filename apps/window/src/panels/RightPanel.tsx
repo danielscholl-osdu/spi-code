@@ -24,11 +24,7 @@
 import type { InspectResult, ReadRecord, ViewSnapshot } from "@spi-code/contracts";
 import { type KeyboardEvent, type ReactNode, useId } from "react";
 import { useStore } from "zustand";
-import {
-  InferredMarker,
-  SelectionEvidence,
-  SelectionEvidenceChip,
-} from "../components/evidence/index.js";
+import { SelectionEvidence, SelectionEvidenceChip } from "../components/evidence/index.js";
 import { PANEL_TABS, type PanelTab, type SelectionStore } from "./selection.js";
 import { type SelectionRow, selectionRows } from "./selection-rows.js";
 import "./panels.css";
@@ -74,7 +70,6 @@ function Inspector({
             {result.evidence.map((record) => (
               <li key={`${record.source}/${record.object}`}>
                 {record.source} · {record.object}
-                {record.inferred === true && <InferredMarker />}
               </li>
             ))}
           </ul>

@@ -25,6 +25,7 @@ import TEST from "../../../../fixtures/rib-59d6895/oracle/inspect/TEST.json?raw"
 import TOOLCHAIN from "../../../../fixtures/rib-59d6895/oracle/inspect/TOOLCHAIN.json?raw";
 import UNREAD from "../../../../fixtures/rib-59d6895/oracle/inspect/UNREAD.json?raw";
 import mixed from "../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
+import { expectNoEvidenceMarks } from "../components/evidence/marks.test-helper.js";
 import { mixedSnapshot } from "../store/test-snapshot.js";
 import { RightPanel } from "./RightPanel.js";
 import { createSelectionStore, type SelectionStore } from "./selection.js";
@@ -121,6 +122,36 @@ it.each(Object.keys(oracle))(
     }
   },
 );
+
+it("keeps inferred evidence coarse in Detail without per-record inferred markers", async () => {
+  const view = await inspect(
+    inspectFromOracle(board("HALT"), "halt:entitlements", {
+      evidence: [
+        {
+          source: "github",
+          object: "Azure/osdu-spi-entitlements",
+          observedAt: "2026-10-21T15:00:00.000Z",
+          completeness: { kind: "complete" },
+          inferred: true,
+        },
+      ],
+    }),
+  );
+  try {
+    expect(view.container.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
+      "Detail",
+    );
+    const records = view.container.querySelector('ul[aria-label="Evidence"]');
+    if (!records) throw new Error("Missing Detail evidence list");
+    expect(records.textContent).toContain("github · Azure/osdu-spi-entitlements");
+    expectNoEvidenceMarks(records);
+    expect(
+      view.container.querySelectorAll("[data-selection-evidence][data-inferred]"),
+    ).toHaveLength(1);
+  } finally {
+    await view.cleanup();
+  }
+});
 
 it("selecting a Today item sends inspect.request with its id and renders the reply", async () => {
   const focus = BriefingSchema.parse(JSON.parse(briefing)).focus.find((f) => f.cls === "HALT");
