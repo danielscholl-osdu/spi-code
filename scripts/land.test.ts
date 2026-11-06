@@ -6,6 +6,7 @@ import {
   chmodSync,
   copyFileSync,
   cpSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -26,12 +27,19 @@ const testTimeout = landTimeout + 30_000;
 
 const id = "spicode-fixture";
 const branch = `bead/${id}`;
+const assignee = "fixture-builder";
+// Set this to a mutated copy of scripts/land to confirm a focused case notices the mutation.
+const landSource =
+  process.env.LAND_FIXTURE_SCRIPT ?? fileURLToPath(new URL("./land", import.meta.url));
 const directories: string[] = [];
 let template = "";
 let base = "";
 
 const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
+// Git may run with safe.bareRepository=explicit, so name the bare origin outright.
+const bareGit = (gitDir: string, ...args: string[]) =>
+  execFileSync("git", ["--git-dir", gitDir, ...args], { encoding: "utf8" }).trim();
 
 function temporaryDirectory(prefix: string) {
   return realpathSync.native(mkdtempSync(join(tmpdir(), prefix)));
@@ -62,20 +70,61 @@ function retarget(contents: string, suffix: string, directory: string) {
 
 const samePath = (a: string, b: string) => realpathSync.native(a) === realpathSync.native(b);
 
+// The bd stand-in keeps its state in files under the fixture's state directory: bead.json for
+// show, update and close; list.json (or list.<n>.json for the nth list call) for list; and
+// slot-held, naming another holder, to make merge-slot acquire fail. It logs every call.
+const bdStub = `#!/bin/sh
+set -eu
+state=$LAND_FIXTURE_STATE
+printf '%s\\n' "$*" >> "$state/calls.log"
+rewrite() {
+  jq "$@" "$state/bead.json" > "$state/bead.next"
+  mv -f "$state/bead.next" "$state/bead.json"
+}
+case "$1" in
+  show) cat "$state/bead.json" ;;
+  list)
+    n=$(grep -c '^list ' "$state/calls.log")
+    if [ -e "$state/list.$n.json" ]; then cat "$state/list.$n.json"; else cat "$state/list.json"; fi
+    ;;
+  merge-slot)
+    if [ "$2" = acquire ] && [ -e "$state/slot-held" ]; then
+      printf 'merge slot is held by %s\\n' "$(cat "$state/slot-held")" >&2
+      exit 1
+    fi
+    ;;
+  update)
+    [ "$2" = ${id} ] && [ "$3" = --set-metadata ] || { printf 'Unexpected bd command: %s\\n' "$*" >&2; exit 1; }
+    rewrite --arg k "\${4%%=*}" --arg v "\${4#*=}" '.metadata[$k] = $v'
+    ;;
+  close)
+    [ "$2" = ${id} ] || { printf 'Unexpected bd command: %s\\n' "$*" >&2; exit 1; }
+    rewrite '.status = "closed"'
+    ;;
+  *) printf 'Unexpected bd command: %s\\n' "$*" >&2; exit 1 ;;
+esac
+`;
+
 function buildTemplate() {
   const directory = temporaryDirectory("spi-code-land-template-");
   const root = join(directory, "main");
   const bin = join(directory, "bin");
+  const state = join(directory, "state");
   mkdirSync(root);
   mkdirSync(bin);
+  mkdirSync(state);
   git(root, "init", "--quiet", "--template=", "-b", "main");
   git(root, "config", "user.name", "Fixture Builder");
   git(root, "config", "user.email", "fixture@example.test");
   git(root, "config", "commit.gpgsign", "false");
   git(root, "config", "core.hooksPath", "/dev/null");
   mkdirSync(join(root, "scripts"));
-  copyFileSync(fileURLToPath(new URL("./land", import.meta.url)), join(root, "scripts/land"));
-  writeFileSync(join(root, "scripts/check"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  copyFileSync(landSource, join(root, "scripts/land"));
+  writeFileSync(
+    join(root, "scripts/check"),
+    '#!/bin/sh\necho ran >> "$LAND_FIXTURE_STATE/checks.log"\n',
+    { mode: 0o755 },
+  );
   writeFileSync(join(root, "change.md"), "Initial content\n");
   git(root, "add", ".");
   git(
@@ -87,27 +136,18 @@ function buildTemplate() {
   );
   git(root, "worktree", "add", "--quiet", "-b", branch, join(directory, "bead"));
   writeFileSync(
-    join(root, ".git", "bead.json"),
+    join(state, "bead.json"),
     JSON.stringify({
       id,
       status: "in_progress",
-      assignee: "fixture-builder",
+      assignee,
       labels: ["review:exempt"],
       metadata: {},
     }),
   );
-  writeFileSync(
-    join(bin, "bd"),
-    `#!/bin/sh
-case "$1" in
-  show) cat "$LAND_FIXTURE_BEAD" ;;
-  list) printf '[]\\n' ;;
-  merge-slot|update|close) ;;
-  *) printf 'Unexpected bd command: %s\\n' "$*" >&2; exit 1 ;;
-esac
-`,
-    { mode: 0o755 },
-  );
+  writeFileSync(join(state, "list.json"), "[]\n");
+  writeFileSync(join(state, "calls.log"), "");
+  writeFileSync(join(bin, "bd"), bdStub, { mode: 0o755 });
   base = git(root, "rev-parse", "main");
   return directory;
 }
@@ -150,15 +190,33 @@ function relocate(directory: string) {
   }
 }
 
-function fixture() {
+type Bead = {
+  id: string;
+  status: string;
+  assignee: string;
+  labels: string[];
+  metadata: Record<string, string>;
+};
+
+function fixture({ origin = false } = {}) {
   const directory = temporaryDirectory("spi-code-land-");
   directories.push(directory);
   cpSync(template, directory, { recursive: true });
   const root = join(directory, "main");
   const worktree = join(directory, "bead");
   const bin = join(directory, "bin");
+  const state = join(directory, "state");
+  const remote = join(directory, "origin");
   relocate(directory);
-  const beadFile = join(root, ".git", "bead.json");
+  if (origin) {
+    git(directory, "clone", "--quiet", "--bare", "--template=", root, remote);
+    mkdirSync(join(remote, "hooks"));
+    bareGit(remote, "config", "core.hooksPath", toGitPath(join(remote, "hooks")));
+    git(root, "remote", "add", "origin", toGitPath(remote));
+  }
+  const beadFile = join(state, "bead.json");
+  const readBead = (): Bead => JSON.parse(readFileSync(beadFile, "utf8"));
+  const writeBead = (bead: Bead) => writeFileSync(beadFile, JSON.stringify(bead));
   let changes = 0;
   return {
     base,
@@ -169,6 +227,52 @@ function fixture() {
       return git(worktree, "rev-parse", "HEAD");
     },
     main: () => git(root, "rev-parse", "main"),
+    originMain: () => bareGit(remote, "rev-parse", "main"),
+    landedCommits: () => Number(git(root, "rev-list", "--count", `${base}..main`)),
+    bead: readBead,
+    // Records the review bead-review would: labels cleared and the given metadata merged in.
+    review(metadata: Record<string, string>) {
+      const bead = readBead();
+      writeBead({ ...bead, labels: [], metadata: { ...bead.metadata, ...metadata } });
+    },
+    patchId() {
+      const diff = execFileSync("git", [
+        "-C",
+        root,
+        "diff",
+        base,
+        git(worktree, "rev-parse", "HEAD"),
+      ]);
+      const [patch = ""] = execFileSync("git", ["-C", root, "patch-id", "--verbatim"], {
+        input: diff,
+        encoding: "utf8",
+      }).split(" ");
+      return patch;
+    },
+    openMainBroken(ids: string[], call?: number) {
+      const file = call === undefined ? "list.json" : `list.${call}.json`;
+      writeFileSync(join(state, file), JSON.stringify(ids.map((bead) => ({ id: bead }))));
+    },
+    holdSlot: (holder: string) => writeFileSync(join(state, "slot-held"), holder),
+    slotHolder: () => readFileSync(join(state, "slot-held"), "utf8"),
+    calls: (command: string) =>
+      readFileSync(join(state, "calls.log"), "utf8")
+        .split("\n")
+        .filter((line) => line === command || line.startsWith(`${command} `)),
+    checkRuns: () =>
+      existsSync(join(state, "checks.log"))
+        ? readFileSync(join(state, "checks.log"), "utf8").split("\n").filter(Boolean).length
+        : 0,
+    rejectPushes(reject: boolean) {
+      const hook = join(remote, "hooks", "pre-receive");
+      if (reject) {
+        writeFileSync(hook, "#!/bin/sh\necho 'fixture origin rejects pushes' >&2\nexit 1\n", {
+          mode: 0o755,
+        });
+      } else {
+        unlinkSync(hook);
+      }
+    },
     land: () =>
       spawnSync("bash", ["scripts/land", id], {
         cwd: root,
@@ -176,11 +280,38 @@ function fixture() {
         env: {
           ...process.env,
           PATH: `${bin}:${process.env.PATH}`,
-          LAND_FIXTURE_BEAD: beadFile,
+          LAND_FIXTURE_STATE: toGitPath(state),
         },
         timeout: landTimeout,
       }),
   };
+}
+
+type Fixture = ReturnType<typeof fixture>;
+type Result = ReturnType<Fixture["land"]>;
+
+function expectRefused(repo: Fixture, result: Result, reason: string) {
+  expect(result.error).toBeUndefined();
+  expect(result.status, result.stdout + result.stderr).toBe(1);
+  expect(result.stderr).toContain(reason);
+  expect(repo.main()).toBe(repo.base);
+  expect(repo.calls("update")).toEqual([]);
+  expect(repo.calls("close")).toEqual([]);
+  expect(repo.bead().status).toBe("in_progress");
+}
+
+function expectLanded(repo: Fixture, result: Result, head: string) {
+  expect(result.error).toBeUndefined();
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  expect(result.stdout).toContain("landed as");
+  expect(repo.main()).toBe(head);
+  expect(repo.bead().status).toBe("closed");
+  expect(repo.bead().metadata["land.sha"]).toBe(head);
+  expect(repo.calls("close")).toEqual([
+    expect.stringMatching(
+      new RegExp(`^close ${id} --actor ${assignee} --reason Landed [0-9a-f]+$`),
+    ),
+  ]);
 }
 
 describe("fixture relocation", () => {
@@ -317,6 +448,183 @@ describe("landing commit attribution", () => {
       expect(result.status, result.stdout + result.stderr).toBe(0);
       expect(result.stdout).toContain("landed as");
       expect(repo.main()).toBe(head);
+    },
+    testTimeout,
+  );
+});
+
+describe("landing gates", () => {
+  const anthropicBuild = { "build.provider": "anthropic", "build.model": "claude-opus-5.5" };
+
+  it(
+    "refuses while another bead is main-broken, before running checks, and releases the slot",
+    () => {
+      const repo = fixture();
+      repo.commit("docs: update fixture");
+      repo.openMainBroken(["spicode-broken"]);
+
+      const result = repo.land();
+
+      expectRefused(repo, result, "main is broken (spicode-broken");
+      expect(result.stderr).toContain("only its fix may land");
+      expect(repo.checkRuns()).toBe(0);
+      expect(repo.calls("merge-slot release")).toEqual([
+        expect.stringMatching(new RegExp(`^merge-slot release --holder land:${id}:\\d+$`)),
+      ]);
+    },
+    testTimeout,
+  );
+
+  it(
+    "refuses when main breaks while checks run",
+    () => {
+      const repo = fixture();
+      repo.commit("docs: update fixture");
+      repo.openMainBroken(["spicode-broken"], 2);
+
+      const result = repo.land();
+
+      expectRefused(repo, result, "main is broken (spicode-broken");
+      expect(repo.checkRuns()).toBe(1);
+      expect(repo.calls("list")).toHaveLength(2);
+    },
+    testTimeout,
+  );
+
+  it(
+    "lands the main-broken fix itself",
+    () => {
+      const repo = fixture();
+      const head = repo.commit("docs: fix main");
+      repo.openMainBroken([id]);
+
+      expectLanded(repo, repo.land(), head);
+    },
+    testTimeout,
+  );
+
+  it(
+    "refuses while another lander holds the merge slot, and leaves that slot alone",
+    () => {
+      const repo = fixture();
+      repo.commit("docs: update fixture");
+      repo.holdSlot("land:spicode-other:1");
+
+      const result = repo.land();
+
+      expectRefused(repo, result, "the merge slot is held");
+      expect(repo.calls("merge-slot release")).toEqual([]);
+      expect(repo.slotHolder()).toBe("land:spicode-other:1");
+      expect(repo.calls("list")).toEqual([]);
+      expect(repo.checkRuns()).toBe(0);
+    },
+    testTimeout,
+  );
+
+  it.each([
+    ["absent", {}],
+    ["failing", { "review.verdict": "fail", "review.provider": "openai" }],
+  ])(
+    "refuses a bead whose review is %s",
+    (_name, review) => {
+      const repo = fixture();
+      repo.commit("docs: update fixture");
+      repo.review({ ...anthropicBuild, ...review });
+
+      expectRefused(repo, repo.land(), `${id} has no passing review`);
+    },
+    testTimeout,
+  );
+
+  it(
+    "refuses a review whose patch-id no longer matches the diff",
+    () => {
+      const repo = fixture();
+      repo.commit("docs: update fixture");
+      const reviewed = repo.patchId();
+      repo.review({
+        ...anthropicBuild,
+        "review.verdict": "pass",
+        "review.provider": "openai",
+        "review.patch_id": reviewed,
+      });
+      repo.commit("docs: change after review");
+      const current = repo.patchId();
+      expect(current).not.toBe(reviewed);
+
+      expectRefused(
+        repo,
+        repo.land(),
+        `the diff changed since review (${current} vs ${reviewed}); review again`,
+      );
+    },
+    testTimeout,
+  );
+
+  it(
+    "refuses a review from the author's own provider",
+    () => {
+      const repo = fixture();
+      repo.commit("docs: update fixture");
+      repo.review({
+        ...anthropicBuild,
+        "review.verdict": "pass",
+        "review.provider": "anthropic",
+        "review.patch_id": repo.patchId(),
+      });
+
+      expectRefused(repo, repo.land(), "the reviewer's provider (anthropic) is the author's");
+    },
+    testTimeout,
+  );
+
+  it(
+    "lands a matching review from a different provider and pushes it to origin",
+    () => {
+      const repo = fixture({ origin: true });
+      const head = repo.commit("docs: update fixture");
+      repo.review({
+        ...anthropicBuild,
+        "review.verdict": "pass",
+        "review.provider": "openai",
+        "review.patch_id": repo.patchId(),
+      });
+
+      expectLanded(repo, repo.land(), head);
+      expect(repo.originMain()).toBe(head);
+      expect(repo.landedCommits()).toBe(1);
+    },
+    testTimeout,
+  );
+
+  it(
+    "keeps the bead open when the push fails, and a rerun finishes the same landing once",
+    () => {
+      const repo = fixture({ origin: true });
+      const head = repo.commit("docs: update fixture");
+      repo.rejectPushes(true);
+
+      const failed = repo.land();
+
+      expect(failed.error).toBeUndefined();
+      expect(failed.status, failed.stdout + failed.stderr).toBe(1);
+      expect(failed.stderr).toContain("the push failed");
+      expect(failed.stderr).toContain(`rerun scripts/land ${id}`);
+      expect(repo.main()).toBe(head);
+      expect(repo.originMain()).toBe(repo.base);
+      expect(repo.bead().status).toBe("in_progress");
+      expect(repo.bead().metadata["land.sha"]).toBe(head);
+      expect(repo.calls("close")).toEqual([]);
+      expect(repo.calls("merge-slot release")).toHaveLength(1);
+      expect(repo.checkRuns()).toBe(1);
+
+      repo.rejectPushes(false);
+      expectLanded(repo, repo.land(), head);
+      expect(repo.originMain()).toBe(head);
+      expect(repo.landedCommits()).toBe(1);
+      expect(repo.calls("update")).toHaveLength(1);
+      expect(repo.checkRuns()).toBe(1);
+      expect(repo.calls("merge-slot release")).toHaveLength(2);
     },
     testTimeout,
   );
