@@ -49,7 +49,7 @@
             "url": "https://github.com/Azure/osdu-spi-entitlements/issues/121"
           }
         ],
-        "attention": "ambient",
+        "attention": "interrupt",
         "owned": false
       },
       {
@@ -88,7 +88,7 @@
             "text": ".azuredevops/component-governance.yml · acceptance-resolver action · component-governance action · validate.yml"
           }
         ],
-        "attention": "ambient",
+        "attention": "surface",
         "owned": false
       },
       {
@@ -113,7 +113,7 @@
             "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/42109055691/job/127532471691"
           }
         ],
-        "attention": "ambient",
+        "attention": "surface",
         "owned": false
       },
       {
@@ -138,7 +138,11 @@
             "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/commit/f9643b164cf5eb0994df18a6d30ddcd37738d245"
           }
         ],
-        "attention": "ambient",
+        "attention": "surface",
+        "due": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "before": "next sync"
+        },
         "owned": false
       },
       {
@@ -167,7 +171,11 @@
             "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/commit/79cbd07824030a0b993939763a8e869721ba698a"
           }
         ],
-        "attention": "ambient",
+        "attention": "surface",
+        "due": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "before": "next sync"
+        },
         "owned": false
       }
     ],
@@ -195,7 +203,11 @@
             "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/commit/d708bac1910407e175278e721a86fe20249e18bf"
           }
         ],
-        "attention": "ambient",
+        "attention": "surface",
+        "due": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "before": "next sync"
+        },
         "owned": false
       },
       {
@@ -216,7 +228,11 @@
             "url": "https://community.opengroup.org/osdu/platform/system/storage/-/commit/9acda5e50312d03e4e8b891c6923d01ec90dfd7d"
           }
         ],
-        "attention": "ambient",
+        "attention": "surface",
+        "due": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "before": "next sync"
+        },
         "owned": false
       },
       {
@@ -237,7 +253,11 @@
             "url": "https://community.opengroup.org/osdu/platform/system/partition/-/commit/69785fa552c905baf34b9c4f7251f7c1c51488df"
           }
         ],
-        "attention": "ambient",
+        "attention": "surface",
+        "due": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "before": "next sync"
+        },
         "owned": false
       },
       {
@@ -262,7 +282,11 @@
             "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/d4b65bdf42503bf50bdbed11249c06bd9c0c4fe0"
           }
         ],
-        "attention": "ambient",
+        "attention": "surface",
+        "due": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "before": "next sync"
+        },
         "owned": false
       },
       {
@@ -283,7 +307,11 @@
             "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/d6847cea52b94f697ab67ef471f1bfeff33b6d93"
           }
         ],
-        "attention": "ambient",
+        "attention": "surface",
+        "due": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "before": "next sync"
+        },
         "owned": false
       },
       {
@@ -304,7 +332,11 @@
             "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/commit/aded8a3f3eb04154f291d4af4e33116514e40599"
           }
         ],
-        "attention": "ambient",
+        "attention": "surface",
+        "due": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "before": "next sync"
+        },
         "owned": false
       },
       {
@@ -325,7 +357,11 @@
             "url": "https://community.opengroup.org/osdu/platform/system/file/-/commit/4d0ff1f4ff24edbeda28d2c161a144a4e3e02db2"
           }
         ],
-        "attention": "ambient",
+        "attention": "surface",
+        "due": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "before": "next sync"
+        },
         "owned": false
       },
       {
@@ -346,7 +382,11 @@
             "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-conversion-service/-/commit/80e3497b7e5c8cba61810c2fb51c9e9fb9e5ea17"
           }
         ],
-        "attention": "ambient",
+        "attention": "surface",
+        "due": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "before": "next sync"
+        },
         "owned": false
       },
       {
@@ -367,7 +407,7 @@
             "url": "https://github.com/Azure/osdu-spi-indexer/pull/58"
           }
         ],
-        "attention": "ambient",
+        "attention": "surface",
         "owned": false
       },
       {
@@ -388,7 +428,7 @@
             "url": "https://github.com/Azure/osdu-spi-storage/pull/58"
           }
         ],
-        "attention": "ambient",
+        "attention": "surface",
         "owned": false
       },
       {
@@ -409,7 +449,7 @@
             "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/58"
           }
         ],
-        "attention": "ambient",
+        "attention": "surface",
         "owned": false
       },
       {
@@ -455,7 +495,7 @@
             "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956"
           }
         ],
-        "attention": "ambient",
+        "attention": "surface",
         "owned": false
       }
     ],
@@ -2163,7 +2203,11 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/partition/-/commit/69785fa552c905baf34b9c4f7251f7c1c51488df"
               }
             ],
-            "attention": "ambient",
+            "attention": "surface",
+            "due": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "before": "next sync"
+            },
             "owned": false,
             "group": "Before 00:00"
           },
@@ -2193,7 +2237,11 @@
                 "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/commit/79cbd07824030a0b993939763a8e869721ba698a"
               }
             ],
-            "attention": "ambient",
+            "attention": "surface",
+            "due": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "before": "next sync"
+            },
             "owned": false,
             "group": "Before 00:00"
           },
@@ -2264,7 +2312,11 @@
                 "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/d6847cea52b94f697ab67ef471f1bfeff33b6d93"
               }
             ],
-            "attention": "ambient",
+            "attention": "surface",
+            "due": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "before": "next sync"
+            },
             "owned": false,
             "group": "Toolchain"
           },
@@ -2306,7 +2358,11 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/d4b65bdf42503bf50bdbed11249c06bd9c0c4fe0"
               }
             ],
-            "attention": "ambient",
+            "attention": "surface",
+            "due": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "before": "next sync"
+            },
             "owned": false,
             "group": "Toolchain"
           }
@@ -2336,7 +2392,28 @@
       "anchor": {
         "kind": "security"
       },
-      "content": null
+      "content": {
+        "headline": "Security not read yet.",
+        "tiles": [
+          {
+            "label": "High",
+            "value": "not read yet",
+            "counts": "high or critical in SPI-owned shipped code · 30 lists not read yet"
+          },
+          {
+            "label": "Total",
+            "value": "not read yet",
+            "counts": "SPI-owned findings at all severities · 30 lists not read yet"
+          },
+          {
+            "label": "Upstream origin",
+            "value": "not read yet",
+            "counts": "upstream-owned findings at all severities · 30 lists not read yet"
+          }
+        ],
+        "items": [],
+        "folded": null
+      }
     },
     {
       "anchor": {
@@ -2382,7 +2459,11 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/partition/-/commit/69785fa552c905baf34b9c4f7251f7c1c51488df"
               }
             ],
-            "attention": "ambient",
+            "attention": "surface",
+            "due": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "before": "next sync"
+            },
             "owned": false,
             "group": "Before 00:00"
           }
@@ -2434,7 +2515,7 @@
                 "url": "https://github.com/Azure/osdu-spi-entitlements/issues/121"
               }
             ],
-            "attention": "ambient",
+            "attention": "interrupt",
             "owned": false,
             "group": "Stopped"
           },
@@ -2460,7 +2541,7 @@
                 "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/42109055691/job/127532471691"
               }
             ],
-            "attention": "ambient",
+            "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
           }
@@ -2519,7 +2600,11 @@
                 "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/commit/79cbd07824030a0b993939763a8e869721ba698a"
               }
             ],
-            "attention": "ambient",
+            "attention": "surface",
+            "due": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "before": "next sync"
+            },
             "owned": false,
             "group": "Before 00:00"
           }
@@ -2575,7 +2660,11 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/commit/d708bac1910407e175278e721a86fe20249e18bf"
               }
             ],
-            "attention": "ambient",
+            "attention": "surface",
+            "due": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "before": "next sync"
+            },
             "owned": false,
             "group": "Before 00:00"
           }
@@ -2627,7 +2716,11 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/file/-/commit/4d0ff1f4ff24edbeda28d2c161a144a4e3e02db2"
               }
             ],
-            "attention": "ambient",
+            "attention": "surface",
+            "due": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "before": "next sync"
+            },
             "owned": false,
             "group": "Before 00:00"
           }
@@ -2679,7 +2772,11 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/storage/-/commit/9acda5e50312d03e4e8b891c6923d01ec90dfd7d"
               }
             ],
-            "attention": "ambient",
+            "attention": "surface",
+            "due": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "before": "next sync"
+            },
             "owned": false,
             "group": "Before 00:00"
           },
@@ -2701,7 +2798,7 @@
                 "url": "https://github.com/Azure/osdu-spi-storage/pull/58"
               }
             ],
-            "attention": "ambient",
+            "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
           }
@@ -2756,7 +2853,11 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/commit/f9643b164cf5eb0994df18a6d30ddcd37738d245"
               }
             ],
-            "attention": "ambient",
+            "attention": "surface",
+            "due": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "before": "next sync"
+            },
             "owned": false,
             "group": "Before 00:00"
           },
@@ -2778,7 +2879,7 @@
                 "url": "https://github.com/Azure/osdu-spi-indexer/pull/58"
               }
             ],
-            "attention": "ambient",
+            "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
           }
@@ -2830,7 +2931,11 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/commit/aded8a3f3eb04154f291d4af4e33116514e40599"
               }
             ],
-            "attention": "ambient",
+            "attention": "surface",
+            "due": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "before": "next sync"
+            },
             "owned": false,
             "group": "Before 00:00"
           }
@@ -2881,7 +2986,11 @@
                 "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/d6847cea52b94f697ab67ef471f1bfeff33b6d93"
               }
             ],
-            "attention": "ambient",
+            "attention": "surface",
+            "due": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "before": "next sync"
+            },
             "owned": false,
             "group": "Before 00:00"
           }
@@ -2932,7 +3041,7 @@
                 "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/58"
               }
             ],
-            "attention": "ambient",
+            "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
           }
@@ -2988,7 +3097,11 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/d4b65bdf42503bf50bdbed11249c06bd9c0c4fe0"
               }
             ],
-            "attention": "ambient",
+            "attention": "surface",
+            "due": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "before": "next sync"
+            },
             "owned": false,
             "group": "Before 00:00"
           }
@@ -3069,7 +3182,11 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-conversion-service/-/commit/80e3497b7e5c8cba61810c2fb51c9e9fb9e5ea17"
               }
             ],
-            "attention": "ambient",
+            "attention": "surface",
+            "due": {
+              "at": "2026-11-07T00:00:00.000Z",
+              "before": "next sync"
+            },
             "owned": false,
             "group": "Before 00:00"
           }
@@ -3153,28 +3270,28 @@
           "state": "waiting",
           "substate": "waiting-on-person",
           "text": "8 behind · will halt on schemathesis-tests",
-          "inspect": "upstream:partition"
+          "inspect": "station:partition:upstream"
         },
         {
           "id": "sync",
           "state": "idle",
           "substate": "ready",
           "text": "clean",
-          "inspect": "upstream:partition"
+          "inspect": "station:partition:sync"
         },
         {
           "id": "cascade",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:partition"
+          "inspect": "station:partition:cascade"
         },
         {
           "id": "main",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:partition"
+          "inspect": "station:partition:main"
         },
         {
           "id": "release",
@@ -3200,28 +3317,28 @@
           "state": "idle",
           "substate": "ready",
           "text": "0 behind",
-          "inspect": "upstream:entitlements"
+          "inspect": "station:entitlements:upstream"
         },
         {
           "id": "sync",
           "state": "idle",
           "substate": "ready",
           "text": "clean",
-          "inspect": "upstream:entitlements"
+          "inspect": "station:entitlements:sync"
         },
         {
           "id": "cascade",
           "state": "stopped",
           "substate": "stopped",
           "text": "conflict",
-          "inspect": "upstream:entitlements"
+          "inspect": "station:entitlements:cascade"
         },
         {
           "id": "main",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:entitlements"
+          "inspect": "station:entitlements:main"
         },
         {
           "id": "release",
@@ -3247,28 +3364,28 @@
           "state": "waiting",
           "substate": "waiting-on-person",
           "text": "17 behind · os-core-common 8.4.1-boot4-SNAPSHOT queued",
-          "inspect": "upstream:legal"
+          "inspect": "station:legal:upstream"
         },
         {
           "id": "sync",
           "state": "idle",
           "substate": "ready",
           "text": "clean",
-          "inspect": "upstream:legal"
+          "inspect": "station:legal:sync"
         },
         {
           "id": "cascade",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:legal"
+          "inspect": "station:legal:cascade"
         },
         {
           "id": "main",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:legal"
+          "inspect": "station:legal:main"
         },
         {
           "id": "release",
@@ -3294,28 +3411,28 @@
           "state": "waiting",
           "substate": "waiting-on-clock",
           "text": "16 behind · port owed",
-          "inspect": "upstream:schema"
+          "inspect": "station:schema:upstream"
         },
         {
           "id": "sync",
           "state": "idle",
           "substate": "ready",
           "text": "clean",
-          "inspect": "upstream:schema"
+          "inspect": "station:schema:sync"
         },
         {
           "id": "cascade",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:schema"
+          "inspect": "station:schema:cascade"
         },
         {
           "id": "main",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:schema"
+          "inspect": "station:schema:main"
         },
         {
           "id": "release",
@@ -3341,28 +3458,28 @@
           "state": "waiting",
           "substate": "waiting-on-clock",
           "text": "5 behind · port owed",
-          "inspect": "upstream:file"
+          "inspect": "station:file:upstream"
         },
         {
           "id": "sync",
           "state": "idle",
           "substate": "ready",
           "text": "clean",
-          "inspect": "upstream:file"
+          "inspect": "station:file:sync"
         },
         {
           "id": "cascade",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:file"
+          "inspect": "station:file:cascade"
         },
         {
           "id": "main",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:file"
+          "inspect": "station:file:main"
         },
         {
           "id": "release",
@@ -3388,28 +3505,28 @@
           "state": "waiting",
           "substate": "waiting-on-clock",
           "text": "11 behind · in the sync PR · port owed",
-          "inspect": "upstream:storage"
+          "inspect": "station:storage:upstream"
         },
         {
           "id": "sync",
           "state": "waiting",
           "substate": "waiting-on-person",
           "text": "gate 1 · PR #58",
-          "inspect": "upstream:storage"
+          "inspect": "station:storage:sync"
         },
         {
           "id": "cascade",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:storage"
+          "inspect": "station:storage:cascade"
         },
         {
           "id": "main",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:storage"
+          "inspect": "station:storage:main"
         },
         {
           "id": "release",
@@ -3435,28 +3552,28 @@
           "state": "waiting",
           "substate": "waiting-on-clock",
           "text": "25 behind · in the sync PR · port owed",
-          "inspect": "upstream:indexer"
+          "inspect": "station:indexer:upstream"
         },
         {
           "id": "sync",
           "state": "waiting",
           "substate": "waiting-on-person",
           "text": "gate 1 · PR #58",
-          "inspect": "upstream:indexer"
+          "inspect": "station:indexer:sync"
         },
         {
           "id": "cascade",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:indexer"
+          "inspect": "station:indexer:cascade"
         },
         {
           "id": "main",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:indexer"
+          "inspect": "station:indexer:main"
         },
         {
           "id": "release",
@@ -3482,28 +3599,28 @@
           "state": "waiting",
           "substate": "waiting-on-clock",
           "text": "6 behind · port owed",
-          "inspect": "upstream:search"
+          "inspect": "station:search:upstream"
         },
         {
           "id": "sync",
           "state": "idle",
           "substate": "ready",
           "text": "clean",
-          "inspect": "upstream:search"
+          "inspect": "station:search:sync"
         },
         {
           "id": "cascade",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:search"
+          "inspect": "station:search:cascade"
         },
         {
           "id": "main",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:search"
+          "inspect": "station:search:main"
         },
         {
           "id": "release",
@@ -3529,28 +3646,28 @@
           "state": "waiting",
           "substate": "waiting-on-clock",
           "text": "7 behind · port owed",
-          "inspect": "upstream:workflow"
+          "inspect": "station:workflow:upstream"
         },
         {
           "id": "sync",
           "state": "idle",
           "substate": "ready",
           "text": "clean",
-          "inspect": "upstream:workflow"
+          "inspect": "station:workflow:sync"
         },
         {
           "id": "cascade",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:workflow"
+          "inspect": "station:workflow:cascade"
         },
         {
           "id": "main",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:workflow"
+          "inspect": "station:workflow:main"
         },
         {
           "id": "release",
@@ -3576,28 +3693,28 @@
           "state": "waiting",
           "substate": "waiting-on-clock",
           "text": "3 behind · in the sync PR",
-          "inspect": "upstream:indexer-queue"
+          "inspect": "station:indexer-queue:upstream"
         },
         {
           "id": "sync",
           "state": "waiting",
           "substate": "waiting-on-person",
           "text": "gate 1 · PR #58",
-          "inspect": "upstream:indexer-queue"
+          "inspect": "station:indexer-queue:sync"
         },
         {
           "id": "cascade",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:indexer-queue"
+          "inspect": "station:indexer-queue:cascade"
         },
         {
           "id": "main",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:indexer-queue"
+          "inspect": "station:indexer-queue:main"
         },
         {
           "id": "release",
@@ -3623,28 +3740,28 @@
           "state": "waiting",
           "substate": "waiting-on-clock",
           "text": "7 behind · port owed",
-          "inspect": "upstream:unit"
+          "inspect": "station:unit:upstream"
         },
         {
           "id": "sync",
           "state": "idle",
           "substate": "ready",
           "text": "clean",
-          "inspect": "upstream:unit"
+          "inspect": "station:unit:sync"
         },
         {
           "id": "cascade",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:unit"
+          "inspect": "station:unit:cascade"
         },
         {
           "id": "main",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:unit"
+          "inspect": "station:unit:main"
         },
         {
           "id": "release",
@@ -3670,28 +3787,28 @@
           "state": "idle",
           "substate": "ready",
           "text": "0 behind",
-          "inspect": "upstream:crs-catalog"
+          "inspect": "station:crs-catalog:upstream"
         },
         {
           "id": "sync",
           "state": "idle",
           "substate": "ready",
           "text": "clean",
-          "inspect": "upstream:crs-catalog"
+          "inspect": "station:crs-catalog:sync"
         },
         {
           "id": "cascade",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:crs-catalog"
+          "inspect": "station:crs-catalog:cascade"
         },
         {
           "id": "main",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:crs-catalog"
+          "inspect": "station:crs-catalog:main"
         },
         {
           "id": "release",
@@ -3717,28 +3834,28 @@
           "state": "waiting",
           "substate": "waiting-on-clock",
           "text": "5 behind · port owed",
-          "inspect": "upstream:crs-conversion"
+          "inspect": "station:crs-conversion:upstream"
         },
         {
           "id": "sync",
           "state": "idle",
           "substate": "ready",
           "text": "clean",
-          "inspect": "upstream:crs-conversion"
+          "inspect": "station:crs-conversion:sync"
         },
         {
           "id": "cascade",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:crs-conversion"
+          "inspect": "station:crs-conversion:cascade"
         },
         {
           "id": "main",
           "state": "idle",
           "substate": "ready",
           "text": "idle",
-          "inspect": "upstream:crs-conversion"
+          "inspect": "station:crs-conversion:main"
         },
         {
           "id": "release",
