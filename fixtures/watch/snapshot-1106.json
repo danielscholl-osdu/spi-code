@@ -2401,7 +2401,69 @@
       "anchor": {
         "kind": "engineering"
       },
-      "content": null
+      "content": {
+        "headline": "Template rollout is in progress; verification is still pending.",
+        "tiles": [
+          {
+            "label": "Engineering system",
+            "value": "0 of 13",
+            "counts": "forks on 7d269b5"
+          },
+          {
+            "label": "Template PRs",
+            "value": "13",
+            "counts": "open across the forks"
+          },
+          {
+            "label": "Rollout",
+            "value": "In progress",
+            "counts": "13 forks left to verify"
+          }
+        ],
+        "items": [
+          {
+            "id": "rollout",
+            "ids": ["rollout"],
+            "rung": 1,
+            "cls": "ROLLOUT",
+            "scope": "fleet",
+            "title": "Rollout to template 7d269b5",
+            "sub": "0 of 13 merged · 0 of 5 lanes busy",
+            "cause": "osdu-spi main 7d269b5 is on its way to the fleet: 0 of 13 forks merged.",
+            "effect": "The change reaches actions, workflows and settings, so every PR and every merge takes a deploy lane: 13 lanes, 5 at a time still to go.",
+            "next": "Merge partition, entitlements, legal, schema and file. Five lanes are free.",
+            "verb": "Merge",
+            "evidence": [
+              {
+                "label": "main 7d269b5",
+                "url": "https://github.com/Azure/osdu-spi/commit/7d269b57e9b114711a7de9d0052b5ae4fd261e97"
+              },
+              {
+                "label": "forks on 5398e93",
+                "url": "https://github.com/Azure/osdu-spi/compare/5398e9339b7236baecdf7e8b82366041c137c0f7...7d269b57e9b114711a7de9d0052b5ae4fd261e97"
+              }
+            ],
+            "more": [
+              {
+                "label": "Plan",
+                "text": "3 waves · lanes 5 from rollout.json · search merges after storage and indexer"
+              },
+              {
+                "label": "Watch",
+                "text": "Upstream sync at 11-07 00:00 opens 10 PRs (partition halts instead) that share these lanes. The 11-07 08:00 template sync opens nothing: every fork already has a PR or the change."
+              },
+              {
+                "label": "Reaches",
+                "text": ".azuredevops/component-governance.yml · acceptance-resolver action · component-governance action · validate.yml"
+              }
+            ],
+            "attention": "surface",
+            "owned": false,
+            "group": "New"
+          }
+        ],
+        "folded": "On osdu-spi: PR #263 chore: release 1.5.0 · review required."
+      }
     },
     {
       "anchor": {
