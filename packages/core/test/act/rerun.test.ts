@@ -108,11 +108,19 @@ describe("the environment verbs", () => {
     expect(wait?.confirm?.body).toContain(
       "gh run rerun 38224682332 --failed -R Azure/osdu-spi-schema",
     );
+  });
+
+  test("an existing wait defaults to app wording without a cancel tool", () => {
+    const m = model(true);
     const [held] = laneActions(m.item, m.stack, {
       ...opts,
       waiting: { id: "op-7", at: "2026-10-12T21:45:00Z" },
     });
-    expect(held?.reason).toBe("already waiting since 21:45 as op op-7; run_cancel drops it");
+    expect(held).toMatchObject({
+      type: WAIT_ACTION,
+      disabled: true,
+      reason: "already waiting since 21:45 as op op-7",
+    });
     expect(held?.confirm).toBeUndefined();
   });
 
@@ -122,6 +130,7 @@ describe("the environment verbs", () => {
       voice: APP_VOICE,
       reason: "SPI Code has no durable ops here",
       restart: "An SPI Code restart",
+      waitingReason: "already waiting since 21:45 as op op-7",
       other: "Keelson",
     },
     {
@@ -129,11 +138,12 @@ describe("the environment verbs", () => {
       voice: RIB_VOICE,
       reason: "this Keelson has no durable ops",
       restart: "A Keelson restart",
+      waitingReason: "already waiting since 21:45 as op op-7; run_cancel drops it",
       other: "SPI Code",
     },
   ])(
     "$name inspector uses its context voice for durable-op offers",
-    ({ voice, reason, restart, other }) => {
+    ({ voice, reason, restart, waitingReason, other }) => {
       const m = model(true);
       const context = createContext({
         ...fixtureContext,
@@ -148,6 +158,17 @@ describe("the environment verbs", () => {
         `It stands down without writing if a lifecycle run fails again. ${restart} drops the wait and the item stays in the queue.`,
       );
       expect(wait?.confirm?.body).not.toContain(other);
+      const [held] = verbsOf(m.item, m, context, {
+        scopes: ["repo"],
+        ops: true,
+        waiting: { id: "op-7", at: "2026-10-12T21:45:00Z" },
+      });
+      expect(held).toMatchObject({
+        type: WAIT_ACTION,
+        disabled: true,
+        reason: waitingReason,
+      });
+      expect(held?.confirm).toBeUndefined();
     },
   );
 

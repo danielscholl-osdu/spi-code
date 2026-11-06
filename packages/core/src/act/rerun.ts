@@ -139,7 +139,7 @@ export function laneActions(item: QueueItem, stack: StackModel, given: LaneOptio
     (!opts.ops
       ? voice.noOps
       : opts.waiting
-        ? `already waiting since ${stamp(opts.waiting.at, opts.now)} as op ${opts.waiting.id}; run_cancel drops it`
+        ? `already waiting since ${stamp(opts.waiting.at, opts.now)} as op ${opts.waiting.id}${voice.existingWaitSuffix ?? ""}`
         : undefined);
   const wait = (action: ActionItem) =>
     sourced({ ...action, type: WAIT_ACTION }, opts.blocked ? blockedFrom : []);

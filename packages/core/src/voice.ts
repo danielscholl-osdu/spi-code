@@ -11,6 +11,8 @@ export interface Voice {
   readonly noOps: string;
   /** The host restart phrase, including its article. */
   readonly restart: string;
+  /** Optional guidance appended to an existing wait's disabled reason. */
+  readonly existingWaitSuffix?: string;
 }
 
 export const APP_VOICE: Voice = Object.freeze({
@@ -26,6 +28,7 @@ export const RIB_VOICE: Voice = Object.freeze({
   name: "the rib",
   noOps: "this Keelson has no durable ops",
   restart: "A Keelson restart",
+  existingWaitSuffix: "; run_cancel drops it",
 });
 
 /** The actor opening a sentence. */
