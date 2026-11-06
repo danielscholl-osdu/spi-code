@@ -46,27 +46,34 @@ IDs are an area prefix and a number, such as `AU-04`. The milestone column names
 
 ## Program shape and views
 
-The left tree follows the program's three nouns. Every view is rendered from the same core functions the rib uses, so parity with the rib console is the check.
+The window is organized around things and work, not report pages. The sidebar lists the Inbox, the three program things (Template, Environment, Releases), the thirteen service lines, four lenses, threads and Setup. The middle panel shows one list, one thing's page or one thread. The right panel is the one detail surface for the selection. Every text the window draws comes from the same core functions the rib uses, so parity with the rib console is the check, taken per owner surface as the [visual design](spi-code-visual-design.html) maps it under Parity with the rib.
+
+PS-01 is retired: the tree of page links it described is replaced by PS-08. PS-08 to PS-13 are new.
 
 | ID | Requirement | Milestone | Verified by |
 |---|---|---|---|
-| **PS-01** | The tree has Today, System (Template, Repositories, Releases), Stack (Shared environment), Services (Flow and Horizon, then one entry per service line), Threads, Runs and Setup, each with a status dot from the latest sweep. | M2 | Screenshot test on recorded Facts |
-| **PS-02** | The six rib console views (Today, Repositories, Environment, Flow, Horizon, Releases) render in the middle panel with the same content the rib produces from the same Facts. | M2 | Parity test on the `Briefing` object and the Releases pane input that `boards/console.ts` renders, from one recorded sweep with recorded release reads and notes |
-| **PS-03** | Today shows the `buildBriefing` headline, facts, focus items in P0, P1, P2 order, and the ready line. | M2 | Fixture test on briefing output |
-| **PS-04** | Selecting a queue item opens the inspector with its class, cause, effect and next action, and the actions the item offers. A disabled action states why, in place. An action whose tool ships in a later milestone is shown disabled with that reason. The action assembly the rib does in `boards/inspect.ts` (`verbsOf`) and `boards/template.ts` moves to core with CO-05. | M2 | Component test per failure class |
-| **PS-05** | Each service line shows its six stations as the rib defines them in `model/lines.ts`. | M2 | Parity test |
+| **PS-02** | Every text the rib console renders from the `Briefing` object and the Releases pane input appears in the window on the surface that owns it: Today on the Inbox, Flow on the Flow lens and the service pages, Repositories on the Repositories lens and the pages of the repositories it lists, Environment on the Environment page, Horizon on the Horizon lens, Releases on the Releases list and month pages. The rib's lone "·" placeholder cells render blank. | M2 | Parity test on the `Briefing` object and the Releases pane input that `boards/console.ts` renders, from one recorded sweep with recorded release reads and notes; a window test that asserts each field's text once on its owner surface from the same fixture |
+| **PS-03** | The Inbox is the default place. It shows the `buildBriefing` headline, summary and facts, a Waiting for you section for pending cards (empty before M4, saying so), the focus items in P0, P1, P2 order with the rest folded, and the ready line. Each item names its scope with a chip that opens the thing's page. | M2 | Fixture test on briefing output; component test on the scope chip |
+| **PS-04** | Selecting a queue item, a station, a repository line, a run, a release month or an environment event fills the right panel's Detail tab with its class, cause, effect and next action, the actions it offers, and from M3 an Ask button. A disabled action states why, in place. An action whose tool ships in a later milestone is shown disabled with that reason. The action assembly the rib does in `boards/inspect.ts` (`verbsOf`) and `boards/template.ts` moves to core with CO-05. | M2 | Component test per failure class |
+| **PS-05** | Each service line has a page, reached from the sidebar, a scope chip, a lens row or ⌘K. Its six stations as the rib defines them in `model/lines.ts` run across the top, each selectable; below them the page gathers the service's queue items, upstream sync row, repository lines, release gate and workflow runs in fixed sections that are empty rather than absent. | M2 | Parity test on the stations; component test on the sections from a recorded sweep |
 | **PS-06** | The upstream hold for a SNAPSHOT toolchain shows the rib's "Take it anyway" variant of Prepare and Start, with the hold reason on the card. | M4 | Tool test with a SNAPSHOT fixture |
-| **PS-07** | The Stack view labels live cluster reads (from `spi status --json`, Flux, pods) apart from state inferred from workflow runs. | M6 | Screenshot test with both sources |
+| **PS-07** | The Environment page labels live cluster reads (from `spi status --json`, Flux, pods) apart from state inferred from workflow runs. Before M6 the Live cluster section is present and says live reads arrive at M6. | M6 | Screenshot test with both sources |
+| **PS-08** | The sidebar has Find or ask (⌘K), Inbox with the count of P0 and P1 items plus pending cards, a Program group (Template, Environment, Releases), a Services group with every service line in fleet order, a Lenses group (Flow, Repositories, Horizon, Runs), a Threads group newest first, and a footer with Setup and the sweep time. Each service row carries a dot for the highest priority in its queue and a word that says why; a dot never carries evidence state except hollow for unread. Groups collapse and remember it. | M2 | Screenshot test on a recorded sweep; component test on the dot and word |
+| **PS-09** | Template, Environment and Releases each have a page with the same shape as a service page: a headline, facts and sections, with the right panel for the selection. The two program repositories' lines appear on the Template and Environment pages. | M2 | Component test per page from a recorded sweep |
+| **PS-10** | A lens is a sortable table across the fleet for one concern, without an in-page detail pane. Flow, Repositories and Horizon carry the rib's views of the same names; Runs lists workflow runs newest first with workflow, service, result and time once the contract carries them, and run ids with their evidence state until then. Selecting a row fills the right panel; opening a row goes to the thing's page. | M2 | Parity test per lens; component test on sort and selection |
+| **PS-11** | The right panel is the one detail surface. It has Detail, Evidence and Log tabs; in a code thread, Changes and Checks replace Detail and Evidence. No page or lens carries a second copy of the selection's detail, and no page outside a thread carries a composer or a Copilot panel. | M2 panel, M3 Log, M5 Changes and Checks | Component test; a DOM assertion that no page renders two detail surfaces |
+| **PS-12** | ⌘K (Ctrl+K on Windows) opens one palette that finds every place, service, lens and queue item, and from M3 lists threads and turns a sentence into a question to Copilot about the selection. | M2 find, M3 ask, M4 actions | Component test on the groups and the keyboard model |
+| **PS-13** | Below 1180 px the sidebar becomes a 48 px rail of dots and group marks; below 980 px the right panel becomes a sheet from the right edge that opens on selection or from Detail in the title bar and closes with Escape. The right panel never lands under the sidebar. | M2 | Screenshot test at 1280, 1100 and 900 px |
 
 ## Threads and anchors
 
 | ID | Requirement | Milestone | Verified by |
 |---|---|---|---|
-| **TH-01** | Every thread has one anchor: the program, a tree branch, a service line, the stack, a queue item or a PR. | M3 | Store schema test |
+| **TH-01** | Every thread has one anchor: the program, the template, the environment, a release month, a service line, a queue item or a PR. | M3 | Store schema test |
 | **TH-02** | A new session's first context is the anchor's reading and the sweep time it came from. A queue item uses `readItem`. `readItem` takes only a `QueueItem`, so core adds a reading of the same shape for the other anchor kinds in TH-01. | M3 | Fake-session test per anchor kind inspects the seeded message |
-| **TH-03** | Typing in the composer on a console view starts a thread anchored to the current selection. The composer always shows the anchor. | M3 | Component test |
+| **TH-03** | A thread starts from a thing: Ask on the Detail tab, a sentence typed into ⌘K, the + beside Threads, or Fix in a code thread. It is anchored to the current selection, or to the current place when nothing is selected. The composer exists only in a thread and always shows the anchor. | M3 | Component test |
 | **TH-04** | A thread's kind (operate or code) is fixed when it starts and shown in its header. The kind sets the session's `availableTools`. | M3 operate, M5 code | Fake-session test: an operate session cannot call a worktree tool |
-| **TH-05** | When a thread owns a piece of work, every view that shows that work opens the thread instead of offering a new one. | M3 | Component test on queue row and inspector |
+| **TH-05** | When a thread owns a piece of work, every surface that shows that work (a queue row, a service page section, the Detail tab) opens the thread instead of offering a new one. | M3 | Component test on queue row and Detail tab |
 | **TH-06** | Tools that fit the anchor are offered first. Every tool stays reachable from any thread of the right kind. | M3 | Tool projection test |
 
 ## Copilot runtime
@@ -99,8 +106,8 @@ Every action is a typed tool that builds its own command from validated argument
 | **AU-06** | On approval, the host takes the target's named lock, re-reads every binding field, and runs only if all of them hold. Otherwise the card moves to binding failed and names the field that changed. | M4 | Stale-binding test, live and recorded |
 | **AU-07** | Merges are sent with `--match-head-commit`. `merge_pr` covers Dependabot and template PRs only. | M4 | Tool test moves the head between check and send |
 | **AU-08** | Clearing maintenance checks what the lifecycle workflows check: no lifecycle run in flight, deployed ref equals the declared stack version, and `spi status` reports ready with maintenance as the only blocker. It does not require deployable. | M6 | Tool test with each condition false |
-| **AU-09** | Each card has one id and one state in the approval store: pending, binding failed, executing, applied, not applied, unknown, declined or invalidated. The Approvals tab is one inbox with the same count everywhere. | M4 | Store test and screenshot test |
-| **AU-10** | A card requested in a thread is decided in that thread's composer strip. A card requested by a button is decided on the card, in its run or in the inbox. | M4 | Component test |
+| **AU-09** | Each card has one id and one state in the approval store: pending, binding failed, executing, applied, not applied, unknown, declined or invalidated. Pending cards wait in the Inbox under Waiting for you, which is the one inbox; its count is the same in the sidebar and the title bar. The right panel has no Approvals tab. | M4 | Store test and screenshot test |
+| **AU-10** | A card requested in a thread is decided in that thread's composer strip. A card requested by a button on the Detail tab is decided on the card, in the Inbox or in its run. | M4 | Component test |
 | **AU-11** | No tool exists for anything in the **Not offered** row of appendix A, including merging cascade PRs, submitting review approvals, force pushes, reading Kubernetes Secrets and any guard bypass. | M3 | Tool registry test against the list |
 | **AU-12** | No child process inherits `SPI_SKIP_GUARD` or another guard-bypass variable. | M4 | Environment test on every spawn path |
 
@@ -144,7 +151,7 @@ The lookup after Unknown resolves the card to Applied or Not applied. Time passi
 |---|---|---|---|
 | **EV-01** | Every read result carries an envelope: source, observed time, completeness, and one state of fresh, stale, incomplete, failed or unread. | M2 | Collector tests |
 | **EV-02** | A source is stale when its last good read is older than twice its sweep interval; incomplete when a page or size limit cut the read; failed when its latest read errored; unread when no read has succeeded since start. | M2 | Clock-driven unit tests |
-| **EV-03** | Every view that draws a value shows its envelope. A value drawn only from inferred sources says "inferred" wherever it appears, including the title bar. | M2 | Screenshot test |
+| **EV-03** | Evidence is shown once per surface, not beside each value: one sweep line in the title bar (when it swept, areas failed, cut or stale, the next sync), one line on a section header whose sources are not fresh, and the Evidence tab for the selection, which names each area in plain words with its state, age and completeness. A value drawn only from inferred sources says "inferred" wherever it appears, including the title bar. A value from an unread area reads "not read yet", never zero. | M2 | Screenshot test; component test on the sweep line and the Evidence tab |
 | **EV-04** | A write whose binding needs a deployable environment is refused when deployability is unread or sources disagree. The card names the disagreement and both values stay visible. Before M6 deployability comes only from workflow-run evidence; it binds when fresh and complete, and the card labels it inferred. | M4 | Tool test with conflicting fixtures |
 | **EV-05** | Redaction strips tokens, keys, connection strings and kubeconfig credentials from every result before it reaches Copilot or SQLite. | M3 | Redaction corpus test |
 | **EV-06** | Pod logs and `kubectl get` results have size limits. Kubernetes Secrets have no reader. | M6 | Tool tests |
@@ -152,7 +159,7 @@ The lookup after Unknown resolves the card to Applied or Not applied. Time passi
 
 ## Runs, intents and durability
 
-Everything that does work is a run: a verb from the inspector, a Copilot turn, a playbook, or a wait. A run is a SQLite row with an append-only event list, read by cursor.
+Everything that does work is a run: a verb from the Detail tab, a Copilot turn, a playbook, or a wait. A run is a SQLite row with an append-only event list, read by cursor.
 
 | ID | Requirement | Milestone | Verified by |
 |---|---|---|---|
@@ -171,9 +178,9 @@ Playbooks are TypeScript state machines on the run store, not a YAML engine, bec
 
 | ID | Requirement | Milestone | Verified by |
 |---|---|---|---|
-| **PB-01** | **Diagnose a failure** runs as an operate thread from any incident or failed lane. It reads the failed job, step, reason, annotations and logs, then core's attribution, the image digest and the pin owner, and from M6 Flux, pods and jobs. Copilot's finding cites each tool result, names the cause and names the verb that clears it. Read only. | M3, M6 | On recorded incidents, the cause matches the inspector's class |
+| **PB-01** | **Diagnose a failure** runs as an operate thread from any incident or failed lane. It reads the failed job, step, reason, annotations and logs, then core's attribution, the image digest and the pin owner, and from M6 Flux, pods and jobs. Copilot's finding cites each tool result, names the cause and names the verb that clears it. Read only. | M3, M6 | On recorded incidents, the cause matches the Detail tab's class |
 | **PB-02** | **Hand off a fix** applies to items whose fix is a change on the fork's main branch. Copilot drafts an issue with the cited evidence. After approval the host opens it, assigns the Copilot coding agent, follows the PR, offers `approve_runs` when its workflows wait, and links the PR to the item. | M4 | Live run on one fork |
-| **PB-03** | For a fix on `fork_integration`, a release branch or a template-owned file, the inspector offers a code thread instead of a handoff, and Diagnose suggests one. | M5 | Component test per item kind |
+| **PB-03** | For a fix on `fork_integration`, a release branch or a template-owned file, the Detail tab offers a code thread instead of a handoff, and Diagnose suggests one. | M5 | Component test per item kind |
 
 ## Code threads
 
@@ -217,7 +224,7 @@ The source for each step: `cascade.yml` runs Validate integration on `fork_integ
 
 | ID | Requirement | Milestone | Verified by |
 |---|---|---|---|
-| **CT-01** | A code thread starts from a finding or inspector action, checks out the fork at the head the finding read, and carries the finding as context. Each fork is cloned once under app data and shared by its worktrees. | M5 | Worktree test |
+| **CT-01** | A code thread starts from a finding or a Detail-tab action, checks out the fork at the head the finding read, and carries the finding as context. Each fork is cloned once under app data and shared by its worktrees. | M5 | Worktree test |
 | **CT-02** | The thread commits to a local `spi/*` branch and names its remote target. The target is `fork_integration` for a cascade validate failure and the release PR's head branch for a Prove failure on that PR. | M5 | Target-selection test per failure point |
 | **CT-03** | One thread at a time holds the push lease for a remote branch. The header shows the branch, target, base and head. | M5 | Lease test with two threads |
 | **CT-04** | `push_branch` pushes the exact commit, fast-forward only, refused unless the remote is still at the commit the card names. A push that changes `.github/` needs the PR number typed into the card. | M5 | Push test moving the remote between card and approval |
@@ -292,8 +299,8 @@ M0 needs, before it starts: an Apple Developer ID certificate and notarization c
 |---|---|---|
 | **M0 Spike** | The pnpm monorepo scaffold in appendix D, which M1 builds into. Electron shell, host, MessagePort contract, the SDK runtime unpacked and started by path, one gated SPI tool, `node:sqlite`, the fake-session harness, login-shell PATH capture for gh (ST-04). Signed and notarized macOS arm64; Windows x64 CI build. Install-only probe of uv, Python, azure-cli with pip and the k8s-configuration extension. A sandbox probe that runs `java -version` from a JDK on the probe machine (the managed JDK arrives at M5) with the keychain and home config unreadable. | On a clean Mac with no `~/.copilot`, the notarized build signs in through gh, lists models with the gh token (CP-03), streams a turn, reaches a stub for every appendix A tool, and refuses a denied call. A second run with a user-level MCP server configured shows it is not visible. The Windows CI build passes the packaged smoke test against the stub model. In the macOS and Windows packages, the host and main report different process ids, a malformed message is rejected, and a SQLite row survives a host restart. The install probe succeeds; the sandbox probe passes on macOS and its Windows result is recorded. The host model and the runtime signing approach are recorded. |
 | **M1 Core** | `@spi-code/core` with Facts, model, briefing and `readItem`. The rib consumes its vendored tarball. | Core's and the rib's tests pass under CO-04's count rule. `consoleHtml` rendered from one recorded Facts file (`RIB_SPI_FACTS_FILE`), recorded release reads and notes for a populated Releases pane, a fixed `now` and a pinned `TZ` is byte-identical before and after the rib switches to core, and the live Keelson tab still renders Today on a live sweep. |
-| **M2 Watch** | Collectors in core, sweeps in the host with a rate budget, the tree, six views, inspector, evidence envelope, Setup for Copilot, git, gh and glab. | Every view matches the rib console on one recorded sweep, then a day of live use with no Keelson sweeping. |
-| **M3 Ask** | Anchored threads, read tools, redaction, run log, Diagnose a failure on Actions evidence. | On recorded incidents, Diagnose names the inspector's cause and every claim cites a tool result. |
+| **M2 Watch** | Collectors in core, sweeps in the host with a rate budget, the sidebar, the Inbox, the service and program pages, the four lenses, the Detail and Evidence tabs, ⌘K find, the narrow layout, the evidence envelope, Setup for Copilot, git, gh and glab. | Every text the rib console renders appears on its owner surface on one recorded sweep (PS-02), then a day of live use with no Keelson sweeping. |
+| **M3 Ask** | Anchored threads, read tools, redaction, run log, Diagnose a failure on Actions evidence. | On recorded incidents, Diagnose names the Detail tab's cause and every claim cites a tool result. |
 | **M4 Act** | Approval cards and the inbox. The rib's eleven verbs plus `merge_pr`, `comment`, `open_issue` and `assign_coding_agent`, with bindings, locks, intents, lookups and durable waits. Hand off a fix. The rib's verbs off. Includes `dispatch_env_refresh` and `dispatch_env_upgrade`, which are rib verbs. | A stale binding is refused, a rerun-when-deployable wait survives a restart, and an interrupted write is resolved by lookup, not re-sent. |
 | **M5 Code** | Worktrees and the push lease, worktree tools, the sandbox on both platforms, Command cards, `commit` and `push_branch`, the terminal drawer, JDK and Maven in Setup, the PR watch. | The sandbox blocks every path in CT-08 and CT-09, a push is refused when the remote moved, and one real fix goes from finding to green checks without leaving the app. |
 | **M6 Operate** | Operate tools in Setup, `dispatch_env_reset` (new; no rib verb), maintenance, reconcile, service pin and reset through `spi`, read tools through `kubectl` and `flux`, GitLab MR tools, live cluster evidence. | One environment refresh and one service pin and reset run end to end with every Consequential step carded. Live reads are labeled apart from inferred state. |
@@ -301,7 +308,7 @@ M0 needs, before it starts: an Apple Developer ID certificate and notarization c
 
 ## Validation plan
 
-None of these tests exist yet. Core keeps the rib's fixture tests for attribution, incident folding, pacing, release naming and briefing wording. The host is tested against recorded Facts replays, so a sweep is reproducible without GitHub. The agent runtime is tested against a fake SDK session that scripts tool calls: every tier answers as appendix A says, a tool missing from `availableTools` cannot be reached, and a policy error refuses the call. Durability tests stop the host before an intent is written, after it is written but before the call, and after the call but before the result. Sandbox tests try each blocked path and each git tamper, then check that SPI Code's commit and push ignore them. A packaged smoke test on both platforms starts the app, completes a scripted turn against a stub model, and screenshots each view in both appearances.
+None of these tests exist yet. Core keeps the rib's fixture tests for attribution, incident folding, pacing, release naming and briefing wording. The host is tested against recorded Facts replays, so a sweep is reproducible without GitHub. The agent runtime is tested against a fake SDK session that scripts tool calls: every tier answers as appendix A says, a tool missing from `availableTools` cannot be reached, and a policy error refuses the call. Durability tests stop the host before an intent is written, after it is written but before the call, and after the call but before the result. Sandbox tests try each blocked path and each git tamper, then check that SPI Code's commit and push ignore them. A packaged smoke test on both platforms starts the app, completes a scripted turn against a stub model, and screenshots each owner surface in both appearances.
 
 ## Open questions
 
@@ -317,6 +324,9 @@ None of these tests exist yet. Core keeps the rib's fixture tests for attributio
 | When the rib retires | Two codebases carry adapters until then | Maintainer, after a release cycle of daily use |
 | Thread-wide approvals for repeated Change calls on one target | Fewer cards, wider grants | After v1, only if per-card approval proves tiring |
 | When the repository goes private | Commits and builds published before then stay usable under MIT; only later versions are closed | Maintainer, by M7 |
+| Change rib-flavored strings in core ("1 press in the rib") to app wording | They are model output, so the change regenerates the parity oracle for the rib and the app; a core bead with the next tarball bump, not a window change | Maintainer, before the parity suite is written |
+| Does the Runs lens stay once app runs (verbs, playbooks, waits) exist, or do workflow runs and app runs share one lens | Two kinds of run under one name confuse; two lenses cost a sidebar row | Maintainer, at the M4 breakdown |
+| Station inspect ids, per-service workflow runs, template version per fork and per-area sweep progress as Watch contract additions | The visual design names them under Contract additions with a placeholder each; none changes model output | Maintainer, at the M2 replan |
 
 ## Reference detail
 
@@ -402,7 +412,7 @@ Each row names where a capability already exists and what SPI Code does with it.
 | Auth probe | Keelson `copilot/registration.ts` (72) | **Port** | Seat check (ST-06) |
 | Agent runtime | `@github/copilot-sdk` 1.0.26, `dist/types.d.ts`; `SandboxConfig` in `dist/generated/rpc.d.ts` | **Depend** | MIT; ships `docs/` with examples |
 | Durable ops with cursor reads | Keelson `apps/server/src/op-store.ts` (302) `createOpStore`, `OpStatus`; `op-tools.ts` (255); `packages/shared/src/memory.ts` lines 402 to 431 | **Emulate** | Keelson uses `bun:sqlite`; SPI Code uses `node:sqlite` |
-| Client effects from actions | Keelson `packages/shared/src/rib.ts` `ribClientEffectSchema`, around line 961 | **Emulate** | Open the inspector, a run or a thread |
+| Client effects from actions | Keelson `packages/shared/src/rib.ts` `ribClientEffectSchema`, around line 961 | **Emulate** | Open the Detail tab, a run or a thread |
 | Playbook shapes | Keelson `packages/workflows/assets/workflows/investigate.yaml`, `plan-act-evaluate.yaml` | **Emulate** | As TypeScript state machines (PB) |
 | Workflow approval pause | Keelson `packages/workflows/src/handlers/approval.ts` lines 10 to 24 | **Reference** | Process-local; the reason not to port the engine |
 | Copilot over ACP | T3 Code `packages/provider-acp-registry/src/server/copilotAcp.ts` | **Reference** | Alternative not chosen (appendix H) |
@@ -461,7 +471,7 @@ Each row names where a capability already exists and what SPI Code does with it.
 | Original claim | What the source shows | Where it lands here |
 |---|---|---|
 | A Prove failure is fixed on `fork_integration`, then the cascade is re-run | Prove runs on the release PR, and the cascade is held while that PR is open. Only a Validate integration failure is fixed on `fork_integration`. | Code threads, CT-02, open question on back-porting |
-| Re-run is offered for an "Environment" failure | The class is `ENV`; `INFRA` also names a re-run; `BUILD` is a tenth class | Appendix C, visual design inspector |
+| Re-run is offered for an "Environment" failure | The class is `ENV`; `INFRA` also names a re-run; `BUILD` is a tenth class | Appendix C, visual design Detail tab |
 | Call `setModel` after every resume | Keelson passes reasoning effort with it; the original omitted effort | CP-07 |
 | `dispatch_env_reset` is a rib verb moved at M4 | The rib has refresh and upgrade only | Milestone acceptance M4 and M6 |
 | Prepare and Start have no hold override | The rib offers "Take it anyway" for a SNAPSHOT hold | PS-06, appendix A |
@@ -495,6 +505,9 @@ Each row names where a capability already exists and what SPI Code does with it.
 | A command allowlist by name | A started command and its children run anything; the sandbox holds for every process. |
 | Merging cascade PRs in the app | Gate 2 is a human review on GitHub. |
 | Homebrew and WinGet installs | A clean Mac has no Homebrew, and WinGet can need elevation. |
+| The rib's six console views as pages in the window | One stopped service appeared in four shapes, each page carried a detail pane beside the inspector, and a service had no page. The visual design's "What changed from v1 and why" has the full list. |
+| An Approvals tab in the right panel | Two places for the same cards with two counts; AU-09 keeps one inbox. |
+| A composer under every view | A thread needs an anchor; the Detail tab and ⌘K have one, and a composer outside a thread took space from every page for a feature that arrives at M3. |
 
 ### Appendix I: risks
 

@@ -25,24 +25,24 @@
 @media(prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     color-scheme:dark;
-    --bg:#121817;--surface:#1a2220;--surface-2:#222d2a;--line:#41544b;--line-strong:#91a59a;
+    --bg:#412817;--surface:#1a2220;--surface-2:#222d2a;--line:#41544b;--line-strong:#91a59a;
     --ink:#e6ecea;--ink-2:#b3bfba;--ink-3:#a1b2a9;
     --o1:#8b9ae6;--o1-bg:#232b49;--o1-ink:#c3cbf5;
     --o2:#b08ad9;--o2-bg:#2c2140;--o2-ink:#d9c6f0;
     --o3:#45bdbd;--o3-bg:#123636;--o3-ink:#a3e3e3;
     --o4:#93a3ad;--o4-bg:#242d33;--o4-ink:#c4cfd6;
-    --pill-ink:#121817;--ok:#7fd1a0;--ok-bg:#173226;--warn:#e3b964;--warn-bg:#3a2d10;--bad:#f08a7e;--bad-bg:#3d1f1b;--term:#0c1311;
+    --pill-ink:#412817;--ok:#7fd1a0;--ok-bg:#173226;--warn:#e3b964;--warn-bg:#3a2d10;--bad:#f08a7e;--bad-bg:#3d1f1b;--term:#0c1311;
   }
 }
 :root[data-theme="dark"]{
   color-scheme:dark;
-  --bg:#121817;--surface:#1a2220;--surface-2:#222d2a;--line:#41544b;--line-strong:#91a59a;
+  --bg:#412817;--surface:#1a2220;--surface-2:#222d2a;--line:#41544b;--line-strong:#91a59a;
   --ink:#e6ecea;--ink-2:#b3bfba;--ink-3:#a1b2a9;
   --o1:#8b9ae6;--o1-bg:#232b49;--o1-ink:#c3cbf5;
   --o2:#b08ad9;--o2-bg:#2c2140;--o2-ink:#d9c6f0;
   --o3:#45bdbd;--o3-bg:#123636;--o3-ink:#a3e3e3;
   --o4:#93a3ad;--o4-bg:#242d33;--o4-ink:#c4cfd6;
-  --pill-ink:#121817;--ok:#7fd1a0;--ok-bg:#173226;--warn:#e3b964;--warn-bg:#3a2d10;--bad:#f08a7e;--bad-bg:#3d1f1b;--term:#0c1311;
+  --pill-ink:#412817;--ok:#7fd1a0;--ok-bg:#173226;--warn:#e3b964;--warn-bg:#3a2d10;--bad:#f08a7e;--bad-bg:#3d1f1b;--term:#0c1311;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55}
@@ -62,14 +62,10 @@ code{font-family:var(--mono);font-size:.92em;overflow-wrap:anywhere}
 .problem p:last-child{margin-bottom:0}
 .legend-label{margin-top:24px}
 .legend{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:14px}
-.owner{display:inline-flex;align-items:baseline;gap:7px;font-weight:600}
-.owner::before{content:"";width:10px;height:10px;border-radius:2px;background:var(--c);flex:none}
-.o-o1{--c:var(--o1);color:var(--o1-ink)}.o-o2{--c:var(--o2);color:var(--o2-ink)}
-.o-o3{--c:var(--o3);color:var(--o3-ink)}.o-o4{--c:var(--o4);color:var(--o4-ink)}
+.legend span{color:var(--ink-2)}
+.lg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px;border:1px solid var(--line)}
+.lg i.dash{border-radius:2px;border:1.5px dashed var(--ink-3);background:transparent}
 .status{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:4px}
-.status.ok{background:var(--ok-bg);color:var(--ok)}.status.bad{background:var(--bad-bg);color:var(--bad)}
-.status.warn{background:var(--warn-bg);color:var(--warn)}.status.note{background:var(--surface-2);color:var(--ink-2)}
-.sev{white-space:nowrap}.legend .status{margin-right:6px}.legend span{color:var(--ink-2)}
 .flow{margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 16px;overflow-x:auto}
 .flow svg{display:block;width:100%;height:auto;min-width:1000px}
 .flow text{font-family:var(--sans);fill:var(--ink);font-size:12px}
@@ -78,17 +74,9 @@ code{font-family:var(--mono);font-size:.92em;overflow-wrap:anywhere}
 .flow .box{rx:8;stroke-width:1.3}
 .flow .b-o1{fill:var(--o1-bg);stroke:var(--o1)}.flow .b-o2{fill:var(--o2-bg);stroke:var(--o2)}
 .flow .b-o3{fill:var(--o3-bg);stroke:var(--o3)}.flow .b-o4{fill:var(--o4-bg);stroke:var(--o4)}
-.flow .b-ok{fill:var(--ok-bg);stroke:var(--ok)}.flow .b-warn{fill:var(--warn-bg);stroke:var(--warn)}.flow .b-bad{fill:var(--bad-bg);stroke:var(--bad)}
 .flow .b-mute{fill:var(--surface-2);stroke:var(--line-strong);stroke-dasharray:4 3}
 .flow .decision{fill:var(--surface-2);stroke:var(--line-strong);stroke-width:1.3}
-.flow .chip{rx:4;fill:var(--surface-2);stroke:var(--line-strong);stroke-width:1.1}
-.flow .chip-dashed{stroke-dasharray:4 3}.flow .chipt{font-size:12px;fill:var(--ink)}
-.flow .p-o1{fill:var(--o1)}.flow .p-o2{fill:var(--o2)}.flow .p-o3{fill:var(--o3)}.flow .p-o4{fill:var(--o4)}
-.flow .pillt{font-size:11px;font-weight:600;fill:var(--pill-ink)}
 .flow .arrow{stroke:var(--line-strong);stroke-width:1.5;fill:none}
-.flow .arrow.ok{stroke:var(--ok)}.flow .arrow.bad{stroke:var(--bad);stroke-dasharray:5 4}
-.flow .lanebg{rx:10;fill:none;stroke:var(--line);stroke-dasharray:3 4}
-.flow .lanelbl{font-size:12px;font-weight:600;letter-spacing:.06em;fill:var(--ink-3)}
 .note{font-size:13px;color:var(--ink-3);margin-top:10px}
 .tblwrap{overflow-x:auto;margin-top:16px}
 .tbl{width:100%;min-width:640px;border-collapse:collapse;background:var(--surface);font-size:14px}
@@ -96,110 +84,23 @@ code{font-family:var(--mono);font-size:.92em;overflow-wrap:anywhere}
 .tbl th:first-child{width:20%;min-width:140px}
 .tbl td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink-2);overflow-wrap:anywhere}
 .tbl tr:last-child td{border-bottom:none}.tbl.compact td{padding:8px 12px}
-.cond{font-family:var(--mono);font-size:13px;line-height:1.5;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto;color:var(--ink)}
-.cond code{overflow-wrap:normal}
-.terminal{margin-top:16px;background:var(--term);color:var(--term-ink);border-radius:10px;padding:16px 18px;font-family:var(--mono);font-size:13px;line-height:1.5;overflow-x:auto;white-space:pre}
-.terminal .d{color:var(--term-dim)}.terminal .r{color:var(--term-red)}.terminal .g{color:var(--term-green)}.terminal .c{color:var(--term-cyan)}
-.callout{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--ink-2);border-radius:10px;padding:12px 16px;margin-top:14px;color:var(--ink-2)}
-.appendix{margin-top:48px;padding-top:26px;border-top:3px solid var(--line)}
-.appendix h2{font-size:20px}.appendix section{margin-top:26px;padding-top:20px}
-@media(max-width:520px){.wrap{padding:24px 16px 40px}.problem{padding:16px}.tbl th,.tbl td{padding:8px}}
-@media print{body{background:white;color:black}.wrap{max-width:none;padding:0}.flow svg{min-width:0}.flow,.tblwrap{overflow:visible}section{break-inside:avoid}.problem{break-inside:avoid}}
-
 .tblwrap .tbl{margin-top:0}
 .tbl td.mono,.tbl td code{font-family:var(--mono);font-size:12.5px;color:var(--ink)}
 .tbl td b{color:var(--ink)}
 .tbl.compact td{font-size:13.5px}
 ul.plain{margin:0 0 10px;padding-left:20px;max-width:76ch;color:var(--ink-2)}
 ul.plain li{margin:3px 0}
-ol.seq{margin:0 0 10px;padding-left:22px;max-width:76ch;color:var(--ink-2)}
-ol.seq li{margin:4px 0}
+.callout{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--ink-2);border-radius:10px;padding:12px 16px;margin-top:14px;color:var(--ink-2)}
 .callout b{color:var(--ink)}
+.appendix{margin-top:48px;padding-top:26px;border-top:3px solid var(--line)}
+.appendix h2{font-size:20px}.appendix section{margin-top:26px;padding-top:20px}
 .tag{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 7px;border-radius:4px;white-space:nowrap;background:var(--surface-2);color:var(--ink);border:1px solid var(--line-strong)}
 .tier{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 7px;border-radius:4px;white-space:nowrap}
-.tier.read{background:var(--ok-bg);color:var(--ok)}
-.tier.change{background:var(--warn-bg);color:var(--warn)}
-.tier.cons{background:var(--bad-bg);color:var(--bad)}
-.tier.local{background:var(--o3-bg);color:var(--o3-ink)}
-.tier.cmd{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line-strong)}
-.tier.never{background:var(--surface-2);color:var(--ink-3);border:1px dashed var(--line-strong)}
 .docnav{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13.5px;margin-top:14px}
 .docnav span{color:var(--ink-3)}
 .docnav b{color:var(--ink)}
 .mockwrap + p,.flow + p,.swatches + p,.tblwrap + p{margin-top:14px}
 .reqid{font-family:var(--mono);font-size:12px;color:var(--ink);white-space:nowrap}
-.ms{font-family:var(--mono);font-size:12px;min-width:5.5em;color:var(--ink-2)}
-/* ---------- app mockup: Shore light, fixed so it reads the same in either page theme ---------- */
-.mockwrap{margin-top:18px;overflow-x:auto;border-radius:12px;border:1px solid var(--line)}
-.app{--a-bg:#f3efe4;--a-soft:#ece6d7;--a-card:#fbf9f3;--a-card2:#f2ede1;--a-border:#dcd3bf;--a-bsoft:#e8e1d0;--a-fg:#23211c;--a-strong:#15130f;--a-muted:#665f4f;--a-dim:#8a8170;--a-accent:#1d7a6c;--a-acc-bg:#d9ece7;--a-green:#3a7633;--a-yellow:#a07b3a;--a-red:#bb4a2b;--a-red-bg:#f4dfd6;--a-yel-bg:#f3e8cf;--a-mag:#8a5cc0;
-  min-width:1040px;display:grid;grid-template-columns:232px 1fr 300px;grid-template-rows:34px 1fr;height:640px;background:var(--a-bg);color:var(--a-fg);font:12.5px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
-.app.dark{--a-bg:#0f1a1b;--a-soft:#132021;--a-card:#162324;--a-card2:#1d2d2e;--a-border:#2b3d3d;--a-bsoft:#213132;--a-fg:#e4dfd1;--a-strong:#f6f2e6;--a-muted:#a59d8a;--a-dim:#7d7666;--a-accent:#5cc4b2;--a-acc-bg:#173b37;--a-green:#8fcf86;--a-yellow:#e2b45c;--a-red:#ec8a6e;--a-red-bg:#3a211b;--a-yel-bg:#33291a;--a-mag:#c3a2e8}
-.app .bar{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:0 12px;background:var(--a-soft);border-bottom:1px solid var(--a-border);font-size:12px;color:var(--a-muted)}
-.app .dots{display:flex;gap:6px}.app .dots i{width:11px;height:11px;border-radius:50%;background:var(--a-border);display:block}
-.app .bar b{color:var(--a-strong);font-weight:600}
-.app .bar .sp{flex:1}
-.app .side{background:var(--a-soft);border-right:1px solid var(--a-border);padding:10px 8px;overflow:hidden;display:flex;flex-direction:column}
-.app .grp{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--a-dim);font-weight:600;margin:12px 8px 4px}
-.app .it{display:flex;align-items:center;gap:8px;padding:3px 8px;border-radius:6px;color:var(--a-fg);white-space:nowrap}
-.app .it.on{background:var(--a-card);box-shadow:inset 0 0 0 1px var(--a-border);color:var(--a-strong);font-weight:600}
-.app .it .n{margin-left:auto;font-size:11px;color:var(--a-dim)}
-.app .it .pip{margin-left:auto;font-size:10.5px;font-weight:700;color:#fff;background:var(--a-red);border-radius:8px;padding:0 6px}
-.app .d{width:7px;height:7px;border-radius:50%;flex:none;background:var(--a-green)}
-.app .d.r{background:var(--a-red)} .app .d.y{background:var(--a-yellow)} .app .d.m{background:var(--a-dim)}
-.app .it.th{color:var(--a-muted)} .app .it.th::before{content:"";width:7px;height:7px;flex:none;border-radius:2px;border:1.3px solid var(--a-dim)}
-.app .foot{margin-top:auto;border-top:1px solid var(--a-border);padding-top:8px}
-.app .main{display:flex;flex-direction:column;min-width:0;background:var(--a-card)}
-.app .tabs{display:flex;gap:2px;padding:8px 14px 0;border-bottom:1px solid var(--a-bsoft);font-size:12px}
-.app .tabs span{padding:5px 10px;color:var(--a-muted);border-bottom:2px solid transparent}
-.app .tabs span.on{color:var(--a-strong);border-color:var(--a-accent);font-weight:600}
-.app .tabs .stamp{margin-left:auto;font-size:11px;color:var(--a-dim);border:0}
-.app .body{padding:14px 18px;overflow:hidden;flex:1}
-.app .head{font-size:15px;color:var(--a-strong);font-weight:600;line-height:1.4;margin-bottom:10px;max-width:60ch}
-.app .facts{display:flex;gap:8px;margin-bottom:12px}
-.app .fact{flex:1;background:var(--a-bg);border:1px solid var(--a-bsoft);border-radius:8px;padding:7px 10px}
-.app .fact .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--a-dim);font-weight:600}
-.app .fact .v{font-size:15px;color:var(--a-strong);font-weight:600}
-.app .fact .s{font-size:11px;color:var(--a-muted)}
-.app .row{display:grid;grid-template-columns:38px 1fr auto;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--a-bsoft);border-radius:8px;margin-bottom:6px;background:var(--a-card)}
-.app .row.sel{box-shadow:inset 3px 0 0 var(--a-accent);border-color:var(--a-border);background:var(--a-card2)}
-.app .pr{font-size:10.5px;font-weight:700;border-radius:4px;padding:1px 0;text-align:center}
-.app .p0{background:var(--a-red-bg);color:var(--a-red)} .app .p1{background:var(--a-yel-bg);color:var(--a-yellow)} .app .p2{background:var(--a-acc-bg);color:var(--a-accent)}
-.app .row .t{color:var(--a-strong);font-weight:600}
-.app .row .s{color:var(--a-muted);font-size:11.5px}
-.app .btn{font-size:11.5px;border:1px solid var(--a-border);background:var(--a-card);border-radius:6px;padding:3px 9px;color:var(--a-fg);white-space:nowrap}
-.app .btn.pri{background:var(--a-accent);border-color:var(--a-accent);color:#fff}
-.app .ready{font-size:12px;color:var(--a-muted);margin-top:8px}
-.app .comp{margin:0 14px 12px;border:1px solid var(--a-border);border-radius:10px;background:var(--a-card);padding:8px 10px}
-.app .comp .ph{color:var(--a-dim);margin-bottom:8px}
-.app .comp .ctl{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--a-muted)}
-.app .chipx{border:1px solid var(--a-bsoft);border-radius:5px;padding:1px 7px;background:var(--a-bg)}
-.app .chipx.anc{border-color:var(--a-accent);color:var(--a-accent);background:var(--a-acc-bg)}
-.app .right{border-left:1px solid var(--a-border);background:var(--a-bg);display:flex;flex-direction:column;min-width:0}
-.app .rtabs{display:flex;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--a-border);font-size:11.5px}
-.app .rtabs span{padding:4px 8px;color:var(--a-muted);border-bottom:2px solid transparent}
-.app .rtabs span.on{color:var(--a-strong);border-color:var(--a-accent);font-weight:600}
-.app .rtabs .pip{font-size:10px;font-weight:700;color:#fff;background:var(--a-yellow);border-radius:7px;padding:0 5px;margin-left:3px}
-.app .ins{padding:12px;overflow:hidden}
-.app .ins .h{font-size:13.5px;font-weight:600;color:var(--a-strong);margin:4px 0 2px}
-.app .ins .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--a-dim);font-weight:600;margin-top:9px}
-.app .ins .v{color:var(--a-fg);font-size:12px}
-.app .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
-.app .appr{margin-top:12px;border:1px solid var(--a-yellow);border-radius:8px;background:var(--a-card);padding:9px 10px}
-.app .appr .lbl{font-size:10.5px;font-weight:700;color:var(--a-yellow);letter-spacing:.06em;text-transform:uppercase}
-.app .appr code{display:block;font:11px/1.4 ui-monospace,Menlo,monospace;background:var(--a-bg);border:1px solid var(--a-bsoft);border-radius:5px;padding:5px 7px;margin:6px 0;color:var(--a-strong);white-space:pre-wrap}
-.app .appr .bind{font-size:11px;color:var(--a-muted)}
-
-.setup{min-width:760px;background:#fbf9f3;color:#23211c;font:12.5px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px 18px}
-.setup .g{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#8a8170;font-weight:600;margin:12px 0 6px}
-.setup .r{display:grid;grid-template-columns:150px 120px 1fr auto;gap:12px;align-items:center;padding:7px 10px;border:1px solid #e8e1d0;border-radius:8px;margin-bottom:5px;background:#fff}
-.setup .nm{font-weight:600;color:#15130f}
-.setup .st{font-size:11px;font-weight:700;border-radius:4px;padding:1px 7px;justify-self:start}
-.setup .ok{background:#e1eedc;color:#3a7633} .setup .in{background:#d9ece7;color:#1d7a6c} .setup .si{background:#f3e8cf;color:#8f6207} .setup .at{background:#f4dfd6;color:#bb4a2b} .setup .off{background:#ece6d7;color:#665f4f}
-.setup .why{color:#665f4f;font-size:12px}
-.setup .b{font-size:11.5px;border:1px solid #dcd3bf;background:#fbf9f3;border-radius:6px;padding:3px 10px;white-space:nowrap}
-.setup .b.p{background:#1d7a6c;border-color:#1d7a6c;color:#fff}
-
-
 .swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px;margin-top:14px}
 .sw{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface);font-size:11.5px}
 .sw .c{height:30px;display:flex}
@@ -207,82 +108,369 @@ ol.seq li{margin:4px 0}
 .sw .l{padding:5px 8px;color:var(--ink-2)}
 .sw .l b{color:var(--ink);font-weight:600;display:block}
 .sw .l code{font-size:11px}
-.app .pr.p1{color:var(--a-yel-ink,var(--a-yellow))}
-.app .appr .lbl{color:var(--a-yel-ink,var(--a-yellow))}
-.app{--a-dim:#6c6557;--a-acc-ink:#1b7366;--a-yel-ink:#80622e;--a-red-ink:#ac4428;--a-mag-ink:#7e4cba;--a-grn-ink:#356c2f;--a-on-fill:#fff}
-.app.dark{--a-dim:#9a927f;--a-acc-ink:#5cc4b2;--a-yel-ink:#e2b45c;--a-red-ink:#ec8a6e;--a-mag-ink:#c3a2e8;--a-grn-ink:#8fcf86;--a-on-fill:#0f1a1b}
-.app .p2{color:var(--a-acc-ink)}
-.app .chipx.anc{color:var(--a-acc-ink)}
+@media(max-width:520px){.wrap{padding:24px 16px 40px}.problem{padding:16px}.tbl th,.tbl td{padding:8px}}
+
+/* ---------- app mockups: Shore, fixed so they read the same in either page theme ---------- */
+.mockwrap{margin-top:18px;overflow-x:auto;border-radius:12px;border:1px solid var(--line)}
+.app{
+  --a-bg:#f3efe4;--a-soft:#ece6d7;--a-card:#fbf9f3;--a-card2:#f2ede1;--a-border:#dcd3bf;--a-bsoft:#e8e1d0;
+  --a-fg:#23211c;--a-strong:#15130f;--a-muted:#665f4f;--a-dim:#6c6557;
+  --a-accent:#1d7a6c;--a-acc-ink:#1b7366;--a-acc-bg:#d9ece7;
+  --a-green:#3a7633;--a-grn-ink:#356c2f;--a-grn-bg:#e1eedc;
+  --a-yellow:#a07b3a;--a-yel-ink:#80622e;--a-yel-bg:#f3e8cf;
+  --a-red:#bb4a2b;--a-red-ink:#ac4428;--a-red-bg:#f4dfd6;
+  --a-mag:#8a5cc0;--a-mag-ink:#7e4cba;--a-on-fill:#fff;
+  --term:#14201d;--term-ink:#dfe8e4;--term-dim:#a5b9af;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  position:relative;min-width:1040px;display:grid;grid-template-columns:232px 1fr 300px;grid-template-rows:40px 1fr;height:640px;background:var(--a-bg);color:var(--a-fg);font:12.5px/1.45 var(--sans);overflow:hidden}
+.app.dark{
+  --a-bg:#0f1a1b;--a-soft:#132021;--a-card:#162324;--a-card2:#1d2d2e;--a-border:#2b3d3d;--a-bsoft:#213132;
+  --a-fg:#e4dfd1;--a-strong:#f6f2e6;--a-muted:#a59d8a;--a-dim:#9a927f;
+  --a-accent:#5cc4b2;--a-acc-ink:#5cc4b2;--a-acc-bg:#173b37;
+  --a-green:#8fcf86;--a-grn-ink:#8fcf86;--a-grn-bg:#1b3321;
+  --a-yellow:#e2b45c;--a-yel-ink:#e2b45c;--a-yel-bg:#33291a;
+  --a-red:#ec8a6e;--a-red-ink:#ec8a6e;--a-red-bg:#3a211b;
+  --a-mag:#c3a2e8;--a-mag-ink:#c3a2e8;--a-on-fill:#0f1a1b;--term:#0c1311}
+.app.tall{height:800px}
+.app button,.app a{font:inherit;color:inherit;background:none;border:0;padding:0;text-align:left;text-decoration:none}
+.app .scope a,.app .lines a,.app .ins a{color:var(--a-acc-ink)}
+.app .d{width:7px;height:7px;border-radius:50%;flex:none;background:var(--a-green)}
+.app .d.r{background:var(--a-red)} .app .d.y{background:var(--a-yellow)} .app .d.m{background:transparent;border:1.3px solid var(--a-dim)}
+/* ---------- title bar ---------- */
+.app .bar{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:0 14px 0 14px;background:var(--a-soft);border-bottom:1px solid var(--a-border);font-size:12px;color:var(--a-muted);-webkit-app-region:drag}
+.app .bar .dots{display:flex;gap:6px}
+.app .bar .dots i{width:11px;height:11px;border-radius:50%;background:var(--a-border);display:block}
+.app .bar b{color:var(--a-strong);font-weight:600}
+.app .bar .crumb{color:var(--a-fg)}
+.app .bar .sp{flex:1}
+.app .bar .sweep{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:6px;border:1px solid transparent}
+.app .bar .sweep:hover{border-color:var(--a-border);background:var(--a-card)}
+.app .bar .sweep.warn{color:var(--a-yel-ink)}
+.app .bar .sweep.bad{color:var(--a-red-ink)}
+.app .bar .sweep .d{width:7px;height:7px;border-radius:50%;background:var(--a-green);display:inline-block}
+.app .bar .sweep.warn .d{background:var(--a-yellow)}
+.app .bar .sweep.bad .d{background:var(--a-red)}
+.app .bar .kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--a-border);border-radius:4px;padding:0 5px;color:var(--a-dim)}
+.app .bar .iconbtn{display:none;padding:2px 6px;border:1px solid var(--a-border);border-radius:6px;background:var(--a-card);color:var(--a-fg)}
+/* ---------- sidebar ---------- */
+.app .side{background:var(--a-soft);border-right:1px solid var(--a-border);padding:8px 8px 6px;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+.app .side .find{display:flex;align-items:center;gap:8px;margin:2px 4px 8px;padding:5px 9px;border:1px solid var(--a-border);border-radius:8px;background:var(--a-card);color:var(--a-dim);font-size:12px;width:calc(100% - 8px)}
+.app .side .find .kbd{margin-left:auto;font-family:var(--mono);font-size:10.5px;border:1px solid var(--a-border);border-radius:4px;padding:0 4px}
+.app .side .scroll{flex:1;overflow:auto;min-height:0}
+.app .grp{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--a-dim);font-weight:600;margin:10px 8px 3px;display:flex;align-items:center}
+.app .grp.rail{display:none}
+.app .side a{color:inherit;text-decoration:none}
+.app .grp .n{margin-left:auto;font-weight:600;letter-spacing:0;text-transform:none}
+.app .it{display:flex;align-items:center;gap:8px;padding:3px 8px;border-radius:6px;color:var(--a-fg);white-space:nowrap;width:100%;min-width:0}
+.app .it:hover{background:var(--a-card2)}
+.app .it.on{background:var(--a-card);box-shadow:inset 0 0 0 1px var(--a-border);color:var(--a-strong);font-weight:600}
+.app .it .lbl{overflow:hidden;text-overflow:ellipsis}
+.app .it .n{margin-left:auto;font-size:11px;color:var(--a-dim);font-weight:400;flex:none}
+.app .it .pip{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--a-on-fill);background:var(--a-red-ink);border-radius:8px;padding:0 6px;flex:none}
+.app .d{width:7px;height:7px;border-radius:50%;flex:none;background:var(--a-green)}
+.app .d.r{background:var(--a-red)}
+.app .d.y{background:var(--a-yellow)}
+.app .d.m{background:transparent;border:1.3px solid var(--a-dim)}
+.app .it.th{color:var(--a-muted)}
+.app .it.th::before{content:"";width:7px;height:7px;flex:none;border-radius:2px;border:1.3px solid var(--a-dim)}
+.app .it.th.code::before{border-radius:1px;background:var(--a-mag);border-color:var(--a-mag)}
+.app .foot{margin-top:auto;border-top:1px solid var(--a-border);padding-top:6px;flex:none}
+.app .foot .stamp{font-size:11px;color:var(--a-dim);padding:3px 8px}
+/* ---------- middle ---------- */
+.app .main{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--a-card)}
+.app .tool{display:flex;align-items:center;gap:10px;padding:8px 18px;border-bottom:1px solid var(--a-bsoft);font-size:12px;color:var(--a-muted);flex:none}
+.app .tool h1{font-size:15px;font-weight:600;color:var(--a-strong);margin:0;display:flex;align-items:center;gap:8px}
+.app .tool .sub{color:var(--a-muted)}
+.app .tool .sp{flex:1}
+.app .tool .btn{font-size:11.5px}
+.app .body{padding:14px 18px 24px;overflow:auto;flex:1;min-height:0}
+.app .head{font-size:17px;color:var(--a-strong);font-weight:600;line-height:1.35;margin:0 0 4px;max-width:70ch;text-wrap:balance}
+.app .summary{color:var(--a-muted);margin:0 0 12px;max-width:80ch}
+.app .facts{display:flex;gap:8px;margin:0 0 14px;flex-wrap:wrap}
+.app .fact{flex:1;min-width:160px;background:var(--a-bg);border:1px solid var(--a-bsoft);border-radius:8px;padding:7px 10px}
+.app .fact .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--a-dim);font-weight:600}
+.app .fact .v{font-size:16px;color:var(--a-strong);font-weight:600;font-variant-numeric:tabular-nums}
+.app .fact .v.bad{color:var(--a-red-ink)}
+.app .fact .v.warn{color:var(--a-yel-ink)}
+.app .fact .v.ok{color:var(--a-grn-ink)}
+.app .fact .s{font-size:11px;color:var(--a-muted)}
+.app .sec{margin-top:16px}
+.app .sec .sh{display:flex;align-items:baseline;gap:10px;margin-bottom:6px;border-bottom:1px solid var(--a-bsoft);padding-bottom:4px}
+.app .sec .sh h2{font-size:12px;font-weight:600;color:var(--a-strong);margin:0;text-transform:uppercase;letter-spacing:.06em}
+.app .sec .sh .n{color:var(--a-dim);font-size:11.5px}
+.app .sec .sh .ev{margin-left:auto;font-size:11px;color:var(--a-yel-ink)}
+.app .sec .sh .ev.bad{color:var(--a-red-ink)}
+.app .sec .sh .ev.inf{border-bottom:1px dashed var(--a-dim);color:var(--a-muted)}
+.app .empty{color:var(--a-dim);font-size:12px;padding:4px 0}
+.app .row{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:7px 10px;border:1px solid transparent;border-bottom-color:var(--a-bsoft);border-radius:0;width:100%}
+.app .row:hover{background:var(--a-card2)}
+.app .row.sel{box-shadow:inset 3px 0 0 var(--a-accent);background:var(--a-card2)}
+.app .row .pr{font-size:10.5px;font-weight:700;border-radius:4px;padding:1px 0;text-align:center}
+.app .pr.p0{background:var(--a-red-bg);color:var(--a-red-ink)}
+.app .pr.p1{background:var(--a-yel-bg);color:var(--a-yel-ink)}
+.app .pr.p2{background:var(--a-acc-bg);color:var(--a-acc-ink)}
+.app .row .t{color:var(--a-strong);font-weight:600;display:block}
+.app .row .t .cls{font-weight:500;color:var(--a-muted);font-size:11px;margin-left:6px;text-transform:lowercase}
+.app .row .s{display:block;color:var(--a-muted);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app .row .age{color:var(--a-dim);font-size:11px;white-space:nowrap}
+.app .scope{display:inline-block;font-size:11px;color:var(--a-acc-ink);background:var(--a-acc-bg);border-radius:4px;padding:0 6px;margin-right:6px;font-weight:600}
+.app .scope.fleet{color:var(--a-muted);background:var(--a-bg);border:1px solid var(--a-bsoft)}
+.app .ready{font-size:12px;color:var(--a-muted);margin-top:10px;padding-top:8px;border-top:1px solid var(--a-bsoft)}
+.app .btn{font-size:11.5px;border:1px solid var(--a-border);background:var(--a-card);border-radius:6px;padding:3px 9px;color:var(--a-fg);white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
 .app .btn.pri{background:var(--a-acc-ink);border-color:var(--a-acc-ink);color:var(--a-on-fill)}
-.app .it .pip{background:var(--a-red-ink);color:var(--a-on-fill)}
-.app .rtabs .pip{background:var(--a-yel-ink);color:var(--a-on-fill)}
-.setup .g{color:#6c6557} .setup .ok{color:#356c2f} .setup .in{color:#1b7366} .setup .si{color:#80622e} .setup .at{color:#ac4428}
-.setup .b.p{background:#1b7366;border-color:#1b7366}
-.app .p0{color:var(--a-red-ink)}
-.app .copilot{color:var(--a-mag-ink);font-weight:600}
-.app .tl{display:flex;flex-direction:column;gap:8px}
-.app .msg{max-width:92%;border-radius:8px;padding:7px 10px;border:1px solid var(--a-bsoft);background:var(--a-card)}
-.app .msg.me{align-self:flex-end;background:var(--a-card2)}
-.app .msg.ai{border-left:3px solid var(--a-mag)}
-.app .work{font-size:11.5px;color:var(--a-muted);border:1px dashed var(--a-border);border-radius:6px;padding:4px 8px}
-.app .work b{color:var(--a-fg);font-weight:600}
-.app .chip{display:inline-block;font-size:10.5px;font-weight:600;border-radius:4px;padding:0 6px;border:1px solid var(--a-border);color:var(--a-muted);background:var(--a-bg)}
+.app .btn.off{opacity:.55;cursor:not-allowed}
+.app .more summary{cursor:pointer;color:var(--a-muted);font-size:12px;padding:6px 10px}
+/* stations */
+.app .stations{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:10px 0 4px}
+.app .st{border:1px solid var(--a-bsoft);border-radius:8px;padding:6px 9px;background:var(--a-bg);min-width:0;width:100%}
+.app .st:hover{border-color:var(--a-border)}
+.app .st.sel{box-shadow:inset 0 0 0 1.5px var(--a-accent)}
+.app .st .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--a-dim);font-weight:600;display:flex;gap:6px;align-items:center}
+.app .st .w{font-size:12.5px;font-weight:600;color:var(--a-strong);margin-top:2px}
+.app .st .w.waiting{color:var(--a-yel-ink)}
+.app .st .w.stopped{color:var(--a-red-ink)}
+.app .st .w.moving{color:var(--a-acc-ink)}
+.app .st .w.unknown{color:var(--a-dim)}
+.app .st .x{font-size:11px;color:var(--a-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* tables */
+.app table.lens{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+.app table.lens th{position:sticky;top:0;background:var(--a-card);text-align:left;font-size:11px;color:var(--a-dim);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--a-border);white-space:nowrap;cursor:pointer;user-select:none}
+.app table.lens th.num,.app table.lens td.num{text-align:right}
+.app table.lens th .arr{color:var(--a-accent);margin-left:3px}
+.app table.lens td{padding:6px 8px;border-bottom:1px solid var(--a-bsoft);vertical-align:top;color:var(--a-fg)}
+.app table.lens tr{cursor:default}
+.app table.lens tbody tr:hover td{background:var(--a-card2)}
+.app table.lens tr.sel td{background:var(--a-card2)}
+.app table.lens tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--a-accent)}
+.app table.lens td.name{font-weight:600;color:var(--a-strong);white-space:nowrap}
+.app table.lens td.name a{color:inherit;text-decoration:none;border-bottom:1px dotted var(--a-border)}
+.app table.lens td .ok{color:var(--a-grn-ink)}
+.app table.lens td .bad{color:var(--a-red-ink)}
+.app table.lens td .warn{color:var(--a-yel-ink)}
+.app table.lens td .run{color:var(--a-acc-ink)}
+.app table.lens td .neutral{color:var(--a-muted)}
+.app table.lens td .blank{color:var(--a-border)}
+.app table.lens td.sub{color:var(--a-muted);font-size:11.5px}
+.app table.lens tr.grp td{font-size:11px;color:var(--a-dim);text-transform:uppercase;letter-spacing:.06em;padding-top:10px;border-bottom:0;font-weight:600}
+.app table.lens td.gap{color:var(--a-dim);font-style:italic}
+.app .note{font-size:11.5px;color:var(--a-dim);margin-top:8px}
+.app .kv{display:grid;grid-template-columns:max-content 1fr;gap:3px 14px;font-size:12.5px;margin:6px 0}
+.app .kv .k{color:var(--a-dim);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding-top:2px}
+.app .lines{margin:4px 0;padding:0;list-style:none}
+.app .lines li{display:grid;grid-template-columns:96px 1fr;gap:10px;padding:4px 0;border-bottom:1px solid var(--a-bsoft);font-size:12.5px}
+.app .lines li .tag{color:var(--a-muted);font-size:11px;text-transform:lowercase}
+.app .lines li .tag.bad{color:var(--a-red-ink)}
+.app .lines li .tag.warn{color:var(--a-yel-ink)}
+.app .lines li .s{color:var(--a-muted);font-size:11.5px;display:block}
+.app .lines li button{text-align:left;width:100%}
+.app .lines li.sel{background:var(--a-card2);box-shadow:inset 3px 0 0 var(--a-accent);padding-left:6px}
+/* environment timeline */
+.app .tl{margin:8px 0;border:1px solid var(--a-bsoft);border-radius:8px;overflow:hidden;background:var(--a-bg)}
+.app .tl .ticks{display:grid;grid-template-columns:80px 1fr;font-size:10.5px;color:var(--a-dim)}
+.app .tl .ticks .ax{position:relative;height:18px;border-bottom:1px solid var(--a-bsoft)}
+.app .tl .ticks .ax span{position:absolute;top:2px;transform:translateX(-50%)}
+.app .tl .lane{display:grid;grid-template-columns:80px 1fr;border-bottom:1px solid var(--a-bsoft)}
+.app .tl .lane:last-child{border-bottom:0}
+.app .tl .lane .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--a-dim);font-weight:600;padding:9px 10px}
+.app .tl .lane .track{position:relative;height:30px;background-image:linear-gradient(to right,var(--a-bsoft) 1px,transparent 1px);background-size:calc(100%/24) 100%}
+.app .tl .ev{position:absolute;top:8px;height:14px;border-radius:7px;min-width:12px;background:var(--a-green);display:flex;align-items:center;font-size:11px;color:var(--a-strong);padding-left:16px;white-space:nowrap}
+.app .tl .ev::before{content:"";position:absolute;left:0;top:0;height:14px;width:12px;border-radius:7px;background:inherit}
+.app .tl .ev{background:transparent}
+.app .tl .ev.ok::before{background:var(--a-green)}
+.app .tl .ev.failed::before{background:var(--a-red)}
+.app .tl .ev.held::before{background:var(--a-yellow)}
+.app .tl .ev.running::before{background:var(--a-accent)}
+.app .tl .ev.cancelled::before{background:var(--a-dim)}
+.app .tl .ev.sel{outline:1.5px solid var(--a-accent);outline-offset:2px;border-radius:7px}
+.app .tl .none{font-size:11px;color:var(--a-dim);padding:8px 10px}
+/* releases */
+.app .rel{display:grid;grid-template-columns:1fr auto;gap:10px;padding:8px 10px;border-bottom:1px solid var(--a-bsoft);width:100%;align-items:center}
+.app .rel:hover{background:var(--a-card2)}
+.app .rel.sel{background:var(--a-card2);box-shadow:inset 3px 0 0 var(--a-accent)}
+.app .rel .t{font-weight:600;color:var(--a-strong)}
+.app .rel .t .chip{margin-left:8px}
+.app .rel .s{color:var(--a-muted);font-size:11.5px}
+.app .rel .st{color:var(--a-muted);font-size:11.5px;white-space:nowrap}
+.app .chip{display:inline-block;font-size:10.5px;font-weight:600;border-radius:4px;padding:0 6px;border:1px solid var(--a-border);color:var(--a-muted);background:var(--a-bg);white-space:nowrap}
 .app .chip.fresh{color:var(--a-grn-ink);border-color:var(--a-green)}
-.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.app.kit{display:block;min-width:0;height:auto;padding:14px 16px}
-.anat text{font-family:var(--sans)}
 .app .chip.stale{color:var(--a-yel-ink);border-color:var(--a-yellow)}
 .app .chip.bad{color:var(--a-red-ink);border-color:var(--a-red)}
 .app .chip.inf{border-style:dashed}
-.app .strip{margin:0 14px 6px;border:1px solid var(--a-yellow);border-radius:8px;background:var(--a-yel-bg);padding:7px 10px;font-size:11.5px;display:flex;gap:8px;align-items:center}
+.app .chip.code{color:var(--a-mag-ink);border-color:var(--a-mag)}
+.app .stats{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.app .stat{border:1px solid var(--a-bsoft);border-radius:8px;padding:6px 10px;min-width:120px;background:var(--a-bg)}
+.app .stat .v{font-size:18px;font-weight:600;color:var(--a-strong)}
+.app .stat .l{font-size:11px;color:var(--a-muted)}
+.app .stat.q{border-style:dashed}
+.app .stat.q .v{color:var(--a-dim)}
+/* threads */
+.app .thd{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;padding:8px 18px;border-bottom:1px solid var(--a-bsoft);font-size:11.5px;color:var(--a-muted);flex:none}
+.app .thd b{color:var(--a-strong);font-size:13.5px}
+.app .thd code{font-family:var(--mono);font-size:11px}
+.app .tlne{display:flex;flex-direction:column;gap:8px;max-width:76ch}
+.app .msg{max-width:92%;border-radius:8px;padding:8px 11px;border:1px solid var(--a-bsoft);background:var(--a-card);font-size:13px}
+.app .msg.me{align-self:flex-end;background:var(--a-card2)}
+.app .msg.ai{border-left:3px solid var(--a-mag)}
+.app .msg .who{color:var(--a-mag-ink);font-weight:600;font-size:11.5px;display:block;margin-bottom:2px}
+.app .msg .cite{font-size:11px;color:var(--a-muted);margin-top:4px}
+.app .msg .cite a{margin-right:8px}
+.app .ctx{font-size:11.5px;color:var(--a-muted);border:1px dashed var(--a-border);border-radius:6px;padding:5px 9px;align-self:flex-start}
+.app .ctx b{color:var(--a-fg);font-weight:600}
+.app .work{font-size:11.5px;color:var(--a-muted);border:1px dashed var(--a-border);border-radius:6px;padding:4px 9px;align-self:flex-start}
+.app .work b{color:var(--a-fg);font-weight:600}
+.app .card{border:1px solid var(--a-border);border-left-width:3px;border-radius:8px;background:var(--a-card);padding:8px 10px;font-size:12px;color:var(--a-muted);align-self:stretch;max-width:92%}
+.app .card .hd{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:3px}
+.app .card .hd b{color:var(--a-strong);font-weight:600}
+.app .card .stt{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.app .card.pending{border-left-color:var(--a-yellow)}
+.app .card.pending .stt{color:var(--a-yel-ink)}
+.app .card.ok{border-left-color:var(--a-green)}
+.app .card.ok .stt{color:var(--a-grn-ink)}
+.app .card code{font-family:var(--mono);font-size:11px;display:block;background:var(--a-bg);border:1px solid var(--a-bsoft);border-radius:5px;padding:4px 7px;margin:5px 0;color:var(--a-strong);white-space:pre-wrap}
+.app .strip{margin:0 18px 6px;border:1px solid var(--a-yellow);border-radius:8px;background:var(--a-yel-bg);padding:7px 10px;font-size:11.5px;display:flex;gap:8px;align-items:center;flex:none}
 .app .strip .lbl{font-weight:700;color:var(--a-yel-ink);text-transform:uppercase;font-size:10.5px;letter-spacing:.06em}
-.app .term{height:96px;background:#14201d;color:#dfe8e4;font:11px/1.45 ui-monospace,Menlo,monospace;padding:6px 12px;border-top:1px solid var(--a-border);white-space:pre;overflow:hidden}
-.app .term .tt{display:flex;gap:12px;color:#a5b9af;margin-bottom:4px}
-.app .term .tt b{color:#dfe8e4}
-.app.short{height:560px}
-.cardset{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-top:8px}
-.app .acard{border:1px solid var(--a-border);border-left-width:3px;border-radius:8px;background:var(--a-card);padding:8px 10px;font-size:12px;color:var(--a-muted)}
-.app .acard .hd{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:3px}
-.app .acard .hd b{color:var(--a-strong);font-weight:600}
-.app .acard .st{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
-.app .acard.pending{border-left-color:var(--a-yellow)} .app .acard.pending .st{color:var(--a-yel-ink)}
-.app .acard.run{border-left-color:var(--a-accent)} .app .acard.run .st{color:var(--a-acc-ink)}
-.app .acard.bad{border-left-color:var(--a-red)} .app .acard.bad .st{color:var(--a-red-ink)}
-.app .acard.ok{border-left-color:var(--a-green)} .app .acard.ok .st{color:var(--a-grn-ink)}
-.app .acard.mute{border-left-color:var(--a-border);border-style:dashed} .app .acard.mute .st{color:var(--a-muted)}
-.app .acard .acts{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+.app .strip .sp{flex:1}
+.app .comp{margin:0 18px 12px;border:1px solid var(--a-border);border-radius:10px;background:var(--a-card);padding:8px 10px;flex:none}
+.app .comp .ph{color:var(--a-dim);margin-bottom:8px;font-size:13px}
+.app .comp .ctl{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--a-muted);flex-wrap:wrap}
+.app .chipx{border:1px solid var(--a-bsoft);border-radius:5px;padding:1px 7px;background:var(--a-bg);white-space:nowrap}
+.app .chipx.anc{border-color:var(--a-accent);color:var(--a-acc-ink);background:var(--a-acc-bg)}
+.app .term{height:110px;background:var(--term);color:var(--term-ink);font:11px/1.45 var(--mono);padding:6px 14px;border-top:1px solid var(--a-border);white-space:pre;overflow:hidden;flex:none}
+.app .term .tt{display:flex;gap:14px;color:var(--term-dim);margin-bottom:4px;font-family:var(--sans)}
+.app .term .tt b{color:var(--term-ink)}
+/* ---------- right panel ---------- */
+.app .right{border-left:1px solid var(--a-border);background:var(--a-bg);display:flex;flex-direction:column;min-width:0;min-height:0}
+.app .rtabs{display:flex;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--a-border);font-size:11.5px;flex:none;align-items:flex-end}
+.app .rtabs button{padding:4px 8px;color:var(--a-muted);border-bottom:2px solid transparent}
+.app .rtabs button.on{color:var(--a-strong);border-color:var(--a-accent);font-weight:600}
+.app .rtabs button.off{color:var(--a-dim);cursor:default}
+.app .rtabs .x{margin-left:auto;display:none;color:var(--a-dim);padding:4px 6px}
+.app .ins{padding:12px;overflow:auto;flex:1;min-height:0;font-size:12.5px}
+.app .ins .kick{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--a-dim);font-weight:600}
+.app .ins .h{font-size:14px;font-weight:600;color:var(--a-strong);margin:3px 0 2px;line-height:1.3}
+.app .ins .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--a-dim);font-weight:600;margin-top:10px}
+.app .ins .v{color:var(--a-fg)}
+.app .ins .v.inf::after{content:" · inferred";color:var(--a-muted);font-size:11px}
+.app .ins .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.app .ins .why{font-size:11px;color:var(--a-muted);margin-top:4px}
+.app .ins ul{margin:4px 0;padding-left:16px}
+.app .ins li{margin:2px 0}
+.app .ins .owned{margin-top:10px;border:1px solid var(--a-mag);border-radius:8px;padding:7px 9px;font-size:12px;background:var(--a-card)}
+.app .ins .owned b{color:var(--a-mag-ink)}
+.app .ins .empty{padding:20px 0;text-align:center}
+.app .ev-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.app .ev-tbl td{padding:5px 4px;border-bottom:1px solid var(--a-bsoft);vertical-align:top}
+.app .ev-tbl td:first-child{font-weight:600;color:var(--a-strong);white-space:nowrap}
+.app .ev-tbl .w{white-space:nowrap}
+.app .ev-tbl .w.fresh{color:var(--a-grn-ink)}
+.app .ev-tbl .w.stale{color:var(--a-yel-ink)}
+.app .ev-tbl .w.incomplete{color:var(--a-yel-ink)}
+.app .ev-tbl .w.failed{color:var(--a-red-ink)}
+.app .ev-tbl .w.unread{color:var(--a-dim)}
+.app .ev-tbl .s{color:var(--a-muted);font-size:11px;display:block}
+.app .chg{font:11.5px/1.7 var(--mono);color:var(--a-fg)}
+.app .chg .a{color:var(--a-grn-ink)}
+.app .chg .m{color:var(--a-yel-ink)}
+.app .chk{display:grid;grid-template-columns:1fr auto;gap:4px 8px;font-size:12px}
+.app .chk .ok{color:var(--a-grn-ink)}
+.app .chk .run{color:var(--a-acc-ink)}
+.app .chk .wait{color:var(--a-dim)}
+/* setup */
+.app .setup .g{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--a-dim);font-weight:600;margin:12px 0 6px}
+.app .setup .r{display:grid;grid-template-columns:150px 110px 1fr auto;gap:12px;align-items:center;padding:7px 10px;border:1px solid var(--a-bsoft);border-radius:8px;margin-bottom:5px;background:var(--a-bg)}
+.app .setup .nm{font-weight:600;color:var(--a-strong)}
+.app .setup .stt{font-size:11px;font-weight:700;border-radius:4px;padding:1px 7px;justify-self:start}
+.app .setup .ok{background:var(--a-grn-bg);color:var(--a-grn-ink)}
+.app .setup .in{background:var(--a-acc-bg);color:var(--a-acc-ink)}
+.app .setup .si{background:var(--a-yel-bg);color:var(--a-yel-ink)}
+.app .setup .why{color:var(--a-muted);font-size:12px}
+/* ---------- palette ---------- */
+.app .pal-bg{position:absolute;inset:0;background:rgba(0,0,0,.25);display:none;z-index:20}
+.app .pal-bg.open{display:block}
+.app .pal{position:absolute;left:50%;top:60px;transform:translateX(-50%);width:min(620px,90%);background:var(--a-card);border:1px solid var(--a-border);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden}
+.app .pal input{width:100%;border:0;border-bottom:1px solid var(--a-bsoft);background:transparent;padding:12px 14px;font:14px var(--sans);color:var(--a-strong);outline:none}
+.app .pal .res{max-height:380px;overflow:auto;padding:6px}
+.app .pal .g{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--a-dim);font-weight:600;margin:8px 8px 2px}
+.app .pal .r{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;font-size:13px;width:100%}
+.app .pal .r.on{background:var(--a-card2);box-shadow:inset 0 0 0 1px var(--a-border)}
+.app .pal .r .kind{margin-left:auto;font-size:11px;color:var(--a-dim)}
+.app .pal .r .pr{font-size:10.5px;font-weight:700;border-radius:4px;padding:0 5px}
+.app .pal .r.ask{color:var(--a-mag-ink)}
+.app .pal .r.ask b{font-weight:600}
+.app .pal .hint{padding:6px 12px;border-top:1px solid var(--a-bsoft);font-size:11px;color:var(--a-dim);display:flex;gap:14px}
+/* narrow mockup: the rail and the sheet, drawn statically */
+.app.narrow{min-width:900px;max-width:900px;grid-template-columns:48px 1fr}
+.app.narrow .side{padding:8px 6px}
+.app.narrow .side .find{width:36px;justify-content:center;padding:5px 0}
+.app.narrow .side .find .txt,.app.narrow .side .find .kbd,.app.narrow .side .grp,.app.narrow .side .it .lbl,.app.narrow .side .it .n,.app.narrow .side .foot .stamp{display:none}
+.app.narrow .side .it{justify-content:center;padding:6px 0;position:relative}
+.app.narrow .side .it .pip{position:absolute;margin:0;right:4px;top:2px;font-size:0;width:7px;height:7px;padding:0;border-radius:50%}
+.app.narrow .side .grp.rail{display:block;text-align:center;margin:6px 0 2px;font-size:9px}
+.app.narrow .right{position:absolute;right:0;top:40px;bottom:0;width:340px;box-shadow:-10px 0 30px rgba(0,0,0,.25);z-index:5}
+.app.narrow .rtabs .x{display:inline}
+.app.narrow .bar .iconbtn{display:inline-flex}
+.app.narrow .stations{grid-template-columns:repeat(3,1fr)}
+.app.narrow .scrim{position:absolute;inset:40px 0 0 48px;background:rgba(0,0,0,.18);z-index:4}
+/* palette mockup */
+.app .pal-bg{position:absolute;inset:0;background:rgba(0,0,0,.25);z-index:20;display:block}
+.app .pal{position:absolute;left:50%;top:60px;transform:translateX(-50%);width:600px;background:var(--a-card);border:1px solid var(--a-border);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden}
+.app .pal .in{border-bottom:1px solid var(--a-bsoft);padding:12px 14px;font-size:14px;color:var(--a-strong)}
+.app .pal .in i{font-style:normal;color:var(--a-dim)}
+.app .pal .res{padding:6px}
+.app .pal .g{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--a-dim);font-weight:600;margin:8px 8px 2px}
+.app .pal .r{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:6px;font-size:13px;width:100%}
+.app .pal .r.on{background:var(--a-card2);box-shadow:inset 0 0 0 1px var(--a-border)}
+.app .pal .r .kind{margin-left:auto;font-size:11px;color:var(--a-dim)}
+.app .pal .r.ask{color:var(--a-mag-ink)}
+.app .pal .r .pr{font-size:10.5px;font-weight:700;border-radius:4px;padding:0 5px}
+.app .pal .hint{padding:6px 12px;border-top:1px solid var(--a-bsoft);font-size:11px;color:var(--a-dim);display:flex;gap:14px}
+.app .pal .r .d{width:7px;height:7px;flex:none;margin:0;display:inline-block}
+/* kit */
+.app.kit{display:block;min-width:0;height:auto;padding:14px 16px}
+.app.kit .kh{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--a-dim);font-weight:600;margin:12px 0 6px}
+.app.kit .kh:first-child{margin-top:0}
+.app.kit .chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.app.kit .side{display:block;border:1px solid var(--a-border);border-radius:8px;padding:6px;width:232px}
+.app.kit .sec{margin-top:0;width:420px}
 .app .tier{background:var(--a-card);border:1px solid var(--a-border);color:var(--a-fg);font-size:10.5px}
 .app .tier.read{color:var(--a-grn-ink);border-color:var(--a-green)}
 .app .tier.local,.app .tier.cmd{color:var(--a-acc-ink);border-color:var(--a-accent)}
 .app .tier.change{color:var(--a-yel-ink);border-color:var(--a-yellow)}
 .app .tier.cons{color:var(--a-red-ink);border-color:var(--a-red)}
 .app .tier.never{color:var(--a-muted);border-style:dashed}
-.app.kit .kh{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--a-dim);font-weight:600;margin:12px 0 6px}
-.app.kit .kh:first-child{margin-top:0}
-.app .thd{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--a-bsoft);font-size:11.5px;color:var(--a-muted)}
-.app .thd b{color:var(--a-strong);font-size:13px}
-.app .chg{font:11.5px/1.6 ui-monospace,Menlo,monospace;color:var(--a-fg)}
-.app .chg .a{color:var(--a-grn-ink)} .app .chg .m{color:var(--a-yel-ink)}
-.app .ins .bind{font-size:11px;color:var(--a-muted)}
-.lg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px;border:1px solid var(--line)}
-.lg i.dash{border-radius:2px;border:1.5px dashed var(--ink-3);background:transparent}
+.cardset{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-top:8px}
+.app .card{max-width:none}
+.app .card.bad{border-left-color:var(--a-red)} .app .card.bad .stt{color:var(--a-red-ink)}
+.app .card.run{border-left-color:var(--a-accent)} .app .card.run .stt{color:var(--a-acc-ink)}
+.app .card.mute{border-left-color:var(--a-border);border-style:dashed} .app .card.mute .stt{color:var(--a-muted)}
+.app .card .acts{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+/* setup mockup */
+.setup{min-width:760px;background:#fbf9f3;color:#23211c;font:12.5px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px 18px}
+.setup .g{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#6c6557;font-weight:600;margin:12px 0 6px}
+.setup .r{display:grid;grid-template-columns:150px 120px 1fr auto;gap:12px;align-items:center;padding:7px 10px;border:1px solid #e8e1d0;border-radius:8px;margin-bottom:5px;background:#fff}
+.setup .nm{font-weight:600;color:#15130f}
+.setup .st{font-size:11px;font-weight:700;border-radius:4px;padding:1px 7px;justify-self:start}
+.setup .ok{background:#e1eedc;color:#356c2f} .setup .in{background:#d9ece7;color:#1b7366} .setup .si{background:#f3e8cf;color:#80622e} .setup .at{background:#f4dfd6;color:#ac4428}
+.setup .why{color:#665f4f;font-size:12px}
+.setup .b{font-size:11.5px;border:1px solid #dcd3bf;background:#fbf9f3;border-radius:6px;padding:3px 10px;white-space:nowrap}
+.setup .b.p{background:#1b7366;border-color:#1b7366;color:#fff}
 
 @page{size:1180px 1560px;margin:40px}
 @media print{
+  body{background:white;color:black}.wrap{max-width:none;padding:0}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .flow,.tblwrap{overflow:visible}
-  section{break-inside:auto}
-  h2,h3{break-after:avoid}
-  .app,.setup,.flow,figure,.swatches,.callout,tr{break-inside:avoid}
+  .flow svg{min-width:0}.flow,.tblwrap{overflow:visible}
+  section{break-inside:auto}h2,h3{break-after:avoid}
+  .app,.setup,.flow,figure,.swatches,.callout,tr,.problem{break-inside:avoid}
 }
 </style>
 </head>
 <body>
 <main class="wrap">
 <header>
-    <p class="eyebrow">spi-code · visual design · exploratory proposal</p>
+    <p class="eyebrow">spi-code · visual design · v2</p>
     <h1>SPI Code visual design</h1>
-    <p class="lead">The window, the Shore palette in semantic roles, and the component kit, with the T3 Code or Keelson source each piece is built from.</p>
+    <p class="lead">The window as an app for three uses: view the program, act on it, and chat about it. The information architecture, navigation, layout and interaction model, with the Shore palette and the component kit.</p>
     <nav class="docnav" aria-label="Design documents">
       <span><a href="spi-code-product-brief.md">Product brief</a></span>
       <span><a href="spi-code-prd.md">Product requirements</a></span>
@@ -292,9 +480,9 @@ ol.seq li{margin:4px 0}
   </header>
 
   <div class="problem">
-    <p>The program is read today through the keelson-rib-spi console, which draws boards inside Keelson's own window, and through a terminal. The original combined design sketched an SPI Code window in two mockups. Its inspector gave the wrong fix path for a Prove failure, it had no dark or code-thread view, and several of its light-mockup text colors fell below WCAG AA contrast.</p>
-    <p>This document sets the window's layout, the colors and their jobs, and the components the requirements name. The structure comes from T3 Code: its three-pane layout, right-panel tabs, approval strip, work log and terminal drawer, and its semantic theme roles. The colors come from Keelson's Shore palette, with darker text variants where Shore's light values are fills. Each piece names the file it is copied from, ported from or modeled on, so the window can be assembled from working code.</p>
-    <p>Every mockup on this page is a drawn proposal, not a screenshot; names, counts, SHAs and PR numbers are examples. It does not specify icons glyph by glyph, motion timing or the onboarding copy. The contrast figures are computed from the hex values with the WCAG 2 formula; no built window has been measured.</p>
+    <p>The first window built for M2 is the keelson-rib-spi console inside an app shell. Six report pages (Today, Repositories, Releases, Environment, Flow, Horizon) each re-slice the same world, so one stopped service appears in four shapes and the operator joins them in their head. Each page carries its own detail pane beside the right-panel inspector, and the two drift apart. Evidence chips repeat three to five times per page. The tree is a list of page links: every service routes to Flow, there is no page for one service, and the Runs section is bare run ids. Nothing in the layout has a place for acting on the program or for a thread with Copilot.</p>
+    <p>This design organizes the window around <b>things</b> (a service, the template, the environment, a release month) and <b>work</b> (the Inbox, approval cards, threads), not pages. The sidebar lists them. The middle shows one list, one thing, or one thread. The right panel is the one detail surface for whatever is selected, with the selection's evidence behind a tab. Actions live on the detail and create cards; threads start from a thing and stay anchored to it. The sweep's health is one sentence in the title bar.</p>
+    <p>Core, the host, the sweeps, the Watch contract and the model's output do not change: every text the window draws still comes from the same core functions the rib renders, so the M2 parity check stays data-level (<a href="#parity">Parity with the rib</a>). Four values the new layout wants and the contract does not carry are named as contract additions, not assumed (<a href="#gaps">Contract additions</a>). Use B (act) and use C (chat and code) get their places here and are built in M3 to M5; this page does not specify their behavior beyond placement and interaction. Mockups are drawn proposals with example names, counts and numbers.</p>
   </div>
 
   <p class="eyebrow legend-label">Colors in the mockups</p>
@@ -303,221 +491,633 @@ ol.seq li{margin:4px 0}
     <span><i style="background:#a07b3a"></i>P1, waiting, a pending card, stale evidence</span>
     <span><i style="background:#1d7a6c"></i>P2, selection, primary action, anchor</span>
     <span><i style="background:#3a7633"></i>Healthy, applied, fresh evidence</span>
-    <span><i style="background:#8a5cc0"></i>Copilot's own words</span>
-    <span><i class="dash"></i>Inferred, not read</span>
+    <span><i style="background:#8a5cc0"></i>Copilot's words, a code thread</span>
+    <span><i class="dash"></i>Inferred, not read; unread</span>
   </div>
 
   <section>
-    <h2>Where the window comes from</h2>
-    <p>Three sources supply nearly everything. The verbs match the source and borrow map in the <a href="spi-code-prd.md">product requirements</a>: <b>Copy</b> takes the file and keeps its MIT notice, <b>Port</b> rewrites it without Effect or T3 Code's provider model, <b>Emulate</b> builds the idea fresh, and <b>Reference</b> is read only.</p>
-    <div class="tblwrap"><table class="tbl">
-      <thead><tr><th style="width:20%">Source</th><th style="width:36%">What it supplies</th><th>How SPI Code uses it</th></tr></thead>
+    <h2>Three uses, one window</h2>
+    <p>The operator does three things with the program. Each has one home in the window, and each home is reached from the others without leaving the selection behind.</p>
+    <div class="tblwrap"><table class="tbl compact">
+      <thead><tr><th style="width:18%">Use</th><th style="width:40%">Where it lives</th><th>How it is reached</th></tr></thead>
       <tbody>
-        <tr><td><b>T3 Code</b><br><code>/Users/danielscholl/source/github/t3code</code> at <code>43bf0babd4</code></td><td>Window layout, sidebar, right-panel tabs, approval strip and timeline row, work log, terminal drawer, changed-files tree, command palette, theme role model, title bar options</td><td><span class="tag">Copy</span> components that import no Effect; <span class="tag">Port</span> the sidebar, terminal drawer, command palette and right-panel store; <span class="tag">Emulate</span> the role model, cut down. Appendix A lists each file.</td></tr>
-        <tr><td><b>Keelson</b><br><code>/Users/danielscholl/keelson/keelson</code> at <code>da5da474</code></td><td>Shore token values for both appearances, WCAG contrast and palette validation functions</td><td><span class="tag">Copy</span> the Shore values and <code>palette.ts</code> into the app's theme package; the validator runs in CI.</td></tr>
-        <tr><td><b>Original combined design</b><br><code>design/spi-code-design.html</code> at <code>119b304</code>; the PDF beside this page is a print of it</td><td>The window mockup, Setup mockup and their CSS</td><td>The mockups below reuse its markup and CSS with corrected text and contrast.</td></tr>
+        <tr><td><b>A · View</b> the system</td><td>The Inbox (the queue), a thing's page (service, template, environment, release month), a lens (a dense table across the fleet), and the Detail and Evidence tabs for the selection</td><td>Sidebar, ⌘K, a scope chip on any row, a row in any lens</td></tr>
+        <tr><td><b>B · Act</b> on it</td><td>Actions on the Detail tab of the selection. A button never writes: it makes an approval card. Cards wait in the Inbox under Waiting for you, and a card asked for inside a thread is decided in that thread's composer strip (M4)</td><td>Detail tab, the card itself, the Inbox count in the sidebar and title bar</td></tr>
+        <tr><td><b>C · Chat</b> and change code</td><td>A thread, anchored to a thing. Operate threads read and explain (M3); code threads edit a fork in a worktree, with Changes and Checks in the right panel and the terminal drawer under the composer (M5)</td><td>Ask or Fix in a code thread on the Detail tab, a sentence typed into ⌘K, the Threads group, or the thread box on any item a thread already owns</td></tr>
       </tbody>
     </table></div>
   </section>
 
   <section>
     <h2>Window anatomy</h2>
-    <p>The window has five regions. A console view or a thread fills the middle; the left tree chooses what the middle shows, and the right panel describes the selection in the middle. The terminal drawer exists only in code threads.</p>
+    <p>Five regions. The sidebar chooses what the middle shows; one selection in the middle drives the right panel; the terminal drawer exists only in code threads.</p>
     <div class="flow" tabindex="0" role="region" aria-label="Window anatomy, scroll horizontally on small screens">
-      <svg class="anat" viewBox="0 0 1000 470" role="img" aria-labelledby="anat-title" aria-describedby="anat-desc">
+      <svg viewBox="0 0 1000 500" role="img" aria-labelledby="anat-title" aria-describedby="anat-desc">
         <title id="anat-title">SPI Code window regions</title>
-        <desc id="anat-desc">A title bar across the top. Below it, from left to right: the program tree at 232 pixels, the middle panel holding a console view or a thread timeline with the composer under it, and the right panel at 300 pixels. In code threads a terminal drawer sits under the composer. Each region names the T3 Code file it is built from.</desc>
+        <desc id="anat-desc">A title bar across the top holding the app name, the current place, and the sweep line. Below it, left to right: the sidebar at 232 pixels with Find or ask, Inbox, Program, Services, Lenses, Threads and a footer with Setup and the sweep stamp; the middle panel showing a list, a thing's page or a thread, with the composer and terminal drawer under a thread; and the right panel at 300 pixels with Detail, Evidence and Log tabs, or Changes and Checks in a code thread.</desc>
         <rect x="20" y="16" width="960" height="40" class="decision" rx="8"/>
         <text x="36" y="41" class="t">Title bar</text>
-        <text x="130" y="41" class="sub">app name, environment line with its evidence, ⌘K · emulates DesktopWindow.ts getWindowTitleBarOptions</text>
-        <rect x="20" y="66" width="210" height="388" class="decision" rx="8"/>
-        <text x="36" y="92" class="t">Program tree</text>
-        <text x="36" y="112" class="sub">232 px, resizable</text>
-        <text x="36" y="140" class="sub">Today</text>
-        <text x="36" y="160" class="sub">System · Stack · Services</text>
-        <text x="36" y="180" class="sub">Threads</text>
-        <text x="36" y="200" class="sub">Runs · Setup (footer)</text>
-        <text x="36" y="420" class="tiny">port: Sidebar.tsx</text>
-        <text x="36" y="438" class="tiny">copy: ui/sidebar.tsx</text>
-        <rect x="242" y="66" width="496" height="214" class="decision" rx="8"/>
+        <text x="120" y="41" class="sub">SPI Code · the current place · one sweep line: "swept 2 min ago · 2 areas failed · next sync 00:00" · ⌘K</text>
+        <rect x="20" y="66" width="210" height="418" class="decision" rx="8"/>
+        <text x="36" y="92" class="t">Sidebar</text>
+        <text x="36" y="112" class="sub">232 px · rail at 48 px</text>
+        <text x="36" y="140" class="sub">Find or ask ⌘K</text>
+        <text x="36" y="162" class="sub">Inbox · count</text>
+        <text x="36" y="184" class="sub">Program: Template,</text>
+        <text x="36" y="200" class="sub">Environment, Releases</text>
+        <text x="36" y="222" class="sub">Services: 13 lines, each</text>
+        <text x="36" y="238" class="sub">with a dot and a word</text>
+        <text x="36" y="260" class="sub">Lenses: Flow, Repositories,</text>
+        <text x="36" y="276" class="sub">Horizon, Runs</text>
+        <text x="36" y="298" class="sub">Threads: newest first</text>
+        <text x="36" y="326" class="sub">Footer: Setup · swept 2 min ago</text>
+        <text x="36" y="450" class="tiny">port: Sidebar.tsx, CommandPalette.tsx</text>
+        <text x="36" y="468" class="tiny">copy: ui/sidebar.tsx</text>
+        <rect x="242" y="66" width="496" height="228" class="decision" rx="8"/>
         <text x="258" y="92" class="t">Middle panel</text>
-        <text x="258" y="112" class="sub">view tabs and the sweep stamp, then a console view or a thread timeline</text>
-        <text x="258" y="132" class="sub">reads on the lightest surface</text>
-        <text x="258" y="262" class="tiny">emulate: AppSidebarLayout.tsx · copy: WorkLog.tsx, TimelinePendingApprovalRow.tsx</text>
-        <rect x="242" y="290" width="496" height="70" class="decision" rx="8"/>
-        <text x="258" y="314" class="t">Composer</text>
-        <text x="258" y="334" class="sub">anchor chip always shown; approval strip for a pending card</text>
-        <text x="258" y="351" class="tiny">emulate: ChatComposer.tsx · copy: ComposerPendingApprovalActions.tsx</text>
-        <rect x="242" y="370" width="496" height="84" class="box b-mute"/>
-        <text x="258" y="394" class="t">Terminal drawer</text>
-        <text x="258" y="414" class="sub">code threads only: approved commands, and the operator's own shell</text>
-        <text x="258" y="440" class="tiny">port: ThreadTerminalDrawer.tsx · copy: ChatTerminalDrawers.tsx</text>
-        <rect x="750" y="66" width="230" height="388" class="decision" rx="8"/>
+        <text x="258" y="112" class="sub">one of three shapes, on the lightest surface:</text>
+        <text x="258" y="136" class="sub">a list: the Inbox, a lens table, the release months</text>
+        <text x="258" y="156" class="sub">a thing's page: a service with its six stations, the template,</text>
+        <text x="258" y="172" class="sub">the environment, one release month</text>
+        <text x="258" y="192" class="sub">a thread: context line, timeline, cards</text>
+        <text x="258" y="220" class="sub">a toolbar names the place and holds Detail and Ask; no in-page detail pane</text>
+        <text x="258" y="276" class="tiny">emulate: AppSidebarLayout.tsx · copy: WorkLog.tsx, TimelinePendingApprovalRow.tsx</text>
+        <rect x="242" y="304" width="496" height="82" class="decision" rx="8"/>
+        <text x="258" y="328" class="t">Composer</text>
+        <text x="258" y="348" class="sub">threads only · the anchor chip always shown · the approval strip above it</text>
+        <text x="258" y="370" class="tiny">emulate: ChatComposer.tsx · copy: ComposerPendingApprovalActions.tsx</text>
+        <rect x="242" y="396" width="496" height="88" class="box b-mute"/>
+        <text x="258" y="420" class="t">Terminal drawer</text>
+        <text x="258" y="440" class="sub">code threads only: approved commands, and the operator's own shell</text>
+        <text x="258" y="466" class="tiny">port: ThreadTerminalDrawer.tsx · copy: ChatTerminalDrawers.tsx</text>
+        <rect x="750" y="66" width="230" height="418" class="decision" rx="8"/>
         <text x="766" y="92" class="t">Right panel</text>
-        <text x="766" y="112" class="sub">300 px</text>
-        <text x="766" y="140" class="sub">context tabs first:</text>
-        <text x="766" y="160" class="sub">Inspector, or Changes</text>
-        <text x="766" y="180" class="sub">and Checks in a code thread</text>
-        <text x="766" y="208" class="sub">then Approvals, then Log</text>
-        <text x="766" y="402" class="tiny">copy: RightPanelTabs.tsx,</text>
-        <text x="766" y="420" class="tiny">ChatRightPanel.tsx</text>
-        <text x="766" y="438" class="tiny">port: rightPanelStore.ts</text>
+        <text x="766" y="112" class="sub">300 px · a sheet below 980 px</text>
+        <text x="766" y="140" class="sub">the one detail surface</text>
+        <text x="766" y="156" class="sub">for the selection</text>
+        <text x="766" y="184" class="sub">Detail: class, cause, effect,</text>
+        <text x="766" y="200" class="sub">next, actions, Ask, Fix in</text>
+        <text x="766" y="216" class="sub">a code thread</text>
+        <text x="766" y="240" class="sub">Evidence: each area the</text>
+        <text x="766" y="256" class="sub">selection draws from, in words</text>
+        <text x="766" y="280" class="sub">Log: its runs (M3)</text>
+        <text x="766" y="308" class="sub">Code thread: Changes, Checks</text>
+        <text x="766" y="324" class="sub">in place of Detail, Evidence</text>
+        <text x="766" y="450" class="tiny">copy: RightPanelTabs.tsx</text>
+        <text x="766" y="468" class="tiny">port: rightPanelStore.ts, rightPanelLayout.ts</text>
       </svg>
     </div>
-    <p>These rules hold in every view:</p>
+    <p>These rules hold everywhere:</p>
     <ul class="plain">
-      <li>Reading happens in the middle panel on the card surface, the lightest one in the light appearance. The tree, title bar and right panel use the chrome surfaces around it.</li>
-      <li>One selection drives the right panel. Selecting a queue row, a fork or a run fills the inspector; nothing opens a modal.</li>
-      <li>Every view states the sweep time and whether every source was read, in the view tab row.</li>
-      <li>The composer always shows its anchor, so the operator knows what context Copilot starts from.</li>
-      <li>A disabled action states why, in place.</li>
-      <li>Color never carries meaning alone. Priorities are written as P0, P1 and P2; card states and evidence chips are words.</li>
+      <li>The middle shows one thing. It never carries a second copy of the selection's detail; the right panel does that.</li>
+      <li>One selection, one panel. Selecting a row, a station, a release month or an event fills the right panel. Navigating to a new place clears the selection unless the new place contains it.</li>
+      <li>Evidence is shown once per surface: one line in the title bar for the sweep, one line on a section whose sources are not fresh, one tab for the selection. No chip rows.</li>
+      <li>A thread starts from a thing and names it. The composer exists only in a thread and always shows the anchor.</li>
+      <li>A button never writes; it creates a card. A disabled action states why, in place. Before M4 every write action is disabled with the reason that writes arrive at M4.</li>
+      <li>Color never carries meaning alone. Every dot has a word beside it, every priority is written P0 to P2, every evidence state is a word.</li>
+      <li>Nothing opens a modal except ⌘K.</li>
     </ul>
-    <p>On macOS the title bar uses <code>hiddenInset</code> with the traffic lights inset, and on Windows a hidden title bar with <code>titleBarOverlay</code>, as T3 Code's <code>apps/desktop/src/window/DesktopWindow.ts</code> <code>getWindowTitleBarOptions</code> (line 235) does. Its heights there are 52 and 40 pixels; SPI Code's are not set yet. Below a window width of 980 pixels the right panel becomes a popover, using T3 Code's <code>RIGHT_PANEL_INLINE_LAYOUT_MEDIA_QUERY</code> from <code>apps/web/src/rightPanelLayout.ts</code>, and the tree can collapse to T3 Code's 3rem icon rail (<code>ui/sidebar.tsx</code> <code>SIDEBAR_WIDTH_ICON</code>, line 30).</p>
+    <p>On macOS the title bar uses <code>hiddenInset</code> with the traffic lights inset, and on Windows a hidden title bar with <code>titleBarOverlay</code>, as T3 Code's <code>apps/desktop/src/window/DesktopWindow.ts</code> <code>getWindowTitleBarOptions</code> does. The first window used a 34 px bar; this design uses 40 px so the sweep line and the place fit beside the traffic lights.</p>
   </section>
 
   <section>
-    <h2>Today</h2>
-    <p>Today is the default view. It shows the briefing headline, three fact tiles, the focus queue in P0, P1, P2 order, and the ready line. The selected row fills the inspector. This mockup corrects the original's inspector, which sent a Prove failure to <code>fork_integration</code>; a Prove failure on the open release PR is fixed on that PR's head branch (product requirements, Code threads).</p>
+    <h2>Navigation model</h2>
+    <p>Three kinds of place, and three ways to move between them. The rule that keeps the window small: a <b>thing</b> has a page, a <b>list</b> has rows that are things or items, and a <b>lens</b> is a list whose rows are the same things seen through one concern. A pull request, an issue, an alert, a run or a queue item is never a page. It is a row on the thing it belongs to, and the right panel describes it when selected.</p>
+    <div class="tblwrap"><table class="tbl compact">
+      <thead><tr><th style="width:17%">Sidebar entry</th><th style="width:30%">The middle shows</th><th style="width:28%">Selecting a row or part</th><th>Opening it (double-click, ⏎, or the name)</th></tr></thead>
+      <tbody>
+        <tr><td><b>Inbox</b> · count of P0 and P1</td><td>The briefing headline and summary, three facts, Waiting for you (cards, M4), the queue in Now, Next and Later, the rest folded, the ready line</td><td>Detail for the queue item</td><td>The scope chip opens the service page; the ready line opens Releases</td></tr>
+        <tr><td><b>Template</b></td><td>Template version and drift, the rollout in progress, the forks, the template repository's open work</td><td>Detail for the rollout item or repository line</td><td>A fork name opens its service page</td></tr>
+        <tr><td><b>Environment</b></td><td>Headline, running version, deployable share, last proof, the last 24 hours as four lanes, the stack repository's open work, a Live cluster section that fills at M6</td><td>Detail for an event on a lane</td><td></td></tr>
+        <tr><td><b>Releases</b></td><td>One row per month, newest first, with its notes state</td><td>Detail: the month's figures</td><td>The month's page: stats, key changes, the release document</td></tr>
+        <tr><td><b>A service</b> · dot and word</td><td>Its page: the six stations across the top, then Attention, Upstream sync, Repository, Release, Runs</td><td>Detail for a station, a queue item, a pull request, an issue, an alert or a run</td><td>A pull request or issue opens on GitHub in the browser</td></tr>
+        <tr><td><b>Flow</b> lens</td><td>The upstream headline and four tiles, one row per fork: plan, behind, carries, ready, the four line stations, next</td><td>Detail for the fork's upstream sync; Plan in the toolbar selects the wave plan</td><td>The service page</td></tr>
+        <tr><td><b>Repositories</b> lens</td><td>Headline, five facts, one row per repository in Program and Forks groups: pull requests, Dependabot, issues, vulnerabilities, code scanning, needs</td><td>Detail for the repository's open work</td><td>The service page, or Template or Environment for the two program repositories</td></tr>
+        <tr><td><b>Horizon</b> lens</td><td>The upstream headline, one row per theme: kind, forks certain and possible, when, next</td><td>Detail for the theme with its exposure by fork</td><td>A fork name opens its service page</td></tr>
+        <tr><td><b>Runs</b> lens</td><td>Workflow runs across the fleet, newest first: run, workflow, service, result, when</td><td>Detail for the run</td><td>The run on GitHub</td></tr>
+        <tr><td><b>A thread</b></td><td>Header with title, kind and anchor; the context line; the timeline; the composer</td><td>The anchor stays selected; Changes and Checks replace Detail and Evidence in a code thread</td><td>The anchor chip opens the anchored thing's page</td></tr>
+        <tr><td><b>Setup</b> (footer)</td><td>Tools and sign-ins by what they unlock</td><td></td><td></td></tr>
+      </tbody>
+    </table></div>
+    <p>Lens tables sort by any column and keep the sort per lens. A row stays selected while the operator moves between a lens and the service page it opens, so the right panel does not blank out on the way. Group headings in the sidebar collapse and remember it, and the Services group shows all 13 lines rather than five and a fold: the operator's day is spent on these names, and the sidebar scrolls.</p>
+  </section>
+
+  <section>
+    <h2>Inbox</h2>
+    <p>The Inbox is the default place and the operator's day. It carries what the rib's Today carries, in the same order from the same briefing: headline, summary, three facts, the queue in P0, P1 and P2 order, and the ready line. Two things are new. Each row names its scope with a chip that opens the thing's page, so the queue is the way into the rest of the window. And a Waiting for you section sits above the queue; it holds pending approval cards from M4, and the Inbox count in the sidebar and title bar adds them to the P0 and P1 items. Before M4 the section says that cards arrive at M4.</p>
     <div class="mockwrap">
-      <div class="app">
-        <div class="bar"><span class="dots"><i></i><i></i><i></i></span><b>SPI Code</b><span>· shared environment deployable · inferred</span><span class="sp"></span><span>⌘K</span></div>
+      <div class="app tall">
+        <div class="bar"><span class="dots"><i></i><i></i><i></i></span><b>SPI Code</b><span class="crumb">Inbox</span><span class="sp"></span><span class="sweep warn"><span class="d"></span>swept 2 min ago · 1 area cut · 3 stale · next sync 00:00</span><span class="kbd">⌘K</span></div>
         <div class="side">
-          <div class="it on"><span class="d r"></span>Today<span class="pip">3</span></div>
-          <div class="grp">System</div>
-          <div class="it"><span class="d"></span>Template<span class="n">v1.3.0 +6</span></div>
-          <div class="it"><span class="d y"></span>Repositories<span class="n">2 critical</span></div>
-          <div class="it"><span class="d m"></span>Releases<span class="n">Oct</span></div>
-          <div class="grp">Stack</div>
-          <div class="it"><span class="d"></span>Shared environment<span class="n">0.35.1</span></div>
-          <div class="grp">Services</div>
-          <div class="it"><span class="d"></span>Flow · Horizon</div>
-          <div class="it"><span class="d r"></span>entitlements</div>
-          <div class="it"><span class="d y"></span>schema</div>
-          <div class="it"><span class="d"></span>partition</div>
-          <div class="it"><span class="d"></span>legal</div>
-          <div class="it"><span class="d"></span>storage<span class="n">+8 more</span></div>
-          <div class="grp">Threads</div>
-          <div class="it th">Why is entitlements red</div>
-          <div class="it th">Classify schema's new entry</div>
-          <div class="foot"><div class="it"><span class="d y"></span>Runs<span class="n">1 waiting</span></div><div class="it"><span class="d"></span>Setup<span class="n">ready</span></div></div>
+          <div class="find"><span>⌕</span><span class="txt">Find or ask</span><span class="kbd">⌘K</span></div>
+          <div class="scroll">
+            <div class="it on"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">5</span></div>
+            <div class="grp">Program</div>
+            <div class="it"><span class="d y"></span><span class="lbl">Template</span><span class="n">v1.4.0 · 1 rolling</span></div>
+            <div class="it"><span class="d"></span><span class="lbl">Environment</span><span class="n">v0.35.3</span></div>
+            <div class="it"><span class="d"></span><span class="lbl">Releases</span><span class="n">2026.11</span></div>
+            <div class="grp">Services<span class="n">13</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">partition</span><span class="n">toolchain</span></div>
+            <div class="it"><span class="d r"></span><span class="lbl">entitlements</span><span class="n">conflict</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">legal</span><span class="n">held</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">schema</span><span class="n">toolchain</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">file</span><span class="n">toolchain</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">storage</span><span class="n">toolchain</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">indexer</span><span class="n">toolchain</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">search</span><span class="n">toolchain</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">workflow</span><span class="n">toolchain</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">indexer-queue</span><span class="n">gate</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">unit</span><span class="n">toolchain</span></div>
+            <div class="it"><span class="d"></span><span class="lbl">crs-catalog</span><span class="n">done</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">crs-conversion</span><span class="n">toolchain</span></div>
+            <div class="grp">Lenses</div>
+            <div class="it"><span class="d m"></span><span class="lbl">Flow</span><span class="n">1 waiting</span></div>
+            <div class="it"><span class="d m"></span><span class="lbl">Repositories</span><span class="n">15 repos</span></div>
+            <div class="it"><span class="d m"></span><span class="lbl">Horizon</span><span class="n">2 ahead</span></div>
+            <div class="it"><span class="d m"></span><span class="lbl">Runs</span><span class="n">448</span></div>
+            <div class="grp">Threads<span class="n">+</span></div>
+            <div class="it th"><span class="lbl">Why is entitlements blocked</span></div>
+            <div class="it th code"><span class="lbl">Fix the entitlements conflict</span></div>
+          </div>
+          <div class="foot"><div class="it"><span class="d"></span><span class="lbl">Setup</span><span class="n">ready</span></div><div class="stamp">swept 2 min ago</div></div>
         </div>
         <div class="main">
-          <div class="tabs"><span class="on">Today</span><span>Focus</span><span>Ready</span><span class="stamp">swept 2 min ago · all sources read</span></div>
+          <div class="tool"><h1>Inbox</h1><span class="sub">5 in focus · 11 more</span></div>
           <div class="body">
-            <div class="head">Fix entitlements' release PR, which fails at Prove on a test failure. Classify the new shared entry before schema halts at the 00:00 sync.</div>
+            <p class="head">Resolve the entitlements conflict. Unblock entitlements. 11 more causes below.</p>
+            <p class="summary">Entitlements has been stopped for 16 days. The environment is deployable. 13 PRs are ready for review.</p>
             <div class="facts">
-              <div class="fact"><div class="k">Environment</div><div class="v">Deployable</div><div class="s">refresh green 34 min · 6 h ago</div></div>
-              <div class="fact"><div class="k">Template</div><div class="v">v1.3.0 +6</div><div class="s">11 of 13 forks at main</div></div>
-              <div class="fact"><div class="k">Upstream</div><div class="v">2 will break</div><div class="s">1 halt · 1 toolchain</div></div>
+              <div class="fact"><div class="k">Environment</div><div class="v ok">v0.35.3</div><div class="s">deployable · green at 11-04 22:09</div></div>
+              <div class="fact"><div class="k">Upstream sync</div><div class="v bad">1 of 13</div><div class="s">forks stopped · entitlements</div></div>
+              <div class="fact"><div class="k">Template · main 7d269b5</div><div class="v warn">0 of 13</div><div class="s">on main · 1 change reaches the forks</div></div>
             </div>
-            <div class="row sel"><span class="pr p0">P0</span><div><div class="t">entitlements · release PR fails at Prove</div><div class="s">TEST · 3 suites red after 14 upstream commits · 5 h</div></div><span class="btn">Diagnose</span></div>
-            <div class="row"><span class="pr p1">P1</span><div><div class="t">schema · halts at next sync</div><div class="s">HALT · unclassified shared entry in upstream MR · before 00:00</div></div><span class="btn">Hand off</span></div>
-            <div class="row"><span class="pr p1">P1</span><div><div class="t">partition · 1 outside PR waits for run approval</div><div class="s">Actions run held · PR head matched · 2 h</div></div><span class="btn">Approve run</span></div>
-            <div class="ready">Ready: 2 Dependabot bumps and 1 template sync PR are green and waiting for review.</div>
-          </div>
-          <div class="comp">
-            <div class="ph">Ask about entitlements, or tell Copilot what to do…</div>
-            <div class="ctl"><span class="chipx anc">⚓ entitlements · release PR</span><span class="chipx">Copilot · auto</span><span class="chipx">Changes need approval</span><span style="margin-left:auto">⏎ send</span></div>
+            <div class="sec"><div class="sh"><h2>Waiting for you</h2></div><p class="empty">No approval cards. Cards arrive at M4; until then every action is read-only and says so.</p></div>
+            <div class="sec"><div class="sh"><h2>Now</h2><span class="n">1</span></div>
+              <div class="row sel"><span class="pr p0">P0</span><span><span class="t"><span class="scope">entitlements</span>Cascade blocked<span class="cls">conflict</span></span><span class="s">validation fails on fork_integration after the sync</span></span><span class="age">6 h</span></div>
+            </div>
+            <div class="sec"><div class="sh"><h2>Next</h2><span class="n">4</span></div>
+              <div class="row"><span class="pr p1">P1</span><span><span class="t"><span class="scope fleet">fleet</span>1 change on main reaches all 13 forks<span class="cls">rollout</span></span><span class="s">1 merge · actions, workflows, settings · no PR carries it yet</span></span><span class="age"></span></div>
+              <div class="row"><span class="pr p1">P1</span><span><span class="t"><span class="scope">entitlements</span>Release PR fails at build<span class="cls">build red</span></span><span class="s">coverage check red on PR #57</span></span><span class="age">16 d</span></div>
+              <div class="row"><span class="pr p1">P1</span><span><span class="t"><span class="scope">indexer</span>Next sync carries a toolchain move<span class="cls">toolchain</span></span><span class="s">23 commits queued · syncs at 18:00</span></span><span class="age"></span></div>
+              <div class="row"><span class="pr p1">P1</span><span><span class="t"><span class="scope">legal</span>Next sync carries a SNAPSHOT toolchain<span class="cls">toolchain</span></span><span class="s">17 commits queued · syncs at 18:00</span></span><span class="age"></span></div>
+            </div>
+            <details class="more"><summary>11 more in the queue</summary></details>
+            <div class="ready"><b>Ready, no rush:</b> 13 release PRs</div>
           </div>
         </div>
         <div class="right">
-          <div class="rtabs"><span class="on">Inspector</span><span>Approvals<span class="pip">1</span></span><span>Log</span></div>
+          <div class="rtabs"><button class="on">Detail</button><button>Evidence</button><button class="off">Log <span style="font-size:9px">M3</span></button></div>
           <div class="ins">
-            <div class="k">P0 · TEST · entitlements</div>
-            <div class="h">Release PR fails at Prove</div>
-            <div class="k">Cause</div><div class="v">Three acceptance suites fail on release PR #212 after the cascade brought 14 upstream commits. The environment was deployable during the run.</div>
-            <div class="k">Effect</div><div class="v">Main does not advance. The cascade stays held while the release PR is open.</div>
-            <div class="k">Next</div><div class="v">Diagnose the failing suites, then fix them in a code thread on the release PR's branch.</div>
-            <div class="acts"><span class="btn pri">Diagnose</span><span class="btn" style="opacity:.55" aria-disabled="true">Re-run failed</span><span class="btn">Open PR</span></div>
-            <div class="bind" style="margin-top:6px">Re-run is offered for ENV and INFRA failures. This one is TEST.</div>
+            <div class="kick">P0 · conflict · entitlements</div>
+            <div class="h">Cascade blocked</div>
+            <span class="chip stale">2 of 9 sources not fresh · stale</span>
+            <div class="owned"><b>In a thread</b> · Why is entitlements blocked</div>
+            <div class="k">Cause</div><div class="v">The cascade build fails at integration validation after the sync brought upstream commits that conflict with a fork-owned change.</div>
+            <div class="k">Effect</div><div class="v">Nothing else waits on it. Main does not advance while the cascade is stopped.</div>
+            <div class="k">Next</div><div class="v">Resolve the conflict on fork_integration, then dispatch the cascade.</div>
+            <div class="acts"><span class="btn off">Dispatch cascade</span><span class="btn">Ask</span><span class="btn">Fix in a code thread</span></div>
+            <div class="why">Dispatch cascade: writes arrive at M4</div>
+            <div class="k">Evidence</div><ul><li><a>issue #412</a></li><li><a>cascade run</a></li></ul>
           </div>
         </div>
       </div>
     </div>
-    <p class="note">Proposed, light appearance. The tree's status dots come from the latest sweep: red has a P0, amber a P1, green nothing waiting, gray nothing measured. The Today pip counts focus items; the Approvals pip counts pending cards and shows the same number on every screen.</p>
+    <p class="note">Proposed, light appearance, example data. The sidebar shows all 13 services; a dot carries the highest priority in that service's queue (red P0, amber P1, green nothing waiting, hollow unread) and the word beside it says why. The Inbox count is P0 and P1 items plus pending cards. The sweep line is amber because one area is cut and three are stale; it turns red only when a read failed.</p>
+    <p>Before the first sweep finishes, the Inbox shows the sweep in progress instead of an empty briefing: which areas are read, which are deferred and why, and the API budget left, from the host's sweep status message. Per-area progress is one of the contract additions in <a href="#gaps">Contract additions</a>; without it the line reads "first sweep running · 2 areas deferred".</p>
   </section>
 
   <section>
-    <h2>Program tree</h2>
-    <p>The tree follows the program's nouns, not repositories or chat sessions. Each entry renders from the same core model the rib console uses.</p>
+    <h2>Service page</h2>
+    <p>One page per service line, reached from the sidebar, a scope chip, a lens row or ⌘K. The six stations the rib defines in <code>model/lines.ts</code> run across the top as tiles, each with its state word and its text, and each selectable. Below them the page gathers everything the sweep knows about the service, in sections that are empty rather than absent, so the page has the same shape for every service.</p>
+    <div class="mockwrap">
+      <div class="app dark">
+        <div class="bar"><span class="dots"><i></i><i></i><i></i></span><b>SPI Code</b><span class="crumb">entitlements</span><span class="sp"></span><span class="sweep bad"><span class="d"></span>swept 2 min ago · 1 area failed · 1 cut · next sync 00:00</span><span class="kbd">⌘K</span></div>
+        <div class="side">
+          <div class="find"><span>⌕</span><span class="txt">Find or ask</span><span class="kbd">⌘K</span></div>
+          <div class="scroll">
+            <div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">5</span></div>
+            <div class="grp">Program</div>
+            <div class="it"><span class="d y"></span><span class="lbl">Template</span><span class="n">v1.4.0 · 1 rolling</span></div>
+            <div class="it"><span class="d"></span><span class="lbl">Environment</span><span class="n">v0.35.3</span></div>
+            <div class="it"><span class="d"></span><span class="lbl">Releases</span><span class="n">2026.11</span></div>
+            <div class="grp">Services<span class="n">13</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">partition</span><span class="n">toolchain</span></div>
+            <div class="it on"><span class="d r"></span><span class="lbl">entitlements</span><span class="n">conflict</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">legal</span><span class="n">held</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">schema</span><span class="n">toolchain</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">file</span><span class="n">toolchain</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">storage</span><span class="n">toolchain</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">indexer</span><span class="n">toolchain</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">search</span><span class="n">toolchain</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">workflow</span><span class="n">toolchain</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">indexer-queue</span><span class="n">gate</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">unit</span><span class="n">toolchain</span></div>
+            <div class="it"><span class="d"></span><span class="lbl">crs-catalog</span><span class="n">done</span></div>
+            <div class="it"><span class="d y"></span><span class="lbl">crs-conversion</span><span class="n">toolchain</span></div>
+            <div class="grp">Lenses</div>
+            <div class="it"><span class="d m"></span><span class="lbl">Flow</span><span class="n">1 waiting</span></div>
+            <div class="it"><span class="d m"></span><span class="lbl">Repositories</span><span class="n">15 repos</span></div>
+          </div>
+          <div class="foot"><div class="it"><span class="d"></span><span class="lbl">Setup</span><span class="n">ready</span></div><div class="stamp">swept 2 min ago</div></div>
+        </div>
+        <div class="main">
+          <div class="tool"><h1>entitlements</h1><span class="sub">Cascade blocked · conflict</span><span class="sp"></span><span class="btn">Detail</span><span class="btn">Ask</span></div>
+          <div class="body">
+            <div class="stations">
+              <div class="st"><div class="k">Upstream</div><div class="w">idle</div><div class="x">0 behind</div></div>
+              <div class="st"><div class="k">Sync PR</div><div class="w">idle</div><div class="x">clean</div></div>
+              <div class="st sel"><div class="k">Cascade</div><div class="w stopped">stopped</div><div class="x">conflict</div></div>
+              <div class="st"><div class="k">Sync to main</div><div class="w">idle</div><div class="x">idle</div></div>
+              <div class="st"><div class="k">Release</div><div class="w waiting">waiting</div><div class="x">gate 3 · PR #57</div></div>
+              <div class="st"><div class="k">Stack lane</div><div class="w">idle</div><div class="x">last run ok</div></div>
+            </div>
+            <p class="note" style="margin-top:0"><span class="ev bad">github issues and prs failed · 3 more</span></p>
+            <div class="sec"><div class="sh"><h2>Attention</h2><span class="n">2</span></div>
+              <div class="row"><span class="pr p0">P0</span><span><span class="t">Cascade blocked<span class="cls">conflict</span></span><span class="s">validation fails on fork_integration after the sync</span></span><span class="age">6 h</span></div>
+              <div class="row"><span class="pr p1">P1</span><span><span class="t">Release PR fails at build<span class="cls">build red</span></span><span class="s">coverage check red on PR #57</span></span><span class="age">16 d</span></div>
+            </div>
+            <div class="sec"><div class="sh"><h2>Upstream sync</h2><span class="n">stopped</span><span class="ev bad">github issues and prs failed · 4 more</span></div>
+              <div class="kv"><span class="k">Behind</span><span>0 commits · no toolchain move</span><span class="k">Line</span><span>Sync PR <span class="ok" style="color:var(--a-grn-ink)">merged</span> · Cascade <span style="color:var(--a-red-ink)">failed</span> · <span style="color:var(--a-dim)">Sync to main not yet</span> · <span style="color:var(--a-dim)">Main run not yet</span></span><span class="k">Next</span><span><b>Stopped · open</b></span></div>
+              <p class="note" style="margin-top:6px"><b style="color:var(--a-fg)">entitlements · stopped</b> · fork_upstream carries every upstream commit. Waits: fork_integration not read yet.</p>
+            </div>
+            <div class="sec"><div class="sh"><h2>Repository</h2><span class="n">1 issue needs a person</span><span class="ev bad">github issues and prs failed · 3 more</span></div>
+              <div class="kv"><span class="k">Issues</span><span>1 human-required · 0 other</span></div>
+              <ul class="lines"><li><span class="tag bad">human-required</span><span>Cascade validation failed · #412<span class="s">opened 6 h ago · 0 comments · from the sync engine</span></span></li></ul>
+              <div class="kv"><span class="k">Code scanning</span><span>2 ours · 0 upstream</span></div>
+              <ul class="lines"><li><span class="tag warn">high</span><span>Missing input validation · 2 alerts<span class="s">shipped code · provider module · found by CodeQL · also ours on 11 other forks</span></span></li></ul>
+            </div>
+          </div>
+        </div>
+        <div class="right">
+          <div class="rtabs"><button class="on">Detail</button><button>Evidence</button><button class="off">Log <span style="font-size:9px">M3</span></button></div>
+          <div class="ins">
+            <div class="kick">station · entitlements</div>
+            <div class="h">Cascade · stopped</div>
+            <span class="chip bad">2 of 4 sources not fresh · failed</span>
+            <div class="k">State</div><div class="v">conflict</div>
+            <div class="k">Cause</div><div class="v">The cascade build fails at integration validation after the sync brought upstream commits that conflict with a fork-owned change.</div>
+            <div class="k">Next</div><div class="v">Resolve the conflict on fork_integration, then dispatch the cascade.</div>
+            <div class="acts"><span class="btn off">Dispatch cascade</span><span class="btn">Ask</span><span class="btn">Fix in a code thread</span></div>
+            <div class="why">Dispatch cascade: writes arrive at M4</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Proposed, dark appearance, example data. The selected station fills the right panel; the Lenses group is drawn partly scrolled. The evidence line under the stations and on each section names the worst source in words and counts the rest; the full list is on the Evidence tab.</p>
     <div class="tblwrap"><table class="tbl compact">
-      <thead><tr><th style="width:16%">Group</th><th style="width:34%">Entries</th><th style="width:28%">Count or label on the right</th><th>Model in @spi-code/core</th></tr></thead>
+      <thead><tr><th style="width:16%">Section</th><th style="width:44%">Content</th><th>Source in the Watch contract</th></tr></thead>
       <tbody>
-        <tr><td><b>Today</b></td><td>Briefing, focus queue, ready line</td><td>Focus items, as a red pip</td><td><code>buildBriefing</code>, <code>model/queue.ts</code></td></tr>
-        <tr><td><b>System</b></td><td>Template, Repositories, Releases</td><td>Template version and drift, critical alerts, release month</td><td><code>model/rollout.ts</code>, security, release notes</td></tr>
-        <tr><td><b>Stack</b></td><td>Shared environment</td><td>Running stack version</td><td><code>model/stack.ts</code></td></tr>
-        <tr><td><b>Services</b></td><td>Flow and Horizon, then one entry per service line</td><td>Overflow count after the first five</td><td><code>model/lines.ts</code>, <code>model/radar.ts</code></td></tr>
-        <tr><td><b>Threads</b></td><td>Operate and code threads, newest first</td><td>None; a square marker, not a dot</td><td>ThreadStore</td></tr>
-        <tr><td><b>Footer</b></td><td>Runs, Setup</td><td>Runs waiting; Setup readiness</td><td>IntentLedger; Setup probes</td></tr>
+        <tr><td><b>Stations</b></td><td>Upstream, Sync PR, Cascade, Sync to main, Release, Stack lane: state word and text</td><td><code>stations[service]</code></td></tr>
+        <tr><td><b>Attention</b></td><td>Queue items whose scope is this service, in priority order</td><td><code>briefing.focus</code> and <code>briefing.rest</code> by <code>scope</code></td></tr>
+        <tr><td><b>Upstream sync</b></td><td>Behind, carries, ready, plan, the four line stations, next, and the rib's detail lines</td><td><code>briefing.flow.rows[fork]</code></td></tr>
+        <tr><td><b>Repository</b></td><td>The repository's open work: pull requests, issues, Dependabot, vulnerabilities, code scanning, each a selectable line</td><td><code>briefing.repositories.rows[repo:service]</code></td></tr>
+        <tr><td><b>Release</b></td><td>The release gate text and the month it belongs to</td><td><code>stations[service].release</code>; per-service release rows are a contract addition</td></tr>
+        <tr><td><b>Runs</b></td><td>Workflow runs for this fork, newest first</td><td>A contract addition; today the tree carries run ids without their service</td></tr>
       </tbody>
     </table></div>
-    <p>The row shape, the selected state and the collapse behavior come from T3 Code's <code>Sidebar.tsx</code> and <code>ThreadStatusIndicators.tsx</code>. Both import Effect and are built around projects and chat threads, so they are ported. The <code>ui/sidebar.tsx</code> primitive is copied.</p>
+  </section>
+
+  <section>
+    <h2>Program pages</h2>
+    <p>The three program things each have a page with the same shape as a service page: a headline, facts, sections, and the right panel for the selection.</p>
+    <ul class="plain">
+      <li><b>Template.</b> The template fact (version on main, how many forks are on it), the rollout in progress as a queue row with the rib's detail lines, the forks with the template version each runs (a contract addition; the fact carries fleet counts only), and the template repository's open work.</li>
+      <li><b>Environment.</b> The rib's Environment view without its in-page pane: headline, three facts, the last 24 hours as the four lanes on an hour track, the fork-lanes note, the stack repository's open work, and a Live cluster section that stays empty until M6 and then labels live reads apart from the workflow-run inference above it (PS-07). Selecting an event fills the right panel.</li>
+      <li><b>Releases.</b> A list of months, newest first, each with its notes state and headline. Selecting a month shows its figures; opening it shows the month's page with the stats, key changes and the release document.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Lenses</h2>
+    <p>A lens is a dense, sortable table across the fleet for one concern. The four lenses carry the rib's Flow, Repositories and Horizon views and a new Runs table, without the in-page panes the rib drew beside them. The rib's lone "·" placeholder cells are drawn blank. Selecting a row fills the right panel; opening a row goes to the thing's page.</p>
+    <div class="mockwrap">
+      <div class="app">
+        <div class="bar"><span class="dots"><i></i><i></i><i></i></span><b>SPI Code</b><span class="crumb">Flow</span><span class="sp"></span><span class="sweep warn"><span class="d"></span>swept 2 min ago · 1 area cut · 3 stale · next sync 00:00</span><span class="kbd">⌘K</span></div>
+        <div class="side">
+          <div class="find"><span>⌕</span><span class="txt">Find or ask</span><span class="kbd">⌘K</span></div>
+          <div class="scroll">
+            <div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">5</span></div>
+            <div class="grp">Program</div>
+            <div class="it"><span class="d y"></span><span class="lbl">Template</span><span class="n">v1.4.0 · 1 rolling</span></div>
+            <div class="it"><span class="d"></span><span class="lbl">Environment</span><span class="n">v0.35.3</span></div>
+            <div class="it"><span class="d"></span><span class="lbl">Releases</span><span class="n">2026.11</span></div>
+            <div class="grp">Services<span class="n">13 ▸</span></div>
+            <div class="grp">Lenses</div>
+            <div class="it on"><span class="d m"></span><span class="lbl">Flow</span><span class="n">1 waiting</span></div>
+            <div class="it"><span class="d m"></span><span class="lbl">Repositories</span><span class="n">15 repos</span></div>
+            <div class="it"><span class="d m"></span><span class="lbl">Horizon</span><span class="n">2 ahead</span></div>
+            <div class="it"><span class="d m"></span><span class="lbl">Runs</span><span class="n">448</span></div>
+            <div class="grp">Threads<span class="n">+</span></div>
+            <div class="it th"><span class="lbl">Why is entitlements blocked</span></div>
+            <div class="it th code"><span class="lbl">Fix the entitlements conflict</span></div>
+          </div>
+          <div class="foot"><div class="it"><span class="d"></span><span class="lbl">Setup</span><span class="n">ready</span></div><div class="stamp">swept 2 min ago</div></div>
+        </div>
+        <div class="main">
+          <div class="tool"><h1>Flow</h1><span class="sub">flight · 2 sync PRs are prepared and wait</span><span class="sp"></span><span class="btn">Plan</span></div>
+          <div class="body">
+            <p class="head">1 gate waits on you: start indexer-queue. Entitlements stopped in cascade.</p>
+            <div class="facts">
+              <div class="fact"><div class="k">On main</div><div class="v ok">1 of 13</div><div class="s">crs-catalog · main green</div></div>
+              <div class="fact"><div class="k">Lanes</div><div class="v">0 busy</div><div class="s">shared with the template rollout</div></div>
+              <div class="fact"><div class="k">Waiting on you</div><div class="v warn">1</div><div class="s">1 start · 0 reviews on GitHub</div></div>
+              <div class="fact"><div class="k">Stopped</div><div class="v bad">1</div><div class="s">entitlements · cascade build failed</div></div>
+            </div>
+            <table class="lens"><thead><tr><th>Fork<span class="arr">▲</span></th><th>Plan</th><th class="num">Behind</th><th>Carries</th><th>Ready</th><th>Sync PR</th><th>Cascade</th><th>Sync to main</th><th>Main run</th><th>Next</th></tr></thead><tbody>
+              <tr><td class="name">crs-catalog</td><td></td><td class="num">0</td><td class="sub">no toolchain move</td><td><span class="ok">ready</span></td><td><span class="ok">merged</span></td><td><span class="ok">green</span></td><td><span class="ok">merged</span></td><td><span class="ok">green</span></td><td>done · release PR waits</td></tr>
+              <tr><td class="name">partition</td><td>Pilot</td><td class="num">6</td><td class="sub">core library 8.5.0</td><td><span class="warn">toolchain move · the pilot</span></td><td><span class="blank">·</span></td><td><span class="blank">·</span></td><td><span class="blank">·</span></td><td><span class="blank">·</span></td><td>prepare</td></tr>
+              <tr class="sel"><td class="name">indexer-queue</td><td>Pilot</td><td class="num">3</td><td class="sub">no toolchain move</td><td><span class="ok">ready</span></td><td><span class="warn">ready</span></td><td><span class="blank">·</span></td><td><span class="blank">·</span></td><td><span class="blank">·</span></td><td><b>Start</b></td></tr>
+              <tr><td class="name">schema</td><td>Wave 1</td><td class="num">14</td><td class="sub">core library 8.5.0</td><td><span class="warn">toolchain move · pilot decides</span></td><td><span class="blank">·</span></td><td><span class="blank">·</span></td><td><span class="blank">·</span></td><td><span class="blank">·</span></td><td>wave 1</td></tr>
+              <tr><td class="name">storage</td><td>Wave 1</td><td class="num">11</td><td class="sub">core library 8.5.0</td><td><span class="warn">toolchain move · pilot decides</span></td><td><span class="neutral">prepared</span></td><td><span class="blank">·</span></td><td><span class="blank">·</span></td><td><span class="blank">·</span></td><td>wave 1 starts once partition's cascade is green</td></tr>
+              <tr><td class="name">entitlements</td><td></td><td class="num">0</td><td class="sub">no toolchain move</td><td><span class="ok">ready</span></td><td><span class="ok">merged</span></td><td><span class="bad">failed</span></td><td><span class="blank">·</span></td><td><span class="blank">·</span></td><td><b>Stopped · open</b></td></tr>
+              <tr><td class="name">legal</td><td>Held</td><td class="num">17</td><td class="sub">SNAPSHOT toolchain</td><td><span class="warn">hold · SNAPSHOT toolchain</span></td><td><span class="blank">·</span></td><td><span class="blank">·</span></td><td><span class="blank">·</span></td><td><span class="blank">·</span></td><td>held</td></tr>
+            </tbody></table>
+            <p class="note">At 18:00 if you do nothing: Sync Upstream opens 8 sync PRs. They wait for you. 3 prepared PRs update in place.</p>
+          </div>
+        </div>
+        <div class="right">
+          <div class="rtabs"><button>Detail</button><button class="on">Evidence</button><button class="off">Log <span style="font-size:9px">M3</span></button></div>
+          <div class="ins">
+            <div class="kick">what this selection is drawn from</div>
+            <div class="h">Start indexer-queue</div>
+            <table class="ev-tbl">
+              <tr><td>GitHub issues and PRs</td><td><span class="w stale">stale</span><span class="s">stale, last read 23 min ago</span></td></tr>
+              <tr><td>Workflow runs</td><td><span class="w stale">stale</span><span class="s">stale, last read 23 min ago</span></td></tr>
+              <tr><td>Stack lifecycle runs</td><td><span class="w incomplete">incomplete</span><span class="s">cut, 64,000 of 92,438 · job log character limit</span></td></tr>
+              <tr><td>Upstream GitLab</td><td><span class="w fresh">fresh</span><span class="s">fresh, 2 min ago</span></td></tr>
+            </table>
+            <div class="k">Reads for indexer-queue</div>
+            <table class="ev-tbl">
+              <tr><td>actions</td><td><span class="w fresh">read</span><span class="s">2 min ago</span></td></tr>
+              <tr><td>main</td><td><span class="w fresh">read</span><span class="s">2 min ago</span></td></tr>
+              <tr><td>port PRs</td><td><span class="w failed">failed</span><span class="s">25 min ago · short non-JSON reply</span></td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Proposed, light appearance, example data; seven of thirteen rows drawn, the Services group collapsed. The Evidence tab is shown for the selected row: the areas that fed it, each in words, then the reads for its repository.</p>
   </section>
 
   <section>
     <h2>Right panel</h2>
-    <p>The right panel's tabs come in a fixed order: the context tabs for what is selected, then Approvals, then Log. On a console view the context tab is Inspector. In a code thread it is Changes and Checks. Approvals is one inbox for every pending card in the app, and Log is the selected object's runs and the sweep's read history for it.</p>
-    <p>A card has one id and one state, held in the host's ApprovalStore, and appears wherever it is relevant. It is decided in one place per origin. A card requested in a thread is decided in that thread's composer strip, and its timeline row and inbox row point there. A card requested by a button is decided on the card itself. A button never writes; it creates the card. The card states are drawn in the product requirements, Authority, tiers and approvals.</p>
-    <p>T3 Code's <code>RightPanelTabs.tsx</code> and <code>ChatRightPanel.tsx</code> import no Effect and are copied. <code>rightPanelStore.ts</code> (1,258 lines) is ported down to the selection and each context's chosen tab, which is all the window keeps itself.</p>
+    <p>The right panel describes the selection and nothing else. It has three tabs in a fixed order. <b>Detail</b> is the inspector: class, title, cause, effect, next, the actions the item offers with the reason under any disabled one, then Ask and, where PB-03 applies, Fix in a code thread, then the item's evidence links. <b>Evidence</b> lists each area the selection draws from with its state, age and completeness in plain words, then the reads for the selection's repository. <b>Log</b> lists the selection's runs from M3 and is drawn disabled before that. A selection that no thread owns shows the two thread buttons; one a thread owns shows the thread instead (TH-05), as the box under the title in the Inbox mockup.</p>
+    <p>The panel has no Approvals tab. Pending cards are work, so they wait in the Inbox under Waiting for you, and a card asked for inside a thread is decided in that thread's composer strip. The right panel shows a card's detail when the card is selected, like any other row. A card has one id and one state in the host's approval store, appears wherever it is relevant, and is decided in one place per origin (AU-09, AU-10).</p>
+    <p>In a code thread the context tabs are <b>Changes</b> and <b>Checks</b> in place of Detail and Evidence: the worktree, its changed files, the target branch, and the required checks at the pushed commit. Log stays. T3 Code's <code>RightPanelTabs.tsx</code> and <code>ChatRightPanel.tsx</code> are copied for the frame; <code>rightPanelStore.ts</code> is ported down to the selection and each context's chosen tab.</p>
   </section>
 
   <section>
-    <h2>Code thread</h2>
-    <p>A code thread works in a worktree on one fork branch. Its header names the local branch, the remote target, and the base and head. The timeline interleaves the operator's messages, Copilot's replies, work log entries and cards. A pending card sits in the composer strip. The drawer has two tabs: the read-only record of approved commands, and the operator's own login shell, labeled as outside the sandbox.</p>
+    <h2>Threads</h2>
+    <p>A thread is the home of use C. It starts from a thing: Ask on the Detail tab, a sentence typed into ⌘K, the + beside Threads, or Fix in a code thread. Its header names its kind and its anchor, and the first entry in the timeline is the context line: the anchor's reading and the sweep time it came from (TH-02). The composer sits under the timeline and always shows the anchor chip. Threads list newest first in the sidebar; a code thread carries a filled square marker in the agent color.</p>
     <div class="mockwrap">
-      <div class="app dark">
-        <div class="bar"><span class="dots"><i></i><i></i><i></i></span><b>SPI Code</b><span>· shared environment deployable · inferred</span><span class="sp"></span><span>⌘K</span></div>
+      <div class="app">
+        <div class="bar"><span class="dots"><i></i><i></i><i></i></span><b>SPI Code</b><span class="crumb">Why is entitlements blocked</span><span class="sp"></span><span class="sweep warn"><span class="d"></span>swept 2 min ago · 1 area cut · 3 stale</span><span class="kbd">⌘K</span></div>
         <div class="side">
-          <div class="it"><span class="d r"></span>Today<span class="pip">3</span></div>
-          <div class="grp">Services</div>
-          <div class="it"><span class="d r"></span>entitlements</div>
-          <div class="it"><span class="d y"></span>schema</div>
-          <div class="it"><span class="d"></span>partition</div>
-          <div class="it"><span class="d"></span>storage<span class="n">+9 more</span></div>
-          <div class="grp">Threads</div>
-          <div class="it th on">Fix entitlements Prove suites</div>
-          <div class="it th">Why is entitlements red</div>
-          <div class="it th">Classify schema's new entry</div>
-          <div class="foot"><div class="it"><span class="d y"></span>Runs<span class="n">1 waiting</span></div><div class="it"><span class="d"></span>Setup<span class="n">ready</span></div></div>
+          <div class="find"><span>⌕</span><span class="txt">Find or ask</span><span class="kbd">⌘K</span></div>
+          <div class="scroll">
+            <div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">5</span></div>
+            <div class="grp">Program</div>
+            <div class="it"><span class="d y"></span><span class="lbl">Template</span><span class="n">v1.4.0 · 1 rolling</span></div>
+            <div class="it"><span class="d"></span><span class="lbl">Environment</span><span class="n">v0.35.3</span></div>
+            <div class="it"><span class="d"></span><span class="lbl">Releases</span><span class="n">2026.11</span></div>
+            <div class="grp">Services<span class="n">13 ▸</span></div>
+            <div class="grp">Lenses<span class="n">4 ▸</span></div>
+            <div class="grp">Threads<span class="n">+</span></div>
+            <div class="it th on"><span class="lbl">Why is entitlements blocked</span></div>
+            <div class="it th code"><span class="lbl">Fix the entitlements conflict</span></div>
+          </div>
+          <div class="foot"><div class="it"><span class="d"></span><span class="lbl">Setup</span><span class="n">ready</span></div><div class="stamp">swept 2 min ago</div></div>
         </div>
         <div class="main">
-          <div class="thd"><b>Fix entitlements Prove suites</b><span class="chip">Code thread</span><span>spi/fix-members-suite → release/upstream-20251104</span><span>base 4e1c2a9 · head 9b07f31</span><span class="chip fresh">push lease held</span></div>
-          <div class="body">
-            <div class="tl">
-              <div class="msg me">Fix the three failing acceptance suites on release PR #212.</div>
-              <div class="msg ai"><span class="copilot">Copilot</span> · The suites call the members endpoint with a page-size parameter the synced commits renamed. I'll update the test client and compile the test module.</div>
-              <div class="work"><b>Read</b> 6 files · <b>Edited</b> 2 files in testing/entitlements-test-core</div>
-              <div class="work"><b>Command</b> mvn -q -o -pl testing/entitlements-test-core test-compile · approved · exit 0 · 41 s</div>
-              <div class="msg ai"><span class="copilot">Copilot</span> · Both edits compile. One commit is ready for release/upstream-20251104. Pushing it re-runs validate on PR #212.</div>
-            </div>
-          </div>
-          <div class="strip"><span class="lbl">Change</span><span>push_branch · 9b07f31 to release/upstream-20251104, fast-forward from 4e1c2a9</span><span class="sp" style="flex:1"></span><span class="btn">Decline</span><span class="btn pri">Approve</span></div>
-          <div class="comp">
-            <div class="ph">Reply to Copilot…</div>
-            <div class="ctl"><span class="chipx anc">⚓ entitlements · PR #212</span><span class="chipx">Copilot · auto</span><span class="chipx">Commands sandboxed</span><span style="margin-left:auto">⏎ send</span></div>
-          </div>
-          <div class="term"><div class="tt"><b>Approved commands</b><span>Login shell · outside the sandbox</span></div>$ mvn -q -o -pl testing/entitlements-test-core test-compile
-exit 0 · 41 s</div>
+          <div class="thd"><b>Why is entitlements blocked</b><span class="chip">Operate thread</span><span class="chipx anc">⚓ entitlements · cascade blocked</span><span style="margin-left:auto">swept 2 min ago</span></div>
+          <div class="body"><div class="tlne">
+            <div class="ctx"><b>Context</b> · the anchor's reading at 23:18 UTC: class conflict, cause, effect, next, 2 evidence links</div>
+            <div class="msg me">Why is entitlements blocked, and what clears it?</div>
+            <div class="work"><b>Read</b> the failed cascade run · job log · attribution · the fork's open issue</div>
+            <div class="msg ai"><span class="who">Copilot</span>The cascade build fails at integration validation: the sync brought upstream commits that conflict with a fork-owned change in the provider module. Nothing else waits on entitlements. Resolving the conflict on <code>fork_integration</code> and re-dispatching the cascade clears it.<div class="cite"><a>run log</a><a>attribution</a><a>issue #412</a></div></div>
+            <div class="msg ai"><span class="who">Copilot</span>The fix is on the integration branch, so a code thread fits (PB-03). I can open one, or hand it off as an issue to the coding agent.</div>
+          </div></div>
+          <div class="comp"><div class="ph">Ask about entitlements, or tell Copilot what to do…</div><div class="ctl"><span class="chipx anc">⚓ entitlements · cascade blocked</span><span class="chipx">Copilot · auto</span><span class="chipx">Changes need approval</span><span style="margin-left:auto">⏎ send</span></div></div>
         </div>
         <div class="right">
-          <div class="rtabs"><span class="on">Changes</span><span>Checks</span><span>Approvals<span class="pip">1</span></span><span>Log</span></div>
+          <div class="rtabs"><button class="on">Detail</button><button>Evidence</button><button class="off">Log <span style="font-size:9px">M3</span></button></div>
           <div class="ins">
-            <div class="k">Worktree</div><div class="v">spi/fix-members-suite · 1 commit unpushed · clean</div>
-            <div class="k">Changed</div>
-            <div class="chg"><span class="m">M</span> …/client/MembersClient.java<br><span class="m">M</span> …/MembersQueryTest.java</div>
-            <div class="k">Target</div><div class="v">release/upstream-20251104, head of PR #212 · Prove failed · TEST</div>
-            <div class="k">After the push</div><div class="v">Watches validate on PR #212 at the pushed commit, then links to the PR for review. A reviewer merges on GitHub.</div>
+            <div class="kick">P0 · conflict · entitlements</div>
+            <div class="h">Cascade blocked</div>
+            <div class="owned"><b>In this thread</b></div>
+            <div class="k">Cause</div><div class="v">The cascade build fails at integration validation after the sync brought upstream commits that conflict with a fork-owned change.</div>
+            <div class="k">Next</div><div class="v">Resolve the conflict on fork_integration, then dispatch the cascade.</div>
+            <div class="acts"><span class="btn off">Dispatch cascade</span><span class="btn">Fix in a code thread</span></div>
+            <div class="why">Dispatch cascade: writes arrive at M4</div>
           </div>
         </div>
       </div>
     </div>
-    <p class="note">Proposed, dark appearance. The push card is a Change-tier card decided in the composer strip; it names the exact commit and the commit the remote must still be at. The terminal follows the appearance, as T3 Code's <code>terminalThemeFromApp</code> in <code>ThreadTerminalDrawer.tsx</code> does.</p>
+    <p class="note">Proposed, light appearance: an operate thread (M3). Copilot's reply cites a tool result for each claim. The anchor stays selected, so the right panel keeps the item's detail beside the conversation.</p>
+    <div class="mockwrap">
+      <div class="app dark tall">
+        <div class="bar"><span class="dots"><i></i><i></i><i></i></span><b>SPI Code</b><span class="crumb">Fix the entitlements conflict</span><span class="sp"></span><span class="sweep warn"><span class="d"></span>swept 2 min ago · 1 area cut · 3 stale</span><span class="kbd">⌘K</span></div>
+        <div class="side">
+          <div class="find"><span>⌕</span><span class="txt">Find or ask</span><span class="kbd">⌘K</span></div>
+          <div class="scroll">
+            <div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">6</span></div>
+            <div class="grp">Program<span class="n">3 ▸</span></div>
+            <div class="grp">Services<span class="n">13 ▸</span></div>
+            <div class="grp">Lenses<span class="n">4 ▸</span></div>
+            <div class="grp">Threads<span class="n">+</span></div>
+            <div class="it th code on"><span class="lbl">Fix the entitlements conflict</span></div>
+            <div class="it th"><span class="lbl">Why is entitlements blocked</span></div>
+          </div>
+          <div class="foot"><div class="it"><span class="d"></span><span class="lbl">Setup</span><span class="n">ready</span></div><div class="stamp">swept 2 min ago</div></div>
+        </div>
+        <div class="main">
+          <div class="thd"><b>Fix the entitlements conflict</b><span class="chip code">Code thread</span><span class="chipx anc">⚓ entitlements · fork_integration</span><span><code>spi/fix-validation-conflict</code> → <code>fork_integration</code></span><span>base <code>4e1c2a9</code> · head <code>9b07f31</code></span><span class="chip fresh">push lease held</span></div>
+          <div class="body"><div class="tlne">
+            <div class="ctx"><b>Context</b> · the finding from the operate thread, the fork at 4e1c2a9</div>
+            <div class="msg me">Resolve the validation conflict on fork_integration so the cascade can run.</div>
+            <div class="work"><b>Read</b> 5 files · <b>Edited</b> 2 files in the provider module</div>
+            <div class="work"><b>Command</b> mvn -q -o -pl provider/entitlements-azure test-compile · approved · exit 0 · 38 s</div>
+            <div class="msg ai"><span class="who">Copilot</span>Both edits compile. One commit is ready for <code>fork_integration</code>. Pushing it re-runs the cascade validation on the fork.</div>
+            <div class="card pending"><div class="hd"><b>Push branch</b><span class="stt">Pending · Change</span></div>push_branch · 9b07f31 to fork_integration, fast-forward from 4e1c2a9<code>remote fork_integration must still be at 4e1c2a9</code>Decided in the composer strip below.</div>
+          </div></div>
+          <div class="strip"><span class="lbl">Change</span><span>push_branch · 9b07f31 to fork_integration, fast-forward from 4e1c2a9</span><span class="sp"></span><span class="btn">Decline</span><span class="btn pri">Approve</span></div>
+          <div class="comp"><div class="ph">Reply to Copilot…</div><div class="ctl"><span class="chipx anc">⚓ entitlements · fork_integration</span><span class="chipx">Copilot · auto</span><span class="chipx">Commands sandboxed</span><span style="margin-left:auto">⏎ send</span></div></div>
+          <div class="term"><div class="tt"><b>Approved commands</b><span>Login shell · outside the sandbox</span></div>$ mvn -q -o -pl provider/entitlements-azure test-compile
+exit 0 · 38 s</div>
+        </div>
+        <div class="right">
+          <div class="rtabs"><button class="on">Changes</button><button>Checks</button><button class="off">Log</button></div>
+          <div class="ins">
+            <div class="k">Worktree</div><div class="v">spi/fix-validation-conflict · 1 commit unpushed · clean</div>
+            <div class="k">Changed</div><div class="chg"><span class="m">M</span> …/azure/EntitlementsValidation.java<br><span class="m">M</span> …/azure/ValidationConfig.java</div>
+            <div class="k">Target</div><div class="v">fork_integration · cascade validate failed · conflict</div>
+            <div class="k">After the push</div><div class="v">The thread watches the cascade run at the pushed commit, then links the PR for review. A reviewer merges on GitHub.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Proposed, dark appearance: a code thread (M5) with every group but Threads collapsed. The push card is a Change-tier card decided in the composer strip; the Inbox count rose by one while it waits. The terminal follows the appearance, as T3 Code's <code>terminalThemeFromApp</code> does.</p>
+  </section>
+
+  <section>
+    <h2>Find or ask</h2>
+    <p>⌘K (Ctrl+K on Windows) opens one palette for going somewhere and for starting a thread. It searches every place and every queue item. Text that matches nothing, or reads as a sentence, becomes an Ask row that starts an operate thread anchored to the current selection, or to the current place when nothing is selected. The sidebar's Find or ask field opens the same palette.</p>
+    <div class="mockwrap">
+      <div class="app" style="height:470px">
+        <div class="bar"><span class="dots"><i></i><i></i><i></i></span><b>SPI Code</b><span class="crumb">entitlements</span><span class="sp"></span><span class="sweep warn"><span class="d"></span>swept 2 min ago · 1 area cut · 3 stale</span><span class="kbd">⌘K</span></div>
+        <div class="side"><div class="find"><span>⌕</span><span class="txt">Find or ask</span><span class="kbd">⌘K</span></div></div>
+        <div class="main"></div>
+        <div class="right"></div>
+        <div class="pal-bg"><div class="pal">
+          <div class="in">ent<i>|</i></div>
+          <div class="res">
+            <div class="g">Services</div>
+            <div class="r on"><span class="d r"></span>entitlements<span class="kind">conflict</span></div>
+            <div class="g">Queue</div>
+            <div class="r"><span class="pr p0">P0</span>entitlements · Cascade blocked<span class="kind">P0</span></div>
+            <div class="r"><span class="pr p1">P1</span>entitlements · Release PR fails at build<span class="kind">P1</span></div>
+            <div class="g">Threads</div>
+            <div class="r">Why is entitlements blocked<span class="kind">operate</span></div>
+            <div class="r">Fix the entitlements conflict<span class="kind">code</span></div>
+            <div class="g">Ask</div>
+            <div class="r ask">Ask Copilot about <b>&nbsp;Cascade · stopped&nbsp;</b>: "ent"<span class="kind">new thread</span></div>
+          </div>
+          <div class="hint"><span>↑↓ move</span><span>⏎ open</span><span>esc close</span><span>Type a sentence to ask Copilot about the selection</span></div>
+        </div></div>
+      </div>
+    </div>
+    <div class="tblwrap"><table class="tbl compact">
+      <thead><tr><th style="width:18%">Group</th><th style="width:46%">Rows</th><th>Milestone</th></tr></thead>
+      <tbody>
+        <tr><td><b>Go to</b></td><td>Inbox, Template, Environment, Releases, Setup</td><td>M2</td></tr>
+        <tr><td><b>Services</b></td><td>The 13 lines, each with its dot and word</td><td>M2</td></tr>
+        <tr><td><b>Lenses</b></td><td>Flow, Repositories, Horizon, Runs</td><td>M2</td></tr>
+        <tr><td><b>Queue</b></td><td>Every queue item by scope and title, with its priority</td><td>M2</td></tr>
+        <tr><td><b>Threads</b></td><td>Open threads by title, with their kind</td><td>M3</td></tr>
+        <tr><td><b>Actions</b></td><td>The selection's actions, each making a card</td><td>M4</td></tr>
+        <tr><td><b>Ask</b></td><td>The typed text as a question to Copilot about the selection</td><td>M3</td></tr>
+      </tbody>
+    </table></div>
+    <p>T3 Code's <code>CommandPalette.tsx</code> is ported: its lookups, grouping and keyboard model, without projects, models or themes.</p>
+  </section>
+
+  <section>
+    <h2>Evidence and staleness</h2>
+    <p>Every value the window draws has an envelope (EV-01), and the window shows it once at each level rather than beside each value. The states keep their five words; the completeness and failure reasons are written out.</p>
+    <div class="tblwrap"><table class="tbl compact">
+      <thead><tr><th style="width:20%">Level</th><th style="width:44%">What is shown</th><th>Where</th></tr></thead>
+      <tbody>
+        <tr><td><b>The sweep</b></td><td>One sentence: when it swept, how many areas failed, were cut or are stale, and the next sync time. Amber when anything is cut or stale, red when a read failed, plain when all fresh. Clicking it opens the Evidence tab for the whole sweep: every area, every failed read, and the API budget</td><td>Title bar; the stamp in the sidebar footer repeats the time only</td></tr>
+        <tr><td><b>A section</b></td><td>One line on the section header naming the worst source in words and counting the rest, only when a source feeding the section is not fresh. Hovering lists them</td><td>Section headers on pages and lenses, and under the station strip</td></tr>
+        <tr><td><b>A selection</b></td><td>A chip under the Detail title when any source is not fresh, which opens the Evidence tab; the tab lists each area with its state, age and completeness in words, then the reads for the selection's repository</td><td>Right panel</td></tr>
+        <tr><td><b>A value</b></td><td>The word inferred beside a value drawn only from inferred sources, wherever it is drawn, including the title bar (EV-03). A value from an unread area is drawn as "not read yet", never as zero</td><td>In place</td></tr>
+        <tr><td><b>A thing</b></td><td>The sidebar dot carries attention, not evidence: the highest priority in the thing's queue. Evidence state only reaches the sidebar as a hollow dot for a thing that is unread</td><td>Sidebar</td></tr>
+      </tbody>
+    </table></div>
+    <p>Area names and completeness reasons are written for the operator, not the collector: "GitHub issues and PRs · stale, last read 23 min ago"; "Stack lifecycle runs · cut, 64,000 of 92,438 characters · job log character limit"; "Upstream radar · read failed, showing data from 25 min ago". The eleven areas are named in appendix C. A failed read never turns a thing's dot red by itself (the first window did this to nearly every dot) because attention and evidence are different questions; the title bar answers the second.</p>
+  </section>
+
+  <section>
+    <h2>Narrow layout</h2>
+    <p>Two breakpoints on the window width, from T3 Code's <code>rightPanelLayout.ts</code> and <code>ui/sidebar.tsx</code>.</p>
+    <div class="tblwrap"><table class="tbl compact">
+      <thead><tr><th style="width:22%">Width</th><th style="width:30%">Sidebar</th><th>Right panel</th></tr></thead>
+      <tbody>
+        <tr><td><b>1180 px and wider</b></td><td>232 px, resizable</td><td>300 px, inline</td></tr>
+        <tr><td><b>980 to 1180 px</b></td><td>A 48 px rail of dots and group marks; hovering or clicking a mark opens the group as an overlay</td><td>300 px, inline</td></tr>
+        <tr><td><b>Below 980 px</b></td><td>The rail</td><td>A sheet from the right edge, 340 px wide, opened by selecting anything or by Detail in the title bar; closed by its ✕, Escape, or selecting nothing</td></tr>
+      </tbody>
+    </table></div>
+    <div class="mockwrap">
+      <div class="app narrow">
+        <div class="bar"><span class="dots"><i></i><i></i><i></i></span><b>SPI Code</b><span class="crumb">partition</span><span class="sp"></span><span class="sweep warn"><span class="d"></span>swept 2 min ago · 1 cut · 3 stale</span><span class="kbd">⌘K</span><span class="iconbtn">Detail</span></div>
+        <div class="side">
+          <div class="find"><span>⌕</span></div>
+          <div class="scroll">
+            <div class="it"><span class="d r"></span><span class="pip">5</span></div>
+            <div class="grp rail">Progr</div>
+            <div class="it"><span class="d y"></span></div><div class="it"><span class="d"></span></div><div class="it"><span class="d"></span></div>
+            <div class="grp rail">Svc</div>
+            <div class="it on"><span class="d y"></span></div><div class="it"><span class="d r"></span></div><div class="it"><span class="d y"></span></div><div class="it"><span class="d y"></span></div><div class="it"><span class="d y"></span></div><div class="it"><span class="d y"></span></div>
+            <div class="grp rail">Lens</div>
+            <div class="it"><span class="d m"></span></div><div class="it"><span class="d m"></span></div>
+            <div class="grp rail">Thr</div>
+            <div class="it th"></div><div class="it th code"></div>
+          </div>
+          <div class="foot"><div class="it"><span class="d"></span></div></div>
+        </div>
+        <div class="main">
+          <div class="tool"><h1>partition</h1><span class="sub">Next sync carries a toolchain move</span><span class="sp"></span><span class="btn">Detail</span><span class="btn">Ask</span></div>
+          <div class="body">
+            <div class="stations">
+              <div class="st sel"><div class="k">Upstream</div><div class="w waiting">waiting</div><div class="x">6 behind · core library 8.5.0 queued</div></div>
+              <div class="st"><div class="k">Sync PR</div><div class="w">idle</div><div class="x">clean</div></div>
+              <div class="st"><div class="k">Cascade</div><div class="w">idle</div><div class="x">idle</div></div>
+              <div class="st"><div class="k">Sync to main</div><div class="w">idle</div><div class="x">idle</div></div>
+              <div class="st"><div class="k">Release</div><div class="w waiting">waiting</div><div class="x">gate 3 · PR #198</div></div>
+              <div class="st"><div class="k">Stack lane</div><div class="w">idle</div><div class="x">last run ok</div></div>
+            </div>
+            <div class="sec"><div class="sh"><h2>Attention</h2><span class="n">1</span></div>
+              <div class="row"><span class="pr p1">P1</span><span><span class="t">Next sync carries a toolchain move<span class="cls">toolchain</span></span><span class="s">6 commits queued · syncs at 18:00</span></span><span class="age"></span></div>
+            </div>
+            <div class="sec"><div class="sh"><h2>Upstream sync</h2><span class="n">pilot</span><span class="ev">github issues and prs stale · 2 more</span></div>
+              <div class="kv"><span class="k">Behind</span><span>6 commits · core library 8.5.0</span><span class="k">Ready</span><span>toolchain move · the pilot</span><span class="k">Next</span><span>prepare</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="scrim"></div>
+        <div class="right">
+          <div class="rtabs"><button class="on">Detail</button><button>Evidence</button><button class="off">Log</button><button class="x">✕</button></div>
+          <div class="ins">
+            <div class="kick">station · partition</div>
+            <div class="h">Upstream · waiting</div>
+            <div class="k">State</div><div class="v">6 behind · core library 8.5.0 queued</div>
+            <div class="k">Next</div><div class="v">Prepare the sync PR; this fork is the pilot for the toolchain move.</div>
+            <div class="acts"><span class="btn off">Prepare sync</span><span class="btn">Ask</span></div>
+            <div class="why">Prepare sync: writes arrive at M4</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Proposed, light appearance at 900 px: the rail, and the sheet open over the page for the selected station. The station strip wraps to two rows of three.</p>
+  </section>
+
+  <section id="parity">
+    <h2>Parity with the rib</h2>
+    <p>The M2 check is data-level and stays achievable. The parity suite (bead t1k.59, PS-02, PS-04, PS-05) compares three things: the host's projected <code>Briefing</code> object and the Releases pane input against the rib oracle from one recorded sweep; the inspector result per class against the oracle after the documented mapping; and the window's rendered text for each view against the oracle text. The first two do not touch the window and are unchanged by this design. The third changes shape, not substance: the rib's six views become surfaces that own the same briefing fields, and the window test asserts each field's text once, on the surface that owns it, with the rib's "·" placeholder cells mapped to blank.</p>
+    <div class="tblwrap"><table class="tbl compact">
+      <thead><tr><th style="width:20%">Rib view</th><th style="width:30%">Briefing fields</th><th>Owner surface in this design</th></tr></thead>
+      <tbody>
+        <tr><td><b>Today</b></td><td><code>headline</code>, <code>summary</code>, <code>facts</code>, <code>focus</code>, <code>rest</code>, <code>ready</code></td><td>Inbox</td></tr>
+        <tr><td><b>Repositories</b></td><td><code>repositories.headline</code>, <code>facts</code>, <code>rows</code> cells</td><td>Repositories lens; each row's sections on its service, Template or Environment page</td></tr>
+        <tr><td><b>Environment</b></td><td><code>environment.headline</code>, <code>facts</code>, <code>lanes</code>, <code>note</code></td><td>Environment page</td></tr>
+        <tr><td><b>Flow</b></td><td><code>flow.headline</code>, <code>sub</code>, <code>tiles</code>, <code>rows</code>, <code>plan</code>, <code>schedule</code>, <code>next</code>, <code>also</code></td><td>Flow lens; each row's detail on its service page; plan and next on the Detail tab</td></tr>
+        <tr><td><b>Horizon</b></td><td><code>horizon.headline</code>, <code>themes</code></td><td>Horizon lens; a theme's exposure on the Detail tab</td></tr>
+        <tr><td><b>Releases</b></td><td>The Releases pane lines</td><td>Releases list and month page</td></tr>
+        <tr><td><b>Service line</b></td><td><code>stations[service]</code></td><td>The station strip on the service page</td></tr>
+        <tr><td><b>Inspector</b></td><td>The inspect result per class</td><td>The Detail tab</td></tr>
+      </tbody>
+    </table></div>
+    <p>The packaged screenshot review (t1k.62) takes the same mapping: one screenshot per owner surface in both appearances, each judged beside the rib view it owns, rather than one per rib view.</p>
+  </section>
+
+  <section id="gaps">
+    <h2>Contract additions</h2>
+    <p>Four values this layout wants are not in the Watch contract. Each is named here as an addition to be made in its own bead, with the layout drawing a stated placeholder until it lands. None changes model output or the parity oracle; each is new data beside the existing fields.</p>
+    <div class="tblwrap"><table class="tbl compact">
+      <thead><tr><th style="width:24%">Addition</th><th style="width:40%">What the window draws with it</th><th>Until then</th></tr></thead>
+      <tbody>
+        <tr><td><b>Station inspect ids</b> · an optional <code>inspect</code> on each station</td><td>Selecting a station fills the Detail tab from the host, as a flow row does through its <code>inspect</code></td><td>The window maps the four line stations to the fork's <code>upstream:</code> id and the release and lane stations to the page's own detail</td></tr>
+        <tr><td><b>Workflow runs with their facts</b> · service, workflow, result, time and URL per run</td><td>The Runs section on a service page and the Runs lens, newest first</td><td>The lens lists ids with their evidence state and says the rest is not carried; the service section says so</td></tr>
+        <tr><td><b>Template version per fork</b></td><td>The Forks section of the Template page</td><td>The fleet counts from the template fact</td></tr>
+        <tr><td><b>Sweep progress per area</b> · in the sweep status message</td><td>The first-launch Inbox: which areas are read, which remain</td><td>"first sweep running", the deferred areas and the budget the message already carries</td></tr>
+      </tbody>
+    </table></div>
   </section>
 
   <section>
     <h2>Setup</h2>
-    <p>Setup lists every tool the app depends on, grouped by what it enables, with one state and one action per row. A group that is not ready disables the views that need it and says so.</p>
+    <p>Setup is unchanged in this revision: every tool the app depends on, grouped by what it enables, with one state and one action per row. A group that is not ready disables the places that need it and says so. Setup is reached from the sidebar footer and is the first place on first launch.</p>
     <div class="mockwrap">
       <div class="setup">
         <div class="g">Watch · read the program</div>
@@ -536,32 +1136,31 @@ exit 0 · 41 s</div>
         <div class="r"><span class="nm">kubectl · kubelogin · flux · helm</span><span class="st ok">Ready</span><span class="why">Installed by SPI Code · app-scoped kubeconfig</span><span></span></div>
       </div>
     </div>
-    <p class="note">Proposed, light appearance. Install, Sign in and Attention are the only states that carry an action. What each install does is in the product requirements, Setup and tools.</p>
-    <p>The readiness states follow T3 Code's provider installation model (<code>apps/server/src/provider/CodexInstallation.ts</code>, ported). The first-run flow is modeled on <code>apps/web/src/components/onboarding/FirstRunGate.tsx</code> and <code>WelcomeWizard.tsx</code>, and a status banner on <code>chat/ProviderStatusBanner.tsx</code> reports a Copilot sign-in that lapses after setup.</p>
+    <p class="note">Proposed, light appearance. Install, Sign in and Attention are the only states that carry an action. The readiness states follow T3 Code's provider installation model (<code>apps/server/src/provider/CodexInstallation.ts</code>, ported); the first-run flow is modeled on <code>onboarding/FirstRunGate.tsx</code> and <code>WelcomeWizard.tsx</code>.</p>
   </section>
 
   <section>
     <h2>Shore in semantic roles</h2>
-    <p>SPI Code has one palette, Shore, in a light and a dark appearance. The appearance follows the system unless Settings pins one; there is no palette picker. Components never name a hex value or a Shore key. They name a role, following T3 Code's role model in <code>packages/shared/src/themePalettes.ts</code> (<code>THEME_COLOR_ROLES</code>, line 30), cut down to the roles this app uses. T3 Code has error, warning and update roles but no success role, so SPI Code adds one. It also adds an agent role for Copilot's words.</p>
+    <p>SPI Code has one palette, Shore, in a light and a dark appearance, following the system unless Settings pins one. Components name a role, following T3 Code's role model in <code>packages/shared/src/themePalettes.ts</code>, cut down to the roles this app uses, with a success role and an agent role added. This revision adds no role: the sheet, the rail, the station tiles, the lens tables and the sweep line all draw from the roles below.</p>
     <div class="tblwrap"><table class="tbl compact">
       <thead><tr><th style="width:17%">Role</th><th style="width:31%">Used for</th><th style="width:13%">Shore key</th><th style="width:13%">Light</th><th style="width:13%">Dark</th><th>Text variant</th></tr></thead>
       <tbody>
-        <tr><td><code>chrome</code></td><td>Title bar, right panel, tile backgrounds</td><td><code>bg</code></td><td><code>#f3efe4</code></td><td><code>#0f1a1b</code></td><td></td></tr>
-        <tr><td><code>sidebar</code></td><td>Program tree, title bar strip</td><td><code>bgSoft</code></td><td><code>#ece6d7</code></td><td><code>#132021</code></td><td></td></tr>
-        <tr><td><code>surface</code></td><td>Middle panel, cards, rows</td><td><code>card</code></td><td><code>#fbf9f3</code></td><td><code>#162324</code></td><td></td></tr>
-        <tr><td><code>surfaceRaised</code></td><td>Selected row, own messages</td><td><code>card2</code></td><td><code>#f2ede1</code></td><td><code>#1d2d2e</code></td><td></td></tr>
-        <tr><td><code>border</code></td><td>Panel edges, card outlines</td><td><code>border</code>, <code>borderSoft</code></td><td><code>#dcd3bf</code></td><td><code>#2b3d3d</code></td><td></td></tr>
+        <tr><td><code>chrome</code></td><td>Title bar, right panel, tile and station backgrounds</td><td><code>bg</code></td><td><code>#f3efe4</code></td><td><code>#0f1a1b</code></td><td></td></tr>
+        <tr><td><code>sidebar</code></td><td>Sidebar and rail, title bar strip</td><td><code>bgSoft</code></td><td><code>#ece6d7</code></td><td><code>#132021</code></td><td></td></tr>
+        <tr><td><code>surface</code></td><td>Middle panel, cards, rows, the palette</td><td><code>card</code></td><td><code>#fbf9f3</code></td><td><code>#162324</code></td><td></td></tr>
+        <tr><td><code>surfaceRaised</code></td><td>Selected row, hovered row, own messages</td><td><code>card2</code></td><td><code>#f2ede1</code></td><td><code>#1d2d2e</code></td><td></td></tr>
+        <tr><td><code>border</code></td><td>Panel edges, card outlines, table rules</td><td><code>border</code>, <code>borderSoft</code></td><td><code>#dcd3bf</code></td><td><code>#2b3d3d</code></td><td></td></tr>
         <tr><td><code>text</code></td><td>Body text, titles</td><td><code>fg</code>, <code>fgStrong</code></td><td><code>#23211c</code></td><td><code>#e4dfd1</code></td><td>Same</td></tr>
-        <tr><td><code>textMuted</code></td><td>Secondary lines, reasons</td><td><code>muted</code></td><td><code>#665f4f</code></td><td><code>#a59d8a</code></td><td>Same</td></tr>
-        <tr><td><code>placeholder</code></td><td>Group labels, stamps, counts</td><td><code>dim</code></td><td><code>#8a8170</code></td><td><code>#7d7666</code></td><td><code>#6c6557</code> · <code>#9a927f</code></td></tr>
-        <tr><td><code>accent</code></td><td>Selection, primary action, anchor, P2</td><td><code>accent</code></td><td><code>#1d7a6c</code></td><td><code>#5cc4b2</code></td><td><code>#1b7366</code> · same</td></tr>
-        <tr><td><code>error</code></td><td>P0, binding failed, failed read</td><td><code>red</code></td><td><code>#bb4a2b</code></td><td><code>#ec8a6e</code></td><td><code>#ac4428</code> · same</td></tr>
-        <tr><td><code>warning</code></td><td>P1, pending card, stale evidence</td><td><code>yellow</code></td><td><code>#a07b3a</code></td><td><code>#e2b45c</code></td><td><code>#80622e</code> · same</td></tr>
-        <tr><td><code>success</code> (new)</td><td>Healthy, applied, fresh evidence</td><td><code>green</code></td><td><code>#3a7633</code></td><td><code>#8fcf86</code></td><td><code>#356c2f</code> · same</td></tr>
-        <tr><td><code>agent</code> (new)</td><td>Copilot's messages and proposals</td><td><code>magenta</code></td><td><code>#8a5cc0</code></td><td><code>#c3a2e8</code></td><td><code>#7e4cba</code> · same</td></tr>
+        <tr><td><code>textMuted</code></td><td>Secondary lines, reasons, the sweep line</td><td><code>muted</code></td><td><code>#665f4f</code></td><td><code>#a59d8a</code></td><td>Same</td></tr>
+        <tr><td><code>placeholder</code></td><td>Group labels, stamps, counts, the word beside a dot</td><td><code>dim</code></td><td><code>#8a8170</code></td><td><code>#7d7666</code></td><td><code>#6c6557</code> · <code>#9a927f</code></td></tr>
+        <tr><td><code>accent</code></td><td>Selection, primary action, anchor, scope chip, P2</td><td><code>accent</code></td><td><code>#1d7a6c</code></td><td><code>#5cc4b2</code></td><td><code>#1b7366</code> · same</td></tr>
+        <tr><td><code>error</code></td><td>P0, stopped, binding failed, a failed read</td><td><code>red</code></td><td><code>#bb4a2b</code></td><td><code>#ec8a6e</code></td><td><code>#ac4428</code> · same</td></tr>
+        <tr><td><code>warning</code></td><td>P1, waiting, a pending card, stale or cut evidence</td><td><code>yellow</code></td><td><code>#a07b3a</code></td><td><code>#e2b45c</code></td><td><code>#80622e</code> · same</td></tr>
+        <tr><td><code>success</code></td><td>Healthy, applied, fresh evidence</td><td><code>green</code></td><td><code>#3a7633</code></td><td><code>#8fcf86</code></td><td><code>#356c2f</code> · same</td></tr>
+        <tr><td><code>agent</code></td><td>Copilot's messages and proposals, a code thread's marker</td><td><code>magenta</code></td><td><code>#8a5cc0</code></td><td><code>#c3a2e8</code></td><td><code>#7e4cba</code> · same</td></tr>
       </tbody>
     </table></div>
-    <p>Shore's light accent, red, yellow, green, magenta and dim values work as fills, dots and borders, but all six fall below 4.5:1 as small text on at least one light surface. Each such role gets a darker text variant in the light appearance; dark Shore values pass as text and are used unchanged, except <code>dim</code>, which is lightened. Appendix B has the computed ratios. A filled badge or primary button puts the light-appearance text variant behind white text, and the dark value behind the dark chrome color.</p>
+    <p>Shore's light accent, red, yellow, green, magenta and dim values work as fills, dots and borders, but all six fall below 4.5:1 as small text on at least one light surface. Each such role gets a darker text variant in the light appearance; dark Shore values pass as text and are used unchanged, except <code>dim</code>, which is lightened. Appendix B has the computed ratios.</p>
     <div class="swatches">
       <div class="sw"><div class="c"><i style="background:#f3efe4"></i><i style="background:#0f1a1b"></i></div><div class="l"><b>chrome</b><code>#f3efe4 · #0f1a1b</code></div></div>
       <div class="sw"><div class="c"><i style="background:#fbf9f3"></i><i style="background:#162324"></i></div><div class="l"><b>surface</b><code>#fbf9f3 · #162324</code></div></div>
@@ -572,8 +1171,7 @@ exit 0 · 41 s</div>
       <div class="sw"><div class="c"><i style="background:#3a7633"></i><i style="background:#8fcf86"></i></div><div class="l"><b>success</b><code>#3a7633 · #8fcf86</code></div></div>
       <div class="sw"><div class="c"><i style="background:#8a5cc0"></i><i style="background:#c3a2e8"></i></div><div class="l"><b>agent · Copilot</b><code>#8a5cc0 · #c3a2e8</code></div></div>
     </div>
-    <p class="note">Each swatch shows light, then dark. Values from Keelson <code>packages/shared/src/design-tokens.ts</code>, <code>SHORE_LIGHT</code> (line 154) and <code>SHORE_DARK</code> (line 124).</p>
-    <p>Charts in the Stack and Releases views draw from Shore's six-color <code>series</code>. CI checks every text pair in the table with Keelson's <code>wcagContrast</code> and the series with <code>validateCategoricalPalette</code>, both from <code>packages/shared/src/palette.ts</code> (lines 84 and 189), so a token change that breaks contrast or color-blind separation fails the build (product requirements, NF-07).</p>
+    <p class="note">Each swatch shows light, then dark. Values from Keelson <code>packages/shared/src/design-tokens.ts</code>, <code>SHORE_LIGHT</code> and <code>SHORE_DARK</code>. CI checks every text pair with Keelson's <code>wcagContrast</code> (NF-07).</p>
   </section>
 
   <section>
@@ -581,65 +1179,88 @@ exit 0 · 41 s</div>
     <p>The same components in both appearances. Each is a role-based React component; none carries its own colors.</p>
     <div class="mockwrap">
       <div class="app kit">
-        <div class="kh">Queue rows</div>
-        <div class="row sel"><span class="pr p0">P0</span><div><div class="t">entitlements · release PR fails at Prove</div><div class="s">TEST · 3 suites red · 5 h</div></div><span class="btn">Diagnose</span></div>
-        <div class="row"><span class="pr p2">P2</span><div><div class="t">legal · template sync PR is green</div><div class="s">Ready for review · 1 d</div></div><span class="btn">Open PR</span></div>
-        <div class="kh">Evidence chips</div>
-        <div class="chips"><span class="chip fresh">fresh · 2 min</span><span class="chip stale">stale · 3 h</span><span class="chip stale">incomplete · 40 of 52</span><span class="chip bad">read failed · Actions</span><span class="chip">unread · GitLab</span><span class="chip inf">inferred</span></div>
+        <div class="kh">Sidebar rows: a dot, a name, a word</div>
+        <div class="side"><div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">5</span></div><div class="it on"><span class="d r"></span><span class="lbl">entitlements</span><span class="n">conflict</span></div><div class="it"><span class="d y"></span><span class="lbl">legal</span><span class="n">held</span></div><div class="it"><span class="d"></span><span class="lbl">crs-catalog</span><span class="n">done</span></div><div class="it"><span class="d m"></span><span class="lbl">workflow</span><span class="n">unread</span></div><div class="it th"><span class="lbl">Why is entitlements blocked</span></div><div class="it th code"><span class="lbl">Fix the entitlements conflict</span></div></div>
+        <div class="kh">Sweep line</div>
+        <div class="chips"><span class="bar" style="display:inline-flex;background:none;border:0;padding:0"><span class="sweep"><span class="d"></span>swept 2 min ago · all fresh · next sync 00:00</span><span class="sweep warn"><span class="d"></span>swept 2 min ago · 1 area cut · 3 stale</span><span class="sweep bad"><span class="d"></span>swept 2 min ago · 2 areas failed · 1 cut</span></span></div>
+        <div class="kh">Station tiles</div>
+        <div class="stations" style="max-width:720px"><div class="st"><div class="k">Upstream</div><div class="w waiting">waiting</div><div class="x">6 behind</div></div><div class="st sel"><div class="k">Cascade</div><div class="w stopped">stopped</div><div class="x">conflict</div></div><div class="st"><div class="k">Sync to main</div><div class="w moving">moving</div><div class="x">run 12 min</div></div><div class="st"><div class="k">Release</div><div class="w">idle</div><div class="x">idle</div></div><div class="st"><div class="k">Stack lane</div><div class="w unknown">unknown</div><div class="x">not read yet</div></div></div>
+        <div class="kh">Queue rows and a section header with its evidence line</div>
+        <div class="sec"><div class="sh"><h2>Attention</h2><span class="n">2</span><span class="ev">github issues and prs stale · 2 more</span></div>
+          <div class="row sel"><span class="pr p0">P0</span><span><span class="t"><span class="scope">entitlements</span>Cascade blocked<span class="cls">conflict</span></span><span class="s">validation fails after the sync</span></span><span class="age">6 h</span></div>
+          <div class="row"><span class="pr p2">P2</span><span><span class="t"><span class="scope">legal</span>Template sync PR is green<span class="cls">ready</span></span><span class="s">waiting for review</span></span><span class="age">1 d</span></div>
+        </div>
+        <div class="kh">Evidence words</div>
+        <div class="chips"><span class="chip fresh">fresh · 2 min</span><span class="chip stale">stale · 23 min</span><span class="chip stale">cut · 40 of 52</span><span class="chip bad">read failed · showing 25 min old data</span><span class="chip">not read yet</span><span class="chip inf">inferred</span></div>
         <div class="kh">Tier badges</div>
         <div class="chips"><span class="tier read">Read</span><span class="tier local">Local</span><span class="tier cmd">Command</span><span class="tier change">Change</span><span class="tier cons">Consequential</span><span class="tier never">Not offered</span></div>
         <div class="kh">Approval cards</div>
         <div class="cardset">
-          <div class="acard pending"><div class="hd"><b>Re-run cascade</b><span class="st">Pending</span></div>partition · fork_integration at 7c21d0e<div class="acts"><span class="btn">Decline</span><span class="btn pri">Approve</span></div></div>
-          <div class="acard run"><div class="hd"><b>Push branch</b><span class="st">Executing</span></div>9b07f31 to release/upstream-20251104</div>
-          <div class="acard bad"><div class="hd"><b>Approve run</b><span class="st">Binding failed</span></div>PR head moved from 3f9a1b2 to 8d04c6e</div>
-          <div class="acard ok"><div class="hd"><b>Classify entry</b><span class="st">Applied</span></div>schema · upstream-filter.yml · PR #87</div>
-          <div class="acard pending"><div class="hd"><b>Dispatch refresh</b><span class="st">Unknown</span></div>No run found yet · retry disabled until a lookup succeeds</div>
-          <div class="acard mute"><div class="hd"><b>Close issue</b><span class="st">Declined</span></div>Nothing ran</div>
+          <div class="card pending"><div class="hd"><b>Dispatch cascade</b><span class="stt">Pending</span></div>partition · fork_integration at 7c21d0e<div class="acts"><span class="btn">Decline</span><span class="btn pri">Approve</span></div></div>
+          <div class="card run"><div class="hd"><b>Push branch</b><span class="stt">Executing</span></div>9b07f31 to fork_integration</div>
+          <div class="card bad"><div class="hd"><b>Approve run</b><span class="stt">Binding failed</span></div>PR head moved from 3f9a1b2 to 8d04c6e</div>
+          <div class="card ok"><div class="hd"><b>Add filter rule</b><span class="stt">Applied</span></div>schema · upstream-filter.yml · PR #87</div>
+          <div class="card pending"><div class="hd"><b>Dispatch refresh</b><span class="stt">Unknown</span></div>No run found yet · retry disabled until a lookup succeeds</div>
+          <div class="card mute"><div class="hd"><b>Close issue</b><span class="stt">Declined</span></div>Nothing ran</div>
         </div>
-        <div class="kh">Composer and disabled actions</div>
-        <div class="chips"><span class="chipx anc">⚓ schema · halt</span><span class="chipx">Copilot · auto</span><span class="btn pri">Diagnose</span><span class="btn" style="opacity:.55" aria-disabled="true">Re-run failed</span></div>
-        <div class="bind" style="font-size:11px;color:var(--a-muted);margin-top:4px">Re-run is offered for ENV and INFRA failures. This one is TEST.</div>
+        <div class="kh">Composer chips and disabled actions</div>
+        <div class="chips"><span class="chipx anc">⚓ schema · halt</span><span class="chipx">Copilot · auto</span><span class="btn pri">Diagnose</span><span class="btn off">Re-run failed</span><span class="btn">Ask</span></div>
+        <div class="why" style="font-size:11px;color:var(--a-muted);margin-top:4px">Re-run is offered for ENV and INFRA failures. This one is TEST.</div>
       </div>
     </div>
     <div class="mockwrap">
       <div class="app kit dark">
-        <div class="kh">Queue rows</div>
-        <div class="row sel"><span class="pr p0">P0</span><div><div class="t">entitlements · release PR fails at Prove</div><div class="s">TEST · 3 suites red · 5 h</div></div><span class="btn">Diagnose</span></div>
-        <div class="row"><span class="pr p2">P2</span><div><div class="t">legal · template sync PR is green</div><div class="s">Ready for review · 1 d</div></div><span class="btn">Open PR</span></div>
-        <div class="kh">Evidence chips</div>
-        <div class="chips"><span class="chip fresh">fresh · 2 min</span><span class="chip stale">stale · 3 h</span><span class="chip stale">incomplete · 40 of 52</span><span class="chip bad">read failed · Actions</span><span class="chip">unread · GitLab</span><span class="chip inf">inferred</span></div>
+        <div class="kh">Sidebar rows: a dot, a name, a word</div>
+        <div class="side"><div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">5</span></div><div class="it on"><span class="d r"></span><span class="lbl">entitlements</span><span class="n">conflict</span></div><div class="it"><span class="d y"></span><span class="lbl">legal</span><span class="n">held</span></div><div class="it"><span class="d"></span><span class="lbl">crs-catalog</span><span class="n">done</span></div><div class="it"><span class="d m"></span><span class="lbl">workflow</span><span class="n">unread</span></div><div class="it th"><span class="lbl">Why is entitlements blocked</span></div><div class="it th code"><span class="lbl">Fix the entitlements conflict</span></div></div>
+        <div class="kh">Sweep line</div>
+        <div class="chips"><span class="bar" style="display:inline-flex;background:none;border:0;padding:0"><span class="sweep"><span class="d"></span>swept 2 min ago · all fresh · next sync 00:00</span><span class="sweep warn"><span class="d"></span>swept 2 min ago · 1 area cut · 3 stale</span><span class="sweep bad"><span class="d"></span>swept 2 min ago · 2 areas failed · 1 cut</span></span></div>
+        <div class="kh">Station tiles</div>
+        <div class="stations" style="max-width:720px"><div class="st"><div class="k">Upstream</div><div class="w waiting">waiting</div><div class="x">6 behind</div></div><div class="st sel"><div class="k">Cascade</div><div class="w stopped">stopped</div><div class="x">conflict</div></div><div class="st"><div class="k">Sync to main</div><div class="w moving">moving</div><div class="x">run 12 min</div></div><div class="st"><div class="k">Release</div><div class="w">idle</div><div class="x">idle</div></div><div class="st"><div class="k">Stack lane</div><div class="w unknown">unknown</div><div class="x">not read yet</div></div></div>
+        <div class="kh">Queue rows and a section header with its evidence line</div>
+        <div class="sec"><div class="sh"><h2>Attention</h2><span class="n">2</span><span class="ev">github issues and prs stale · 2 more</span></div>
+          <div class="row sel"><span class="pr p0">P0</span><span><span class="t"><span class="scope">entitlements</span>Cascade blocked<span class="cls">conflict</span></span><span class="s">validation fails after the sync</span></span><span class="age">6 h</span></div>
+          <div class="row"><span class="pr p2">P2</span><span><span class="t"><span class="scope">legal</span>Template sync PR is green<span class="cls">ready</span></span><span class="s">waiting for review</span></span><span class="age">1 d</span></div>
+        </div>
+        <div class="kh">Evidence words</div>
+        <div class="chips"><span class="chip fresh">fresh · 2 min</span><span class="chip stale">stale · 23 min</span><span class="chip stale">cut · 40 of 52</span><span class="chip bad">read failed · showing 25 min old data</span><span class="chip">not read yet</span><span class="chip inf">inferred</span></div>
         <div class="kh">Tier badges</div>
         <div class="chips"><span class="tier read">Read</span><span class="tier local">Local</span><span class="tier cmd">Command</span><span class="tier change">Change</span><span class="tier cons">Consequential</span><span class="tier never">Not offered</span></div>
         <div class="kh">Approval cards</div>
         <div class="cardset">
-          <div class="acard pending"><div class="hd"><b>Re-run cascade</b><span class="st">Pending</span></div>partition · fork_integration at 7c21d0e<div class="acts"><span class="btn">Decline</span><span class="btn pri">Approve</span></div></div>
-          <div class="acard run"><div class="hd"><b>Push branch</b><span class="st">Executing</span></div>9b07f31 to release/upstream-20251104</div>
-          <div class="acard bad"><div class="hd"><b>Approve run</b><span class="st">Binding failed</span></div>PR head moved from 3f9a1b2 to 8d04c6e</div>
-          <div class="acard ok"><div class="hd"><b>Classify entry</b><span class="st">Applied</span></div>schema · upstream-filter.yml · PR #87</div>
-          <div class="acard pending"><div class="hd"><b>Dispatch refresh</b><span class="st">Unknown</span></div>No run found yet · retry disabled until a lookup succeeds</div>
-          <div class="acard mute"><div class="hd"><b>Close issue</b><span class="st">Declined</span></div>Nothing ran</div>
+          <div class="card pending"><div class="hd"><b>Dispatch cascade</b><span class="stt">Pending</span></div>partition · fork_integration at 7c21d0e<div class="acts"><span class="btn">Decline</span><span class="btn pri">Approve</span></div></div>
+          <div class="card run"><div class="hd"><b>Push branch</b><span class="stt">Executing</span></div>9b07f31 to fork_integration</div>
+          <div class="card bad"><div class="hd"><b>Approve run</b><span class="stt">Binding failed</span></div>PR head moved from 3f9a1b2 to 8d04c6e</div>
+          <div class="card ok"><div class="hd"><b>Add filter rule</b><span class="stt">Applied</span></div>schema · upstream-filter.yml · PR #87</div>
+          <div class="card pending"><div class="hd"><b>Dispatch refresh</b><span class="stt">Unknown</span></div>No run found yet · retry disabled until a lookup succeeds</div>
+          <div class="card mute"><div class="hd"><b>Close issue</b><span class="stt">Declined</span></div>Nothing ran</div>
         </div>
-        <div class="kh">Composer and disabled actions</div>
-        <div class="chips"><span class="chipx anc">⚓ schema · halt</span><span class="chipx">Copilot · auto</span><span class="btn pri">Diagnose</span><span class="btn" style="opacity:.55" aria-disabled="true">Re-run failed</span></div>
-        <div class="bind" style="font-size:11px;color:var(--a-muted);margin-top:4px">Re-run is offered for ENV and INFRA failures. This one is TEST.</div>
+        <div class="kh">Composer chips and disabled actions</div>
+        <div class="chips"><span class="chipx anc">⚓ schema · halt</span><span class="chipx">Copilot · auto</span><span class="btn pri">Diagnose</span><span class="btn off">Re-run failed</span><span class="btn">Ask</span></div>
+        <div class="why" style="font-size:11px;color:var(--a-muted);margin-top:4px">Re-run is offered for ENV and INFRA failures. This one is TEST.</div>
       </div>
     </div>
-    <p class="note">Proposed. Card titles, branches and SHAs are examples. Not applied and Invalidated look like Declined with their own word.</p>
+    <p class="note">Proposed. Titles, branches and SHAs are examples. Not applied and Invalidated look like Declined with their own word.</p>
     <div class="tblwrap"><table class="tbl compact">
       <thead><tr><th style="width:17%">Component</th><th style="width:45%">Behavior</th><th>Built from</th></tr></thead>
       <tbody>
-        <tr><td><b>Queue row</b></td><td>Priority written as P0 to P2, title, class and cause with age, one primary action. The selected row gets the accent bar and fills the inspector.</td><td>Emulates the rib console's focus rows; data from <code>model/queue.ts</code></td></tr>
-        <tr><td><b>Fact tile</b></td><td>Label, value, one line of evidence</td><td>Emulates the rib briefing's facts</td></tr>
-        <tr><td><b>Inspector</b></td><td>Class, title, cause, effect, next action, actions, and a reason under any disabled action</td><td>Copies <code>chat/ChatRightPanel.tsx</code> for the frame; content from <code>readItem</code></td></tr>
-        <tr><td><b>Evidence chip</b></td><td>Fresh, stale, incomplete, failed, unread or inferred, with the age or count. Inferred is a dashed outline, not a color.</td><td>Emulated; the dot form follows <code>ConnectionStatusDot.tsx</code></td></tr>
-        <tr><td><b>Tier badge</b></td><td>One of six tiers, outlined, on every card and tool row</td><td>Emulated; tiers from the product requirements, appendix A</td></tr>
-        <tr><td><b>Approval card</b></td><td>Title, state word, bindings in one line, actions only while pending. The left edge carries the state color.</td><td>Copies <code>chat/TimelinePendingApprovalRow.tsx</code> and <code>chat/ComposerPendingApprovalActions.tsx</code>, extended from approve and decline to SPI Code's eight states</td></tr>
-        <tr><td><b>Composer</b></td><td>Text field, anchor chip, model chip, mode chip, approval strip above it when a card is pending</td><td>Emulates <code>chat/ChatComposer.tsx</code> (3,587 lines; SPI Code needs no attachments, slash menu or provider picker)</td></tr>
-        <tr><td><b>Work log entry</b></td><td>Dashed row per batch of reads, edits or an approved command, with its result</td><td>Copies <code>chat/WorkLog.tsx</code> (170 lines)</td></tr>
+        <tr><td><b>Sidebar row</b></td><td>A dot for attention, the name, and a word or count on the right. Threads carry a square marker. The active row is raised.</td><td>Ports <code>Sidebar.tsx</code> and <code>ThreadStatusIndicators.tsx</code>; copies <code>ui/sidebar.tsx</code></td></tr>
+        <tr><td><b>Sweep line</b></td><td>One sentence with a dot: time, failed, cut, stale, next sync. Opens the sweep's Evidence tab.</td><td>Emulated; the dot follows <code>ConnectionStatusDot.tsx</code></td></tr>
+        <tr><td><b>Toolbar</b></td><td>The place's name, a sub line, Detail and Ask on the right. Replaces the view tab row.</td><td>Emulates <code>chat/ChatHeader.tsx</code></td></tr>
+        <tr><td><b>Station tile</b></td><td>Label, state word, text; selectable; six per service, three per row when narrow</td><td>Emulates the rib's line; data from <code>model/lines.ts</code> through the Watch contract</td></tr>
+        <tr><td><b>Queue row</b></td><td>Priority written P0 to P2, scope chip, title, class word, one sub line, age. The selected row gets the accent bar.</td><td>Emulates the rib console's focus rows; data from <code>model/queue.ts</code></td></tr>
+        <tr><td><b>Section header</b></td><td>Name, count or state word, and one evidence line when a source is not fresh</td><td>Emulated</td></tr>
+        <tr><td><b>Lens table</b></td><td>Sticky header, sortable columns, a group row, blank placeholders, the selected row with the accent bar</td><td>Emulated; the diff table in <code>DiffPanel.tsx</code> for the sticky header</td></tr>
+        <tr><td><b>Fact tile</b></td><td>Label, value with tone, one line of evidence</td><td>Emulates the rib briefing's facts</td></tr>
+        <tr><td><b>Detail</b></td><td>Kicker, title, evidence chip, thread box, cause, effect, next, actions with a reason under any disabled one, evidence links</td><td>Copies <code>chat/ChatRightPanel.tsx</code> for the frame; content from the inspect result</td></tr>
+        <tr><td><b>Evidence table</b></td><td>One row per area or read: name, state word, a sentence</td><td>Emulated</td></tr>
+        <tr><td><b>Approval card</b></td><td>Title, state word, bindings in one line, actions only while pending. The left edge carries the state color.</td><td>Copies <code>chat/TimelinePendingApprovalRow.tsx</code> and <code>chat/ComposerPendingApprovalActions.tsx</code>, extended to SPI Code's eight states</td></tr>
+        <tr><td><b>Composer</b></td><td>Text field, anchor chip, model chip, mode chip, approval strip above it when a card is pending; threads only</td><td>Emulates <code>chat/ChatComposer.tsx</code></td></tr>
+        <tr><td><b>Context line</b></td><td>The first timeline entry: what the thread was seeded with and when</td><td>Emulated</td></tr>
+        <tr><td><b>Work log entry</b></td><td>Dashed row per batch of reads, edits or an approved command, with its result</td><td>Copies <code>chat/WorkLog.tsx</code></td></tr>
         <tr><td><b>Changes list</b></td><td>Changed files with status letters; opens a diff</td><td>Copies <code>chat/ChangedFilesTree.tsx</code>; ports <code>DiffPanel.tsx</code></td></tr>
         <tr><td><b>Terminal drawer</b></td><td>Two tabs, approved commands and login shell, the second labeled outside the sandbox</td><td>Ports <code>ThreadTerminalDrawer.tsx</code>; copies <code>chat/ChatTerminalDrawers.tsx</code> and <code>chat/ShellCommandBlock.tsx</code></td></tr>
-        <tr><td><b>Command palette</b></td><td>⌘K or Ctrl+K: go to any tree entry, thread or tool</td><td>Ports <code>CommandPalette.tsx</code> (2,901 lines, imports Effect)</td></tr>
+        <tr><td><b>Palette</b></td><td>⌘K: grouped rows, keyboard model, the Ask row</td><td>Ports <code>CommandPalette.tsx</code></td></tr>
+        <tr><td><b>Sheet</b></td><td>The right panel below 980 px, from the right edge, with a close button</td><td>Ports the popover branch of <code>rightPanelLayout.ts</code></td></tr>
         <tr><td><b>Setup row</b></td><td>Tool, state, reason, at most one action</td><td>Emulates the original design's Setup mockup; readiness from <code>CodexInstallation.ts</code></td></tr>
       </tbody>
     </table></div>
@@ -651,17 +1272,52 @@ exit 0 · 41 s</div>
     <div class="tblwrap"><table class="tbl compact">
       <thead><tr><th style="width:24%">Token</th><th style="width:30%">T3 Code value</th><th>SPI Code use</th></tr></thead>
       <tbody>
-        <tr><td><code>--font-sans</code></td><td><code>-apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui</code> (line 171)</td><td>All UI text. Whether to bundle Inter is open.</td></tr>
-        <tr><td><code>--font-mono</code></td><td><code>ui-monospace, "SF Mono", Menlo, Consolas</code> (line 173)</td><td>Branches, SHAs, commands, file paths, the terminal</td></tr>
-        <tr><td><code>text-sm</code>, <code>text-xs</code></td><td>14 px, 12 px (Tailwind)</td><td>Reading text in threads and the inspector; rows and tabs</td></tr>
-        <tr><td><code>--text-2xs</code>, <code>--text-3xs</code></td><td>11 px, 10 px (lines 183 to 186)</td><td>Metadata, counts and chips; group labels and badges</td></tr>
-        <tr><td><code>--radius</code>, <code>--control-radius</code></td><td>0.5rem (lines 1115 and 103)</td><td>Cards, rows, buttons, chips</td></tr>
-        <tr><td><code>--sidebar-content-inset</code></td><td>0.5rem (line 104)</td><td>Tree row inset and gap</td></tr>
-        <tr><td><code>SIDEBAR_WIDTH</code></td><td>16rem; icon rail 3rem (<code>ui/sidebar.tsx</code> line 28)</td><td>Tree at 232 px by default so all three panes fit at 1280 px; the rail as in T3 Code</td></tr>
-        <tr><td><code>--ease-drawer</code></td><td><code>cubic-bezier(0.32, 0.72, 0, 1)</code></td><td>The terminal drawer and popovers. Reduced-motion turns it off.</td></tr>
+        <tr><td><code>--font-sans</code></td><td><code>-apple-system, BlinkMacSystemFont, "Inter Variable", "Segoe UI", system-ui</code></td><td>All UI text. Whether to bundle Inter is open.</td></tr>
+        <tr><td><code>--font-mono</code></td><td><code>ui-monospace, "SF Mono", Menlo, Consolas</code></td><td>Branches, SHAs, commands, file paths, the terminal</td></tr>
+        <tr><td><code>text-sm</code>, <code>text-xs</code></td><td>14 px, 12 px</td><td>Reading text in threads and the Detail tab; rows, tables and tabs</td></tr>
+        <tr><td><code>--text-2xs</code>, <code>--text-3xs</code></td><td>11 px, 10 px</td><td>Metadata, counts, the word beside a dot; group labels, station labels and badges</td></tr>
+        <tr><td><code>--radius</code>, <code>--control-radius</code></td><td>0.5rem</td><td>Cards, rows, buttons, chips, station tiles</td></tr>
+        <tr><td><code>--sidebar-content-inset</code></td><td>0.5rem</td><td>Sidebar row inset and gap</td></tr>
+        <tr><td><code>SIDEBAR_WIDTH</code></td><td>16rem; icon rail 3rem</td><td>Sidebar at 232 px so three panes fit at 1280 px; the rail at 48 px</td></tr>
+        <tr><td><code>--ease-drawer</code></td><td><code>cubic-bezier(0.32, 0.72, 0, 1)</code></td><td>The sheet, the terminal drawer and the palette. Reduced motion turns it off.</td></tr>
       </tbody>
     </table></div>
-    <p>Icons come from <code>lucide-react</code>, which T3 Code already uses (<code>apps/web/package.json</code>), so copied components need no icon changes.</p>
+    <p>Icons come from <code>lucide-react</code>, which T3 Code already uses, so copied components need no icon changes.</p>
+  </section>
+
+  <section>
+    <h2>What changed from v1 and why</h2>
+    <p>The first visual design put the rib's six console views in the middle panel behind a tab row, with a composer under every view and an Approvals tab in the right panel. The maintainer's review of the window built from it found the problems in the box at the top. This table is the change list; the one after it is the alternatives considered on the way and not taken.</p>
+    <div class="tblwrap"><table class="tbl compact">
+      <thead><tr><th style="width:24%">v1</th><th style="width:30%">v2</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>A tree of page links: Today, System, Stack, Services (Flow, Horizon, then lines), Threads, Runs, Setup</td><td>A sidebar of things and work: Inbox, Program, Services, Lenses, Threads, Setup</td><td>Every tree entry routed to one of six pages; a service entry opened Flow. Things need pages and work needs a queue.</td></tr>
+        <tr><td>Six console views, each with headline, facts, table and an in-page detail pane</td><td>One Inbox, four pages, four lenses; no in-page detail pane anywhere</td><td>The in-page pane and the inspector showed the same selection twice and drifted apart.</td></tr>
+        <tr><td>No page for one service; the six-station line drawn inside Flow</td><td>A service page with the stations across the top and every section the sweep knows</td><td>The service is the thing the operator thinks in; the review asked where it was.</td></tr>
+        <tr><td>Evidence chips on every section, three to five rows per view</td><td>One sweep line, one line per non-fresh section, one Evidence tab</td><td>Chips repeated the same eleven words on every surface and said "lifecycle incomplete · 64000 of 92438".</td></tr>
+        <tr><td>Tree dots from evidence state</td><td>Sidebar dots from attention, with a word; evidence only in the title bar and the Evidence tab</td><td>One failed read turned nearly every dot red, which said nothing about any service.</td></tr>
+        <tr><td>Runs as a tree section of bare ids</td><td>Runs on the thing they ran for, and a Runs lens with workflow, service and result (a contract addition)</td><td>An id list cannot be acted on.</td></tr>
+        <tr><td>A composer under every console view; a Copilot turn panel on every view in the built window</td><td>A composer only in a thread; Ask on the Detail tab and in ⌘K start one</td><td>The panel took space from every view for a feature that arrives at M3; a thread needs an anchor, and the Detail tab has one.</td></tr>
+        <tr><td>An Approvals tab in the right panel</td><td>Waiting for you in the Inbox; the Inbox count includes cards</td><td>Cards are work, not detail. One inbox for items and cards keeps one count.</td></tr>
+        <tr><td>⌘K to go to any tree entry, thread or tool</td><td>⌘K to go anywhere, to any queue item, and to ask</td><td>Find and ask share the input; a sentence is a question.</td></tr>
+        <tr><td>The right panel under the tree below 980 px in the built window</td><td>A sheet below 980 px and a rail below 1180 px, specified</td><td>The breakpoint was named in v1 and not built; this revision draws it.</td></tr>
+        <tr><td>Title bar at 34 px with the environment line</td><td>Title bar at 40 px with the place and the sweep line</td><td>The sweep line replaces chip rows and needs the width; the environment line moved to the Environment page and the Inbox fact.</td></tr>
+      </tbody>
+    </table></div>
+    <h3 style="margin-top:22px">Alternatives not taken</h3>
+    <div class="tblwrap"><table class="tbl compact">
+      <thead><tr><th style="width:30%">Alternative</th><th>Why not</th></tr></thead>
+      <tbody>
+        <tr><td>Keep the six pages and remove the duplicate panes and chips</td><td>The pages would still re-slice one world four ways, and a service would still have no page. The review's first finding was the shape, not the trim.</td></tr>
+        <tr><td>Chat first: the thread as the home, like T3 Code, with views as side panels</td><td>M2 ships view only and the operator's day starts in the queue. Threads need anchors, and anchors need pages to be selected from. The thread is one of three shapes of the middle, not the frame.</td></tr>
+        <tr><td>A page for every pull request, issue, alert and run</td><td>Sixty or more small pages with a line each. These are rows on the thing they belong to; the Detail tab describes one when selected, and a thread can anchor to it by id (TH-01).</td></tr>
+        <tr><td>Sort the Services group by attention</td><td>Rows would move between sweeps and the operator would lose their place. A fixed fleet order with a dot and a word carries the same information.</td></tr>
+        <tr><td>Keep an Approvals tab in the right panel as well as the Inbox section</td><td>Two places for the same cards with two counts; AU-09 wants one inbox and one count.</td></tr>
+        <tr><td>Evidence as a chip beside each value</td><td>Hundreds of chips per page, which the review rejected. A value's provenance is one lookup away on the Evidence tab.</td></tr>
+        <tr><td>Fold Horizon into the Inbox as a section</td><td>Themes are upstream changes ahead, not items to act on today; the Inbox would double in length. A lens keeps them one click away with the headline on it.</td></tr>
+        <tr><td>Rewrite the rib's wording ("1 press in the rib") in the window</td><td>Those strings are core's output and the parity oracle compares them. The window draws them as they are; changing them is a core bead with the oracle regenerated, listed under Open questions.</td></tr>
+      </tbody>
+    </table></div>
   </section>
 
   <section>
@@ -669,10 +1325,12 @@ exit 0 · 41 s</div>
     <div class="tblwrap"><table class="tbl">
       <thead><tr><th style="width:34%">Question</th><th style="width:42%">Why it matters</th><th>Who decides, by when</th></tr></thead>
       <tbody>
-        <tr><td>Bundle Inter Variable, or use the system stack only?</td><td>T3 Code bundles <code>@fontsource-variable/inter</code>. Without it, Windows renders Segoe UI and macOS SF, and copied components' widths shift slightly.</td><td>Maintainer, before M2</td></tr>
-        <tr><td>Which terminal renderer does the drawer use?</td><td>T3 Code builds libghostty to WebAssembly (<code>build:ghostty-wasm</code> in <code>apps/web/package.json</code>). Porting that adds a native build step; xterm.js is the common alternative.</td><td>Maintainer, before M5</td></tr>
-        <tr><td>Title bar heights</td><td>T3 Code uses 52 px on macOS and 40 px on Windows. The mockups use 34 px; a lower bar leaves more room for the tree but crowds the traffic lights.</td><td>Maintainer, at the M0 spike</td></tr>
-        <tr><td>Does the agent role need its own name, or reuse T3 Code's <code>accent</code> slots?</td><td>A separate role keeps Copilot's words visually apart from SPI Code's own selection color, which the requirements rely on to tell inference from read facts.</td><td>Maintainer, before M3</td></tr>
+        <tr><td>Change rib-flavored strings in core ("1 press in the rib", "the rib dispatches it") to app wording?</td><td>They are model output. Changing them changes the parity oracle for both the rib and the app, so it is a core bead with the rib's next tarball bump, not a window change.</td><td>Maintainer, before the parity suite is written</td></tr>
+        <tr><td>Does the Runs lens stay once app runs (verbs, playbooks, waits) exist at M4, or do workflow runs and app runs share one lens?</td><td>Two kinds of run with one name confuse; two lenses cost a sidebar row.</td><td>Maintainer, at the M4 breakdown</td></tr>
+        <tr><td>Should the Services group fold after a chosen count, or always show all 13?</td><td>All 13 fit at 760 px of height with every group open; on a shorter window the sidebar scrolls.</td><td>Maintainer, after a week of use</td></tr>
+        <tr><td>Bundle Inter Variable, or use the system stack only?</td><td>T3 Code bundles it. Without it, Windows renders Segoe UI and macOS SF, and copied components' widths shift slightly.</td><td>Maintainer, before M2 closes</td></tr>
+        <tr><td>Which terminal renderer does the drawer use?</td><td>T3 Code builds libghostty to WebAssembly; porting that adds a native build step. xterm.js is the common alternative.</td><td>Maintainer, before M5</td></tr>
+        <tr><td>Does the agent role need its own name, or reuse T3 Code's accent slots?</td><td>A separate role keeps Copilot's words and the code-thread marker apart from the selection color.</td><td>Maintainer, before M3</td></tr>
       </tbody>
     </table></div>
   </section>
@@ -682,32 +1340,31 @@ exit 0 · 41 s</div>
 
     <section>
       <h3>Appendix A: window reference map</h3>
-      <p>Paths are relative to each repository's root. T3 Code at <code>43bf0babd4</code>, Keelson at <code>da5da474</code>. Line counts were read with <code>wc -l</code> at those commits. "Imports Effect" was checked with a grep for <code>from "effect</code> in each file.</p>
+      <p>Paths are relative to each repository's root. T3 Code at <code>43bf0babd4</code>, Keelson at <code>da5da474</code>. "Imports Effect" was checked with a grep for <code>from "effect</code> in each file.</p>
       <div class="tblwrap"><table class="tbl compact">
         <thead><tr><th style="width:24%">Piece</th><th style="width:40%">Source</th><th style="width:11%">Action</th><th>Notes</th></tr></thead>
         <tbody>
-          <tr><td>Title bar options</td><td>T3 <code>apps/desktop/src/window/DesktopWindow.ts</code> <code>getWindowTitleBarOptions</code> (line 235)</td><td><span class="tag">Emulate</span></td><td>hiddenInset on macOS, overlay on Windows</td></tr>
-          <tr><td>App layout</td><td>T3 <code>apps/web/src/components/AppSidebarLayout.tsx</code> (482)</td><td><span class="tag">Emulate</span></td><td>Imports Effect</td></tr>
-          <tr><td>Program tree</td><td>T3 <code>components/Sidebar.tsx</code> (3,648), <code>ThreadStatusIndicators.tsx</code> (893)</td><td><span class="tag">Port</span></td><td>Both import Effect</td></tr>
-          <tr><td>Sidebar primitive</td><td>T3 <code>components/ui/sidebar.tsx</code> (867)</td><td><span class="tag">Copy</span></td><td>One Effect import to remove</td></tr>
-          <tr><td>Right-panel tabs</td><td>T3 <code>components/RightPanelTabs.tsx</code> (1,577), <code>chat/ChatRightPanel.tsx</code> (51)</td><td><span class="tag">Copy</span></td><td>No Effect; cut to SPI Code's tabs</td></tr>
-          <tr><td>Right-panel state</td><td>T3 <code>apps/web/src/rightPanelStore.ts</code> (1,258), <code>rightPanelLayout.ts</code> (3)</td><td><span class="tag">Port</span></td><td>Keep the 980 px breakpoint</td></tr>
-          <tr><td>Approval strip and timeline row</td><td>T3 <code>chat/ComposerPendingApprovalActions.tsx</code> (141), <code>chat/TimelinePendingApprovalRow.tsx</code> (122)</td><td><span class="tag">Copy</span></td><td>Extend to eight card states</td></tr>
-          <tr><td>Composer</td><td>T3 <code>chat/ChatComposer.tsx</code> (3,587)</td><td><span class="tag">Emulate</span></td><td>Take the layout, not the code</td></tr>
-          <tr><td>Work log</td><td>T3 <code>chat/WorkLog.tsx</code> (170)</td><td><span class="tag">Copy</span></td><td></td></tr>
-          <tr><td>Changed files and diff</td><td>T3 <code>chat/ChangedFilesTree.tsx</code> (419), <code>DiffPanel.tsx</code> (1,495)</td><td><span class="tag">Copy</span> / <span class="tag">Port</span></td><td>DiffPanel imports Effect</td></tr>
-          <tr><td>Terminal drawer</td><td>T3 <code>components/ThreadTerminalDrawer.tsx</code> (1,914) <code>terminalThemeFromApp</code> (line 320); <code>chat/ChatTerminalDrawers.tsx</code> (107); <code>chat/ShellCommandBlock.tsx</code> (62)</td><td><span class="tag">Port</span> / <span class="tag">Copy</span></td><td>Renderer is open; PTY from <code>apps/server/src/terminal/NodePtyAdapter.ts</code></td></tr>
-          <tr><td>Command palette</td><td>T3 <code>components/CommandPalette.tsx</code> (2,901)</td><td><span class="tag">Port</span></td><td>Imports Effect</td></tr>
-          <tr><td>Status dot</td><td>T3 <code>components/ConnectionStatusDot.tsx</code> (75)</td><td><span class="tag">Reference</span></td><td></td></tr>
-          <tr><td>Provider status banner</td><td>T3 <code>chat/ProviderStatusBanner.tsx</code> (192)</td><td><span class="tag">Copy</span></td><td>For a lapsed Copilot sign-in</td></tr>
+          <tr><td>Title bar options</td><td>T3 <code>apps/desktop/src/window/DesktopWindow.ts</code> <code>getWindowTitleBarOptions</code></td><td><span class="tag">Emulate</span></td><td>hiddenInset on macOS, overlay on Windows; 40 px</td></tr>
+          <tr><td>App layout</td><td>T3 <code>apps/web/src/components/AppSidebarLayout.tsx</code></td><td><span class="tag">Emulate</span></td><td>Imports Effect</td></tr>
+          <tr><td>Sidebar and rail</td><td>T3 <code>components/Sidebar.tsx</code>, <code>ThreadStatusIndicators.tsx</code>, <code>ui/sidebar.tsx</code> (<code>SIDEBAR_WIDTH_ICON</code>)</td><td><span class="tag">Port</span> / <span class="tag">Copy</span></td><td>Groups collapse and remember it</td></tr>
+          <tr><td>Toolbar</td><td>T3 <code>chat/ChatHeader.tsx</code></td><td><span class="tag">Emulate</span></td><td>Place name, sub line, Detail, Ask</td></tr>
+          <tr><td>Right-panel tabs</td><td>T3 <code>components/RightPanelTabs.tsx</code>, <code>chat/ChatRightPanel.tsx</code></td><td><span class="tag">Copy</span></td><td>No Effect; cut to Detail, Evidence, Log, Changes, Checks</td></tr>
+          <tr><td>Right-panel state and sheet</td><td>T3 <code>apps/web/src/rightPanelStore.ts</code>, <code>rightPanelLayout.ts</code></td><td><span class="tag">Port</span></td><td>Keep the 980 px breakpoint; add the 1180 px rail</td></tr>
+          <tr><td>Approval strip and timeline row</td><td>T3 <code>chat/ComposerPendingApprovalActions.tsx</code>, <code>chat/TimelinePendingApprovalRow.tsx</code></td><td><span class="tag">Copy</span></td><td>Extend to eight card states</td></tr>
+          <tr><td>Composer</td><td>T3 <code>chat/ChatComposer.tsx</code></td><td><span class="tag">Emulate</span></td><td>Take the layout, not the code; threads only</td></tr>
+          <tr><td>Work log</td><td>T3 <code>chat/WorkLog.tsx</code></td><td><span class="tag">Copy</span></td><td></td></tr>
+          <tr><td>Changed files and diff</td><td>T3 <code>chat/ChangedFilesTree.tsx</code>, <code>DiffPanel.tsx</code></td><td><span class="tag">Copy</span> / <span class="tag">Port</span></td><td>DiffPanel imports Effect; its sticky table header is the model for lens tables</td></tr>
+          <tr><td>Terminal drawer</td><td>T3 <code>components/ThreadTerminalDrawer.tsx</code> <code>terminalThemeFromApp</code>; <code>chat/ChatTerminalDrawers.tsx</code>; <code>chat/ShellCommandBlock.tsx</code></td><td><span class="tag">Port</span> / <span class="tag">Copy</span></td><td>Renderer is open; PTY from <code>apps/server/src/terminal/NodePtyAdapter.ts</code></td></tr>
+          <tr><td>Command palette</td><td>T3 <code>components/CommandPalette.tsx</code>, <code>CommandPaletteContent.tsx</code>, <code>CommandPaletteLookups.ts</code></td><td><span class="tag">Port</span></td><td>Imports Effect; needed at M2 for find, M3 for ask</td></tr>
+          <tr><td>Status dot</td><td>T3 <code>components/ConnectionStatusDot.tsx</code></td><td><span class="tag">Reference</span></td><td>The sweep line's dot</td></tr>
+          <tr><td>Provider status banner</td><td>T3 <code>chat/ProviderStatusBanner.tsx</code></td><td><span class="tag">Copy</span></td><td>For a lapsed Copilot sign-in</td></tr>
           <tr><td>First run</td><td>T3 <code>components/onboarding/FirstRunGate.tsx</code>, <code>WelcomeWizard.tsx</code></td><td><span class="tag">Emulate</span></td><td>Leads into Setup</td></tr>
-          <tr><td>Appearance setting</td><td>T3 <code>components/settings/AppearanceSettingsPanel.tsx</code> (486)</td><td><span class="tag">Port</span></td><td>Cut to System, Light, Dark</td></tr>
-          <tr><td>Theme role model</td><td>T3 <code>packages/shared/src/themePalettes.ts</code> <code>THEME_COLOR_ROLES</code> (line 30)</td><td><span class="tag">Emulate</span></td><td>Cut down; adds success and agent</td></tr>
-          <tr><td>Type and geometry tokens</td><td>T3 <code>apps/web/src/index.css</code> (lines 103, 171 to 186, 1115)</td><td><span class="tag">Copy</span></td><td></td></tr>
-          <tr><td>Shore values</td><td>Keelson <code>packages/shared/src/design-tokens.ts</code> <code>SHORE_DARK</code> (124), <code>SHORE_LIGHT</code> (154), <code>DESIGN_TOKEN_CSS_VARS</code> (198)</td><td><span class="tag">Copy</span></td><td>Plus the light text variants in appendix B</td></tr>
-          <tr><td>Shore as CSS</td><td>Keelson <code>apps/web/src/app.css</code> <code>[data-palette="shore"]</code> (lines 157 and 215)</td><td><span class="tag">Reference</span></td><td></td></tr>
-          <tr><td>Contrast and palette checks</td><td>Keelson <code>packages/shared/src/palette.ts</code> <code>wcagContrast</code> (84), <code>validateCategoricalPalette</code> (189)</td><td><span class="tag">Copy</span></td><td>Runs in CI (NF-07)</td></tr>
-          <tr><td>Mockup markup and CSS</td><td><code>design/spi-code-design.html</code> at <code>119b304</code>, the app mockup and Setup styles</td><td><span class="tag">Reference</span></td><td>This page's mockups</td></tr>
+          <tr><td>Appearance setting</td><td>T3 <code>components/settings/AppearanceSettingsPanel.tsx</code></td><td><span class="tag">Port</span></td><td>Cut to System, Light, Dark</td></tr>
+          <tr><td>Theme role model</td><td>T3 <code>packages/shared/src/themePalettes.ts</code> <code>THEME_COLOR_ROLES</code></td><td><span class="tag">Emulate</span></td><td>Cut down; adds success and agent</td></tr>
+          <tr><td>Type and geometry tokens</td><td>T3 <code>apps/web/src/index.css</code></td><td><span class="tag">Copy</span></td><td></td></tr>
+          <tr><td>Shore values</td><td>Keelson <code>packages/shared/src/design-tokens.ts</code> <code>SHORE_DARK</code>, <code>SHORE_LIGHT</code></td><td><span class="tag">Copy</span></td><td>Plus the light text variants in appendix B</td></tr>
+          <tr><td>Contrast and palette checks</td><td>Keelson <code>packages/shared/src/palette.ts</code> <code>wcagContrast</code>, <code>validateCategoricalPalette</code></td><td><span class="tag">Copy</span></td><td>Runs in CI (NF-07)</td></tr>
+          <tr><td>Stations, lanes, panes</td><td>keelson-rib-spi <code>src/boards/console.ts</code>, <code>model/lines.ts</code></td><td><span class="tag">Reference</span></td><td>The data each surface draws; the window renders from the Watch contract</td></tr>
         </tbody>
       </table></div>
     </section>
@@ -728,7 +1385,29 @@ exit 0 · 41 s</div>
           <tr><td><code>text</code></td><td><code>#23211c</code> · 12.92</td><td>Same</td><td><code>#e4dfd1</code> · 10.75</td></tr>
         </tbody>
       </table></div>
-      <p>Filled pairs: white on <code>#1b7366</code> is 5.69, on <code>#ac4428</code> 5.81, on <code>#80622e</code> 5.67. Dark chrome <code>#0f1a1b</code> on <code>#e2b45c</code> is 9.22 and on <code>#ec8a6e</code> 7.12. Tinted badges in the light appearance: <code>#ac4428</code> on <code>#f4dfd6</code> 4.53, <code>#80622e</code> on <code>#f3e8cf</code> 4.66, <code>#1b7366</code> on <code>#d9ece7</code> 4.63, <code>#356c2f</code> on <code>#e1eedc</code> 5.23. The original combined design used the Shore values directly as text and white on <code>#a07b3a</code> (3.9) for the Approvals count.</p>
+      <p>Filled pairs: white on <code>#1b7366</code> is 5.69, on <code>#ac4428</code> 5.81, on <code>#80622e</code> 5.67. Dark chrome <code>#0f1a1b</code> on <code>#e2b45c</code> is 9.22 and on <code>#ec8a6e</code> 7.12. Tinted badges in the light appearance: <code>#ac4428</code> on <code>#f4dfd6</code> 4.53, <code>#80622e</code> on <code>#f3e8cf</code> 4.66, <code>#1b7366</code> on <code>#d9ece7</code> 4.63, <code>#356c2f</code> on <code>#e1eedc</code> 5.23.</p>
+    </section>
+
+    <section>
+      <h3>Appendix C: area names in words</h3>
+      <p>The eleven areas the sweep reads, as the Evidence tab and section lines name them. The collector names stay in the contract.</p>
+      <div class="tblwrap"><table class="tbl compact">
+        <thead><tr><th style="width:20%">Area</th><th style="width:30%">Shown as</th><th>Feeds</th></tr></thead>
+        <tbody>
+          <tr><td><code>fleet</code></td><td>Fleet membership</td><td>The service list, the release lines</td></tr>
+          <tr><td><code>github</code></td><td>GitHub issues and PRs</td><td>Queue items, repository sections, sync and release stations</td></tr>
+          <tr><td><code>runs</code></td><td>Workflow runs</td><td>Cascade and main stations, flow rows, the Runs lens</td></tr>
+          <tr><td><code>approvals</code></td><td>Run approvals</td><td>Waiting-for-approval items</td></tr>
+          <tr><td><code>lifecycle</code></td><td>Stack lifecycle runs</td><td>The environment facts and lanes, the stack lane station</td></tr>
+          <tr><td><code>details</code></td><td>Run details</td><td>Failure attribution on queue items</td></tr>
+          <tr><td><code>upstream</code></td><td>Upstream GitLab</td><td>Behind counts, carries, themes</td></tr>
+          <tr><td><code>radar</code></td><td>Upstream radar</td><td>Port and toolchain items, Horizon</td></tr>
+          <tr><td><code>template</code></td><td>Template</td><td>The template fact, rollout items</td></tr>
+          <tr><td><code>auth</code></td><td>Sign-in</td><td>Setup</td></tr>
+          <tr><td><code>security</code></td><td>Security alerts</td><td>Vulnerabilities and code scanning on repositories</td></tr>
+        </tbody>
+      </table></div>
+      <p>Completeness is written as "cut, 64,000 of 92,438" followed by the collector's reason; a failed read as "read failed" followed by how old the retained data is, or "nothing retained"; an unread area as "not read yet"; and an inferred-only area adds "inferred".</p>
     </section>
   </div>
 
