@@ -6,6 +6,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import recorded from "../../../../../fixtures/watch/snapshot-59d6895.json?raw";
+import november6 from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { closeSheet, navigate, type Route, routeHash } from "../../app/navigation.js";
 import { DEFAULT_REGISTRY } from "../../app/routes.js";
 import { Shell } from "../../app/Shell.js";
@@ -211,6 +212,36 @@ it("filters the recorded log-injection campaign to exactly its three forks, then
   expect(sheet()?.querySelectorAll("td[data-campaign]")).toHaveLength(0);
 });
 
+it("filters the November 6 recorded 8.5.0 campaign to exactly its eight forks with the fact shown once", async () => {
+  const body = ViewSnapshotSchema.parse(JSON.parse(november6));
+  watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+  await mount();
+  await open();
+  const chip = button("os-core-common 8.5.0 · 8 forks");
+  expect(chip.getAttribute("aria-pressed")).toBe("false");
+  await click(chip);
+  expect(chip.getAttribute("aria-pressed")).toBe("true");
+  expect(services()).toEqual([
+    "schema",
+    "file",
+    "storage",
+    "indexer",
+    "search",
+    "workflow",
+    "unit",
+    "crs-conversion",
+  ]);
+  expect([...(sheet()?.querySelectorAll("th") ?? [])].map((cell) => cell.textContent)).toContain(
+    "Campaign",
+  );
+  expect(sheet()?.querySelectorAll("td[data-campaign]")).toHaveLength(8);
+  expect(sheet()?.textContent?.match(/os-core-common 8\.5\.0/g)).toHaveLength(1);
+  await click(chip);
+  expect(chip.getAttribute("aria-pressed")).toBe("false");
+  expect(services()).toContain("legal");
+  expect(sheet()?.querySelectorAll("td[data-campaign]")).toHaveLength(0);
+});
+
 it("names every typed glyph in words and selects a cell's own Detail reading", async () => {
   const body = recording();
   const substates = [
@@ -252,7 +283,7 @@ it("names every typed glyph in words and selects a cell's own Detail reading", a
   expect(cell.getAttribute("aria-pressed")).toBe("true");
   expect(container.querySelector("#app-right-panel")?.textContent).toContain("Recorded cell 1");
   expect(window.spi.postMessage).toHaveBeenLastCalledWith(
-    expect.objectContaining({ type: "inspect.request", payload: { id: "upstream:partition" } }),
+    expect.objectContaining({ type: "inspect.request", payload: { id: "station:partition:sync" } }),
   );
 });
 
