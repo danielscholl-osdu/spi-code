@@ -157,6 +157,7 @@ describe("release history and the current service gate", () => {
     const station = buildModel(facts, NOW, {}, fixtureContext)
       .lines.find((line) => line.fork.id === "entitlements")
       ?.stations.find((station) => station.id === "release");
+    if (!row || !station) throw new Error("fixture has entitlements release row and station");
 
     expect(row).toMatchObject({
       version: "new → v1.2.1",
@@ -165,7 +166,7 @@ describe("release history and the current service gate", () => {
       state: "released",
     });
     expect(station).toEqual({ id: "release", state: "idle", text: "v1.2.0" });
-    expect(station?.text).toBe(facts.github.data?.repos[repo]?.release?.tag);
+    expect(station.text).toBe(facts.github.data?.repos[repo]?.release?.tag);
     expect(
       snapshot.stations
         .find((line) => line.service === "entitlements")
@@ -178,7 +179,7 @@ describe("release history and the current service gate", () => {
     ).toMatchObject({
       ...row,
       month: "2026-10",
-      gate: { state: station?.state, text: station?.text },
+      gate: { state: station.state, text: station.text },
     });
   });
 
