@@ -3,7 +3,7 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { type NotesState, PROTOCOL_VERSION } from "@spi-code/contracts";
+import type { NotesState } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -14,15 +14,13 @@ import {
 } from "../../components/evidence/marks.test-helper.js";
 import { mixedSnapshot, testSnapshot } from "../../store/test-snapshot.js";
 import { watchStore } from "../../store/watch.js";
-import { paneText as text } from "../../test-utils/pane-text.test-helper.js";
-import Releases from "../releases/index.js";
+import Releases, { ReleaseMonth } from "../releases/index.js";
 import Repositories from "./index.js";
 
 const fixture = (name: string) =>
   readFileSync(resolve("fixtures/rib-59d6895/oracle", name), "utf8");
 const paneStyles = readFileSync(resolve("apps/window/src/views/repositories/panes.css"), "utf8");
 const snapshot = () => testSnapshot(fixture("briefing.json"), fixture("releases.json"));
-const oracle = new DOMParser().parseFromString(fixture("console.html"), "text/html");
 const container = document.createElement("div");
 let root: ReturnType<typeof createRoot> | undefined;
 const send = vi.fn();
@@ -85,36 +83,6 @@ it("renders every repository's cells and Needs in Program and Forks without an i
   }
 });
 
-it("matches every release line and detail in the frozen rib console and selects each month", async () => {
-  const body = snapshot();
-  await render(<Releases />, body);
-  expect(text(container.querySelector('[data-view-pane="releases"]'))).toBe(
-    text(oracle.querySelector('[data-view-pane="releases"]')),
-  );
-  for (const line of body.releases.lines) {
-    const row = container.querySelector<HTMLButtonElement>(`[data-rel="${line.id}"]`);
-    await act(async () => row?.click());
-    const detail = container.querySelector<HTMLElement>(`[data-rel-detail="${line.id}"]`);
-    expect(row?.getAttribute("aria-pressed")).toBe("true");
-    expect(detail?.hidden).toBe(false);
-    expect(container.querySelectorAll("[data-rel-detail]:not([hidden])")).toHaveLength(1);
-    expect(text(detail)).toBe(text(oracle.querySelector(`[data-rel-detail="${line.id}"]`)));
-    await act(async () => detail?.querySelector("button")?.click());
-    expect(watchStore.getState().selection).toEqual({ id: line.id });
-    expect(send).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        version: PROTOCOL_VERSION,
-        kind: "request",
-        type: "inspect.request",
-        payload: { id: line.id },
-      }),
-    );
-  }
-  expect(send).toHaveBeenCalledTimes(body.releases.lines.length);
-  expect(container.querySelector("now")).toBeNull();
-  expect(container.textContent).toContain("All 13 services <now> ship from SPI forks.");
-});
-
 it.each<{ notes: NotesState; label: string; tone: string }>([
   { notes: "none", label: "NO NOTES YET", tone: "warn" },
   { notes: "invalid", label: "NOTES FILE INVALID", tone: "bad" },
@@ -132,7 +100,13 @@ it.each<{ notes: NotesState; label: string; tone: string }>([
       { figure: "?", short: "Actions", label: "actions not reviewed yet", anchor: "action" },
     ];
     body.releases.lines = [line];
-    await render(<Releases />, body);
+    await render(
+      <>
+        <Releases />
+        <ReleaseMonth month={line.month} />
+      </>,
+      body,
+    );
     const badges = container.querySelectorAll("[data-notes]");
     expect(badges).toHaveLength(2);
     for (const badge of badges) {
@@ -147,14 +121,20 @@ it.each<{ notes: NotesState; label: string; tone: string }>([
   },
 );
 
-it("keeps a closed month with no notes neutral in both the row and detail", async () => {
+it("keeps a closed month with no notes neutral in the list and on its page", async () => {
   const body = snapshot();
   const line = body.releases.lines[0];
   if (!line) throw new Error("Missing release fixture");
   line.open = false;
   line.notes = "none";
   body.releases.lines = [line];
-  await render(<Releases />, body);
+  await render(
+    <>
+      <Releases />
+      <ReleaseMonth month={line.month} />
+    </>,
+    body,
+  );
   const badges = [...container.querySelectorAll("[data-notes]")];
   expect(badges).toHaveLength(2);
   for (const badge of badges) {
@@ -345,7 +325,7 @@ it.each([
     if (inferred) expect(line?.getAttribute("title")).toContain("Fleet membership");
     for (const [i] of body.releases.lines.entries()) {
       const drawn = pane.querySelectorAll(`[data-pointer="/releases/lines/${i}"]`);
-      expect(drawn).toHaveLength(2);
+      expect(drawn).toHaveLength(1);
       for (const element of drawn) expect(element.querySelector("[data-inferred]")).toBeNull();
     }
   },

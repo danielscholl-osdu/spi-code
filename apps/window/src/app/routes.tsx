@@ -8,7 +8,7 @@ import Environment from "../views/environment/index.js";
 import Flow from "../views/flow/index.js";
 import Horizon from "../views/horizon/index.js";
 import Inbox from "../views/inbox/index.js";
-import Releases from "../views/releases/index.js";
+import Releases, { ReleaseMonth } from "../views/releases/index.js";
 import Repositories from "../views/repositories/index.js";
 import Setup from "../views/setup/index.js";
 import { WatchGate } from "../views/setup/WatchGate.js";
@@ -173,6 +173,8 @@ export function RouteView({ route }: { route: Route }) {
         <Environment />
       ) : route.kind === "releases" ? (
         <Releases />
+      ) : route.kind === "release" ? (
+        <ReleaseMonth month={route.month} />
       ) : route.kind === "lens" ? (
         route.lens === "flow" ? (
           <Flow />

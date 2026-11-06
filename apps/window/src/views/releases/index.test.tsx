@@ -1,25 +1,58 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type Envelope, ViewSnapshotSchema } from "@spi-code/contracts";
+import {
+  type Envelope,
+  type InspectResult,
+  type Message,
+  PROTOCOL_VERSION,
+  ReleaseDocSchema,
+  ViewSnapshotSchema,
+} from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import briefing from "../../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
+import documents from "../../../../../fixtures/rib-59d6895/oracle/release-doc.json?raw";
 import releases from "../../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
+import { RouteView } from "../../app/routes.js";
+import { RightPanel } from "../../panels/RightPanel.js";
+import { selectionStore } from "../../panels/selection.js";
 import { testSnapshot } from "../../store/test-snapshot.js";
 import { watchStore } from "../../store/watch.js";
-import Releases from "./index.js";
+import Releases, { ReleaseMonth } from "./index.js";
 
 const container = document.createElement("div");
 let root: ReturnType<typeof createRoot> | undefined;
 const previous = watchStore.getState();
+const send = vi.fn<(message: Message) => void>();
+const listeners = new Set<(message: Message) => void>();
+let previousBridge: Window["spi"];
+
+beforeEach(() => {
+  previousBridge = window.spi;
+  window.spi = {
+    proof: false,
+    postMessage: send,
+    openExternal: vi.fn(async () => true),
+    onMessage(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+  send.mockClear();
+  selectionStore.getState().clear();
+});
 
 afterEach(async () => {
   await act(async () => root?.unmount());
   root = undefined;
   container.remove();
+  selectionStore.getState().clear();
   watchStore.setState(previous);
+  listeners.clear();
+  window.spi = previousBridge;
+  window.location.hash = "";
 });
 
 it.each([
@@ -111,7 +144,7 @@ it.each([true, false])(
     root = createRoot(container);
     await act(async () => root?.render(<Releases />));
     const drawn = container.querySelectorAll('[data-pointer="/releases/lines/0"]');
-    expect(drawn).toHaveLength(2);
+    expect(drawn).toHaveLength(1);
     for (const element of drawn) expect(element.querySelector("[data-inferred]")).toBeNull();
     const line = container.querySelector('[data-section-evidence="/releases"]');
     if (inferred) {
@@ -155,7 +188,7 @@ const drawnStats = (id: string) =>
 const duplicateKeyErrors = (spy: { mock: { calls: unknown[][] } }) =>
   spy.mock.calls.filter((call) => call.some((arg) => String(arg).includes("same key")));
 
-it("keeps every stat that shares an anchor across switching and updating release details", async () => {
+it("keeps every stat that shares an anchor across changing and updating month pages", async () => {
   const errors = vi.spyOn(console, "error").mockImplementation(() => {});
   try {
     const body = testSnapshot(briefing, releases);
@@ -165,18 +198,13 @@ it("keeps every stat that shares an anchor across switching and updating release
     watchStore.setState({ snapshot: { cursor: body.cursor, body } });
     document.body.append(container);
     root = createRoot(container);
-    await act(async () => root?.render(<Releases />));
-    for (const line of body.releases.lines)
+    for (const line of body.releases.lines) {
+      await act(async () => root?.render(<ReleaseMonth month={line.month} />));
       expect(drawnStats(line.id)).toEqual(
         line.stats.map(({ anchor, figure, label }) => ({ anchor, figure, label })),
       );
-
-    await act(async () =>
-      container.querySelector<HTMLButtonElement>(`[data-rel="${second.id}"]`)?.click(),
-    );
-    expect(
-      container.querySelector(`[data-rel-detail="${second.id}"]`)?.hasAttribute("hidden"),
-    ).toBe(false);
+    }
+    await act(async () => root?.render(<ReleaseMonth month={first.month} />));
 
     const kept = container.querySelectorAll(`[data-rel-detail="${first.id}"] .pane-fact`)[1];
     const stats = [
@@ -197,14 +225,238 @@ it("keeps every stat that shares an anchor across switching and updating release
     );
     expect(container.querySelectorAll(`[data-rel-detail="${first.id}"] .pane-fact`)[1]).toBe(kept);
 
-    await act(async () =>
-      container.querySelector<HTMLButtonElement>(`[data-rel="${first.id}"]`)?.click(),
-    );
-    expect(container.querySelector(`[data-rel-detail="${first.id}"]`)?.hasAttribute("hidden")).toBe(
-      false,
-    );
     expect(duplicateKeyErrors(errors)).toEqual([]);
   } finally {
     errors.mockRestore();
   }
+});
+
+async function mount(view: React.ReactNode, body = testSnapshot(briefing, releases)) {
+  watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+  document.body.append(container);
+  root = createRoot(container);
+  await act(async () => root?.render(view));
+}
+
+const docs = ReleaseDocSchema.array().parse(JSON.parse(documents));
+const doc = docs[0];
+if (!doc) throw new Error("Missing recorded release document");
+const related: InspectResult["related"] = [
+  { text: "Recorded key change", state: "Key change" },
+  ...doc.highlights.map(({ title }) => ({ text: title, state: "Highlight" })),
+  ...doc.changelog.flatMap(({ area, items }) =>
+    items.map(({ text, type }) => ({ text, state: `${area}: ${type}` })),
+  ),
+  ...doc.issues.map(({ title, state }) => ({ text: title, state })),
+  ...doc.rows.map(({ id, version, state, url }) => ({
+    text: `${id}: ${version}`,
+    state,
+    ...(url ? { url } : {}),
+  })),
+  ...doc.links.map(({ label, url }) => ({ text: label, url, state: "Releases" })),
+];
+const result: InspectResult = {
+  id: doc.id,
+  class: "READY",
+  cause: doc.headline,
+  effect: doc.stateText,
+  next: "",
+  why: "",
+  related,
+  evidence: [],
+  actions: [],
+  approval: null,
+};
+
+async function reply(payload: InspectResult = result) {
+  const request = [...send.mock.calls]
+    .reverse()
+    .find(([message]) => message.type === "inspect.request")?.[0];
+  if (!request) throw new Error("Missing inspect request");
+  await act(async () => {
+    for (const listener of listeners)
+      listener({
+        version: PROTOCOL_VERSION,
+        id: request.id,
+        kind: "response",
+        type: "inspect.result",
+        payload,
+      });
+  });
+  return request;
+}
+
+it("orders recorded months newest first and selects their inspect in the shared right panel", async () => {
+  const body = testSnapshot(briefing, releases);
+  body.releases.lines.reverse();
+  await mount(
+    <>
+      <Releases />
+      <RightPanel store={selectionStore} snapshot={body} />
+    </>,
+    body,
+  );
+  expect(container.querySelectorAll("[data-rel-detail]")).toHaveLength(0);
+  const rows = [...container.querySelectorAll<HTMLElement>("[data-rel]")];
+  const expected = [...body.releases.lines].sort((a, b) => b.month.localeCompare(a.month));
+  expect(rows.map((row) => row.dataset.rel)).toEqual(expected.map(({ id }) => id));
+  for (const [index, line] of expected.entries()) {
+    const row = rows[index];
+    expect(row?.textContent).toContain(line.headline);
+    expect(row?.textContent).toContain(line.stateText);
+    expect(row?.querySelector("[data-notes]")?.getAttribute("data-notes")).toBe(line.notes);
+    await act(async () => row?.click());
+    expect(selectionStore.getState().selected).toBe(line.id);
+    expect(send).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: "inspect.request", payload: { id: line.id } }),
+    );
+    const request = send.mock.lastCall?.[0];
+    await act(async () =>
+      selectionStore.getState().receive({
+        version: PROTOCOL_VERSION,
+        id: request?.id,
+        kind: "response",
+        type: "inspect.result",
+        payload: { ...result, id: line.id, cause: line.headline },
+      }),
+    );
+    expect(row?.getAttribute("aria-selected")).toBe("true");
+    expect(container.querySelector('[data-field="cause"]')?.textContent).toBe(line.headline);
+    expect(row?.dataset.pointer).toBe(`/releases/lines/${body.releases.lines.indexOf(line)}`);
+  }
+});
+
+it("opens a month by its name or Enter, retaining the shared selection", async () => {
+  await mount(<Releases />);
+  const row = container.querySelector<HTMLElement>("[data-rel]");
+  await act(async () => row?.querySelector<HTMLButtonElement>("button")?.click());
+  expect(window.location.hash).toBe(`#release/${doc.month}`);
+  expect(selectionStore.getState().selected).toBe(doc.id);
+  window.location.hash = "#releases";
+  await act(async () =>
+    row?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })),
+  );
+  expect(window.location.hash).toBe(`#release/${doc.month}`);
+});
+
+it("renders the routed month's pane facts and every related document row, without selecting it", async () => {
+  await mount(<RouteView route={{ kind: "release", month: doc.month }} />);
+  expect(selectionStore.getState().selected).toBeNull();
+  expect(container.querySelector("h1")?.textContent).toBe(`Release ${doc.month}`);
+  expect(container.textContent).toContain(doc.headline);
+  expect(drawnStats(doc.id)).toEqual(
+    doc.stats.map(({ anchor, figure, label }) => ({ anchor, figure, label })),
+  );
+  expect(container.querySelector('[role="status"]')?.textContent).toContain("Reading");
+  await reply();
+  const entries = [...container.querySelectorAll("[data-related-state]")];
+  expect(entries).toHaveLength(related.length);
+  for (const [index, entry] of related.entries()) {
+    expect(entries[index]?.textContent).toContain(entry.text);
+    expect(entries[index]?.textContent).toContain(entry.state);
+  }
+  await act(async () => selectionStore.getState().clear());
+  expect(container.querySelectorAll("[data-related-state]")).toHaveLength(related.length);
+  expect(container.querySelector("now")).toBeNull();
+});
+
+it.each(["Key change", "Highlight", "Services: new", "open", "released", "Releases"])(
+  "omits absent %s document rows while retaining the other related parts",
+  async (state) => {
+    await mount(<ReleaseMonth month={doc.month} />);
+    const remaining = related.filter((entry) => entry.state !== state);
+    expect(remaining.length).toBeLessThan(related.length);
+    await reply({ ...result, related: remaining });
+    expect(container.querySelector(`[data-related-state="${state}"]`)).toBeNull();
+    expect(container.querySelectorAll("[data-related-state]")).toHaveLength(remaining.length);
+  },
+);
+
+it("omits empty key changes and document sections and renders updated pane key changes as text", async () => {
+  const body = testSnapshot(briefing, releases);
+  await mount(<ReleaseMonth month={doc.month} />, body);
+  await reply({ ...result, related: [] });
+  expect(container.querySelector('[aria-label="Key changes"]')).toBeNull();
+  expect(container.querySelector('[aria-label="Document"]')).toBeNull();
+  const line = body.releases.lines[0];
+  if (!line) throw new Error("Missing release line");
+  const keyChanges = ["Keep <reviewed> text & consumer instructions."];
+  const updated = {
+    ...body,
+    cursor: 2,
+    releases: { ...body.releases, lines: [{ ...line, keyChanges }] },
+  };
+  await act(async () => watchStore.setState({ snapshot: { cursor: 2, body: updated } }));
+  expect(container.querySelector('[aria-label="Key changes"] li')?.textContent).toBe(keyChanges[0]);
+  expect(container.querySelector("reviewed")).toBeNull();
+});
+
+it("opens every recorded per-fork URL and release link through external:open's renderer bridge", async () => {
+  await mount(<ReleaseMonth month={doc.month} />);
+  await reply();
+  const links = [...container.querySelectorAll<HTMLAnchorElement>('[aria-label="Document"] a')];
+  expect(links.map((link) => link.href)).toEqual(
+    related.flatMap((entry) => (entry.url ? [entry.url] : [])),
+  );
+  for (const link of links) {
+    await act(async () => link.click());
+    expect(window.spi.openExternal).toHaveBeenLastCalledWith(link.href);
+  }
+  vi.mocked(window.spi.openExternal).mockResolvedValueOnce(false);
+  await act(async () => links[0]?.click());
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain("Could not open");
+});
+
+it("ignores mismatched replies, reports read errors and stops listening when the page unmounts", async () => {
+  await mount(<ReleaseMonth month={doc.month} />);
+  const request = await reply({ ...result, id: "release:2026-09" });
+  expect(container.querySelector('[aria-label="Document"]')).toBeNull();
+  await act(async () => {
+    for (const listener of listeners)
+      listener({
+        version: PROTOCOL_VERSION,
+        id: request.id,
+        kind: "response",
+        type: "error",
+        payload: { code: "not_found", message: "Release document is not available" },
+      });
+  });
+  expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+    "Release document is not available",
+  );
+  await act(async () => root?.unmount());
+  root = undefined;
+  expect(listeners.size).toBe(0);
+});
+
+it("re-reads after a sweep or host reconnect and ignores the earlier request's late reply", async () => {
+  const body = testSnapshot(briefing, releases);
+  await mount(<ReleaseMonth month={doc.month} />, body);
+  const first = await reply();
+  await act(async () =>
+    watchStore.setState({
+      snapshot: { cursor: 2, body: { ...body, cursor: 2 } },
+    }),
+  );
+  const second = send.mock.lastCall?.[0];
+  expect(second).toMatchObject({ type: "inspect.request", payload: { id: doc.id } });
+  expect(second?.id).not.toBe(first.id);
+  await act(async () => {
+    for (const listener of listeners)
+      listener({
+        version: PROTOCOL_VERSION,
+        id: first.id,
+        kind: "response",
+        type: "inspect.result",
+        payload: result,
+      });
+  });
+  expect(container.querySelector('[aria-label="Document"]')).toBeNull();
+  await reply();
+  await act(async () => watchStore.setState({ epoch: watchStore.getState().epoch + 1 }));
+  expect(send.mock.lastCall?.[0].id).not.toBe(second?.id);
+  expect(container.querySelector('[aria-label="Document"]')).toBeNull();
+  await reply();
+  expect(container.querySelectorAll("[data-related-state]")).toHaveLength(related.length);
+  expect(selectionStore.getState().selected).toBeNull();
 });
