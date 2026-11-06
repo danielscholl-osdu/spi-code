@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { Envelope, RepoLine, ViewSnapshot } from "@spi-code/contracts";
+import type { RepoLine, ViewSnapshot } from "@spi-code/contracts";
 import { type ReactNode, useId } from "react";
 import { useStore } from "zustand";
 import { navigate } from "../../app/routes.js";
@@ -37,26 +37,14 @@ const utc = (time: string) => {
 
 type ServiceRelease = NonNullable<ViewSnapshot["services"]>[number]["releases"][number];
 
-const readAt = (envelope: Envelope | undefined) =>
-  envelope && "observedAt" in envelope ? envelope.observedAt : undefined;
-
-/** The idle gate mirrors GitHub's latest release as of the GitHub read; the row reads release history. */
-function GateHint({
-  release: { gate, to },
-  githubAt,
-  historyAt,
-}: {
-  release: ServiceRelease;
-  githubAt: string | undefined;
-  historyAt: string | undefined;
-}) {
+/**
+ * The idle gate mirrors GitHub's latest release as of the GitHub read; the row reads release history.
+ * The snapshot carries no per-service time for either read, and the aggregate envelopes would name
+ * another repository's or a cached pin's time, so the hint names the reads without times.
+ */
+function GateHint({ release: { gate, to } }: { release: ServiceRelease }) {
   if (gate?.state !== "idle" || to === undefined || gate.text === to) return null;
-  const at = (time: string | undefined) => (time ? ` ${utc(time)}` : "");
-  return (
-    <span data-gate-hint="">
-      gate as of the GitHub read{at(githubAt)}; release history read{at(historyAt)}
-    </span>
-  );
+  return <span data-gate-hint="">gate as of the GitHub read; release history read</span>;
 }
 
 type IdLine = RepoLine & { id: string };
@@ -301,10 +289,6 @@ function ServiceBody({
 
   const serviceIndex = evidence.services?.findIndex(({ service }) => service === id) ?? -1;
   const service = evidence.services?.[serviceIndex];
-  const githubAt = readAt(evidence.areas.find(({ area }) => area === "github")?.envelope);
-  const historyAt = readAt(
-    evidence.provenance.find(({ path }) => path === `/services/${serviceIndex}/releases`)?.envelope,
-  );
   const runs = [...(service?.runs ?? [])].sort((a, b) => Date.parse(b.time) - Date.parse(a.time));
   const runRows = runs.map(
     (run): SelectionRow => ({
@@ -510,7 +494,7 @@ function ServiceBody({
                           gate {release.gate.state} · {release.gate.text}
                         </span>
                       )}
-                      <GateHint release={release} githubAt={githubAt} historyAt={historyAt} />
+                      <GateHint release={release} />
                       {release.releasePr && (
                         <a
                           href={release.releasePr.url}

@@ -139,14 +139,20 @@ const hintOf = (month: string) =>
   section("release")?.querySelector(`[data-release="${month}"]`)?.querySelector("[data-gate-hint]")
     ?.textContent;
 
+const UNTIMED = "gate as of the GitHub read; release history read";
+const read = (source: string, object: string, observedAt: string) => ({
+  source,
+  object,
+  observedAt,
+  completeness: { kind: "complete" as const },
+});
+
 it("says which reads the gate and the release row come from when their versions differ", async () => {
   await render();
   const october = section("release")?.querySelector('[data-release="2026-10"]');
   expect(october?.textContent).toContain("new → v1.2.1");
   expect(october?.textContent).toContain("gate idle · v1.2.0");
-  expect(hintOf("2026-10")).toBe(
-    "gate as of the GitHub read 2026-10-12 21:58 UTC; release history read 2026-10-21 15:10 UTC",
-  );
+  expect(hintOf("2026-10")).toBe(UNTIMED);
   expect(hintOf("2026-09")).toBeUndefined();
 });
 
@@ -158,34 +164,42 @@ it("gives no hint when the gate agrees with the release row", async () => {
   expect(hintOf("2026-10")).toBeUndefined();
 });
 
-it.each([
-  [
-    "GitHub",
-    (body: ViewSnapshot): ViewSnapshot => ({
-      ...body,
-      areas: body.areas.map((entry) =>
-        entry.area === "github"
-          ? { area: "github", envelope: { source: "github", state: "unread" } }
-          : entry,
-      ),
-    }),
-    "gate as of the GitHub read; release history read 2026-10-21 15:10 UTC",
-  ],
-  [
-    "release history",
-    (body: ViewSnapshot): ViewSnapshot => ({
-      ...body,
-      provenance: body.provenance.map(({ path, areas, envelope }) =>
-        path.endsWith("/releases")
-          ? { path, areas }
-          : { path, areas, ...(envelope && { envelope }) },
-      ),
-    }),
-    "gate as of the GitHub read 2026-10-12 21:58 UTC; release history read",
-  ],
-])("leaves out the %s read's time when the snapshot has none", async (_, strip, hint) => {
-  await render(strip(mixedSnapshot(mixed)));
-  expect(hintOf("2026-10")).toBe(hint);
+it("does not stamp the gate with another repository's GitHub read from a split batch", async () => {
+  const body = mixedSnapshot(mixed);
+  const earliest = "2026-10-12T21:50:00.000Z";
+  await render({
+    ...body,
+    reads: [
+      ...body.reads,
+      read("github", "Azure/osdu-spi-partition", earliest),
+      read("github", "Azure/osdu-spi-entitlements", "2026-10-12T21:58:23.086Z"),
+    ],
+    areas: body.areas.map((entry) =>
+      entry.area === "github" && entry.envelope.state !== "unread"
+        ? { area: "github", envelope: { ...entry.envelope, observedAt: earliest } }
+        : entry,
+    ),
+  });
+  expect(hintOf("2026-10")).toBe(UNTIMED);
+});
+
+it("does not date the release history by a cached build pin", async () => {
+  const body = mixedSnapshot(mixed);
+  const pinned = "2026-10-01T08:00:00.000Z";
+  await render({
+    ...body,
+    reads: [
+      ...body.reads,
+      read("github-releases", "Azure/osdu-spi-entitlements", "2026-10-21T15:10:40.718Z"),
+      read("github-pins", "Azure/osdu-spi-entitlements@v1.2.1", pinned),
+    ],
+    provenance: body.provenance.map((source) =>
+      source.path.endsWith("/releases") && source.envelope && source.envelope.state !== "unread"
+        ? { ...source, envelope: { ...source.envelope, observedAt: pinned } }
+        : source,
+    ),
+  });
+  expect(hintOf("2026-10")).toBe(UNTIMED);
 });
 
 it("leaves Release, Runs and line selection out when the snapshot lacks those fields", async () => {
