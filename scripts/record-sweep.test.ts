@@ -3,7 +3,13 @@
 
 import { execFile, spawnSync } from "node:child_process";
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { createServer, type IncomingHttpHeaders } from "node:http";
+import http, {
+  type ClientRequest,
+  createServer,
+  type IncomingHttpHeaders,
+  type Server,
+} from "node:http";
+import https, { createServer as createHttpsServer } from "node:https";
 import { type AddressInfo, createServer as createTcpServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -24,6 +30,7 @@ import {
   type Get,
   GITLAB_API,
   isolatedGet,
+  MAX_RESPONSE,
   recordSweep,
 } from "./record-sweep.js";
 
@@ -31,6 +38,28 @@ const NOW = new Date("2026-11-05T12:00:00Z");
 const RECORDER = fileURLToPath(new URL("./record-sweep.ts", import.meta.url));
 const BUN = spawnSync("bun", ["--version"]).status === 0;
 const execFileAsync = promisify(execFile);
+
+/** A self-signed certificate for 127.0.0.1, good to 2126, and its key: the local HTTPS server's,
+ * trusted by nothing but the tests that pass it as `ca`. */
+const LOCAL_CERT = [
+  "-----BEGIN CERTIFICATE-----",
+  "MIIBcDCCARWgAwIBAgIUVBnrG4ovRkzYQebvvqxYTcxZveEwCgYIKoZIzj0EAwIw",
+  "FDESMBAGA1UEAwwJMTI3LjAuMC4xMCAXDTI2MTEwNjAxMDgwM1oYDzIxMjYxMDEz",
+  "MDEwODAzWjAUMRIwEAYDVQQDDAkxMjcuMC4wLjEwWTATBgcqhkjOPQIBBggqhkjO",
+  "PQMBBwNCAAQM5yWDz7+2y55ofjeJ2jh9QaOTjkVgKjig34avC2HIAVnmsJs2RpPh",
+  "DrNFqZLT3HQLcfGu5dYEjcS1tYsOGE6go0MwQTAdBgNVHQ4EFgQUvRZepPKASyip",
+  "oEwO9wV7COGbFjowDwYDVR0TAQH/BAUwAwEB/zAPBgNVHREECDAGhwR/AAABMAoG",
+  "CCqGSM49BAMCA0kAMEYCIQDbdYSsofiClomqFMh4rnq8ORCsX0clWA93XHRrt3CR",
+  "xwIhAP5CaDqN5ZxsZ6Mx6rlCV4QAqY6uJLYlVkfaTr7BmJN6",
+  "-----END CERTIFICATE-----",
+].join("\n");
+const LOCAL_KEY = [
+  "-----BEGIN PRIVATE KEY-----",
+  "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgZdGrGtrptbhaUgoR",
+  "3AwGJOnDdmYr2uB9MGDMj2/nVnahRANCAAQM5yWDz7+2y55ofjeJ2jh9QaOTjkVg",
+  "Kjig34avC2HIAVnmsJs2RpPhDrNFqZLT3HQLcfGu5dYEjcS1tYsOGE6g",
+  "-----END PRIVATE KEY-----",
+].join("\n");
 const outs: string[] = [];
 
 afterEach(() => {
@@ -369,6 +398,101 @@ describe("group-scoped reads", () => {
     }
   });
 
+  // Node's request() falls back to http.globalAgent and https.globalAgent, which anything loaded
+  // in the process can replace or patch; the isolated transport brings its own.
+  describe.each([
+    ["http", http, (port: number) => toLocal(port)],
+    [
+      "https",
+      https,
+      (port: number): Get =>
+        (url, signal) =>
+          isolatedGet(
+            new URL(url.href.replace(GITLAB_API, `https://127.0.0.1:${port}/api/v4/`)),
+            signal,
+            { ca: LOCAL_CERT },
+          ),
+    ],
+  ] as const)("over %s, with a contaminated global agent", (scheme, module, get) => {
+    const holder = module as unknown as { globalAgent: http.Agent };
+    let original: http.Agent;
+    let server: Server;
+    let port: number;
+    const seen: IncomingHttpHeaders[] = [];
+
+    beforeEach(async () => {
+      seen.length = 0;
+      const handler = (request: http.IncomingMessage, response: http.ServerResponse) => {
+        seen.push(request.headers);
+        response.setHeader("content-type", "application/json");
+        response.end(issuesOf(42).stdout);
+      };
+      server =
+        scheme === "https"
+          ? createHttpsServer({ cert: LOCAL_CERT, key: LOCAL_KEY }, handler)
+          : createServer(handler);
+      port = await listening(server);
+      // A keep-alive agent that adds a credential and a cookie to every request it carries.
+      const agent =
+        scheme === "https"
+          ? new https.Agent({ keepAlive: true })
+          : new http.Agent({ keepAlive: true });
+      const inner = agent as unknown as {
+        addRequest: (request: ClientRequest, options: object) => void;
+      };
+      const add = inner.addRequest.bind(agent);
+      inner.addRequest = (request, options) => {
+        request.setHeader("authorization", "Bearer glpat-global-agent");
+        request.setHeader("cookie", "_gitlab_session=global-agent");
+        add(request, options);
+      };
+      original = holder.globalAgent;
+      holder.globalAgent = agent;
+    });
+    afterEach(async () => {
+      const agent = holder.globalAgent;
+      holder.globalAgent = original;
+      agent.destroy();
+      server.closeAllConnections();
+      await closing(server);
+    });
+
+    it("injects into a request that takes the global agent", async () => {
+      await new Promise<void>((done, fail) => {
+        const request = module.request(
+          `${scheme}://127.0.0.1:${port}/sanity`,
+          { ca: LOCAL_CERT },
+          (response) => response.resume().on("end", done),
+        );
+        request.on("error", fail).end();
+      });
+      expect(seen).toHaveLength(1);
+      expect(seen[0]).toMatchObject({
+        authorization: "Bearer glpat-global-agent",
+        cookie: "_gitlab_session=global-agent",
+        connection: "keep-alive",
+      });
+    });
+
+    it("sends no credential and keeps no connection alive", async () => {
+      const { entries } = await record(
+        visibility({ github: [CORE_LIB_REPO] }),
+        undefined,
+        get(port),
+      );
+      const reads = entries.filter(isGroupRead);
+      expect(reads.length).toBeGreaterThan(0);
+      for (const read of reads)
+        expect(read).toMatchObject({ stdout: issuesOf(42).stdout, exit: 0 });
+      expect(seen).toHaveLength(reads.length);
+      for (const headers of seen) {
+        for (const name of CREDENTIAL_HEADERS) expect(headers[name]).toBeUndefined();
+        expect(headers.connection).toBe("close");
+        expect(JSON.stringify(headers)).not.toMatch(/glpat|gitlab_session/);
+      }
+    });
+  });
+
   it("read a whole body, chunked, and follow no redirect", async () => {
     const server = createServer((request, response) => {
       if (request.url?.includes("moved")) {
@@ -410,6 +534,65 @@ describe("group-scoped reads", () => {
           exit: 1,
         });
       } finally {
+        await closing(server);
+      }
+    });
+
+    it.each([
+      ["no head", (_response: http.ServerResponse) => {}],
+      [
+        "a head and part of a body",
+        (response: http.ServerResponse) => {
+          response.writeHead(200, { "content-type": "application/json", "content-length": "10" });
+          response.write('[{"id":');
+        },
+      ],
+    ])("time out a read that stalls after %s, at its deadline", async (_, stall) => {
+      const server = createServer((_request, response) => stall(response));
+      const port = await listening(server);
+      try {
+        const started = Date.now();
+        const read = await anonymousGroupRead(toLocal(port), "groups/x/issues", {
+          timeoutMs: 100,
+        });
+        expect(Date.now() - started).toBeLessThan(2_000);
+        expect(read).toEqual({
+          stdout: "",
+          stderr: "",
+          exit: null,
+          error: "Command timed out after 100ms.",
+        });
+      } finally {
+        server.closeAllConnections();
+        await closing(server);
+      }
+    });
+
+    it("read a body of exactly 64 MiB and fail one a byte longer", async () => {
+      expect(MAX_RESPONSE).toBe(64 * 1024 * 1024);
+      const server = createServer((request, response) => {
+        const size = MAX_RESPONSE + (request.url?.endsWith("over") ? 1 : 0);
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(Buffer.alloc(size, 0x20));
+      });
+      const port = await listening(server);
+      try {
+        const at = await isolatedGet(
+          new URL(`http://127.0.0.1:${port}/at`),
+          AbortSignal.timeout(30_000),
+        );
+        expect(at.status).toBe(200);
+        expect(at.body.length).toBe(MAX_RESPONSE);
+        const over = await isolatedGet(
+          new URL(`http://127.0.0.1:${port}/over`),
+          AbortSignal.timeout(30_000),
+        ).then(
+          ({ body }) => `read ${body.length} bytes`,
+          (error: Error) => error.message,
+        );
+        expect(over).toBe("response too large");
+      } finally {
+        server.closeAllConnections();
         await closing(server);
       }
     });
@@ -495,6 +678,8 @@ describe("group-scoped reads", () => {
       expect(proxied).toBe(0);
       expect(seen).toHaveLength(1);
       for (const name of CREDENTIAL_HEADERS) expect(seen[0]?.[name]).toBeUndefined();
+      // Bun sends no Connection header on a connection it will not reuse.
+      expect(seen[0]?.connection ?? "close").toBe("close");
       expect(JSON.stringify(seen)).not.toMatch(/glpat|oauth-recording|job-token|proxy-pass/);
       // Bun's node:http fails a body cut short too.
       const cut = await cutting({ "content-length": "10" }, "[]");

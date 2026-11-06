@@ -33,6 +33,7 @@ import {
 } from "node:fs";
 import { Agent as HttpAgent, request as httpRequest, type IncomingMessage } from "node:http";
 import { Agent as HttpsAgent, request as httpsRequest } from "node:https";
+import { isIP } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -274,17 +275,23 @@ export type Get = (url: URL, signal: AbortSignal) => Promise<Answered>;
 
 export const GITLAB_API = `https://${GITLAB}/api/v4/`;
 const GROUP_API = "/api/v4/groups/";
-const MAX_RESPONSE = 64 * 1024 * 1024;
+export const MAX_RESPONSE = 64 * 1024 * 1024;
 
 /** One anonymous GET with Node's own HTTP client, node:https (node:http for http, which only
  * tests use), on an agent of its own that keeps no connection: never the global agent, so
  * neither fetch's dispatcher nor NODE_USE_ENV_PROXY takes part. It sends Accept and User-Agent,
- * with the Host and Connection Node adds, and nothing else; follows no redirect; refuses a URL
- * carrying credentials and a compressed body; verifies the certificate whatever
- * NODE_TLS_REJECT_UNAUTHORIZED says; and fails a body cut short, one past MAX_RESPONSE, or no
- * answer by the time the signal fires. Under Bun, node:http honors proxy variables:
- * isolateFromProxies, which the recorder runs first, blanks them. */
-export function isolatedGet(url: URL, signal: AbortSignal): Promise<Answered> {
+ * with the Host and Connection: close Node adds, and nothing else; Bun adds Host but no
+ * Connection header. It follows no redirect; refuses a URL carrying credentials and a
+ * compressed body; verifies the certificate whatever NODE_TLS_REJECT_UNAUTHORIZED says; and
+ * fails a body cut short, one past MAX_RESPONSE, or no answer by the time the signal fires.
+ * Under Bun, node:http honors proxy variables: isolateFromProxies, which the recorder runs
+ * first, blanks them. Tests alone pass `ca`, the one certificate authority their local HTTPS
+ * server is trusted by. */
+export function isolatedGet(
+  url: URL,
+  signal: AbortSignal,
+  { ca }: { ca?: string } = {},
+): Promise<Answered> {
   return new Promise((resolve, reject) => {
     if (url.username || url.password) return reject(new Error("a URL with credentials"));
     if (url.protocol !== "https:" && url.protocol !== "http:")
@@ -337,8 +344,9 @@ export function isolatedGet(url: URL, signal: AbortSignal): Promise<Answered> {
           {
             ...options,
             agent: new HttpsAgent({ keepAlive: false }),
-            servername: url.hostname,
+            ...(isIP(url.hostname) ? {} : { servername: url.hostname }),
             rejectUnauthorized: true,
+            ...(ca ? { ca } : {}),
           },
           answer,
         )
