@@ -118,8 +118,9 @@ async function run(): Promise<void> {
     : app.getPath("userData");
   mkdirSync(dataDir, { recursive: true });
   const window = new BrowserWindow({
-    width: 900,
-    height: 650,
+    // The smoke reads the sidebar, which the wide layout (980 px and up) keeps on screen.
+    width: smoke ? 1280 : 900,
+    height: smoke ? 800 : 650,
     show: !smoke,
     ...windowTitleBarOptions(nativeTheme.shouldUseDarkColors, process.platform),
     webPreferences: {
@@ -206,7 +207,7 @@ async function run(): Promise<void> {
     return;
   }
   const [
-    { initialHeadline, writeSmokeSnapshot },
+    { initialSmoke, writeSmokeSnapshot },
     { exerciseSupervision, smokeClock },
     { scanAfterRuntimeReport },
   ] = await Promise.all([
@@ -216,7 +217,7 @@ async function run(): Promise<void> {
   ]);
   const rowId = randomUUID();
   const probePath = join(dataDir, "probe.json");
-  const firstCursor = writeSmokeSnapshot(storePath, initialHeadline);
+  const firstCursor = writeSmokeSnapshot(storePath, initialSmoke);
   const clock = smokeClock(process.argv);
   assert(clock);
   let launches = 0;

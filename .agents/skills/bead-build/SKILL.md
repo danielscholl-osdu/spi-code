@@ -59,6 +59,8 @@ scripts/check
 
 Don't ask for review while it fails.
 
+`scripts/check` does not run the packaged smoke. If the bead changes `apps/window`, `apps/desktop`, `scripts/package*.mjs` or `scripts/packaged-host.mjs`, also run `pnpm package:mac` (it packages and runs the smoke) and paste its tail in a bead note before asking for review.
+
 ## 5. Review, then land
 
 Follow `.agents/skills/bead-review/SKILL.md` to get a review from a different provider. Fix the findings that hold up, and push back on the ones that don't. When the bead has a recorded pass for the current diff, follow `.agents/skills/bead-land/SKILL.md`.

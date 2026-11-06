@@ -8,8 +8,8 @@ import type { BrowserWindow, MessageChannelMain, UtilityProcess } from "electron
 import { assertNoProcessListeners } from "./smoke-listeners.js";
 import type { smokeMessages } from "./smoke-messages.js";
 import {
-  initialHeadline,
-  resumedHeadline,
+  initialSmoke,
+  resumedSmoke,
   smokeSnapshotCursors,
   writeSmokeSnapshot,
 } from "./smoke-snapshot.js";
@@ -43,13 +43,30 @@ export interface SupervisionReport {
   canceledNavigationNoReconnect: true;
 }
 
-async function displayed(window: BrowserWindow, text: string): Promise<void> {
+// The sidebar lists the snapshot's services on every route; the window is wide enough to show it.
+const SIDEBAR = "#app-sidebar";
+
+async function displayed(
+  window: BrowserWindow,
+  selector: string,
+  text: string,
+  gone?: string,
+): Promise<void> {
+  const shown = JSON.stringify(text);
+  const hidden = JSON.stringify(gone ?? null);
+  const where = JSON.stringify(selector);
+  const want = JSON.stringify(
+    `${selector} showing ${JSON.stringify(text)}${gone === undefined ? "" : ` without ${JSON.stringify(gone)}`}`,
+  );
   await window.webContents.executeJavaScript(`new Promise((resolve, reject) => {
-    const matches = () => document.querySelector("main")?.innerText.includes(${JSON.stringify(text)});
+    const matches = () => {
+      const rendered = document.querySelector(${where})?.innerText ?? "";
+      return rendered.includes(${shown}) && (${hidden} === null || !rendered.includes(${hidden}));
+    };
     if (matches()) return resolve();
     const timer = setTimeout(() => {
       observer.disconnect();
-      reject(new Error("Timed out waiting for rendered smoke evidence"));
+      reject(new Error("Timed out waiting for rendered smoke evidence: " + ${want}));
     }, 10000);
     const observer = new MutationObserver(() => {
       if (!matches()) return;
@@ -57,7 +74,12 @@ async function displayed(window: BrowserWindow, text: string): Promise<void> {
       clearTimeout(timer);
       resolve();
     });
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    observer.observe(document.body, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
   })`);
 }
 
@@ -72,7 +94,7 @@ export async function exerciseSupervision(options: {
   listeners: string[];
 }): Promise<SupervisionReport> {
   const { window, messages, channels, storePath, firstCursor, clock } = options;
-  await displayed(window, initialHeadline);
+  await displayed(window, SIDEBAR, initialSmoke.service);
   assert.equal(
     channels.length,
     2,
@@ -139,7 +161,7 @@ export async function exerciseSupervision(options: {
   };
   try {
     messages.clear();
-    const resumedCursor = writeSmokeSnapshot(storePath, resumedHeadline);
+    const resumedCursor = writeSmokeSnapshot(storePath, resumedSmoke);
     await kill();
     const hello = await messages.wait("hello");
     assert(hello.type === "host.hello");
@@ -151,8 +173,12 @@ export async function exerciseSupervision(options: {
     const snapshot = await messages.wait((message) => message.type === "view.snapshot");
     assert(snapshot.type === "view.snapshot");
     assert.equal(snapshot.payload.cursor, resumedCursor);
-    assert.equal(snapshot.payload.briefing.headline, resumedHeadline);
-    await displayed(window, resumedHeadline);
+    assert.equal(snapshot.payload.briefing.headline, resumedSmoke.headline);
+    assert.deepEqual(
+      snapshot.payload.tree.map(({ id }) => id),
+      [`service:${resumedSmoke.service}`],
+    );
+    await displayed(window, SIDEBAR, resumedSmoke.service, initialSmoke.service);
     assert.equal(window.webContents.id, contentsId);
     assert.equal(window.webContents.getOSProcessId(), rendererPid);
     assert.equal(
@@ -186,7 +212,7 @@ export async function exerciseSupervision(options: {
       (message) => message.type === "error" && message.payload.code === "host_unavailable",
     );
     assert(giveUp.type === "error");
-    await displayed(window, giveUp.payload.message);
+    await displayed(window, "main", giveUp.payload.message);
     messages.clear();
     const transfersBeforeReload = channels.length;
     const reloaded = once(window.webContents, "did-finish-load");
@@ -196,7 +222,7 @@ export async function exerciseSupervision(options: {
       (message) => message.type === "error" && message.payload.code === "host_unavailable",
     );
     assert.deepEqual(replayed, giveUp);
-    await displayed(window, giveUp.payload.message);
+    await displayed(window, "main", giveUp.payload.message);
     assert.equal(channels.length, transfersBeforeReload + 1);
     assert.equal(loads, 1);
     assert.equal(new Set(hostPids).size, 8);

@@ -313,3 +313,57 @@ it.each(["failed", "stale"] as const)(
     }
   },
 );
+
+it("shows each snapshot's services in the sidebar on every route, as the packaged smoke reads it", async () => {
+  const previous = window.spi;
+  const previousState = watchStore.getState();
+  let receive: Parameters<typeof window.spi.onMessage>[0] | undefined;
+  window.spi = {
+    proof: false,
+    openExternal: vi.fn(),
+    postMessage: vi.fn(),
+    onMessage: (listener) => {
+      receive = listener;
+      return vi.fn();
+    },
+  };
+  watchStore.setState({ snapshot: null });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const deliver = (cursor: number, service: string) =>
+    act(async () =>
+      receive?.({
+        version: PROTOCOL_VERSION,
+        id: `snapshot-${cursor}`,
+        kind: "event",
+        type: "view.snapshot",
+        payload: testSnapshot(briefing, releases, {
+          cursor,
+          tree: [{ id: `service:${service}`, status: "unread" }],
+        }),
+      }),
+    );
+  try {
+    await act(async () => root.render(<Shell />));
+    const sidebar = () => container.querySelector<HTMLElement>("#app-sidebar");
+    expect(sidebar()?.getAttribute("data-state")).toBe("expanded");
+    expect(sidebar()?.textContent).not.toContain("smoke-persisted");
+    await deliver(1, "smoke-persisted");
+    for (const hash of ["#inbox", "#setup", "#environment", "#service/smoke-persisted"]) {
+      await act(async () => {
+        window.location.hash = hash;
+        window.dispatchEvent(new HashChangeEvent("hashchange"));
+      });
+      expect(sidebar()?.textContent).toContain("smoke-persisted");
+    }
+    await deliver(2, "smoke-resumed");
+    expect(sidebar()?.textContent).toContain("smoke-resumed");
+    expect(sidebar()?.textContent).not.toContain("smoke-persisted");
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    watchStore.setState(previousState);
+    window.spi = previous;
+  }
+});

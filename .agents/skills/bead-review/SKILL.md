@@ -12,6 +12,7 @@ The reviewer is always from a different provider than the author (`build.provide
 - **Intent:** the bead's description and acceptance (`bd show <id>`) and the PRD requirements they name.
 - **Diff:** `git diff main...bead/<id>`, run in the bead's worktree.
 - **Look for:** bugs, acceptance criteria not actually met, a test that cannot fail, broken callers, security and durability holes, and anything the PRD forbids.
+- **Packaged smoke:** if the diff touches `apps/window`, `apps/desktop`, `scripts/package*.mjs` or `scripts/packaged-host.mjs`, run `pnpm package:mac` in the bead's worktree and paste the smoke's tail in the review comment. A failing smoke is a `blocker`.
 - **Not in scope:** wishes beyond the acceptance criteria. If something belongs outside the bead, name it as a follow-up bead; don't block on it.
 
 Each finding gets a severity (`blocker`, `should`, `nit`), a file and line, and the smallest fix.

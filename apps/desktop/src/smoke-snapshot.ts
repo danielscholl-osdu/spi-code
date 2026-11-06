@@ -19,10 +19,15 @@ const store: typeof Store = await import(
 );
 
 const fleet = "Azure/osdu-spi-stack";
-export const initialHeadline = "Persisted Watch smoke snapshot";
-export const resumedHeadline = "Resumed Watch smoke snapshot";
+// The service names the shell sidebar renders on every route, so the smoke can see each snapshot.
+export const initialSmoke = {
+  headline: "Persisted Watch smoke snapshot",
+  service: "smoke-persisted",
+};
+export const resumedSmoke = { headline: "Resumed Watch smoke snapshot", service: "smoke-resumed" };
+export type SmokeMark = typeof initialSmoke;
 
-export function writeSmokeSnapshot(path: string, headline: string): number {
+export function writeSmokeSnapshot(path: string, { headline, service }: SmokeMark): number {
   store.openRunStore(path).close();
   const db = new DatabaseSync(path);
   try {
@@ -63,7 +68,7 @@ export function writeSmokeSnapshot(path: string, headline: string): number {
       },
       releases: { lines: [], reading: false },
       stations: [],
-      tree: [],
+      tree: [{ id: `service:${service}`, status: "unread" }],
       reads: [],
       areas: AREAS.map((area) => ({ area, envelope: { source: area, state: "unread" } })),
       provenance: [],
