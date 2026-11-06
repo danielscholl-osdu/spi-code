@@ -14,8 +14,11 @@ export interface ExecOptions {
   acceptNonZeroExit?: boolean;
   stdin?: string;
   signal?: AbortSignal;
-  /** Redacted live output, plus a final snapshot per buffered stream on cancellation with secret prefixes masked. */
-  onOutput?: (stream: "stdout" | "stderr", text: string) => void;
+  /**
+   * Redacted output, including a final buffered snapshot on cancellation.
+   * Native delivery sets phase to identify already-redacted chunks to wrappers.
+   */
+  onOutput?: (stream: "stdout" | "stderr", text: string, phase?: "live" | "terminal") => void;
 }
 
 export function execRedactor(opts: ExecOptions, env: Record<string, string> = {}) {
@@ -28,21 +31,22 @@ export function execRedactor(opts: ExecOptions, env: Record<string, string> = {}
 export function execOutputDelivery(opts: ExecOptions, env: Record<string, string> = {}) {
   const safe = execRedactor(opts, env);
   const secrets = Object.entries({ ...env, ...opts.env })
-    .filter(([name, value]) => /TOKEN/i.test(name) && value.length >= MIN_SECRET_LENGTH)
+    .filter(([name, value]) => /TOKEN/i.test(name) && value.length > 0)
     .map(([, value]) => value);
   const input = opts.stdin?.trim();
-  if (input && input.length >= MIN_SECRET_LENGTH) secrets.push(input);
+  if (input) secrets.push(input);
   const prefixes = ["gho_", "ghp_", "ghs_", "ghu_", "ghr_", "github_pat_", "glpat-", "authorization", "bearer"];
   const pending = { stdout: "", stderr: "" };
   let finished = false;
-  const prefixStart = (text: string) => {
+  const prefixStart = (text: string, cancellation = false) => {
     let end = text.length;
     const candidates: [string, string][] = [
-      ...prefixes.map((prefix): [string, string] => [text.toLowerCase(), prefix]),
+      ...(cancellation ? [] : prefixes.map((prefix): [string, string] => [text.toLowerCase(), prefix])),
       ...secrets.map((secret): [string, string] => [text, secret]),
     ];
     for (const [value, candidate] of candidates) {
-      for (let length = Math.min(value.length, candidate.length); length > 0; length--) {
+      const minimum = cancellation ? Math.min(4, candidate.length) : 1;
+      for (let length = Math.min(value.length, candidate.length); length >= minimum; length--) {
         if (value.endsWith(candidate.slice(0, length))) {
           end = Math.min(end, text.length - length);
           break;
@@ -53,7 +57,7 @@ export function execOutputDelivery(opts: ExecOptions, env: Record<string, string
   };
   const cancelledSnapshot = (text: string) => {
     const redacted = safe(text);
-    const end = prefixStart(text);
+    const end = prefixStart(text, true);
     if (end === text.length) return redacted;
     // A held prefix can overlap a complete secret. Only retain their shared redacted prefix.
     const before = safe(text.slice(0, end));
@@ -89,18 +93,24 @@ export function execOutputDelivery(opts: ExecOptions, env: Record<string, string
     // would undo any redaction, rather than emitting either side of that match.
     if (emitted + safe(text.slice(end)) !== redacted) return;
     pending[stream] = pending[stream].slice(end);
-    opts.onOutput(stream, emitted);
+    opts.onOutput(stream, emitted, "live");
   };
   return {
     push,
     finish: () => {
       if (finished) return;
       finished = true;
+      const failures: unknown[] = [];
       for (const stream of ["stdout", "stderr"] as const) {
         const text = pending[stream];
         pending[stream] = "";
-        if (text) opts.onOutput?.(stream, opts.signal?.aborted ? cancelledSnapshot(text) : safe(text));
+        try {
+          if (text) opts.onOutput?.(stream, opts.signal?.aborted ? cancelledSnapshot(text) : safe(text), "terminal");
+        } catch (failure) {
+          failures.push(failure);
+        }
       }
+      if (failures.length) throw failures[0];
     },
   };
 }

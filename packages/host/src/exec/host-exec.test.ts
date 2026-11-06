@@ -5,6 +5,7 @@ import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { RecordingExec } from "@spi-code/core";
 import { ToolInstaller } from "@spi-code/tools";
 import { afterEach, expect, it, vi } from "vitest";
 import { createManagedToolEnvironment } from "../env/tool-environment.js";
@@ -138,12 +139,20 @@ it("never exposes an echoed opaque stdin token through chunks, logs or errors", 
 });
 
 it.each([
-  ["payload", "dummyvalue1234567890", "payloa", "payloa<redacted>"],
-  ["done", "done-not-a-real-token", "", "<redacted>"],
-  ["dummyvalue1234", "dummyvalue1234567890", "", "<redacted>"],
+  ["HostExec", "payload", "dummyvalue1234567890", "payloa", "payload"],
+  ["HostExec", "done", "done-not-a-real-token", "", "<redacted>"],
+  ["HostExec", "dummyvalue1234", "dummyvalue1234567890", "", "<redacted>"],
+  ["RecordingExec-over-HostExec", "payload", "dummyvalue1234567890", "payloa", "payload"],
+  [
+    "RecordingExec-over-HostExec",
+    "payloadone",
+    "done-not-a-real-token",
+    "payloa",
+    "payloa<redacted>",
+  ],
 ])(
-  "cancellation preserves safe output and marks the held secret prefix in %j, never resuming live output",
-  async (text, token, live, terminal) => {
+  "%s cancellation preserves the terminal text for %j without double buffering or resuming live output",
+  async (runner, text, token, live, terminal) => {
     const options = await fixture();
     const env = Object.fromEntries(
       Object.entries(process.env).filter(([name]) => !/TOKEN/i.test(name)),
@@ -163,7 +172,9 @@ it.each([
       };
       next();
     `;
-    const run = new HostExec({ ...options, env }).runText(process.execPath, ["-e", child], {
+    const host = new HostExec({ ...options, env });
+    const exec = runner === "HostExec" ? host : new RecordingExec(host.run, () => {});
+    const run = exec.runText(process.execPath, ["-e", child], {
       env: { REVIEW_TOKEN: token },
       signal: controller.signal,
       timeoutMs: 20_000,

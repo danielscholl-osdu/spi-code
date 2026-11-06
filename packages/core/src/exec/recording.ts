@@ -35,11 +35,20 @@ export class RecordingExec implements Exec {
     };
     const delivery = execOutputDelivery(opts, this.env);
     const streamed = new Set<string>();
+    const terminal = new Set<string>();
+    let finished = false;
     const output = this.capture(cmd, [...args], opts.onOutput
-      ? { ...opts, onOutput: (stream, text) => {
+      ? { ...opts, onOutput: (stream, text, phase) => {
+        if (finished || terminal.has(stream)) return;
         streamed.add(stream);
-        delivery.push(stream, text);
+        if (phase === undefined) {
+          delivery.push(stream, text);
+        } else if (phase === "terminal" || !opts.signal?.aborted) {
+          if (phase === "terminal") terminal.add(stream);
+          opts.onOutput?.(stream, text, phase);
+        }
       } } : opts).then((result) => {
+        finished = true;
         if (!streamed.has("stdout")) delivery.push("stdout", result.stdout);
         if (!streamed.has("stderr")) delivery.push("stderr", result.stderr);
         delivery.finish();

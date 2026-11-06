@@ -208,10 +208,10 @@ describe("exec recording and replay", () => {
   });
 
   it.each([
-    ["payload", "dummyvalue1234567890", "payloa", "payloa<redacted>"],
+    ["payload", "dummyvalue1234567890", "payloa", "payload"],
     ["done", "done-not-a-real-token", "", "<redacted>"],
   ])(
-    "cancellation marks the held secret prefix in %j instead of silently losing it; normal exit keeps it",
+    "cancellation preserves short overlaps in %j and marks four-character secret prefixes; normal exit keeps both",
     (text, token, live, terminal) => {
       for (const stream of ["stdout", "stderr"] as const) {
         const controller = new AbortController();
@@ -251,31 +251,102 @@ describe("exec recording and replay", () => {
   );
 
   it.each([
-    ["environment.cre", { env: { REVIEW_TOKEN: "environment.credential" } }],
-    ["environment.credential", { env: { REVIEW_TOKEN: "environment.credential" } }],
-    ["opaque.cre", { stdin: "opaque.credential\n" }],
-    ["gh", {}],
-    ["github_pat_", {}],
-    ["ghp_planted", {}],
-    ["Authorization: opaque-credential", {}],
-    ["opaque.ghp_", { stdin: "opaque.gh" }],
-    ["<reda.gh", { stdin: "<reda.gh" }],
+    ["environment.cre", { env: { REVIEW_TOKEN: "environment.credential" } }, "<redacted>"],
+    ["environment.credential", { env: { REVIEW_TOKEN: "environment.credential" } }, "<redacted>"],
+    ["opaque.cre", { stdin: "opaque.credential\n" }, "<redacted>"],
+    ["Processing", {}, "Processing"],
+    ["gh", {}, "gh"],
+    ["github_pat_", {}, "github_pat_"],
+    ["bEaReR", {}, "bEaReR"],
+    ["Authorization:", {}, "Authorization:"],
+    ["ghp_planted", {}, "<redacted>"],
+    ["Authorization: opaque-credential", {}, "Authorization: <redacted>"],
+    ["opaque.ghp_", { stdin: "opaque.gh" }, "<redacted>p_"],
+    ["<reda.gh", { stdin: "<reda.gh" }, "<redacted>"],
     ["opaque.credentialX", {
       stdin: "opaque.credential", env: { REVIEW_TOKEN: "credentialXYZ" },
-    }],
-  ] satisfies [string, ExecOptions][])(
-    "cancellation replaces held credential fragments in %j with a marker, including overlapping secrets",
-    (text, opts) => {
+    }, "<redacted>"],
+  ] satisfies [string, ExecOptions, string][])(
+    "cancellation preserves keyword-only holds in %j while redacting real secrets and complete patterns",
+    (text, opts, expected) => {
       const controller = new AbortController();
       const chunks: string[] = [];
       const delivery = execOutputDelivery({
         ...opts, signal: controller.signal, onOutput: (_stream, chunk) => chunks.push(chunk),
       });
       for (const byte of `useful output\n${text}`) delivery.push("stderr", byte);
-      expect(chunks.join("")).toBe("useful output\n");
+      expect(`useful output\n${expected}`.startsWith(chunks.join(""))).toBe(true);
       controller.abort();
       delivery.finish();
-      expect(chunks.join("")).toMatch(/^useful output\n(?:Authorization: )?<redacted>$/);
+      expect(chunks.join("")).toBe(`useful output\n${expected}`);
+    },
+  );
+
+  it.each([
+    ["d", "dummyvalue1234567890", "d"],
+    ["du", "dummyvalue1234567890", "du"],
+    ["dum", "dummyvalue1234567890", "dum"],
+    ["dumm", "dummyvalue1234567890", "<redacted>"],
+    ["a", "a", "<redacted>"],
+    ["a", "ab", "a"],
+    ["ab", "ab", "<redacted>"],
+    ["ab", "abc", "ab"],
+    ["abc", "abc", "<redacted>"],
+  ])(
+    "cancellation preserves fewer than four secret-prefix characters in %j unless it is the whole secret %j",
+    (text, secret, expected) => {
+      for (const opts of [{ env: { REVIEW_TOKEN: secret } }, { stdin: `${secret}\n` }]) {
+        const controller = new AbortController();
+        const chunks: string[] = [];
+        const delivery = execOutputDelivery({
+          ...opts, signal: controller.signal, onOutput: (_stream, chunk) => chunks.push(chunk),
+        });
+        for (const byte of text) delivery.push("stdout", byte);
+        controller.abort();
+        delivery.finish();
+        expect(chunks.join("")).toBe(expected);
+      }
+    },
+  );
+
+  it("cancellation preserves hello world when only its last character matches a real secret prefix", () => {
+    const controller = new AbortController();
+    const chunks: string[] = [];
+    const delivery = execOutputDelivery({
+      env: { REVIEW_TOKEN: "dummyvalue1234567890" },
+      signal: controller.signal,
+      onOutput: (_stream, chunk) => chunks.push(chunk),
+    });
+    for (const byte of "hello world") delivery.push("stdout", byte);
+    controller.abort();
+    delivery.finish();
+    expect(chunks.join("")).toBe("hello world");
+  });
+
+  it.each([false, true])(
+    "terminal delivery drains stderr after stdout throws, then rethrows the first failure (cancelled=%j)",
+    (cancelled) => {
+      const controller = new AbortController();
+      const chunks: [string, string][] = [];
+      const first = new Error("stdout listener failed");
+      const second = new Error("stderr listener failed");
+      const delivery = execOutputDelivery({
+        env: { REVIEW_TOKEN: "done-not-a-real-token" },
+        signal: controller.signal,
+        onOutput: (stream, text) => {
+          chunks.push([stream, text]);
+          throw stream === "stdout" ? first : second;
+        },
+      });
+      delivery.push("stdout", "done");
+      delivery.push("stderr", "done");
+      if (cancelled) controller.abort();
+      expect(() => delivery.finish()).toThrow(first);
+      const text = cancelled ? "<redacted>" : "done";
+      expect(chunks).toEqual([["stdout", text], ["stderr", text]]);
+      expect(() => delivery.finish()).not.toThrow();
+      delivery.push("stderr", "late output");
+      expect(chunks).toHaveLength(2);
     },
   );
 
@@ -323,6 +394,29 @@ describe("exec recording and replay", () => {
       onOutput: (_stream, text) => { chunks.push(text); replayController.abort(); },
     })).toMatchObject({ ok: false, error: "Command aborted." });
     expect(chunks).toEqual(["ready"]);
+  });
+
+  it("recording forwards native terminal output once and rejects late native callbacks", async () => {
+    const controller = new AbortController();
+    const chunks: string[] = [];
+    let captured: ExecOptions | undefined;
+    const recording = new RecordingExec(async (_cmd, _args, opts) => {
+      captured = opts;
+      const delivery = execOutputDelivery(opts);
+      delivery.push("stdout", "done");
+      controller.abort();
+      delivery.finish();
+      opts.onOutput?.("stdout", "duplicate terminal", "terminal");
+      opts.onOutput?.("stderr", "late live output", "live");
+      return { stdout: "done", stderr: "", exit: null };
+    }, () => {});
+    expect(await recording.runText("fixture", [], {
+      env: { REVIEW_TOKEN: "done-not-a-real-token" },
+      signal: controller.signal,
+      onOutput: (_stream, text) => chunks.push(text),
+    })).toMatchObject({ ok: false, error: "Command aborted." });
+    captured?.onOutput?.("stderr", "late terminal", "terminal");
+    expect(chunks).toEqual(["<redacted>"]);
   });
 
   it("delivers live and replay output redacted, without recording transient stdin", async () => {
