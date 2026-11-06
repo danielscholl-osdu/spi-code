@@ -35,9 +35,12 @@ const directories: string[] = [];
 let template = "";
 let base = "";
 
-// Nothing the caller's environment says about git or beads reaches a fixture: no inherited git
-// configuration, repository, rewrite or transport, and no bd database.
-const notInherited = /^(GIT_|BEADS_|BD_|BASH_ENV$|ENV$|HOME$|USERPROFILE$|XDG_CONFIG_HOME$)/i;
+// A fixture inherits only what bash and git need to start; everything else, exported bash
+// functions and any git or bd setting included, comes from the fixture or not at all.
+const inheritedNames =
+  process.platform === "win32"
+    ? ["SystemRoot", "SYSTEMDRIVE", "WINDIR", "ComSpec", "PATHEXT", "TEMP", "TMP"]
+    : ["TMPDIR"];
 const gitConfig = `[user]
 \tname = Fixture Builder
 \temail = fixture@example.test
@@ -55,11 +58,13 @@ function prepareHome(directory: string) {
 function hermeticEnv(directory: string): NodeJS.ProcessEnv {
   const home = join(directory, "home");
   const env: NodeJS.ProcessEnv = {};
-  let pathKey = "PATH";
-  for (const [key, value] of Object.entries(process.env)) {
-    if (key.toUpperCase() === "PATH") pathKey = key;
-    else if (!notInherited.test(key)) env[key] = value;
+  const inherited = (name: string) =>
+    Object.keys(process.env).find((key) => key.toUpperCase() === name.toUpperCase());
+  for (const name of inheritedNames) {
+    const key = inherited(name);
+    if (key !== undefined) env[key] = process.env[key];
   }
+  const pathKey = inherited("PATH") ?? "PATH";
   env[pathKey] = [join(directory, "bin"), process.env[pathKey]].filter(Boolean).join(delimiter);
   env.HOME = home;
   if (process.platform === "win32") env.USERPROFILE = home;
@@ -316,6 +321,16 @@ function fixture({ origin = false } = {}) {
         timeout: landTimeout,
       }),
   };
+}
+
+// A bare repository outside every fixture, which no land run may touch.
+function outsideCanary() {
+  const path = temporaryDirectory("spi-code-land-canary-");
+  directories.push(path);
+  prepareHome(path);
+  const git = gitIn(path);
+  git(path, "init", "--quiet", "--bare", "--template=");
+  return { path, url: toGitPath(path), refs: () => git(path, "--git-dir", path, "for-each-ref") };
 }
 
 // Runs with variables set in this process, as a caller's shell would hand them to the test.
@@ -645,12 +660,7 @@ describe("landing gates", () => {
   it(
     "pushes to the fixture origin whatever push URL or rewrite the caller's git config names",
     () => {
-      const canary = temporaryDirectory("spi-code-land-canary-");
-      directories.push(canary);
-      prepareHome(canary);
-      const canaryGit = gitIn(canary);
-      canaryGit(canary, "init", "--quiet", "--bare", "--template=");
-      const canaryUrl = toGitPath(canary);
+      const canary = outsideCanary();
       const repo = fixture({ origin: true });
       const head = repo.commit("docs: update fixture");
 
@@ -658,8 +668,8 @@ describe("landing gates", () => {
         {
           GIT_CONFIG_COUNT: "2",
           GIT_CONFIG_KEY_0: "remote.origin.pushurl",
-          GIT_CONFIG_VALUE_0: canaryUrl,
-          GIT_CONFIG_KEY_1: `url.${canaryUrl}.insteadOf`,
+          GIT_CONFIG_VALUE_0: canary.url,
+          GIT_CONFIG_KEY_1: `url.${canary.url}.insteadOf`,
           GIT_CONFIG_VALUE_1: repo.originUrl,
         },
         () => repo.land(),
@@ -667,7 +677,50 @@ describe("landing gates", () => {
 
       expectLanded(repo, result, head);
       expect(repo.originMain()).toBe(head);
-      expect(canaryGit(canary, "--git-dir", canary, "for-each-ref")).toBe("");
+      expect(canary.refs()).toBe("");
+    },
+    testTimeout,
+  );
+
+  it(
+    "ignores an inherited bash function named git that pushes elsewhere",
+    () => {
+      const canary = outsideCanary();
+      const repo = fixture({ origin: true });
+      const head = repo.commit("docs: update fixture");
+
+      const result = withInheritedEnv(
+        {
+          "BASH_FUNC_git%%": `() { if [ "$3" = push ]; then command git -C "$2" push --quiet '${canary.url}' main; else command git "$@"; fi; }`,
+        },
+        () => repo.land(),
+      );
+
+      expectLanded(repo, result, head);
+      expect(repo.originMain()).toBe(head);
+      expect(canary.refs()).toBe("");
+    },
+    testTimeout,
+  );
+
+  it(
+    "ignores an inherited bash function named bd",
+    () => {
+      const canary = outsideCanary();
+      const marker = join(canary.path, "bd-function-ran");
+      const repo = fixture({ origin: true });
+      const head = repo.commit("docs: update fixture");
+
+      const result = withInheritedEnv(
+        {
+          "BASH_FUNC_bd%%": `() { echo ran >> '${toGitPath(marker)}'; command bd "$@"; }`,
+        },
+        () => repo.land(),
+      );
+
+      expectLanded(repo, result, head);
+      expect(repo.originMain()).toBe(head);
+      expect(existsSync(marker)).toBe(false);
     },
     testTimeout,
   );
