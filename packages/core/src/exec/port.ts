@@ -31,10 +31,10 @@ export function execRedactor(opts: ExecOptions, env: Record<string, string> = {}
 export function execOutputDelivery(opts: ExecOptions, env: Record<string, string> = {}) {
   const safe = execRedactor(opts, env);
   const secrets = Object.entries({ ...env, ...opts.env })
-    .filter(([name, value]) => /TOKEN/i.test(name) && value.length > 0)
+    .filter(([name, value]) => /TOKEN/i.test(name) && value.length >= MIN_SECRET_LENGTH)
     .map(([, value]) => value);
   const input = opts.stdin?.trim();
-  if (input) secrets.push(input);
+  if (input && input.length >= MIN_SECRET_LENGTH) secrets.push(input);
   const prefixes = ["gho_", "ghp_", "ghs_", "ghu_", "ghr_", "github_pat_", "glpat-", "authorization", "bearer"];
   const pending = { stdout: "", stderr: "" };
   let finished = false;

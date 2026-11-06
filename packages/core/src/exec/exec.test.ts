@@ -266,6 +266,9 @@ describe("exec recording and replay", () => {
     ["opaque.credentialX", {
       stdin: "opaque.credential", env: { REVIEW_TOKEN: "credentialXYZ" },
     }, "<redacted>"],
+    ["A<re-sec-XYZ1-more", {
+      env: { REVIEW_TOKEN: "<re-sec-XYZ1", OTHER_TOKEN: "XYZ1-more-stuff" },
+    }, "A<redacted>"],
   ] satisfies [string, ExecOptions, string][])(
     "cancellation preserves keyword-only holds in %j while redacting real secrets and complete patterns",
     (text, opts, expected) => {
@@ -287,13 +290,8 @@ describe("exec recording and replay", () => {
     ["du", "dummyvalue1234567890", "du"],
     ["dum", "dummyvalue1234567890", "dum"],
     ["dumm", "dummyvalue1234567890", "<redacted>"],
-    ["a", "a", "<redacted>"],
-    ["a", "ab", "a"],
-    ["ab", "ab", "<redacted>"],
-    ["ab", "abc", "ab"],
-    ["abc", "abc", "<redacted>"],
   ])(
-    "cancellation preserves fewer than four secret-prefix characters in %j unless it is the whole secret %j",
+    "cancellation preserves fewer than four real secret-prefix characters in %j and masks four or more",
     (text, secret, expected) => {
       for (const opts of [{ env: { REVIEW_TOKEN: secret } }, { stdin: `${secret}\n` }]) {
         const controller = new AbortController();
@@ -306,6 +304,24 @@ describe("exec recording and replay", () => {
         delivery.finish();
         expect(chunks.join("")).toBe(expected);
       }
+    },
+  );
+
+  it.each([
+    ["parallel=false", { env: { TOKENIZERS_PARALLELISM: "false" } }],
+    ["Ready", { stdin: "y\n" }],
+  ] satisfies [string, ExecOptions][])(
+    "cancellation does not invent a secret for short environment or stdin values in %j",
+    (text, opts) => {
+      const controller = new AbortController();
+      const chunks: string[] = [];
+      const delivery = execOutputDelivery({
+        ...opts, signal: controller.signal, onOutput: (_stream, chunk) => chunks.push(chunk),
+      });
+      for (const byte of text) delivery.push("stdout", byte);
+      controller.abort();
+      delivery.finish();
+      expect(chunks.join("")).toBe(text);
     },
   );
 
