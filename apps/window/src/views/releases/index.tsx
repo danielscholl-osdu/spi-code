@@ -101,7 +101,6 @@ export default function Releases() {
               <tbody>
                 {rows.map(({ line, index, selection }) => (
                   <tr
-                    className="release-row"
                     key={line.id}
                     data-rel={line.id}
                     data-pointer={`/releases/lines/${index}`}
@@ -138,16 +137,18 @@ export default function Releases() {
 
 function ReleaseDocument({ id, cursor }: { id: string; cursor: number }) {
   const epoch = useStore(watchStore, (state) => state.epoch);
-  const key = `${id}/${cursor}/${epoch}`;
   const [reading, setReading] = useState<{
-    key: string;
+    id: string;
     result?: InspectResult;
     error?: string;
   }>();
   const [linkError, setLinkError] = useState("");
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sweeps and host reconnects invalidate the document read
   useEffect(() => {
     const request = crypto.randomUUID();
-    setReading({ key });
+    setReading((previous) =>
+      previous?.id === id && previous.result ? { id, result: previous.result } : { id },
+    );
     const unsubscribe = window.spi.onMessage((input) => {
       const parsed = parseMessage(input);
       if (!parsed.ok) return;
@@ -156,13 +157,13 @@ function ReleaseDocument({ id, cursor }: { id: string; cursor: number }) {
         message.type === "error" &&
         (message.id === request || message.payload.code === "host_unavailable")
       )
-        setReading({ key, error: message.payload.message });
-      else if (
-        message.id === request &&
-        message.type === "inspect.result" &&
-        message.payload.id === id
-      )
-        setReading({ key, result: message.payload });
+        setReading({ id, error: message.payload.message });
+      else if (message.id === request && message.type === "inspect.result")
+        setReading(
+          message.payload.id === id
+            ? { id, result: message.payload }
+            : { id, error: "Release document reply did not match the requested month." },
+        );
     });
     window.spi.postMessage({
       version: PROTOCOL_VERSION,
@@ -172,8 +173,8 @@ function ReleaseDocument({ id, cursor }: { id: string; cursor: number }) {
       payload: { id },
     });
     return unsubscribe;
-  }, [id, key]);
-  const current = reading?.key === key ? reading : undefined;
+  }, [id, cursor, epoch]);
+  const current = reading?.id === id ? reading : undefined;
   const related = current?.result?.related;
   async function open(url: string) {
     setLinkError("");

@@ -360,6 +360,19 @@ it("renders the routed month's pane facts and every related document row, withou
   expect(container.querySelector("now")).toBeNull();
 });
 
+it("selects the month and requests its inspect when Detail is clicked", async () => {
+  await mount(<ReleaseMonth month={doc.month} />);
+  send.mockClear();
+  const detail = container.querySelector<HTMLButtonElement>(".release-toolbar button");
+  expect(detail?.textContent).toBe("Detail");
+  await act(async () => detail?.click());
+  expect(selectionStore.getState().selected).toBe(`release:${doc.month}`);
+  expect(selectionStore.getState().row).toMatchObject({ id: doc.id, kind: "release" });
+  expect(send).toHaveBeenLastCalledWith(
+    expect.objectContaining({ type: "inspect.request", payload: { id: `release:${doc.month}` } }),
+  );
+});
+
 it.each(["Key change", "Highlight", "Services: new", "open", "released", "Releases"])(
   "omits absent %s document rows while retaining the other related parts",
   async (state) => {
@@ -429,10 +442,12 @@ it("ignores mismatched replies, reports read errors and stops listening when the
   expect(listeners.size).toBe(0);
 });
 
-it("re-reads after a sweep or host reconnect and ignores the earlier request's late reply", async () => {
+it("keeps the document through sweep and reconnect re-reads, ignoring the earlier request's late reply", async () => {
   const body = testSnapshot(briefing, releases);
   await mount(<ReleaseMonth month={doc.month} />, body);
   const first = await reply();
+  const entries = [...container.querySelectorAll("[data-related-state]")];
+  expect(entries).toHaveLength(related.length);
   await act(async () =>
     watchStore.setState({
       snapshot: { cursor: 2, body: { ...body, cursor: 2 } },
@@ -441,6 +456,50 @@ it("re-reads after a sweep or host reconnect and ignores the earlier request's l
   const second = send.mock.lastCall?.[0];
   expect(second).toMatchObject({ type: "inspect.request", payload: { id: doc.id } });
   expect(second?.id).not.toBe(first.id);
+  expect([...container.querySelectorAll("[data-related-state]")]).toEqual(entries);
+  expect(container.querySelector('[role="status"]')).toBeNull();
+  await act(async () => {
+    for (const listener of listeners)
+      listener({
+        version: PROTOCOL_VERSION,
+        id: first.id,
+        kind: "response",
+        type: "inspect.result",
+        payload: { ...result, related: [{ text: "Late document", state: "Highlight" }] },
+      });
+  });
+  expect([...container.querySelectorAll("[data-related-state]")]).toEqual(entries);
+  expect(container.textContent).not.toContain("Late document");
+  const refreshed = [{ text: "Refreshed document", state: "Highlight" }];
+  await reply({ ...result, related: refreshed });
+  expect(container.querySelectorAll("[data-related-state]")).toHaveLength(1);
+  expect(container.querySelector("[data-related-state]")?.textContent).toContain(
+    refreshed[0]?.text,
+  );
+  await act(async () => watchStore.setState({ epoch: watchStore.getState().epoch + 1 }));
+  expect(send.mock.lastCall?.[0].id).not.toBe(second?.id);
+  expect(container.querySelector("[data-related-state]")?.textContent).toContain(
+    refreshed[0]?.text,
+  );
+  await reply();
+  expect(container.querySelectorAll("[data-related-state]")).toHaveLength(related.length);
+  expect(selectionStore.getState().selected).toBeNull();
+});
+
+it("drops the previous document when the month changes and ignores its late reply", async () => {
+  const body = testSnapshot(briefing, releases);
+  const next = body.releases.lines.find((line) => line.id !== doc.id);
+  if (!next) throw new Error("Missing another release month");
+  await mount(<ReleaseMonth month={doc.month} />, body);
+  const first = await reply();
+  expect(container.querySelectorAll("[data-related-state]")).toHaveLength(related.length);
+  await act(async () => root?.render(<ReleaseMonth month={next.month} />));
+  expect(container.querySelector('[aria-label="Document"]')).toBeNull();
+  expect(container.querySelector('[role="status"]')?.textContent).toBe("Reading release document…");
+  expect(send.mock.lastCall?.[0]).toMatchObject({
+    type: "inspect.request",
+    payload: { id: next.id },
+  });
   await act(async () => {
     for (const listener of listeners)
       listener({
@@ -452,11 +511,55 @@ it("re-reads after a sweep or host reconnect and ignores the earlier request's l
       });
   });
   expect(container.querySelector('[aria-label="Document"]')).toBeNull();
-  await reply();
-  await act(async () => watchStore.setState({ epoch: watchStore.getState().epoch + 1 }));
-  expect(send.mock.lastCall?.[0].id).not.toBe(second?.id);
-  expect(container.querySelector('[aria-label="Document"]')).toBeNull();
-  await reply();
-  expect(container.querySelectorAll("[data-related-state]")).toHaveLength(related.length);
-  expect(selectionStore.getState().selected).toBeNull();
+  await reply({
+    ...result,
+    id: next.id,
+    related: [{ text: "Another month's document", state: "Highlight" }],
+  });
+  expect(container.querySelectorAll("[data-related-state]")).toHaveLength(1);
+  expect(container.querySelector("[data-related-state]")?.textContent).toContain(
+    "Another month's document",
+  );
 });
+
+it.each(["request error", "host unavailable", "wrong id"])(
+  "drops the retained document on a refresh reply with %s",
+  async (failure) => {
+    const body = testSnapshot(briefing, releases);
+    await mount(<ReleaseMonth month={doc.month} />, body);
+    await reply();
+    await act(async () =>
+      watchStore.setState({ snapshot: { cursor: 2, body: { ...body, cursor: 2 } } }),
+    );
+    expect(container.querySelectorAll("[data-related-state]")).toHaveLength(related.length);
+    const request = send.mock.lastCall?.[0];
+    if (!request) throw new Error("Missing refresh request");
+    if (failure === "wrong id") await reply({ ...result, id: "release:2026-09" });
+    else
+      await act(async () => {
+        for (const listener of listeners)
+          listener({
+            version: PROTOCOL_VERSION,
+            id: failure === "host unavailable" ? crypto.randomUUID() : request.id,
+            kind: "response",
+            type: "error",
+            payload: {
+              code: failure === "host unavailable" ? "host_unavailable" : "not_found",
+              message: "Release document is not available",
+            },
+          });
+      });
+    expect(container.querySelector('[aria-label="Document"]')).toBeNull();
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      failure === "wrong id"
+        ? "Release document reply did not match the requested month."
+        : "Release document is not available",
+    );
+    await act(async () =>
+      watchStore.setState({ snapshot: { cursor: 3, body: { ...body, cursor: 3 } } }),
+    );
+    expect(container.querySelector('[aria-label="Document"]')).toBeNull();
+    await reply();
+    expect(container.querySelectorAll("[data-related-state]")).toHaveLength(related.length);
+  },
+);
