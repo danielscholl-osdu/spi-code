@@ -28,7 +28,12 @@ const openExternal = (url: string | undefined) => {
 const resultTone = (result: string) =>
   result === "success" ? "ok" : result === "failure" || result === "timed_out" ? "bad" : undefined;
 
-const utc = (time: string) => `${time.slice(0, 16).replace("T", " ")} UTC`;
+const utc = (time: string) => {
+  const at = new Date(time);
+  return Number.isNaN(at.getTime())
+    ? time
+    : `${at.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+};
 
 type IdLine = RepoLine & { id: string };
 
@@ -94,6 +99,63 @@ function SelectList({
         return (
           <div key={row.id} className="service-row" role="option" tabIndex={tabIndex} {...props}>
             {render(row)}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function RepoLines({
+  label,
+  lines,
+  store,
+}: {
+  label: string;
+  lines: readonly RepoLine[];
+  store: SelectionStore;
+}) {
+  const selectable = lines.filter((line): line is IdLine => Boolean(line.id));
+  const rows = selectable.map(lineRow);
+  const list = useSelectionList(
+    rows,
+    (row) => openExternal(selectable.find((line) => line.id === row.id)?.url),
+    store,
+  );
+  if (rows.length === 0) {
+    return (
+      <ul className="service-rows">
+        {lines.map((line) => (
+          <li key={`${line.tag}:${line.text}`} className="service-row" data-plain="">
+            <LineBody line={line} />
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  return (
+    <div className="service-rows" role="listbox" aria-label={label} data-selection-list="">
+      {lines.map((line) => {
+        const row = line.id ? rows.find(({ id }) => id === line.id) : undefined;
+        if (!row) {
+          return (
+            <div
+              key={`${line.tag}:${line.text}`}
+              className="service-row"
+              role="option"
+              aria-selected={false}
+              aria-disabled="true"
+              tabIndex={-1}
+              data-plain=""
+            >
+              <LineBody line={line} />
+            </div>
+          );
+        }
+        const { tabIndex, ...props } = list.rowProps(row);
+        return (
+          <div key={row.id} className="service-row" role="option" tabIndex={tabIndex} {...props}>
+            <LineBody line={line} />
           </div>
         );
       })}
@@ -363,46 +425,26 @@ function ServiceBody({
                 render={() => <span className="service-row-sub">{repo.sub}</span>}
               />
             )}
-            {repo.sections.map((section) => {
-              const selectable = section.lines.filter((line): line is IdLine => Boolean(line.id));
-              const plain = section.lines.filter((line) => !line.id);
-              return (
-                <div
-                  key={section.title}
-                  className="service-repo-section"
-                  data-weight={section.weight}
-                >
-                  <div className="repo-section-title">
-                    <span>{section.title}</span>
-                    <span>
-                      {section.count}
-                      {section.rest}
-                    </span>
-                  </div>
-                  {selectable.length > 0 && (
-                    <SelectList
-                      label={`${id} ${section.title}`}
-                      rows={selectable.map(lineRow)}
-                      open={(row) => openExternal(selectable.find((l) => l.id === row.id)?.url)}
-                      store={selection}
-                      render={(row) => {
-                        const line = selectable.find((l) => l.id === row.id);
-                        return line && <LineBody line={line} />;
-                      }}
-                    />
-                  )}
-                  {plain.length > 0 && (
-                    <ul className="service-rows">
-                      {plain.map((line) => (
-                        <li key={`${line.tag}:${line.text}`} className="service-row" data-plain="">
-                          <LineBody line={line} />
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+            {repo.sections.map((section) => (
+              <div
+                key={section.title}
+                className="service-repo-section"
+                data-weight={section.weight}
+              >
+                <div className="repo-section-title">
+                  <span>{section.title}</span>
+                  <span>
+                    {section.count}
+                    {section.rest}
+                  </span>
                 </div>
-              );
-            })}
+                <RepoLines
+                  label={`${id} ${section.title}`}
+                  lines={section.lines}
+                  store={selection}
+                />
+              </div>
+            ))}
             {repo.note && <p className="service-empty">{repo.note}</p>}
           </>
         ) : (

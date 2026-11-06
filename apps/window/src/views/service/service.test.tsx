@@ -236,3 +236,66 @@ it("fills the right panel's Detail with the selected tile", async () => {
   expect(panel()?.querySelector(".inspector-kicker")?.textContent).toBe("run");
   expect(panel()?.querySelector(".detail-row-fields")?.textContent).toContain("Workflow");
 });
+
+it("converts an offset run time to UTC before labelling it", async () => {
+  const body = mixedSnapshot(mixed);
+  const services = body.services?.map((entry) =>
+    entry.service === SERVICE
+      ? {
+          ...entry,
+          runs: entry.runs.map((run, index) =>
+            index === 0 ? { ...run, time: "2026-10-13T10:15:00+02:00" } : run,
+          ),
+        }
+      : entry,
+  );
+  const { selection } = await render({ ...body, services });
+  const first = section("runs")?.querySelector<HTMLElement>("[data-selection-id]");
+  expect(first?.querySelector("time")?.textContent).toBe("2026-10-13 08:15 UTC");
+  await click(first);
+  expect(selection.getState().row?.fields).toContainEqual({
+    label: "When",
+    value: "2026-10-13 08:15 UTC",
+  });
+});
+
+it("keeps repository lines in source order when only some carry an identity", async () => {
+  const body = mixedSnapshot(mixed);
+  const rows = body.briefing.repositories.rows.map((row) =>
+    row.id !== `repo:${SERVICE}`
+      ? row
+      : {
+          ...row,
+          sections: row.sections.map((s) =>
+            s.title !== "Vulnerabilities"
+              ? s
+              : {
+                  ...s,
+                  lines: s.lines.map(({ id, url, ...line }, index) =>
+                    index === 0 ? line : { ...line, id, url },
+                  ),
+                },
+          ),
+        },
+  );
+  const bare: ViewSnapshot = {
+    ...body,
+    briefing: { ...body.briefing, repositories: { ...body.briefing.repositories, rows } },
+  };
+  await render(bare);
+  const vulnerabilities = Array.from(
+    section("repository")?.querySelectorAll(".service-repo-section") ?? [],
+  ).find((el) =>
+    el.querySelector(".repo-section-title")?.textContent?.startsWith("Vulnerabilities"),
+  );
+  const lines = Array.from(vulnerabilities?.querySelectorAll(".service-row") ?? []);
+  expect(lines.map((line) => line.querySelector(".service-row-title")?.textContent)).toEqual([
+    "log4j-core · 3 vulnerabilities",
+    "log4j-api · 1 vulnerability",
+  ]);
+  expect(lines.map((line) => line.getAttribute("data-selection-id"))).toEqual([
+    null,
+    "alert:Azure/osdu-spi-entitlements:dep:pom.xml:org.apache.logging.log4j:log4j-api",
+  ]);
+  expect(lines[0]?.hasAttribute("data-plain")).toBe(true);
+});
