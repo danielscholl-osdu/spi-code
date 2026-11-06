@@ -10,15 +10,23 @@ export type DetailAction =
   | { kind: "external"; label: string; url: string }
   | { kind: "place"; label: string; route: Route };
 
-function external(url: string): DetailAction {
-  const host = /^https?:\/\/([^/:]+)/.exec(url)?.[1] ?? "";
-  const label = host.endsWith("github.com")
-    ? "Open on GitHub"
-    : // OSDU's upstream GitLab lives at community.opengroup.org.
-      host.includes("gitlab") || host === "community.opengroup.org"
-      ? "Open on GitLab"
-      : "Open link";
-  return { kind: "external", label, url };
+/**
+ * Mirrors the desktop link bridge's allowlist (apps/desktop/src/external-links.ts): only
+ * https://github.com URLs without credentials open. An action the bridge refuses never renders.
+ */
+export function bridgeOpens(url: string) {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.origin === "https://github.com" && parsed.username === "" && parsed.password === ""
+    );
+  } catch {
+    return false;
+  }
+}
+
+function external(url: string | undefined): DetailAction | undefined {
+  return url && bridgeOpens(url) ? { kind: "external", label: "Open on GitHub", url } : undefined;
 }
 
 const LINE_STATIONS = new Set(["upstream", "sync", "cascade", "main"]);
@@ -52,14 +60,17 @@ export function detailAction(
   switch (row.kind) {
     case "run":
     case "repository-line":
-      return href ? external(href) : undefined;
+      return external(href);
     case "station": {
       const [, service, station = ""] = row.id.split(":");
       // A line station's own PR, issue or run; queue items and the fork's upstream carry inspect ids.
+      // A station whose own link the bridge cannot open falls back to the place it belongs to.
       const own = LINE_STATIONS.has(station)
-        ? result?.related.find((related) => related.url && !related.inspect)?.url
+        ? result?.related.find(
+            (related) => related.url && !related.inspect && bridgeOpens(related.url),
+          )?.url
         : undefined;
-      return own ? external(own) : servicePlace(snapshot, service);
+      return external(own) ?? servicePlace(snapshot, service);
     }
     case "flow":
       return servicePlace(snapshot, row.id.split(":")[1]);
@@ -73,8 +84,7 @@ export function detailAction(
       );
       if (!item) return undefined;
       const owner = scopePlace(snapshot, item.scope);
-      const link = item.evidence.find(({ url }) => /^https?:\/\//.test(url))?.url;
-      return owner ?? (link ? external(link) : undefined);
+      return owner ?? external(item.evidence.find(({ url }) => bridgeOpens(url))?.url);
     }
     case "plan":
     case "theme":

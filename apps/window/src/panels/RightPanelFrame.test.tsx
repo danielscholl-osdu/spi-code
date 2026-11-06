@@ -207,3 +207,29 @@ it.each([980, 1280])(
     }
   },
 );
+
+it.each([979, 1280])(
+  "closes rather than showing an empty Detail after the sweep's Evidence at %i px",
+  async (width) => {
+    const view = await mount(width);
+    try {
+      view.trigger.focus();
+      await act(async () => view.trigger.click());
+      expect(view.store.getState()).toMatchObject({ tab: "evidence", evidenceScope: "sweep" });
+      const detail = [
+        ...(view.panel()?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? []),
+      ].find((tab) => tab.textContent === "Detail");
+      if (!detail) throw new Error("Missing Detail tab");
+      detail.focus();
+      await act(async () => detail.click());
+      expect(view.panel()).toBeNull();
+      expect(view.container.textContent).not.toContain("No selection");
+      expect(document.activeElement).toBe(view.trigger);
+      await act(async () => view.trigger.click());
+      expect(view.store.getState()).toMatchObject({ tab: "evidence", evidenceScope: "sweep" });
+      expect(view.panel()).not.toBeNull();
+    } finally {
+      await view.cleanup();
+    }
+  },
+);

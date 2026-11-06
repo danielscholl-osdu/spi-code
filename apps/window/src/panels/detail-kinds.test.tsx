@@ -10,6 +10,7 @@ import legalStations from "../../../../fixtures/watch/inspect-stations-legal-59d
 import projected from "../../../../fixtures/watch/snapshot-59d6895.json?raw";
 import recorded from "../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
 import { NARROW_LAYOUT_MEDIA_QUERY } from "../components/sidebar/ui-sidebar.js";
+import { bridgeOpens } from "./detail-action.js";
 import { RightPanel } from "./RightPanel.js";
 import { RightPanelFrame } from "./RightPanelFrame.js";
 import { createSelectionStore } from "./selection.js";
@@ -235,11 +236,54 @@ afterEach(() => {
 });
 
 const lineStations = [
-  ["upstream", "Upstream", "Open on GitLab"],
+  ["upstream", "Upstream", "Open legal"],
   ["sync", "Sync PR", "Open on GitHub"],
   ["cascade", "Cascade", "Open on GitHub"],
   ["main", "Sync to main", "Open on GitHub"],
 ] as const;
+
+type Bridge = {
+  externalLinkHandlers(
+    contents: { mainFrame: unknown },
+    dependencies: { openExternal(url: string): Promise<void>; warn(message: string): void },
+  ): {
+    openFromRenderer(
+      event: { sender: unknown; senderFrame: unknown },
+      input: unknown,
+    ): Promise<boolean>;
+  };
+};
+
+/** The desktop's real link bridge, so an action it refuses cannot pass as opened. */
+async function desktopBridge() {
+  const path = "../../../desktop/src/external-links.ts";
+  const { externalLinkHandlers } = (await import(/* @vite-ignore */ path)) as Bridge;
+  const contents = { mainFrame: {} };
+  const opened: string[] = [];
+  const warn = vi.fn();
+  const handlers = externalLinkHandlers(contents, {
+    openExternal: async (url) => {
+      opened.push(url);
+    },
+    warn,
+  });
+  const openExternal = (url: string) =>
+    handlers.openFromRenderer({ sender: contents, senderFrame: contents.mainFrame }, url);
+  return { opened, warn, openExternal };
+}
+
+it.each([
+  "https://github.com/Azure/osdu-spi-legal/pull/31",
+  "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/commit/ba05b1c",
+  "https://gitlab.com/osdu/legal",
+  "http://github.com/Azure/osdu-spi-legal",
+  "https://user:secret@github.com/Azure/osdu-spi-legal",
+  "https://github.com.example.com/Azure",
+  "not a url",
+])("decides %s by the desktop bridge's own allowlist", async (url) => {
+  const bridge = await desktopBridge();
+  expect(bridgeOpens(url)).toBe(await bridge.openExternal(url));
+});
 
 async function mountStation(stationId: string) {
   const body = ViewSnapshotSchema.parse(JSON.parse(projected));
@@ -285,8 +329,8 @@ it.each(lineStations)(
   async (stationId, label, verb) => {
     const view = await mountStation(stationId);
     const previous = window.spi;
-    const openExternal = vi.fn(async () => true);
-    window.spi = { ...previous, openExternal };
+    const bridge = await desktopBridge();
+    window.spi = { ...previous, openExternal: bridge.openExternal };
     try {
       const { container, station, result } = view;
       expect(container.querySelector("h2")?.textContent).toBe(`${label} · legal`);
@@ -310,15 +354,38 @@ it.each(lineStations)(
       expect(actions[0]?.textContent).toBe(verb);
       expect(actions[0]?.disabled).toBe(false);
       await act(async () => actions[0]?.click());
-      const own = result.related.find((related) => related.url && !related.inspect)?.url;
-      expect(own).toBeTruthy();
-      expect(openExternal).toHaveBeenCalledExactlyOnceWith(own);
+      const own = result.related.find(
+        (related) => related.url?.startsWith("https://github.com/") && !related.inspect,
+      )?.url;
+      expect(bridge.warn).not.toHaveBeenCalled();
+      if (own) expect(bridge.opened).toEqual([own]);
+      else {
+        expect(bridge.opened).toEqual([]);
+        expect(window.location.hash).toBe("#service/legal");
+      }
     } finally {
       window.spi = previous;
       await view.cleanup();
     }
   },
 );
+
+it("offers the place, never a GitLab link the bridge would refuse, for a GitLab-only station", async () => {
+  const view = await mountStation("upstream");
+  try {
+    const { container, result } = view;
+    const urls = result.related.flatMap(({ url, inspect }) => (url && !inspect ? [url] : []));
+    expect(urls).toHaveLength(1);
+    expect(urls[0]).toMatch(/^https:\/\/community\.opengroup\.org\//);
+    const actions = container.querySelectorAll<HTMLButtonElement>("[data-detail-action]");
+    expect([...actions].map((action) => [action.dataset.detailAction, action.textContent])).toEqual(
+      [["place", "Open legal"]],
+    );
+    expect(container.querySelector(".detail-action")?.textContent).not.toMatch(/GitLab/);
+  } finally {
+    await view.cleanup();
+  }
+});
 
 it("renders Related as label and value rows, never one paragraph", async () => {
   const view = await mountStation("sync");

@@ -161,7 +161,14 @@ export function createSelectionStore(port: InspectPort) {
       return saved?.top ?? 0;
     },
     setTab(tab) {
-      set(tab === "evidence" ? { tab } : { tab, evidenceScope: "selection" });
+      if (tab === "evidence") set({ tab });
+      // PS-11: Detail with nothing selected has nothing to show, so the panel closes.
+      else
+        set({
+          tab,
+          evidenceScope: "selection",
+          ...(get().selected === null ? { open: false } : {}),
+        });
     },
     openSweepEvidence() {
       set({ tab: "evidence", evidenceScope: "sweep", open: true });
