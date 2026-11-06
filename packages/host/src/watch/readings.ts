@@ -22,9 +22,14 @@ export interface ReadingContext {
 type PlaceReader = (anchor: Anchor, context: ReadingContext) => Reading["content"];
 
 // The current month's document is drawn from the calendar before any release read, so months
-// reach a reading only once a release read succeeded or kept an earlier one.
+// reach a reading only once a release read came back whole or kept an earlier one. A cut or
+// failed read alone leaves the months unread.
 function releasesRead(input: WatchInput): boolean {
-  return input.releaseRecords.some((r) => r.failure === undefined || r.retainedFrom !== undefined);
+  return input.releaseRecords.some(
+    (r) =>
+      r.retainedFrom !== undefined ||
+      (r.failure === undefined && r.completeness.kind === "complete"),
+  );
 }
 
 export const readingFor: Record<Anchor["kind"], PlaceReader> = {
