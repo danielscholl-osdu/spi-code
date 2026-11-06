@@ -11,6 +11,9 @@ stations with nothing to do. It uses typed model fields and recorded checks,
 runs, approvals and upstream predictions, never station text. Release PRs still
 need a person to merge after approval; an approved, green, clean Sync to Main PR
 can progress automatically when the repository allows auto-merge.
+An active lane follows its pending Validation checks, not the PR's review or
+draft state; only a waiting Validation check or a current-head workflow approval
+makes that lane wait on a person.
 An unread station retains the neutral `ready` substate; its legacy `unknown`
 state and evidence still describe the missing read, not confirmed health.
 

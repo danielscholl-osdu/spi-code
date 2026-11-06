@@ -15,6 +15,15 @@ export type StationSubstate =
 
 type SubstateFacts = Pick<Facts, "approvals" | "runs" | "radar">;
 
+function prNeedsApproval(pr: PrFact, approvals: readonly WaitingRun[]): boolean {
+  return approvals.some(
+    (run) =>
+      run.pr !== null &&
+      run.sha === pr.headSha &&
+      (run.pr === undefined || run.pr.number === pr.number),
+  );
+}
+
 function prSubstate(
   pr: PrFact,
   approvals: readonly WaitingRun[],
@@ -29,12 +38,7 @@ function prSubstate(
   }
   if (
     failed.some((check) => check.conclusion === "ACTION_REQUIRED") ||
-    approvals.some(
-      (run) =>
-        run.pr !== null &&
-        run.sha === pr.headSha &&
-        (run.pr === undefined || run.pr.number === pr.number),
-    )
+    prNeedsApproval(pr, approvals)
   ) {
     return "waiting-on-person";
   }
@@ -123,12 +127,21 @@ export function stationSubstateOf(
       return line.releasePr ? prSubstate(line.releasePr.pr, approvals) : fallback;
     case "lane": {
       if (station.state === "stopped") return "stopped";
-      const validating = line.prs.filter(({ pr }) =>
-        pendingChecks(pr).some((check) => check.workflow === "Validation"),
-      );
-      const states = validating.map(({ pr }) => prSubstate(pr, approvals));
-      if (states.includes("waiting-on-person")) return "waiting-on-person";
-      if (states.includes("in-progress")) return "in-progress";
+      const validating = line.prs
+        .map(({ pr }) => ({
+          pr,
+          checks: pendingChecks(pr).filter((check) => check.workflow === "Validation"),
+        }))
+        .filter(({ checks }) => checks.length > 0);
+      if (
+        validating.some(
+          ({ pr, checks }) =>
+            checks.some((check) => check.status === "WAITING") || prNeedsApproval(pr, approvals),
+        )
+      ) {
+        return "waiting-on-person";
+      }
+      if (validating.length > 0) return "in-progress";
       return (
         runSubstate(runs?.main, approvals) ??
         (station.state === "waiting" ? "stopped" : fallback)

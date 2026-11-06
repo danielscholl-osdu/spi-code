@@ -2,12 +2,16 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "vitest";
+import { builtInFleet, fleetOf } from "../src/config";
+import { createContext } from "../src/context";
 import type { Facts, PrFact, RunFact } from "../src/facts";
+import { pendingChecks } from "../src/model/checks";
 import { buildModel } from "../src/model/index";
 import type { StationId } from "../src/model/lines";
 import { stationSubstateOf } from "../src/model/substate";
 import { FIXTURE_NOW, fixtureFacts } from "./harness";
 import { fixtureContext } from "./model-fleet";
+import { UPSTREAM_NOW, UPSTREAM_SERVICES, upstreamFacts } from "./upstream-states";
 
 function substate(facts: Facts, id: StationId, service = "partition") {
   const line = buildModel(facts, FIXTURE_NOW, {}, fixtureContext).lines.find(
@@ -58,6 +62,57 @@ describe("typed station substates", () => {
     expect(
       stationSubstateOf({ id: "release", state: "idle", text: "waiting for review" }, line, facts),
     ).toBe("ready");
+  });
+
+  describe("lane validation substates", () => {
+    const context = createContext({
+      fleet: fleetOf(builtInFleet(UPSTREAM_SERVICES)),
+      clock: { now: () => UPSTREAM_NOW },
+    });
+
+    function lane(facts: Facts, service: string) {
+      const line = buildModel(facts, UPSTREAM_NOW, {}, context).lines.find(
+        (line) => line.fork.id === service,
+      );
+      const station = line?.stations.find((station) => station.id === "lane");
+      if (!line || !station) throw new Error("Missing recorded lane");
+      return stationSubstateOf(station, line, facts);
+    }
+
+    test.each(["file", "schema", "partition"])(
+      "%s keeps deploying despite a pending PR review or draft",
+      (service) => {
+        const facts = upstreamFacts();
+        const pr = facts.github.data?.repos[`Azure/osdu-spi-${service}`]?.prs.find((pr) =>
+          pendingChecks(pr).some((check) => check.workflow === "Validation"),
+        );
+        if (!pr) throw new Error("Missing recorded Validation PR");
+        pr.reviewDecision = "REVIEW_REQUIRED";
+        expect(lane(facts, service)).toBe("in-progress");
+        pr.draft = true;
+        expect(lane(facts, service)).toBe("in-progress");
+      },
+    );
+
+    test("a lane waits for Validation approval, not PR review", () => {
+      const facts = upstreamFacts();
+      const repository = facts.github.data?.repos["Azure/osdu-spi-file"];
+      const pr = repository?.prs.find((pr) =>
+        pendingChecks(pr).some((check) => check.workflow === "Validation"),
+      );
+      const check = pr && pendingChecks(pr).find((check) => check.workflow === "Validation");
+      const recordedRun = facts.runs.data?.["Azure/osdu-spi-file"]?.main[0];
+      if (!repository || !pr || !check || !recordedRun) throw new Error("Missing recorded lane");
+      check.status = "WAITING";
+      expect(lane(facts, "file")).toBe("waiting-on-person");
+      check.status = "IN_PROGRESS";
+      facts.approvals.data = {
+        [repository.repo]: [{ ...recordedRun, sha: pr.headSha }],
+      };
+      expect(lane(facts, "file")).toBe("waiting-on-person");
+      facts.approvals.data[repository.repo] = [{ ...recordedRun, sha: "an older head" }];
+      expect(lane(facts, "file")).toBe("in-progress");
+    });
   });
 
   test("queued upstream work waits for the daily sync, not for a person", () => {
