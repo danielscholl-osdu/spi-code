@@ -52,7 +52,19 @@ export interface ReadingParts<T extends ReadingItem> {
   extra?: string;
 }
 
+// Raw issue and check titles carry emoji; a reading shows their words alone.
+const EMOJI = /\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*\uFE0F?/gu;
+
+export function plainText(text: string): string {
+  return text.replace(EMOJI, "").replace(/\s{2,}/g, " ").trim();
+}
+
+function plainTile(tile: ReadingTile): ReadingTile {
+  return { label: plainText(tile.label), value: plainText(tile.value), counts: plainText(tile.counts) };
+}
+
 // One shape for every place: groups in order, at most five items, the rest folded into a line.
+// Display text loses its emoji; ids, evidence and the other item fields pass through unchanged.
 export function placeReading<T extends ReadingItem>(parts: ReadingParts<T>): PlaceReading<T> {
   const seen = new Set<string>();
   const all: (T & { group: string })[] = [];
@@ -60,17 +72,25 @@ export function placeReading<T extends ReadingItem>(parts: ReadingParts<T>): Pla
     for (const item of items) {
       if (seen.has(item.id)) continue;
       seen.add(item.id);
-      all.push({ ...item, group });
+      all.push({
+        ...item,
+        scope: plainText(item.scope),
+        title: plainText(item.title),
+        sub: plainText(item.sub),
+        group,
+      });
     }
   }
   const rest = all.slice(READING_ITEMS);
   const fold = rest.length > 0 ? (parts.fold ?? foldItems)(rest) : undefined;
+  const qualifier = parts.qualifier ? plainText(parts.qualifier) : "";
+  const [a, b, c] = parts.tiles;
   return {
-    headline: parts.headline,
-    ...(parts.qualifier ? { qualifier: parts.qualifier } : {}),
-    tiles: parts.tiles,
+    headline: plainText(parts.headline),
+    ...(qualifier ? { qualifier } : {}),
+    tiles: [plainTile(a), plainTile(b), plainTile(c)],
     items: all.slice(0, READING_ITEMS),
-    folded: [fold, parts.extra].filter(Boolean).join(" ") || null,
+    folded: plainText([fold, parts.extra].filter(Boolean).join(" ")) || null,
   };
 }
 
@@ -132,15 +152,89 @@ export function clockOf(iso: string | undefined): string | undefined {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-// The services whose upstream reads GitLab cut, from the radar's own read records.
-export function cutServices(reads: readonly ReadRecord[], fleet: Fleet): string[] {
+export const NOT_READ = "not read yet";
+
+function serviceOf(read: ReadRecord, fleet: Fleet): string {
+  return fleet.forks.find((f) => f.upstream === read.source || f.repo === read.source)?.id ?? read.source;
+}
+
+function servicesWhere(
+  reads: readonly ReadRecord[],
+  fleet: Fleet,
+  test: (read: ReadRecord) => boolean,
+): string[] {
   const services: string[] = [];
   for (const read of reads) {
-    if (read.completeness.kind !== "cut") continue;
-    const service = fleet.forks.find((f) => f.upstream === read.source)?.id ?? read.source;
+    if (!test(read)) continue;
+    const service = serviceOf(read, fleet);
     if (!services.includes(service)) services.push(service);
   }
   return services;
+}
+
+const isCut = (read: ReadRecord): boolean => read.completeness.kind === "cut";
+const isFailed = (read: ReadRecord): boolean => read.failure !== undefined;
+
+// The services whose upstream reads GitLab cut, from the radar's own read records.
+export function cutServices(reads: readonly ReadRecord[], fleet: Fleet): string[] {
+  return servicesWhere(reads, fleet, isCut);
+}
+
+// The services with a radar read that failed outright.
+export function failedServices(reads: readonly ReadRecord[], fleet: Fleet): string[] {
+  return servicesWhere(reads, fleet, isFailed);
+}
+
+// A campaign as the host detects it; only toolchain campaigns read on Upstream.
+export interface ReadingCampaign {
+  id: string;
+  kind: string;
+  fact: string;
+  forks: readonly string[];
+}
+
+export function campaignTitle(campaign: ReadingCampaign): string {
+  return `Detected: ${campaign.fact} on ${plural(campaign.forks.length, "fork")}`;
+}
+
+// One item for a campaign, built on its members' radar items so it keeps their shape. It carries
+// no action: tracking a campaign is not offered yet.
+function campaignItem<T extends ReadingItem>(campaign: ReadingCampaign, members: readonly T[]): T {
+  const [base] = members;
+  const item: Record<string, unknown> = {
+    ...base,
+    id: campaign.id,
+    ids: [...new Set(members.flatMap((m) => m.ids))],
+    rung: 2,
+    scope: plural(campaign.forks.length, "fork"),
+    title: campaignTitle(campaign),
+    sub: "",
+  };
+  if ("cause" in item) item.cause = `${plural(campaign.forks.length, "fork")} move to ${campaign.fact}.`;
+  if ("effect" in item) item.effect = "";
+  if ("next" in item) item.next = "";
+  if ("verb" in item) item.verb = "";
+  if (Array.isArray(item.evidence)) {
+    const seen = new Set<string>();
+    item.evidence = members
+      .flatMap((m) => (m as unknown as { evidence: unknown[] }).evidence)
+      .filter((link) => {
+        const key = JSON.stringify(link);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }
+  delete item.more;
+  return item as unknown as T;
+}
+
+function readQualifier(cut: number, failed: number, subject: string, unit: string): string | undefined {
+  const parts = [
+    cut > 0 ? `GitLab cut the upstream diffs for ${plural(cut, unit)}` : undefined,
+    failed > 0 ? `${cut > 0 ? "the" : "The"} reads failed for ${plural(failed, unit)}` : undefined,
+  ].filter(Boolean);
+  return parts.length > 0 ? `${parts.join(" and ")}, so ${subject} could be missing.` : undefined;
 }
 
 export interface UpstreamReadingInput<T extends ReadingItem> {
@@ -148,24 +242,46 @@ export interface UpstreamReadingInput<T extends ReadingItem> {
   items: readonly T[];
   radar: readonly ReadRecord[];
   fleet: Fleet;
+  campaigns: readonly ReadingCampaign[];
 }
 
 export function upstreamReading<T extends ReadingItem>(
   input: UpstreamReadingInput<T>,
 ): PlaceReading<T> {
-  const { model, items, radar, fleet } = input;
+  const { model, items, radar, fleet, campaigns } = input;
   const up = model.upstream;
   const at = clockOf(up.schedule.upstream);
   const moving = up.moving;
+  const total = up.forks.length;
+  const unread = up.unread;
+  const none = total === 0 || unread >= total;
   const commits = moving.reduce((sum, f) => sum + (f.behind ?? 0), 0);
   const held = up.held.map((f) => f.service);
   const radarItem = (service: string) => items.find((i) => i.id === `radar:${service}`);
   const before = held.map(radarItem).filter((i): i is T => !!i);
+
+  // A fleet fact shows once, on its campaign; a move only one fork carries stays that fork's item.
+  const covered = new Set<string>();
+  const detected: T[] = [];
+  const toolchains = campaigns
+    .filter((c) => c.kind === "toolchain")
+    .sort((a, b) => b.forks.length - a.forks.length || a.fact.localeCompare(b.fact));
+  for (const campaign of toolchains) {
+    const forks = campaign.forks.filter((s) => !held.includes(s));
+    const members = forks.map(radarItem).filter((i): i is T => !!i);
+    if (members.length === 0) continue;
+    for (const s of forks) covered.add(s);
+    detected.push(campaignItem(campaign, members));
+  }
   const move = up.moves.find((m) => !/SNAPSHOT/i.test(m.value));
-  const moveForks = move ? move.forks.filter((s) => !held.includes(s)) : [];
+  const moveForks = move ? move.forks.filter((s) => !held.includes(s) && !covered.has(s)) : [];
   const toolchain = items.filter((i) => moveForks.some((s) => i.id === `radar:${s}`));
   const others = items.filter(
-    (i) => i.id.startsWith("radar:") && !before.includes(i) && !toolchain.includes(i),
+    (i) =>
+      i.id.startsWith("radar:") &&
+      !before.includes(i) &&
+      !toolchain.includes(i) &&
+      !covered.has(i.id.slice("radar:".length)),
   );
   const still = up.forks.filter(
     (f) => (f.behind ?? 0) > 0 && !moving.some((m) => m.service === f.service),
@@ -175,37 +291,67 @@ export function upstreamReading<T extends ReadingItem>(
     before.length > 0
       ? ` ${NUMBERS[before.length] ?? before.length} ${before.length === 1 ? "needs" : "need"} you first.`
       : "";
-  const headline =
-    commits === 0
-      ? "Nothing queued upstream for the next sync."
+  const unreadNote = unread > 0 ? ` · ${unread} ${NOT_READ}` : "";
+  const headline = none
+    ? `Upstream ${NOT_READ}.`
+    : commits === 0
+      ? unread > 0
+        ? `Nothing queued on the forks read; ${unread} ${NOT_READ}.`
+        : "Nothing queued upstream for the next sync."
       : `${at ? `At ${at}` : "At the next sync"}, ${plural(commits, "commit")} reach ${plural(moving.length, "fork")}.${first}`;
-  const cut = cutServices(radar, fleet);
-  const qualifier =
-    cut.length > 0
-      ? `GitLab cut the upstream diffs for ${plural(cut.length, "service")}, so a toolchain move could be missing.`
-      : undefined;
+  const qualifier = readQualifier(
+    cutServices(radar, fleet).length,
+    failedServices(radar, fleet).length,
+    "a toolchain move",
+    "service",
+  );
   const [top, ...next] = [...moving].sort((a, b) => (b.behind ?? 0) - (a.behind ?? 0));
   const then = next
     .slice(0, 2)
     .map((f) => `${f.service} ${f.behind ?? 0}`)
     .join(", ");
-  const tiles: [ReadingTile, ReadingTile, ReadingTile] = [
-    {
-      label: "Incoming",
-      value: String(commits),
-      counts: `commits · ${moving.length} of ${plural(up.forks.length, "fork")}`,
-    },
-    move
-      ? { label: "Toolchain", value: plural(moveForks.length, "fork"), counts: `move to ${move.value}` }
-      : { label: "Toolchain", value: "0 forks", counts: "move to a released toolchain" },
-    top
-      ? {
-          label: "Largest",
-          value: String(top.behind ?? 0),
-          counts: `commits · ${top.service}${then ? ` · then ${then}` : ""}`,
-        }
-      : { label: "Largest", value: "0", counts: "commits · no fork behind" },
-  ];
+  const [lead, ...also] = toolchains.filter((c) => detected.some((i) => i.id === c.id));
+  const tiles: [ReadingTile, ReadingTile, ReadingTile] = none
+    ? [
+        { label: "Incoming", value: NOT_READ, counts: `commits · ${plural(total, "fork")}` },
+        { label: "Toolchain", value: NOT_READ, counts: "moves to a released toolchain" },
+        { label: "Largest", value: NOT_READ, counts: "commits behind" },
+      ]
+    : [
+        {
+          label: "Incoming",
+          value: String(commits),
+          counts: `commits · ${moving.length} of ${plural(total, "fork")}${unreadNote}`,
+        },
+        lead
+          ? {
+              label: "Toolchain",
+              value: plural(lead.forks.length, "fork"),
+              counts: `move to ${lead.fact}${also.length > 0 ? ` · ${plural(also.length, "more move")}` : ""}`,
+            }
+          : move
+            ? {
+                label: "Toolchain",
+                value: plural(move.forks.filter((s) => !held.includes(s)).length, "fork"),
+                counts: `move to ${move.value}`,
+              }
+            : {
+                label: "Toolchain",
+                value: "0 forks",
+                counts: `move to a released toolchain${unreadNote}`,
+              },
+        top
+          ? {
+              label: "Largest",
+              value: String(top.behind ?? 0),
+              counts: `commits · ${top.service}${then ? ` · then ${then}` : ""}`,
+            }
+          : {
+              label: "Largest",
+              value: "0",
+              counts: unread > 0 ? `commits · no fork read is behind${unreadNote}` : "commits · no fork behind",
+            },
+      ];
   const extra =
     still.length > 0
       ? `${still.map((f) => `${f.service} takes ${plural(f.behind ?? 0, "commit")}`).join(", ")} with no toolchain move.`
@@ -216,7 +362,7 @@ export function upstreamReading<T extends ReadingItem>(
     tiles,
     groups: [
       { group: at ? `Before ${at}` : "Before the next sync", items: before },
-      { group: "Toolchain", items: [...toolchain, ...others] },
+      { group: "Toolchain", items: [...detected, ...toolchain, ...others] },
     ],
     fold: (rest) => {
       const moved = rest.filter((i) => moveForks.includes(i.scope));
@@ -257,6 +403,8 @@ function stationWords(station: Station): string {
 }
 
 function lineTile(line: LineModel): ReadingTile {
+  if (!line.repoRead && !line.runsRead)
+    return { label: "Line", value: NOT_READ, counts: "sync PR, cascade and sync to main" };
   const open = line.stations
     .filter((s) => STATION_NAME[s.id] && s.state !== "idle")
     .sort((a, b) => STATE_RANK[a.state] - STATE_RANK[b.state]);
@@ -275,7 +423,7 @@ function upstreamTile(line: LineModel): ReadingTile {
   const lag = line.upstream?.lag;
   const station = line.stations.find((s) => s.id === "upstream");
   if (lag === undefined || !station || station.state === "unknown")
-    return { label: "Upstream", value: "unread", counts: "commits behind · not measured" };
+    return { label: "Upstream", value: NOT_READ, counts: "commits behind" };
   const detail = station.text.split(" · ").slice(1).join(" · ");
   return {
     label: "Upstream",
@@ -287,6 +435,8 @@ function upstreamTile(line: LineModel): ReadingTile {
 function releaseTile(line: LineModel, now: Date): ReadingTile {
   const last = line.release?.tag;
   const p = line.releasePr;
+  if (!p && !last && !line.repoRead)
+    return { label: "Release", value: NOT_READ, counts: "latest release" };
   if (!p)
     return {
       label: "Release",
@@ -352,23 +502,35 @@ function templateLine(line: LineModel): string | undefined {
   return `Template: ${plural(behind, "commit")} behind osdu-spi${pr}.`;
 }
 
-const QUALIFIED: ReadonlySet<string> = new Set(["broken", "halted", "blocked", "stale"]);
+function serviceQualifier(reads: readonly ReadRecord[]): string | undefined {
+  const cut = reads.some(isCut);
+  const failed = reads.filter(isFailed).length;
+  const failure = failed === 1 ? "a read failed" : `${failed} reads failed`;
+  if (cut && failed > 0)
+    return `GitLab cut this service's upstream diffs and ${failure}, so this reading could be missing something.`;
+  if (cut) return "GitLab cut this service's upstream diffs, so a toolchain move could be missing.";
+  if (failed > 0) return `${cap(failure)} for this service, so this reading could be missing something.`;
+  return undefined;
+}
 
+// A service place shows only what is scoped to the service; fleet aggregates stay on Today.
 function belongs(item: ReadingItem, service: string): boolean {
-  return item.scope === service || item.ids.some((id) => id.split(":")[1] === service);
+  return item.scope === service;
 }
 
 export interface ServiceReadingInput<T extends ReadingItem> {
   model: Model;
   service: string;
   items: readonly T[];
+  // Every read record the sweep kept; the reading qualifies itself on this service's failed or cut ones.
+  reads: readonly ReadRecord[];
   now: Date;
 }
 
 export function serviceReading<T extends ReadingItem>(
   input: ServiceReadingInput<T>,
 ): PlaceReading<T> | null {
-  const { model, service, items, now } = input;
+  const { model, service, items, reads, now } = input;
   const line = model.lines.find((l) => l.fork.id === service);
   if (!line) return null;
   const next = model.upstream.schedule.upstream;
@@ -397,7 +559,9 @@ export function serviceReading<T extends ReadingItem>(
     if (found) (found.items as T[]).push(item);
     else groups.push({ group, items: [item] });
   }
-  const qualifier = QUALIFIED.has(line.pill.kind) ? line.why : undefined;
+  const qualifier = serviceQualifier(
+    reads.filter((r) => r.source === line.fork.repo || r.source === line.fork.upstream),
+  );
   const radar = own.find((i) => i.id === `radar:${service}`);
   const extra = templateLine(line);
   return placeReading({

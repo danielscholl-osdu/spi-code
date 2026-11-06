@@ -1453,7 +1453,6 @@
       },
       "content": {
         "headline": "Template sync has gone stale.",
-        "qualifier": "Sync Template last ran 10-12 08:19; it runs daily",
         "tiles": [
           {
             "label": "Upstream",
@@ -1482,7 +1481,6 @@
       },
       "content": {
         "headline": "Sync Upstream halted on UNKNOWN_TOP_LEVEL.",
-        "qualifier": "UNKNOWN_TOP_LEVEL: schemathesis-tests · 13d",
         "tiles": [
           {
             "label": "Upstream",
@@ -1526,36 +1524,6 @@
             "attention": "ambient",
             "owned": false,
             "group": "Stopped"
-          },
-          {
-            "id": "port:entitlements",
-            "ids": ["port:entitlements", "port:legal"],
-            "rung": 1,
-            "cls": "PORT",
-            "scope": "2 forks",
-            "title": "3 upstream provider changes not ported",
-            "sub": "entitlements 2 · legal 1",
-            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
-            "effect": "Until each MR is ported, entitlements and legal drift from upstream.",
-            "next": "Port !963 into testing/entitlements-v2-test-azure; cite the MR URL in the PR body.",
-            "verb": "Port",
-            "evidence": [
-              {
-                "label": "!963",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963"
-              },
-              {
-                "label": "!956",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956"
-              },
-              {
-                "label": "!783",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/merge_requests/783"
-              }
-            ],
-            "attention": "ambient",
-            "owned": false,
-            "group": "Needs a decision"
           }
         ],
         "folded": "Template: 14 commits behind osdu-spi; template-sync PR #48 open."
@@ -1568,7 +1536,6 @@
       },
       "content": {
         "headline": "Sync PR #31 fails its checks.",
-        "qualifier": "Java Build: upstream requires Java 25, the fork builds on 17 · 13d",
         "tiles": [
           {
             "label": "Upstream",
@@ -1612,36 +1579,6 @@
             "attention": "ambient",
             "owned": false,
             "group": "Needs a decision"
-          },
-          {
-            "id": "port:entitlements",
-            "ids": ["port:entitlements", "port:legal"],
-            "rung": 1,
-            "cls": "PORT",
-            "scope": "2 forks",
-            "title": "3 upstream provider changes not ported",
-            "sub": "entitlements 2 · legal 1",
-            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
-            "effect": "Until each MR is ported, entitlements and legal drift from upstream.",
-            "next": "Port !963 into testing/entitlements-v2-test-azure; cite the MR URL in the PR body.",
-            "verb": "Port",
-            "evidence": [
-              {
-                "label": "!963",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963"
-              },
-              {
-                "label": "!956",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956"
-              },
-              {
-                "label": "!783",
-                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/merge_requests/783"
-              }
-            ],
-            "attention": "ambient",
-            "owned": false,
-            "group": "Needs a decision"
           }
         ],
         "folded": "Template: 14 commits behind osdu-spi; template-sync PR #33 open."
@@ -1654,7 +1591,6 @@
       },
       "content": {
         "headline": "Template sync has gone stale.",
-        "qualifier": "Sync Template last ran 10-12 08:36; it runs daily",
         "tiles": [
           {
             "label": "Upstream",
@@ -1683,7 +1619,6 @@
       },
       "content": {
         "headline": "Template sync has gone stale.",
-        "qualifier": "Sync Template last ran 10-12 08:29; it runs daily",
         "tiles": [
           {
             "label": "Upstream",

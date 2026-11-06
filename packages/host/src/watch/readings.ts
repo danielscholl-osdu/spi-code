@@ -16,12 +16,13 @@ type PlaceReader = (anchor: Anchor, context: ReadingContext) => Reading["content
 
 export const readingFor: Record<Anchor["kind"], PlaceReader> = {
   program: (_anchor, _context) => null,
-  upstream: (_anchor, { model, input, briefing }) =>
+  upstream: (_anchor, { model, input, briefing, campaigns }) =>
     upstreamReading({
       model,
       items: [...briefing.focus, ...briefing.rest],
       radar: (input.envelopeReads ?? input.reads).radar ?? [],
       fleet: input.context.fleet,
+      campaigns,
     }),
   service: (anchor, { model, input, briefing }) =>
     anchor.kind === "service"
@@ -29,6 +30,7 @@ export const readingFor: Record<Anchor["kind"], PlaceReader> = {
           model,
           service: anchor.id,
           items: [...briefing.focus, ...briefing.rest],
+          reads: Object.values(input.envelopeReads ?? input.reads).flatMap((area) => area ?? []),
           now: input.context.clock.now(),
         })
       : null,
