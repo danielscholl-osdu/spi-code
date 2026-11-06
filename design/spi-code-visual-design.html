@@ -505,7 +505,7 @@ ul.plain li{margin:3px 0}
 <body>
 <main class="wrap">
 <header>
-    <p class="eyebrow">spi-code · visual design · v2, revision 1</p>
+    <p class="eyebrow">spi-code · visual design · v2, revision 2</p>
     <h1>SPI Code visual design</h1>
     <p class="lead">T3 Code's workbench with SPI awareness: the program's state drawn in the window, acted on through cards, and handed to Copilot as structured context instead of re-read from GitHub.</p>
     <nav class="docnav" aria-label="Design documents">
@@ -583,7 +583,7 @@ ul.plain li{margin:3px 0}
       <thead><tr><th style="width:18%">Use</th><th style="width:44%">Where it lives</th><th>How it is reached</th></tr></thead>
       <tbody>
         <tr><td><b>A · View</b> the system</td><td>The Inbox, a thing's page, a lens, and the Detail and Evidence tabs for the selection</td><td>Sidebar, ⌘K, a scope chip on any row, a row in any lens</td></tr>
-        <tr><td><b>B · Act</b> on it</td><td>Actions on the Detail tab. A button never writes: it makes a card. A card asked for in a thread is decided in that thread's composer strip; one asked for by a button is decided on the card. Waiting for you in the Inbox lists every pending card and links to where it is decided (M4)</td><td>Detail tab, the card, the Inbox count</td></tr>
+        <tr><td><b>B · Act</b> on it</td><td>Actions on the Detail tab. A button never writes: it makes a card. A card asked for in a thread is decided in that thread's composer strip; one asked for by a button is decided only in the Inbox's Waiting for you. Detail and the run show a card's state and link there (M4)</td><td>Detail tab, the card, the Inbox count</td></tr>
         <tr><td><b>C · Chat</b> and change code</td><td>A thread under its thing, seeded with the anchor's reading and the chips the operator attached. Operate threads read and explain (M3); code threads edit a fork in a worktree with T3 Code's right panel, diff and terminal (M5)</td><td>Ask or Add to chat on the Detail tab, @ in any composer, a sentence in ⌘K, + beside a thing</td></tr>
       </tbody>
     </table></div>
@@ -649,7 +649,7 @@ ul.plain li{margin:3px 0}
     </div>
     <ul class="plain">
       <li>The middle shows one thing. The right panel is the one detail surface; no page carries a second copy of the selection.</li>
-      <li>One selection, one panel. A selection is an id. It survives navigation when the destination lists that id as a row, a station, a line or a thread's anchor; otherwise it clears. Returning to a list restores its scroll position and selected row; the window keeps one position per route.</li>
+      <li>One selection, one panel. A selection is an id. It survives navigation when the destination lists that id as a row, a station, a line or a thread's anchor; otherwise it clears. Returning to a list restores its scroll position and selected row; the window keeps one position per route. While ⇧ holds several rows, the right panel shows the Detail of the last row selected under a line that counts the selection, and Add to chat takes them all.</li>
       <li>Evidence is shown once per surface: the sweep line, one line on a section whose sources are not fresh, one tab for the selection.</li>
       <li>A thread starts from a thing and names it. The composer exists only in a thread.</li>
       <li>A button never writes; it creates a card. A disabled action states why, in place.</li>
@@ -677,10 +677,10 @@ ul.plain li{margin:3px 0}
     <div class="tblwrap"><table class="tbl compact">
       <thead><tr><th style="width:17%">Sidebar entry</th><th style="width:32%">The middle shows</th><th style="width:27%">Selecting a row or part</th><th>Opening it (⏎, double-click, the name)</th></tr></thead>
       <tbody>
-        <tr><td><b>Inbox</b> · count of P0 and P1 items and pending cards</td><td>Headline, summary, three facts, Waiting for you, the queue in Now, Next and Later, the rest folded, the ready line</td><td>Detail for the queue item or card</td><td>The scope chip opens the service page; a card opens the thread that decides it</td></tr>
+        <tr><td><b>Inbox</b> · count of P0 and P1 items and pending cards</td><td>Headline, summary, three facts, Waiting for you, the queue in Now, Next and Later, the rest folded, the ready line</td><td>Detail for the queue item or card</td><td>The scope chip opens the service page; a thread's card opens that thread's strip; a button's card is decided here</td></tr>
         <tr><td><b>Template</b></td><td>The template fact, the rollout in progress, the template repository's open work, its threads</td><td>Detail for the rollout item or a repository line</td><td>A fork name opens its service page</td></tr>
         <tr><td><b>Environment</b></td><td>Headline, facts, the last 24 hours as four lanes, the stack repository's open work, a Live cluster section that fills at M6, its threads</td><td>Detail for an event on a lane</td><td></td></tr>
-        <tr><td><b>Releases</b></td><td>One row per month, newest first, with its notes state</td><td>Detail: the month's figures</td><td>The month's page: stats, key changes, the document</td></tr>
+        <tr><td><b>Releases</b></td><td>One row per month, newest first, with its notes state</td><td>Detail: the month's figures</td><td>The month's page: stats, key changes, the document from the month inspect's related</td></tr>
         <tr><td><b>A service</b> · dot and word</td><td>Stations across the top, then Attention, Threads, Upstream sync, Repository, Release, Runs</td><td>Detail for a station, a queue item, a line or a run</td><td>A line opens on GitHub; a thread opens</td></tr>
         <tr><td><b>A thread</b> under its thing</td><td>Header with title, kind, anchor and branch; the context line; the timeline; the composer; the drawer</td><td>The anchor stays selected; the Thread tab leads in a code thread</td><td>The anchor chip opens the thing's page</td></tr>
         <tr><td><b>Flow</b> lens</td><td>Headline, four tiles, one row per fork, then next, also and the schedule under the table</td><td>Detail for the fork's upstream sync; Plan in the toolbar selects the wave plan with its note</td><td>The service page, with the row still selected</td></tr>
@@ -694,15 +694,14 @@ ul.plain li{margin:3px 0}
 
   <section>
     <h2>Inbox</h2>
-    <p>The Inbox is the operator's day and the M2 landing place. It carries what the rib's Today carries, in the same order from the same briefing. Each queue row names its scope with a chip that opens the thing's page, and a row a thread owns carries that thread's marker. Waiting for you lists every pending card with the thread or button that asked for it, and opening a card goes to the one place it is decided (AU-10). The Inbox count on its sidebar row is P0 and P1 items plus pending cards, and that row is the count's only home.</p>
+    <p>The Inbox is the operator's day and the M2 landing place. It carries what the rib's Today carries, in the same order from the same briefing. Each queue row names its scope with a chip that opens the thing's page, and a row a thread owns carries that thread's marker. Waiting for you lists every pending card with the thread or button that asked for it. A thread's card is decided in that thread's composer strip and its row opens it; a button's card is decided on its row here and nowhere else. Detail and runs show a card's state and link here (AU-10). The Inbox's sidebar pip is one combined total of P0 and P1 items and pending cards, shown nowhere else; the section counts inside the Inbox are labels on their lists, not that total.</p>
     <div class="mockwrap">
       <div class="app tall">
         <div class="bar"><span class="dots"><i></i><i></i><i></i></span><b>SPI Code</b><span class="crumb">Inbox</span><span class="sp"></span><span class="sweep warn"><span class="d"></span>swept 2 min ago · 1 area cut · 3 stale · next sync 18:00</span><span class="kbd">⌘K</span><span class="tg" aria-label="Toggle sidebar">▯</span><span class="tg" aria-label="Toggle terminal">▭</span><span class="tg" aria-label="Toggle right panel">▯</span></div>
         <div class="side">
           <div class="find"><span>⌕</span><span class="txt">Find or ask</span><span class="kbd">⌘K</span></div>
           <div class="scroll">
-            <div class="it on"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">6</span></div>
-            <div class="it th sub2"><span class="lbl">What changed since Friday</span><span class="stt ok">Done</span></div>
+            <div class="it on"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">7</span></div>
             <div class="grp">Program</div>
             <div class="it"><span class="d y"></span><span class="lbl">Template</span><span class="n">1 rolling</span></div>
             <div class="it"><span class="d"></span><span class="lbl">Environment</span><span class="n">v0.41.2</span></div>
@@ -732,7 +731,7 @@ ul.plain li{margin:3px 0}
           <div class="foot"><div class="it"><span class="d"></span><span class="lbl">Setup</span><span class="n">ready</span></div><div class="stamp">swept 2 min ago</div></div>
         </div>
         <div class="main">
-          <div class="tool"><h1>Inbox</h1><span class="sub">5 in focus · 1 card · 8 more</span></div>
+          <div class="tool"><h1>Inbox</h1><span class="sub">5 in focus · 2 cards · 8 more</span></div>
           <div class="body">
             <p class="head">Clear the sync conflict on entitlements, then start the two waiting forks.</p>
             <p class="summary">The cascade on entitlements has waited four days. Two forks are ready to start. The environment deployed this morning and nine release PRs are open.</p>
@@ -741,15 +740,16 @@ ul.plain li{margin:3px 0}
               <div class="fact"><div class="k">Upstream sync</div><div class="v bad">1 of 13</div><div class="s">forks stopped · entitlements</div></div>
               <div class="fact"><div class="k">Template · main 3fc90a1</div><div class="v warn">11 of 13</div><div class="s">on main · 2 changes reach the forks</div></div>
             </div>
-            <div class="sec"><div class="sh"><h2>Waiting for you</h2><span class="n">1</span></div>
-              <div class="row"><span class="pr card-pr">Change</span><span><span class="t"><span class="scope">entitlements</span>Push branch to fork_integration<span class="cls">from the thread Fix the sync conflict</span></span><span class="s">push_branch · 9b07f31 fast-forward from 4e1c2a9 · decided in that thread's composer strip</span></span><span class="age">3 min</span></div>
+            <div class="sec"><div class="sh"><h2>Waiting for you</h2><span class="n">2</span></div>
+              <div class="row"><span class="pr card-pr">Change</span><span><span class="t"><span class="scope">entitlements</span>Push branch<span class="cls">from the thread Fix the sync conflict</span></span><span class="s">push_branch · 9b07f31 fast-forward · decided in that thread's strip</span></span><span class="age">3 min</span></div>
+              <div class="row"><span class="pr card-pr">Run</span><span><span class="t"><span class="scope">entitlements</span>Dispatch cascade<span class="cls">from the same thread</span></span><span class="s">dispatch_workflow · at the pushed head · decided there, after the push</span></span><span class="age">3 min</span></div>
             </div>
             <div class="sec"><div class="sh"><h2>Now</h2><span class="n">1</span></div>
               <div class="row sel"><span class="pr p0">P0</span><span><span class="t"><span class="scope">entitlements</span>Cascade stopped on a merge conflict<span class="cls">conflict</span></span><span class="s"><span class="thm">▣ Why is the cascade stopped</span> · integration validation fails after the sync</span></span><span class="age">4 d</span></div>
             </div>
             <div class="sec"><div class="sh"><h2>Next</h2><span class="n">4</span></div>
               <div class="row"><span class="pr p1">P1</span><span><span class="t"><span class="scope fleet">fleet</span>2 changes on main reach 11 forks<span class="cls">rollout</span></span><span class="s">2 merges · workflows and CI · no PR carries them yet</span></span><span class="age"></span></div>
-              <div class="row"><span class="pr p1">P1</span><span><span class="t"><span class="scope">unit</span>Release PR fails at build<span class="cls">build red</span></span><span class="s">coverage check red on PR #57</span></span><span class="age">2 d</span></div>
+              <div class="row"><span class="pr p1">P1</span><span><span class="t"><span class="scope">unit</span>Release PR fails at build<span class="cls">build red</span></span><span class="s">coverage check red on PR #1162</span></span><span class="age">2 d</span></div>
               <div class="row"><span class="pr p1">P1</span><span><span class="t"><span class="scope">indexer</span>Next sync carries a toolchain move<span class="cls">toolchain</span></span><span class="s">21 commits queued · syncs at 18:00</span></span><span class="age"></span></div>
               <div class="row"><span class="pr p1">P1</span><span><span class="t"><span class="scope">legal</span>Next sync carries a SNAPSHOT toolchain<span class="cls">toolchain</span></span><span class="s">12 commits queued · held</span></span><span class="age"></span></div>
             </div>
@@ -758,7 +758,7 @@ ul.plain li{margin:3px 0}
           </div>
         </div>
         <div class="right">
-          <div class="rtabs"><button class="on">Detail</button><button>Evidence</button><button class="off">Log <span style="font-size:9px">M3</span></button></div>
+          <div class="rtabs"><button class="on">Detail</button><button>Evidence</button><button class="off">Log</button></div>
           <div class="ins">
             <div class="kick">P0 · conflict · entitlements</div>
             <div class="h">Cascade stopped on a merge conflict</div>
@@ -768,13 +768,13 @@ ul.plain li{margin:3px 0}
             <div class="k">Effect</div><div class="v">Main does not advance while the cascade is stopped. No other fork waits on it.</div>
             <div class="k">Next</div><div class="v">Resolve the conflict on fork_integration and start the cascade again.</div>
             <div class="acts"><span class="btn off">Dispatch cascade</span><span class="btn">Ask</span><span class="btn">Add to chat</span><span class="btn">Fix in a code thread</span></div>
-            <div class="why">Dispatch cascade: writes arrive at M4</div>
+            <div class="why">Dispatch cascade: approvals are not available yet</div>
             <div class="k">Evidence</div><ul><li><a>issue #412</a></li><li><a>cascade run</a></li></ul>
           </div>
         </div>
       </div>
     </div>
-    <p class="note">Proposed, light appearance, example data. Entitlements holds two threads: a code thread waiting on the operator with its branch under the title, and an operate thread working. The Inbox's own thread sits under it. The P0 row carries the marker of the thread that owns it. The card in Waiting for you came from the code thread and is decided there.</p>
+    <p class="note">Proposed, light appearance, example data. Entitlements holds two threads: a code thread waiting on the operator with its branch under the title, and an operate thread working; the Inbox's Done thread is in the Settled shelf. The P0 row carries the marker of the thread that owns it. Both cards in Waiting for you came from the code thread and are decided there.</p>
     <p>Before the first sweep finishes, the Inbox shows what the host's sweep status message carries and nothing more: "first sweep running", the API calls remaining and when the budget resets, and each deferred area with its reason, from the fields <code>remaining</code>, <code>floor</code>, <code>resetAt</code> and <code>deferredAreas</code>.</p>
   </section>
 
@@ -787,7 +787,7 @@ ul.plain li{margin:3px 0}
         <div class="side">
           <div class="find"><span>⌕</span><span class="txt">Find or ask</span><span class="kbd">⌘K</span></div>
           <div class="scroll">
-            <div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">6</span></div>
+            <div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">7</span></div>
             <div class="grp">Program<span class="n">3 ▸</span></div>
             <div class="grp">Services<span class="n">13</span></div>
             <div class="it"><span class="d y"></span><span class="lbl">partition</span><span class="n">toolchain</span></div>
@@ -818,30 +818,29 @@ ul.plain li{margin:3px 0}
               <div class="st"><div class="k">Sync PR</div><div class="w">idle</div><div class="x">merged</div></div>
               <div class="st sel"><div class="k">Cascade</div><div class="w stopped">stopped</div><div class="x">conflict</div></div>
               <div class="st"><div class="k">Sync to main</div><div class="w">idle</div><div class="x">idle</div></div>
-              <div class="st"><div class="k">Release</div><div class="w waiting">waiting</div><div class="x">gate 3 · PR #431</div></div>
+              <div class="st"><div class="k">Release</div><div class="w waiting">waiting</div><div class="x">gate 2 · PR #1188</div></div>
               <div class="st"><div class="k">Stack lane</div><div class="w">idle</div><div class="x">last run ok</div></div>
             </div>
             <p class="note" style="margin-top:0"><span class="ev bad">github issues and prs failed · 3 more</span></p>
             <div class="sec"><div class="sh"><h2>Attention</h2><span class="n">2</span></div>
               <div class="row"><span class="pr p0">P0</span><span><span class="t">Cascade stopped on a merge conflict<span class="cls">conflict</span></span><span class="s"><span class="thm">▣ Why is the cascade stopped</span> · integration validation fails after the sync</span></span><span class="age">4 d</span></div>
-              <div class="row"><span class="pr p2">P2</span><span><span class="t">Release PR is green<span class="cls">ready</span></span><span class="s">waiting for a reviewer on PR #431</span></span><span class="age">1 d</span></div>
+              <div class="row"><span class="pr p2">P2</span><span><span class="t">Release PR is green<span class="cls">ready</span></span><span class="s">waiting for a reviewer on PR #1188</span></span><span class="age">1 d</span></div>
             </div>
             <div class="sec"><div class="sh"><h2>Threads</h2><span class="n">2 active · 3 settled</span></div>
               <div class="row thr"><span class="d run"></span><span><span class="t">Why is the cascade stopped<span class="cls">operate · Working</span></span><span class="s">anchored to the P0 item · reading the failed run · 2 min ago</span></span><span class="age">open</span></div>
-              <div class="row thr code"><span class="d wait"></span><span><span class="t">Fix the sync conflict<span class="cls">code · Waiting on you</span></span><span class="s">spi/sync-conflict → fork_integration · 1 commit · a push card waits in the composer strip</span></span><span class="age">open</span></div>
+              <div class="row thr code"><span class="d wait"></span><span><span class="t">Fix the sync conflict<span class="cls">code · Waiting on you</span></span><span class="s">spi/sync-conflict → fork_integration · 1 commit · 2 cards wait in the composer strip</span></span><span class="age">open</span></div>
             </div>
             <div class="sec"><div class="sh"><h2>Upstream sync</h2><span class="n">stopped</span><span class="ev bad">github issues and prs failed · 4 more</span></div>
               <div class="kv"><span class="k">Behind</span><span>0 commits · no toolchain move</span><span class="k">Line</span><span>Sync PR <span style="color:var(--a-grn-ink)">merged</span> · Cascade <span style="color:var(--a-red-ink)">failed</span> · Sync to main · Main run</span><span class="k">Next</span><span><b>Stopped · open</b></span></div>
             </div>
             <div class="sec"><div class="sh"><h2>Repository</h2><span class="n">1 issue needs a human</span><span class="ev bad">github issues and prs failed · 3 more</span></div>
               <ul class="lines"><li><span class="tag bad">human-required</span><span>Integration validation failed after sync · #412<span class="s">opened 4 d ago · from the sync workflow</span></span></li>
-              <li class="pend"><span class="tag">pull request</span><span>Resolve the sync conflict · from the thread Fix the sync conflict<span class="s">pending · not yet in a sweep · opens when the push card is approved</span></span></li>
               <li><span class="tag warn">high</span><span>Missing input validation · 2 alerts<span class="s">shipped code · provider module · from code scanning</span></span></li></ul>
             </div>
           </div>
         </div>
         <div class="right">
-          <div class="rtabs"><button class="on">Detail</button><button>Evidence</button><button class="off">Log <span style="font-size:9px">M3</span></button></div>
+          <div class="rtabs"><button class="on">Detail</button><button>Evidence</button><button class="off">Log</button></div>
           <div class="ins">
             <div class="kick">station · entitlements</div>
             <div class="h">Cascade · stopped</div>
@@ -850,12 +849,12 @@ ul.plain li{margin:3px 0}
             <div class="k">Cause</div><div class="v">Integration validation fails after the sync brought upstream commits that touch a fork-owned file.</div>
             <div class="k">Next</div><div class="v">Resolve the conflict on fork_integration and start the cascade again.</div>
             <div class="acts"><span class="btn off">Dispatch cascade</span><span class="btn">Ask</span><span class="btn">Add to chat</span></div>
-            <div class="why">Dispatch cascade: writes arrive at M4</div>
+            <div class="why">Dispatch cascade: approvals are not available yet</div>
           </div>
         </div>
       </div>
     </div>
-    <p class="note">Proposed, dark appearance, example data. The Threads section lists the two active threads with their status; the pull request the code thread will open is drawn dashed in Repository as pending until a sweep confirms it. The station's cause and next come through the fork's upstream inspect, which is how the four line stations resolve until station inspect ids land.</p>
+    <p class="note">Proposed, dark appearance, example data. The Threads section lists the two active threads with their status. The pull request the code thread will open lives on its card; a dashed row appears in Repository only once a tool result has returned its URL, and a sweep turns it solid. The station's cause and next come through the fork's upstream inspect, which is how the four line stations resolve until station inspect ids land.</p>
     <div class="tblwrap"><table class="tbl compact">
       <thead><tr><th style="width:15%">Section</th><th style="width:40%">Content</th><th style="width:25%">Source in the Watch contract</th><th>Needs first</th></tr></thead>
       <tbody>
@@ -863,7 +862,7 @@ ul.plain li{margin:3px 0}
         <tr><td><b>Attention</b></td><td>Queue items whose scope is this service, in priority order, with the owning thread's marker</td><td><code>briefing.focus</code>, <code>briefing.rest</code> by <code>scope</code>; the thread store</td><td></td></tr>
         <tr><td><b>Threads</b></td><td>Active threads anchored here with status, kind, branch and last activity; settled count</td><td>The host's thread store (M3)</td><td></td></tr>
         <tr><td><b>Upstream sync</b></td><td>Behind, carries, ready, plan, the four line cells, next, the rib's detail lines; the row is the selection when the page is opened from Flow</td><td><code>briefing.flow.rows[fork]</code></td><td></td></tr>
-        <tr><td><b>Repository</b></td><td>The repository's open work as selectable lines, plus the thread artifacts not yet in a sweep, dashed</td><td><code>briefing.repositories.rows[repo:service]</code></td><td>Repo-line ids and URLs</td></tr>
+        <tr><td><b>Repository</b></td><td>The repository's open work as selectable lines, plus artifacts a thread created, dashed until a sweep reads them</td><td><code>briefing.repositories.rows[repo:service]</code></td><td>Repo-line ids and URLs</td></tr>
         <tr><td><b>Release</b></td><td>The release gate, the release PR and the month it belongs to</td><td><code>stations[service].release</code> carries the gate text only</td><td>Per-service release rows</td></tr>
         <tr><td><b>Runs</b></td><td>Workflow runs for this fork, newest first: workflow, result, when</td><td>Not carried; the tree holds run ids without their service</td><td>Workflow runs with their facts</td></tr>
       </tbody>
@@ -875,12 +874,13 @@ ul.plain li{margin:3px 0}
       <tbody>
         <tr><td><b>Queue item</b></td><td>The item's id</td><td>The inspect result in full; title from the item</td><td></td></tr>
         <tr><td><b>Flow row</b></td><td><code>upstream:&lt;fork&gt;</code></td><td>The inspect result; behind, carries, ready, plan, line, next, detail lines from the row</td><td></td></tr>
-        <tr><td><b>Plan</b> (Flow toolbar)</td><td>The plan's inspect id</td><td>Title, lines, note, the schedule</td><td></td></tr>
-        <tr><td><b>Repository row</b>, <b>theme</b>, <b>environment event</b></td><td>The ids the Repositories, Horizon and Environment views already send to inspect</td><td>The inspect result; the row's own cells and sections</td><td></td></tr>
+        <tr><td><b>Plan</b> (Flow toolbar)</td><td><code>upstream</code></td><td>Title, lines, note, the schedule</td><td></td></tr>
+        <tr><td><b>Repository row</b>, <b>template step</b></td><td><code>repo:&lt;id&gt;</code>, <code>step:&lt;marker&gt;</code></td><td>The inspect result; a repository's tabs and links flatten into related</td><td></td></tr>
+        <tr><td><b>Theme</b>, <b>environment event</b></td><td>An optional <code>inspect</code> on the row (<code>theme:</code>, <code>hold:</code> or <code>run:</code>)</td><td>The inspect result when the row has an id; otherwise the row's own fields (title, sub, forks, next; label, state, detail) and nothing invented</td><td></td></tr>
         <tr><td><b>Station</b></td><td>None for the station itself</td><td>Label, state word, text. Upstream, Sync PR, Cascade and Sync to main add the fork's upstream inspect. Release and Stack lane show state and text only</td><td>Station inspect ids</td></tr>
         <tr><td><b>Repository line</b> (PR, issue, alert)</td><td>None; the line has tag, text, sub and an upstream flag</td><td>Not selectable until it has an id. Drawn as text in its section</td><td>Repo-line ids and URLs</td></tr>
-        <tr><td><b>Release month</b></td><td><code>ReleaseLine.id</code>, no inspect</td><td>Name, state text, headline, stats, key changes, notes state; no cause, effect or actions</td><td></td></tr>
-        <tr><td><b>Run</b></td><td>A tree id with its evidence state</td><td>Not drawn as a row</td><td>Workflow runs with their facts</td></tr>
+        <tr><td><b>Release month</b></td><td><code>release:&lt;month&gt;</code></td><td>The inspect result: READY or UNREAD, the headline as cause, state as effect, required actions as next, notes state and stats as why; <code>related</code> holds key changes, highlights, changelog, issues, per-fork rows with URLs and links, and is the month page's document source</td><td></td></tr>
+        <tr><td><b>Run</b></td><td><code>run:&lt;id&gt;</code> resolves, but no snapshot row carries one</td><td>Not drawn as a row</td><td>Workflow runs with their facts</td></tr>
         <tr><td><b>Card</b> (M4), <b>thread artifact</b> (M3)</td><td>The approval store id; the thread store key</td><td>The card's bindings and state; the artifact's kind, key, thread and whether a sweep has confirmed it</td><td></td></tr>
       </tbody>
     </table></div>
@@ -896,7 +896,7 @@ ul.plain li{margin:3px 0}
         <div class="side">
           <div class="find"><span>⌕</span><span class="txt">Find or ask</span><span class="kbd">⌘K</span></div>
           <div class="scroll">
-            <div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">6</span></div>
+            <div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">7</span></div>
             <div class="grp">Program<span class="n">3 ▸</span></div>
             <div class="grp">Services<span class="n">13 ▸</span></div>
             <div class="grp">Lenses</div>
@@ -930,7 +930,7 @@ ul.plain li{margin:3px 0}
           </div>
         </div>
         <div class="right">
-          <div class="rtabs"><button>Detail</button><button class="on">Evidence</button><button class="off">Log <span style="font-size:9px">M3</span></button></div>
+          <div class="rtabs"><button>Detail</button><button class="on">Evidence</button><button class="off">Log</button></div>
           <div class="ins">
             <div class="kick">what this selection is drawn from</div>
             <div class="h">Start indexer-queue</div>
@@ -955,7 +955,7 @@ ul.plain li{margin:3px 0}
 
   <section id="context">
     <h2>Context hand-off</h2>
-    <p>The reason the view exists beside the chat: what the operator sees is already a reading, so it goes to Copilot as data, not as a request to go and read GitHub. A <b>context chip</b> is one selection packed for a thread. Chips are added by @ in any composer (a service, a queue item, a line, a run, a lens row, a theme, or a file in a code thread), by Add to chat on the Detail tab or the toolbar (⌘⇧A), and by selecting several rows with ⇧ and adding them at once. A chip can go to a new thread (Ask) or to an existing thread of the operator's choice, defaulting to the thread that owns the anchor.</p>
+    <p>The reason the view exists beside the chat: what the operator sees is already a reading, so it goes to Copilot as data, not as a request to go and read GitHub. A <b>context chip</b> is one selection packed for a thread. Chips are added by @ in any composer (a service, a queue item, a line, a run, a lens row, a theme, or a file in a code thread), by Add to chat on the Detail tab or the toolbar (⌘⇧A), and by selecting several rows with ⇧ and adding them at once. A chip can go to a new thread (Ask) or to an existing thread of the operator's choice, defaulting to the thread that owns the anchor. In the composer a chip is a draft: preview, remove and refresh act on drafts only. Sending snapshots each chip's exact payload, sweep time and evidence onto that message, and a sent chip never changes.</p>
     <div class="tblwrap"><table class="tbl compact">
       <thead><tr><th style="width:22%">A chip carries</th><th>Which is</th></tr></thead>
       <tbody>
@@ -963,6 +963,7 @@ ul.plain li{margin:3px 0}
         <tr><td><b>The reading</b></td><td>The compact inspect result: class, cause, effect, next, why, the action ids with their disabled reasons, related ids</td></tr>
         <tr><td><b>Its evidence</b></td><td>The read records behind it (source, object, observed at, inferred, completeness) or, when the result predates per-value provenance, the evidence references it lists</td></tr>
         <tr><td><b>Its freshness</b></td><td>The sweep time it came from, the provenance areas with their states, and completeness in the words the Evidence tab uses</td></tr>
+        <tr><td><b>By kind</b></td><td>What the Detail-by-kind table gives that kind: the inspect result where one resolves; a station's label, state, text and upstream inspect; a theme's or event's own fields when it has no inspect id. A repository line cannot be a chip until it has an id</td></tr>
         <tr><td><b>Never</b></td><td>Raw pages, logs, diffs or issue bodies. Copilot fetches those with read tools if it needs them, and the work log shows that it did</td></tr>
       </tbody>
     </table></div>
@@ -974,7 +975,7 @@ ul.plain li{margin:3px 0}
           <div class="body" style="padding-bottom:0"><div class="tlne">
             <div class="ctx"><b>Context</b> · from the sweep at 09:12 UTC: the anchor and 2 chips, 3,100 tokens</div>
             <div class="pop"><div class="hd"><b>Cascade stopped on a merge conflict</b><span class="stt">queue item · conflict · entitlements</span></div>
-              <div class="kv"><span class="k">Cause</span><span>Integration validation fails after the sync brought upstream commits that touch a fork-owned file.</span><span class="k">Next</span><span>Resolve the conflict on fork_integration and start the cascade again.</span><span class="k">Actions</span><span>dispatch_cascade (writes arrive at M4)</span><span class="k">Evidence</span><span>issue #412 · cascade run 7718 · 2 reads, fresh and stale</span><span class="k">Areas</span><span>github stale · runs stale · upstream fresh</span><span class="k">Size</span><span>1,400 of 2,000 tokens</span></div>
+              <div class="kv"><span class="k">Cause</span><span>Integration validation fails after the sync brought upstream commits that touch a fork-owned file.</span><span class="k">Next</span><span>Resolve the conflict on fork_integration and start the cascade again.</span><span class="k">Actions</span><span>dispatch_cascade (approvals are not available yet)</span><span class="k">Evidence</span><span>issue #412 · cascade run 7718 · 2 reads, fresh and stale</span><span class="k">Areas</span><span>github stale · runs stale · upstream fresh</span><span class="k">Size</span><span>1,400 of 2,000 tokens</span></div>
               <div class="acts"><span class="btn">Raw JSON</span><span class="btn">Refresh from this sweep</span><span class="btn">Remove</span></div>
             </div>
           </div></div>
@@ -983,14 +984,14 @@ ul.plain li{margin:3px 0}
         <div class="right"></div>
       </div>
     </div>
-    <p class="note">Proposed. The composer carries the anchor and three chips; clicking a chip opens its preview with the exact payload, a raw view, a refresh from the latest sweep, and remove. A chip from an earlier sweep is dimmed and says so until refreshed.</p>
+    <p class="note">Proposed. The composer carries the anchor and three chips; clicking a chip opens its preview with the exact payload, a raw view, a refresh from the latest sweep, and remove. A draft from an earlier sweep is dimmed and says so until refreshed; a sent chip keeps the sweep it was sent with.</p>
     <p>Budget: a chip is at most 2,000 tokens and a message at most 8 chips. A chip over budget is trimmed to identity, class, cause, next and evidence references, and its preview says "trimmed". The seeded message is the structured payload, sent the way T3 Code sends context references on a user message and drawn in the timeline as the same chips (TH-02, PS-14). A thread has exactly one anchor and any number of attachments over its life (TH-01).</p>
   </section>
 
   <section id="return">
     <h2>Threads and the return path</h2>
     <p>A thread lives under its thing. Its header names its kind, its anchor and, for a code thread, its branch. The first timeline entry is the context line. Threads are listed with T3 Code's statuses: Working, Waiting on you (an open card, a question, or a push to review), Done, Failed, Stopped; Done, Failed and Stopped threads are Settled and move to the shelf. The same status shows on the thing's sidebar row and in the Threads section of its page, and a queue row a thread owns carries that thread's marker (TH-05).</p>
-    <p>What a thread makes comes back to the view. The host's thread store records every artifact a tool call creates or touches: a pull request, run, issue or branch, keyed by its URL or run id, with the thread and the time. The window joins snapshot rows to that store by key, so a PR a thread opened shows the thread's marker on the service page and in the Repositories lens. Until a sweep has read the object, the row is drawn from the thread store, dashed, and says "pending · not yet in a sweep"; when a sweep row matches the key, it is drawn solid and sweep-confirmed, and the dashed row is dropped. This is a window-side join on URL and run id, not a contract addition; it needs the repo-line ids and URLs already listed as an addition.</p>
+    <p>What a thread makes comes back to the view. The host's thread store records every pull request, run or issue a tool call created, keyed by the URL or run id the tool result returned, with the thread and the time. Nothing is recorded before it exists: a proposed push or PR lives on its card, and a branch, which has neither URL nor run id, appears on the Thread tab only. The window joins snapshot rows to the store by key, so a PR a thread opened shows the thread's marker on the service page and in the Repositories lens. Until a sweep has read the object, the row is drawn from the store, dashed, and says "pending · not yet in a sweep"; when a sweep row matches the key, it is drawn solid and sweep-confirmed, and the dashed row is dropped. This is a window-side join, not a contract addition; it needs the repo-line ids and URLs already listed as an addition.</p>
     <div class="flow" tabindex="0" role="region" aria-label="How a proposed action becomes a decided card, scroll horizontally on small screens">
       <svg viewBox="0 0 1000 250" role="img" aria-labelledby="card-title" aria-describedby="card-desc">
         <title id="card-title">From a proposed write to a decided card</title>
@@ -1021,7 +1022,7 @@ ul.plain li{margin:3px 0}
         <path d="M 470 105 L 520 180" class="arrow" marker-end="url(#ah2)"/>
         <path d="M 740 112 L 790 112" class="arrow" marker-end="url(#ah2)"/>
         <path d="M 630 152 L 630 140" class="arrow" marker-end="url(#ah2)"/>
-        <text x="30" y="236" class="tiny">A card asked for by a button on the Detail tab has no thread; it is decided on the card itself, in the Inbox or on its run (AU-10). Either way there is one card, one state and one decision.</text>
+        <text x="30" y="236" class="tiny">A card asked for by a button has no thread; it is decided only in Waiting for you. Detail and the run show its state and link there (AU-10). One card, one state, one decision place.</text>
         <defs><marker id="ah2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--line-strong)"/></marker></defs>
       </svg>
     </div>
@@ -1031,7 +1032,7 @@ ul.plain li{margin:3px 0}
         <div class="side">
           <div class="find"><span>⌕</span><span class="txt">Find or ask</span><span class="kbd">⌘K</span></div>
           <div class="scroll">
-            <div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">6</span></div>
+            <div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">7</span></div>
             <div class="grp">Program<span class="n">3 ▸</span></div>
             <div class="grp">Services<span class="n">13</span></div>
             <div class="it"><span class="d y"></span><span class="lbl">partition</span><span class="n">toolchain</span></div>
@@ -1050,7 +1051,7 @@ ul.plain li{margin:3px 0}
             <div class="ctx"><b>Context</b> · from the sweep at 09:12 UTC: the anchor and 2 chips, 3,100 tokens</div>
             <div class="msg me"><div class="chips"><span class="chipx ctx">▣ Cascade stopped on a merge conflict</span><span class="chipx ctx">▣ cascade run 7718 · failed</span></div>Why does validation fail, and is it the same cause as on unit?</div>
             <div class="work"><b>Read</b> the failed run's job log · attribution · unit's release run</div>
-            <div class="msg ai"><span class="who">Copilot</span>Validation fails because the sync brought an upstream change to the provider module that the fork also changed. Unit's failure is different: a coverage check on its release PR, not a conflict. Resolving the conflict on <code>fork_integration</code> and re-dispatching the cascade clears this one.<div class="cite"><a>job log</a><a>attribution</a><a>unit · PR #57 checks</a></div></div>
+            <div class="msg ai"><span class="who">Copilot</span>Validation fails because the sync brought an upstream change to the provider module that the fork also changed. Unit's failure is different: a coverage check on its release PR, not a conflict. Resolving the conflict on <code>fork_integration</code> and re-dispatching the cascade clears this one.<div class="cite"><a>job log</a><a>attribution</a><a>unit · PR #1162 checks</a></div></div>
             <div class="msg ai"><span class="who">Copilot</span>The fix is on the integration branch, so a code thread fits (PB-03). I can open one with this finding as context.</div>
           </div></div>
           <div class="comp"><div class="chips"><span class="chipx anc">⚓ entitlements · cascade stopped</span></div><div class="ph">Reply, or @ to add a thing…</div><div class="ctl"><span class="chipx">Copilot · auto</span><span class="chipx">Reads only</span><span style="margin-left:auto">⏎ send</span></div></div>
@@ -1074,14 +1075,14 @@ ul.plain li{margin:3px 0}
 
   <section id="code">
     <h2>Code threads</h2>
-    <p>A code thread is T3 Code's coding thread on a fork worktree. Its right panel leads with the <b>Thread</b> tab, which is T3 Code's thread details card with SPI Code's cards in place of direct git writes: environment and worktree (this machine, the worktree path), Open in editor, branch and pull request (the thread's branch, its target, the PR with its status once it exists), git actions (Commit and Push, each making a card), Changes against the target with +/− counts per file that open the diff in the middle panel, Checks at the pushed commit, and lineage (the thread it started from, delegated agents). The anchor's Detail and Evidence stay as tabs, and the same tabs are in the sheet below 980 px. The terminal drawer has two tabs here: Approved commands, read-only, and the login shell. Every thread has the drawer because T3 Code has it everywhere and the login shell is the operator's own; only code threads have commands to show in the first tab.</p>
+    <p>A code thread is T3 Code's coding thread on a fork worktree. Its right panel leads with the <b>Thread</b> tab, which is T3 Code's thread details card with SPI Code's cards in place of direct git writes: environment and worktree (this machine, the worktree path), Open in editor, branch and pull request (the thread's branch, its target, the PR with its status once it exists), git actions (Commit and Push, each making a card), Changes against the target with +/− counts per file that open the diff in the middle panel, Checks at the pushed commit, and lineage (the thread it started from, delegated agents). The anchor's Detail and Evidence stay as tabs, and the same tabs are in the sheet below 980 px. The terminal drawer has two tabs here: Approved commands, read-only, and the login shell. Every thread has the drawer at M3 because T3 Code has it everywhere and the login shell is the operator's own; only code threads have commands to show in the first tab.</p>
     <div class="mockwrap">
-      <div class="app dark tall">
+      <div class="app dark tall" style="height:900px">
         <div class="bar"><span class="dots"><i></i><i></i><i></i></span><b>SPI Code</b><span class="crumb">Fix the sync conflict</span><span class="sp"></span><span class="sweep warn"><span class="d"></span>swept 2 min ago · 1 area cut · 3 stale</span><span class="kbd">⌘K</span><span class="tg">▯</span><span class="tg">▭</span><span class="tg">▯</span></div>
         <div class="side">
           <div class="find"><span>⌕</span><span class="txt">Find or ask</span><span class="kbd">⌘K</span></div>
           <div class="scroll">
-            <div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">6</span></div>
+            <div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">7</span></div>
             <div class="grp">Program<span class="n">3 ▸</span></div>
             <div class="grp">Services<span class="n">13</span></div>
             <div class="it"><span class="d r"></span><span class="lbl">entitlements</span><span class="n">conflict</span></div>
@@ -1099,10 +1100,11 @@ ul.plain li{margin:3px 0}
             <div class="msg me">Resolve the validation conflict on fork_integration so the cascade can run.</div>
             <div class="work"><b>Read</b> 5 files · <b>Edited</b> 2 files in the provider module</div>
             <div class="work"><b>Command</b> mvn -q -o -pl provider/entitlements-azure test-compile · approved · exit 0 · 38 s</div>
-            <div class="msg ai"><span class="who">Copilot</span>Both edits compile. One commit is ready. Pushing it re-runs validation on the fork.</div>
+            <div class="msg ai"><span class="who">Copilot</span>Both edits compile. One commit is ready. Two cards follow: the push, then the cascade re-run at the pushed head.</div>
             <div class="card pending"><div class="hd"><b>Push branch</b><span class="stt">Pending · Change</span></div>push_branch · 9b07f31 to fork_integration, fast-forward from 4e1c2a9<code>remote fork_integration must still be at 4e1c2a9</code></div>
+            <div class="card pending"><div class="hd"><b>Dispatch cascade</b><span class="stt">Pending · Run</span></div>dispatch_workflow · cascade on fork_integration<code>binds to 9b07f31 once the push is applied</code></div>
           </div></div>
-          <div class="strip"><span class="lbl">Change</span><span>push_branch · 9b07f31 to fork_integration, fast-forward from 4e1c2a9</span><span class="sp"></span><span class="btn">Decline</span><span class="btn pri">Approve</span></div>
+          <div class="strip"><span class="lbl">Change · 1 of 2</span><span>push_branch · 9b07f31 to fork_integration, fast-forward from 4e1c2a9</span><span class="sp"></span><span class="btn">Decline</span><span class="btn pri">Approve</span></div>
           <div class="comp"><div class="chips"><span class="chipx anc">⚓ entitlements · fork_integration</span></div><div class="ph">Reply, @ a file or a thing, $ a skill, / a command…</div><div class="ctl"><span class="chipx">Copilot · auto</span><span class="chipx">Commands sandboxed</span><span style="margin-left:auto">⏎ send</span></div></div>
           <div class="term"><div class="tt"><b>Approved commands</b><span>Login shell · outside the sandbox</span></div>$ mvn -q -o -pl provider/entitlements-azure test-compile
 exit 0 · 38 s</div>
@@ -1112,7 +1114,7 @@ exit 0 · 38 s</div>
           <div class="ins">
             <div class="k">Environment and worktree</div><div class="v">This Mac · app-data/worktrees/entitlements/sync-conflict</div>
             <div class="v"><a>Open in editor</a> · VS Code</div>
-            <div class="k">Branch and pull request</div><div class="v">spi/sync-conflict into fork_integration · 1 commit ahead · clean</div><div class="v dim">PR: opens after the push · pending</div>
+            <div class="k">Branch and pull request</div><div class="v">spi/sync-conflict into fork_integration · 1 commit ahead · clean</div><div class="v dim">PR: none yet · proposed on the push card</div>
             <div class="k">Git actions</div><div class="acts" style="margin-top:4px"><span class="btn off">Commit</span><span class="btn">Push</span></div><div class="why">Commit: nothing to commit · Push: a card waits in the strip</div>
             <div class="k">Changes · against fork_integration</div><div class="chg"><span class="m">M</span> …/azure/EntitlementsValidation.java <span class="pm">+18 −6</span><br><span class="m">M</span> …/azure/ValidationConfig.java <span class="pm">+3 −1</span></div>
             <div class="k">Checks · at 9b07f31</div><div class="chk"><span>Integration validation</span><span class="wait">after the push</span><span>Build and test</span><span class="wait">after the push</span><span>CodeQL</span><span class="wait">after the push</span></div>
@@ -1121,7 +1123,7 @@ exit 0 · 38 s</div>
         </div>
       </div>
     </div>
-    <p class="note">Proposed, dark appearance: a code thread (M5). The push card is in the timeline and decided in the composer strip; the Inbox counts it. The Thread tab mirrors T3 Code's thread details, with Commit and Push as cards and Changes opening the diff in the middle panel.</p>
+    <p class="note">Proposed, dark appearance: a code thread (M5). The push and the cascade re-run are separate cards in the timeline, decided one at a time in the composer strip; the Inbox counts both. The Thread tab mirrors T3 Code's thread details, with Commit and Push as cards and Changes opening the diff in the middle panel.</p>
   </section>
 
   <section id="capabilities">
@@ -1231,7 +1233,7 @@ exit 0 · 38 s</div>
               <div class="st"><div class="k">Sync PR</div><div class="w">idle</div><div class="x">clean</div></div>
               <div class="st"><div class="k">Cascade</div><div class="w">idle</div><div class="x">idle</div></div>
               <div class="st"><div class="k">Sync to main</div><div class="w">idle</div><div class="x">idle</div></div>
-              <div class="st"><div class="k">Release</div><div class="w waiting">waiting</div><div class="x">gate 3 · PR #198</div></div>
+              <div class="st"><div class="k">Release</div><div class="w waiting">waiting</div><div class="x">gate 2 · PR #1193</div></div>
               <div class="st"><div class="k">Stack lane</div><div class="w">idle</div><div class="x">last run ok</div></div>
             </div>
             <div class="sec"><div class="sh"><h2>Attention</h2><span class="n">1</span></div>
@@ -1252,7 +1254,7 @@ exit 0 · 38 s</div>
             <div class="k">State</div><div class="v">7 behind · core library 8.6.0 queued</div>
             <div class="k">Next</div><div class="v">Prepare the sync PR; this fork is the pilot for the toolchain move.</div>
             <div class="acts"><span class="btn off">Prepare sync</span><span class="btn">Ask</span><span class="btn">Add to chat</span></div>
-            <div class="why">Prepare sync: writes arrive at M4</div>
+            <div class="why">Prepare sync: approvals are not available yet</div>
           </div>
         </div>
       </div>
@@ -1270,7 +1272,8 @@ exit 0 · 38 s</div>
         <tr><td><code>briefing.focus[]</code>, <code>rest[]</code> (title, sub, cause, effect, next, verb, evidence, more)</td><td>Inbox rows; the Detail tab for the selected item</td><td>The service page Attention section by scope; the sidebar word for the highest item</td></tr>
         <tr><td><code>briefing.themes[]</code>, <code>horizon.headline</code></td><td>Horizon lens</td><td>The theme's Detail tab</td></tr>
         <tr><td><code>flow.mode</code>, <code>headline</code>, <code>sub</code>, <code>tiles[]</code>, <code>next</code>, <code>also</code>, <code>schedule</code></td><td>Flow lens</td><td>None</td></tr>
-        <tr><td><code>flow.rows[]</code> (fork, tag, plan, behind, carries, ready, line[4], next, detail)</td><td>Flow lens row</td><td>The service page Upstream sync section; the fork's Detail tab</td></tr>
+        <tr><td><code>flow.rows[]</code> (fork, tag, plan, behind, carries, ready, line[4], next)</td><td>Flow lens row</td><td>The service page Upstream sync section; the fork's Detail tab</td></tr>
+        <tr><td><code>flow.rows[].detail</code> (title, lines)</td><td>The service page Upstream sync section</td><td>The fork's Detail tab; not the lens row</td></tr>
         <tr><td><code>flow.plan</code> (title, lines, note)</td><td>The Plan selection's Detail tab</td><td>None</td></tr>
         <tr><td><code>environment.headline</code>, <code>facts[]</code>, <code>lanes[]</code>, <code>from</code>, <code>to</code>, <code>note</code></td><td>Environment page</td><td><code>facts[0]</code> on the sidebar row</td></tr>
         <tr><td><code>repositories.headline</code>, <code>facts[]</code>, <code>rows[].cells</code>, <code>first</code></td><td>Repositories lens</td><td>None</td></tr>
@@ -1292,7 +1295,7 @@ exit 0 · 38 s</div>
       <tbody>
         <tr><td><b>Station inspect ids</b> · an optional <code>inspect</code> on each station</td><td>Release and Stack lane Detail from the host; the four line stations already resolve through the fork's upstream inspect</td><td>PS-05 station Detail</td></tr>
         <tr><td><b>Workflow runs with their facts</b> · service, workflow, result, time, URL per run</td><td>The Runs section on a service page</td><td>PS-05 Runs</td></tr>
-        <tr><td><b>Per-service release rows</b> · the release PR, gate and month per fork</td><td>The Release section on a service page; the fork's row on a month page</td><td>PS-05 Release</td></tr>
+        <tr><td><b>Per-service release rows</b> · the release PR, gate and month per fork</td><td>The Release section on a service page only; the month page already has the fork's row from the month inspect's related</td><td>PS-05 Release</td></tr>
         <tr><td><b>Repo-line ids and URLs</b> · an id and URL on each repository line</td><td>Selectable PR, issue and alert lines with a Detail tab; @ mentions of a line; the join from thread artifacts to sweep rows</td><td>PS-04 lines, the return path</td></tr>
         <tr><td><b>A title on the inspect result</b> · optional</td><td>The Detail title from the host rather than the row; the chip title</td><td>Nothing; the row's text is used until then</td></tr>
       </tbody>
@@ -1362,7 +1365,7 @@ exit 0 · 38 s</div>
     <div class="mockwrap">
       <div class="app kit">
         <div class="kh">Sidebar rows: a thing with its threads</div>
-        <div class="side"><div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">6</span></div><div class="it on"><span class="d r"></span><span class="lbl">entitlements</span><span class="n">conflict</span></div><div class="it th sub2 code"><span class="lbl">Fix the sync conflict<span class="br"><span class="stt wait">Waiting on you</span> · spi/sync-conflict · fork_integration</span></span></div><div class="it th sub2"><span class="lbl">Why is the cascade stopped<span class="br"><span class="stt run">Working</span> · cascade · conflict</span></span></div><div class="it"><span class="d m"></span><span class="lbl">workflow</span><span class="n">unread</span></div><div class="it shelf"><span class="lbl">Settled</span><span class="n">41 ›</span></div></div>
+        <div class="side"><div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">7</span></div><div class="it on"><span class="d r"></span><span class="lbl">entitlements</span><span class="n">conflict</span></div><div class="it th sub2 code"><span class="lbl">Fix the sync conflict<span class="br"><span class="stt wait">Waiting on you</span> · spi/sync-conflict · fork_integration</span></span></div><div class="it th sub2"><span class="lbl">Why is the cascade stopped<span class="br"><span class="stt run">Working</span> · cascade · conflict</span></span></div><div class="it"><span class="d m"></span><span class="lbl">workflow</span><span class="n">unread</span></div><div class="it shelf"><span class="lbl">Settled</span><span class="n">41 ›</span></div></div>
         <div class="kh">Title bar: sweep line and toggles</div>
         <div class="chips"><span class="bar" style="display:inline-flex;background:none;border:0;padding:0;gap:10px"><span class="sweep"><span class="d"></span>swept 2 min ago · all fresh</span><span class="sweep warn"><span class="d"></span>swept 2 min ago · 1 area cut · 3 stale</span><span class="sweep bad"><span class="d"></span>swept 2 min ago · 2 areas failed</span><span class="sweep inf"><span class="d"></span>swept 2 min ago · inferred</span><span class="tg">▯</span><span class="tg">▭</span><span class="tg">▯</span></span></div>
         <div class="kh">Station tiles</div>
@@ -1370,8 +1373,8 @@ exit 0 · 38 s</div>
         <div class="kh">Queue rows, a thread row, a pending artifact</div>
         <div class="sec"><div class="sh"><h2>Attention</h2><span class="n">2</span><span class="ev">github issues and prs stale · 2 more</span></div>
           <div class="row sel"><span class="pr p0">P0</span><span><span class="t"><span class="scope">entitlements</span>Cascade stopped on a merge conflict<span class="cls">conflict</span></span><span class="s"><span class="thm">▣ Why is the cascade stopped</span> · validation fails after the sync</span></span><span class="age">4 d</span></div>
-          <div class="row thr code"><span class="d wait"></span><span><span class="t">Fix the sync conflict<span class="cls">code · Waiting on you</span></span><span class="s">spi/sync-conflict → fork_integration · a push card waits</span></span><span class="age">open</span></div>
-          <ul class="lines"><li class="pend"><span class="tag">pull request</span><span>Resolve the sync conflict<span class="s">pending · not yet in a sweep</span></span></li></ul>
+          <div class="row thr code"><span class="d wait"></span><span><span class="t">Fix the sync conflict<span class="cls">code · Waiting on you</span></span><span class="s">spi/sync-conflict → fork_integration · 2 cards wait</span></span><span class="age">open</span></div>
+          <ul class="lines"><li class="pend"><span class="tag">pull request</span><span>Resolve the sync conflict · #1207<span class="s">opened by the thread · pending · not yet in a sweep</span></span></li></ul>
         </div>
         <div class="kh">Context chips</div>
         <div class="chips"><span class="chipx anc">⚓ entitlements · cascade stopped</span><span class="chipx ctx">▣ Cascade stopped on a merge conflict <i>×</i></span><span class="chipx ctx dim">▣ issue #412 · from an earlier sweep <i>×</i></span><span class="chipx ctx">▣ 3 rows from Flow <i>×</i></span></div>
@@ -1396,7 +1399,7 @@ exit 0 · 38 s</div>
     <div class="mockwrap">
       <div class="app kit dark">
         <div class="kh">Sidebar rows: a thing with its threads</div>
-        <div class="side"><div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">6</span></div><div class="it on"><span class="d r"></span><span class="lbl">entitlements</span><span class="n">conflict</span></div><div class="it th sub2 code"><span class="lbl">Fix the sync conflict<span class="br"><span class="stt wait">Waiting on you</span> · spi/sync-conflict · fork_integration</span></span></div><div class="it th sub2"><span class="lbl">Why is the cascade stopped<span class="br"><span class="stt run">Working</span> · cascade · conflict</span></span></div><div class="it"><span class="d m"></span><span class="lbl">workflow</span><span class="n">unread</span></div><div class="it shelf"><span class="lbl">Settled</span><span class="n">41 ›</span></div></div>
+        <div class="side"><div class="it"><span class="d r"></span><span class="lbl">Inbox</span><span class="pip">7</span></div><div class="it on"><span class="d r"></span><span class="lbl">entitlements</span><span class="n">conflict</span></div><div class="it th sub2 code"><span class="lbl">Fix the sync conflict<span class="br"><span class="stt wait">Waiting on you</span> · spi/sync-conflict · fork_integration</span></span></div><div class="it th sub2"><span class="lbl">Why is the cascade stopped<span class="br"><span class="stt run">Working</span> · cascade · conflict</span></span></div><div class="it"><span class="d m"></span><span class="lbl">workflow</span><span class="n">unread</span></div><div class="it shelf"><span class="lbl">Settled</span><span class="n">41 ›</span></div></div>
         <div class="kh">Title bar: sweep line and toggles</div>
         <div class="chips"><span class="bar" style="display:inline-flex;background:none;border:0;padding:0;gap:10px"><span class="sweep"><span class="d"></span>swept 2 min ago · all fresh</span><span class="sweep warn"><span class="d"></span>swept 2 min ago · 1 area cut · 3 stale</span><span class="sweep bad"><span class="d"></span>swept 2 min ago · 2 areas failed</span><span class="sweep inf"><span class="d"></span>swept 2 min ago · inferred</span><span class="tg">▯</span><span class="tg">▭</span><span class="tg">▯</span></span></div>
         <div class="kh">Station tiles</div>
@@ -1404,8 +1407,8 @@ exit 0 · 38 s</div>
         <div class="kh">Queue rows, a thread row, a pending artifact</div>
         <div class="sec"><div class="sh"><h2>Attention</h2><span class="n">2</span><span class="ev">github issues and prs stale · 2 more</span></div>
           <div class="row sel"><span class="pr p0">P0</span><span><span class="t"><span class="scope">entitlements</span>Cascade stopped on a merge conflict<span class="cls">conflict</span></span><span class="s"><span class="thm">▣ Why is the cascade stopped</span> · validation fails after the sync</span></span><span class="age">4 d</span></div>
-          <div class="row thr code"><span class="d wait"></span><span><span class="t">Fix the sync conflict<span class="cls">code · Waiting on you</span></span><span class="s">spi/sync-conflict → fork_integration · a push card waits</span></span><span class="age">open</span></div>
-          <ul class="lines"><li class="pend"><span class="tag">pull request</span><span>Resolve the sync conflict<span class="s">pending · not yet in a sweep</span></span></li></ul>
+          <div class="row thr code"><span class="d wait"></span><span><span class="t">Fix the sync conflict<span class="cls">code · Waiting on you</span></span><span class="s">spi/sync-conflict → fork_integration · 2 cards wait</span></span><span class="age">open</span></div>
+          <ul class="lines"><li class="pend"><span class="tag">pull request</span><span>Resolve the sync conflict · #1207<span class="s">opened by the thread · pending · not yet in a sweep</span></span></li></ul>
         </div>
         <div class="kh">Context chips</div>
         <div class="chips"><span class="chipx anc">⚓ entitlements · cascade stopped</span><span class="chipx ctx">▣ Cascade stopped on a merge conflict <i>×</i></span><span class="chipx ctx dim">▣ issue #412 · from an earlier sweep <i>×</i></span><span class="chipx ctx">▣ 3 rows from Flow <i>×</i></span></div>
@@ -1503,7 +1506,6 @@ exit 0 · 38 s</div>
       <thead><tr><th style="width:34%">Question</th><th style="width:42%">Why it matters</th><th>Who decides, by when</th></tr></thead>
       <tbody>
         <tr><td>The chip budget: 2,000 tokens per chip and 8 chips per message, or a single message budget?</td><td>A single budget lets one large chip crowd out the rest; per-chip limits trim predictably.</td><td>Maintainer, at the M3 breakdown</td></tr>
-        <tr><td>Do operate threads keep the login shell drawer, or only code threads?</td><td>The design keeps it everywhere, as T3 Code does; it costs a toggle and a PTY per thread.</td><td>Maintainer, after a week of M3 use</td></tr>
         <tr><td>Should the Services group fold after a chosen count, or always show all 13?</td><td>With threads inline the group is the tallest thing in the sidebar.</td><td>Maintainer, after a week of use</td></tr>
         <tr><td>Bundle Inter Variable, or the system stack only?</td><td>Copied components' widths shift slightly without it.</td><td>Maintainer, before M2 closes</td></tr>
         <tr><td>Which terminal renderer does the drawer use?</td><td>T3 Code builds libghostty to WebAssembly; xterm.js is the common alternative.</td><td>Maintainer, before M3</td></tr>
