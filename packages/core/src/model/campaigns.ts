@@ -34,14 +34,18 @@ function grouped(
 }
 
 export function toolchainCampaigns(
-  upstream: Pick<UpstreamModel, "moves" | "held">,
+  upstream: Pick<UpstreamModel, "moving" | "held">,
 ): DetectedCampaign[] {
   const held = new Set(upstream.held.map((fork) => fork.service));
   return grouped(
     "toolchain",
-    upstream.moves.flatMap(({ value, forks }) =>
-      forks.filter((fork) => !held.has(fork)).map((fork) => ({ fact: value, fork })),
-    ),
+    upstream.moving
+      .filter((fork) => !held.has(fork.service))
+      .flatMap((fork) =>
+        (fork.moves ?? [])
+          .filter((fact) => !/SNAPSHOT/i.test(fact))
+          .map((fact) => ({ fact, fork: fork.service })),
+      ),
   );
 }
 

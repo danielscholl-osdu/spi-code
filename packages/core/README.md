@@ -19,12 +19,12 @@ state and evidence still describe the missing read, not confirmed health.
 
 ## Detected campaigns
 
-`detectCampaigns(model)` groups the upstream model's toolchain targets and
-SPI/template-owned code-scanning rules shared by at least two forks. Upstream
-targets exclude forks held on their own halt or SNAPSHOT, which keep their
-individual hold items; open merge requests are not queued moves. Security groups
-use tool and rule identity, across paths and severities,
-and exclude upstream-owned findings and program repositories.
+`detectCampaigns(model)` groups every queued non-SNAPSHOT toolchain move on
+waiting forks and SPI/template-owned code-scanning rules shared by at least two
+forks. Toolchain moves exclude forks held on their own halt or SNAPSHOT, which
+keep their individual hold items; open merge requests are not queued moves.
+Security groups use tool and rule identity, across paths and severities, and
+exclude upstream-owned findings and program repositories.
 
 IDs derive from kind and fact, not fork order or sweep time. `campaignItemText`
 returns the detected item's words without an action; detection adopts no plan

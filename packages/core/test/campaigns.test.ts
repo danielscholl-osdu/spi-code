@@ -30,10 +30,16 @@ const releasedForks = [
 ];
 
 describe("detected campaigns", () => {
-  test("groups exactly the eight unheld 8.5.0 forks on the recorded November 6 sweep", () => {
+  test("groups every queued toolchain move with exact members on the recorded November 6 sweep", () => {
     const model = modelOf();
     const campaigns = detectCampaigns(model);
     expect(campaigns).toEqual([
+      {
+        id: "campaign:toolchain:os-core-common%2010.0.0",
+        kind: "toolchain",
+        fact: "os-core-common 10.0.0",
+        forks: ["indexer", "schema", "unit"],
+      },
       {
         id: "campaign:toolchain:os-core-common%208.5.0",
         kind: "toolchain",
@@ -41,17 +47,19 @@ describe("detected campaigns", () => {
         forks: releasedForks,
       },
     ]);
-    const campaign = campaigns[0];
-    if (!campaign) throw new Error("Missing recorded campaign");
-    expect(campaignItemText(campaign)).toBe("Detected: os-core-common 8.5.0 on 8 forks");
-    for (const fork of releasedForks) {
-      expect(
-        model.radar.services[fork]?.certain.some((v) => v.value === "os-core-common 8.5.0"),
-      ).toBe(true);
+    expect(campaigns.map(campaignItemText)).toEqual([
+      "Detected: os-core-common 10.0.0 on 3 forks",
+      "Detected: os-core-common 8.5.0 on 8 forks",
+    ]);
+    for (const campaign of campaigns) {
+      for (const fork of campaign.forks)
+        expect(model.radar.services[fork]?.certain.some((v) => v.value === campaign.fact)).toBe(
+          true,
+        );
     }
   });
 
-  test("does not turn a one-fork SNAPSHOT fact or possible MR into a campaign", () => {
+  test("excludes held forks, single-fork facts and unmerged MR moves from campaigns", () => {
     const model = modelOf();
     expect(model.upstream.moves.find((move) => move.value.includes("SNAPSHOT"))?.forks).toEqual([
       "legal",
@@ -59,13 +67,9 @@ describe("detected campaigns", () => {
     expect(detectCampaigns(model).some((campaign) => campaign.fact.includes("SNAPSHOT"))).toBe(
       false,
     );
-    expect(
-      model.radar.services.schema?.certain.some((v) => v.value === "os-core-common 10.0.0"),
-    ).toBe(true);
-    expect(
-      detectCampaigns(model).some((campaign) => campaign.fact === "os-core-common 10.0.0"),
-    ).toBe(false);
-    model.upstream.moves.push({ value: "Java 25", forks: ["file", "file"] });
+    const file = model.upstream.moving.find((fork) => fork.service === "file");
+    if (!file?.moves) throw new Error("Missing file's recorded moves");
+    file.moves.push("Java 25", "Java 25");
     expect(detectCampaigns(model).some((campaign) => campaign.fact === "Java 25")).toBe(false);
     const facts = recordedFacts();
     for (const service of Object.values(facts.radar.data?.services ?? {})) service.queued = [];
@@ -75,17 +79,20 @@ describe("detected campaigns", () => {
 
   test("keeps ids stable when fork order, membership and other detected facts change", () => {
     const model = modelOf();
-    const original = detectCampaigns(model)[0];
-    model.upstream.moves.reverse();
-    for (const move of model.upstream.moves) move.forks.reverse();
-    expect(detectCampaigns(model)[0]).toEqual(original);
-    model.upstream.moves.unshift({ value: "Java 25", forks: ["file", "schema"] });
-    const released = model.upstream.moves.find((move) => move.value === original?.fact);
-    if (!released) throw new Error("Missing recorded toolchain target");
-    released.forks.pop();
-    expect(detectCampaigns(model).find((campaign) => campaign.fact === original?.fact)?.id).toBe(
-      original?.id,
-    );
+    const original = detectCampaigns(model);
+    model.upstream.moving.reverse();
+    for (const fork of model.upstream.moving) fork.moves?.reverse();
+    expect(detectCampaigns(model)).toEqual(original);
+    const file = model.upstream.moving.find((fork) => fork.service === "file");
+    const schema = model.upstream.moving.find((fork) => fork.service === "schema");
+    if (!file?.moves || !schema?.moves) throw new Error("Missing recorded toolchain targets");
+    file.moves.push("Java 25");
+    schema.moves.push("Java 25");
+    file.moves = file.moves.filter((fact) => fact !== "os-core-common 8.5.0");
+    for (const previous of original)
+      expect(detectCampaigns(model).find((campaign) => campaign.fact === previous.fact)?.id).toBe(
+        previous.id,
+      );
     const campaign = detectCampaigns(model).find((item) => item.fact === "Java 25");
     expect(campaign).toBeDefined();
     if (!campaign) throw new Error("Missing Java campaign");
@@ -94,18 +101,24 @@ describe("detected campaigns", () => {
 
   test("removes shared targets from stations and flow rows, retaining fork-specific facts and Detail", () => {
     const model = modelOf();
-    const campaign = detectCampaigns(model)[0];
-    if (!campaign) throw new Error("Missing recorded campaign");
+    const campaigns = detectCampaigns(model);
+    expect(campaigns).toHaveLength(2);
     const view = upstreamView(model.upstream, now);
-    for (const fork of campaign.forks) {
-      const line = model.lines.find((line) => line.fork.id === fork);
-      const row = view.rows.find((row) => row.fork === fork);
-      expect(line?.stations.find((station) => station.id === "upstream")?.text).not.toContain(
-        campaign.fact,
-      );
-      expect(row?.carries).not.toContain(campaign.fact);
-      expect(row?.detail.lines.join(" ")).toContain(campaign.fact);
-      expect(line?.stations[0]?.text).toMatch(new RegExp(`^${line?.upstream?.lag} behind`));
+    for (const campaign of campaigns) {
+      for (const fork of campaign.forks) {
+        const line = model.lines.find((line) => line.fork.id === fork);
+        const row = view.rows.find((row) => row.fork === fork);
+        expect(line?.stations.find((station) => station.id === "upstream")?.text).not.toContain(
+          campaign.fact,
+        );
+        expect(row?.carries).not.toContain(campaign.fact);
+        if (campaign.fact === "os-core-common 8.5.0")
+          expect(row?.detail.lines.join(" ")).toContain(campaign.fact);
+        expect(model.radar.services[fork]?.certain.some((v) => v.value === campaign.fact)).toBe(
+          true,
+        );
+        expect(line?.stations[0]?.text).toMatch(new RegExp(`^${line?.upstream?.lag} behind`));
+      }
     }
     expect(model.lines.find((line) => line.fork.id === "partition")?.stations[0]?.text).toContain(
       "will halt on schemathesis-tests",
@@ -114,12 +127,11 @@ describe("detected campaigns", () => {
       "in the sync PR",
     );
     expect(model.lines.find((line) => line.fork.id === "schema")?.stations[0]?.text).toContain(
-      "os-core-common 10.0.0 queued",
+      "port owed",
     );
     expect(model.lines.find((line) => line.fork.id === "legal")?.stations[0]?.text).toContain(
       "os-core-common 8.4.1-boot4-SNAPSHOT queued",
     );
-    expect(model.radar.services.schema?.certain.some((v) => v.value === campaign.fact)).toBe(true);
   });
 
   test("groups SPI-owned code rules across forks, not paths, alerts or matching descriptions", () => {
