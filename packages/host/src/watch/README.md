@@ -57,6 +57,11 @@ Each service reading carries only its repository's security counts, using the
 same SPI/template ownership rule as Security. Its item names the scanner and
 counts upstream-origin findings separately; hidden lists remain "not read yet".
 Stopped and due items keep priority, and lower-tier overflow folds past five items.
+The engineering reading counts forks whose target template adoption is confirmed
+by successful main validation, not template PRs merged. Open fork template PRs
+have their own tile. Its items retain projected attention, due times and ownership,
+with the fleet rollout shown once alongside template-repository work. Only failed
+or incomplete contributing reads add a qualifier; unread values say "not read yet".
 `seen.cursor: null` means no acknowledged baseline; `seen.since` lists the
 Interrupt item IDs that arrived since that baseline, and `seen.at` is when it was
 acknowledged. An item arrived when the baseline has no item sharing one of its ids,

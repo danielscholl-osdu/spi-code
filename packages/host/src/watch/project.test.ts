@@ -105,6 +105,7 @@ describe("Watch projection", () => {
         anchor.kind === "environment" ||
         anchor.kind === "service" ||
         anchor.kind === "releases" ||
+        anchor.kind === "engineering" ||
         anchor.kind === "security"
       ) {
         expect(content?.tiles).toHaveLength(3);
