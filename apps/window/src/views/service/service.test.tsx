@@ -139,7 +139,8 @@ const hintOf = (month: string) =>
   section("release")?.querySelector(`[data-release="${month}"]`)?.querySelector("[data-gate-hint]")
     ?.textContent;
 
-const UNTIMED = "gate as of the GitHub read; release history read";
+const UNTIMED =
+  "The gate and this row can differ because they use separate reads: the GitHub read for the gate and the release history read for this row.";
 const read = (source: string, object: string, observedAt: string) => ({
   source,
   object,

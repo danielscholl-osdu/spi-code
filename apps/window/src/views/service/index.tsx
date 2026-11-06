@@ -44,7 +44,12 @@ type ServiceRelease = NonNullable<ViewSnapshot["services"]>[number]["releases"][
  */
 function GateHint({ release: { gate, to } }: { release: ServiceRelease }) {
   if (gate?.state !== "idle" || to === undefined || gate.text === to) return null;
-  return <span data-gate-hint="">gate as of the GitHub read; release history read</span>;
+  return (
+    <span data-gate-hint="">
+      The gate and this row can differ because they use separate reads: the GitHub read for the gate
+      and the release history read for this row.
+    </span>
+  );
 }
 
 type IdLine = RepoLine & { id: string };
