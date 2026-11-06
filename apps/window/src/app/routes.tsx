@@ -5,8 +5,11 @@ import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "r
 import { useStore } from "zustand";
 import { watchStore } from "../store/watch.js";
 import Environment from "../views/environment/index.js";
+import Flow from "../views/flow/index.js";
+import Horizon from "../views/horizon/index.js";
 import Inbox from "../views/inbox/index.js";
 import Releases from "../views/releases/index.js";
+import Repositories from "../views/repositories/index.js";
 import Setup from "../views/setup/index.js";
 import { WatchGate } from "../views/setup/WatchGate.js";
 
@@ -170,6 +173,14 @@ export function RouteView({ route }: { route: Route }) {
         <Environment />
       ) : route.kind === "releases" ? (
         <Releases />
+      ) : route.kind === "lens" ? (
+        route.lens === "flow" ? (
+          <Flow />
+        ) : route.lens === "repositories" ? (
+          <Repositories />
+        ) : (
+          <Horizon />
+        )
       ) : (
         <Unavailable label={label} />
       )}

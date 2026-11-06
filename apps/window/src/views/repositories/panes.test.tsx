@@ -55,39 +55,33 @@ afterEach(async () => {
   window.spi = previous;
 });
 
-it("matches every repository value and detail in the frozen rib console and selects each row", async () => {
+it("renders every repository's cells and Needs in Program and Forks without an in-page pane", async () => {
   const body = snapshot();
   await render(<Repositories />, body);
-  expect(text(container.querySelector('[data-view-pane="repositories"]'))).toBe(
-    text(oracle.querySelector('[data-view-pane="repositories"]')),
-  );
-  expect(
-    container.querySelector("[data-repo-detail]:not([hidden])")?.getAttribute("data-repo-detail"),
-  ).toBe(body.briefing.repositories.first);
+  expect(container.querySelector("[data-repo-detail]")).toBeNull();
+  expect(container.querySelectorAll("tbody")).toHaveLength(2);
   for (const repo of body.briefing.repositories.rows) {
-    const row = container.querySelector<HTMLButtonElement>(`[data-repo="${repo.id}"]`);
+    const row = container.querySelector<HTMLElement>(`[data-selection-id="${repo.id}"]`);
+    expect(row).not.toBeNull();
+    expect(row?.querySelector('[data-column="Repository"]')?.textContent).toBe(repo.name);
+    expect(row?.querySelector('[data-column="Needs"]')?.textContent).toBe(repo.title);
+    for (const [label, key] of [
+      ["Issues", "issues"],
+      ["Pull Requests", "changes"],
+      ["Dependabot Bumps", "dependabot"],
+      ["Vulnerabilities", "vulnerabilities"],
+      ["Code scanning", "codeScanning"],
+    ] as const)
+      expect(row?.querySelector(`[data-column="${label}"]`)?.textContent).toBe(
+        `${repo.cells[key].text}${repo.cells[key].rest ?? ""}`,
+      );
     send.mockClear();
     await act(async () => row?.click());
     expect(watchStore.getState().selection).toEqual({ id: repo.id });
     expect(send).toHaveBeenCalledWith(
       expect.objectContaining({ type: "inspect.request", payload: { id: repo.id } }),
     );
-    const detail = container.querySelector<HTMLElement>(`[data-repo-detail="${repo.id}"]`);
-    expect(row?.getAttribute("aria-pressed")).toBe("true");
-    expect(detail?.hidden).toBe(false);
-    expect(container.querySelectorAll("[data-repo-detail]:not([hidden])")).toHaveLength(1);
-    expect(text(detail)).toBe(text(oracle.querySelector(`[data-repo-detail="${repo.id}"]`)));
-    await act(async () => detail?.querySelector("button")?.click());
-    expect(watchStore.getState().selection).toEqual({ id: repo.id });
-    expect(send).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        version: PROTOCOL_VERSION,
-        kind: "request",
-        type: "inspect.request",
-        payload: { id: repo.id },
-      }),
-    );
-    expect(send).toHaveBeenCalledTimes(2);
+    expect(row?.getAttribute("aria-selected")).toBe("true");
   }
 });
 
@@ -200,50 +194,27 @@ it.each([true, false])("distinguishes reading=%s with no release lines", async (
   expect(container.querySelector("[data-rel]")).toBeNull();
 });
 
-it("keeps repository selection across snapshots and falls back when that repository disappears", async () => {
+it("keeps repository selection across snapshots without a local fallback selection", async () => {
   const body = snapshot();
   const repo = body.briefing.repositories.rows[0];
   if (!repo) throw new Error("Missing repository fixture");
   await render(<Repositories />, body);
   await act(async () =>
-    container.querySelector<HTMLButtonElement>(`[data-repo="${repo.id}"]`)?.click(),
+    container.querySelector<HTMLElement>(`[data-selection-id="${repo.id}"]`)?.click(),
   );
   const updated = snapshot();
   updated.briefing.repositories.headline = "Updated repository values";
   await act(async () => watchStore.setState({ snapshot: { cursor: 2, body: updated } }));
-  expect(container.querySelector('[aria-pressed="true"]')?.getAttribute("data-repo")).toBe(repo.id);
+  expect(container.querySelector('[aria-selected="true"]')?.getAttribute("data-selection-id")).toBe(
+    repo.id,
+  );
   updated.briefing.repositories.rows = updated.briefing.repositories.rows.filter(
     (row) => row.id !== repo.id,
   );
   await act(async () =>
     watchStore.setState({ snapshot: { cursor: 3, body: structuredClone(updated) } }),
   );
-  expect(container.querySelector('[aria-pressed="true"]')?.getAttribute("data-repo")).toBe(
-    updated.briefing.repositories.first,
-  );
-});
-
-it("renders every detail line when two lines share the same text", async () => {
-  const body = snapshot();
-  const repo = body.briefing.repositories.rows.find((row) =>
-    row.sections.some((section) => section.weight !== "quiet" && section.lines.length),
-  );
-  const section = repo?.sections.find((s) => s.weight !== "quiet" && s.lines.length);
-  const line = section?.lines[0];
-  if (!repo || !section || !line) throw new Error("Missing repository line fixture");
-  section.lines = [line, { ...line }];
-  const error = vi.spyOn(console, "error").mockImplementation(() => {});
-  try {
-    await render(<Repositories />, body);
-    const detail = container.querySelector(`[data-repo-detail="${repo.id}"]`);
-    const lines = [...(detail?.querySelectorAll(".repo-line") ?? [])].filter(
-      (el) => el.textContent === `${line.tag}${line.text}${line.sub ?? ""}`,
-    );
-    expect(lines).toHaveLength(2);
-    expect(error.mock.calls.flat().join(" ")).not.toContain("same key");
-  } finally {
-    error.mockRestore();
-  }
+  expect(container.querySelector('[aria-selected="true"]')).toBeNull();
 });
 
 it("shows explicit unread messages before any snapshot arrives", async () => {

@@ -1,194 +1,121 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { RepoCell, RepoEntry } from "@spi-code/contracts";
-import { useState } from "react";
+import type { RepoEntry } from "@spi-code/contracts";
 import { useStore } from "zustand";
+import { navigate } from "../../app/routes.js";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
 import { watchStore } from "../../store/watch.js";
+import { blankCell, type LensColumn, LensTable } from "../lenses/table.js";
 import "./panes.css";
 
-function Cell({ cell, pointer }: { cell: RepoCell; pointer: string }) {
-  return (
-    <span className="repo-cell" data-pointer={pointer}>
-      <span data-tone={cell.tone} data-muted={cell.text === "0"}>
-        {cell.text}
-      </span>
-      {cell.rest && <span data-muted={cell.fade || cell.rest === " · 0"}>{cell.rest}</span>}
-    </span>
-  );
-}
-
-function Detail({
-  repo,
-  selected,
-  pointer,
-}: {
-  repo: RepoEntry;
-  selected: boolean;
-  pointer: string;
-}) {
-  const sections = [
-    ...repo.sections.filter((section) => section.weight !== "quiet"),
-    ...repo.sections.filter((section) => section.weight === "quiet"),
-  ];
-  return (
-    <section data-repo-detail={repo.id} data-pointer={pointer} hidden={!selected}>
-      <p>{repo.name}</p>
-      <h3 data-tone={repo.tone}>{repo.title}</h3>
-      <p>{repo.sub}</p>
-      {sections.map((section) => (
-        <div key={section.title} data-weight={section.weight}>
-          <p className="repo-section-title">
-            <span>{section.title}</span>
-            <span>
-              {section.count}
-              {section.rest && <span data-muted>{section.rest}</span>}
+const columns: LensColumn<RepoEntry>[] = [
+  { label: "Repository", value: (row) => row.name },
+  ...(
+    [
+      ["Issues", "issues", "human · other"],
+      ["Pull Requests", "changes", ""],
+      ["Dependabot Bumps", "dependabot", ""],
+      ["Vulnerabilities", "vulnerabilities", "ours · upstream"],
+      ["Code scanning", "codeScanning", "ours · upstream"],
+    ] as const
+  ).map(
+    ([label, key, sub]): LensColumn<RepoEntry> => ({
+      label,
+      heading: (
+        <>
+          {label}
+          {sub && <small>{sub}</small>}
+        </>
+      ),
+      value: (row) => `${blankCell(row.cells[key].text)}${blankCell(row.cells[key].rest ?? "")}`,
+      render: (row) => {
+        const cell = row.cells[key];
+        return (
+          <span className="repo-cell">
+            <span data-tone={cell.tone} data-muted={cell.text === "0"}>
+              {blankCell(cell.text)}
             </span>
-          </p>
-          {section.lines.map((line, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: line text repeats across manifests and lines have no id
-            <div className="repo-line" data-upstream={line.upstream} key={index}>
-              <span data-tone={line.tone}>{line.tag}</span>
-              <span>{line.text}</span>
-              <span data-muted>{line.sub}</span>
-            </div>
-          ))}
-        </div>
-      ))}
-      {repo.note && <p data-muted>{repo.note}</p>}
-      <button type="button" onClick={() => watchStore.getState().select(repo.id)}>
-        Open in inspector
-      </button>
-    </section>
-  );
-}
+            {cell.rest && (
+              <span data-muted={cell.fade || cell.rest === " · 0"}>{blankCell(cell.rest)}</span>
+            )}
+          </span>
+        );
+      },
+    }),
+  ),
+  {
+    label: "Needs",
+    value: (row) => row.title,
+    render: (row) => <span data-tone={row.tone}>{blankCell(row.title)}</span>,
+  },
+];
 
 export default function Repositories() {
   const evidence = useStore(watchStore, (state) => state.snapshot?.body);
   const repositories = evidence?.briefing.repositories;
-  const [picked, pick] = useState<string | null>(null);
-  const selected = repositories?.rows.some((repo) => repo.id === picked)
-    ? picked
-    : repositories?.first;
   return (
-    <>
+    <section className="lens watch-pane" data-view-pane="repositories" aria-label="Repositories">
       <h1>Repositories</h1>
-      <div className="watch-pane" data-view-pane="repositories">
-        {!repositories || !evidence ? (
-          <p role="status">No repositories read yet.</p>
-        ) : (
-          <>
-            <SectionEvidence evidence={evidence} prefixes={["/briefing/repositories/headline"]} />
-            <h2 data-pointer="/briefing/repositories/headline">{repositories.headline}</h2>
-            {!!repositories.facts.length && (
-              <>
-                <SectionEvidence evidence={evidence} prefixes={["/briefing/repositories/facts"]} />
-                <div className="pane-facts">
-                  {repositories.facts.map((fact, index) => {
-                    const pointer = `/briefing/repositories/facts/${index}/figure`;
-                    return (
-                      <div
-                        className="pane-fact"
-                        data-tone={fact.tone}
-                        data-pointer={pointer}
-                        key={fact.label}
-                      >
-                        <div>{fact.label}</div>
-                        <strong>{fact.figure}</strong>
-                        <div>{fact.sub}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-            {!!repositories.rows.length && (
-              <SectionEvidence evidence={evidence} prefixes={["/briefing/repositories/rows"]} />
-            )}
-            {!!repositories.rows.length && (
-              <div className="pane-split">
-                <div className="repo-table">
-                  <div className="repo-grid">
-                    <div className="repo-head">
-                      <span>Repository</span>
-                      <span>
-                        Issues
-                        <small>
-                          human<span data-muted> · other</span>
-                        </small>
-                      </span>
-                      <span>Pull Requests</span>
-                      <span>Dependabot Bumps</span>
-                      <span>
-                        Vulnerabilities
-                        <small>
-                          ours<span data-muted> · upstream</span>
-                        </small>
-                      </span>
-                      <span>
-                        Code scanning
-                        <small>
-                          ours<span data-muted> · upstream</span>
-                        </small>
-                      </span>
-                    </div>
-                    {(["program", "fork"] as const).map((group) => {
-                      const rows = repositories.rows.filter((repo) => repo.group === group);
-                      return rows.length ? (
-                        <div key={group}>
-                          <p>{group === "program" ? "Program" : "Forks"}</p>
-                          {rows.map((repo) => {
-                            const pointer = `/briefing/repositories/rows/${repositories.rows.indexOf(repo)}`;
-                            const cell = (name: keyof RepoEntry["cells"]) => (
-                              <Cell cell={repo.cells[name]} pointer={`${pointer}/cells/${name}`} />
-                            );
-                            return (
-                              <button
-                                className="repo-row"
-                                type="button"
-                                key={repo.id}
-                                data-repo={repo.id}
-                                aria-pressed={repo.id === selected}
-                                onClick={() => {
-                                  pick(repo.id);
-                                  watchStore.getState().select(repo.id);
-                                }}
-                              >
-                                <span data-pointer={pointer}>{repo.name}</span>
-                                {cell("issues")}
-                                {cell("changes")}
-                                {cell("dependabot")}
-                                {cell("vulnerabilities")}
-                                {cell("codeScanning")}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      ) : null;
-                    })}
+      {!repositories || !evidence ? (
+        <p role="status">No repositories read yet.</p>
+      ) : (
+        <>
+          <SectionEvidence evidence={evidence} prefixes={["/briefing/repositories/headline"]} />
+          <h2 data-pointer="/briefing/repositories/headline">{repositories.headline}</h2>
+          {repositories.facts.length > 0 && (
+            <>
+              <SectionEvidence evidence={evidence} prefixes={["/briefing/repositories/facts"]} />
+              <div className="pane-facts">
+                {repositories.facts.map((fact, index) => (
+                  <div
+                    className="pane-fact"
+                    data-tone={fact.tone}
+                    data-pointer={`/briefing/repositories/facts/${index}/figure`}
+                    key={fact.label}
+                  >
+                    <div>{fact.label}</div>
+                    <strong>{fact.figure}</strong>
+                    <div>{fact.sub}</div>
                   </div>
-                  <p data-muted>
-                    Vulnerabilities are Dependabot alerts on the libraries a service uses. Code
-                    scanning is CodeQL and Scorecard findings in the source itself. Both count
-                    critical and high alerts in shipped code only. Pipeline PRs stay on Flow.
-                  </p>
-                </div>
-                <div>
-                  {repositories.rows.map((repo, index) => (
-                    <Detail
-                      key={repo.id}
-                      repo={repo}
-                      selected={repo.id === selected}
-                      pointer={`/briefing/repositories/rows/${index}`}
-                    />
-                  ))}
-                </div>
+                ))}
               </div>
-            )}
-          </>
-        )}
-      </div>
-    </>
+            </>
+          )}
+          {repositories.rows.length > 0 && (
+            <SectionEvidence evidence={evidence} prefixes={["/briefing/repositories/rows"]} />
+          )}
+          <LensTable
+            lens="repositories"
+            columns={columns}
+            rows={repositories.rows.map((row, index) => ({
+              reading: row,
+              group: row.group === "program" ? "Program" : "Forks",
+              pointer: `/briefing/repositories/rows/${index}`,
+              selection: {
+                id: row.id,
+                title: row.title,
+                kind: "repository",
+                prefixes: [`/briefing/repositories/rows/${index}`],
+              },
+            }))}
+            onOpen={(row) =>
+              navigate(
+                row.name === "osdu-spi"
+                  ? { kind: "template" }
+                  : row.name === "osdu-spi-stack"
+                    ? { kind: "environment" }
+                    : { kind: "service", id: row.id.replace(/^repo:/, "") },
+              )
+            }
+          />
+          <p className="lens-sub">
+            Vulnerabilities are Dependabot alerts on the libraries a service uses. Code scanning is
+            CodeQL and Scorecard findings in the source itself. Both count critical and high alerts
+            in shipped code only. Pipeline PRs stay on Flow.
+          </p>
+        </>
+      )}
+    </section>
   );
 }

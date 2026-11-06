@@ -162,6 +162,13 @@ export function routeSelectionIds(snapshot: ViewSnapshot, route: Route): string[
         ...queue.filter(({ scope }) => scope === route.id).map(({ id }) => id),
         ...briefing.flow.rows.filter(({ fork }) => fork === route.id).map(({ inspect }) => inspect),
         ...repos.filter(({ id }) => id === `repo:${route.id}`).map(({ id }) => id),
+        ...briefing.themes
+          .filter(
+            (theme) =>
+              [...theme.certain, ...theme.possible].some(({ fork }) => fork === route.id) ||
+              theme.exposed.includes(route.id),
+          )
+          .map((theme) => theme.inspect ?? `theme:${theme.id}`),
         ...(snapshot.stations.find(({ service }) => service === route.id)?.stations ?? []).map(
           (station) => `station:${route.id}:${station.id}`,
         ),
