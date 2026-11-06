@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
@@ -32,8 +32,33 @@ const git = (cwd: string, ...args: string[]) =>
   execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
 
 function temporaryDirectory(prefix: string) {
-  return realpathSync(mkdtempSync(join(tmpdir(), prefix)));
+  return realpathSync.native(mkdtempSync(join(tmpdir(), prefix)));
 }
+
+// Git for Windows writes long paths with forward slashes, while the temp directory can come back
+// as an 8.3 short name with backslashes. Canonicalise with realpathSync.native, then write in
+// git's form.
+function toGitPath(path: string, platform: NodeJS.Platform = process.platform) {
+  return platform === "win32" ? path.replaceAll("\\", "/") : path;
+}
+
+const pointers = [
+  { file: ["bead", ".git"], suffix: "/main/.git/worktrees/bead" },
+  { file: ["main", ".git", "worktrees", "bead", "gitdir"], suffix: "/bead/.git" },
+] as const;
+
+// Repoints a worktree pointer at a copy of the template. It keys on the suffix git wrote below
+// the fixture directory, never on how the template's own path was spelled.
+function retarget(contents: string, suffix: string, directory: string) {
+  const prefix = contents.startsWith("gitdir: ") ? "gitdir: " : "";
+  const named = contents.slice(prefix.length).trimEnd();
+  if (!named.replaceAll("\\", "/").endsWith(suffix)) {
+    throw new Error(`pointer does not end in ${suffix}: ${contents}`);
+  }
+  return `${prefix}${directory}${suffix}${contents.slice(prefix.length + named.length)}`;
+}
+
+const samePath = (a: string, b: string) => realpathSync.native(a) === realpathSync.native(b);
 
 function buildTemplate() {
   const directory = temporaryDirectory("spi-code-land-template-");
@@ -99,10 +124,24 @@ afterEach(() => {
   }
 });
 
-function relocate(file: string, directory: string) {
-  const pointer = readFileSync(file, "utf8");
-  if (!pointer.includes(template)) throw new Error(`${file} does not name ${template}: ${pointer}`);
-  writeFileSync(file, pointer.replaceAll(template, directory));
+function relocate(directory: string) {
+  for (const { file, suffix } of pointers) {
+    const path = join(directory, ...file);
+    writeFileSync(path, retarget(readFileSync(path, "utf8"), suffix, toGitPath(directory)));
+  }
+  const root = join(directory, "main");
+  const worktree = join(directory, "bead");
+  const commonDir = git(worktree, "rev-parse", "--path-format=absolute", "--git-common-dir");
+  if (!samePath(commonDir, join(root, ".git"))) {
+    throw new Error(`${worktree} still resolves to ${commonDir}, not the copy in ${directory}`);
+  }
+  const listed = git(root, "worktree", "list", "--porcelain")
+    .split("\n")
+    .filter((line) => line.startsWith("worktree "))
+    .map((line) => line.slice("worktree ".length));
+  if (!listed.some((path) => samePath(path, worktree))) {
+    throw new Error(`${root} does not list ${worktree}: ${listed.join(", ")}`);
+  }
 }
 
 function fixture() {
@@ -112,8 +151,7 @@ function fixture() {
   const root = join(directory, "main");
   const worktree = join(directory, "bead");
   const bin = join(directory, "bin");
-  relocate(join(worktree, ".git"), directory);
-  relocate(join(root, ".git", "worktrees", "bead", "gitdir"), directory);
+  relocate(directory);
   const beadFile = join(root, ".git", "bead.json");
   let changes = 0;
   return {
@@ -138,6 +176,61 @@ function fixture() {
       }),
   };
 }
+
+describe("fixture relocation", () => {
+  const short = "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\spi-code-land-template-abc";
+  const long = "C:/Users/runneradmin/AppData/Local/Temp/spi-code-land-template-abc";
+  const copy = "C:\\Users\\runneradmin\\AppData\\Local\\Temp\\spi-code-land-xyz";
+
+  it("writes Windows paths in git's forward-slash form", () => {
+    expect(toGitPath(copy, "win32")).toBe(
+      "C:/Users/runneradmin/AppData/Local/Temp/spi-code-land-xyz",
+    );
+    expect(toGitPath("/tmp/a\\b", "darwin")).toBe("/tmp/a\\b");
+  });
+
+  it("repoints Windows pointers git wrote in long form, whatever the template's short spelling", () => {
+    const pointer = `gitdir: ${long}/main/.git/worktrees/bead\n`;
+    expect(pointer.includes(short)).toBe(false);
+    const target = toGitPath(copy, "win32");
+    expect(retarget(pointer, pointers[0].suffix, target)).toBe(
+      "gitdir: C:/Users/runneradmin/AppData/Local/Temp/spi-code-land-xyz/main/.git/worktrees/bead\n",
+    );
+    expect(retarget(`${long}/bead/.git\r\n`, pointers[1].suffix, target)).toBe(
+      "C:/Users/runneradmin/AppData/Local/Temp/spi-code-land-xyz/bead/.git\r\n",
+    );
+    expect(retarget(`${short}\\bead\\.git\n`, pointers[1].suffix, target)).toBe(
+      "C:/Users/runneradmin/AppData/Local/Temp/spi-code-land-xyz/bead/.git\n",
+    );
+  });
+
+  it("repoints POSIX pointers and refuses one that names something else", () => {
+    expect(
+      retarget("gitdir: /private/tmp/t/main/.git/worktrees/bead\n", pointers[0].suffix, "/tmp/c"),
+    ).toBe("gitdir: /tmp/c/main/.git/worktrees/bead\n");
+    expect(retarget("/private/tmp/t/bead/.git\n", pointers[1].suffix, "/tmp/c")).toBe(
+      "/tmp/c/bead/.git\n",
+    );
+    expect(() =>
+      retarget("gitdir: /private/tmp/t/other/.git\n", pointers[0].suffix, "/tmp/c"),
+    ).toThrow("does not end in");
+  });
+
+  it("leaves a copied fixture resolving inside the copy, not the template", () => {
+    const directory = temporaryDirectory("spi-code-land-");
+    directories.push(directory);
+    cpSync(template, directory, { recursive: true });
+    relocate(directory);
+    const commonDir = git(
+      join(directory, "bead"),
+      "rev-parse",
+      "--path-format=absolute",
+      "--git-common-dir",
+    );
+    expect(realpathSync.native(commonDir).startsWith(directory + sep)).toBe(true);
+    expect(realpathSync.native(commonDir).startsWith(template + sep)).toBe(false);
+  });
+});
 
 describe("landing commit attribution", () => {
   it.each([
