@@ -1399,7 +1399,28 @@
       "anchor": {
         "kind": "upstream"
       },
-      "content": null
+      "content": {
+        "headline": "At 00:00, 6 commits reach 2 forks.",
+        "tiles": [
+          {
+            "label": "Incoming",
+            "value": "6",
+            "counts": "commits · 2 of 5 forks"
+          },
+          {
+            "label": "Toolchain",
+            "value": "0 forks",
+            "counts": "move to os-core-common 8.2.0"
+          },
+          {
+            "label": "Largest",
+            "value": "4",
+            "counts": "commits · legal · then entitlements 2"
+          }
+        ],
+        "items": [],
+        "folded": null
+      }
     },
     {
       "anchor": {
@@ -1430,35 +1451,259 @@
         "kind": "service",
         "id": "partition"
       },
-      "content": null
+      "content": {
+        "headline": "Template sync has gone stale.",
+        "qualifier": "Sync Template last ran 10-12 08:19; it runs daily",
+        "tiles": [
+          {
+            "label": "Upstream",
+            "value": "0",
+            "counts": "commits behind · nothing queued"
+          },
+          {
+            "label": "Line",
+            "value": "Clear",
+            "counts": "sync PR, cascade and sync to main idle"
+          },
+          {
+            "label": "Release",
+            "value": "v1.3.1",
+            "counts": "latest release · no release review open"
+          }
+        ],
+        "items": [],
+        "folded": "Template: 14 commits behind osdu-spi; template-sync PR #174 open."
+      }
     },
     {
       "anchor": {
         "kind": "service",
         "id": "entitlements"
       },
-      "content": null
+      "content": {
+        "headline": "Sync Upstream halted on UNKNOWN_TOP_LEVEL.",
+        "qualifier": "UNKNOWN_TOP_LEVEL: schemathesis-tests · 13d",
+        "tiles": [
+          {
+            "label": "Upstream",
+            "value": "2",
+            "counts": "commits behind · held by the halt · will halt on schemathesis-tests"
+          },
+          {
+            "label": "Line",
+            "value": "Stopped",
+            "counts": "sync PR · halted: UNKNOWN_TOP_LEVEL"
+          },
+          {
+            "label": "Release",
+            "value": "v1.2.0",
+            "counts": "latest release · no release review open"
+          }
+        ],
+        "items": [
+          {
+            "id": "halt:entitlements",
+            "ids": ["halt:entitlements"],
+            "rung": 0,
+            "cls": "HALT",
+            "scope": "entitlements",
+            "title": "Sync halted on schemathesis-tests",
+            "sub": "2 commits held · 13d · the same entry is missing from 4 other filters",
+            "cause": "Upstream adds schemathesis-tests, a top-level entry the fork's filter has no rule for, so Sync Upstream stops with UNKNOWN_TOP_LEVEL.",
+            "effect": "4 daily Sync Upstream runs failed since the halt. 2 upstream commits wait behind the halt.",
+            "next": "Add a rule for schemathesis-tests to .github/upstream-filter.yml, then dispatch sync.",
+            "verb": "Classify entry",
+            "evidence": [
+              {
+                "label": "issue #47",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/issues/47"
+              },
+              {
+                "label": "run",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38187922977"
+              }
+            ],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Stopped"
+          },
+          {
+            "id": "port:entitlements",
+            "ids": ["port:entitlements", "port:legal"],
+            "rung": 1,
+            "cls": "PORT",
+            "scope": "2 forks",
+            "title": "3 upstream provider changes not ported",
+            "sub": "entitlements 2 · legal 1",
+            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+            "effect": "Until each MR is ported, entitlements and legal drift from upstream.",
+            "next": "Port !963 into testing/entitlements-v2-test-azure; cite the MR URL in the PR body.",
+            "verb": "Port",
+            "evidence": [
+              {
+                "label": "!963",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963"
+              },
+              {
+                "label": "!956",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956"
+              },
+              {
+                "label": "!783",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/merge_requests/783"
+              }
+            ],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Needs a decision"
+          }
+        ],
+        "folded": "Template: 14 commits behind osdu-spi; template-sync PR #48 open."
+      }
     },
     {
       "anchor": {
         "kind": "service",
         "id": "legal"
       },
-      "content": null
+      "content": {
+        "headline": "Sync PR #31 fails its checks.",
+        "qualifier": "Java Build: upstream requires Java 25, the fork builds on 17 · 13d",
+        "tiles": [
+          {
+            "label": "Upstream",
+            "value": "4",
+            "counts": "commits behind · in the sync PR · Java 25 queued"
+          },
+          {
+            "label": "Line",
+            "value": "Stopped",
+            "counts": "sync PR · PR #31 red"
+          },
+          {
+            "label": "Release",
+            "value": "v1.2.0",
+            "counts": "latest release · no release review open"
+          }
+        ],
+        "items": [
+          {
+            "id": "gate1:legal",
+            "ids": ["gate1:legal"],
+            "rung": 1,
+            "cls": "TOOLCHAIN",
+            "scope": "legal",
+            "title": "Sync PR #31 fails Java Build",
+            "sub": "upstream requires Java 25, the fork builds on 17 · 4 commits held · 13d",
+            "cause": "Upstream requires Java 25; the fork builds on 17.",
+            "effect": "4 upstream commits wait on this PR.",
+            "next": "Move the fork's Java pin to 25, the version upstream now requires.",
+            "verb": "Absorb toolchain",
+            "evidence": [
+              {
+                "label": "PR #31",
+                "url": "https://github.com/Azure/osdu-spi-legal/pull/31"
+              },
+              {
+                "label": "check Java Build › Run Java Build",
+                "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37706140110/job/113081034815"
+              }
+            ],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Needs a decision"
+          },
+          {
+            "id": "port:entitlements",
+            "ids": ["port:entitlements", "port:legal"],
+            "rung": 1,
+            "cls": "PORT",
+            "scope": "2 forks",
+            "title": "3 upstream provider changes not ported",
+            "sub": "entitlements 2 · legal 1",
+            "cause": "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
+            "effect": "Until each MR is ported, entitlements and legal drift from upstream.",
+            "next": "Port !963 into testing/entitlements-v2-test-azure; cite the MR URL in the PR body.",
+            "verb": "Port",
+            "evidence": [
+              {
+                "label": "!963",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/963"
+              },
+              {
+                "label": "!956",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/956"
+              },
+              {
+                "label": "!783",
+                "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/merge_requests/783"
+              }
+            ],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Needs a decision"
+          }
+        ],
+        "folded": "Template: 14 commits behind osdu-spi; template-sync PR #33 open."
+      }
     },
     {
       "anchor": {
         "kind": "service",
         "id": "schema"
       },
-      "content": null
+      "content": {
+        "headline": "Template sync has gone stale.",
+        "qualifier": "Sync Template last ran 10-12 08:36; it runs daily",
+        "tiles": [
+          {
+            "label": "Upstream",
+            "value": "0",
+            "counts": "commits behind · nothing queued"
+          },
+          {
+            "label": "Line",
+            "value": "Clear",
+            "counts": "sync PR, cascade and sync to main idle"
+          },
+          {
+            "label": "Release",
+            "value": "v1.2.0",
+            "counts": "latest release · no release review open"
+          }
+        ],
+        "items": [],
+        "folded": "Template: 12 commits behind osdu-spi; template-sync PR #37 open."
+      }
     },
     {
       "anchor": {
         "kind": "service",
         "id": "file"
       },
-      "content": null
+      "content": {
+        "headline": "Template sync has gone stale.",
+        "qualifier": "Sync Template last ran 10-12 08:29; it runs daily",
+        "tiles": [
+          {
+            "label": "Upstream",
+            "value": "0",
+            "counts": "commits behind · nothing queued"
+          },
+          {
+            "label": "Line",
+            "value": "Clear",
+            "counts": "sync PR, cascade and sync to main idle"
+          },
+          {
+            "label": "Release",
+            "value": "v1.2.0",
+            "counts": "latest release · no release review open"
+          }
+        ],
+        "items": [],
+        "folded": "Template: 14 commits behind osdu-spi; template-sync PR #51 open."
+      }
     },
     {
       "anchor": {

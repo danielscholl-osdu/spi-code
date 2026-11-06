@@ -1,0 +1,2449 @@
+{
+  "radar": [
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merged MRs",
+      "observedAt": "2026-11-06T14:02:23.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "merged MRs",
+      "observedAt": "2026-11-06T14:02:23.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "merged MRs",
+      "observedAt": "2026-11-06T14:02:23.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merged MRs",
+      "observedAt": "2026-11-06T14:02:23.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "merged MRs",
+      "observedAt": "2026-11-06T14:02:23.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merged MRs",
+      "observedAt": "2026-11-06T14:02:24.171Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "merged MRs",
+      "observedAt": "2026-11-06T14:02:24.171Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merged MRs",
+      "observedAt": "2026-11-06T14:02:24.171Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "merged MRs",
+      "observedAt": "2026-11-06T14:02:24.171Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-queue",
+      "object": "merged MRs",
+      "observedAt": "2026-11-06T14:02:24.171Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "merged MRs",
+      "observedAt": "2026-11-06T14:02:24.660Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-catalog-service",
+      "object": "merged MRs",
+      "observedAt": "2026-11-06T14:02:24.660Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "merged MRs",
+      "observedAt": "2026-11-06T14:02:24.660Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-partition",
+      "object": "port PRs",
+      "observedAt": "2026-11-06T14:02:29.611Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-entitlements",
+      "object": "port PRs",
+      "observedAt": "2026-11-06T14:02:32.448Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-legal",
+      "object": "port PRs",
+      "observedAt": "2026-11-06T14:02:34.466Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-schema",
+      "object": "port PRs",
+      "observedAt": "2026-11-06T14:02:36.929Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-file",
+      "object": "port PRs",
+      "observedAt": "2026-11-06T14:02:40.534Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-storage",
+      "object": "port PRs",
+      "observedAt": "2026-11-06T14:02:43.123Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-indexer",
+      "object": "port PRs",
+      "observedAt": "2026-11-06T14:02:45.180Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-search",
+      "object": "pulls/39/commits",
+      "observedAt": "2026-11-06T14:02:48.907Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-search",
+      "object": "pulls/37/commits",
+      "observedAt": "2026-11-06T14:02:49.901Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-search",
+      "object": "port PRs",
+      "observedAt": "2026-11-06T14:02:49.901Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-workflow",
+      "object": "port PRs",
+      "observedAt": "2026-11-06T14:02:53.228Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-indexer-queue",
+      "object": "port PRs",
+      "observedAt": "2026-11-06T14:02:55.307Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-unit",
+      "object": "port PRs",
+      "observedAt": "2026-11-06T14:02:57.152Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-crs-catalog",
+      "object": "port PRs",
+      "observedAt": "2026-11-06T14:02:59.023Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-crs-conversion",
+      "object": "port PRs",
+      "observedAt": "2026-11-06T14:03:00.820Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "merge_requests?state=opened&target_branch=master",
+      "observedAt": "2026-11-06T14:03:01.264Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "merge_requests/974/diffs",
+      "observedAt": "2026-11-06T14:03:01.264Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "merge_requests/960/diffs",
+      "observedAt": "2026-11-06T14:03:01.264Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "merge_requests/953/diffs",
+      "observedAt": "2026-11-06T14:03:01.264Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "merge_requests/927/diffs",
+      "observedAt": "2026-11-06T14:03:01.264Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "merge_requests/926/diffs",
+      "observedAt": "2026-11-06T14:03:01.264Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "merge_requests/923/diffs",
+      "observedAt": "2026-11-06T14:03:01.264Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "merge_requests/889/diffs",
+      "observedAt": "2026-11-06T14:03:01.264Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "merge_requests/976/diffs",
+      "observedAt": "2026-11-06T14:03:01.264Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "merge_requests/975/diffs",
+      "observedAt": "2026-11-06T14:03:01.264Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "merge_requests/972/diffs",
+      "observedAt": "2026-11-06T14:03:01.264Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "merge_requests/968/diffs",
+      "observedAt": "2026-11-06T14:03:01.264Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "merge_requests/967/diffs",
+      "observedAt": "2026-11-06T14:03:01.264Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "merge_requests/966/diffs",
+      "observedAt": "2026-11-06T14:03:01.264Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "merge_requests/963/diffs",
+      "observedAt": "2026-11-06T14:03:01.264Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "merge_requests/956/diffs",
+      "observedAt": "2026-11-06T14:03:01.264Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests?state=opened&target_branch=master",
+      "observedAt": "2026-11-06T14:03:01.293Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/840/diffs",
+      "observedAt": "2026-11-06T14:03:01.293Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/839/diffs",
+      "observedAt": "2026-11-06T14:03:01.293Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/837/diffs",
+      "observedAt": "2026-11-06T14:03:01.293Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/822/diffs",
+      "observedAt": "2026-11-06T14:03:01.293Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/821/diffs",
+      "observedAt": "2026-11-06T14:03:01.293Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/820/diffs",
+      "observedAt": "2026-11-06T14:03:01.293Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/809/diffs",
+      "observedAt": "2026-11-06T14:03:01.293Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/795/diffs",
+      "observedAt": "2026-11-06T14:03:01.293Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "repository/commits/233fb55af5320c5952bdbd957d803c623f63c78a/diff",
+      "observedAt": "2026-11-06T14:03:01.293Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "repository/commits/d771049a1c333a9111ec1e5a35b6cdb674c0c29d/diff",
+      "observedAt": "2026-11-06T14:03:01.293Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "repository/commits/a670aeafc70bae04ab592b171ebf01d7d2a575c6/diff",
+      "observedAt": "2026-11-06T14:03:01.293Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "repository/commits/d2d2d0c065209308247fe8ce026e0b94c74befad/diff",
+      "observedAt": "2026-11-06T14:03:01.293Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "repository/commits/a9fed360a1df9b21c4c8fab749f65d6d5a931e17/diff",
+      "observedAt": "2026-11-06T14:03:01.293Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "repository/commits/021b37ed6b1725567e5161d94e9504c9c4404b3e/diff",
+      "observedAt": "2026-11-06T14:03:01.293Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "repository/commits/69785fa552c905baf34b9c4f7251f7c1c51488df/diff",
+      "observedAt": "2026-11-06T14:03:01.293Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "repository/commits/62df5bab5b6dfecccf46700e02fa999720981ee7/diff",
+      "observedAt": "2026-11-06T14:03:01.293Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/838/diffs",
+      "observedAt": "2026-11-06T14:03:01.294Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/835/diffs",
+      "observedAt": "2026-11-06T14:03:01.294Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/834/diffs",
+      "observedAt": "2026-11-06T14:03:01.294Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/832/diffs",
+      "observedAt": "2026-11-06T14:03:01.294Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/830/diffs",
+      "observedAt": "2026-11-06T14:03:01.294Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/828/diffs",
+      "observedAt": "2026-11-06T14:03:01.294Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/826/diffs",
+      "observedAt": "2026-11-06T14:03:01.294Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/825/diffs",
+      "observedAt": "2026-11-06T14:03:01.294Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/824/diffs",
+      "observedAt": "2026-11-06T14:03:01.294Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/823/diffs",
+      "observedAt": "2026-11-06T14:03:01.294Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/819/diffs",
+      "observedAt": "2026-11-06T14:03:01.294Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "merge_requests?state=opened&target_branch=master",
+      "observedAt": "2026-11-06T14:03:01.303Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "merge_requests/795/diffs",
+      "observedAt": "2026-11-06T14:03:01.303Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "merge_requests/792/diffs",
+      "observedAt": "2026-11-06T14:03:01.303Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "merge_requests/785/diffs",
+      "observedAt": "2026-11-06T14:03:01.303Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "merge_requests/768/diffs",
+      "observedAt": "2026-11-06T14:03:01.303Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "merge_requests/756/diffs",
+      "observedAt": "2026-11-06T14:03:01.303Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "merge_requests/736/diffs",
+      "observedAt": "2026-11-06T14:03:01.303Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "merge_requests/727/diffs",
+      "observedAt": "2026-11-06T14:03:01.303Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "merge_requests/715/diffs",
+      "observedAt": "2026-11-06T14:03:01.303Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "merge_requests/714/diffs",
+      "observedAt": "2026-11-06T14:03:01.303Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "merge_requests/794/diffs",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "repository/commits/6f11bbd7d51c8ddef5134f2ed3f94ccabca87f37/diff",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "repository/commits/0cab109017b316cfd6a037c6c603ad4ee293f3c1/diff",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "repository/commits/2aff9d08ec08824fe7dbfb15709ecef9cd3e54ad/diff",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "repository/commits/254934bd16db6369d38fc499fad81e1630b88811/diff",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "repository/commits/e4c1216535b9e1b83560fee6520111a1a3c14533/diff",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "repository/commits/85453c2ed2bbbb6b3d65384c112443fb5774f00b/diff",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "repository/commits/33571ff159d7195cf4ce203ac022af9c44a020b2/diff",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "repository/commits/5301a8fd9257ca5da9df34557136e1815ce58b79/diff",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "repository/commits/79cbd07824030a0b993939763a8e869721ba698a/diff",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "repository/commits/4019e81608bea443b307aa361156b6352927a252/diff",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "repository/commits/8726da57d993fec084f56be5da287ca478aa61b4/diff",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "repository/commits/36747605271f156194181b27dccfece352b71fff/diff",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "repository/commits/138f1a12d20f02cb674daa581aa1f3227403a49b/diff",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "repository/commits/730f913c926fe06ef4a8da89bb2e40745731da10/diff",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "repository/commits/32578c134f73be807ea2961cc032c20ab22296aa/diff",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "repository/commits/3b146e634856c8b4c95861d8fd3481c4f2171ff2/diff",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "repository/commits/8fa4a7ad56c95398d451a5224cf8bbb90a1750b6/diff",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "merge_requests/793/diffs",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "merge_requests/791/diffs",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "merge_requests/789/diffs",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "merge_requests/787/diffs",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "merge_requests/786/diffs",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "merge_requests/783/diffs",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "merge_requests/778/diffs",
+      "observedAt": "2026-11-06T14:03:01.766Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "projects/osdu%2Fplatform%2Fsecurity-and-compliance%2Flegal/repository/files/pom.xml?ref=8fa4a7ad56c95398d451a5224cf8bbb90a1750b6",
+      "observedAt": "2026-11-06T14:02:21.504Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/833/diffs",
+      "observedAt": "2026-11-06T14:03:02.123Z",
+      "completeness": {
+        "kind": "cut",
+        "reason": "GitLab omitted oversized or collapsed classification hunks",
+        "read": 75,
+        "total": 79
+      }
+    },
+    {
+      "source": "Azure/osdu-spi-legal",
+      "object": ".github/upstream-filter.yml",
+      "observedAt": "2026-11-06T14:03:02.148Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests?state=opened&target_branch=master",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/891/diffs",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/890/diffs",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/889/diffs",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/886/diffs",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/875/diffs",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/866/diffs",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/854/diffs",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/828/diffs",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "repository/commits/813c485129720f6bb7669f018da6e52cea8996ed/diff",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "repository/commits/28d5a93096f69a90ee3df7727103d2394e09c789/diff",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "repository/commits/26d7a548baf5cbecdb640cfcddb8678001534d8e/diff",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "repository/commits/c79c5625b607377b6bb07eabe09a69a00a7cd043/diff",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "repository/commits/bf0fe8a6f3c776c4a91ac2f12929dbe822f43f12/diff",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "repository/commits/a79b0d350ad16fb5c4731a3ebf9ae3689ccdd3a6/diff",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "repository/commits/fc01031f159a41ddcda62ac97bb63126ac28aa8c/diff",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "repository/commits/8c58054749a5633d9e50e97b45533b271f1b91ec/diff",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "repository/commits/eef42772234928c3824d920e49cb0d674d70659a/diff",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "repository/commits/c76a65e70a03d4d601dc788feabf3070d528bfd8/diff",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "repository/commits/16b3f3125782f24e436968d05728f8a8b1e54103/diff",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "repository/commits/2f54d167319970194267d7d30e6909df1433dc30/diff",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "repository/commits/1323df9587acd766d8ce4695220b1988c10933de/diff",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "repository/commits/b16c885da2748b5faae29a45fd9096273bd0fb3f/diff",
+      "observedAt": "2026-11-06T14:03:02.590Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "repository/commits/d708bac1910407e175278e721a86fe20249e18bf/diff",
+      "observedAt": "2026-11-06T14:03:02.591Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "repository/commits/859891a5ac81464e7a701cc15a4536204a9a86bf/diff",
+      "observedAt": "2026-11-06T14:03:02.591Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/887/diffs",
+      "observedAt": "2026-11-06T14:03:02.591Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/878/diffs",
+      "observedAt": "2026-11-06T14:03:02.591Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/877/diffs",
+      "observedAt": "2026-11-06T14:03:02.591Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/876/diffs",
+      "observedAt": "2026-11-06T14:03:02.591Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/872/diffs",
+      "observedAt": "2026-11-06T14:03:02.591Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/871/diffs",
+      "observedAt": "2026-11-06T14:03:02.591Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/870/diffs",
+      "observedAt": "2026-11-06T14:03:02.591Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/869/diffs",
+      "observedAt": "2026-11-06T14:03:02.591Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/867/diffs",
+      "observedAt": "2026-11-06T14:03:02.591Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/865/diffs",
+      "observedAt": "2026-11-06T14:03:02.591Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/857/diffs",
+      "observedAt": "2026-11-06T14:03:02.591Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "merge_requests/829/diffs",
+      "observedAt": "2026-11-06T14:03:02.702Z",
+      "completeness": {
+        "kind": "cut",
+        "reason": "GitLab omitted oversized or collapsed classification hunks",
+        "read": 119,
+        "total": 124
+      }
+    },
+    {
+      "source": "osdu/platform/system/partition",
+      "object": "projects/osdu%2Fplatform%2Fsystem%2Fpartition/repository/files/pom.xml?ref=62df5bab5b6dfecccf46700e02fa999720981ee7",
+      "observedAt": "2026-11-06T14:02:21.481Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "merge_requests/969/diffs",
+      "observedAt": "2026-11-06T14:03:02.807Z",
+      "completeness": {
+        "kind": "cut",
+        "reason": "GitLab omitted oversized or collapsed classification hunks",
+        "read": 125,
+        "total": 130
+      }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "projects/osdu%2Fplatform%2Fsecurity-and-compliance%2Fentitlements/repository/files/pom.xml?ref=a4c8573cc11eb83bb64da0d75166f6df8d9899e6",
+      "observedAt": "2026-11-06T14:02:21.480Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-partition",
+      "object": ".github/upstream-filter.yml",
+      "observedAt": "2026-11-06T14:03:03.132Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-entitlements",
+      "object": ".github/upstream-filter.yml",
+      "observedAt": "2026-11-06T14:03:03.212Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "merge_requests?state=opened&target_branch=master",
+      "observedAt": "2026-11-06T14:03:03.532Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "merge_requests/766/diffs",
+      "observedAt": "2026-11-06T14:03:03.532Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "merge_requests/762/diffs",
+      "observedAt": "2026-11-06T14:03:03.532Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "merge_requests/736/diffs",
+      "observedAt": "2026-11-06T14:03:03.532Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "repository/commits/be501def8979ffb5df15aecf9ab37c5dac780a5d/diff",
+      "observedAt": "2026-11-06T14:03:03.532Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "repository/commits/4d0ff1f4ff24edbeda28d2c161a144a4e3e02db2/diff",
+      "observedAt": "2026-11-06T14:03:03.532Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "repository/commits/48088f5a1d5b72a547876ef5303f7e4e8d334580/diff",
+      "observedAt": "2026-11-06T14:03:03.532Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "repository/commits/40ceb086f9095c126b5a9543bef9e13c4c464689/diff",
+      "observedAt": "2026-11-06T14:03:03.532Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "repository/commits/1c31dcdb612de78712c9255b2b9674d9f4446179/diff",
+      "observedAt": "2026-11-06T14:03:03.532Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "merge_requests/765/diffs",
+      "observedAt": "2026-11-06T14:03:03.532Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "merge_requests/764/diffs",
+      "observedAt": "2026-11-06T14:03:03.532Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "merge_requests/761/diffs",
+      "observedAt": "2026-11-06T14:03:03.532Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "merge_requests/760/diffs",
+      "observedAt": "2026-11-06T14:03:03.532Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "merge_requests/759/diffs",
+      "observedAt": "2026-11-06T14:03:03.532Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "merge_requests/755/diffs",
+      "observedAt": "2026-11-06T14:03:03.532Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "merge_requests/754/diffs",
+      "observedAt": "2026-11-06T14:03:03.532Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "merge_requests/752/diffs",
+      "observedAt": "2026-11-06T14:03:03.532Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests?state=opened&target_branch=master",
+      "observedAt": "2026-11-06T14:03:03.706Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1248/diffs",
+      "observedAt": "2026-11-06T14:03:03.706Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1247/diffs",
+      "observedAt": "2026-11-06T14:03:03.706Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1245/diffs",
+      "observedAt": "2026-11-06T14:03:03.706Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1242/diffs",
+      "observedAt": "2026-11-06T14:03:03.706Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1237/diffs",
+      "observedAt": "2026-11-06T14:03:03.706Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1234/diffs",
+      "observedAt": "2026-11-06T14:03:03.706Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1231/diffs",
+      "observedAt": "2026-11-06T14:03:03.707Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1227/diffs",
+      "observedAt": "2026-11-06T14:03:03.707Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1196/diffs",
+      "observedAt": "2026-11-06T14:03:03.707Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1187/diffs",
+      "observedAt": "2026-11-06T14:03:03.707Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1173/diffs",
+      "observedAt": "2026-11-06T14:03:03.707Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1149/diffs",
+      "observedAt": "2026-11-06T14:03:03.707Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1091/diffs",
+      "observedAt": "2026-11-06T14:03:03.707Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "merge_requests/873/diffs",
+      "observedAt": "2026-11-06T14:03:04.043Z",
+      "completeness": {
+        "kind": "cut",
+        "reason": "GitLab omitted oversized or collapsed classification hunks",
+        "read": 116,
+        "total": 121
+      }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "projects/osdu%2Fplatform%2Fsystem%2Fschema-service/repository/files/pom.xml?ref=859891a5ac81464e7a701cc15a4536204a9a86bf",
+      "observedAt": "2026-11-06T14:02:21.846Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-schema",
+      "object": ".github/upstream-filter.yml",
+      "observedAt": "2026-11-06T14:03:04.423Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "merge_requests/756/diffs",
+      "observedAt": "2026-11-06T14:03:04.541Z",
+      "completeness": {
+        "kind": "cut",
+        "reason": "GitLab omitted oversized or collapsed classification hunks",
+        "read": 94,
+        "total": 99
+      }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "merge_requests?state=opened&target_branch=master",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "merge_requests/1032/diffs",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "merge_requests/1025/diffs",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "merge_requests/1008/diffs",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "merge_requests/1003/diffs",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "merge_requests/1002/diffs",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "merge_requests/993/diffs",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "merge_requests/959/diffs",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/91f5b301ad41cd645d7b14b6c04ef03dd0eea325/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/7749dc4b7b5865f3030b6b089068f8de80729918/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/b57d019d72aca9f6c9b16465c0d70997ce491fc0/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/fe62e085885ad9459b1d499b02764f50001d27c9/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/cdfc747f6d06f2a7612eb03dac7492279fee5deb/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/717dda63ccfed67b5929d30c43b7ef697509e4a2/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/42d22379213ddda6ae1ab822888176b8477c999e/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/b280aa6c32848e6805dec0c170dbeff9658b5bab/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/bd2b66b85bb56937d939e3f3462340bcf056d845/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/2aebab0ae02bd193f12663a1f97fbbfcfe5143cc/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/e5da07073fcd7a8096cb4524020a946876b72d0c/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/62bc4f1bc5de09ef9bf64a5fd975587bea6655b0/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/fd74c7f0b1cb8eed76596d83aa6a7051c53b3ff9/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/e2ed1f24686caaa96dc6de0387f92b8e6bdae75d/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/2e58d62b0dd760f9697902e25e254c2020cd1889/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/b5dfc3cc04152b8882fc672ace25efeb85553c53/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/ea397669c5873829cbb10e75939c766af5bcb672/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/be00f772f6a38ad4fa55bb20416699a346d438c7/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/cc79d4bb030ad9a4e44edc2285d0680bf3bebf98/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/e810ce3810cf92a1b840af8ac970e342c9ae5846/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/6f0f644581c0b7418ec7527cad4d59735a0ecfac/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/cdb3397f5ed0e3736d0d776843033d0b90198578/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/f3342aa8fb8f9015ef940e05ead97cc54ce0a1a6/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/f9643b164cf5eb0994df18a6d30ddcd37738d245/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/commits/f1c866d7135b2b8b6f27d29fc145441cc9f8264e/diff",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "merge_requests/1030/diffs",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "merge_requests/1029/diffs",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "merge_requests/1027/diffs",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "merge_requests/1026/diffs",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "merge_requests/1024/diffs",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "merge_requests/1023/diffs",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "merge_requests/1022/diffs",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "merge_requests/1021/diffs",
+      "observedAt": "2026-11-06T14:03:04.839Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "projects/osdu%2Fplatform%2Fsystem%2Findexer-service/repository/files/pom.xml?ref=f1c866d7135b2b8b6f27d29fc145441cc9f8264e",
+      "observedAt": "2026-11-06T14:02:22.201Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "merge_requests/749/diffs",
+      "observedAt": "2026-11-06T14:03:04.905Z",
+      "completeness": {
+        "kind": "cut",
+        "reason": "GitLab omitted oversized or collapsed classification hunks",
+        "read": 107,
+        "total": 111
+      }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "projects/osdu%2Fplatform%2Fsystem%2Ffile/repository/files/pom.xml?ref=1c31dcdb612de78712c9255b2b9674d9f4446179",
+      "observedAt": "2026-11-06T14:02:21.845Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-indexer",
+      "object": ".github/upstream-filter.yml",
+      "observedAt": "2026-11-06T14:03:05.161Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1168/diffs",
+      "observedAt": "2026-11-06T14:03:05.201Z",
+      "completeness": {
+        "kind": "cut",
+        "reason": "GitLab omitted oversized or collapsed classification hunks",
+        "read": 93,
+        "total": 103
+      }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1080/diffs",
+      "observedAt": "2026-11-06T14:03:05.201Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-file",
+      "object": ".github/upstream-filter.yml",
+      "observedAt": "2026-11-06T14:03:05.235Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1197/diffs",
+      "observedAt": "2026-11-06T14:03:05.289Z",
+      "completeness": {
+        "kind": "cut",
+        "reason": "GitLab omitted oversized or collapsed classification hunks",
+        "read": 93,
+        "total": 103
+      }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1090/diffs",
+      "observedAt": "2026-11-06T14:03:05.407Z",
+      "completeness": {
+        "kind": "cut",
+        "reason": "GitLab omitted oversized or collapsed classification hunks",
+        "read": 125,
+        "total": 140
+      }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "repository/commits/72beee0942c9d769edd88c11789c9f08519e13b1/diff",
+      "observedAt": "2026-11-06T14:03:05.407Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "repository/commits/9acda5e50312d03e4e8b891c6923d01ec90dfd7d/diff",
+      "observedAt": "2026-11-06T14:03:05.407Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "repository/commits/6e05129e892d3b5d1136643ef6f7b62aeaac5572/diff",
+      "observedAt": "2026-11-06T14:03:05.407Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "repository/commits/4da6fdbcc61a10921805777f54e57f44cc4550eb/diff",
+      "observedAt": "2026-11-06T14:03:05.407Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "repository/commits/174cf89d10ab856ad6dbeece82dc199d8b886eba/diff",
+      "observedAt": "2026-11-06T14:03:05.407Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "repository/commits/5284c32a55db9b6403ccf0fd9593234d2809f4d9/diff",
+      "observedAt": "2026-11-06T14:03:05.407Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "repository/commits/98660406140fdcf663de0ccc3a6dc07186f93192/diff",
+      "observedAt": "2026-11-06T14:03:05.407Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "repository/commits/1023c15ca737cb98260d870233c3be2c3c7ac1b8/diff",
+      "observedAt": "2026-11-06T14:03:05.407Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "repository/commits/b2a8a8c4c89f8bbff0fbf1443d60010ab53547b6/diff",
+      "observedAt": "2026-11-06T14:03:05.407Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "repository/commits/9140d382f39b53d2d92cb2beba087e4d702ce9a0/diff",
+      "observedAt": "2026-11-06T14:03:05.407Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "repository/commits/21ac469f21cf2a1f4df17f886a3244a55f047595/diff",
+      "observedAt": "2026-11-06T14:03:05.407Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1236/diffs",
+      "observedAt": "2026-11-06T14:03:05.407Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1233/diffs",
+      "observedAt": "2026-11-06T14:03:05.407Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1232/diffs",
+      "observedAt": "2026-11-06T14:03:05.407Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1230/diffs",
+      "observedAt": "2026-11-06T14:03:05.407Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1229/diffs",
+      "observedAt": "2026-11-06T14:03:05.407Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests?state=opened&target_branch=master",
+      "observedAt": "2026-11-06T14:03:05.605Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/909/diffs",
+      "observedAt": "2026-11-06T14:03:05.605Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/906/diffs",
+      "observedAt": "2026-11-06T14:03:05.605Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/904/diffs",
+      "observedAt": "2026-11-06T14:03:05.605Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/898/diffs",
+      "observedAt": "2026-11-06T14:03:05.605Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/888/diffs",
+      "observedAt": "2026-11-06T14:03:05.605Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/882/diffs",
+      "observedAt": "2026-11-06T14:03:05.605Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/880/diffs",
+      "observedAt": "2026-11-06T14:03:05.605Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/878/diffs",
+      "observedAt": "2026-11-06T14:03:05.605Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/865/diffs",
+      "observedAt": "2026-11-06T14:03:05.606Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/821/diffs",
+      "observedAt": "2026-11-06T14:03:05.606Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/820/diffs",
+      "observedAt": "2026-11-06T14:03:05.606Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "merge_requests?state=opened&target_branch=master",
+      "observedAt": "2026-11-06T14:03:05.624Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "merge_requests/711/diffs",
+      "observedAt": "2026-11-06T14:03:05.624Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "merge_requests/708/diffs",
+      "observedAt": "2026-11-06T14:03:05.624Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "merge_requests/700/diffs",
+      "observedAt": "2026-11-06T14:03:05.624Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "merge_requests/685/diffs",
+      "observedAt": "2026-11-06T14:03:05.624Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "merge_requests/683/diffs",
+      "observedAt": "2026-11-06T14:03:05.624Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "merge_requests/666/diffs",
+      "observedAt": "2026-11-06T14:03:05.624Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "merge_requests/662/diffs",
+      "observedAt": "2026-11-06T14:03:05.624Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "repository/commits/c2f843767f5cd6e8f18d4d709faa7bb2c54e689b/diff",
+      "observedAt": "2026-11-06T14:03:05.624Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "repository/commits/d6847cea52b94f697ab67ef471f1bfeff33b6d93/diff",
+      "observedAt": "2026-11-06T14:03:05.624Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "repository/commits/f4157dccafe1f2c1f95564b0de6879e9d95ba97d/diff",
+      "observedAt": "2026-11-06T14:03:05.624Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "repository/commits/2a84d22833b6822ee92def00094bda904593fd92/diff",
+      "observedAt": "2026-11-06T14:03:05.624Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "repository/commits/4c4de0b622c345bec9cf2d223703cfaf40e94fc3/diff",
+      "observedAt": "2026-11-06T14:03:05.624Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "repository/commits/32b742742ae7360ea7a1f3b594ce63660fce7b4a/diff",
+      "observedAt": "2026-11-06T14:03:05.624Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "repository/commits/647320c1651a2be1c09e11a1e1b7c81fc17cc38c/diff",
+      "observedAt": "2026-11-06T14:03:05.624Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "merge_requests/710/diffs",
+      "observedAt": "2026-11-06T14:03:05.624Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "merge_requests/707/diffs",
+      "observedAt": "2026-11-06T14:03:05.624Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "merge_requests/706/diffs",
+      "observedAt": "2026-11-06T14:03:05.624Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "merge_requests/705/diffs",
+      "observedAt": "2026-11-06T14:03:05.624Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "projects/osdu%2Fplatform%2Fdata-flow%2Fingestion%2Fingestion-workflow/repository/files/pom.xml?ref=647320c1651a2be1c09e11a1e1b7c81fc17cc38c",
+      "observedAt": "2026-11-06T14:02:22.194Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-workflow",
+      "object": ".github/upstream-filter.yml",
+      "observedAt": "2026-11-06T14:03:06.073Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/829/diffs",
+      "observedAt": "2026-11-06T14:03:06.338Z",
+      "completeness": {
+        "kind": "cut",
+        "reason": "GitLab omitted oversized or collapsed classification hunks",
+        "read": 72,
+        "total": 73
+      }
+    },
+    {
+      "source": "osdu/platform/system/indexer-queue",
+      "object": "merge_requests?state=opened&target_branch=master",
+      "observedAt": "2026-11-06T14:03:06.388Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-queue",
+      "object": "repository/commits/a3eb02a81df48b658b07ceb23d7a1225ae7579c2/diff",
+      "observedAt": "2026-11-06T14:03:06.388Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-queue",
+      "object": "repository/commits/ecf8b3b4602ab78d71dbbf42298b23fe025d8bfb/diff",
+      "observedAt": "2026-11-06T14:03:06.388Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-queue",
+      "object": "repository/commits/606c103be1998038662a6b648eb4afe2d50236f1/diff",
+      "observedAt": "2026-11-06T14:03:06.388Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-queue",
+      "object": "merge_requests/482/diffs",
+      "observedAt": "2026-11-06T14:03:06.388Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/indexer-queue",
+      "object": "projects/osdu%2Fplatform%2Fsystem%2Findexer-queue/repository/files/pom.xml?ref=606c103be1998038662a6b648eb4afe2d50236f1",
+      "observedAt": "2026-11-06T14:02:22.591Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-indexer-queue",
+      "object": ".github/upstream-filter.yml",
+      "observedAt": "2026-11-06T14:03:06.769Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "merge_requests?state=opened&target_branch=master",
+      "observedAt": "2026-11-06T14:03:07.181Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "merge_requests/500/diffs",
+      "observedAt": "2026-11-06T14:03:07.181Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "repository/commits/8ff30a5698f27f7e8138d26c2c02397bb27e96d5/diff",
+      "observedAt": "2026-11-06T14:03:07.181Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "repository/commits/3a69766c25b03b450d95b55ef21c013c63ef407f/diff",
+      "observedAt": "2026-11-06T14:03:07.181Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "repository/commits/3ff6e03a7e15c5f8b9ab911442bf515b00b287d3/diff",
+      "observedAt": "2026-11-06T14:03:07.181Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "repository/commits/e78da94e86de38d25ab276756c68f0ea5270d286/diff",
+      "observedAt": "2026-11-06T14:03:07.181Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "repository/commits/44d1d90070cbfb05798cf8af8c1a3f7b521f923c/diff",
+      "observedAt": "2026-11-06T14:03:07.181Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "repository/commits/d4b65bdf42503bf50bdbed11249c06bd9c0c4fe0/diff",
+      "observedAt": "2026-11-06T14:03:07.181Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "repository/commits/fc0252af21747045bdc5923601e0bfce02cef2a3/diff",
+      "observedAt": "2026-11-06T14:03:07.181Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "merge_requests/504/diffs",
+      "observedAt": "2026-11-06T14:03:07.181Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "merge_requests/503/diffs",
+      "observedAt": "2026-11-06T14:03:07.181Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "merge_requests/502/diffs",
+      "observedAt": "2026-11-06T14:03:07.181Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "merge_requests/499/diffs",
+      "observedAt": "2026-11-06T14:03:07.181Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "merge_requests/498/diffs",
+      "observedAt": "2026-11-06T14:03:07.181Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "merge_requests/497/diffs",
+      "observedAt": "2026-11-06T14:03:07.181Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "merge_requests/496/diffs",
+      "observedAt": "2026-11-06T14:03:07.181Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "projects/osdu%2Fplatform%2Fsystem%2Freference%2Funit-service/repository/files/pom.xml?ref=fc0252af21747045bdc5923601e0bfce02cef2a3",
+      "observedAt": "2026-11-06T14:02:22.585Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "merge_requests/1246/diffs",
+      "observedAt": "2026-11-06T14:03:07.218Z",
+      "completeness": {
+        "kind": "cut",
+        "reason": "GitLab omitted oversized or collapsed classification hunks",
+        "read": 176,
+        "total": 182
+      }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "projects/osdu%2Fplatform%2Fsystem%2Fstorage/repository/files/pom.xml?ref=21ac469f21cf2a1f4df17f886a3244a55f047595",
+      "observedAt": "2026-11-06T14:02:21.845Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/870/diffs",
+      "observedAt": "2026-11-06T14:03:07.308Z",
+      "completeness": {
+        "kind": "cut",
+        "reason": "GitLab omitted oversized or collapsed classification hunks",
+        "read": 158,
+        "total": 168
+      }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "repository/commits/36c779081343a19d6ce23f420394f99018a5b18f/diff",
+      "observedAt": "2026-11-06T14:03:07.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "repository/commits/0af9f36f559f57eb042dcbaedc54b357f824f540/diff",
+      "observedAt": "2026-11-06T14:03:07.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "repository/commits/aded8a3f3eb04154f291d4af4e33116514e40599/diff",
+      "observedAt": "2026-11-06T14:03:07.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "repository/commits/438bddf638f5977bb60e1ac1460c876d14820c8f/diff",
+      "observedAt": "2026-11-06T14:03:07.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "repository/commits/63c73729e38455c03b4dd73ba3ff139fa7f4a7e7/diff",
+      "observedAt": "2026-11-06T14:03:07.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "repository/commits/00d8df706125bdfd400f5d385690ed7df7307424/diff",
+      "observedAt": "2026-11-06T14:03:07.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/908/diffs",
+      "observedAt": "2026-11-06T14:03:07.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/907/diffs",
+      "observedAt": "2026-11-06T14:03:07.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/903/diffs",
+      "observedAt": "2026-11-06T14:03:07.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/902/diffs",
+      "observedAt": "2026-11-06T14:03:07.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/901/diffs",
+      "observedAt": "2026-11-06T14:03:07.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/900/diffs",
+      "observedAt": "2026-11-06T14:03:07.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/899/diffs",
+      "observedAt": "2026-11-06T14:03:07.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/897/diffs",
+      "observedAt": "2026-11-06T14:03:07.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "merge_requests/877/diffs",
+      "observedAt": "2026-11-06T14:03:07.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "projects/osdu%2Fplatform%2Fsystem%2Fsearch-service/repository/files/pom.xml?ref=00d8df706125bdfd400f5d385690ed7df7307424",
+      "observedAt": "2026-11-06T14:02:22.194Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-unit",
+      "object": ".github/upstream-filter.yml",
+      "observedAt": "2026-11-06T14:03:07.564Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-storage",
+      "object": ".github/upstream-filter.yml",
+      "observedAt": "2026-11-06T14:03:07.655Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-search",
+      "object": ".github/upstream-filter.yml",
+      "observedAt": "2026-11-06T14:03:07.684Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-catalog-service",
+      "object": "merge_requests?state=opened&target_branch=master",
+      "observedAt": "2026-11-06T14:03:08.000Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-catalog-service",
+      "object": "merge_requests/497/diffs",
+      "observedAt": "2026-11-06T14:03:08.000Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-catalog-service",
+      "object": "merge_requests/493/diffs",
+      "observedAt": "2026-11-06T14:03:08.000Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-catalog-service",
+      "object": "merge_requests/491/diffs",
+      "observedAt": "2026-11-06T14:03:08.000Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-catalog-service",
+      "object": "merge_requests/466/diffs",
+      "observedAt": "2026-11-06T14:03:08.000Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-catalog-service",
+      "object": "merge_requests/496/diffs",
+      "observedAt": "2026-11-06T14:03:08.000Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-catalog-service",
+      "object": "merge_requests/495/diffs",
+      "observedAt": "2026-11-06T14:03:08.000Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-catalog-service",
+      "object": "merge_requests/494/diffs",
+      "observedAt": "2026-11-06T14:03:08.000Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-catalog-service",
+      "object": "merge_requests/490/diffs",
+      "observedAt": "2026-11-06T14:03:08.000Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-catalog-service",
+      "object": "merge_requests/489/diffs",
+      "observedAt": "2026-11-06T14:03:08.000Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-catalog-service",
+      "object": "merge_requests/488/diffs",
+      "observedAt": "2026-11-06T14:03:08.000Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-catalog-service",
+      "object": "merge_requests/480/diffs",
+      "observedAt": "2026-11-06T14:03:08.000Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-catalog-service",
+      "object": "projects/osdu%2Fplatform%2Fsystem%2Freference%2Fcrs-catalog-service/repository/files/pom.xml?ref=14b7f3f3b0212e68d4d1bb08fe80cd3ab792a0f8",
+      "observedAt": "2026-11-06T14:02:22.725Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "merge_requests?state=opened&target_branch=master",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "merge_requests/568/diffs",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "merge_requests/566/diffs",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "merge_requests/563/diffs",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "merge_requests/561/diffs",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "merge_requests/556/diffs",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "merge_requests/541/diffs",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "merge_requests/538/diffs",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "merge_requests/534/diffs",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "repository/commits/d533787661de8f6fe023d03f17dc899ace617a1d/diff",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "repository/commits/80e3497b7e5c8cba61810c2fb51c9e9fb9e5ea17/diff",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "repository/commits/2022c767dcb1b80ecfa19091f7a8bf9fd04c417f/diff",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "repository/commits/b6e7bb312aaf4a05d4fdd28405906062c73ad7ca/diff",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "repository/commits/4cb8297008159b78e4f1d5fa5c4244831b7c1dc3/diff",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "merge_requests/565/diffs",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "merge_requests/564/diffs",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "merge_requests/559/diffs",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "merge_requests/558/diffs",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "merge_requests/557/diffs",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "merge_requests/555/diffs",
+      "observedAt": "2026-11-06T14:03:08.109Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "projects/osdu%2Fplatform%2Fsystem%2Freference%2Fcrs-conversion-service/repository/files/pom.xml?ref=4cb8297008159b78e4f1d5fa5c4244831b7c1dc3",
+      "observedAt": "2026-11-06T14:02:22.921Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-crs-catalog",
+      "object": ".github/upstream-filter.yml",
+      "observedAt": "2026-11-06T14:03:08.409Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-crs-conversion",
+      "object": ".github/upstream-filter.yml",
+      "observedAt": "2026-11-06T14:03:08.462Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-partition",
+      "object": "main:pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-partition",
+      "object": "main:provider/partition-azure/pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-entitlements",
+      "object": "main:pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-entitlements",
+      "object": "main:provider/entitlements-v2-azure/pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-legal",
+      "object": "main:pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-legal",
+      "object": "main:provider/legal-azure/pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-schema",
+      "object": "main:pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-schema",
+      "object": "main:provider/schema-azure/pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-file",
+      "object": "main:pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-file",
+      "object": "main:provider/file-azure/pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-storage",
+      "object": "main:pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-storage",
+      "object": "main:provider/storage-azure/pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-indexer",
+      "object": "main:pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-indexer",
+      "object": "main:provider/indexer-azure/pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-search",
+      "object": "main:pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-search",
+      "object": "main:provider/search-azure/pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-workflow",
+      "object": "main:pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-workflow",
+      "object": "main:provider/workflow-azure/pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-indexer-queue",
+      "object": "main:pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-unit",
+      "object": "main:pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-unit",
+      "object": "main:provider/unit-azure/pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" },
+      "failure": "main:provider/unit-azure/pom.xml is not readable"
+    },
+    {
+      "source": "Azure/osdu-spi-crs-catalog",
+      "object": "main:pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-crs-catalog",
+      "object": "main:provider/crs-catalog-azure/pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" },
+      "failure": "main:provider/crs-catalog-azure/pom.xml is not readable"
+    },
+    {
+      "source": "Azure/osdu-spi-crs-conversion",
+      "object": "main:pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "Azure/osdu-spi-crs-conversion",
+      "object": "main:provider/crs-converter-azure/pom.xml",
+      "observedAt": "2026-11-06T14:03:10.308Z",
+      "completeness": { "kind": "complete" },
+      "failure": "main:provider/crs-converter-azure/pom.xml is not readable"
+    },
+    {
+      "source": "osdu/platform/system/lib/core/os-core-common",
+      "object": "release tags",
+      "observedAt": "2026-11-06T13:31:37.502Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform/system/lib/cloud/azure/os-core-lib-azure",
+      "object": "release tags",
+      "observedAt": "2026-11-06T13:31:38.611Z",
+      "completeness": { "kind": "complete" }
+    },
+    {
+      "source": "osdu/platform",
+      "object": "removal issues",
+      "observedAt": "2026-11-06T13:31:39.905Z",
+      "completeness": { "kind": "complete" }
+    }
+  ]
+}

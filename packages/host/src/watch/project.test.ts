@@ -86,20 +86,20 @@ describe("Watch projection", () => {
       detectCampaigns(buildModel(input.facts, input.context.clock.now(), {}, input.context)),
     );
     expect(snapshot.seen).toEqual({ cursor: null, since: [] });
-    expect(snapshot.readings).toEqual([
+    expect(snapshot.readings.map(({ anchor }) => anchor)).toEqual([
       ...["program", "upstream", "environment", "engineering", "releases", "security"].map(
-        (kind) => ({ anchor: { kind }, content: null }),
+        (kind) => ({ kind }),
       ),
-      ...snapshot.stations.map(({ service }) => ({
-        anchor: { kind: "service", id: service },
-        content: null,
-      })),
-      ...snapshot.releases.lines.map(({ month }) => ({
-        anchor: { kind: "release-month", month },
-        content: null,
-      })),
-      ...snapshot.campaigns.map(({ id }) => ({ anchor: { kind: "campaign", id }, content: null })),
+      ...snapshot.stations.map(({ service }) => ({ kind: "service", id: service })),
+      ...snapshot.releases.lines.map(({ month }) => ({ kind: "release-month", month })),
+      ...snapshot.campaigns.map(({ id }) => ({ kind: "campaign", id })),
     ]);
+    for (const { anchor, content } of snapshot.readings) {
+      if (anchor.kind === "upstream" || anchor.kind === "service") {
+        expect(content?.tiles).toHaveLength(3);
+        expect(content?.items.length).toBeLessThanOrEqual(5);
+      } else expect(content).toBeNull();
+    }
   });
 
   it("maps a moving station to in-progress even when the pinned fleet has none", () => {

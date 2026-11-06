@@ -527,7 +527,7 @@ function lineItems(line: LineModel, now: Date): QueueItem[] {
       scope: svc,
       text: red
         ? `sync PR #${p.pr.number}${gateText(p) || " is red"}`
-        : `gate 1: sync PR #${p.pr.number} waits for review`,
+        : `sync PR #${p.pr.number} waits for review`,
       since: p.pr.createdAt,
       url: p.pr.url,
       note: lag ? `${plural(lag, "commit")} behind` : undefined,
@@ -553,7 +553,7 @@ function lineItems(line: LineModel, now: Date): QueueItem[] {
       scope: svc,
       text: red
         ? `release/upstream PR #${p.pr.number}${gateText(p) || " is red"}`
-        : `gate 2: release/upstream PR #${p.pr.number} waits for approval; merge with a merge commit`,
+        : `release/upstream PR #${p.pr.number} waits for approval; merge with a merge commit`,
       since: p.pr.createdAt,
       url: p.pr.url,
       effects: [],
