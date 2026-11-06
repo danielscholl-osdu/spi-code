@@ -96,8 +96,10 @@ ai_email='<(noreply@(anthropic|openai)\.com|([^<>]*[+._-])?(copilot|claude|codex
 commits=$(git -C "$root" rev-list "$base..$head")
 while IFS= read -r commit; do
   message=$(git -C "$root" show -s --format=%B "$commit")
-  coauthors=$(git interpret-trailers --only-trailers --unfold <<<"$message" |
-    awk 'tolower($0) ~ /^co-authored-by:/')
+  coauthors=$({
+    git interpret-trailers --only-trailers --unfold <<<"$message"
+    tr -d '\r' <<<"$message"
+  } | awk 'tolower($0) ~ /^[[:space:]]*co-authored-by[[:space:]]*:/')
   if { sed 's/<[^>]*>//g' <<<"$coauthors" | grep -Ei "$ai_agent" >/dev/null; } ||
     grep -Ei "$ai_email" <<<"$coauthors" >/dev/null ||
     grep -Ei '^[^[:alnum:]]*generated[[:blank:]]+with([[:blank:]]|$)' <<<"$message" >/dev/null; then

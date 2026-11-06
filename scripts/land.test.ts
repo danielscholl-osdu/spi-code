@@ -109,6 +109,8 @@ describe("landing commit attribution", () => {
     "Co-authored-by: Ada Lovelace <ada@example.test>\nCo-authored-by: Copilot <agent@example.test>",
     "Co-authored-by: Someone\n  Copilot <copilot@users.noreply.github.com>",
     "Co-authored-by : Copilot <copilot@example.test>",
+    "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>\n",
+    "Bead: spicode-fixture\nCo-authored-by: Copilot <copilot@example.test>\nA prose line.",
     "Generated with Copilot",
     "  gEnErAtEd WiTh Claude",
     "\u{1f916} Generated with [Claude Code]",
