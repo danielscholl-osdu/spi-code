@@ -33,7 +33,7 @@ export { watchStore };
 export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) {
   const snapshot = useStore(watchStore, (state) => state.snapshot?.body);
   const sweep = useStore(watchStore, (state) => state.sweep);
-  const { route, sheetOpen, navigate, toggleSheet, closeSheet } = useNavigation(registry);
+  const { route, sheet, navigate, toggleSheet, closeSheet } = useNavigation(registry);
   useSetupLanding(navigate);
   const rightPanelOpen = useStore(selectionStore, (state) => state.open);
   const toggleRightPanel = useCallback(
@@ -99,6 +99,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
         className="shell"
         data-right-panel={rightPanelOpen ? "open" : "closed"}
         data-window-controls={windowControls()}
+        data-line-sheet={sheet}
       >
         <header className="title-bar">
           <div className="title-bar-place">
@@ -132,6 +133,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
             />
           </div>
         </header>
+        {registry.strip && <div className="window-strip">{registry.strip()}</div>}
         <ProgramSidebar
           store={watchStore}
           route={route}
@@ -147,7 +149,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
         <main
           className="middle-frame"
           ref={middle}
-          inert={sheetOpen}
+          inert={sheet === "overlay"}
           onScroll={(event) => {
             position.current.top = event.currentTarget.scrollTop;
           }}
@@ -155,8 +157,10 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
           {error && <p role="alert">{error}</p>}
           <RouteView route={route} />
         </main>
-        {sheetOpen && registry.sheet && (
-          <LineSheet onClose={closeSheet}>{registry.sheet(route)}</LineSheet>
+        {sheet !== "closed" && registry.sheet && (
+          <LineSheet presentation={sheet} onClose={closeSheet}>
+            {registry.sheet(route, sheet)}
+          </LineSheet>
         )}
         <RightPanelFrame
           store={selectionStore}

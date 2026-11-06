@@ -5,12 +5,22 @@ import { type ReactNode, useEffect, useRef } from "react";
 import "./line-sheet.css";
 
 /**
- * The Line sheet's frame over the centre. The surface beneath stays mounted, so closing returns to
- * it as it was. Escape closes it unless the right panel or a dialog has focus.
+ * The Line sheet's frame. Over the centre, the surface beneath stays mounted, so closing returns to
+ * it as it was, and Escape closes it unless the right panel or a dialog has focus. Pinned beside the
+ * centre, it takes neither focus nor Escape.
  */
-export function LineSheet({ onClose, children }: { onClose(): void; children: ReactNode }) {
+export function LineSheet({
+  presentation,
+  onClose,
+  children,
+}: {
+  presentation: "overlay" | "pinned";
+  onClose(): void;
+  children: ReactNode;
+}) {
   const sheet = useRef<HTMLElement>(null);
   useEffect(() => {
+    if (presentation !== "overlay") return;
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     sheet.current?.focus({ preventScroll: true });
     const close = (event: KeyboardEvent) => {
@@ -25,9 +35,15 @@ export function LineSheet({ onClose, children }: { onClose(): void; children: Re
       window.removeEventListener("keydown", close);
       if (opener?.isConnected && !opener.closest("[inert]")) opener.focus({ preventScroll: true });
     };
-  }, [onClose]);
+  }, [presentation, onClose]);
   return (
-    <section ref={sheet} className="line-sheet" aria-label="Line" tabIndex={-1}>
+    <section
+      ref={sheet}
+      className="line-sheet"
+      data-presentation={presentation}
+      aria-label="Line"
+      tabIndex={-1}
+    >
       {children}
     </section>
   );

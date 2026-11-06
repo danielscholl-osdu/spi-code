@@ -8,13 +8,16 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import recorded from "../../../../fixtures/watch/snapshot-59d6895.json?raw";
 import { watchStore } from "../store/watch.js";
 import {
+  closeSheet,
   LINE,
   navigate,
+  pinSheet,
   type Registry,
   type Route,
   type RouteKind,
   routeHash,
   routeLabel,
+  unpinSheet,
 } from "./routes.js";
 import { Shell } from "./Shell.js";
 
@@ -47,7 +50,10 @@ const ALL_KINDS: readonly RouteKind[] = [
   "setup",
 ];
 const every = Object.fromEntries(ALL_KINDS.map((kind) => [kind, view])) as Registry["views"];
-const sheet = vi.fn((origin: Route) => <p data-sheet>{routeHash(origin)}</p>);
+const sheet = vi.fn((origin: Route, _presentation: string) => (
+  <p data-sheet>{routeHash(origin)}</p>
+));
+const PINNED_KEY = "spi-code.line-sheet.pinned";
 
 async function mount(registry: Registry) {
   container = document.createElement("div");
@@ -79,6 +85,7 @@ const setHash = (hash: string) =>
 
 beforeEach(() => {
   window.location.hash = "";
+  localStorage.removeItem(PINNED_KEY);
   sheet.mockClear();
   window.spi = {
     proof: false,
@@ -94,6 +101,8 @@ afterEach(async () => {
   window.spi = previousSpi;
   watchStore.setState(previousWatch, true);
   window.location.hash = "";
+  closeSheet();
+  localStorage.removeItem(PINNED_KEY);
 });
 
 it("renders the registered component for every route id, with its service id and month", async () => {
@@ -140,7 +149,8 @@ it("opens the Line sheet over the current place with ⌘L and returns to the sam
     await press("l");
     expect(lineSheet()).not.toBeNull();
     expect(lineSheet()?.textContent).toBe(routeHash(origin));
-    expect(sheet).toHaveBeenLastCalledWith(origin);
+    expect(sheet).toHaveBeenLastCalledWith(origin, "overlay");
+    expect(lineSheet()?.dataset.presentation).toBe("overlay");
     expect(document.activeElement).toBe(lineSheet());
     expect(main()?.hasAttribute("inert")).toBe(true);
     expect(main()?.querySelector("[data-view]")).toBe(beneath);
@@ -155,6 +165,78 @@ it("opens the Line sheet over the current place with ⌘L and returns to the sam
     expect(draft.value).toBe("kept");
     expect(document.activeElement).toBe(draft);
   }
+});
+
+it("pins the Line sheet beside a live centre across navigation and a reload; unpin closes it", async () => {
+  await mount({ views: every, sheet, fallback: { kind: "inbox" } });
+  const legal: Route = { kind: "service", id: "legal" };
+  await go(legal);
+  const beneath = main()?.querySelector("[data-view]");
+  const draft = beneath?.querySelector("input");
+  if (!draft) throw new Error("missing view");
+  await act(async () => draft.focus());
+  await press("l");
+  expect(main()?.hasAttribute("inert")).toBe(true);
+
+  await act(async () => pinSheet());
+  expect(lineSheet()?.dataset.presentation).toBe("pinned");
+  expect(sheet).toHaveBeenLastCalledWith(legal, "pinned");
+  expect(main()?.closest("[inert]")).toBeNull();
+  expect(main()?.querySelector("[data-view]")).toBe(beneath);
+  expect(window.location.hash).toBe("#service/legal");
+  expect(document.activeElement).toBe(draft);
+  draft.value = "typed beside the sheet";
+  await press("Escape", {});
+  expect(lineSheet()?.dataset.presentation).toBe("pinned");
+  expect(document.activeElement).toBe(draft);
+  expect(localStorage.getItem(PINNED_KEY)).toBe("1");
+
+  await go({ kind: "release", month: "2026-10" });
+  expect(shown()).toBe("#release/2026-10");
+  expect(lineSheet()?.dataset.presentation).toBe("pinned");
+  await setHash("#environment");
+  expect(shown()).toBe("#environment");
+  expect(lineSheet()).not.toBeNull();
+
+  await act(async () => unpinSheet());
+  expect(lineSheet()).toBeNull();
+  expect(localStorage.getItem(PINNED_KEY)).toBeNull();
+  expect(shown()).toBe("#environment");
+
+  // A reload starts from what the last session stored.
+  await unmount();
+  localStorage.setItem(PINNED_KEY, "1");
+  await mount({ views: every, sheet, fallback: { kind: "inbox" } });
+  expect(lineSheet()?.dataset.presentation).toBe("pinned");
+  expect(main()?.hasAttribute("inert")).toBe(false);
+  expect(shown()).toBe("#environment");
+  await press("l");
+  expect(lineSheet()).toBeNull();
+});
+
+it("draws a registered strip under the title bar on every route and beside either sheet", async () => {
+  const strip = vi.fn(() => <p>line state</p>);
+  await mount({ views: every, sheet, strip, fallback: { kind: "inbox" } });
+  const header = () => container.querySelector("header.title-bar");
+  const drawn = () => {
+    const slot = header()?.nextElementSibling;
+    return slot?.matches(".window-strip") && !slot.closest("[inert]") ? slot.textContent : null;
+  };
+  for (const route of [{ kind: "today" }, { kind: "service", id: "legal" }] as const) {
+    await go(route);
+    expect(drawn()).toBe("line state");
+  }
+  await go(LINE);
+  expect(lineSheet()?.dataset.presentation).toBe("overlay");
+  expect(drawn()).toBe("line state");
+  await act(async () => pinSheet());
+  expect(lineSheet()?.dataset.presentation).toBe("pinned");
+  expect(drawn()).toBe("line state");
+
+  await unmount();
+  await mount({ views: every, sheet, fallback: { kind: "inbox" } });
+  expect(container.querySelector(".window-strip")).toBeNull();
+  expect(header()?.nextElementSibling?.matches(".app-sidebar, .sidebar-backdrop, nav")).toBe(true);
 });
 
 it("closes the Line sheet when the operator goes somewhere else", async () => {

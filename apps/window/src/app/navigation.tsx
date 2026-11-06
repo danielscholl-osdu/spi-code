@@ -45,6 +45,8 @@ export type RouteOf<K extends RouteKind> = Extract<Route, { kind: K }>;
 /** The Line sheet is not a route: it opens over the centre and closes back to it. */
 export const LINE = { kind: "line" } as const;
 export type Destination = Route | typeof LINE;
+/** Over the centre, which is inert beneath it, or pinned beside a centre that stays live. */
+export type SheetPresentation = "closed" | "overlay" | "pinned";
 
 export const INBOX: Route = { kind: "inbox" };
 
@@ -54,7 +56,11 @@ export const INBOX: Route = { kind: "inbox" };
  */
 export type Registry = {
   readonly views: { readonly [K in RouteKind]?: (route: RouteOf<K>) => ReactNode };
-  readonly sheet?: ((origin: Route) => ReactNode) | undefined;
+  readonly sheet?:
+    | ((origin: Route, presentation: Exclude<SheetPresentation, "closed">) => ReactNode)
+    | undefined;
+  /** Drawn under the title bar on every route and beside either sheet; nothing when absent. */
+  readonly strip?: (() => ReactNode) | undefined;
   /** Where an unknown or unregistered hash lands; it must be registered. */
   readonly fallback: Route;
 };
@@ -177,6 +183,23 @@ export function renderRoute(route: Route, registry: Registry): ReactNode {
 const listeners = new Set<() => void>();
 /** The hash beneath the open Line sheet; the sheet is open only while the hash still matches. */
 let sheetOrigin: string | null = null;
+const PINNED_KEY = "spi-code.line-sheet.pinned";
+/** A pinned sheet survives navigation and, through local storage, a reload. */
+let pinned = false;
+
+function loadPinned() {
+  try {
+    pinned = window.localStorage.getItem(PINNED_KEY) === "1";
+  } catch {}
+}
+
+function savePinned(value: boolean) {
+  pinned = value;
+  try {
+    if (value) window.localStorage.setItem(PINNED_KEY, "1");
+    else window.localStorage.removeItem(PINNED_KEY);
+  } catch {}
+}
 
 function emit() {
   for (const listener of listeners) listener();
@@ -188,7 +211,10 @@ function onHashChange() {
 }
 
 function subscribe(listener: () => void) {
-  if (listeners.size === 0) window.addEventListener("hashchange", onHashChange);
+  if (listeners.size === 0) {
+    loadPinned();
+    window.addEventListener("hashchange", onHashChange);
+  }
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
@@ -200,23 +226,41 @@ function readHash() {
   return window.location.hash;
 }
 
-function readSheet() {
-  return sheetOrigin !== null && sheetOrigin === window.location.hash;
+function readPresentation(): SheetPresentation {
+  if (pinned) return "pinned";
+  return sheetOrigin !== null && sheetOrigin === window.location.hash ? "overlay" : "closed";
 }
 
+/** Opens the sheet over the centre; a pinned sheet stays pinned. */
 export function openSheet() {
-  if (readSheet()) return;
+  if (readPresentation() !== "closed") return;
   sheetOrigin = window.location.hash;
   emit();
 }
 
-export function closeSheet() {
-  if (sheetOrigin === null) return;
+/** Pins the sheet beside the centre, which becomes live again. */
+export function pinSheet() {
+  if (pinned) return;
   sheetOrigin = null;
+  savePinned(true);
   emit();
 }
 
-/** Goes to a route, closing the Line sheet, or opens the sheet over the current route. */
+/** Unpinning closes the sheet. */
+export function unpinSheet() {
+  if (!pinned) return;
+  savePinned(false);
+  emit();
+}
+
+export function closeSheet() {
+  if (sheetOrigin === null && !pinned) return;
+  sheetOrigin = null;
+  if (pinned) savePinned(false);
+  emit();
+}
+
+/** Goes to a route, closing an overlaid Line sheet, or opens the sheet over the current route. */
 export function navigate(destination: Destination) {
   if (destination.kind === "line") return openSheet();
   const hash = routeHash(destination);
@@ -245,23 +289,26 @@ export function useRegistryOr(fallback: Registry): Registry {
 
 export type Navigation = {
   route: Route;
-  /** Open over `route`, which stays mounted beneath it. */
-  sheetOpen: boolean;
+  /** `route` stays mounted under an overlay and beside a pinned sheet. */
+  sheet: SheetPresentation;
   navigate(destination: Destination): void;
+  /** ⌘L: opens the overlay, or closes the sheet in either presentation. */
   toggleSheet(): void;
+  pinSheet(): void;
+  unpinSheet(): void;
   closeSheet(): void;
 };
 
 /** The current route, kept in the location hash so a reload returns to the same place. */
 export function useNavigation(registry: Registry): Navigation {
   const hash = useSyncExternalStore(subscribe, readHash, readHash);
-  const open = useSyncExternalStore(subscribe, readSheet, readSheet);
+  const presentation = useSyncExternalStore(subscribe, readPresentation, readPresentation);
   const route = useMemo(() => resolveRoute(hash, registry), [hash, registry]);
-  const sheetOpen = open && registry.sheet !== undefined;
+  const sheet = registry.sheet ? presentation : "closed";
   const toggleSheet = useCallback(() => {
     if (!registry.sheet) return;
-    if (readSheet()) closeSheet();
-    else openSheet();
+    if (readPresentation() === "closed") openSheet();
+    else closeSheet();
   }, [registry.sheet]);
-  return { route, sheetOpen, navigate, toggleSheet, closeSheet };
+  return { route, sheet, navigate, toggleSheet, pinSheet, unpinSheet, closeSheet };
 }
