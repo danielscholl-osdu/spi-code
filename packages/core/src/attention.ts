@@ -69,9 +69,14 @@ export function nextSyncAt(now: Date): string | undefined {
   return at === undefined ? undefined : new Date(at).toISOString();
 }
 
-// Queued upstream commits reach the fork at the next sync, so what they carry is due before it.
+// The next sync brings more upstream commits: what the radar predicts they carry, and a halt
+// they would stop on again, are due before it.
+function dueAtSync(q: QueueItem): boolean {
+  return q.kind === "radar" || q.kind === "halt";
+}
+
 export function dueOf(items: readonly QueueItem[], now: Date): Due | undefined {
-  if (!items.some((q) => q.kind === "radar")) return undefined;
+  if (!items.some(dueAtSync)) return undefined;
   const at = nextSyncAt(now);
   return at ? { at, before: BEFORE_NEXT_SYNC } : undefined;
 }
@@ -129,7 +134,7 @@ export function attentionOf(item: AttentionSubject, model: Model, opts: Attentio
     (owned
       ? (owner !== undefined && OWNER_FAILED.has(owner)) ||
         worsened ||
-        (prior?.owned === true && prior.attention === "interrupt")
+        (owner !== "done" && prior?.owned === true && prior.attention === "interrupt")
       : item.rung === 0 || withinLead);
   const surface =
     owner === "done" ||

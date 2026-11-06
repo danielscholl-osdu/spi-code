@@ -82,8 +82,10 @@ describe("Watch projection", () => {
         attention: item.rung === 0 ? "interrupt" : "surface",
         owned: false,
       });
-      expect(item).not.toHaveProperty("due");
     }
+    expect(Object.fromEntries(items.filter((i) => i.due).map((i) => [i.id, i.due]))).toEqual({
+      "halt:entitlements": { at: snapshot.briefing.nextSyncAt, before: "next sync" },
+    });
     const input = fixtureInput();
     expect(snapshot.campaigns).toEqual(
       detectCampaigns(buildModel(input.facts, input.context.clock.now(), {}, input.context)),

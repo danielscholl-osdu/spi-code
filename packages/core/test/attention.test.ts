@@ -59,6 +59,8 @@ function seen(item: AttentionSubject, over: Partial<PriorAttention> = {}): Prior
 describe("tiers from the fixture state", () => {
   const model = fixtureModel();
   const halt = subject(model, "halt:entitlements");
+  const stack = subject(model, "stack:38181620856");
+  const due = { at: NEXT_SYNC, before: "next sync" };
   const gate = subject(model, "gate1:legal");
   const approvals = subject(model, "approvals:Azure/osdu-spi-stack");
 
@@ -67,7 +69,7 @@ describe("tiers from the fixture state", () => {
   });
 
   test("a new P0 interrupts, and an unowned P0 keeps interrupting until it resolves", () => {
-    expect(attentionOf(halt, model, opts())).toEqual({ attention: "interrupt", owned: false });
+    expect(attentionOf(halt, model, opts())).toEqual({ attention: "interrupt", owned: false, due });
     const later = opts({ previous: [seen(halt, { attention: "interrupt" })] });
     expect(attentionOf(halt, model, later).attention).toBe("interrupt");
   });
@@ -79,18 +81,18 @@ describe("tiers from the fixture state", () => {
   });
 
   test("an owned P0 is quiet until it worsens", () => {
-    const owners = new Map([[halt.id, "working" as const]]);
-    const before = seen(halt, { rung: 0, attention: "interrupt" });
-    expect(attentionOf(halt, model, opts({ owners, previous: [before] }))).toEqual({
+    const owners = new Map([[stack.id, "working" as const]]);
+    const before = seen(stack, { rung: 0, attention: "interrupt" });
+    expect(attentionOf(stack, model, opts({ owners, previous: [before] }))).toEqual({
       attention: "ambient",
       owned: true,
     });
-    const worse = seen(halt, { rung: 1, owned: true });
-    expect(attentionOf(halt, model, opts({ owners, previous: [worse] })).attention).toBe(
+    const worse = seen(stack, { rung: 1, owned: true });
+    expect(attentionOf(stack, model, opts({ owners, previous: [worse] })).attention).toBe(
       "interrupt",
     );
-    const after = seen(halt, { owned: true, attention: "interrupt" });
-    expect(attentionOf(halt, model, opts({ owners, previous: [after] })).attention).toBe(
+    const after = seen(stack, { owned: true, attention: "interrupt" });
+    expect(attentionOf(stack, model, opts({ owners, previous: [after] })).attention).toBe(
       "interrupt",
     );
   });
@@ -114,9 +116,29 @@ describe("tiers from the fixture state", () => {
     for (let sweep = 0; sweep < 3; sweep++) {
       const now = new Date(FIXTURE_NOW.getTime() + sweep * 5 * 60_000);
       const a = attentionOf(halt, model, opts({ now, owners, previous }));
-      expect(a).toEqual({ attention: "interrupt", owned: true });
+      expect(a).toEqual({ attention: "interrupt", owned: true, due });
       previous = [{ ...halt, ...a }];
     }
+  });
+
+  test("a failed owner that finishes surfaces once and then goes quiet", () => {
+    const failed = new Map([[stack.id, "failed" as const]]);
+    const done = new Map([[stack.id, "done" as const]]);
+    const first = attentionOf(stack, model, opts({ owners: failed, previous: [seen(stack)] }));
+    expect(first).toEqual({ attention: "interrupt", owned: true });
+    const finished = attentionOf(
+      stack,
+      model,
+      opts({ owners: done, previous: [{ ...stack, ...first }] }),
+    );
+    expect(finished).toEqual({ attention: "surface", owned: true });
+    const working = new Map([[stack.id, "working" as const]]);
+    const next = attentionOf(
+      stack,
+      model,
+      opts({ owners: working, previous: [{ ...stack, ...finished }] }),
+    );
+    expect(next).toEqual({ attention: "ambient", owned: true });
   });
 
   test("a thread done surfaces", () => {
@@ -175,8 +197,12 @@ describe("due items", () => {
   const radar = subject(model, "radar:partition");
   const previous = [seen(radar)];
 
-  test("what the radar predicts is due before the next sync", () => {
+  test("what the radar predicts and a halt are due before the next sync", () => {
     expect(attentionOf(radar, model, opts({ previous })).due).toEqual({
+      at: NEXT_SYNC,
+      before: "next sync",
+    });
+    expect(attentionOf(subject(model, "halt:entitlements"), model, opts()).due).toEqual({
       at: NEXT_SYNC,
       before: "next sync",
     });
