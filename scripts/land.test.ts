@@ -3,6 +3,7 @@
 
 import { execFileSync, spawnSync } from "node:child_process";
 import {
+  chmodSync,
   copyFileSync,
   cpSync,
   mkdirSync,
@@ -10,6 +11,7 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -127,7 +129,11 @@ afterEach(() => {
 function relocate(directory: string) {
   for (const { file, suffix } of pointers) {
     const path = join(directory, ...file);
-    writeFileSync(path, retarget(readFileSync(path, "utf8"), suffix, toGitPath(directory)));
+    const contents = retarget(readFileSync(path, "utf8"), suffix, toGitPath(directory));
+    // Git for Windows marks the worktree's .git file hidden, and opening a hidden file for
+    // overwrite fails with EPERM, so replace the file instead.
+    unlinkSync(path);
+    writeFileSync(path, contents);
   }
   const root = join(directory, "main");
   const worktree = join(directory, "bead");
@@ -230,6 +236,23 @@ describe("fixture relocation", () => {
     expect(realpathSync.native(commonDir).startsWith(directory + sep)).toBe(true);
     expect(realpathSync.native(commonDir).startsWith(template + sep)).toBe(false);
   });
+
+  it.skipIf(process.platform === "win32")(
+    "replaces pointers it cannot open for overwrite, and round-trips them",
+    () => {
+      const directory = temporaryDirectory("spi-code-land-");
+      directories.push(directory);
+      cpSync(template, directory, { recursive: true });
+      for (const { file } of pointers) chmodSync(join(directory, ...file), 0o444);
+      relocate(directory);
+      expect(readFileSync(join(directory, "bead", ".git"), "utf8")).toBe(
+        `gitdir: ${directory}/main/.git/worktrees/bead\n`,
+      );
+      expect(
+        readFileSync(join(directory, "main", ".git", "worktrees", "bead", "gitdir"), "utf8"),
+      ).toBe(`${directory}/bead/.git\n`);
+    },
+  );
 });
 
 describe("landing commit attribution", () => {
