@@ -75,9 +75,14 @@ packaging. Manifest discovery uses pnpm's workspace patterns and exclusions rath
 than a separate directory list. The packaged smoke test runs the app extracted from
 the generated ZIP, including the shipped runtime handshake, rather than the
 builder's app directory.
-The listener scan checks the main, host and renderer pids from the app's process
-tree, plus the Copilot runtime while its packaged handshake is still active.
-macOS uses `ps` and `lsof`; Windows uses CIM process ancestry and `netstat -ano`.
+The listener scan checks the main pid and every app descendant, including the
+Copilot runtime before it stops. Each scan takes one socket snapshot (`lsof` on
+macOS, `netstat -ano` on Windows), followed by one process-table snapshot (`ps`
+or CIM). Start times exclude stale parent links and reused pids; exited
+processes need no liveness probes. Both queries share an eight-second budget.
+`smoke.json` records the runtime scan's `scannedPids` and `scanDurationMs` under
+`runtime.listenerCheck`. The scan runs after the handshake, without extending
+the host's hello deadline.
 Runtime staging excludes compiled `*.test.*` files and `smoke-launch.*`, including
 their declarations and maps, across the desktop and bundled workspace libraries.
 The in-app smoke modules remain bundled; the launcher runs from the build checkout.

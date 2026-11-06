@@ -72,10 +72,7 @@ describe("TCP listener evidence", () => {
           ["-nP", "-a", "-p", "7,42,99", "-iTCP", "-sTCP:LISTEN"],
           5000,
         );
-      expect(new Set(vi.mocked(process.kill).mock.calls.map(([pid]) => pid))).toEqual(
-        new Set([7, 42, 99]),
-      );
-      expect(vi.mocked(process.kill)).toHaveBeenCalledTimes(6);
+      expect(process.kill).not.toHaveBeenCalled();
     },
   );
 
@@ -95,6 +92,7 @@ describe("TCP listener evidence", () => {
 
   describe.each(["darwin", "win32"])("%s app process-tree listener check", (platform) => {
     const runtimePath = "/app/copilot-runtime";
+    const startedAt = Date.UTC(2020, 0, 1);
     const tree = [
       { pid: 100, parentPid: 1, command: "/app/SPI Code" },
       { pid: 101, parentPid: 100, command: "/app/host" },
@@ -102,34 +100,39 @@ describe("TCP listener evidence", () => {
       { pid: 103, parentPid: 100, command: "/app/helper --type=renderer" },
       { pid: 104, parentPid: 106, command: "/app/helper --type=renderer" },
       { pid: 106, parentPid: 100, command: "/app/helper --type=utility" },
+      { pid: 107, parentPid: 100, command: "/app/helper --type=gpu-process" },
+      { pid: 108, parentPid: 106, command: "/app/network-service" },
+      { pid: 109, parentPid: 102, command: "/app/runtime-child" },
       { pid: 202, parentPid: 1, command: `${runtimePath} --stdio` },
       { pid: 203, parentPid: 1, command: "/app/helper --type=renderer" },
-    ];
+    ].map((row) => ({ ...row, startedAt }));
 
     function fixture(listeningPid?: number, processes = tree) {
-      return vi.fn<Exec>((file, args) => {
+      return vi.fn<Exec>((file) => {
         if (file === "ps")
           return ok(
             processes
-              .map(({ pid, parentPid, command }) => `${pid} ${parentPid} ${command}`)
+              .map(({ pid, parentPid, command, startedAt }) => {
+                const [weekday, month, day, year, time] = new Date(startedAt).toString().split(" ");
+                return `${pid} ${parentPid} ${weekday} ${month} ${day} ${time} ${year} ${command}`;
+              })
               .join("\n"),
           );
         if (file === "powershell.exe")
           return ok(
             JSON.stringify(
-              processes.map(({ pid, parentPid, command }) => ({
+              processes.map(({ pid, parentPid, command, startedAt }) => ({
                 ProcessId: pid,
                 ParentProcessId: parentPid,
                 CommandLine: command,
+                StartedAt: startedAt,
               })),
             ),
           );
         if (file === "netstat.exe")
           return ok(listeningPid ? `TCP 0.0.0.0:9222 0.0.0.0:0 LISTENING ${listeningPid}` : "");
         if (file === "lsof") {
-          const pids = String(args[3]).split(",").map(Number);
-          if (listeningPid && pids.includes(listeningPid))
-            return ok(`${lsofHeader}\nruntime ${listeningPid} TCP *:9222 (LISTEN)`);
+          if (listeningPid) return ok(`${lsofHeader}\nruntime ${listeningPid} TCP *:9222 (LISTEN)`);
           return Promise.resolve({ status: 1, stdout: "", stderr: "" });
         }
         return Promise.reject(new Error(`Unexpected command: ${file}`));
@@ -140,26 +143,38 @@ describe("TCP listener evidence", () => {
       Object.defineProperty(process, "platform", { value: platform });
     });
 
-    it("collects runtime and all renderer descendants, excluding unrelated matching processes", async () => {
+    it("scans every descendant in one process and one socket snapshot", async () => {
       const exec = fixture(202);
       await expect(assertNoProcessListeners(100, 101, { runtimePath, exec })).resolves.toEqual({
         mainPid: 100,
         hostPid: 101,
         runtimePids: [102],
         rendererPids: [103, 104],
+        scannedPids: [100, 101, 102, 103, 104, 106, 107, 108, 109],
+        scanDurationMs: expect.any(Number),
         listeners: [],
       });
-      expect(new Set(vi.mocked(process.kill).mock.calls.map(([pid]) => pid))).toEqual(
-        new Set([100, 101, 102, 103, 104]),
-      );
+      expect(process.kill).not.toHaveBeenCalled();
       expect(exec).toHaveBeenCalledTimes(2);
+      expect(exec.mock.calls.map(([file]) => file)).toEqual(
+        platform === "win32" ? ["netstat.exe", "powershell.exe"] : ["lsof", "ps"],
+      );
       if (platform === "win32")
         expect(exec).toHaveBeenCalledWith(
           "powershell.exe",
           expect.arrayContaining(["-NoProfile", "-NonInteractive"]),
-          10000,
+          expect.any(Number),
         );
-      else expect(exec).toHaveBeenCalledWith("ps", ["-axww", "-o", "pid=,ppid=,command="], 10000);
+      else
+        expect(exec).toHaveBeenCalledWith(
+          "ps",
+          ["-axww", "-o", "pid=,ppid=,lstart=,command="],
+          expect.any(Number),
+        );
+      for (const [, , timeout] of exec.mock.calls) {
+        expect(timeout).toBeGreaterThan(0);
+        expect(timeout).toBeLessThanOrEqual(8000);
+      }
     });
 
     it("lets a timer scheduled before the scan fire while the scan is pending", async () => {
@@ -183,10 +198,86 @@ describe("TCP listener evidence", () => {
       expect(fired).toBe(true);
     });
 
-    it.each([100, 101, 102, 103, 104])("fails when app pid %i has a listener", async (pid) => {
+    it.each([100, 101, 102, 103, 104, 106, 107, 108, 109])(
+      "fails when app pid %i has a listener",
+      async (pid) => {
+        await expect(
+          assertNoProcessListeners(100, 101, { runtimePath, exec: fixture(pid) }),
+        ).rejects.toThrow("TCP listener");
+      },
+    );
+
+    it("terminates a cyclic walk and excludes orphaned and stale-parent processes", async () => {
+      const processes = [
+        ...tree.map((row) => (row.pid === 100 ? { ...row, parentPid: 109 } : row)),
+        { pid: 110, parentPid: 999, command: "/orphan", startedAt },
+        { pid: 111, parentPid: 112, command: "/cycle", startedAt },
+        { pid: 112, parentPid: 111, command: "/cycle", startedAt },
+        { pid: 113, parentPid: 106, command: "/old-child", startedAt: startedAt - 1000 },
+        { pid: 114, parentPid: 113, command: "/old-grandchild", startedAt },
+      ].reverse();
+      const exec = fixture(113, processes);
+      const result = await assertNoProcessListeners(100, 101, { runtimePath, exec });
+      expect(new Set(result.scannedPids)).toEqual(
+        new Set([100, 101, 102, 103, 104, 106, 107, 108, 109]),
+      );
+      expect(exec).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not fail when a listening descendant exits during the scan", async () => {
+      const exec = fixture(
+        109,
+        tree.filter(({ pid }) => pid !== 109),
+      );
       await expect(
-        assertNoProcessListeners(100, 101, { runtimePath, exec: fixture(pid) }),
-      ).rejects.toThrow("TCP listener");
+        assertNoProcessListeners(100, 101, { runtimePath, exec }),
+      ).resolves.toMatchObject({
+        listeners: [],
+        scannedPids: [100, 101, 102, 103, 104, 106, 107, 108],
+      });
+      expect(exec).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not attribute an old listener to a pid reused during the scan", async () => {
+      const exec = fixture(
+        109,
+        tree.map((row) => (row.pid === 109 ? { ...row, startedAt: Date.now() + 1000 } : row)),
+      );
+      await expect(
+        assertNoProcessListeners(100, 101, { runtimePath, exec }),
+      ).resolves.toMatchObject({
+        listeners: [],
+      });
+    });
+
+    it("measures both snapshots and shares an eight-second scan budget", async () => {
+      let now = 100;
+      vi.spyOn(performance, "now").mockImplementation(() => now);
+      const exec = fixture();
+      const timed: Exec = async (...args) => {
+        now += 125;
+        return exec(...args);
+      };
+      await expect(
+        assertNoProcessListeners(100, 101, { runtimePath, exec: timed }),
+      ).resolves.toMatchObject({
+        scanDurationMs: 250,
+      });
+      expect(exec.mock.calls.map(([, , timeout]) => timeout)).toEqual([8000, 7875]);
+    });
+
+    it("does not start another command once the scan budget is spent", async () => {
+      let now = 0;
+      vi.spyOn(performance, "now").mockImplementation(() => now);
+      const exec = fixture();
+      const timed: Exec = async (...args) => {
+        now = 8000;
+        return exec(...args);
+      };
+      await expect(
+        assertNoProcessListeners(100, 101, { runtimePath, exec: timed }),
+      ).rejects.toThrow("Listener scan exceeded 8000 ms");
+      expect(exec).toHaveBeenCalledTimes(1);
     });
 
     it("fails closed if the runtime is missing during the packaged handshake", async () => {

@@ -82,22 +82,30 @@ it("rejects with the report's error, not the process-tree error, once the failed
       }),
     ).rejects.toThrow("Packaged runtime probe failed");
     const originalHost = 250;
-    const exec = vi.fn<Exec>(async () => ({
-      status: 0,
-      stdout: [
-        "  100     1 /Applications/SPI Code.app/Contents/MacOS/SPI Code --smoke",
-        "  200   100 SPI Code Helper (Renderer) --type=renderer",
-        "  300   100 SPI Code Helper --type=utility",
-      ].join("\n"),
-      stderr: "",
-    }));
+    const exec = vi.fn<Exec>(async (file) =>
+      file === "lsof"
+        ? {
+            status: 1,
+            stdout: "",
+            stderr: "",
+          }
+        : {
+            status: 0,
+            stdout: [
+              "  100     1 Wed Jan  1 00:00:00 2020 /Applications/SPI Code.app/Contents/MacOS/SPI Code --smoke",
+              "  200   100 Wed Jan  1 00:00:00 2020 SPI Code Helper (Renderer) --type=renderer",
+              "  300   100 Wed Jan  1 00:00:00 2020 SPI Code Helper --type=utility",
+            ].join("\n"),
+            stderr: "",
+          },
+    );
     const scan = () => assertNoProcessListeners(100, originalHost, { exec });
     await expect(scan()).rejects.toThrow("Smoke host is outside the app process tree");
 
     await expect(scanAfterRuntimeReport(report, 5000, scan)).rejects.toThrow(
       "Packaged runtime probe failed: Packaged smoke found TCP listeners: 7:127.0.0.1:4000",
     );
-    expect(exec).toHaveBeenCalledTimes(1);
+    expect(exec).toHaveBeenCalledTimes(2);
   } finally {
     Object.defineProperty(process, "platform", { value: originalPlatform });
   }
