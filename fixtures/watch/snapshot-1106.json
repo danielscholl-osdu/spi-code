@@ -2487,6 +2487,23 @@
             },
             "owned": false,
             "group": "Before 00:00"
+          },
+          {
+            "id": "repo:partition",
+            "ids": [],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "partition",
+            "title": "Security not read yet",
+            "sub": "Code scanning and dependency alerts",
+            "cause": "Security not read yet.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Security"
           }
         ],
         "folded": "Template: 8 commits behind osdu-spi; template-sync PR #220 open."
@@ -2565,6 +2582,23 @@
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
+          },
+          {
+            "id": "repo:entitlements",
+            "ids": [],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "entitlements",
+            "title": "Security not read yet",
+            "sub": "Code scanning and dependency alerts",
+            "cause": "Security not read yet.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Security"
           }
         ],
         "folded": "Template: 8 commits behind osdu-spi; template-sync PR #123 open."
@@ -2628,6 +2662,23 @@
             },
             "owned": false,
             "group": "Before 00:00"
+          },
+          {
+            "id": "repo:legal",
+            "ids": [],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "legal",
+            "title": "Security not read yet",
+            "sub": "Code scanning and dependency alerts",
+            "cause": "Security not read yet.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Security"
           }
         ],
         "folded": "Template: 8 commits behind osdu-spi; template-sync PR #66 open."
@@ -2688,6 +2739,23 @@
             },
             "owned": false,
             "group": "Before 00:00"
+          },
+          {
+            "id": "repo:schema",
+            "ids": [],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "schema",
+            "title": "Security not read yet",
+            "sub": "Code scanning and dependency alerts",
+            "cause": "Security not read yet.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Security"
           }
         ],
         "folded": "Template: 8 commits behind osdu-spi; template-sync PR #81 open."
@@ -2744,6 +2812,23 @@
             },
             "owned": false,
             "group": "Before 00:00"
+          },
+          {
+            "id": "repo:file",
+            "ids": [],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "file",
+            "title": "Security not read yet",
+            "sub": "Code scanning and dependency alerts",
+            "cause": "Security not read yet.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Security"
           }
         ],
         "folded": "Template: 8 commits behind osdu-spi; template-sync PR #93 open."
@@ -2822,6 +2907,23 @@
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
+          },
+          {
+            "id": "repo:storage",
+            "ids": [],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "storage",
+            "title": "Security not read yet",
+            "sub": "Code scanning and dependency alerts",
+            "cause": "Security not read yet.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Security"
           }
         ],
         "folded": "Template: 8 commits behind osdu-spi; template-sync PR #61 open."
@@ -2903,6 +3005,23 @@
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
+          },
+          {
+            "id": "repo:indexer",
+            "ids": [],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "indexer",
+            "title": "Security not read yet",
+            "sub": "Code scanning and dependency alerts",
+            "cause": "Security not read yet.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Security"
           }
         ],
         "folded": "Template: 8 commits behind osdu-spi; template-sync PR #61 open."
@@ -2959,6 +3078,23 @@
             },
             "owned": false,
             "group": "Before 00:00"
+          },
+          {
+            "id": "repo:search",
+            "ids": [],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "search",
+            "title": "Security not read yet",
+            "sub": "Code scanning and dependency alerts",
+            "cause": "Security not read yet.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Security"
           }
         ],
         "folded": "Template: 8 commits behind osdu-spi; template-sync PR #61 open."
@@ -3014,6 +3150,23 @@
             },
             "owned": false,
             "group": "Before 00:00"
+          },
+          {
+            "id": "repo:workflow",
+            "ids": [],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "workflow",
+            "title": "Security not read yet",
+            "sub": "Code scanning and dependency alerts",
+            "cause": "Security not read yet.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Security"
           }
         ],
         "folded": "Template: 8 commits behind osdu-spi; template-sync PR #51 open."
@@ -3065,6 +3218,23 @@
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
+          },
+          {
+            "id": "repo:indexer-queue",
+            "ids": [],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "indexer-queue",
+            "title": "Security not read yet",
+            "sub": "Code scanning and dependency alerts",
+            "cause": "Security not read yet.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Security"
           }
         ],
         "folded": "Template: 8 commits behind osdu-spi; template-sync PR #61 open."
@@ -3125,6 +3295,23 @@
             },
             "owned": false,
             "group": "Before 00:00"
+          },
+          {
+            "id": "repo:unit",
+            "ids": [],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "unit",
+            "title": "Security not read yet",
+            "sub": "Code scanning and dependency alerts",
+            "cause": "Security not read yet.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Security"
           }
         ],
         "folded": "Template: 8 commits behind osdu-spi; template-sync PR #43 open."
@@ -3155,7 +3342,25 @@
             "counts": "checks pass · open 14d · last release v1.4.0"
           }
         ],
-        "items": [],
+        "items": [
+          {
+            "id": "repo:crs-catalog",
+            "ids": [],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "crs-catalog",
+            "title": "Security not read yet",
+            "sub": "Code scanning and dependency alerts",
+            "cause": "Security not read yet.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Security"
+          }
+        ],
         "folded": "Template: 8 commits behind osdu-spi; template-sync PR #43 open."
       }
     },
@@ -3210,6 +3415,23 @@
             },
             "owned": false,
             "group": "Before 00:00"
+          },
+          {
+            "id": "repo:crs-conversion",
+            "ids": [],
+            "rung": 2,
+            "cls": "SECURITY",
+            "scope": "crs-conversion",
+            "title": "Security not read yet",
+            "sub": "Code scanning and dependency alerts",
+            "cause": "Security not read yet.",
+            "effect": "",
+            "next": "",
+            "verb": "",
+            "evidence": [],
+            "attention": "ambient",
+            "owned": false,
+            "group": "Security"
           }
         ],
         "folded": "Template: 8 commits behind osdu-spi; template-sync PR #30 open."
