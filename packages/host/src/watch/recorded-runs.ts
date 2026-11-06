@@ -12,9 +12,10 @@ export interface RunHit {
 
 /** Match the inspector and service lists against the same set of recorded runs. */
 export function recordedRuns(facts: Facts, stackRepo: string): RunHit[] {
-  const found = new Map<number, RunHit>();
+  const found = new Map<string, RunHit>();
   const add = (run: RunFact, repo: string, workflow: string, area: RunHit["area"]) => {
-    if (!found.has(run.id)) found.set(run.id, { run, repo, workflow, area });
+    const key = JSON.stringify([repo, run.id]);
+    if (!found.has(key)) found.set(key, { run, repo, workflow, area });
   };
   for (const [repo, lanes] of Object.entries(facts.runs.data ?? {})) {
     for (const workflow of ["sync", "template", "cascade", "main"] as const) {
@@ -31,4 +32,17 @@ export function recordedRuns(facts: Facts, stackRepo: string): RunHit[] {
     for (const run of list) add(run, repo, "approval", "approvals");
   }
   return [...found.values()];
+}
+
+/** Provenance for a service's projected runs; a run with no recorded hit in the repository has none. */
+export function runProvenance(
+  path: string,
+  runs: readonly { id: string }[],
+  hits: readonly RunHit[],
+  repo: string,
+) {
+  return runs.flatMap((run, k) => {
+    const hit = hits.find((h) => h.repo === repo && run.id === `run:${h.run.id}`);
+    return hit ? [{ path: `${path}/${k}`, areas: [hit.area] }] : [];
+  });
 }

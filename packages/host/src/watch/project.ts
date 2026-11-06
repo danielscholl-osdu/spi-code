@@ -40,7 +40,7 @@ import {
   releaseProvenance,
   stationProvenance,
 } from "./provenance.js";
-import { recordedRuns } from "./recorded-runs.js";
+import { recordedRuns, runProvenance } from "./recorded-runs.js";
 import { repositoryLines } from "./repository-lines.js";
 
 export function appActions(items: readonly ActionItem[]): AppAction[] {
@@ -291,11 +291,12 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
       ...stationProvenance(stations),
       ...releaseProvenance(releases.lines, input.releaseRecords, now),
       ...services.flatMap((service, i) => [
-        ...service.runs.map((run, k) => {
-          const hit = runs.find((hit) => run.id === `run:${hit.run.id}`);
-          if (!hit) throw new TypeError(`No recorded run for ${run.id}`);
-          return { path: `/services/${i}/runs/${k}`, areas: [hit.area] };
-        }),
+        ...runProvenance(
+          `/services/${i}/runs`,
+          service.runs,
+          runs,
+          model.lines[i]?.fork.repo ?? "",
+        ),
         {
           path: `/services/${i}/releases`,
           areas: ["fleet", "github"],

@@ -72,8 +72,10 @@ The optional top-level `services` list contains one entry per `service` id with
 Runs contain `id` (`run:<number>`), `workflow` (the recorded name),
 `result` (conclusion for a completed run, status otherwise), `time` (creation
 time) and `url`. They come from the existing fork, lifecycle and approval
-reads, scoped to the service repository, deduplicated by run id and sorted newest
-first. The inspector uses the same recorded-run lookup.
+reads, scoped to the service repository, deduplicated by repository and run id
+and sorted newest first. The inspector uses the same recorded-run lookup. A run
+with no recorded hit in its repository gets no provenance entry; it never fails
+the projection.
 
 Service release rows are the existing release document's `DocRow` plus `month`.
 Only the current month adds the current release station's `gate` (`state`,
@@ -89,6 +91,9 @@ line model, including its release PR, release tag or last lane deployment.
 Repository lines add optional `id` and `url`, taken from their model objects.
 Ids are `pr:<owner/repo>:<number>`, `issue:<owner/repo>:<number>` and
 `alert:<owner/repo>:<group id>`; alert groups use core's filtered group URL.
+A line the host cannot match to a model object keeps neither field, so a change
+in core's wording drops the optional fields instead of failing the sweep. The
+recorded fixtures assert that every line still gets both.
 Their Detail result preserves the line's text, subtext and repository link.
 Inspect results also carry an optional `title` from the existing model or row.
 No new collector or executable action is introduced.

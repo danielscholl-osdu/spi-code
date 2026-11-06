@@ -19,6 +19,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { appActions, projectReleases, projectWatch } from "./project.js";
 import { briefingProvenance, releaseProvenance, stationAreas } from "./provenance.js";
+import { runProvenance } from "./recorded-runs.js";
 import { repositoryLines } from "./repository-lines.js";
 import {
   fixtureInput,
@@ -230,6 +231,90 @@ describe("Watch projection", () => {
       `alert:${repo.repo}:code:tool:rule-b:src`,
     ]);
     expect(new Set(lines?.map((line) => line.url)).size).toBe(2);
+  });
+
+  it("omits the optional id and url of a repository line it cannot match", () => {
+    const input = fixtureInput();
+    const now = input.context.clock.now();
+    const model = buildModel(input.facts, now, {}, input.context);
+    const repositories = repositoriesOf(model, now);
+    const [row] = repositories.rows;
+    const [section] = row?.sections ?? [];
+    if (!row || !section) throw new Error("Fixture must have repository lines");
+    const unmatched = {
+      tag: "?",
+      tone: "neutral",
+      text: "Wording core has not shipped yet",
+      sub: "",
+    } as const;
+    const projected = repositoryLines(
+      {
+        ...repositories,
+        rows: [
+          { ...row, sections: [{ ...section, lines: [...section.lines, unmatched] }] },
+          { ...row, id: "repo:unknown" },
+        ],
+      },
+      model,
+      now,
+    );
+    expect(projected.rows[0]?.sections[0]?.lines.at(-1)).toEqual(unmatched);
+    expect(projected.rows[0]?.sections[0]?.lines.slice(0, -1).every((l) => l.id && l.url)).toBe(
+      true,
+    );
+    expect(projected.rows[1]).toEqual({ ...row, id: "repo:unknown" });
+  });
+
+  it("omits the provenance of a service run with no recorded run in its repository", () => {
+    const run = Object.values(fixtureInput().facts.approvals.data ?? {}).flat()[0];
+    if (!run) throw new Error("Pinned fixture must include an approval run");
+    const hits = [
+      { run: { ...run, id: 7 }, repo: "Azure/a", workflow: "approval", area: "approvals" } as const,
+    ];
+    expect(
+      runProvenance("/services/0/runs", [{ id: "run:7" }, { id: "run:8" }], hits, "Azure/a"),
+    ).toEqual([{ path: "/services/0/runs/0", areas: ["approvals"] }]);
+    expect(runProvenance("/services/0/runs", [{ id: "run:7" }], hits, "Azure/b")).toEqual([]);
+  });
+
+  it.each([
+    ["recorded", fixtureInput],
+    ["mixed", mixedFixtureInput],
+  ])("identifies every repository line and service run on the %s fixture", (_, input) => {
+    const snapshot = projectWatch(input());
+    const lines = snapshot.briefing.repositories.rows.flatMap((r) =>
+      r.sections.flatMap((s) => s.lines),
+    );
+    expect(lines.length).toBeGreaterThan(0);
+    expect(lines.filter((line) => !line.id || !line.url)).toEqual([]);
+    const runs = (snapshot.services ?? []).flatMap((s, i) =>
+      s.runs.map((_, k) => `/services/${i}/runs/${k}`),
+    );
+    expect(runs.length).toBeGreaterThan(0);
+    const paths = new Set(snapshot.provenance.map(({ path }) => path));
+    expect(runs.filter((path) => !paths.has(path))).toEqual([]);
+  });
+
+  it("keeps runs from two repositories that share a numeric run id", () => {
+    const input = fixtureInput();
+    const [a, b] = input.context.fleet.forks;
+    const run = Object.values(input.facts.runs.data ?? {}).flatMap((lanes) => lanes.sync)[0];
+    if (!a || !b || !run) throw new Error("Fixture must have two services and a run");
+    input.facts.runs.data = {
+      [a.repo]: { sync: [{ ...run, id: 5000 }], template: [], cascade: [], main: [] },
+    };
+    input.facts.approvals.data = { [b.repo]: [{ ...run, id: 5000 }] };
+    const snapshot = projectWatch(input);
+    for (const [fork, area] of [
+      [a, "runs"],
+      [b, "approvals"],
+    ] as const) {
+      const i = snapshot.services?.findIndex((s) => s.service === fork.id) ?? -1;
+      expect(snapshot.services?.[i]?.runs.map((r) => r.id)).toEqual(["run:5000"]);
+      expect(snapshot.provenance.find((p) => p.path === `/services/${i}/runs/0`)?.areas).toEqual([
+        area,
+      ]);
+    }
   });
 
   it("rejects nested tampering of the projected snapshot", () => {
