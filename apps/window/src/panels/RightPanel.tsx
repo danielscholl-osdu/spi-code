@@ -175,16 +175,19 @@ export function RightPanel({
   const setTab = useStore(store, (state) => state.setTab);
   const evidenceScope = useStore(store, (state) => state.evidenceScope);
   const ownRow = useStore(store, (state) => state.row);
+  const matched = snapshot
+    ? selectionRows(snapshot).find(
+        ({ id, kind, prefixes }) =>
+          id === selected &&
+          (!ownRow ||
+            (kind === ownRow.kind &&
+              (!ownRow.prefixes || prefixes?.join("|") === ownRow.prefixes.join("|")))),
+      )
+    : undefined;
   const row =
-    (snapshot
-      ? selectionRows(snapshot).find(
-          ({ id, kind, prefixes }) =>
-            id === selected &&
-            (!ownRow ||
-              (kind === ownRow.kind &&
-                (!ownRow.prefixes || prefixes?.join("|") === ownRow.prefixes.join("|")))),
-        )
-      : null) ?? ownRow;
+    (matched && !matched.fields && ownRow?.fields
+      ? { ...matched, fields: ownRow.fields }
+      : matched) ?? ownRow;
   const onKeyDown = (event: KeyboardEvent) => {
     const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
     if (step === 0) return;

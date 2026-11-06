@@ -235,6 +235,20 @@ it("fills the right panel's Detail with the selected tile", async () => {
   await click(section("runs")?.querySelector("[data-selection-id]"));
   expect(panel()?.querySelector(".inspector-kicker")?.textContent).toBe("run");
   expect(panel()?.querySelector(".detail-row-fields")?.textContent).toContain("Workflow");
+  await click(
+    section("repository")?.querySelector(
+      '[data-selection-id="issue:Azure/osdu-spi-entitlements:47"]',
+    ),
+  );
+  expect(panel()?.querySelector(".inspector-kicker")?.textContent).toBe("repository-line");
+  const fields = Array.from(
+    panel()?.querySelectorAll(".detail-row-fields dt") ?? [],
+    (term) => term.textContent,
+  );
+  expect(fields).toEqual(["Tag", "Reading", "Link"]);
+  expect(panel()?.querySelector(".detail-row-fields")?.textContent).toContain(
+    "https://github.com/Azure/osdu-spi-entitlements/issues/47",
+  );
 });
 
 it("converts an offset run time to UTC before labelling it", async () => {
