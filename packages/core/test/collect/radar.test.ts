@@ -385,6 +385,36 @@ test.each(["too_large", "collapsed"] as const)(
   },
 );
 
+test("the radar area envelope aggregates cut diff reads across services", async () => {
+  const legal = { id: "legal", repo: "owner/legal", upstream: "osdu/compliance/legal" };
+  const two = createContext({ fleet: fleetOf([fork, legal]), clock: { now: () => FIXTURE_NOW } });
+  const recorded = recording({ excluded: { path: "pom.xml", flag: "collapsed" } });
+  const result = await readRadar(
+    new Gh(recorded.exec),
+    new Glab(recorded.exec),
+    upstream,
+    emptyRadarState(),
+    two,
+  );
+  const cuts = result.reads.filter((r) => r.completeness.kind === "cut");
+  expect(cuts.map((r) => `${r.source} ${r.object}`).sort()).toEqual([
+    "osdu/compliance/legal merge_requests/1/diffs",
+    "osdu/partition merge_requests/1/diffs",
+    "osdu/partition repository/commits/q1/diff",
+  ]);
+  expect(
+    envelopeOf(result.reads, { now: FIXTURE_NOW.getTime(), intervalMs: 60_000 }),
+  ).toMatchObject({
+    completeness: {
+      kind: "cut",
+      reason:
+        "3 reads cut in legal, partition: GitLab omitted oversized or collapsed classification hunks",
+      read: 3,
+      total: 6,
+    },
+  });
+});
+
 test("cached read ages follow the context clock even when system time disagrees", async () => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2040-01-01T00:00:00Z"));

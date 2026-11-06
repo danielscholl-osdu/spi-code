@@ -60,6 +60,62 @@ describe("read evidence", () => {
     });
   });
 
+  it("aggregates every cut read, naming each source and summing only the cut counts", () => {
+    const hunks = "GitLab omitted oversized or collapsed classification hunks";
+    const cut = (source: string, object: string, read: number, total: number): ReadRecord => ({
+      ...record,
+      source,
+      object,
+      completeness: { kind: "cut", reason: hunks, read, total },
+    });
+    const records = [
+      cut("osdu/platform/security-and-compliance/entitlements", "merge_requests/1/diffs", 125, 130),
+      { ...record, source: "osdu/platform/system/partition", object: "merge_requests/2/diffs" },
+      cut("osdu/platform/system/partition", "merge_requests/3/diffs", 8, 10),
+      cut("osdu/platform/security-and-compliance/entitlements", "merge_requests/4/diffs", 3, 4),
+    ];
+    expect(envelope(records)).toMatchObject({
+      state: "incomplete",
+      completeness: {
+        kind: "cut",
+        reason: `3 reads cut in entitlements, partition: ${hunks}`,
+        read: 136,
+        total: 144,
+      },
+      records,
+    });
+    expect(envelope([records[0] as ReadRecord]).completeness).toEqual(records[0]?.completeness);
+    expect(envelope([record, record])).toMatchObject({
+      state: "fresh",
+      completeness: { kind: "complete" },
+    });
+  });
+
+  it("keeps the 2026-11-06 radar shape of 12 cut merge-request reads across six services", () => {
+    const services = [
+      "security-and-compliance/entitlements",
+      "system/partition",
+      "system/file",
+      "system/schema-service",
+      "system/storage",
+      "system/search-service",
+    ];
+    const reads = Array.from({ length: 12 }, (_, i): ReadRecord => ({
+      ...record,
+      source: `osdu/platform/${services[i % 6]}`,
+      object: `merge_requests/${i + 1}/diffs`,
+      completeness: { kind: "cut", reason: i % 4 === 0 ? "hunks" : "page limit", read: 9, total: 10 },
+    }));
+    expect(envelope(reads).completeness).toEqual({
+      kind: "cut",
+      reason:
+        "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: " +
+        "hunks; page limit",
+      read: 108,
+      total: 120,
+    });
+  });
+
   it("uses the oldest successful read and marks only wholly inferred evidence inferred", () => {
     const recent = { ...record, observedAt: "2026-11-05T00:00:01.000Z", inferred: true };
     expect(envelope([recent, record], 2_001).state).toBe("stale");

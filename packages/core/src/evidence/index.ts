@@ -40,6 +40,30 @@ function nonnegative(value: number, name: string): void {
   if (!Number.isFinite(value) || value < 0) throw new RangeError(`Invalid ${name}: ${value}`);
 }
 
+type CutCompleteness = Extract<ReadCompleteness, { kind: "cut" }>;
+
+function sourceName(source: string): string {
+  return source.split("/").filter(Boolean).at(-1) ?? source;
+}
+
+/**
+ * One cut read stands as recorded. Several sum their read and total (complete reads
+ * carry no counts) and the reason names how many were cut, in which sources, and why.
+ */
+function mergeCuts(cuts: readonly { source: string; cut: CutCompleteness }[]): ReadCompleteness {
+  const [first] = cuts;
+  if (first === undefined) return { kind: "complete" };
+  if (cuts.length === 1) return first.cut;
+  const names = [...new Set(cuts.map(({ source }) => sourceName(source)))].sort();
+  const reasons = [...new Set(cuts.map(({ cut }) => cut.reason))].sort();
+  return {
+    kind: "cut",
+    reason: `${cuts.length} reads cut in ${names.join(", ")}: ${reasons.join("; ")}`,
+    read: cuts.reduce((sum, { cut }) => sum + cut.read, 0),
+    total: cuts.reduce((sum, { cut }) => sum + cut.total, 0),
+  };
+}
+
 /** Records describe current reads, not a history of superseded attempts. */
 export function envelopeOf(
   records: readonly ReadRecord[],
@@ -49,11 +73,11 @@ export function envelopeOf(
   if (!Number.isFinite(now)) throw new RangeError(`Invalid now: ${now}`);
   let observedAt: string | undefined;
   let oldest = Number.POSITIVE_INFINITY;
-  let completeness: ReadCompleteness = { kind: "complete" };
+  const cuts: { source: string; cut: CutCompleteness }[] = [];
   for (const record of records) {
     timestamp(record.observedAt);
-    if (record.completeness.kind === "cut" && completeness.kind === "complete") {
-      completeness = record.completeness;
+    if (record.completeness.kind === "cut") {
+      cuts.push({ source: record.source, cut: record.completeness });
     }
     const time = record.retainedFrom ?? (record.failure === undefined ? record.observedAt : undefined);
     if (time !== undefined && timestamp(time) < oldest) {
@@ -61,6 +85,7 @@ export function envelopeOf(
       oldest = timestamp(time);
     }
   }
+  const completeness = mergeCuts(cuts);
   const state: EvidenceState = records.some((record) => record.failure !== undefined)
     ? "failed"
     : records.length === 0
