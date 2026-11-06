@@ -13,6 +13,7 @@ export interface SmokeReport {
   mainNodeVersion: string;
   hostNodeVersion: string;
   sqliteIsTransaction: true;
+  tray: boolean;
   rendererRoundTrip: boolean;
   reloadRoundTrip: boolean;
   permissionDenied: boolean;
@@ -45,6 +46,7 @@ export function assertSmokeReport(value: unknown): asserts value is SmokeReport 
     );
   }
   assert.equal(report.sqliteIsTransaction, true);
+  assert.equal(report.tray, true, "Packaged smoke must show the tray present");
   assert.equal(report.rendererRoundTrip, true);
   assert.equal(report.reloadRoundTrip, true);
   assert.equal(report.permissionDenied, true);

@@ -13,6 +13,7 @@ const report: SmokeReport = {
   mainNodeVersion: "24.15.0",
   hostNodeVersion: "24.15.0",
   sqliteIsTransaction: true,
+  tray: true,
   rendererRoundTrip: true,
   reloadRoundTrip: true,
   permissionDenied: true,
@@ -57,6 +58,8 @@ it.each([
   { rowSurvived: false },
   { listeners: ["TCP *:1234 (LISTEN)"] },
   { sqliteIsTransaction: false },
+  { tray: false },
+  { tray: undefined },
   { rendererRoundTrip: false },
   { reloadRoundTrip: false },
   { permissionDenied: false },
@@ -70,7 +73,7 @@ it.each([
   { deniedBuiltIn: undefined },
   { supervision: undefined },
 ])("rejects a failed smoke check: %j", (failure) => {
-  expect(() => assertSmokeReport({ ...report, ...failure })).toThrow();
+  expect(() => assertSmokeReport(JSON.parse(JSON.stringify({ ...report, ...failure })))).toThrow();
 });
 
 it.each([

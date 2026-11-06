@@ -21,10 +21,12 @@ import {
 } from "electron";
 import { externalLinkHandlers } from "./external-links.js";
 import { hostLaunch } from "./host-launch.js";
+import { createLifecycle, stopHostAndReleaseLeases } from "./lifecycle.js";
 import { assertNoProcessListeners } from "./smoke-listeners.js";
 import { smokeMessages } from "./smoke-messages.js";
 import { assertSmokeReport, assertSmokeTools, type SmokeReport } from "./smoke-report.js";
 import { HostSupervisor, hostPortCallbacks } from "./supervisor.js";
+import { createSweepTray, trayChannel } from "./tray.js";
 import { windowTitleBarOptions } from "./window-chrome.js";
 
 const smoke = process.argv.includes("--smoke");
@@ -46,6 +48,9 @@ const windowEntry = app.isPackaged
 let child: UtilityProcess | undefined;
 let supervisor: HostSupervisor<UtilityProcess> | undefined;
 let hostPorts: ReturnType<typeof hostPortCallbacks<MessagePortMain>> | undefined;
+let tray: ReturnType<typeof createSweepTray> | undefined;
+let relay: ReturnType<typeof trayChannel<MessagePortMain>> | undefined;
+let storePath: string | undefined;
 let failing = false;
 
 function saveReport(report: unknown): void {
@@ -76,15 +81,17 @@ function fail(error: unknown): void {
 }
 
 async function stopHost(): Promise<void> {
-  if (supervisor) {
-    await supervisor.stop();
-    return;
-  }
-  if (!child) return;
-  const exited = once(child, "exit");
-  if (!child.kill()) throw new Error("Could not kill host");
-  await exited;
-  child = undefined;
+  await stopHostAndReleaseLeases(async () => {
+    if (supervisor) {
+      await supervisor.stop();
+      return;
+    }
+    if (!child) return;
+    const exited = once(child, "exit");
+    if (!child.kill()) throw new Error("Could not kill host");
+    await exited;
+    child = undefined;
+  }, storePath);
 }
 
 function forkHost(args: string[]): UtilityProcess {
@@ -99,6 +106,7 @@ function forkHost(args: string[]): UtilityProcess {
   host.stdout?.on("data", (data: Buffer) => process.stdout.write(data));
   host.once("exit", () => {
     if (child === host) child = undefined;
+    tray?.disconnected();
   });
   return host;
 }
@@ -112,11 +120,22 @@ async function run(): Promise<void> {
     assert(userData, "Smoke requires an isolated --user-data-dir (use the smoke launcher)");
     app.setPath("userData", userData);
   }
+  const lifecycle = createLifecycle(app, {
+    stopHost,
+    dispose: () => {
+      hostPorts?.dispose();
+      relay?.dispose();
+      tray?.dispose();
+    },
+    onError: fail,
+  });
+  if (!lifecycle) return;
   await app.whenReady();
   const dataDir = smoke
     ? join(app.getPath("userData"), "smoke", randomUUID())
     : app.getPath("userData");
   mkdirSync(dataDir, { recursive: true });
+  storePath = join(dataDir, "runs.sqlite");
   const window = new BrowserWindow({
     // The smoke reads the sidebar, which the wide layout (980 px and up) keeps on screen.
     width: smoke ? 1280 : 900,
@@ -133,9 +152,13 @@ async function run(): Promise<void> {
       additionalArguments: proof ? ["--spi-proof", ...(smoke ? ["--spi-smoke"] : [])] : [],
     },
   });
+  lifecycle.setWindow(window);
+  tray = createSweepTray(lifecycle.open, () => void lifecycle.quit().catch(fail));
+  relay = trayChannel(() => new MessageChannelMain(), tray.observe);
   const channels: MessageChannelMain[] = [];
   hostPorts = hostPortCallbacks(() => {
-    const channel = new MessageChannelMain();
+    assert(relay);
+    const channel = relay.connect();
     if (smoke) channels.push(channel);
     return channel;
   }, window);
@@ -196,10 +219,10 @@ async function run(): Promise<void> {
     });
   }
   await window.loadFile(windowEntry);
-  const storePath = join(dataDir, "runs.sqlite");
+  const hostStorePath = storePath;
   if (!smoke) {
     supervisor = new HostSupervisor<UtilityProcess>({
-      spawn: () => forkHost([storePath]),
+      spawn: () => forkHost([hostStorePath]),
       onSpawn: hostPorts.onSpawn,
       onGiveUp: hostPorts.onGiveUp,
     });
@@ -217,12 +240,12 @@ async function run(): Promise<void> {
   ]);
   const rowId = randomUUID();
   const probePath = join(dataDir, "probe.json");
-  const firstCursor = writeSmokeSnapshot(storePath, initialSmoke);
+  const firstCursor = writeSmokeSnapshot(hostStorePath, initialSmoke);
   const clock = smokeClock(process.argv);
   assert(clock);
   let launches = 0;
   supervisor = new HostSupervisor<UtilityProcess>({
-    spawn: () => forkHost([storePath, launches++ === 0 ? "write" : "read", rowId, probePath]),
+    spawn: () => forkHost([hostStorePath, launches++ === 0 ? "write" : "read", rowId, probePath]),
     onSpawn: hostPorts.onSpawn,
     onGiveUp: hostPorts.onGiveUp,
     clock,
@@ -276,7 +299,7 @@ async function run(): Promise<void> {
       return child;
     },
     channels,
-    storePath,
+    storePath: hostStorePath,
     firstCursor,
     clock,
     listeners,
@@ -297,6 +320,7 @@ async function run(): Promise<void> {
     mainNodeVersion: process.versions.node,
     hostNodeVersion: probe.nodeVersion,
     sqliteIsTransaction: probe.sqliteIsTransaction,
+    tray: tray.present(),
     rendererRoundTrip: pong.type === "pong",
     reloadRoundTrip:
       reloadedHello.type === "host.hello" &&
@@ -317,20 +341,15 @@ async function run(): Promise<void> {
   assertSmokeReport(report);
   await stopHost();
   hostPorts.dispose();
+  relay.dispose();
+  tray.dispose();
   saveReport(report);
   console.log(JSON.stringify(report, null, 2));
   window.destroy();
   app.exit(0);
 }
 
-app.on("window-all-closed", () => {
-  if (!smoke) app.quit();
-});
-app.on("will-quit", () => {
-  hostPorts?.dispose();
-  if (supervisor) void supervisor.stop().catch(console.error);
-  else child?.kill();
-});
+app.on("window-all-closed", () => {});
 if (proof)
   setTimeout(
     () => fail(new Error("Proof exceeded its time limit")),
