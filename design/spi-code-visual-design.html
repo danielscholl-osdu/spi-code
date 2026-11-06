@@ -511,12 +511,14 @@ ul.plain li{margin:3px 0}
     <nav class="docnav" aria-label="Design documents">
       <span><a href="spi-code-product-brief.md">Product brief</a></span>
       <span><a href="spi-code-prd.md">Product requirements</a></span>
+      <span><a href="spi-code-window-design.html">Window design</a></span>
       <span><b>Visual design</b> (this page)</span>
       <span><a href="spi-code-design.pdf">Original combined design (PDF)</a></span>
     </nav>
   </header>
 
   <div class="problem">
+    <p><b>The <a href="spi-code-window-design.html">window design</a> wins where this page disagrees with it.</b> That covers this page's layout, its page table and its PS-02 parity table (<a href="#parity">Parity with the rib</a>), which the requirements replace with reachability. The palette and the component kit on this page stand.</p>
     <p>The first window built for M2 is the keelson-rib-spi console inside an app shell. Six report pages re-slice the same world, each with its own detail pane beside the right-panel inspector, evidence chips repeat three to five times per page, the tree is a list of page links, and nothing has a place for acting on the program or for a thread with Copilot. The window was a dashboard with a chat box waiting to be bolted on.</p>
     <p>This design makes T3 Code's workbench the base and the SPI views a layer in it. The base is threads under their things in the sidebar, a timeline and composer, a right panel with the worktree, branch, changes and checks, the terminal drawer, worktrees, approvals and the model picker. The SPI layer is the sweep line, the Inbox, a page per thing, three lenses, and the Detail and Evidence tabs. A bridge joins them: every thread has one anchor, any selection becomes a context chip in the composer, every write is a card, and a thread's status and artifacts show on the thing it works on. The view exists so the operator and Copilot see state instead of fetching and narrating it.</p>
     <p>Core, the host, the sweeps, the Watch contract and the model's output do not change. The M2 parity check stays data-level, taken per owner surface with mirrors listed (<a href="#parity">Parity with the rib</a>). Five values the layout needs and the contract does not carry are named as additions and are a hard predecessor of the surfaces that need them; no M2 surface ships on a placeholder (<a href="#gaps">Contract additions</a>). Use B (act) and use C (chat and code) get placement and interaction here and are built in M3 to M5. Every name, count and sentence in a mockup is an example, not a reading of the live program.</p>

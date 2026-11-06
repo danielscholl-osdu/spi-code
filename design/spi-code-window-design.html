@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPI Code Factory Line</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; mockups are framed "screens" built from the same tokens. */
+:root{
+  --bg:#f3f5f4; --surface:#ffffff; --surface-2:#e9eeec; --line:#d2dad6; --line-strong:#98a6a0;
+  --ink:#1a2320; --ink-2:#48554f; --ink-3:#78857f;
+  --o1:#7a4aa6; --o1-bg:#efe6f7; --o1-ink:#5a3380;   /* engineering system */
+  --o2:#3d5aa8; --o2-bg:#e6ebf8; --o2-ink:#2b4180;   /* environment */
+  --o3:#0e7c7c; --o3-bg:#dcf2f1; --o3-ink:#0a5a5a;   /* services */
+  --o4:#5f6f7a; --o4-bg:#eaeef0; --o4-ink:#45535c;   /* releases */
+  --ok:#2c7a4e; --ok-bg:#dff0e5; --bad:#a83a2f; --bad-bg:#f5dcd8; --warn:#9a6a12; --warn-bg:#f6ecd4;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#121817; --surface:#1a2220; --surface-2:#222d2a; --line:#31403c; --line-strong:#5a6c66;
+    --ink:#e6ecea; --ink-2:#b3bfba; --ink-3:#7f8d88;
+    --o1:#b08ad9; --o1-bg:#2c2140; --o1-ink:#d9c6f0;
+    --o2:#8b9ae6; --o2-bg:#232b49; --o2-ink:#c3cbf5;
+    --o3:#45bdbd; --o3-bg:#123636; --o3-ink:#a3e3e3;
+    --o4:#93a3ad; --o4-bg:#242d33; --o4-ink:#c4cfd6;
+    --ok:#7fd1a0; --ok-bg:#173226; --bad:#f08a7e; --bad-bg:#3d1f1b; --warn:#e3b25a; --warn-bg:#3a2d14;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#121817; --surface:#1a2220; --surface-2:#222d2a; --line:#31403c; --line-strong:#5a6c66;
+  --ink:#e6ecea; --ink-2:#b3bfba; --ink-3:#7f8d88;
+  --o1:#b08ad9; --o1-bg:#2c2140; --o1-ink:#d9c6f0;
+  --o2:#8b9ae6; --o2-bg:#232b49; --o2-ink:#c3cbf5;
+  --o3:#45bdbd; --o3-bg:#123636; --o3-ink:#a3e3e3;
+  --o4:#93a3ad; --o4-bg:#242d33; --o4-ink:#c4cfd6;
+  --ok:#7fd1a0; --ok-bg:#173226; --bad:#f08a7e; --bad-bg:#3d1f1b; --warn:#e3b25a; --warn-bg:#3a2d14;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5}
+.wrap{max-width:1120px;margin:0 auto;padding-block:32px 64px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+h1{font-size:clamp(26px,4vw,36px);font-weight:600;letter-spacing:-.01em;margin:0 0 10px;text-wrap:balance}
+h2{font-size:22px;font-weight:600;margin:0 0 8px;text-wrap:balance}
+h3{font-size:15px;font-weight:600;margin:18px 0 6px}
+p{margin:0 0 10px;max-width:72ch;color:var(--ink-2)}
+p.lead{font-size:17px;color:var(--ink);max-width:66ch}
+ul.plain{margin:6px 0 10px;padding-left:20px;color:var(--ink-2);max-width:74ch}
+ul.plain li{margin:3px 0}
+ul.plain b{color:var(--ink);font-weight:500}
+.eyebrow{font-size:11.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin:0 0 6px}
+section{margin-top:48px;padding-top:30px;border-top:1px solid var(--line)}
+code{font-family:var(--mono);font-size:.9em}
+.problem{margin-top:22px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px 22px}
+.problem p{max-width:80ch}
+.problem p b{color:var(--ink);font-weight:500}
+.legend{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:10px;font-size:13.5px}
+.owner{display:inline-flex;align-items:center;gap:7px;font-weight:600}
+.owner::before{content:"";width:10px;height:10px;border-radius:2px;background:var(--c);flex:none}
+.o-o1{--c:var(--o1);color:var(--o1-ink)} .o-o2{--c:var(--o2);color:var(--o2-ink)} .o-o3{--c:var(--o3);color:var(--o3-ink)} .o-o4{--c:var(--o4);color:var(--o4-ink)}
+.owner span{font-weight:400;color:var(--ink-2)}
+
+.flow{margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 16px;overflow-x:auto}
+.flow svg{display:block;width:100%;height:auto;min-width:820px}
+.flow text{font-family:var(--sans);fill:var(--ink);font-size:12px}
+.flow .t{font-size:14px;font-weight:600}
+.flow .sub{fill:var(--ink-2)}
+.flow .tiny{fill:var(--ink-3);font-size:11px}
+.flow .box{rx:8;stroke-width:1.3}
+.flow .b-o1{fill:var(--o1-bg);stroke:var(--o1)} .flow .b-o2{fill:var(--o2-bg);stroke:var(--o2)}
+.flow .b-o3{fill:var(--o3-bg);stroke:var(--o3)} .flow .b-o4{fill:var(--o4-bg);stroke:var(--o4)}
+.flow .b-bad{fill:var(--bad-bg);stroke:var(--bad)}
+.flow .b-mute{fill:var(--surface-2);stroke:var(--line-strong);stroke-dasharray:4 3}
+.flow .arrow{stroke:var(--line-strong);stroke-width:1.5;fill:none;marker-end:url(#ah)}
+.flow .arrow.env{stroke:var(--o2);stroke-dasharray:5 4;marker-end:url(#ah-env)}
+.flow .arrow.tpl{stroke:var(--o1);marker-end:url(#ah-tpl)}
+.flow .lanebg{fill:none;stroke:var(--line);stroke-dasharray:3 4}
+.flow .lanelbl{font-size:11.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;fill:var(--ink-3)}
+.flow .bar{rx:4}
+.note{font-size:13px;color:var(--ink-3);margin-top:10px;max-width:80ch}
+
+.tbl{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:14px}
+.tbl th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:600;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.tbl td{padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink-2)}
+.tbl tr:last-child td{border-bottom:none}
+.tbl td b{color:var(--ink);font-weight:500}
+.tblwrap{overflow-x:auto;margin-top:16px}
+.tblwrap .tbl{min-width:680px}
+.tbl.compact td{padding:8px 12px;font-size:13.5px}
+.tbl td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.tag{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 7px;border-radius:4px;white-space:nowrap;background:var(--surface-2);color:var(--ink-2)}
+.tag.m2{background:var(--o3-bg);color:var(--o3-ink)} .tag.later{background:var(--o2-bg);color:var(--o2-ink)} .tag.new{background:var(--warn-bg);color:var(--warn)}
+.callout{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:10px;padding:12px 16px;margin-top:14px;font-size:14px;color:var(--ink-2);max-width:86ch}
+.callout b{color:var(--ink)}
+
+/* mock screens */
+.screen{margin-top:18px;border:1px solid var(--line-strong);border-radius:12px;overflow:hidden;background:var(--surface)}
+.screen .bar{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid var(--line);background:var(--surface-2);font-size:12.5px;color:var(--ink-3)}
+.screen .bar b{color:var(--ink)}
+.scr{display:grid;grid-template-columns:210px minmax(0,1fr)}
+.side{border-right:1px solid var(--line);padding:12px 10px;font-size:13px;display:flex;flex-direction:column;gap:2px;background:var(--bg)}
+.side .grp{font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin:10px 4px 2px}
+.side .row{display:flex;justify-content:space-between;gap:8px;padding:3px 6px;border-radius:5px;color:var(--ink-2)}
+.side .row.on{background:var(--surface);color:var(--ink);font-weight:600;border:1px solid var(--line)}
+.side .row small{color:var(--ink-3);font-variant-numeric:tabular-nums}
+.pips{font-family:var(--mono);font-size:11px;letter-spacing:1px}
+.main{padding:16px 18px;min-width:0}
+.headline{font-size:18px;font-weight:600;margin:0 0 12px;color:var(--ink)}
+.bands{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.band{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px;color:var(--ink-2);border-top:3px solid var(--c)}
+.band b{display:block;color:var(--ink);font-size:13.5px}
+.grid{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+.grid th{text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--line)}
+.grid td{padding:4px 6px;border-bottom:1px solid var(--line);white-space:nowrap;color:var(--ink-3)}
+.grid td:first-child{color:var(--ink);font-weight:500}
+.c-stop{color:var(--bad)!important;font-weight:600}
+.c-you{color:var(--warn)!important;font-weight:600}
+.c-move{color:var(--o2-ink)!important}
+.c-ok{color:var(--ok)!important}
+.c-q{color:var(--ink-2)!important}
+.hatch{background:repeating-linear-gradient(135deg,transparent 0 4px,var(--surface-2) 4px 7px)}
+.needs{margin-top:14px;border-top:1px solid var(--line);padding-top:10px;font-size:13px}
+.needs .it{display:grid;grid-template-columns:28px 110px minmax(0,1fr) auto;gap:8px;padding:4px 0;color:var(--ink-2)}
+.needs .it b{color:var(--ink);font-weight:500}
+.prio{font-family:var(--mono);font-size:11.5px;font-weight:600}
+.p0{color:var(--bad)} .p1{color:var(--warn)}
+.mut{color:var(--ink-3)}
+.gridwrap{overflow-x:auto}
+.svc .cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+.card{border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--ink-2)}
+.card h4{margin:0 0 6px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.card b{color:var(--ink);font-weight:500}
+.chip{display:inline-block;font-size:11.5px;padding:0 6px;border-radius:4px;border:1px solid var(--o1);color:var(--o1-ink);white-space:nowrap}
+.stations{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:12px}
+.stations div{background:var(--surface);padding:6px 8px}
+.stations small{display:block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.btn{display:inline-block;font-size:12px;padding:1px 8px;border:1px solid var(--line-strong);border-radius:5px;color:var(--ink-2)}
+@media (max-width:760px){ .scr{grid-template-columns:1fr} .side{display:none} .bands{grid-template-columns:1fr} .svc .cols{grid-template-columns:1fr} .stations{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@media (max-width:520px){ .needs .it{grid-template-columns:28px minmax(0,1fr)} .needs .it span:nth-child(2),.needs .it span:nth-child(4){display:none} }
+/* round 2 additions */
+.strip{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;padding:6px 14px;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.strip .pipset{font-family:var(--mono);letter-spacing:2px;font-size:12px}
+.strip b{color:var(--ink);font-weight:600}
+.strip .sp{flex:1}
+.scr3{display:grid;grid-template-columns:200px minmax(0,1fr) 250px}
+.scr2{display:grid;grid-template-columns:200px minmax(0,1fr)}
+.ctx{border-left:1px solid var(--line);padding:12px 12px;font-size:12.5px;color:var(--ink-2);background:var(--bg);min-width:0}
+.ctx h4{margin:0 0 6px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.ctx dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;margin:8px 0 0}
+.ctx dt{color:var(--ink-3)} .ctx dd{margin:0;color:var(--ink)}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:4px 0 14px}
+.tile{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--ink-3)}
+.tile small{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase}
+.tile b{display:block;font-size:18px;color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.grpl{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin:12px 0 2px}
+.q{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:8px;padding:4px 0;font-size:13px;color:var(--ink-2);border-bottom:1px solid var(--line)}
+.q b{color:var(--ink);font-weight:500}
+.composer{margin-top:16px;border:1px solid var(--line-strong);border-radius:10px;padding:9px 12px;font-size:13px;color:var(--ink-3);display:flex;justify-content:space-between;gap:8px}
+.msg{font-size:13px;color:var(--ink-2);padding:6px 0;display:grid;grid-template-columns:44px minmax(0,1fr);gap:8px}
+.msg time{color:var(--ink-3);font-variant-numeric:tabular-nums;font-size:12px}
+.msg b{color:var(--ink);font-weight:500}
+.card2{margin-top:10px;border:1px solid var(--warn);border-radius:8px;padding:10px 12px;font-size:13px;background:var(--warn-bg);color:var(--ink)}
+.card2 small{display:block;color:var(--ink-2);margin-top:4px}
+.card2 .acts{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.thead{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:6px;font-size:13px}
+.thead b{font-size:15px;color:var(--ink)}
+.side .st{font-family:var(--mono);font-size:11px;width:14px;display:inline-block}
+.lanebar{display:grid;grid-template-columns:60px minmax(0,1fr);gap:6px;align-items:center;font-size:11.5px;margin:3px 0}
+.lanebar .track{position:relative;height:14px;background:var(--surface-2);border-radius:3px}
+.lanebar .seg{position:absolute;top:0;bottom:0;border-radius:3px}
+@media (max-width:860px){ .scr3{grid-template-columns:1fr} .scr3 .side{display:none} .scr3 .ctx{border-left:none;border-top:1px solid var(--line)} .scr2{grid-template-columns:1fr} .scr2 .side{display:none} .tiles{grid-template-columns:1fr} }
+.picker{display:grid;grid-template-columns:minmax(0,1fr) 190px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface);font-size:13px;max-width:640px;margin:16px auto 0;box-shadow:0 6px 24px rgba(0,0,0,.12)}
+.picker .ml{padding:8px 10px;border-right:1px solid var(--line);min-width:0}
+.picker .re{padding:8px 10px}
+.picker .srch{color:var(--ink-3);border-bottom:1px solid var(--line);padding:2px 4px 8px;margin-bottom:6px}
+.picker .m{display:grid;grid-template-columns:16px minmax(0,1fr) auto auto;gap:8px;padding:4px;border-radius:5px;color:var(--ink-2);align-items:center}
+.picker .m.on{background:var(--surface-2);color:var(--ink)}
+.picker .m small{color:var(--ink-3);font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:11px}
+.picker .m.off{color:var(--ink-3)}
+.picker .hr{border-top:1px solid var(--line);margin:4px 0}
+.picker .rh{display:flex;justify-content:space-between;color:var(--ink-3);font-size:11.5px;border-bottom:1px solid var(--line);padding:2px 4px 8px;margin-bottom:6px}
+.picker .r{display:flex;justify-content:space-between;padding:4px;color:var(--ink-2)}
+.picker .r small{color:var(--ink-3)}
+.picker .ft{grid-column:1/-1;border-top:1px solid var(--line);padding:8px 12px;display:flex;flex-wrap:wrap;gap:4px 14px;justify-content:space-between;color:var(--ink-3);font-size:12px}
+@media (max-width:560px){ .picker{grid-template-columns:1fr} .picker .ml{border-right:none;border-bottom:1px solid var(--line)} }
+.appendix{margin-top:56px;padding-top:30px;border-top:3px solid var(--line)}
+.appendix section{margin-top:32px;padding-top:22px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <p class="eyebrow">spi-code · window information design · council review, six rounds</p>
+  <h1>SPI Code Factory Line</h1>
+  <p class="lead">An agent workbench for the SPI program. Work happens in threads, the factory line stays in view as a strip and a sheet you pull up, and the window interrupts you only when a decision is yours.</p>
+
+  <div class="problem">
+    <p><b>The current window reads like a transcript of the sweep, and the first revision of this page made it a better dashboard.</b> A service page shows about 520 words. The revised Today packed a 13 × 6 grid, three bands and a queue into one view, which is busier than the rib console it replaces. It still asked the operator to visit pages and coordinate the work mentally. Threads were annotations on those pages.</p>
+    <p><b>This revision makes the thread the place work happens.</b> The window has three layers. A strip under the title bar always shows the line's state. The centre holds either a short brief (Today), a place such as a service, or a thread. The right panel holds context for whatever the centre shows. Attention has three tiers decided by core, and only a decision that's yours interrupts. Watchers and campaign threads notice problems and draft the exact approval card. The operator decides, in one place per card.</p>
+    <p><b>Some things this doesn't change or provide.</b> Every write still needs its own card (AU-03 to AU-10), and no agent approves anything. Lane occupancy, collision attribution, seen-state and due times are new data, marked where they appear. Sequencing across forks must be enforced in the stack's workflows, because the app can't stop jobs GitHub starts on its own.</p>
+  </div>
+
+  <p class="eyebrow" style="margin-top:28px">Colors identify the part of the system</p>
+  <div class="legend">
+    <span class="owner o-o1">Engineering system <span>· osdu-spi templates and workflows, rolled out to forks</span></span>
+    <span class="owner o-o2">Environment <span>· the shared CI/CD stack every prove borrows</span></span>
+    <span class="owner o-o3">Services <span>· 13 syncing forks of upstream GitLab</span></span>
+    <span class="owner o-o4">Releases <span>· monthly release lines</span></span>
+  </div>
+
+  <section>
+    <h2>Since the first revision</h2>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th></th><th>First revision</th><th>This revision</th></tr></thead>
+        <tbody>
+          <tr><td><b>Landing</b></td><td>Today, always: headline, three bands, the 13 × 6 grid, four queue items</td><td>Today when something that interrupts arrived since you last looked. Otherwise your last thread, in the centre.</td></tr>
+          <tr><td><b>Today</b></td><td>A dashboard</td><td>A rib-shaped brief: one headline written as a change since you last looked, three tiles, at most five items grouped by when they bite, and a composer</td></tr>
+          <tr><td><b>The grid</b></td><td>The landing view</td><td>The Line sheet, one keystroke away from anywhere, pinnable for a monitoring session</td></tr>
+          <tr><td><b>Fleet at a glance</b></td><td>Sidebar pip rows</td><td>One strip under the title bar on every surface</td></tr>
+          <tr><td><b>Sidebar</b></td><td>Inventory: campaigns, system, services, views</td><td>Work in flight: threads by status, a few fixed places, your pins</td></tr>
+          <tr><td><b>Threads</b></td><td>A strip on pages, last thread restored in the right panel</td><td>The centre. The right panel is context: the anchor's reading, the lane, a diff.</td></tr>
+          <tr><td><b>Agents</b></td><td>Not described</td><td>Watchers and campaign threads that notice and draft cards, started explicitly, with coverage you can see</td></tr>
+          <tr><td><b>Freshness</b></td><td>Title-bar line and a hatch on affected cells</td><td>Title-bar glyph only. Per-cell hatching waits until provenance maps a failed source to cells.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>The window</h2>
+    <p>The window is T3 Code's shell. The sidebar holds work. The centre holds one thing: a brief, a place or a thread. The right panel is closed until the centre has context worth showing. One strip runs across the top on every surface, so the line is never more than a glance away.</p>
+
+    <h3>Today at rest</h3>
+    <div class="screen" role="img" aria-label="Mockup of Today at rest on a calm morning">
+      <div class="bar"><span><b>SPI Code</b> · Today</span><span>swept 08:06 · ⌀ 1 source failed</span></div>
+      <div class="strip"><span class="pipset" title="partition, entitlements, legal, schema, file, storage, indexer, search, workflow, indexer-queue, unit, crs-catalog, crs-conversion"><span class="c-you">!</span><span class="c-stop">✕</span><span class="c-you">!</span><span class="mut">○○</span><span class="c-you">!!</span><span class="mut">○○</span><span class="c-you">!</span><span class="mut">○○○</span></span><span>entitlements stopped</span><span>env <b>v0.35.3</b> deployable</span><span>template <b>0/13</b></span><span class="sp"></span><span class="c-you">2 due before 18:00</span><span>next sync <b>18:00</b></span><span class="btn">Line ⌘L</span></div>
+      <div class="scr2">
+        <div class="side">
+          <div class="row">⌘K Find or ask</div>
+          <div class="row on">Today <small>0</small></div>
+          <div class="row">Line <small>⌘L</small></div>
+          <div class="grp">Places</div>
+          <div class="row">Upstream</div>
+          <div class="row">Environment</div>
+          <div class="row">Engineering system</div>
+          <div class="row">Releases</div>
+          <div class="row">Security</div>
+          <div class="grp">Pinned</div>
+          <div class="row">entitlements <small class="c-stop">✕</small></div>
+          <div class="row">legal</div>
+          <div class="grp">Threads</div>
+          <div class="row"><span><span class="st c-move">◐</span>Diagnose entitlements</span></div>
+          <div class="row"><span><span class="st mut">◷</span>Lane watch</span></div>
+          <div class="row mut">Settled 6</div>
+        </div>
+        <div class="main">
+          <p class="headline" style="margin-bottom:2px">No new interruptions since 17:40. Entitlements stays stopped, owned by Diagnose.</p><p class="mut" style="font-size:12px;margin:0 0 12px">GitLab cut the upstream diffs for 6 services this sweep, so upstream items may be missing.</p>
+          <div class="tiles">
+            <div class="tile"><small>Environment</small><b>v0.35.3</b>deployable · green 11-05 22:20</div>
+            <div class="tile"><small>Upstream sync</small><b>1 of 13</b>forks stopped · entitlements</div>
+            <div class="tile"><small>Engineering system</small><b>0 of 13</b>forks on 7d269b5 · 13 PRs open</div>
+          </div>
+          <div class="grpl">Before 18:00</div>
+          <div class="q"><span class="prio p1">P1</span><span><b>partition</b> will halt at the sync on schemathesis-tests</span><span class="mut">›</span></div>
+          <div class="q"><span class="prio p1">P1</span><span><b>legal</b> sync carries os-core-common 8.4.1-boot4-SNAPSHOT, held</span><span class="mut">›</span></div>
+          <div class="grpl">Owned</div>
+          <div class="q"><span class="prio p0">P0</span><span><b>entitlements</b> cascade blocked · #121 · <span class="c-move">◐ Diagnose, working</span></span><span class="mut">›</span></div>
+          <div class="grpl">New</div>
+          <div class="q"><span class="mut">·</span><span>Detected: <b>os-core-common 8.5.0</b> on 8 forks · Track as campaign</span><span class="mut">›</span></div>
+          <div class="q" style="border:none"><span></span><span class="mut">9 more · 13 release PRs open, 1 failing (#89)</span><span></span></div>
+          <div class="composer"><span>Ask about the line, or start work…</span><span>@ $ /</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">About 75 visible words, against the rib's ~110 and the first revision's ~230. Strip pips sit in fixed fleet order, partition first, and each pip is named on hover: ✕ stopped · ! needs a person · ◐ in progress · ○ nothing due. The strip's fields never move. A <b>Waiting for you</b> group leads Today whenever a card raised by a button is pending; at rest there is none, so it isn't drawn. The Owned group and the Diagnose thread are illustrative M3 states. Seen-state ("since 17:40") and due times ("Before 18:00") are new data.</p>
+
+    <h3>When something needs you</h3>
+    <p>A notification reads "indexer's prove failed while storage held the lane. A retry card is waiting." Clicking it opens the thread that owns the finding, in the centre. It never replaces a thread you're typing in. The strip changes, and Today's count goes to 1.</p>
+    <div class="screen" role="img" aria-label="Mockup of the Lane watch thread with a pending retry card">
+      <div class="bar"><span><b>SPI Code</b> · Lane watch</span><span>swept 14:15</span></div>
+      <div class="strip"><span class="pipset" title="partition, entitlements, legal, schema, file, storage, indexer, search, workflow, indexer-queue, unit, crs-catalog, crs-conversion"><span class="c-you">!</span><span class="c-stop">✕</span><span class="c-you">!</span><span class="mut">○○</span><span class="c-you">!!</span><span class="mut">○○</span><span class="c-you">!</span><span class="mut">○○○</span></span><span>entitlements stopped · <b class="c-you">1 card waiting</b></span><span>env v0.35.3 · <b>lane: storage restoring</b> <span class="tag new">new</span></span><span>template <b>0/13</b></span><span class="sp"></span><span class="c-you">2 due before 18:00</span><span>next sync <b>18:00</b></span></div>
+      <div class="scr3">
+        <div class="side">
+          <div class="row">⌘K Find or ask</div>
+          <div class="row">Today <small class="c-you">1</small></div>
+          <div class="row">Line <small>⌘L</small></div>
+          <div class="row mut">Places · Pinned (collapsed)</div>
+          <div class="grp">Threads</div>
+          <div class="row mut" style="font-size:11px">WAITING ON YOU</div>
+          <div class="row on"><span><span class="st c-you">●</span>Lane watch</span></div>
+          <div class="row mut" style="font-size:11px">WORKING</div>
+          <div class="row"><span><span class="st c-move">◐</span>Diagnose entitlements</span></div>
+          <div class="row"><span><span class="st c-move">◐</span>Template rollout</span><small>3 merged</small></div>
+          <div class="row mut">Settled 7</div>
+        </div>
+        <div class="main">
+          <div class="thead"><span><b>Lane watch</b> · anchored to Environment</span><span class="tag">operate</span></div>
+          <div class="msg"><time>14:19</time><span>storage's prove passed. Restore started.</span></div>
+          <div class="msg"><time>14:21</time><span>indexer's prove failed in smoke. It started at 14:06 while storage held the lane. <b>Possible contention:</b> the runs overlapped, and the smoke log doesn't yet show why it failed. Runs: storage 4407, indexer 4411. I've drafted one rerun after storage's restore ends.</span></div>
+          <div class="composer" style="flex-direction:column;gap:8px;padding:8px"><div class="card2" style="margin:0"><b>Change · rerun · indexer prove 4411, once, after storage's restore ends</b><small>Binds run 4411, attempt 1, conclusion failure · waits for restore and lane admission · one call</small><div class="acts"><span class="btn">Decline</span><span class="btn" style="border-color:var(--warn);color:var(--warn)">Approve</span></div></div><div style="display:flex;justify-content:space-between"><span>Reply to Lane watch…</span><span>@ $ /</span></div></div>
+        </div>
+        <div class="ctx">
+          <h4>Lane · 13:50 to 14:40</h4>
+          <div class="lanebar"><span>storage</span><span class="track"><span class="seg" style="left:10%;width:58%;background:var(--o2)"></span><span class="seg" style="left:68%;width:12%;background:var(--o2-bg);border:1px solid var(--o2)"></span></span></div>
+          <div class="lanebar"><span>indexer</span><span class="track"><span class="seg" style="left:32%;width:36%;background:var(--bad)"></span></span></div>
+          <div class="lanebar"><span>queued</span><span class="track"><span class="seg" style="left:82%;width:16%;border:1px dashed var(--line-strong)"></span></span></div>
+          <dl><dt>Overlap</dt><dd>14:06 to 14:19</dd><dt>Cause</dt><dd>possible contention</dd><dt>Today</dt><dd>2 proves passed · 1 overlap</dd><dt>Coverage</dt><dd>watching since 08:00</dd></dl>
+        </div>
+      </div>
+    </div>
+    <p class="note">Run ids, times and the smoke step are example values. The lane bars need lane events (new data, M3). The card is M4 and sits in this thread's composer strip, the only place it is decided (AU-10). Once approved it reads <b>approved, waiting</b> until the restore ends; the host re-reads its bindings when the wait fires, not at approval (AU-06). An overlap alone is "possible contention". The watcher calls it environment-caused only when the failure log corroborates it, such as an error from a service the other run had replaced. At narrow widths the lane panel stacks under the thread instead of hiding.</p>
+
+    <h3>The Line sheet</h3>
+    <p>⌘L or a click on the strip opens the round 1 grid as a sheet over the centre. It closes back to where you were, or you can pin it beside a thread for a monitoring session. Rows that need nothing fold. A campaign chip filters the sheet to that campaign's forks and adds its wave column.</p>
+    <div class="screen" role="img" aria-label="Mockup of the Line sheet">
+      <div class="bar"><span><b>Line</b> · 13 forks</span><span><span class="chip">all</span> <span class="chip">os-core-common 8.5.0 · 8</span> <span class="chip">template 7d269b5 · 13</span></span></div>
+      <div class="main gridwrap">
+        <table class="grid">
+          <thead><tr><th>Service</th><th>Upstream</th><th>Sync PR</th><th>Cascade</th><th>Main</th><th>Release PR</th></tr></thead>
+          <tbody>
+            <tr><td>entitlements</td><td class="c-ok">✓ current</td><td>· clean</td><td class="c-stop">✕ conflict 21h</td><td>·</td><td class="c-q">#89 coverage fails</td></tr>
+            <tr><td>partition</td><td class="c-you">! 8 · halts 18:00</td><td>· clean</td><td>·</td><td>·</td><td class="c-q">#198 ready</td></tr>
+            <tr><td>legal</td><td class="c-you">! 17 · SNAPSHOT held</td><td>· clean</td><td>·</td><td>·</td><td class="c-q">#48 ready</td></tr>
+            <tr><td>indexer-queue</td><td class="c-q">◷ 3</td><td class="c-you">! #58 review</td><td>·</td><td>·</td><td class="c-q">#45 ready</td></tr>
+            <tr><td>storage</td><td class="c-q">◷ 11</td><td class="c-you">! #58 review</td><td>·</td><td>·</td><td class="c-q">#57 ready</td></tr>
+            <tr><td>indexer</td><td class="c-q">◷ 25</td><td class="c-you">! #58 review</td><td>·</td><td>·</td><td class="c-q">#33 ready</td></tr>
+            <tr><td colspan="6" class="mut">▸ 7 moving normally: schema, file, search, workflow, unit, crs-conversion, crs-catalog</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="note">The fleet fact "carries os-core-common 8.5.0" lives on the campaign chip, not in eight cells. Glyphs: ✕ stopped · ! needs a person · ◐ in progress · ◷ scheduled · · nothing to do. Each needs the typed station sub-state. The repeated "#58" is unverified (appendix E).</p>
+
+    <h3>Places</h3>
+    <p>A place is any anchor you can open: a service, the environment, the engineering system, a release month, a campaign. Every place has the same three parts. Its <b>reading</b> is a headline, three tiles and at most five items, the rib's shape. Next come <b>its threads</b> with their status. Last is a <b>composer anchored to it</b>, so typing a question starts a thread there. The entitlements page from the first revision becomes the service reading, without "gate 3" (it reads "release review") and without the future "Upstream MRs" line. Its Threads section becomes the place's thread list and composer. <b>Security</b> is a place whose reading is SPI-owned findings across the fleet: tiles for high, total and upstream-origin counts, items grouped by rule, and each rule that spans forks shown as a detected campaign.</p>
+
+    <h3>Upstream</h3>
+    <p>The line has an input, the machinery and an output. Upstream is the input: what GitLab will hand each fork at the next sync. It gathers what was spread across four spots: the strip's next sync, Today's Before next sync group, each service's commits incoming and the Line sheet's Upstream column. Today keeps the part of it that has a deadline. Upstream is where you go to look further ahead, and its toolchain moves are what campaign detection reads.</p>
+    <div class="screen" role="img" aria-label="Mockup of the Upstream place">
+      <div class="bar"><span><b>SPI Code</b> · Upstream</span><span>swept 08:06 · ⌀ 1 source failed</span></div>
+      <div class="strip"><span class="pipset" title="partition, entitlements, legal, schema, file, storage, indexer, search, workflow, indexer-queue, unit, crs-catalog, crs-conversion"><span class="c-you">!</span><span class="c-stop">✕</span><span class="c-you">!</span><span class="mut">○○</span><span class="c-you">!!</span><span class="mut">○○</span><span class="c-you">!</span><span class="mut">○○○</span></span><span>entitlements stopped</span><span>env <b>v0.35.3</b> deployable</span><span>template <b>0/13</b></span><span class="sp"></span><span class="c-you">2 due before 18:00</span><span>next sync <b>18:00</b></span></div>
+      <div class="scr2">
+        <div class="side">
+          <div class="row">⌘K Find or ask</div>
+          <div class="row">Today <small>0</small></div>
+          <div class="row">Line <small>⌘L</small></div>
+          <div class="grp">Places</div>
+          <div class="row on">Upstream</div>
+          <div class="row">Environment</div>
+          <div class="row">Engineering system</div>
+          <div class="row">Releases</div>
+          <div class="row">Security</div>
+          <div class="grp">Pinned</div>
+          <div class="row">entitlements <small class="c-stop">✕</small></div>
+          <div class="row">legal</div>
+        </div>
+        <div class="main">
+          <div class="thead"><span><b>Upstream</b> · next sync 18:00</span><span class="mut">Line view ⌘L</span></div>
+          <p class="headline" style="margin-bottom:2px">At 18:00, 107 commits reach 10 forks. Two need you first.</p><p class="mut" style="font-size:12px;margin:0 0 12px">GitLab cut the upstream diffs for 6 services, so a toolchain move could be missing.</p>
+          <div class="tiles">
+            <div class="tile"><small>Incoming</small><b>107</b>commits · 10 of 13 forks</div>
+            <div class="tile"><small>Toolchain</small><b>8 forks</b>move to os-core-common 8.5.0</div>
+            <div class="tile"><small>Largest</small><b>25</b>indexer · then legal 17, schema 16</div>
+          </div>
+          <div class="grpl">Before 18:00</div>
+          <div class="q"><span class="prio p1">P1</span><span><b>partition</b> will halt on schemathesis-tests · add a filter rule</span><span class="mut">›</span></div>
+          <div class="q"><span class="prio p1">P1</span><span><b>legal</b> carries os-core-common 8.4.1-boot4-SNAPSHOT, held</span><span class="mut">›</span></div>
+          <div class="grpl">Toolchain</div>
+          <div class="q"><span class="mut">·</span><span>Detected: <b>os-core-common 8.5.0</b> on 8 forks · Track as campaign</span><span class="mut">›</span></div>
+          <div class="grpl">Threads</div>
+          <div class="q" style="border:none"><span class="c-ok">✓</span><span>Which of the 107 touch the Azure provider?</span><span class="mut">Done</span></div>
+          <div class="composer"><span>Ask about what's coming…</span><span>@ $ /</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">Counts, holds and the cut come from the 08:06 sweep's upstream radar: 10 forks with queued commits, 8 of them carrying os-core-common 8.5.0. The cut spans 12 merge-request reads for entitlements, partition, file, schema, storage and search; the radar envelope today records only the first, so the subline reads the per-read provenance. Its Before 18:00 rows and the detection are the same items Today shows, one record in two places, so resolving one clears both. The thread is illustrative. The place's Line view is the Line sheet filtered to the Upstream column. Upstream sits first among the places because it comes first on the line.</p>
+  </section>
+
+  <section>
+    <h2>Attention</h2>
+    <p>Core assigns every state to one tier. The page doesn't decide what's loud.</p>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>Tier</th><th>What qualifies</th><th>How it reaches you</th></tr></thead>
+        <tbody>
+          <tr><td><b>Interrupt</b></td><td>A card waiting on your decision. A new or worsened P0. An owned item whose thread Failed, stalled or lost coverage. A failed recovery. An unowned item that is due within its lead time (2 hours by default).</td><td>One OS notification per item, the Today count, and the strip. If it arrived since you last acknowledged, the app opens on Today.</td></tr>
+          <tr><td><b>Surface</b></td><td>A new P1, a newly detected theme, a thread Done, an item due before the next sync but outside its lead time</td><td>Today's brief, marked new, and the strip's due count. No notification.</td></tr>
+          <tr><td><b>Ambient</b></td><td>Work moving normally, successful retries, routine sweeps, no-rush items</td><td>The strip and the Line sheet only</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul class="plain">
+      <li><b>Since you last looked.</b> Today's headline is a diff against the state you last acknowledged, as T3 Code's background-thread announcer stays quiet on first sight and announces each run's end once. Acknowledging never clears a stopped station; the strip keeps showing it.</li>
+      <li><b>Ownership suppresses duplicates, not escalation.</b> When a thread owns an item (TH-05), it moves to Today's Owned group and its repeat notifications stop. If the owning thread fails, stalls, loses coverage, or the item worsens, the item interrupts again. A P0 stays red on the strip until the line is green; a thread finishing doesn't make the line healthy.</li>
+      <li><b>Due items escalate.</b> An item with a due time sits in Before the next sync, and the strip counts it ("2 due before 18:00"). Inside its lead time, if nobody owns it, it becomes Interrupt. A partition halt can't arrive unannounced because the app restored a thread instead of Today.</li>
+      <li><b>One count, of distinct items.</b> The Today count is the number of Interrupt items: a pending card counts once, and the thread waiting on that card and the P0 it owns are not counted again. The count falls when an item is resolved, not when it's acknowledged. Acknowledging clears the notification and the open-on-Today trigger.</li>
+      <li><b>Grouped by when it bites.</b> Waiting for you (only when a card raised by a button is pending), Before the next sync, Owned, New, then one folded line for the rest. The P0/P1 rank stays as the chip on each row.</li>
+      <li><b>Snooze until the next sync</b> for a Surface item, borrowed from T3 Code's snooze dialog.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Agents and authority</h2>
+    <p>Agents make two things cheap: noticing, and drafting the exact card. Deciding stays with you.</p>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>Agent</th><th>Anchored to</th><th>Does</th><th>Never does</th><th>When</th></tr></thead>
+        <tbody>
+          <tr><td><b>Lane watch</b></td><td>Environment</td><td>Reads lane events, reports overlaps as "possible contention" unless the failure log corroborates a cause, drafts a rerun card bound to restore and admission, reports the outcome once</td><td>Rerun anything without an approved card. Claim the lane is free from deployability alone.</td><td><span class="tag later">M3</span> detect · <span class="tag later">M4</span> cards</td></tr>
+          <tr><td><b>Campaign thread</b></td><td>An adopted campaign</td><td>Drafts the plan (target, forks, pilot, waves, lane cap), tracks members, brings the next eligible wave as its card, opens child code threads when a fork fails on its own code</td><td>Treat a plan approval as approval for later writes</td><td><span class="tag later">M3</span> to <span class="tag later">M5</span></td></tr>
+          <tr><td><b>Diagnose</b></td><td>A failed item</td><td>Classifies the failure (PB-01) and proposes the next step or a code thread</td><td>Write</td><td><span class="tag later">M3</span></td></tr>
+          <tr><td><b>Code thread</b></td><td>A fork branch</td><td>Edits in a sandboxed worktree on <code>fork_integration</code> or the release PR head, runs checks, drafts the push card</td><td>Push without a card</td><td><span class="tag later">M5</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul class="plain">
+      <li><b>Watchers are started, not ambient.</b> Each is a standing operate thread with a scope, its last observation, a coverage state and Pause or Stop. The host owns durable waits (RN-05), deduplication and notifications. The model is called when an event needs diagnosis, not to narrate each sweep.</li>
+      <li><b>One card, one call.</b> Approving a plan approves no writes. Each write is a call with its own card, at the tool's tier:</li>
+    </ul>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>Step</th><th>Tool</th><th>Tier</th><th>Card</th></tr></thead>
+        <tbody>
+          <tr><td><b>Start an upstream wave</b></td><td><code>start_upstream</code></td><td>Consequential</td><td>One card for the wave's forks, the wave's name typed to confirm, a ledger entry per fork (RN-04), never batched with another card</td></tr>
+          <tr><td><b>Template wave</b></td><td><code>roll_out</code></td><td>Consequential</td><td>The same shape. A single template PR outside a wave is one <code>merge_pr</code> Change card.</td></tr>
+          <tr><td><b>Rerun a failed prove</b></td><td><code>rerun</code></td><td>Change</td><td>One card per run, bound to run id, attempt and conclusion</td></tr>
+          <tr><td><b>Push a code fix</b></td><td><code>push_branch</code></td><td>Change</td><td>One card per push</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul class="plain">
+      <li><b>Cards are decided in one place.</b> A thread's card is decided in that thread's composer strip. A button's card is decided in Today's Waiting for you, which replaces the Inbox as the one place for those (AU-09, AU-10). Everywhere else shows the card's state and links there.</li>
+      <li><b>Approved is not executed.</b> A card bound to a wait reads <b>approved, waiting</b> until the wait fires. The host then re-reads its bindings (AU-06). If one changed, the card moves to binding failed and names it.</li>
+      <li><b>Core admits work to the lane.</b> Waves from every campaign, reruns and ordinary proves enter one admission queue, ordered by core's pacing and ordering guards and capped by lane capacity. These are the bindings Consequential calls already re-read. Lane watch reports on the queue but admits nothing. The stack's workflow guard enforces the same order for jobs the app didn't start.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>A campaign thread</h2>
+    <p>An adopted campaign is a thread anchored to its plan. The centre is the conversation and the wave's card. The right panel pins the Line sheet filtered to the campaign, with its wave column and the lane queue it shares with everything else.</p>
+    <div class="screen" role="img" aria-label="Mockup of a campaign thread with the wave 1 card in the composer strip">
+      <div class="bar"><span><b>SPI Code</b> · Boot 4 · os-core-common 8.5.0</span><span>swept 09:12</span></div>
+      <div class="strip"><span class="pipset" title="partition, entitlements, legal, schema, file, storage, indexer, search, workflow, indexer-queue, unit, crs-catalog, crs-conversion"><span class="c-you">!</span><span class="c-stop">✕</span><span class="c-you">!</span><span class="mut">○○</span><span class="c-you">!!</span><span class="mut">○○○○○○</span></span><span>entitlements stopped · <b class="c-you">1 card waiting</b></span><span>env v0.35.3 deployable</span><span>template <b>0/13</b></span><span class="sp"></span><span class="c-you">2 due before 18:00</span><span>next sync <b>18:00</b></span></div>
+      <div class="scr3">
+        <div class="side">
+          <div class="row">⌘K Find or ask</div>
+          <div class="row">Today <small class="c-you">1</small></div>
+          <div class="row">Line <small>⌘L</small></div>
+          <div class="row mut">Places · Pinned (collapsed)</div>
+          <div class="grp">Threads</div>
+          <div class="row mut" style="font-size:11px">WAITING ON YOU</div>
+          <div class="row on"><span><span class="st c-you">●</span>Boot 4</span><small>0/8</small></div>
+          <div class="row mut" style="font-size:11px">WORKING</div>
+          <div class="row"><span><span class="st c-move">◐</span>Diagnose entitlements</span></div>
+          <div class="row"><span><span class="st mut">◷</span>Lane watch</span></div>
+        </div>
+        <div class="main">
+          <div class="thead"><span><b>Boot 4</b> · campaign · os-core-common 8.5.0</span><span class="tag">operate</span></div>
+          <div class="msg"><time>09:02</time><span>Pilot indexer-queue carries no toolchain move, so it proves the plan's template and lane order, not 8.5.0. It passed prove and is on main. Plan: wave 1 is schema, file, search and workflow; wave 2 is storage, indexer, unit and crs-conversion. Lane cap 1, so wave 1 proves one fork at a time, about 40 minutes each from the last 21 proves.</span></div>
+          <div class="msg"><time>09:10</time><span>Wave 1 is eligible. It waits behind one template prove (crs-catalog) already in the lane queue.</span></div>
+          <div class="composer" style="flex-direction:column;gap:8px;padding:8px"><div class="card2" style="margin:0"><b>Consequential · start_upstream · Boot 4 wave 1 · 4 forks</b><small>Per fork: head and checks bound, ledger entry, admitted through the lane queue in order. Type <code>Boot 4 wave 1</code> to confirm.</small><div class="acts"><span class="btn" style="flex:1;text-align:left;color:var(--ink-3);border-style:dashed">type the campaign and wave</span><span class="btn">Decline</span><span class="btn" style="opacity:.4" title="Enabled when the typed name matches">Approve</span></div></div><div style="display:flex;justify-content:space-between"><span>Ask about Boot 4…</span><span>@ $ /</span></div></div>
+        </div>
+        <div class="ctx">
+          <h4>Boot 4 · 8 forks on 8.5.0</h4>
+          <dl><dt>Pilot</dt><dd class="c-ok">indexer-queue ✓ on main <span class="mut">(not one of the 8: carries no toolchain move)</span></dd><dt>Wave 1</dt><dd>schema · file · search · workflow</dd><dt>Wave 2</dt><dd class="mut">storage · indexer · unit · crs-conversion</dd><dt>Meter</dt><dd>forks verified on 8.5.0 · 0 of 8</dd><dt>Done when</dt><dd>main green on 8.5.0, release PR proven</dd></dl>
+          <h4 style="margin-top:14px">Lane queue</h4>
+          <dl><dt>now</dt><dd>crs-catalog · template prove</dd><dt>next</dt><dd>wave 1, in order, one at a time</dd><dt>reruns</dt><dd class="mut">none queued</dd></dl>
+        </div>
+      </div>
+    </div>
+    <p class="note">The 8.5.0 fork set and the plan's pilot come from this morning's sweep. The pilot's progress, the waves and the queue are illustrative; at 08:06 indexer-queue's sync PR was still in review. The plan record, the lane queue and duration estimates are new data (M3 and M4). A second campaign adds its waves to the same queue; its thread shows its own position in it.</p>
+  </section>
+
+  <section>
+    <h2>Starting work</h2>
+    <p>Everything starts in one of three places: a composer, ⌘K, or the item in front of you. Each start lands in a thread, so there is one way work runs whatever started it.</p>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>To start</th><th>Ways</th><th>Lands in</th></tr></thead>
+        <tbody>
+          <tr><td><b>A thread</b></td><td>Type in any place's composer, which anchors the thread there. Today's composer and ⌘N start a thread anchored to the program. Every thread has exactly one anchor (TH-01); @ in the composer adds other places (@legal, @environment) as context attachments, so one thread can draw on several without changing its anchor (TH-08, PS-14). "Ask about this" on a Today item or a Detail field anchors to that item with its evidence attached.</td><td>The centre, under Threads by status</td></tr>
+          <tr><td><b>A campaign</b></td><td>Ask: "move every fork to Java 25 and Boot 4" in Today's composer or ⌘K. Track a detection on Today, Upstream or a Line chip. Select rows on the Line sheet and choose Campaign from these.</td><td>A campaign thread with a drafted plan you edit. No write runs until a wave's own card is approved.</td></tr>
+          <tr><td><b>A pin</b></td><td>The Pin button in a place's header. Pin on right-click of a strip pip or a Line sheet row. ⌘K, then ⌘↩ on a result to open and pin it.</td><td>The sidebar's Pinned group, the only way a service appears there</td></tr>
+          <tr><td><b>A watcher</b></td><td>"Watch the lane" in the Environment composer, or Start on a watcher's place</td><td>A standing operate thread with coverage, Pause and Stop</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Threads the app starts itself (Lane watch findings, campaign children, Diagnose) say who started them in the thread header, so the ones you opened are always distinguishable.</p>
+
+    <h3>Choosing the model</h3>
+    <p>Copilot is the only agent, so the picker is T3 Code's without the provider rail. It lists the models the operator's plan returns from the gh token (CP-03, CP-09) and the reasoning levels each supports.</p>
+    <div class="picker" role="img" aria-label="Mockup of the Copilot model picker">
+      <div class="ml">
+        <div class="srch">⌕ Search models…</div>
+        <div class="m"><span>✦</span><span>Auto</span><small>default</small><small>⌘0</small></div>
+        <div class="m on"><span class="c-you">★</span><span>Claude Sonnet 5.5</span><small>1×</small><small>⌘1</small></div>
+        <div class="m"><span class="c-you">★</span><span>GPT-6.1 Sol</span><small>1×</small><small>⌘2</small></div>
+        <div class="hr"></div>
+        <div class="m"><span></span><span>Claude Opus 5.5</span><small>3×</small><small></small></div>
+        <div class="m"><span></span><span>GPT-6 mini</span><small>0×</small><small></small></div>
+        <div class="m off"><span></span><span>Gemini 3 Pro · not enabled for this account</span><small>ⓘ</small><small></small></div>
+        <div class="m off"><span></span><span>Show more</span><small></small><small></small></div>
+      </div>
+      <div class="re">
+        <div class="rh"><span>Reasoning</span><span>Sonnet 5.5</span></div>
+        <div class="r"><span>Low</span></div>
+        <div class="r"><span>Medium</span><small>Default</small></div>
+        <div class="r"><span>High</span><span>✓</span></div>
+      </div>
+      <div class="ft"><span>Copilot · operator account · 41% of premium requests used</span><span>/usage · ↻</span></div>
+    </div>
+    <p class="note">Model names, multipliers and usage are example values; the list is whatever <code>models.list</code> returns for the account. The composer chip reads "✦ Sonnet 5.5 · High".</p>
+    <ul class="plain">
+      <li><b>Auto is first and the default</b> (CP-09). Starred models sit on top with ⌘1 to ⌘4, as in T3 Code.</li>
+      <li><b>Each row shows its premium-request cost</b> from <code>billing.multiplier</code>, beside the shortcut.</li>
+      <li><b>The reasoning column appears only when the chosen model supports it.</b> Its levels and Default come from <code>supportedReasoningEfforts</code> and <code>defaultReasoningEffort</code>.</li>
+      <li><b>Models not enabled for the account are greyed, not hidden,</b> with a pointer to GitHub settings (<code>policy.state</code> disabled or unconfigured).</li>
+      <li><b>No Standard or Fast switch and no access mode.</b> The tier model and per-call cards decide what runs (TH-08), so the footer shows the Copilot account, usage and a refresh instead. Usage appears only when Copilot reports a quota for the account; otherwise it reads "usage unavailable".</li>
+      <li><b>The choice belongs to the thread.</b> The host re-applies model and effort on every resume (CP-07). A switch mid-thread leaves one line in the timeline ("switched to Opus 5.5 · high"). New threads start on Auto or the Settings default; Lane watch, Diagnose and campaign threads each take their own default from Settings.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Journeys</h2>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>Journey</th><th>What happens</th></tr></thead>
+        <tbody>
+          <tr><td><b>Morning</b></td><td>The dock badge is 0, so the app restores your last thread. The strip shows one red pip, owned, and "2 due before 18:00". Today, if you open it, says no new interruptions since yesterday and lists the two. If nobody takes the partition halt by 16:00, it notifies. About five seconds. ⌘L if you want everything.</td></tr>
+          <tr><td><b>Collision and retry</b></td><td>Lane watch posts the overlap and a rerun card, and one notification arrives. Approve in the thread. The wait holds until storage restores and admission allows it. The watcher reports the result once. The Cascade cell shows dashed until the next sweep confirms it. A second failure or an unknown restore comes back to you.</td></tr>
+          <tr><td><b>Owner fails</b></td><td>Diagnose fails at 11:20 while the cascade is still blocked. The item interrupts again: one notification, Today goes to 1, the strip keeps entitlements red, and the notification opens Diagnose's thread at its failure with the next decision: retry Diagnose or start a code thread.</td></tr>
+          <tr><td><b>Steward</b></td><td>⌘K "legal", ⌘↩ opens and pins it. Its place reads 17 commits incoming, a SNAPSHOT hold, 1 SPI-owned CodeQL finding and Release #48 ready. Ask "which of the 17 touch the Azure provider?" in its composer, and that starts a legal thread.</td></tr>
+          <tr><td><b>Java 25 + Boot 4</b></td><td>Ask for it in Today's composer, or Today and Upstream show "Detected: os-core-common 8.5.0 on 8 forks · Track" once. Either starts a campaign thread, which drafts pilot indexer-queue, waves and lane cap 1 as a plan for you to edit. Each wave is one Consequential <code>start_upstream</code> card with the wave's name typed. Core admits its forks through the shared lane queue. Forks failing on their own code get child code threads at M5. From then on it's one row under Working, with a meter.</td></tr>
+          <tr><td><b>Template rollout</b></td><td>The same mechanics as a campaign of kind engineering. Each wave is one Consequential <code>roll_out</code> card, and a lone template PR is a <code>merge_pr</code> card (AU-07). The strip's template count is forks verified on the target revision, not PRs merged, so it moves 0/13 → 13/13 only as adoption is confirmed.</td></tr>
+          <tr><td><b>Code change</b></td><td>The entitlements Cascade item is owned, so Detail's single action opens the Diagnose thread (TH-05). Diagnose proposes "Fix in code thread", which starts a child code thread. It opens in the centre with the branch and head shown. A changed file opens its diff over the timeline (CT-14), with Detail one tab away. The push is a card. The PR shows dashed in the Cascade cell until a sweep reads it.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Growth</h2>
+    <p>Every new capability declares four things, and that declaration replaces a new page or sidebar group:</p>
+    <ul class="plain">
+      <li><b>Its anchor kind and reading,</b> so it becomes a place with a headline, tiles and items.</li>
+      <li><b>Its attention rule,</b> mapping each of its states to Interrupt, Surface or Ambient.</li>
+      <li><b>Whether it borrows the lane,</b> so the lane queue and Lane watch cover it.</li>
+      <li><b>Whether it's fleet-scoped,</b> in which case it runs as a campaign.</li>
+    </ul>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>Growth</th><th>What expands</th><th>What stays fixed</th></tr></thead>
+        <tbody>
+          <tr><td><b>Services 14 to 20</b></td><td>Strip pips, Line sheet rows (folded when quiet), tile denominators</td><td>Sidebar, Today, thread layout</td></tr>
+          <tr><td><b>A second campaign</b></td><td>One thread under Working with its meter, one filter chip on the Line sheet</td><td>One lane queue: core's admission queue serializes both, and Lane watch reports on it</td></tr>
+          <tr><td><b>New kind of work</b> (e.g. certificate rotation)</td><td>A new anchor kind with its reading and attention rule. Threads anchored to it.</td><td>Brief, strip, attention tiers, card locations. Writes wait for a typed tool; chat grants no new authority.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Text rules</h2>
+    <ul class="plain">
+      <li><b>Headlines state a verdict or a change.</b> At most 12 words. The rib's "One filter entry would stop 4 future halts" is the model.</li>
+      <li><b>Every measure names what it counts,</b> and a summary never says more than its source: "1 of 13 stopped" doesn't become "12 moving", and "13 open" doesn't become "13 ready". The rib's "27 min" is a run duration that reads like proof age. "Stopped 16 days" next to "21h" needs both labels.</li>
+      <li><b>Causes need evidence.</b> Overlap is "possible contention" until a log corroborates it; nothing is exonerated by timing alone.</li>
+      <li><b>One verb per action.</b> "Fix in code thread", not "Open in inspector · Investigate, then Dispatch cascade".</li>
+      <li><b>No sentence repeats what a component draws, and fleet facts appear once,</b> on the campaign.</li>
+      <li><b>Internal names stay in Detail and Evidence.</b> That covers <code>fork_upstream</code>, "gate 3", "presses" and "cut". Raw issue-title emoji are stripped.</li>
+      <li><b>Absent features take no space.</b> No "not available yet" sections, and no future lines in mockups or pages.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Proposed sequence</h2>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>When</th><th>Work</th><th>New data</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag m2">M2</span></td><td>Rewrite PS-02, PS-03, PS-08, PS-10 and TH-07. Hold t1k.59 and t1k.62. Today as the brief. The strip. The Line sheet. The sidebar as places and pins. Place readings for upstream, services, environment, engineering system and releases. Detail with one action. Text rules. Remove placeholders. Fix the Detail defects.</td><td>typed station sub-state, typed <code>due</code>, seen-state (local)</td></tr>
+          <tr><td><span class="tag later">M3</span></td><td>Threads in the centre with place composers, ⌘N and @ places. The Copilot model picker. Attention tiers and notifications. Lane events, Lane watch detection, Diagnose. Adopted campaigns as threads.</td><td>lane events, campaign record</td></tr>
+          <tr><td><span class="tag later">M4</span></td><td>Cards in the composer strip. Rerun-after-restore waits. Wave cards with ledgers. The stack's workflow guard as a template rollout.</td><td>admission state</td></tr>
+          <tr><td><span class="tag later">M5 to M6</span></td><td>Code threads, campaign children. Live cluster reads corroborate the lane.</td><td>thread store joins</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Decisions for you</h2>
+    <ul class="plain">
+      <li><b>Parity.</b> Replace word-for-word parity with reachability, and hold t1k.59 and t1k.62 until the new layout lands.</li>
+      <li><b>Landing.</b> Open on Today only when something that interrupts arrived since you last looked, and otherwise restore the last thread.</li>
+      <li><b>Standing orders.</b> One choice is a bounded rule you approve once, such as "rerun environment-overlap failures once per run until Friday". That changes AU-03. The other is keeping one card per rerun and letting Lane watch make each card one click. This page assumes the second for v1.</li>
+      <li><b>Sequencing guard.</b> Does the stack's workflow already stop two forks borrowing at once? If not, the guard is a template change.</li>
+      <li><b>Sidebar.</b> Services leave the sidebar except when pinned. You reach them from the strip, the Line sheet or ⌘K.</li>
+      <li><b>Agent defaults.</b> Which model Lane watch, Diagnose and campaign threads use by default. A watcher that runs all day is a natural fit for a 0× model.</li>
+      <li><b>Due lead time.</b> How long before a deadline an unowned item interrupts. This page uses 2 hours as a setting.</li>
+    </ul>
+  </section>
+
+  <div class="appendix">
+    <p class="eyebrow">Appendix · reference material</p>
+    <h2>Reference detail</h2>
+
+    <section>
+      <h3>A · Requirement changes by ID</h3>
+      <div class="tblwrap"><table class="tbl compact"><thead><tr><th>ID</th><th>Change</th></tr></thead><tbody>
+        <tr><td><b>PS-02, PS-10</b></td><td>Retire word-for-word parity and "lenses in full". Every Briefing and Releases field is reachable within one click of its place, with no conflicting duplicates. The core and oracle regression checks stay.</td></tr>
+        <tr><td><b>PS-03</b></td><td>Today is the brief: a headline as a change since last acknowledged, qualified when a source failed; three tiles from <code>briefing.facts</code>; at most five items grouped Waiting for you (only when cards are pending) / Before next sync / Owned / New; one folded line; a composer.</td></tr>
+        <tr><td><b>PS-04</b></td><td>Station Detail leads with that station's own reading. Related renders as a label and value table. One action per item, which opens or starts the owning thread or raises its card.</td></tr>
+        <tr><td><b>PS-05, PS-09</b></td><td>Every place has the same three parts: reading, its threads, an anchored composer. No always-present empty sections.</td></tr>
+        <tr><td><b>PS-08</b></td><td>Sidebar: Find or ask, Today, Line, the places (Upstream, Environment, Engineering system, Releases, Security), Pinned, threads by status, Settled, Setup. No per-service or per-theme rows.</td></tr>
+        <tr><td><b>PS-11</b></td><td>The right panel is context for the centre and closed when empty. Threads occupy the centre.</td></tr>
+        <tr><td><b>EV-03</b></td><td>Freshness appears once, in the title bar. Per-cell marking waits for provenance that maps a failed source to values.</td></tr>
+        <tr><td><b>TH-01</b></td><td>Add campaign, environment-lane and upstream anchors. The upstream anchor's reading (TH-02) is the Upstream place's reading: next sync, commits incoming, toolchain moves, holds and the radar's completeness.</td></tr>
+        <tr><td><b>TH-03</b></td><td>Every place carries a composer anchored to it.</td></tr>
+        <tr><td><b>TH-07</b></td><td>Open on Today when an Interrupt item arrived since last acknowledgement, otherwise restore the last thread in the centre.</td></tr>
+        <tr><td><b>AU-09</b></td><td>Pending button cards wait in Today's Waiting for you, which replaces the Inbox. The Today count is the number of distinct Interrupt items: a card counts once, its waiting thread and the P0 it owns are not counted again, and the count falls on resolution. Add the card state <b>approved, waiting</b> for a card bound to a wait.</td></tr>
+        <tr><td><b>AU-10</b></td><td>Replace "the Inbox's Waiting for you" with "Today's Waiting for you". A thread's card is drawn and decided in its composer strip only.</td></tr>
+        <tr><td><b>AU-04</b></td><td>A Consequential card with several targets is confirmed by typing its campaign and wave name ("Boot 4 wave 1"), never a bare "wave 1", and the field starts empty.</td></tr>
+        <tr><td><b>AU-06</b></td><td>For a card bound to a wait, the binding re-read happens when the wait fires.</td></tr>
+        <tr><td><b>TH-08, CP-09</b></td><td>The picker is T3 Code's without the provider rail: Auto first, starred models with ⌘1 to ⌘4, the premium-request multiplier per row, the reasoning column only for models that support it, models not enabled for the account greyed with a pointer, and a footer with account and usage. ⌘N starts a program-anchored thread; @ adds places as context attachments, never as a second anchor.</td></tr>
+        <tr><td><b>New: Upstream place</b></td><td>A place whose reading is the next sync: commits incoming, toolchain moves, holds and halts, qualified when the radar read was cut. M2.</td></tr>
+        <tr><td><b>New: pins</b></td><td>Pin from a place header, a strip pip, a Line sheet row, or ⌘↩ in ⌘K. M2.</td></tr>
+        <tr><td><b>New: strip</b></td><td>The ambient strip with fixed fields: service pips in fleet order by worst typed sub-state, named on hover; stopped services; environment; template forks verified on target; due count; next sync; freshness glyph. M2.</td></tr>
+        <tr><td><b>New: attention</b></td><td>Three tiers assigned in core; a seen-state baseline; ownership suppresses duplicates but not escalation; due items escalate inside a lead time; one notification per distinct item. M2 seen-state and due, M3 notifications.</td></tr>
+        <tr><td><b>New: lane queue</b></td><td>One admission queue for waves, reruns and proves, ordered by core's pacing guards and capped by lane capacity, mirrored by the stack's workflow guard. M4.</td></tr>
+        <tr><td><b>New: watchers</b></td><td>A standing operate thread with a scope, coverage state, Pause and Stop. Host-owned waits and deduplication. M3.</td></tr>
+        <tr><td><b>New: lane events</b></td><td>Borrow, prove and restore per fork, with run id, job and result. Overlaps flagged, failures attributed. Contract at M3.</td></tr>
+        <tr><td><b>New: campaigns</b></td><td>Detected at M2 as a Today item and Line filter. Adopted at M3 as a thread with a plan record. Waves at M4. Children at M5.</td></tr>
+        <tr><td><b>New: capability rule</b></td><td>Every M3 to M6 capability declares its anchor and reading, attention rule, lane use and fleet scope in its bead's acceptance.</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section>
+      <h3>B · Council scores</h3>
+      <div class="tblwrap"><table class="tbl compact"><thead><tr><th>Delegate</th><th>Round 1 (current window)</th><th>Round 2 (first revision)</th><th>Round 3 (revision 2)</th><th>Round 4 (revision 3)</th><th>Round 5 (revision 4)</th><th>Round 6 (revision 5)</th></tr></thead><tbody>
+        <tr><td><b>Claude Opus 5.5</b></td><td class="num">4/10</td><td class="num">6/10</td><td class="num">7.5/10</td><td class="num">8.5/10</td><td class="num">9/10</td><td class="num">9/10</td></tr>
+        <tr><td><b>GPT-6.1 Sol</b></td><td class="num">4/10</td><td class="num">6.5/10</td><td class="num">7.5/10</td><td class="num">8.5/10</td><td class="num">9/10</td><td class="num">9/10</td></tr>
+        <tr><td><b>Muse Wonder 1.0</b></td><td class="num">4/10</td><td class="num">6/10</td><td class="num">7.5/10</td><td class="num">8.5/10</td><td class="num">9/10</td><td class="num">9/10</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section>
+      <h3>C · Where the reviewers differ</h3>
+      <div class="tblwrap"><table class="tbl compact"><thead><tr><th>Question</th><th>Positions</th><th>This page</th></tr></thead><tbody>
+        <tr><td><b>Landing</b></td><td>Opus: Today as a brief. Sol and Wonder: restore the last thread.</td><td>Today when an Interrupt arrived since last look, otherwise the last thread.</td></tr>
+        <tr><td><b>Morning digest</b></td><td>Wonder: an agent writes a digest thread each sweep. Sol: no model needs to narrate sweeps.</td><td>Deterministic brief. The model is called on events that need diagnosis.</td></tr>
+        <tr><td><b>Owned items</b></td><td>Opus and Wonder: owned work drops to ambient. Sol: ownership isn't health.</td><td>Owned items stop notifying but stay on the strip and in Today's Owned group.</td></tr>
+        <tr><td><b>Freshness per cell</b></td><td>Opus: hatch affected cells. Sol: the mapping doesn't exist yet.</td><td>Title bar only until provenance maps sources to values.</td></tr>
+        <tr><td><b>Standing orders</b></td><td>Opus: offer bounded standing orders at M4. Sol: per-call authority everywhere.</td><td>Listed as a decision for you. The page assumes per-call cards.</td></tr>
+        <tr><td><b>Campaign children</b></td><td>Wonder: fan out a child per fork. Sol: create them only when useful.</td><td>Children only for forks that fail on their own code.</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section>
+      <h3>D · Unchanged from the first revision</h3>
+      <p>The retirement of word-for-word parity, fleet facts once on campaigns, the detected → adopted → sequenced → fanned-out campaign lifecycle, lane events as new data, sequencing enforced in the stack's workflows, the typed station sub-state, the ~120-word service reading, dashed "pending, not yet in a sweep" results, and the two confirmed Detail defects: a clean Sync PR station showing the cascade's cause, and Related flattened into one paragraph.</p>
+    </section>
+
+    <section>
+      <h3>E · Not verified</h3>
+      <ul class="plain">
+        <li>The Sync PR station reads "gate 1 · PR #58" on storage, indexer and indexer-queue. These are different repositories, so the shared number may be a coincidence or a station reading the wrong PR.</li>
+        <li>The radar's envelope keeps only its first cut (entitlements, 125 of 130 hunks) while 12 reads were cut. Fixing the envelope to aggregate its cuts is core work, separate from this layout.</li>
+        <li>The duration estimate in the campaign mockup ("about 40 minutes each") would come from recorded prove durations, which the contract doesn't carry as typed values yet.</li>
+      </ul>
+    </section>
+  </div>
+</div>
+</body>
+</html>
