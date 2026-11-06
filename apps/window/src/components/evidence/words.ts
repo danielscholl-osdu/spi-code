@@ -199,19 +199,36 @@ export type SweepLineInput = {
   now: number;
 };
 
-/** The title-bar sentence and the worst tone across the sweep's sources. */
+const SUPPLEMENTAL_WORDS: Readonly<Record<Envelope["state"], string>> = {
+  fresh: "fresh",
+  failed: "read failed",
+  incomplete: "cut",
+  stale: "stale",
+  unread: "not read yet",
+};
+
+const isArea = (source: string) => (AREAS as readonly string[]).includes(source);
+
+/**
+ * The title-bar sentence and the worst tone across the sweep's sources. The counts are of the
+ * appendix C areas; a source outside them that is not fresh is named on its own.
+ */
 export function sweepLine({ sources, sweptAt, nextSyncAt, now }: SweepLineInput): {
   text: string;
   tone: EvidenceTone;
 } {
+  const areas = sources.filter((envelope) => isArea(envelope.source));
   const tally = (state: Envelope["state"]) =>
-    sources.filter((envelope) => envelope.state === state).length;
+    areas.filter((envelope) => envelope.state === state).length;
   const counts = [
     [tally("failed"), "failed"],
     [tally("incomplete"), "cut"],
     [tally("stale"), "stale"],
     [tally("unread"), "not read yet"],
   ] as const;
+  const supplemental = sources
+    .filter((envelope) => !isArea(envelope.source) && envelope.state !== "fresh")
+    .sort(byWorst);
   const inferred = everyInferred(sources);
   const parts = [`swept ${ago(sweptAt, now)}`];
   let first = true;
@@ -220,7 +237,13 @@ export function sweepLine({ sources, sweptAt, nextSyncAt, now }: SweepLineInput)
     parts.push(first ? `${n} ${n === 1 ? "area" : "areas"} ${word}` : `${n} ${word}`);
     first = false;
   }
-  if (first && !inferred) parts.push("all fresh");
+  for (const envelope of supplemental) {
+    const name = sourceName(envelope.source);
+    parts.push(
+      `${name.charAt(0).toLowerCase()}${name.slice(1)} ${SUPPLEMENTAL_WORDS[envelope.state]}`,
+    );
+  }
+  if (first && supplemental.length === 0 && !inferred) parts.push("all fresh");
   if (nextSyncAt !== undefined && Date.parse(nextSyncAt) > now)
     parts.push(`next sync in ${span(Date.parse(nextSyncAt) - now)}`);
   if (inferred) parts.push("inferred");

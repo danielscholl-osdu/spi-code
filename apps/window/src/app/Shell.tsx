@@ -89,6 +89,7 @@ export function Shell() {
           <RightPanel
             store={selectionStore}
             sweepEvidence={<SweepEvidence snapshot={snapshot} sweep={sweep} />}
+            reads={snapshot?.reads}
           />
         </div>
       )}

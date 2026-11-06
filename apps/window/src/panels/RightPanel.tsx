@@ -21,7 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import type { InspectResult } from "@spi-code/contracts";
+import type { InspectResult, ReadRecord } from "@spi-code/contracts";
 import { type KeyboardEvent, type ReactNode, useId } from "react";
 import { useStore } from "zustand";
 import {
@@ -47,14 +47,22 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Inspector({ result, onEvidence }: { result: InspectResult; onEvidence(): void }) {
+function Inspector({
+  result,
+  reads,
+  onEvidence,
+}: {
+  result: InspectResult;
+  reads: readonly ReadRecord[];
+  onEvidence(): void;
+}) {
   const base = useId();
   return (
     <article className="inspector" data-class={result.class}>
       <p className="inspector-kicker">
         <span data-field="class">{result.class}</span> · {result.id}
       </p>
-      <SelectionEvidenceChip result={result} onOpen={onEvidence} />
+      <SelectionEvidenceChip result={result} reads={reads} onOpen={onEvidence} />
       <dl>
         <Field label="Cause" value={result.cause} />
         <Field label="Effect" value={result.effect} />
@@ -124,13 +132,18 @@ function Inspector({ result, onEvidence }: { result: InspectResult; onEvidence()
   );
 }
 
-/** `sweepEvidence` is the Evidence tab's body when the sweep line opened it or nothing is selected. */
+/**
+ * `sweepEvidence` is the Evidence tab's body when the sweep line opened it or nothing is selected.
+ * `reads` is the sweep's reads; a selection's Evidence keeps its repository's.
+ */
 export function RightPanel({
   store,
   sweepEvidence,
+  reads = [],
 }: {
   store: SelectionStore;
   sweepEvidence?: ReactNode;
+  reads?: readonly ReadRecord[] | undefined;
 }) {
   const base = useId();
   const selected = useStore(store, (state) => state.selected);
@@ -168,9 +181,9 @@ export function RightPanel({
         Reading {selected}…
       </p>
     ) : tab === "inspector" ? (
-      <Inspector result={result} onEvidence={() => setTab("evidence")} />
+      <Inspector result={result} reads={reads} onEvidence={() => setTab("evidence")} />
     ) : tab === "evidence" ? (
-      <SelectionEvidence result={result} />
+      <SelectionEvidence result={result} reads={reads} />
     ) : result.evidence.length > 0 ? (
       <ReadList records={result.evidence} />
     ) : (

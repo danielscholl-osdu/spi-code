@@ -8,6 +8,8 @@ export {
   SelectionEvidenceChip,
   SweepEvidence,
   selectionAreas,
+  selectionReads,
+  selectionRepository,
 } from "./EvidenceTab.js";
 export { ReadList } from "./ReadList.js";
 export { SectionEvidence, sectionSources } from "./SectionEvidence.js";

@@ -13,7 +13,9 @@ import {
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
+import { EnvelopeBadge } from "./EnvelopeBadge.js";
 import { SelectionEvidence, SelectionEvidenceChip, SweepEvidence } from "./EvidenceTab.js";
+import { expectEvidenceMarks, expectNoEvidenceMarks } from "./marks.test-helper.js";
 import { SectionEvidence } from "./SectionEvidence.js";
 import { SweepLine, type SweepLineSnapshot } from "./SweepLine.js";
 import { AREA_NAMES, sweepLine, sweepSources } from "./words.js";
@@ -128,33 +130,54 @@ it.each([
   },
 );
 
-it("counts a failed supplemental read in the title bar and drops next sync once it is due", () => {
-  const releases: Envelope = {
-    source: "releases",
-    state: "failed",
-    completeness: { kind: "complete" },
-  };
-  const sources = sweepSources({
-    areas: areas(),
-    provenance: [
-      {
-        path: "/releases/lines/0",
-        areas: ["fleet"],
-        envelope: { ...releases, state: "fresh", observedAt: sweptAt } as Envelope,
-      },
-      { path: "/releases/lines/1", areas: ["fleet"], envelope: releases },
-    ],
-  });
-  expect(sources.at(-1)).toMatchObject({ key: "releases", name: "Release lines" });
-  expect(
-    sweepLine({
-      sources: sources.map(({ envelope }) => envelope),
-      sweptAt,
-      nextSyncAt: sweptAt,
-      now,
-    }),
-  ).toEqual({ text: "swept 2 min ago · 1 area failed", tone: "bad" });
-});
+it.each([
+  ["eleven fresh areas", areas(), "swept 2 min ago · release lines read failed"],
+  [
+    "a stale area",
+    areas({ runs: { state: "stale" } }),
+    "swept 2 min ago · 1 area stale · release lines read failed",
+  ],
+] as const)(
+  "names a failed supplemental source apart from the area counts beside %s, worst tone kept",
+  async (_, list, text) => {
+    const releases: Envelope = {
+      source: "releases",
+      state: "failed",
+      completeness: { kind: "complete" },
+    };
+    const body = {
+      ...snapshot([...list]),
+      briefing: { nextSyncAt: sweptAt },
+      provenance: [
+        {
+          path: "/releases/lines/0",
+          areas: ["fleet" as const],
+          envelope: { ...releases, state: "fresh", observedAt: sweptAt } as Envelope,
+        },
+        { path: "/releases/lines/1", areas: ["fleet" as const], envelope: releases },
+      ],
+    };
+    const sources = sweepSources(body);
+    expect(sources.at(-1)).toMatchObject({ key: "releases", name: "Release lines" });
+    expect(
+      sweepLine({
+        sources: sources.map(({ envelope }) => envelope),
+        sweptAt,
+        nextSyncAt: sweptAt,
+        now,
+      }),
+    ).toEqual({ text, tone: "bad" });
+    const view = await render(<SweepLine snapshot={body} onOpen={() => {}} now={now} />);
+    try {
+      const line = view.container.querySelector("[data-sweep-line]");
+      expect(line?.textContent).toBe(text);
+      expect(line?.textContent).not.toMatch(/\d+ areas? failed/);
+      expect(line?.getAttribute("data-tone")).toBe("bad");
+    } finally {
+      await view.cleanup();
+    }
+  },
+);
 
 it("waits in muted words before the first sweep", async () => {
   const view = await render(<SweepLine snapshot={null} onOpen={() => {}} now={now} />);
@@ -314,15 +337,15 @@ it.each([
   },
 );
 
-it("lists every area when a selection names none, and says when it carries no areas", async () => {
+it("lists no area when a selection's provenance names none, and says when it carries no areas", async () => {
   const unnamed = await render(
     <SelectionEvidence result={inspected({ areas: areas(), provenance: [] })} now={now} />,
   );
   try {
-    expect(unnamed.rows("Areas").map(([name]) => name)).toEqual(
-      AREAS.map((area) => AREA_NAMES[area]),
+    expect(unnamed.rows("Areas")).toEqual([]);
+    expect(unnamed.container.textContent).toContain(
+      "This selection does not name the areas it is drawn from.",
     );
-    expect(unnamed.container.textContent).toContain("every area of the sweep is listed");
     expect(unnamed.container.textContent).toContain("No reads recorded for partition.");
   } finally {
     await unnamed.cleanup();
@@ -407,6 +430,25 @@ it.each([
       expect(line.getAttribute("title")).toContain("GitHub issues and PRs ·");
       expect(line.getAttribute("title")).not.toContain("Fleet membership");
     }
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("fails both evidence guards when a value carries an ordinary envelope badge", async () => {
+  const fresh = areas()[0]?.envelope;
+  if (!fresh || fresh.inferred === true) throw new Error("Expected a plain fresh envelope");
+  const view = await render(
+    <p data-pointer="/briefing/headline">
+      Headline <EnvelopeBadge envelope={fresh} now={now} />
+    </p>,
+  );
+  try {
+    expect(view.container.querySelector("[data-inferred]")).toBeNull();
+    expect(() => expectNoEvidenceMarks(view.container)).toThrow(/per-value envelope badges/);
+    expect(() =>
+      expectEvidenceMarks(view.container, { areas: areas(), provenance: [] }, { sections: [] }),
+    ).toThrow(/per-value envelope badges/);
   } finally {
     await view.cleanup();
   }

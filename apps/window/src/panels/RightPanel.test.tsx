@@ -4,9 +4,11 @@
 import {
   BriefingSchema,
   type InspectResult,
+  InspectResultSchema,
   PROTOCOL_VERSION,
   parseMessage,
   type ReadRecord,
+  ViewSnapshotSchema,
 } from "@spi-code/contracts";
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
@@ -22,6 +24,8 @@ import POLICY from "../../../../fixtures/rib-59d6895/oracle/inspect/POLICY.json?
 import TEST from "../../../../fixtures/rib-59d6895/oracle/inspect/TEST.json?raw";
 import TOOLCHAIN from "../../../../fixtures/rib-59d6895/oracle/inspect/TOOLCHAIN.json?raw";
 import UNREAD from "../../../../fixtures/rib-59d6895/oracle/inspect/UNREAD.json?raw";
+import mixed from "../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
+import { mixedSnapshot } from "../store/test-snapshot.js";
 import { RightPanel } from "./RightPanel.js";
 import { createSelectionStore, type SelectionStore } from "./selection.js";
 import { inspectFromOracle, type OracleBoard, oracleClass, oracleNext } from "./test-inspect.js";
@@ -46,11 +50,17 @@ const board = (cls: string) => {
   return found;
 };
 
-async function mount(store: SelectionStore, sweepEvidence?: ReactNode) {
+async function mount(
+  store: SelectionStore,
+  sweepEvidence?: ReactNode,
+  reads: readonly ReadRecord[] = [],
+) {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
-  await act(async () => root.render(<RightPanel store={store} sweepEvidence={sweepEvidence} />));
+  await act(async () =>
+    root.render(<RightPanel store={store} sweepEvidence={sweepEvidence} reads={reads} />),
+  );
   return {
     container,
     text: (field: string) => container.querySelector(`[data-field="${field}"]`)?.textContent,
@@ -379,6 +389,69 @@ it("opens the sweep Evidence from the title bar and returns to the selection's E
     );
     expect(view.container.querySelector("[data-sweep-stub]")).toBeNull();
     expect(view.container.querySelector('[data-evidence="selection"]')).not.toBeNull();
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("keeps a host-shaped repository selection's reads from the sweep on its Evidence tab", async () => {
+  const observedAt = "2026-10-12T21:58:20.000Z";
+  const at = (source: string, object: string, more: Partial<ReadRecord> = {}): ReadRecord => ({
+    source,
+    object,
+    observedAt,
+    completeness: { kind: "complete" },
+    ...more,
+  });
+  const fixture = mixedSnapshot(mixed);
+  const snapshot = ViewSnapshotSchema.parse({
+    ...fixture,
+    reads: [
+      ...fixture.reads,
+      at("github", "Azure/osdu-spi-partition"),
+      at("Azure/osdu-spi-partition", "security", { failure: "http_403" }),
+      at("Azure/osdu-spi-partition", "fork-runs"),
+      at("github", "repos/Azure/osdu-spi-partition/check-runs/12/annotations"),
+      at("osdu/platform/system/partition", "merged MRs"),
+      at("github", "Azure/osdu-spi-indexer-queue"),
+      at("Azure/osdu-spi-partition-extra", "security"),
+    ],
+  });
+  const result = InspectResultSchema.parse({
+    id: "repo:partition",
+    title: "partition",
+    class: "SECURITY",
+    cause: "partition",
+    effect: "",
+    next: "",
+    why: "",
+    evidence: [],
+    related: [],
+    approval: null,
+    actions: [],
+    areas: snapshot.areas,
+    provenance: [],
+  });
+  const port = fakePort();
+  const view = await mount(port.store, <p data-sweep-stub="">the sweep</p>, snapshot.reads);
+  try {
+    await act(async () => port.store.getState().select(result.id));
+    await port.reply(result);
+    await act(async () => port.store.getState().setTab("evidence"));
+    const article = view.container.querySelector('[data-evidence="selection"]');
+    expect(article?.querySelector('table[aria-label="Areas"]')).toBeNull();
+    expect(article?.textContent).toContain("does not name the areas it is drawn from");
+    expect(
+      [...(article?.querySelectorAll('table[aria-label="Reads for partition"] th') ?? [])].map(
+        (row) => row.textContent,
+      ),
+    ).toEqual([
+      "GitHub issues and PRs · Azure/osdu-spi-partition",
+      "Azure/osdu-spi-partition · security",
+      "Azure/osdu-spi-partition · fork-runs",
+      "GitHub issues and PRs · repos/Azure/osdu-spi-partition/check-runs/12/annotations",
+    ]);
+    expect(article?.textContent).not.toContain("No reads recorded");
   } finally {
     await view.cleanup();
   }

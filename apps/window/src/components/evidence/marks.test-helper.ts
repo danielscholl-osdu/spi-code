@@ -8,7 +8,7 @@ import { sectionSources } from "./SectionEvidence.js";
 /**
  * Coarse EV-03 over a rendered view: each section in `sections` shows its one line iff a feeding
  * source is not fresh or every one is inferred, no other section line is drawn, and no value
- * carries a mark of its own.
+ * carries a mark or an envelope badge of its own.
  */
 export function expectEvidenceMarks(
   root: Element,
@@ -32,10 +32,12 @@ export function expectEvidenceMarks(
       (mark) => !mark.closest("[data-section-evidence]"),
     ),
   ).toEqual([]);
+  expect(root.querySelectorAll("[data-envelope]").length, "per-value envelope badges").toBe(0);
 }
 
-/** The plain fixture: no area fed a value, so no section line or mark is drawn. */
+/** The plain fixture: no area fed a value, so no section line, mark or badge is drawn. */
 export function expectNoEvidenceMarks(root: Element) {
   expect(root.querySelectorAll("[data-section-evidence]").length).toBe(0);
   expect(root.querySelectorAll("[data-inferred]").length).toBe(0);
+  expect(root.querySelectorAll("[data-envelope]").length, "per-value envelope badges").toBe(0);
 }

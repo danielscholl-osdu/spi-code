@@ -311,8 +311,11 @@ it.each(["failed", "stale"] as const)(
         const line = container.querySelector("header [data-sweep-line]");
         expect(line?.getAttribute("data-tone")).toBe(expected);
         expect(line?.textContent).toContain(
-          expected === "fresh" ? "all fresh" : `1 area ${state === "failed" ? "failed" : "stale"}`,
+          expected === "fresh"
+            ? "all fresh"
+            : `release lines ${state === "failed" ? "read failed" : "stale"}`,
         );
+        expect(line?.textContent).not.toMatch(/\d+ areas? (failed|stale)/);
       }
     } finally {
       await act(async () => root.unmount());

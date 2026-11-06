@@ -175,16 +175,43 @@ export function SweepEvidence({
   );
 }
 
-/** The areas a selection's provenance names; every area when it names none. */
-export function selectionAreas(result: InspectResult): {
-  named: ReadonlySet<AreaName>;
-  areas: AreaEnvelope[];
-} {
+/** The areas a selection's provenance names; none when it names none. */
+export function selectionAreas(result: InspectResult): AreaEnvelope[] {
   const named = new Set<AreaName>(result.provenance?.flatMap(({ areas }) => areas) ?? []);
-  return {
-    named,
-    areas: (result.areas ?? []).filter(({ area }) => named.size === 0 || named.has(area)),
-  };
+  return (result.areas ?? []).filter(({ area }) => named.has(area));
+}
+
+/** The repository a selection is, from its `repo:<name>` id; null for any other selection. */
+export function selectionRepository(id: string): string | null {
+  return id.startsWith("repo:") ? id.slice("repo:".length) : null;
+}
+
+const namesRepository = (text: string, name: string) => {
+  const [, repo] = text.replace(/^repos\//, "").split("/");
+  return repo === name || repo === `osdu-spi-${name}`;
+};
+
+/**
+ * A selection's reads: the ones its result carries, then the sweep's reads whose GitHub
+ * `owner/repo` source or object is the selected repository, each once.
+ */
+export function selectionReads(result: InspectResult, reads: readonly ReadRecord[]): ReadRecord[] {
+  const name = selectionRepository(result.id);
+  const all = [
+    ...result.evidence,
+    ...(name === null
+      ? []
+      : reads.filter(
+          (record) => namesRepository(record.source, name) || namesRepository(record.object, name),
+        )),
+  ];
+  const seen = new Set<string>();
+  return all.filter((record) => {
+    const key = JSON.stringify(record);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /**
@@ -193,17 +220,18 @@ export function selectionAreas(result: InspectResult): {
  */
 export function SelectionEvidenceChip({
   result,
+  reads = [],
   onOpen,
   now,
 }: {
   result: InspectResult;
+  reads?: readonly ReadRecord[] | undefined;
   onOpen(): void;
   now?: number | undefined;
 }) {
   const clock = useNow();
-  const { areas } = selectionAreas(result);
-  const envelopes = areas.map(({ envelope }) => envelope);
-  const inferred = everyInferred([...envelopes, ...result.evidence]);
+  const envelopes = selectionAreas(result).map(({ envelope }) => envelope);
+  const inferred = everyInferred([...envelopes, ...selectionReads(result, reads)]);
   const worst = envelopes.filter((envelope) => envelope.state !== "fresh").sort(byWorst)[0];
   if (worst === undefined && !inferred) return null;
   const text = worst
@@ -225,21 +253,27 @@ export function SelectionEvidenceChip({
   );
 }
 
-/** The Evidence tab for a selection: the areas its provenance names, then its repository's reads. */
+/**
+ * The Evidence tab for a selection: the areas its provenance names, then its repository's reads.
+ * `reads` is the sweep's reads, filtered here to the selected repository.
+ */
 export function SelectionEvidence({
   result,
+  reads = [],
   now,
 }: {
   result: InspectResult;
+  reads?: readonly ReadRecord[] | undefined;
   now?: number | undefined;
 }) {
   const clock = useNow();
   const at = now ?? clock;
-  const { named, areas } = selectionAreas(result);
+  const areas = selectionAreas(result);
+  const records = selectionReads(result, reads);
   const rows = areas.map(({ area, envelope }) =>
     sourceRow({ key: area, name: AREA_NAMES[area], envelope }, at),
   );
-  const inferred = everyInferred([...areas.map(({ envelope }) => envelope), ...result.evidence]);
+  const inferred = everyInferred([...areas.map(({ envelope }) => envelope), ...records]);
   const title = result.title ?? result.id;
   return (
     <article className="evidence" data-evidence="selection">
@@ -255,21 +289,19 @@ export function SelectionEvidence({
       <h3>Areas</h3>
       {result.areas === undefined ? (
         <p className="panel-empty">This selection does not say which areas it is drawn from.</p>
+      ) : rows.length === 0 ? (
+        <p className="panel-empty">
+          This selection does not name the areas it is drawn from. The sweep&apos;s evidence covers
+          every area.
+        </p>
       ) : (
-        <>
-          {named.size === 0 && (
-            <p className="panel-empty">
-              This selection does not name its areas, so every area of the sweep is listed.
-            </p>
-          )}
-          <EvidenceTable label="Areas" rows={rows} />
-        </>
+        <EvidenceTable label="Areas" rows={rows} />
       )}
       <h3>Reads for {title}</h3>
-      {result.evidence.length > 0 ? (
+      {records.length > 0 ? (
         <EvidenceTable
           label={`Reads for ${title}`}
-          rows={result.evidence.map((record) => readRow(record, at))}
+          rows={records.map((record) => readRow(record, at))}
         />
       ) : (
         <p className="panel-empty">No reads recorded for {title}.</p>
