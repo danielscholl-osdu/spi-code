@@ -43,6 +43,7 @@ async function waitForPid(file: string): Promise<number> {
 const directories: string[] = [];
 afterEach(async () => {
   vi.useRealTimers();
+  vi.mocked(spawn).mockReset();
   await Promise.all(directories.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
 });
 
@@ -307,6 +308,7 @@ it.each([
   // A secret that spells the marker must not redact the delivered snapshot a second time.
   ["RecordingExec-over-HostExec", "cancel", "redacted", "reda"],
   ["RecordingExec-over-HostExec", "timeout", "redacted", "reda"],
+  ["RecordingExec-over-HostExec", "stream error", "redacted", "reda"],
 ] as const)(
   "%s on %s logs and records the redacted terminal text it delivered for %j, not its held prefix %j",
   async (runner, path, token, held) => {
