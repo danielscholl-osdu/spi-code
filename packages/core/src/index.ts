@@ -60,3 +60,4 @@ export * from "./readings/index.js";
 
 export * from "./readings/security.js";
 export * from "./readings/environment.js";
+export * from "./readings/releases.js";
