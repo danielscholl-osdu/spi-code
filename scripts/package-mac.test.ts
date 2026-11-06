@@ -149,9 +149,15 @@ describe("packaged smoke gate", () => {
       hostPid: 42,
       runtimePids: [43],
       rendererPids: [44, 45],
+      scannedPids: [41, 42, 43, 44, 45, 46],
+      scanDurationMs: 412.5,
       listeners: [],
     },
   };
+  const withListenerCheck = (listenerCheck: Record<string, unknown>) => ({
+    ...evidence,
+    listenerCheck: { ...evidence.listenerCheck, ...listenerCheck },
+  });
   it("accepts a protocol response from the shipped binary in the observed host", () => {
     expect(() =>
       assertRuntimeEvidence({ mainPid: 41, hostPid: 42 }, evidence, resources, "darwin", "arm64"),
@@ -199,6 +205,25 @@ describe("packaged smoke gate", () => {
       listenerCheck: { ...evidence.listenerCheck, listeners: ["TCP *:9222 (LISTEN)"] },
     },
   ])("rejects missing or mismatched runtime proof %#", (invalid) => {
+    expect(() =>
+      assertRuntimeEvidence({ mainPid: 41, hostPid: 42 }, invalid, resources, "darwin", "arm64"),
+    ).toThrow();
+  });
+  it.each([
+    { scannedPids: undefined },
+    { scannedPids: [42, 43, 44, 45] },
+    { scannedPids: [41, 43, 44, 45] },
+    { scannedPids: [41, 42, 44, 45] },
+    { scannedPids: [41, 42, 43, 44] },
+    { scannedPids: [41, 42, 43, 44, 45, "46"] },
+    { scanDurationMs: undefined },
+    { scanDurationMs: "412" },
+    { scanDurationMs: Number.NaN },
+    { scanDurationMs: Number.POSITIVE_INFINITY },
+    { scanDurationMs: -1 },
+    { scanDurationMs: 8000 },
+  ])("rejects missing scan coverage or timing: %o", (listenerCheck) => {
+    const invalid = withListenerCheck(listenerCheck);
     expect(() =>
       assertRuntimeEvidence({ mainPid: 41, hostPid: 42 }, invalid, resources, "darwin", "arm64"),
     ).toThrow();

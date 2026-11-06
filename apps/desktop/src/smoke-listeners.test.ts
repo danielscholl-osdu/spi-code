@@ -1,6 +1,10 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { type ChildProcess, spawn } from "node:child_process";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   assertNoProcessListeners,
@@ -107,20 +111,26 @@ describe("TCP listener evidence", () => {
       { pid: 203, parentPid: 1, command: "/app/helper --type=renderer" },
     ].map((row) => ({ ...row, startedAt }));
 
-    function fixture(listeningPid?: number, processes = tree) {
+    function fixture(listeningPid?: number, processes = tree, scanPid?: number) {
       return vi.fn<Exec>((file) => {
         if (file === "ps")
-          return ok(
-            processes
+          return Promise.resolve({
+            status: 0,
+            stderr: "",
+            pid: scanPid,
+            stdout: processes
               .map(({ pid, parentPid, command, startedAt }) => {
                 const [weekday, month, day, year, time] = new Date(startedAt).toString().split(" ");
                 return `${pid} ${parentPid} ${weekday} ${month} ${day} ${time} ${year} ${command}`;
               })
               .join("\n"),
-          );
+          });
         if (file === "powershell.exe")
-          return ok(
-            JSON.stringify(
+          return Promise.resolve({
+            status: 0,
+            stderr: "",
+            pid: scanPid,
+            stdout: JSON.stringify(
               processes.map(({ pid, parentPid, command, startedAt }) => ({
                 ProcessId: pid,
                 ParentProcessId: parentPid,
@@ -128,7 +138,7 @@ describe("TCP listener evidence", () => {
                 StartedAt: startedAt,
               })),
             ),
-          );
+          });
         if (file === "netstat.exe")
           return ok(listeningPid ? `TCP 0.0.0.0:9222 0.0.0.0:0 LISTENING ${listeningPid}` : "");
         if (file === "lsof") {
@@ -247,6 +257,42 @@ describe("TCP listener evidence", () => {
         assertNoProcessListeners(100, 101, { runtimePath, exec }),
       ).resolves.toMatchObject({
         listeners: [],
+        scannedPids: [100, 101, 102, 103, 104, 106, 107, 108],
+      });
+    });
+
+    it("reports only sampled pids, without the scan's own process-table command", async () => {
+      const socketStartedAt = Date.UTC(2026, 10, 6, 12, 0, 0, 400);
+      vi.spyOn(Date, "now").mockReturnValue(socketStartedAt);
+      // ps truncates its own start to the snapshot's second; CIM keeps the child's milliseconds.
+      const exec = fixture(
+        120,
+        [
+          ...tree,
+          {
+            pid: 120,
+            parentPid: 101,
+            command: platform === "win32" ? "powershell.exe -NoProfile" : "ps -axww",
+            startedAt: platform === "win32" ? socketStartedAt + 30 : socketStartedAt - 400,
+          },
+          ...(platform === "win32"
+            ? [
+                {
+                  pid: 121,
+                  parentPid: 120,
+                  command: "conhost.exe 0xffffffff",
+                  startedAt: socketStartedAt + 1,
+                },
+              ]
+            : []),
+        ],
+        120,
+      );
+      await expect(
+        assertNoProcessListeners(100, 101, { runtimePath, exec }),
+      ).resolves.toMatchObject({
+        listeners: [],
+        scannedPids: [100, 101, 102, 103, 104, 106, 107, 108, 109],
       });
     });
 
@@ -385,7 +431,7 @@ describe("TCP listener evidence", () => {
         ["-e", "setTimeout(() => process.stdout.write('done'), 200)"],
         5000,
       );
-      expect(result).toEqual({ status: 0, stdout: "done", stderr: "" });
+      expect(result).toEqual({ status: 0, stdout: "done", stderr: "", pid: expect.any(Number) });
     } finally {
       clearInterval(timer);
     }
@@ -395,6 +441,80 @@ describe("TCP listener evidence", () => {
   it("reports a non-zero exit with its output instead of throwing", async () => {
     await expect(
       execText(process.execPath, ["-e", "process.stderr.write('no'); process.exit(3)"], 5000),
-    ).resolves.toEqual({ status: 3, stdout: "", stderr: "no" });
+    ).resolves.toEqual({ status: 3, stdout: "", stderr: "no", pid: expect.any(Number) });
+  });
+});
+
+describe.runIf(process.platform === "darwin")("darwin process table locale", () => {
+  const tree = `const { spawn } = require("node:child_process");
+const [role] = process.argv.slice(2);
+const start = (...args) =>
+  spawn(process.execPath, [__filename, ...args], { stdio: ["ignore", "inherit", "inherit"] });
+if (role === "main") { start("host"); start("renderer", "--type=renderer"); }
+if (role === "host") start("runtime", "--stdio");
+process.stdout.write(\`\${role} \${process.pid}\\n\`);
+setInterval(() => {}, 60000);
+`;
+  let root: string;
+  const children: number[] = [];
+  let main: ChildProcess | undefined;
+
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), "spi-listeners-"));
+  });
+
+  afterEach(async () => {
+    vi.unstubAllEnvs();
+    main?.kill("SIGKILL");
+    for (const pid of children.splice(0)) {
+      try {
+        process.kill(pid, "SIGKILL");
+      } catch {}
+    }
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it.each([
+    { LC_ALL: "de_DE.UTF-8", LANG: undefined, LC_CTYPE: undefined, LC_TIME: undefined },
+    { LC_ALL: undefined, LANG: undefined, LC_CTYPE: undefined, LC_TIME: undefined },
+    { LC_ALL: undefined, LANG: "de_DE.UTF-8", LC_CTYPE: undefined, LC_TIME: undefined },
+  ])("finds a runtime under a non-ASCII path with locale %o", async (locale) => {
+    for (const [name, value] of Object.entries(locale)) vi.stubEnv(name, value);
+    const directory = join(root, "Jösé");
+    await mkdir(directory);
+    const runtimePath = join(directory, "copilot-runtime.cjs");
+    await writeFile(runtimePath, tree);
+    const spawned = spawn(process.execPath, [runtimePath, "main"], {
+      stdio: ["ignore", "pipe", "inherit"],
+    });
+    main = spawned;
+    const pids = await new Promise<Record<string, number>>((resolve, reject) => {
+      const found: Record<string, number> = {};
+      let output = "";
+      spawned.once("error", reject);
+      spawned.stdout?.setEncoding("utf8").on("data", (chunk: string) => {
+        output += chunk;
+        for (const line of output.split("\n")) {
+          const [role, pid] = line.split(" ");
+          if (role && pid) found[role] = Number(pid);
+        }
+        if (["main", "host", "runtime", "renderer"].every((role) => found[role])) resolve(found);
+      });
+    });
+    children.push(pids.host ?? 0, pids.runtime ?? 0, pids.renderer ?? 0);
+    const exec: Exec = (file, args, timeout) =>
+      file === "lsof"
+        ? Promise.resolve({ status: 1, stdout: "", stderr: "" })
+        : execText(file, args, timeout);
+
+    const result = await assertNoProcessListeners(pids.main ?? 0, pids.host ?? 0, {
+      runtimePath,
+      exec,
+    });
+
+    expect(result).toMatchObject({ runtimePids: [pids.runtime], rendererPids: [pids.renderer] });
+    expect(new Set(result.scannedPids)).toEqual(
+      new Set([pids.main, pids.host, pids.runtime, pids.renderer]),
+    );
   });
 });

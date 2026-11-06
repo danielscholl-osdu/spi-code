@@ -8,9 +8,16 @@ export interface ExecResult {
   status: number;
   stdout: string;
   stderr: string;
+  pid?: number | undefined;
 }
 
 export type Exec = (file: string, args: readonly string[], timeout: number) => Promise<ExecResult>;
+
+function commandEnvironment(): NodeJS.ProcessEnv {
+  const { LC_ALL: _, ...env } = process.env;
+  // English lstart day and month names, with command text kept as UTF-8 rather than vis-encoded.
+  return { ...env, LC_CTYPE: "UTF-8", LC_TIME: "C" };
+}
 
 export const execText: Exec = (file, args, timeout) =>
   new Promise((resolve, reject) => {
@@ -22,22 +29,26 @@ export const execText: Exec = (file, args, timeout) =>
         timeout,
         windowsHide: true,
         maxBuffer: 32 * 1024 * 1024,
-        env: { ...process.env, LC_ALL: "C" },
+        env: commandEnvironment(),
       },
       (error, stdout, stderr) => {
-        if (!error) resolve({ status: 0, stdout, stderr });
+        if (!error) resolve({ status: 0, stdout, stderr, pid: child.pid });
         else if (typeof error.code === "number" && !error.killed && !error.signal)
-          resolve({ status: error.code, stdout, stderr });
+          resolve({ status: error.code, stdout, stderr, pid: child.pid });
         else reject(error);
       },
     );
     child.stdin?.end();
   });
 
-async function run(exec: Exec, file: string, args: readonly string[], timeout: number) {
+async function runResult(exec: Exec, file: string, args: readonly string[], timeout: number) {
   const result = await exec(file, args, timeout);
   assert.equal(result.status, 0, `${file} failed (${result.status}): ${result.stderr.trim()}`);
-  return result.stdout;
+  return result;
+}
+
+async function run(exec: Exec, file: string, args: readonly string[], timeout: number) {
+  return (await runResult(exec, file, args, timeout)).stdout;
 }
 
 const englishTcpStates = new Set([
@@ -126,9 +137,14 @@ interface ProcessRow {
   startedAt: number | null;
 }
 
-async function processTree(exec: Exec, timeout: number): Promise<ProcessRow[]> {
+interface ProcessTable {
+  rows: ProcessRow[];
+  scanPid: number | undefined;
+}
+
+async function processTree(exec: Exec, timeout: number): Promise<ProcessTable> {
   if (process.platform === "win32") {
-    const output = await run(
+    const { stdout: output, pid: scanPid } = await runResult(
       exec,
       "powershell.exe",
       [
@@ -140,7 +156,7 @@ async function processTree(exec: Exec, timeout: number): Promise<ProcessRow[]> {
       timeout,
     );
     const parsed: unknown = JSON.parse(output);
-    return (Array.isArray(parsed) ? parsed : [parsed]).map((row: unknown) => {
+    const rows = (Array.isArray(parsed) ? parsed : [parsed]).map((row: unknown) => {
       assert(row && typeof row === "object", "Invalid Windows process row");
       assert("ProcessId" in row && Number.isSafeInteger(row.ProcessId));
       assert("ParentProcessId" in row && Number.isSafeInteger(row.ParentProcessId));
@@ -158,8 +174,15 @@ async function processTree(exec: Exec, timeout: number): Promise<ProcessRow[]> {
         startedAt: row.StartedAt === null ? null : Number(row.StartedAt),
       };
     });
+    return { rows, scanPid };
   }
-  return (await run(exec, "ps", ["-axww", "-o", "pid=,ppid=,lstart=,command="], timeout))
+  const { stdout, pid: scanPid } = await runResult(
+    exec,
+    "ps",
+    ["-axww", "-o", "pid=,ppid=,lstart=,command="],
+    timeout,
+  );
+  const rows = stdout
     .split("\n")
     .filter((line) => line.trim())
     .map((line) => {
@@ -176,6 +199,7 @@ async function processTree(exec: Exec, timeout: number): Promise<ProcessRow[]> {
         startedAt,
       };
     });
+  return { rows, scanPid };
 }
 
 function descendants(root: number, processes: readonly ProcessRow[]): ProcessRow[] {
@@ -219,7 +243,7 @@ export async function assertNoProcessListeners(
   // Sockets first: exited processes disappear from the tree, and reused pids have a newer birth.
   const socketStartedAt = Date.now();
   const sockets = await socketSnapshot(exec, remaining());
-  const processes = await processTree(exec, remaining());
+  const { rows: processes, scanPid } = await processTree(exec, remaining());
   assert(
     processes.some(({ pid }) => pid === mainPid),
     "App main process is missing",
@@ -239,15 +263,17 @@ export async function assertNoProcessListeners(
         .map(({ pid }) => pid)
     : [];
   assert(!runtimePath || runtimePids.length > 0, "No Copilot runtime in the host process tree");
-  const scannedPids = [mainPid, ...children.map(({ pid }) => pid)];
-  const scanned = new Set(scannedPids);
+  // ps start times have one-second resolution, so the scan's own ps is excluded by pid.
   const sampled = new Set(
-    processes
+    [...children, ...processes.filter(({ pid }) => pid === mainPid)]
       .filter(
         ({ pid, startedAt }) =>
-          scanned.has(pid) && startedAt !== null && startedAt <= socketStartedAt,
+          pid !== scanPid && startedAt !== null && startedAt <= socketStartedAt,
       )
       .map(({ pid }) => pid),
+  );
+  const scannedPids = [mainPid, ...children.map(({ pid }) => pid)].filter((pid) =>
+    sampled.has(pid),
   );
   const listeners = sockets.filter(({ pid }) => sampled.has(pid)).map(({ listener }) => listener);
   assert.deepEqual(listeners, [], "TCP listener found in the app process tree");

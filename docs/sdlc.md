@@ -81,7 +81,10 @@ macOS, `netstat -ano` on Windows), followed by one process-table snapshot (`ps`
 or CIM). Start times exclude stale parent links and reused pids; exited
 processes need no liveness probes. Both queries share an eight-second budget.
 `smoke.json` records the runtime scan's `scannedPids` and `scanDurationMs` under
-`runtime.listenerCheck`. The scan runs after the handshake, without extending
+`runtime.listenerCheck`. `scannedPids` lists only the pids the socket snapshot
+sampled, never the scan's own `ps` or PowerShell, and the packaged gate fails
+unless it holds the main, host, runtime and renderer pids and the duration is
+under eight seconds. The scan runs after the handshake, without extending
 the host's hello deadline.
 Runtime staging excludes compiled `*.test.*` files and `smoke-launch.*`, including
 their declarations and maps, across the desktop and bundled workspace libraries.
