@@ -1,27 +1,79 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type ExecFileOptions, execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
 import { expect, it, vi } from "vitest";
 
-const execFileAsync = promisify(execFile);
-async function exec(file: string, args: string[], options: ExecFileOptions & { timeout: number }) {
-  const execution = execFileAsync(file, args, { ...options, encoding: "utf8" });
-  const closed = new Promise<void>((resolve) => {
-    execution.child.once("close", () => resolve());
-  });
+async function killTree(pid: number, platform: NodeJS.Platform = process.platform) {
+  if (platform === "win32") {
+    await new Promise<void>((resolve) => {
+      execFile("taskkill", ["/pid", String(pid), "/T", "/F"], { timeout: 10_000 }, () => resolve());
+    });
+    return;
+  }
   try {
-    return await execution;
-  } finally {
-    await closed;
+    process.kill(-pid, "SIGKILL");
+  } catch (error) {
+    if (!(error instanceof Error && "code" in error && error.code === "ESRCH")) throw error;
   }
 }
+
+type Run = { step: string; budget: number; cwd: string; env?: NodeJS.ProcessEnv; shell?: boolean };
+
+async function run(file: string, args: string[], { step, budget, cwd, env, shell = false }: Run) {
+  const child = spawn(file, args, {
+    cwd,
+    env,
+    shell,
+    detached: process.platform !== "win32",
+    windowsHide: true,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let stdout = "";
+  let stderr = "";
+  child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
+    stdout += chunk;
+  });
+  child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
+    stderr += chunk;
+  });
+  let killed: Promise<void> | undefined;
+  const timer = setTimeout(() => {
+    if (child.pid !== undefined) killed = killTree(child.pid);
+  }, budget);
+  try {
+    const [code, signal] = await new Promise<[number | null, NodeJS.Signals | null]>(
+      (resolve, reject) => {
+        child.once("error", reject);
+        child.once("close", (code, signal) => resolve([code, signal]));
+      },
+    );
+    if (killed !== undefined) {
+      await killed;
+      throw Object.assign(new Error(`${step} timed out after ${budget} ms\n${stderr}`), {
+        stdout,
+        stderr,
+      });
+    }
+    if (code !== 0) {
+      const status = signal === null ? `exit code ${code}` : `signal ${signal}`;
+      throw Object.assign(new Error(`${step} failed with ${status}\n${stderr}`), {
+        stdout,
+        stderr,
+      });
+    }
+    return { stdout, stderr };
+  } finally {
+    clearTimeout(timer);
+    await killed;
+  }
+}
+
 const core = fileURLToPath(new URL("../", import.meta.url));
 const shell = process.platform === "win32";
 const npm = shell ? "npm.cmd" : "npm";
@@ -79,6 +131,44 @@ it.each<[NodeJS.Platform, string]>([
   await expect(cleanup("unused", platform, remove)).rejects.toBe(error);
 });
 
+it("kills a timed-out step's whole process tree and names the step and budget", async () => {
+  const script = [
+    "const { spawn } = require('node:child_process');",
+    "const sleeper = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 30000)'], { stdio: 'ignore' });",
+    "console.log(process.pid + ' ' + sleeper.pid);",
+    "setTimeout(() => {}, 30000);",
+  ].join("\n");
+  const alive = (pid: number) => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch (error) {
+      return error instanceof Error && "code" in error && error.code === "EPERM";
+    }
+  };
+  let pids: number[] = [];
+  try {
+    const failure = await run(process.execPath, ["-e", script], {
+      step: "sleeper",
+      budget: 4_000,
+      cwd: tmpdir(),
+    }).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(Error);
+    expect((failure as Error).message).toMatch(/^sleeper timed out after 4000 ms/);
+    pids = String((failure as { stdout?: string }).stdout)
+      .trim()
+      .split(" ")
+      .map(Number);
+    expect(pids).toHaveLength(2);
+    await vi.waitFor(() => expect(pids.filter(alive)).toEqual([]), {
+      timeout: 5_000,
+      interval: 50,
+    });
+  } finally {
+    for (const pid of pids.filter(alive)) process.kill(pid, "SIGKILL");
+  }
+}, 30_000);
+
 it("keeps the README vendoring version aligned with the package manifest", async () => {
   const manifest = JSON.parse(await readFile(join(core, "package.json"), "utf8"));
   const readme = await readFile(join(core, "README.md"), "utf8");
@@ -93,9 +183,10 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
   const temporary = await mkdtemp(join(tmpdir(), "spi core pack-test-"));
   try {
     const release = join(temporary, "release");
-    const packed = await exec(process.execPath, ["scripts/pack.mjs", release], {
+    const packed = await run(process.execPath, ["scripts/pack.mjs", release], {
+      step: "pack",
+      budget: 120_000,
       cwd: core,
-      timeout: 120_000,
     });
     const { version } = JSON.parse(await readFile(join(core, "package.json"), "utf8"));
     const filename = `spi-code-core-${version}.tgz`;
@@ -111,9 +202,10 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
     if (recorded !== undefined && sha256 !== recorded) {
       expect.fail(`core ${version} was vendored as ${recorded}; bump the version`);
     }
-    const { stdout: listing } = await exec("tar", ["-tzf", filename], {
+    const { stdout: listing } = await run("tar", ["-tzf", filename], {
+      step: "tar list",
+      budget: 10_000,
       cwd: release,
-      timeout: 10_000,
     });
     const entries = listing.trim().split("\n");
     expect(entries).toContain("package/dist/index.js");
@@ -122,9 +214,10 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
     expect(entries).toContain("package/README.md");
     expect(entries.filter((entry) => /\/(?:src|test|fixtures)\//.test(entry))).toEqual([]);
     expect(entries.filter((entry) => /\.test\.|\.map$/.test(entry))).toEqual([]);
-    const { stdout: manifest } = await exec("tar", ["-xOzf", filename, "package/package.json"], {
+    const { stdout: manifest } = await run("tar", ["-xOzf", filename, "package/package.json"], {
+      step: "tar extract",
+      budget: 10_000,
       cwd: release,
-      timeout: 10_000,
     });
     const pkg = JSON.parse(manifest);
     expect(pkg.version).toBe(version);
@@ -143,7 +236,7 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
       arg(join(temporary, "cache")),
     ];
     try {
-      await exec(
+      await run(
         npm,
         [
           "view",
@@ -153,12 +246,12 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
           "--fetch-timeout=5000",
           ...npmProject,
         ],
-        { cwd: temporary, timeout: 10_000, shell },
+        { step: "npm view", budget: 10_000, cwd: temporary, shell },
       );
     } catch (error) {
       test.skip(`npm registry unreachable; isolated tarball install not run: ${String(error)}`);
     }
-    await exec(
+    await run(
       npm,
       [
         "install",
@@ -170,7 +263,7 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
         ...npmProject,
         arg(tarball),
       ],
-      { cwd: temporary, timeout: 60_000, shell },
+      { step: "npm install", budget: 180_000, cwd: temporary, shell },
     );
     expect(await realpath(join(temporary, "node_modules/@spi-code/core"))).toBe(
       join(await realpath(temporary), "node_modules/@spi-code/core"),
@@ -179,15 +272,20 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
       await readFile(join(temporary, "node_modules/@spi-code/core/package.json"), "utf8"),
     );
     expect(installed.version).toBe(version);
-    await exec(
+    await run(
       process.execPath,
       [
         "-e",
         "import('@spi-code/core').then(m=>{if(typeof m.buildBriefing!=='function')process.exit(1)})",
       ],
-      { cwd: temporary, env: { ...process.env, NODE_PATH: "" }, timeout: 10_000 },
+      {
+        step: "import",
+        budget: 10_000,
+        cwd: temporary,
+        env: { ...process.env, NODE_PATH: "" },
+      },
     );
   } finally {
     await cleanup(temporary);
   }
-}, 240_000);
+}, 400_000);
