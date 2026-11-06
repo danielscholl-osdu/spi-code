@@ -113,6 +113,49 @@ describe("Environment reading on the recorded 6 Nov sweep", () => {
     });
   });
 
+  it("counts and folds a pipeline pull request on the stack repository", () => {
+    const repos = facts.github.data?.repos ?? {};
+    const pr = Object.values(repos).flatMap((r) => r.prs)[0];
+    const repo = repos[stackRepo];
+    if (!pr || !repo) throw new Error("no recorded pull request or stack repository");
+    const release = {
+      ...pr,
+      number: 999,
+      title: "chore: release 0.36.0",
+      head: "release-please--branches--main",
+    };
+    const github = facts.github.data;
+    if (!github) throw new Error("no github read");
+    const withRelease: Facts = {
+      ...facts,
+      github: {
+        ...facts.github,
+        data: {
+          ...github,
+          repos: {
+            ...repos,
+            [stackRepo]: { ...repo, prs: [release], issues: [], openPrs: 1, openIssues: 0 },
+          },
+        },
+      },
+    };
+    const reading = environmentReading({
+      model: buildModel(withRelease, now, {}, context),
+      items: [],
+      facts: withRelease,
+      lifecycle: [],
+      reads: [],
+      stackRepo,
+      now,
+    });
+    expect(reading.tiles[2]).toEqual({
+      label: "Stack repository",
+      value: "1",
+      counts: "open · 0 issues · 1 pull request",
+    });
+    expect(reading.folded).toBe("Open in osdu-spi-stack: chore: release 0.36.0 #999.");
+  });
+
   it("stays within five items and shows no internal names", () => {
     const reading = environment();
     expect(reading.items.length).toBeLessThanOrEqual(5);

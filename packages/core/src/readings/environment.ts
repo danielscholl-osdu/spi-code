@@ -7,8 +7,8 @@ import { shortRepo } from "../config.js";
 import type { ReadRecord } from "../evidence/index.js";
 import type { Facts } from "../facts.js";
 import type { Model } from "../model/index.js";
-import type { RepoRow } from "../model/repos.js";
 import { runResult, stoppedAttempts } from "../model/stack.js";
+import type { WorkRow } from "../model/work.js";
 import { names, plural, span, stamp } from "../util.js";
 import {
   clockOf,
@@ -23,7 +23,7 @@ import {
 export interface EnvironmentReadingInput<T extends ReadingItem> {
   model: Model;
   items: readonly T[];
-  facts: Pick<Facts, "approvals" | "runs" | "radar" | "github">;
+  facts: Pick<Facts, "approvals" | "runs" | "radar">;
   // The lifecycle area's read records; all of them are about the environment.
   lifecycle: readonly ReadRecord[];
   // Every read record the sweep kept; the reading takes the stack repository's own.
@@ -123,14 +123,18 @@ function laneTile(model: Model, facts: EnvironmentReadingInput<ReadingItem>["fac
   };
 }
 
-function openIssues(row: RepoRow): number {
+function openIssues(row: WorkRow): number {
   return Object.values(row.issues).reduce((n, list) => n + list.length, 0);
 }
 
-function repoTile(row: RepoRow | undefined, read: boolean): ReadingTile {
+function openPrs(row: WorkRow): number {
+  return Object.values(row.prs).reduce((n, list) => n + list.length, 0);
+}
+
+function repoTile(row: WorkRow): ReadingTile {
   const label = "Stack repository";
-  if (!row || !read) return { label, value: NOT_READ, counts: "open issues and pull requests" };
-  const prs = row.changes.length + row.dependabot.length;
+  if (!row.read) return { label, value: NOT_READ, counts: "open issues and pull requests" };
+  const prs = openPrs(row);
   const issues = openIssues(row);
   const bugs = row.issues.bug.length;
   const unread = row.unreadPrs + row.unreadIssues;
@@ -148,12 +152,13 @@ function repoTile(row: RepoRow | undefined, read: boolean): ReadingTile {
   };
 }
 
-// The stack repository's open work, its pull requests first and then its bugs.
-function repoLine(row: RepoRow | undefined, read: boolean): string | undefined {
-  if (!row || !read) return undefined;
+// The stack repository's open work: every pull request, pipeline ones included, then its bugs.
+function repoLine(row: WorkRow): string | undefined {
+  if (!row.read) return undefined;
   const open = [
-    ...row.changes.map((c) => ({ title: c.pr.title, number: c.pr.number })),
-    ...row.dependabot.map((d) => ({ title: d.pr.title, number: d.pr.number })),
+    ...row.prs.people,
+    ...row.prs.bots,
+    ...row.prs.pipeline,
     ...row.issues.bug,
     ...row.issues.enhancement,
     ...row.issues.automation,
@@ -219,13 +224,12 @@ export function environmentReading<T extends ReadingItem>(
   }
   const evidence = [...new Set([...lifecycle, ...reads.filter((r) => aboutStack(r, stackRepo))])];
   const qualifier = environmentQualifier(evidence);
-  const row = model.repositories.rows.find((r) => r.repo === stackRepo);
-  const read = facts.github.data?.repos[stackRepo] !== undefined;
-  const extra = repoLine(row, read);
+  const row = model.work.stack;
+  const extra = repoLine(row);
   return placeReading({
     headline: headlineOf(model, now),
     ...(qualifier ? { qualifier } : {}),
-    tiles: [versionTile(model), laneTile(model, facts), repoTile(row, read)],
+    tiles: [versionTile(model), laneTile(model, facts), repoTile(row)],
     groups,
     ...(extra ? { extra } : {}),
   });
