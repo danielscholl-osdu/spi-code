@@ -6,7 +6,7 @@ import { useStore } from "zustand";
 import { navigate } from "../../app/routes.js";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
 import { watchStore } from "../../store/watch.js";
-import { blankCell, type LensColumn, LensTable } from "../lenses/table.js";
+import { blankCell, type LensColumn, type LensRow, LensTable } from "../lenses/table.js";
 import "./panes.css";
 
 const columns: LensColumn<RepoEntry>[] = [
@@ -88,17 +88,23 @@ export default function Repositories() {
           <LensTable
             lens="repositories"
             columns={columns}
-            rows={repositories.rows.map((row, index) => ({
-              reading: row,
-              group: row.group === "program" ? "Program" : "Forks",
-              pointer: `/briefing/repositories/rows/${index}`,
-              selection: {
-                id: row.id,
-                title: row.title,
-                kind: "repository",
-                prefixes: [`/briefing/repositories/rows/${index}`],
-              },
-            }))}
+            rows={repositories.rows
+              .map(
+                (row, index): LensRow<RepoEntry> => ({
+                  reading: row,
+                  group: row.group === "program" ? "Program" : "Forks",
+                  pointer: `/briefing/repositories/rows/${index}`,
+                  selection: {
+                    id: row.id,
+                    title: row.title,
+                    kind: "repository",
+                    prefixes: [`/briefing/repositories/rows/${index}`],
+                  },
+                }),
+              )
+              .sort((a, b) =>
+                a.reading.group === b.reading.group ? 0 : a.reading.group === "program" ? -1 : 1,
+              )}
             onOpen={(row) =>
               navigate(
                 row.name === "osdu-spi"

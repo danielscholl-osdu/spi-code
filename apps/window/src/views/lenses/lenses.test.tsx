@@ -124,6 +124,24 @@ it("renders each recorded Horizon row with its original title, kind, sub and whe
   expect(container.querySelector("main [data-theme-detail]")).toBeNull();
 });
 
+it("keeps Program before Forks when a fork leads the repository data", async () => {
+  const body = recorded();
+  const repositories = body.briefing.repositories;
+  const program = repositories.rows.filter((row) => row.group === "program");
+  const forks = repositories.rows.filter((row) => row.group === "fork");
+  repositories.rows = [...forks, ...program];
+  await mount("repositories", body);
+  expect([...table().querySelectorAll(".lens-group th")].map((cell) => cell.textContent)).toEqual([
+    "Program",
+    "Forks",
+  ]);
+  expect(ids()).toEqual([...program, ...forks].map((row) => row.id));
+  for (const [index, row] of repositories.rows.entries())
+    expect(need(`tr[data-selection-id="${row.id}"]`).dataset.pointer).toBe(
+      `/briefing/repositories/rows/${index}`,
+    );
+});
+
 it.each(["flow", "repositories", "horizon"] as const)(
   "toggles every %s column's sort, preserving repository groups",
   async (lens) => {
@@ -324,17 +342,19 @@ it.each([
   );
 });
 
-it("opens a named Horizon fork while retaining the theme selection", async () => {
-  await mount("horizon");
-  const row = rows()[0];
-  if (!row) throw new Error("Missing theme row");
+it("opens a named Horizon fork while retaining a theme-only selection", async () => {
+  const body = recorded();
+  const theme = body.briefing.themes.find(({ id }) => id === "deadline:azure-removal");
+  if (!theme || theme.inspect) throw new Error("Missing theme-only fixture");
+  theme.sub = "partition keeps its Azure provider";
+  await mount("horizon", body);
+  const id = `theme:${theme.id}`;
+  const row = need(`tr[data-selection-id="${id}"]`);
   const fork = need<HTMLButtonElement>(".lens-link", row);
-  const name = fork.textContent;
-  const id = row.dataset.selectionId;
   await click(fork);
-  expect(window.location.hash).toBe(`#service/${name}`);
+  expect(window.location.hash).toBe("#service/partition");
   expect(selectionStore.getState().selected).toBe(id);
-  expect(need("aside .detail-title").textContent).toBe(recorded().briefing.themes[0]?.title);
+  expect(need("aside .detail-title").textContent).toBe(theme.title);
 });
 
 it("uses the displayed sort order for keyboard selection", async () => {
@@ -358,6 +378,7 @@ it.each(["planning", "flight", "quiet"] as const)(
     const view = body.briefing.flow;
     view.mode = mode;
     view.next.text = "Start the prepared forks";
+    view.next.quiet = mode === "quiet";
     view.also = [
       { text: "Wait for the pilot", inspect: "upstream:legal" },
       { text: "Read the rollout" },
@@ -366,6 +387,7 @@ it.each(["planning", "flight", "quiet"] as const)(
     const next = need('main [data-pointer="/briefing/flow/next"]');
     expect(next.textContent).toContain(view.next.title);
     expect(next.textContent).toContain(view.next.text);
+    expect(need("button", next).classList.contains("lens-quiet")).toBe(view.next.quiet);
     const also = need('main [aria-label="Also waiting"]');
     for (const item of view.also) expect(also.textContent).toContain(item.text);
     const schedule = need('main [data-pointer="/briefing/flow/schedule"]');

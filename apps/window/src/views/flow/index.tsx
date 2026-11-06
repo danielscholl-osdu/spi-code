@@ -118,7 +118,11 @@ export default function Flow() {
           <section className="lens-followup" data-pointer="/briefing/flow/next">
             <h3>{view.next.title}</h3>
             {view.next.text && <p>{view.next.text}</p>}
-            <button type="button" onClick={() => select(view.inspect)}>
+            <button
+              type="button"
+              className={view.next.quiet ? "lens-quiet" : undefined}
+              onClick={() => select(view.inspect)}
+            >
               {view.next.button}
             </button>
           </section>
