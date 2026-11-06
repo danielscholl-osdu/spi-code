@@ -35,7 +35,7 @@ afterEach(async () => {
   window.spi = previous;
 });
 
-async function render(body: ViewSnapshot = mixedSnapshot(mixed), panel = false) {
+async function render(body: ViewSnapshot = mixedSnapshot(mixed), panel = false, id = SERVICE) {
   const postMessage = vi.fn();
   const selection = createSelectionStore({ postMessage });
   watchStore.setState({ snapshot: { cursor: body.cursor, body }, selection: null });
@@ -44,7 +44,7 @@ async function render(body: ViewSnapshot = mixedSnapshot(mixed), panel = false) 
   await act(async () =>
     root?.render(
       <>
-        <ServicePage id={SERVICE} selection={selection} />
+        <ServicePage id={id} selection={selection} />
         {panel && <RightPanel store={selection} snapshot={body} />}
       </>,
     ),
@@ -133,6 +133,59 @@ it("draws Release and Runs from the service rows, runs newest first and openable
   expect(openExternal).toHaveBeenCalledWith(
     service?.runs.find(({ id }) => id === first?.getAttribute("data-selection-id"))?.url,
   );
+});
+
+const hintOf = (month: string) =>
+  section("release")?.querySelector(`[data-release="${month}"]`)?.querySelector("[data-gate-hint]")
+    ?.textContent;
+
+it("says which reads the gate and the release row come from when their versions differ", async () => {
+  await render();
+  const october = section("release")?.querySelector('[data-release="2026-10"]');
+  expect(october?.textContent).toContain("new → v1.2.1");
+  expect(october?.textContent).toContain("gate idle · v1.2.0");
+  expect(hintOf("2026-10")).toBe(
+    "gate as of the GitHub read 2026-10-12 21:58 UTC; release history read 2026-10-21 15:10 UTC",
+  );
+  expect(hintOf("2026-09")).toBeUndefined();
+});
+
+it("gives no hint when the gate agrees with the release row", async () => {
+  await render(mixedSnapshot(mixed), false, "schema");
+  const october = section("release")?.querySelector('[data-release="2026-10"]');
+  expect(october?.textContent).toContain("new → v1.2.0");
+  expect(october?.textContent).toContain("gate idle · v1.2.0");
+  expect(hintOf("2026-10")).toBeUndefined();
+});
+
+it.each([
+  [
+    "GitHub",
+    (body: ViewSnapshot): ViewSnapshot => ({
+      ...body,
+      areas: body.areas.map((entry) =>
+        entry.area === "github"
+          ? { area: "github", envelope: { source: "github", state: "unread" } }
+          : entry,
+      ),
+    }),
+    "gate as of the GitHub read; release history read 2026-10-21 15:10 UTC",
+  ],
+  [
+    "release history",
+    (body: ViewSnapshot): ViewSnapshot => ({
+      ...body,
+      provenance: body.provenance.map(({ path, areas, envelope }) =>
+        path.endsWith("/releases")
+          ? { path, areas }
+          : { path, areas, ...(envelope && { envelope }) },
+      ),
+    }),
+    "gate as of the GitHub read 2026-10-12 21:58 UTC; release history read",
+  ],
+])("leaves out the %s read's time when the snapshot has none", async (_, strip, hint) => {
+  await render(strip(mixedSnapshot(mixed)));
+  expect(hintOf("2026-10")).toBe(hint);
 });
 
 it("leaves Release, Runs and line selection out when the snapshot lacks those fields", async () => {
