@@ -16,7 +16,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, sep } from "node:path";
+import { delimiter, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
@@ -35,11 +35,49 @@ const directories: string[] = [];
 let template = "";
 let base = "";
 
-const git = (cwd: string, ...args: string[]) =>
-  execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
-// Git may run with safe.bareRepository=explicit, so name the bare origin outright.
-const bareGit = (gitDir: string, ...args: string[]) =>
-  execFileSync("git", ["--git-dir", gitDir, ...args], { encoding: "utf8" }).trim();
+// Nothing the caller's environment says about git or beads reaches a fixture: no inherited git
+// configuration, repository, rewrite or transport, and no bd database.
+const notInherited = /^(GIT_|BEADS_|BD_|BASH_ENV$|ENV$|HOME$|USERPROFILE$|XDG_CONFIG_HOME$)/i;
+const gitConfig = `[user]
+\tname = Fixture Builder
+\temail = fixture@example.test
+[commit]
+\tgpgsign = false
+`;
+
+// Gives a fixture directory its own home with the only git configuration the fixture reads.
+function prepareHome(directory: string) {
+  const home = join(directory, "home");
+  mkdirSync(home, { recursive: true });
+  writeFileSync(join(home, ".gitconfig"), gitConfig);
+}
+
+function hermeticEnv(directory: string): NodeJS.ProcessEnv {
+  const home = join(directory, "home");
+  const env: NodeJS.ProcessEnv = {};
+  let pathKey = "PATH";
+  for (const [key, value] of Object.entries(process.env)) {
+    if (key.toUpperCase() === "PATH") pathKey = key;
+    else if (!notInherited.test(key)) env[key] = value;
+  }
+  env[pathKey] = [join(directory, "bin"), process.env[pathKey]].filter(Boolean).join(delimiter);
+  env.HOME = home;
+  if (process.platform === "win32") env.USERPROFILE = home;
+  env.XDG_CONFIG_HOME = join(home, ".config");
+  env.GIT_CONFIG_GLOBAL = join(home, ".gitconfig");
+  env.GIT_CONFIG_NOSYSTEM = "1";
+  env.GIT_ALLOW_PROTOCOL = "file";
+  env.LAND_FIXTURE_STATE = toGitPath(join(directory, "state"));
+  return env;
+}
+
+const gitIn =
+  (directory: string) =>
+  (cwd: string, ...args: string[]) =>
+    execFileSync("git", ["-C", cwd, ...args], {
+      encoding: "utf8",
+      env: hermeticEnv(directory),
+    }).trim();
 
 function temporaryDirectory(prefix: string) {
   return realpathSync.native(mkdtempSync(join(tmpdir(), prefix)));
@@ -107,6 +145,8 @@ esac
 
 function buildTemplate() {
   const directory = temporaryDirectory("spi-code-land-template-");
+  const git = gitIn(directory);
+  prepareHome(directory);
   const root = join(directory, "main");
   const bin = join(directory, "bin");
   const state = join(directory, "state");
@@ -114,10 +154,6 @@ function buildTemplate() {
   mkdirSync(bin);
   mkdirSync(state);
   git(root, "init", "--quiet", "--template=", "-b", "main");
-  git(root, "config", "user.name", "Fixture Builder");
-  git(root, "config", "user.email", "fixture@example.test");
-  git(root, "config", "commit.gpgsign", "false");
-  git(root, "config", "core.hooksPath", "/dev/null");
   mkdirSync(join(root, "scripts"));
   copyFileSync(landSource, join(root, "scripts/land"));
   writeFileSync(
@@ -175,6 +211,7 @@ function relocate(directory: string) {
     unlinkSync(path);
     writeFileSync(path, contents);
   }
+  const git = gitIn(directory);
   const root = join(directory, "main");
   const worktree = join(directory, "bead");
   const commonDir = git(worktree, "rev-parse", "--path-format=absolute", "--git-common-dir");
@@ -202,17 +239,17 @@ function fixture({ origin = false } = {}) {
   const directory = temporaryDirectory("spi-code-land-");
   directories.push(directory);
   cpSync(template, directory, { recursive: true });
+  const git = gitIn(directory);
   const root = join(directory, "main");
   const worktree = join(directory, "bead");
-  const bin = join(directory, "bin");
   const state = join(directory, "state");
   const remote = join(directory, "origin");
+  const originUrl = toGitPath(remote);
   relocate(directory);
   if (origin) {
     git(directory, "clone", "--quiet", "--bare", "--template=", root, remote);
     mkdirSync(join(remote, "hooks"));
-    bareGit(remote, "config", "core.hooksPath", toGitPath(join(remote, "hooks")));
-    git(root, "remote", "add", "origin", toGitPath(remote));
+    git(root, "remote", "add", "origin", originUrl);
   }
   const beadFile = join(state, "bead.json");
   const readBead = (): Bead => JSON.parse(readFileSync(beadFile, "utf8"));
@@ -221,13 +258,14 @@ function fixture({ origin = false } = {}) {
   return {
     base,
     branch,
+    originUrl,
     commit(message: string) {
       writeFileSync(join(worktree, "change.md"), `Change ${++changes}\n`);
       git(worktree, "commit", "--quiet", "--all", "-m", `${message}\nBead: ${id}`);
       return git(worktree, "rev-parse", "HEAD");
     },
     main: () => git(root, "rev-parse", "main"),
-    originMain: () => bareGit(remote, "rev-parse", "main"),
+    originMain: () => git(directory, "--git-dir", remote, "rev-parse", "main"),
     landedCommits: () => Number(git(root, "rev-list", "--count", `${base}..main`)),
     bead: readBead,
     // Records the review bead-review would: labels cleared and the given metadata merged in.
@@ -236,16 +274,13 @@ function fixture({ origin = false } = {}) {
       writeBead({ ...bead, labels: [], metadata: { ...bead.metadata, ...metadata } });
     },
     patchId() {
-      const diff = execFileSync("git", [
-        "-C",
-        root,
-        "diff",
-        base,
-        git(worktree, "rev-parse", "HEAD"),
-      ]);
+      const env = hermeticEnv(directory);
+      const head = git(worktree, "rev-parse", "HEAD");
+      const diff = execFileSync("git", ["-C", root, "diff", base, head], { env });
       const [patch = ""] = execFileSync("git", ["-C", root, "patch-id", "--verbatim"], {
         input: diff,
         encoding: "utf8",
+        env,
       }).split(" ");
       return patch;
     },
@@ -277,14 +312,24 @@ function fixture({ origin = false } = {}) {
       spawnSync("bash", ["scripts/land", id], {
         cwd: root,
         encoding: "utf8",
-        env: {
-          ...process.env,
-          PATH: `${bin}:${process.env.PATH}`,
-          LAND_FIXTURE_STATE: toGitPath(state),
-        },
+        env: hermeticEnv(directory),
         timeout: landTimeout,
       }),
   };
+}
+
+// Runs with variables set in this process, as a caller's shell would hand them to the test.
+function withInheritedEnv<T>(variables: Record<string, string>, run: () => T): T {
+  const saved = Object.fromEntries(Object.keys(variables).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, variables);
+  try {
+    return run();
+  } finally {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
 }
 
 type Fixture = ReturnType<typeof fixture>;
@@ -358,7 +403,7 @@ describe("fixture relocation", () => {
     directories.push(directory);
     cpSync(template, directory, { recursive: true });
     relocate(directory);
-    const commonDir = git(
+    const commonDir = gitIn(directory)(
       join(directory, "bead"),
       "rev-parse",
       "--path-format=absolute",
@@ -593,6 +638,36 @@ describe("landing gates", () => {
       expectLanded(repo, repo.land(), head);
       expect(repo.originMain()).toBe(head);
       expect(repo.landedCommits()).toBe(1);
+    },
+    testTimeout,
+  );
+
+  it(
+    "pushes to the fixture origin whatever push URL or rewrite the caller's git config names",
+    () => {
+      const canary = temporaryDirectory("spi-code-land-canary-");
+      directories.push(canary);
+      prepareHome(canary);
+      const canaryGit = gitIn(canary);
+      canaryGit(canary, "init", "--quiet", "--bare", "--template=");
+      const canaryUrl = toGitPath(canary);
+      const repo = fixture({ origin: true });
+      const head = repo.commit("docs: update fixture");
+
+      const result = withInheritedEnv(
+        {
+          GIT_CONFIG_COUNT: "2",
+          GIT_CONFIG_KEY_0: "remote.origin.pushurl",
+          GIT_CONFIG_VALUE_0: canaryUrl,
+          GIT_CONFIG_KEY_1: `url.${canaryUrl}.insteadOf`,
+          GIT_CONFIG_VALUE_1: repo.originUrl,
+        },
+        () => repo.land(),
+      );
+
+      expectLanded(repo, result, head);
+      expect(repo.originMain()).toBe(head);
+      expect(canaryGit(canary, "--git-dir", canary, "for-each-ref")).toBe("");
     },
     testTimeout,
   );
