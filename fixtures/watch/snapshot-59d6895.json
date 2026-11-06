@@ -1480,7 +1480,7 @@
                 "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38303533757"
               }
             ],
-            "attention": "ambient",
+            "attention": "interrupt",
             "owned": false,
             "group": "Stopped"
           },
@@ -1497,7 +1497,7 @@
             "next": "Read each outside PR's diff, then approve its runs below.",
             "verb": "Approve runs",
             "evidence": [],
-            "attention": "ambient",
+            "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
           }
