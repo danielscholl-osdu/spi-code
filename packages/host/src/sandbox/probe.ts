@@ -18,7 +18,13 @@ import { createServer } from "node:net";
 import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { credentialPaths, runSeatbelt, sandboxEnvironment, seatbeltProfile } from "./seatbelt.js";
+import {
+  credentialPaths,
+  runSeatbelt,
+  runSeatbeltProfile,
+  sandboxEnvironment,
+  seatbeltProfile,
+} from "./seatbelt.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -104,7 +110,10 @@ export async function runSandboxProbe() {
       ghConfig,
       readonlyPaths: [jdk.home],
     };
-    const java = runSeatbelt(options, join(jdk.home, "bin/java"), ["-version"]);
+    const profile = seatbeltProfile(options);
+    const run = (command: string, args: string[] = []) =>
+      runSeatbeltProfile(profile, options, command, args);
+    const java = run(join(jdk.home, "bin/java"), ["-version"]);
     if (java.status !== 0) throw new Error(`Sandboxed java -version failed: ${java.stderr}`);
     const readCheck = 'if ( : < "$1" ) 2>/dev/null; then printf true; else printf false; fi';
     const actual = [
@@ -112,7 +121,7 @@ export async function runSandboxProbe() {
       ...credentialPaths(homedir(), ghConfig).slice(1),
     ];
     const reads = actual.map((path) => {
-      const result = runSeatbelt(options, "/bin/sh", ["-c", readCheck, "probe", path]);
+      const result = run("/bin/sh", ["-c", readCheck, "probe", path]);
       if (result.status !== 0 || !["true", "false"].includes(result.stdout)) {
         throw new Error("Credential readability probe failed to report a boolean");
       }
@@ -190,7 +199,7 @@ export async function runSandboxProbe() {
       if (before.error) throw before.error;
       if (before.status !== 0)
         throw new Error(`Fixture Unix socket is not reachable before sandboxing: ${before.stderr}`);
-      const result = runSeatbelt(options, "/usr/bin/nc", args);
+      const result = run("/usr/bin/nc", args);
       unixSocket = { connectedBefore: true, connected: result.status === 0 };
     } finally {
       if (server.listening) {
@@ -268,19 +277,9 @@ export async function runSandboxProbe() {
       },
     );
     const writeCheck = '( printf fixture > "$1" ) 2>/dev/null';
-    const outside = runSeatbelt(options, "/bin/sh", [
-      "-c",
-      writeCheck,
-      "probe",
-      join(root, "outside"),
-    ]);
-    const inside = runSeatbelt(options, "/bin/sh", [
-      "-c",
-      writeCheck,
-      "probe",
-      join(worktree, "inside"),
-    ]);
-    const env = runSeatbelt(options, "/usr/bin/env");
+    const outside = run("/bin/sh", ["-c", writeCheck, "probe", join(root, "outside")]);
+    const inside = run("/bin/sh", ["-c", writeCheck, "probe", join(worktree, "inside")]);
+    const env = run("/usr/bin/env");
     if (env.status !== 0) throw new Error("Sandbox environment probe failed");
     const report = {
       platform: process.platform,
