@@ -893,16 +893,75 @@ export function base64Contents(text: string): { decoded: string[]; malformed: bo
     if (!value || typeof value !== "object" || Array.isArray(value)) return;
     const record = value as Record<string, unknown>;
     if (typeof record.encoding === "string" && record.encoding.toLowerCase() === "base64") {
-      const raw =
-        typeof record.content === "string" ? record.content.replace(/\s/g, "") : undefined;
-      const bytes = raw !== undefined && BASE64.test(raw) ? Buffer.from(raw, "base64") : undefined;
-      if (bytes && bytes.toString("base64") === raw) decoded.push(bytes.toString("utf8"));
+      const bytes = canonicalBase64(record.content);
+      if (bytes) decoded.push(bytes.toString("utf8"));
       else malformed = true;
     }
     Object.values(record).forEach(walk);
   };
   values.forEach(walk);
   return { decoded, malformed };
+}
+
+/** The bytes of canonical base64 text, line breaks ignored, or undefined when it is not. */
+function canonicalBase64(content: unknown): Buffer | undefined {
+  if (typeof content !== "string") return undefined;
+  const raw = content.replace(/\s/g, "");
+  if (!BASE64.test(raw)) return undefined;
+  const bytes = Buffer.from(raw, "base64");
+  return bytes.toString("base64") === raw ? bytes : undefined;
+}
+
+// The shapes whose stdout is a file-content envelope as the forge returns it, with no jq.
+const FILE_CONTENT_SHAPES = new Set(["upstream filter", "blob", "upstream pom"]);
+
+const COMPRESSED: readonly [string, (bytes: Buffer) => boolean][] = [
+  ["gzip", (bytes) => bytes[0] === 0x1f && bytes[1] === 0x8b],
+  ["zlib", (bytes) => bytes[0] === 0x78 && [0x01, 0x5e, 0x9c, 0xda].includes(bytes[1] ?? -1)],
+];
+
+/** Why a known file-content response holds content in a form the detectors do not read: an
+ * encoding other than base64 (or "none" with no content), content with no encoding, compressed
+ * or double-encoded content, or a response that is not a JSON object. A response that is not
+ * JSON is left to base64Contents. */
+export function fileContentFindings(stdout: string): string[] {
+  const values = stdout.trim() ? jsonValues(stdout) : undefined;
+  if (!values) return [];
+  const findings = new Set<string>();
+  const check = (value: unknown): void => {
+    if (typeof value === "string") {
+      findings.add("JSON-string-wrapped envelope");
+      return;
+    }
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      findings.add("not a JSON object");
+      return;
+    }
+    const { encoding, content } = value as Record<string, unknown>;
+    if (encoding === undefined) {
+      if (content !== undefined) findings.add("content without an encoding");
+      return;
+    }
+    if (encoding === "none") {
+      if (content !== undefined && content !== "") findings.add('content under encoding "none"');
+      return;
+    }
+    if (encoding !== "base64") {
+      findings.add(`unsupported encoding ${JSON.stringify(encoding)}`);
+      return;
+    }
+    const bytes = canonicalBase64(content);
+    if (!bytes) return;
+    for (const [name, matches] of COMPRESSED)
+      if (matches(bytes)) findings.add(`compressed content (${name})`);
+    const text = bytes.toString("utf8");
+    if ((text.trim() && canonicalBase64(text)) || RAW_ENVELOPE.test(text))
+      findings.add("double-encoded base64");
+  };
+  for (const value of values)
+    if (Array.isArray(value)) value.forEach(check);
+    else check(value);
+  return [...findings].map((finding) => `file content: ${finding}`);
 }
 
 /** The text, the strings it holds behind JSON escapes, and the decoded text of its base64
@@ -1099,6 +1158,9 @@ function collect(directory: string, visibility?: VisibilityFile): Collected {
         const at = `${where} ${field}${Array.isArray(value) ? `[${i}]` : ""}`;
         const body = String(text);
         scan(at, body, findings, field === "stdout" ? strictStdout(call, body, visibility) : body);
+        if (field === "stdout" && classified && "shape" in classified)
+          if (FILE_CONTENT_SHAPES.has(classified.shape))
+            for (const finding of fileContentFindings(body)) findings.push(`${at}: ${finding}`);
       }
     }
   });

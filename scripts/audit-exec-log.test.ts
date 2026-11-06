@@ -13,6 +13,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { deflateSync, gzipSync } from "node:zlib";
 import { afterEach, describe, expect, test } from "vitest";
 import { buildQueries } from "../packages/core/src/collect/github-read.js";
 import {
@@ -769,7 +770,7 @@ describe("credential assignments by provenance", () => {
         "projects/osdu%2Fplatform%2Fsystem%2Fwidgets/repository/files/pom.xml?ref=abcdef0",
       ],
       ...ok,
-      stdout: JSON.stringify({ content: LINE }),
+      stdout: JSON.stringify({ encoding: "base64", content: Buffer.from(LINE).toString("base64") }),
     });
     expect(auditSweep(dir).findings).toEqual([]);
   });
@@ -1178,6 +1179,99 @@ describe("base64 content", () => {
     expect(audited(read, `${encoded(read, pom("x"))} trailing`)).toEqual([
       "exec.jsonl:5 stdout: malformed base64 content",
     ]);
+  });
+
+  describe("a known file-content response", () => {
+    const token = () => `<token>${"ghp_"}${"x".repeat(36)}</token>`;
+    const envelope = (read: Read, fields: Record<string, unknown>) => {
+      const { encoding: _, content: __, ...rest } = READS[read].envelope("");
+      return JSON.stringify({ ...rest, ...fields });
+    };
+
+    test.each(reads)("passes an error body and a file too large to hold content in %s", (read) => {
+      expect(audited(read, JSON.stringify({ message: "Not Found", status: "404" }))).toEqual([]);
+      expect(audited(read, envelope(read, { encoding: "none", content: "" }))).toEqual([]);
+    });
+
+    const cases: [string, (read: Read) => string, string][] = [
+      [
+        "an unsupported encoding",
+        (read) => envelope(read, { encoding: "utf-8", content: pom("x") }),
+        'unsupported encoding "utf-8"',
+      ],
+      [
+        "an encoding in another case",
+        (read) => envelope(read, { encoding: "BASE64", content: b64(pom("x")) }),
+        'unsupported encoding "BASE64"',
+      ],
+      [
+        "an encoding that is not a string",
+        (read) => envelope(read, { encoding: 64, content: b64(pom("x")) }),
+        "unsupported encoding 64",
+      ],
+      [
+        "content without an encoding",
+        (read) => envelope(read, { content: b64(token()) }),
+        "content without an encoding",
+      ],
+      [
+        "content under encoding none",
+        (read) => envelope(read, { encoding: "none", content: b64(token()) }),
+        'content under encoding "none"',
+      ],
+      [
+        "gzip-compressed content",
+        (read) =>
+          envelope(read, { encoding: "base64", content: gzipSync(token()).toString("base64") }),
+        "compressed content (gzip)",
+      ],
+      [
+        "zlib-compressed content",
+        (read) =>
+          envelope(read, { encoding: "base64", content: deflateSync(token()).toString("base64") }),
+        "compressed content (zlib)",
+      ],
+      [
+        "double-encoded base64",
+        (read) => envelope(read, { encoding: "base64", content: b64(b64(token())) }),
+        "double-encoded base64",
+      ],
+      [
+        "an envelope inside base64 content",
+        (read) =>
+          envelope(read, {
+            encoding: "base64",
+            content: b64(JSON.stringify({ encoding: "base64", content: b64(token()) })),
+          }),
+        "double-encoded base64",
+      ],
+      [
+        "a JSON-string-wrapped envelope",
+        (read) => JSON.stringify(encoded(read, token())),
+        "JSON-string-wrapped envelope",
+      ],
+      ["a JSON value that is not an object", () => "42", "not a JSON object"],
+    ];
+    test.each(
+      reads.flatMap((read) =>
+        cases.map(([what, stdout, finding]) => [what, read, stdout, finding]),
+      ),
+    )("fails %s in %s", (_, read, stdout, finding) => {
+      const out = (stdout as (read: Read) => string)(read as Read);
+      expect(out).not.toContain("ghp_");
+      expect(audited(read as Read, out)).toEqual([`exec.jsonl:5 stdout: file content: ${finding}`]);
+    });
+
+    test("leaves other reads' encodings to the detectors", () => {
+      const dir = copyOfClean();
+      append(dir, {
+        cmd: "gh",
+        args: ["api", "user", "--jq", ".login"],
+        ...ok,
+        stdout: JSON.stringify({ encoding: "utf-8", content: "octo" }),
+      });
+      expect(auditSweep(dir).findings).toEqual([]);
+    });
   });
 });
 
