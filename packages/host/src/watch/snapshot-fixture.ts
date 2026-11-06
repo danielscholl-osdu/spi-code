@@ -12,7 +12,9 @@ import {
   type Facts,
   fleetOf,
   parseRollout,
+  type ReadRecord,
   type ReleaseReads,
+  type SweepReads,
 } from "@spi-code/core";
 import type { WatchInput } from "./project.js";
 
@@ -31,9 +33,38 @@ export const mixedSnapshotPath = fileURLToPath(
   new URL("../../../../fixtures/watch/snapshot-mixed-59d6895.json", import.meta.url),
 );
 
+export const recordedRoot = fileURLToPath(new URL("../../../core/test/fixtures/", import.meta.url));
+export const recordedSnapshotPath = fileURLToPath(
+  new URL("../../../../fixtures/watch/snapshot-1106.json", import.meta.url),
+);
+
 export function oracle(name: string): unknown {
   return json(
     fileURLToPath(new URL(`../../../../fixtures/rib-59d6895/oracle/${name}.json`, import.meta.url)),
+  );
+}
+
+function inferredReads(facts: Facts): SweepReads {
+  return Object.fromEntries(
+    AREAS.flatMap((area) => {
+      const at = facts[area].at;
+      return at
+        ? [
+            [
+              area,
+              [
+                {
+                  source: area,
+                  object: area,
+                  observedAt: at,
+                  completeness: { kind: "complete" },
+                  inferred: true,
+                },
+              ],
+            ],
+          ]
+        : [];
+    }),
   );
 }
 
@@ -56,27 +87,7 @@ export function fixtureInput(): WatchInput {
     appData: fixtureRoot,
     doctor: { state: "clear", problems: [] },
     intervalMs: 300_000,
-    reads: Object.fromEntries(
-      AREAS.flatMap((area) => {
-        const at = facts[area].at;
-        return at
-          ? [
-              [
-                area,
-                [
-                  {
-                    source: area,
-                    object: area,
-                    observedAt: at,
-                    completeness: { kind: "complete" },
-                    inferred: true,
-                  },
-                ],
-              ],
-            ]
-          : [];
-      }),
-    ),
+    reads: inferredReads(facts),
     releaseRecords: releases.at
       ? [
           {
@@ -112,5 +123,38 @@ export function mixedFixtureInput(): WatchInput {
       ...releaseRecords,
       { ...history, source: "github-releases", object: fork.repo },
     ],
+  };
+}
+
+/**
+ * The 6 Nov recorded sweep. It records no release reads, no rollout and no render
+ * time: releases are empty, the rollout is the 59d6895 one, and the clock is the
+ * sweep's own start. Radar keeps its recorded per-service reads.
+ */
+export function recordedInput(): WatchInput {
+  const facts: Facts = {
+    ...emptyFacts(),
+    ...json<Partial<Facts>>(join(recordedRoot, "upstream-1106.json")),
+  };
+  const { radar } = json<{ radar: ReadRecord[] }>(join(recordedRoot, "upstream-1106-reads.json"));
+  const now = facts.sweep?.at;
+  if (!now) throw new Error("Recorded sweep must carry its start time");
+  const { rollout } = parseRollout(readFileSync(join(fixtureRoot, "rollout.json"), "utf8"));
+  if (!rollout) throw new Error("Pinned rollout must parse");
+  const context = createContext({
+    fleet: fleetOf(builtInFleet(join(recordedRoot, "upstream-services.json"))),
+    rollout,
+    clock: { now: () => new Date(now) },
+  });
+  return {
+    facts,
+    releases: { releases: {}, created: {}, pins: {}, errors: {} },
+    context,
+    cursor: 1,
+    appData: recordedRoot,
+    doctor: { state: "clear", problems: [] },
+    intervalMs: 300_000,
+    reads: { ...inferredReads(facts), radar },
+    releaseRecords: [],
   };
 }
