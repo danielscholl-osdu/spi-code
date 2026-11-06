@@ -26,10 +26,23 @@ import { type KeyboardEvent, type ReactNode, useId } from "react";
 import { useStore } from "zustand";
 import { SelectionEvidence, SelectionEvidenceChip } from "../components/evidence/index.js";
 import { PANEL_TABS, type PanelTab, type SelectionStore } from "./selection.js";
-import { type SelectionRow, selectionRows } from "./selection-rows.js";
+import { type SelectionKind, type SelectionRow, selectionRows } from "./selection-rows.js";
 import "./panels.css";
 
 const TAB_LABEL: Readonly<Record<PanelTab, string>> = { detail: "Detail", evidence: "Evidence" };
+const KIND_LABEL: Readonly<Record<SelectionKind, string>> = {
+  queue: "queue item",
+  flow: "upstream sync",
+  plan: "wave plan",
+  repository: "repository",
+  "repository-line": "repository line",
+  run: "run",
+  "template-step": "template step",
+  theme: "theme",
+  environment: "lane event",
+  release: "release month",
+  station: "station",
+};
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -267,7 +280,7 @@ export function RightPanel({
           <>
             {selected !== null && (
               <>
-                <p className="inspector-kicker">{row?.kind.replaceAll("-", " ") ?? "selection"}</p>
+                <p className="inspector-kicker">{row ? KIND_LABEL[row.kind] : "selection"}</p>
                 <h2 className="detail-title">{row?.title ?? result?.title ?? selected}</h2>
                 {result && (
                   <SelectionEvidenceChip

@@ -102,10 +102,21 @@ async function inspect(result: InspectResult) {
   return { ...view, ...port };
 }
 
-it.each([
-  ["template-step", "template step"],
-  ["repository-line", "repository line"],
-] satisfies [SelectionKind, string][])("names %s in plain words", async (kind, words) => {
+it.each(
+  Object.values({
+    queue: ["queue", "queue item"],
+    flow: ["flow", "upstream sync"],
+    plan: ["plan", "wave plan"],
+    repository: ["repository", "repository"],
+    "repository-line": ["repository-line", "repository line"],
+    run: ["run", "run"],
+    "template-step": ["template-step", "template step"],
+    theme: ["theme", "theme"],
+    environment: ["environment", "lane event"],
+    release: ["release", "release month"],
+    station: ["station", "station"],
+  } satisfies { [Kind in SelectionKind]: [Kind, string] }),
+)("names %s in plain words", async (kind, words) => {
   const port = fakePort();
   const view = await mount(port.store);
   try {

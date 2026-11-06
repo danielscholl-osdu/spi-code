@@ -127,6 +127,28 @@ it("keeps an empty inline panel and its focus when it becomes a sheet", async ()
   }
 });
 
+it.each([980, 1280])(
+  "closes an empty panel on narrowing from %i px without moving outside focus",
+  async (width) => {
+    const view = await mount(width);
+    try {
+      view.row.focus();
+      await view.resize(979);
+      expect(view.panel()).toBeNull();
+      expect(view.container.querySelector(".detail-backdrop")).toBeNull();
+      expect(document.activeElement).toBe(view.row);
+      view.trigger.focus();
+      await act(async () => view.trigger.click());
+      expect(view.panel()?.hasAttribute("data-sheet")).toBe(true);
+      expect(view.panel()?.contains(document.activeElement)).toBe(true);
+      await act(async () => view.store.getState().setOpen(false));
+      expect(document.activeElement).toBe(view.trigger);
+    } finally {
+      await view.cleanup();
+    }
+  },
+);
+
 it.each([979, 980])("Escape closes only with focus inside the panel at %i px", async (width) => {
   const view = await mount(width);
   const pressEscape = (target: EventTarget, prevented = false) => {

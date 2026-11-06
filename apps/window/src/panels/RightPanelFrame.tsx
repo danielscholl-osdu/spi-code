@@ -21,10 +21,18 @@ export function RightPanelFrame({
   const open = useStore(store, (state) => state.open);
   const frame = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLElement | null>(null);
+  const preserveFocus = useRef(false);
   useEffect(() => {
-    if (window.matchMedia(NARROW_LAYOUT_MEDIA_QUERY).matches && store.getState().selected === null)
+    if (
+      narrow &&
+      store.getState().open &&
+      store.getState().selected === null &&
+      !frame.current?.contains(document.activeElement)
+    ) {
+      preserveFocus.current = true;
       store.getState().setOpen(false);
-  }, [store]);
+    }
+  }, [narrow, store]);
   useEffect(
     () =>
       store.subscribe((state, previous) => {
@@ -39,7 +47,10 @@ export function RightPanelFrame({
     [store],
   );
   useEffect(() => {
-    if (!open) return;
+    if (!open || preserveFocus.current) {
+      preserveFocus.current = false;
+      return;
+    }
     if (
       document.activeElement instanceof HTMLElement &&
       !frame.current?.contains(document.activeElement)
@@ -62,6 +73,7 @@ export function RightPanelFrame({
     window.addEventListener("keydown", close);
     return () => {
       window.removeEventListener("keydown", close);
+      if (preserveFocus.current) return;
       const target = opener.current?.isConnected
         ? opener.current
         : document.querySelector<HTMLElement>('[aria-controls="app-right-panel"]');
