@@ -73,13 +73,6 @@ export function hourTicks(from: number, to: number): { at: number; text: string 
   return out;
 }
 
-export function firstEvent(lanes: readonly EnvLane[]): string | undefined {
-  const all = lanes
-    .flatMap((lane) => lane.events.map((e) => ({ key: eventKey(lane, e), e })))
-    .sort((a, b) => Date.parse(b.e.start) - Date.parse(a.e.start));
-  return (all.find((x) => x.e.state === "failed") ?? all[0])?.key;
-}
-
 function stamp(iso: string, now: Date): string {
   const d = new Date(iso);
   if (!Number.isFinite(d.getTime())) return "?";

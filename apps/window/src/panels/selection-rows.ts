@@ -10,6 +10,7 @@ export type SelectionKind =
   | "flow"
   | "plan"
   | "repository"
+  | "repository-line"
   | "template-step"
   | "theme"
   | "environment"
@@ -18,7 +19,7 @@ export type SelectionKind =
 
 /**
  * Lists pass a row to select(id, row), or use useSelectionList in displayed order.
- * The id is stable across routes; inspectId overrides it only for stations (null means row-only).
+ * The id is stable across routes; inspectId overrides it for stations (null means row-only).
  * Fields are the row's own reading, not a second inspector. Omit them when inspect carries it all.
  */
 export type SelectionRow = {
@@ -96,6 +97,24 @@ export function selectionRows(snapshot: ViewSnapshot): SelectionRow[] {
         kind: "repository",
         prefixes: [`/briefing/repositories/rows/${index}`],
       }),
+    ),
+    ...briefing.repositories.rows.flatMap((repo, repoIndex) =>
+      repo.sections.flatMap((section, sectionIndex) =>
+        section.lines.flatMap((line, lineIndex): SelectionRow[] =>
+          line.id
+            ? [
+                {
+                  id: line.id,
+                  title: line.text,
+                  kind: "repository-line",
+                  prefixes: [
+                    `/briefing/repositories/rows/${repoIndex}/sections/${sectionIndex}/lines/${lineIndex}`,
+                  ],
+                },
+              ]
+            : [],
+        ),
+      ),
     ),
     ...briefing.themes.map(
       (theme, index): SelectionRow => ({
@@ -183,7 +202,14 @@ export function routeSelectionIds(snapshot: ViewSnapshot, route: Route): string[
         ...briefing.environment.lanes.flatMap((lane) =>
           lane.events.map((event) => inspectId(lane, event)),
         ),
-        ...repos.filter(({ name }) => name === "osdu-spi-stack").map(({ id }) => id),
+        ...repos
+          .filter(({ name }) => name === "osdu-spi-stack")
+          .flatMap((repo) => [
+            repo.id,
+            ...repo.sections.flatMap((section) =>
+              section.lines.flatMap((line) => (line.id ? [line.id] : [])),
+            ),
+          ]),
       ];
     case "releases":
       return snapshot.releases.lines.map(({ id }) => id);

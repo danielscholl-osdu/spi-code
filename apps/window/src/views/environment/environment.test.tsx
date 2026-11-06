@@ -10,16 +10,21 @@ import { expect, it, vi } from "vitest";
 import briefing from "../../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import consoleHtml from "../../../../../fixtures/rib-59d6895/oracle/console.html?raw";
 import placement from "../../../../../fixtures/rib-59d6895/oracle/environment-place.json?raw";
+import envInspect from "../../../../../fixtures/rib-59d6895/oracle/inspect/ENV.json?raw";
 import releases from "../../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
 import mixed from "../../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
 import {
   expectEvidenceMarks,
   expectNoEvidenceMarks,
 } from "../../components/evidence/marks.test-helper.js";
+import { RightPanel } from "../../panels/RightPanel.js";
+import { createSelectionStore } from "../../panels/selection.js";
+import { routeSelectionIds, selectionRows } from "../../panels/selection-rows.js";
+import { inspectFromOracle, type OracleBoard } from "../../panels/test-inspect.js";
 import { mixedSnapshot, testSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore } from "../../store/watch.js";
 import Environment from "./index.js";
-import { eventWhen, firstEvent, hourTicks, place } from "./timeline.js";
+import { eventWhen, hourTicks, place } from "./timeline.js";
 
 const snapshot = testSnapshot(briefing, releases);
 const environmentStyles = readFileSync(
@@ -87,19 +92,7 @@ it("reuses cleared tiers and reserves space for a flipped label", () => {
   ]);
 });
 
-it("prefers the newest failed event, otherwise the newest event, and uses the track clock", () => {
-  const events = [10, 20, 30].map((at, id) => ({
-    ...first,
-    id: String(id),
-    start: new Date(at).toISOString(),
-    state: id === 1 ? ("failed" as const) : ("running" as const),
-  }));
-  const lane = { id: "upgrade" as const, label: "Upgrade", events };
-  expect(firstEvent([lane])).toBe("upgrade:1");
-  expect(firstEvent([{ ...lane, events: events.filter((e) => e.state !== "failed") }])).toBe(
-    "upgrade:2",
-  );
-  expect(firstEvent([])).toBeUndefined();
+it("uses the track clock for event duration", () => {
   expect(eventWhen({ ...first, start: new Date(0).toISOString() }, new Date(3_600_000))).toContain(
     "to now \u00b7 1 h",
   );
@@ -121,67 +114,57 @@ it("uses the rib's unknown timestamp marker for malformed dates", () => {
   expect(eventWhen({ ...first, end: "invalid" }, now)).toMatch(/ to \?$/);
 });
 
-it.each([
-  ["failed", "rgb(100, 0, 0)"],
-  ["running", "rgb(100, 80, 0)"],
-  ["held", "rgb(100, 80, 0)"],
-  ["ok", "rgb(0, 100, 0)"],
-  ["cancelled", "rgb(10, 20, 30)"],
-] as const)(
-  "colours only the %s detail heading and keeps timeline affordances",
-  async (state, colour) => {
-    const store = createWatchStore(vi.fn());
-    store.setState({
-      snapshot: {
-        cursor: 1,
-        body: {
-          ...snapshot,
-          briefing: {
-            ...snapshot.briefing,
-            environment: {
-              ...environment,
-              lanes: [
-                { id: "upgrade", label: "Upgrade", events: [{ ...first, state }] },
-                { id: "refresh", label: "Refresh", events: [] },
-              ],
-            },
+it("keeps timeline affordances without an in-page detail pane", async () => {
+  const store = createWatchStore(vi.fn());
+  store.setState({
+    snapshot: {
+      cursor: 1,
+      body: {
+        ...snapshot,
+        briefing: {
+          ...snapshot.briefing,
+          environment: {
+            ...environment,
+            lanes: [
+              { id: "upgrade", label: "Upgrade", events: [first] },
+              { id: "refresh", label: "Refresh", events: [] },
+            ],
           },
         },
       },
-    });
-    const container = document.createElement("div");
-    container.style.color = "rgb(10, 20, 30)";
-    container.style.setProperty("--error-text", "rgb(100, 0, 0)");
-    container.style.setProperty("--warning-text", "rgb(100, 80, 0)");
-    container.style.setProperty("--success-text", "rgb(0, 100, 0)");
-    document.body.append(container);
-    const root = createRoot(container);
-    const style = document.createElement("style");
-    style.textContent = environmentStyles;
-    document.head.append(style);
-    try {
-      await act(async () => root.render(<Environment store={store} />));
-      const detail = container.querySelector(".env-detail");
-      const heading = detail?.querySelector("h3");
-      const bar = container.querySelector(".env-event");
-      const empty = container.querySelector(".env-none");
-      if (!detail || !heading || !bar || !empty) throw new Error("Missing environment elements");
-      expect(getComputedStyle(detail).color).toBe("rgb(10, 20, 30)");
-      expect(getComputedStyle(heading).color).toBe(colour);
-      expect(getComputedStyle(bar).cursor).toBe("pointer");
-      expect(getComputedStyle(empty).position).toBe("absolute");
-      expect(getComputedStyle(empty).left).toBe("6px");
-      expect(getComputedStyle(empty).top).toBe("7px");
-    } finally {
-      await act(async () => root.unmount());
-      style.remove();
-      container.remove();
-    }
-  },
-);
+    },
+  });
+  const container = document.createElement("div");
+  container.style.color = "rgb(10, 20, 30)";
+  container.style.setProperty("--error-text", "rgb(100, 0, 0)");
+  container.style.setProperty("--warning-text", "rgb(100, 80, 0)");
+  container.style.setProperty("--success-text", "rgb(0, 100, 0)");
+  document.body.append(container);
+  const root = createRoot(container);
+  const style = document.createElement("style");
+  style.textContent = environmentStyles;
+  document.head.append(style);
+  try {
+    await act(async () => root.render(<Environment store={store} />));
+    const bar = container.querySelector(".env-event");
+    const empty = container.querySelector(".env-none");
+    if (!bar || !empty) throw new Error("Missing environment elements");
+    expect(container.querySelector(".env-detail, [aria-label='Event details']")).toBeNull();
+    expect(container.querySelector(".env-inspect")).toBeNull();
+    expect(getComputedStyle(bar).cursor).toBe("pointer");
+    expect(getComputedStyle(empty).position).toBe("absolute");
+    expect(getComputedStyle(empty).left).toBe("6px");
+    expect(getComputedStyle(empty).top).toBe("7px");
+  } finally {
+    await act(async () => root.unmount());
+    style.remove();
+    container.remove();
+  }
+});
 
-it("renders oracle lane order, labels, facts and bars; selects details and the inspector", async () => {
-  const store = createWatchStore(vi.fn());
+it("renders oracle lane order, labels, facts and bars; selects only in the right panel", async () => {
+  const inspector = createSelectionStore({ postMessage: vi.fn() });
+  const store = createWatchStore(vi.fn(), inspector);
   const receive = (body: typeof snapshot) =>
     store.getState().receive({
       version: PROTOCOL_VERSION,
@@ -194,7 +177,7 @@ it("renders oracle lane order, labels, facts and bars; selects details and the i
   document.body.append(container);
   const root = createRoot(container);
   try {
-    await act(async () => root.render(<Environment store={store} />));
+    await act(async () => root.render(<Environment store={store} inspector={inspector} />));
     expect(container.textContent).toContain("Waiting for the first sweep.");
     await act(async () => receive(snapshot));
     expect(container.querySelector("h2")?.textContent).toBe(environment.headline);
@@ -227,12 +210,9 @@ it("renders oracle lane order, labels, facts and bars; selects details and the i
     }
     const bars = container.querySelectorAll<HTMLButtonElement>("[data-event]");
     await act(async () => bars[1]?.click());
-    expect(bars[1]?.getAttribute("aria-pressed")).toBe("true");
-    expect(bars[0]?.getAttribute("aria-pressed")).toBe("false");
-    expect(container.querySelector(".env-detail")?.textContent).toContain(
-      environment.lanes[3]?.events[0]?.detail,
-    );
-    await act(async () => container.querySelector<HTMLButtonElement>(".env-inspect")?.click());
+    expect(bars[1]?.getAttribute("aria-selected")).toBe("true");
+    expect(inspector.getState().row?.prefixes).toEqual(["/briefing/environment/lanes/3/events/0"]);
+    expect(container.querySelector(".env-detail")).toBeNull();
     expect(store.getState().selection?.id).toBe("stack:38181620856");
 
     const failed = { ...first, id: "failure", state: "failed" as const };
@@ -249,8 +229,8 @@ it("renders oracle lane order, labels, facts and bars; selects details and the i
         },
       }),
     );
-    expect(container.querySelector("[data-event]")?.getAttribute("aria-pressed")).toBe("true");
-    expect(container.querySelector(".env-detail")?.textContent).toContain("failed");
+    expect(container.querySelector("[data-event]")?.getAttribute("aria-selected")).toBe("true");
+    expect(container.querySelector(".env-detail")).toBeNull();
     await act(async () =>
       receive({
         ...snapshot,
@@ -289,6 +269,9 @@ it.each([
           ["/briefing/environment/facts"],
           ["/briefing/environment/lanes"],
           ["/briefing/environment/note"],
+          [
+            `/briefing/repositories/rows/${body.briefing.repositories.rows.findIndex((row) => row.name === "osdu-spi-stack")}`,
+          ],
         ],
       });
       expect(container.querySelector("[data-pointer] [data-inferred]")).toBeNull();
@@ -300,7 +283,8 @@ it.each([
 );
 
 it("hands the inspector an id for every event: its queue item, else its run or hold", async () => {
-  const store = createWatchStore(vi.fn());
+  const inspector = createSelectionStore({ postMessage: vi.fn() });
+  const store = createWatchStore(vi.fn(), inspector);
   const smoke = { ...first, id: "38190000001", label: "smoke", inspect: undefined };
   const hold = {
     ...first,
@@ -341,10 +325,192 @@ it("hands the inspector an id for every event: its queue item, else its run or h
     return store.getState().selection?.id;
   };
   try {
-    await act(async () => root.render(<Environment store={store} />));
+    await act(async () => root.render(<Environment store={store} inspector={inspector} />));
     expect(await pick(`smoke:${bare.id}`)).toBe(`run:${bare.id}`);
+    const smokeRow = container.querySelector<HTMLButtonElement>(`[data-event="smoke:${bare.id}"]`);
+    if (!smokeRow) throw new Error("Missing smoke event");
+    smokeRow.focus();
+    await act(async () =>
+      smokeRow.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "ArrowDown",
+          bubbles: true,
+        }),
+      ),
+    );
+    expect(inspector.getState().selected).toBe(`hold:${closed.id}`);
+    expect((document.activeElement as HTMLElement).dataset.event).toBe(`holds:${closed.id}`);
     expect(await pick(`holds:${closed.id}`)).toBe(`hold:${closed.id}`);
     expect(await pick(`upgrade:${first.id}`)).toBe(first.inspect);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
+it("orders recorded lane events, stack lines, Threads and Live cluster; the right panel owns detail", async () => {
+  const body = mixedSnapshot(mixed);
+  const postMessage = vi.fn();
+  const inspector = createSelectionStore({ postMessage });
+  const store = createWatchStore(vi.fn(), inspector);
+  store.setState({ snapshot: { cursor: body.cursor, body } });
+  const repo = body.briefing.repositories.rows.find((row) => row.name === "osdu-spi-stack");
+  const line = repo?.sections.flatMap((section) => section.lines).find((line) => line.id);
+  if (!repo || !line?.id) throw new Error("Recorded stack lines need identity");
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () =>
+      root.render(
+        <>
+          <Environment store={store} inspector={inspector} />
+          <RightPanel store={inspector} snapshot={body} />
+        </>,
+      ),
+    );
+    const page = container.querySelector(".environment");
+    if (!page) throw new Error("Missing Environment page");
+    expect(
+      [...page.querySelectorAll(":scope > section")].map((section) =>
+        section.getAttribute("aria-label"),
+      ),
+    ).toEqual(["Lane events", "Repository", "Threads", "Live cluster"]);
+    expect(page.querySelector("[aria-label='Threads']")?.textContent).toContain(
+      "Threads are not available yet.",
+    );
+    expect(page.querySelector("[aria-label='Live cluster']")?.textContent).toContain(
+      "Live reads are not available yet.",
+    );
+    expect(page.textContent).not.toMatch(/\bM[0-9]\b/);
+    for (const section of repo.sections) {
+      expect(page.textContent).toContain(section.title);
+      expect(page.textContent).toContain(section.count);
+      if (section.rest) expect(page.textContent).toContain(section.rest);
+      for (const entry of section.lines) {
+        expect(page.textContent).toContain(entry.tag);
+        expect(page.textContent).toContain(entry.text);
+        expect(page.textContent).toContain(entry.sub);
+      }
+    }
+    expect(page.textContent).toContain(repo.title);
+    expect(page.textContent).toContain(repo.sub);
+    expect(page.querySelector(".env-detail, .inspector, aside")).toBeNull();
+    expect(container.querySelectorAll("aside[aria-label='Detail']")).toHaveLength(1);
+    expect(inspector.getState().selected).toBeNull();
+
+    const event = page.querySelector<HTMLButtonElement>("[data-event]");
+    if (!event) throw new Error("Missing recorded event");
+    await act(async () => event.click());
+    const eventRow = selectionRows(body).find(
+      (row) => row.kind === "environment" && row.id === inspector.getState().selected,
+    );
+    if (!eventRow) throw new Error("Event selection did not reach the shared store");
+    expect(inspector.getState().row).toEqual(eventRow);
+    expect(postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        type: "inspect.request",
+        payload: { id: eventRow.id },
+      }),
+    );
+    expect(container.querySelector(".detail-title")?.textContent).toBe(eventRow.title);
+    const board: OracleBoard = JSON.parse(envInspect);
+    const result = inspectFromOracle(board, eventRow.id);
+    await act(async () =>
+      inspector.getState().receive({
+        version: PROTOCOL_VERSION,
+        kind: "response",
+        type: "inspect.result",
+        id: inspector.getState().request,
+        payload: result,
+      }),
+    );
+    expect(container.querySelector("aside [data-field='effect']")?.textContent).toBe(result.effect);
+
+    const option = [...page.querySelectorAll<HTMLButtonElement>("[data-selection-id]")].find(
+      (element) => element.dataset.selectionId === line.id,
+    );
+    if (!option) throw new Error("Missing selectable recorded repository line");
+    await act(async () => option.click());
+    expect(inspector.getState().selected).toBe(line.id);
+    expect(inspector.getState().row?.kind).toBe("repository-line");
+    expect(option.getAttribute("aria-selected")).toBe("true");
+    expect(event.getAttribute("aria-selected")).toBe("false");
+    expect(postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        type: "inspect.request",
+        payload: { id: line.id },
+      }),
+    );
+    expect(container.querySelector(".detail-title")?.textContent).toBe(line.text);
+    await act(async () =>
+      inspector.getState().receive({
+        version: PROTOCOL_VERSION,
+        kind: "response",
+        type: "inspect.result",
+        id: inspector.getState().request,
+        payload: { ...result, id: line.id, cause: line.text },
+      }),
+    );
+    expect(container.querySelector("aside [data-field='cause']")?.textContent).toBe(line.text);
+    expect(routeSelectionIds(body, { kind: "environment" })).toContain(line.id);
+    expect(selectionRows(body).find((row) => row.id === line.id)).toMatchObject({
+      title: line.text,
+      kind: "repository-line",
+    });
+    const next = repo.sections.flatMap((section) => section.lines).filter((entry) => entry.id)[1];
+    if (!next?.id) throw new Error("Recorded stack needs two selectable lines");
+    option.focus();
+    await act(async () =>
+      option.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })),
+    );
+    expect(inspector.getState().selected).toBe(next.id);
+    expect((document.activeElement as HTMLElement).dataset.selectionId).toBe(next.id);
+    expect(container.querySelector(".detail-title")?.textContent).toBe(next.text);
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
+
+it("omits absent snapshot parts and leaves unidentifiable lines as text, not fake selections", async () => {
+  const body = mixedSnapshot(mixed);
+  const inspector = createSelectionStore({ postMessage: vi.fn() });
+  const store = createWatchStore(vi.fn(), inspector);
+  const repo = body.briefing.repositories.rows.find((row) => row.name === "osdu-spi-stack");
+  const line = repo?.sections[0]?.lines[0];
+  if (!repo || !line) throw new Error("Missing recorded stack line");
+  delete line.id;
+  delete line.url;
+  repo.note = "Recorded repository note";
+  store.setState({ snapshot: { cursor: 1, body } });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<Environment store={store} inspector={inspector} />));
+    const textLine = [...container.querySelectorAll(".env-repo-line")].find((element) =>
+      element.textContent?.includes(line.text),
+    );
+    expect(textLine).toBeDefined();
+    expect(textLine?.hasAttribute("data-selection-id")).toBe(false);
+    expect(textLine?.tagName).not.toBe("BUTTON");
+    expect(container.textContent).toContain(repo.note);
+    const bare = structuredClone(body);
+    bare.briefing.environment.facts = [];
+    bare.briefing.environment.lanes = [];
+    delete bare.briefing.environment.note;
+    bare.briefing.repositories.rows = bare.briefing.repositories.rows.filter(
+      (row) => row.name !== "osdu-spi-stack",
+    );
+    await act(async () => store.setState({ snapshot: { cursor: 2, body: bare } }));
+    expect(container.querySelector(".env-facts")).toBeNull();
+    expect(container.querySelector("[aria-label='Lane events']")).toBeNull();
+    expect(container.querySelector("[aria-label='Repository']")).toBeNull();
+    expect(container.querySelector(".env-note")).toBeNull();
+    expect(container.textContent).not.toContain(repo.note);
+    expect(container.querySelector("[aria-label='Threads']")).not.toBeNull();
+    expect(container.querySelector("[aria-label='Live cluster']")).not.toBeNull();
   } finally {
     await act(async () => root.unmount());
     container.remove();
