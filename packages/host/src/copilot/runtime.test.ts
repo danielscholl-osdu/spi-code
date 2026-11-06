@@ -170,11 +170,13 @@ describe("Copilot runtime boundary", () => {
       try {
         await writeFile(
           join(root, "gh"),
-          `#!/bin/sh\n[ "$1 $2" = "auth token" ] || exit 2\n[ -z "$GH_HOST" ] || exit 3\ncase "$3 $4" in\n  "--hostname github.com") printf '${token}\\n';;\n  " ") printf '${enterpriseToken}\\n';;\n  *) exit 4;;\nesac\n`,
+          `#!/bin/sh\n[ "$1 $2" = "auth token" ] || exit 2\n[ -z "$GH_HOST" ] || exit 3\ncase "$3 $4" in\n  "--hostname github.com") printf '${token}\\n';;\n  " "|"--hostname enterprise.example.test") printf '${enterpriseToken}\\n';;\n  *) exit 4;;\nesac\n`,
           { mode: 0o700 },
         );
         const authEnv = await buildAuthEnvironment(options);
-        expect(await ghAuthToken(authEnv)).toBe(enterpriseToken);
+        expect(await ghAuthToken(authEnv, { hostname: "enterprise.example.test" })).toBe(
+          enterpriseToken,
+        );
         if (consumer === "seat") {
           fake.createSession.mockResolvedValueOnce({ disconnect: vi.fn() });
           fake.list.mockResolvedValueOnce({ models: [{ id: "seat-model" }] });
@@ -289,6 +291,7 @@ describe("Copilot runtime boundary", () => {
     await runtime.listModels();
     await expect(runtime.createSession()).rejects.toThrow("session stub");
     expect(ghRunner).toHaveBeenCalledTimes(3);
+    expect(installer.binDir).toHaveBeenCalledTimes(3);
     expect(installer.binDir).toHaveBeenCalledWith("gh");
     expect(fake.configs[0]?.env?.PATH?.split(delimiter)).toEqual([bin, "/bin"]);
     for (const [env, options] of ghRunner.mock.calls) {
@@ -305,6 +308,57 @@ describe("Copilot runtime boundary", () => {
     }
     await runtime.stop();
   });
+
+  it.each(["start", "listModels", "createSession"] as const)(
+    "%s resolves the managed gh path once per operation and refreshes it after restart",
+    async (operation) => {
+      const firstBin = join("/tmp/spicode", "tools", "gh", "first", "bin");
+      const secondBin = join("/tmp/spicode", "tools", "gh", "second", "bin");
+      const installer = {
+        binDir: vi
+          .fn()
+          .mockResolvedValueOnce(firstBin)
+          .mockResolvedValueOnce(secondBin)
+          .mockResolvedValueOnce(firstBin),
+      };
+      const ghRunner = vi
+        .fn()
+        .mockResolvedValueOnce("first-fixture")
+        .mockResolvedValueOnce("second-fixture")
+        .mockResolvedValueOnce("first-fixture");
+      fake.createSession.mockResolvedValue({});
+      const runtime = new CopilotRuntime(
+        {
+          appDataDir: "/tmp/spicode",
+          capturedPath: "/bin",
+          installer,
+          env: { HOME: "/operator", GH_TOKEN: "stray" },
+        },
+        undefined,
+        stubToolSource,
+        ghRunner,
+      );
+      try {
+        for (const [index, bin] of [firstBin, secondBin, firstBin].entries()) {
+          if (index === 2) await runtime.stop();
+          await runtime[operation]();
+          expect(installer.binDir).toHaveBeenCalledTimes(index + 1);
+          expect(installer.binDir).toHaveBeenLastCalledWith("gh");
+          expect(ghRunner.mock.calls[index]?.[0]).toMatchObject({
+            PATH: [bin, "/bin"].join(delimiter),
+            HOME: "/operator",
+          });
+          expect(fake.configs[index]?.env?.PATH).toBe([bin, "/bin"].join(delimiter));
+          expect(fake.configs[index]?.env?.HOME).not.toBe("/operator");
+          expect(fake.configs[index]?.gitHubToken).toBe(
+            index === 1 ? "second-fixture" : "first-fixture",
+          );
+        }
+      } finally {
+        await runtime.stop();
+      }
+    },
+  );
 
   it.each(["construct", "start", "list", "session", "stream"] as const)(
     "recursively redacts credential-bearing %s errors and keeps originals private",

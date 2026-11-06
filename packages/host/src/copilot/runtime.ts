@@ -194,7 +194,7 @@ export function listModelsWithToken<T>(
 export class CopilotRuntime {
   private client: CopilotClient | undefined;
   private token: string | undefined;
-  private readonly readToken: TokenSource;
+  private readonly readToken: (env?: NodeJS.ProcessEnv) => Promise<string>;
   private pending: Promise<unknown> = Promise.resolve();
   private readonly tokens = new Set<string>();
   private generation = 0;
@@ -209,15 +209,13 @@ export class CopilotRuntime {
     private readonly source: SessionToolSource = stubToolSource,
     ghRunner: typeof ghAuthToken = ghAuthToken,
   ) {
-    const reader =
-      readToken ??
-      (async () =>
-        ghRunner(await buildAuthEnvironment(options), {
-          hostname: "github.com",
-          timeoutMs: 5000,
-        }));
-    this.readToken = async () => {
-      const token = await reader();
+    this.readToken = async (env) => {
+      const token = readToken
+        ? await readToken()
+        : await ghRunner(env ?? (await buildAuthEnvironment(options)), {
+            hostname: "github.com",
+            timeoutMs: 5000,
+          });
       this.tokens.clear();
       if (this.token) this.tokens.add(this.token);
       this.tokens.add(token);
@@ -233,14 +231,16 @@ export class CopilotRuntime {
     return result;
   }
 
-  private async acquire(token: string): Promise<CopilotClient> {
+  private async acquire(): Promise<{ client: CopilotClient; token: string }> {
+    const env = await buildAuthEnvironment(this.options);
+    const token = await this.readToken(env);
     validateToken(token);
     if (this.client && (this.options.credentialMode === "session" || token === this.token)) {
-      return this.client;
+      return { client: this.client, token };
     }
     await this.disposeClient();
     const client = new CopilotClient({
-      ...buildClientOptions(this.options, (await buildAuthEnvironment(this.options)).PATH),
+      ...buildClientOptions(this.options, env.PATH),
       ...(this.options.credentialMode === "session" ? {} : { gitHubToken: token }),
     });
     try {
@@ -253,25 +253,25 @@ export class CopilotRuntime {
     this.client = client;
     this.token = token;
     this.generation++;
-    return client;
+    return { client, token };
   }
 
   start(): Promise<void> {
     return this.serialize(async () => {
-      await this.acquire(await this.readToken());
+      await this.acquire();
     });
   }
 
   listModels(): Promise<ModelCatalog> {
     return this.serialize(async () => {
-      const token = await this.readToken();
-      return listModelsWithToken(await this.acquire(token), token);
+      const { client, token } = await this.acquire();
+      return listModelsWithToken(client, token);
     });
   }
 
   createSession(model = "auto"): Promise<CopilotSession> {
     return this.serialize(async () => {
-      const client = await this.acquire(await this.readToken());
+      const { client } = await this.acquire();
       const { gitHubTokenProvider, ...config } = buildSessionOptions(
         this.readToken,
         this.source,

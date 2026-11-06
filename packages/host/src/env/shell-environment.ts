@@ -293,11 +293,7 @@ export async function ghAuthToken(
     );
     output = await commandOutput(
       "gh",
-      [
-        "auth",
-        "token",
-        ...(options.hostname === undefined ? [] : ["--hostname", options.hostname]),
-      ],
+      ["auth", "token", "--hostname", options.hostname ?? "github.com"],
       toolEnv,
       options.timeoutMs ?? 5000,
     );

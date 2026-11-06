@@ -307,6 +307,27 @@ describe("tool environment", () => {
 });
 
 describe.skipIf(process.platform === "win32")("gh auth token", () => {
+  it("defaults to github.com even when gh defaults to an enterprise host", async () => {
+    const directory = await fixture();
+    await script(
+      directory,
+      "gh",
+      [
+        'test "$1 $2" = "auth token" || exit 2',
+        'case "$3 $4" in',
+        '  "--hostname github.com") printf "github-com-fixture\\n";;',
+        '  " "|"--hostname enterprise.example.test") printf "enterprise-fixture\\n";;',
+        "  *) exit 3;;",
+        "esac",
+      ].join("\n"),
+    );
+    const env = toolEnvironment(directory, { GH_HOST: "enterprise.example.test" });
+    expect(await ghAuthToken(env)).toBe("github-com-fixture");
+    expect(await ghAuthToken(env, { hostname: "enterprise.example.test" })).toBe(
+      "enterprise-fixture",
+    );
+  });
+
   it("defensively strips caller guard bypasses while preserving configured tokens", async () => {
     const directory = await fixture();
     await script(
