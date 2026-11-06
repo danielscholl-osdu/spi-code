@@ -5,13 +5,16 @@ import { PROTOCOL_VERSION, parseMessage, type ViewSnapshot } from "@spi-code/con
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { useStore } from "zustand";
 import HALT from "../../../../../fixtures/rib-59d6895/oracle/inspect/HALT.json?raw";
 import mixed from "../../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
 import { RightPanel } from "../../panels/RightPanel.js";
-import { createSelectionStore } from "../../panels/selection.js";
+import { createSelectionStore, type SelectionStore } from "../../panels/selection.js";
+import { selectionRows } from "../../panels/selection-rows.js";
 import { inspectFromOracle, type OracleBoard } from "../../panels/test-inspect.js";
 import { mixedSnapshot } from "../../store/test-snapshot.js";
-import { watchStore } from "../../store/watch.js";
+import { createWatchStore, watchStore } from "../../store/watch.js";
+import Environment from "../environment/index.js";
 import ServicePage from "./index.js";
 
 const SERVICE = "entitlements";
@@ -380,4 +383,140 @@ it("keeps repository lines in source order when only some carry an identity", as
     "alert:Azure/osdu-spi-entitlements:dep:pom.xml:org.apache.logging.log4j:log4j-api",
   ]);
   expect(lines[0]?.hasAttribute("data-plain")).toBe(true);
+});
+
+const STACK = "osdu-spi-stack";
+const STACK_LINE = "issue:Azure/osdu-spi-stack:324";
+
+type WatchStore = ReturnType<typeof createWatchStore>;
+
+function LivePanel({ watch, selection }: { watch: WatchStore; selection: SelectionStore }) {
+  const body = useStore(watch, (state) => state.snapshot?.body);
+  return <RightPanel store={selection} {...(body ? { snapshot: body } : {})} />;
+}
+
+async function renderBoth(body: ViewSnapshot) {
+  const selection = createSelectionStore({ postMessage: vi.fn() });
+  const watch = createWatchStore(vi.fn(), selection);
+  watch.setState({ snapshot: { cursor: body.cursor, body } });
+  document.body.append(container);
+  root = createRoot(container);
+  await act(async () =>
+    root?.render(
+      <>
+        <ServicePage id={STACK} store={watch} selection={selection} />
+        <Environment store={watch} inspector={selection} />
+        <LivePanel watch={watch} selection={selection} />
+      </>,
+    ),
+  );
+  const page = {
+    service: (id: string) =>
+      section("repository")?.querySelector<HTMLElement>(`[data-selection-id="${id}"]`),
+    environment: (id: string) =>
+      container.querySelector<HTMLElement>(`.environment [data-selection-id="${id}"]`),
+  };
+  return { selection, watch, page };
+}
+
+const detailFields = () =>
+  Array.from(
+    container.querySelectorAll("aside[aria-label='Detail'] .detail-row-fields > div"),
+    (pair) => [pair.querySelector("dt")?.textContent, pair.querySelector("dd")?.textContent],
+  );
+
+const stackLine = (body: ViewSnapshot, id: string) => {
+  const line = body.briefing.repositories.rows
+    .find(({ name }) => name === STACK)
+    ?.sections.flatMap(({ lines }) => lines)
+    .find((line) => line.id === id);
+  if (!line) throw new Error(`Recorded stack needs ${id}`);
+  return line;
+};
+
+it("shows the same Detail fields for a stack line selected on its service page or on Environment", async () => {
+  const body = mixedSnapshot(mixed);
+  const line = stackLine(body, STACK_LINE);
+  const { selection, page } = await renderBoth(body);
+  const expected = selectionRows(body).find(({ id }) => id === STACK_LINE);
+
+  await click(page.service(STACK_LINE));
+  expect(selection.getState().row).toEqual(expected);
+  const fromService = detailFields();
+  expect(fromService).toEqual([
+    ["Tag", line.tag],
+    ["Reading", line.sub],
+    ["Link", line.url],
+  ]);
+
+  await act(async () => selection.getState().clear());
+  expect(detailFields()).toEqual([]);
+  await click(page.environment(STACK_LINE));
+  expect(selection.getState().row).toEqual(expected);
+  expect(detailFields()).toEqual(fromService);
+});
+
+it.each(["service", "environment"] as const)(
+  "refreshes a stack line's Detail in place after a sweep changes it (selected on %s)",
+  async (from) => {
+    const body = mixedSnapshot(mixed);
+    const { watch, page } = await renderBoth(body);
+    await click(page[from](STACK_LINE));
+    const next = structuredClone(body);
+    next.cursor = body.cursor + 1;
+    Object.assign(stackLine(next, STACK_LINE), {
+      text: "Refreshed issue title",
+      tag: "regression",
+      sub: "reopened 1h ago",
+    });
+    await act(async () => watch.setState({ snapshot: { cursor: next.cursor, body: next } }));
+    const panel = container.querySelector("aside[aria-label='Detail']");
+    expect(panel?.querySelector(".detail-title")?.textContent).toBe("Refreshed issue title");
+    expect(detailFields()).toEqual([
+      ["Tag", "regression"],
+      ["Reading", "reopened 1h ago"],
+      ["Link", stackLine(body, STACK_LINE).url],
+    ]);
+  },
+);
+
+it("keeps unidentified stack lines unselectable in source order on both pages, and arrows past them", async () => {
+  const body = mixedSnapshot(mixed);
+  const issues = body.briefing.repositories.rows
+    .find(({ name }) => name === STACK)
+    ?.sections.find(({ title }) => title === "Issues");
+  const [first, middle, last] = issues?.lines ?? [];
+  if (!first?.id || !middle || !last?.id) throw new Error("Recorded stack needs three issues");
+  delete middle.id;
+  delete middle.url;
+  const { selection, page } = await renderBoth(body);
+
+  const service = Array.from(
+    section("repository")
+      ?.querySelector(".service-repo-section")
+      ?.querySelectorAll(".service-row") ?? [],
+  );
+  const environment = Array.from(
+    container.querySelector(".environment .env-repo-section")?.querySelectorAll(".env-repo-line") ??
+      [],
+  );
+  for (const rows of [service, environment]) {
+    expect(rows.map((row) => row.textContent?.includes(middle.text))).toEqual([false, true, false]);
+    expect(rows.map((row) => row.getAttribute("data-selection-id"))).toEqual([
+      first.id,
+      null,
+      last.id,
+    ]);
+  }
+  expect(selectionRows(body).some(({ title }) => title === middle.text)).toBe(false);
+
+  for (const option of [page.service(first.id), page.environment(first.id)]) {
+    await click(option);
+    option?.focus();
+    await act(async () =>
+      option?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })),
+    );
+    expect(selection.getState().selected).toBe(last.id);
+    expect(document.activeElement?.getAttribute("data-selection-id")).toBe(last.id);
+  }
 });

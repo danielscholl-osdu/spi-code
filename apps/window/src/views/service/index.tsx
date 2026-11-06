@@ -9,7 +9,11 @@ import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
 import { inScope } from "../../components/sidebar/attention.js";
 import { Stations } from "../../components/stations/index.js";
 import { type SelectionStore, selectionStore } from "../../panels/selection.js";
-import { type SelectionRow, selectionRows } from "../../panels/selection-rows.js";
+import {
+  repositoryLineRow,
+  type SelectionRow,
+  selectionRows,
+} from "../../panels/selection-rows.js";
 import { useSelectionList } from "../../panels/useSelectionList.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import { treeServices } from "../inbox/queue.js";
@@ -50,21 +54,6 @@ function GateHint({ release: { gate, to } }: { release: ServiceRelease }) {
       and the release history read for this row.
     </span>
   );
-}
-
-type IdLine = RepoLine & { id: string };
-
-function lineRow(line: IdLine): SelectionRow {
-  return {
-    id: line.id,
-    title: line.text,
-    kind: "repository-line",
-    fields: [
-      { label: "Tag", value: line.tag },
-      { label: "Reading", value: line.sub },
-      ...(line.url ? [{ label: "Link", value: line.url }] : []),
-    ],
-  };
 }
 
 function Section({
@@ -126,17 +115,23 @@ function SelectList({
 function RepoLines({
   label,
   lines,
+  repoIndex,
+  sectionIndex,
   store,
 }: {
   label: string;
   lines: readonly RepoLine[];
+  repoIndex: number;
+  sectionIndex: number;
   store: SelectionStore;
 }) {
-  const selectable = lines.filter((line): line is IdLine => Boolean(line.id));
-  const rows = selectable.map(lineRow);
+  const lineRows = lines.map((line, index) =>
+    repositoryLineRow(line, repoIndex, sectionIndex, index),
+  );
+  const rows = lineRows.filter((row): row is SelectionRow => row !== undefined);
   const list = useSelectionList(
     rows,
-    (row) => openExternal(selectable.find((line) => line.id === row.id)?.url),
+    (row) => openExternal(lines.find((line) => line.id === row.id)?.url),
     store,
   );
   if (rows.length === 0) {
@@ -152,8 +147,8 @@ function RepoLines({
   }
   return (
     <div className="service-rows" role="listbox" aria-label={label} data-selection-list="">
-      {lines.map((line) => {
-        const row = line.id ? rows.find(({ id }) => id === line.id) : undefined;
+      {lines.map((line, index) => {
+        const row = lineRows[index];
         if (!row) {
           return (
             <div
@@ -442,7 +437,7 @@ function ServiceBody({
                 render={() => <span className="service-row-sub">{repo.sub}</span>}
               />
             )}
-            {repo.sections.map((section) => (
+            {repo.sections.map((section, sectionIndex) => (
               <div
                 key={section.title}
                 className="service-repo-section"
@@ -458,6 +453,8 @@ function ServiceBody({
                 <RepoLines
                   label={`${id} ${section.title}`}
                   lines={section.lines}
+                  repoIndex={repoIndex}
+                  sectionIndex={sectionIndex}
                   store={selection}
                 />
               </div>

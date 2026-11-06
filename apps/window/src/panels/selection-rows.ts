@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { ViewSnapshot } from "@spi-code/contracts";
+import type { RepoLine, ViewSnapshot } from "@spi-code/contracts";
 import type { Route } from "../app/routes.js";
 import { inspectId } from "../views/environment/timeline.js";
 
@@ -41,6 +41,31 @@ const stationLabels = {
   release: "Release",
   lane: "Stack lane",
 };
+
+export const repositoryLinePointer = (repoIndex: number, sectionIndex: number, lineIndex: number) =>
+  `/briefing/repositories/rows/${repoIndex}/sections/${sectionIndex}/lines/${lineIndex}`;
+
+/** The one selection row for a repository line, wherever it is drawn; a line without an id has none. */
+export function repositoryLineRow(
+  line: RepoLine,
+  repoIndex: number,
+  sectionIndex: number,
+  lineIndex: number,
+): SelectionRow | undefined {
+  if (!line.id) return undefined;
+  const fields = [
+    ...(line.tag ? [{ label: "Tag", value: line.tag }] : []),
+    ...(line.sub ? [{ label: "Reading", value: line.sub }] : []),
+    ...(line.url ? [{ label: "Link", value: line.url }] : []),
+  ];
+  return {
+    id: line.id,
+    title: line.text,
+    kind: "repository-line",
+    prefixes: [repositoryLinePointer(repoIndex, sectionIndex, lineIndex)],
+    ...(fields.length > 0 ? { fields } : {}),
+  };
+}
 
 /** Snapshot rows for title/field lookup, including existing callers that select only an id. */
 export function selectionRows(snapshot: ViewSnapshot): SelectionRow[] {
@@ -101,20 +126,10 @@ export function selectionRows(snapshot: ViewSnapshot): SelectionRow[] {
     ),
     ...briefing.repositories.rows.flatMap((repo, repoIndex) =>
       repo.sections.flatMap((section, sectionIndex) =>
-        section.lines.flatMap((line, lineIndex): SelectionRow[] =>
-          line.id
-            ? [
-                {
-                  id: line.id,
-                  title: line.text,
-                  kind: "repository-line",
-                  prefixes: [
-                    `/briefing/repositories/rows/${repoIndex}/sections/${sectionIndex}/lines/${lineIndex}`,
-                  ],
-                },
-              ]
-            : [],
-        ),
+        section.lines.flatMap((line, lineIndex) => {
+          const row = repositoryLineRow(line, repoIndex, sectionIndex, lineIndex);
+          return row ? [row] : [];
+        }),
       ),
     ),
     ...briefing.themes.map(

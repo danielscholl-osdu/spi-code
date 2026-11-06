@@ -197,10 +197,7 @@ export function RightPanel({
               (!ownRow.prefixes || prefixes?.join("|") === ownRow.prefixes.join("|")))),
       )
     : undefined;
-  const row =
-    (matched && !matched.fields && ownRow?.fields
-      ? { ...matched, fields: ownRow.fields }
-      : matched) ?? ownRow;
+  const row = matched ?? ownRow;
   const onKeyDown = (event: KeyboardEvent) => {
     const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
     if (step === 0) return;

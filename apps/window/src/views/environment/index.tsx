@@ -5,7 +5,11 @@ import type { RepoLine } from "@spi-code/contracts";
 import { useStore } from "zustand";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
 import { type SelectionStore, selectionStore } from "../../panels/selection.js";
-import type { SelectionRow } from "../../panels/selection-rows.js";
+import {
+  repositoryLinePointer,
+  repositoryLineRow,
+  type SelectionRow,
+} from "../../panels/selection-rows.js";
 import { useSelectionList } from "../../panels/useSelectionList.js";
 import { watchStore } from "../../store/watch.js";
 import {
@@ -78,18 +82,11 @@ export default function Environment({
   const sections =
     repository?.sections.map((section, sectionIndex) => ({
       ...section,
-      lines: section.lines.map((line, lineIndex) => {
-        const pointer = `${repositoryPointer}/sections/${sectionIndex}/lines/${lineIndex}`;
-        const row: SelectionRow | undefined = line.id
-          ? {
-              id: line.id,
-              title: line.text,
-              kind: "repository-line",
-              prefixes: [pointer],
-            }
-          : undefined;
-        return { line, pointer, row };
-      }),
+      lines: section.lines.map((line, lineIndex) => ({
+        line,
+        pointer: repositoryLinePointer(repositoryIndex, sectionIndex, lineIndex),
+        row: repositoryLineRow(line, repositoryIndex, sectionIndex, lineIndex),
+      })),
     })) ?? [];
   const lines = useSelectionList(
     sections.flatMap((section) => section.lines.flatMap(({ row }) => (row ? [row] : []))),
