@@ -151,6 +151,11 @@ describe("release history and the current service gate", () => {
   test("the mixed fixture keeps the October 12 GitHub station separate from October 21 release history, as the rib does", () => {
     const facts = fixtureFacts();
     const r = reads();
+    const published = r.releases[repo]?.find((release) => release.tag === "v1.2.1")?.at;
+    if (!facts.github.at || !published || !r.at)
+      throw new Error("fixture has GitHub, release and history timestamps");
+    expect(Date.parse(facts.github.at)).toBeLessThan(Date.parse(published));
+    expect(Date.parse(published)).toBeLessThan(Date.parse(r.at));
     const row = releaseDoc(monthFacts(r, "2026-10", NOW, fixtureContext), undefined, NOW).rows.find(
       (row) => row.id === "entitlements",
     );
