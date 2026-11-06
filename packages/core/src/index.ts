@@ -10,6 +10,7 @@ export * from "./environment.js";
 export * from "./util.js";
 export * from "./rollout.js";
 export * from "./tone.js";
+export * from "./voice.js";
 export * from "./releases.js";
 export type { ReleaseFact } from "./facts.js";
 export type { ReleaseFact as ReadReleaseFact } from "./releases.js";

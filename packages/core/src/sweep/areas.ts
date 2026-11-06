@@ -131,9 +131,9 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
   area("fleet", true, 1, 0, async ({ facts, reads, clock }, gh) => {
     const { reads: records, ...data } = await readFleet(gh,
       facts.fleet.data ? { ...facts.fleet.data, reads: reads.fleet } : undefined,
-      clock.now(), options.fleetFiles, options.ctx.stackRepo);
+      clock.now(), options.fleetFiles, options.ctx.stackRepo, options.ctx.voice);
     view = fleetView({ ...data, reads: records }, options.fleetFiles ?? {}, {
-      now: clock.now(), readFile: options.readFile, previous: view,
+      now: clock.now(), readFile: options.readFile, previous: view, voice: options.ctx.voice,
     });
     return { data, reads: view.reads };
   });
@@ -270,7 +270,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
       if (!facts.fleet.data?.forks && !options.fleetFiles?.services && !facts.fleet.data?.rollout)
         return options.ctx;
       view = fleetView(facts.fleet.data, options.fleetFiles ?? {}, {
-        now: options.ctx.clock.now(), readFile: options.readFile, previous: view,
+        now: options.ctx.clock.now(), readFile: options.readFile, previous: view, voice: options.ctx.voice,
       });
       return createContext({ ...options.ctx,
         fleet: facts.fleet.data?.forks || options.fleetFiles?.services

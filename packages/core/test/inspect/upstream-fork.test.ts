@@ -10,6 +10,7 @@ import { inspectUpstreamFork } from "../../src/inspect/upstream-fork.js";
 import type { UpstreamBoardOptions } from "../../src/inspect/upstream-shared.js";
 import { buildModel, type Model } from "../../src/model/index.js";
 import { parseRollout } from "../../src/rollout.js";
+import { RIB_VOICE } from "../../src/voice.js";
 import {
   planReadyFacts,
   UPSTREAM_NOW,
@@ -78,7 +79,7 @@ function modelOf(facts: Facts): Model {
 const cases = Object.entries(states).map(([name, { facts, opts }]) => {
   const model = modelOf(facts());
   const boards = model.upstream.forks.map((f) =>
-    inspectUpstreamFork(model, f.service, UPSTREAM_NOW, opts),
+    inspectUpstreamFork(model, f.service, UPSTREAM_NOW, { ...opts, voice: RIB_VOICE }),
   );
   return { name, model, boards };
 });
@@ -129,6 +130,23 @@ describe("pinned rib upstream-fork parity", () => {
     expect(board("current-and-unread", "partition").header.status.label).toBe("CURRENT");
     expect(board("current-and-unread", "legal").header.status.label).toBe("UNREAD");
     expect(board("upstream-unread", "file").header.status.label).toBe("UNREAD");
+  });
+
+  test("by default every fork board names SPI Code where the rib named itself", () => {
+    const text = cases
+      .flatMap(({ name, model }) =>
+        model.upstream.forks.map((f) =>
+          JSON.stringify(inspectUpstreamFork(model, f.service, UPSTREAM_NOW, states[name]?.opts)),
+        ),
+      )
+      .join("\n");
+    expect(text).not.toMatch(/\b[Rr]ib\b/);
+    for (const said of [
+      "SPI Code never approves.",
+      "SPI Code pauses the wave",
+      "SPI Code shows it as Prepared",
+    ])
+      expect(text).toContain(said);
   });
 
   test("an unknown or inexact service has no board", () => {

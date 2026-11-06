@@ -4,6 +4,7 @@
 import type { ActionItem } from "../act/action-item.js";
 import type { UpstreamActions } from "../act/upstream.js";
 import type { CanvasTone } from "../tone.js";
+import type { Voice } from "../voice.js";
 
 export interface UpstreamRow {
   text: string;
@@ -56,6 +57,8 @@ export interface UpstreamBoard {
 export interface UpstreamBoardOptions {
   blocked?: string;
   extra?: UpstreamSection[];
+  /** How the board names the actor; defaults to SPI Code. */
+  voice?: Voice;
 }
 
 export function inspectRow(id: string): Pick<UpstreamRow, "action"> {

@@ -18,6 +18,7 @@ import type { FleetEntry, FleetFacts, ForkVars } from "../facts.js";
 import type { Gh } from "../forge.js";
 import { type ParsedRollout, parseRollout } from "../rollout.js";
 import { pool } from "../util.js";
+import { APP_VOICE, type Voice } from "../voice.js";
 
 export const ROLLOUT_PATH = ".github/fleet/rollout.json";
 export type FleetFiles = { services?: string | null; rollout?: string | null };
@@ -59,7 +60,7 @@ function record(
   };
 }
 
-export function parseForks(text: string): FleetEntry[] {
+export function parseForks(text: string, voice: Voice = APP_VOICE): FleetEntry[] {
   const doc = parse(text) as { forks?: unknown } | null;
   if (!Array.isArray(doc?.forks)) throw new Error(`${DECLARATION_PATH} has no forks: list`);
   const out: FleetEntry[] = [];
@@ -73,7 +74,7 @@ export function parseForks(text: string): FleetEntry[] {
       ...(typeof e.canonicalSource === "string" ? { canonicalSource: e.canonicalSource } : {}),
     });
   }
-  if (out.length === 0) throw new Error(`${DECLARATION_PATH} lists no forks the rib can read`);
+  if (out.length === 0) throw new Error(`${DECLARATION_PATH} lists no forks ${voice.name} can read`);
   return out;
 }
 
@@ -99,6 +100,7 @@ export async function readFleet(
   now: Date,
   files: FleetFiles = {},
   stackRepo: string = STACK_REPO,
+  voice: Voice = APP_VOICE,
 ): Promise<FleetRead> {
   const reads: ReadRecord[] = [];
   const previous = prev?.reads ?? [];
@@ -124,7 +126,7 @@ export async function readFleet(
       if (!data.stack) throw new Error(`${stackRepo} is not readable`);
       const text = data.stack.object?.text;
       if (text === undefined) throw new Error(`${stackRepo} has no ${DECLARATION_PATH} on main`);
-      forks = parseForks(text);
+      forks = parseForks(text, voice);
       reads.push(record(stackRepo, DECLARATION_PATH, now, previous));
     } catch (error) {
       forks = prev?.forks;
@@ -215,9 +217,9 @@ export function resolveFleet(
   return { services, source: "stack", unresolved };
 }
 
-export function resolveRollout(data: FleetFacts | undefined): ParsedRollout {
+export function resolveRollout(data: FleetFacts | undefined, voice: Voice = APP_VOICE): ParsedRollout {
   if (typeof data?.rollout !== "string") return { warnings: [] };
-  return parseRollout(data.rollout);
+  return parseRollout(data.rollout, voice);
 }
 
 export interface FleetView {
@@ -231,7 +233,7 @@ export interface FleetView {
 export function fleetView(
   data: (FleetFacts & { reads?: readonly ReadRecord[] }) | undefined,
   files: FleetFiles,
-  options: { now: Date; readFile?: FleetFileReader; previous?: FleetView },
+  options: { now: Date; readFile?: FleetFileReader; previous?: FleetView; voice?: Voice },
 ): FleetView {
   const previous = options.previous;
   const reads = [...(data?.reads ?? [])];
@@ -254,11 +256,11 @@ export function fleetView(
     : resolveFleet(data);
   if (files.rollout) {
     const rollout = local(files.rollout, (text) => ({
-      rollout: text === null ? { warnings: [] } : parseRollout(text),
+      rollout: text === null ? { warnings: [] } : parseRollout(text, options.voice),
       rolloutMissing: text === null,
     }), { rollout: previous?.rollout ?? { warnings: [] }, rolloutMissing: previous?.rolloutMissing ?? true });
     return { fleet, ...rollout, rolloutFrom: files.rollout, reads };
   }
-  return { fleet, rollout: resolveRollout(data), ...(data?.rolloutFrom ? { rolloutFrom: data.rolloutFrom } : {}),
+  return { fleet, rollout: resolveRollout(data, options.voice), ...(data?.rolloutFrom ? { rolloutFrom: data.rolloutFrom } : {}),
     rolloutMissing: data?.rollout === null, reads };
 }

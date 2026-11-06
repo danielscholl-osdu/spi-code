@@ -3,10 +3,12 @@
 
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
+import { createContext } from "../../src/context";
 import { type InspectState, inspectItem, inspectTitle } from "../../src/inspect/item";
 import type { FailureClass } from "../../src/model/attribution";
 import { buildModel } from "../../src/model/index";
 import type { QueueItem } from "../../src/model/queue";
+import { RIB_VOICE } from "../../src/voice";
 import { fixtureContext } from "../briefing-setup";
 import { FIXTURE_NOW, fixtureFacts } from "../harness";
 
@@ -54,12 +56,14 @@ function item(over: Partial<QueueItem> = {}): QueueItem {
     ...over,
   };
 }
-function inspect(i: QueueItem, state: InspectState = {}) {
+const ribContext = createContext({ ...fixtureContext, voice: RIB_VOICE });
+
+function inspect(i: QueueItem, state: InspectState = {}, context = fixtureContext) {
   return inspectItem(
     { ...model, queue: { ...model.queue, items: [i] } },
     i,
     FIXTURE_NOW,
-    fixtureContext,
+    context,
     state,
   );
 }
@@ -89,7 +93,7 @@ describe("inspector class parity", () => {
           "utf8",
         ),
       );
-      const result = inspect(item({ cls, ...overrides[cls] }));
+      const result = inspect(item({ cls, ...overrides[cls] }), {}, ribContext);
       const lede = oracle.sections.find((s) => s.kind === "rows")?.items[0]?.text;
       const why = oracle.sections.flatMap((s) => s.items).find((c) => c.title === "Why");
       const next = oracle.sections.find((s) => s.title === "Next step")?.items[0]?.title;
@@ -115,6 +119,16 @@ describe("inspector class parity", () => {
 });
 
 describe("inspector item data", () => {
+  test("an unread failure names SPI Code, and the rib keeps its own wording", () => {
+    const unread = item({ cls: "UNREAD" });
+    expect(inspect(unread).next).toBe(
+      "Open the failed check on GitHub; SPI Code could not read its job.",
+    );
+    expect(inspect(unread, {}, ribContext).next).toBe(
+      "Open the failed check on GitHub; the rib could not read its job.",
+    );
+  });
+
   test("every recorded queue item has guidance and preserves effects and related navigation", () => {
     for (const i of model.queue.items) {
       const result = inspectItem(model, i, FIXTURE_NOW, fixtureContext);

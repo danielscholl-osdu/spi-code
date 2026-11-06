@@ -15,6 +15,7 @@ import type { Cell, CellTone } from "../model/rollout.js";
 import { planStep, UPSTREAM_PREFIX, type UpFork, type UpstreamModel } from "../model/upstream.js";
 import type { CanvasTone } from "../tone.js";
 import { names, plural, stamp, whose } from "../util.js";
+import { APP_VOICE, actor, type Voice } from "../voice.js";
 import {
   inspectRow,
   nextCard,
@@ -93,20 +94,20 @@ function laneMeter(u: UpstreamModel): Section | undefined {
   };
 }
 
-function stepsSection(): Section {
+function stepsSection(voice: Voice): Section {
   return {
     kind: "rows",
     title: "What each fork goes through",
     items: [
       {
-        chip: { label: "you · rib", tone: "ok" },
+        chip: { label: `you · ${voice.label}`, tone: "ok" },
         text: "Prepare",
         trailing: "Dispatch Sync Upstream. Opens a sync PR into fork_upstream. No lane.",
       },
       {
-        chip: { label: "you · rib", tone: "ok" },
+        chip: { label: `you · ${voice.label}`, tone: "ok" },
         text: "Start",
-        trailing: "Merge the sync PR. The rib dispatches the cascade at once, no 6 hour wait.",
+        trailing: `Merge the sync PR. ${actor(voice)} dispatches the cascade at once, no 6 hour wait.`,
       },
       {
         chip: { label: "automatic", tone: "neutral" },
@@ -186,8 +187,8 @@ function heldSection(u: UpstreamModel): Section | undefined {
   };
 }
 
-function scheduleSection(u: UpstreamModel, now: Date): Section | undefined {
-  const s = upstreamView(u, now).schedule;
+function scheduleSection(u: UpstreamModel, now: Date, voice: Voice): Section | undefined {
+  const s = upstreamView(u, now, voice).schedule;
   if (!s) return undefined;
   return {
     kind: "rows",
@@ -224,7 +225,8 @@ export function inspectUpstreamPlan(
   opts: UpstreamBoardOptions = {},
 ): UpstreamBoard {
   const u = model.upstream;
-  const view = upstreamView(u, now);
+  const voice = opts.voice ?? APP_VOICE;
+  const view = upstreamView(u, now, voice);
   const step = planStep(u);
   const verbs = planActions(u, {
     swept: model.sweptAt ?? "",
@@ -253,7 +255,7 @@ export function inspectUpstreamPlan(
     { kind: "rows", items: [{ text: sub }, { text: view.headline }] },
     nextCard(
       `${view.next.title}.`,
-      [stepWhy(u, step, now), targets.length ? `Touches ${targets.join(", ")}.` : ""]
+      [stepWhy(u, step, now, voice), targets.length ? `Touches ${targets.join(", ")}.` : ""]
         .filter(Boolean)
         .join(" "),
       verbs,
@@ -292,8 +294,8 @@ export function inspectUpstreamPlan(
   if (w) sections.push(w);
   const held = heldSection(u);
   if (held) sections.push(held);
-  if (u.mode !== "flight") sections.push(stepsSection());
-  const sched = scheduleSection(u, now);
+  if (u.mode !== "flight") sections.push(stepsSection(voice));
+  const sched = scheduleSection(u, now, voice);
   if (sched) sections.push(sched);
   sections.push({
     kind: "rows",

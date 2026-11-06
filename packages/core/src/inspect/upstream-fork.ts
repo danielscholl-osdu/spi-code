@@ -13,6 +13,7 @@ import {
 } from "../model/upstream.js";
 import type { CanvasTone } from "../tone.js";
 import { names, plural, stamp, whose } from "../util.js";
+import { APP_VOICE, actor, type Voice } from "../voice.js";
 import {
   inspectRow,
   nextCard,
@@ -86,7 +87,7 @@ function forkTitle(f: UpFork): string {
   }
 }
 
-function forkNext(u: UpstreamModel, f: UpFork): { title: string; why: string } {
+function forkNext(u: UpstreamModel, f: UpFork, voice: Voice): { title: string; why: string } {
   const sameMove = u.forks.filter((o) => o !== f && ["review", "main", "done"].includes(o.phase));
   switch (f.verb) {
     case "prepare":
@@ -120,7 +121,7 @@ function forkNext(u: UpstreamModel, f: UpFork): { title: string; why: string } {
     case "review":
       return {
         title: `Review Sync to Main #${f.toMain?.number} on GitHub`,
-        why: "Its validation borrows a lane, and it auto-merges once approved and green. The rib never approves.",
+        why: `Its validation borrows a lane, and it auto-merges once approved and green. ${actor(voice)} never approves.`,
       };
     default:
       return { title: forkTitle(f), why: f.wait ?? f.planWait ?? "" };
@@ -228,7 +229,8 @@ export function inspectUpstreamFork(
     now,
     ...(opts.blocked ? { blocked: opts.blocked } : {}),
   });
-  const next = forkNext(u, f);
+  const voice = opts.voice ?? APP_VOICE;
+  const next = forkNext(u, f, voice);
   const links = [
     ...(f.syncPr ? [{ value: `Sync PR #${f.syncPr.number}`, href: f.syncPr.url }] : []),
     ...(f.tracking
@@ -274,7 +276,7 @@ export function inspectUpstreamFork(
       title: "When a second fork fails the same way",
       items: [
         {
-          text: "The rib pauses the wave and turns the rest into Absorb items: the move is the toolchain, not one fork. Forks already past the cascade carry on.",
+          text: `${actor(voice)} pauses the wave and turns the rest into Absorb items: the move is the toolchain, not one fork. Forks already past the cascade carry on.`,
         },
       ],
     });
@@ -306,7 +308,7 @@ export function inspectUpstreamFork(
       title: `Before ${at}`,
       items: [
         {
-          text: "A blocked cascade doesn't stop Sync Upstream, so new upstream commits can arrive as a fresh sync PR. The rib shows it as Prepared and doesn't offer Start until this cascade clears.",
+          text: `A blocked cascade doesn't stop Sync Upstream, so new upstream commits can arrive as a fresh sync PR. ${actor(voice)} shows it as Prepared and doesn't offer Start until this cascade clears.`,
         },
       ],
     });

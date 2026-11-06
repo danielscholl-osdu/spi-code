@@ -29,6 +29,7 @@ import { type Repositories, repositoriesOf } from "./repos.js";
 import { rolloutWords } from "./rollout.js";
 import { type UpstreamView, upstreamView } from "./upstream.js";
 import { ago as agoText, deployableWords, streakText } from "./words.js";
+import type { Voice } from "../voice.js";
 
 export type Tone = "bad" | "warn" | "ok" | "neutral";
 
@@ -600,6 +601,7 @@ function focusOf(
   focusable: readonly QueueItem[],
   next: string | undefined,
   now: Date,
+  voice: Voice,
 ): FocusItem[] {
   const ordered = [...focusable].sort((a, b) => rank(a) - rank(b));
   const stuck = ordered.filter((i) => i.incident);
@@ -620,7 +622,7 @@ function focusOf(
         cause:
           "Upstream merged changes to fork-owned provider and test trees since each fork's seed, and no fork PR cites them.",
         effect: `Until each MR is ported, ${list(ports.map((p) => p.scope))} drift from upstream.`,
-        next: sentence(nextText(item)),
+        next: sentence(nextText(item, [], voice)),
         verb: verbOf(item),
         evidence: evidenceOf(ports),
       });
@@ -660,7 +662,7 @@ function focusOf(
       sub,
       cause: causeOf(item),
       effect: effectOf(item, stuck, next),
-      next: sentence(nextText(item)),
+      next: sentence(nextText(item, [], voice)),
       verb: verbOf(item),
       evidence: evidenceOf([item]),
     });
@@ -767,7 +769,7 @@ export function readItem(model: Model, item: QueueItem, now: Date | undefined = 
     sub,
     cause: causeOf(item),
     effect: effectOf(item, stuck, next),
-    next: sentence(nextText(item)),
+    next: sentence(nextText(item, [], context.voice)),
     ...(gap ? { gap } : {}),
     related: relatedOf(model, item, themes),
   };
@@ -1351,7 +1353,7 @@ export function buildBriefing(model: Model, doctor: DoctorView, now: Date | unde
       ready: [],
       themes: [],
       horizon: { headline },
-      flow: upstreamView(model.upstream, now),
+      flow: upstreamView(model.upstream, now, context.voice),
       environment: {
         headline,
         facts: [],
@@ -1365,7 +1367,7 @@ export function buildBriefing(model: Model, doctor: DoctorView, now: Date | unde
   const focusable = model.queue.items.filter((i) => i.rung <= 1);
   const ready = readyOf(model);
   const readyCount = ready.reduce((n, r) => n + r.count, 0);
-  const focus = focusOf(model, focusable, next, now);
+  const focus = focusOf(model, focusable, next, now, context.voice);
   const themes = themesOf(model, now, next);
   const facts = factsOf(model, now);
   const headline =
@@ -1383,7 +1385,7 @@ export function buildBriefing(model: Model, doctor: DoctorView, now: Date | unde
     ready,
     themes,
     horizon: { headline: horizonOf(themes, next) },
-    flow: upstreamView(model.upstream, now),
+    flow: upstreamView(model.upstream, now, context.voice),
     environment: environmentOf(model, facts[0], now),
     repositories: repositoriesOf(model, now),
   };

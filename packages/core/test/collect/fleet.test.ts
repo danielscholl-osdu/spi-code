@@ -23,6 +23,7 @@ import type { Exec } from "../../src/exec/index.js";
 import { RecordingExec, ReplayExec } from "../../src/exec/recording.js";
 import { Gh } from "../../src/forge.js";
 import { buildModel } from "../../src/model/index.js";
+import { RIB_VOICE } from "../../src/voice.js";
 import { FIXTURE_NOW, fixtureFacts } from "../harness.js";
 
 const now = FIXTURE_NOW;
@@ -440,4 +441,6 @@ test("fork YAML skips invalid entries, deduplicates identity on resolution and r
   expect(entries[0]?.canonicalSource).toBe("fork");
   expect(resolveFleet({ forks: entries, vars: {} }).services).toHaveLength(1);
   for (const text of ["{", "", "forks: {}", "forks: []"]) expect(() => parseForks(text)).toThrow();
+  expect(() => parseForks("forks: []")).toThrow("lists no forks SPI Code can read");
+  expect(() => parseForks("forks: []", RIB_VOICE)).toThrow("lists no forks the rib can read");
 });

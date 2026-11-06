@@ -9,6 +9,7 @@ import { createContext } from "../../src/context.js";
 import { inspectUpstreamPlan } from "../../src/inspect/upstream-plan.js";
 import { buildModel } from "../../src/model/index.js";
 import { parseRollout } from "../../src/rollout.js";
+import { RIB_VOICE } from "../../src/voice.js";
 import { UPSTREAM_NOW, UPSTREAM_SERVICES, UPSTREAM_STATES } from "../upstream-states.js";
 
 vi.stubEnv("TZ", "UTC");
@@ -30,7 +31,7 @@ const cases = Object.entries(UPSTREAM_STATES).map(([name, build]) => {
     clock: { now: () => UPSTREAM_NOW },
   });
   const model = buildModel(facts, UPSTREAM_NOW, {}, context);
-  return { name, model, board: inspectUpstreamPlan(model, UPSTREAM_NOW) };
+  return { name, model, board: inspectUpstreamPlan(model, UPSTREAM_NOW, { voice: RIB_VOICE }) };
 });
 
 describe("pinned rib upstream-plan parity", () => {
@@ -46,6 +47,23 @@ describe("pinned rib upstream-plan parity", () => {
       );
     },
   );
+
+  test("by default the plan and Flow name SPI Code where the rib named itself", () => {
+    const text = cases
+      .flatMap(({ model }) => [
+        JSON.stringify(inspectUpstreamPlan(model, UPSTREAM_NOW)),
+        JSON.stringify(upstreamView(model.upstream, UPSTREAM_NOW)),
+      ])
+      .join("\n");
+    expect(text).not.toMatch(/\b[Rr]ib\b/);
+    for (const said of [
+      "you · SPI Code",
+      "SPI Code dispatches the cascade at once",
+      "Start · SPI Code",
+      "in SPI Code · ",
+    ])
+      expect(text).toContain(said);
+  });
 
   test("the fork table follows Flow, with one-word pills and no plan column", () => {
     const scenario = cases.find(({ name }) => name === "wave-gates");

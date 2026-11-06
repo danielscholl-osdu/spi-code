@@ -7,6 +7,7 @@ import {
 } from "./config.js";
 import { type EnvironmentPaths, environmentFromEnv } from "./environment.js";
 import type { Rollout } from "./rollout.js";
+import { APP_VOICE, type Voice } from "./voice.js";
 
 export interface CoreContext {
   readonly fleet: Fleet;
@@ -15,6 +16,8 @@ export interface CoreContext {
   readonly paths: EnvironmentPaths;
   readonly rollout?: Rollout;
   readonly clock: Clock;
+  /** How operator-facing text names the actor; the rib passes RIB_VOICE. */
+  readonly voice: Voice;
 }
 
 export function createContext(input: Partial<CoreContext> = {}): CoreContext {
@@ -41,6 +44,7 @@ export function createContext(input: Partial<CoreContext> = {}): CoreContext {
         })
       : undefined,
     clock: Object.freeze({ now: () => clock.now() }),
+    voice: Object.freeze({ ...(input.voice ?? APP_VOICE) }),
   });
 }
 

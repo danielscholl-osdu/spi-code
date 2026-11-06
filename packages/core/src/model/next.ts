@@ -4,6 +4,7 @@
 import type { Judgement } from "../rollout.js";
 import type { FailureClass } from "./attribution.js";
 import type { ItemKind, QueueItem } from "./queue.js";
+import { APP_VOICE, type Voice } from "../voice.js";
 import { pullFailure } from "./reason.js";
 
 export type ItemClass =
@@ -92,7 +93,7 @@ function haltNext(item: QueueItem, listed: readonly ListedEntry[]): string {
   return copies.length > 0 ? `${rule} · ${copies.join("; ")}` : rule;
 }
 
-function failureNext(item: QueueItem): string {
+function failureNext(item: QueueItem, voice: Voice): string {
   const check = fact(item, "check");
   const reason = fact(item, "reason") ?? "";
   switch (item.cls) {
@@ -117,7 +118,7 @@ function failureNext(item: QueueItem): string {
         : "The fork's own image cannot be pulled; the stack is not the cause";
     }
     case "UNREAD":
-      return "Open the failed check on GitHub; the rib could not read its job";
+      return `Open the failed check on GitHub; ${voice.name} could not read its job`;
     case "CONFLICT":
       return "Resolve the conflict named in the issue on the fork, then dispatch the cascade";
     default:
@@ -144,10 +145,10 @@ function lowerFirst(text: string): string {
 const RERUN_ONCE = "re-run the failed jobs once, after the other lanes drain";
 
 // An environment failure is re-run once; anything else stops the line and is fixed in the template.
-function judgedNext(item: QueueItem, j: Judgement): string {
+function judgedNext(item: QueueItem, j: Judgement, voice: Voice): string {
   if (j.response === "stop") {
     const first =
-      item.kind === "lanes" ? "read why the lanes failed" : lowerFirst(failureNext(item));
+      item.kind === "lanes" ? "read why the lanes failed" : lowerFirst(failureNext(item, voice));
     return `Stop the line${j.note ? ` (${j.note})` : ""}: ${first}, then fix it forward in the template; no re-run`;
   }
   if (item.kind === "lanes" && !item.note) {
@@ -157,9 +158,13 @@ function judgedNext(item: QueueItem, j: Judgement): string {
 }
 
 // What a person does to clear the item, in the words of its verb.
-export function nextText(item: QueueItem, listed: readonly ListedEntry[] = []): string {
+export function nextText(
+  item: QueueItem,
+  listed: readonly ListedEntry[] = [],
+  voice: Voice = APP_VOICE,
+): string {
   if (item.judgement && (item.kind === "lanes" || item.kind === "template-red")) {
-    return judgedNext(item, item.judgement);
+    return judgedNext(item, item.judgement, voice);
   }
   switch (item.kind) {
     case "halt":
@@ -208,7 +213,7 @@ export function nextText(item: QueueItem, listed: readonly ListedEntry[] = []): 
       return `Port ${first ? `!${first[1]}` : "the MR"} into ${first?.[2] ?? "the fork-owned tree"}; cite the MR URL in the PR body`;
     }
   }
-  if (item.cls && item.cls !== "ENV") return failureNext(item);
+  if (item.cls && item.cls !== "ENV") return failureNext(item, voice);
   switch (item.kind) {
     case "gate1":
       return "Review the sync PR on GitHub and merge it";
@@ -217,6 +222,6 @@ export function nextText(item: QueueItem, listed: readonly ListedEntry[] = []): 
     case "template-pr":
       return "Review the PR on GitHub; every fork takes it at the next Sync Template";
     default:
-      return failureNext(item);
+      return failureNext(item, voice);
   }
 }

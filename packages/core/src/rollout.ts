@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: MIT
 
 import type { JobDetail } from "./facts.js";
+import { APP_VOICE, type Voice } from "./voice.js";
 
-// The fleet rollout file in osdu-spi. The rib reads `lanes` and `ordering`; other fields pass unread.
+// The fleet rollout file in osdu-spi. Core reads `lanes` and `ordering`; other fields pass unread.
 export const ROLLOUT_SCHEMA = 1;
 
 // A fork that merges only once each fork it names has merged and its main run is green.
@@ -18,7 +19,7 @@ export interface Rollout {
   ordering?: readonly OrderRule[];
 }
 
-function orderingOf(raw: unknown): { ordering?: OrderRule[]; warnings: string[] } {
+function orderingOf(raw: unknown, voice: Voice): { ordering?: OrderRule[]; warnings: string[] } {
   if (raw === undefined) return { warnings: [] };
   const rules = Array.isArray(raw) ? raw : [];
   const ordering: OrderRule[] = [];
@@ -42,7 +43,7 @@ function orderingOf(raw: unknown): { ordering?: OrderRule[]; warnings: string[] 
     warnings:
       dropped > 0
         ? [
-            `rollout file has ${dropped === 1 ? "an ordering rule" : `${dropped} ordering rules`} the rib cannot read; merges ignore it`,
+            `rollout file has ${dropped === 1 ? "an ordering rule" : `${dropped} ordering rules`} ${voice.name} cannot read; merges ignore it`,
           ]
         : [],
   };
@@ -53,7 +54,7 @@ export interface ParsedRollout {
   warnings: string[];
 }
 
-export function parseRollout(text: string): ParsedRollout {
+export function parseRollout(text: string, voice: Voice = APP_VOICE): ParsedRollout {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
@@ -64,11 +65,11 @@ export function parseRollout(text: string): ParsedRollout {
   if (doc.schema !== ROLLOUT_SCHEMA) {
     return {
       warnings: [
-        `rollout file has schema ${JSON.stringify(doc.schema)}, the rib reads ${ROLLOUT_SCHEMA}; fleet buttons unpaced`,
+        `rollout file has schema ${JSON.stringify(doc.schema)}, ${voice.name} reads ${ROLLOUT_SCHEMA}; fleet buttons unpaced`,
       ],
     };
   }
-  const order = orderingOf(doc.ordering);
+  const order = orderingOf(doc.ordering, voice);
   const ordering = order.ordering?.length ? { ordering: order.ordering } : {};
   if (doc.lanes === undefined) return { rollout: { ...ordering }, warnings: order.warnings };
   if (typeof doc.lanes !== "number" || !Number.isInteger(doc.lanes) || doc.lanes < 1) {

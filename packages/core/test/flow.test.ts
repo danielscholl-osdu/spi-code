@@ -10,6 +10,7 @@ import { buildModel } from "../src/model/index";
 import { upstreamOpens } from "../src/model/rollout";
 import { parseRollout } from "../src/rollout";
 import { plural } from "../src/util";
+import { RIB_VOICE } from "../src/voice";
 import { fixtureContext } from "./briefing-setup";
 import {
   doneFacts,
@@ -81,12 +82,22 @@ describe("every fork on the change", () => {
 });
 
 describe("the rollout file's ordering", () => {
-  test("a rule the rib cannot read is dropped with a warning", () => {
-    const parsed = parseRollout(
-      JSON.stringify({ schema: 1, lanes: 5, ordering: [{ service: "search", after: "storage" }] }),
-    );
+  test("a rule SPI Code cannot read is dropped with a warning", () => {
+    const text = JSON.stringify({
+      schema: 1,
+      lanes: 5,
+      ordering: [{ service: "search", after: "storage" }],
+    });
+    const parsed = parseRollout(text);
     expect(parsed.rollout).toEqual({ lanes: 5 });
-    expect(parsed.warnings[0]).toContain("an ordering rule the rib cannot read");
+    expect(parsed.warnings[0]).toContain("an ordering rule SPI Code cannot read");
+    expect(parseRollout(text, RIB_VOICE).warnings[0]).toContain(
+      "an ordering rule the rib cannot read",
+    );
+    expect(parseRollout(JSON.stringify({ schema: 2 })).warnings[0]).toContain("SPI Code reads 1;");
+    expect(parseRollout(JSON.stringify({ schema: 2 }), RIB_VOICE).warnings[0]).toContain(
+      "the rib reads 1;",
+    );
   });
 });
 

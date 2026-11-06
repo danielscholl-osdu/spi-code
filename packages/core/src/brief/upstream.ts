@@ -10,6 +10,7 @@ import {
   type UpstreamModel,
 } from "../model/upstream.js";
 import { names, plural, stamp, whose } from "../util.js";
+import { APP_VOICE, type Voice } from "../voice.js";
 
 export type UpTone = "bad" | "warn" | "ok" | "neutral" | "run";
 
@@ -136,7 +137,12 @@ function planText(f: UpFork): UpRow["plan"] {
   return { text: f.phase === "current" ? "current" : "·", tone: "neutral", kind: "none" };
 }
 
-function nextText(u: UpstreamModel, f: UpFork, step: ReturnType<typeof planStep>): UpRow["next"] {
+function nextText(
+  u: UpstreamModel,
+  f: UpFork,
+  step: ReturnType<typeof planStep>,
+  voice: Voice,
+): UpRow["next"] {
   const strong = (text: string, tone: UpTone = "neutral") => ({ text, tone, strong: true });
   const plain = (text: string) => ({ text, tone: "neutral" as UpTone, strong: false });
   const chosen = step.forks.includes(f);
@@ -153,14 +159,14 @@ function nextText(u: UpstreamModel, f: UpFork, step: ReturnType<typeof planStep>
       return plain(f.toMain?.validating ? "auto-merges when green" : "auto-merges");
     case "stopped":
       return f.verb === "rerun" && !f.wait
-        ? strong("Re-run cascade · rib", "warn")
+        ? strong(`Re-run cascade · ${voice.label}`, "warn")
         : strong("Stopped · open", "bad");
     case "cascading":
       return plain("cascade running");
     case "merged":
-      return strong("Dispatch cascade · rib", "warn");
+      return strong(`Dispatch cascade · ${voice.label}`, "warn");
     case "prepared":
-      if (chosen && step.kind === "start") return strong("Start · rib", "warn");
+      if (chosen && step.kind === "start") return strong(`Start · ${voice.label}`, "warn");
       if (f.held) return plain(`held · ${heldWhy(f)}`);
       if (u.paused) return plain("absorb first");
       return plain(f.wait ?? f.planWait ?? "prepared");
@@ -170,7 +176,7 @@ function nextText(u: UpstreamModel, f: UpFork, step: ReturnType<typeof planStep>
       return plain(f.halt?.open ? "filter rule first" : "add a filter rule");
     case "idle":
       if (chosen && (step.kind === "prepare" || step.kind === "early")) {
-        return strong("Prepare · rib", "warn");
+        return strong(`Prepare · ${voice.label}`, "warn");
       }
       if (f.held) return plain(`held · ${heldWhy(f)}`);
       return plain(f.wave ? `wave ${f.wave}` : (f.wait ?? "prepare"));
@@ -209,7 +215,7 @@ function detailOf(f: UpFork, row: Omit<UpRow, "detail">): UpRow["detail"] {
   return { title: `${f.service}${row.tag ? ` · ${row.tag}` : ""}`, lines };
 }
 
-function rowOf(u: UpstreamModel, f: UpFork, step: ReturnType<typeof planStep>): UpRow {
+function rowOf(u: UpstreamModel, f: UpFork, step: ReturnType<typeof planStep>, voice: Voice): UpRow {
   const line = [f.cells.sync, f.cells.cascade, f.cells.toMain, f.cells.main].map((c) => ({
     text: c.text,
     tone: TONE[c.tone],
@@ -223,7 +229,7 @@ function rowOf(u: UpstreamModel, f: UpFork, step: ReturnType<typeof planStep>): 
     ready: readyText(u, f),
     plan: planText(f),
     line,
-    next: nextText(u, f, step),
+    next: nextText(u, f, step, voice),
   };
   return { ...row, detail: detailOf(f, row) };
 }
@@ -255,11 +261,16 @@ function stepTitle(u: UpstreamModel, step: ReturnType<typeof planStep>): string 
   }
 }
 
-export function stepWhy(u: UpstreamModel, step: ReturnType<typeof planStep>, now: Date): string {
+export function stepWhy(
+  u: UpstreamModel,
+  step: ReturnType<typeof planStep>,
+  now: Date,
+  voice: Voice = APP_VOICE,
+): string {
   const at = stamp(u.schedule.upstream, now);
   switch (step.kind) {
     case "start":
-      return `${step.forks.length === 1 ? "Its sync PR is" : "Their sync PRs are"} green. Merging starts the cascade at once; the rib dispatches it with the tracking issue instead of waiting up to 6 hours for the monitor.`;
+      return `${step.forks.length === 1 ? "Its sync PR is" : "Their sync PRs are"} green. Merging starts the cascade at once; ${voice.name} dispatches it with the tracking issue instead of waiting up to 6 hours for the monitor.`;
     case "dispatch":
       return "The sync PR merged and no cascade ran. Nothing moves until the cascade runs.";
     case "prepare":
@@ -315,7 +326,7 @@ function planCard(u: UpstreamModel): UpstreamView["plan"] {
   };
 }
 
-function scheduleCard(u: UpstreamModel, now: Date): UpstreamView["schedule"] {
+function scheduleCard(u: UpstreamModel, now: Date, voice: Voice): UpstreamView["schedule"] {
   const at = stamp(u.schedule.upstream, now);
   if (!at) return undefined;
   const s = u.schedule;
@@ -328,7 +339,7 @@ function scheduleCard(u: UpstreamModel, now: Date): UpstreamView["schedule"] {
   }
   const text =
     parts.length > 0
-      ? `${parts.join(" ")}. They wait for you; the rib adopts them into the plan.${s.updates.length > 0 ? ` ${plural(s.updates.length, "prepared PR")} update in place.` : ""}`
+      ? `${parts.join(" ")}. They wait for you; ${voice.name} adopts them into the plan.${s.updates.length > 0 ? ` ${plural(s.updates.length, "prepared PR")} update in place.` : ""}`
       : s.updates.length > 0
         ? `Sync Upstream updates ${plural(s.updates.length, "prepared PR")} in place.`
         : "Sync Upstream has nothing queued.";
@@ -407,7 +418,7 @@ function flightWords(u: UpstreamModel): { headline: string; sub: string } {
   return { headline: parts.join(" "), sub: sub.join(" ") };
 }
 
-function tilesOf(u: UpstreamModel): UpTile[] {
+function tilesOf(u: UpstreamModel, voice: Voice): UpTile[] {
   const lanes: UpTile = {
     label: "Lanes",
     value:
@@ -475,7 +486,7 @@ function tilesOf(u: UpstreamModel): UpTile[] {
     {
       label: "Waiting on you",
       value: String(gates + u.reviews.length),
-      sub: `${plural(gates, "press", "presses")} in the rib · ${plural(u.reviews.length, "review")} on GitHub`,
+      sub: `${plural(gates, "press", "presses")} in ${voice.name} · ${plural(u.reviews.length, "review")} on GitHub`,
       tone: gates + u.reviews.length > 0 ? "warn" : "neutral",
     },
     {
@@ -510,7 +521,7 @@ export function planOrder(u: UpstreamModel): UpFork[] {
     .map((x) => x.f);
 }
 
-export function upstreamView(u: UpstreamModel, now: Date): UpstreamView {
+export function upstreamView(u: UpstreamModel, now: Date, voice: Voice = APP_VOICE): UpstreamView {
   const step = planStep(u);
   const words = u.mode === "flight" ? flightWords(u) : planningWords(u);
   const also: UpstreamView["also"] = [
@@ -532,18 +543,18 @@ export function upstreamView(u: UpstreamModel, now: Date): UpstreamView {
   return {
     mode: u.mode,
     ...words,
-    tiles: tilesOf(u),
+    tiles: tilesOf(u, voice),
     rows: planOrder(u)
       .filter((f) => f.phase !== "unread" || u.mode === "quiet")
-      .map((f) => rowOf(u, f, step)),
+      .map((f) => rowOf(u, f, step, voice)),
     plan: planCard(u),
     ...(() => {
-      const s = scheduleCard(u, now);
+      const s = scheduleCard(u, now, voice);
       return s ? { schedule: s } : {};
     })(),
     next: {
       title,
-      text: stepWhy(u, step, now),
+      text: stepWhy(u, step, now, voice),
       ...(step.kind === "wait" && u.reviews.length === 0 && u.startWaits.length === 0
         ? { button: "Open the plan", quiet: true }
         : { button: `Open in inspector · ${title.split(":")[0]}`, quiet: false }),

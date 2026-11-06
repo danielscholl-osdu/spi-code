@@ -10,6 +10,7 @@ import { type ItemClass, itemClass, nextText } from "../model/next.js";
 import type { ItemKind, QueueItem, Rung } from "../model/queue.js";
 import type { CanvasTone as Tone } from "../tone.js";
 import { age, names, plural } from "../util.js";
+import type { Voice } from "../voice.js";
 
 const RUNG_TONE: Readonly<Record<Rung, Tone>> = Object.freeze({ 0: "error", 1: "caution", 2: "info" });
 
@@ -99,11 +100,11 @@ function sentence(text: string): string {
   return /[.!?]$/.test(t) ? t : `${t}.`;
 }
 
-function nextCard(item: QueueItem, reading: Reading, state: InspectState) {
+function nextCard(item: QueueItem, reading: Reading, state: InspectState, voice: Voice) {
   const listed =
     state.others?.id === item.id ? state.others.entries.filter((e) => e.state === "listed") : [];
   return {
-    next: listed.length > 0 ? sentence(nextText(item, listed)) : reading.next,
+    next: listed.length > 0 ? sentence(nextText(item, listed, voice)) : reading.next,
     nextLinks: (item.links ?? []).map((l) => ({ label: "", value: l.label, href: l.url })),
   };
 }
@@ -233,7 +234,7 @@ export function inspectItem(
     status: statusOf(item),
     chip,
     lede,
-    ...nextCard(item, reading, state),
+    ...nextCard(item, reading, state, context.voice),
     why: whySection(item, `${reading.cause} ${reading.effect}`.toLowerCase()),
     evidence: evidence(item),
     effects: item.effects.map((e) => ({ ...e })),
