@@ -152,6 +152,83 @@ const messages = [
 ];
 
 describe("Watch protocol", () => {
+  it("accepts legacy payloads and optional service, line and inspect additions", () => {
+    expect(WatchMessageSchema.parse(messages[8])).toEqual(messages[8]);
+    expect(InspectResultSchema.parse(inspect)).toEqual(inspect);
+    const service = snapshot.stations[0];
+    if (!service) throw new Error("Fixture must have service stations");
+    const additions = {
+      service: service.service,
+      runs: [
+        {
+          id: "run:42",
+          workflow: "Sync Upstream",
+          result: "success",
+          time: at,
+          url: "https://github.com/org/legal/actions/runs/42",
+        },
+      ],
+      releases: [
+        {
+          id: "legal",
+          group: "Services",
+          month: "2026-11",
+          version: "v1",
+          releases: 1,
+          state: "released",
+          gate: { state: "waiting", text: "gate 3" },
+          releasePr: {
+            number: 7,
+            title: "chore: release",
+            url: "https://github.com/org/legal/pull/7",
+          },
+        },
+      ],
+    };
+    const payload = {
+      ...snapshot,
+      stations: snapshot.stations.map((service) => ({
+        ...service,
+        stations: service.stations.map((station) => ({
+          ...station,
+          inspect: `station:legal:${station.id}`,
+        })),
+      })),
+      services: [additions],
+    };
+    const message = { ...messages[8], payload };
+    expect(WatchMessageSchema.parse(message)).toEqual(message);
+    expect(InspectResultSchema.parse({ ...inspect, title: "Build" })).toEqual({
+      ...inspect,
+      title: "Build",
+    });
+    for (const runs of [
+      [{ ...additions.runs[0], time: "yesterday" }],
+      [{ ...additions.runs[0], url: "javascript:alert(1)" }],
+      [{ ...additions.runs[0], extra: true }],
+    ]) {
+      expect(
+        WatchMessageSchema.safeParse({
+          ...message,
+          payload: { ...payload, services: [{ ...additions, runs }] },
+        }).success,
+      ).toBe(false);
+    }
+    expect(
+      WatchMessageSchema.safeParse({
+        ...message,
+        payload: {
+          ...payload,
+          services: [
+            {
+              ...additions,
+              releases: [{ ...additions.releases[0], month: "2026-13" }],
+            },
+          ],
+        },
+      }).success,
+    ).toBe(false);
+  });
   it.each([undefined, 0, 100])("round-trips an optional budget floor of %s", (floor) => {
     const message = {
       ...messages[2],

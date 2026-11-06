@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   ReleaseDocSchema,
   ReleaseLineSchema,
+  RepoLineSchema,
   RepositoriesSchema,
   RolloutWordsSchema,
   UpstreamViewSchema,
@@ -55,6 +56,15 @@ const supplementalHighlights = [
 ];
 
 describe("Watch pane schemas", () => {
+  it("round-trips optional repository-line identity without weakening the schema", () => {
+    const line = { tag: "fix", tone: "ok", text: "A fix", sub: "ready" };
+    const identified = { ...line, id: "pr:org/repo:7", url: "https://github.com/org/repo/pull/7" };
+    expect(RepoLineSchema.parse(line)).toEqual(line);
+    expect(RepoLineSchema.parse(identified)).toEqual(identified);
+    expect(RepoLineSchema.safeParse({ ...identified, id: "" }).success).toBe(false);
+    expect(RepoLineSchema.safeParse({ ...identified, url: "file:///tmp/x" }).success).toBe(false);
+    expect(RepoLineSchema.safeParse({ ...identified, extra: true }).success).toBe(false);
+  });
   it("round-trips the frozen repositories section without dropping nested fields", () => {
     expect(RepositoriesSchema.parse(section(briefing, "repositories"))).toEqual(
       section(briefing, "repositories"),

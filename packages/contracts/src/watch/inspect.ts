@@ -57,6 +57,7 @@ export const InspectRequestSchema = z.strictObject({ id: SelectionIdSchema });
 export const InspectResultSchema = z
   .strictObject({
     id: SelectionIdSchema,
+    title: z.string().optional(),
     class: ItemClassSchema,
     cause: z.string(),
     effect: z.string(),

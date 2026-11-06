@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 import { z } from "zod";
+import { IdentifierSchema } from "./evidence.js";
+import { WebUrlSchema } from "./inspect.js";
 
 export const ToneSchema = z.enum(["bad", "warn", "ok", "neutral"]);
 export const BriefFactSchema = z.strictObject({
@@ -17,6 +19,8 @@ export const RepoCellSchema = z.strictObject({
   fade: z.boolean().optional(),
 });
 export const RepoLineSchema = z.strictObject({
+  id: IdentifierSchema.optional(),
+  url: WebUrlSchema.optional(),
   tag: z.string(),
   tone: ToneSchema,
   text: z.string(),

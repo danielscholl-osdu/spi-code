@@ -262,6 +262,76 @@ describe("view.subscribe", () => {
     expect(calls).toBe(0);
   });
 
+  describe("additive Watch inspect targets", () => {
+    it("resolves every projected station, service run and repository-line id after reopening", async () => {
+      writeSnapshot();
+      db.close();
+      db = new DatabaseSync(path);
+      const snapshot = projectWatch(input);
+      const targets = [
+        ...snapshot.stations.flatMap((service) => [
+          ...service.stations.map((station) => ({
+            id: station.inspect,
+            title: undefined,
+            text: undefined,
+          })),
+        ]),
+        ...(snapshot.services ?? []).flatMap((service) =>
+          service.runs.map((run) => ({
+            id: run.id,
+            title: undefined,
+            text: undefined,
+          })),
+        ),
+        ...snapshot.briefing.repositories.rows.flatMap((repo) =>
+          repo.sections.flatMap((section) =>
+            section.lines.map((line) => ({
+              id: line.id,
+              title: line.text,
+              text: line.sub,
+            })),
+          ),
+        ),
+      ];
+      const port = host(routes());
+      for (const [i, target] of targets.entries()) {
+        expect(target.id).toBeTruthy();
+        port.request("inspect.request", { id: target.id }, `added-${i}`);
+      }
+      await settle();
+      for (const [i, target] of targets.entries()) {
+        const response = port.sent.find((message) => message.id === `added-${i}`);
+        expect(response).toMatchObject({ type: "inspect.result", payload: { id: target.id } });
+        const result = InspectResultSchema.parse(response?.payload);
+        expect(result.title).toBeTruthy();
+        expect(result.areas).toEqual(snapshot.areas);
+        if (target.title) {
+          expect(result.title).toBe(target.title);
+          expect(result.effect).toBe(target.text);
+          expect(result.related.some((row) => row.url)).toBe(true);
+        }
+      }
+      expect(calls).toBe(0);
+    });
+
+    it.each([
+      "station:legal:upstream",
+      "station:legal:release:extra",
+      "station:missing:lane",
+      "station:Legal:lane",
+      "pr:missing:1",
+      "issue:missing:1",
+      "alert:missing:1",
+    ])("rejects unknown or noncanonical target %s", async (id) => {
+      writeSnapshot();
+      const port = host(routes());
+      port.request("inspect.request", { id });
+      await settle();
+      expect(port.sent[1]).toMatchObject({ type: "error", payload: { code: "not_found" } });
+      expect(calls).toBe(0);
+    });
+  });
+
   it("sends an old cursor the latest snapshot and the current cursor nothing until the next sweep", async () => {
     writeSnapshot();
     const latest = writeSnapshot(100);

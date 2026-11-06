@@ -40,6 +40,8 @@ import {
   releaseProvenance,
   stationProvenance,
 } from "./provenance.js";
+import { recordedRuns } from "./recorded-runs.js";
+import { repositoryLines } from "./repository-lines.js";
 
 export function appActions(items: readonly ActionItem[]): AppAction[] {
   const reserved = new Set(items.map((item) => item.type));
@@ -213,21 +215,69 @@ function treeOf(input: WatchInput, now: Date): TreeStatus {
 export function projectWatch(input: WatchInput): ViewSnapshot {
   const now = input.context.clock.now();
   const model = buildModel(input.facts, now, {}, input.context);
-  const briefing = buildBriefing(model, input.doctor, now, input.context);
-  const releases = projectReleases(
+  const coreBriefing = buildBriefing(model, input.doctor, now, input.context);
+  const briefing = {
+    ...coreBriefing,
+    repositories: repositoryLines(coreBriefing.repositories, model, now),
+  };
+  const { pane: releases, documents } = projectReleases(
     input.releases,
     input.appData,
     now,
     input.context,
     input.reading,
-  ).pane;
-  const stations = model.lines.map((line) => ({ service: line.fork.id, stations: line.stations }));
+  );
+  const runs = recordedRuns(input.facts, input.context.stackRepo);
+  const stations = model.lines.map((line) => ({
+    service: line.fork.id,
+    stations: line.stations.map((station) => ({
+      ...station,
+      inspect:
+        station.id === "release" || station.id === "lane"
+          ? `station:${line.fork.id}:${station.id}`
+          : `upstream:${line.fork.id}`,
+    })),
+  }));
+  const services = model.lines.map((line) => ({
+    service: line.fork.id,
+    runs: runs
+      .filter(({ repo }) => repo === line.fork.repo)
+      .sort(
+        (a, b) => Date.parse(b.run.createdAt) - Date.parse(a.run.createdAt) || b.run.id - a.run.id,
+      )
+      .map(({ run }) => ({
+        id: `run:${run.id}`,
+        workflow: run.name,
+        result: run.status === "completed" ? (run.conclusion ?? "completed") : run.status,
+        time: run.createdAt,
+        url: run.url,
+      })),
+    releases: documents.flatMap((doc) =>
+      doc.rows
+        .filter((row) => row.id === line.fork.id)
+        .map((row) => {
+          const gate = line.stations.find((station) => station.id === "release");
+          const pr = line.releasePr?.pr;
+          return {
+            ...row,
+            month: doc.month,
+            ...(doc.month === now.toISOString().slice(0, 7)
+              ? {
+                  ...(gate ? { gate: { state: gate.state, text: gate.text } } : {}),
+                  ...(pr ? { releasePr: { number: pr.number, title: pr.title, url: pr.url } } : {}),
+                }
+              : {}),
+          };
+        }),
+    ),
+  }));
   return ViewSnapshotSchema.parse({
     cursor: input.cursor,
     sweptAt: model.sweptAt ?? now.toISOString(),
     briefing,
     releases,
     stations,
+    services,
     tree: treeOf(input, now),
     reads: [...Object.values(input.reads).flat(), ...input.releaseRecords],
     areas: areaEnvelopes(
@@ -240,6 +290,18 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
       ...briefingProvenance(briefing, model.stack),
       ...stationProvenance(stations),
       ...releaseProvenance(releases.lines, input.releaseRecords, now),
+      ...services.flatMap((service, i) => [
+        ...service.runs.map((run, k) => {
+          const hit = runs.find((hit) => run.id === `run:${hit.run.id}`);
+          if (!hit) throw new TypeError(`No recorded run for ${run.id}`);
+          return { path: `/services/${i}/runs/${k}`, areas: [hit.area] };
+        }),
+        {
+          path: `/services/${i}/releases`,
+          areas: ["fleet", "github"],
+          envelope: readEnvelope("releases", input.releaseRecords, RELEASES_EVERY_MS, now),
+        },
+      ]),
     ],
     selection: input.selection ?? null,
   });

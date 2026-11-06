@@ -6,13 +6,14 @@ import { BriefingSchema } from "./briefing.js";
 import {
   AREAS,
   AreaEnvelopeSchema,
+  IdentifierSchema,
   ObservedAtSchema,
   ReadRecordSchema,
   resolvePointer,
   ValueSourceSchema,
 } from "./evidence.js";
 import { ReleaseLineSchema } from "./panes.js";
-import { StationsSchema } from "./stations.js";
+import { ServiceReleaseSchema, ServiceRunSchema, StationsSchema } from "./stations.js";
 import { SelectionIdSchema, TreeStatusSchema } from "./tree.js";
 
 export const ReleasesPaneSchema = z.strictObject({
@@ -26,6 +27,15 @@ export const ViewSnapshotSchema = z
     briefing: BriefingSchema,
     releases: ReleasesPaneSchema,
     stations: StationsSchema,
+    services: z
+      .array(
+        z.strictObject({
+          service: IdentifierSchema,
+          runs: z.array(ServiceRunSchema),
+          releases: z.array(ServiceReleaseSchema),
+        }),
+      )
+      .optional(),
     tree: TreeStatusSchema,
     reads: z.array(ReadRecordSchema),
     areas: z.array(AreaEnvelopeSchema),

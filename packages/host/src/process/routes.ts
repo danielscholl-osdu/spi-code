@@ -35,6 +35,7 @@ import {
   inspectItem,
   inspectRepo,
   inspectStep,
+  inspectTitle,
   inspectUpstreamFork,
   inspectUpstreamPlan,
   isMonth,
@@ -53,6 +54,7 @@ import {
   type RunFact,
   releaseDoc,
   STEP_PREFIX,
+  stepTitle,
   UPSTREAM_ITEM,
   UPSTREAM_PREFIX,
   type UpstreamBoard,
@@ -61,6 +63,7 @@ import {
 import { z } from "zod";
 import { createSnapshotStore, type SnapshotRecord } from "../store/snapshots.js";
 import { appActions, readNotes } from "../watch/project.js";
+import { type RunHit, recordedRuns } from "../watch/recorded-runs.js";
 import type { HostRoutes, HostSend } from "./port.js";
 
 export interface WatchRoutesOptions {
@@ -166,6 +169,7 @@ export async function inspectResult(
   }
   return InspectResultSchema.parse({
     id: item.id,
+    title: inspectTitle(item),
     class: inspection.class,
     cause: inspection.cause,
     effect: inspection.effect,
@@ -208,6 +212,7 @@ function stepResult(
   const step = inspectStep(model, id, ctx);
   return InspectResultSchema.parse({
     id,
+    title: stepTitle(model, id),
     class: "ROLLOUT",
     cause: step.summary,
     effect: step.chip ?? "",
@@ -234,9 +239,15 @@ function stepResult(
   });
 }
 
-function mrResult(board: MrInspection, id: string, areas: readonly AreaEnvelope[]): InspectResult {
+function mrResult(
+  board: MrInspection,
+  id: string,
+  title: string | undefined,
+  areas: readonly AreaEnvelope[],
+): InspectResult {
   return InspectResultSchema.parse({
     id,
+    title,
     class:
       board.header.status.label === "HALT"
         ? "HALT"
@@ -275,6 +286,7 @@ function releaseResult(doc: ReleaseDoc, areas: readonly AreaEnvelope[]): Inspect
       .join("; ");
   return InspectResultSchema.parse({
     id: doc.id,
+    title: doc.name,
     class: doc.unread.length > 0 ? "UNREAD" : "READY",
     cause: doc.headline,
     effect: doc.stateText,
@@ -328,6 +340,7 @@ function repoResult(
 ): InspectResult {
   return InspectResultSchema.parse({
     id,
+    title: repo.title,
     class: "SECURITY",
     cause: repo.title,
     effect: repo.chip,
@@ -363,6 +376,7 @@ export function upstreamPlanResult(
   const next = board.sections.find((section) => section.kind === "cards")?.items[0];
   return InspectResultSchema.parse({
     id: UPSTREAM_ITEM,
+    title: board.title,
     class: board.header.status.tone === "error" ? "TOOLCHAIN" : "ROLLOUT",
     cause: rows?.kind === "rows" ? (rows.items[1]?.text ?? board.title) : board.title,
     effect: rows?.kind === "rows" ? (rows.items[0]?.text ?? "") : "",
@@ -448,41 +462,18 @@ const SERVICE_PREFIX = "service:";
 const RUN_PREFIX = "run:";
 const HOLD_PREFIX = "hold:";
 const THEME_PREFIX = "theme:";
+const STATION_PREFIX = "station:";
 const FAILED = new Set(["failure", "timed_out", "startup_failure"]);
 
 type Theme = Briefing["themes"][number];
 type EnvEvent = Briefing["environment"]["lanes"][number]["events"][number];
-
-interface RunHit {
-  run: RunFact;
-  repo: string;
-  workflow: string;
-}
 
 /**
  * A workflow run the sweep read, wherever it was read: a fork lane, the stack, or an approval.
  * The id is matched as text, so only the exact spelling the views hand over resolves.
  */
 function findRun(facts: Facts, key: string, stackRepo: string): RunHit | undefined {
-  const is = (r: RunFact) => String(r.id) === key;
-  for (const [repo, lanes] of Object.entries(facts.runs.data ?? {})) {
-    for (const workflow of ["sync", "template", "cascade", "main"] as const) {
-      const run = lanes[workflow].find(is);
-      if (run) return { run, repo, workflow };
-    }
-  }
-  for (const [workflow, list] of Object.entries(facts.lifecycle.data ?? {})) {
-    const run = list.find(is);
-    if (run) {
-      const repo = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/actions\/runs\//.exec(run.url)?.[1];
-      return { run, repo: repo ?? stackRepo, workflow };
-    }
-  }
-  for (const [repo, list] of Object.entries(facts.approvals.data ?? {})) {
-    const run = list.find(is);
-    if (run) return { run, repo, workflow: "approval" };
-  }
-  return undefined;
+  return recordedRuns(facts, stackRepo).find(({ run }) => String(run.id) === key);
 }
 
 /** The queue item that folds this run, as the Environment lanes and lane runs name it. */
@@ -506,6 +497,7 @@ function runResult(
   const outcome = run.status === "completed" ? (run.conclusion ?? "completed") : run.status;
   return InspectResultSchema.parse({
     id,
+    title: `${run.name} #${run.id}`,
     class: item ? itemClass(item) : FAILED.has(run.conclusion ?? "") ? "INCIDENT" : "READY",
     cause: `${run.name} #${run.id} on ${repo}`,
     effect: `${workflow} run ${outcome}`,
@@ -556,6 +548,7 @@ function holdResult(
     );
   return InspectResultSchema.parse({
     id,
+    title: `Held ${hold.label}`,
     class: hold.end === undefined ? "GATE" : "READY",
     cause: `Held ${hold.label}`,
     effect: hold.detail,
@@ -587,6 +580,7 @@ function themeResult(id: string, theme: Theme, areas: readonly AreaEnvelope[]): 
   });
   return InspectResultSchema.parse({
     id,
+    title: theme.title,
     class: THEME_CLASS[theme.kind],
     cause: theme.title,
     effect: theme.sub,
@@ -603,6 +597,108 @@ function themeResult(id: string, theme: Theme, areas: readonly AreaEnvelope[]): 
     areas,
     provenance: [],
   });
+}
+
+function stationResult(
+  model: Model,
+  id: string,
+  areas: readonly AreaEnvelope[],
+): InspectResult | undefined {
+  for (const line of model.lines) {
+    const station = line.stations.find(
+      (s) => (s.id === "release" || s.id === "lane") && `station:${line.fork.id}:${s.id}` === id,
+    );
+    if (!station) continue;
+    const release = station.id === "release";
+    return InspectResultSchema.parse({
+      id,
+      title: `${line.fork.id} · ${release ? "Release" : "Stack lane"}`,
+      class:
+        station.state === "unknown"
+          ? "UNREAD"
+          : station.state === "stopped"
+            ? release
+              ? "GATE"
+              : "ENV"
+            : station.state === "waiting"
+              ? "GATE"
+              : "READY",
+      cause: station.text,
+      effect: station.state,
+      next: "",
+      why: release
+        ? (line.releasePr?.failures.map((f) => f.reason ?? f.check).join("; ") ?? "")
+        : model.stack.deployable.reason,
+      related: release
+        ? [
+            ...(line.releasePr
+              ? [
+                  {
+                    text: line.releasePr.pr.title,
+                    state: "Release PR",
+                    ...webUrl(line.releasePr.pr.url),
+                  },
+                ]
+              : []),
+            ...(line.release
+              ? [
+                  {
+                    text: line.release.tag,
+                    state: line.release.at,
+                    ...webUrl(line.release.url),
+                  },
+                ]
+              : []),
+          ]
+        : [
+            ...(line.lane.last
+              ? [
+                  {
+                    text: [line.lane.last.ref, line.lane.last.sha].filter(Boolean).join(" · "),
+                    state: `${line.lane.last.state} · ${line.lane.last.createdAt}`,
+                  },
+                ]
+              : []),
+            ...model.queue.items
+              .filter((item) => item.kind === "stack")
+              .map((item) => ({ text: item.text, state: "Environment", inspect: item.id })),
+          ],
+      evidence: [],
+      approval: null,
+      actions: [],
+      areas,
+      provenance: [],
+    });
+  }
+  return undefined;
+}
+
+function repositoryLineResult(view: ViewSnapshot, id: string): InspectResult | undefined {
+  for (const repo of view.briefing.repositories.rows) {
+    for (const section of repo.sections) {
+      const line = section.lines.find((line) => line.id === id);
+      if (!line) continue;
+      return InspectResultSchema.parse({
+        id,
+        title: line.text,
+        class: id.startsWith("alert:") ? "SECURITY" : id.startsWith("issue:") ? "GATE" : "READY",
+        cause: line.text,
+        effect: line.sub,
+        next: "",
+        why: line.tag,
+        related: [
+          { text: line.text, state: section.title, ...webUrl(line.url) },
+          { text: repo.name, state: "Repository", inspect: repo.id },
+        ],
+        evidence: [],
+        approval: null,
+        actions: [],
+        areas: view.areas,
+        provenance: [],
+      });
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -714,7 +810,7 @@ export class WatchRoutes {
     } else if (model.template.steps.some((step) => `${STEP_PREFIX}${step.marker}` === id)) {
       result = stepResult(model, id, ctx, latest.view.areas);
     } else if (mrTitle(model, id)) {
-      result = mrResult(mrBoard(model, id, now, ctx), id, latest.view.areas);
+      result = mrResult(mrBoard(model, id, now, ctx), id, mrTitle(model, id), latest.view.areas);
     } else if (id === UPSTREAM_ITEM) {
       result = upstreamPlanResult(inspectUpstreamPlan(model, now), latest.view.areas);
     } else if (id.startsWith(UPSTREAM_PREFIX)) {
@@ -757,6 +853,10 @@ export class WatchRoutes {
     } else if (id.startsWith(THEME_PREFIX)) {
       const theme = latest.view.briefing.themes.find((t) => `${THEME_PREFIX}${t.id}` === id);
       if (theme) result = themeResult(id, theme, latest.view.areas);
+    } else if (id.startsWith(STATION_PREFIX)) {
+      result = stationResult(model, id, latest.view.areas);
+    } else if (["pr:", "issue:", "alert:"].some((prefix) => id.startsWith(prefix))) {
+      result = repositoryLineResult(latest.view, id);
     }
     if (!result) {
       notFound("Nothing in the latest sweep has this id");

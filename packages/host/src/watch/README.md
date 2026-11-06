@@ -64,7 +64,36 @@ produce a diagnostic in that action's eligibility reason without dropping the
 other actions. Irreversible confirmations without a nonblank subject are rejected
 before adaptation. The Re-run when deployable offer is retained, not filtered out.
 
-## Inspector compatibility
+## Inspector compatibility and optional selection fields
+
+The optional top-level `services` list contains one entry per `service` id with
+`runs` and `releases`. Older snapshots may omit it. It is separate from
+`stations` so service-page evidence does not change Flow's station evidence.
+Runs contain `id` (`run:<number>`), `workflow` (the recorded name),
+`result` (conclusion for a completed run, status otherwise), `time` (creation
+time) and `url`. They come from the existing fork, lifecycle and approval
+reads, scoped to the service repository, deduplicated by run id and sorted newest
+first. The inspector uses the same recorded-run lookup.
+
+Service release rows are the existing release document's `DocRow` plus `month`.
+Only the current month adds the current release station's `gate` (`state`,
+`text`) and, when open, `releasePr` (`number`, `title`, `url`). A current PR or
+gate is never attached to a historical month. These rows feed the service page
+only; the Releases pane and month documents are unchanged. Release-row evidence
+retains the release reader's envelope alongside fleet and GitHub areas.
+
+Every station has an optional `inspect`: the first four use `upstream:<service>`;
+Release and Stack lane use `station:<service>:release` and
+`station:<service>:lane`. Those host-only targets resolve from the recorded
+line model, including its release PR, release tag or last lane deployment.
+Repository lines add optional `id` and `url`, taken from their model objects.
+Ids are `pr:<owner/repo>:<number>`, `issue:<owner/repo>:<number>` and
+`alert:<owner/repo>:<group id>`; alert groups use core's filtered group URL.
+Their Detail result preserves the line's text, subtext and repository link.
+Inspect results also carry an optional `title` from the existing model or row.
+No new collector or executable action is introduced.
+
+### Evidence compatibility
 
 [`InspectResultSchema`](../../../contracts/src/watch/inspect.ts) accepts two shapes.
 A legacy result has neither `areas` nor `provenance`. A modern result has both,
@@ -84,9 +113,10 @@ supplemental evidence outside the swept Facts areas.
 
 [`WatchRoutes.inspect`](../process/routes.ts) passes the persisted snapshot's
 `areas` unchanged to every inspector result. This covers queue items, rollout
-steps, MRs, releases, repositories, upstream plans and forks, services, runs,
-holds and themes. Request time is used to rebuild the model, not to refresh or
-rejudge those stored envelopes. All current host results have `provenance: []`.
+steps, MRs, releases, repositories and their lines, upstream plans and forks,
+services, stations, runs, holds and themes. Request time is used to rebuild the
+model, not to refresh or rejudge those stored envelopes. All current host
+results have `provenance: []`.
 The presence of area envelopes does not establish a source for any value.
 
 Per-value bindings remain deferred to `spicode-t1k.125`, `spicode-t1k.126` and
@@ -190,9 +220,11 @@ marks every other area and the release reads observed, so the window's evidence
 helpers can tell inferred values from observed peers.
 
 The generator uses the pinned core fixtures, fleet, rollout and clock. It does
-not regenerate or modify the rib oracles. Tests compare against those oracles
-and reject a stale Watch fixture. Legacy fixture area timestamps are represented
-as inferred records; production callers provide collector records unchanged.
+not regenerate or modify the rib oracles. The host parity comparison removes
+only the additive contract fields before comparing the original values to those
+oracles, and tests reject a stale Watch fixture. Legacy fixture area timestamps
+are represented as inferred records; production callers provide collector
+records unchanged.
 
 ## Appendix A: synthetic contract examples
 

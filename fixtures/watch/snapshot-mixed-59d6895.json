@@ -762,18 +762,24 @@
               "count": "7",
               "lines": [
                 {
+                  "id": "issue:Azure/osdu-spi:250",
+                  "url": "https://github.com/Azure/osdu-spi/issues/250",
                   "tag": "bug",
                   "tone": "neutral",
                   "text": "validate: duplicate PR runs push the same image tag and break the deploy lane pin · #250",
                   "sub": "opened 13d ago · 0 comments"
                 },
                 {
+                  "id": "issue:Azure/osdu-spi:245",
+                  "url": "https://github.com/Azure/osdu-spi/issues/245",
                   "tag": "bug",
                   "tone": "neutral",
                   "text": "Template sync skips file removal when the template tip is unchanged · #245",
                   "sub": "opened 15d ago · 0 comments"
                 },
                 {
+                  "id": "issue:Azure/osdu-spi:241",
+                  "url": "https://github.com/Azure/osdu-spi/issues/241",
                   "tag": "enhancement",
                   "tone": "neutral",
                   "text": "Deploy lane: optional nightly run against the shared stack · #241",
@@ -787,18 +793,24 @@
               "rest": " · 0 upstream",
               "lines": [
                 {
+                  "id": "alert:Azure/osdu-spi:code:Scorecard:BranchProtectionID:",
+                  "url": "https://github.com/Azure/osdu-spi/security/code-scanning/7",
                   "tag": "High",
                   "tone": "bad",
                   "text": "Branch-Protection · 1 alert",
                   "sub": "SPI · shipped · repository settings · found by Scorecard"
                 },
                 {
+                  "id": "alert:Azure/osdu-spi:code:Scorecard:CodeReviewID:",
+                  "url": "https://github.com/Azure/osdu-spi/security/code-scanning/14",
                   "tag": "High",
                   "tone": "bad",
                   "text": "Code-Review · 1 alert",
                   "sub": "SPI · shipped · repository settings · found by Scorecard"
                 },
                 {
+                  "id": "alert:Azure/osdu-spi:code:Scorecard:FuzzingID:",
+                  "url": "https://github.com/Azure/osdu-spi/security/code-scanning/11",
                   "tag": "Medium",
                   "tone": "warn",
                   "text": "Fuzzing · 1 alert",
@@ -851,18 +863,24 @@
               "count": "4",
               "lines": [
                 {
+                  "id": "issue:Azure/osdu-spi-stack:324",
+                  "url": "https://github.com/Azure/osdu-spi-stack/issues/324",
                   "tag": "bug",
                   "tone": "neutral",
                   "text": "[bug] spi up --declaration rejects absent identities with ParentResourceNotFound · #324",
                   "sub": "opened 12d ago · 0 comments"
                 },
                 {
+                  "id": "issue:Azure/osdu-spi-stack:321",
+                  "url": "https://github.com/Azure/osdu-spi-stack/issues/321",
                   "tag": "bug",
                   "tone": "neutral",
                   "text": "Pin refusal for a moved tag should say re-run all jobs · #321",
                   "sub": "opened 13d ago · 0 comments"
                 },
                 {
+                  "id": "issue:Azure/osdu-spi-stack:320",
+                  "url": "https://github.com/Azure/osdu-spi-stack/issues/320",
                   "tag": "bug",
                   "tone": "neutral",
                   "text": "Restore can start the canonical schema loader against the outgoing borrowed pod · #320",
@@ -875,12 +893,16 @@
               "count": "2",
               "lines": [
                 {
+                  "id": "pr:Azure/osdu-spi-stack:327",
+                  "url": "https://github.com/Azure/osdu-spi-stack/pull/327",
                   "tag": "feat",
                   "tone": "neutral",
                   "text": "add RAFS service · #327",
                   "sub": "behind · opened 10d ago · by contributor-a"
                 },
                 {
+                  "id": "pr:Azure/osdu-spi-stack:323",
+                  "url": "https://github.com/Azure/osdu-spi-stack/pull/323",
                   "tag": "feat",
                   "tone": "bad",
                   "text": "onboard Seismic Store V3 · #323",
@@ -894,6 +916,8 @@
               "rest": " · 0 upstream",
               "lines": [
                 {
+                  "id": "alert:Azure/osdu-spi-stack:dep:uv.lock:virtualenv",
+                  "url": "https://github.com/Azure/osdu-spi-stack/security/dependabot?q=is%3Aopen%20package%3Avirtualenv%20manifest%3Auv.lock",
                   "tag": "High",
                   "tone": "bad",
                   "text": "virtualenv · 4 vulnerabilities",
@@ -946,6 +970,8 @@
               "rest": " · 1 upstream",
               "lines": [
                 {
+                  "id": "alert:Azure/osdu-spi-partition:dep:pom.xml:com.fasterxml.jackson.core:jackson-databind",
+                  "url": "https://github.com/Azure/osdu-spi-partition/security/dependabot?q=is%3Aopen%20package%3Acom.fasterxml.jackson.core%3Ajackson-databind%20manifest%3Apom.xml",
                   "tag": "High",
                   "tone": "bad",
                   "text": "jackson-databind · 5 vulnerabilities",
@@ -961,12 +987,16 @@
               "rest": " · 0 upstream",
               "lines": [
                 {
+                  "id": "alert:Azure/osdu-spi-partition:code:CodeQL:java/spring-disabled-csrf-protection:provider/partition-azure",
+                  "url": "https://github.com/Azure/osdu-spi-partition/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
                   "tag": "High",
                   "tone": "bad",
                   "text": "Disabled Spring CSRF protection · 2 alerts",
                   "sub": "SPI · shipped · provider/partition-azure · found by CodeQL · also ours on entitlements, legal, schema and 1 more"
                 },
                 {
+                  "id": "alert:Azure/osdu-spi-partition:code:CodeQL:java/log-injection:provider/partition-azure",
+                  "url": "https://github.com/Azure/osdu-spi-partition/security/code-scanning/5",
                   "tag": "Medium",
                   "tone": "warn",
                   "text": "Log Injection · 1 alert",
@@ -1020,6 +1050,8 @@
               "rest": " · 0 other",
               "lines": [
                 {
+                  "id": "issue:Azure/osdu-spi-entitlements:47",
+                  "url": "https://github.com/Azure/osdu-spi-entitlements/issues/47",
                   "tag": "human-required",
                   "tone": "bad",
                   "text": "🔄 Upstream Sync Failed 2026-10-08 · #47",
@@ -1032,6 +1064,8 @@
               "count": "1",
               "lines": [
                 {
+                  "id": "pr:Azure/osdu-spi-entitlements:49",
+                  "url": "https://github.com/Azure/osdu-spi-entitlements/pull/49",
                   "tag": "untyped",
                   "tone": "bad",
                   "text": "Test External Contribution flow · #49",
@@ -1045,6 +1079,8 @@
               "rest": " · 2 upstream",
               "lines": [
                 {
+                  "id": "alert:Azure/osdu-spi-entitlements:dep:pom.xml:org.apache.logging.log4j:log4j-core",
+                  "url": "https://github.com/Azure/osdu-spi-entitlements/security/dependabot?q=is%3Aopen%20package%3Aorg.apache.logging.log4j%3Alog4j-core%20manifest%3Apom.xml",
                   "tag": "Medium",
                   "tone": "warn",
                   "text": "log4j-core · 3 vulnerabilities",
@@ -1052,6 +1088,8 @@
                   "upstream": true
                 },
                 {
+                  "id": "alert:Azure/osdu-spi-entitlements:dep:pom.xml:org.apache.logging.log4j:log4j-api",
+                  "url": "https://github.com/Azure/osdu-spi-entitlements/security/dependabot/5",
                   "tag": "Medium",
                   "tone": "warn",
                   "text": "log4j-api · 1 vulnerability",
@@ -1067,12 +1105,16 @@
               "rest": " · 1 upstream",
               "lines": [
                 {
+                  "id": "alert:Azure/osdu-spi-entitlements:code:CodeQL:java/spring-disabled-csrf-protection:provider/entitlements-v2-azure",
+                  "url": "https://github.com/Azure/osdu-spi-entitlements/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
                   "tag": "High",
                   "tone": "bad",
                   "text": "Disabled Spring CSRF protection · 2 alerts",
                   "sub": "SPI · shipped · provider/entitlements-v2-azure · found by CodeQL · also ours on partition, legal, schema and 1 more"
                 },
                 {
+                  "id": "alert:Azure/osdu-spi-entitlements:code:CodeQL:java/error-message-exposure:entitlements-v2-core",
+                  "url": "https://github.com/Azure/osdu-spi-entitlements/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Ferror-message-exposure",
                   "tag": "Medium",
                   "tone": "warn",
                   "text": "Information exposure through an error message · 5 alerts",
@@ -1127,6 +1169,8 @@
               "rest": " · 0 other",
               "lines": [
                 {
+                  "id": "issue:Azure/osdu-spi-legal:32",
+                  "url": "https://github.com/Azure/osdu-spi-legal/issues/32",
                   "tag": "human-required",
                   "tone": "bad",
                   "text": "📥 Upstream Sync Ready for Review - 2026-10-08 · #32",
@@ -1140,6 +1184,8 @@
               "rest": " · 0 upstream",
               "lines": [
                 {
+                  "id": "alert:Azure/osdu-spi-legal:code:CodeQL:java/spring-disabled-csrf-protection:provider/legal-azure",
+                  "url": "https://github.com/Azure/osdu-spi-legal/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
                   "tag": "High",
                   "tone": "bad",
                   "text": "Disabled Spring CSRF protection · 2 alerts",
@@ -1193,12 +1239,16 @@
               "rest": " · 0 upstream",
               "lines": [
                 {
+                  "id": "alert:Azure/osdu-spi-schema:code:CodeQL:java/spring-disabled-csrf-protection:provider/schema-azure",
+                  "url": "https://github.com/Azure/osdu-spi-schema/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
                   "tag": "High",
                   "tone": "bad",
                   "text": "Disabled Spring CSRF protection · 3 alerts",
                   "sub": "SPI · shipped · provider/schema-azure · found by CodeQL · also ours on partition, entitlements, legal and 1 more"
                 },
                 {
+                  "id": "alert:Azure/osdu-spi-schema:code:CodeQL:java/log-injection:provider/schema-azure",
+                  "url": "https://github.com/Azure/osdu-spi-schema/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Flog-injection",
                   "tag": "Medium",
                   "tone": "warn",
                   "text": "Log Injection · 2 alerts",
@@ -1252,6 +1302,8 @@
               "rest": " · 2 upstream",
               "lines": [
                 {
+                  "id": "alert:Azure/osdu-spi-file:dep:pom.xml:org.apache.logging.log4j:log4j-api",
+                  "url": "https://github.com/Azure/osdu-spi-file/security/dependabot/4",
                   "tag": "Medium",
                   "tone": "warn",
                   "text": "log4j-api · 1 vulnerability",
@@ -1259,6 +1311,8 @@
                   "upstream": true
                 },
                 {
+                  "id": "alert:Azure/osdu-spi-file:dep:pom.xml:ch.qos.logback:logback-core",
+                  "url": "https://github.com/Azure/osdu-spi-file/security/dependabot?q=is%3Aopen%20package%3Ach.qos.logback%3Alogback-core%20manifest%3Apom.xml",
                   "tag": "Low",
                   "tone": "neutral",
                   "text": "logback-core · 3 vulnerabilities",
@@ -1274,18 +1328,24 @@
               "rest": " · 3 upstream",
               "lines": [
                 {
+                  "id": "alert:Azure/osdu-spi-file:code:CodeQL:java/spring-disabled-csrf-protection:provider/file-azure",
+                  "url": "https://github.com/Azure/osdu-spi-file/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Fspring-disabled-csrf-protection",
                   "tag": "High",
                   "tone": "bad",
                   "text": "Disabled Spring CSRF protection · 2 alerts",
                   "sub": "SPI · shipped · provider/file-azure · found by CodeQL · also ours on partition, entitlements, legal and 1 more"
                 },
                 {
+                  "id": "alert:Azure/osdu-spi-file:code:CodeQL:java/log-injection:provider/file-azure",
+                  "url": "https://github.com/Azure/osdu-spi-file/security/code-scanning?query=is%3Aopen%20tool%3ACodeQL%20rule%3Ajava%2Flog-injection",
                   "tag": "Medium",
                   "tone": "warn",
                   "text": "Log Injection · 4 alerts",
                   "sub": "SPI · shipped · provider/file-azure · found by CodeQL · also ours on partition and schema"
                 },
                 {
+                  "id": "alert:Azure/osdu-spi-file:code:CodeQL:java/implicit-cast-in-compound-assignment:file-core",
+                  "url": "https://github.com/Azure/osdu-spi-file/security/code-scanning/2",
                   "tag": "High",
                   "tone": "bad",
                   "text": "Implicit narrowing conversion in compound assignment · 1 alert",
@@ -1531,32 +1591,38 @@
         {
           "id": "upstream",
           "state": "idle",
-          "text": "0 behind"
+          "text": "0 behind",
+          "inspect": "upstream:partition"
         },
         {
           "id": "sync",
           "state": "idle",
-          "text": "clean"
+          "text": "clean",
+          "inspect": "upstream:partition"
         },
         {
           "id": "cascade",
           "state": "idle",
-          "text": "idle"
+          "text": "idle",
+          "inspect": "upstream:partition"
         },
         {
           "id": "main",
           "state": "idle",
-          "text": "idle"
+          "text": "idle",
+          "inspect": "upstream:partition"
         },
         {
           "id": "release",
           "state": "idle",
-          "text": "v1.3.1"
+          "text": "v1.3.1",
+          "inspect": "station:partition:release"
         },
         {
           "id": "lane",
           "state": "stopped",
-          "text": "blocked by the stack"
+          "text": "blocked by the stack",
+          "inspect": "station:partition:lane"
         }
       ]
     },
@@ -1566,32 +1632,38 @@
         {
           "id": "upstream",
           "state": "waiting",
-          "text": "2 behind · held by the halt · will halt on schemathesis-tests"
+          "text": "2 behind · held by the halt · will halt on schemathesis-tests",
+          "inspect": "upstream:entitlements"
         },
         {
           "id": "sync",
           "state": "stopped",
-          "text": "halted: UNKNOWN_TOP_LEVEL"
+          "text": "halted: UNKNOWN_TOP_LEVEL",
+          "inspect": "upstream:entitlements"
         },
         {
           "id": "cascade",
           "state": "idle",
-          "text": "idle"
+          "text": "idle",
+          "inspect": "upstream:entitlements"
         },
         {
           "id": "main",
           "state": "idle",
-          "text": "idle"
+          "text": "idle",
+          "inspect": "upstream:entitlements"
         },
         {
           "id": "release",
           "state": "idle",
-          "text": "v1.2.0"
+          "text": "v1.2.0",
+          "inspect": "station:entitlements:release"
         },
         {
           "id": "lane",
           "state": "stopped",
-          "text": "blocked by the stack"
+          "text": "blocked by the stack",
+          "inspect": "station:entitlements:lane"
         }
       ]
     },
@@ -1601,32 +1673,38 @@
         {
           "id": "upstream",
           "state": "waiting",
-          "text": "4 behind · in the sync PR · Java 25 queued"
+          "text": "4 behind · in the sync PR · Java 25 queued",
+          "inspect": "upstream:legal"
         },
         {
           "id": "sync",
           "state": "stopped",
-          "text": "PR #31 red"
+          "text": "PR #31 red",
+          "inspect": "upstream:legal"
         },
         {
           "id": "cascade",
           "state": "idle",
-          "text": "idle"
+          "text": "idle",
+          "inspect": "upstream:legal"
         },
         {
           "id": "main",
           "state": "idle",
-          "text": "idle"
+          "text": "idle",
+          "inspect": "upstream:legal"
         },
         {
           "id": "release",
           "state": "idle",
-          "text": "v1.2.0"
+          "text": "v1.2.0",
+          "inspect": "station:legal:release"
         },
         {
           "id": "lane",
           "state": "stopped",
-          "text": "blocked by the stack"
+          "text": "blocked by the stack",
+          "inspect": "station:legal:lane"
         }
       ]
     },
@@ -1636,32 +1714,38 @@
         {
           "id": "upstream",
           "state": "idle",
-          "text": "0 behind"
+          "text": "0 behind",
+          "inspect": "upstream:schema"
         },
         {
           "id": "sync",
           "state": "idle",
-          "text": "clean"
+          "text": "clean",
+          "inspect": "upstream:schema"
         },
         {
           "id": "cascade",
           "state": "idle",
-          "text": "idle"
+          "text": "idle",
+          "inspect": "upstream:schema"
         },
         {
           "id": "main",
           "state": "idle",
-          "text": "idle"
+          "text": "idle",
+          "inspect": "upstream:schema"
         },
         {
           "id": "release",
           "state": "idle",
-          "text": "v1.2.0"
+          "text": "v1.2.0",
+          "inspect": "station:schema:release"
         },
         {
           "id": "lane",
           "state": "stopped",
-          "text": "blocked by the stack"
+          "text": "blocked by the stack",
+          "inspect": "station:schema:lane"
         }
       ]
     },
@@ -1671,32 +1755,1057 @@
         {
           "id": "upstream",
           "state": "idle",
-          "text": "0 behind"
+          "text": "0 behind",
+          "inspect": "upstream:file"
         },
         {
           "id": "sync",
           "state": "idle",
-          "text": "clean"
+          "text": "clean",
+          "inspect": "upstream:file"
         },
         {
           "id": "cascade",
           "state": "idle",
-          "text": "idle"
+          "text": "idle",
+          "inspect": "upstream:file"
         },
         {
           "id": "main",
           "state": "idle",
-          "text": "idle"
+          "text": "idle",
+          "inspect": "upstream:file"
         },
         {
           "id": "release",
           "state": "idle",
-          "text": "v1.2.0"
+          "text": "v1.2.0",
+          "inspect": "station:file:release"
         },
         {
           "id": "lane",
           "state": "stopped",
-          "text": "blocked by the stack"
+          "text": "blocked by the stack",
+          "inspect": "station:file:lane"
+        }
+      ]
+    }
+  ],
+  "services": [
+    {
+      "service": "partition",
+      "runs": [
+        {
+          "id": "run:38222903807",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-12T08:19:49Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/38222903807"
+        },
+        {
+          "id": "run:38188900025",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-12T00:40:16Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/38188900025"
+        },
+        {
+          "id": "run:38123592650",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-11T08:05:31Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/38123592650"
+        },
+        {
+          "id": "run:38099149788",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-11T00:39:07Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/38099149788"
+        },
+        {
+          "id": "run:38036672794",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-10T08:05:24Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/38036672794"
+        },
+        {
+          "id": "run:38009717734",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-10T00:35:38Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/38009717734"
+        },
+        {
+          "id": "run:37903046077",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-09T08:07:38Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/37903046077"
+        },
+        {
+          "id": "run:37865667450",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-09T00:36:51Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/37865667450"
+        },
+        {
+          "id": "run:37747776642",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-08T08:07:36Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/37747776642"
+        },
+        {
+          "id": "run:37708528136",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-08T00:35:02Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/37708528136"
+        },
+        {
+          "id": "run:37552830290",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-07T00:36:14Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/37552830290"
+        },
+        {
+          "id": "run:37499442304",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-06T16:54:57Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/37499442304"
+        },
+        {
+          "id": "run:37462674509",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-06T12:21:33Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/37462674509"
+        },
+        {
+          "id": "run:37460790650",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-06T12:05:22Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/37460790650"
+        },
+        {
+          "id": "run:37394784110",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-06T00:35:12Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/37394784110"
+        },
+        {
+          "id": "run:37248271179",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-05T00:37:59Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/37248271179"
+        },
+        {
+          "id": "run:37167271759",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-04T01:11:53Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/37167271759"
+        },
+        {
+          "id": "run:37082474391",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-03T00:32:06Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/37082474391"
+        },
+        {
+          "id": "run:36656094011",
+          "workflow": "Cascade Integration",
+          "result": "success",
+          "time": "2026-09-30T01:38:42Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/36656094011"
+        },
+        {
+          "id": "run:36655631759",
+          "workflow": "Cascade Integration",
+          "result": "failure",
+          "time": "2026-09-30T01:32:48Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/36655631759"
+        },
+        {
+          "id": "run:36645576220",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-09-29T23:30:29Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/36645576220"
+        },
+        {
+          "id": "run:36581245594",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-09-29T14:15:04Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/36581245594"
+        },
+        {
+          "id": "run:36193926432",
+          "workflow": "Cascade Integration",
+          "result": "success",
+          "time": "2026-09-25T21:53:12Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/36193926432"
+        },
+        {
+          "id": "run:35129823905",
+          "workflow": "Cascade Integration",
+          "result": "success",
+          "time": "2026-09-16T17:42:14Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/35129823905"
+        },
+        {
+          "id": "run:33200753692",
+          "workflow": "Cascade Integration",
+          "result": "success",
+          "time": "2026-08-28T18:45:33Z",
+          "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/33200753692"
+        }
+      ],
+      "releases": [
+        {
+          "id": "partition",
+          "group": "Services",
+          "version": "v1.3.0 → v1.3.3",
+          "from": "v1.3.0",
+          "to": "v1.3.3",
+          "releases": 3,
+          "upstream": "a2c4f7b7",
+          "lib": "4.0.0",
+          "java": "25",
+          "state": "released",
+          "url": "https://github.com/Azure/osdu-spi-partition/releases/tag/v1.3.3",
+          "month": "2026-10",
+          "gate": {
+            "state": "idle",
+            "text": "v1.3.1"
+          }
+        },
+        {
+          "id": "partition",
+          "group": "Services",
+          "version": "v1.2.0 → v1.3.0",
+          "from": "v1.2.0",
+          "to": "v1.3.0",
+          "releases": 1,
+          "upstream": "a48954c8",
+          "lib": "3.0.1",
+          "java": "17",
+          "state": "released",
+          "url": "https://github.com/Azure/osdu-spi-partition/releases/tag/v1.3.0",
+          "month": "2026-09"
+        },
+        {
+          "id": "partition",
+          "group": "Services",
+          "version": "v1.1.0 → v1.2.0",
+          "from": "v1.1.0",
+          "to": "v1.2.0",
+          "releases": 1,
+          "upstream": "v0.0.0",
+          "lib": "3.0.1",
+          "java": "17",
+          "state": "released",
+          "url": "https://github.com/Azure/osdu-spi-partition/releases/tag/v1.2.0",
+          "month": "2026-08"
+        },
+        {
+          "id": "partition",
+          "group": "Services",
+          "version": "v1.1.0",
+          "releases": 0,
+          "lib": "2.5.5",
+          "java": "17",
+          "state": "released",
+          "url": "https://github.com/Azure/osdu-spi-partition/releases/tag/v1.1.0",
+          "month": "2026-07"
+        },
+        {
+          "id": "partition",
+          "group": "Services",
+          "version": "new → v1.1.0",
+          "to": "v1.1.0",
+          "releases": 1,
+          "lib": "2.5.5",
+          "java": "17",
+          "state": "released",
+          "url": "https://github.com/Azure/osdu-spi-partition/releases/tag/v1.1.0",
+          "month": "2026-04"
+        },
+        {
+          "id": "partition",
+          "group": "Services",
+          "version": "no release",
+          "releases": 0,
+          "state": "unreleased",
+          "month": "2026-03"
+        }
+      ]
+    },
+    {
+      "service": "entitlements",
+      "runs": [
+        {
+          "id": "run:38224121867",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-12T08:31:50Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38224121867"
+        },
+        {
+          "id": "run:38187922977",
+          "workflow": "Sync Upstream",
+          "result": "failure",
+          "time": "2026-10-12T00:25:08Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38187922977"
+        },
+        {
+          "id": "run:38124247499",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-11T08:16:52Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38124247499"
+        },
+        {
+          "id": "run:38098322146",
+          "workflow": "Sync Upstream",
+          "result": "failure",
+          "time": "2026-10-11T00:24:33Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38098322146"
+        },
+        {
+          "id": "run:38037301995",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-10T08:16:22Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38037301995"
+        },
+        {
+          "id": "run:38008769366",
+          "workflow": "Sync Upstream",
+          "result": "failure",
+          "time": "2026-10-10T00:22:30Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38008769366"
+        },
+        {
+          "id": "run:37904312066",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-09T08:20:06Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/37904312066"
+        },
+        {
+          "id": "run:37864496174",
+          "workflow": "Sync Upstream",
+          "result": "failure",
+          "time": "2026-10-09T00:23:07Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/37864496174"
+        },
+        {
+          "id": "run:37749132861",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-08T08:20:02Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/37749132861"
+        },
+        {
+          "id": "run:37707333817",
+          "workflow": "Sync Upstream",
+          "result": "failure",
+          "time": "2026-10-08T00:21:28Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/37707333817"
+        },
+        {
+          "id": "run:37551635215",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-07T00:22:37Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/37551635215"
+        },
+        {
+          "id": "run:37499230123",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-06T16:53:20Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/37499230123"
+        },
+        {
+          "id": "run:37488249127",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-06T15:31:35Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/37488249127"
+        },
+        {
+          "id": "run:37470558787",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-06T13:24:35Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/37470558787"
+        },
+        {
+          "id": "run:37463018528",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-06T12:24:28Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/37463018528"
+        },
+        {
+          "id": "run:37457528945",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-06T11:36:28Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/37457528945"
+        },
+        {
+          "id": "run:37393620883",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-06T00:22:01Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/37393620883"
+        },
+        {
+          "id": "run:37247347269",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-05T00:23:38Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/37247347269"
+        },
+        {
+          "id": "run:37166777991",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-04T01:02:12Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/37166777991"
+        },
+        {
+          "id": "run:37081635327",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-03T00:20:17Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/37081635327"
+        },
+        {
+          "id": "run:36656105601",
+          "workflow": "Cascade Integration",
+          "result": "success",
+          "time": "2026-09-30T01:38:52Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/36656105601"
+        },
+        {
+          "id": "run:36655685072",
+          "workflow": "Cascade Integration",
+          "result": "failure",
+          "time": "2026-09-30T01:33:28Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/36655685072"
+        },
+        {
+          "id": "run:36191555040",
+          "workflow": "Cascade Integration",
+          "result": "success",
+          "time": "2026-09-25T21:26:24Z",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/36191555040"
+        }
+      ],
+      "releases": [
+        {
+          "id": "entitlements",
+          "group": "Services",
+          "version": "new → v1.2.1",
+          "to": "v1.2.1",
+          "releases": 2,
+          "upstream": "v9.99.0-ibm.1",
+          "lib": "3.0.3",
+          "java": "25",
+          "state": "released",
+          "url": "https://github.com/Azure/osdu-spi-entitlements/releases/tag/v1.2.1",
+          "month": "2026-10",
+          "gate": {
+            "state": "idle",
+            "text": "v1.2.0"
+          }
+        },
+        {
+          "id": "entitlements",
+          "group": "Services",
+          "version": "no release",
+          "releases": 0,
+          "state": "unreleased",
+          "month": "2026-09"
+        }
+      ]
+    },
+    {
+      "service": "legal",
+      "runs": [
+        {
+          "id": "run:38224136035",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-12T08:31:58Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38224136035"
+        },
+        {
+          "id": "run:38186901020",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-12T00:08:53Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38186901020"
+        },
+        {
+          "id": "run:38124236782",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-11T08:16:41Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38124236782"
+        },
+        {
+          "id": "run:38097440793",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-11T00:09:02Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38097440793"
+        },
+        {
+          "id": "run:38037298817",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-10T08:16:18Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38037298817"
+        },
+        {
+          "id": "run:38007691274",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-10T00:07:52Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38007691274"
+        },
+        {
+          "id": "run:37904303831",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-09T08:20:02Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37904303831"
+        },
+        {
+          "id": "run:37863194967",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-09T00:08:11Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37863194967"
+        },
+        {
+          "id": "run:37749124799",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-08T08:19:57Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37749124799"
+        },
+        {
+          "id": "run:37706076016",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-08T00:07:39Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37706076016"
+        },
+        {
+          "id": "run:37550348542",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-07T00:08:08Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37550348542"
+        },
+        {
+          "id": "run:37537951640",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-06T22:02:03Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37537951640"
+        },
+        {
+          "id": "run:37535423447",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-06T21:39:32Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37535423447"
+        },
+        {
+          "id": "run:37528707865",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-06T20:44:18Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37528707865"
+        },
+        {
+          "id": "run:37525691893",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-06T20:20:27Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37525691893"
+        },
+        {
+          "id": "run:37392337328",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-06T00:07:49Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37392337328"
+        },
+        {
+          "id": "run:37246293529",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-05T00:08:15Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37246293529"
+        },
+        {
+          "id": "run:37166244649",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-04T00:51:49Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37166244649"
+        },
+        {
+          "id": "run:37080712414",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-03T00:07:38Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37080712414"
+        },
+        {
+          "id": "run:36656120314",
+          "workflow": "Cascade Integration",
+          "result": "success",
+          "time": "2026-09-30T01:39:04Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/36656120314"
+        },
+        {
+          "id": "run:36655729673",
+          "workflow": "Cascade Integration",
+          "result": "failure",
+          "time": "2026-09-30T01:34:04Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/36655729673"
+        },
+        {
+          "id": "run:36645679375",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-09-29T23:31:37Z",
+          "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/36645679375"
+        }
+      ],
+      "releases": [
+        {
+          "id": "legal",
+          "group": "Services",
+          "version": "new → v1.2.1",
+          "to": "v1.2.1",
+          "releases": 2,
+          "upstream": "56ebd4f7",
+          "lib": "4.0.0",
+          "java": "25",
+          "state": "released",
+          "url": "https://github.com/Azure/osdu-spi-legal/releases/tag/v1.2.1",
+          "month": "2026-10",
+          "gate": {
+            "state": "idle",
+            "text": "v1.2.0"
+          }
+        },
+        {
+          "id": "legal",
+          "group": "Services",
+          "version": "no release",
+          "releases": 0,
+          "state": "unreleased",
+          "month": "2026-09"
+        }
+      ]
+    },
+    {
+      "service": "schema",
+      "runs": [
+        {
+          "id": "run:38224644032",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-12T08:36:55Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/38224644032"
+        },
+        {
+          "id": "run:38186894470",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-12T00:08:47Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/38186894470"
+        },
+        {
+          "id": "run:38124485159",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-11T08:20:59Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/38124485159"
+        },
+        {
+          "id": "run:38097438426",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-11T00:08:59Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/38097438426"
+        },
+        {
+          "id": "run:38037544978",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-10T08:20:37Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/38037544978"
+        },
+        {
+          "id": "run:38007689470",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-10T00:07:50Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/38007689470"
+        },
+        {
+          "id": "run:37904765676",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-09T08:24:33Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/37904765676"
+        },
+        {
+          "id": "run:37863195202",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-09T00:08:11Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/37863195202"
+        },
+        {
+          "id": "run:37749642159",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-08T08:24:37Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/37749642159"
+        },
+        {
+          "id": "run:37706073488",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-08T00:07:37Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/37706073488"
+        },
+        {
+          "id": "run:37689691236",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-07T21:28:49Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/37689691236"
+        },
+        {
+          "id": "run:37686183216",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-07T20:59:42Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/37686183216"
+        },
+        {
+          "id": "run:37679485198",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-07T20:06:13Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/37679485198"
+        },
+        {
+          "id": "run:37673593074",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-07T19:19:21Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/37673593074"
+        },
+        {
+          "id": "run:37663202717",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-07T17:58:21Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/37663202717"
+        },
+        {
+          "id": "run:37550323771",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-07T00:07:52Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/37550323771"
+        },
+        {
+          "id": "run:37392339025",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-06T00:07:50Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/37392339025"
+        },
+        {
+          "id": "run:37314581072",
+          "workflow": "Cascade Integration",
+          "result": "success",
+          "time": "2026-10-05T13:08:55Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/37314581072"
+        },
+        {
+          "id": "run:37246290134",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-05T00:08:12Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/37246290134"
+        },
+        {
+          "id": "run:37166243223",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-04T00:51:47Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/37166243223"
+        },
+        {
+          "id": "run:37080710259",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-03T00:07:36Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/37080710259"
+        },
+        {
+          "id": "run:36656135909",
+          "workflow": "Cascade Integration",
+          "result": "success",
+          "time": "2026-09-30T01:39:14Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/36656135909"
+        },
+        {
+          "id": "run:36655775740",
+          "workflow": "Cascade Integration",
+          "result": "failure",
+          "time": "2026-09-30T01:34:38Z",
+          "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/36655775740"
+        }
+      ],
+      "releases": [
+        {
+          "id": "schema",
+          "group": "Services",
+          "version": "new → v1.2.0",
+          "to": "v1.2.0",
+          "releases": 1,
+          "upstream": "85d0f67f",
+          "lib": "3.0.1",
+          "java": "17",
+          "state": "released",
+          "url": "https://github.com/Azure/osdu-spi-schema/releases/tag/v1.2.0",
+          "month": "2026-10",
+          "gate": {
+            "state": "idle",
+            "text": "v1.2.0"
+          }
+        },
+        {
+          "id": "schema",
+          "group": "Services",
+          "version": "no release",
+          "releases": 0,
+          "state": "unreleased",
+          "month": "2026-09"
+        }
+      ]
+    },
+    {
+      "service": "file",
+      "runs": [
+        {
+          "id": "run:38223870918",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-12T08:29:26Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/38223870918"
+        },
+        {
+          "id": "run:38187864721",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-12T00:24:12Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/38187864721"
+        },
+        {
+          "id": "run:38124116525",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-11T08:14:39Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/38124116525"
+        },
+        {
+          "id": "run:38098267584",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-11T00:23:36Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/38098267584"
+        },
+        {
+          "id": "run:38037184169",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-10T08:14:23Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/38037184169"
+        },
+        {
+          "id": "run:38008717290",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-10T00:21:48Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/38008717290"
+        },
+        {
+          "id": "run:37904069376",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-09T08:17:41Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/37904069376"
+        },
+        {
+          "id": "run:37864407467",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-09T00:22:05Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/37864407467"
+        },
+        {
+          "id": "run:37748924545",
+          "workflow": "Sync Template",
+          "result": "success",
+          "time": "2026-10-08T08:18:04Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/37748924545"
+        },
+        {
+          "id": "run:37707244640",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-08T00:20:28Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/37707244640"
+        },
+        {
+          "id": "run:37562529096",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-07T02:33:12Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/37562529096"
+        },
+        {
+          "id": "run:37556729016",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-07T01:22:02Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/37556729016"
+        },
+        {
+          "id": "run:37554550976",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-07T00:56:19Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/37554550976"
+        },
+        {
+          "id": "run:37551548427",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-07T00:21:39Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/37551548427"
+        },
+        {
+          "id": "run:37550732503",
+          "workflow": "Validation",
+          "result": "success",
+          "time": "2026-10-07T00:12:26Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/37550732503"
+        },
+        {
+          "id": "run:37542448812",
+          "workflow": "Validation",
+          "result": "failure",
+          "time": "2026-10-06T22:44:11Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/37542448812"
+        },
+        {
+          "id": "run:37393527335",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-06T00:20:57Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/37393527335"
+        },
+        {
+          "id": "run:37247289822",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-05T00:22:42Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/37247289822"
+        },
+        {
+          "id": "run:37166751843",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-04T01:01:44Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/37166751843"
+        },
+        {
+          "id": "run:37081567847",
+          "workflow": "Sync Upstream",
+          "result": "success",
+          "time": "2026-10-03T00:19:21Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/37081567847"
+        },
+        {
+          "id": "run:36656152646",
+          "workflow": "Cascade Integration",
+          "result": "success",
+          "time": "2026-09-30T01:39:26Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/36656152646"
+        },
+        {
+          "id": "run:36655828685",
+          "workflow": "Cascade Integration",
+          "result": "failure",
+          "time": "2026-09-30T01:35:17Z",
+          "url": "https://github.com/Azure/osdu-spi-file/actions/runs/36655828685"
+        }
+      ],
+      "releases": [
+        {
+          "id": "file",
+          "group": "Services",
+          "version": "new → v1.2.0",
+          "to": "v1.2.0",
+          "releases": 1,
+          "upstream": "e7ef32a0",
+          "lib": "3.0.3",
+          "java": "17",
+          "state": "released",
+          "url": "https://github.com/Azure/osdu-spi-file/releases/tag/v1.2.0",
+          "month": "2026-10",
+          "gate": {
+            "state": "idle",
+            "text": "v1.2.0"
+          }
+        },
+        {
+          "id": "file",
+          "group": "Services",
+          "version": "no release",
+          "releases": 0,
+          "state": "unreleased",
+          "month": "2026-09"
         }
       ]
     }
@@ -3583,6 +4692,531 @@
     {
       "path": "/releases",
       "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
+      "path": "/services/0/runs/0",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/1",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/2",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/3",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/4",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/5",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/6",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/7",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/8",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/9",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/10",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/11",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/12",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/13",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/14",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/15",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/16",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/17",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/18",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/19",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/20",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/21",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/22",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/23",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/runs/24",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/0/releases",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
+      "path": "/services/1/runs/0",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/1",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/2",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/3",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/4",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/5",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/6",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/7",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/8",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/9",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/10",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/11",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/12",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/13",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/14",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/15",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/16",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/17",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/18",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/19",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/20",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/21",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/runs/22",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/1/releases",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
+      "path": "/services/2/runs/0",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/1",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/2",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/3",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/4",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/5",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/6",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/7",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/8",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/9",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/10",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/11",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/12",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/13",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/14",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/15",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/16",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/17",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/18",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/19",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/20",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/runs/21",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/2/releases",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
+      "path": "/services/3/runs/0",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/1",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/2",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/3",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/4",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/5",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/6",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/7",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/8",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/9",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/10",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/11",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/12",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/13",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/14",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/15",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/16",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/17",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/18",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/19",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/20",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/21",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/runs/22",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/3/releases",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
+      "path": "/services/4/runs/0",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/1",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/2",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/3",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/4",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/5",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/6",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/7",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/8",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/9",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/10",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/11",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/12",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/13",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/14",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/15",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/16",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/17",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/18",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/19",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/20",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/runs/21",
+      "areas": ["runs"]
+    },
+    {
+      "path": "/services/4/releases",
+      "areas": ["fleet", "github"],
       "envelope": {
         "source": "releases",
         "state": "fresh",

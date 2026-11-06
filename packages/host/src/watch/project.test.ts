@@ -9,13 +9,17 @@ import {
   type ActionItem,
   AREAS,
   type AreaName,
+  buildBriefing,
+  buildModel,
   RELEASES_EVERY_MS,
   type ReadRecord,
+  repositoriesOf,
   TEMPLATE_REPO,
 } from "@spi-code/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { appActions, projectReleases, projectWatch } from "./project.js";
 import { briefingProvenance, releaseProvenance, stationAreas } from "./provenance.js";
+import { repositoryLines } from "./repository-lines.js";
 import {
   fixtureInput,
   fixtureRoot,
@@ -36,14 +40,196 @@ afterEach(() => {
 describe("Watch projection", () => {
   it("matches the frozen briefing, Releases pane, flow rows and six service stations", () => {
     const snapshot = projectWatch(fixtureInput());
-    expect(snapshot.briefing).toEqual(oracle("briefing"));
+    const legacy = withoutAdditions(snapshot);
+    expect(legacy.briefing).toEqual(oracle("briefing"));
     expect(snapshot.releases).toEqual(oracle("releases"));
     const lines = oracle("lines");
     expect({
       columns: ["Sync PR", "Cascade", "Sync to Main", "Main run"],
       flow: snapshot.briefing.flow.rows.map(({ fork, line }) => ({ fork, line })),
-      services: snapshot.stations.map(({ service, stations }) => ({ fork: service, stations })),
+      services: legacy.stations.map(({ service, stations }) => ({ fork: service, stations })),
     }).toEqual(lines);
+  });
+
+  it("adds only host metadata, preserving the core briefing and every station field", () => {
+    const input = fixtureInput();
+    const now = input.context.clock.now();
+    const model = buildModel(input.facts, now, {}, input.context);
+    const original = JSON.stringify(buildBriefing(model, input.doctor, now, input.context));
+    const snapshot = projectWatch(input);
+    expect(withoutAdditions(snapshot).briefing).toEqual(JSON.parse(original));
+    expect(withoutAdditions(snapshot).stations).toEqual(
+      model.lines.map((line) => ({ service: line.fork.id, stations: line.stations })),
+    );
+    expect(snapshot.stations.every((row) => row.stations.every((s) => !!s.inspect))).toBe(true);
+  });
+
+  it("fills each service's runs, release documents and current gate from recorded inputs", () => {
+    const input = fixtureInput();
+    const snapshot = projectWatch(input);
+    const { documents } = projectReleases(
+      input.releases,
+      input.appData,
+      input.context.clock.now(),
+      input.context,
+    );
+    const model = buildModel(input.facts, input.context.clock.now(), {}, input.context);
+    expect(snapshot.services).toHaveLength(input.context.fleet.forks.length);
+    for (const service of snapshot.services ?? []) {
+      const line = model.lines.find((line) => line.fork.id === service.service);
+      if (!line) throw new Error("Missing fixture service");
+      const lanes = input.facts.runs.data?.[line.fork.repo];
+      const recorded = [
+        ...Object.values(
+          lanes
+            ? {
+                sync: lanes.sync,
+                template: lanes.template,
+                cascade: lanes.cascade,
+                main: lanes.main,
+              }
+            : {},
+        ).flat(),
+        ...(input.facts.approvals.data?.[line.fork.repo] ?? []),
+      ];
+      const unique = [...new Map(recorded.map((run) => [run.id, run])).values()].sort(
+        (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || b.id - a.id,
+      );
+      expect(service.runs).toEqual(
+        unique.map((run) => ({
+          id: `run:${run.id}`,
+          workflow: run.name,
+          result: run.status === "completed" ? (run.conclusion ?? "completed") : run.status,
+          time: run.createdAt,
+          url: run.url,
+        })),
+      );
+      expect(
+        service.releases?.map(({ month, releasePr: _pr, gate: _gate, ...row }) => ({
+          month,
+          row,
+        })),
+      ).toEqual(
+        documents.flatMap((doc) =>
+          doc.rows
+            .filter((row) => row.id === service.service)
+            .map((row) => ({ month: doc.month, row })),
+        ),
+      );
+      const current = service.releases?.find(({ month }) => month === snapshot.sweptAt.slice(0, 7));
+      expect(current?.gate).toEqual(
+        line.stations
+          .filter((s) => s.id === "release")
+          .map(({ state, text }) => ({ state, text }))[0],
+      );
+      const pr = line.releasePr?.pr;
+      expect(current?.releasePr).toEqual(
+        pr ? { number: pr.number, title: pr.title, url: pr.url } : undefined,
+      );
+      expect(
+        service.releases
+          ?.filter((row) => row !== current)
+          .every(({ releasePr, gate }) => releasePr === undefined && gate === undefined),
+      ).toBe(true);
+    }
+    const lines = snapshot.briefing.repositories.rows.flatMap((r) =>
+      r.sections.flatMap((s) => s.lines),
+    );
+    for (const prefix of ["pr:", "issue:", "alert:"]) {
+      expect(lines.some((line) => line.id?.startsWith(prefix) && line.url)).toBe(true);
+    }
+  });
+
+  it("adds a recorded release PR to this month's service row, never to older months", () => {
+    const input = fixtureInput();
+    const fork = input.context.fleet.forks[0];
+    const repo = fork && input.facts.github.data?.repos[fork.repo];
+    const pr = Object.values(input.facts.github.data?.repos ?? {}).flatMap((r) => r.prs)[0];
+    if (!fork || !repo || !pr) throw new Error("Fixture must have repositories and PRs");
+    const releasePr = {
+      ...pr,
+      repo: fork.repo,
+      number: 700,
+      title: "chore: release service",
+      head: "release-please--branches--main",
+      labels: ["autorelease: pending"],
+      url: `https://github.com/${fork.repo}/pull/700`,
+    };
+    repo.prs.push(releasePr);
+    const service = projectWatch(input).services?.find((s) => s.service === fork.id);
+    const rows = service?.releases;
+    expect(rows?.find((r) => r.month === "2026-10")).toMatchObject({
+      releasePr: { number: 700, title: releasePr.title, url: releasePr.url },
+      gate: { state: "waiting", text: "gate 3 · PR #700" },
+    });
+    expect(rows?.filter((r) => r.month !== "2026-10").every((r) => !r.gate && !r.releasePr)).toBe(
+      true,
+    );
+  });
+
+  it("scopes, deduplicates and orders runs across existing areas, retaining live status", () => {
+    const input = fixtureInput();
+    const fork = input.context.fleet.forks[0];
+    const run = Object.values(input.facts.runs.data ?? {}).flatMap((lanes) => lanes.sync)[0];
+    const lifecycle = input.facts.lifecycle.data?.refresh[0];
+    if (!fork || !run || !lifecycle)
+      throw new Error("Fixture must have service and lifecycle runs");
+    const active = { ...run, id: 9001, status: "in_progress", createdAt: "2026-10-12T21:59:00Z" };
+    input.facts.runs.data = {
+      [fork.repo]: { sync: [active], template: [], cascade: [active], main: [] },
+    };
+    input.facts.approvals.data = {
+      [fork.repo]: [
+        { ...active, conclusion: "failure" },
+        { ...run, id: 9002 },
+      ],
+      "example/other": [{ ...run, id: 9003 }],
+    };
+    input.facts.lifecycle.data = {
+      refresh: [
+        { ...lifecycle, id: 9004, url: `https://github.com/${fork.repo}/actions/runs/9004` },
+      ],
+      upgrade: [],
+      smoke: [],
+      sweeper: [],
+    };
+    const snapshot = projectWatch(input);
+    const i = snapshot.services?.findIndex((s) => s.service === fork.id) ?? -1;
+    const service = snapshot.services?.[i];
+    expect(service?.runs?.map((r) => r.id).sort()).toEqual(["run:9001", "run:9002", "run:9004"]);
+    expect(service?.runs?.[0]).toMatchObject({ id: "run:9001", result: "in_progress" });
+    for (const [k, r] of (service?.runs ?? []).entries()) {
+      expect(snapshot.provenance.find((p) => p.path === `/services/${i}/runs/${k}`)?.areas).toEqual(
+        [r.id === "run:9001" ? "runs" : r.id === "run:9002" ? "approvals" : "lifecycle"],
+      );
+    }
+    expect(
+      snapshot.services?.filter((s) => s.service !== fork.id).every((s) => s.runs.length === 0),
+    ).toBe(true);
+  });
+
+  it("keeps distinct alert groups identifiable even when their displayed text is identical", () => {
+    const input = fixtureInput();
+    const now = input.context.clock.now();
+    const model = buildModel(input.facts, now, {}, input.context);
+    const repo = model.repositories.rows[0];
+    const alert = model.repositories.rows.flatMap((r) => r.alerts).find((g) => g.source === "code");
+    if (!repo || !alert) throw new Error("Fixture must have alert groups");
+    repo.alerts = ["rule-a", "rule-b"].map((rule) => ({
+      ...alert,
+      id: `code:tool:${rule}:src`,
+      rule,
+      count: 2,
+      owner: "spi",
+      reach: "shipped",
+    }));
+    const projected = repositoryLines(repositoriesOf(model, now), model, now);
+    const lines = projected.rows[0]?.sections.find((s) => s.title === "Code scanning")?.lines;
+    expect(lines?.map((line) => line.id)).toEqual([
+      `alert:${repo.repo}:code:tool:rule-a:src`,
+      `alert:${repo.repo}:code:tool:rule-b:src`,
+    ]);
+    expect(new Set(lines?.map((line) => line.url)).size).toBe(2);
   });
 
   it("rejects nested tampering of the projected snapshot", () => {
@@ -67,6 +253,30 @@ describe("Watch projection", () => {
       }).success,
     ).toBe(false);
   });
+
+  function withoutAdditions(snapshot: ReturnType<typeof projectWatch>) {
+    const { services: _services, ...legacy } = snapshot;
+    return {
+      ...legacy,
+      briefing: {
+        ...snapshot.briefing,
+        repositories: {
+          ...snapshot.briefing.repositories,
+          rows: snapshot.briefing.repositories.rows.map((row) => ({
+            ...row,
+            sections: row.sections.map((section) => ({
+              ...section,
+              lines: section.lines.map(({ id: _id, url: _url, ...line }) => line),
+            })),
+          })),
+        },
+      },
+      stations: snapshot.stations.map(({ service, stations }) => ({
+        service,
+        stations: stations.map(({ inspect: _inspect, ...station }) => station),
+      })),
+    };
+  }
 
   it("fails when the committed snapshot differs from a fresh projection", () => {
     expect(projectWatch(fixtureInput())).toEqual(JSON.parse(readFileSync(snapshotPath, "utf8")));
@@ -610,6 +820,7 @@ const UNDRAWN = [
   /^\/briefing\/flow\/inspect$/,
   /^\/briefing\/repositories\/first$/,
   /^\/stations\/\d+\/service$/,
+  /^\/services\/\d+\/service$/,
 ];
 
 /** Every scalar leaf pointer under the value, walked generically. */
@@ -830,7 +1041,7 @@ describe("area envelopes and provenance", () => {
     ).toEqual(lines.map((_, i) => ({ path: `/releases/lines/${i}`, areas: ["fleet"] })));
   });
 
-  it("covers every rendered briefing, station and release value with provenance at it or an ancestor", () => {
+  it("covers every briefing, station, service and release value with provenance at it or an ancestor", () => {
     const base = fixtureInput();
     const variants = [
       base,
@@ -857,6 +1068,7 @@ describe("area envelopes and provenance", () => {
       const missing = renderedLeaves({
         briefing: snapshot.briefing,
         stations: snapshot.stations,
+        services: snapshot.services,
         releases: snapshot.releases,
       })
         .map((leaf) => leaf.replace(/\/facts\/(\d+)\/(label|sub|tone)$/, "/facts/$1/figure"))
