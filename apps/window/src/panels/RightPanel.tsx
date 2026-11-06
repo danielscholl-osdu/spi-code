@@ -48,10 +48,12 @@ function Inspector({
   result,
   store,
   row,
+  snapshot,
 }: {
   result: InspectResult;
   store: SelectionStore;
   row: SelectionRow | null;
+  snapshot: ViewSnapshot | undefined;
 }) {
   const base = useId();
   return (
@@ -89,13 +91,19 @@ function Inspector({
                     type="button"
                     onClick={() => {
                       const id = related.inspect;
+                      const relatedRow = snapshot
+                        ? selectionRows(snapshot).find((candidate) => candidate.id === id)
+                        : undefined;
                       if (id)
-                        store.getState().select(id, {
+                        store.getState().select(
                           id,
-                          title: related.text,
-                          kind: id.startsWith("step:") ? "template-step" : "queue",
-                          ...(row?.prefixes ? { prefixes: row.prefixes } : {}),
-                        });
+                          relatedRow ?? {
+                            id,
+                            title: related.text,
+                            kind: id.startsWith("step:") ? "template-step" : "queue",
+                            ...(row?.prefixes ? { prefixes: row.prefixes } : {}),
+                          },
+                        );
                     }}
                   >
                     {related.text}
@@ -205,7 +213,7 @@ export function RightPanel({
         Reading {selected}…
       </p>
     ) : result ? (
-      <Inspector result={result} store={store} row={row} />
+      <Inspector result={result} store={store} row={row} snapshot={snapshot} />
     ) : null;
   return (
     <aside aria-label="Detail" className="right-panel" aria-busy={request !== null}>

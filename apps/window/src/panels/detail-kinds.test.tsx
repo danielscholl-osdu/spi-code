@@ -201,6 +201,7 @@ it.each(["fresh", "stale", "inferred", "release-stale"] as const)(
 
 it("shows station label/state/text and inspects its upstream or explicit Release/Stack id", async () => {
   const body = structuredClone(snapshot);
+  for (const strip of body.stations) for (const station of strip.stations) delete station.inspect;
   const service = body.stations[0];
   if (!service) throw new Error("Missing recorded station strip");
   const release = service.stations.find(({ id }) => id === "release");
@@ -217,12 +218,20 @@ it("shows station label/state/text and inspects its upstream or explicit Release
       postMessage.mockClear();
       await act(async () => store.getState().select(row.id, row));
       for (const field of row.fields ?? []) expect(container.textContent).toContain(field.value);
-      if (row.inspectId === null) {
+      const stationId = row.id.split(":").at(-1);
+      if (
+        stationId === "lane" ||
+        (stationId === "release" && !row.id.startsWith(`station:${service.service}:`))
+      ) {
         expect(postMessage).not.toHaveBeenCalled();
         expect(container.textContent).not.toContain("Reading ");
       } else {
+        const serviceId = row.id.split(":")[1];
         expect(postMessage).toHaveBeenLastCalledWith(
-          expect.objectContaining({ type: "inspect.request", payload: { id: row.inspectId } }),
+          expect.objectContaining({
+            type: "inspect.request",
+            payload: { id: stationId === "release" ? "release:2026-10" : `upstream:${serviceId}` },
+          }),
         );
       }
     }
@@ -231,3 +240,54 @@ it("shows station label/state/text and inspects its upstream or explicit Release
     container.remove();
   }
 });
+
+it.each(["flow", "repository"] as const)(
+  "resolves a Related %s from its snapshot row",
+  async (kind) => {
+    const rows = selectionRows(snapshot);
+    const parent = rows.find((row) => row.kind === "queue");
+    const target = rows.find((row) => row.kind === kind);
+    if (!parent || !target) throw new Error("Missing recorded selection rows");
+    const postMessage = vi.fn();
+    const store = createSelectionStore({ postMessage });
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    await act(async () => root.render(<RightPanel store={store} snapshot={snapshot} />));
+    try {
+      await act(async () => store.getState().select(parent.id, parent));
+      await act(async () =>
+        store.getState().receive({
+          version: PROTOCOL_VERSION,
+          id: store.getState().request,
+          kind: "response",
+          type: "inspect.result",
+          payload: {
+            id: parent.id,
+            class: "READY",
+            cause: "Recorded queue reading",
+            effect: "",
+            next: "",
+            why: "",
+            actions: [],
+            evidence: [],
+            approval: null,
+            related: [{ text: "Related alias", state: "read", inspect: target.id }],
+          },
+        }),
+      );
+      await act(async () =>
+        container.querySelector<HTMLButtonElement>('ul[aria-label="Related"] button')?.click(),
+      );
+      expect(store.getState().row).toEqual(target);
+      expect(container.querySelector("h2")?.textContent).toBe(target.title);
+      for (const field of target.fields ?? []) expect(container.textContent).toContain(field.value);
+      expect(postMessage).toHaveBeenLastCalledWith(
+        expect.objectContaining({ type: "inspect.request", payload: { id: target.id } }),
+      );
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  },
+);

@@ -297,6 +297,86 @@ it("keeps the narrow Sidebar and Detail toggles reachable without stacking their
   }
 });
 
+it.each([900, 1280])(
+  "keeps a Related selection through snapshot refresh at %i px, but clears a removed listed row",
+  async (width) => {
+    viewport(width);
+    const previous = watchStore.getState();
+    const body = testSnapshot(briefing, releases);
+    watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+    const item = body.briefing.focus[0];
+    if (!item) throw new Error("Missing recorded queue item");
+    const relatedId = "step:abc";
+    const shell = await mountShell();
+    const refresh = async (cursor: number, removeListed = false) =>
+      act(async () =>
+        watchStore.getState().receive({
+          version: PROTOCOL_VERSION,
+          id: `snapshot-${cursor}`,
+          kind: "event",
+          type: "view.snapshot",
+          payload: {
+            ...body,
+            cursor,
+            briefing: removeListed
+              ? { ...body.briefing, focus: body.briefing.focus.filter(({ id }) => id !== item.id) }
+              : body.briefing,
+          },
+        }),
+      );
+    try {
+      await act(async () => navigate({ kind: "inbox" }));
+      await act(async () => selectionStore.getState().select(item.id));
+      await act(async () =>
+        selectionStore.getState().receive({
+          version: PROTOCOL_VERSION,
+          id: selectionStore.getState().request,
+          kind: "response",
+          type: "inspect.result",
+          payload: {
+            id: item.id,
+            class: item.cls,
+            cause: item.cause,
+            effect: item.effect,
+            next: item.next,
+            why: "",
+            actions: [],
+            evidence: [],
+            approval: null,
+            related: [{ text: "Template step", state: "waiting", inspect: relatedId }],
+          },
+        }),
+      );
+      const related = shell.container.querySelector<HTMLButtonElement>(
+        'ul[aria-label="Related"] button',
+      );
+      expect(related).not.toBeNull();
+      await act(async () => related?.click());
+      const request = selectionStore.getState().request;
+      await refresh(2);
+      await refresh(3);
+      expect(selectionStore.getState().selected).toBe(relatedId);
+      expect(selectionStore.getState().request).toBe(request);
+      expect(shell.container.querySelector("#app-right-panel")).not.toBeNull();
+      expect(shell.container.querySelector("#app-right-panel")?.hasAttribute("data-sheet")).toBe(
+        width < 980,
+      );
+      await act(async () => navigate({ kind: "setup" }));
+      expect(selectionStore.getState().selected).toBeNull();
+      await act(async () => navigate({ kind: "inbox" }));
+      await act(async () => selectionStore.getState().select(item.id));
+      await refresh(4);
+      expect(selectionStore.getState().selected).toBe(item.id);
+      await refresh(5, true);
+      expect(selectionStore.getState().selected).toBeNull();
+      expect(shell.container.querySelector("#app-right-panel")).toBeNull();
+    } finally {
+      await shell.cleanup();
+      watchStore.setState(previous);
+    }
+  },
+);
+
 it("updates the title-bar sweep line from the live areas with the worst tone, and opens the sweep Evidence", async () => {
   const previous = window.spi;
   const previousState = watchStore.getState();

@@ -61,6 +61,7 @@ export type SelectionState = {
 export function createSelectionStore(port: InspectPort) {
   let hostPid: number | undefined;
   let route: string | undefined;
+  let listedIds = new Set<string>();
   const positions = new Map<
     string,
     { selected: string | null; row: SelectionRow | null; top: number }
@@ -127,8 +128,15 @@ export function createSelectionStore(port: InspectPort) {
     },
     visit(nextRoute, ids, scrollTop) {
       const current = get();
+      const previouslyListed = listedIds;
+      listedIds = new Set(ids);
       if (route === nextRoute) {
-        if (current.selected !== null && !ids.includes(current.selected)) get().clear();
+        if (
+          current.selected !== null &&
+          previouslyListed.has(current.selected) &&
+          !listedIds.has(current.selected)
+        )
+          get().clear();
         return scrollTop;
       }
       if (route !== undefined)
