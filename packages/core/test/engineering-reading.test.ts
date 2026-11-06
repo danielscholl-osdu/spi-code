@@ -13,6 +13,7 @@ import { buildModel } from "../src/model/index.js";
 import { type EngineeringItem, engineeringReading } from "../src/readings/engineering.js";
 import { internalNames, NOT_READ, readingText, wordCount } from "../src/readings/index.js";
 import sweep from "./fixtures/upstream-1106.json";
+import sweepReads from "./fixtures/upstream-1106-reads.json";
 
 const context = createContext({
   fleet: fleetOf(
@@ -28,7 +29,7 @@ function fixture(edit?: (facts: Facts) => void) {
   const model = buildModel(f, now, {}, context);
   const briefing = buildBriefing(model, { state: "clear", problems: [] }, now, context);
   const items = [...briefing.focus, ...briefing.rest];
-  return { model, items, reads: [] as ReadRecord[] };
+  return { model, items, reads: {}, runs: f.runs.data };
 }
 
 describe("Engineering system reading", () => {
@@ -60,7 +61,7 @@ describe("Engineering system reading", () => {
   });
 
   it("does not verify a merged fork until its main run succeeds on the target", () => {
-    const merged = (status: "in_progress" | "completed", conclusion?: string) =>
+    const merged = (status: "in_progress" | "completed", conclusion?: string, later = false) =>
       fixture((f) => {
         const repo = f.github.data?.repos["Azure/osdu-spi-partition"];
         const template = f.template.data;
@@ -91,17 +92,34 @@ describe("Engineering system reading", () => {
           },
         ];
         runs.main = [{ ...run, status, conclusion, createdAt: "2026-11-06T12:02:00Z" }];
+        if (later)
+          runs.main.unshift({
+            ...run,
+            id: run.id + 1,
+            status: "completed",
+            conclusion: "success",
+            createdAt: "2026-11-06T13:30:00Z",
+          });
       });
     const pending = merged("in_progress");
     expect(pending.model.rollout?.merged).toBe(1);
     expect(engineeringReading(pending).tiles[0].value).toBe("0 of 13");
     expect(engineeringReading(merged("completed", "failure")).tiles[0].value).toBe("0 of 13");
     expect(engineeringReading(merged("completed", "success")).tiles[0].value).toBe("1 of 13");
+    const later = merged("completed", "success", true);
+    expect(
+      later.model.rollout?.forks.find((fork) => fork.service === "partition")?.mainRun,
+    ).toBeUndefined();
+    expect(engineeringReading(later).tiles[0].value).toBe("1 of 13");
+    const runs = later.runs?.["Azure/osdu-spi-partition"];
+    if (!runs) throw new Error("Missing partition runs");
+    runs.main = runs.main.map((run) => ({ ...run, createdAt: "2026-11-06T12:00:00Z" }));
+    expect(engineeringReading(later).tiles[0].value).toBe("0 of 13");
   });
 
   it("does not turn unread template positions or PR lists into zero", () => {
     const model = buildModel(emptyFacts(), now, {}, context);
-    const reading = engineeringReading({ model, items: [], reads: [] });
+    const reading = engineeringReading({ model, items: [], reads: {} });
     expect(reading.headline).toBe("Engineering system not read yet.");
     expect(reading.tiles.map((tile) => tile.value)).toEqual([NOT_READ, NOT_READ, NOT_READ]);
     expect(readingText(reading).join(" ")).not.toMatch(/\b0\b/);
@@ -158,20 +176,54 @@ describe("Engineering system reading", () => {
       observedAt: now.toISOString(),
       completeness: { kind: "complete" },
     };
-    expect(engineeringReading({ ...input, reads: [record] })).not.toHaveProperty("qualifier");
+    expect(engineeringReading({ ...input, reads: { template: [record] } })).not.toHaveProperty(
+      "qualifier",
+    );
     expect(
       engineeringReading({
         ...input,
-        reads: [{ ...record, completeness: { kind: "cut", read: 1, total: 2, reason: "limit" } }],
+        reads: {
+          template: [
+            { ...record, completeness: { kind: "cut", read: 1, total: 2, reason: "limit" } },
+          ],
+        },
       }).qualifier,
-    ).toContain("incomplete");
+    ).toBe(
+      "GitHub template reads were incomplete, so adoption or template changes could be missing.",
+    );
     expect(
-      engineeringReading({ ...input, reads: [{ ...record, failure: "unavailable" }] }).qualifier,
-    ).toContain("failed");
+      engineeringReading({ ...input, reads: { template: [{ ...record, failure: "unavailable" }] } })
+        .qualifier,
+    ).toBe("GitHub template reads failed, so adoption or template changes could be missing.");
     expect(
       engineeringReading({
         ...input,
-        reads: [{ ...record, source: "Azure/osdu-spi-stack", failure: "unavailable" }],
+        reads: {
+          runs: [
+            {
+              ...record,
+              source: "Azure/osdu-spi-partition",
+              object: "actions/runs",
+              failure: "unavailable",
+            },
+          ],
+        },
+      }).qualifier,
+    ).toBe("GitHub Actions reads failed, so adoption or template changes could be missing.");
+    expect(
+      engineeringReading({
+        ...input,
+        reads: { github: [{ ...record, source: "Azure/osdu-spi-stack", failure: "unavailable" }] },
+      }),
+    ).not.toHaveProperty("qualifier");
+  });
+
+  it("does not qualify the recorded sweep on the radar's failed toolchain reads", () => {
+    expect(sweepReads.radar.filter((read) => "failure" in read)).toHaveLength(3);
+    expect(
+      engineeringReading({
+        ...fixture(),
+        reads: { ...sweepReads, template: [] },
       }),
     ).not.toHaveProperty("qualifier");
   });

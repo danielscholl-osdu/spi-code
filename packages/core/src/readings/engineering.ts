@@ -3,6 +3,7 @@
 
 import { TEMPLATE_REPO } from "../config.js";
 import type { ReadRecord } from "../evidence/index.js";
+import type { Facts, RunFact } from "../facts.js";
 import type { Model } from "../model/index.js";
 import { classifyPr } from "../model/attribution.js";
 import { templatePrState } from "../model/queue.js";
@@ -24,17 +25,24 @@ export interface EngineeringItem extends ReadingItem {
 export interface EngineeringReadingInput<T extends EngineeringItem> {
   model: Model;
   items: readonly T[];
-  reads: readonly ReadRecord[];
+  reads: Partial<Record<"template" | "github" | "runs", readonly ReadRecord[]>>;
+  runs?: Facts["runs"]["data"];
 }
 
-function verifiedForks(model: Model): number {
+function green(run: RunFact | undefined): boolean {
+  return run?.status === "completed" && run.conclusion === "success";
+}
+
+function verifiedForks(model: Model, runs: Facts["runs"]["data"]): number {
   if (model.rollout) {
-    return model.rollout.forks.filter(
-      (fork) =>
-        fork.onTarget &&
-        fork.mainRun?.status === "completed" &&
-        fork.mainRun.conclusion === "success",
-    ).length;
+    return model.rollout.forks.filter((fork) => {
+      if (!fork.onTarget) return false;
+      if (fork.mainRun) return green(fork.mainRun);
+      const mergedAt = fork.merged?.at;
+      return mergedAt !== undefined && (runs?.[fork.repo]?.main.some(
+        (run) => green(run) && Date.parse(run.createdAt) >= Date.parse(mergedAt),
+      ) ?? false);
+    }).length;
   }
   return model.lines.filter((line) => {
     const merged = (line.past ?? [])
@@ -50,18 +58,31 @@ function verifiedForks(model: Model): number {
   }).length;
 }
 
-function qualifierFor(model: Model, reads: readonly ReadRecord[]): string | undefined {
+function qualifierFor(
+  model: Model,
+  reads: EngineeringReadingInput<EngineeringItem>["reads"],
+): string | undefined {
   const repos = new Set([TEMPLATE_REPO, ...model.template.rows.map((row) => row.repo)]);
-  const contributing = reads.filter(
-    (read) =>
-      repos.has(read.source) ||
-      repos.has(read.object) ||
-      (read.source === read.object && ["github", "runs", "template"].includes(read.source)),
-  );
-  const failed = contributing.some((read) => read.failure !== undefined);
-  const cut = contributing.some((read) => read.completeness.kind === "cut");
-  if (!failed && !cut) return undefined;
-  return `Engineering system reads ${failed && cut ? "failed or were incomplete" : failed ? "failed" : "were incomplete"}, so adoption or template changes could be missing.`;
+  const parts = ([
+    ["template", "GitHub template reads"],
+    ["github", "GitHub repository reads"],
+    ["runs", "GitHub Actions reads"],
+  ] as const).flatMap(([area, source]) => {
+    const contributing = (reads[area] ?? []).filter(
+      (read) =>
+        repos.has(read.source) ||
+        repos.has(read.object) ||
+        (read.source === area && read.object === area),
+    );
+    const failed = contributing.some((read) => read.failure !== undefined);
+    const cut = contributing.some((read) => read.completeness.kind === "cut");
+    return failed || cut
+      ? [`${source} ${failed && cut ? "failed or were incomplete" : failed ? "failed" : "were incomplete"}`]
+      : [];
+  });
+  return parts.length > 0
+    ? `${parts.join("; ")}, so adoption or template changes could be missing.`
+    : undefined;
 }
 
 function groupsFor<T extends EngineeringItem>(items: readonly T[]): ReadingGroup<T>[] {
@@ -93,11 +114,11 @@ function groupsFor<T extends EngineeringItem>(items: readonly T[]): ReadingGroup
 export function engineeringReading<T extends EngineeringItem>(
   input: EngineeringReadingInput<T>,
 ): PlaceReading<T> {
-  const { model, items, reads } = input;
+  const { model, items, reads, runs } = input;
   const { template, rollout } = model;
   const total = template.rows.length;
   const target = rollout?.target.sha ?? template.head?.sha;
-  const verified = verifiedForks(model);
+  const verified = verifiedForks(model, runs);
   const unread = template.rows.filter((row) => row.behind === undefined).length;
   const positionsRead = !!target && total > 0 && unread < total;
   const prsUnread = model.lines.filter((line) => !line.repoRead).length;

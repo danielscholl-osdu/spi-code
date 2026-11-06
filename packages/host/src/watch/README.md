@@ -61,7 +61,10 @@ The engineering reading counts forks whose target template adoption is confirmed
 by successful main validation, not template PRs merged. Open fork template PRs
 have their own tile. Its items retain projected attention, due times and ownership,
 with the fleet rollout shown once alongside template-repository work. Only failed
-or incomplete contributing reads add a qualifier; unread values say "not read yet".
+or incomplete template, GitHub repository or Actions reads add a source-named
+qualifier; radar toolchain reads do not feed it. A later successful main run after
+the template merge preserves confirmed adoption when the merge-time run is absent
+from the rollout model. Unread values say "not read yet".
 `seen.cursor: null` means no acknowledged baseline; `seen.since` lists the
 Interrupt item IDs new or worsened since that baseline, defaulting to `[]`.
 The window request
