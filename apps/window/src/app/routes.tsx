@@ -12,6 +12,7 @@ import Releases, { ReleaseMonth } from "../views/releases/index.js";
 import Repositories from "../views/repositories/index.js";
 import Setup from "../views/setup/index.js";
 import { WatchGate } from "../views/setup/WatchGate.js";
+import Template from "../views/template/index.js";
 
 export const LENSES = ["flow", "repositories", "horizon"] as const;
 export type Lens = (typeof LENSES)[number];
@@ -169,6 +170,8 @@ export function RouteView({ route }: { route: Route }) {
     <WatchGate label={label}>
       {route.kind === "inbox" ? (
         <Inbox onNavigate={navigate} />
+      ) : route.kind === "template" ? (
+        <Template />
       ) : route.kind === "environment" ? (
         <Environment />
       ) : route.kind === "releases" ? (

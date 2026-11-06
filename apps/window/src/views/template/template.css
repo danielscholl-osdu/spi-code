@@ -1,0 +1,91 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.template-detail {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 3px 14px;
+  margin: 6px 0 0 42px;
+  font-size: 12.5px;
+}
+.template-detail > div {
+  display: contents;
+}
+.template-detail dt {
+  padding-top: 2px;
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.template-detail dd {
+  margin: 0;
+}
+.template-repo-lead,
+.template-lines li[data-selection-id] {
+  cursor: default;
+}
+.template-repo-lead {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+.template-repo-title {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+.template-repo-title[data-tone="bad"],
+.template-lines [data-tone="bad"] .template-line-tag {
+  color: var(--error-text);
+}
+.template-repo-title[data-tone="warn"],
+.template-lines [data-tone="warn"] .template-line-tag {
+  color: var(--warning-text);
+}
+.template-repo-section h3 {
+  margin: 12px 0 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.template-repo-section[data-weight] h3 {
+  color: var(--text-muted);
+}
+.template-lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.template-lines li {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 10px;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 12.5px;
+}
+.template-lines li[data-upstream] {
+  color: var(--text-muted);
+}
+.template-line-tag {
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: lowercase;
+}
+.template-line-sub,
+.template-note {
+  display: block;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+.template-repo-lead:hover,
+.template-lines li[data-selection-id]:hover {
+  background: var(--surface-raised);
+}
+.template-repo-lead[data-selected],
+.template-lines li[data-selected] {
+  background: var(--accent-surface);
+  box-shadow: inset 3px 0 var(--accent);
+}

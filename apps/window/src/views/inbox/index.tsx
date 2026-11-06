@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { SweepStatus } from "@spi-code/contracts";
-import { type ReactNode, useId } from "react";
+import { type LiHTMLAttributes, type ReactNode, useId } from "react";
 import { useStore } from "zustand";
 import type { Route } from "../../app/routes.js";
 import { worstEnvelope } from "../../components/evidence/WorstEnvelope.js";
@@ -89,22 +89,26 @@ function FirstSweep({ sweep }: { sweep: SweepStatus | null }) {
   );
 }
 
-function QueueRow({
+/** One queue item. A page that lists it with useSelectionList passes its rowProps, less onClick. */
+export function QueueRow({
   entry: { item, pointer },
   selected,
   services,
   onSelect,
   onNavigate,
+  rowProps,
 }: {
   entry: QueueEntry;
   selected: boolean;
   services: readonly string[];
   onSelect(id: string): void;
   onNavigate(route: Route): void;
+  rowProps?: LiHTMLAttributes<HTMLLIElement>;
 }) {
   const route = scopeRoute(item.scope, services);
   return (
     <li
+      {...rowProps}
       className="inbox-row"
       data-selection-id={item.id}
       data-pointer={pointer}
