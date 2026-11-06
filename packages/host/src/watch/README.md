@@ -53,6 +53,10 @@ beside partial counts. Items group code findings by tool and rule and dependency
 findings by package; a detected security campaign supplies the shared rule's id
 instead of per-fork rows. Projected attention and due times order the groups.
 Only failed or incomplete security read records add a qualifier.
+Each service reading carries only its repository's security counts, using the
+same SPI/template ownership rule as Security. Its item names the scanner and
+counts upstream-origin findings separately; hidden lists remain "not read yet".
+Stopped and due items keep priority, and lower-tier overflow folds past five items.
 `seen.cursor: null` means no acknowledged baseline; `seen.since` lists the
 Interrupt item IDs new or worsened since that baseline, defaulting to `[]`.
 The window request

@@ -6,6 +6,7 @@ import type { ReadRecord } from "../evidence/index.js";
 import type { Model } from "../model/index.js";
 import { type LineModel, prRed, type Station } from "../model/lines.js";
 import { plural, since } from "../util.js";
+import { type SecurityReadingItem, serviceSecurityItem } from "./security.js";
 
 export const READING_ITEMS = 5;
 
@@ -529,34 +530,38 @@ export interface ServiceReadingInput<T extends ReadingItem> {
 
 export function serviceReading<T extends ReadingItem>(
   input: ServiceReadingInput<T>,
-): PlaceReading<T> | null {
+): PlaceReading<T | SecurityReadingItem> | null {
   const { model, service, items, reads, now } = input;
   const line = model.lines.find((l) => l.fork.id === service);
   if (!line) return null;
   const next = model.upstream.schedule.upstream;
-  const bite = (i: T): string | undefined =>
+  type Item = T | SecurityReadingItem;
+  const bite = (i: Item): string | undefined =>
     i.due?.at ?? (i.id.startsWith("radar:") ? next : undefined);
-  const groupOf = (i: T): string => {
+  const groupOf = (i: Item): string => {
     if (i.rung === 0) return "Stopped";
     const at = bite(i);
     if (at) return `Before ${clockOf(at)}`;
-    return i.rung === 1 ? "Needs a decision" : "Ready to move";
+    return i.rung === 1 ? "Needs a decision" : i.cls === "SECURITY" ? "Security" : "Ready to move";
   };
-  const tier = (i: T): number => (i.rung === 0 ? 0 : bite(i) ? 1 : i.rung === 1 ? 2 : 3);
-  const time = (i: T): number => (tier(i) === 1 ? Date.parse(bite(i) as string) : 0);
-  const own = items
-    .filter((i) => belongs(i, service))
+  const tier = (i: Item): number => (i.rung === 0 ? 0 : bite(i) ? 1 : i.rung === 1 ? 2 : 3);
+  const time = (i: Item): number => (tier(i) === 1 ? Date.parse(bite(i) as string) : 0);
+  const security = serviceSecurityItem(
+    service,
+    model.repositories.rows.find((row) => row.repo === line.fork.repo),
+  );
+  const own = [security, ...items.filter((i) => belongs(i, service))]
     .map((item, index) => ({ item, index }))
     .sort(
       (a, b) =>
         tier(a.item) - tier(b.item) || time(a.item) - time(b.item) || a.index - b.index,
     )
     .map(({ item }) => item);
-  const groups: ReadingGroup<T>[] = [];
+  const groups: ReadingGroup<Item>[] = [];
   for (const item of own) {
     const group = groupOf(item);
     const found = groups.find((g) => g.group === group);
-    if (found) (found.items as T[]).push(item);
+    if (found) (found.items as Item[]).push(item);
     else groups.push({ group, items: [item] });
   }
   const qualifier = serviceQualifier(

@@ -284,6 +284,7 @@ describe("Service readings on the recorded 6 Nov sweep", () => {
     expect(release?.title).toBe("Release PR #89 fails Code Coverage");
     for (const item of reading.items) {
       const raw = items.find((i) => i.id === item.id);
+      if (item.id === "repo:entitlements") continue;
       expect(item.ids).toEqual(raw?.ids);
       expect(item.evidence).toEqual(raw?.evidence);
     }
@@ -327,7 +328,7 @@ describe("Service readings on the recorded 6 Nov sweep", () => {
       now,
     });
     expect(reading?.items).toHaveLength(5);
-    expect(reading?.folded).toMatch(/^4 more items: /);
+    expect(reading?.folded).toMatch(/^5 more items: /);
   });
 
   it("groups items by their projected due time when attention carries one", () => {

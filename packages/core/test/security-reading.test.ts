@@ -9,19 +9,21 @@ import type { ReadRecord } from "../src/evidence/index.js";
 import { emptyFacts, type Facts } from "../src/facts.js";
 import { detectCampaigns } from "../src/model/campaigns.js";
 import { buildModel } from "../src/model/index.js";
-import { internalNames, NOT_READ, readingText, wordCount } from "../src/readings/index.js";
+import {
+  internalNames,
+  NOT_READ,
+  readingText,
+  serviceReading,
+  wordCount,
+} from "../src/readings/index.js";
 import { type SecurityReadingItem, securityReading } from "../src/readings/security.js";
+import novemberSweep from "./fixtures/upstream-1106.json";
 import { FIXTURE_NOW, fixtureFacts } from "./harness.js";
 import { fixtureContext } from "./model-fleet.js";
 
-function recorded(facts: Facts = fixtureFacts()) {
-  const model = buildModel(facts, FIXTURE_NOW, {}, fixtureContext);
-  const briefing = buildBriefing(
-    model,
-    { state: "clear", problems: [] },
-    FIXTURE_NOW,
-    fixtureContext,
-  );
+function recorded(facts: Facts = fixtureFacts(), now = FIXTURE_NOW) {
+  const model = buildModel(facts, now, {}, fixtureContext);
+  const briefing = buildBriefing(model, { state: "clear", problems: [] }, now, fixtureContext);
   const items: SecurityReadingItem[] = [...briefing.focus, ...briefing.rest].map((item) => ({
     ...item,
     attention: "ambient",
@@ -30,6 +32,124 @@ function recorded(facts: Facts = fixtureFacts()) {
   const campaigns = detectCampaigns(model);
   return { model, items, campaigns, reads: [] as ReadRecord[] };
 }
+
+function legalReading(facts: Facts = fixtureFacts(), now = FIXTURE_NOW) {
+  return serviceReading({ ...recorded(facts, now), service: "legal", now });
+}
+
+describe("Service security reading", () => {
+  it("states legal's SPI-owned CodeQL count from 59d6895, matching its repository cell", () => {
+    const input = recorded();
+    const cell = repositoriesOf(input.model, FIXTURE_NOW).rows.find((row) => row.name === "legal")
+      ?.cells.codeScanning;
+    expect(cell?.text).toBe("2");
+    const reading = legalReading();
+    const security = reading?.items.find((item) => item.cls === "SECURITY");
+    expect(security).toMatchObject({
+      id: "repo:legal",
+      scope: "legal",
+      title: `${cell?.text} SPI-owned CodeQL findings`,
+    });
+    expect(security?.sub).toContain("2 high or critical in SPI-owned shipped code");
+    expect(security?.sub).toContain("4 upstream-origin findings");
+    expect(security?.ids).toEqual([
+      "alert:Azure/osdu-spi-legal:code:CodeQL:java/spring-disabled-csrf-protection:provider/legal-azure",
+    ]);
+    expect(reading?.items.every((item) => item.scope === "legal")).toBe(true);
+    expect(wordCount(reading?.headline ?? "")).toBeLessThanOrEqual(12);
+  });
+
+  it("does not count upstream-origin or another service's findings as legal's SPI-owned work", () => {
+    const facts = fixtureFacts();
+    const code = facts.security.data?.["Azure/osdu-spi-legal"]?.code;
+    const base = code?.[0];
+    if (!code || !base) throw new Error("Missing recorded legal findings");
+    code.push({
+      ...base,
+      number: 999,
+      rule: "synthetic/upstream",
+      path: "src/Upstream.java",
+      severity: "critical",
+    });
+    expect(legalReading(facts)?.items.find((item) => item.cls === "SECURITY")).toMatchObject({
+      title: "2 SPI-owned CodeQL findings",
+      sub: "2 high or critical in SPI-owned shipped code · 5 upstream-origin findings",
+    });
+    code.push({
+      ...base,
+      number: 998,
+      path: "provider/legal-azure/Synthetic.java",
+      severity: "low",
+    });
+    const security = legalReading(facts)?.items.find((item) => item.cls === "SECURITY");
+    expect(security?.title).toBe("3 SPI-owned CodeQL findings");
+    expect(security?.sub).toContain("2 high or critical in SPI-owned shipped code");
+  });
+
+  it("says security was not read on Nov 6, rather than reporting zero", () => {
+    const facts: Facts = {
+      ...emptyFacts(),
+      ...(structuredClone(novemberSweep) as unknown as Partial<Facts>),
+    };
+    const security = legalReading(facts, new Date(facts.sweep?.at ?? ""))?.items.find(
+      (item) => item.cls === "SECURITY",
+    );
+    expect(security).toMatchObject({
+      scope: "legal",
+      title: "Security not read yet",
+      ids: [],
+    });
+    expect([security?.title, security?.sub].join(" ")).not.toMatch(/\b0\b|No SPI-owned/);
+  });
+
+  it("distinguishes hidden lists from measured zero and includes template-owned findings", () => {
+    const facts = fixtureFacts();
+    const alerts = facts.security.data?.["Azure/osdu-spi-legal"];
+    const base = alerts?.code?.[0];
+    if (!alerts || !base) throw new Error("Missing recorded legal findings");
+    alerts.code = [];
+    alerts.dependabot = [];
+    expect(legalReading(facts)?.items.find((item) => item.cls === "SECURITY")?.title).toBe(
+      "No SPI-owned security findings in the lists read",
+    );
+    delete alerts.code;
+    expect(legalReading(facts)?.items.find((item) => item.cls === "SECURITY")?.sub).toContain(
+      "Code scanning not read yet",
+    );
+    alerts.code = [{ ...base, path: ".github/workflows/build.yml" }];
+    const security = legalReading(facts)?.items.find((item) => item.cls === "SECURITY");
+    expect(security?.title).toBe("1 SPI-owned CodeQL finding");
+    expect(security?.sub).toContain("0 high or critical in SPI-owned shipped code");
+  });
+
+  it("keeps the highest-tier five items and folds the lowest-tier overflow", () => {
+    const input = recorded();
+    const base = input.items[0];
+    if (!base) throw new Error("Missing recorded item");
+    const extras = Array.from({ length: 5 }, (_, n) => ({
+      ...base,
+      id: `extra:legal:${n}`,
+      ids: [`extra:legal:${n}`],
+      rung: n === 0 ? (0 as const) : (2 as const),
+      scope: "legal",
+      title: `Extra ${n}`,
+    }));
+    const reading = serviceReading({
+      ...input,
+      service: "legal",
+      items: [...input.items, ...extras],
+      now: FIXTURE_NOW,
+    });
+    expect(reading?.items).toHaveLength(5);
+    expect(reading?.items[0]?.id).toBe("extra:legal:0");
+    expect(reading?.items.some((item) => item.cls === "SECURITY" && item.id === "repo:legal")).toBe(
+      true,
+    );
+    expect(reading?.folded).toContain("legal extra 4");
+    expect(reading?.folded).not.toContain("legal extra 0");
+    expect(wordCount(reading?.headline ?? "")).toBeLessThanOrEqual(12);
+  });
+});
 
 describe("Security reading on the recorded sweep", () => {
   it("counts high findings like the repository security cells, and all owned findings separately", () => {

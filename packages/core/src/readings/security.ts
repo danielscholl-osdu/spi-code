@@ -34,6 +34,62 @@ interface Finding {
   alert: AlertGroup;
 }
 
+function spiOwned(alert: AlertGroup): boolean {
+  return alert.owner !== "upstream";
+}
+
+export function serviceSecurityItem(
+  service: string,
+  repo: RepoRow | undefined,
+): SecurityReadingItem {
+  const listsRead = Number(repo?.codeAlerts !== undefined) + Number(repo?.dependabotAlerts !== undefined);
+  const ours = (repo?.alerts ?? []).filter(spiOwned);
+  const counts = new Map<string, number>();
+  for (const alert of ours) {
+    const kind = alert.source === "code" ? (alert.tool || "code-scanning") : "dependency";
+    counts.set(kind, (counts.get(kind) ?? 0) + alert.count);
+  }
+  const title =
+    listsRead === 0
+      ? `Security ${NOT_READ}`
+      : counts.size === 0
+        ? "No SPI-owned security findings in the lists read"
+        : [...counts].map(([kind, count]) => plural(count, `SPI-owned ${kind} finding`)).join(" · ");
+  const upstream = (repo?.alerts ?? [])
+    .filter((alert) => !spiOwned(alert))
+    .reduce((sum, alert) => sum + alert.count, 0);
+  const high = (repo?.vulnerabilities?.ours ?? 0) + (repo?.codeScanning?.ours ?? 0);
+  const sub =
+    listsRead === 0
+      ? "Code scanning and dependency alerts"
+      : [
+          `${high} high or critical in SPI-owned shipped code`,
+          plural(upstream, "upstream-origin finding"),
+          repo?.codeAlerts === undefined ? `Code scanning ${NOT_READ}` : undefined,
+          repo?.dependabotAlerts === undefined ? `Dependency alerts ${NOT_READ}` : undefined,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+  return {
+    id: `repo:${service}`,
+    ids: repo ? ours.map((alert) => alertId({ repo, alert })) : [],
+    rung: 2,
+    cls: "SECURITY",
+    scope: service,
+    title,
+    sub,
+    cause: `${title}.`,
+    effect: "",
+    next: "",
+    verb: "",
+    evidence: repo
+      ? ours.map((alert) => ({ label: groupName(alert), url: groupUrl(repo, alert) }))
+      : [],
+    attention: "ambient",
+    owned: false,
+  };
+}
+
 const attentionRank = Object.freeze({ interrupt: 0, surface: 1, ambient: 2 });
 
 function urgency(
@@ -176,7 +232,7 @@ export function securityReading(input: SecurityReadingInput): PlaceReading<Secur
     0,
   );
   const findings = rows.flatMap((repo) => repo.alerts.map((alert) => ({ repo, alert })));
-  const ours = findings.filter(({ alert }) => alert.owner !== "upstream");
+  const ours = findings.filter(({ alert }) => spiOwned(alert));
   const total = ours.reduce((sum, { alert }) => sum + alert.count, 0);
   const upstream = findings
     .filter(({ alert }) => alert.owner === "upstream")
