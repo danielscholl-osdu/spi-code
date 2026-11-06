@@ -382,6 +382,77 @@ describe("group-scoped reads", () => {
     }
   });
 
+  describe("a response whose framing is not whole", () => {
+    /** A server that answers every request with the bytes given, then closes. */
+    async function answering(raw: string) {
+      const server = createTcpServer((socket) => {
+        socket.once("data", () => socket.end(raw));
+      });
+      return { server, port: await listening(server) };
+    }
+    const head = (...fields: string[]) =>
+      ["HTTP/1.1 200 OK", "Content-Type: application/json", ...fields, "", ""].join("\r\n");
+    const chunked = head("Transfer-Encoding: chunked");
+    const failed = { stdout: "", exit: 1 };
+
+    it.each([
+      ["a chunk size with junk after it", `${chunked}2zz\r\n[]\r\n0\r\n\r\n`],
+      ["a chunk size that is not hex", `${chunked}0x2\r\n[]\r\n0\r\n\r\n`],
+      ["chunk data without its CRLF", `${chunked}2\r\n[]0\r\n\r\n`],
+      ["chunk data followed by other bytes", `${chunked}2\r\n[]XY0\r\n\r\n`],
+      ["no CRLF after the last chunk", `${chunked}2\r\n[]\r\n0\r\n`],
+      ["an unterminated trailer", `${chunked}2\r\n[]\r\n0\r\nX-Trailer: 1\r\n`],
+      ["bytes after the last chunk", `${chunked}2\r\n[]\r\n0\r\n\r\n[{"id":1}]`],
+      ["a chunk cut short", `${chunked}a\r\n[{"id":`],
+      ["a body shorter than its Content-Length", `${head("Content-Length: 10")}[]`],
+      ["a body longer than its Content-Length", `${head("Content-Length: 2")}[]{"id":1}`],
+      ["a Content-Length that is not a number", `${head("Content-Length: 2x")}[]`],
+    ])("fail a read on %s", async (_, raw) => {
+      const { server, port } = await answering(raw);
+      try {
+        expect(await anonymousGroupRead(toLocal(port), "groups/x/issues", {})).toMatchObject(
+          failed,
+        );
+      } finally {
+        await closing(server);
+      }
+    });
+
+    it.each([
+      ["chunk extensions", `${chunked}2;name=value\r\n[]\r\n0\r\n\r\n`],
+      ["a trailer", `${chunked}1\r\n[\r\n1\r\n]\r\n0\r\nX-Trailer: 1\r\n\r\n`],
+      ["an exact Content-Length", `${head("Content-Length: 2")}[]`],
+      ["a body read to the close", `${head()}[]`],
+    ])("read a whole body with %s", async (_, raw) => {
+      const { server, port } = await answering(raw);
+      try {
+        expect(await anonymousGroupRead(toLocal(port), "groups/x/issues", {})).toEqual({
+          stdout: "[]",
+          stderr: "",
+          exit: 0,
+        });
+      } finally {
+        await closing(server);
+      }
+    });
+
+    it("never records a cut-short body as a successful read", async () => {
+      const { server, port } = await answering(`${chunked}2\r\n[]\r\n0\r\n`);
+      try {
+        const { entries } = await record(
+          visibility({ github: [CORE_LIB_REPO] }),
+          undefined,
+          toLocal(port),
+        );
+        const reads = entries.filter(isGroupRead);
+        expect(reads.length).toBeGreaterThan(0);
+        for (const read of reads) expect(read).toMatchObject({ stdout: "", exit: 1 });
+      } finally {
+        await closing(server);
+      }
+    });
+  });
+
   it("refuse a URL that carries credentials", async () => {
     await expect(
       isolatedGet(new URL("http://user:pass@127.0.0.1:9/"), new AbortController().signal),

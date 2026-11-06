@@ -273,28 +273,45 @@ export const GITLAB_API = `https://${GITLAB}/api/v4/`;
 const GROUP_API = "/api/v4/groups/";
 const MAX_RESPONSE = 64 * 1024 * 1024;
 
-/** A chunked body, decoded; trailers are dropped. */
+/** A chunk-size line: hex digits and, optionally, chunk extensions; nothing else. */
+const CHUNK_SIZE = /^([0-9A-Fa-f]{1,13})(?:[ \t]*;[^\r\n]*)?$/;
+/** A trailer field line. */
+const TRAILER = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+:[^\r\n]*$/;
+
+/** A chunked body, decoded, only when its framing is whole: every size line well formed, every
+ * chunk followed by its CRLF, the last chunk followed by its trailers and the final CRLF, and
+ * nothing after. Anything else, a body cut short included, throws. Trailers are dropped. */
 function dechunk(data: Buffer): Buffer {
   const parts: Buffer[] = [];
   let at = 0;
-  for (;;) {
+  const line = () => {
     const eol = data.indexOf("\r\n", at);
     if (eol < 0) throw new Error("truncated chunked response");
-    const size = Number.parseInt(
-      (data.subarray(at, eol).toString("latin1").split(";")[0] ?? "").trim(),
-      16,
-    );
-    if (!Number.isSafeInteger(size) || size < 0) throw new Error("malformed chunked response");
-    if (size === 0) return Buffer.concat(parts);
-    const start = eol + 2;
-    if (start + size + 2 > data.length) throw new Error("truncated chunked response");
-    parts.push(data.subarray(start, start + size));
-    at = start + size + 2;
+    const text = data.subarray(at, eol).toString("latin1");
+    at = eol + 2;
+    return text;
+  };
+  for (;;) {
+    const size = CHUNK_SIZE.exec(line())?.[1];
+    if (size === undefined) throw new Error("malformed chunk size");
+    const length = Number.parseInt(size, 16);
+    if (length === 0) break;
+    if (at + length + 2 > data.length) throw new Error("truncated chunked response");
+    parts.push(data.subarray(at, at + length));
+    at += length;
+    if (data[at] !== 0x0d || data[at + 1] !== 0x0a) throw new Error("malformed chunk data");
+    at += 2;
   }
+  for (let trailer = line(); trailer !== ""; trailer = line())
+    if (!TRAILER.test(trailer)) throw new Error("malformed chunked trailer");
+  if (at !== data.length) throw new Error("bytes after a chunked response");
+  return Buffer.concat(parts);
 }
 
 /** The status, content type and body of a whole HTTP/1.1 response read to the connection's
- * close. */
+ * close. A body is whole when its chunked framing is, when it is exactly its Content-Length, or,
+ * with neither, when the server closed the connection cleanly; anything else throws, so the read
+ * fails. */
 export function parseResponse(data: Buffer): Answered {
   const split = data.indexOf("\r\n\r\n");
   if (split < 0) throw new Error("malformed HTTP response");
@@ -314,10 +331,8 @@ export function parseResponse(data: Buffer): Answered {
   const length = headers.get("content-length");
   if (/\bchunked\b/i.test(headers.get("transfer-encoding") ?? "")) body = dechunk(body);
   else if (length !== undefined) {
-    const size = Number(length);
-    if (!Number.isSafeInteger(size) || size < 0 || body.length < size)
-      throw new Error("truncated HTTP response");
-    body = body.subarray(0, size);
+    if (!/^\d{1,15}$/.test(length)) throw new Error("malformed Content-Length");
+    if (body.length !== Number(length)) throw new Error("body does not match its Content-Length");
   }
   return { status: Number(status), type: headers.get("content-type"), body: body.toString("utf8") };
 }
