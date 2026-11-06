@@ -272,7 +272,11 @@ export function RightPanel({
                 <p className="inspector-kicker">{row?.kind ?? "selection"}</p>
                 <h2 className="detail-title">{row?.title ?? result?.title ?? selected}</h2>
                 {result && (
-                  <SelectionEvidenceChip result={result} reads={reads} onOpen={() => setTab("evidence")} />
+                  <SelectionEvidenceChip
+                    result={result}
+                    reads={reads}
+                    onOpen={() => setTab("evidence")}
+                  />
                 )}
               </>
             )}

@@ -74,6 +74,7 @@ export function createSelectionStore(port: InspectPort) {
     result: null,
     error: null,
     missing: null,
+    tab: "detail",
     evidenceScope: "selection",
     select(id, row) {
       if (row && row.id !== id) throw new Error("Selection row does not match its id");
@@ -108,7 +109,6 @@ export function createSelectionStore(port: InspectPort) {
         error: null,
         missing: null,
         evidenceScope: "selection",
-        tab: "detail",
       });
       port.postMessage(parsed.message);
     },

@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION } from "@spi-code/contracts";
+import { InspectResultSchema, PROTOCOL_VERSION, type ReadRecord } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { beforeEach, expect, it, vi } from "vitest";
@@ -189,20 +189,20 @@ it.each([900, 979, 980, 1280])(
   "opens one detail surface at %i px and restores focus on Escape or close",
   async (width) => {
     viewport(width);
+    const previous = watchStore.getState();
+    const body = testSnapshot(briefing, releases);
+    watchStore.setState({ snapshot: { cursor: body.cursor, body } });
     const shell = await mountShell();
     const { container } = shell;
-    const row = container.querySelector<HTMLButtonElement>("nav button");
+    const row = container.querySelector<HTMLButtonElement>("main .inbox-row-title");
     const trigger = container.querySelector<HTMLButtonElement>(
       'header button[aria-controls="app-right-panel"]',
     );
     try {
+      expect(row).not.toBeNull();
       if (width < 980) expect(container.querySelector("#app-right-panel")).toBeNull();
       row?.focus();
-      await act(async () =>
-        selectionStore
-          .getState()
-          .select("halt:legal", { id: "halt:legal", title: "Sync halted", kind: "queue" }),
-      );
+      await act(async () => row?.click());
       expect(container.querySelectorAll('aside[aria-label="Detail"]')).toHaveLength(1);
       expect(container.querySelector("#app-right-panel")?.hasAttribute("data-sheet")).toBe(
         width < 980,
@@ -237,6 +237,7 @@ it.each([900, 979, 980, 1280])(
       expect(document.activeElement).toBe(row);
     } finally {
       await shell.cleanup();
+      watchStore.setState(previous);
     }
   },
 );
@@ -370,6 +371,154 @@ it.each([900, 1280])(
       await refresh(5, true);
       expect(selectionStore.getState().selected).toBeNull();
       expect(shell.container.querySelector("#app-right-panel")).toBeNull();
+    } finally {
+      await shell.cleanup();
+      watchStore.setState(previous);
+    }
+  },
+);
+
+it.each([900, 1280])(
+  "shows selection Evidence areas then repository reads in the detail surface at %i px",
+  async (width) => {
+    viewport(width);
+    const previous = watchStore.getState();
+    const body = testSnapshot(briefing, releases);
+    const read = (source: string, object: string): ReadRecord => ({
+      source,
+      object,
+      observedAt: body.sweptAt,
+      completeness: { kind: "complete" },
+    });
+    body.reads = [
+      read("github", "Azure/osdu-spi-partition"),
+      read("Azure/osdu-spi-partition", "fork-runs"),
+      read("github", "Azure/osdu-spi-indexer"),
+    ];
+    const result = InspectResultSchema.parse({
+      id: "repo:partition",
+      title: "partition",
+      class: "SECURITY",
+      cause: "Recorded repository reading",
+      effect: "",
+      next: "",
+      why: "",
+      evidence: [read("Azure/osdu-spi-partition", "security")],
+      related: [],
+      approval: null,
+      actions: [],
+      areas: body.areas.map(({ area }) => ({
+        area,
+        envelope: {
+          source: area,
+          state: area === "runs" ? "stale" : "fresh",
+          observedAt: body.sweptAt,
+          completeness: { kind: "complete" },
+        },
+      })),
+      provenance: [
+        { path: "/cause", areas: ["github"] },
+        { path: "/next", areas: ["runs"] },
+      ],
+    });
+    watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+    const shell = await mountShell();
+    try {
+      await act(async () =>
+        selectionStore
+          .getState()
+          .select(result.id, { id: result.id, title: "partition", kind: "repository" }),
+      );
+      await act(async () =>
+        selectionStore.getState().receive({
+          version: PROTOCOL_VERSION,
+          id: selectionStore.getState().request,
+          kind: "response",
+          type: "inspect.result",
+          payload: result,
+        }),
+      );
+      const panel = shell.container.querySelector("#app-right-panel");
+      expect(panel?.hasAttribute("data-sheet")).toBe(width < 980);
+      const chips = panel?.querySelectorAll<HTMLButtonElement>("[data-selection-evidence]");
+      expect(chips).toHaveLength(1);
+      expect(panel?.querySelector(".detail-title")?.nextElementSibling).toBe(chips?.[0]);
+      expect(panel?.querySelector(".inspector [data-selection-evidence]")).toBeNull();
+      expect(panel?.querySelectorAll(".evidence-chip")).toHaveLength(1);
+      expect(chips?.[0]?.textContent).toContain("stale");
+      await act(async () =>
+        [...shell.container.querySelectorAll<HTMLButtonElement>('[role="tab"]')]
+          .find((tab) => tab.textContent === "Evidence")
+          ?.click(),
+      );
+      const article = panel?.querySelector('[data-evidence="selection"]');
+      expect(
+        [...(article?.querySelectorAll("h3") ?? [])].map((heading) => heading.textContent),
+      ).toEqual(["Areas", "Reads for partition"]);
+      expect(
+        [...(article?.querySelectorAll('table[aria-label="Areas"] th') ?? [])].map(
+          (heading) => heading.textContent,
+        ),
+      ).toEqual(["GitHub issues and PRs", "Workflow runs"]);
+      expect(
+        [...(article?.querySelectorAll('table[aria-label="Reads for partition"] th') ?? [])].map(
+          (heading) => heading.textContent,
+        ),
+      ).toEqual([
+        "Azure/osdu-spi-partition · security",
+        "GitHub issues and PRs · Azure/osdu-spi-partition",
+        "Azure/osdu-spi-partition · fork-runs",
+      ]);
+      expect(article?.textContent).not.toContain("Azure/osdu-spi-indexer");
+      await act(async () =>
+        shell.container.querySelector<HTMLButtonElement>('[role="tab"]')?.click(),
+      );
+      await act(async () =>
+        shell.container.querySelector<HTMLButtonElement>("[data-selection-evidence]")?.click(),
+      );
+      expect(panel?.querySelector('[data-evidence="selection"]')).not.toBeNull();
+    } finally {
+      await shell.cleanup();
+      watchStore.setState(previous);
+    }
+  },
+);
+
+it.each([900, 1280])(
+  "opens title-bar sweep Evidence in the detail surface at %i px even with a selection",
+  async (width) => {
+    viewport(width);
+    const previous = watchStore.getState();
+    const body = testSnapshot(briefing, releases);
+    const item = body.briefing.focus[0];
+    if (!item) throw new Error("Missing recorded queue item");
+    watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+    const shell = await mountShell();
+    try {
+      for (const id of [null, item.id]) {
+        if (id) await act(async () => selectionStore.getState().select(id));
+        await act(async () => selectionStore.getState().setOpen(false));
+        expect(shell.container.querySelector("#app-right-panel")).toBeNull();
+        await act(async () =>
+          shell.container.querySelector<HTMLButtonElement>("header [data-sweep-line]")?.click(),
+        );
+        const panel = shell.container.querySelector("#app-right-panel");
+        expect(panel?.hasAttribute("data-sheet")).toBe(width < 980);
+        expect(panel?.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
+          "Evidence",
+        );
+        const sweep = panel?.querySelector('[data-evidence="sweep"]');
+        expect(sweep?.querySelector("h2")?.textContent).toBe("The sweep");
+        expect(
+          sweep?.querySelectorAll('table[aria-label="Areas"] tr').length,
+        ).toBeGreaterThanOrEqual(11);
+        expect([...(sweep?.querySelectorAll("h3") ?? [])].map((h) => h.textContent)).toEqual([
+          "Areas",
+          "Failed reads",
+          "API budget",
+        ]);
+        if (id) expect(selectionStore.getState().selected).toBe(id);
+      }
     } finally {
       await shell.cleanup();
       watchStore.setState(previous);

@@ -123,26 +123,12 @@ it.each(["fresh", "stale", "inferred", "release-stale"] as const)(
       area,
       envelope: {
         source: area,
-        state: state === "stale" ? "stale" : "fresh",
+        state: state === "stale" || state === "release-stale" ? "stale" : "fresh",
         observedAt: body.sweptAt,
         completeness: { kind: "complete" },
         ...(state === "inferred" ? { inferred: true } : {}),
       },
     }));
-    if (state === "release-stale")
-      body.provenance = [
-        ...body.provenance.filter(({ path }) => !path.startsWith("/releases")),
-        {
-          path: "/releases",
-          areas: ["fleet"],
-          envelope: {
-            source: "releases",
-            state: "stale",
-            observedAt: body.sweptAt,
-            completeness: { kind: "complete" },
-          },
-        },
-      ];
     const row = selectionRows(body).find(
       ({ kind }) => kind === (state === "release-stale" ? "release" : "flow"),
     );
@@ -154,7 +140,6 @@ it.each(["fresh", "stale", "inferred", "release-stale"] as const)(
     await act(async () => root.render(<RightPanel store={store} snapshot={body} />));
     try {
       await act(async () => store.getState().select(row.id, row));
-      const releaseEnvelope = body.provenance.find(({ path }) => path === "/releases")?.envelope;
       await act(async () =>
         store.getState().receive({
           version: PROTOCOL_VERSION,
@@ -172,12 +157,10 @@ it.each(["fresh", "stale", "inferred", "release-stale"] as const)(
             evidence: [],
             actions: [],
             approval: null,
-            areas: body.areas.map((entry) =>
-              state === "release-stale" && entry.area === "fleet"
-                ? { ...entry, envelope: releaseEnvelope }
-                : entry,
-            ),
-            provenance: [{ path: "/cause", areas: [state === "release-stale" ? "fleet" : "github"] }],
+            areas: body.areas,
+            provenance: [
+              { path: "/cause", areas: [state === "release-stale" ? "fleet" : "github"] },
+            ],
           },
         }),
       );
