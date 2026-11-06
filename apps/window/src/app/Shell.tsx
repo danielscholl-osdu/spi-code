@@ -13,16 +13,27 @@ import { RightPanelFrame } from "../panels/RightPanelFrame.js";
 import { routeSelectionIds } from "../panels/selection-rows.js";
 import { watchStore } from "../store/watch.js";
 import { createAppearance } from "./appearance.js";
+import { LineSheet } from "./LineSheet.js";
 import { PanelControls } from "./PanelControls.js";
-import { RouteView, routeHash, routeLabel, useHashRoute, useSetupLanding } from "./routes.js";
+import {
+  DEFAULT_REGISTRY,
+  type Registry,
+  RegistryProvider,
+  RouteView,
+  routeHash,
+  routeLabel,
+  useNavigation,
+  useSetupLanding,
+} from "./routes.js";
+import { matchesShortcut } from "./shortcuts.js";
 import { windowControls } from "./window-controls.js";
 
 export { watchStore };
 
-export function Shell() {
+export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) {
   const snapshot = useStore(watchStore, (state) => state.snapshot?.body);
   const sweep = useStore(watchStore, (state) => state.sweep);
-  const [route, navigate] = useHashRoute();
+  const { route, sheetOpen, navigate, toggleSheet, closeSheet } = useNavigation(registry);
   useSetupLanding(navigate);
   const rightPanelOpen = useStore(selectionStore, (state) => state.open);
   const toggleRightPanel = useCallback(
@@ -32,6 +43,15 @@ export function Shell() {
   const openSweepEvidence = useCallback(() => selectionStore.getState().openSweepEvidence(), []);
   const [findOpen, setFindOpen] = useState(false);
   const toggleFind = useCallback(() => setFindOpen((open) => !open), []);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || !registry.sheet || !matchesShortcut(event, "l")) return;
+      event.preventDefault();
+      toggleSheet();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [registry.sheet, toggleSheet]);
   const middle = useRef<HTMLElement>(null);
   const position = useRef({ route: routeHash(route), top: 0 });
   useLayoutEffect(() => {
@@ -74,70 +94,76 @@ export function Shell() {
     };
   }, []);
   return (
-    <SidebarProvider
-      className="shell"
-      data-right-panel={rightPanelOpen ? "open" : "closed"}
-      data-window-controls={windowControls()}
-    >
-      <header className="title-bar">
-        <div className="title-bar-place">
-          <strong>SPI Code</strong>
-          <span aria-hidden>·</span>
-          <span data-place>{routeLabel(route)}</span>
-        </div>
-        <div className="title-bar-controls">
-          <SweepLine snapshot={snapshot ?? null} onOpen={openSweepEvidence} />
-          <label>
-            Appearance{" "}
-            <select
-              aria-label="Appearance"
-              key={appearance?.pin}
-              defaultValue={appearance?.pin ?? "system"}
-              onChange={(event) => {
-                const value = event.target.value;
-                if (value === "system" || value === "light" || value === "dark")
-                  appearance?.setPin(value);
-              }}
-            >
-              <option value="system">System</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
-          </label>
-          <PanelControls
-            rightPanelOpen={rightPanelOpen}
-            onToggleRightPanel={toggleRightPanel}
-            onToggleFind={toggleFind}
-          />
-        </div>
-      </header>
-      <ProgramSidebar
-        store={watchStore}
-        route={route}
-        onNavigate={navigate}
-        onFind={() => setFindOpen(true)}
-      />
-      <CommandPalette
-        store={watchStore}
-        open={findOpen}
-        onOpenChange={setFindOpen}
-        onNavigate={navigate}
-      />
-      <main
-        className="middle-frame"
-        ref={middle}
-        onScroll={(event) => {
-          position.current.top = event.currentTarget.scrollTop;
-        }}
+    <RegistryProvider registry={registry}>
+      <SidebarProvider
+        className="shell"
+        data-right-panel={rightPanelOpen ? "open" : "closed"}
+        data-window-controls={windowControls()}
       >
-        {error && <p role="alert">{error}</p>}
-        <RouteView route={route} />
-      </main>
-      <RightPanelFrame
-        store={selectionStore}
-        {...(snapshot ? { snapshot } : {})}
-        sweepEvidence={<SweepEvidence snapshot={snapshot ?? null} sweep={sweep} />}
-      />
-    </SidebarProvider>
+        <header className="title-bar">
+          <div className="title-bar-place">
+            <strong>SPI Code</strong>
+            <span aria-hidden>·</span>
+            <span data-place>{routeLabel(route)}</span>
+          </div>
+          <div className="title-bar-controls">
+            <SweepLine snapshot={snapshot ?? null} onOpen={openSweepEvidence} />
+            <label>
+              Appearance{" "}
+              <select
+                aria-label="Appearance"
+                key={appearance?.pin}
+                defaultValue={appearance?.pin ?? "system"}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value === "system" || value === "light" || value === "dark")
+                    appearance?.setPin(value);
+                }}
+              >
+                <option value="system">System</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </label>
+            <PanelControls
+              rightPanelOpen={rightPanelOpen}
+              onToggleRightPanel={toggleRightPanel}
+              onToggleFind={toggleFind}
+            />
+          </div>
+        </header>
+        <ProgramSidebar
+          store={watchStore}
+          route={route}
+          onNavigate={navigate}
+          onFind={() => setFindOpen(true)}
+        />
+        <CommandPalette
+          store={watchStore}
+          open={findOpen}
+          onOpenChange={setFindOpen}
+          onNavigate={navigate}
+        />
+        <main
+          className="middle-frame"
+          ref={middle}
+          inert={sheetOpen}
+          onScroll={(event) => {
+            position.current.top = event.currentTarget.scrollTop;
+          }}
+        >
+          {error && <p role="alert">{error}</p>}
+          <RouteView route={route} />
+        </main>
+        {sheetOpen && registry.sheet && (
+          <LineSheet onClose={closeSheet}>{registry.sheet(route)}</LineSheet>
+        )}
+        <RightPanelFrame
+          store={selectionStore}
+          {...(snapshot ? { snapshot } : {})}
+          sweepEvidence={<SweepEvidence snapshot={snapshot ?? null} sweep={sweep} />}
+        />
+      </SidebarProvider>
+    </RegistryProvider>
   );
 }

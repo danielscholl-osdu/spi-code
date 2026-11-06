@@ -49,7 +49,7 @@ export function treeServices(tree: readonly { id: string }[] | undefined): strin
  */
 export function scopeRoute(scope: string, services: readonly string[]): Route | undefined {
   if (scope === "Environment" || scope === "osdu-spi-stack") return { kind: "environment" };
-  if (scope === "osdu-spi") return { kind: "template" };
+  if (scope === "osdu-spi") return { kind: "engineering-system" };
   if (services.includes(scope)) return { kind: "service", id: scope };
   return undefined;
 }

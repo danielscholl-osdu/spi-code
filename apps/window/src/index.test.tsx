@@ -117,7 +117,9 @@ it.each([false, true])(
   async (proof) => {
     const app = await mountWindow(proof);
     try {
-      const { LENSES, routeHash, routeLabel } = await import("./app/routes.js");
+      const { DEFAULT_REGISTRY, isReachable, LENSES, routeHash, routeLabel } = await import(
+        "./app/routes.js"
+      );
       const snapshot = mixedSnapshot(mixed);
       await app.receive({
         version: PROTOCOL_VERSION,
@@ -127,16 +129,22 @@ it.each([false, true])(
         payload: snapshot,
       });
       const routes: Record<Route["kind"], Route[]> = {
+        today: [{ kind: "today" }],
         inbox: [{ kind: "inbox" }],
-        template: [{ kind: "template" }],
+        upstream: [{ kind: "upstream" }],
         environment: [{ kind: "environment" }],
+        "engineering-system": [{ kind: "engineering-system" }],
         releases: [{ kind: "releases" }],
+        security: [{ kind: "security" }],
         setup: [{ kind: "setup" }],
         service: snapshot.stations.map(({ service }) => ({ kind: "service", id: service })),
         release: snapshot.releases.lines.map(({ month }) => ({ kind: "release", month })),
         lens: LENSES.map((lens) => ({ kind: "lens", lens })),
       };
-      for (const route of Object.values(routes).flat()) {
+      const reachable = Object.values(routes)
+        .flat()
+        .filter((route) => isReachable(route, DEFAULT_REGISTRY));
+      for (const route of reachable) {
         await act(async () => {
           window.location.hash = routeHash(route);
           window.dispatchEvent(new HashChangeEvent("hashchange"));

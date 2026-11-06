@@ -5,10 +5,13 @@ import { expect, it } from "vitest";
 import { parseRoute, type Route, routeHash, routeLabel } from "./routes.js";
 
 it.each<[string, Route, string]>([
+  ["#today", { kind: "today" }, "Today"],
   ["#inbox", { kind: "inbox" }, "Inbox"],
+  ["#upstream", { kind: "upstream" }, "Upstream"],
+  ["#engineering-system", { kind: "engineering-system" }, "Engineering system"],
+  ["#security", { kind: "security" }, "Security"],
   ["#service/legal", { kind: "service", id: "legal" }, "legal"],
   ["#service/crs-catalog", { kind: "service", id: "crs-catalog" }, "crs-catalog"],
-  ["#template", { kind: "template" }, "Template"],
   ["#environment", { kind: "environment" }, "Environment"],
   ["#releases", { kind: "releases" }, "Releases"],
   ["#release/2026-10", { kind: "release", month: "2026-10" }, "Release 2026-10"],
@@ -27,10 +30,14 @@ it("decodes an encoded service id", () => {
   expect(parseRoute("#service/crs%2Dcatalog")).toEqual({ kind: "service", id: "crs-catalog" });
 });
 
+it("still reads the old #template hash as the engineering system", () => {
+  expect(parseRoute("#template")).toEqual({ kind: "engineering-system" });
+  expect(parseRoute("#template/extra")).toBeUndefined();
+});
+
 it.each([
   "",
   "#",
-  "#today",
   "#flow",
   "#service",
   "#service/",
@@ -43,6 +50,9 @@ it.each([
   "#lens/today",
   "#lens",
   "#setup/extra",
-])("falls back to the Inbox for %j", (hash) => {
-  expect(parseRoute(hash)).toEqual({ kind: "inbox" });
+  "#today/extra",
+  "#line",
+  "#constructor",
+])("names no route for %j", (hash) => {
+  expect(parseRoute(hash)).toBeUndefined();
 });

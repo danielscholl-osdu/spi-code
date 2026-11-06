@@ -626,9 +626,10 @@ it("lands on Setup when the first host state is not ready and gates every Watch 
     (button) => button.textContent !== "Setup",
   );
   expect(watchRoutes.map((button) => button.textContent)).toEqual([
+    "Today",
     "Inbox",
-    "Template",
     "Environment",
+    "Engineering system",
     "Releases",
     "Flow",
     "Repositories",

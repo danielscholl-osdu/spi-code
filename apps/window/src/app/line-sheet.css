@@ -1,0 +1,7 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.line-sheet { grid-column: 2; grid-row: 2; z-index: 20; min-width: 0; min-height: 0; padding: 16px; overflow: auto; background: var(--chrome); outline: none; }
+@media (max-width: 979px) {
+  .line-sheet { grid-column: 1; }
+}

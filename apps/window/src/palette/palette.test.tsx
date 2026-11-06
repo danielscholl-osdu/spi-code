@@ -148,9 +148,10 @@ it("lists Go to, Services, Lenses and Queue from the routes and the snapshot, wi
   expect(labels()).toEqual(["Go to", "Services", "Lenses", "Queue", "Threads", "Ask"]);
   expect(palette()?.textContent).not.toMatch(/Actions/);
   expect(rows("go-to")).toEqual([
+    "Todaypage",
     "Inboxpage",
-    "Templatepage",
     "Environmentpage",
+    "Engineering systempage",
     "Releasespage",
     "Setuppage",
   ]);
@@ -275,12 +276,12 @@ it("keeps Threads and Ask in view but disabled, saying threads are not available
 
 it("moves with the arrows, opens with Enter, and filters as the operator types", async () => {
   await shortcut({ ctrlKey: true });
+  expect(highlighted()).toBe("Todaypage");
+  await key("ArrowDown");
   expect(highlighted()).toBe("Inboxpage");
   await key("ArrowDown");
-  expect(highlighted()).toBe("Templatepage");
-  await key("ArrowDown");
   await key("ArrowUp");
-  expect(highlighted()).toBe("Templatepage");
+  expect(highlighted()).toBe("Inboxpage");
 
   await type("legal");
   expect(labels()).toEqual(["Services", "Queue", "Threads", "Ask"]);

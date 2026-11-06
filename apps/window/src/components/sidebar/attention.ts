@@ -48,7 +48,8 @@ export function inScope(item: FocusItem, id: string, services: readonly string[]
       (item.cls === "PORT" && item.ids.includes(`port:${service}`))
     );
   }
-  return route?.kind === id || (id === "template" && item.cls === "ROLLOUT");
+  if (id === "template") return route?.kind === "engineering-system" || item.cls === "ROLLOUT";
+  return route?.kind === id;
 }
 
 export function sidebarAttention(

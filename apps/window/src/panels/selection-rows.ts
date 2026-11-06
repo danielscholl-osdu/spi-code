@@ -265,7 +265,7 @@ export function routeSelectionIds(snapshot: ViewSnapshot, route: Route): string[
           (station) => `station:${route.id}:${station.id}`,
         ),
       ];
-    case "template":
+    case "engineering-system":
       return [
         ...queue.filter(({ id }) => id === "rollout").map(({ id }) => id),
         ...repos.filter(({ name }) => name === "osdu-spi").map(({ id }) => id),
@@ -290,6 +290,9 @@ export function routeSelectionIds(snapshot: ViewSnapshot, route: Route): string[
       return snapshot.releases.lines
         .filter(({ month }) => month === route.month)
         .map(({ id }) => id);
+    case "today":
+    case "upstream":
+    case "security":
     case "setup":
       return [];
   }

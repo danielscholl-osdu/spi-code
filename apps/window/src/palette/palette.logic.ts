@@ -22,7 +22,15 @@
 // SOFTWARE.
 
 import type { Briefing } from "@spi-code/contracts";
-import { LENSES, type Route, routeLabel } from "../app/routes.js";
+import {
+  DEFAULT_REGISTRY,
+  isReachable,
+  LENSES,
+  PLACES,
+  type Registry,
+  type Route,
+  routeLabel,
+} from "../app/routes.js";
 import { treeServices } from "../views/inbox/queue.js";
 import { foldSearchQuery, rankSearchGroups, scoreSearchTerms } from "./search.js";
 
@@ -54,10 +62,9 @@ export const DISABLED_ROWS: readonly DisabledRow[] = [
 ];
 
 const GO_TO: readonly Route[] = [
+  { kind: "today" },
   { kind: "inbox" },
-  { kind: "template" },
-  { kind: "environment" },
-  { kind: "releases" },
+  ...PLACES,
   { kind: "setup" },
 ];
 
@@ -78,12 +85,22 @@ function routeItem(route: Route, kind: string, keywords: readonly string[] = [])
   };
 }
 
-/** Go to, Services, Lenses and Queue, from the routes and the snapshot; empty groups are left out. */
-export function buildPaletteGroups(body: SnapshotBody | undefined): PaletteGroup[] {
-  const services = treeServices(body?.tree).map((id) =>
-    routeItem({ kind: "service", id }, "service"),
-  );
-  const lenses = LENSES.map((lens) => routeItem({ kind: "lens", lens }, "lens"));
+/**
+ * Go to, Services, Lenses and Queue, from the registered routes and the snapshot; empty groups and
+ * routes with no registered view are left out.
+ */
+export function buildPaletteGroups(
+  body: SnapshotBody | undefined,
+  registry: Registry = DEFAULT_REGISTRY,
+): PaletteGroup[] {
+  const reachable = (route: Route) => isReachable(route, registry);
+  const services = treeServices(body?.tree)
+    .map((id): Route => ({ kind: "service", id }))
+    .filter(reachable)
+    .map((route) => routeItem(route, "service"));
+  const lenses = LENSES.map((lens): Route => ({ kind: "lens", lens }))
+    .filter(reachable)
+    .map((route) => routeItem(route, "lens"));
   const queue = [...(body?.briefing.focus ?? []), ...(body?.briefing.rest ?? [])].map(
     (item): PaletteItem => ({
       value: `queue:${item.id}`,
@@ -95,7 +112,11 @@ export function buildPaletteGroups(body: SnapshotBody | undefined): PaletteGroup
     }),
   );
   const groups: PaletteGroup[] = [
-    { value: "go-to", label: "Go to", items: GO_TO.map((route) => routeItem(route, "page")) },
+    {
+      value: "go-to",
+      label: "Go to",
+      items: GO_TO.filter(reachable).map((route) => routeItem(route, "page")),
+    },
     { value: "services", label: "Services", items: services },
     { value: "lenses", label: "Lenses", items: lenses },
     { value: "queue", label: "Queue", items: queue },

@@ -329,7 +329,7 @@ it.each(["name", "Enter", "double-click"] as const)(
 );
 
 it.each([
-  ["repo:osdu-spi", "#template"],
+  ["repo:osdu-spi", "#engineering-system"],
   ["repo:osdu-spi-stack", "#environment"],
   ["repo:legal", "#service/legal"],
 ])("opens %s on its thing and retains the repository selection", async (id, hash) => {

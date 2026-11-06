@@ -108,7 +108,7 @@ export default function Repositories() {
             onOpen={(row) =>
               navigate(
                 row.name === "osdu-spi"
-                  ? { kind: "template" }
+                  ? { kind: "engineering-system" }
                   : row.name === "osdu-spi-stack"
                     ? { kind: "environment" }
                     : { kind: "service", id: row.id.replace(/^repo:/, "") },

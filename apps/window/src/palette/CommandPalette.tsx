@@ -25,7 +25,7 @@ import { Autocomplete } from "@base-ui/react/autocomplete";
 import { Dialog } from "@base-ui/react/dialog";
 import { useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
-import { INBOX, type Route } from "../app/routes.js";
+import { INBOX, type Route, useRegistry } from "../app/routes.js";
 import { AttentionDot } from "../components/AttentionDot.js";
 import { useSidebarAttention } from "../components/sidebar/attention.js";
 import type { createWatchStore } from "../store/watch.js";
@@ -92,7 +92,8 @@ function PaletteContent({
   const body = useStore(store, (state) => state.snapshot?.body);
   const select = useStore(store, (state) => state.select);
   const [query, setQuery] = useState("");
-  const groups = useMemo(() => buildPaletteGroups(body), [body]);
+  const registry = useRegistry();
+  const groups = useMemo(() => buildPaletteGroups(body, registry), [body, registry]);
   const shown = useMemo(() => filterPaletteGroups(groups, query), [groups, query]);
   const values = useMemo(
     () => shown.flatMap(({ items }) => items.map(({ value }) => value)),

@@ -23,7 +23,14 @@
 
 import { type ReactNode, useId } from "react";
 import { useStore } from "zustand";
-import { LENSES, type Route, routeLabel } from "../../app/routes.js";
+import {
+  isReachable,
+  LENSES,
+  PLACES,
+  type Route,
+  routeLabel,
+  useRegistry,
+} from "../../app/routes.js";
 import { ariaShortcut, shortcutLabel } from "../../app/shortcuts.js";
 import type { createWatchStore } from "../../store/watch.js";
 import { inboxCount } from "../../views/inbox/queue.js";
@@ -45,6 +52,8 @@ import {
 import "./sidebar.css";
 
 const SERVICE_PREFIX = "service:";
+/** Sidebar rows whose attention comes from a sweep tree node of another name. */
+const TREE_IDS: Record<string, string> = { "engineering-system": "template" };
 
 function formatSweep(sweptAt: string | undefined): string {
   if (!sweptAt) return "not swept yet";
@@ -86,6 +95,9 @@ export function ProgramSidebar({
   const { collapsed, toggle } = useGroupCollapse();
   const ids = { program: useId(), services: useId(), lenses: useId(), settled: useId() };
   const active = rowFor(route);
+  const registry = useRegistry();
+  const reachable = (target: Route) => isReachable(target, registry);
+  const places = PLACES.filter(reachable);
   const services = (tree ?? [])
     .filter((node) => node.id.startsWith(SERVICE_PREFIX))
     .map((node) => node.id.slice(SERVICE_PREFIX.length));
@@ -95,7 +107,7 @@ export function ProgramSidebar({
     target: Route,
     label = routeLabel(target),
     pip?: ReactNode,
-    mark = attention.get(key.replace("service/", SERVICE_PREFIX)),
+    mark = attention.get(TREE_IDS[key] ?? key.replace("service/", SERVICE_PREFIX)),
   ) => (
     <SidebarMenuItem key={key}>
       <SidebarMenuButton
@@ -159,46 +171,50 @@ export function ProgramSidebar({
           <span>Find or ask</span>
           <kbd>{shortcutLabel("k")}</kbd>
         </button>
-        <SidebarMenu aria-label="Inbox">
-          {row(
-            "inbox",
-            { kind: "inbox" },
-            undefined,
-            inbox > 0 && (
-              <span className="sidebar-pip" title={`${inbox} at P0 or P1`}>
-                {inbox}
-              </span>
-            ),
-          )}
-        </SidebarMenu>
+        {reachable({ kind: "today" }) && (
+          <SidebarMenu aria-label="Today">{row("today", { kind: "today" })}</SidebarMenu>
+        )}
+        {reachable({ kind: "inbox" }) && (
+          <SidebarMenu aria-label="Inbox">
+            {row(
+              "inbox",
+              { kind: "inbox" },
+              undefined,
+              inbox > 0 && (
+                <span className="sidebar-pip" title={`${inbox} at P0 or P1`}>
+                  {inbox}
+                </span>
+              ),
+            )}
+          </SidebarMenu>
+        )}
       </SidebarHeader>
       <SidebarContent>
-        {group(
-          "program",
-          "Program",
-          <>
-            {row("template", { kind: "template" })}
-            {row("environment", { kind: "environment" })}
-            {row("releases", { kind: "releases" })}
-          </>,
-        )}
-        {group(
-          "services",
-          "Services",
-          services.length === 0 ? (
-            <li className="sidebar-empty">
-              {tree ? "No services in this sweep" : "No services read yet"}
-            </li>
-          ) : (
-            services.map((id) => row(`service/${id}`, { kind: "service", id }))
-          ),
-          services.length,
-        )}
-        {group(
-          "lenses",
-          "Lenses",
-          LENSES.map((lens) => row(`lens/${lens}`, { kind: "lens", lens })),
-        )}
+        {places.length > 0 &&
+          group(
+            "program",
+            "Program",
+            places.map((place) => row(place.kind, place)),
+          )}
+        {reachable({ kind: "service", id: "" }) &&
+          group(
+            "services",
+            "Services",
+            services.length === 0 ? (
+              <li className="sidebar-empty">
+                {tree ? "No services in this sweep" : "No services read yet"}
+              </li>
+            ) : (
+              services.map((id) => row(`service/${id}`, { kind: "service", id }))
+            ),
+            services.length,
+          )}
+        {reachable({ kind: "lens", lens: "flow" }) &&
+          group(
+            "lenses",
+            "Lenses",
+            LENSES.map((lens) => row(`lens/${lens}`, { kind: "lens", lens })),
+          )}
       </SidebarContent>
       <SidebarGroup data-group="settled" className="settled-shelf">
         <CollapsibleSectionHeader
@@ -216,7 +232,9 @@ export function ProgramSidebar({
         )}
       </SidebarGroup>
       <SidebarFooter>
-        <SidebarMenu aria-label="Setup">{row("setup", { kind: "setup" })}</SidebarMenu>
+        {reachable({ kind: "setup" }) && (
+          <SidebarMenu aria-label="Setup">{row("setup", { kind: "setup" })}</SidebarMenu>
+        )}
         <time className="sweep-stamp" dateTime={sweptAt}>
           {formatSweep(sweptAt)}
         </time>

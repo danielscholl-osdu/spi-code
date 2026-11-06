@@ -75,8 +75,9 @@ it("navigates every sidebar thing through the hash, naming the place in the titl
     expect(place()).toBe("Inbox");
     expect(container.querySelector("main h1")?.textContent).toBe("Inbox");
     expect(container.querySelector("main")?.textContent).toContain("First sweep running");
-    for (const [label, hash] of [
-      ["Template", "#template"],
+    for (const [label, hash, heading = label] of [
+      ["Today", "#today"],
+      ["Engineering system", "#engineering-system", "Template"],
       ["Environment", "#environment"],
       ["Releases", "#releases"],
       ["Flow", "#lens/flow"],
@@ -87,7 +88,7 @@ it("navigates every sidebar thing through the hash, naming the place in the titl
     ] as const) {
       await act(async () => button(label)?.click());
       expect(window.location.hash).toBe(hash);
-      expect(container.querySelector("main h1")?.textContent).toBe(label);
+      expect(container.querySelector("main h1")?.textContent).toBe(heading);
       expect(place()).toBe(label);
       expect(button(label)?.getAttribute("aria-current")).toBe("page");
     }
