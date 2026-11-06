@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import type { AreaName } from "../facts.js";
 import { type LaneLoad, laneRoom } from "../model/lanes.js";
 import {
   planStep,
@@ -10,6 +11,7 @@ import {
   type UpstreamModel,
 } from "../model/upstream.js";
 import { names, plural, whose } from "../util.js";
+import { loadSources, sourced } from "./reason-sources.js";
 import {
   cascadeAction,
   DISPATCH_CASCADE,
@@ -27,12 +29,53 @@ function services(list: readonly UpFork[]): string {
   return names(list.map((f) => f.service));
 }
 
-function disabled(label: string, reason: string): ActionItem {
-  return { type: "act", label, disabled: true, reason };
+function disabled(label: string, reason: string, from: Iterable<AreaName>): ActionItem {
+  return sourced({ type: "act", label, disabled: true, reason }, from);
 }
 
-function waiting(label: string, reason: string): ActionItem {
-  return disabled(`${label} · ${reason}`, reason);
+function waiting(label: string, reason: string, from: Iterable<AreaName>): ActionItem {
+  return disabled(`${label} · ${reason}`, reason, from);
+}
+
+// A fork's phase rests on its PRs and issues, its workflow runs and its measured upstream lag.
+const PHASE: readonly AreaName[] = Object.freeze(["github", "runs", "upstream"]);
+// The environment holds while a lifecycle run is in flight or its runs infer maintenance.
+const ENV: readonly AreaName[] = Object.freeze(["lifecycle"]);
+const PRS_AND_RUNS: readonly AreaName[] = Object.freeze(["github", "runs"]);
+
+function haltFrom(f: UpFork): AreaName[] {
+  return f.halt?.open ? ["github"] : ["radar"];
+}
+
+// The areas behind f.wait, following the order buildUpstream sets it in.
+function waitFrom(f: UpFork): readonly AreaName[] {
+  switch (f.phase) {
+    case "idle":
+      return f.syncBlocked ? ["github"] : haltFrom(f);
+    case "halted":
+      return haltFrom(f);
+    case "prepared":
+      if (f.syncPr?.verdict !== "green" || !f.tracking || f.templatePr) return ["github"];
+      if (f.heldBy.length > 0) return PHASE;
+      return f.wait === "its lane is in flight" ? PRS_AND_RUNS : ENV;
+    case "merged":
+      return ENV;
+    case "stopped":
+      return f.stop?.fixLanded ? ENV : ["runs"];
+    default:
+      return PHASE;
+  }
+}
+
+// The areas behind f.planWait: a hold, a pause, a wave's gate, or a full lane.
+function planFrom(f: UpFork, u: UpstreamModel, load: LaneLoad): readonly AreaName[] {
+  if (f.verb === "prepare" || f.verb === "start") {
+    if (f.held === "snapshot") return ["radar"];
+    if (f.held === "halt") return haltFrom(f);
+    if (u.paused && f.verb === "start") return ["runs"];
+    if (f.role !== "pilot" && !(u.gate === "open" && f.wave === 1)) return PHASE;
+  }
+  return loadSources(load);
 }
 
 export interface UpstreamActions {
@@ -42,7 +85,7 @@ export interface UpstreamActions {
 
 function blockAll(a: UpstreamActions, blocked?: string): UpstreamActions {
   if (!blocked) return a;
-  const off = (x: ActionItem) => (x.disabled ? x : disabled(x.label, blocked));
+  const off = (x: ActionItem) => (x.disabled ? x : disabled(x.label, blocked, []));
   return { primary: off(a.primary), secondary: a.secondary.map(off) };
 }
 
@@ -96,12 +139,14 @@ export function planActions(
       primary = disabled(
         `Paused · ${names(u.paused?.forks ?? [])} failed the cascade the same way`,
         "absorb the move in the remaining forks first",
+        ["runs"],
       );
       break;
     case "env":
       primary = disabled(
         `Waiting for the environment · ${u.envHeld}`,
         "Start resumes once it reads deployable",
+        ENV,
       );
       break;
     case "early":
@@ -115,19 +160,24 @@ export function planActions(
       break;
   }
   if (!primary) {
-    const why =
+    const [why, from] =
       u.startWaits.length > 0
-        ? `${services(u.startWaits)} ${u.startWaits.length === 1 ? "waits" : "wait"} for a lane`
+        ? [
+            `${services(u.startWaits)} ${u.startWaits.length === 1 ? "waits" : "wait"} for a lane`,
+            loadSources(opts.load),
+          ]
         : u.reviews.length > 0
-          ? `review ${services(u.reviews)} on GitHub`
+          ? [`review ${services(u.reviews)} on GitHub`, ["github" as const]]
           : u.forks.some((f) => f.phase === "cascading")
-            ? "cascades are running"
-            : "nothing waits on a press";
-    primary = disabled(`Nothing to press yet · ${why}`, why);
+            ? ["cascades are running", PRS_AND_RUNS]
+            : ["nothing waits on a press", PHASE];
+    primary = disabled(`Nothing to press yet · ${why}`, why, from);
   }
 
   if (primary.binding?.verb !== START.id && u.startWaits.length > 0) {
-    secondary.push(waiting(`Start ${services(u.startWaits)}`, "waits for a lane"));
+    secondary.push(
+      waiting(`Start ${services(u.startWaits)}`, "waits for a lane", loadSources(opts.load)),
+    );
   }
   const early = (list: readonly UpFork[]) =>
     prepareAction(u, list, {
@@ -148,7 +198,8 @@ export function planActions(
     }
     for (const f of u.stops) {
       const why = f.wait ?? f.planWait;
-      if (why) secondary.push(waiting(`Re-run ${whose(f.service)} cascade`, why));
+      const from = f.wait ? waitFrom(f) : planFrom(f, u, opts.load);
+      if (why) secondary.push(waiting(`Re-run ${whose(f.service)} cascade`, why, from));
     }
   }
   return blockAll({ primary, secondary }, opts.blocked);
@@ -171,7 +222,7 @@ export function forkActions(
   switch (f.verb) {
     case "prepare":
       primary = f.wait
-        ? waiting("Prepare", f.wait)
+        ? waiting("Prepare", f.wait, waitFrom(f))
         : prepareAction(u, [f], {
             ...base,
             now: opts.now,
@@ -185,13 +236,14 @@ export function forkActions(
       break;
     case "start":
       primary = f.wait
-        ? waiting("Start", f.wait)
+        ? waiting("Start", f.wait, waitFrom(f))
         : room <= 0
           ? waiting(
               "Start",
               opts.load.unread
                 ? `lanes unknown until ${opts.load.unread} are read`
                 : "waits for a lane",
+              loadSources(opts.load),
             )
           : startAction(u, [f], {
               ...base,
@@ -208,16 +260,16 @@ export function forkActions(
       break;
     case "dispatch":
       primary = f.wait
-        ? waiting("Dispatch cascade", f.wait)
+        ? waiting("Dispatch cascade", f.wait, waitFrom(f))
         : room <= 0
-          ? waiting("Dispatch cascade", "waits for a lane")
+          ? waiting("Dispatch cascade", "waits for a lane", loadSources(opts.load))
           : cascadeAction(DISPATCH_CASCADE, u, [f], { ...base, now: opts.now, primary: true });
       break;
     case "rerun":
       primary = f.wait
-        ? waiting("Re-run the cascade", f.wait)
+        ? waiting("Re-run the cascade", f.wait, waitFrom(f))
         : room <= 0
-          ? waiting("Re-run the cascade", "waits for a lane")
+          ? waiting("Re-run the cascade", "waits for a lane", loadSources(opts.load))
           : cascadeAction(RERUN_CASCADE, u, [f], {
               ...base,
               now: opts.now,
@@ -226,20 +278,22 @@ export function forkActions(
             });
       break;
     default:
-      primary = disabled(
-        "Nothing to press",
+      primary =
         f.phase === "review"
-          ? "the Sync to Main PR auto-merges when green"
-          : f.phase === "cascading"
-            ? "the cascade is running"
-            : f.phase === "main"
-              ? "the main run is testing"
-              : (f.wait ?? "nothing waits on a press"),
-      );
+          ? disabled("Nothing to press", "the Sync to Main PR auto-merges when green", ["github"])
+          : f.phase === "cascading" || f.phase === "main"
+            ? disabled(
+                "Nothing to press",
+                f.phase === "main" ? "the main run is testing" : "the cascade is running",
+                PRS_AND_RUNS,
+              )
+            : f.wait
+              ? disabled("Nothing to press", f.wait, waitFrom(f))
+              : disabled("Nothing to press", "nothing waits on a press", PHASE);
   }
   const secondary: ActionItem[] = [];
   if (f.phase === "stopped" && f.syncPr) {
-    secondary.push(waiting(`Start #${f.syncPr.number}`, "once this cascade clears"));
+    secondary.push(waiting(`Start #${f.syncPr.number}`, "once this cascade clears", PRS_AND_RUNS));
   }
   return blockAll({ primary, secondary }, opts.blocked);
 }

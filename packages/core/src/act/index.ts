@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 export * from "./action-item.js";
+export { reasonSources } from "./reason-sources.js";
 export {
   heldBecause,
   heldText as rolloutHeldText,

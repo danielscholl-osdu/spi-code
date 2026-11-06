@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "vitest";
+import { loadSources, reasonSources } from "../../src/act/reason-sources.js";
 import { forkActions, planActions, upstreamVerbs } from "../../src/act/upstream.js";
 import { DISPATCH_CASCADE, PREPARE, RERUN_CASCADE, START } from "../../src/act/upstream-targets.js";
 import {
@@ -18,11 +19,13 @@ import { parseRollout } from "../../src/rollout.js";
 import {
   envHeld,
   heldFacts,
+  pausedFacts,
   planReadyFacts,
   prepared,
   stoppedFacts,
   UPSTREAM_NOW,
   UPSTREAM_SERVICES,
+  UPSTREAM_STATES,
   upstreamFacts,
   waveFacts,
 } from "../upstream-states.js";
@@ -160,6 +163,89 @@ describe("upstream planning", () => {
     expect(own.primary.reason).toBe("no repo scope");
     expect(own.primary.binding).toBeUndefined();
     expect(own.primary.confirm).toBeUndefined();
+  });
+});
+
+describe("upstream reason sources", () => {
+  function everyAction(m: Model, extra: { blocked?: string } = {}) {
+    const o = { ...opts(m), ...extra };
+    return [
+      planActions(m.upstream, o),
+      ...m.upstream.forks.map((f) => forkActions(m.upstream, f, o)),
+    ].flatMap((a) => [a.primary, ...a.secondary]);
+  }
+
+  test("every disabled reason in every recorded state names the reads it rests on", () => {
+    let reasons = 0;
+    for (const [state, facts] of Object.entries(UPSTREAM_STATES)) {
+      for (const a of everyAction(modelOf(facts()))) {
+        const from = reasonSources(a);
+        if (a.reason) {
+          reasons++;
+          expect(from, `${state}: ${a.label}`).toBeDefined();
+          expect(from?.length, `${state}: ${a.label}`).toBeGreaterThan(0);
+        } else {
+          expect(from, `${state}: ${a.label}`).toBeUndefined();
+        }
+      }
+    }
+    expect(reasons).toBeGreaterThan(10);
+  });
+
+  test("each wait cites only the branch that read it", () => {
+    const tmpl = upstreamFacts();
+    prepared(tmpl, "partition");
+    const t = modelOf(tmpl);
+    expect(reasonSources(forkActions(t.upstream, fork(t, "partition"), opts(t)).primary)).toEqual([
+      "github",
+    ]);
+
+    const w = modelOf(waveFacts());
+    const storage = forkActions(w.upstream, fork(w, "storage"), opts(w)).primary;
+    expect(storage.reason).toBe("once a fix lands on fork_integration");
+    expect(reasonSources(storage)).toEqual(["runs"]);
+    expect(reasonSources(forkActions(w.upstream, fork(w, "schema"), opts(w)).primary)).toEqual([
+      "github",
+    ]);
+
+    const h = modelOf(heldFacts());
+    const held = forkActions(h.upstream, fork(h, "storage"), opts(h)).primary;
+    expect(held.reason).toBe("the environment is held");
+    expect(reasonSources(held)).toEqual(["lifecycle"]);
+    const plan = planActions(h.upstream, opts(h));
+    const rerun = plan.secondary.find((a) => a.label.startsWith("Re-run storage's"));
+    expect(reasonSources(rerun ?? plan.primary)).toEqual(["lifecycle"]);
+
+    const p = modelOf(pausedFacts());
+    const paused = planActions(p.upstream, opts(p)).primary;
+    expect(paused.label).toMatch(/^Paused · /);
+    expect(reasonSources(paused)).toEqual(["runs"]);
+
+    const r = modelOf(planReadyFacts());
+    const halted = r.upstream.forks.find((f) => f.phase === "halted" && !f.halt?.open);
+    if (!halted) throw new Error("fixture has an unopened halt");
+    expect(reasonSources(forkActions(r.upstream, halted, opts(r)).primary)).toEqual(["radar"]);
+  });
+
+  test("a lane wait cites the lane reads", () => {
+    const m = modelOf(waveFacts());
+    const unread = { ...m.lanes, unread: "fork workflow runs" };
+    const own = forkActions(m.upstream, fork(m, "file"), { ...opts(m), load: unread }).primary;
+    expect(own.reason).toBe("lanes unknown until fork workflow runs are read");
+    expect(reasonSources(own)).toEqual(["runs"]);
+    expect(reasonSources(own)).toEqual(loadSources(unread));
+  });
+
+  test("a scope block cites no reads and leaves existing waits their own", () => {
+    const m = modelOf(waveFacts());
+    const open = everyAction(m);
+    const blocked = everyAction(m, { blocked: "no repo scope" });
+    expect(blocked.some((a) => a.reason === "no repo scope")).toBe(true);
+    for (const [i, a] of blocked.entries()) {
+      const was = open[i];
+      if (!was) throw new Error("same actions either way");
+      expect(reasonSources(a)).toEqual(was.disabled ? reasonSources(was) : []);
+    }
   });
 });
 
