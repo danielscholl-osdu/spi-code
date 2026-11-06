@@ -1,10 +1,12 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { ChildProcess } from "node:child_process";
+import { ChildProcess, spawn } from "node:child_process";
+import { once } from "node:events";
 import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { PassThrough } from "node:stream";
 import { setTimeout as delay } from "node:timers/promises";
 import { type ExecOptions, RecordingExec } from "@spi-code/core";
 import { ToolInstaller } from "@spi-code/tools";
@@ -12,17 +14,11 @@ import { afterEach, expect, it, vi } from "vitest";
 import { createManagedToolEnvironment } from "../env/tool-environment.js";
 import { HostExec, type HostExecLog } from "./host-exec.js";
 
-const spawned = vi.hoisted(() => [] as ChildProcess[]);
 vi.mock("node:child_process", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:child_process")>();
-  const spawn = actual.spawn as (...args: unknown[]) => ChildProcess;
   return {
     ...actual,
-    spawn: (...args: unknown[]) => {
-      const child = spawn(...args);
-      spawned.push(child);
-      return child;
-    },
+    spawn: vi.fn(actual.spawn),
   };
 });
 
@@ -340,6 +336,16 @@ it.each([
         });
     `;
     if (path === "timeout") vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const injected =
+      path === "stream error"
+        ? { child: new ChildProcess(), stdout: new PassThrough(), stderr: new PassThrough() }
+        : undefined;
+    if (injected) {
+      injected.child.stdin = new PassThrough();
+      injected.child.stdout = injected.stdout;
+      injected.child.stderr = injected.stderr;
+      vi.mocked(spawn).mockReturnValueOnce(injected.child);
+    }
     const controller = new AbortController();
     const host = new HostExec({ ...options, env, log: (entry) => logs.push(entry) });
     const exec =
@@ -351,20 +357,27 @@ it.each([
       onOutput: (stream, chunk) => chunks[stream].push(chunk),
     });
     try {
-      const pid = await waitForPid(ready);
-      await delay(100);
+      if (injected) {
+        await vi.waitFor(() => expect(injected.stdout.listenerCount("data")).toBe(1));
+        for (const byte of `useful output!\n${held}`) injected.stdout.write(byte);
+        for (const byte of `warning!\n${held}`) injected.stderr.write(byte);
+      } else {
+        await waitForPid(ready);
+        await delay(100);
+      }
       expect(chunks.stdout.join("")).toBe("useful output!\n");
       expect(chunks.stderr.join("")).toBe("warning!\n");
       if (path === "cancel") controller.abort();
-      if (path === "stream error") {
-        const started = spawned.find((spawn) => spawn.pid === pid);
-        expect(started).toBeDefined();
-        started?.stdout?.destroy(new Error("stream failed"));
+      if (injected) {
+        const failed = once(injected.stdout, "error");
+        injected.stdout.destroy(new Error("stream failed"));
+        await failed;
       }
     } catch (failure) {
       controller.abort();
       throw failure;
     } finally {
+      injected?.child.emit("close", null);
       if (path === "timeout") await vi.advanceTimersByTimeAsync(1000);
       await run;
     }
