@@ -113,6 +113,19 @@ describe("Watch projection", () => {
     }
   });
 
+  it("reads the current release as unread when the sweep has no release reads", () => {
+    const input: WatchInput = {
+      ...fixtureInput(),
+      releases: { releases: {}, created: {}, pins: {}, errors: {} },
+      releaseRecords: [],
+    };
+    const releases = projectWatch(input).readings.find(({ anchor }) => anchor.kind === "releases");
+    expect(releases?.content?.tiles[2]).toMatchObject({
+      label: "Current release",
+      value: "not read yet",
+    });
+  });
+
   it("maps a moving station to in-progress even when the pinned fleet has none", () => {
     const input = fixtureInput();
     const line = buildModel(input.facts, input.context.clock.now(), {}, input.context).lines[0];
