@@ -130,7 +130,7 @@ it("seeds the one selection with the first focus, as the rib console does, so ro
     expect(text(container, '.today-row[aria-pressed="true"] .today-item-title')).toEqual([
       first.title,
     ]);
-    expect(container.querySelector('[aria-label="Inspector"]')?.textContent).toContain(
+    expect(container.querySelector('[aria-label="Detail"]')?.textContent).toContain(
       `Reading ${first.id}`,
     );
     const target = oracle.briefing.rest[0];
@@ -141,7 +141,7 @@ it("seeds the one selection with the first focus, as the rib console does, so ro
     ]);
     await act(async () => store.getState().select("another-view"));
     expect(container.querySelector('.today-row[aria-pressed="true"]')).toBeNull();
-    expect(container.querySelector('[aria-label="Inspector"]')?.textContent).toContain(
+    expect(container.querySelector('[aria-label="Detail"]')?.textContent).toContain(
       "Reading another-view",
     );
   } finally {
@@ -169,7 +169,7 @@ it("opens a clicked Today focus row in the inspector through inspect.request on 
     expect(store.getState().selection).toEqual({ id: target.id });
     expect(row?.getAttribute("aria-pressed")).toBe("true");
     expect(container.querySelectorAll('.today-row[aria-pressed="true"]')).toHaveLength(1);
-    expect(container.querySelector('[aria-label="Inspector"]')?.textContent).toContain(
+    expect(container.querySelector('[aria-label="Detail"]')?.textContent).toContain(
       `Reading ${target.id}`,
     );
   } finally {

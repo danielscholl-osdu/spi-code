@@ -1,32 +1,55 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { SweepEvidence } from "../components/evidence/EvidenceTab.js";
 import { SweepLine } from "../components/evidence/SweepLine.js";
 import { ProgramSidebar } from "../components/sidebar/ProgramSidebar.js";
 import { SidebarProvider } from "../components/sidebar/ui-sidebar.js";
-import { RightPanel, selectionStore } from "../panels/index.js";
+import { selectionStore } from "../panels/index.js";
+import { RightPanelFrame } from "../panels/RightPanelFrame.js";
+import { routeSelectionIds } from "../panels/selection-rows.js";
 import { watchStore } from "../store/watch.js";
 import { createAppearance } from "./appearance.js";
 import { PanelControls } from "./PanelControls.js";
-import { RouteView, routeLabel, useHashRoute, useSetupLanding } from "./routes.js";
+import { RouteView, routeHash, routeLabel, useHashRoute, useSetupLanding } from "./routes.js";
 import { windowControls } from "./window-controls.js";
 
 export { watchStore };
 
 export function Shell() {
-  const snapshot = useStore(watchStore, (state) => state.snapshot?.body ?? null);
+  const snapshot = useStore(watchStore, (state) => state.snapshot?.body);
   const sweep = useStore(watchStore, (state) => state.sweep);
   const [route, navigate] = useHashRoute();
   useSetupLanding(navigate);
-  const [rightPanelOpen, setRightPanelOpen] = useState(true);
-  const toggleRightPanel = useCallback(() => setRightPanelOpen((open) => !open), []);
-  const openSweepEvidence = useCallback(() => {
-    selectionStore.getState().openSweepEvidence();
-    setRightPanelOpen(true);
-  }, []);
+  const rightPanelOpen = useStore(selectionStore, (state) => state.open);
+  const toggleRightPanel = useCallback(
+    () => selectionStore.getState().setOpen(!selectionStore.getState().open),
+    [],
+  );
+  const openSweepEvidence = useCallback(() => selectionStore.getState().openSweepEvidence(), []);
+  const middle = useRef<HTMLElement>(null);
+  const position = useRef({ route: routeHash(route), top: 0 });
+  useLayoutEffect(() => {
+    const frame = middle.current;
+    if (!frame) return;
+    const key = routeHash(route);
+    const top = selectionStore
+      .getState()
+      .visit(
+        key,
+        [
+          ...(snapshot ? routeSelectionIds(snapshot, route) : []),
+          ...Array.from(frame.querySelectorAll<HTMLElement>("[data-selection-id]")).flatMap(
+            (element) => (element.dataset.selectionId ? [element.dataset.selectionId] : []),
+          ),
+        ],
+        position.current.route === key ? frame.scrollTop : position.current.top,
+      );
+    frame.scrollTop = top;
+    position.current = { route: key, top };
+  }, [route, snapshot]);
   const [appearance, setAppearance] = useState<ReturnType<typeof createAppearance>>();
   const [error, setError] = useState("");
   useEffect(() => {
@@ -58,7 +81,7 @@ export function Shell() {
           <span data-place>{routeLabel(route)}</span>
         </div>
         <div className="title-bar-controls">
-          <SweepLine snapshot={snapshot} onOpen={openSweepEvidence} />
+          <SweepLine snapshot={snapshot ?? null} onOpen={openSweepEvidence} />
           <label>
             Appearance{" "}
             <select
@@ -80,19 +103,21 @@ export function Shell() {
         </div>
       </header>
       <ProgramSidebar store={watchStore} route={route} onNavigate={navigate} />
-      <main className="middle-frame">
+      <main
+        className="middle-frame"
+        ref={middle}
+        onScroll={(event) => {
+          position.current.top = event.currentTarget.scrollTop;
+        }}
+      >
         {error && <p role="alert">{error}</p>}
         <RouteView route={route} />
       </main>
-      {rightPanelOpen && (
-        <div id="app-right-panel" className="right-panel-frame">
-          <RightPanel
-            store={selectionStore}
-            sweepEvidence={<SweepEvidence snapshot={snapshot} sweep={sweep} />}
-            reads={snapshot?.reads}
-          />
-        </div>
-      )}
+      <RightPanelFrame
+        store={selectionStore}
+        {...(snapshot ? { snapshot } : {})}
+        sweepEvidence={<SweepEvidence snapshot={snapshot ?? null} sweep={sweep} />}
+      />
     </SidebarProvider>
   );
 }

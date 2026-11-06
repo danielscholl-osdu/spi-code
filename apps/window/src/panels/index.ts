@@ -10,3 +10,5 @@ export {
   type SelectionStore,
   selectionStore,
 } from "./selection.js";
+export { routeSelectionIds, type SelectionRow, selectionRows } from "./selection-rows.js";
+export { useSelectionList } from "./useSelectionList.js";

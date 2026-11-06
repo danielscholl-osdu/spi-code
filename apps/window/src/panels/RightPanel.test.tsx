@@ -312,39 +312,27 @@ it.each([
   }
 });
 
-it("lists the selected object's read records on the Log tab", async () => {
-  const records: ReadRecord[] = [
-    {
-      source: "github",
-      object: "Azure/osdu-spi-entitlements",
-      observedAt: "2026-10-21T15:00:00.000Z",
-      completeness: { kind: "complete" },
-    },
-    {
-      source: "gitlab",
-      object: "osdu/platform/security-and-compliance/entitlements",
-      observedAt: "2026-10-21T14:58:00.000Z",
-      completeness: { kind: "cut", reason: "rate limit", read: 40, total: 52 },
-    },
-  ];
-  const view = await inspect(
-    inspectFromOracle(board("HALT"), "halt:entitlements", { evidence: records }),
-  );
+it("offers Detail and selection Evidence, but no run logs or threads", async () => {
+  const view = await inspect(inspectFromOracle(board("HALT"), "halt:entitlements"));
   try {
     const tabs = view.container.querySelectorAll<HTMLButtonElement>('[role="tab"]');
-    expect([...tabs].map((tab) => tab.textContent)).toEqual(["Inspector", "Evidence", "Log"]);
-    expect(view.container.querySelector('ul[aria-label="Evidence"]')?.textContent).toContain(
-      "github · Azure/osdu-spi-entitlements",
-    );
-    await act(async () => tabs[2]?.click());
-    expect(tabs[2]?.getAttribute("aria-selected")).toBe("true");
-    const reads = view.container.querySelectorAll('ul[aria-label="Reads"] li');
-    expect([...reads].map((li) => li.getAttribute("data-read"))).toEqual(
-      records.map((r) => r.object),
-    );
-    expect(reads[1]?.textContent).toContain("cut 40 of 52");
+    expect([...tabs].map((tab) => tab.textContent)).toEqual(["Detail", "Evidence", "Log"]);
+    expect(tabs[2]?.disabled).toBe(true);
+    expect(view.container.textContent).toContain("Run logs are not available yet.");
+    for (const label of ["Ask", "Add to chat"]) {
+      const button = [...view.container.querySelectorAll<HTMLButtonElement>("button")].find(
+        (item) => item.textContent === label,
+      );
+      expect(button?.disabled).toBe(true);
+      expect(
+        document.getElementById(button?.getAttribute("aria-describedby") ?? "")?.textContent,
+      ).toBe("Threads are not available yet.");
+    }
+    await act(async () => tabs[1]?.click());
+    expect(tabs[1]?.getAttribute("aria-selected")).toBe("true");
+    expect(view.container.querySelector('[data-evidence="selection"]')).not.toBeNull();
     await act(async () =>
-      tabs[2]?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })),
+      tabs[1]?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })),
     );
     expect(tabs[0]?.getAttribute("aria-selected")).toBe("true");
     expect(view.text("class")).toBe("HALT");

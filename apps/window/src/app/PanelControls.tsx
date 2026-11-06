@@ -21,7 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { useEffect, useId } from "react";
+import { useCallback, useEffect, useId } from "react";
 import { SidebarTrigger, useSidebar } from "../components/sidebar/ui-sidebar.js";
 import { ariaShortcut, matchesShortcut, shortcutLabel } from "./shortcuts.js";
 
@@ -35,22 +35,32 @@ export function PanelControls({
   rightPanelOpen: boolean;
   onToggleRightPanel(): void;
 }) {
-  const { toggleSidebar } = useSidebar();
+  const { toggleSidebar, isMobile, openMobile, setOpenMobile } = useSidebar();
   const terminalReason = useId();
+  const closeDetailForSidebar = useCallback(() => {
+    if (isMobile && !openMobile && rightPanelOpen) onToggleRightPanel();
+  }, [isMobile, openMobile, rightPanelOpen, onToggleRightPanel]);
+  const toggleDetail = useCallback(() => {
+    if (isMobile && openMobile) setOpenMobile(false);
+    onToggleRightPanel();
+  }, [isMobile, openMobile, setOpenMobile, onToggleRightPanel]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
-      if (matchesShortcut(event, "b")) toggleSidebar();
-      else if (matchesShortcut(event, "i")) onToggleRightPanel();
+      if (matchesShortcut(event, "b")) {
+        closeDetailForSidebar();
+        toggleSidebar();
+      } else if (matchesShortcut(event, "i")) toggleDetail();
       else if (!matchesShortcut(event, "j")) return;
       event.preventDefault();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [toggleSidebar, onToggleRightPanel]);
+  }, [toggleSidebar, closeDetailForSidebar, toggleDetail]);
   return (
     <div className="panel-controls">
       <SidebarTrigger
+        onClick={closeDetailForSidebar}
         className="panel-toggle"
         aria-label="Toggle sidebar"
         aria-controls="app-sidebar"
@@ -81,7 +91,7 @@ export function PanelControls({
         aria-controls="app-right-panel"
         aria-keyshortcuts={ariaShortcut("i")}
         title={`Toggle right panel (${shortcutLabel("i")})`}
-        onClick={onToggleRightPanel}
+        onClick={toggleDetail}
       >
         <span aria-hidden className="panel-glyph" data-panel="right" />
       </button>

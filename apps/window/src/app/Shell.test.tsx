@@ -7,8 +7,10 @@ import { createRoot } from "react-dom/client";
 import { beforeEach, expect, it, vi } from "vitest";
 import briefing from "../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import releases from "../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
+import { selectionStore } from "../panels/selection.js";
 import { testSnapshot } from "../store/test-snapshot.js";
 import { watchStore } from "../store/watch.js";
+import { navigate } from "./routes.js";
 import { Shell } from "./Shell.js";
 
 type HappyWindow = { happyDOM: { setViewport(viewport: { width: number; height: number }): void } };
@@ -47,6 +49,15 @@ const press = (key: string, init: KeyboardEventInit = { ctrlKey: true }) =>
 beforeEach(() => {
   window.location.hash = "";
   viewport(1280);
+  selectionStore.setState({
+    selected: null,
+    row: null,
+    result: null,
+    request: null,
+    open: true,
+    tab: "detail",
+    evidenceScope: "selection",
+  });
 });
 
 it("navigates every sidebar thing through the hash, naming the place in the title bar", async () => {
@@ -90,7 +101,7 @@ it("navigates every sidebar thing through the hash, naming the place in the titl
     }
     expect(button("Releases")?.getAttribute("aria-current")).toBe("true");
     expect(container.querySelector("header strong")?.textContent).toBe("SPI Code");
-    expect(container.querySelector("aside")?.getAttribute("aria-label")).toBe("Inspector");
+    expect(container.querySelector("aside")?.getAttribute("aria-label")).toBe("Detail");
   } finally {
     await shell.cleanup();
     expect(shell.unsubscribe).toHaveBeenCalledTimes(1);
@@ -165,9 +176,122 @@ it("opens the sidebar off-canvas below 980 px and closes it on Escape, back to i
         new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
       );
     });
+
     expect(sidebar()?.getAttribute("data-state")).toBe("collapsed");
     expect(document.activeElement).toBe(trigger);
     expect(container.querySelector('[data-slot="sidebar-backdrop"]')).toBeNull();
+  } finally {
+    await shell.cleanup();
+  }
+});
+
+it.each([900, 979, 980, 1280])(
+  "opens one detail surface at %i px and restores focus on Escape or close",
+  async (width) => {
+    viewport(width);
+    const shell = await mountShell();
+    const { container } = shell;
+    const row = container.querySelector<HTMLButtonElement>("nav button");
+    const trigger = container.querySelector<HTMLButtonElement>(
+      'header button[aria-controls="app-right-panel"]',
+    );
+    try {
+      if (width < 980) expect(container.querySelector("#app-right-panel")).toBeNull();
+      row?.focus();
+      await act(async () =>
+        selectionStore
+          .getState()
+          .select("halt:legal", { id: "halt:legal", title: "Sync halted", kind: "queue" }),
+      );
+      expect(container.querySelectorAll('aside[aria-label="Detail"]')).toHaveLength(1);
+      expect(container.querySelector("#app-right-panel")?.hasAttribute("data-sheet")).toBe(
+        width < 980,
+      );
+      if (width < 980)
+        expect(container.querySelector("#app-right-panel")?.contains(document.activeElement)).toBe(
+          true,
+        );
+      for (const control of container.querySelectorAll<HTMLButtonElement>(
+        "#app-right-panel button",
+      )) {
+        expect(control.getAttribute("aria-label") || control.textContent?.trim()).toBeTruthy();
+      }
+      await press("Escape", {});
+      expect(container.querySelector("#app-right-panel")).toBeNull();
+      expect(document.activeElement).toBe(row);
+      trigger?.focus();
+      await act(async () => trigger?.click());
+      if (width < 980)
+        expect(container.querySelector("#app-right-panel")?.contains(document.activeElement)).toBe(
+          true,
+        );
+      await act(async () =>
+        container.querySelector<HTMLButtonElement>('[aria-label="Close detail"]')?.click(),
+      );
+      expect(container.querySelector("#app-right-panel")).toBeNull();
+      expect(document.activeElement).toBe(trigger);
+      row?.focus();
+      await act(async () => selectionStore.getState().select("halt:legal"));
+      await act(async () => selectionStore.getState().clear());
+      expect(container.querySelector("#app-right-panel")).toBeNull();
+      expect(document.activeElement).toBe(row);
+    } finally {
+      await shell.cleanup();
+    }
+  },
+);
+
+it("keeps a Flow selection on its service and restores middle-frame scroll when returning", async () => {
+  const previous = watchStore.getState();
+  const body = testSnapshot(briefing, releases);
+  watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+  const flow = body.briefing.flow.rows[0];
+  if (!flow) throw new Error("Missing recorded Flow row");
+  const shell = await mountShell();
+  const middle = shell.container.querySelector("main");
+  try {
+    await act(async () => navigate({ kind: "lens", lens: "flow" }));
+    await act(async () => selectionStore.getState().select(flow.inspect));
+    if (!middle) throw new Error("Missing middle frame");
+    middle.scrollTop = 320;
+    await act(async () => middle.dispatchEvent(new Event("scroll")));
+    await act(async () => navigate({ kind: "service", id: flow.fork }));
+    expect(selectionStore.getState().selected).toBe(flow.inspect);
+    expect(middle.scrollTop).toBe(0);
+    await act(async () => navigate({ kind: "setup" }));
+    expect(selectionStore.getState().selected).toBeNull();
+    await act(async () => navigate({ kind: "lens", lens: "flow" }));
+    expect(selectionStore.getState().selected).toBe(flow.inspect);
+    expect(middle.scrollTop).toBe(320);
+  } finally {
+    await shell.cleanup();
+    watchStore.setState(previous);
+  }
+});
+
+it("keeps the narrow Sidebar and Detail toggles reachable without stacking their overlays", async () => {
+  viewport(900);
+  const shell = await mountShell();
+  try {
+    const sidebar = shell.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Toggle sidebar"]',
+    );
+    const detail = shell.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Toggle right panel"]',
+    );
+    detail?.focus();
+    await act(async () => detail?.click());
+    expect(shell.container.querySelector("[data-sheet]")).not.toBeNull();
+    sidebar?.focus();
+    await act(async () => sidebar?.click());
+    expect(shell.container.querySelector("[data-sheet]")).toBeNull();
+    expect(shell.container.querySelector('nav[data-state="expanded"]')).not.toBeNull();
+    await press("i");
+    expect(shell.container.querySelector("[data-sheet]")).not.toBeNull();
+    expect(shell.container.querySelector('nav[data-state="expanded"]')).toBeNull();
+    await press("b");
+    expect(shell.container.querySelector("[data-sheet]")).toBeNull();
+    expect(shell.container.querySelector('nav[data-state="expanded"]')).not.toBeNull();
   } finally {
     await shell.cleanup();
   }

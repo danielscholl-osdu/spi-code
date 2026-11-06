@@ -28,14 +28,17 @@ import {
   parseMessage,
 } from "@spi-code/contracts";
 import { createStore } from "zustand/vanilla";
+import type { SelectionRow } from "./selection-rows.js";
 
-export const PANEL_TABS = ["inspector", "evidence", "log"] as const;
+export const PANEL_TABS = ["detail", "evidence"] as const;
 export type PanelTab = (typeof PANEL_TABS)[number];
 
 export type InspectPort = { postMessage(message: Message): void };
 
 export type SelectionState = {
   selected: string | null;
+  row: SelectionRow | null;
+  open: boolean;
   request: string | null;
   result: InspectResult | null;
   error: string | null;
@@ -44,8 +47,12 @@ export type SelectionState = {
   tab: PanelTab;
   /** Whose evidence the Evidence tab shows: the selection's, or the sweep's from the title bar. */
   evidenceScope: "selection" | "sweep";
-  select(id: string): void;
+  /** Existing id-only callers work; lists should also supply their row's own title and kind. */
+  select(id: string, row?: SelectionRow): void;
   clear(): void;
+  setOpen(open: boolean): void;
+  /** Called by the route frame; returns that route's saved scroll offset. */
+  visit(route: string, ids: readonly string[], scrollTop: number): number;
   setTab(tab: PanelTab): void;
   openSweepEvidence(): void;
   receive(input: unknown): void;
@@ -53,42 +60,92 @@ export type SelectionState = {
 
 export function createSelectionStore(port: InspectPort) {
   let hostPid: number | undefined;
+  let route: string | undefined;
+  const positions = new Map<
+    string,
+    { selected: string | null; row: SelectionRow | null; top: number }
+  >();
   return createStore<SelectionState>((set, get) => ({
     selected: null,
+    row: null,
+    open: true,
     request: null,
     result: null,
     error: null,
     missing: null,
-    tab: "inspector",
     evidenceScope: "selection",
-    select(id) {
+    select(id, row) {
+      if (row && row.id !== id) throw new Error("Selection row does not match its id");
+      if (row?.inspectId === null) {
+        set({
+          selected: id,
+          row,
+          open: true,
+          request: null,
+          result: null,
+          error: null,
+          missing: null,
+          evidenceScope: "selection",
+        });
+        return;
+      }
       const parsed = parseMessage({
         version: PROTOCOL_VERSION,
         id: crypto.randomUUID(),
         kind: "request",
         type: "inspect.request",
-        payload: { id },
+        payload: { id: row?.inspectId ?? id },
       });
       if (!parsed.ok) throw new Error("Invalid inspect request");
       const result = get().result;
       set({
         selected: id,
+        row: row ?? null,
+        open: true,
         request: parsed.message.id,
-        result: result?.id === id ? result : null,
+        result: result?.id === (row?.inspectId ?? id) ? result : null,
         error: null,
         missing: null,
         evidenceScope: "selection",
+        tab: "detail",
       });
       port.postMessage(parsed.message);
     },
     clear() {
-      set({ selected: null, request: null, result: null, error: null, missing: null });
+      set({
+        selected: null,
+        row: null,
+        open: false,
+        request: null,
+        result: null,
+        error: null,
+        missing: null,
+      });
+    },
+    setOpen(open) {
+      set({ open });
+    },
+    visit(nextRoute, ids, scrollTop) {
+      const current = get();
+      if (route === nextRoute) {
+        if (current.selected !== null && !ids.includes(current.selected)) get().clear();
+        return scrollTop;
+      }
+      if (route !== undefined)
+        positions.set(route, { selected: current.selected, row: current.row, top: scrollTop });
+      route = nextRoute;
+      const saved = positions.get(nextRoute);
+      if (current.selected !== null && ids.includes(current.selected)) return saved?.top ?? 0;
+      if (saved?.selected && ids.includes(saved.selected))
+        get().select(saved.selected, saved.row ?? undefined);
+      else if (current.selected !== null) get().clear();
+      return saved?.top ?? 0;
     },
     setTab(tab) {
       set(tab === "evidence" ? { tab } : { tab, evidenceScope: "selection" });
     },
     openSweepEvidence() {
-      set({ tab: "evidence", evidenceScope: "sweep" });
+      set({ tab: "evidence", evidenceScope: "sweep", open: true });
     },
     receive(input) {
       const parsed = parseMessage(input);
@@ -98,7 +155,8 @@ export function createSelectionStore(port: InspectPort) {
       if (message.type === "host.hello") {
         const changed = message.payload.pid !== hostPid;
         hostPid = message.payload.pid;
-        if (changed && request !== null && selected !== null) get().select(selected);
+        if (changed && request !== null && selected !== null)
+          get().select(selected, get().row ?? undefined);
         return;
       }
       if (message.type === "error" && message.payload.code === "host_unavailable") {
@@ -107,7 +165,7 @@ export function createSelectionStore(port: InspectPort) {
       }
       if (request === null || message.id !== request) return;
       if (message.type === "inspect.result") {
-        if (message.payload.id !== selected) return;
+        if (message.payload.id !== (get().row?.inspectId ?? selected)) return;
         set({ result: message.payload, request: null, error: null, missing: null });
       } else if (message.type === "error" && message.payload.code === "not_found") {
         set({ request: null, result: null, missing: message.payload.message });

@@ -21,22 +21,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import type { InspectResult, ReadRecord } from "@spi-code/contracts";
+import type { InspectResult, ReadRecord, ViewSnapshot } from "@spi-code/contracts";
 import { type KeyboardEvent, type ReactNode, useId } from "react";
 import { useStore } from "zustand";
 import {
-  ReadList,
+  InferredMarker,
   SelectionEvidence,
   SelectionEvidenceChip,
 } from "../components/evidence/index.js";
 import { PANEL_TABS, type PanelTab, type SelectionStore } from "./selection.js";
+import { type SelectionRow, selectionRows } from "./selection-rows.js";
 import "./panels.css";
 
-const TAB_LABEL: Readonly<Record<PanelTab, string>> = {
-  inspector: "Inspector",
-  evidence: "Evidence",
-  log: "Log",
-};
+const TAB_LABEL: Readonly<Record<PanelTab, string>> = { detail: "Detail", evidence: "Evidence" };
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
@@ -49,12 +46,12 @@ function Field({ label, value }: { label: string; value: string }) {
 
 function Inspector({
   result,
-  reads,
-  onEvidence,
+  store,
+  row,
 }: {
   result: InspectResult;
-  reads: readonly ReadRecord[];
-  onEvidence(): void;
+  store: SelectionStore;
+  row: SelectionRow | null;
 }) {
   const base = useId();
   return (
@@ -62,7 +59,6 @@ function Inspector({
       <p className="inspector-kicker">
         <span data-field="class">{result.class}</span> · {result.id}
       </p>
-      <SelectionEvidenceChip result={result} reads={reads} onOpen={onEvidence} />
       <dl>
         <Field label="Cause" value={result.cause} />
         <Field label="Effect" value={result.effect} />
@@ -76,6 +72,7 @@ function Inspector({
             {result.evidence.map((record) => (
               <li key={`${record.source}/${record.object}`}>
                 {record.source} · {record.object}
+                {record.inferred === true && <InferredMarker />}
               </li>
             ))}
           </ul>
@@ -87,7 +84,23 @@ function Inspector({
           <ul aria-label="Related">
             {result.related.map((related) => (
               <li key={`${related.text}/${related.state}`}>
-                {related.url ? (
+                {related.inspect ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const id = related.inspect;
+                      if (id)
+                        store.getState().select(id, {
+                          id,
+                          title: related.text,
+                          kind: id.startsWith("step:") ? "template-step" : "queue",
+                          ...(row?.prefixes ? { prefixes: row.prefixes } : {}),
+                        });
+                    }}
+                  >
+                    {related.text}
+                  </button>
+                ) : related.url ? (
                   <a href={related.url} target="_blank" rel="noreferrer">
                     {related.text}
                   </a>
@@ -138,12 +151,16 @@ function Inspector({
  */
 export function RightPanel({
   store,
+  snapshot,
   sweepEvidence,
-  reads = [],
+  reads = snapshot?.reads ?? [],
+  onClose,
 }: {
   store: SelectionStore;
+  snapshot?: ViewSnapshot;
   sweepEvidence?: ReactNode;
   reads?: readonly ReadRecord[] | undefined;
+  onClose?(): void;
 }) {
   const base = useId();
   const selected = useStore(store, (state) => state.selected);
@@ -154,6 +171,17 @@ export function RightPanel({
   const tab = useStore(store, (state) => state.tab);
   const setTab = useStore(store, (state) => state.setTab);
   const evidenceScope = useStore(store, (state) => state.evidenceScope);
+  const ownRow = useStore(store, (state) => state.row);
+  const row =
+    (snapshot
+      ? selectionRows(snapshot).find(
+          ({ id, kind, prefixes }) =>
+            id === selected &&
+            (!ownRow ||
+              (kind === ownRow.kind &&
+                (!ownRow.prefixes || prefixes?.join("|") === ownRow.prefixes.join("|")))),
+        )
+      : null) ?? ownRow;
   const onKeyDown = (event: KeyboardEvent) => {
     const step = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
     if (step === 0) return;
@@ -165,32 +193,22 @@ export function RightPanel({
       document.getElementById(`${base}-tab-${next}`)?.focus();
     }
   };
-  const body =
-    tab === "evidence" &&
-    sweepEvidence !== undefined &&
-    (evidenceScope === "sweep" || selected === null) ? (
-      sweepEvidence
-    ) : selected === null ? (
+  const reading =
+    selected === null ? (
       <p className="panel-empty">No selection</p>
     ) : error !== null ? (
       <p role="alert">{error}</p>
     ) : missing !== null ? (
       <p className="panel-empty">{missing}</p>
-    ) : result === null ? (
+    ) : result === null && row?.inspectId !== null ? (
       <p className="panel-empty" role="status">
         Reading {selected}…
       </p>
-    ) : tab === "inspector" ? (
-      <Inspector result={result} reads={reads} onEvidence={() => setTab("evidence")} />
-    ) : tab === "evidence" ? (
-      <SelectionEvidence result={result} reads={reads} />
-    ) : result.evidence.length > 0 ? (
-      <ReadList records={result.evidence} />
-    ) : (
-      <p className="panel-empty">No reads recorded for {result.id}</p>
-    );
+    ) : result ? (
+      <Inspector result={result} store={store} row={row} />
+    ) : null;
   return (
-    <aside aria-label="Inspector" className="right-panel" aria-busy={request !== null}>
+    <aside aria-label="Detail" className="right-panel" aria-busy={request !== null}>
       <div role="tablist" aria-label="Right panel" className="panel-tabs">
         {PANEL_TABS.map((id) => (
           <button
@@ -207,14 +225,75 @@ export function RightPanel({
             {TAB_LABEL[id]}
           </button>
         ))}
+        <button
+          type="button"
+          role="tab"
+          disabled
+          aria-selected="false"
+          aria-describedby={`${base}-log-reason`}
+        >
+          Log
+        </button>
+        {onClose && (
+          <button type="button" className="panel-close" aria-label="Close detail" onClick={onClose}>
+            ×
+          </button>
+        )}
       </div>
+      <p id={`${base}-log-reason`} className="panel-unavailable">
+        Run logs are not available yet.
+      </p>
       <div
         id={`${base}-panel`}
         role="tabpanel"
         aria-labelledby={`${base}-tab-${tab}`}
         className="panel-body"
       >
-        {body}
+        {tab === "evidence" ? (
+          sweepEvidence !== undefined && (evidenceScope === "sweep" || selected === null) ? (
+            sweepEvidence
+          ) : result ? (
+            <SelectionEvidence result={result} reads={reads} />
+          ) : (
+            reading
+          )
+        ) : (
+          <>
+            {selected !== null && (
+              <>
+                <p className="inspector-kicker">{row?.kind ?? "selection"}</p>
+                <h2 className="detail-title">{row?.title ?? result?.title ?? selected}</h2>
+                {result && (
+                  <SelectionEvidenceChip result={result} reads={reads} onOpen={() => setTab("evidence")} />
+                )}
+              </>
+            )}
+            {reading}
+            {row?.fields && (
+              <dl className="detail-row-fields" aria-label="Row reading">
+                {row.fields.map(({ label, value }) => (
+                  <div key={`${label}-${value}`}>
+                    <dt>{label}</dt>
+                    <dd>{value === "·" ? "" : value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+            {selected !== null && (
+              <div className="detail-chat-actions">
+                <button type="button" disabled aria-describedby={`${base}-threads-reason`}>
+                  Ask
+                </button>{" "}
+                <button type="button" disabled aria-describedby={`${base}-threads-reason`}>
+                  Add to chat
+                </button>
+                <p id={`${base}-threads-reason`} className="inspector-reason">
+                  Threads are not available yet.
+                </p>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </aside>
   );
