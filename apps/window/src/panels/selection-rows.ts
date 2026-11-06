@@ -23,12 +23,21 @@ export type SelectionKind =
  * The id is stable across routes; inspectId overrides it for stations (null means row-only).
  * Fields are the row's own reading, not a second inspector. Omit them when inspect carries it all.
  */
+export type SelectionField = {
+  label: string;
+  value: string;
+  /** A URL the snapshot carries, opened outside the app; never one the window builds. */
+  href?: string;
+  /** The machine-readable instant behind a time value. */
+  dateTime?: string;
+};
+
 export type SelectionRow = {
   id: string;
   title: string;
   kind: SelectionKind;
   inspectId?: string | null;
-  fields?: readonly { label: string; value: string }[];
+  fields?: readonly SelectionField[];
   /** Snapshot JSON pointers feeding this row, for the selection's evidence chip/tab. */
   prefixes?: readonly string[];
 };
@@ -53,17 +62,43 @@ export function repositoryLineRow(
   lineIndex: number,
 ): SelectionRow | undefined {
   if (!line.id) return undefined;
-  const fields = [
-    ...(line.tag ? [{ label: "Tag", value: line.tag }] : []),
-    ...(line.sub ? [{ label: "Reading", value: line.sub }] : []),
-    ...(line.url ? [{ label: "Link", value: line.url }] : []),
-  ];
   return {
     id: line.id,
     title: line.text,
     kind: "repository-line",
     prefixes: [repositoryLinePointer(repoIndex, sectionIndex, lineIndex)],
-    ...(fields.length > 0 ? { fields } : {}),
+    fields: [
+      ...(line.tag ? [{ label: "Tag", value: line.tag }] : []),
+      ...(line.sub ? [{ label: "Reading", value: line.sub }] : []),
+      { label: "Id", value: line.id },
+      ...(line.url ? [{ label: "Link", value: line.url, href: line.url }] : []),
+    ],
+  };
+}
+
+/** An absolute time in UTC, whatever offset the snapshot wrote it with. */
+export const utc = (time: string) => {
+  const at = new Date(time);
+  return Number.isNaN(at.getTime())
+    ? time
+    : `${at.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+};
+
+type ServiceRun = NonNullable<ViewSnapshot["services"]>[number]["runs"][number];
+
+/** The selection row for a service's workflow run; a fact the run left empty is left out. */
+export function runRow(run: ServiceRun, serviceIndex: number): SelectionRow {
+  return {
+    id: run.id,
+    title: [run.workflow, run.result].filter(Boolean).join(" · ") || run.id,
+    kind: "run",
+    prefixes: [`/services/${serviceIndex}/runs`],
+    fields: [
+      ...(run.workflow ? [{ label: "Workflow", value: run.workflow }] : []),
+      ...(run.result ? [{ label: "Result", value: run.result }] : []),
+      { label: "When", value: utc(run.time), dateTime: run.time },
+      { label: "Link", value: run.url, href: run.url },
+    ],
   };
 }
 

@@ -316,7 +316,7 @@ it("fills the right panel's Detail with the selected tile", async () => {
     panel()?.querySelectorAll(".detail-row-fields dt") ?? [],
     (term) => term.textContent,
   );
-  expect(fields).toEqual(["Tag", "Reading", "Link"]);
+  expect(fields).toEqual(["Tag", "Reading", "Id", "Link"]);
   expect(panel()?.querySelector(".detail-row-fields")?.textContent).toContain(
     "https://github.com/Azure/osdu-spi-entitlements/issues/47",
   );
@@ -341,6 +341,7 @@ it("converts an offset run time to UTC before labelling it", async () => {
   expect(selection.getState().row?.fields).toContainEqual({
     label: "When",
     value: "2026-10-13 08:15 UTC",
+    dateTime: "2026-10-13T10:15:00+02:00",
   });
 });
 
@@ -446,6 +447,7 @@ it("shows the same Detail fields for a stack line selected on its service page o
   expect(fromService).toEqual([
     ["Tag", line.tag],
     ["Reading", line.sub],
+    ["Id", STACK_LINE],
     ["Link", line.url],
   ]);
 
@@ -475,6 +477,7 @@ it.each(["service", "environment"] as const)(
     expect(detailFields()).toEqual([
       ["Tag", "regression"],
       ["Reading", "reopened 1h ago"],
+      ["Id", STACK_LINE],
       ["Link", stackLine(body, STACK_LINE).url],
     ]);
   },
@@ -507,6 +510,7 @@ it("refreshes a selected service line's Detail after a sweep inserts a line befo
   expect(detailFields()).toEqual([
     ["Tag", "regression"],
     ["Reading", "reopened 1h ago"],
+    ["Id", STACK_LINE],
     ["Link", stackLine(body, STACK_LINE).url],
   ]);
 });

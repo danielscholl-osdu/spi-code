@@ -8,6 +8,7 @@ import {
   PROTOCOL_VERSION,
   parseMessage,
   type ReadRecord,
+  type ViewSnapshot,
   ViewSnapshotSchema,
 } from "@spi-code/contracts";
 import { act, type ReactNode } from "react";
@@ -29,7 +30,7 @@ import { expectNoEvidenceMarks } from "../components/evidence/marks.test-helper.
 import { mixedSnapshot } from "../store/test-snapshot.js";
 import { RightPanel } from "./RightPanel.js";
 import { createSelectionStore, type SelectionStore } from "./selection.js";
-import type { SelectionKind } from "./selection-rows.js";
+import { runRow, type SelectionKind, type SelectionRow, selectionRows } from "./selection-rows.js";
 import { inspectFromOracle, type OracleBoard, oracleClass, oracleNext } from "./test-inspect.js";
 
 const oracle: Record<string, OracleBoard> = Object.fromEntries(
@@ -520,6 +521,161 @@ it("keeps a host-shaped repository selection's reads from the sweep on its Evide
       "GitHub issues and PRs · repos/Azure/osdu-spi-partition/check-runs/12/annotations",
     ]);
     expect(article?.textContent).not.toContain("No reads recorded");
+  } finally {
+    await view.cleanup();
+  }
+});
+
+async function mountDetail(snapshot: ViewSnapshot) {
+  const port = fakePort();
+  const openExternal = vi.fn(async () => true);
+  const previous = window.spi;
+  window.spi = { proof: false, openExternal, postMessage: vi.fn(), onMessage: () => () => {} };
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  await act(async () => root.render(<RightPanel store={port.store} snapshot={snapshot} />));
+  const select = async (row: SelectionRow) => {
+    await act(async () => port.store.getState().select(row.id, row));
+    expect(port.sent().payload.id).toBe(row.id);
+    await port.reply(
+      InspectResultSchema.parse({
+        id: row.id,
+        class: "SECURITY",
+        cause: "Read from the sweep.",
+        effect: "",
+        next: "",
+        why: "",
+        evidence: [],
+        related: [],
+        approval: null,
+        actions: [],
+      }),
+    );
+  };
+  const fields = () =>
+    Array.from(container.querySelectorAll(".detail-row-fields > div"), (pair) => [
+      pair.querySelector("dt")?.textContent,
+      pair.querySelector("dd")?.textContent,
+    ]);
+  return {
+    container,
+    openExternal,
+    select,
+    fields,
+    cleanup: async () => {
+      await act(async () => root.unmount());
+      container.remove();
+      window.spi = previous;
+    },
+  };
+}
+
+const recordedLine = (snapshot: ViewSnapshot, prefix: string) => {
+  for (const repo of snapshot.briefing.repositories.rows)
+    for (const section of repo.sections)
+      for (const line of section.lines) if (line.id?.startsWith(prefix)) return line;
+  throw new Error(`Recorded sweep needs a ${prefix} line`);
+};
+
+it.each(["pr:", "issue:", "alert:"])(
+  "shows a %s line's id and snapshot URL in Detail, selected through inspect.request",
+  async (prefix) => {
+    const snapshot = mixedSnapshot(mixed);
+    const line = recordedLine(snapshot, prefix);
+    const row = selectionRows(snapshot).find(({ id }) => id === line.id);
+    if (!row || !line.id || !line.url) throw new Error("Recorded line needs an id and a URL");
+    const view = await mountDetail(snapshot);
+    try {
+      await view.select(row);
+      expect(view.container.querySelector('[data-field="class"]')?.textContent).toBe("SECURITY");
+      expect(view.container.querySelector(".inspector-kicker")?.textContent).toBe(
+        "repository line",
+      );
+      expect(view.container.querySelector(".detail-title")?.textContent).toBe(line.text);
+      expect(view.fields()).toEqual([
+        ["Tag", line.tag],
+        ["Reading", line.sub],
+        ["Id", line.id],
+        ["Link", line.url],
+      ]);
+      const link = view.container.querySelector<HTMLAnchorElement>(".detail-row-fields a");
+      expect(link?.getAttribute("href")).toBe(line.url);
+      const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+      await act(async () => link?.dispatchEvent(click));
+      expect(click.defaultPrevented).toBe(true);
+      expect(view.openExternal).toHaveBeenCalledWith(line.url);
+    } finally {
+      await view.cleanup();
+    }
+  },
+);
+
+it("leaves a repository line's missing tag, reading and link out of Detail", async () => {
+  const snapshot = structuredClone(mixedSnapshot(mixed));
+  const line = recordedLine(snapshot, "issue:");
+  Object.assign(line, { tag: "", sub: "" });
+  delete line.url;
+  const row = selectionRows(snapshot).find(({ id }) => id === line.id);
+  if (!row) throw new Error("Recorded line needs a row");
+  const view = await mountDetail(snapshot);
+  try {
+    await view.select(row);
+    expect(view.fields()).toEqual([["Id", line.id]]);
+    expect(view.container.querySelector(".detail-row-fields a")).toBeNull();
+    expect(view.container.querySelector(".detail-row-fields")?.textContent).not.toMatch(
+      /Not stated|Tag|Reading|Link/,
+    );
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("shows a run's workflow, result and time in UTC, with its snapshot URL", async () => {
+  const snapshot = mixedSnapshot(mixed);
+  const services = snapshot.services ?? [];
+  const recorded = services[0]?.runs[0];
+  if (!recorded) throw new Error("Recorded sweep needs a run");
+  const run = { ...recorded, time: "2026-10-13T00:15:00-05:00" };
+  const view = await mountDetail(snapshot);
+  try {
+    await view.select(runRow(run, 0));
+    expect(view.container.querySelector(".inspector-kicker")?.textContent).toBe("run");
+    expect(view.container.querySelector(".detail-title")?.textContent).toBe(
+      `${run.workflow} · ${run.result}`,
+    );
+    expect(view.fields()).toEqual([
+      ["Workflow", run.workflow],
+      ["Result", run.result],
+      ["When", "2026-10-13 05:15 UTC"],
+      ["Link", run.url],
+    ]);
+    expect(view.container.querySelector(".detail-row-fields time")?.getAttribute("datetime")).toBe(
+      run.time,
+    );
+    expect(view.container.querySelector(".detail-row-fields a")?.getAttribute("href")).toBe(
+      run.url,
+    );
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("leaves a run's empty workflow or result out of Detail", async () => {
+  const snapshot = mixedSnapshot(mixed);
+  const recorded = snapshot.services?.[0]?.runs[0];
+  if (!recorded) throw new Error("Recorded sweep needs a run");
+  const view = await mountDetail(snapshot);
+  try {
+    await view.select(runRow({ ...recorded, result: "" }, 0));
+    expect(view.container.querySelector(".detail-title")?.textContent).toBe(recorded.workflow);
+    expect(view.fields().map(([label]) => label)).toEqual(["Workflow", "When", "Link"]);
+    await view.select(runRow({ ...recorded, workflow: "" }, 0));
+    expect(view.container.querySelector(".detail-title")?.textContent).toBe(recorded.result);
+    expect(view.fields().map(([label]) => label)).toEqual(["Result", "When", "Link"]);
+    expect(view.container.querySelector(".detail-row-fields")?.textContent).not.toContain(
+      "Not stated",
+    );
   } finally {
     await view.cleanup();
   }

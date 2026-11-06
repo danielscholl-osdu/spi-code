@@ -11,8 +11,10 @@ import { Stations } from "../../components/stations/index.js";
 import { type SelectionStore, selectionStore } from "../../panels/selection.js";
 import {
   repositoryLineRow,
+  runRow,
   type SelectionRow,
   selectionRows,
+  utc,
 } from "../../panels/selection-rows.js";
 import { useSelectionList } from "../../panels/useSelectionList.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
@@ -31,13 +33,6 @@ const openExternal = (url: string | undefined) => {
 
 const resultTone = (result: string) =>
   result === "success" ? "ok" : result === "failure" || result === "timed_out" ? "bad" : undefined;
-
-const utc = (time: string) => {
-  const at = new Date(time);
-  return Number.isNaN(at.getTime())
-    ? time
-    : `${at.toISOString().slice(0, 16).replace("T", " ")} UTC`;
-};
 
 type ServiceRelease = NonNullable<ViewSnapshot["services"]>[number]["releases"][number];
 
@@ -290,20 +285,7 @@ function ServiceBody({
   const serviceIndex = evidence.services?.findIndex(({ service }) => service === id) ?? -1;
   const service = evidence.services?.[serviceIndex];
   const runs = [...(service?.runs ?? [])].sort((a, b) => Date.parse(b.time) - Date.parse(a.time));
-  const runRows = runs.map(
-    (run): SelectionRow => ({
-      id: run.id,
-      title: `${run.workflow} · ${run.result}`,
-      kind: "run",
-      prefixes: [`/services/${serviceIndex}/runs`],
-      fields: [
-        { label: "Workflow", value: run.workflow },
-        { label: "Result", value: run.result },
-        { label: "When", value: utc(run.time) },
-        { label: "Link", value: run.url },
-      ],
-    }),
-  );
+  const runRows = runs.map((run) => runRow(run, serviceIndex));
 
   return (
     <section className="service-page watch-pane" data-view-pane="service" aria-label={id}>

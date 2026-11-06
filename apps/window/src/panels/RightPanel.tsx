@@ -294,10 +294,28 @@ export function RightPanel({
             {reading}
             {row?.fields && (
               <dl className="detail-row-fields" aria-label="Row reading">
-                {row.fields.map(({ label, value }) => (
+                {row.fields.map(({ label, value, href, dateTime }) => (
                   <div key={`${label}-${value}`}>
                     <dt>{label}</dt>
-                    <dd>{value === "·" ? "" : value}</dd>
+                    <dd>
+                      {href ? (
+                        <a
+                          href={href}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            void window.spi?.openExternal(href);
+                          }}
+                        >
+                          {value}
+                        </a>
+                      ) : dateTime ? (
+                        <time dateTime={dateTime}>{value}</time>
+                      ) : value === "·" ? (
+                        ""
+                      ) : (
+                        value
+                      )}
+                    </dd>
                   </div>
                 ))}
               </dl>
