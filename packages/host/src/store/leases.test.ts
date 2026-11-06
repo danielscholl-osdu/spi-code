@@ -69,6 +69,10 @@ function acquire(child: ChildProcess, now: number, ttl = 100): Promise<unknown> 
   return message(child, { now, ttl });
 }
 
+function busyTimeout(): unknown {
+  return db.prepare("PRAGMA busy_timeout").get()?.timeout;
+}
+
 it("checks owner and fence, expires exactly at ttl, and never reuses a released fence", () => {
   const leases = createLeaseStore(db);
   expect(leases.acquire("a", "first", 100, 1000)).toBe(1);
@@ -127,11 +131,30 @@ it("bounds the writer wait by the lease ttl and preserves ownership on timeout",
   expect(await acquire(holder, 1000)).toBe(1);
   expect(await message(holder, "lock")).toBe("locked");
   const leases = createLeaseStore(db);
+  const prior = busyTimeout();
   const started = performance.now();
   expect(() => leases.acquire("a", "next", 25, 1100)).toThrow("database is locked");
   expect(performance.now() - started).toBeLessThan(1000);
+  expect(busyTimeout()).toBe(prior);
   expect(db.prepare("SELECT owner, fence, expires_at FROM leases").get()).toEqual({
     owner: "holder",
+    fence: 1,
+    expires_at: 1100,
+  });
+});
+
+it("bounds a renewal's writer wait by its ttl and keeps the lease on timeout", async () => {
+  const leases = createLeaseStore(db);
+  expect(leases.acquire("a", "owner", 100, 1000)).toBe(1);
+  const holder = await worker("holder");
+  expect(await message(holder, "lock")).toBe("locked");
+  const prior = busyTimeout();
+  const started = performance.now();
+  expect(() => leases.renew("a", "owner", 1, 25, 1050)).toThrow("database is locked");
+  expect(performance.now() - started).toBeLessThan(1000);
+  expect(busyTimeout()).toBe(prior);
+  expect(db.prepare("SELECT owner, fence, expires_at FROM leases").get()).toEqual({
+    owner: "owner",
     fence: 1,
     expires_at: 1100,
   });

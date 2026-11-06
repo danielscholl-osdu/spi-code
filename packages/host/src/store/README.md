@@ -27,8 +27,13 @@ Run lifecycle transitions, intents, approvals and threads are outside this slice
 five-second writer-lock timeout itself, including on newly opened connections.
 Acquisition and renewal cap that wait at their TTL and restore the connection's
 five-second timeout afterward. SQLite waits for transient contention; an exhausted
-wait still throws rather than reporting a competing owner. The atomic conditional
-upsert, owner/fence checks and expiry comparisons are unchanged.
+wait still throws rather than reporting a competing owner. Release keeps the full
+five seconds: it runs on quit, and a release that gave up early would leave the
+lease held until expiry, blocking the next launch's sweeper for the whole TTL.
+The store sets five seconds rather than keeping a timeout the caller chose,
+because a fresh connection waits zero and every production caller uses 5000.
+The atomic conditional upsert, owner/fence checks and expiry comparisons are
+unchanged.
 
 The crash test drives a child through committed appends, kills it with `SIGKILL`
 without closing the connection, then reopens the store to verify every committed
