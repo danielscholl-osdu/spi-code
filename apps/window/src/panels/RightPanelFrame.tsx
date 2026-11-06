@@ -22,8 +22,9 @@ export function RightPanelFrame({
   const frame = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLElement | null>(null);
   useEffect(() => {
-    if (narrow && store.getState().selected === null) store.getState().setOpen(false);
-  }, [narrow, store]);
+    if (window.matchMedia(NARROW_LAYOUT_MEDIA_QUERY).matches && store.getState().selected === null)
+      store.getState().setOpen(false);
+  }, [store]);
   useEffect(
     () =>
       store.subscribe((state, previous) => {
@@ -44,12 +45,17 @@ export function RightPanelFrame({
       !frame.current?.contains(document.activeElement)
     )
       opener.current = document.activeElement;
-    if (narrow)
+    if (window.matchMedia(NARROW_LAYOUT_MEDIA_QUERY).matches)
       frame.current
         ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
         ?.focus({ preventScroll: true });
     const close = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (
+        event.key !== "Escape" ||
+        event.defaultPrevented ||
+        !frame.current?.contains(document.activeElement)
+      )
+        return;
       event.preventDefault();
       store.getState().setOpen(false);
     };
@@ -61,7 +67,7 @@ export function RightPanelFrame({
         : document.querySelector<HTMLElement>('[aria-controls="app-right-panel"]');
       target?.focus({ preventScroll: true });
     };
-  }, [open, narrow, store]);
+  }, [open, store]);
   if (!open) return null;
   return (
     <>

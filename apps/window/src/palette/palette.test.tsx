@@ -347,6 +347,7 @@ it("closes only the palette on Escape while the right panel is open", async () =
   expect(palettes()).toHaveLength(0);
   expect(selectionStore.getState().open).toBe(true);
   expect(container.querySelector("#app-right-panel")).not.toBeNull();
+  container.querySelector<HTMLButtonElement>('#app-right-panel [role="tab"]')?.focus();
   await act(async () => {
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
   });

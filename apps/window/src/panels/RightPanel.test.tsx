@@ -29,6 +29,7 @@ import { expectNoEvidenceMarks } from "../components/evidence/marks.test-helper.
 import { mixedSnapshot } from "../store/test-snapshot.js";
 import { RightPanel } from "./RightPanel.js";
 import { createSelectionStore, type SelectionStore } from "./selection.js";
+import type { SelectionKind } from "./selection-rows.js";
 import { inspectFromOracle, type OracleBoard, oracleClass, oracleNext } from "./test-inspect.js";
 
 const oracle: Record<string, OracleBoard> = Object.fromEntries(
@@ -100,6 +101,43 @@ async function inspect(result: InspectResult) {
   await port.reply(result);
   return { ...view, ...port };
 }
+
+it.each([
+  ["template-step", "template step"],
+  ["repository-line", "repository line"],
+] satisfies [SelectionKind, string][])("names %s in plain words", async (kind, words) => {
+  const port = fakePort();
+  const view = await mount(port.store);
+  try {
+    await act(async () =>
+      port.store.getState().select("selected", { id: "selected", title: "Selected", kind }),
+    );
+    expect(view.container.querySelector(".inspector-kicker")?.textContent).toBe(words);
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("explains an Evidence tab with a row-only selection instead of leaving it empty", async () => {
+  const port = fakePort();
+  const view = await mount(port.store);
+  try {
+    await act(async () => port.store.getState().setTab("evidence"));
+    await act(async () =>
+      port.store.getState().select("station:legal:lane", {
+        id: "station:legal:lane",
+        title: "Stack lane",
+        kind: "station",
+        inspectId: null,
+      }),
+    );
+    expect(view.container.querySelector('[role="tabpanel"]')?.textContent).toBe(
+      "No evidence for this selection.",
+    );
+  } finally {
+    await view.cleanup();
+  }
+});
 
 it.each(Object.keys(oracle))(
   "renders the %s oracle's class, cause, effect and next",

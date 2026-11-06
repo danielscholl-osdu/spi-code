@@ -240,7 +240,7 @@ it("fills the right panel's Detail with the selected tile", async () => {
       '[data-selection-id="issue:Azure/osdu-spi-entitlements:47"]',
     ),
   );
-  expect(panel()?.querySelector(".inspector-kicker")?.textContent).toBe("repository-line");
+  expect(panel()?.querySelector(".inspector-kicker")?.textContent).toBe("repository line");
   const fields = Array.from(
     panel()?.querySelectorAll(".detail-row-fields dt") ?? [],
     (term) => term.textContent,

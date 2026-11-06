@@ -261,13 +261,13 @@ export function RightPanel({
           ) : result ? (
             <SelectionEvidence result={result} reads={reads} />
           ) : (
-            reading
+            (reading ?? <p className="panel-empty">No evidence for this selection.</p>)
           )
         ) : (
           <>
             {selected !== null && (
               <>
-                <p className="inspector-kicker">{row?.kind ?? "selection"}</p>
+                <p className="inspector-kicker">{row?.kind.replaceAll("-", " ") ?? "selection"}</p>
                 <h2 className="detail-title">{row?.title ?? result?.title ?? selected}</h2>
                 {result && (
                   <SelectionEvidenceChip

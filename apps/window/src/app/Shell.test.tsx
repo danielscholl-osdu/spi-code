@@ -219,6 +219,7 @@ it.each([900, 979, 980, 1280])(
       )) {
         expect(control.getAttribute("aria-label") || control.textContent?.trim()).toBeTruthy();
       }
+      container.querySelector<HTMLButtonElement>('#app-right-panel [role="tab"]')?.focus();
       await press("Escape", {});
       expect(container.querySelector("#app-right-panel")).toBeNull();
       expect(document.activeElement).toBe(row);
@@ -236,7 +237,7 @@ it.each([900, 979, 980, 1280])(
       row?.focus();
       await act(async () => selectionStore.getState().select("halt:legal"));
       await act(async () => selectionStore.getState().clear());
-      expect(container.querySelector("#app-right-panel")).toBeNull();
+      expect(container.querySelector("#app-right-panel") === null).toBe(width < 980);
       expect(document.activeElement).toBe(row);
     } finally {
       await shell.cleanup();
@@ -373,7 +374,7 @@ it.each([900, 1280])(
       expect(selectionStore.getState().selected).toBe(item.id);
       await refresh(5, true);
       expect(selectionStore.getState().selected).toBeNull();
-      expect(shell.container.querySelector("#app-right-panel")).toBeNull();
+      expect(shell.container.querySelector("#app-right-panel") === null).toBe(width < 980);
     } finally {
       await shell.cleanup();
       watchStore.setState(previous);

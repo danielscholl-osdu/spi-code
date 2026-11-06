@@ -28,6 +28,7 @@ import {
   parseMessage,
 } from "@spi-code/contracts";
 import { createStore } from "zustand/vanilla";
+import { NARROW_LAYOUT_MEDIA_QUERY } from "../components/sidebar/ui-sidebar.js";
 import type { SelectionRow } from "./selection-rows.js";
 
 export const PANEL_TABS = ["detail", "evidence"] as const;
@@ -116,7 +117,7 @@ export function createSelectionStore(port: InspectPort) {
       set({
         selected: null,
         row: null,
-        open: false,
+        open: get().open && !window.matchMedia(NARROW_LAYOUT_MEDIA_QUERY).matches,
         request: null,
         result: null,
         error: null,
