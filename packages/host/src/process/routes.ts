@@ -163,7 +163,7 @@ export async function inspectResult(
   );
   const approvals = approvalSection(item, model, opts);
   const evidence = new Map<string, ReadRecord>();
-  for (const record of (entries ?? []).flatMap((entry) => entry.reads)) {
+  for (const record of (entries ?? []).flatMap((entry) => entry.attempted)) {
     const parsed = readRecord(record);
     evidence.set(JSON.stringify(parsed), parsed);
   }

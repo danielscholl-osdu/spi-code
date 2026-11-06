@@ -6,6 +6,8 @@ import type { LaneLoad } from "../model/lanes.js";
 import type { LaneRun, QueueItem } from "../model/queue.js";
 import { runName, type StackModel, stoppedAttempts } from "../model/stack.js";
 import { plural, stamp } from "../util.js";
+import type { AreaName } from "../facts.js";
+import { JUDGEMENT_SOURCES, loadSources, sourced } from "./reason-sources.js";
 import { paced, paceText, waitSuffix } from "./rollout.js";
 import { type ActionItem, type Target, type Verb, verbAction } from "./verbs.js";
 
@@ -93,6 +95,7 @@ export function laneActions(item: QueueItem, stack: StackModel, given: LaneOptio
       ? `stop the line${item.judgement.note ? ` (${item.judgement.note})` : ""}: fix it forward in the template, no re-run`
       : undefined;
   const opts = stop && !given.blocked ? { ...given, blocked: stop } : given;
+  const blockedFrom: readonly AreaName[] = given.blocked ? [] : JUDGEMENT_SOURCES;
   if (stack.deployable.state === "yes") {
     const since = stamp(stack.lastGreen?.updatedAt, opts.now);
     const busy = new Set(opts.load?.inflight.map((l) => l.repo));
@@ -108,8 +111,9 @@ export function laneActions(item: QueueItem, stack: StackModel, given: LaneOptio
         : k === 0 && opts.load?.cap
           ? `${opts.load.inflight.length} of ${opts.load.cap} lanes in flight; ${plural(n, "lane")} ${n === 1 ? "waits" : "wait"} for the next press`
           : undefined;
+    const from = opts.blocked ? blockedFrom : opts.load && loadSources(opts.load);
     return [
-      verbAction(
+      sourced(verbAction(
         RERUN_LANES,
         { ...binding, targets: k > 0 ? now.targets : targets },
         {
@@ -124,7 +128,7 @@ export function laneActions(item: QueueItem, stack: StackModel, given: LaneOptio
           ],
           ...((opts.blocked ?? full) ? { disabled: opts.blocked ?? full } : {}),
         },
-      ),
+      ), from),
     ];
   }
   const disabled =
@@ -134,9 +138,11 @@ export function laneActions(item: QueueItem, stack: StackModel, given: LaneOptio
       : opts.waiting
         ? `already waiting since ${stamp(opts.waiting.at, opts.now)} as op ${opts.waiting.id}; run_cancel drops it`
         : undefined);
+  const wait = (action: ActionItem) =>
+    sourced({ ...action, type: WAIT_ACTION }, opts.blocked ? blockedFrom : []);
   return [
-    {
-      ...verbAction(RERUN_LANES, binding, {
+    wait(
+      verbAction(RERUN_LANES, binding, {
         primary: true,
         label: "Re-run when deployable",
         pending: "Setting the wait…",
@@ -153,8 +159,7 @@ export function laneActions(item: QueueItem, stack: StackModel, given: LaneOptio
         ],
         ...(disabled ? { disabled } : {}),
       }),
-      type: WAIT_ACTION,
-    },
+    ),
   ];
 }
 
@@ -175,6 +180,7 @@ export function dispatchActions(
     ? `${runName(stack.inflight.run)} is ${stack.inflight.run.status === "queued" ? "queued" : "running"} in concurrency group env-shared`
     : undefined;
   const disabled = opts.blocked ?? busy;
+  const from: AreaName[] = opts.blocked ? [] : ["lifecycle"];
   const primary = primaryKind(item, stack);
   const shared =
     "env-refresh and env-upgrade share concurrency group env-shared, so this is refused while either one is queued or running.";
@@ -184,7 +190,7 @@ export function dispatchActions(
     state: "idle",
     label,
   });
-  const refresh = verbAction(
+  const refresh = sourced(verbAction(
     DISPATCH_REFRESH,
     { item: item.id, swept: opts.swept, targets: [target("env-refresh")] },
     {
@@ -198,8 +204,8 @@ export function dispatchActions(
       ],
       ...(disabled ? { disabled } : {}),
     },
-  );
-  const upgrade = verbAction(
+  ), from);
+  const upgrade = sourced(verbAction(
     DISPATCH_UPGRADE,
     { item: item.id, swept: opts.swept, targets: [target("env-upgrade")] },
     {
@@ -213,6 +219,6 @@ export function dispatchActions(
       ],
       ...(disabled ? { disabled } : {}),
     },
-  );
+  ), from);
   return primary === "upgrade" ? [upgrade, refresh] : [refresh, upgrade];
 }

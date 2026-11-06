@@ -4,6 +4,7 @@
 import type { ActionItem } from "../act/action-item.js";
 import { APPROVE_RUNS, approveAction } from "../act/approve.js";
 import { FLEET_RELEASE } from "../act/flow.js";
+import { reasonSources, sourced } from "../act/reason-sources.js";
 import { DISPATCH_REFRESH, DISPATCH_UPGRADE, dispatchActions, laneActions, RERUN_LANES } from "../act/rerun.js";
 import { ROLL_OUT, rolloutActions, SYNC_FORKS, syncTargets, waitSuffix } from "../act/rollout.js";
 import { upstreamVerbs } from "../act/upstream.js";
@@ -68,7 +69,7 @@ export function approvalSection(
           { label: "diff", value: diffText(a.pr) },
           { label: "waiting", value: plural(a.runs.length, "run") },
         ],
-        actions: [approveAction(a, { item: item.id, swept }, disabled)],
+        actions: [sourced(approveAction(a, { item: item.id, swept }, disabled), [])],
       };
     }),
   };
@@ -79,11 +80,14 @@ function syncNamed(action: ActionItem, model: Model, context: CoreContext): Acti
   const forks = sync.targets.map((t) => t.label);
   if (forks.length === 0) return action;
   const label = `Sync all forks · ${forks.length <= 3 ? forks.join(", ") : forks.length}${waitSuffix(sync.waiting)}`;
-  return {
-    ...action,
-    label,
-    ...(action.confirm ? { confirm: { ...action.confirm, confirmLabel: label } } : {}),
-  };
+  return sourced(
+    {
+      ...action,
+      label,
+      ...(action.confirm ? { confirm: { ...action.confirm, confirmLabel: label } } : {}),
+    },
+    reasonSources(action),
+  );
 }
 
 export function rolloutActionItems(

@@ -13,6 +13,8 @@ import { fleetOf, GITLAB_HOST } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
 import { type ExecLogEntry, ReplayExec } from "../../src/exec/recording.js";
 import { encodeProject, Gh, Glab } from "../../src/forge.js";
+import { sameEntryReads } from "../../src/inspect/item.js";
+import type { QueueItem } from "../../src/model/queue.js";
 
 const NOW = "2026-11-05T08:00:00.000Z";
 const FILTER = `# comment
@@ -101,19 +103,22 @@ describe("filter reads", () => {
       treeCall("schema", ["docs", "schemathesis-tests"]),
       filterCall("file", "", "404"),
       treeCall("file", ["schemathesis-tests"]),
+      filterCall("gone", "", "404"),
+      treeCall("gone", ["docs"]),
     ];
     const exec = replay(calls);
     const out = await entryAcrossForks(
       new Gh(exec),
       new Glab(exec),
       halt,
-      context(["entitlements", "partition", "legal", "schema", "file"]),
+      context(["entitlements", "partition", "legal", "schema", "file", "gone"]),
     );
     expect(Object.fromEntries(out.map((e) => [e.fork, e.state]))).toEqual({
       partition: "absent",
       legal: "unlisted",
       schema: "listed",
       file: "unread",
+      gone: "absent",
     });
     expect(out.find((e) => e.fork === "schema")).toMatchObject({
       verdict: "strip",
@@ -121,23 +126,36 @@ describe("filter reads", () => {
     });
     expect(out[0]?.url).toBe(`https://${GITLAB_HOST}/upstream/partition/-/tree/master`);
     for (const entry of out) {
-      expect(entry.reads).toEqual([
-        {
-          source: fork(entry.fork).repo,
-          object: FILTER_PATH,
-          observedAt: NOW,
-          completeness: { kind: "complete" },
-          ...(entry.fork === "file" ? { failure: expect.stringContaining("404") } : {}),
-        },
-        {
-          source: fork(entry.fork).upstream,
-          object: "repository/tree?ref=master",
-          observedAt: NOW,
-          completeness: { kind: "complete" },
-        },
-      ]);
+      const filter = {
+        source: fork(entry.fork).repo,
+        object: FILTER_PATH,
+        observedAt: NOW,
+        completeness: { kind: "complete" },
+        ...(["file", "gone"].includes(entry.fork)
+          ? { failure: expect.stringContaining("404") }
+          : {}),
+      };
+      const tree = {
+        source: fork(entry.fork).upstream,
+        object: "repository/tree?ref=master",
+        observedAt: NOW,
+        completeness: { kind: "complete" },
+      };
+      expect(entry.attempted).toEqual([filter, tree]);
+      expect(entry.reads).toEqual(entry.state === "absent" ? [tree] : [filter, tree]);
     }
     exec.assertExhausted();
+
+    const item = { id: "halt", halt } as QueueItem;
+    const state = { others: { id: item.id, entries: out } };
+    const used = (id: string) => out.find((e) => e.fork === id)?.reads;
+    expect(sameEntryReads(item, state)).toEqual([
+      used("schema"),
+      used("legal"),
+      used("file"),
+      [...(used("partition") ?? []), ...(used("gone") ?? [])],
+    ]);
+    expect(JSON.stringify(sameEntryReads(item, state)?.[3])).not.toContain("failure");
   });
 
   test.each(["CONFIG_INVALID", "constructor", "toString"])(
@@ -195,10 +213,15 @@ describe("filter reads", () => {
     );
     expect(out.map(({ state }) => state)).toEqual(["listed", "absent"]);
     expect(out[0]).toMatchObject({ verdict: "fork" });
-    expect(out[0]?.reads[1]).toMatchObject({
+    const [filter, tree] = out[0]?.reads ?? [];
+    expect(filter).toMatchObject({ source: "example/legal", object: FILTER_PATH });
+    expect(tree).toMatchObject({
       object: "repository/tree?ref=master&path=testing",
       completeness: { kind: "complete" },
     });
+    expect(out[0]?.reads).toHaveLength(2);
+    expect(out[1]?.reads).toEqual([tree]);
+    expect(out[1]?.attempted).toEqual([filter, tree]);
     expect(out[1]?.url).toBe(`https://${GITLAB_HOST}/upstream/legal/-/tree/master/testing`);
     exec.assertExhausted();
   });
@@ -216,14 +239,15 @@ describe("filter reads", () => {
     expect(out[0]).toMatchObject({
       state: "unread",
       reads: [
-        { source: "example/legal", observedAt: NOW },
         {
           source: "upstream/legal",
           observedAt: NOW,
           failure: expect.stringContaining("503 unavailable"),
         },
       ],
+      attempted: [{ source: "example/legal", observedAt: NOW }, { source: "upstream/legal" }],
     });
+    expect(out[0]?.reads).toHaveLength(1);
     expect(out[0]).not.toHaveProperty("url");
     exec.assertExhausted();
   });

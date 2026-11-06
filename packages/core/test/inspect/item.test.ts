@@ -161,17 +161,36 @@ describe("inspector item data", () => {
       rows: [{ text: "reading each fork's filter and upstream tree" }],
     });
     const entries = [
-      { fork: "legal", entry: "schemathesis-tests", state: "unlisted" as const, reads: [] },
-      { fork: "partition", entry: "schemathesis-tests", state: "absent" as const, reads: [] },
+      {
+        fork: "legal",
+        entry: "schemathesis-tests",
+        state: "unlisted" as const,
+        reads: [],
+        attempted: [],
+      },
+      {
+        fork: "partition",
+        entry: "schemathesis-tests",
+        state: "absent" as const,
+        reads: [],
+        attempted: [],
+      },
       {
         fork: "file",
         entry: "schemathesis-tests",
         state: "listed" as const,
         verdict: "strip",
         reads: [],
+        attempted: [],
         url: "https://github.com/example/file/blob/main/.github/upstream-filter.yml",
       },
-      { fork: "unit", entry: "schemathesis-tests", state: "unread" as const, reads: [] },
+      {
+        fork: "unit",
+        entry: "schemathesis-tests",
+        state: "unread" as const,
+        reads: [],
+        attempted: [],
+      },
     ];
     const result = inspect(i, { others: { id: i.id, entries } });
     expect(result.sameEntry?.rows).toEqual([

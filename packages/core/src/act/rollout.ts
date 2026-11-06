@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: MIT
 
 import { type ForkDef, forkOf, SYNC_TEMPLATE_WORKFLOW } from "../config.js";
+import type { AreaName } from "../facts.js";
 import { type LaneLoad, laneRoom } from "../model/lanes.js";
 import { heldBecause, type TemplateModel, type TemplateRow } from "../model/template.js";
 
 export { heldBecause };
 
 import { plural, stamp } from "../util.js";
+import { loadSources, sourced } from "./reason-sources.js";
 import { type ActionItem, type Target, type Verb, verbAction } from "./verbs.js";
 
 export const ROLLOUT_ITEM = "engineering";
@@ -64,35 +66,52 @@ function inflight(load: LaneLoad | undefined, repo: string): string | undefined 
   return load?.inflight.find((l) => l.repo === repo)?.what;
 }
 
+// Rows come from the template compares and the template-sync PRs.
+const ROW_SOURCES: readonly AreaName[] = Object.freeze(["github", "template"]);
+const BUSY_SOURCES: readonly AreaName[] = Object.freeze(["github", "runs"]);
+
 // A fork to dispatch: behind main, no Sync Template running, and no PR already at main.
 export function syncTargets(
   t: TemplateModel,
   forks: readonly ForkDef[],
   load?: LaneLoad,
 ): Paced & { skipped: string[] } {
+  const { skippedFrom: _, ...plan } = syncPlan(t, forks, load);
+  return plan;
+}
+
+function syncPlan(
+  t: TemplateModel,
+  forks: readonly ForkDef[],
+  load?: LaneLoad,
+): Paced & { skipped: string[]; skippedFrom: Set<AreaName> } {
   const head = t.head?.sha;
   const eligible: Target[] = [];
   const skipped: string[] = [];
+  const skippedFrom = new Set<AreaName>(ROW_SOURCES);
   for (const row of t.rows) {
     if (!head || !row.behind) continue;
     if (row.pr?.headMarker === head) continue;
     const mirror = mirrored(row.repo, forks);
     if (mirror) {
       skipped.push(`${row.service} (${mirror})`);
+      skippedFrom.add("fleet");
       continue;
     }
     if (row.syncing || row.dispatched) {
       skipped.push(`${row.service} (Sync Template ${row.syncing ? "running" : "dispatched"})`);
+      if (row.syncing) skippedFrom.add("runs");
       continue;
     }
     const busy = inflight(load, row.repo);
     if (busy) {
       skipped.push(`${row.service} (${busy})`);
+      for (const a of BUSY_SOURCES) skippedFrom.add(a);
       continue;
     }
     eligible.push({ repo: row.repo, kind: "workflow", state: "idle", label: row.service });
   }
-  return { ...paced(eligible, load), skipped };
+  return { ...paced(eligible, load), skipped, skippedFrom };
 }
 
 export function rolloutTargets(
@@ -100,20 +119,39 @@ export function rolloutTargets(
   forks: readonly ForkDef[],
   load?: LaneLoad,
 ): Paced & { held: { row: TemplateRow; why: string }[] } {
+  const { heldFrom: _, ...plan } = rolloutPlan(t, forks, load);
+  return plan;
+}
+
+// Draft, review, merge state and verdict are the PR's own; a failure also reads its job details.
+function heldSources(why: string): readonly AreaName[] {
+  if (why.startsWith("fails ") || why === "is red on the stack") return ["github", "details"];
+  return ["github"];
+}
+
+function rolloutPlan(
+  t: TemplateModel,
+  forks: readonly ForkDef[],
+  load?: LaneLoad,
+): Paced & { held: { row: TemplateRow; why: string }[]; heldFrom: Set<AreaName> } {
   const targets: Target[] = [];
   const held: { row: TemplateRow; why: string }[] = [];
+  const heldFrom = new Set<AreaName>(["github"]);
   for (const row of t.rows) {
     const pr = row.pr;
     if (!pr) continue;
     const mirror = mirrored(row.repo, forks);
+    const own = mirror ? undefined : heldBecause(row);
     const why =
       (mirror === "mirror"
         ? "is a mirror"
         : mirror
           ? "has its sync mode unread"
-          : heldBecause(row)) ?? busyText(inflight(load, row.repo));
+          : own) ?? busyText(inflight(load, row.repo));
     if (why) {
       held.push({ row, why });
+      const from = mirror ? ["fleet" as const] : own ? heldSources(own) : BUSY_SOURCES;
+      for (const a of from) heldFrom.add(a);
       continue;
     }
     targets.push({
@@ -125,7 +163,7 @@ export function rolloutTargets(
       label: `${row.service} #${pr.number}`,
     });
   }
-  return { ...paced(targets, load), held };
+  return { ...paced(targets, load), held, heldFrom };
 }
 
 function busyText(what: string | undefined): string | undefined {
@@ -194,29 +232,47 @@ export function rolloutActions(
   load?: LaneLoad,
 ): ActionItem[] {
   const item = ROLLOUT_ITEM;
-  const sync = syncTargets(t, forks, load);
+  const sync = syncPlan(t, forks, load);
   const head = t.steps[0]?.label ?? "main";
   const next = t.nextSync ? ` instead of at ${stamp(t.nextSync, now)}` : "";
+  const syncFull = sync.targets.length === 0 ? fullText(load, sync.waiting) : undefined;
   const syncDisabled =
     blocked ??
     (sync.targets.length === 0
-      ? (fullText(load, sync.waiting) ??
+      ? (syncFull ??
         (sync.skipped.length > 0
           ? `nothing to dispatch: ${names(sync.skipped)}`
           : `every fork is on ${head} or its PR carries it`))
       : undefined);
-  const roll = rolloutTargets(t, forks, load);
+  const syncFrom =
+    blocked !== undefined
+      ? []
+      : syncFull && load
+        ? loadSources(load)
+        : sync.skipped.length > 0
+          ? sync.skippedFrom
+          : ROW_SOURCES;
+  const roll = rolloutPlan(t, forks, load);
   const held = heldText(roll.held);
+  const rollFull = roll.targets.length === 0 ? fullText(load, roll.waiting) : undefined;
   const rollDisabled =
     blocked ??
     (roll.targets.length === 0
-      ? (fullText(load, roll.waiting) ??
+      ? (rollFull ??
         (t.rows.some((r) => r.pr) ? `nothing is ready: ${held}` : "no template-sync PR is open"))
       : undefined);
+  const rollFrom: Iterable<AreaName> =
+    blocked !== undefined
+      ? []
+      : rollFull && load
+        ? loadSources(load)
+        : t.rows.some((r) => r.pr)
+          ? roll.heldFrom
+          : ["github"];
   const placeholder: Target = { repo: "Azure/osdu-spi", kind: "repo", label: "none" };
   const carried = [...new Set(t.rows.filter((r) => r.pr).map((r) => r.target ?? r.label))];
   return [
-    verbAction(
+    sourced(verbAction(
       SYNC_FORKS,
       { item, swept: binding.swept, targets: sync.targets.length ? sync.targets : [placeholder] },
       {
@@ -231,8 +287,8 @@ export function rolloutActions(
         ],
         ...(syncDisabled ? { disabled: syncDisabled } : {}),
       },
-    ),
-    verbAction(
+    ), syncFrom),
+    sourced(verbAction(
       ROLL_OUT,
       { item, swept: binding.swept, targets: roll.targets.length ? roll.targets : [placeholder] },
       {
@@ -251,6 +307,6 @@ export function rolloutActions(
         },
         ...(rollDisabled ? { disabled: rollDisabled } : {}),
       },
-    ),
+    ), rollFrom),
   ];
 }

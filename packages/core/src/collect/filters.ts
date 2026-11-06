@@ -23,7 +23,10 @@ export interface ForkEntry {
   state: EntryState;
   verdict?: string;
   url?: string;
+  /** The reads this entry's state rests on. */
   reads: ReadRecord[];
+  /** Every read made for this entry's fork, failed ones included. */
+  attempted: ReadRecord[];
 }
 
 // The halts whose entries are checked against each fork's filter, and where they live.
@@ -99,22 +102,26 @@ export async function entryAcrossForks(
       ]);
       const filter = filterRead.result;
       const tree = treeRead.result;
-      const reads = [filterRead.record, treeRead.record];
+      const attempted = [filterRead.record, treeRead.record];
+      const treeOnly = [treeRead.record];
       const listed =
         filter.status === "fulfilled" ? filterSection(filter.value, where.section) : undefined;
       const present = tree.status === "fulfilled" ? tree.value : undefined;
       return halt.entries.map((entry): ForkEntry => {
-        if (!present) return { fork: fork.id, entry, state: "unread", reads };
+        if (!present) {
+          return { fork: fork.id, entry, state: "unread", reads: treeOnly, attempted };
+        }
         if (!present.has(entry)) {
           return {
             fork: fork.id,
             entry,
             state: "absent",
             url: gitlabUrl(fork.upstream, `/-/tree/master${where.path ? `/${where.path}` : ""}`),
-            reads,
+            reads: treeOnly,
+            attempted,
           };
         }
-        if (!listed) return { fork: fork.id, entry, state: "unread", reads };
+        if (!listed) return { fork: fork.id, entry, state: "unread", reads: attempted, attempted };
         const verdict = listed.get(entry);
         return {
           fork: fork.id,
@@ -122,7 +129,8 @@ export async function entryAcrossForks(
           state: verdict ? "listed" : "unlisted",
           ...(verdict ? { verdict } : {}),
           url: githubUrl(fork.repo, `/blob/main/${FILTER_PATH}`),
-          reads,
+          reads: attempted,
+          attempted,
         };
       });
     }),

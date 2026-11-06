@@ -4,6 +4,7 @@
 import { type Reading, readItem } from "../brief/index.js";
 import type { EntryState, ForkEntry } from "../collect/filters.js";
 import type { CoreContext } from "../context.js";
+import type { ReadRecord } from "../evidence/index.js";
 import type { Model } from "../model/index.js";
 import { type ItemClass, itemClass, nextText } from "../model/next.js";
 import type { ItemKind, QueueItem, Rung } from "../model/queue.js";
@@ -147,29 +148,60 @@ const ENTRY_BADGE: Readonly<Record<EntryState, { label: string; tone: Tone }>> =
   unread: { label: "?", tone: "neutral" },
 });
 
+interface SourcedRow {
+  row: EntryRow;
+  reads: ReadRecord[];
+}
+
+function unique(records: ReadRecord[]): ReadRecord[] {
+  const seen = new Map<string, ReadRecord>();
+  for (const record of records) seen.set(JSON.stringify(record), record);
+  return [...seen.values()];
+}
+
+function entryRows(item: QueueItem, state: InspectState): SourcedRow[] | undefined {
+  if (!item.halt || state.others?.id !== item.id) return undefined;
+  const several = item.halt.entries.length > 1;
+  const name = (e: ForkEntry) => (several ? `${e.fork} · ${e.entry}` : e.fork);
+  const entries = state.others.entries;
+  const rows = ENTRY_ORDER.flatMap((s) => entries.filter((e) => e.state === s)).map(
+    (e): SourcedRow => ({
+      row: {
+        chip: { ...ENTRY_BADGE[e.state] },
+        text: name(e),
+        ...(e.verdict ? { trailing: e.verdict } : {}),
+        ...(e.url ? { href: e.url } : {}),
+      },
+      reads: e.reads,
+    }),
+  );
+  const absent = entries.filter((e) => e.state === "absent");
+  if (absent.length > 0) {
+    rows.push({
+      row: {
+        text: `${plural(absent.length, "fork")} ${absent.length === 1 ? "has" : "have"} no such entry upstream · ${names(absent.map(name))}`,
+      },
+      reads: unique(absent.flatMap((e) => e.reads)),
+    });
+  }
+  return rows;
+}
+
 function sameEntry(item: QueueItem, state: InspectState): ItemInspection["sameEntry"] {
   if (!item.halt) return undefined;
-  if (state.others?.id !== item.id) {
+  const rows = entryRows(item, state);
+  if (!rows) {
     return state.reading === item.id
       ? { state: "reading", rows: [{ text: "reading each fork's filter and upstream tree" }] }
       : undefined;
   }
-  const several = item.halt.entries.length > 1;
-  const name = (e: ForkEntry) => (several ? `${e.fork} · ${e.entry}` : e.fork);
-  const entries = state.others.entries;
-  const rows: EntryRow[] = ENTRY_ORDER.flatMap((s) => entries.filter((e) => e.state === s)).map((e) => ({
-    chip: { ...ENTRY_BADGE[e.state] },
-    text: name(e),
-    ...(e.verdict ? { trailing: e.verdict } : {}),
-    ...(e.url ? { href: e.url } : {}),
-  }));
-  const absent = entries.filter((e) => e.state === "absent");
-  if (absent.length > 0) {
-    rows.push({
-      text: `${plural(absent.length, "fork")} ${absent.length === 1 ? "has" : "have"} no such entry upstream · ${names(absent.map(name))}`,
-    });
-  }
-  return rows.length > 0 ? { state: "ready", rows } : undefined;
+  return rows.length > 0 ? { state: "ready", rows: rows.map((r) => r.row) } : undefined;
+}
+
+/** The reads behind each ready FILTERS row, index-aligned with `sameEntry.rows`. */
+export function sameEntryReads(item: QueueItem, state: InspectState): ReadRecord[][] | undefined {
+  const rows = entryRows(item, state);
+  return rows && rows.length > 0 ? rows.map((r) => r.reads) : undefined;
 }
 
 function evidence(item: QueueItem): InspectField[] {
