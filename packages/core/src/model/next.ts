@@ -194,7 +194,7 @@ export function nextText(
     case "rollout":
       return "Open the rollout in the inspector; its Next step names the press";
     case "releases":
-      return "Review each release PR on GitHub and merge it to cut the release";
+      return "Review each release PR on GitHub and merge it to publish the release";
     case "bump":
       return "Merge the env bump PR on GitHub to start env-upgrade";
     case "radar":

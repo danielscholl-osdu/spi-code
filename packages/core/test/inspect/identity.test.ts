@@ -24,7 +24,7 @@ import { FIXTURE_NOW, fixtureFacts, laneFacts } from "../harness.js";
 // re-recorded when findings that name no file took the settings reach (spicode-xzj).
 const RECORDED = {
   models: "7b3006725c5300b8b3355b1941e24fec97c74c927bcbb7b9923f5f9ccbb1eab3",
-  inspections: "b9bb43836b840e3e268e4ffaebdd6b7932f0d0d0031496449026d06b6ca75458",
+  inspections: "3777546a40cff0970a1bfbc65d5fd8b136ef0f788c30a17a6f3d4218152fddf6",
   actions: "744e914c0cb35180d704715989e9b450331b1cd93ca10a94bec0a38fce62ce05",
   filters: "a3bf2be2d43ccad1cc0367a70a25b6c9cdea8392b2c684ae8f8a8dd90b298cc4",
 };

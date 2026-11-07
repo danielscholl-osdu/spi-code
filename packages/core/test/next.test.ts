@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "vitest";
+import { readItem } from "../src/brief/index";
 import { buildModel } from "../src/model/index";
 import { CLASS_VERB, itemClass, nextText, verbOf } from "../src/model/next";
 import type { QueueItem } from "../src/model/queue";
@@ -177,5 +178,16 @@ describe("the banner on the recorded sweep", () => {
       "READY",
       "Review on GitHub",
     ]);
+  });
+});
+
+describe("next steps outside Detail", () => {
+  test("keep the internal word cut out of every item's next step, the release row's included", () => {
+    const model = buildModel(fixtureFacts(), FIXTURE_NOW, {}, fixtureContext);
+    expect(model.queue.items.map((i) => i.kind)).toContain("releases");
+    for (const i of model.queue.items) {
+      expect(nextText(i, [], fixtureContext.voice), i.id).not.toMatch(/\bcut\b/i);
+      expect(readItem(model, i, FIXTURE_NOW, fixtureContext).next, i.id).not.toMatch(/\bcut\b/i);
+    }
   });
 });

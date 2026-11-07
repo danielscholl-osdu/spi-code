@@ -105,6 +105,14 @@ it.each([true, false])(
   },
 );
 
+it("renders the qualifier exactly as core words it", async () => {
+  const qualifier = "Upstream cut 2 diffs short, so a toolchain move could be missing.";
+  const { container } = await mount({
+    reading: { ...reading, content: { ...content, qualifier } },
+  });
+  expect(container.querySelector(".place-qualifier")?.textContent).toBe(qualifier);
+});
+
 it("caps the whole reading at five items, preserves its groups, and ends with the folded line", async () => {
   const { container } = await mount({
     reading: {

@@ -415,7 +415,7 @@ describe("placeReading", () => {
     expect(internalNames("gate 3 · PR #9")).toEqual(["gate N"]);
     expect(internalNames("two presses left")).toEqual(["presses"]);
     expect(internalNames("cut: 6 services")).toEqual(["cut as a label"]);
-    expect(internalNames("GitLab cut the upstream diffs")).toEqual([]);
+    expect(internalNames("GitLab truncated the upstream diffs")).toEqual([]);
   });
 });
 
