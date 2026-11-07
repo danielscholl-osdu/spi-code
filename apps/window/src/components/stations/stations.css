@@ -1,20 +1,11 @@
 /* Copyright 2026, Daniel Scholl */
 /* SPDX-License-Identifier: MIT */
 
-.watch-horizon, .service-stations { color: var(--text); }
-:is(.watch-horizon, .service-stations) [data-tone="bad"] { color: var(--error-text); }
-:is(.watch-horizon, .service-stations) [data-tone="warn"] { color: var(--warning-text); }
-:is(.watch-horizon, .service-stations) [data-tone="ok"] { color: var(--success-text); }
-:is(.watch-horizon, .service-stations) [data-tone="run"] { color: var(--accent-text); }
-.watch-horizon dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; }
-.watch-horizon dd { margin: 0; overflow-wrap: anywhere; }
-.watch-horizon button[aria-pressed="true"] { background: var(--accent-surface); }
-.watch-themes { display: flex; flex-direction: column; gap: 6px; }
-.watch-themes button { text-align: left; padding: 12px; }
-.watch-themes small, .watch-themes .theme-sub { display: block; color: var(--text-muted); }
-.watch-horizon .pairs { list-style: none; padding: 0; }
-.watch-horizon .pairs li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; }
-.watch-horizon .possible { border-left: 2px dashed var(--border); padding-left: 8px; }
+.service-stations { color: var(--text); }
+.service-stations [data-tone="bad"] { color: var(--error-text); }
+.service-stations [data-tone="warn"] { color: var(--warning-text); }
+.service-stations [data-tone="ok"] { color: var(--success-text); }
+.service-stations [data-tone="run"] { color: var(--accent-text); }
 .service-stations ol { display: grid; grid-template-columns: repeat(6, minmax(110px, 1fr)); list-style: none; padding: 0; overflow-x: auto; }
 .service-stations li { display: flex; flex-direction: column; gap: 4px; padding: 8px; border-top: 2px solid currentColor; }
 .service-stations strong, .service-stations small { color: var(--text-muted); }
