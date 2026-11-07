@@ -8,5 +8,7 @@ export function plainTitle(title: string): string {
       "",
     )
     .replace(/\s+/g, " ")
+    .replace(/(\(|\[)\s+/g, "$1")
+    .replace(/\s+(\)|\])/g, "$1")
     .trim();
 }
