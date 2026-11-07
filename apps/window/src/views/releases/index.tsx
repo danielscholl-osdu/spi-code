@@ -17,7 +17,7 @@ import type { SelectionRow } from "../../panels/selection-rows.js";
 import { useSelectionList } from "../../panels/useSelectionList.js";
 import { watchStore } from "../../store/watch.js";
 import { treeServices } from "../inbox/queue.js";
-import "../repositories/panes.css";
+import "./panes.css";
 import "./releases.css";
 
 const notesLabels: Record<NotesState, string> = {

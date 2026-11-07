@@ -12,15 +12,6 @@
 .pane-fact strong { display: block; font-size: 24px; font-variant-numeric: tabular-nums; }
 .pane-fact div { color: var(--text-muted); font-size: 12px; }
 .pane-fact[data-unread="true"] { border-style: dashed; }
-.repo-table { min-width: 0; overflow-x: auto; }
-.repo-grid { min-width: 640px; }
-.repo-head, .repo-row { display: grid; grid-template-columns: minmax(130px, 1.4fr) repeat(5, minmax(85px, 1fr)); gap: 8px; align-items: center; }
-.repo-head { color: var(--text-muted); font-size: 11px; }
-.repo-head small { display: block; }
-.repo-row { width: 100%; text-align: left; margin: 4px 0; }
 .watch-pane button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-surface); }
-.repo-cell { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .repo-section-title { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--border); font-weight: 600; }
-.repo-line { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 2px 8px; padding: 8px 0; }
-.repo-line > :last-child { grid-column: 2; font-size: 12px; }
 .notes-chip { display: inline-block; border: 1px solid currentColor; border-radius: 12px; padding: 1px 6px; font-size: 11px; }

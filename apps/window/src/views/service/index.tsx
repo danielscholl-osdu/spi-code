@@ -21,7 +21,7 @@ import { useSelectionList } from "../../panels/useSelectionList.js";
 import { togglePin, usePins } from "../../store/pins.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import { treeServices } from "../inbox/queue.js";
-import "../repositories/panes.css";
+import "../releases/panes.css";
 import "./service.css";
 
 type WatchStore = ReturnType<typeof createWatchStore>;

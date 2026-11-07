@@ -13,8 +13,9 @@ import { selectionStore } from "../../panels/selection.js";
 import { testSnapshot } from "../../store/test-snapshot.js";
 import { watchStore } from "../../store/watch.js";
 import Horizon from "../horizon/index.js";
-import Repositories from "../repositories/index.js";
 import { type Lens, lensSortStore } from "./table.js";
+
+type TestLens = Exclude<Lens, "repositories">;
 
 const recorded = () => testSnapshot(briefing, releases);
 const send = vi.fn();
@@ -49,7 +50,7 @@ afterEach(async () => {
   window.spi = previous;
 });
 
-async function mount(lens: Lens, body = recorded()) {
+async function mount(lens: TestLens, body = recorded()) {
   watchStore.setState({ snapshot: { cursor: 1, body } });
   await act(async () => {
     navigate({ kind: "today" });
@@ -70,8 +71,8 @@ const table = () => need("main table");
 const rows = () => [...table().querySelectorAll<HTMLTableRowElement>("tr[data-selection-id]")];
 const ids = () => rows().map((row) => row.dataset.selectionId);
 const click = (element: HTMLElement) => act(async () => element.click());
-function renderLens(lens: Lens) {
-  const views = { repositories: Repositories, horizon: Horizon };
+function renderLens(lens: TestLens) {
+  const views = { horizon: Horizon };
   const View = views[lens];
   root.render(
     <Shell
@@ -82,7 +83,7 @@ function renderLens(lens: Lens) {
     />,
   );
 }
-const go = (lens: Lens) => act(async () => renderLens(lens));
+const go = (lens: TestLens) => act(async () => renderLens(lens));
 
 async function sort(label: string) {
   const header = [...table().querySelectorAll("th[scope=col]")].find((header) =>
@@ -104,25 +105,7 @@ it("renders each recorded Horizon row with its original title, kind, sub and whe
   expect(container.querySelector("main [data-theme-detail]")).toBeNull();
 });
 
-it("keeps Program before Forks when a fork leads the repository data", async () => {
-  const body = recorded();
-  const repositories = body.briefing.repositories;
-  const program = repositories.rows.filter((row) => row.group === "program");
-  const forks = repositories.rows.filter((row) => row.group === "fork");
-  repositories.rows = [...forks, ...program];
-  await mount("repositories", body);
-  expect([...table().querySelectorAll(".lens-group th")].map((cell) => cell.textContent)).toEqual([
-    "Program",
-    "Forks",
-  ]);
-  expect(ids()).toEqual([...program, ...forks].map((row) => row.id));
-  for (const [index, row] of repositories.rows.entries())
-    expect(need(`tr[data-selection-id="${row.id}"]`).dataset.pointer).toBe(
-      `/briefing/repositories/rows/${index}`,
-    );
-});
-
-it.each(["repositories", "horizon"] as const)(
+it.each(["horizon"] as const)(
   "toggles every %s column's sort, preserving repository groups",
   async (lens) => {
     await mount(lens);
@@ -165,36 +148,26 @@ it.each(["repositories", "horizon"] as const)(
 );
 
 it("keeps a separate sort per retired view after unmounting", async () => {
-  await mount("repositories");
-  await sort("Repository");
-  const repositories = ids();
   await go("horizon");
   await sort("Theme");
   await sort("Theme");
   const horizon = ids();
-  for (const [lens, expected, direction] of [
-    ["repositories", repositories, "ascending"],
-    ["horizon", horizon, "descending"],
-  ] as const) {
+  for (const [lens, expected, direction] of [["horizon", horizon, "descending"]] as const) {
     await go(lens);
     expect(ids()).toEqual(expected);
     expect(table().querySelector("thead th")?.getAttribute("aria-sort")).toBe(direction);
   }
 });
 
-it.each(["repositories", "horizon"] as const)(
+it.each(["horizon"] as const)(
   "leaves lone dot cells blank in %s without stripping real separators",
   async (lens) => {
     const body = recorded();
-    const repo = body.briefing.repositories.rows[0];
     const theme = body.briefing.themes[0];
-    if (!repo || !theme) throw new Error("Missing recorded rows");
-    repo.cells.changes.text = "·";
-    repo.cells.changes.rest = "·";
-    repo.title = "·";
+    if (!theme) throw new Error("Missing recorded rows");
     theme.when = "·";
     await mount(lens, body);
-    const blankLabels = lens === "repositories" ? ["Pull Requests", "Needs"] : ["When"];
+    const blankLabels = ["When"];
     for (const label of blankLabels)
       expect(rows()[0]?.querySelector(`[data-column="${label}"]`)?.textContent).toBe("");
     expect(
@@ -202,12 +175,10 @@ it.each(["repositories", "horizon"] as const)(
         .flatMap((row) => [...row.cells])
         .some((cell) => cell.textContent === "·"),
     ).toBe(false);
-    if (lens === "repositories")
-      expect(rows()[0]?.querySelector('[data-column="Issues"]')?.textContent).toBe("0 · 7");
   },
 );
 
-it.each(["repositories", "horizon"] as const)(
+it.each(["horizon"] as const)(
   "selects a %s row through the shared inspect path into the right panel",
   async (lens) => {
     await mount(lens);
@@ -249,20 +220,6 @@ it.each(["repositories", "horizon"] as const)(
     expect(container.querySelector("main .inspector")).toBeNull();
   },
 );
-
-it.each([
-  ["repo:osdu-spi", "#engineering-system"],
-  ["repo:osdu-spi-stack", "#environment"],
-  ["repo:legal", "#service/legal"],
-])("opens %s on its thing and retains the repository selection", async (id, hash) => {
-  await mount("repositories");
-  await click(need(`tr[data-selection-id="${id}"] .lens-name`));
-  expect(window.location.hash).toBe(hash);
-  expect(selectionStore.getState().selected).toBe(id);
-  expect(need("aside .detail-title").textContent).toBe(
-    recorded().briefing.repositories.rows.find((row) => row.id === id)?.title,
-  );
-});
 
 it("opens a named Horizon fork while retaining a theme-only selection", async () => {
   const body = recorded();

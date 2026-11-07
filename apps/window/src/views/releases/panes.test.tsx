@@ -8,18 +8,14 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import mixed from "../../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
-import {
-  expectEvidenceMarks,
-  expectNoEvidenceMarks,
-} from "../../components/evidence/marks.test-helper.js";
+import { expectNoEvidenceMarks } from "../../components/evidence/marks.test-helper.js";
 import { mixedSnapshot, testSnapshot } from "../../store/test-snapshot.js";
 import { watchStore } from "../../store/watch.js";
-import Releases, { ReleaseMonth } from "../releases/index.js";
-import Repositories from "./index.js";
+import Releases, { ReleaseMonth } from "./index.js";
 
 const fixture = (name: string) =>
   readFileSync(resolve("fixtures/rib-59d6895/oracle", name), "utf8");
-const paneStyles = readFileSync(resolve("apps/window/src/views/repositories/panes.css"), "utf8");
+const paneStyles = readFileSync(resolve("apps/window/src/views/releases/panes.css"), "utf8");
 const snapshot = () => testSnapshot(fixture("briefing.json"), fixture("releases.json"));
 const container = document.createElement("div");
 let root: ReturnType<typeof createRoot> | undefined;
@@ -51,36 +47,6 @@ afterEach(async () => {
   watchStore.getState().clear();
   watchStore.setState({ snapshot: null });
   window.spi = previous;
-});
-
-it("renders every repository's cells and Needs in Program and Forks without an in-page pane", async () => {
-  const body = snapshot();
-  await render(<Repositories />, body);
-  expect(container.querySelector("[data-repo-detail]")).toBeNull();
-  expect(container.querySelectorAll("tbody")).toHaveLength(2);
-  for (const repo of body.briefing.repositories.rows) {
-    const row = container.querySelector<HTMLElement>(`[data-selection-id="${repo.id}"]`);
-    expect(row).not.toBeNull();
-    expect(row?.querySelector('[data-column="Repository"]')?.textContent).toBe(repo.name);
-    expect(row?.querySelector('[data-column="Needs"]')?.textContent).toBe(repo.title);
-    for (const [label, key] of [
-      ["Issues", "issues"],
-      ["Pull Requests", "changes"],
-      ["Dependabot Bumps", "dependabot"],
-      ["Vulnerabilities", "vulnerabilities"],
-      ["Code scanning", "codeScanning"],
-    ] as const)
-      expect(row?.querySelector(`[data-column="${label}"]`)?.textContent).toBe(
-        `${repo.cells[key].text}${repo.cells[key].rest ?? ""}`,
-      );
-    send.mockClear();
-    await act(async () => row?.click());
-    expect(watchStore.getState().selection).toEqual({ id: repo.id });
-    expect(send).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "inspect.request", payload: { id: repo.id } }),
-    );
-    expect(row?.getAttribute("aria-selected")).toBe("true");
-  }
 });
 
 it.each<{ notes: NotesState; label: string; tone: string }>([
@@ -155,7 +121,7 @@ it("colours the shared pane's run tone with the accent", async () => {
   container.style.setProperty("--accent-text", "rgb(10, 20, 30)");
   try {
     const value = container.querySelector('[data-tone="run"]');
-    if (!value) throw new Error("Missing running repository value");
+    if (!value) throw new Error("Missing running pane value");
     expect(value.textContent).toBe("running");
     expect(getComputedStyle(value).color).toBe("rgb(10, 20, 30)");
   } finally {
@@ -174,71 +140,10 @@ it.each([true, false])("distinguishes reading=%s with no release lines", async (
   expect(container.querySelector("[data-rel]")).toBeNull();
 });
 
-it("keeps repository selection across snapshots without a local fallback selection", async () => {
-  const body = snapshot();
-  const repo = body.briefing.repositories.rows[0];
-  if (!repo) throw new Error("Missing repository fixture");
-  await render(<Repositories />, body);
-  await act(async () =>
-    container.querySelector<HTMLElement>(`[data-selection-id="${repo.id}"]`)?.click(),
-  );
-  const updated = snapshot();
-  updated.briefing.repositories.headline = "Updated repository values";
-  await act(async () => watchStore.setState({ snapshot: { cursor: 2, body: updated } }));
-  expect(container.querySelector('[aria-selected="true"]')?.getAttribute("data-selection-id")).toBe(
-    repo.id,
-  );
-  updated.briefing.repositories.rows = updated.briefing.repositories.rows.filter(
-    (row) => row.id !== repo.id,
-  );
-  await act(async () =>
-    watchStore.setState({ snapshot: { cursor: 3, body: structuredClone(updated) } }),
-  );
-  expect(container.querySelector('[aria-selected="true"]')).toBeNull();
-});
-
 it("shows explicit unread messages before any snapshot arrives", async () => {
-  await render(
-    <>
-      <Repositories />
-      <Releases />
-    </>,
-  );
+  await render(<Releases />);
   await act(async () => watchStore.setState({ snapshot: null }));
-  expect(container.textContent).toContain("No repositories read yet.");
   expect(container.textContent).toContain("No releases read yet.");
-});
-
-it("gives each repository section one evidence line, never a mark beside a value", async () => {
-  const body = mixedSnapshot(mixed, [
-    { path: "/briefing/repositories/rows/2/cells/issues", areas: ["lifecycle"] },
-    { path: "/briefing/repositories/facts/1/figure", areas: ["lifecycle"] },
-  ]);
-  await render(<Repositories />, body);
-  const pane = container.querySelector('[data-view-pane="repositories"]');
-  if (!pane) throw new Error("Repositories did not render");
-  expectEvidenceMarks(pane, body, {
-    sections: [
-      ["/briefing/repositories/headline"],
-      ["/briefing/repositories/facts"],
-      ["/briefing/repositories/rows"],
-    ],
-  });
-});
-
-it("marks no repository value from the real mixed fixture, whose repository areas are observed", async () => {
-  const body = mixedSnapshot(mixed);
-  await render(<Repositories />, body);
-  const pane = container.querySelector('[data-view-pane="repositories"]');
-  if (!pane) throw new Error("Repositories did not render");
-  expectEvidenceMarks(pane, body, {
-    sections: [
-      ["/briefing/repositories/headline"],
-      ["/briefing/repositories/facts"],
-      ["/briefing/repositories/rows"],
-    ],
-  });
-  expect(pane.querySelectorAll("[data-inferred]").length).toBe(0);
 });
 
 it.each(["failed", "stale"] as const)(
@@ -331,12 +236,9 @@ it.each([
   },
 );
 
-it.each([
-  ["repositories", <Repositories key="r" />],
-  ["releases", <Releases key="l" />],
-] as const)("draws no envelope or marker on the plain %s fixture", async (name, view) => {
-  await render(view);
-  const pane = container.querySelector(`[data-view-pane="${name}"]`);
-  if (!pane) throw new Error(`${name} did not render`);
+it("draws no envelope or marker on the plain releases fixture", async () => {
+  await render(<Releases />);
+  const pane = container.querySelector('[data-view-pane="releases"]');
+  if (!pane) throw new Error("Releases did not render");
   expectNoEvidenceMarks(pane);
 });
