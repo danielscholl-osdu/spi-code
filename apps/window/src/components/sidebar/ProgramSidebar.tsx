@@ -93,7 +93,7 @@ export function ProgramSidebar({
   const inbox = briefing ? inboxCount(briefing) : 0;
   const { isMobile, setOpenMobile } = useSidebar();
   const { collapsed, toggle } = useGroupCollapse();
-  const ids = { places: useId(), pinned: useId(), settled: useId() };
+  const ids = { places: useId(), pinned: useId() };
   const active = rowFor(route);
   const registry = useRegistry();
   const reachable = (target: Route) => isReachable(target, registry);
@@ -235,19 +235,9 @@ export function ProgramSidebar({
           )}
       </SidebarContent>
       <SidebarGroup data-group="settled" className="settled-shelf">
-        <CollapsibleSectionHeader
-          expanded={!collapsed("settled")}
-          aria-controls={ids.settled}
-          accessory={0}
-          onClick={() => toggle("settled")}
-        >
+        <CollapsibleSectionHeader expanded={false} accessory={0} disabled>
           Settled
         </CollapsibleSectionHeader>
-        {!collapsed("settled") && (
-          <p id={ids.settled} className="sidebar-empty">
-            No settled threads yet
-          </p>
-        )}
       </SidebarGroup>
       <SidebarFooter>
         {reachable({ kind: "setup" }) && (

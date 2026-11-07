@@ -14,6 +14,7 @@ import { createSelectionStore } from "../../panels/selection.js";
 import { utc } from "../../panels/selection-rows.js";
 import { PINS_STORAGE_KEY, readPins } from "../../store/pins.js";
 import { createWatchStore } from "../../store/watch.js";
+import { plainTitle } from "../../text.js";
 import ServicePlace from "./index.js";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -276,7 +277,9 @@ it("keeps repository section names, counts, remainder and every line's tag, titl
     expect(lines).toHaveLength(section.lines.length);
     for (const [index, line] of section.lines.entries()) {
       expect(lines[index]?.querySelector(".service-tag")?.textContent).toBe(line.tag);
-      expect(lines[index]?.querySelector(".service-row-title")?.textContent).toBe(line.text);
+      expect(lines[index]?.querySelector(".service-row-title")?.textContent).toBe(
+        plainTitle(line.text),
+      );
       expect(lines[index]?.querySelector(".service-row-sub")?.textContent).toBe(line.sub);
     }
   }

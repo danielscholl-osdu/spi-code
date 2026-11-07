@@ -109,14 +109,14 @@ it("navigates every sidebar thing through the hash, naming the place in the titl
   }
 });
 
-it("toggles the sidebar and right panel from named buttons and Ctrl shortcuts, and explains the terminal", async () => {
+it("toggles the sidebar and right panel, omitting the unshipped terminal", async () => {
   const shell = await mountShell();
   const { container } = shell;
   try {
     const toggle = (label: string) =>
       container.querySelector<HTMLButtonElement>(`header button[aria-label="${label}"]`);
     const sidebar = () => container.querySelector<HTMLElement>('nav[aria-label="Sidebar"]');
-    for (const label of ["Toggle sidebar", "Toggle terminal", "Toggle right panel"]) {
+    for (const label of ["Toggle sidebar", "Toggle right panel"]) {
       expect(toggle(label)?.disabled).toBe(false);
       expect(toggle(label)?.tabIndex).toBe(0);
     }
@@ -138,13 +138,7 @@ it("toggles the sidebar and right panel from named buttons and Ctrl shortcuts, a
     await press("i");
     expect(container.querySelector("aside")).not.toBeNull();
 
-    const terminal = toggle("Toggle terminal");
-    expect(terminal?.getAttribute("aria-disabled")).toBe("true");
-    const reason = terminal?.getAttribute("aria-describedby") ?? "";
-    expect(container.querySelector(`[id="${reason}"]`)?.textContent).toBe(
-      "The terminal is not available yet",
-    );
-    await act(async () => terminal?.click());
+    expect(toggle("Toggle terminal")).toBeNull();
     await press("j");
     expect(sidebar()?.getAttribute("data-state")).toBe("expanded");
     expect(container.querySelector("aside")).not.toBeNull();

@@ -54,6 +54,10 @@ The scaffold uses Node 22.16 or newer, matching `engines` in `package.json`, and
 The header check covers tracked and untracked, non-ignored sources, including
 extensionless shebang scripts. Build output and dependencies are ignored.
 
+The window's `app/text-rules.test.tsx` renders every Watch fixture across its places,
+strip, Line sheet, sidebar, command palette and Detail kinds. It checks headline length,
+internal names, title emoji and empty or placeholder sections, with rule mutations.
+
 `scripts/check` repeats Vitest with `SPI_TEST_CLOCK_SHIFT=1`, moving the wall
 clock 400 days forward to catch expiring fixtures before they break main.
 The shifted clock still ticks, leaves real timers alone, and allows explicit

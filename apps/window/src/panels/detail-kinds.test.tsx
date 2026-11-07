@@ -10,6 +10,7 @@ import legalStations from "../../../../fixtures/watch/inspect-stations-legal-59d
 import projected from "../../../../fixtures/watch/snapshot-59d6895.json?raw";
 import recorded from "../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
 import { NARROW_LAYOUT_MEDIA_QUERY } from "../components/sidebar/ui-sidebar.js";
+import { plainTitle } from "../text.js";
 import { bridgeOpens } from "./detail-action.js";
 import { RightPanel } from "./RightPanel.js";
 import { RightPanelFrame } from "./RightPanelFrame.js";
@@ -399,7 +400,7 @@ it("renders Related as label and value rows, never one paragraph", async () => {
     for (const [index, entry] of result.related.entries()) {
       const row = rows[index];
       expect(row?.querySelector("dt")?.textContent).toBe(entry.state);
-      expect(row?.querySelector("dd")?.textContent).toBe(entry.text);
+      expect(row?.querySelector("dd")?.textContent).toBe(plainTitle(entry.text));
       expect(row?.querySelector("dd")?.textContent).not.toContain(entry.state);
     }
   } finally {

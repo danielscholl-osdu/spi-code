@@ -151,7 +151,7 @@ it("ignores Ctrl+K with the legacy IME keyCode 229", async () => {
 
 it("lists Go to, Services and Queue from the routes and the snapshot, without lenses or Actions", async () => {
   await act(async () => findField()?.click());
-  expect(labels()).toEqual(["Go to", "Services", "Queue", "Threads", "Ask"]);
+  expect(labels()).toEqual(["Go to", "Services", "Queue"]);
   expect(palette()?.textContent).not.toMatch(/Actions/);
   expect(rows("go-to")).toEqual([
     "Todaypage",
@@ -267,14 +267,12 @@ it.each([false, true])(
   },
 );
 
-it("keeps Threads and Ask in view but disabled, saying threads are not available yet", async () => {
+it("omits unshipped Threads and Ask groups", async () => {
   await act(async () => findField()?.click());
   await type("legal");
   for (const group of ["threads", "ask"]) {
     const row = palette()?.querySelector(`[data-group="${group}"] .palette-row`);
-    expect(row?.getAttribute("aria-disabled")).toBe("true");
-    expect(row?.getAttribute("role")).not.toBe("option");
-    expect(row?.textContent).toMatch(/threads.*not available yet/i);
+    expect(row).toBeNull();
   }
   for (let step = 0; step < 6; step += 1) {
     await key("ArrowDown");
@@ -292,7 +290,7 @@ it("moves with the arrows, opens with Enter, and filters as the operator types",
   expect(highlighted()).toBe("Upstreampage");
 
   await type("legal");
-  expect(labels()).toEqual(["Services", "Queue", "Threads", "Ask"]);
+  expect(labels()).toEqual(["Services", "Queue"]);
   expect(rows("services")).toEqual(["legaltoolchain"]);
   expect(rows("queue")).toEqual(["P1legal · Sync PR #31 fails Java BuildP1"]);
   expect(highlighted()).toBe("legaltoolchain");

@@ -202,7 +202,7 @@ export type SweepLineInput = {
 const SUPPLEMENTAL_WORDS: Readonly<Record<Envelope["state"], string>> = {
   fresh: "fresh",
   failed: "read failed",
-  incomplete: "cut",
+  incomplete: "incomplete",
   stale: "stale",
   unread: "not read yet",
 };
@@ -222,7 +222,7 @@ export function sweepLine({ sources, sweptAt, nextSyncAt, now }: SweepLineInput)
     areas.filter((envelope) => envelope.state === state).length;
   const counts = [
     [tally("failed"), "failed"],
-    [tally("incomplete"), "cut"],
+    [tally("incomplete"), "incomplete"],
     [tally("stale"), "stale"],
     [tally("unread"), "not read yet"],
   ] as const;
@@ -269,7 +269,7 @@ export function freshnessGlyph({ sources, sweptAt }: Omit<SweepLineInput, "now" 
     sources.filter((envelope) => envelope.state === state).length;
   const counts = [
     [tally("failed"), "failed"],
-    [tally("incomplete"), "cut"],
+    [tally("incomplete"), "incomplete"],
     [tally("stale"), "stale"],
   ] as const;
   const parts = [`swept ${clock(sweptAt)}`];

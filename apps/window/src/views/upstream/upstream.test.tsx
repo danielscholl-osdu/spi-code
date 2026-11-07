@@ -116,7 +116,7 @@ it("renders the Nov 6 upstream reading: headline, qualifier, tiles and groups", 
     "At 00:00, 107 commits reach 10 forks. Two need you first.",
   );
   expect(place().querySelector(".place-qualifier")?.textContent).toBe(
-    "GitLab cut the upstream diffs for 6 services and the reads failed for 3 services, so a toolchain move could be missing.",
+    "GitLab truncated the upstream diffs for 6 services and the reads failed for 3 services, so a toolchain move could be missing.",
   );
   expect(texts(place(), ".place-tile dt")).toEqual(["Incoming", "Toolchain", "Largest"]);
   expect(texts(place(), ".place-tile-value")).toEqual(["107", "8 forks", "25"]);

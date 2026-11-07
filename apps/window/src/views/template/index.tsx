@@ -16,6 +16,7 @@ import {
 } from "../../panels/selection-rows.js";
 import { useSelectionList } from "../../panels/useSelectionList.js";
 import { watchStore } from "../../store/watch.js";
+import { plainTitle } from "../../text.js";
 import { QueueRow } from "./QueueRow.js";
 import "./template.css";
 
@@ -76,8 +77,8 @@ function LineText({ line }: { line: RepoLine }) {
     <>
       <span className="template-line-tag">{line.tag}</span>
       <span>
-        <span className="template-line-text">{line.text}</span>
-        <span className="template-line-sub">{line.sub}</span>
+        <span className="template-line-text">{plainTitle(line.text)}</span>
+        <span className="template-line-sub">{plainTitle(line.sub)}</span>
       </span>
     </>
   );
@@ -216,9 +217,11 @@ export default function Template({
                   {...list.rowProps(repository.lead)}
                 >
                   <span className="template-repo-title" data-tone={parts.repository.entry.tone}>
-                    {parts.repository.entry.title}
+                    {plainTitle(parts.repository.entry.title)}
                   </span>
-                  <span className="template-line-sub">{parts.repository.entry.sub}</span>
+                  <span className="template-line-sub">
+                    {plainTitle(parts.repository.entry.sub)}
+                  </span>
                 </div>
                 {repository.sections.map(({ section, lines }) => (
                   <div

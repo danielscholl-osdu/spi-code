@@ -9,16 +9,11 @@ import { sectionSources } from "../../components/evidence/SectionEvidence.js";
 import { byWorst } from "../../components/evidence/words.js";
 import { Place } from "../../components/place/Place.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
+import { plainTitle } from "../../text.js";
 import "./today.css";
 
 type Item = ViewSnapshot["briefing"]["focus"][number];
 type Content = NonNullable<Reading["content"]>;
-
-const plainTitle = (title: string) =>
-  title
-    .replace(/\p{Extended_Pictographic}|\uFE0F/gu, "")
-    .replace(/\s+/g, " ")
-    .trim();
 
 function headline({ seen, briefing }: ViewSnapshot): string {
   const count = seen.since.length;

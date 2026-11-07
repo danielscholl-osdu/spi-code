@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: MIT
 
 import type { ViewSnapshot } from "@spi-code/contracts";
+import { plainTitle } from "../text.js";
+import { FLOW_MODES } from "../views/environment/flow-context.js";
 
 export type LensField = {
   lens: "Flow" | "Repositories" | "Horizon";
@@ -35,7 +37,7 @@ export function lensFields({ briefing }: ViewSnapshot): LensField[] {
       add(
         "Flow",
         `/briefing/flow/${key}`,
-        flow[key],
+        key === "mode" ? FLOW_MODES[flow.mode] : flow[key],
         "Environment · Stack runs",
         at(`/briefing/flow/${key}`),
       );
@@ -99,7 +101,7 @@ export function lensFields({ briefing }: ViewSnapshot): LensField[] {
       add(
         "Flow",
         `/briefing/flow/next/${key}`,
-        flow.next[key],
+        key === "button" ? "View upstream plan" : flow.next[key],
         "Environment · Stack runs",
         `${at("/briefing/flow/next")} ${selector}`,
       );
@@ -200,7 +202,7 @@ export function lensFields({ briefing }: ViewSnapshot): LensField[] {
         : repo.name === "osdu-spi-stack"
           ? at(`${pointer}/title`)
           : `[data-section="repository"] summary .service-section-count`;
-    add("Repositories", `${pointer}/title`, repo.title, home, title);
+    add("Repositories", `${pointer}/title`, plainTitle(repo.title), home, title);
     for (const [key, cell] of Object.entries(repo.cells)) {
       const unread = ["?", "not read yet"].includes(cell.text);
       const extra = unread ? { exempt: "Unread figure: draws nothing" } : {};

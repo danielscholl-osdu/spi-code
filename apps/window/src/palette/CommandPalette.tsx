@@ -31,12 +31,7 @@ import { AttentionDot } from "../components/AttentionDot.js";
 import { useSidebarAttention } from "../components/sidebar/attention.js";
 import { pin } from "../store/pins.js";
 import type { createWatchStore } from "../store/watch.js";
-import {
-  buildPaletteGroups,
-  DISABLED_ROWS,
-  filterPaletteGroups,
-  type PaletteItem,
-} from "./palette.logic.js";
+import { buildPaletteGroups, filterPaletteGroups, type PaletteItem } from "./palette.logic.js";
 import "./palette.css";
 
 /**
@@ -187,14 +182,6 @@ function PaletteContent({
                 </Autocomplete.Item>
               );
             })}
-          </Autocomplete.Group>
-        ))}
-        {DISABLED_ROWS.map((row) => (
-          <Autocomplete.Group key={row.value} data-group={row.value}>
-            <Autocomplete.GroupLabel className="palette-group">{row.label}</Autocomplete.GroupLabel>
-            <div className="palette-row" data-disabled="" aria-disabled="true">
-              <span className="palette-label">{row.reason}</span>
-            </div>
           </Autocomplete.Group>
         ))}
       </Autocomplete.List>

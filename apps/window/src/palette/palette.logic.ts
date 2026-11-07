@@ -31,6 +31,7 @@ import {
   type Route,
   routeLabel,
 } from "../app/routes.js";
+import { plainTitle } from "../text.js";
 import { foldSearchQuery, rankSearchGroups, scoreSearchTerms } from "./search.js";
 
 export type PaletteTarget = { kind: "route"; route: Route } | { kind: "queue"; id: string };
@@ -51,14 +52,6 @@ export type PaletteGroup = {
   label: string;
   items: PaletteItem[];
 };
-
-export type DisabledRow = { value: "threads" | "ask"; label: string; reason: string };
-
-/** Rows the design places for threads, which do not exist yet; they stay in view whatever the query. */
-export const DISABLED_ROWS: readonly DisabledRow[] = [
-  { value: "threads", label: "Threads", reason: "Threads are not available yet" },
-  { value: "ask", label: "Ask", reason: "Asking needs threads, which are not available yet" },
-];
 
 const GO_TO: readonly Route[] = [{ kind: "today" }, ...PLACES, { kind: "setup" }];
 
@@ -95,7 +88,7 @@ export function buildPaletteGroups(
   const queue = [...(body?.briefing.focus ?? []), ...(body?.briefing.rest ?? [])].map(
     (item): PaletteItem => ({
       value: `queue:${item.id}`,
-      label: `${item.scope} · ${item.title}`,
+      label: `${item.scope} · ${plainTitle(item.title)}`,
       kind: `P${item.rung}`,
       keywords: [item.cls],
       priority: item.rung,

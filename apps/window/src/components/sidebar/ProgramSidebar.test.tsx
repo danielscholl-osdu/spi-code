@@ -88,6 +88,8 @@ it("lists Find or ask, Today, Line, the places, Settled and Setup, and no servic
     "Security",
   ]);
   expect(header("Settled")?.textContent).toContain("0");
+  expect(container.querySelector(".settled-shelf")?.children).toHaveLength(1);
+  expect(container.textContent).not.toContain("No settled threads yet");
   expect(rows("Setup")).toEqual(["Setup"]);
   expect(
     [...container.querySelectorAll('[data-slot="section-header"]')].map((h) => h.textContent),

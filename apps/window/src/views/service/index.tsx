@@ -21,6 +21,7 @@ import {
 import { useSelectionList } from "../../panels/useSelectionList.js";
 import { togglePin, usePins } from "../../store/pins.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
+import { plainTitle } from "../../text.js";
 import "../releases/panes.css";
 import "./service.css";
 
@@ -184,8 +185,8 @@ function LineBody({ line }: { line: RepoLine }) {
         {line.tag}
       </span>
       <span className="service-row-body" data-upstream={line.upstream || undefined}>
-        <span className="service-row-title">{line.text}</span>
-        <span className="service-row-sub">{line.sub}</span>
+        <span className="service-row-title">{plainTitle(line.text)}</span>
+        <span className="service-row-sub">{plainTitle(line.sub)}</span>
       </span>
     </>
   );
@@ -334,10 +335,10 @@ function ServiceBody({
                     </span>
                     <span className="service-row-body">
                       <span className="service-row-title">
-                        {item.title}
+                        {plainTitle(item.title)}
                         <span className="service-class">{item.cls}</span>
                       </span>
-                      <span className="service-row-sub">{item.sub}</span>
+                      <span className="service-row-sub">{plainTitle(item.sub)}</span>
                     </span>
                   </>
                 )
@@ -351,7 +352,7 @@ function ServiceBody({
         <Section
           name="repository"
           title="Repository"
-          count={<span data-tone={repo.tone}>{repo.title}</span>}
+          count={<span data-tone={repo.tone}>{plainTitle(repo.title)}</span>}
           evidence={evidence}
           prefixes={[`/briefing/repositories/rows/${repoIndex}`]}
         >
@@ -361,7 +362,7 @@ function ServiceBody({
               label={`${id} repository`}
               rows={[repoRow]}
               store={selection}
-              render={() => <span className="service-row-sub">{repo.sub}</span>}
+              render={() => <span className="service-row-sub">{plainTitle(repo.sub)}</span>}
             />
           )}
           {repo.sections.map(
@@ -419,8 +420,7 @@ function ServiceBody({
                   <span className="service-row-sub">
                     {release.gate && (
                       <span data-gate={release.gate.state}>
-                        release review {release.gate.state} ·{" "}
-                        {release.gate.text.replace(/\bgate 3\b(?:\s*·\s*)?/g, "")}
+                        release review {release.gate.state} · {release.gate.text}
                       </span>
                     )}
                     <GateHint release={release} />
@@ -432,7 +432,7 @@ function ServiceBody({
                           openExternal(release.releasePr?.url);
                         }}
                       >
-                        PR #{release.releasePr.number} {release.releasePr.title}
+                        PR #{release.releasePr.number} {plainTitle(release.releasePr.title)}
                       </a>
                     )}
                   </span>

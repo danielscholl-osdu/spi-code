@@ -5,6 +5,7 @@ import type { Reading } from "@spi-code/contracts";
 import type { ReactNode } from "react";
 import { type Navigation, PLACES, routeLabel } from "../../app/navigation.js";
 import { scopeRoute } from "../../app/queue.js";
+import { plainTitle } from "../../text.js";
 import "./place.css";
 
 export type PlaceProps = {
@@ -60,7 +61,9 @@ export function Place({
       {content && (
         <section className="place-reading" aria-label={`${name} reading`}>
           <h2 className="place-headline">{content.headline}</h2>
-          {content.qualifier && <p className="place-qualifier">{content.qualifier}</p>}
+          {content.qualifier && (
+            <p className="place-qualifier">{content.qualifier.replace(/\bcut\b/g, "truncated")}</p>
+          )}
           <dl className="place-tiles">
             {content.tiles.map((tile, index) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: The three tile positions are fixed; labels may repeat.
@@ -112,12 +115,16 @@ export function Place({
                               className="place-item-content"
                               type={onSelect ? "button" : undefined}
                               data-selection-id={onSelect ? item.id : undefined}
-                              aria-label={onSelect ? `${item.scope}: ${item.title}` : undefined}
+                              aria-label={
+                                onSelect ? `${item.scope}: ${plainTitle(item.title)}` : undefined
+                              }
                               aria-pressed={onSelect ? selectedId === item.id : undefined}
                               onClick={onSelect ? () => onSelect(item.id) : undefined}
                             >
-                              <span className="place-item-title">{item.title}</span>
-                              {item.sub && <span className="place-item-sub">{item.sub}</span>}
+                              <span className="place-item-title">{plainTitle(item.title)}</span>
+                              {item.sub && (
+                                <span className="place-item-sub">{plainTitle(item.sub)}</span>
+                              )}
                               {(item.due || item.owned) && (
                                 <span className="place-item-meta">
                                   {item.due && (
@@ -126,7 +133,9 @@ export function Place({
                                   {item.owned && <span className="place-owned">Owned</span>}
                                 </span>
                               )}
-                              {item.next && <span className="place-item-next">{item.next}</span>}
+                              {item.next && (
+                                <span className="place-item-next">{plainTitle(item.next)}</span>
+                              )}
                             </ItemContent>
                           </div>
                         </li>

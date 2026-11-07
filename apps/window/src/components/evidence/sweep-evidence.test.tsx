@@ -75,15 +75,15 @@ it.each([
   [
     "failed",
     areas({ github: { state: "failed" }, runs: { state: "stale" }, security: cut }),
-    "swept 2 min ago · 1 area failed · 1 cut · 1 stale · next sync in 3 h",
-    " · ⌀ 1 source failed, 1 cut, 1 stale",
+    "swept 2 min ago · 1 area failed · 1 incomplete · 1 stale · next sync in 3 h",
+    " · ⌀ 1 source failed, 1 incomplete, 1 stale",
     "bad",
   ],
   [
     "cut",
     areas({ security: cut }),
-    "swept 2 min ago · 1 area cut · next sync in 3 h",
-    " · ⌀ 1 source cut",
+    "swept 2 min ago · 1 area incomplete · next sync in 3 h",
+    " · ⌀ 1 source incomplete",
     "warn",
   ],
   [
@@ -243,7 +243,7 @@ it("lists every area of the sweep in plain words with state, age and completenes
   try {
     const sweepView = view.container.querySelector('[data-evidence="sweep"]');
     expect(sweepView?.querySelector(".evidence-line")?.textContent).toBe(
-      "swept 2 min ago · 1 area failed · 1 cut · 1 stale · 1 not read yet · next sync in 3 h",
+      "swept 2 min ago · 1 area failed · 1 incomplete · 1 stale · 1 not read yet · next sync in 3 h",
     );
     const rows = view.rows("Areas");
     expect(rows.map(([name]) => name)).toEqual(AREAS.map((area) => AREA_NAMES[area]));

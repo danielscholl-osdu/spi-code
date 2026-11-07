@@ -160,7 +160,7 @@ it.each(Object.keys(oracle))(
     const view = await inspect(result);
     try {
       expect(view.text("class")).toBe(cls);
-      expect(view.text("cause")).toBe(result.cause || "Not stated");
+      expect(view.text("cause")).toBe(result.cause || undefined);
       if (["ACCESS", "HALT", "TEST", "TOOLCHAIN"].includes(cls)) {
         expect(result.cause).not.toBe("");
       }
@@ -378,7 +378,7 @@ it.each([
     inspectFromOracle(board(cls), `${cls.toLowerCase()}:svc`, { actions: [action] }),
   );
   try {
-    expect(view.text("cause")).toBeTruthy();
+    expect(view.text("class")).toBe(cls);
     expect(view.container.querySelector("[data-action]")).toBeNull();
     expect(view.container.textContent).not.toContain(action.label);
     expect(view.container.textContent).not.toContain(action.disabledReason);
@@ -391,9 +391,8 @@ it("offers Detail and selection Evidence, but no run logs or threads", async () 
   const view = await inspect(inspectFromOracle(board("HALT"), "halt:entitlements"));
   try {
     const tabs = view.container.querySelectorAll<HTMLButtonElement>('[role="tab"]');
-    expect([...tabs].map((tab) => tab.textContent)).toEqual(["Detail", "Evidence", "Log"]);
-    expect(tabs[2]?.disabled).toBe(true);
-    expect(view.container.textContent).toContain("Run logs are not available yet.");
+    expect([...tabs].map((tab) => tab.textContent)).toEqual(["Detail", "Evidence"]);
+    expect(view.container.textContent).not.toContain("Run logs are not available yet.");
     // Ask about this and Add to chat ship at M3, so they take no space yet.
     const labels = [...view.container.querySelectorAll("button")].map((item) => item.textContent);
     expect(labels).not.toContain("Ask");
@@ -411,6 +410,28 @@ it("offers Detail and selection Evidence, but no run logs or threads", async () 
     await view.cleanup();
   }
 });
+
+it.each(["", "   "])(
+  "omits empty inspect fields %j rather than drawing placeholders",
+  async (empty) => {
+    const view = await inspect(
+      inspectFromOracle(board("HALT"), "halt:entitlements", {
+        cause: empty,
+        effect: empty,
+        next: empty,
+        why: empty,
+      }),
+    );
+    try {
+      expect(view.container.querySelector(".inspector > dl")).toBeNull();
+      expect(view.container.textContent).not.toContain("Not stated");
+      for (const field of ["cause", "effect", "next", "why"])
+        expect(view.text(field)).toBeUndefined();
+    } finally {
+      await view.cleanup();
+    }
+  },
+);
 
 it("opens the sweep Evidence from the title bar and returns to the selection's Evidence on select", async () => {
   const port = fakePort();

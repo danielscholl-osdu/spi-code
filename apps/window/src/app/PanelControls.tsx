@@ -21,13 +21,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { useCallback, useEffect, useId } from "react";
+import { useCallback, useEffect } from "react";
 import { SidebarTrigger, useSidebar } from "../components/sidebar/ui-sidebar.js";
 import { ariaShortcut, matchesShortcut, shortcutLabel } from "./shortcuts.js";
 
-export const TERMINAL_UNAVAILABLE = "The terminal is not available yet";
-
-/** The title bar's three toggles: sidebar (B), terminal (J) and right panel (I), plus Find (K). */
+/** The title bar's shipped toggles: sidebar (B) and right panel (I), plus Find (K). */
 export function PanelControls({
   rightPanelOpen,
   onToggleRightPanel,
@@ -38,7 +36,6 @@ export function PanelControls({
   onToggleFind?(): void;
 }) {
   const { toggleSidebar, isMobile, openMobile, setOpenMobile } = useSidebar();
-  const terminalReason = useId();
   const closeDetailForSidebar = useCallback(() => {
     if (isMobile && !openMobile && rightPanelOpen) onToggleRightPanel();
   }, [isMobile, openMobile, rightPanelOpen, onToggleRightPanel]);
@@ -60,7 +57,7 @@ export function PanelControls({
         event.keyCode !== 229
       )
         onToggleFind();
-      else if (!matchesShortcut(event, "j")) return;
+      else return;
       event.preventDefault();
     };
     window.addEventListener("keydown", onKeyDown);
@@ -78,20 +75,6 @@ export function PanelControls({
       >
         <span aria-hidden className="panel-glyph" data-panel="sidebar" />
       </SidebarTrigger>
-      <button
-        type="button"
-        className="panel-toggle"
-        aria-label="Toggle terminal"
-        aria-disabled="true"
-        aria-describedby={terminalReason}
-        aria-keyshortcuts={ariaShortcut("j")}
-        title={`${TERMINAL_UNAVAILABLE} (${shortcutLabel("j")})`}
-      >
-        <span aria-hidden className="panel-glyph" data-panel="terminal" />
-      </button>
-      <span id={terminalReason} className="visually-hidden">
-        {TERMINAL_UNAVAILABLE}
-      </span>
       <button
         type="button"
         className="panel-toggle"

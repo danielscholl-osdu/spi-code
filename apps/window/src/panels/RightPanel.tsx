@@ -25,6 +25,7 @@ import type { InspectResult, ReadRecord, ViewSnapshot } from "@spi-code/contract
 import { type KeyboardEvent, type ReactNode, useId } from "react";
 import { useStore } from "zustand";
 import { SelectionEvidence, SelectionEvidenceChip } from "../components/evidence/index.js";
+import { plainTitle } from "../text.js";
 import { detailAction, runDetailAction } from "./detail-action.js";
 import { PANEL_TABS, type PanelTab, type SelectionStore } from "./selection.js";
 import { type SelectionKind, type SelectionRow, selectionRows } from "./selection-rows.js";
@@ -46,10 +47,11 @@ const KIND_LABEL: Readonly<Record<SelectionKind, string>> = {
 };
 
 function Field({ label, value }: { label: string; value: string }) {
+  if (!value.trim()) return null;
   return (
     <>
       <dt>{label}</dt>
-      <dd data-field={label.toLowerCase()}>{value || "Not stated"}</dd>
+      <dd data-field={label.toLowerCase()}>{value}</dd>
     </>
   );
 }
@@ -70,12 +72,14 @@ function Inspector({
       <p className="inspector-kicker">
         <span data-field="class">{result.class}</span> · {result.id}
       </p>
-      <dl>
-        <Field label="Cause" value={result.cause} />
-        <Field label="Effect" value={result.effect} />
-        <Field label="Next" value={result.next} />
-        {result.why && <Field label="Why" value={result.why} />}
-      </dl>
+      {[result.cause, result.effect, result.next, result.why].some((value) => value.trim()) && (
+        <dl>
+          <Field label="Cause" value={result.cause} />
+          <Field label="Effect" value={result.effect} />
+          <Field label="Next" value={result.next} />
+          <Field label="Why" value={result.why} />
+        </dl>
+      )}
       {result.evidence.length > 0 && (
         <>
           <h3>Evidence</h3>
@@ -116,14 +120,14 @@ function Inspector({
                           );
                       }}
                     >
-                      {related.text}
+                      {plainTitle(related.text)}
                     </button>
                   ) : related.url ? (
                     <a href={related.url} target="_blank" rel="noreferrer">
-                      {related.text}
+                      {plainTitle(related.text)}
                     </a>
                   ) : (
-                    related.text
+                    plainTitle(related.text)
                   )}
                 </dd>
               </div>
@@ -235,24 +239,12 @@ export function RightPanel({
             {TAB_LABEL[id]}
           </button>
         ))}
-        <button
-          type="button"
-          role="tab"
-          disabled
-          aria-selected="false"
-          aria-describedby={`${base}-log-reason`}
-        >
-          Log
-        </button>
         {onClose && (
           <button type="button" className="panel-close" aria-label="Close detail" onClick={onClose}>
             ×
           </button>
         )}
       </div>
-      <p id={`${base}-log-reason`} className="panel-unavailable">
-        Run logs are not available yet.
-      </p>
       <div
         id={`${base}-panel`}
         role="tabpanel"
@@ -272,7 +264,9 @@ export function RightPanel({
             {selected !== null && (
               <>
                 <p className="inspector-kicker">{row ? KIND_LABEL[row.kind] : "selection"}</p>
-                <h2 className="detail-title">{row?.title ?? result?.title ?? selected}</h2>
+                <h2 className="detail-title">
+                  {plainTitle(row?.title ?? result?.title ?? selected)}
+                </h2>
                 {result && (
                   <SelectionEvidenceChip
                     result={result}

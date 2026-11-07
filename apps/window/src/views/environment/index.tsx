@@ -18,6 +18,7 @@ import {
 } from "../../panels/selection-rows.js";
 import { useSelectionList } from "../../panels/useSelectionList.js";
 import { watchStore } from "../../store/watch.js";
+import { plainTitle } from "../../text.js";
 import { FlowContext } from "./flow-context.js";
 import {
   eventKey,
@@ -41,8 +42,8 @@ function LineReading({ line }: { line: RepoLine }) {
         {line.tag}
       </span>
       <span>
-        <span>{line.text}</span>
-        {line.sub && <small>{line.sub}</small>}
+        <span className="env-repo-line-text">{plainTitle(line.text)}</span>
+        {line.sub && <small>{plainTitle(line.sub)}</small>}
         {line.upstream && <small>upstream</small>}
       </span>
     </>
@@ -272,10 +273,10 @@ export default function Environment({
             <RepositoryFacts repository={repository} pointer={repositoryPointer} />
             {repository.title && (
               <p data-tone={repository.tone} data-pointer={`${repositoryPointer}/title`}>
-                {repository.title}
+                {plainTitle(repository.title)}
               </p>
             )}
-            {repository.sub && <p className="env-muted">{repository.sub}</p>}
+            {repository.sub && <p className="env-muted">{plainTitle(repository.sub)}</p>}
             <div role="listbox" aria-label="Stack repository lines" data-selection-list>
               {sections.map((section) => (
                 <div className="env-repo-section" key={section.title} data-weight={section.weight}>
