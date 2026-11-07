@@ -147,7 +147,7 @@ function ruleItem(
   const reaches = [
     ...new Set(
       findings.map(({ alert: g }) =>
-        g.source === "code" && !g.where
+        g.reach === "settings"
           ? "repository settings"
           : g.reach === "shipped"
             ? "shipped code"

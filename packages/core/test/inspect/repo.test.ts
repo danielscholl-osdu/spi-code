@@ -82,6 +82,19 @@ const oracle: Oracle = JSON.parse(
   ),
 );
 
+// The rib reaches a finding that names no file as shipped code; SPI Code reaches it as
+// repository settings.
+function diverged(c: Oracle["cases"][number]): Oracle["cases"][number]["board"] {
+  if (c.variant !== "fixture" || c.id !== "repo:osdu-spi") return c.board;
+  const text = JSON.stringify(c.board)
+    .replace(
+      "1 alert in SPI-owned shipped code at repository settings, found by Scorecard.",
+      "1 alert in SPI-owned repository settings, found by Scorecard.",
+    )
+    .replaceAll("SPI · shipped · repository settings", "SPI · repository settings");
+  return JSON.parse(text);
+}
+
 describe("repository inspector parity", () => {
   test("the oracle covers every fixture repository and an unwatched id at the fixture time", () => {
     expect(oracle.now).toBe(FIXTURE_NOW.toISOString());
@@ -99,7 +112,7 @@ describe("repository inspector parity", () => {
       const result = inspectRepo(m, c.id, FIXTURE_NOW);
       expect(repoTitle(m, c.id)).toBe(c.title);
       if (c.board.header.status.label === "UNKNOWN") expect(result).toBeUndefined();
-      else expect(result && board(result)).toEqual(c.board);
+      else expect(result && board(result)).toEqual(diverged(c));
     },
   );
 });

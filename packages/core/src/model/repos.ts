@@ -22,8 +22,9 @@ import { type IssueKind, issueKind, outsider, prKind } from "./work.js";
 
 // Who fixes a file: the program, the template that syncs it, or the upstream project.
 export type Owner = "spi" | "template" | "upstream";
-// Whether a file reaches the running service, only its tests, or only its tooling.
-export type Reach = "shipped" | "tests" | "tooling";
+// Whether a file reaches the running service, only its tests, or only its tooling;
+// settings for a repository-level finding that names no file.
+export type Reach = "shipped" | "settings" | "tests" | "tooling";
 export type PrState =
   | "draft"
   | "conflicts"
@@ -37,7 +38,7 @@ export type ChangeKind = "feature" | "fix" | "maintenance" | "other";
 
 export const SEVERITY_ORDER: readonly Severity[] = Object.freeze(["critical", "high", "medium", "low"]);
 const OWNER_RANK: Readonly<Record<Owner, number>> = Object.freeze({ spi: 0, template: 1, upstream: 2 });
-const REACH_RANK: Readonly<Record<Reach, number>> = Object.freeze({ shipped: 0, tooling: 1, tests: 2 });
+const REACH_RANK: Readonly<Record<Reach, number>> = Object.freeze({ shipped: 0, settings: 0, tooling: 1, tests: 2 });
 
 const MAINTENANCE: ReadonlySet<string> = new Set(["refactor", "chore", "docs", "ci", "build", "test", "perf", "style"]);
 const TOOLING_TOPS: ReadonlySet<string> = new Set([".github", "deployments", "devops", "scripts", "tools", "docs"]);
@@ -286,7 +287,7 @@ function codeGroups(alerts: readonly CodeAlertFact[], p: Paths): AlertGroup[] {
         name: a.description,
         where: tree,
         owner: ownerOf(path ?? "", p),
-        reach: reachOf(path ?? ""),
+        reach: path ? reachOf(path) : "settings",
         count: 0,
         counts: {},
         unfixed: 0,

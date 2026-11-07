@@ -179,7 +179,7 @@ export function fixText(g: AlertGroup): string {
 export function alertLine(g: AlertGroup): RepoLine {
   const sub = [
     OWNER_WORD[g.owner],
-    g.reach,
+    g.reach === "settings" ? undefined : g.reach,
     whereText(g),
     fixText(g),
     g.elsewhere.length > 0 ? `also ours on ${list(g.elsewhere)}` : undefined,
@@ -352,13 +352,19 @@ function lead(r: RepoRow, now: Date): { title: string; sub: string; tone: Tone }
       tone: "neutral",
     };
   }
-  const top = r.alerts.find((g) => ours(g) && g.reach === "shipped" && severe(g));
+  const top =
+    r.alerts.find((g) => ours(g) && g.reach === "shipped" && severe(g)) ??
+    r.alerts.find((g) => ours(g) && g.reach === "settings" && severe(g));
   if (top) {
     const owner = top.owner === "template" ? "template-owned" : "SPI-owned";
+    const at =
+      top.reach === "settings"
+        ? `${owner} repository settings`
+        : `${owner} shipped code at ${whereText(top)}`;
     return {
       title: alertTitle(top),
       sub: [
-        `${cap(counted(top))} in ${owner} shipped code at ${whereText(top)}, ${top.source === "code" ? fixText(top) : top.fix ? `fixed in ${top.fix}` : "no fix published"}.`,
+        `${cap(counted(top))} in ${at}, ${top.source === "code" ? fixText(top) : top.fix ? `fixed in ${top.fix}` : "no fix published"}.`,
         top.elsewhere.length > 0 ? `Also ours on ${list(top.elsewhere)}.` : undefined,
       ]
         .filter(Boolean)
@@ -407,7 +413,7 @@ function alertSection(r: RepoRow, source: AlertGroup["source"]): RepoSection | u
   return s ? { ...s, rest: ` · ${inherited.length} upstream`, weight: "quiet" } : undefined;
 }
 
-const REACH_RANK: Readonly<Record<DependencyPr["reach"], number>> = Object.freeze({ shipped: 0, tooling: 1, tests: 2 });
+const REACH_RANK: Readonly<Record<DependencyPr["reach"], number>> = Object.freeze({ shipped: 0, settings: 0, tooling: 1, tests: 2 });
 
 function withRest(s: RepoSection | undefined, rest: string | undefined): RepoSection | undefined {
   return s && rest ? { ...s, rest } : s;

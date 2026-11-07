@@ -703,7 +703,7 @@
       "note": "No fork lane deployed today. Deploys are counted per day, so the timeline leaves them out."
     },
     "repositories": {
-      "headline": "In SPI-owned shipped code: 3 high vulnerabilities and 13 high code-scanning alerts.",
+      "headline": "In SPI-owned shipped code: 3 high vulnerabilities and 11 high code-scanning alerts.",
       "facts": [
         {
           "label": "Issues",
@@ -731,8 +731,8 @@
         },
         {
           "label": "Code scanning · ours",
-          "figure": "13",
-          "sub": "critical or high in shipped code · 3 rules · 2 more from upstream",
+          "figure": "11",
+          "sub": "critical or high in shipped code · 1 rule · 2 more from upstream",
           "tone": "warn"
         }
       ],
@@ -763,15 +763,15 @@
               "fade": true
             },
             "codeScanning": {
-              "text": "2",
-              "tone": "warn",
+              "text": "0",
+              "tone": "neutral",
               "rest": " · 0",
               "fade": true
             }
           },
           "title": "High code-scanning alert: Branch-Protection",
           "tone": "bad",
-          "sub": "1 alert in SPI-owned shipped code at repository settings, found by Scorecard.",
+          "sub": "1 alert in SPI-owned repository settings, found by Scorecard.",
           "sections": [
             {
               "title": "Issues",
@@ -814,7 +814,7 @@
                   "tag": "High",
                   "tone": "bad",
                   "text": "Branch-Protection · 1 alert",
-                  "sub": "SPI · shipped · repository settings · found by Scorecard"
+                  "sub": "SPI · repository settings · found by Scorecard"
                 },
                 {
                   "id": "alert:Azure/osdu-spi:code:Scorecard:CodeReviewID:",
@@ -822,7 +822,7 @@
                   "tag": "High",
                   "tone": "bad",
                   "text": "Code-Review · 1 alert",
-                  "sub": "SPI · shipped · repository settings · found by Scorecard"
+                  "sub": "SPI · repository settings · found by Scorecard"
                 },
                 {
                   "id": "alert:Azure/osdu-spi:code:Scorecard:FuzzingID:",
@@ -830,7 +830,7 @@
                   "tag": "Medium",
                   "tone": "warn",
                   "text": "Fuzzing · 1 alert",
-                  "sub": "SPI · shipped · repository settings · found by Scorecard"
+                  "sub": "SPI · repository settings · found by Scorecard"
                 }
               ],
               "weight": "quiet"
@@ -1605,11 +1605,11 @@
         "kind": "security"
       },
       "content": {
-        "headline": "16 high or critical findings need SPI fixes.",
+        "headline": "14 high or critical findings need SPI fixes.",
         "tiles": [
           {
             "label": "High",
-            "value": "16",
+            "value": "14",
             "counts": "high or critical in SPI-owned shipped code"
           },
           {
