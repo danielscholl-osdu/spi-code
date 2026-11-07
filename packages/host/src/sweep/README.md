@@ -68,9 +68,16 @@ and all fleets. Invalid log records leave the file intact and report an error
 rather than discarding budget evidence.
 A malformed, unterminated final fragment is preserved byte-for-byte in
 `sweep-budget.jsonl.<sha256>.torn` before removing it from the active log.
-Exclusive creation and byte comparison make retries reuse the same quarantine;
-different bytes at that path fail without overwriting evidence. Quarantines are
-not retention-trimmed. Successful repair reports its quarantine path through
+The fragment is written, flushed and closed under a unique temporary name before
+an exclusive hard link publishes its content-addressed name. Failed writes never
+leave a partial quarantine, and temporary files are removed even on failure.
+If hard links return `EPERM`, `ENOTSUP` or `EXDEV`, a matching existing quarantine
+is reused; otherwise the complete temporary file is atomically renamed into
+place. Concurrent same-digest publishers have identical bytes. Byte comparison
+makes retries reuse the same quarantine; different bytes already at that path
+(including empty or truncated evidence from an older writer) fail visibly
+without overwriting evidence. Quarantines are not retention-trimmed.
+Successful repair reports its quarantine path through
 `onError`. Complete unterminated JSON records instead receive a newline before
 the next append.
 Quarantines and temporary rewrites are flushed and closed before replacement.

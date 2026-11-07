@@ -7,6 +7,7 @@ import { once } from "node:events";
 import {
   closeSync,
   fsyncSync,
+  linkSync,
   mkdirSync,
   mkdtempSync,
   openSync,
@@ -54,6 +55,7 @@ vi.mock("node:fs", async (importOriginal) => {
     writeFileSync: vi.fn(actual.writeFileSync),
     fsyncSync: vi.fn(actual.fsyncSync),
     closeSync: vi.fn(actual.closeSync),
+    linkSync: vi.fn(actual.linkSync),
     renameSync: vi.fn(actual.renameSync),
   };
 });
@@ -83,7 +85,7 @@ beforeEach(() => {
 afterEach(async () => {
   for (const service of services.splice(0)) await service.stop();
   db.close();
-  for (const fn of [openSync, writeFileSync, fsyncSync, closeSync, renameSync]) {
+  for (const fn of [openSync, writeFileSync, fsyncSync, closeSync, linkSync, renameSync]) {
     vi.mocked(fn).mockReset();
   }
   vi.unstubAllGlobals();
@@ -153,6 +155,10 @@ function traceBudgetIO(beforeSync: (file: string | undefined) => void = () => {}
   vi.mocked(renameSync).mockImplementation((from, to) => {
     events.push(`rename:${from}`);
     realFs.renameSync(from, to);
+  });
+  vi.mocked(linkSync).mockImplementation((from, to) => {
+    events.push(`link:${from}`);
+    realFs.linkSync(from, to);
   });
   return events;
 }
@@ -814,19 +820,100 @@ it.each(["sweep", "daily trim"])(
   },
 );
 
-it("refuses different bytes at the content-addressed quarantine path without overwriting", async () => {
-  const first = service();
-  await first.start();
-  const log = join(directory, "sweep-budget.jsonl");
-  const fragment = Buffer.from('{"torn":');
-  const contents = Buffer.concat([readFileSync(log), fragment]);
-  writeFileSync(log, contents);
-  const quarantine = `${log}.${createHash("sha256").update(fragment).digest("hex")}.torn`;
-  writeFileSync(quarantine, "other evidence");
-  await expect(first.sweep(true)).rejects.toThrow("Quarantine contents differ");
-  expect(readFileSync(quarantine, "utf8")).toBe("other evidence");
-  expect(readFileSync(log)).toEqual(contents);
-});
+it.each(["other evidence", "", '{"to'])(
+  "refuses mismatched quarantine bytes %j without overwriting",
+  async (existing) => {
+    const first = service();
+    await first.start();
+    const log = join(directory, "sweep-budget.jsonl");
+    const fragment = Buffer.from('{"torn":');
+    const contents = Buffer.concat([readFileSync(log), fragment]);
+    writeFileSync(log, contents);
+    const quarantine = `${log}.${createHash("sha256").update(fragment).digest("hex")}.torn`;
+    writeFileSync(quarantine, existing);
+    await expect(first.sweep(true)).rejects.toThrow("Quarantine contents differ");
+    expect(readFileSync(quarantine, "utf8")).toBe(existing);
+    expect(readFileSync(log)).toEqual(contents);
+    expect(readdirSync(directory).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+  },
+);
+
+it.each(["sweep", "daily trim"])(
+  "retries a partial quarantine write on a later %s without poisoning its final name",
+  async (recovery) => {
+    const onError = vi.fn();
+    const first = service([], { intervalMs: 2 * DAY_MS, ttlMs: 3 * DAY_MS, onError });
+    await first.start();
+    const log = join(directory, "sweep-budget.jsonl");
+    const fragment = Buffer.from('{"torn":"unfinished');
+    const contents = Buffer.concat([readFileSync(log), fragment]);
+    writeFileSync(log, contents);
+    const quarantine = `${log}.${createHash("sha256").update(fragment).digest("hex")}.torn`;
+    const failure = Object.assign(new Error("disk full during quarantine write"), {
+      code: "ENOSPC",
+    });
+    vi.mocked(writeFileSync).mockImplementationOnce((file) => {
+      realFs.writeFileSync(file, fragment.subarray(0, 4));
+      throw failure;
+    });
+    await expect(first.sweep(true)).rejects.toBe(failure);
+    expect(readFileSync(log)).toEqual(contents);
+    expect(readdirSync(directory).filter((name) => name.endsWith(".torn"))).toEqual([]);
+    expect(readdirSync(directory).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+    if (recovery === "sweep") await first.sweep(true);
+    else await vi.advanceTimersByTimeAsync(DAY_MS);
+    expect(readFileSync(quarantine)).toEqual(fragment);
+    expect(readdirSync(directory).filter((name) => name.endsWith(".torn"))).toEqual([
+      basename(quarantine),
+    ]);
+    expect(readdirSync(directory).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+    expect(onError).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ message: expect.stringContaining(quarantine) }),
+    );
+    expect(budgets()[0]?.fleet).toBe("test");
+  },
+);
+
+it.each(["EPERM", "ENOTSUP", "EXDEV"])(
+  "atomically publishes and reuses a complete quarantine when links fail with %s",
+  async (code) => {
+    const onError = vi.fn();
+    const first = service([], { onError });
+    await first.start();
+    const log = join(directory, "sweep-budget.jsonl");
+    const fragment = Buffer.from('{"torn":"unfinished');
+    const contents = Buffer.concat([readFileSync(log), fragment]);
+    writeFileSync(log, contents);
+    const quarantine = `${log}.${createHash("sha256").update(fragment).digest("hex")}.torn`;
+    vi.mocked(linkSync).mockImplementation(() => {
+      throw Object.assign(new Error("unsupported hard links"), { code });
+    });
+    const failure = new Error("active log rewrite failed");
+    let failed = false;
+    vi.mocked(renameSync).mockImplementation((from, to) => {
+      if (to === log && !failed) {
+        failed = true;
+        throw failure;
+      }
+      if (to === quarantine) expect(readFileSync(from)).toEqual(fragment);
+      realFs.renameSync(from, to);
+    });
+    await expect(first.sweep(true)).rejects.toBe(failure);
+    expect(readFileSync(log)).toEqual(contents);
+    expect(readFileSync(quarantine)).toEqual(fragment);
+    expect(readdirSync(directory).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+    await first.sweep(true);
+    expect(linkSync).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(renameSync).mock.calls.filter(([, to]) => to === quarantine)).toHaveLength(1);
+    expect(openSync).not.toHaveBeenCalledWith(quarantine, "wx");
+    expect(readFileSync(quarantine)).toEqual(fragment);
+    expect(readdirSync(directory).filter((name) => name.endsWith(".torn"))).toEqual([
+      basename(quarantine),
+    ]);
+    expect(readdirSync(directory).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+    expect(onError).toHaveBeenCalledOnce();
+  },
+);
 
 it.each(["repair", "daily trim"])(
   "flushes and closes budget evidence before %s renames and flushes its directory",
@@ -850,11 +937,15 @@ it.each(["repair", "daily trim"])(
     const expected: string[] = [];
     if (operation === "repair") {
       const quarantine = `${log}.${createHash("sha256").update(fragment).digest("hex")}.torn`;
-      expect(openSync).toHaveBeenCalledWith(quarantine, "wx");
+      const staged = String(vi.mocked(linkSync).mock.calls[0]?.[0]);
+      expect(staged).toMatch(/\.torn\..+\.tmp$/);
+      expect(openSync).toHaveBeenCalledWith(staged, "wx");
+      expect(linkSync).toHaveBeenCalledWith(staged, quarantine);
       expected.push(
-        `write:${quarantine}`,
-        `fsync:${quarantine}`,
-        `close:${quarantine}`,
+        `write:${staged}`,
+        `fsync:${staged}`,
+        `close:${staged}`,
+        `link:${staged}`,
         `fsync:${directory}`,
         `close:${directory}`,
       );
@@ -894,9 +985,9 @@ it.each(["EPERM", "EISDIR"])(
   },
 );
 
-it.each([".torn", ".tmp"])(
+it.each(["quarantine", "rewrite"])(
   "keeps the active log intact when a %s fsync fails and durably retries",
-  async (extension) => {
+  async (operation) => {
     const onError = vi.fn();
     const first = service([], { onError });
     await first.start();
@@ -907,7 +998,11 @@ it.each([".torn", ".tmp"])(
     const failure = new Error("fsync failed");
     let failed = false;
     const events = traceBudgetIO((file) => {
-      if (!failed && file?.endsWith(extension)) {
+      if (
+        !failed &&
+        file?.endsWith(".tmp") &&
+        file.includes(".torn.") === (operation === "quarantine")
+      ) {
         failed = true;
         throw failure;
       }
@@ -919,11 +1014,11 @@ it.each([".torn", ".tmp"])(
     expect(readdirSync(directory).filter((name) => name.endsWith(".tmp"))).toEqual([]);
     events.length = 0;
     await first.sweep(true);
-    const quarantine = `${log}.${createHash("sha256").update(fragment).digest("hex")}.torn`;
-    expect(events.indexOf(`fsync:${quarantine}`)).toBeGreaterThanOrEqual(0);
-    expect(events.indexOf(`fsync:${quarantine}`)).toBeLessThan(
-      events.findIndex((event) => event.startsWith("rename:")),
+    const quarantineSync = events.findIndex(
+      (event) => event.startsWith("fsync:") && event.includes(".torn."),
     );
+    expect(quarantineSync).toBeGreaterThanOrEqual(0);
+    expect(quarantineSync).toBeLessThan(events.findIndex((event) => event.startsWith("rename:")));
     expect(readdirSync(directory).filter((name) => name.endsWith(".torn"))).toHaveLength(1);
     expect(onError).toHaveBeenCalledOnce();
   },
