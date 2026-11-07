@@ -6,6 +6,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import recorded from "../../../../../fixtures/watch/snapshot-59d6895.json?raw";
+import current from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import type { Route } from "../../app/routes.js";
 import { PINS_STORAGE_KEY, pin, unpin } from "../../store/pins.js";
 import { createWatchStore } from "../../store/watch.js";
@@ -30,6 +31,7 @@ afterEach(async () => {
 });
 
 const recordedBody = ViewSnapshotSchema.parse(JSON.parse(recorded));
+const currentBody = ViewSnapshotSchema.parse(JSON.parse(current));
 const FLEET = ["partition", "entitlements", "legal", "schema", "file"];
 const pinFleet = () => localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(FLEET));
 
@@ -78,7 +80,7 @@ it("lists Find or ask, Today, Line, the places, Settled and Setup, and no servic
   expect(nav?.querySelector("button")?.textContent).toContain("Find or ask");
   expect(rows("Today")).toEqual(["Today"]);
   expect(rows("Inbox")).toEqual([]);
-  expect(container.querySelector('ul[aria-label="Today"] .sidebar-pip')?.textContent).toBe("6");
+  expect(container.querySelector('ul[aria-label="Today"] .sidebar-pip')?.textContent).toBe("2");
   expect(rows("Line")).toEqual(["Line"]);
   expect(rows("Places")).toEqual([
     "Upstream",
@@ -107,6 +109,58 @@ it("lists Find or ask, Today, Line, the places, Settled and Setup, and no servic
   await render();
   expect(container.querySelector('ul[aria-label="Line"]')).toBeNull();
 });
+
+it("counts the recorded Interrupt, not the P0 and P1 total, including when folded", async () => {
+  const { store } = await render(undefined, undefined, currentBody);
+  const pip = () => row("today")?.querySelector(".sidebar-pip");
+  expect(pip()?.textContent).toBe("1");
+  expect(pip()?.getAttribute("title")).toBe("1 interruption");
+  const body = structuredClone(currentBody);
+  const item = body.briefing.focus.shift();
+  if (!item) throw new Error("Recorded Interrupt missing");
+  body.briefing.rest.push(item);
+  await act(async () => store.setState({ snapshot: { cursor: body.cursor, body } }));
+  expect(pip()?.textContent).toBe("1");
+});
+
+it.each(["ambient", "interrupt"] as const)(
+  "counts a card, its %s waiting thread and its owned P0 once across focus and rest",
+  async (attention) => {
+    const body = structuredClone(currentBody);
+    const item = body.briefing.focus[0];
+    if (!item) throw new Error("Recorded Interrupt missing");
+    item.owned = true;
+    body.briefing.focus.push({
+      ...item,
+      id: "card:retry",
+      ids: [item.id],
+      title: "Retry waiting for your decision",
+    });
+    body.briefing.rest.push({
+      ...item,
+      id: "thread:diagnose",
+      ids: ["card:retry"],
+      attention,
+      title: "Diagnose waiting for your decision",
+    });
+    const { store } = await render(undefined, undefined, body);
+    expect(row("today")?.querySelector(".sidebar-pip")?.textContent).toBe("1");
+    const independent = structuredClone(body);
+    independent.briefing.rest.push({
+      ...item,
+      id: "card:other",
+      ids: ["card:other"],
+      title: "Another decision waiting",
+    });
+    await act(async () =>
+      store.setState({ snapshot: { cursor: independent.cursor, body: independent } }),
+    );
+    expect(row("today")?.querySelector(".sidebar-pip")?.textContent).toBe("2");
+    expect(row("today")?.querySelector(".sidebar-pip")?.getAttribute("title")).toBe(
+      "2 interruptions",
+    );
+  },
+);
 
 it("draws Pinned only with a pin the sweep names, in pin order, with the strip's glyph", async () => {
   localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(["gone", "schema", "entitlements"]));

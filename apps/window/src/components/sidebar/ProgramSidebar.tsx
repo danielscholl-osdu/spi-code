@@ -23,12 +23,13 @@
 
 import { type ReactNode, useId } from "react";
 import { useStore } from "zustand";
-import { inboxCount, treeServices } from "../../app/queue.js";
+import { treeServices } from "../../app/queue.js";
 import { isReachable, PLACES, type Route, routeLabel, useRegistry } from "../../app/routes.js";
 import { ariaShortcut, shortcutLabel } from "../../app/shortcuts.js";
 import { usePins } from "../../store/pins.js";
 import { PIPS, selectStrip } from "../../store/strip.js";
 import type { createWatchStore } from "../../store/watch.js";
+import { selectTodayItems } from "../../views/today/selectors.js";
 import { AttentionDot } from "../AttentionDot.js";
 import { useSidebarAttention } from "./attention.js";
 import { type SidebarGroupId, useGroupCollapse } from "./collapse.js";
@@ -90,7 +91,7 @@ export function ProgramSidebar({
   const body = useStore(store, (state) => state.snapshot?.body);
   const { tree, sweptAt, briefing } = body ?? {};
   const attention = useSidebarAttention(body);
-  const inbox = briefing ? inboxCount(briefing) : 0;
+  const interrupts = briefing ? selectTodayItems(briefing).interrupts : 0;
   const { isMobile, setOpenMobile } = useSidebar();
   const { collapsed, toggle } = useGroupCollapse();
   const ids = { places: useId(), pinned: useId() };
@@ -176,9 +177,12 @@ export function ProgramSidebar({
               "today",
               { kind: "today" },
               undefined,
-              inbox > 0 && (
-                <span className="sidebar-pip" title={`${inbox} at P0 or P1`}>
-                  {inbox}
+              interrupts > 0 && (
+                <span
+                  className="sidebar-pip"
+                  title={`${interrupts} interruption${interrupts === 1 ? "" : "s"}`}
+                >
+                  {interrupts}
                 </span>
               ),
             )}
