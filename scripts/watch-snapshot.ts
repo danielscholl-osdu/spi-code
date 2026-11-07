@@ -1,7 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-// Run after pnpm build: TZ=UTC bun scripts/watch-snapshot.ts
+// pnpm build && TZ=UTC bun scripts/watch-snapshot.ts && pnpm biome check --write
+// Biome formats the three snapshots back to their checked-in bytes.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { projectWatch } from "../packages/host/src/watch/project.js";
