@@ -4,7 +4,19 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { internalNames, wordCount } from "../src/readings/index.js";
+import { buildBriefing } from "../src/brief/index.js";
+import { builtInFleet, fleetOf } from "../src/config.js";
+import { createContext } from "../src/context.js";
+import { buildModel } from "../src/model/index.js";
+import {
+  internalNames,
+  readingText,
+  serviceReading,
+  upstreamReading,
+  wordCount,
+} from "../src/readings/index.js";
+import { parseRollout } from "../src/rollout.js";
+import { UPSTREAM_NOW, UPSTREAM_SERVICES, UPSTREAM_STATES } from "./upstream-states.js";
 
 const root = fileURLToPath(new URL("../../../fixtures/watch/", import.meta.url));
 const fixtures = readdirSync(root)
@@ -49,5 +61,50 @@ describe.each(fixtures)("the text rules on $name", ({ name, body }) => {
         .filter((leaf) => !leaf.detail && internalNames(leaf.text).length > 0)
         .map(({ path, text }) => ({ path, text })),
     ).toEqual([]);
+  });
+});
+
+// The upstream states drive every station branch and the list-built headlines past their length.
+const fleet = fleetOf(builtInFleet(UPSTREAM_SERVICES));
+const states = Object.entries(UPSTREAM_STATES).map(([name, make]) => {
+  const facts = make();
+  const context = createContext({
+    fleet,
+    rollout: parseRollout(facts.fleet.data?.rollout as string).rollout,
+  });
+  const model = buildModel(facts, UPSTREAM_NOW, {}, context);
+  const briefing = buildBriefing(model, { state: "clear", problems: [] }, UPSTREAM_NOW, context);
+  const items = [...briefing.focus, ...briefing.rest];
+  const readings = [
+    upstreamReading({ model, items, radar: [], fleet: context.fleet, campaigns: [] }),
+    ...model.lines.map((line) =>
+      serviceReading({ model, service: line.fork.id, items, reads: [], now: UPSTREAM_NOW }),
+    ),
+  ].filter((r) => r !== null);
+  return { name, model, briefing, readings };
+});
+
+describe.each(states)("the text rules on the $name state", ({ model, briefing, readings }) => {
+  const stations = model.lines.flatMap((line) =>
+    line.stations.map((s) => ({ path: `${line.fork.id}/${s.id}`, text: s.text })),
+  );
+  const shown = readings.flatMap((r) => readingText(r).map((text) => ({ path: "reading", text })));
+  const headlines = [
+    ...leaves(briefing).filter((leaf) => leaf.path.endsWith("/headline")),
+    ...readings.map((r) => ({ path: "reading/headline", text: r.headline })),
+  ];
+
+  it("keeps every headline to at most 12 words", () => {
+    expect(
+      headlines
+        .filter((leaf) => wordCount(leaf.text) > 12)
+        .map(({ path, text }) => ({ path, text })),
+    ).toEqual([]);
+  });
+
+  it("keeps internal names out of station text and readings", () => {
+    expect([...stations, ...shown].filter((leaf) => internalNames(leaf.text).length > 0)).toEqual(
+      [],
+    );
   });
 });

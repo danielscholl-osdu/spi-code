@@ -10,7 +10,7 @@ import {
   type UpFork,
   type UpstreamModel,
 } from "../model/upstream.js";
-import { names, plural, stamp, whose } from "../util.js";
+import { firstAndMore, fitHeadline, names, plural, stamp, whose } from "../util.js";
 import { APP_VOICE, type Voice } from "../voice.js";
 
 export type UpTone = "bad" | "warn" | "ok" | "neutral" | "run";
@@ -386,40 +386,61 @@ function planningWords(u: UpstreamModel): { headline: string; pilot: string; sub
 
 // The whole statement for Detail, which keeps the pilot guidance the headline leaves to sub.
 export function flowStatement(u: UpstreamModel): string {
-  if (u.mode === "flight") return flightWords(u).headline;
+  if (u.mode === "flight") return flightWords(u).full;
   const words = planningWords(u);
   return words.pilot ? `${words.headline} ${words.pilot}` : words.headline;
 }
 
-function flightWords(u: UpstreamModel): { headline: string; sub: string } {
+function flightWords(u: UpstreamModel): { headline: string; sub: string; full: string } {
   const gates = [
     ...u.startNext.map((f) => `start ${f.service}`),
     ...u.dispatches.map((f) => `dispatch ${whose(f.service)} cascade`),
     ...u.reruns.map((f) => `re-run ${whose(f.service)} cascade`),
     ...u.reviews.map((f) => `review ${f.service}`),
   ];
-  const parts: string[] = [];
+  // Each statement whole, and with its list cut to one name for a headline that must fit.
+  const parts: { full: string; short: string }[] = [];
   if (gates.length > 0) {
-    parts.push(
-      `${cap(plural(gates.length, "gate"))} ${gates.length === 1 ? "waits" : "wait"} on you: ${list(gates)}.`,
-    );
+    const head = `${cap(plural(gates.length, "gate"))} ${gates.length === 1 ? "waits" : "wait"} on you`;
+    parts.push({ full: `${head}: ${list(gates)}.`, short: `${head}: ${firstAndMore(gates)}.` });
   }
-  const stopped = u.stops.filter((f) => !u.reruns.includes(f));
+  const stopped = u.stops.filter((f) => !u.reruns.includes(f)).map((f) => f.service);
   if (stopped.length > 0) {
-    parts.push(`${cap(names(stopped.map((f) => f.service)))} stopped in cascade.`);
+    parts.push({
+      full: `${cap(names(stopped))} stopped in cascade.`,
+      short: `${cap(firstAndMore(stopped))} stopped in cascade.`,
+    });
   }
-  if (u.paused) parts.push("The wave is paused.");
+  if (u.paused) parts.push({ full: "The wave is paused.", short: "The wave is paused." });
   const total = u.forks.filter((f) => f.phase !== "current" && f.phase !== "unread").length;
   if (parts.length === 0) {
-    const cascading = u.forks.filter((f) => f.phase === "cascading" || f.phase === "merged");
+    const cascading = u.forks
+      .filter((f) => f.phase === "cascading" || f.phase === "merged")
+      .map((f) => f.service);
+    const are = cascading.length === 1 ? "is" : "are";
     parts.push(
       cascading.length > 0
-        ? `${cap(names(cascading.map((f) => f.service)))} ${cascading.length === 1 ? "is" : "are"} in cascade; nothing waits on you. ${u.done.length} of ${total} forks are on main.`
-        : `Nothing waits on you. ${u.done.length} of ${total} forks are on main.`,
+        ? {
+            full: `${cap(names(cascading))} ${are} in cascade; nothing waits on you.`,
+            short: `${cap(firstAndMore(cascading))} ${are} in cascade; nothing waits on you.`,
+          }
+        : { full: "Nothing waits on you.", short: "Nothing waits on you." },
     );
+    const onMain = `${u.done.length} of ${total} forks are on main.`;
+    parts.push({ full: onMain, short: onMain });
   }
+  const said = (k: number, form: "full" | "short") =>
+    parts
+      .slice(0, k)
+      .map((p) => p[form])
+      .join(" ");
+  const candidates = [said(parts.length, "full"), said(parts.length, "short")];
+  for (let k = parts.length - 1; k >= 1; k--) candidates.push(said(k, "full"), said(k, "short"));
+  const headline = fitHeadline(candidates);
+  // A statement the headline cut or left out leads sub whole.
+  const rest = parts.filter((p) => !headline.includes(p.full)).map((p) => p.full);
   const ref = u.forks.find((f) => f.service === u.reference);
-  const sub: string[] = [];
+  const sub: string[] = [...rest];
   if (ref?.phase === "done") sub.push("The pilot is on main.");
   else if (u.gate === "open") sub.push(`${cap(whose(u.reference))} cascade is green.`);
   else if (u.gate === "failed")
@@ -433,7 +454,7 @@ function flightWords(u: UpstreamModel): { headline: string; sub: string } {
       `${plural(prepared.length, "sync PR")} ${prepared.length === 1 ? "is" : "are"} prepared and ${prepared.length === 1 ? "waits" : "wait"}.`,
     );
   }
-  return { headline: parts.join(" "), sub: sub.join(" ") };
+  return { headline, sub: sub.join(" "), full: said(parts.length, "full") };
 }
 
 function tilesOf(u: UpstreamModel, voice: Voice): UpTile[] {

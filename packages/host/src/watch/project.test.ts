@@ -1452,14 +1452,14 @@ describe("area envelopes and provenance", () => {
     const at = (id: string, state: string, text: string) => stationAreas({ id, state, text });
     expect(at("upstream", "unknown", "lag unmeasured")).toEqual(["upstream"]);
     expect(at("sync", "stopped", "Sync Upstream failed")).toEqual(["github", "runs"]);
-    expect(at("sync", "waiting", "gate 1 · PR #4")).toEqual(["github"]);
+    expect(at("sync", "waiting", "PR #4")).toEqual(["github"]);
     expect(at("cascade", "stopped", "conflict")).toEqual(["github"]);
     expect(at("cascade", "moving", "running")).toEqual(["github", "runs"]);
-    expect(at("main", "stopped", "gate 2 · PR #9 red")).toEqual(["github"]);
-    expect(at("main", "waiting", "gate 2 · PR #9")).toEqual(["github"]);
+    expect(at("main", "stopped", "PR #9 red")).toEqual(["github"]);
+    expect(at("main", "waiting", "PR #9")).toEqual(["github"]);
     expect(at("main", "stopped", "main red")).toEqual(["github", "runs"]);
     expect(at("main", "unknown", "unproven")).toEqual(["github", "runs"]);
-    expect(at("release", "waiting", "gate 3 · PR #2")).toEqual(["github"]);
+    expect(at("release", "waiting", "PR #2")).toEqual(["github"]);
     expect(at("lane", "idle", "last run ok")).toEqual(["github", "lifecycle"]);
     expect(at("lane", "waiting", "last run failed")).toEqual(["github", "lifecycle"]);
     // Precedence: a later branch also reads the absences that let core reach it.

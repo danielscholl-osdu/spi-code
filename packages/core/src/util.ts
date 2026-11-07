@@ -162,6 +162,23 @@ export function names(list: readonly string[]): string {
     : `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`;
 }
 
+// "partition and 4 more": a list a headline can carry at any length.
+export function firstAndMore(list: readonly string[]): string {
+  return list.length <= 1 ? (list[0] ?? "") : `${list[0]} and ${list.length - 1} more`;
+}
+
+// The window draws a headline in at most this many words.
+export const HEADLINE_WORDS = 12;
+
+export function wordCount(text: string): number {
+  return text.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+}
+
+// The first candidate that fits a headline, else the last; candidates run from fullest to shortest.
+export function fitHeadline(candidates: readonly string[]): string {
+  return candidates.find((c) => wordCount(c) <= HEADLINE_WORDS) ?? candidates.at(-1) ?? "";
+}
+
 // "entitlements'" and "legal's".
 export function whose(name: string): string {
   return name.endsWith("s") ? `${name}'` : `${name}'s`;

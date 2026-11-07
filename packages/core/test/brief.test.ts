@@ -216,6 +216,63 @@ describe("other days", () => {
     );
   });
 
+  test("a halt with many followers names the first and counts the rest", () => {
+    const followers = ["b", "c", "d", "e", "f", "g"].map((scope) =>
+      item({
+        id: `radar:${scope}`,
+        kind: "radar",
+        scope,
+        cls: "HALT",
+        halt: { fork: scope, code: "UNKNOWN_TOP_LEVEL", entries: ["x"] },
+      }),
+    );
+    const halt = item({
+      id: "halt:a",
+      kind: "halt",
+      rung: 0,
+      scope: "a",
+      incident: true,
+      halt: { fork: "a", code: "UNKNOWN_TOP_LEVEL", entries: ["x"] },
+    });
+    const b = buildBriefing(withQueue([halt, ...followers]), CLEAR, FIXTURE_NOW, fixtureContext);
+    expect(b.headline).toBe("Unhalt a before b and 5 more halt at 00:00.");
+  });
+
+  test("a halt on many entries names the first in the headline and the title", () => {
+    const entries = ["e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8", "e9"];
+    const radar = item({
+      id: "radar:partition",
+      kind: "radar",
+      scope: "partition",
+      cls: "HALT",
+      halt: { fork: "partition", code: "UNKNOWN_TOP_LEVEL", entries },
+    });
+    const b = buildBriefing(withQueue([radar]), CLEAR, FIXTURE_NOW, fixtureContext);
+    expect(b.headline).toBe("Classify e1 and 8 more on partition before the 00:00 sync.");
+    expect(b.focus[0]?.title).toBe("Next sync halts on e1 and 8 more");
+    expect(b.focus[0]?.sub).toContain("entries e1, e2, e3, e4, e5, e6, e7, e8 and e9");
+  });
+
+  test("a cause too long to share the headline leads it alone", () => {
+    const radar = (scope: string) =>
+      item({
+        id: `radar:${scope}`,
+        kind: "radar",
+        scope,
+        cls: "HALT",
+        halt: { fork: scope, code: "UNKNOWN_TOP_LEVEL", entries: [`${scope}-entry`] },
+      });
+    const b = buildBriefing(
+      withQueue([radar("partition"), radar("legal"), radar("storage")]),
+      CLEAR,
+      FIXTURE_NOW,
+      fixtureContext,
+    );
+    expect(b.headline).toBe(
+      "Classify partition-entry on partition before the 00:00 sync. 2 more causes below.",
+    );
+  });
+
   test("six incidents name two causes and count the rest", () => {
     const m = withQueue([
       item({ id: "stack:1", kind: "stack", rung: 0, scope: "Environment", incident: true }),
@@ -295,10 +352,25 @@ describe("the horizon", () => {
     svc.certain = [...svc.certain, java];
     svc.possible = svc.possible.filter((v) => v.bucket !== "Toolchain");
     const b = buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext);
-    expect(b.horizon.headline).toBe(
-      "Java 25 reaches partition and legal at 00:00. One filter entry would stop 4 future halts.",
-    );
+    expect(b.horizon.headline).toBe("Java 25 reaches partition and legal at 00:00.");
+    expect(b.themes.find((t) => t.kind === "halt")?.exposed.length).toBeGreaterThan(0);
     expect(b.themes[0]?.inspect).toBe("radar:partition");
+  });
+
+  test("a Java move queued on many forks names the first and counts the rest", () => {
+    const m = withQueue([RADAR_PARTITION]);
+    const legal = m.radar.services.legal;
+    const java = legal?.certain.find((v) => v.bucket === "Toolchain");
+    if (!legal || !java) throw new Error("the fixture queues Java 25 on legal");
+    for (const extra of ["storage", "search", "indexer", "workflow"])
+      m.radar.services[extra] = structuredClone(legal);
+    for (const svc of Object.values(m.radar.services)) {
+      if (!svc) continue;
+      svc.certain = [...svc.certain.filter((v) => v.bucket !== "Toolchain"), java];
+      svc.possible = svc.possible.filter((v) => v.bucket !== "Toolchain");
+    }
+    const b = buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext);
+    expect(b.horizon.headline).toMatch(/^Java 25 reaches \S+ and \d+ more at 00:00\.$/);
   });
 });
 
