@@ -1,6 +1,20 @@
 /* Copyright 2026, Daniel Scholl */
 /* SPDX-License-Identifier: MIT */
 
+.template-details {
+  margin-top: 16px;
+  border-top: 1px solid var(--border-soft);
+}
+.template-details > summary {
+  padding: 10px 0;
+  color: var(--text-strong);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+.template-details-body {
+  padding-top: 4px;
+}
 .template-detail {
   display: grid;
   grid-template-columns: max-content 1fr;

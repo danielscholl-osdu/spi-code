@@ -77,7 +77,7 @@ it("navigates every sidebar thing through the hash, naming the place in the titl
     expect(container.querySelector("main")?.textContent).toContain("First sweep running");
     for (const [label, hash, heading = label] of [
       ["Today", "#today"],
-      ["Engineering system", "#engineering-system", "Template"],
+      ["Engineering system", "#engineering-system"],
       ["Environment", "#environment"],
       ["Releases", "#releases"],
       ["Flow", "#lens/flow"],
