@@ -631,6 +631,7 @@ it("lands on Setup when the first host state is not ready and gates every Watch 
     "Environment",
     "Engineering system",
     "Releases",
+    "Security",
     "Flow",
     "Repositories",
     "Horizon",

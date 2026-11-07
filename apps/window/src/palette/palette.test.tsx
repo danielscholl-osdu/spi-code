@@ -153,6 +153,7 @@ it("lists Go to, Services, Lenses and Queue from the routes and the snapshot, wi
     "Environmentpage",
     "Engineering systempage",
     "Releasespage",
+    "Securitypage",
     "Setuppage",
   ]);
   expect(rows("services")).toEqual([

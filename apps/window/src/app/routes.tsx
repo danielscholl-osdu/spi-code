@@ -11,6 +11,7 @@ import Inbox from "../views/inbox/index.js";
 import Line from "../views/line/index.js";
 import Releases, { ReleaseMonth } from "../views/releases/index.js";
 import Repositories from "../views/repositories/index.js";
+import Security from "../views/security/index.js";
 import ServicePage from "../views/service/index.js";
 import Setup from "../views/setup/index.js";
 import { WatchGate } from "../views/setup/WatchGate.js";
@@ -33,16 +34,14 @@ function gated(route: Route, page: ReactNode) {
   return <WatchGate label={routeLabel(route)}>{page}</WatchGate>;
 }
 
-/**
- * The window's views by route. Upstream and Security are not registered until
- * their components exist, so nothing lists them.
- */
+/** The window's views by route. Upstream stays unlisted until its component exists. */
 export const DEFAULT_REGISTRY: Registry = {
   views: {
     today: (route) => gated(route, <Today />),
     environment: (route) => gated(route, <Environment />),
     "engineering-system": (route) => gated(route, <Template />),
     releases: (route) => gated(route, <Releases />),
+    security: (route) => gated(route, <Security />),
     service: (route) => gated(route, <ServicePage id={route.id} />),
     release: (route) => gated(route, <ReleaseMonth month={route.month} />),
     inbox: (route) => gated(route, <Inbox onNavigate={navigate} />),
