@@ -18,7 +18,7 @@ import { SelectionEvidence, SelectionEvidenceChip, SweepEvidence } from "./Evide
 import { expectEvidenceMarks, expectNoEvidenceMarks } from "./marks.test-helper.js";
 import { SectionEvidence } from "./SectionEvidence.js";
 import { SweepLine, type SweepLineSnapshot } from "./SweepLine.js";
-import { AREA_NAMES, sweepLine, sweepSources } from "./words.js";
+import { AREA_NAMES, clock, freshnessGlyph, sweepLine, sweepSources } from "./words.js";
 
 const now = Date.parse("2026-11-05T12:00:00Z");
 const minutes = (n: number) => new Date(now - n * 60_000).toISOString();
@@ -71,56 +71,68 @@ async function render(node: ReactNode) {
 }
 
 it.each([
-  ["fresh", areas(), "swept 2 min ago · all fresh · next sync in 3 h", "fresh"],
+  ["fresh", areas(), "swept 2 min ago · all fresh · next sync in 3 h", "", "fresh"],
   [
     "failed",
     areas({ github: { state: "failed" }, runs: { state: "stale" }, security: cut }),
     "swept 2 min ago · 1 area failed · 1 cut · 1 stale · next sync in 3 h",
+    " · ⌀ 1 source failed, 1 cut, 1 stale",
     "bad",
   ],
-  ["cut", areas({ security: cut }), "swept 2 min ago · 1 area cut · next sync in 3 h", "warn"],
+  [
+    "cut",
+    areas({ security: cut }),
+    "swept 2 min ago · 1 area cut · next sync in 3 h",
+    " · ⌀ 1 source cut",
+    "warn",
+  ],
   [
     "stale",
     areas({ radar: { state: "stale" }, upstream: { state: "stale" } }),
     "swept 2 min ago · 2 areas stale · next sync in 3 h",
+    " · ⌀ 2 sources stale",
     "warn",
   ],
   [
     "all-inferred",
     areas({}, { inferred: true }),
     "swept 2 min ago · next sync in 3 h · inferred",
+    " · inferred",
     "inferred",
   ],
   [
     "one-inferred",
     areas({ fleet: { inferred: true } }),
     "swept 2 min ago · all fresh · next sync in 3 h",
+    "",
     "fresh",
   ],
   [
     "stale and all inferred",
     areas({ auth: { state: "stale" } }, { inferred: true }),
     "swept 2 min ago · 1 area stale · next sync in 3 h · inferred",
+    " · ⌀ 1 source stale · inferred",
     "warn",
   ],
   [
     "unread",
     areas().filter(({ area }) => area !== "details"),
     "swept 2 min ago · 1 area not read yet · next sync in 3 h",
+    "",
     "muted",
   ],
 ] as const)(
-  "says the %s sweep in one title-bar sentence with the worst tone",
-  async (_, list, text, tone) => {
+  "says the %s sweep in the Evidence sentence and the title-bar glyph with the worst tone",
+  async (_, list, text, glyph, tone) => {
     const sources = sweepSources(snapshot([...list])).map(({ envelope }) => envelope);
     expect(sweepLine({ sources, sweptAt, nextSyncAt, now })).toEqual({ text, tone });
+    const swept = `swept ${clock(sweptAt)}${glyph}`;
+    expect(freshnessGlyph({ sources, sweptAt })).toEqual({ text: swept, tone });
     const onOpen = vi.fn();
-    const view = await render(
-      <SweepLine snapshot={snapshot([...list])} onOpen={onOpen} now={now} />,
-    );
+    const view = await render(<SweepLine snapshot={snapshot([...list])} onOpen={onOpen} />);
     try {
       const line = view.container.querySelector<HTMLButtonElement>("[data-sweep-line]");
-      expect(line?.textContent).toBe(text);
+      expect(line?.textContent).toBe(swept);
       expect(line?.getAttribute("data-tone")).toBe(tone);
       await act(async () => line?.click());
       expect(onOpen).toHaveBeenCalledOnce();
@@ -131,15 +143,21 @@ it.each([
 );
 
 it.each([
-  ["eleven fresh areas", areas(), "swept 2 min ago · release lines read failed"],
+  [
+    "eleven fresh areas",
+    areas(),
+    "swept 2 min ago · release lines read failed",
+    " · ⌀ 1 source failed",
+  ],
   [
     "a stale area",
     areas({ runs: { state: "stale" } }),
     "swept 2 min ago · 1 area stale · release lines read failed",
+    " · ⌀ 1 source failed, 1 stale",
   ],
 ] as const)(
   "names a failed supplemental source apart from the area counts beside %s, worst tone kept",
-  async (_, list, text) => {
+  async (_, list, text, glyph) => {
     const releases: Envelope = {
       source: "releases",
       state: "failed",
@@ -167,11 +185,10 @@ it.each([
         now,
       }),
     ).toEqual({ text, tone: "bad" });
-    const view = await render(<SweepLine snapshot={body} onOpen={() => {}} now={now} />);
+    const view = await render(<SweepLine snapshot={body} onOpen={() => {}} />);
     try {
       const line = view.container.querySelector("[data-sweep-line]");
-      expect(line?.textContent).toBe(text);
-      expect(line?.textContent).not.toMatch(/\d+ areas? failed/);
+      expect(line?.textContent).toBe(`swept ${clock(sweptAt)}${glyph}`);
       expect(line?.getAttribute("data-tone")).toBe("bad");
     } finally {
       await view.cleanup();
@@ -180,7 +197,7 @@ it.each([
 );
 
 it("waits in muted words before the first sweep", async () => {
-  const view = await render(<SweepLine snapshot={null} onOpen={() => {}} now={now} />);
+  const view = await render(<SweepLine snapshot={null} onOpen={() => {}} />);
   try {
     const line = view.container.querySelector("[data-sweep-line]");
     expect(line?.textContent).toBe("waiting for the first sweep");

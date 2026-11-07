@@ -3,6 +3,7 @@
 
 import { type ReactNode, useEffect, useRef } from "react";
 import { useStore } from "zustand";
+import { Strip } from "../components/strip/Strip.js";
 import { watchStore } from "../store/watch.js";
 import Environment from "../views/environment/index.js";
 import Flow from "../views/flow/index.js";
@@ -56,6 +57,7 @@ export const DEFAULT_REGISTRY: Registry = {
     setup: () => <Setup />,
   },
   sheet: (_origin, presentation) => <Line presentation={presentation} />,
+  strip: () => <Strip />,
   fallback: { kind: "today" },
 };
 

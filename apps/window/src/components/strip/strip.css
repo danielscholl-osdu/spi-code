@@ -1,0 +1,12 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.strip { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 6px 14px; color: var(--text-muted); font-size: 12.5px; font-variant-numeric: tabular-nums; cursor: pointer; }
+.strip b { color: var(--text); font-weight: 600; }
+.strip-pips { display: inline-flex; margin: 0; padding: 0; list-style: none; gap: 2px; font-family: var(--font-mono); font-size: 12px; }
+.strip-pip { color: var(--text-muted); }
+.strip-pip[data-pip="stopped"], .strip [data-tone="bad"] { color: var(--error-text); }
+.strip-pip[data-pip="needs-person"], .strip [data-tone="warn"] { color: var(--warning-text); }
+.strip-pip[data-pip="in-progress"] { color: var(--accent-text); }
+.strip-space { flex: 1; }
+.strip-line { padding: 1px 8px; font-size: 12px; border-radius: 5px; color: var(--text-muted); }

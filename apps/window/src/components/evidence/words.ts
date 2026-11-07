@@ -249,3 +249,36 @@ export function sweepLine({ sources, sweptAt, nextSyncAt, now }: SweepLineInput)
   if (inferred) parts.push("inferred");
   return { text: parts.join(" · "), tone: worstTone(sources) };
 }
+
+/** A clock reading in the window's time zone, 24-hour `HH:MM`. */
+export function clock(at: string | number): string {
+  const date = new Date(at);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/**
+ * The title bar's freshness glyph (EV-03): when the sweep ran, then `⌀` and the count of sources
+ * failed, cut or stale when there are any. A source not read yet is not counted here.
+ */
+export function freshnessGlyph({ sources, sweptAt }: Omit<SweepLineInput, "now" | "nextSyncAt">): {
+  text: string;
+  tone: EvidenceTone;
+} {
+  const tally = (state: Envelope["state"]) =>
+    sources.filter((envelope) => envelope.state === state).length;
+  const counts = [
+    [tally("failed"), "failed"],
+    [tally("incomplete"), "cut"],
+    [tally("stale"), "stale"],
+  ] as const;
+  const parts = [`swept ${clock(sweptAt)}`];
+  const marks = counts
+    .filter(([n]) => n > 0)
+    .map(([n, word], index) =>
+      index === 0 ? `${n} ${n === 1 ? "source" : "sources"} ${word}` : `${n} ${word}`,
+    );
+  if (marks.length > 0) parts.push(`⌀ ${marks.join(", ")}`);
+  if (everyInferred(sources)) parts.push("inferred");
+  return { text: parts.join(" · "), tone: worstTone(sources) };
+}
