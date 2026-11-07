@@ -4,7 +4,7 @@
 import type { RepoLine, ViewSnapshot } from "@spi-code/contracts";
 import type { Route } from "../app/routes.js";
 import { inspectId } from "../views/environment/timeline.js";
-import { upstreamSelectionIds } from "../views/upstream/reading.js";
+import { upstreamItemRows, upstreamSelectionIds } from "../views/upstream/reading.js";
 
 export type SelectionKind =
   | "queue"
@@ -108,7 +108,7 @@ export function runRow(run: ServiceRun, serviceIndex: number): SelectionRow {
 /** Snapshot rows for title/field lookup, including existing callers that select only an id. */
 export function selectionRows(snapshot: ViewSnapshot): SelectionRow[] {
   const { briefing, releases } = snapshot;
-  return [
+  const rows: SelectionRow[] = [
     ...[...briefing.focus, ...briefing.rest].map(
       (item, index): SelectionRow => ({
         id: item.id,
@@ -217,6 +217,9 @@ export function selectionRows(snapshot: ViewSnapshot): SelectionRow[] {
       ),
     ),
   ];
+  // An Upstream item the briefing already lists keeps that row; only its own items are added.
+  const ids = new Set(rows.map(({ id }) => id));
+  return [...rows, ...upstreamItemRows(snapshot).filter(({ id }) => !ids.has(id))];
 }
 
 /** An inspect reference elsewhere in the sweep still keeps a Related selection alive. */

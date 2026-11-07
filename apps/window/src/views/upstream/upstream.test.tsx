@@ -152,6 +152,41 @@ it("shows the detected campaigns and reads their forks in Detail", async () => {
   );
 });
 
+it("refreshes a selected campaign's Detail when a sweep changes its forks", async () => {
+  const id = "campaign:toolchain:os-core-common%208.5.0";
+  await click(itemButton(id));
+  expect(detailFields().Forks?.split(", ")).toContain("workflow");
+  const body = fixture();
+  const title = "Detected: os-core-common 8.5.0 on 7 forks";
+  const swept: ViewSnapshot = {
+    ...body,
+    cursor: body.cursor + 1,
+    campaigns: body.campaigns.map((campaign) =>
+      campaign.id === id
+        ? { ...campaign, forks: campaign.forks.filter((fork) => fork !== "workflow") }
+        : campaign,
+    ),
+    readings: body.readings.map((reading) =>
+      reading.anchor.kind === "upstream" && reading.content
+        ? {
+            ...reading,
+            content: {
+              ...reading.content,
+              items: reading.content.items.map((item) =>
+                item.id === id ? { ...item, title } : item,
+              ),
+            },
+          }
+        : reading,
+    ),
+  };
+  await act(async () => load(swept));
+  expect(selectionStore.getState().selected).toBe(id);
+  expect(place().querySelector(`[data-item-id="${CSS.escape(id)}"]`)?.textContent).toContain(title);
+  expect(detailFields().Forks).toBe("crs-conversion, file, indexer, schema, search, storage, unit");
+  expect(container.querySelector('aside[aria-label="Detail"]')?.textContent).toContain(title);
+});
+
 it("lists Before next sync items as the same records Today shows, and selects them as Today does", async () => {
   const body = fixture();
   const before = itemIds("Before 00:00");
