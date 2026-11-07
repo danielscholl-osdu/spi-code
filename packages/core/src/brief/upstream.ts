@@ -279,6 +279,8 @@ export function stepWhy(
   step: ReturnType<typeof planStep>,
   now: Date,
   voice: Voice = APP_VOICE,
+  // The window's flow card names no branch; the inspector keeps the branch names.
+  branches = true,
 ): string {
   const at = stamp(u.schedule.upstream, now);
   switch (step.kind) {
@@ -287,9 +289,9 @@ export function stepWhy(
     case "dispatch":
       return "The sync PR merged and no cascade ran. Nothing moves until the cascade runs.";
     case "prepare":
-      return `Dispatches Sync Upstream${at ? ` now instead of at ${at}` : ""}. Each opens a sync PR into fork_upstream with the filtered tree. Nothing merges.`;
+      return `Dispatches Sync Upstream${at ? ` now instead of at ${at}` : ""}. Each opens a sync PR ${branches ? "into fork_upstream with the filtered tree" : "with the filtered upstream tree"}. Nothing merges.`;
     case "rerun":
-      return "A fix landed on fork_integration after the failed cascade, so it can run again.";
+      return `A fix landed on ${branches ? "fork_integration" : "the integration branch"} after the failed cascade, so it can run again.`;
     case "paused":
       return `${names(u.paused?.forks ?? [])} stopped in cascade on the same first error, so the move is the toolchain, not one fork. The rest absorb it before their cascade; forks already past it carry on.`;
     case "env":
@@ -595,7 +597,7 @@ export function upstreamView(u: UpstreamModel, now: Date, voice: Voice = APP_VOI
     })(),
     next: {
       title,
-      text: stepWhy(u, step, now, voice),
+      text: stepWhy(u, step, now, voice, false),
       ...(step.kind === "wait" && u.reviews.length === 0 && u.startWaits.length === 0
         ? { button: "Open the plan", quiet: true }
         : { button: `Open in inspector · ${title.split(":")[0]}`, quiet: false }),

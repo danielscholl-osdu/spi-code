@@ -41,6 +41,25 @@ function leaves(value: unknown, path: string[] = [], detail = false): Leaf[] {
   return [];
 }
 
+// The only briefing paths the window draws in Detail or Evidence; every other string is drawn copy.
+const BRIEFING_DETAIL = [
+  /^\/(focus|rest)\/\d+\/evidence\//,
+  /^\/flow\/rows\/\d+\/detail\//,
+  /^\/environment\/lanes\/\d+\/events\/\d+\/detail(\/|$)/,
+];
+
+function drawnBriefing(briefing: unknown): Leaf[] {
+  return leaves(briefing)
+    .filter((leaf) => !BRIEFING_DETAIL.some((pattern) => pattern.test(leaf.path)))
+    .map((leaf) => ({ ...leaf, path: `/briefing${leaf.path}`, detail: false }));
+}
+
+function named(drawn: readonly { path: string; text: string }[]) {
+  return drawn
+    .filter((leaf) => internalNames(leaf.text).length > 0)
+    .map(({ path, text }) => ({ path, text }));
+}
+
 describe.each(fixtures)("the text rules on $name", ({ name, body }) => {
   // An inspect fixture is a Detail panel through and through.
   const all = leaves(body, [], name.startsWith("inspect-"));
@@ -56,12 +75,18 @@ describe.each(fixtures)("the text rules on $name", ({ name, body }) => {
   });
 
   it("keeps internal names in Detail and Evidence", () => {
-    expect(
-      all
-        .filter((leaf) => !leaf.detail && internalNames(leaf.text).length > 0)
-        .map(({ path, text }) => ({ path, text })),
-    ).toEqual([]);
+    expect(named(all.filter((leaf) => !leaf.detail))).toEqual([]);
   });
+
+  const briefing = (body as { briefing?: unknown }).briefing;
+  it.runIf(briefing !== undefined)(
+    "keeps internal names out of every drawn briefing string",
+    () => {
+      const drawn = drawnBriefing(briefing);
+      expect(drawn.length).toBeGreaterThan(0);
+      expect(named(drawn)).toEqual([]);
+    },
+  );
 });
 
 // The upstream states drive every station branch and the list-built headlines past their length.
@@ -103,8 +128,12 @@ describe.each(states)("the text rules on the $name state", ({ model, briefing, r
   });
 
   it("keeps internal names out of station text and readings", () => {
-    expect([...stations, ...shown].filter((leaf) => internalNames(leaf.text).length > 0)).toEqual(
-      [],
-    );
+    expect(named([...stations, ...shown])).toEqual([]);
+  });
+
+  it("keeps internal names out of every drawn briefing string", () => {
+    const drawn = drawnBriefing(briefing);
+    expect(drawn.length).toBeGreaterThan(0);
+    expect(named(drawn)).toEqual([]);
   });
 });
