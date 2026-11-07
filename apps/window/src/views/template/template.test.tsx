@@ -361,3 +361,40 @@ it("opens the Engineering system through the existing Template route and selects
   expect(container.querySelector("aside .inspector-kicker")?.textContent).toBe("repository line");
   expect(fields().Reading).toBe("opened 16d ago · 0 comments");
 });
+
+it("opens Details when a row inside it is selected from outside the place, until the reader closes it", async () => {
+  const body = snapshot();
+  const { selection } = await mount(body);
+  const details = container.querySelector<HTMLDetailsElement>(".template-details");
+  const row = (id: string, kind: string) => {
+    const found = selectionRows(body).find((row) => row.id === id && row.kind === kind);
+    if (!found) throw new Error(`Recorded ${kind} row ${id} missing`);
+    return found;
+  };
+  const choose = (id: string, kind: string) =>
+    act(async () => selection.getState().select(id, row(id, kind)));
+  const id = "issue:Azure/osdu-spi:265";
+  const line = () =>
+    container.querySelector<HTMLElement>(`.template-lines li[data-selection-id="${id}"]`);
+  await choose("rollout", "queue");
+  expect(
+    container.querySelector('.place-item[data-item-id="rollout"]')?.hasAttribute("data-selected"),
+  ).toBe(true);
+  expect(details?.open).toBe(false);
+  await choose(id, "repository-line");
+  expect(details?.open).toBe(true);
+  expect(line()?.getAttribute("data-selected")).toBe("true");
+  expect(line()?.getAttribute("aria-selected")).toBe("true");
+  expect(line()?.closest("details")).toBe(details);
+  await click(".template-details > summary");
+  expect(details?.open).toBe(false);
+  await choose(id, "repository-line");
+  expect(details?.open).toBe(false);
+  const repo = body.briefing.repositories.rows.find(({ name }) => name === "osdu-spi");
+  if (!repo) throw new Error("Recorded template repository missing");
+  await choose(repo.id, "repository");
+  expect(details?.open).toBe(true);
+  expect(container.querySelector(".template-repo-lead")?.getAttribute("data-selected")).toBe(
+    "true",
+  );
+});
