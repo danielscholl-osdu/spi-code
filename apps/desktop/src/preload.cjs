@@ -39,6 +39,9 @@ ipcRenderer.on("host:port", (event) => {
   port.start();
 });
 if (process.argv.includes("--spi-smoke")) {
+  ipcRenderer.on("smoke:fixture", (_event, message) => {
+    for (const listener of listeners) listener(message);
+  });
   ipcRenderer.on("smoke:malformed", () => {
     if (!port) throw new Error("Smoke port is not connected");
     // Current PROTOCOL_VERSION, so the host rejects the probe for its extra field alone.

@@ -5,6 +5,195 @@ import assert from "node:assert/strict";
 import { APPENDIX_A_TOOLS } from "@spi-code/host";
 import type { SupervisionReport } from "./smoke-supervision.js";
 
+export const VIEW_SURFACES = [
+  {
+    id: "today",
+    name: "Today",
+    route: "today",
+    place: "Today",
+    selector: ".today .place-reading",
+    designSection: "The window / Today at rest",
+    qualified: true,
+  },
+  {
+    id: "strip",
+    name: "The strip",
+    route: "today",
+    place: "Today",
+    selector: "[data-strip]",
+    designSection: "The window; A / New: strip",
+    qualified: true,
+  },
+  {
+    id: "line",
+    name: "The Line sheet",
+    route: "today",
+    place: "Today",
+    selector: ".line-sheet[data-presentation=overlay] .line-grid",
+    designSection: "The window / The Line sheet",
+    qualified: true,
+  },
+  {
+    id: "upstream",
+    name: "Upstream",
+    route: "upstream",
+    place: "Upstream",
+    selector: ".upstream .place-reading",
+    designSection: "The window / Upstream",
+    qualified: true,
+  },
+  {
+    id: "environment",
+    name: "Environment",
+    route: "environment",
+    place: "Environment",
+    selector: ".environment .place-reading",
+    designSection: "The window / Places",
+    qualified: false,
+  },
+  {
+    id: "engineering-system",
+    name: "Engineering system",
+    route: "engineering-system",
+    place: "Engineering system",
+    selector: ".place[aria-label='Engineering system'] .place-reading",
+    designSection: "The window / Places",
+    qualified: false,
+  },
+  {
+    id: "releases",
+    name: "Releases",
+    route: "releases",
+    place: "Releases",
+    selector: ".place[aria-label=Releases] .place-reading",
+    designSection: "The window / Places",
+    qualified: false,
+  },
+  {
+    id: "security",
+    name: "Security",
+    route: "security",
+    place: "Security",
+    selector: ".place[aria-label=Security] .place-reading",
+    designSection: "The window / Places",
+    qualified: false,
+  },
+  {
+    id: "service",
+    name: "Service: entitlements",
+    route: "service/entitlements",
+    place: "entitlements",
+    selector: ".place[aria-label=entitlements] .place-reading",
+    designSection: "The window / Places (service reading)",
+    qualified: true,
+  },
+  {
+    id: "detail",
+    name: "Detail: detected os-core-common 8.5.0",
+    route: "upstream",
+    place: "Upstream",
+    selector: "aside[aria-label=Detail] .detail-row-fields",
+    designSection: "A / PS-04; Journeys; D / Detail defects",
+    qualified: true,
+  },
+  {
+    id: "setup",
+    name: "Setup",
+    route: "setup",
+    place: "Setup",
+    selector: "main section[aria-label='GraphQL budget']",
+    designSection: "A / PS-08 (Setup in sidebar); PRD PS-07",
+    qualified: false,
+  },
+] as const;
+
+export interface SmokeShot {
+  surface: string;
+  appearance: "light" | "dark";
+  file: string;
+  width: number;
+  height: number;
+  bytes: number;
+  dominantFraction: number;
+  qualifiers: string[];
+}
+
+export function assertSmokeShot(
+  surfaceId: string,
+  image: { width: number; height: number; bitmap: Uint8Array; bytes: number } | undefined,
+  qualifiers: readonly string[],
+): Pick<SmokeShot, "width" | "height" | "bytes" | "dominantFraction" | "qualifiers"> {
+  assert(image, `Missing screenshot: ${surfaceId}`);
+  const { width, height, bitmap, bytes } = image;
+  assert(width >= 640 && height >= 400 && bytes >= 1024, `Screenshot too small: ${surfaceId}`);
+  assert.equal(bitmap.length, width * height * 4, `Invalid bitmap: ${surfaceId}`);
+  const buckets = new Uint32Array(4096);
+  let dominant = 0;
+  for (let offset = 0; offset < bitmap.length; offset += 4) {
+    const bucket =
+      ((bitmap[offset] ?? 0) >> 4) |
+      (((bitmap[offset + 1] ?? 0) >> 4) << 4) |
+      (((bitmap[offset + 2] ?? 0) >> 4) << 8);
+    const count = (buckets[bucket] ?? 0) + 1;
+    buckets[bucket] = count;
+    dominant = Math.max(dominant, count);
+  }
+  const dominantFraction = dominant / (width * height);
+  assert(dominantFraction < 0.995, `Blank screenshot: ${surfaceId}`);
+  assertSmokeQualifiers(surfaceId, qualifiers);
+  return { width, height, bytes, dominantFraction, qualifiers: [...qualifiers] };
+}
+
+function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
+  const surface = VIEW_SURFACES.find(({ id }) => id === surfaceId);
+  assert(surface, `Unknown surface: ${surfaceId}`);
+  assert(Array.isArray(qualifiers) && qualifiers.every((text) => typeof text === "string"));
+  assert(/swept/i.test(qualifiers[0] ?? ""), `Missing sweep qualifier: ${surfaceId}`);
+  if (surface.qualified && !["strip", "line"].includes(surfaceId))
+    assert(
+      /failed|incomplete|truncated/i.test(qualifiers[1] ?? ""),
+      `Missing envelope qualifier: ${surfaceId}`,
+    );
+}
+
+export function assertSmokeViews(value: unknown): asserts value is SmokeShot[] {
+  assert(Array.isArray(value), "Missing views step");
+  assert.equal(value.length, VIEW_SURFACES.length * 2, "Missing screenshot");
+  for (const { id } of VIEW_SURFACES) {
+    for (const appearance of ["light", "dark"]) {
+      const matches: Record<string, unknown>[] = value.filter(
+        (shot: unknown): shot is Record<string, unknown> =>
+          shot !== null &&
+          typeof shot === "object" &&
+          "surface" in shot &&
+          shot.surface === id &&
+          "appearance" in shot &&
+          shot.appearance === appearance,
+      );
+      assert.equal(matches.length, 1, `Missing or duplicate screenshot: ${id}/${appearance}`);
+      const [shot] = matches;
+      assert(shot);
+      assert.equal(shot.file, `views/${id}-${appearance}.png`);
+      assert(
+        typeof shot.width === "number" &&
+          shot.width >= 640 &&
+          typeof shot.height === "number" &&
+          shot.height >= 400 &&
+          typeof shot.bytes === "number" &&
+          shot.bytes >= 1024,
+        "Screenshot too small",
+      );
+      assert(
+        typeof shot.dominantFraction === "number" &&
+          shot.dominantFraction >= 0 &&
+          shot.dominantFraction < 0.995,
+        "Blank screenshot",
+      );
+      assertSmokeQualifiers(id, shot.qualifiers);
+    }
+  }
+}
+
 export interface SmokeReport {
   mainPid: number;
   hostPid: number;
@@ -24,6 +213,7 @@ export interface SmokeReport {
   tools: { name: string; outcome: "completed" | "refused" | "error" }[];
   deniedBuiltIn: { name: string; outcome: "refused" };
   supervision: SupervisionReport;
+  views: SmokeShot[];
 }
 
 export function assertSmokeReport(value: unknown): asserts value is SmokeReport {
@@ -54,6 +244,7 @@ export function assertSmokeReport(value: unknown): asserts value is SmokeReport 
   assert.equal(report.malformed, "rejected");
   assert.equal(report.rowSurvived, true);
   assert.deepEqual(report.listeners, []);
+  assertSmokeViews(report.views);
   assertSmokeTools(report.tools, report.deniedBuiltIn);
   assert(report.supervision !== null && typeof report.supervision === "object");
   const supervision = report.supervision as Record<string, unknown>;
