@@ -358,6 +358,8 @@ function sendAcknowledge(cursor: number) {
  */
 function useLanding(route: Route, sheet: SheetPresentation, registry: Registry) {
   const snapshot = useStore(watchStore, (state) => state.snapshot);
+  // The Watch gate holds Today's items while Watch is not ready, so nothing was seen.
+  const watchShown = useStore(watchStore, (state) => !state.setup || state.setup.watchReady);
 
   useEffect(() => saveLastPlace(route), [route]);
 
@@ -371,7 +373,7 @@ function useLanding(route: Route, sheet: SheetPresentation, registry: Registry) 
   }, [snapshot, registry]);
 
   useEffect(() => {
-    if (!snapshot || route.kind !== "today" || sheet === "overlay") return;
+    if (!snapshot || !watchShown || route.kind !== "today" || sheet === "overlay") return;
     const { cursor } = snapshot;
     const check = () => {
       if (document.visibilityState !== "visible" || !document.hasFocus()) return;
@@ -386,7 +388,7 @@ function useLanding(route: Route, sheet: SheetPresentation, registry: Registry) 
       window.removeEventListener("focus", check);
       document.removeEventListener("visibilitychange", check);
     };
-  }, [snapshot, route, sheet]);
+  }, [snapshot, watchShown, route, sheet]);
 }
 
 /** The current route, kept in the location hash so a reload returns to the same place. */

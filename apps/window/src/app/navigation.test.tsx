@@ -411,4 +411,22 @@ describe("landing", () => {
     await go({ kind: "today" });
     expect(acknowledged()).toEqual([{ cursor: 4 }, { cursor: 5 }]);
   });
+
+  it("does not acknowledge while the Watch gate holds Today's items", async () => {
+    const setup = (watchReady: boolean) =>
+      act(async () =>
+        watchStore.setState({
+          setup: { tools: [], watchReady, disabledReason: watchReady ? null : "gh-missing" },
+        }),
+      );
+    await launch();
+    await setup(false);
+    await go({ kind: "today" });
+    await arrive(4, { cursor: 3, since: ["halt:legal"] });
+    expect(shown()).toBe("#today");
+    expect(acknowledged()).toEqual([]);
+
+    await setup(true);
+    expect(acknowledged()).toEqual([{ cursor: 4 }]);
+  });
 });
