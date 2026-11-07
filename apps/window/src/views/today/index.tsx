@@ -4,11 +4,11 @@
 import type { Reading, SweepStatus, ViewSnapshot } from "@spi-code/contracts";
 import { useStore } from "zustand";
 import { type Navigation, navigate } from "../../app/navigation.js";
+import { scopeRoute, treeServices } from "../../app/queue.js";
 import { sectionSources } from "../../components/evidence/SectionEvidence.js";
 import { byWorst } from "../../components/evidence/words.js";
 import { Place } from "../../components/place/Place.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
-import { scopeRoute, treeServices } from "../inbox/queue.js";
 import "./today.css";
 
 type Item = ViewSnapshot["briefing"]["focus"][number];

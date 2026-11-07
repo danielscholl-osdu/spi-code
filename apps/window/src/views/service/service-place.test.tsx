@@ -6,6 +6,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
+import { treeServices } from "../../app/queue.js";
 import { DEFAULT_REGISTRY } from "../../app/routes.js";
 import { inScope } from "../../components/sidebar/attention.js";
 import { RightPanel } from "../../panels/RightPanel.js";
@@ -13,7 +14,6 @@ import { createSelectionStore } from "../../panels/selection.js";
 import { utc } from "../../panels/selection-rows.js";
 import { PINS_STORAGE_KEY, readPins } from "../../store/pins.js";
 import { createWatchStore } from "../../store/watch.js";
-import { treeServices } from "../inbox/queue.js";
 import ServicePlace from "./index.js";
 
 const cleanups: (() => Promise<void>)[] = [];

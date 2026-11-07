@@ -4,7 +4,7 @@
 import type { Reading } from "@spi-code/contracts";
 import type { ReactNode } from "react";
 import { type Navigation, PLACES, routeLabel } from "../../app/navigation.js";
-import { scopeRoute } from "../../views/inbox/queue.js";
+import { scopeRoute } from "../../app/queue.js";
 import "./place.css";
 
 export type PlaceProps = {

@@ -4,6 +4,7 @@
 import type { Reading, RepoEntry, RepoLine, ViewSnapshot } from "@spi-code/contracts";
 import { useStore } from "zustand";
 import { navigate } from "../../app/navigation.js";
+import { type QueueEntry, treeServices } from "../../app/queue.js";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
 import { Place } from "../../components/place/Place.js";
 import { isReadFigure, RepositoryFacts } from "../../components/place/RepositoryFacts.js";
@@ -15,9 +16,7 @@ import {
 } from "../../panels/selection-rows.js";
 import { useSelectionList } from "../../panels/useSelectionList.js";
 import { watchStore } from "../../store/watch.js";
-import { QueueRow } from "../inbox/index.js";
-import { type QueueEntry, treeServices } from "../inbox/queue.js";
-import "../inbox/inbox.css";
+import { QueueRow } from "./QueueRow.js";
 import "./template.css";
 
 const TEMPLATE_REPOSITORY = "osdu-spi";

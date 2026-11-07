@@ -5,19 +5,19 @@ in the window's own title bar space (beside the macOS traffic lights, or under t
 Windows caption overlay) and draggable except on its controls, with
 toggles for the sidebar (⌘B), terminal (⌘J, not available yet) and right panel (⌘I),
 using Ctrl on Windows; a 232 px sidebar of things; the middle frame; and the right panel.
-The sidebar lists Find or ask, Inbox, Program (Template, Environment, Releases), the
-services in fleet order, Lenses (Flow, Repositories, Horizon), the Settled shelf and a
-footer with Setup and the sweep time. Find or ask, the Inbox and the footer stay put
-while the groups between them scroll. The groups fold, and the fold is saved in
-localStorage; on a window shorter than 760 px Lenses folds first, then Program, unless
-the operator chose otherwise. Below 980 px wide the sidebar opens off-canvas and Escape
-closes it.
+The sidebar lists Find or ask, Today, Line, Places (Upstream, Environment, Engineering
+system, Releases, Security), the services the operator pinned, the Settled shelf and a
+footer with Setup and the sweep time. Places and Pinned scroll between the header and
+the shelf. The groups fold, and the fold is saved in localStorage; on a window shorter
+than 640 px Places folds unless the operator chose otherwise. Below 980 px wide the
+sidebar opens off-canvas and Escape closes it.
 
-The location hash holds the route: `inbox` (the landing place), `service/<id>`,
-`template`, `environment`, `releases`, `release/<month>`, `lens/<flow|repositories|horizon>`
-and `setup`. `app/routes.tsx` parses it and picks the middle frame's view; pages that
-are not built yet say so. Appearance follows the system unless pinned in the title
-bar; the pin is saved in localStorage.
+The location hash holds the route: `today`, `upstream`,
+`environment`, `engineering-system` (`template` still opens it), `releases`,
+`release/<month>`, `security`, `service/<id>` and `setup`. `app/navigation.tsx` parses
+it and `app/routes.tsx` picks the middle frame's view. A retired hash (`inbox`,
+`lens/<flow|repositories|horizon>`) or an unknown one opens Today. Appearance follows
+the system unless pinned in the title bar; the pin is saved in localStorage.
 
 The Line sheet opens over any surface with ⌘L (Ctrl+L on Windows), without
 replacing the centre or its selection. Escape or Close returns to that surface.

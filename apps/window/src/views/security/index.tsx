@@ -3,9 +3,9 @@
 
 import { useStore } from "zustand";
 import { navigate } from "../../app/navigation.js";
+import { treeServices } from "../../app/queue.js";
 import { Place } from "../../components/place/Place.js";
 import { watchStore } from "../../store/watch.js";
-import { treeServices } from "../inbox/queue.js";
 
 export default function Security() {
   const snapshot = useStore(watchStore, (state) => state.snapshot?.body);

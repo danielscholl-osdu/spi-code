@@ -3,7 +3,7 @@
 
 import type { FocusItem, ViewSnapshot } from "@spi-code/contracts";
 import { useState } from "react";
-import { queueGroups, scopeRoute, treeServices } from "../../views/inbox/queue.js";
+import { queueGroups, scopeRoute, treeServices } from "../../app/queue.js";
 
 export type SidebarAttention = {
   dot: "p0" | "p1" | "p2" | "unread" | undefined;

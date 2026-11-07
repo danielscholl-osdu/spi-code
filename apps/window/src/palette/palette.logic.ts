@@ -22,6 +22,7 @@
 // SOFTWARE.
 
 import type { Briefing } from "@spi-code/contracts";
+import { treeServices } from "../app/queue.js";
 import {
   DEFAULT_REGISTRY,
   isReachable,
@@ -30,7 +31,6 @@ import {
   type Route,
   routeLabel,
 } from "../app/routes.js";
-import { treeServices } from "../views/inbox/queue.js";
 import { foldSearchQuery, rankSearchGroups, scoreSearchTerms } from "./search.js";
 
 export type PaletteTarget = { kind: "route"; route: Route } | { kind: "queue"; id: string };

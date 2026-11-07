@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { Briefing, FocusItem } from "@spi-code/contracts";
-import type { Route } from "../../app/routes.js";
+import type { Route } from "./routes.js";
 
 export type QueueEntry = { item: FocusItem; pointer: string };
 export type QueueGroup = { rung: FocusItem["rung"]; label: string; entries: QueueEntry[] };

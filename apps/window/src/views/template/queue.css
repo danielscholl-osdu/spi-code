@@ -6,36 +6,6 @@
   font-family: var(--font-sans);
   font-size: 13px;
 }
-.inbox-tool {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: -16px -16px 14px;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--border-soft);
-  font-size: 12px;
-  color: var(--text-muted);
-}
-.inbox-tool h1 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-}
-.inbox-head {
-  max-width: 70ch;
-  margin: 0 0 4px;
-  color: var(--text-strong);
-  font-size: 17px;
-  font-weight: 600;
-  line-height: 1.35;
-  text-wrap: balance;
-}
-.inbox-summary {
-  max-width: 80ch;
-  margin: 0 0 12px;
-  color: var(--text-muted);
-}
 .inbox-facts {
   display: flex;
   flex-wrap: wrap;
@@ -73,8 +43,7 @@
   color: var(--success-text);
 }
 .inbox-fact-sub,
-.inbox-sub,
-.inbox-empty {
+.inbox-sub {
   color: var(--text-muted);
   font-size: 11.5px;
 }
@@ -99,17 +68,6 @@
 .inbox-section-count {
   color: var(--text-muted);
   font-size: 11.5px;
-}
-.inbox-evidence {
-  margin-left: auto;
-  color: var(--warning-text);
-  font-size: 11px;
-}
-.inbox-evidence:is([data-state="failed"], [data-state="unread"]) {
-  color: var(--error-text);
-}
-.inbox-tool .inbox-evidence {
-  margin-left: 0;
 }
 .inbox-rows {
   margin: 0;
@@ -169,60 +127,18 @@ button.inbox-scope {
   background: var(--surface);
   color: var(--text-muted);
 }
-.inbox-row-title,
-.inbox-link {
+.inbox-row-title {
   padding: 0;
   border: 0;
   background: transparent;
   color: var(--text-strong);
   font: inherit;
   text-align: left;
-  cursor: pointer;
-}
-.inbox-row-title {
   font-weight: 600;
-}
-.inbox-link {
-  color: var(--accent-text);
+  cursor: pointer;
 }
 .inbox-class {
   margin-left: 8px;
   color: var(--text-muted);
   font-size: 11px;
-}
-.inbox-more summary {
-  padding: 6px 10px;
-  color: var(--text-muted);
-  font-size: 12px;
-  cursor: pointer;
-}
-.inbox-ready {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border-soft);
-  color: var(--text-muted);
-  font-size: 12px;
-}
-.inbox-sweep {
-  display: grid;
-  gap: 6px;
-  margin: 12px 0 0;
-}
-.inbox-sweep-field {
-  display: flex;
-  gap: 12px;
-}
-.inbox-sweep-field dt {
-  min-width: 110px;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 12px;
-}
-.inbox-sweep-field dd {
-  margin: 0;
-}
-.inbox-sweep-field ul {
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }

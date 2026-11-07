@@ -5,6 +5,7 @@ import type { Reading, RepoLine } from "@spi-code/contracts";
 import { useId } from "react";
 import { useStore } from "zustand";
 import { navigate } from "../../app/navigation.js";
+import { treeServices } from "../../app/queue.js";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
 import { Place } from "../../components/place/Place.js";
 import { RepositoryFacts } from "../../components/place/RepositoryFacts.js";
@@ -17,7 +18,6 @@ import {
 } from "../../panels/selection-rows.js";
 import { useSelectionList } from "../../panels/useSelectionList.js";
 import { watchStore } from "../../store/watch.js";
-import { treeServices } from "../inbox/queue.js";
 import { FlowContext } from "./flow-context.js";
 import {
   eventKey,
