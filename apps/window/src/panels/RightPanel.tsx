@@ -68,6 +68,7 @@ function Inspector({
   row: SelectionRow | null;
   snapshot: ViewSnapshot | undefined;
 }) {
+  const relatedEntries = result.related.filter((related) => plainTitle(related.text));
   return (
     <article className="inspector" data-class={result.class}>
       <p className="inspector-kicker">
@@ -95,11 +96,11 @@ function Inspector({
           </ul>
         </>
       )}
-      {result.related.length > 0 && (
+      {relatedEntries.length > 0 && (
         <>
           <h3>Related</h3>
           <dl className="inspector-related" aria-label="Related">
-            {result.related.map((related) => (
+            {relatedEntries.map((related) => (
               <div key={`${related.text}/${related.state}`}>
                 <dt>{related.state}</dt>
                 <dd>
