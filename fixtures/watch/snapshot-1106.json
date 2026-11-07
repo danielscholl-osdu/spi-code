@@ -706,7 +706,7 @@
         {
           "label": "Waiting on you",
           "value": "0",
-          "sub": "0 presses in SPI Code · 0 reviews on GitHub",
+          "sub": "0 actions in SPI Code · 0 reviews on GitHub",
           "tone": "neutral"
         },
         {
@@ -3582,7 +3582,7 @@
         "open": true,
         "stateText": "In progress, closes Nov 30",
         "notes": "none",
-        "headline": "Releases for November 2026 are not fully read yet: spi-template, spi-stack, core-lib-azure, partition, entitlements, legal, schema, file, storage, indexer, search, workflow, indexer-queue, unit, crs-catalog, crs-conversion.",
+        "headline": "Releases for November 2026 are not fully read yet.",
         "stats": [
           {
             "figure": "?/13",
@@ -3650,7 +3650,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-person",
-          "text": "gate 3 · PR #198",
+          "text": "PR #198",
           "inspect": "station:partition:release"
         },
         {
@@ -3697,7 +3697,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "stopped",
-          "text": "gate 3 · PR #89",
+          "text": "PR #89",
           "inspect": "station:entitlements:release"
         },
         {
@@ -3744,7 +3744,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-person",
-          "text": "gate 3 · PR #48",
+          "text": "PR #48",
           "inspect": "station:legal:release"
         },
         {
@@ -3791,7 +3791,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-person",
-          "text": "gate 3 · PR #40",
+          "text": "PR #40",
           "inspect": "station:schema:release"
         },
         {
@@ -3838,7 +3838,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-person",
-          "text": "gate 3 · PR #55",
+          "text": "PR #55",
           "inspect": "station:file:release"
         },
         {
@@ -3864,7 +3864,7 @@
           "id": "sync",
           "state": "waiting",
           "substate": "waiting-on-person",
-          "text": "gate 1 · PR #58",
+          "text": "PR #58",
           "inspect": "station:storage:sync"
         },
         {
@@ -3885,7 +3885,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-person",
-          "text": "gate 3 · PR #57",
+          "text": "PR #57",
           "inspect": "station:storage:release"
         },
         {
@@ -3911,7 +3911,7 @@
           "id": "sync",
           "state": "waiting",
           "substate": "waiting-on-person",
-          "text": "gate 1 · PR #58",
+          "text": "PR #58",
           "inspect": "station:indexer:sync"
         },
         {
@@ -3932,7 +3932,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-person",
-          "text": "gate 3 · PR #33",
+          "text": "PR #33",
           "inspect": "station:indexer:release"
         },
         {
@@ -3979,7 +3979,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-person",
-          "text": "gate 3 · PR #29",
+          "text": "PR #29",
           "inspect": "station:search:release"
         },
         {
@@ -4026,7 +4026,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-person",
-          "text": "gate 3 · PR #38",
+          "text": "PR #38",
           "inspect": "station:workflow:release"
         },
         {
@@ -4052,7 +4052,7 @@
           "id": "sync",
           "state": "waiting",
           "substate": "waiting-on-person",
-          "text": "gate 1 · PR #58",
+          "text": "PR #58",
           "inspect": "station:indexer-queue:sync"
         },
         {
@@ -4073,7 +4073,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-person",
-          "text": "gate 3 · PR #45",
+          "text": "PR #45",
           "inspect": "station:indexer-queue:release"
         },
         {
@@ -4120,7 +4120,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-person",
-          "text": "gate 3 · PR #21",
+          "text": "PR #21",
           "inspect": "station:unit:release"
         },
         {
@@ -4167,7 +4167,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-person",
-          "text": "gate 3 · PR #19",
+          "text": "PR #19",
           "inspect": "station:crs-catalog:release"
         },
         {
@@ -4214,7 +4214,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-person",
-          "text": "gate 3 · PR #17",
+          "text": "PR #17",
           "inspect": "station:crs-conversion:release"
         },
         {
@@ -4423,7 +4423,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "gate 3 · PR #198"
+            "text": "PR #198"
           }
         }
       ]
@@ -4623,7 +4623,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "gate 3 · PR #89"
+            "text": "PR #89"
           }
         }
       ]
@@ -4823,7 +4823,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "gate 3 · PR #48"
+            "text": "PR #48"
           }
         }
       ]
@@ -5023,7 +5023,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "gate 3 · PR #40"
+            "text": "PR #40"
           }
         }
       ]
@@ -5223,7 +5223,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "gate 3 · PR #55"
+            "text": "PR #55"
           }
         }
       ]
@@ -5423,7 +5423,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "gate 3 · PR #57"
+            "text": "PR #57"
           }
         }
       ]
@@ -5623,7 +5623,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "gate 3 · PR #33"
+            "text": "PR #33"
           }
         }
       ]
@@ -5823,7 +5823,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "gate 3 · PR #29"
+            "text": "PR #29"
           }
         }
       ]
@@ -6009,7 +6009,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "gate 3 · PR #38"
+            "text": "PR #38"
           }
         }
       ]
@@ -6174,7 +6174,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "gate 3 · PR #45"
+            "text": "PR #45"
           }
         }
       ]
@@ -6367,7 +6367,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "gate 3 · PR #21"
+            "text": "PR #21"
           }
         }
       ]
@@ -6567,7 +6567,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "gate 3 · PR #19"
+            "text": "PR #19"
           }
         }
       ]
@@ -6746,7 +6746,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "gate 3 · PR #17"
+            "text": "PR #17"
           }
         }
       ]

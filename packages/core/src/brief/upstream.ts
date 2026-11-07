@@ -359,7 +359,7 @@ function scheduleCard(u: UpstreamModel, now: Date, voice: Voice): UpstreamView["
   return { title: `At ${at} if you do nothing`, text };
 }
 
-function planningWords(u: UpstreamModel): { headline: string; sub: string } {
+function planningWords(u: UpstreamModel): { headline: string; pilot: string; sub: string } {
   const moving = u.moving.length;
   const unread = u.unread > 0 ? ` ${plural(u.unread, "fork")} unread.` : "";
   const lead =
@@ -372,18 +372,23 @@ function planningWords(u: UpstreamModel): { headline: string; sub: string } {
         : `${plural(u.commits, "upstream commit")} ${u.commits === 1 ? "waits" : "wait"} across ${plural(u.behind, "fork")}.${unread}`;
   const pilot =
     moving > 1
-      ? ` ${moving} forks move ${library(u)}, so start with one pilot.`
+      ? `${moving} forks move ${library(u)}, so start with one pilot.`
       : moving === 1
-        ? ` ${u.moving[0]?.service} moves ${library(u)}.`
+        ? `${u.moving[0]?.service} moves ${library(u)}.`
         : "";
   const prepared = u.forks.filter((f) => f.phase === "prepared").length;
-  return {
-    headline: `${lead}${pilot}`,
-    sub:
-      prepared > 0
-        ? `${plural(prepared, "sync PR")} ${prepared === 1 ? "is" : "are"} prepared. Nothing syncs until you merge one.`
-        : "Nothing syncs until you merge a sync PR. The schedule only prepares them.",
-  };
+  const rest =
+    prepared > 0
+      ? `${plural(prepared, "sync PR")} ${prepared === 1 ? "is" : "are"} prepared. Nothing syncs until you merge one.`
+      : "Nothing syncs until you merge a sync PR. The schedule only prepares them.";
+  return { headline: lead, pilot, sub: pilot ? `${pilot} ${rest}` : rest };
+}
+
+// The whole statement for Detail, which keeps the pilot guidance the headline leaves to sub.
+export function flowStatement(u: UpstreamModel): string {
+  if (u.mode === "flight") return flightWords(u).headline;
+  const words = planningWords(u);
+  return words.pilot ? `${words.headline} ${words.pilot}` : words.headline;
 }
 
 function flightWords(u: UpstreamModel): { headline: string; sub: string } {
@@ -499,7 +504,7 @@ function tilesOf(u: UpstreamModel, voice: Voice): UpTile[] {
     {
       label: "Waiting on you",
       value: String(gates + u.reviews.length),
-      sub: `${plural(gates, "press", "presses")} in ${voice.name} · ${plural(u.reviews.length, "review")} on GitHub`,
+      sub: `${plural(gates, "action")} in ${voice.name} · ${plural(u.reviews.length, "review")} on GitHub`,
       tone: gates + u.reviews.length > 0 ? "warn" : "neutral",
     },
     {
@@ -556,7 +561,8 @@ export function upstreamView(u: UpstreamModel, now: Date, voice: Voice = APP_VOI
   const title = stepTitle(u, step);
   return {
     mode: u.mode,
-    ...words,
+    headline: words.headline,
+    sub: words.sub,
     tiles: tilesOf(u, voice),
     rows: planOrder(u)
       .filter((f) => f.phase !== "unread" || u.mode === "quiet")
