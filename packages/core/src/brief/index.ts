@@ -24,7 +24,7 @@ import {
   stoppedAttempts,
   viewRun,
 } from "../model/stack.js";
-import { age, clip, plural, short, span, stamp, whose } from "../util.js";
+import { age, clip, firstAndMore, fitHeadline, plural, short, span, stamp, whose } from "../util.js";
 import { type Repositories, repositoriesOf } from "./repos.js";
 import { rolloutWords } from "./rollout.js";
 import { type UpstreamView, upstreamView } from "./upstream.js";
@@ -208,8 +208,8 @@ function stoppedLines(model: Model): LineModel[] {
   return model.lines.filter((l) => STOPPED.has(l.pill.kind));
 }
 
-// The imperative that clears an incident, as the headline says it.
-function clause(item: QueueItem): string {
+// The imperative that clears an incident, as the headline says it; short names one entry and counts the rest.
+function clause(item: QueueItem, cut = false): string {
   if (ENVIRONMENT.has(item.kind)) return "Restore the environment";
   switch (item.kind) {
     case "halt":
@@ -239,7 +239,8 @@ function clause(item: QueueItem): string {
           ? `Move ${item.scope} to Java ${java}`
           : `Absorb the toolchain move on ${item.scope}`;
       }
-      return `Classify ${list(item.halt?.entries ?? ["the entry"])} on ${item.scope}`;
+      const entries = item.halt?.entries ?? ["the entry"];
+      return `Classify ${cut ? firstAndMore(entries) : list(entries)} on ${item.scope}`;
     }
   }
   if (item.cls === "TOOLCHAIN") {
@@ -277,37 +278,57 @@ function headlineOf(
   const radar = focusable.filter((i) => i.kind === "radar");
   const rollout = focusable.filter((i) => i.kind === "rollout" && !i.incident);
   const used = new Set<string>();
-  const sentences: string[] = [];
+  // Each cause in three lengths: its full sentence, with its lists cut to one name, and the bare imperative.
+  const causes: { full: string; short: string; base: string }[] = [];
   const seen = new Set<string>();
   for (const lead of [...incidents, ...rollout, ...radar]) {
     if (used.has(lead.id)) continue;
     used.add(lead.id);
-    let text = clause(lead);
+    let tail = "";
+    let shortTail = "";
     if (lead.kind === "rollout") {
       const at = stamp(model.rollout?.schedule.template, now);
-      if (model.rollout?.phase === "ready" && at) text += ` before the ${at} template sync`;
+      if (model.rollout?.phase === "ready" && at) tail = ` before the ${at} template sync`;
+      shortTail = tail;
     } else if (lead.kind === "radar") {
-      text += next ? ` before the ${next} sync` : " before the next sync";
+      tail = next ? ` before the ${next} sync` : " before the next sync";
+      shortTail = tail;
     } else {
       const follow = followers(lead, radar).filter((r) => !used.has(r.id));
       for (const f of follow) used.add(f.id);
       if (follow.length > 0) {
         const scopes = follow.map((f) => f.scope);
         const verb = lead.kind === "halt" ? "halts" : "follows";
-        text += ` before ${list(scopes)} ${scopes.length === 1 ? verb : verb.slice(0, -1)}${next ? ` at ${next}` : ""}`;
+        const agree = scopes.length === 1 ? verb : verb.slice(0, -1);
+        const at = next ? ` at ${next}` : "";
+        tail = ` before ${list(scopes)} ${agree}${at}`;
+        shortTail = ` before ${firstAndMore(scopes)} ${agree}${at}`;
       }
     }
-    if (seen.has(text)) continue;
-    seen.add(text);
-    sentences.push(sentence(text));
+    const full = `${clause(lead)}${tail}`;
+    if (seen.has(full)) continue;
+    seen.add(full);
+    causes.push({
+      full: sentence(full),
+      short: sentence(`${clause(lead, true)}${shortTail}`),
+      base: sentence(clause(lead, true)),
+    });
   }
-  if (sentences.length > HEADLINE_CAUSES) {
-    const more = sentences.length - HEADLINE_CAUSES;
-    return [...sentences.slice(0, HEADLINE_CAUSES), `${plural(more, "more cause")} below.`].join(
-      " ",
-    );
+  if (causes.length > 0) {
+    const headline = (take: number, form: "full" | "short" | "base") => {
+      const more = causes.length - take;
+      const said = causes.slice(0, take).map((c) => c[form]);
+      return [...said, ...(more > 0 ? [`${plural(more, "more cause")} below.`] : [])].join(" ");
+    };
+    const two = Math.min(causes.length, HEADLINE_CAUSES);
+    return fitHeadline([
+      headline(two, "full"),
+      headline(two, "short"),
+      headline(1, "short"),
+      headline(two, "base"),
+      headline(1, "base"),
+    ]);
   }
-  if (sentences.length > 0) return sentences.join(" ");
   const p1 = model.queue.counts.p1;
   if (p1 > 0) return `${plural(p1, "decision")} ${p1 === 1 ? "waits" : "wait"} on you.`;
   if (ready > 0) {
@@ -565,12 +586,20 @@ function describe(
         ? stuck.find((s) => s.cls === "TOOLCHAIN" && javaOf(s) === java)
         : undefined;
     const queued = /(\d+) commits? queued/.exec(item.text)?.[1];
+    const entries = item.halt?.entries ?? ["an entry"];
+    const halts = fitHeadline([
+      `Next sync halts on ${list(entries)}`,
+      `Next sync halts on ${firstAndMore(entries)}`,
+    ]);
     return {
       title:
         item.cls === "TOOLCHAIN"
           ? `Next sync carries ${fact(item, "value") ?? "a toolchain move"}`
-          : `Next sync halts on ${list(item.halt?.entries ?? ["an entry"])}`,
+          : halts,
       sub: [
+        item.cls !== "TOOLCHAIN" && entries.length > 1 && !halts.endsWith(list(entries))
+          ? `entries ${list(entries)}`
+          : undefined,
         queued ? `${plural(Number(queued), "commit")} queued` : undefined,
         next ? `syncs at ${next}` : undefined,
         like ? `expected to fail the way ${whose(like.scope)} did` : undefined,
@@ -1077,21 +1106,30 @@ function themesOf(model: Model, now: Date, next: string | undefined): Theme[] {
 }
 
 function horizonOf(themes: readonly Theme[], next: string | undefined): string {
-  const parts: string[] = [];
+  const at = next ? `at ${next}` : "at the next sync";
+  let toolFull: string | undefined;
+  let toolShort: string | undefined;
   for (const t of themes) {
     if (t.kind !== "toolchain") continue;
     const queued = t.certain.filter((f) => f.state.startsWith("queued")).map((f) => f.fork);
     if (queued.length === 0) continue;
-    parts.push(`${t.title} reaches ${list(queued)} ${next ? `at ${next}` : "at the next sync"}.`);
+    toolFull = `${t.title} reaches ${list(queued)} ${at}.`;
+    toolShort = `${t.title} reaches ${firstAndMore(queued)} ${at}.`;
     break;
   }
-  const halt = themes.find((t) => t.kind === "halt" && t.exposed.length + t.possible.length >= 2);
-  if (halt) {
-    parts.push(
-      `One filter entry would stop ${halt.exposed.length + halt.possible.length} future halts.`,
-    );
-  }
-  return parts.length > 0 ? parts.join(" ") : "Nothing new reaches the forks at the next sync.";
+  const exposed = themes.find((t) => t.kind === "halt" && t.exposed.length + t.possible.length >= 2);
+  const halt = exposed
+    ? `One filter entry would stop ${exposed.exposed.length + exposed.possible.length} future halts.`
+    : undefined;
+  // The halt theme stays on its own row when the move needs the whole headline.
+  const candidates = [
+    [toolFull, halt],
+    [toolShort, halt],
+    [toolFull],
+    [toolShort],
+  ].map((parts) => parts.filter((p): p is string => !!p).join(" "));
+  const fit = fitHeadline(candidates.filter((c) => c.length > 0));
+  return fit || "Nothing new reaches the forks at the next sync.";
 }
 
 const ENV_LANES: ReadonlyArray<[EnvLane["id"] & LifecycleKind, string]> = Object.freeze([

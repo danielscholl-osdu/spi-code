@@ -333,10 +333,10 @@ export function buildLine(input: {
     stations.push({
       id: "main",
       state: "stopped",
-      text: `gate 2 · PR #${cascadePr.pr.number} red`,
+      text: `PR #${cascadePr.pr.number} red`,
     });
   else if (cascadePr)
-    stations.push({ id: "main", state: "waiting", text: `gate 2 · PR #${cascadePr.pr.number}` });
+    stations.push({ id: "main", state: "waiting", text: `PR #${cascadePr.pr.number}` });
   else if (mainRed && mainRed.cls !== "ENV")
     stations.push({ id: "main", state: "stopped", text: "main red" });
   else if (!proof) stations.push({ id: "main", state: "unknown", text: "unproven" });

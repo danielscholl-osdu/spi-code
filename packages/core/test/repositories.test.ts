@@ -80,10 +80,22 @@ describe("the Repositories briefing", () => {
     expect(partition?.sections[0]).toMatchObject({ count: "0 ours", rest: " · 1 upstream" });
   });
 
+  test("a critical alert on many repositories names the first and counts the rest", () => {
+    const r = repositoriesOf(
+      model((f) => {
+        for (const repo of Object.values(f.security.data ?? {})) repo?.dependabot?.push(CRITICAL);
+      }),
+      FIXTURE_NOW,
+    );
+    expect(r.headline).toMatch(
+      /^Critical vulnerability in async-http-client on \S+ and \d+ more\.$/,
+    );
+  });
+
   test("a critical alert in our shipped code leads the tab and opens first", () => {
     const r = repositoriesOf(model(withCritical), FIXTURE_NOW);
     expect(r.headline).toBe(
-      "Critical vulnerability in async-http-client, in SPI code on partition; no fix is published.",
+      "Critical vulnerability in async-http-client on partition; no fix is published.",
     );
     expect(r.first).toBe("repo:partition");
     const partition = r.rows.find((x) => x.name === "partition");

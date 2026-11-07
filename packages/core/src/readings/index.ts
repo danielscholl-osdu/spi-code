@@ -5,7 +5,7 @@ import type { Fleet } from "../config.js";
 import type { ReadRecord } from "../evidence/index.js";
 import type { Model } from "../model/index.js";
 import { type LineModel, prRed, type Station } from "../model/lines.js";
-import { plural, since } from "../util.js";
+import { plural, since, wordCount } from "../util.js";
 import { type SecurityReadingItem, serviceSecurityItem } from "./security.js";
 
 export const READING_ITEMS = 5;
@@ -128,9 +128,7 @@ export function readingText(reading: PlaceReading<ReadingItem>): string[] {
   ];
 }
 
-export function wordCount(text: string): number {
-  return text.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
-}
+export { wordCount };
 
 export function readingWords(reading: PlaceReading<ReadingItem>): number {
   return readingText(reading).reduce((sum, line) => sum + wordCount(line), 0);

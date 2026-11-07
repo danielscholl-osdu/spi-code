@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "vitest";
+import { flowStatement, upstreamView } from "../src/brief/upstream";
 import { builtInFleet, fleetOf } from "../src/config";
 import { createContext } from "../src/context";
 import type { Facts } from "../src/facts";
@@ -194,5 +195,25 @@ describe("proof before a step counts", () => {
     const m = modelOf(f);
     expect(fork(m, "partition").wait).toBe("its sync PR has no checks yet");
     expect(m.upstream.startNext).toEqual([]);
+  });
+});
+
+describe("the flight headline", () => {
+  test("a gate list too long for the headline names the first and leads sub whole", () => {
+    const u = modelOf(stoppedFacts()).upstream;
+    const view = upstreamView(u, UPSTREAM_NOW);
+    const whole =
+      "4 gates wait on you: start file, start workflow, re-run storage's cascade, review schema.";
+    expect(view.headline).toBe("4 gates wait on you: start file and 3 more.");
+    expect(view.sub.startsWith(whole)).toBe(true);
+    expect(flowStatement(u)).toBe(whole);
+  });
+
+  test("a statement that would push the headline past 12 words moves to sub", () => {
+    const u = modelOf(pilotFacts()).upstream;
+    const view = upstreamView(u, UPSTREAM_NOW);
+    expect(view.headline).toBe("Partition and indexer-queue are in cascade; nothing waits on you.");
+    expect(view.sub.startsWith("0 of 13 forks are on main.")).toBe(true);
+    expect(flowStatement(u)).toBe(`${view.headline} 0 of 13 forks are on main.`);
   });
 });

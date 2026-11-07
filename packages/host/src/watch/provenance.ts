@@ -106,13 +106,13 @@ export function stationAreas(station: { id: string; state: string; text: string 
       return ordered(state === "waiting" ? ["github", "upstream", "radar"] : ["upstream"]);
     case "sync":
       // A halt issue or the sync PR (github); otherwise the last Sync Upstream run (runs).
-      return ordered(/^(halted: |PR #|gate 1 · )/.test(text) ? GITHUB : GITHUB_RUNS);
+      return ordered(/^(halted: |PR #)/.test(text) ? GITHUB : GITHUB_RUNS);
     case "cascade":
       // Conflict issues and stop labels (github); otherwise also a running cascade (runs).
       return ordered(state === "stopped" ? GITHUB : GITHUB_RUNS);
     case "main":
       // The cascade PR (github); otherwise also the proving main run and its jobs (runs).
-      return ordered(text.startsWith("gate 2 · ") ? GITHUB : GITHUB_RUNS);
+      return ordered(text.startsWith("PR #") ? GITHUB : GITHUB_RUNS);
     case "release":
       // The release PR or the latest release tag, both github.
       return ordered(GITHUB);

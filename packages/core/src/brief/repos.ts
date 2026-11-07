@@ -13,7 +13,7 @@ import type {
   Tally,
 } from "../model/repos.js";
 import { needsHuman } from "../model/work.js";
-import { age, plural } from "../util.js";
+import { age, firstAndMore, fitHeadline, plural } from "../util.js";
 import type { BriefFact, Tone } from "./index.js";
 
 export const REPO_PREFIX = "repo:";
@@ -602,7 +602,16 @@ function headlineOf(rows: readonly RepoRow[]): string {
           ? `; ${first.g.fix} fixes it`
           : "; no fix is published";
     const more = critical.size > 1 ? ` ${critical.size - 1} more critical in SPI code.` : "";
-    return `${alertTitle(first.g)}, in SPI code on ${list(first.repos)}${fix}.${more}`;
+    const title = alertTitle(first.g);
+    const on = firstAndMore(first.repos);
+    const kind = first.g.source === "dependabot" ? "vulnerability" : "code-scanning alert";
+    return fitHeadline([
+      `${title}, in SPI code on ${list(first.repos)}${fix}.${more}`,
+      `${title}, in SPI code on ${on}${fix}.${more}`,
+      `${title} on ${on}${fix}.`,
+      `${title} on ${on}.`,
+      `Critical ${kind} in SPI code on ${on}.`,
+    ]);
   }
   const vulns = rows.reduce((n, r) => n + (r.vulnerabilities?.ours ?? 0), 0);
   const code = rows.reduce((n, r) => n + (r.codeScanning?.ours ?? 0), 0);
