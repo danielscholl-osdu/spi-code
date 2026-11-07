@@ -135,10 +135,24 @@ it("keeps pins across a reload, from local storage", async () => {
   await act(async () => pin("partition"));
   expect(rows("Pinned")).toEqual(["schema", "partition"]);
   await act(async () => root.unmount());
+  vi.resetModules();
+  const pins = await import("../../store/pins.js");
+  const sidebar = await import("./ProgramSidebar.js");
+  const ui = await import("./ui-sidebar.js");
+  const watch = await import("../../store/watch.js");
+  expect(pins.readPins()).toEqual(["schema", "partition"]);
+  const store = watch.createWatchStore(vi.fn());
+  store.setState({ snapshot: { cursor: recordedBody.cursor, body: recordedBody } });
   root = createRoot(container);
-  await render();
+  await act(async () =>
+    root.render(
+      <ui.SidebarProvider>
+        <sidebar.ProgramSidebar store={store} route={{ kind: "today" }} onNavigate={vi.fn()} />
+      </ui.SidebarProvider>,
+    ),
+  );
   expect(rows("Pinned")).toEqual(["schema", "partition"]);
-  await act(async () => unpin("schema"));
+  await act(async () => pins.unpin("schema"));
   expect(rows("Pinned")).toEqual(["partition"]);
 });
 

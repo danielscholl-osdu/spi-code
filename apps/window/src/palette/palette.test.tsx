@@ -300,7 +300,7 @@ it("moves with the arrows, opens with Enter, and filters as the operator types",
   expect(window.location.hash).toBe("#service/legal");
 });
 
-it("opens a service result and pins it on Ctrl+Enter, and unpins it when pinned", async () => {
+it("opens a service result and pins it on Ctrl+Enter, and keeps it pinned when pinned", async () => {
   localStorage.setItem(PINS_STORAGE_KEY, "[]");
   await shortcut({ ctrlKey: true });
   await type("legal");
@@ -313,17 +313,19 @@ it("opens a service result and pins it on Ctrl+Enter, and unpins it when pinned"
   expect(container.querySelector('[data-sidebar-row="service/legal"]')).not.toBeNull();
 
   await shortcut({ ctrlKey: true });
-  await type("legal");
-  expect(hint()).toContain("Ctrl+Enter open and unpin");
-  await key("Enter", { ctrlKey: true });
-  expect(readPins()).toEqual([]);
-  expect(container.querySelector('[data-sidebar-row="service/legal"]')).toBeNull();
-
-  await shortcut({ ctrlKey: true });
   await type("Releases");
   await key("Enter", { ctrlKey: true });
   expect(window.location.hash).toBe("#releases");
-  expect(readPins()).toEqual([]);
+  expect(readPins()).toEqual(["legal"]);
+
+  await shortcut({ ctrlKey: true });
+  await type("legal");
+  expect(hint()).toContain("Ctrl+Enter open and pin");
+  await key("Enter", { ctrlKey: true });
+  expect(palettes()).toHaveLength(0);
+  expect(window.location.hash).toBe("#service/legal");
+  expect(readPins()).toEqual(["legal"]);
+  expect(container.querySelector('[data-sidebar-row="service/legal"]')).not.toBeNull();
 
   vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
@@ -332,11 +334,11 @@ it("opens a service result and pins it on Ctrl+Enter, and unpins it when pinned"
   await type("schema");
   expect(hint()).toContain("⌘↩ open and pin");
   await key("Enter", { ctrlKey: true });
-  expect(readPins()).toEqual([]);
+  expect(readPins()).toEqual(["legal"]);
   expect(palettes()).toHaveLength(1);
   await key("Enter", { metaKey: true });
   expect(window.location.hash).toBe("#service/schema");
-  expect(readPins()).toEqual(["schema"]);
+  expect(readPins()).toEqual(["legal", "schema"]);
 });
 
 it("finds every place and every service of the Nov 6 fleet", async () => {

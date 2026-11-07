@@ -29,7 +29,7 @@ import { type Route, useRegistry } from "../app/routes.js";
 import { isMacPlatform } from "../app/shortcuts.js";
 import { AttentionDot } from "../components/AttentionDot.js";
 import { useSidebarAttention } from "../components/sidebar/attention.js";
-import { togglePin, usePins } from "../store/pins.js";
+import { pin } from "../store/pins.js";
 import type { createWatchStore } from "../store/watch.js";
 import {
   buildPaletteGroups,
@@ -42,7 +42,7 @@ import "./palette.css";
 /**
  * Find (PS-12): Go to, Services, Lenses and Queue. The shell opens it from ⌘K or Ctrl+K (through
  * PanelControls' shortcuts) and from the sidebar's field. ⏎ opens a result; ⌘↩ (Ctrl+Enter) opens
- * a service and pins it, or unpins it when it is pinned. Esc closes it and focus returns to the
+ * a service and pins it, leaving a pinned service pinned. Esc closes it and focus returns to the
  * opener.
  */
 export function CommandPalette({
@@ -96,7 +96,6 @@ function PaletteContent({
   const select = useStore(store, (state) => state.select);
   const [query, setQuery] = useState("");
   const [highlighted, setHighlighted] = useState<string | undefined>(undefined);
-  const pins = usePins();
   const registry = useRegistry();
   const groups = useMemo(() => buildPaletteGroups(body, registry), [body, registry]);
   const shown = useMemo(() => filterPaletteGroups(groups, query), [groups, query]);
@@ -149,7 +148,7 @@ function PaletteContent({
             highlightedItem
           ) {
             event.preventDefault();
-            if (highlightedService) togglePin(highlightedService);
+            if (highlightedService) pin(highlightedService);
             run(highlightedItem);
           }
         }}
@@ -202,10 +201,7 @@ function PaletteContent({
       <div className="palette-hint">
         <span>↑↓ move</span>
         <span>⏎ open</span>
-        <span>
-          {isMacPlatform() ? "⌘↩" : "Ctrl+Enter"} open and{" "}
-          {highlightedService && pins.includes(highlightedService) ? "unpin" : "pin"}
-        </span>
+        <span>{isMacPlatform() ? "⌘↩" : "Ctrl+Enter"} open and pin</span>
         <span>esc close</span>
       </div>
     </Autocomplete.Root>
