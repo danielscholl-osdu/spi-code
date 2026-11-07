@@ -133,6 +133,15 @@ it("fails on a missing shot, including a missing appearance or duplicate surface
   expect(() => assertSmokeViews(duplicate)).toThrow("Missing or duplicate screenshot");
 });
 
+it("rejects a missing dark appearance even when the screenshot count is unchanged", () => {
+  const mutation = report.views.map((shot) =>
+    shot.surface === "security" && shot.appearance === "dark"
+      ? { ...shot, appearance: "system" }
+      : shot,
+  );
+  expect(() => assertSmokeViews(mutation)).toThrow("security/dark");
+});
+
 it.each([24, 240])("fails uniform and nearly one-colour images (%s)", (background) => {
   for (const inkPixels of [0, 1, 1280]) {
     expect(() =>
