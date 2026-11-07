@@ -4,6 +4,7 @@
 import type { RepoLine, ViewSnapshot } from "@spi-code/contracts";
 import type { Route } from "../app/routes.js";
 import { inspectId } from "../views/environment/timeline.js";
+import { upstreamSelectionIds } from "../views/upstream/reading.js";
 
 export type SelectionKind =
   | "queue"
@@ -297,6 +298,7 @@ export function routeSelectionIds(snapshot: ViewSnapshot, route: Route): string[
         .filter(({ month }) => month === route.month)
         .map(({ id }) => id);
     case "upstream":
+      return upstreamSelectionIds(snapshot);
     case "security":
     case "setup":
       return [];

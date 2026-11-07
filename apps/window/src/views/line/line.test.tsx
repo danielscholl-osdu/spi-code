@@ -87,6 +87,7 @@ it("opens with Cmd-L over every registered surface and Escape restores its centr
   await mount();
   const routes: Route[] = [
     { kind: "today" },
+    { kind: "upstream" },
     { kind: "environment" },
     { kind: "engineering-system" },
     { kind: "releases" },

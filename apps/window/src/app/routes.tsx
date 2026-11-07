@@ -16,6 +16,7 @@ import Setup from "../views/setup/index.js";
 import { WatchGate } from "../views/setup/WatchGate.js";
 import Template from "../views/template/index.js";
 import Today from "../views/today/index.js";
+import Upstream from "../views/upstream/index.js";
 import {
   type Destination,
   type Registry,
@@ -32,10 +33,11 @@ function gated(route: Route, page: ReactNode) {
   return <WatchGate label={routeLabel(route)}>{page}</WatchGate>;
 }
 
-/** The window's views by route. Upstream stays unlisted until its component exists. */
+/** The window's views by route. */
 export const DEFAULT_REGISTRY: Registry = {
   views: {
     today: (route) => gated(route, <Today />),
+    upstream: (route) => gated(route, <Upstream />),
     environment: (route) => gated(route, <Environment />),
     "engineering-system": (route) => gated(route, <Template />),
     releases: (route) => gated(route, <Releases />),
