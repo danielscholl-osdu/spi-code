@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
 import { buildBriefing, type FocusItem } from "../src/brief/index.js";
@@ -94,7 +95,7 @@ describe("Upstream reading on the recorded 6 Nov sweep", () => {
     const read = (records: ReadRecord[]) =>
       upstreamReading({ model, items, radar: records, fleet: context.fleet, campaigns: [] });
     expect(upstream().qualifier).toBe(
-      "GitLab cut the upstream diffs for 6 services and the reads failed for 3 services, so a toolchain move could be missing.",
+      "GitLab truncated the upstream diffs for 6 services and the reads failed for 3 services, so a toolchain move could be missing.",
     );
     const uncut = radar.filter((record) => record.completeness.kind !== "cut");
     expect(read(uncut).qualifier).toBe(
@@ -311,6 +312,21 @@ describe("Service readings on the recorded 6 Nov sweep", () => {
     expect(blocked).not.toHaveProperty("qualifier");
   });
 
+  it.each([false, true])(
+    "uses window wording for truncated service reads (failed: %s)",
+    (failed) => {
+      const reads = radar
+        .filter((record) => record.completeness.kind === "cut")
+        .map((record) => ({ ...record, ...(failed ? { failure: "HTTP 502" } : {}) }));
+      const reading = serviceReading({ model, service: "entitlements", items, reads, now });
+      expect(reading?.qualifier).toContain("GitLab truncated this service's upstream diffs");
+      expect(reading?.qualifier).not.toMatch(/\bcut\b/i);
+      expect(reading?.qualifier).toContain(
+        failed ? "a read failed" : "a toolchain move could be missing",
+      );
+    },
+  );
+
   it("caps a service at five items and folds the rest", () => {
     const extra: FocusItem[] = Array.from({ length: 7 }, (_, n) => ({
       ...(items[0] as FocusItem),
@@ -400,5 +416,28 @@ describe("placeReading", () => {
     expect(internalNames("two presses left")).toEqual(["presses"]);
     expect(internalNames("cut: 6 services")).toEqual(["cut as a label"]);
     expect(internalNames("GitLab cut the upstream diffs")).toEqual([]);
+  });
+});
+
+describe("Watch snapshot qualifiers", () => {
+  it("keeps the internal word cut out of every emitted qualifier", () => {
+    const root = new URL("../../../fixtures/watch/", import.meta.url);
+    const snapshots = readdirSync(root).filter(
+      (name) => name.startsWith("snapshot") && name.endsWith(".json"),
+    );
+    expect(snapshots.length).toBeGreaterThan(0);
+    let qualifiers = 0;
+    for (const name of snapshots) {
+      const snapshot: {
+        readings: { anchor: unknown; content: PlaceReading<ReadingItem> | null }[];
+      } = JSON.parse(readFileSync(new URL(name, root), "utf8"));
+      expect(snapshot.readings.length, name).toBeGreaterThan(0);
+      for (const { anchor, content } of snapshot.readings) {
+        if (!content?.qualifier) continue;
+        qualifiers++;
+        expect(content.qualifier, `${name}: ${JSON.stringify(anchor)}`).not.toMatch(/\bcut\b/i);
+      }
+    }
+    expect(qualifiers).toBeGreaterThan(0);
   });
 });

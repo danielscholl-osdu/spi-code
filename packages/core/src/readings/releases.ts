@@ -126,7 +126,7 @@ function qualifierOf(reads: readonly ReadRecord[]): string | undefined {
   const cut = count(isCut);
   const failed = count(isFailed);
   const parts = [
-    cut > 0 ? `GitHub cut the reads for ${plural(cut, "repository", "repositories")}` : undefined,
+    cut > 0 ? `GitHub truncated the reads for ${plural(cut, "repository", "repositories")}` : undefined,
     failed > 0 ? `${cut > 0 ? "the" : "The"} reads failed for ${plural(failed, "repository", "repositories")}` : undefined,
   ].filter(Boolean);
   return parts.length > 0 ? `${parts.join(" and ")}, so a release PR or month could be missing.` : undefined;

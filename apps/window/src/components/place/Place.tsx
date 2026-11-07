@@ -61,9 +61,7 @@ export function Place({
       {content && (
         <section className="place-reading" aria-label={`${name} reading`}>
           <h2 className="place-headline">{content.headline}</h2>
-          {content.qualifier && (
-            <p className="place-qualifier">{content.qualifier.replace(/\bcut\b/g, "truncated")}</p>
-          )}
+          {content.qualifier && <p className="place-qualifier">{content.qualifier}</p>}
           <dl className="place-tiles">
             {content.tiles.map((tile, index) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: The three tile positions are fixed; labels may repeat.

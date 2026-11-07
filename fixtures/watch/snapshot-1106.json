@@ -2166,7 +2166,7 @@
       },
       "content": {
         "headline": "At 00:00, 107 commits reach 10 forks. Two need you first.",
-        "qualifier": "GitLab cut the upstream diffs for 6 services and the reads failed for 3 services, so a toolchain move could be missing.",
+        "qualifier": "GitLab truncated the upstream diffs for 6 services and the reads failed for 3 services, so a toolchain move could be missing.",
         "tiles": [
           {
             "label": "Incoming",
@@ -2553,7 +2553,7 @@
       },
       "content": {
         "headline": "Next sync halts on schemathesis-tests.",
-        "qualifier": "GitLab cut this service's upstream diffs, so a toolchain move could be missing.",
+        "qualifier": "GitLab truncated this service's upstream diffs, so a toolchain move could be missing.",
         "tiles": [
           {
             "label": "Upstream",
@@ -2626,7 +2626,7 @@
       },
       "content": {
         "headline": "Cascade stopped on a merge conflict.",
-        "qualifier": "GitLab cut this service's upstream diffs, so a toolchain move could be missing.",
+        "qualifier": "GitLab truncated this service's upstream diffs, so a toolchain move could be missing.",
         "tiles": [
           {
             "label": "Upstream",
@@ -2801,7 +2801,7 @@
       },
       "content": {
         "headline": "Next sync carries os-core-common 8.5.0.",
-        "qualifier": "GitLab cut this service's upstream diffs, so a toolchain move could be missing.",
+        "qualifier": "GitLab truncated this service's upstream diffs, so a toolchain move could be missing.",
         "tiles": [
           {
             "label": "Upstream",
@@ -2878,7 +2878,7 @@
       },
       "content": {
         "headline": "Next sync carries os-core-common 8.5.0.",
-        "qualifier": "GitLab cut this service's upstream diffs, so a toolchain move could be missing.",
+        "qualifier": "GitLab truncated this service's upstream diffs, so a toolchain move could be missing.",
         "tiles": [
           {
             "label": "Upstream",
@@ -2951,7 +2951,7 @@
       },
       "content": {
         "headline": "Sync PR #58 waits for review.",
-        "qualifier": "GitLab cut this service's upstream diffs, so a toolchain move could be missing.",
+        "qualifier": "GitLab truncated this service's upstream diffs, so a toolchain move could be missing.",
         "tiles": [
           {
             "label": "Upstream",
@@ -3144,7 +3144,7 @@
       },
       "content": {
         "headline": "Next sync carries os-core-common 8.5.0.",
-        "qualifier": "GitLab cut this service's upstream diffs, so a toolchain move could be missing.",
+        "qualifier": "GitLab truncated this service's upstream diffs, so a toolchain move could be missing.",
         "tiles": [
           {
             "label": "Upstream",
