@@ -274,6 +274,10 @@ export function routeSelectionIds(snapshot: ViewSnapshot, route: Route): string[
       ];
     case "environment":
       return [
+        ...(
+          snapshot.readings.find(({ anchor }) => anchor.kind === "environment")?.content?.items ??
+          []
+        ).map(({ id }) => id),
         ...briefing.environment.lanes.flatMap((lane) =>
           lane.events.map((event) => inspectId(lane, event)),
         ),

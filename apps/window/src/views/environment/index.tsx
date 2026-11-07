@@ -1,17 +1,22 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { RepoLine } from "@spi-code/contracts";
+import type { Reading, RepoLine } from "@spi-code/contracts";
+import { useId } from "react";
 import { useStore } from "zustand";
+import { navigate } from "../../app/navigation.js";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
+import { Place } from "../../components/place/Place.js";
 import { type SelectionStore, selectionStore } from "../../panels/selection.js";
 import {
   repositoryLinePointer,
   repositoryLineRow,
   type SelectionRow,
+  selectionRows,
 } from "../../panels/selection-rows.js";
 import { useSelectionList } from "../../panels/useSelectionList.js";
 import { watchStore } from "../../store/watch.js";
+import { treeServices } from "../inbox/queue.js";
 import {
   eventKey,
   eventText,
@@ -42,6 +47,9 @@ function LineReading({ line }: { line: RepoLine }) {
   );
 }
 
+const NO_READING: Reading = { anchor: { kind: "environment" }, content: null };
+
+/** The Environment place: the reading, then the stack's runs and its repository, each folded. */
 export default function Environment({
   store = watchStore,
   inspector = selectionStore,
@@ -49,8 +57,13 @@ export default function Environment({
   store?: typeof watchStore;
   inspector?: SelectionStore;
 }) {
+  const runsHeading = useId();
+  const repositoryHeading = useId();
   const snapshot = useStore(store, (state) => state.snapshot);
-  const env = snapshot?.body.briefing.environment;
+  const selected = useStore(inspector, (state) => state.selected);
+  const body = snapshot?.body;
+  const env = body?.briefing.environment;
+  const reading = body?.readings.find(({ anchor }) => anchor.kind === "environment") ?? NO_READING;
   const from = env ? Date.parse(env.from) : 0;
   const to = env ? Date.parse(env.to) : 0;
   const lanes =
@@ -75,7 +88,7 @@ export default function Environment({
     undefined,
     inspector,
   );
-  const repositories = snapshot?.body.briefing.repositories.rows ?? [];
+  const repositories = body?.briefing.repositories.rows ?? [];
   const repositoryIndex = repositories.findIndex((row) => row.name === "osdu-spi-stack");
   const repository = repositories[repositoryIndex];
   const repositoryPointer = `/briefing/repositories/rows/${repositoryIndex}`;
@@ -93,48 +106,65 @@ export default function Environment({
     undefined,
     inspector,
   );
-  if (!snapshot || !env)
+  const placeView = (
+    <Place
+      name="Environment"
+      reading={reading}
+      services={treeServices(body?.tree)}
+      onNavigate={navigate}
+      onSelect={(id) => {
+        const row =
+          body && selectionRows(body).find((row) => row.kind === "queue" && row.id === id);
+        if (!row) return;
+        inspector.getState().select(row.id, row);
+        inspector.getState().setTab("detail");
+      }}
+      {...(selected !== null ? { selectedId: selected } : {})}
+    />
+  );
+  if (!body || !env)
     return (
-      <>
-        <h1>Environment</h1>
-        <p role="status">Waiting for the first sweep.</p>
-      </>
+      <div className="environment" data-view-pane="environment">
+        {placeView}
+      </div>
     );
   // Keep duration text deterministic for the snapshot rather than ticking on the renderer clock.
   const now = new Date(to);
   const ticks = hourTicks(from, to);
-  const evidence = snapshot.body;
   return (
-    <div className="environment">
-      <h1>Environment</h1>
-      <SectionEvidence evidence={evidence} prefixes={["/briefing/environment/headline"]} />
-      <h2 data-pointer="/briefing/environment/headline">{env.headline}</h2>
-      {env.facts.length > 0 && (
-        <>
-          <SectionEvidence evidence={evidence} prefixes={["/briefing/environment/facts"]} />
-          <div className="env-facts">
-            {env.facts.map((fact, index) => {
-              const pointer = `/briefing/environment/facts/${index}/figure`;
-              return (
-                <div
-                  className={`env-fact tone-${fact.tone}`}
-                  data-pointer={pointer}
-                  key={fact.label}
-                >
-                  <div className="env-fact-label">{fact.label}</div>
-                  <strong>{fact.figure}</strong>
-                  <div>{fact.sub}</div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-      {(env.lanes.length > 0 || env.note) && (
-        <section aria-label="Lane events">
+    <div className="environment" data-view-pane="environment">
+      {placeView}
+      <details className="env-part" data-part="runs">
+        <summary id={runsHeading}>Stack runs</summary>
+        <section className="env-part-body" aria-labelledby={runsHeading}>
+          <SectionEvidence evidence={body} prefixes={["/briefing/environment/headline"]} />
+          <p className="env-lead" data-pointer="/briefing/environment/headline">
+            {env.headline}
+          </p>
+          {env.facts.length > 0 && (
+            <>
+              <SectionEvidence evidence={body} prefixes={["/briefing/environment/facts"]} />
+              <div className="env-facts">
+                {env.facts.map((fact, index) => {
+                  const pointer = `/briefing/environment/facts/${index}/figure`;
+                  return (
+                    <div
+                      className={`env-fact tone-${fact.tone}`}
+                      data-pointer={pointer}
+                      key={fact.label}
+                    >
+                      <div className="env-fact-label">{fact.label}</div>
+                      <strong>{fact.figure}</strong>
+                      <div>{fact.sub}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
           {env.lanes.length > 0 && (
             <>
-              <SectionEvidence evidence={evidence} prefixes={["/briefing/environment/lanes"]} />
+              <SectionEvidence evidence={body} prefixes={["/briefing/environment/lanes"]} />
               <div role="listbox" aria-label="Lane events" data-selection-list>
                 <div className="env-scroll">
                   <div className="env-timeline" style={{ minWidth: TRACK_MIN_PX + 84 }}>
@@ -213,64 +243,58 @@ export default function Environment({
           )}
           {env.note && (
             <>
-              <SectionEvidence evidence={evidence} prefixes={["/briefing/environment/note"]} />
+              <SectionEvidence evidence={body} prefixes={["/briefing/environment/note"]} />
               <p className="env-note" data-pointer="/briefing/environment/note">
                 {env.note}
               </p>
             </>
           )}
         </section>
-      )}
+      </details>
       {repository && (
-        <section className="env-section" aria-label="Repository" data-pointer={repositoryPointer}>
-          <h2>
-            Repository <small>{repository.name}</small>
-          </h2>
-          <SectionEvidence evidence={evidence} prefixes={[repositoryPointer]} />
-          {repository.title && <p data-tone={repository.tone}>{repository.title}</p>}
-          {repository.sub && <p className="env-muted">{repository.sub}</p>}
-          <div role="listbox" aria-label="Stack repository lines" data-selection-list>
-            {sections.map((section) => (
-              <div className="env-repo-section" key={section.title} data-weight={section.weight}>
-                <h3>
-                  {section.title}{" "}
-                  <small>
-                    {section.count}
-                    {section.rest}
-                  </small>
-                </h3>
-                {section.lines.map(({ line, pointer, row }) => {
-                  return row ? (
-                    <button
-                      className="env-repo-line"
-                      type="button"
-                      role="option"
-                      key={pointer}
-                      data-pointer={pointer}
-                      {...lines.rowProps(row)}
-                    >
-                      <LineReading line={line} />
-                    </button>
-                  ) : (
-                    <div className="env-repo-line" key={pointer} data-pointer={pointer}>
-                      <LineReading line={line} />
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-          {repository.note && <p className="env-muted">{repository.note}</p>}
-        </section>
+        <details className="env-part" data-part="repository" data-pointer={repositoryPointer}>
+          <summary id={repositoryHeading}>
+            Stack repository <small>{repository.name}</small>
+          </summary>
+          <section className="env-part-body" aria-labelledby={repositoryHeading}>
+            <SectionEvidence evidence={body} prefixes={[repositoryPointer]} />
+            {repository.title && <p data-tone={repository.tone}>{repository.title}</p>}
+            {repository.sub && <p className="env-muted">{repository.sub}</p>}
+            <div role="listbox" aria-label="Stack repository lines" data-selection-list>
+              {sections.map((section) => (
+                <div className="env-repo-section" key={section.title} data-weight={section.weight}>
+                  <h3>
+                    {section.title}{" "}
+                    <small>
+                      {section.count}
+                      {section.rest}
+                    </small>
+                  </h3>
+                  {section.lines.map(({ line, pointer, row }) => {
+                    return row ? (
+                      <button
+                        className="env-repo-line"
+                        type="button"
+                        role="option"
+                        key={pointer}
+                        data-pointer={pointer}
+                        {...lines.rowProps(row)}
+                      >
+                        <LineReading line={line} />
+                      </button>
+                    ) : (
+                      <div className="env-repo-line" key={pointer} data-pointer={pointer}>
+                        <LineReading line={line} />
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+            {repository.note && <p className="env-muted">{repository.note}</p>}
+          </section>
+        </details>
       )}
-      <section className="env-section" aria-label="Threads">
-        <h2>Threads</h2>
-        <p className="env-muted">Threads are not available yet.</p>
-      </section>
-      <section className="env-section" aria-label="Live cluster">
-        <h2>Live cluster</h2>
-        <p className="env-muted">Live reads are not available yet.</p>
-      </section>
     </div>
   );
 }
