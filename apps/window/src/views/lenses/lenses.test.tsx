@@ -7,12 +7,15 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import briefing from "../../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import releases from "../../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
-import { type Lens, navigate } from "../../app/routes.js";
+import { DEFAULT_REGISTRY, navigate } from "../../app/routes.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { testSnapshot } from "../../store/test-snapshot.js";
 import { watchStore } from "../../store/watch.js";
-import { lensSortStore } from "./table.js";
+import Flow from "../flow/index.js";
+import Horizon from "../horizon/index.js";
+import Repositories from "../repositories/index.js";
+import { type Lens, lensSortStore } from "./table.js";
 
 const recorded = () => testSnapshot(briefing, releases);
 const send = vi.fn();
@@ -50,8 +53,8 @@ afterEach(async () => {
 async function mount(lens: Lens, body = recorded()) {
   watchStore.setState({ snapshot: { cursor: 1, body } });
   await act(async () => {
-    navigate({ kind: "lens", lens });
-    root.render(<Shell />);
+    navigate({ kind: "today" });
+    renderLens(lens);
   });
 }
 
@@ -68,7 +71,19 @@ const table = () => need("main table");
 const rows = () => [...table().querySelectorAll<HTMLTableRowElement>("tr[data-selection-id]")];
 const ids = () => rows().map((row) => row.dataset.selectionId);
 const click = (element: HTMLElement) => act(async () => element.click());
-const go = (lens: Lens) => act(async () => navigate({ kind: "lens", lens }));
+function renderLens(lens: Lens) {
+  const views = { flow: Flow, repositories: Repositories, horizon: Horizon };
+  const View = views[lens];
+  root.render(
+    <Shell
+      registry={{
+        ...DEFAULT_REGISTRY,
+        views: { ...DEFAULT_REGISTRY.views, today: () => <View key={lens} /> },
+      }}
+    />,
+  );
+}
+const go = (lens: Lens) => act(async () => renderLens(lens));
 
 async function sort(label: string) {
   const header = [...table().querySelectorAll("th[scope=col]")].find((header) =>
@@ -188,7 +203,7 @@ it.each(["flow", "repositories", "horizon"] as const)(
   },
 );
 
-it("keeps a separate sort per lens after unmounting through real navigation", async () => {
+it("keeps a separate sort per retired view after unmounting", async () => {
   await mount("flow");
   await sort("Fork");
   await sort("Fork");

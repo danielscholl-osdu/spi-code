@@ -40,7 +40,7 @@ import {
 import "./palette.css";
 
 /**
- * Find (PS-12): Go to, Services, Lenses and Queue. The shell opens it from ⌘K or Ctrl+K (through
+ * Find (PS-12): Go to, Services and Queue. The shell opens it from ⌘K or Ctrl+K (through
  * PanelControls' shortcuts) and from the sidebar's field. ⏎ opens a result; ⌘↩ (Ctrl+Enter) opens
  * a service and pins it, leaving a pinned service pinned. Esc closes it and focus returns to the
  * opener.

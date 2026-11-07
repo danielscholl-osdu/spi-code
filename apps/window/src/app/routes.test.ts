@@ -21,9 +21,6 @@ it.each<[string, Route, string]>([
   ["#environment", { kind: "environment" }, "Environment"],
   ["#releases", { kind: "releases" }, "Releases"],
   ["#release/2026-10", { kind: "release", month: "2026-10" }, "Release 2026-10"],
-  ["#lens/flow", { kind: "lens", lens: "flow" }, "Flow"],
-  ["#lens/repositories", { kind: "lens", lens: "repositories" }, "Repositories"],
-  ["#lens/horizon", { kind: "lens", lens: "horizon" }, "Horizon"],
   ["#setup", { kind: "setup" }, "Setup"],
 ])("parses %s and writes it back", (hash, route, label) => {
   expect(parseRoute(hash)).toEqual(route);
@@ -47,6 +44,12 @@ it("retires Inbox and falls back to Today for a fresh launch or an old saved Inb
   for (const hash of ["", "#inbox", "#unknown"]) {
     expect(resolveRoute(hash, DEFAULT_REGISTRY)).toEqual({ kind: "today" });
   }
+});
+
+it.each(["flow", "repositories", "horizon"])("retires the %s lens hash", (lens) => {
+  expect(Object.keys(DEFAULT_REGISTRY.views)).not.toContain("lens");
+  expect(parseRoute(`#lens/${lens}`)).toBeUndefined();
+  expect(resolveRoute(`#lens/${lens}`, DEFAULT_REGISTRY)).toEqual({ kind: "today" });
 });
 
 it.each([

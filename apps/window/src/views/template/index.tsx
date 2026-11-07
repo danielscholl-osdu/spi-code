@@ -6,6 +6,7 @@ import { useStore } from "zustand";
 import { navigate } from "../../app/navigation.js";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
 import { Place } from "../../components/place/Place.js";
+import { isReadFigure, RepositoryFacts } from "../../components/place/RepositoryFacts.js";
 import { type SelectionStore, selectionStore } from "../../panels/selection.js";
 import {
   repositoryLineRow,
@@ -118,6 +119,10 @@ export default function Template({
     inspector,
   );
   const fact = parts?.fact;
+  const fleetFacts =
+    snapshot?.briefing.repositories.facts
+      .map((fact, index) => ({ fact, pointer: `/briefing/repositories/facts/${index}` }))
+      .filter(({ fact }) => isReadFigure(fact.figure)) ?? [];
   return (
     <div className="inbox template" data-view-pane="engineering-system">
       <Place
@@ -133,10 +138,29 @@ export default function Template({
         }}
         {...(list.selected !== null ? { selectedId: list.selected } : {})}
       />
-      {snapshot && parts && (fact || rollout || repository) && (
+      {snapshot && parts && (fact || rollout || repository || fleetFacts.length > 0) && (
         <details className="template-details">
-          <summary>Template details</summary>
+          <summary>Details</summary>
           <div className="template-details-body" data-selection-list>
+            {fleetFacts.length > 0 && (
+              <section aria-label="Fleet repositories">
+                <h2>Fleet repositories</h2>
+                <p data-pointer="/briefing/repositories/headline">
+                  {snapshot.briefing.repositories.headline}
+                </p>
+                <dl className="template-fleet-facts">
+                  {fleetFacts.map(({ fact, pointer }) => (
+                    <div key={fact.label} data-pointer={pointer} data-tone={fact.tone}>
+                      <dt>{fact.label}</dt>
+                      <dd>
+                        <strong>{fact.figure}</strong>
+                        <span>{fact.sub}</span>
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            )}
             {fact && (
               <div className="inbox-facts" data-part="fact">
                 <div className="inbox-fact" data-tone={fact.fact.tone} data-pointer={fact.pointer}>
@@ -182,6 +206,10 @@ export default function Template({
                   <span className="inbox-section-count">{parts.repository.entry.name}</span>
                   <SectionEvidence evidence={snapshot} prefixes={[parts.repository.pointer]} />
                 </div>
+                <RepositoryFacts
+                  repository={parts.repository.entry}
+                  pointer={parts.repository.pointer}
+                />
                 <div
                   className="template-repo-lead"
                   data-pointer={parts.repository.pointer}

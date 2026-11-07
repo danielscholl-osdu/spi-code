@@ -64,8 +64,6 @@ function rowFor(route: Route): string {
       return "releases";
     case "service":
       return `service/${route.id}`;
-    case "lens":
-      return `lens/${route.lens}`;
     default:
       return route.kind;
   }

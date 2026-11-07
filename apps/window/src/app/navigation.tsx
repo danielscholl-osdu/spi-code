@@ -14,9 +14,6 @@ import {
 import { useStore } from "zustand";
 import { watchStore } from "../store/watch.js";
 
-export const LENSES = ["flow", "repositories", "horizon"] as const;
-export type Lens = (typeof LENSES)[number];
-
 /** Places in the order the sidebar and Find list them; a service and a release month are reached from elsewhere. */
 export const PLACES = [
   { kind: "upstream" },
@@ -35,12 +32,8 @@ export type PlaceRoute =
   | { kind: "service"; id: string }
   | { kind: "release"; month: string };
 
-/** What the centre can hold. The lenses and Setup are the older surfaces still on main. */
-export type Route =
-  | { kind: "today" }
-  | PlaceRoute
-  | { kind: "lens"; lens: Lens }
-  | { kind: "setup" };
+/** What the centre can hold. */
+export type Route = { kind: "today" } | PlaceRoute | { kind: "setup" };
 
 export type RouteKind = Route["kind"];
 export type RouteOf<K extends RouteKind> = Extract<Route, { kind: K }>;
@@ -70,11 +63,6 @@ export type Registry = {
 
 const SERVICE_ID = /^[a-z0-9][a-z0-9-]*$/;
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
-const LENS_LABELS: Record<Lens, string> = {
-  flow: "Flow",
-  repositories: "Repositories",
-  horizon: "Horizon",
-};
 const PLAIN = new Set<string>([
   "today",
   "upstream",
@@ -86,10 +74,6 @@ const PLAIN = new Set<string>([
 ]);
 /** Hashes from before the places, still parsed so saved locations keep working. */
 const ALIASES: Record<string, Route> = { template: { kind: "engineering-system" } };
-
-function isLens(value: string): value is Lens {
-  return (LENSES as readonly string[]).includes(value);
-}
 
 function decode(segment: string): string | undefined {
   try {
@@ -114,8 +98,6 @@ export function parseRoute(hash: string): Route | undefined {
         : undefined;
     case "release":
       return rest !== undefined && MONTH.test(rest) ? { kind: "release", month: rest } : undefined;
-    case "lens":
-      return rest !== undefined && isLens(rest) ? { kind: "lens", lens: rest } : undefined;
     default:
       return undefined;
   }
@@ -127,8 +109,6 @@ export function routeHash(route: Route): string {
       return `#service/${encodeURIComponent(route.id)}`;
     case "release":
       return `#release/${route.month}`;
-    case "lens":
-      return `#lens/${route.lens}`;
     default:
       return `#${route.kind}`;
   }
@@ -153,8 +133,6 @@ export function routeLabel(route: Route): string {
       return route.id;
     case "release":
       return `Release ${route.month}`;
-    case "lens":
-      return LENS_LABELS[route.lens];
     case "setup":
       return "Setup";
   }

@@ -192,3 +192,16 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+.repository-counts dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 6px 16px;
+  font-size: 12px;
+}
+.repository-counts dl > div { display: contents; }
+.repository-counts dt { color: var(--text-muted); }
+.repository-counts dd { margin: 0; }
+.repository-counts [data-muted="true"] { color: var(--text-muted); }
+.repository-counts [data-tone="bad"] { color: var(--error-text); }
+.repository-counts [data-tone="warn"] { color: var(--warning-text); }
+.repository-counts [data-tone="ok"] { color: var(--success-text); }

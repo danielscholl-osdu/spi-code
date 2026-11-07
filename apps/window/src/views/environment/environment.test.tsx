@@ -602,7 +602,7 @@ it("omits absent snapshot parts and leaves unidentifiable lines as text, not fak
       (row) => row.name !== "osdu-spi-stack",
     );
     await act(async () => store.setState({ snapshot: { cursor: 2, body: bare } }));
-    expect(container.querySelector(".env-facts")).toBeNull();
+    expect(container.querySelector(".env-part-body > .env-facts")).toBeNull();
     expect(container.querySelector("[aria-label='Lane events']")).toBeNull();
     expect(container.querySelector("[data-part='repository']")).toBeNull();
     expect(container.querySelector(".env-note")).toBeNull();

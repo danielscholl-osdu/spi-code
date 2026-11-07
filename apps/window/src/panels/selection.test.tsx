@@ -33,18 +33,22 @@ function List({
   );
 }
 
-it("keeps a lens row on its thing, clears elsewhere, and restores each route's scroll and row", () => {
+it("keeps a flow row on its service, clears elsewhere, and restores each route's scroll and row", () => {
   const postMessage = vi.fn();
   const store = createSelectionStore({ postMessage });
   const state = store.getState;
   const flow = snapshot.briefing.flow.rows[0];
   if (!flow) throw new Error("Missing recorded flow row");
   const row = selectionRows(snapshot).find(({ id }) => id === flow.inspect);
-  state().visit("#lens/flow", routeSelectionIds(snapshot, { kind: "lens", lens: "flow" }), 0);
+  state().visit("#service", routeSelectionIds(snapshot, { kind: "service", id: flow.fork }), 0);
   state().select(flow.inspect, row);
   const request = state().request;
   expect(
-    state().visit("#service", routeSelectionIds(snapshot, { kind: "service", id: flow.fork }), 275),
+    state().visit(
+      "#same-service",
+      routeSelectionIds(snapshot, { kind: "service", id: flow.fork }),
+      275,
+    ),
   ).toBe(0);
   expect(state().selected).toBe(flow.inspect);
   expect(state().request).toBe(request);
@@ -52,14 +56,14 @@ it("keeps a lens row on its thing, clears elsewhere, and restores each route's s
   expect(state().selected).toBeNull();
   expect(state().request).toBeNull();
   expect(
-    state().visit("#lens/flow", routeSelectionIds(snapshot, { kind: "lens", lens: "flow" }), 0),
+    state().visit("#service", routeSelectionIds(snapshot, { kind: "service", id: flow.fork }), 0),
   ).toBe(275);
   expect(state().selected).toBe(flow.inspect);
   expect(state().row).toEqual(row);
   expect(state().request).not.toBe(request);
-  state().visit("#lens/flow", [], 275);
+  state().visit("#service", [], 275);
   expect(state().selected).toBeNull();
-  expect(state().visit("#service", [], 0)).toBe(90);
+  expect(state().visit("#same-service", [], 0)).toBe(90);
   expect(state().selected).toBeNull();
 });
 

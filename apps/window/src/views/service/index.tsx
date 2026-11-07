@@ -7,6 +7,7 @@ import { useStore } from "zustand";
 import { navigate } from "../../app/navigation.js";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
 import { Place } from "../../components/place/Place.js";
+import { RepositoryFacts } from "../../components/place/RepositoryFacts.js";
 import { inScope } from "../../components/sidebar/attention.js";
 import { type SelectionStore, selectionStore } from "../../panels/selection.js";
 import {
@@ -354,6 +355,7 @@ function ServiceBody({
           evidence={evidence}
           prefixes={[`/briefing/repositories/rows/${repoIndex}`]}
         >
+          <RepositoryFacts repository={repo} pointer={`/briefing/repositories/rows/${repoIndex}`} />
           {repoRow && (
             <SelectList
               label={`${id} repository`}

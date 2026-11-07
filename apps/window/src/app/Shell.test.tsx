@@ -258,17 +258,14 @@ it("keeps a Flow selection on its service and restores middle-frame scroll when 
   const shell = await mountShell();
   const middle = shell.container.querySelector("main");
   try {
-    await act(async () => navigate({ kind: "lens", lens: "flow" }));
+    await act(async () => navigate({ kind: "service", id: flow.fork }));
     await act(async () => selectionStore.getState().select(flow.inspect));
     if (!middle) throw new Error("Missing middle frame");
     middle.scrollTop = 320;
     await act(async () => middle.dispatchEvent(new Event("scroll")));
-    await act(async () => navigate({ kind: "service", id: flow.fork }));
-    expect(selectionStore.getState().selected).toBe(flow.inspect);
-    expect(middle.scrollTop).toBe(0);
     await act(async () => navigate({ kind: "setup" }));
     expect(selectionStore.getState().selected).toBeNull();
-    await act(async () => navigate({ kind: "lens", lens: "flow" }));
+    await act(async () => navigate({ kind: "service", id: flow.fork }));
     expect(selectionStore.getState().selected).toBe(flow.inspect);
     expect(middle.scrollTop).toBe(320);
   } finally {

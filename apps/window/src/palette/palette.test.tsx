@@ -149,9 +149,9 @@ it("ignores Ctrl+K with the legacy IME keyCode 229", async () => {
   expect(palettes()).toHaveLength(1);
 });
 
-it("lists Go to, Services, Lenses and Queue from the routes and the snapshot, with no Actions group", async () => {
+it("lists Go to, Services and Queue from the routes and the snapshot, without lenses or Actions", async () => {
   await act(async () => findField()?.click());
-  expect(labels()).toEqual(["Go to", "Services", "Lenses", "Queue", "Threads", "Ask"]);
+  expect(labels()).toEqual(["Go to", "Services", "Queue", "Threads", "Ask"]);
   expect(palette()?.textContent).not.toMatch(/Actions/);
   expect(rows("go-to")).toEqual([
     "Todaypage",
@@ -169,7 +169,8 @@ it("lists Go to, Services, Lenses and Queue from the routes and the snapshot, wi
     "schemaunread",
     "fileunread",
   ]);
-  expect(rows("lenses")).toEqual(["Flowlens", "Repositorieslens", "Horizonlens"]);
+  expect(rows("lenses")).toEqual([]);
+  expect(palette()?.querySelector('[data-group="lenses"]')).toBeNull();
   expect(rows("queue")).toEqual([
     "P0Environment · Maintenance modeP0",
     "P0entitlements · Sync halted on schemathesis-testsP0",
@@ -437,7 +438,6 @@ it("ranks the best match class first and keeps group order on ties", () => {
   expect(filterPaletteGroups(groups, "").map(({ value }) => value)).toEqual([
     "go-to",
     "services",
-    "lenses",
     "queue",
   ]);
   expect(filterPaletteGroups(groups, "ENTITLE").map(({ value }) => value)).toEqual([
@@ -446,6 +446,6 @@ it("ranks the best match class first and keeps group order on ties", () => {
   ]);
   expect(
     filterPaletteGroups(groups, "flow").flatMap(({ items }) => items.map((i) => i.label)),
-  ).toEqual(["Flow", "osdu-spi-stack · 1 outside PR waits for workflow approval"]);
+  ).toEqual(["osdu-spi-stack · 1 outside PR waits for workflow approval"]);
   expect(filterPaletteGroups(groups, "nothing like this")).toEqual([]);
 });

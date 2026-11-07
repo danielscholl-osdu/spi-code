@@ -117,7 +117,7 @@ it.each([false, true])(
   async (proof) => {
     const app = await mountWindow(proof);
     try {
-      const { DEFAULT_REGISTRY, isReachable, LENSES, routeHash, routeLabel } = await import(
+      const { DEFAULT_REGISTRY, isReachable, routeHash, routeLabel } = await import(
         "./app/routes.js"
       );
       const snapshot = mixedSnapshot(mixed);
@@ -138,7 +138,6 @@ it.each([false, true])(
         setup: [{ kind: "setup" }],
         service: snapshot.stations.map(({ service }) => ({ kind: "service", id: service })),
         release: snapshot.releases.lines.map(({ month }) => ({ kind: "release", month })),
-        lens: LENSES.map((lens) => ({ kind: "lens", lens })),
       };
       const reachable = Object.values(routes)
         .flat()

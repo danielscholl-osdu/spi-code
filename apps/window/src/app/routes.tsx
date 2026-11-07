@@ -6,11 +6,8 @@ import { useStore } from "zustand";
 import { Strip } from "../components/strip/Strip.js";
 import { watchStore } from "../store/watch.js";
 import Environment from "../views/environment/index.js";
-import Flow from "../views/flow/index.js";
-import Horizon from "../views/horizon/index.js";
 import Line from "../views/line/index.js";
 import Releases, { ReleaseMonth } from "../views/releases/index.js";
-import Repositories from "../views/repositories/index.js";
 import Security from "../views/security/index.js";
 import ServicePage from "../views/service/index.js";
 import Setup from "../views/setup/index.js";
@@ -45,17 +42,6 @@ export const DEFAULT_REGISTRY: Registry = {
     security: (route) => gated(route, <Security />),
     service: (route) => gated(route, <ServicePage id={route.id} />),
     release: (route) => gated(route, <ReleaseMonth month={route.month} />),
-    lens: (route) =>
-      gated(
-        route,
-        route.lens === "flow" ? (
-          <Flow />
-        ) : route.lens === "repositories" ? (
-          <Repositories />
-        ) : (
-          <Horizon />
-        ),
-      ),
     setup: () => <Setup />,
   },
   sheet: (_origin, presentation) => <Line presentation={presentation} />,

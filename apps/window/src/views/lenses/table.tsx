@@ -4,12 +4,12 @@
 import type { ReactNode } from "react";
 import { useStore } from "zustand";
 import { createStore } from "zustand/vanilla";
-import type { Lens } from "../../app/routes.js";
 import { selectionStore } from "../../panels/selection.js";
 import type { SelectionRow } from "../../panels/selection-rows.js";
 import { useSelectionList } from "../../panels/useSelectionList.js";
 import "./table.css";
 
+export type Lens = "flow" | "repositories" | "horizon";
 type Sort = { column: string; descending: boolean } | null;
 export const lensSortStore = createStore<Record<Lens, Sort>>(() => ({
   flow: null,

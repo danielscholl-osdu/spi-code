@@ -7,6 +7,7 @@ import { useStore } from "zustand";
 import { navigate } from "../../app/navigation.js";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
 import { Place } from "../../components/place/Place.js";
+import { RepositoryFacts } from "../../components/place/RepositoryFacts.js";
 import { type SelectionStore, selectionStore } from "../../panels/selection.js";
 import {
   repositoryLinePointer,
@@ -17,6 +18,7 @@ import {
 import { useSelectionList } from "../../panels/useSelectionList.js";
 import { watchStore } from "../../store/watch.js";
 import { treeServices } from "../inbox/queue.js";
+import { FlowContext } from "./flow-context.js";
 import {
   eventKey,
   eventText,
@@ -137,6 +139,15 @@ export default function Environment({
       <details className="env-part" data-part="runs">
         <summary id={runsHeading}>Stack runs</summary>
         <section className="env-part-body" aria-labelledby={runsHeading}>
+          <FlowContext
+            flow={body.briefing.flow}
+            onSelect={(id) => {
+              const row = selectionRows(body).find((row) => row.id === id);
+              if (!row) return;
+              inspector.getState().select(id, row);
+              inspector.getState().setTab("detail");
+            }}
+          />
           <SectionEvidence evidence={body} prefixes={["/briefing/environment/headline"]} />
           <p className="env-lead" data-pointer="/briefing/environment/headline">
             {env.headline}
@@ -258,7 +269,12 @@ export default function Environment({
           </summary>
           <section className="env-part-body" aria-labelledby={repositoryHeading}>
             <SectionEvidence evidence={body} prefixes={[repositoryPointer]} />
-            {repository.title && <p data-tone={repository.tone}>{repository.title}</p>}
+            <RepositoryFacts repository={repository} pointer={repositoryPointer} />
+            {repository.title && (
+              <p data-tone={repository.tone} data-pointer={`${repositoryPointer}/title`}>
+                {repository.title}
+              </p>
+            )}
             {repository.sub && <p className="env-muted">{repository.sub}</p>}
             <div role="listbox" aria-label="Stack repository lines" data-selection-list>
               {sections.map((section) => (

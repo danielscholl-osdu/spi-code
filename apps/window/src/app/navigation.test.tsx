@@ -47,7 +47,6 @@ const ALL_KINDS: readonly RouteKind[] = [
   "security",
   "service",
   "release",
-  "lens",
   "setup",
 ];
 const every = Object.fromEntries(ALL_KINDS.map((kind) => [kind, view])) as Registry["views"];
@@ -124,8 +123,6 @@ it("renders the registered component for every route id, with its service id and
     { kind: "security" },
     { kind: "service", id: "legal" },
     { kind: "release", month: "2026-10" },
-    { kind: "lens", lens: "flow" },
-    { kind: "lens", lens: "horizon" },
     { kind: "setup" },
   ];
   for (const route of routes) {
@@ -277,14 +274,7 @@ it("leaves ⌘L alone when no Line sheet is registered", async () => {
 it("lists only registered places in the sidebar and Find, and falls back from the rest", async () => {
   const body = ViewSnapshotSchema.parse(JSON.parse(recorded));
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
-  const {
-    lens: _lens,
-    setup: _setup,
-    upstream: _u,
-    security: _s,
-    environment: _e,
-    ...views
-  } = every;
+  const { setup: _setup, upstream: _u, security: _s, environment: _e, ...views } = every;
   localStorage.setItem(
     PINS_STORAGE_KEY,
     JSON.stringify(body.stations.map(({ service }) => service)),
@@ -348,6 +338,26 @@ describe("landing", () => {
   beforeEach(() => {
     vi.spyOn(document, "hasFocus").mockReturnValue(true);
   });
+
+  it.each(["flow", "repositories", "horizon"])(
+    "falls back to Today from a bookmarked or persisted %s lens",
+    async (lens) => {
+      window.location.hash = `#lens/${lens}`;
+      await launch();
+      expect(shown()).toBe("#today");
+      expect(place()).toBe("Today");
+      expect(
+        container.querySelector(
+          "[data-view-pane='flow'], [data-view-pane='repositories'], [data-view-pane='horizon']",
+        ),
+      ).toBeNull();
+      await restart();
+      await launch(`#lens/${lens}`);
+      expect(shown()).toBe("#today");
+      expect(place()).toBe("Today");
+      expect(localStorage.getItem(LAST_PLACE_KEY)).toBe("#today");
+    },
+  );
 
   it("lands on the last place after Today was acknowledged and the sweep brought nothing new", async () => {
     await launch("#upstream");

@@ -315,6 +315,7 @@ it("omits empty and unshipped parts, including before the first sweep", async ()
   empty.briefing.focus = [];
   empty.briefing.rest = [];
   empty.briefing.repositories.rows = [];
+  empty.briefing.repositories.facts = [];
   await mount(empty);
   expect(container.querySelector(".place-reading, details, [data-part]")).toBeNull();
   expect(container.querySelector(".template")?.textContent).not.toMatch(

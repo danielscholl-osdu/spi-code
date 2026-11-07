@@ -128,6 +128,8 @@ export function selectionRows(snapshot: ViewSnapshot): SelectionRow[] {
         kind: "flow",
         prefixes: [`/briefing/flow/rows/${index}`],
         fields: [
+          { label: "Fork", value: row.fork },
+          ...(row.tag ? [{ label: "State", value: row.tag }] : []),
           { label: "Behind", value: row.behind },
           { label: "Carries", value: row.carries },
           { label: "Ready", value: row.ready.text },
@@ -250,11 +252,6 @@ export function routeSelectionIds(snapshot: ViewSnapshot, route: Route): string[
   switch (route.kind) {
     case "today":
       return [...queue.map(({ id }) => id), ...briefing.ready.map(({ id }) => id)];
-    case "lens":
-      if (route.lens === "flow")
-        return [briefing.flow.inspect, ...briefing.flow.rows.map(({ inspect }) => inspect)];
-      if (route.lens === "repositories") return repos.map(({ id }) => id);
-      return briefing.themes.map((theme) => theme.inspect ?? `theme:${theme.id}`);
     case "service":
       return [
         ...queue.filter(({ scope }) => scope === route.id).map(({ id }) => id),
@@ -278,6 +275,8 @@ export function routeSelectionIds(snapshot: ViewSnapshot, route: Route): string[
       ];
     case "environment":
       return [
+        briefing.flow.inspect,
+        ...briefing.flow.also.flatMap(({ inspect }) => (inspect ? [inspect] : [])),
         ...(
           snapshot.readings.find(({ anchor }) => anchor.kind === "environment")?.content?.items ??
           []

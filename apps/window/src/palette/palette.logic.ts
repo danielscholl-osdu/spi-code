@@ -25,7 +25,6 @@ import type { Briefing } from "@spi-code/contracts";
 import {
   DEFAULT_REGISTRY,
   isReachable,
-  LENSES,
   PLACES,
   type Registry,
   type Route,
@@ -48,7 +47,7 @@ export type PaletteItem = {
 };
 
 export type PaletteGroup = {
-  value: "go-to" | "services" | "lenses" | "queue";
+  value: "go-to" | "services" | "queue";
   label: string;
   items: PaletteItem[];
 };
@@ -70,7 +69,7 @@ type SnapshotBody = {
 
 function routeItem(route: Route, kind: string, keywords: readonly string[] = []): PaletteItem {
   const label = routeLabel(route);
-  const id = route.kind === "service" ? route.id : route.kind === "lens" ? route.lens : "";
+  const id = route.kind === "service" ? route.id : "";
   return {
     value: `route:${route.kind}${id ? `:${id}` : ""}`,
     label,
@@ -81,7 +80,7 @@ function routeItem(route: Route, kind: string, keywords: readonly string[] = [])
 }
 
 /**
- * Go to, Services, Lenses and Queue, from the registered routes and the snapshot; empty groups and
+ * Go to, Services and Queue, from the registered routes and the snapshot; empty groups and
  * routes with no registered view are left out.
  */
 export function buildPaletteGroups(
@@ -93,9 +92,6 @@ export function buildPaletteGroups(
     .map((id): Route => ({ kind: "service", id }))
     .filter(reachable)
     .map((route) => routeItem(route, "service"));
-  const lenses = LENSES.map((lens): Route => ({ kind: "lens", lens }))
-    .filter(reachable)
-    .map((route) => routeItem(route, "lens"));
   const queue = [...(body?.briefing.focus ?? []), ...(body?.briefing.rest ?? [])].map(
     (item): PaletteItem => ({
       value: `queue:${item.id}`,
@@ -113,7 +109,6 @@ export function buildPaletteGroups(
       items: GO_TO.filter(reachable).map((route) => routeItem(route, "page")),
     },
     { value: "services", label: "Services", items: services },
-    { value: "lenses", label: "Lenses", items: lenses },
     { value: "queue", label: "Queue", items: queue },
   ];
   return groups.filter(({ items }) => items.length > 0);
