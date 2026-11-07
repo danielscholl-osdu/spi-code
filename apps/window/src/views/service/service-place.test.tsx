@@ -7,10 +7,12 @@ import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { DEFAULT_REGISTRY } from "../../app/routes.js";
+import { inScope } from "../../components/sidebar/attention.js";
 import { RightPanel } from "../../panels/RightPanel.js";
 import { createSelectionStore } from "../../panels/selection.js";
 import { utc } from "../../panels/selection-rows.js";
 import { createWatchStore } from "../../store/watch.js";
+import { treeServices } from "../inbox/queue.js";
 import ServicePlace from "./index.js";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -55,6 +57,7 @@ it("renders legal's recorded service reading, including 17 incoming commits and 
   )?.content;
   expect(reading).toBeTruthy();
   const { container } = await mount(body);
+  expect(container.querySelector(".place h1")?.textContent).toBe("legal");
   expect(DEFAULT_REGISTRY.views.service).toBeTypeOf("function");
   expect(container.querySelector(".place-headline")?.textContent).toBe(reading?.headline);
   const tiles = container.querySelectorAll(".place-tile");
@@ -99,10 +102,12 @@ it("opens the SNAPSHOT hold and every upstream field in the right panel with one
 
 it("selects a reading item into the right panel without opening a different route", async () => {
   const { selection, click } = await mount();
+  const hash = window.location.hash;
   await click('.place-item-content[data-selection-id="radar:legal"]');
   expect(selection.getState().selected).toBe("radar:legal");
   expect(selection.getState().open).toBe(true);
   expect(selection.getState().tab).toBe("detail");
+  expect(window.location.hash).toBe(hash);
 });
 
 it("renders no empty or future parts on the recorded sweep or when optional facts are absent", async () => {
@@ -196,10 +201,14 @@ it("keeps every former attention field reachable through its nonempty disclosure
   const body = snapshot();
   const { container, click } = await mount(body);
   await click('[data-section="attention"] > summary');
-  const items = [...body.briefing.focus, ...body.briefing.rest].filter(
-    ({ scope }) => scope === "legal",
+  const items = [...body.briefing.focus, ...body.briefing.rest].filter((item) =>
+    inScope(item, "service:legal", treeServices(body.tree)),
   );
   expect(items.length).toBeGreaterThan(0);
+  expect(
+    container.querySelector('[data-section="attention"] > summary .service-section-count')
+      ?.textContent,
+  ).toBe(String(items.length));
   for (const item of items) {
     const row = container.querySelector(
       `[data-section="attention"] [data-selection-id="${item.id}"]`,
@@ -251,6 +260,10 @@ it("keeps former release month, version, state, review and PR link one click awa
   if (!release?.releasePr || !release.gate) throw new Error("Recorded legal release missing");
   const { container, click } = await mount(body);
   await click('[data-section="release"] > summary');
+  expect(
+    container.querySelector('[data-section="release"] > summary .service-section-count')
+      ?.textContent,
+  ).toBe("1");
   const row = container.querySelector(`[data-release="${release.month}"]`);
   expect(row?.querySelector(".service-month")?.textContent).toBe(release.month);
   expect(row?.querySelector(".service-row-title")?.textContent).toContain(release.version);
@@ -271,6 +284,9 @@ it("keeps every former run's workflow, result and UTC time one click away", asyn
   expect(runs.length).toBeGreaterThan(0);
   const { container, click } = await mount(body);
   await click('[data-section="runs"] > summary');
+  expect(
+    container.querySelector('[data-section="runs"] > summary .service-section-count')?.textContent,
+  ).toBe(String(runs.length));
   for (const run of runs) {
     const row = container.querySelector(`[data-section="runs"] [data-selection-id="${run.id}"]`);
     expect(row?.querySelector(".service-row-title")?.textContent).toBe(run.workflow);
