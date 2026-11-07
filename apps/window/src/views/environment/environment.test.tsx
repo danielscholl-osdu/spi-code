@@ -12,6 +12,7 @@ import consoleHtml from "../../../../../fixtures/rib-59d6895/oracle/console.html
 import placement from "../../../../../fixtures/rib-59d6895/oracle/environment-place.json?raw";
 import envInspect from "../../../../../fixtures/rib-59d6895/oracle/inspect/ENV.json?raw";
 import releases from "../../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
+import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import mixed from "../../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
 import {
   expectEvidenceMarks,
@@ -178,9 +179,11 @@ it("renders oracle lane order, labels, facts and bars; selects only in the right
   const root = createRoot(container);
   try {
     await act(async () => root.render(<Environment store={store} inspector={inspector} />));
-    expect(container.textContent).toContain("Waiting for the first sweep.");
+    expect(container.querySelector(".place h1")?.textContent).toBe("Environment");
+    expect(container.querySelector(".place-reading")).toBeNull();
+    expect(container.querySelector("details")).toBeNull();
     await act(async () => receive(snapshot));
-    expect(container.querySelector("h2")?.textContent).toBe(environment.headline);
+    expect(container.querySelector(".env-lead")?.textContent).toBe(environment.headline);
     const labels = [...consoleHtml.matchAll(/<div class="tl-lab">([^<]+)<\/div>/g)].map(
       (match) => match[1],
     );
@@ -448,7 +451,7 @@ it.each(["identified", "unidentified"])(
   },
 );
 
-it("orders recorded lane events, stack lines, Threads and Live cluster; the right panel owns detail", async () => {
+it("orders the place, stack runs and stack repository; the right panel owns detail", async () => {
   const body = mixedSnapshot(mixed);
   const postMessage = vi.fn();
   const inspector = createSelectionStore({ postMessage });
@@ -472,16 +475,11 @@ it("orders recorded lane events, stack lines, Threads and Live cluster; the righ
     const page = container.querySelector(".environment");
     if (!page) throw new Error("Missing Environment page");
     expect(
-      [...page.querySelectorAll(":scope > section")].map((section) =>
-        section.getAttribute("aria-label"),
+      [...page.children].map(
+        (child) => child.getAttribute("data-part") ?? child.getAttribute("aria-label"),
       ),
-    ).toEqual(["Lane events", "Repository", "Threads", "Live cluster"]);
-    expect(page.querySelector("[aria-label='Threads']")?.textContent).toContain(
-      "Threads are not available yet.",
-    );
-    expect(page.querySelector("[aria-label='Live cluster']")?.textContent).toContain(
-      "Live reads are not available yet.",
-    );
+    ).toEqual(["Environment", "runs", "repository"]);
+    expect(page.textContent).not.toContain("not available yet");
     expect(page.textContent).not.toMatch(/\bM[0-9]\b/);
     for (const section of repo.sections) {
       expect(page.textContent).toContain(section.title);
@@ -606,13 +604,215 @@ it("omits absent snapshot parts and leaves unidentifiable lines as text, not fak
     await act(async () => store.setState({ snapshot: { cursor: 2, body: bare } }));
     expect(container.querySelector(".env-facts")).toBeNull();
     expect(container.querySelector("[aria-label='Lane events']")).toBeNull();
-    expect(container.querySelector("[aria-label='Repository']")).toBeNull();
+    expect(container.querySelector("[data-part='repository']")).toBeNull();
     expect(container.querySelector(".env-note")).toBeNull();
     expect(container.textContent).not.toContain(repo.note);
-    expect(container.querySelector("[aria-label='Threads']")).not.toBeNull();
-    expect(container.querySelector("[aria-label='Live cluster']")).not.toBeNull();
+    expect(container.querySelector("[data-part='runs'] .env-lead")?.textContent).toBe(
+      bare.briefing.environment.headline,
+    );
   } finally {
     await act(async () => root.unmount());
     container.remove();
+  }
+});
+
+async function renderRecorded(body = mixedSnapshot(recorded)) {
+  const postMessage = vi.fn();
+  const inspector = createSelectionStore({ postMessage });
+  const store = createWatchStore(vi.fn(), inspector);
+  store.setState({ snapshot: { cursor: body.cursor, body } });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  await act(async () =>
+    root.render(
+      <>
+        <Environment store={store} inspector={inspector} />
+        <RightPanel store={inspector} snapshot={body} />
+      </>,
+    ),
+  );
+  const page = container.querySelector<HTMLElement>(".environment");
+  if (!page) throw new Error("Missing Environment place");
+  return {
+    body,
+    container,
+    page,
+    inspector,
+    postMessage,
+    done: async () => {
+      await act(async () => root.unmount());
+      container.remove();
+    },
+  };
+}
+
+it("draws the recorded environment reading through the place, with no placeholders", async () => {
+  const view = await renderRecorded();
+  const reading = view.body.readings.find(({ anchor }) => anchor.kind === "environment");
+  if (!reading?.content) throw new Error("Recorded snapshot needs an environment reading");
+  try {
+    const place = view.page.querySelector("section.place[aria-label='Environment']");
+    expect(place).not.toBeNull();
+    expect(view.page.firstElementChild).toBe(place);
+    expect(place?.querySelector("h1")?.textContent).toBe("Environment");
+    expect(place?.querySelector(".place-headline")?.textContent).toBe(
+      "v0.35.3 is deployable, green since 04:20.",
+    );
+    expect(
+      [...(place?.querySelectorAll(".place-tiles > div") ?? [])].map((tile) => [
+        tile.querySelector("dt")?.textContent,
+        tile.querySelector(".place-tile-value")?.textContent,
+        tile.querySelector(".place-tile-counts")?.textContent,
+      ]),
+    ).toEqual(reading.content.tiles.map((tile) => [tile.label, tile.value, tile.counts]));
+    expect(reading.content.tiles.map(({ label }) => label)).toEqual([
+      "Version",
+      "Lane",
+      "Stack repository",
+    ]);
+    expect(place?.querySelector(".place-folded")?.textContent).toBe(reading.content.folded);
+    expect(
+      view.page.querySelector("[aria-label='Threads'], [aria-label='Live cluster']"),
+    ).toBeNull();
+    expect(view.page.textContent).not.toMatch(/not available yet|Waiting for the first sweep/);
+    expect(view.page.textContent).not.toMatch(/\bThreads\b|Live cluster/);
+  } finally {
+    await view.done();
+  }
+});
+
+type FormerField = {
+  field: string;
+  find: (page: HTMLElement) => Element | undefined;
+  text: string;
+};
+
+function formerFields(body: ReturnType<typeof mixedSnapshot>): FormerField[] {
+  const env = body.briefing.environment;
+  const now = new Date(Date.parse(env.to));
+  const repo = body.briefing.repositories.rows.find(({ name }) => name === "osdu-spi-stack");
+  if (!repo || !env.note) throw new Error("Recorded snapshot needs the stack row and lane note");
+  const all = (page: HTMLElement, selector: string) => [...page.querySelectorAll(selector)];
+  const holding = (selector: string, text: string) => (page: HTMLElement) =>
+    all(page, selector).find((element) => element.textContent?.includes(text));
+  return [
+    { field: "headline", find: holding(".env-lead", env.headline), text: env.headline },
+    ...env.facts.flatMap((fact, index) =>
+      (["label", "figure", "sub"] as const).map((part) => ({
+        field: `fact ${index} ${part}`,
+        find: (page: HTMLElement) =>
+          page.querySelector(`[data-pointer='/briefing/environment/facts/${index}/figure']`) ??
+          undefined,
+        text: fact[part],
+      })),
+    ),
+    ...env.lanes.flatMap((lane) => [
+      {
+        field: `lane ${lane.id}`,
+        find: (page: HTMLElement) =>
+          page.querySelector(`[data-lane='${lane.id}'] .env-lane-label`) ?? undefined,
+        text: lane.label,
+      },
+      ...(lane.events.length === 0
+        ? [
+            {
+              field: `lane ${lane.id} empty`,
+              find: (page: HTMLElement) =>
+                page.querySelector(`[data-lane='${lane.id}'] .env-none`) ?? undefined,
+              text: "none in the last day",
+            },
+          ]
+        : lane.events.map((event) => ({
+            field: `lane ${lane.id} event ${event.id}`,
+            find: (page: HTMLElement) =>
+              all(page, `[data-lane='${lane.id}'] [data-event]`).find((element) =>
+                element.getAttribute("aria-label")?.includes(eventWhen(event, now)),
+              ),
+            text: event.label,
+          }))),
+    ]),
+    { field: "lane note", find: holding(".env-note", env.note), text: env.note },
+    {
+      field: "repository title",
+      find: holding("[data-part='repository'] p", repo.title),
+      text: repo.title,
+    },
+    { field: "repository sub", find: holding(".env-muted", repo.sub), text: repo.sub },
+    ...repo.sections.flatMap((section) => [
+      {
+        field: `section ${section.title}`,
+        find: holding(".env-repo-section h3", section.title),
+        text: `${section.title} ${section.count}`,
+      },
+      ...section.lines.flatMap((line) =>
+        [line.tag, line.text, line.sub].map((text) => ({
+          field: `line ${line.id} ${text}`,
+          find: (page: HTMLElement) =>
+            all(page, ".env-repo-line").find(
+              (element) => element.getAttribute("data-selection-id") === line.id,
+            ),
+          text,
+        })),
+      ),
+    ]),
+  ];
+}
+
+it("keeps every former Environment page field within one click", async () => {
+  const view = await renderRecorded();
+  const fields = formerFields(view.body);
+  try {
+    expect(fields.length).toBeGreaterThan(20);
+    for (const { field, find, text } of fields) {
+      const element = find(view.page);
+      expect(element, field).toBeDefined();
+      const shown = `${element?.textContent ?? ""} ${element?.getAttribute("aria-label") ?? ""}`;
+      expect(shown, field).toContain(text);
+      const closed: HTMLDetailsElement[] = [];
+      for (let node = element?.parentElement; node && node !== view.page; node = node.parentElement)
+        if (node instanceof HTMLDetailsElement && !node.open) closed.push(node);
+      expect(closed.length, field).toBeLessThanOrEqual(1);
+      const [fold] = closed;
+      if (!fold) continue;
+      await act(async () => fold.querySelector<HTMLElement>(":scope > summary")?.click());
+      expect(fold.open, field).toBe(true);
+      await act(async () => fold.querySelector<HTMLElement>(":scope > summary")?.click());
+    }
+    const event = fields
+      .find(({ field }) => field.startsWith("lane refresh event"))
+      ?.find(view.page);
+    if (!(event instanceof HTMLButtonElement))
+      throw new Error("Recorded refresh event is a button");
+    await act(async () => event.click());
+    expect(view.inspector.getState().row?.kind).toBe("environment");
+    expect(view.container.querySelector(".detail-title")?.textContent).toBe("v0.35.3");
+  } finally {
+    await view.done();
+  }
+});
+
+it("selects an environment reading item into Detail and keeps it on the environment route", async () => {
+  const view = await renderRecorded(mixedSnapshot(mixed));
+  const reading = view.body.readings.find(({ anchor }) => anchor.kind === "environment");
+  const items = reading?.content?.items ?? [];
+  const [item] = items;
+  if (!item) throw new Error("Mixed snapshot needs an environment reading item");
+  try {
+    const button = view.page.querySelector<HTMLButtonElement>(
+      `.place [data-selection-id='${item.id}']`,
+    );
+    if (!button) throw new Error("Missing selectable reading item");
+    await act(async () => view.inspector.getState().setTab("evidence"));
+    await act(async () => button.click());
+    expect(view.inspector.getState().selected).toBe(item.id);
+    expect(view.inspector.getState().row?.kind).toBe("queue");
+    expect(view.inspector.getState().tab).toBe("detail");
+    expect(button.getAttribute("aria-pressed")).toBe("true");
+    expect(routeSelectionIds(view.body, { kind: "environment" })).toEqual(
+      expect.arrayContaining(items.map(({ id }) => id)),
+    );
+  } finally {
+    await view.done();
   }
 });
