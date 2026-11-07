@@ -46,6 +46,17 @@ export const ReadingSchema = z.strictObject({
       tiles: z.tuple([ReadingTileSchema, ReadingTileSchema, ReadingTileSchema]),
       items: z.array(WatchItemSchema.extend({ group: IdentifierSchema })).max(5),
       folded: IdentifierSchema.nullable(),
+      verifiedTemplate: z
+        .strictObject({
+          verified: z.int().nonnegative(),
+          total: z.int().nonnegative(),
+          unread: z.int().nonnegative(),
+          target: IdentifierSchema,
+        })
+        .refine(({ verified, total, unread }) => verified + unread <= total, {
+          message: "Verified and unread forks exceed the fleet total",
+        })
+        .optional(),
     })
     .nullable(),
 });

@@ -29,6 +29,15 @@ export interface EngineeringReadingInput<T extends EngineeringItem> {
   runs?: Facts["runs"]["data"];
 }
 
+export interface EngineeringReading<T extends EngineeringItem> extends PlaceReading<T> {
+  verifiedTemplate?: {
+    verified: number;
+    total: number;
+    unread: number;
+    target: string;
+  };
+}
+
 function green(run: RunFact | undefined): boolean {
   return run?.status === "completed" && run.conclusion === "success";
 }
@@ -113,7 +122,7 @@ function groupsFor<T extends EngineeringItem>(items: readonly T[]): ReadingGroup
 
 export function engineeringReading<T extends EngineeringItem>(
   input: EngineeringReadingInput<T>,
-): PlaceReading<T> {
+): EngineeringReading<T> {
   const { model, items, reads, runs } = input;
   const { template, rollout } = model;
   const total = template.rows.length;
@@ -158,7 +167,7 @@ export function engineeringReading<T extends EngineeringItem>(
         `PR #${pr.number} ${pr.title} · ${pr.draft ? "draft" : templatePrState(pr, failures)}`,
       ).join("; ")}.`
     : undefined;
-  return placeReading({
+  const reading = placeReading({
     headline,
     ...(qualifier ? { qualifier } : {}),
     tiles: [
@@ -183,4 +192,8 @@ export function engineeringReading<T extends EngineeringItem>(
     groups: groupsFor(own),
     ...(extra ? { extra } : {}),
   });
+  return {
+    ...reading,
+    ...(positionsRead ? { verifiedTemplate: { verified, total, unread, target } } : {}),
+  };
 }

@@ -32,6 +32,7 @@ import {
   mixedFixtureInput,
   mixedSnapshotPath,
   oracle,
+  recordedInput,
   snapshotPath,
 } from "./snapshot-fixture.js";
 import { stationSubstate } from "./substate.js";
@@ -206,6 +207,25 @@ describe("Watch projection", () => {
     expect(
       snapshot.readings.find(({ anchor }) => anchor.kind === "engineering")?.content,
     ).not.toHaveProperty("qualifier");
+  });
+
+  it("preserves typed template verification through the host snapshot projection", () => {
+    const input = recordedInput();
+    const repo = input.facts.github.data?.repos["Azure/osdu-spi-partition"];
+    if (!repo) throw new Error("Missing partition");
+    delete repo.marker;
+    const snapshot = projectWatch(input);
+    const model = buildModel(input.facts, input.context.clock.now(), {}, input.context);
+    expect(
+      snapshot.readings.find(({ anchor }) => anchor.kind === "engineering")?.content
+        ?.verifiedTemplate,
+    ).toEqual({
+      verified: 0,
+      total: 13,
+      unread: 1,
+      target: model.rollout?.target.sha ?? model.template.head?.sha,
+    });
+    expect(ViewSnapshotSchema.parse(snapshot)).toEqual(snapshot);
   });
 
   it.each(["template", "runs"] as const)(

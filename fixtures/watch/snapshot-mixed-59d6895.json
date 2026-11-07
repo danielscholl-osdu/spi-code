@@ -1570,7 +1570,13 @@
             "group": "New"
           }
         ],
-        "folded": "On osdu-spi: PR #248 chore: release 1.2.1 · review required."
+        "folded": "On osdu-spi: PR #248 chore: release 1.2.1 · review required.",
+        "verifiedTemplate": {
+          "verified": 0,
+          "total": 5,
+          "unread": 0,
+          "target": "bb49a034a3dcdaa922a1905e708ec66bde930888"
+        }
       }
     },
     {

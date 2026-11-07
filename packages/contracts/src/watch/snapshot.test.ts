@@ -161,6 +161,37 @@ describe("window reading contract", () => {
       delete withoutQualifier.readings[0].content.qualifier;
     expect(ViewSnapshotSchema.parse(withoutQualifier)).toEqual(withoutQualifier);
   });
+  it("accepts optional typed template verification and rejects malformed counts", () => {
+    const reading = populated.readings[0];
+    if (!reading?.content) throw new Error("Missing populated reading");
+    const verifiedTemplate = { verified: 1, total: 13, unread: 1, target: "7d269b5" };
+    const withAdoption = (value: unknown) => ({
+      ...populated,
+      readings: [
+        {
+          anchor: { kind: "engineering" },
+          content: { ...reading.content, verifiedTemplate: value },
+        },
+      ],
+    });
+    const valid = withAdoption(verifiedTemplate);
+    expect(ViewSnapshotSchema.parse(valid)).toEqual(valid);
+    expect(ViewSnapshotSchema.parse(populated)).toEqual(populated);
+    for (const invalid of [
+      null,
+      { ...verifiedTemplate, verified: "1" },
+      { ...verifiedTemplate, verified: -1 },
+      { ...verifiedTemplate, verified: 14 },
+      { ...verifiedTemplate, total: 1.5 },
+      { ...verifiedTemplate, unread: -1 },
+      { ...verifiedTemplate, unread: 13 },
+      { ...verifiedTemplate, target: "" },
+      { ...verifiedTemplate, extra: true },
+      { verified: 1, total: 13, target: "7d269b5" },
+    ]) {
+      expect(ViewSnapshotSchema.safeParse(withAdoption(invalid)).success).toBe(false);
+    }
+  });
   it.each(fields)("rejects missing and mistyped %s", (path, invalid) => {
     for (const value of [undefined, invalid]) {
       const bad = structuredClone(populated);
