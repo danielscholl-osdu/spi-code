@@ -38,6 +38,30 @@ import { stationSubstate } from "./substate.js";
 
 process.env.TZ = "UTC";
 
+// The rib reaches a code finding that names no file as shipped code; SPI Code reaches it as
+// repository settings, so osdu-spi's Branch-Protection and Code-Review leave the shipped tallies.
+function settingsReach(briefing: unknown): unknown {
+  const text = JSON.stringify(briefing)
+    .replace("and 13 high code-scanning alerts.", "and 11 high code-scanning alerts.")
+    .replace(
+      "critical or high in shipped code · 3 rules",
+      "critical or high in shipped code · 1 rule",
+    )
+    .replace(
+      "1 alert in SPI-owned shipped code at repository settings, found by Scorecard.",
+      "1 alert in SPI-owned repository settings, found by Scorecard.",
+    )
+    .replaceAll("SPI · shipped · repository settings", "SPI · repository settings");
+  const out = JSON.parse(text);
+  const fact = out.repositories.facts.find(
+    (f: { label: string }) => f.label === "Code scanning · ours",
+  );
+  fact.figure = "11";
+  const row = out.repositories.rows.find((r: { id: string }) => r.id === "repo:osdu-spi");
+  row.cells.codeScanning = { ...row.cells.codeScanning, text: "0", tone: "neutral" };
+  return out;
+}
+
 const temporary: string[] = [];
 afterEach(() => {
   vi.restoreAllMocks();
@@ -320,7 +344,7 @@ describe("Watch projection", () => {
     const snapshot = projectWatch(fixtureInput());
     const legacy = withoutAdditions(snapshot);
     // The rib's 17-word flow headline breaks the 12-word rule; its pilot sentence leads sub instead.
-    const frozen = oracle("briefing") as { flow: { headline: string; sub: string } };
+    const frozen = settingsReach(oracle("briefing")) as { flow: { headline: string; sub: string } };
     expect(legacy.briefing).toEqual({
       ...frozen,
       flow: {
