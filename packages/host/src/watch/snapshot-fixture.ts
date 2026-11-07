@@ -37,6 +37,9 @@ export const recordedRoot = fileURLToPath(new URL("../../../core/test/fixtures/"
 export const recordedSnapshotPath = fileURLToPath(
   new URL("../../../../fixtures/watch/snapshot-1106.json", import.meta.url),
 );
+export const detailFeedPath = fileURLToPath(
+  new URL("../../../../fixtures/watch/inspect-1106.json", import.meta.url),
+);
 
 export function oracle(name: string): unknown {
   return json(
