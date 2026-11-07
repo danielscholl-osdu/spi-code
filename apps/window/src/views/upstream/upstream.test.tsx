@@ -297,6 +297,35 @@ it("opens each fork a theme names from the Upstream place in one click", async (
   }
 });
 
+it("opens the Line sheet filtered to the Upstream column from its Line view link", async () => {
+  const body = fixture();
+  const station = body.stations
+    .find(({ service }) => service === "partition")
+    ?.stations.find(({ id }) => id === "upstream");
+  if (!station) throw new Error("Missing fixture station");
+  station.text = "";
+  await act(async () => load({ ...body, cursor: body.cursor + 1 }));
+  const sheet = () => container.querySelector<HTMLElement>(".line-sheet");
+  expect(sheet()).toBeNull();
+  const link = [...place().querySelectorAll<HTMLButtonElement>("header button")].find(
+    (button) => button.textContent === "Line view",
+  );
+  await click(link);
+  expect(sheet()?.dataset.presentation).toBe("overlay");
+  expect(window.location.hash).toBe("#upstream");
+  const chip = sheet()?.querySelector('[aria-label="Clear Upstream filter"]');
+  expect(chip?.getAttribute("aria-pressed")).toBe("true");
+  const rows = [...(sheet()?.querySelectorAll<HTMLElement>("tbody tr[data-service]") ?? [])].map(
+    (row) => row.dataset.service,
+  );
+  expect(rows).not.toContain("partition");
+  expect(rows).toEqual(
+    body.stations
+      .filter(({ stations }) => stations.some(({ id, text }) => id === "upstream" && text.trim()))
+      .map(({ service }) => service),
+  );
+});
+
 it("takes no space for a missing reading or an empty horizon", async () => {
   const body = fixture();
   await act(async () =>
