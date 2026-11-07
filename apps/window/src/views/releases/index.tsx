@@ -10,11 +10,13 @@ import {
 } from "@spi-code/contracts";
 import { useEffect, useState } from "react";
 import { useStore } from "zustand";
-import { navigate } from "../../app/routes.js";
+import { navigate } from "../../app/navigation.js";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
+import { Place } from "../../components/place/Place.js";
 import type { SelectionRow } from "../../panels/selection-rows.js";
 import { useSelectionList } from "../../panels/useSelectionList.js";
 import { watchStore } from "../../store/watch.js";
+import { treeServices } from "../inbox/queue.js";
 import "../repositories/panes.css";
 import "./releases.css";
 
@@ -53,6 +55,10 @@ function keyedStats(stats: ReleaseLine["stats"]) {
 
 export default function Releases() {
   const evidence = useStore(watchStore, (state) => state.snapshot?.body);
+  const reading = evidence?.readings.find(({ anchor }) => anchor.kind === "releases") ?? {
+    anchor: { kind: "releases" },
+    content: null,
+  };
   const releases = evidence?.releases;
   const rows = (releases?.lines ?? [])
     .map((line, index) => ({
@@ -75,19 +81,24 @@ export default function Releases() {
     open,
   );
   return (
-    <>
-      <h1>Releases</h1>
-      <div className="watch-pane releases" data-view-pane="releases">
+    <div className="releases" data-view-pane="releases">
+      <Place
+        name="Releases"
+        reading={reading}
+        services={treeServices(evidence?.tree)}
+        onNavigate={navigate}
+      />
+      <div className="watch-pane">
         {evidence && <SectionEvidence evidence={evidence} prefixes={["/releases"]} />}
         {!releases?.lines.length || !evidence ? (
-          <h2 role="status">{releases?.reading ? "Reading releases…" : "No releases read yet."}</h2>
+          releases?.reading || !reading.content ? (
+            <h2 role="status">
+              {releases?.reading ? "Reading releases…" : "No releases read yet."}
+            </h2>
+          ) : null
         ) : (
           <>
-            <h2>Monthly release notes for SPI consumers.</h2>
-            <p>
-              Each month is built from the GitHub releases of the template, the stack,
-              core-lib-azure and every service fork, with reviewed notes laid over it.
-            </p>
+            <h2>Release months</h2>
             <table className="release-months" aria-label="Release months" data-selection-list>
               <thead>
                 <tr>
@@ -131,7 +142,7 @@ export default function Releases() {
           </>
         )}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -276,10 +287,6 @@ export function ReleaseMonth({ month }: { month: string }) {
             </section>
           )}
           <ReleaseDocument key={line.id} id={line.id} cursor={evidence.cursor} />
-          <section aria-label="Threads">
-            <h2>Threads</h2>
-            <p>Threads are not available yet.</p>
-          </section>
         </div>
       )}
     </article>
