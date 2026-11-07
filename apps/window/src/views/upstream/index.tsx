@@ -87,6 +87,15 @@ export default function Upstream({
         onNavigate={navigate}
         onSelect={select}
         {...(selected !== null ? { selectedId: selected } : {})}
+        actions={
+          <button
+            type="button"
+            title="Open the Line sheet filtered to the Upstream column"
+            onClick={() => navigate({ kind: "line", column: "upstream" })}
+          >
+            Line view
+          </button>
+        }
       />
       {themes.length > 0 && (
         <section className="upstream-ahead" aria-label="Further ahead">
