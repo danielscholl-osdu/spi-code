@@ -66,13 +66,15 @@ export function selectStrip(snapshot: ViewSnapshot): StripFields {
   if (env && env.figure !== "?") {
     fields.environment = { version: env.figure, state: env.sub.split(" · ")[0] ?? "" };
   }
-  const template = facts.find(({ label }) => /^Template\b/.test(label));
-  const adoption = template?.figure.match(/^(\d+) of (\d+)$/);
-  if (template && adoption && Number(adoption[2]) > 0) {
+  const adoption = snapshot.readings
+    .find(({ anchor }) => anchor.kind === "engineering")
+    ?.content?.tiles.find(({ label }) => label === "Engineering system");
+  const verified = adoption?.value.match(/^(\d+) of (\d+)$/);
+  if (adoption && verified && Number(verified[2]) > 0) {
     fields.template = {
-      verified: Number(adoption[1]),
-      total: Number(adoption[2]),
-      target: template.label.replace(/^Template( · )?/, "").trim(),
+      verified: Number(verified[1]),
+      total: Number(verified[2]),
+      target: adoption.counts.match(/^forks on ([0-9a-f]{7,40})\b/)?.[1] ?? "",
     };
   }
   const due = new Map<string, number>();

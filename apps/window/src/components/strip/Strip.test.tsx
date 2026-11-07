@@ -128,7 +128,7 @@ it("renders the fields from the November 6 sweep", async () => {
   expect(field("stopped")?.textContent).toBe("entitlements stopped");
   expect(field("environment")?.textContent).toBe("env v0.35.3 deployable");
   expect(field("template")?.textContent).toBe("template 0/13");
-  expect(field("template")?.title).toBe("0 of 13 forks on template main 7d269b5");
+  expect(field("template")?.title).toBe("0 of 13 forks on template 7d269b5");
   expect(field("due")?.textContent).toBe(`10 due before ${clock(nextSync)}`);
   expect(field("next-sync")?.textContent).toBe(`next sync ${clock(nextSync)}`);
   expect(
@@ -180,6 +180,9 @@ it("gives a field with no data no space", async () => {
       .map((fact) => (fact.label === "Environment" ? { ...fact, figure: "?" } : fact))
       .filter(({ label }) => !label.startsWith("Template")),
   };
+  body.readings = body.readings.map((reading) =>
+    reading.anchor.kind === "engineering" ? { ...reading, content: null } : reading,
+  );
   delete body.briefing.nextSyncAt;
   expect(selectStrip(body)).toEqual({
     pips: FLEET.map((service) => ({ service, state: "nothing-due" })),
@@ -189,6 +192,79 @@ it("gives a field with no data no space", async () => {
   await mount();
   expect(strip()?.querySelectorAll("[data-field]")).toHaveLength(0);
   expect(strip()?.textContent).toBe(`${"○".repeat(13)}Line ⌘L`);
+});
+
+/** The marker figure the Briefing carries and the engineering reading's tiles, as projected from the sweep. */
+function adoption(
+  body: ViewSnapshot,
+  marker: string,
+  [verified, counts, rollout]: [string, string, string],
+) {
+  body.briefing.facts = body.briefing.facts.map((fact) =>
+    fact.label.startsWith("Template") ? { ...fact, figure: marker } : fact,
+  );
+  for (const reading of body.readings) {
+    if (reading.anchor.kind !== "engineering" || !reading.content) continue;
+    const [system, prs, state] = reading.content.tiles;
+    reading.content.tiles = [
+      { ...system, value: verified, counts },
+      prs,
+      { ...state, value: rollout },
+    ];
+  }
+  return body;
+}
+
+it.each([
+  [
+    "merged, main validation pending",
+    "1 of 13",
+    ["0 of 13", "forks on 7d269b5", "In progress"],
+    "0/13",
+  ],
+  ["merged, main validation failed", "1 of 13", ["0 of 13", "forks on 7d269b5", "Stopped"], "0/13"],
+  [
+    "merged and verified, another fork's marker unread",
+    "1 of 12",
+    ["1 of 13", "forks on 7d269b5 · 1 not read yet", "In progress"],
+    "1/13",
+  ],
+  [
+    "one fork's marker unread",
+    "0 of 12",
+    ["0 of 13", "forks on 7d269b5 · 1 not read yet", "In progress"],
+    "0/13",
+  ],
+] as const)(
+  "counts verified forks over the fleet for the template: %s",
+  async (_case, marker, tiles, shown) => {
+    show(adoption(fixture(), marker, [...tiles]));
+    await mount();
+    expect(pips()).toHaveLength(13);
+    expect(field("template")?.textContent).toBe(`template ${shown}`);
+    expect(field("template")?.title).toBe(
+      `${shown.replace("/", " of ")} forks on template 7d269b5`,
+    );
+  },
+);
+
+it("gives the template no space when the engineering reading is absent or not read", async () => {
+  const body = fixture();
+  const absent = {
+    ...body,
+    readings: body.readings.filter(({ anchor }) => anchor.kind !== "engineering"),
+  };
+  expect(selectStrip(absent).template).toBeUndefined();
+  const unread = adoption(fixture(), "0 of 0", [
+    "not read yet",
+    "forks on 7d269b5 · 13 not read yet",
+    "not read yet",
+  ]);
+  expect(selectStrip(unread).template).toBeUndefined();
+  show(absent);
+  await mount();
+  expect(field("template")).toBeNull();
+  expect(field("environment")).not.toBeNull();
 });
 
 it("opens the Line sheet from the strip and from its Line button", async () => {
