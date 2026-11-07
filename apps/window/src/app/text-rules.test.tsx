@@ -29,8 +29,7 @@ const inspections = files
   );
 const internal = /\bfork_upstream\b|\bgate\s+\d+\b|\bpresses\b|\bcut\b/i;
 const placeholder = /not available yet|No settled threads yet|ships in M[3-9]/i;
-const headlines =
-  '.place-headline, [data-pointer$="/headline"], .release-months td:nth-child(3), .release-page > [data-pointer] > p:nth-of-type(2)';
+const headlines = '.place-headline, [data-pointer$="/headline"], .release-months td:nth-child(3)';
 const titles =
   ".place-item-title, .place-item-sub, .place-item-next, .template-line-text, .template-line-sub, .env-repo-line-text, .env-repo-line small, .env-muted, .template-repo-title, .service-row-title, .service-section-count, .service-row-sub, .detail-title, [data-field], .inspector-related dd, .palette-label, .inbox-row-title, .inbox-sub, .today-folded li button[data-selection-id], .today-folded li p";
 

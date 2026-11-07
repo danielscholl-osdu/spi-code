@@ -3558,7 +3558,28 @@
         "kind": "release-month",
         "month": "2026-11"
       },
-      "content": null
+      "content": {
+        "headline": "Releases for November 2026 are not fully read yet.",
+        "tiles": [
+          {
+            "label": "Notes",
+            "value": "No notes yet",
+            "counts": "In progress, closes Nov 30"
+          },
+          {
+            "label": "Services released",
+            "value": "?/13",
+            "counts": "services released from SPI forks"
+          },
+          {
+            "label": "Actions",
+            "value": "?",
+            "counts": "actions not reviewed yet"
+          }
+        ],
+        "items": [],
+        "folded": null
+      }
     },
     {
       "anchor": {

@@ -10,7 +10,11 @@ import type { ReadRecord } from "../src/evidence/index.js";
 import { emptyFacts, type Facts } from "../src/facts.js";
 import { buildModel } from "../src/model/index.js";
 import { internalNames, NOT_READ, readingText, wordCount } from "../src/readings/index.js";
-import { type ReleaseMonth, releasesReading } from "../src/readings/releases.js";
+import {
+  type ReleaseMonth,
+  releaseMonthReading,
+  releasesReading,
+} from "../src/readings/releases.js";
 import sweep from "./fixtures/upstream-1106.json";
 
 const previous = process.env.TZ;
@@ -172,5 +176,90 @@ describe("Releases reading on the recorded 6 Nov sweep", () => {
       counts: "the release months",
     });
     expect(monthsUnread.folded).not.toContain("Earlier months");
+  });
+});
+
+describe("A release month's reading", () => {
+  // November as the 6 Nov sweep recorded it: no notes file and no release read back yet.
+  const november = {
+    headline: "Releases for November 2026 are not fully read yet.",
+    notes: "none" as const,
+    stateText: "In progress, closes Nov 30",
+    stats: [
+      {
+        figure: "?/13",
+        short: "Services released",
+        label: "services released from SPI forks",
+        anchor: "components",
+      },
+      {
+        figure: "?",
+        short: "Releases",
+        label: "releases, 16 repositories not read yet",
+        anchor: "components",
+      },
+      { figure: "?", short: "Actions", label: "actions not reviewed yet", anchor: "action" },
+      {
+        figure: "?",
+        short: "Open issues",
+        label: "known issues not reviewed yet",
+        anchor: "issues",
+      },
+    ],
+  };
+
+  it("leads with the month's headline, then its notes, services released and actions", () => {
+    const reading = releaseMonthReading(november);
+    expect(reading).toEqual({
+      headline: november.headline,
+      tiles: [
+        { label: "Notes", value: "No notes yet", counts: "In progress, closes Nov 30" },
+        { label: "Services released", value: "?/13", counts: "services released from SPI forks" },
+        { label: "Actions", value: "?", counts: "actions not reviewed yet" },
+      ],
+      items: [],
+      folded: null,
+    });
+    expect(wordCount(reading.headline)).toBeLessThanOrEqual(12);
+    expect(readingText(reading).flatMap(internalNames)).toEqual([]);
+  });
+
+  it("reads each notes state and finds its figures by short label, whatever their order", () => {
+    const shuffled = [
+      {
+        figure: "2",
+        short: "Actions",
+        label: "actions to take, 1 required",
+        tone: "bad",
+        anchor: "action",
+      },
+      {
+        figure: "12/13",
+        short: "Services released",
+        label: "services released from SPI forks",
+        anchor: "components",
+      },
+    ];
+    const reviewed = releaseMonthReading({
+      ...november,
+      notes: "approved",
+      stateText: "Closed Oct 31",
+      stats: shuffled,
+    });
+    expect(reviewed.tiles).toEqual([
+      { label: "Notes", value: "Approved", counts: "Closed Oct 31" },
+      { label: "Services released", value: "12/13", counts: "services released from SPI forks" },
+      { label: "Actions", value: "2", counts: "actions to take, 1 required" },
+    ]);
+    expect(releaseMonthReading({ ...november, notes: "invalid" }).tiles[0].value).toBe(
+      "Notes file invalid",
+    );
+    expect(releaseMonthReading({ ...november, notes: "draft" }).tiles[0].value).toBe("Draft");
+  });
+
+  it("reads a figure the month lacks as not read yet, never a zero", () => {
+    const reading = releaseMonthReading({ ...november, stats: [] });
+    expect(reading.tiles.slice(1).map((t) => t.value)).toEqual([NOT_READ, NOT_READ]);
+    expect(readingText(reading).join(" ")).not.toMatch(/\b0\b/);
   });
 });

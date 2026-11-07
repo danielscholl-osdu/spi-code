@@ -9,7 +9,7 @@
 .release-months tr[aria-selected="true"] { background: var(--accent-surface); }
 .release-months tr:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .release-name { padding: 0; border: 0; background: none; color: var(--accent-text); text-align: left; white-space: nowrap; }
-.release-toolbar { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+.pane-fact-short { display: block; color: var(--text-muted); font-size: 11px; }
 .release-document { list-style: none; padding: 0; }
 .release-document li { display: grid; grid-template-columns: minmax(80px, 1fr) minmax(0, 4fr); gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
 .release-document-state { color: var(--text-muted); font-size: 12px; }

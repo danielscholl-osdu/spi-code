@@ -121,16 +121,19 @@ it("keeps every former Releases field one click away through its recorded month 
     await act(async () =>
       root.render(<RouteView route={{ kind: "release", month: line.month }} />),
     );
-    expect(container.querySelector("h1")?.textContent).toBe(`Release ${line.month}`);
-    expect(container.textContent).toContain(line.headline);
-    expect(container.textContent).toContain(line.stateText);
+    expect(container.querySelector("h1")?.textContent).toBe(`SPI ${line.name}`);
+    expect(container.querySelector(".place-headline")?.textContent).toBe(line.headline);
+    expect(container.querySelector(".place-tile-counts")?.textContent).toBe(line.stateText);
     expect(
       [...container.querySelectorAll(".pane-fact")].map((fact) => ({
+        short: fact.querySelector(".pane-fact-short")?.textContent,
         figure: fact.querySelector("strong")?.textContent,
         label: fact.querySelector("div")?.textContent,
         anchor: fact.getAttribute("data-anchor"),
       })),
-    ).toEqual(line.stats.map(({ figure, label, anchor }) => ({ figure, label, anchor })));
+    ).toEqual(
+      line.stats.map(({ short, figure, label, anchor }) => ({ short, figure, label, anchor })),
+    );
     expect(container.querySelector('[aria-label="Threads"]')).toBeNull();
   }
   const line = body.releases.lines[0];
@@ -186,4 +189,50 @@ it("keeps every former Releases field one click away through its recorded month 
     await act(async () => link.click());
     expect(window.spi.openExternal).toHaveBeenLastCalledWith(link.href);
   }
+});
+
+it("renders November's month as a place: its reading first, then its figures and document", async () => {
+  const body = snapshot();
+  const [line] = body.releases.lines;
+  const reading = body.readings.find(
+    ({ anchor }) => anchor.kind === "release-month" && anchor.month === line?.month,
+  )?.content;
+  if (!line || !reading) throw new Error("Missing recorded November month reading");
+  watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+  await act(async () => root.render(<RouteView route={{ kind: "release", month: line.month }} />));
+  const page = container.querySelector(`[data-rel-detail="${line.id}"]`);
+  const place = page?.firstElementChild;
+  expect(place?.matches("section.place")).toBe(true);
+  expect(place?.querySelector("h1")?.textContent).toBe("SPI 2026.11");
+  expect(place?.querySelector(".place-header button")?.textContent).toBe("Detail");
+  const section = place?.querySelector('[aria-label="SPI 2026.11 reading"]');
+  expect(section?.querySelector(".place-headline")?.textContent).toBe(line.headline);
+  expect([...(section?.querySelectorAll(".place-tile") ?? [])].map((t) => t.textContent)).toEqual([
+    "NotesNo notes yetIn progress, closes Nov 30",
+    "Services released?/13services released from SPI forks",
+    "Actions?actions not reviewed yet",
+  ]);
+  for (const absent of [".place-groups", ".place-folded", ".place-qualifier"])
+    expect(section?.querySelector(absent), absent).toBeNull();
+  const figures = page?.querySelector('[aria-label="Figures"]');
+  expect(figures && section?.compareDocumentPosition(figures)).toBe(
+    Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+  expect([...(figures?.querySelectorAll(".pane-fact") ?? [])].map((f) => f.textContent)).toEqual(
+    line.stats.map(({ short, figure, label }) => `${short}${figure}${label}`),
+  );
+  expect(page?.querySelector('[role="status"]')?.textContent).toBe("Reading release document…");
+  expect(page?.textContent).not.toMatch(/Threads|composer|not available yet/i);
+  for (const empty of page?.querySelectorAll("h1, h2, h3, h4, ul, dl") ?? [])
+    expect(empty.textContent?.trim(), empty.outerHTML).not.toBe("");
+
+  const unread = body.readings.find(({ anchor }) => anchor.kind === "release-month");
+  if (unread) unread.content = null;
+  await act(async () =>
+    watchStore.setState({ snapshot: { cursor: body.cursor + 1, body: structuredClone(body) } }),
+  );
+  expect(container.querySelector('[aria-label="SPI 2026.11 reading"]')).toBeNull();
+  expect(container.querySelectorAll('[aria-label="Figures"] .pane-fact')).toHaveLength(
+    line.stats.length,
+  );
 });
