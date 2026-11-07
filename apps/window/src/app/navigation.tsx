@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION, parseMessage } from "@spi-code/contracts";
+import { PROTOCOL_VERSION, parseMessage, type Station } from "@spi-code/contracts";
 import {
   createContext,
   type ReactNode,
@@ -48,7 +48,9 @@ export type RouteOf<K extends RouteKind> = Extract<Route, { kind: K }>;
 
 /** The Line sheet is not a route: it opens over the centre and closes back to it. */
 export const LINE = { kind: "line" } as const;
-export type Destination = Route | typeof LINE;
+export type LineColumn = Exclude<Station["id"], "lane">;
+export type LineSheetOptions = { readonly column?: LineColumn };
+export type Destination = Route | (typeof LINE & LineSheetOptions);
 /** Over the centre, which is inert beneath it, or pinned beside a centre that stays live. */
 export type SheetPresentation = "closed" | "overlay" | "pinned";
 
@@ -187,6 +189,10 @@ export function renderRoute(route: Route, registry: Registry): ReactNode {
 const listeners = new Set<() => void>();
 /** The hash beneath the open Line sheet; the sheet is open only while the hash still matches. */
 let sheetOrigin: string | null = null;
+let sheetRequest: { id: number; column: LineColumn | undefined } = {
+  id: 0,
+  column: undefined,
+};
 const PINNED_KEY = "spi-code.line-sheet.pinned";
 /** A pinned sheet survives navigation and, through local storage, a reload. */
 let pinned = false;
@@ -235,10 +241,19 @@ function readPresentation(): SheetPresentation {
   return sheetOrigin !== null && sheetOrigin === window.location.hash ? "overlay" : "closed";
 }
 
-/** Opens the sheet over the centre; a pinned sheet stays pinned. */
-export function openSheet() {
-  if (readPresentation() !== "closed") return;
-  sheetOrigin = window.location.hash;
+function readSheetRequest() {
+  return sheetRequest;
+}
+
+/** The latest explicit opening, so a sheet already on screen can reset its filters. */
+export function useLineSheetRequest() {
+  return useSyncExternalStore(subscribe, readSheetRequest, readSheetRequest);
+}
+
+/** Opens with fresh filters over the centre; a pinned sheet stays pinned. */
+export function openSheet(options: LineSheetOptions = {}) {
+  sheetRequest = { id: sheetRequest.id + 1, column: options.column };
+  if (!pinned) sheetOrigin = window.location.hash;
   emit();
 }
 
@@ -266,7 +281,7 @@ export function closeSheet() {
 
 /** Goes to a route, closing an overlaid Line sheet, or opens the sheet over the current route. */
 export function navigate(destination: Destination) {
-  if (destination.kind === "line") return openSheet();
+  if (destination.kind === "line") return openSheet(destination);
   const hash = routeHash(destination);
   const wasOpen = sheetOrigin !== null;
   sheetOrigin = null;

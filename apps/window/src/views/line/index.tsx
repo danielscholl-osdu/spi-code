@@ -6,10 +6,12 @@ import { useState } from "react";
 import { useStore } from "zustand";
 import {
   closeSheet,
+  type LineColumn,
   navigate,
   pinSheet,
   type SheetPresentation,
   unpinSheet,
+  useLineSheetRequest,
 } from "../../app/navigation.js";
 import { selectionStore } from "../../panels/selection.js";
 import { selectionRows } from "../../panels/selection-rows.js";
@@ -37,19 +39,36 @@ export default function Line({
 }: {
   presentation: Exclude<SheetPresentation, "closed">;
 }) {
+  const request = useLineSheetRequest();
+  return (
+    <LineContent key={request.id} presentation={presentation} initialColumn={request.column} />
+  );
+}
+
+function LineContent({
+  presentation,
+  initialColumn,
+}: {
+  presentation: Exclude<SheetPresentation, "closed">;
+  initialColumn: LineColumn | undefined;
+}) {
   const snapshot = useStore(watchStore, (state) => state.snapshot?.body);
   const selected = useStore(selectionStore, (state) => state.selected);
+  const [columnId, setColumnId] = useState(initialColumn);
   const [campaignId, setCampaignId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const campaigns = snapshot?.campaigns ?? [];
+  const column = columns.find(({ id }) => id === columnId);
   const campaign = campaigns.find(({ id }) => id === campaignId);
-  const rows = (snapshot?.stations ?? []).filter(({ service, stations }) =>
-    campaign ? campaign.forks.includes(service) : stations.some(({ text }) => text.trim()),
+  const rows = (snapshot?.stations ?? []).filter(
+    ({ service, stations }) =>
+      (!columnId || stations.some(({ id, text }) => id === columnId && text.trim())) &&
+      (campaign ? campaign.forks.includes(service) : stations.some(({ text }) => text.trim())),
   );
   const quiet = rows.filter(({ stations }) =>
     stations.every(({ substate }) => substate === "ready"),
   );
-  const folded = campaign ? [] : quiet;
+  const folded = campaign || column ? [] : quiet;
   const visible = rows.filter((row) => expanded || !folded.includes(row));
   const populatedColumns = columns.filter(({ id }) =>
     rows.some(({ stations }) =>
@@ -71,6 +90,18 @@ export default function Line({
           </button>
         </div>
       </div>
+      {column && (
+        <fieldset className="line-campaigns" aria-label="Station filter">
+          <button
+            type="button"
+            aria-label={`Clear ${column.label} filter`}
+            aria-pressed="true"
+            onClick={() => setColumnId(undefined)}
+          >
+            {column.label} · Clear
+          </button>
+        </fieldset>
+      )}
       {campaigns.length > 0 && (
         <fieldset className="line-campaigns" aria-label="Campaigns">
           {campaigns.map(({ id, fact, forks }) => (

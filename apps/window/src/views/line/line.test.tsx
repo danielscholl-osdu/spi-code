@@ -7,7 +7,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import recorded from "../../../../../fixtures/watch/snapshot-59d6895.json?raw";
 import november6 from "../../../../../fixtures/watch/snapshot-1106.json?raw";
-import { closeSheet, navigate, type Route, routeHash } from "../../app/navigation.js";
+import { closeSheet, navigate, openSheet, type Route, routeHash } from "../../app/navigation.js";
 import { DEFAULT_REGISTRY } from "../../app/routes.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
@@ -314,4 +314,138 @@ it("draws no empty cells, campaign controls, tables or repeated freshness", asyn
   expect(sheet()?.querySelector(".line-campaigns")).toBeNull();
   await click(button("Close Line"));
   expect(sheet()).toBeNull();
+});
+
+it.each(["recorded", "blank stations"] as const)(
+  "opens the November 6 sheet with exactly the services with upstream text (%s)",
+  async (variant) => {
+    const body = ViewSnapshotSchema.parse(JSON.parse(november6));
+    if (variant === "blank stations") {
+      for (const [service, text] of [
+        ["partition", ""],
+        ["legal", " \t "],
+      ]) {
+        const station = body.stations
+          .find((row) => row.service === service)
+          ?.stations.find(({ id }) => id === "upstream");
+        if (!station || text === undefined) throw new Error("Missing fixture station");
+        station.text = text;
+      }
+      const quiet = body.stations.find(({ service }) => service === "entitlements");
+      if (!quiet) throw new Error("Missing fixture service");
+      for (const station of quiet.stations) station.substate = "ready";
+    }
+    const expected = body.stations
+      .filter(({ stations }) => stations.some(({ id, text }) => id === "upstream" && text.trim()))
+      .map(({ service }) => service);
+    watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+    await mount();
+    await act(async () => navigate({ kind: "line", column: "upstream" }));
+    expect(services()).toEqual(expected);
+    expect(button("Clear Upstream filter").getAttribute("aria-pressed")).toBe("true");
+    expect(sheet()?.textContent).toContain(`${expected.length} services`);
+  },
+);
+
+it("clears the column chip to restore every November 6 service", async () => {
+  const body = ViewSnapshotSchema.parse(JSON.parse(november6));
+  const station = body.stations[0]?.stations.find(({ id }) => id === "upstream");
+  if (!station) throw new Error("Missing fixture station");
+  station.text = "";
+  watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+  await mount();
+  await act(async () => openSheet({ column: "upstream" }));
+  expect(services()).not.toContain("partition");
+  await click(button("Clear Upstream filter"));
+  expect(services()).toEqual(body.stations.map(({ service }) => service));
+  expect(sheet()?.querySelector('[aria-label="Station filter"]')).toBeNull();
+});
+
+it.each([
+  ["sync", "Sync PR"],
+  ["cascade", "Cascade"],
+  ["main", "Main"],
+  ["release", "Release PR"],
+] as const)("opens with the %s station filter", async (column, label) => {
+  const body = ViewSnapshotSchema.parse(JSON.parse(november6));
+  const station = body.stations[0]?.stations.find(({ id }) => id === column);
+  if (!station) throw new Error("Missing fixture station");
+  station.text = "";
+  watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+  await mount();
+  await act(async () => openSheet({ column }));
+  expect(services()).toEqual(
+    body.stations
+      .filter(({ stations }) => stations.some(({ id, text }) => id === column && text.trim()))
+      .map(({ service }) => service),
+  );
+  expect(button(`Clear ${label} filter`).getAttribute("aria-pressed")).toBe("true");
+});
+
+it("reopens unfiltered with Cmd-L after a November 6 column filter", async () => {
+  const body = ViewSnapshotSchema.parse(JSON.parse(november6));
+  const station = body.stations[0]?.stations.find(({ id }) => id === "upstream");
+  if (!station) throw new Error("Missing fixture station");
+  station.text = "";
+  watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+  await mount();
+  await act(async () => openSheet({ column: "upstream" }));
+  expect(services()).not.toContain("partition");
+  await open();
+  expect(sheet()).toBeNull();
+  await open();
+  expect(services()).toEqual(body.stations.map(({ service }) => service));
+  expect(sheet()?.querySelector('[aria-label="Station filter"]')).toBeNull();
+});
+
+it("intersects a station filter with a campaign and clears either independently", async () => {
+  const body = ViewSnapshotSchema.parse(JSON.parse(november6));
+  const station = body.stations
+    .find(({ service }) => service === "schema")
+    ?.stations.find(({ id }) => id === "upstream");
+  if (!station) throw new Error("Missing fixture station");
+  station.text = "";
+  watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+  await mount();
+  await act(async () => openSheet({ column: "upstream" }));
+  await click(button("os-core-common 8.5.0 · 8 forks"));
+  expect(services()).toEqual([
+    "file",
+    "storage",
+    "indexer",
+    "search",
+    "workflow",
+    "unit",
+    "crs-conversion",
+  ]);
+  await click(button("os-core-common 8.5.0 · 8 forks"));
+  expect(services()).toEqual(
+    body.stations.filter(({ service }) => service !== "schema").map(({ service }) => service),
+  );
+  await click(button("os-core-common 8.5.0 · 8 forks"));
+  await click(button("Clear Upstream filter"));
+  const forks = body.campaigns.find(({ forks }) => forks.length === 8)?.forks;
+  expect(services()).toEqual(
+    body.stations.filter(({ service }) => forks?.includes(service)).map(({ service }) => service),
+  );
+});
+
+it("opens a new column or an unfiltered sheet over a pinned sheet without keeping its campaign", async () => {
+  const body = ViewSnapshotSchema.parse(JSON.parse(november6));
+  const station = body.stations[0]?.stations.find(({ id }) => id === "upstream");
+  if (!station) throw new Error("Missing fixture station");
+  station.text = "";
+  watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+  await mount();
+  await open();
+  await click(button("Pin"));
+  await click(button("os-core-common 8.5.0 · 8 forks"));
+  await act(async () => navigate({ kind: "line", column: "upstream" }));
+  expect(sheet()?.dataset.presentation).toBe("pinned");
+  expect(services()).toEqual(body.stations.slice(1).map(({ service }) => service));
+  expect(button("os-core-common 8.5.0 · 8 forks").getAttribute("aria-pressed")).toBe("false");
+  await act(async () => openSheet());
+  expect(sheet()?.dataset.presentation).toBe("pinned");
+  expect(services()).toEqual(body.stations.map(({ service }) => service));
+  expect(sheet()?.querySelector('[aria-label="Station filter"]')).toBeNull();
 });
