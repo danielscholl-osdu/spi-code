@@ -160,7 +160,7 @@ describe("Security reading on the recorded sweep", () => {
         sum + Number(row.cells.vulnerabilities.text) + Number(row.cells.codeScanning.text),
       0,
     );
-    expect(high).toBe(16);
+    expect(high).toBe(14);
     const reading = securityReading(input);
     expect(reading.tiles.map(({ value }) => value)).toEqual([String(high), "34", "81"]);
     expect(reading.tiles[0].counts).toContain("high or critical in SPI-owned shipped code");
@@ -186,7 +186,7 @@ describe("Security reading on the recorded sweep", () => {
       severity: "critical",
     });
     const reading = securityReading(recorded(facts));
-    expect(reading.tiles.map(({ value }) => value)).toEqual(["16", "34", "82"]);
+    expect(reading.tiles.map(({ value }) => value)).toEqual(["14", "34", "82"]);
     expect(reading.tiles[2].counts).toContain("upstream-owned findings at all severities");
     expect(readingText(reading).join(" ")).not.toContain("Upstream-only finding");
   });
@@ -220,6 +220,52 @@ describe("Security reading on the recorded sweep", () => {
         }),
       ]),
     );
+  });
+
+  it("does not count a pathless high Scorecard finding as high in SPI-owned shipped code", () => {
+    const facts = fixtureFacts();
+    const alerts = facts.security.data;
+    const branch = alerts?.["Azure/osdu-spi"]?.code?.find(
+      (alert) => alert.tool === "Scorecard" && alert.rule === "BranchProtectionID",
+    );
+    if (!alerts || !branch) throw new Error("Missing recorded Branch-Protection finding");
+    expect(branch.severity).toBe("high");
+    for (const repo of Object.keys(alerts)) alerts[repo] = { dependabot: [], code: [] };
+    alerts["Azure/osdu-spi"] = { dependabot: [], code: [branch] };
+    const input = recorded(facts);
+    const row = input.model.repositories.rows.find((r) => r.repo === "Azure/osdu-spi");
+    expect(row?.alerts).toMatchObject([{ reach: "settings", where: "" }]);
+    expect(row?.codeScanning).toEqual({ ours: 0, upstream: 0 });
+    const reading = securityReading(input);
+    expect(reading.tiles.map(({ value }) => value)).toEqual(["0", "1", "0"]);
+    expect(reading.headline).not.toContain("high or critical");
+    expect(reading.items).toMatchObject([
+      {
+        title: "Scorecard: branch protection",
+        sub: "1 SPI-owned finding · worst high · repository settings",
+      },
+    ]);
+  });
+
+  it("raises no shipped-code critical queue item for a pathless critical finding", () => {
+    const facts = fixtureFacts();
+    const alerts = facts.security.data;
+    const branch = alerts?.["Azure/osdu-spi"]?.code?.find(
+      (alert) => alert.tool === "Scorecard" && alert.rule === "BranchProtectionID",
+    );
+    if (!alerts || !branch) throw new Error("Missing recorded Branch-Protection finding");
+    for (const repo of Object.keys(alerts)) alerts[repo] = { dependabot: [], code: [] };
+    alerts["Azure/osdu-spi"] = { dependabot: [], code: [{ ...branch, severity: "critical" }] };
+    const input = recorded(facts);
+    const queued = input.model.queue.items.filter((item) => item.kind === "security");
+    expect(queued).toEqual([]);
+    expect(input.items.filter((item) => item.cls === "SECURITY")).toEqual([]);
+    expect(JSON.stringify(input.model.queue)).not.toContain("Ships in");
+    const reading = securityReading(input);
+    expect(reading.tiles[0].value).toBe("0");
+    expect(reading.items).toMatchObject([
+      { sub: "1 SPI-owned finding · worst critical · repository settings", rung: 2 },
+    ]);
   });
 
   it("shows each shared rule once as its detected campaign, not once per fork or path", () => {
