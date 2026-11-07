@@ -64,18 +64,17 @@ const section = (name: string) => container.querySelector<HTMLElement>(`[data-se
 const click = (element: Element | null | undefined) =>
   act(async () => (element as HTMLElement | null)?.click());
 
-it("draws stations, Attention, Threads, Upstream sync, Repository, Release and Runs in that order", async () => {
+it("draws the service reading and folds only nonempty source sections", async () => {
   await render();
   expect(container.querySelector("h1")?.textContent).toBe(SERVICE);
   expect(
     Array.from(container.querySelectorAll("[data-section]"), (el) =>
       el.getAttribute("data-section"),
     ),
-  ).toEqual(["stations", "attention", "threads", "upstream", "repository", "release", "runs"]);
-  expect(
-    Array.from(container.querySelectorAll(".service-section h2"), (el) => el.textContent),
-  ).toEqual(["Attention", "Threads", "Upstream sync", "Repository", "Release", "Runs"]);
-  expect(section("threads")?.textContent).toBe("ThreadsThreads are not available yet.");
+  ).toEqual(["attention", "repository", "release", "runs"]);
+  expect(container.querySelector(".place-reading")).not.toBeNull();
+  expect(section("threads")).toBeNull();
+  expect(container.querySelectorAll("details[open]")).toHaveLength(0);
   expect(
     section("attention")?.querySelector("[data-selection-id]")?.getAttribute("data-selection-id"),
   ).toBe("halt:entitlements");
@@ -84,30 +83,31 @@ it("draws stations, Attention, Threads, Upstream sync, Repository, Release and R
 it("makes each of the six station tiles a selection that asks for its inspect", async () => {
   const { body, requested, selection } = await render();
   const stations = body.stations.find(({ service }) => service === SERVICE)?.stations ?? [];
-  const tiles = section("stations")?.querySelectorAll<HTMLElement>("li[data-station]") ?? [];
+  const tiles = container.querySelectorAll<HTMLElement>("button[data-station]");
   expect(tiles).toHaveLength(6);
   for (const [index, station] of stations.entries()) {
     const tile = tiles[index];
     expect(tile?.getAttribute("data-selection-id")).toBe(`station:${SERVICE}:${station.id}`);
     await click(tile);
     expect(selection.getState().selected).toBe(`station:${SERVICE}:${station.id}`);
-    expect(tile?.getAttribute("aria-selected")).toBe("true");
-    expect(requested()?.payload.id).toBe(station.inspect ?? `upstream:${SERVICE}`);
+    expect(tile?.getAttribute("aria-pressed")).toBe("true");
+    expect(requested()?.payload.id).toBe(station.inspect ?? `station:${SERVICE}:${station.id}`);
   }
-  expect(section("stations")?.querySelectorAll('[aria-selected="true"]')).toHaveLength(1);
+  expect(container.querySelectorAll('.service-station-actions [aria-pressed="true"]')).toHaveLength(
+    1,
+  );
 });
 
 it("selects the flow row and shows its reading", async () => {
   const { requested, selection } = await render();
-  const row = section("upstream")?.querySelector<HTMLElement>("[data-selection-id]");
-  expect(row?.getAttribute("data-selection-id")).toBe(`upstream:${SERVICE}`);
-  expect(row?.textContent).toContain("schemathesis-tests");
-  expect(row?.textContent).toContain("Sync PR halt");
-  expect(section("upstream")?.textContent).toContain("halted · add a filter rule");
+  const row = container.querySelector<HTMLElement>('[data-service-detail="upstream"]');
   await click(row);
   expect(selection.getState().selected).toBe(`upstream:${SERVICE}`);
   expect(selection.getState().row?.kind).toBe("flow");
-  expect(row?.getAttribute("aria-selected")).toBe("true");
+  expect(selection.getState().row?.fields).toContainEqual({
+    label: "Ready",
+    value: "halted · add a filter rule",
+  });
   expect(requested()?.payload.id).toBe(`upstream:${SERVICE}`);
 });
 
@@ -121,7 +121,7 @@ it("draws Release and Runs from the service rows, runs newest first and openable
     ),
   ).toEqual(["2026-10", "2026-09"]);
   expect(release?.querySelector('[data-release="2026-10"]')?.textContent).toContain(
-    "gate idle · v1.2.0",
+    "release review idle · v1.2.0",
   );
   const runs = Array.from(
     section("runs")?.querySelectorAll<HTMLElement>("[data-selection-id]") ?? [],
@@ -157,7 +157,7 @@ it("shows entitlements' own read times in the October hint from the mixed fixtur
   await render();
   const october = section("release")?.querySelector('[data-release="2026-10"]');
   expect(october?.textContent).toContain("new → v1.2.1");
-  expect(october?.textContent).toContain("gate idle · v1.2.0");
+  expect(october?.textContent).toContain("release review idle · v1.2.0");
   expect(hintOf("2026-10")).toBe(TIMED);
   expect(hintOf("2026-09")).toBeUndefined();
 });
@@ -166,7 +166,7 @@ it("gives no hint when the gate agrees with the release row", async () => {
   await render(mixedSnapshot(mixed), false, "schema");
   const october = section("release")?.querySelector('[data-release="2026-10"]');
   expect(october?.textContent).toContain("new → v1.2.0");
-  expect(october?.textContent).toContain("gate idle · v1.2.0");
+  expect(october?.textContent).toContain("release review idle · v1.2.0");
   expect(hintOf("2026-10")).toBeUndefined();
 });
 
@@ -275,25 +275,16 @@ it("makes repository lines with ids selectable and openable", async () => {
   );
 });
 
-it("offers Detail and keeps Ask, Add to chat and + Thread disabled with the reason", async () => {
+it("opens upstream Detail and leaves unshipped actions out", async () => {
   const { selection } = await render();
-  const buttons = Array.from(container.querySelectorAll<HTMLButtonElement>(".service-tool button"));
-  expect(buttons.map((button) => [button.textContent, button.disabled])).toEqual([
-    ["Detail", false],
-    ["Ask", true],
-    ["Add to chat", true],
-    ["+ Thread", true],
-  ]);
-  for (const button of buttons.slice(1)) {
-    const reason = document.getElementById(button.getAttribute("aria-describedby") ?? "");
-    expect(reason?.textContent).toBe("Threads are not available yet.");
-  }
-  expect(buttons[0]?.hasAttribute("aria-describedby")).toBe(false);
+  const button = container.querySelector<HTMLButtonElement>('[data-service-detail="upstream"]');
+  expect(button?.disabled).toBe(false);
+  expect(container.textContent).not.toMatch(/Add to chat|Thread|not available yet/);
   await act(async () => {
     selection.getState().setOpen(false);
     selection.getState().setTab("evidence");
   });
-  await click(buttons[0]);
+  await click(button);
   expect(selection.getState().open).toBe(true);
   expect(selection.getState().tab).toBe("detail");
   expect(selection.getState().selected).toBe(`upstream:${SERVICE}`);
@@ -303,7 +294,7 @@ it("fills the right panel's Detail with the selected tile", async () => {
   const { selection, requested } = await render(undefined, true);
   const panel = () => container.querySelector<HTMLElement>("aside[aria-label='Detail']");
   expect(panel()?.textContent).toContain("No selection");
-  await click(section("stations")?.querySelector('[data-station="sync"]'));
+  await click(container.querySelector('[data-station="sync"]'));
   expect(panel()?.querySelector(".inspector-kicker")?.textContent).toBe("station");
   expect(panel()?.querySelector(".detail-title")?.textContent).toBe(`Sync PR · ${SERVICE}`);
   expect(panel()?.querySelector(".detail-row-fields")?.textContent).toContain(
