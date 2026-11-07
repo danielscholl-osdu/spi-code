@@ -2124,42 +2124,168 @@
         "kind": "release-month",
         "month": "2026-10"
       },
-      "content": null
+      "content": {
+        "headline": "All 13 services <now> ship from SPI forks.",
+        "tiles": [
+          {
+            "label": "Notes",
+            "value": "Approved",
+            "counts": "In progress, closes Oct 31"
+          },
+          {
+            "label": "Services released",
+            "value": "5/5",
+            "counts": "services released from SPI forks"
+          },
+          {
+            "label": "Actions",
+            "value": "1",
+            "counts": "required action"
+          }
+        ],
+        "items": [],
+        "folded": null
+      }
     },
     {
       "anchor": {
         "kind": "release-month",
         "month": "2026-09"
       },
-      "content": null
+      "content": {
+        "headline": "28 releases across 2 repositories in September 2026.",
+        "tiles": [
+          {
+            "label": "Notes",
+            "value": "No notes yet",
+            "counts": "Closed Sep 30"
+          },
+          {
+            "label": "Services released",
+            "value": "1/5",
+            "counts": "services released from SPI forks, 4 forked this month"
+          },
+          {
+            "label": "Actions",
+            "value": "?",
+            "counts": "actions not reviewed yet"
+          }
+        ],
+        "items": [],
+        "folded": null
+      }
     },
     {
       "anchor": {
         "kind": "release-month",
         "month": "2026-08"
       },
-      "content": null
+      "content": {
+        "headline": "11 releases across 2 repositories in August 2026.",
+        "tiles": [
+          {
+            "label": "Notes",
+            "value": "No notes yet",
+            "counts": "Closed Aug 31"
+          },
+          {
+            "label": "Services released",
+            "value": "1/5",
+            "counts": "services released from SPI forks"
+          },
+          {
+            "label": "Actions",
+            "value": "?",
+            "counts": "actions not reviewed yet"
+          }
+        ],
+        "items": [],
+        "folded": null
+      }
     },
     {
       "anchor": {
         "kind": "release-month",
         "month": "2026-07"
       },
-      "content": null
+      "content": {
+        "headline": "1 release across 1 repository in July 2026.",
+        "tiles": [
+          {
+            "label": "Notes",
+            "value": "No notes yet",
+            "counts": "Closed Jul 31"
+          },
+          {
+            "label": "Services released",
+            "value": "1/5",
+            "counts": "services released from SPI forks"
+          },
+          {
+            "label": "Actions",
+            "value": "?",
+            "counts": "actions not reviewed yet"
+          }
+        ],
+        "items": [],
+        "folded": null
+      }
     },
     {
       "anchor": {
         "kind": "release-month",
         "month": "2026-04"
       },
-      "content": null
+      "content": {
+        "headline": "1 release across 1 repository in April 2026.",
+        "tiles": [
+          {
+            "label": "Notes",
+            "value": "No notes yet",
+            "counts": "Closed Apr 30"
+          },
+          {
+            "label": "Services released",
+            "value": "1/5",
+            "counts": "services released from SPI forks"
+          },
+          {
+            "label": "Actions",
+            "value": "?",
+            "counts": "actions not reviewed yet"
+          }
+        ],
+        "items": [],
+        "folded": null
+      }
     },
     {
       "anchor": {
         "kind": "release-month",
         "month": "2026-03"
       },
-      "content": null
+      "content": {
+        "headline": "1 release across 1 repository in March 2026.",
+        "tiles": [
+          {
+            "label": "Notes",
+            "value": "No notes yet",
+            "counts": "Closed Mar 31"
+          },
+          {
+            "label": "Services released",
+            "value": "0/5",
+            "counts": "services released from SPI forks"
+          },
+          {
+            "label": "Actions",
+            "value": "?",
+            "counts": "actions not reviewed yet"
+          }
+        ],
+        "items": [],
+        "folded": null
+      }
     },
     {
       "anchor": {

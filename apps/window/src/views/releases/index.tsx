@@ -232,6 +232,9 @@ export function ReleaseMonth({ month }: { month: string }) {
   const evidence = useStore(watchStore, (state) => state.snapshot?.body);
   const index = evidence?.releases.lines.findIndex((line) => line.month === month) ?? -1;
   const line = evidence?.releases.lines[index];
+  const reading = evidence?.readings.find(
+    ({ anchor }) => anchor.kind === "release-month" && anchor.month === month,
+  ) ?? { anchor: { kind: "release-month" as const, month }, content: null };
   const row: SelectionRow | undefined = line
     ? {
         id: line.id,
@@ -242,53 +245,56 @@ export function ReleaseMonth({ month }: { month: string }) {
     : undefined;
   const list = useSelectionList(row ? [row] : []);
   return (
-    <article className="watch-pane release-page" data-rel-detail={line?.id}>
-      <div className="release-toolbar">
-        <h1>Release {month}</h1>
-        <button type="button" disabled={!row} onClick={() => row && list.select(row)}>
-          Detail
-        </button>
-      </div>
-      {!line || !evidence ? (
-        <p role="status">
-          {evidence?.releases.reading ? "Reading releases…" : "This month has not been read yet."}
-        </p>
-      ) : (
-        <div data-pointer={`/releases/lines/${index}`}>
-          <SectionEvidence evidence={evidence} prefixes={[`/releases/lines/${index}`]} />
-          <p>
-            <Notes line={line} /> {line.stateText}
+    <article className="release-page" data-view-pane="release" data-rel-detail={line?.id}>
+      <Place
+        name={line ? `SPI ${line.name}` : `Release ${month}`}
+        reading={reading}
+        services={treeServices(evidence?.tree)}
+        onNavigate={navigate}
+        actions={
+          <button type="button" disabled={!row} onClick={() => row && list.select(row)}>
+            Detail
+          </button>
+        }
+      />
+      <div className="watch-pane">
+        {!line || !evidence ? (
+          <p role="status">
+            {evidence?.releases.reading ? "Reading releases…" : "This month has not been read yet."}
           </p>
-          <h2>SPI {line.name}</h2>
-          <p>{line.headline}</p>
-          <div className="pane-facts">
-            {keyedStats(line.stats).map(({ key, stat }) => (
-              <div
-                className="pane-fact"
-                key={key}
-                data-anchor={stat.anchor}
-                data-tone={stat.tone}
-                data-unread={stat.figure === "?"}
-              >
-                <strong>{stat.figure}</strong>
-                <div>{stat.label}</div>
-              </div>
-            ))}
-          </div>
-          {line.keyChanges.length > 0 && (
-            <section aria-label="Key changes">
-              <h2>Key changes</h2>
-              <ul>
-                {line.keyChanges.map((change, index) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: changes are plain strings that can repeat
-                  <li key={index}>{change}</li>
-                ))}
-              </ul>
+        ) : (
+          <div data-pointer={`/releases/lines/${index}`}>
+            <SectionEvidence evidence={evidence} prefixes={[`/releases/lines/${index}`]} />
+            <section aria-label="Figures" className="pane-facts">
+              {keyedStats(line.stats).map(({ key, stat }) => (
+                <div
+                  className="pane-fact"
+                  key={key}
+                  data-anchor={stat.anchor}
+                  data-tone={stat.tone}
+                  data-unread={stat.figure === "?"}
+                >
+                  <span className="pane-fact-short">{stat.short}</span>
+                  <strong>{stat.figure}</strong>
+                  <div>{stat.label}</div>
+                </div>
+              ))}
             </section>
-          )}
-          <ReleaseDocument key={line.id} id={line.id} cursor={evidence.cursor} />
-        </div>
-      )}
+            {line.keyChanges.length > 0 && (
+              <section aria-label="Key changes">
+                <h2>Key changes</h2>
+                <ul>
+                  {line.keyChanges.map((change, index) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: changes are plain strings that can repeat
+                    <li key={index}>{change}</li>
+                  ))}
+                </ul>
+              </section>
+            )}
+            <ReleaseDocument key={line.id} id={line.id} cursor={evidence.cursor} />
+          </div>
+        )}
+      </div>
     </article>
   );
 }

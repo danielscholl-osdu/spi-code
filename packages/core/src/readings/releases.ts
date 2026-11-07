@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { ReleaseLine } from "../brief/release.js";
+import { NOTES_LABEL, type ReleaseLine } from "../brief/release.js";
 import type { CoreContext } from "../context.js";
 import type { ReadRecord } from "../evidence/index.js";
 import type { Facts } from "../facts.js";
@@ -156,6 +156,32 @@ function groupsOf<T extends ReadingItem>(items: readonly T[]): ReadingGroup<T>[]
     else groups.push({ group, items: [item] });
   }
   return groups;
+}
+
+// The month's own figure under its short label; a stat the month lacks reads as not read.
+type MonthStat = Pick<ReleaseLine["stats"][number], "figure" | "short" | "label">;
+
+function statTile(stats: readonly MonthStat[], short: string): ReadingTile {
+  const stat = stats.find((s) => s.short === short);
+  return stat
+    ? { label: stat.short, value: stat.figure, counts: stat.label }
+    : { label: short, value: NOT_READ, counts: short.toLowerCase() };
+}
+
+// A release month's place: its headline, then where its notes stand, what shipped and what a
+// consumer must do. Its other figures, key changes and document rows sit below the reading.
+export function releaseMonthReading(
+  line: Pick<ReleaseLine, "headline" | "notes" | "stateText"> & { stats: readonly MonthStat[] },
+): PlaceReading<never> {
+  return placeReading<never>({
+    headline: line.headline,
+    tiles: [
+      { label: "Notes", value: NOTES_LABEL[line.notes], counts: line.stateText },
+      statTile(line.stats, "Services released"),
+      statTile(line.stats, "Actions"),
+    ],
+    groups: [],
+  });
 }
 
 export function releasesReading<T extends ReadingItem>(input: ReleasesReadingInput<T>): PlaceReading<T> {

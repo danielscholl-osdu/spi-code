@@ -61,6 +61,12 @@ const quote = (value: string) => JSON.stringify(value);
 const firstClause = (value: string) => value.split(" · ")[0] ?? value;
 const lastWord = (value: string) => value.trim().split(/\s+/).pop() ?? "";
 const nextSync = (value: string) => value.replace(/^Next sync /, "");
+const NOTES_STATE: Readonly<Record<string, string>> = {
+  Approved: "approved",
+  Draft: "draft",
+  "No notes yet": "none",
+  "Notes file invalid": "invalid",
+};
 const ownText = (element: Element) =>
   [...element.childNodes]
     .filter((node) => node.nodeType === 3)
@@ -559,21 +565,17 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
     });
     add(`${pointer}/headline`, line.headline, releasesPlace, `${row} td:nth-child(3)`);
     add(`${pointer}/stateText`, line.stateText, releasesPlace, `${row} td:nth-child(4)`);
-    add(`${pointer}/month`, line.month, month, "h1", {
-      read: (element) => (element.textContent ?? "").replace(/^Release /, ""),
+    const place = ".release-page > section.place";
+    const notesTile = `${place} .place-tile:nth-child(1)`;
+    add(`${pointer}/name`, line.name, month, `${place} .place-header h1`, { read: ofName });
+    add(`${pointer}/headline`, line.headline, month, `${place} .place-headline`);
+    add(`${pointer}/notes`, line.notes, month, `${notesTile} .place-tile-value`, {
+      read: (element) => NOTES_STATE[element.textContent ?? ""] ?? "",
     });
-    add(`${pointer}/name`, line.name, month, `${page} > h2`, { read: ofName });
-    add(`${pointer}/notes`, line.notes, month, `${page} .notes-chip`, { attribute: "data-notes" });
-    add(
-      `${pointer}/stateText`,
-      line.stateText,
-      month,
-      (root) => root.querySelector(`${page} .notes-chip`)?.parentElement,
-      { read: ownText },
-    );
-    add(`${pointer}/headline`, line.headline, month, `${page} > h2 + p`);
+    add(`${pointer}/stateText`, line.stateText, month, `${notesTile} .place-tile-counts`);
     line.stats.forEach((stat, at) => {
       const fact = `${page} .pane-fact:nth-child(${at + 1})`;
+      add(`${pointer}/stats/${at}/short`, stat.short, month, `${fact} .pane-fact-short`);
       add(`${pointer}/stats/${at}/figure`, stat.figure, month, `${fact} strong`);
       add(`${pointer}/stats/${at}/label`, stat.label, month, `${fact} > div`);
       add(`${pointer}/stats/${at}/anchor`, stat.anchor, month, fact, { attribute: "data-anchor" });
@@ -803,9 +805,9 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
     patterns: ["/briefing/headline", "/briefing/summary", "/briefing/doctor/state"],
     reason: "spicode-t1k.219: the briefing headline, summary and doctor have no home yet",
   },
-  "stats-short": {
-    patterns: ["/releases/lines/#/stats/#/short"],
-    reason: "spicode-t1k.224: a release stat's short label renders on no surface",
+  "route-key": {
+    patterns: ["/releases/lines/#/month"],
+    reason: "The key the window routes a release month's place by (#release/<month>)",
   },
 };
 

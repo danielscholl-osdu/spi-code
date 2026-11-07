@@ -181,6 +181,7 @@ it("shows the worst release read under /releases on the section line, not the fi
 const drawnStats = (id: string) =>
   [...container.querySelectorAll(`[data-rel-detail="${id}"] .pane-fact`)].map((fact) => ({
     anchor: fact.getAttribute("data-anchor"),
+    short: fact.querySelector(".pane-fact-short")?.textContent,
     figure: fact.querySelector("strong")?.textContent,
     label: fact.querySelector("div")?.textContent,
   }));
@@ -201,7 +202,7 @@ it("keeps every stat that shares an anchor across changing and updating month pa
     for (const line of body.releases.lines) {
       await act(async () => root?.render(<ReleaseMonth month={line.month} />));
       expect(drawnStats(line.id)).toEqual(
-        line.stats.map(({ anchor, figure, label }) => ({ anchor, figure, label })),
+        line.stats.map(({ anchor, short, figure, label }) => ({ anchor, short, figure, label })),
       );
     }
     await act(async () => root?.render(<ReleaseMonth month={first.month} />));
@@ -221,7 +222,7 @@ it("keeps every stat that shares an anchor across changing and updating month pa
     });
     await act(async () => watchStore.setState({ snapshot: { cursor: 2, body: updated } }));
     expect(drawnStats(first.id)).toEqual(
-      stats.map(({ anchor, figure, label }) => ({ anchor, figure, label })),
+      stats.map(({ anchor, short, figure, label }) => ({ anchor, short, figure, label })),
     );
     expect(container.querySelectorAll(`[data-rel-detail="${first.id}"] .pane-fact`)[1]).toBe(kept);
 
@@ -342,10 +343,9 @@ it("opens a month by its name or Enter, retaining the shared selection", async (
 it("renders the routed month's pane facts and every related document row, without selecting it", async () => {
   await mount(<RouteView route={{ kind: "release", month: doc.month }} />);
   expect(selectionStore.getState().selected).toBeNull();
-  expect(container.querySelector("h1")?.textContent).toBe(`Release ${doc.month}`);
-  expect(container.textContent).toContain(doc.headline);
+  expect(container.querySelector("h1")?.textContent).toBe(`SPI ${doc.name}`);
   expect(drawnStats(doc.id)).toEqual(
-    doc.stats.map(({ anchor, figure, label }) => ({ anchor, figure, label })),
+    doc.stats.map(({ anchor, short, figure, label }) => ({ anchor, short, figure, label })),
   );
   expect(container.querySelector('[role="status"]')?.textContent).toContain("Reading");
   await reply();
@@ -363,7 +363,7 @@ it("renders the routed month's pane facts and every related document row, withou
 it("selects the month and requests its inspect when Detail is clicked", async () => {
   await mount(<ReleaseMonth month={doc.month} />);
   send.mockClear();
-  const detail = container.querySelector<HTMLButtonElement>(".release-toolbar button");
+  const detail = container.querySelector<HTMLButtonElement>(".place-header button");
   expect(detail?.textContent).toBe("Detail");
   await act(async () => detail?.click());
   expect(selectionStore.getState().selected).toBe(`release:${doc.month}`);

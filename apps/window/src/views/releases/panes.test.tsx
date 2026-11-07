@@ -74,20 +74,19 @@ it.each<{ notes: NotesState; label: string; tone: string }>([
       body,
     );
     const badges = container.querySelectorAll("[data-notes]");
-    expect(badges).toHaveLength(2);
-    for (const badge of badges) {
-      expect(badge.textContent).toBe(label);
-      expect(badge.getAttribute("data-tone")).toBe(tone);
-    }
+    expect(badges).toHaveLength(1);
+    expect(badges[0]?.closest("[data-rel]")).not.toBeNull();
+    expect(badges[0]?.textContent).toBe(label);
+    expect(badges[0]?.getAttribute("data-tone")).toBe(tone);
     expect(container.querySelector("[data-unread=true]")?.textContent).toBe(
-      "?actions not reviewed yet",
+      "Actions?actions not reviewed yet",
     );
     expect(container.querySelector("li")?.textContent).toBe(line.keyChanges[0]);
     expect(container.querySelector("reviewed")).toBeNull();
   },
 );
 
-it("keeps a closed month with no notes neutral in the list and on its page", async () => {
+it("keeps a closed month with no notes neutral in the list, leaving its page to the reading", async () => {
   const body = snapshot();
   const line = body.releases.lines[0];
   if (!line) throw new Error("Missing release fixture");
@@ -102,11 +101,11 @@ it("keeps a closed month with no notes neutral in the list and on its page", asy
     body,
   );
   const badges = [...container.querySelectorAll("[data-notes]")];
-  expect(badges).toHaveLength(2);
-  for (const badge of badges) {
-    expect(badge.textContent).toBe("NO NOTES YET");
-    expect(badge.getAttribute("data-tone")).toBe("neutral");
-  }
+  expect(badges).toHaveLength(1);
+  expect(badges[0]?.closest("[data-rel]")).not.toBeNull();
+  expect(badges[0]?.textContent).toBe("NO NOTES YET");
+  expect(badges[0]?.getAttribute("data-tone")).toBe("neutral");
+  expect(container.querySelector(`[data-rel-detail="${line.id}"] [data-notes]`)).toBeNull();
 });
 
 it("colours the shared pane's run tone with the accent", async () => {

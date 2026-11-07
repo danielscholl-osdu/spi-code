@@ -130,6 +130,7 @@ describe("Watch projection", () => {
         anchor.kind === "environment" ||
         anchor.kind === "service" ||
         anchor.kind === "releases" ||
+        anchor.kind === "release-month" ||
         anchor.kind === "engineering" ||
         anchor.kind === "security"
       ) {

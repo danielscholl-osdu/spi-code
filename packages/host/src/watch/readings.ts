@@ -6,6 +6,7 @@ import {
   engineeringReading,
   environmentReading,
   type Model,
+  releaseMonthReading,
   releasesReading,
   securityReading,
   serviceReading,
@@ -80,7 +81,13 @@ export const readingFor: Record<Anchor["kind"], PlaceReader> = {
       reads: [...input.releaseRecords, ...((input.envelopeReads ?? input.reads).github ?? [])],
       context: input.context,
     }),
-  "release-month": (_anchor, _context) => null,
+  "release-month": (anchor, { documents }) => {
+    const doc =
+      anchor.kind === "release-month"
+        ? documents.find(({ month }) => month === anchor.month)
+        : undefined;
+    return doc ? releaseMonthReading(doc) : null;
+  },
   security: (_anchor, { model, input, briefing, campaigns }) =>
     securityReading({
       model,
