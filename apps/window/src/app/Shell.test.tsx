@@ -576,9 +576,9 @@ it("updates the title-bar sweep line from the live areas with the worst tone, an
     expect(line()?.getAttribute("data-tone")).toBe("muted");
     expect(line()?.textContent).toContain("waiting for the first sweep");
     for (const [snapshot, tone, words] of [
-      [failed, "bad", "1 area failed"],
-      [recovered, "fresh", "all fresh"],
-      [failed, "fresh", "all fresh"],
+      [failed, "bad", "⌀ 1 source failed"],
+      [recovered, "fresh", null],
+      [failed, "fresh", null],
     ] as const) {
       await act(async () =>
         receive?.({
@@ -590,7 +590,9 @@ it("updates the title-bar sweep line from the live areas with the worst tone, an
         }),
       );
       expect(line()?.getAttribute("data-tone")).toBe(tone);
-      expect(line()?.textContent).toContain(words);
+      expect(line()?.textContent).toMatch(/^swept \d\d:\d\d/);
+      if (words === null) expect(line()?.textContent).not.toContain("⌀");
+      else expect(line()?.textContent).toContain(words);
       expect(line()?.textContent).not.toContain("inferred");
     }
     await act(async () =>
@@ -610,7 +612,7 @@ it("updates the title-bar sweep line from the live areas with the worst tone, an
 });
 
 it.each(["failed", "stale"] as const)(
-  "turns the title-bar sweep line on a %s non-area release envelope and clears it on recovery",
+  "turns the title-bar freshness glyph on a %s non-area release envelope and clears it on recovery",
   async (state) => {
     const previous = window.spi;
     const previousState = watchStore.getState();
@@ -672,12 +674,8 @@ it.each(["failed", "stale"] as const)(
         );
         const line = container.querySelector("header [data-sweep-line]");
         expect(line?.getAttribute("data-tone")).toBe(expected);
-        expect(line?.textContent).toContain(
-          expected === "fresh"
-            ? "all fresh"
-            : `release lines ${state === "failed" ? "read failed" : "stale"}`,
-        );
-        expect(line?.textContent).not.toMatch(/\d+ areas? (failed|stale)/);
+        if (expected === "fresh") expect(line?.textContent).not.toContain("⌀");
+        else expect(line?.textContent).toContain(`⌀ 1 source ${state}`);
       }
     } finally {
       await act(async () => root.unmount());
