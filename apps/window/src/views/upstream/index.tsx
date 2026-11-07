@@ -1,37 +1,18 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { Reading, Theme, ViewSnapshot } from "@spi-code/contracts";
+import type { Theme } from "@spi-code/contracts";
 import { Fragment } from "react";
 import { useStore } from "zustand";
 import { navigate } from "../../app/navigation.js";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
 import { Place } from "../../components/place/Place.js";
 import { type SelectionStore, selectionStore } from "../../panels/selection.js";
-import { type SelectionRow, selectionRows } from "../../panels/selection-rows.js";
+import { selectionRows } from "../../panels/selection-rows.js";
 import { watchStore } from "../../store/watch.js";
 import { treeServices } from "../inbox/queue.js";
 import { themeRow, upstreamReading } from "./reading.js";
 import "./upstream.css";
-
-type Item = NonNullable<Reading["content"]>["items"][number];
-
-/** A briefing item keeps the row Today selects; a detected campaign reads its own forks. */
-function itemRow(snapshot: ViewSnapshot, item: Item): SelectionRow {
-  const known = selectionRows(snapshot).find(({ id }) => id === item.id);
-  if (known) return known;
-  const campaign = snapshot.campaigns.find(({ id }) => id === item.id);
-  return {
-    id: item.id,
-    title: item.title,
-    kind: "queue",
-    inspectId: null,
-    fields: [
-      ...(item.cause ? [{ label: "Cause", value: item.cause }] : []),
-      ...(campaign ? [{ label: "Forks", value: campaign.forks.join(", ") }] : []),
-    ],
-  };
-}
 
 function ThemeSub({ theme }: { theme: Theme }) {
   const forks = new Set([
@@ -75,8 +56,8 @@ export default function Upstream({
   const reading = upstreamReading(snapshot);
   const { horizon, themes } = snapshot.briefing;
   const select = (id: string) => {
-    const item = reading.content?.items.find((candidate) => candidate.id === id);
-    if (item) inspector.getState().select(id, itemRow(snapshot, item));
+    const row = selectionRows(snapshot).find((candidate) => candidate.id === id);
+    if (row) inspector.getState().select(id, row);
   };
   return (
     <div className="upstream">

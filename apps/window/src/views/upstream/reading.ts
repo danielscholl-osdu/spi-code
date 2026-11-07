@@ -13,6 +13,23 @@ export function upstreamReading(snapshot: ViewSnapshot): Reading {
   );
 }
 
+/** A row for each Upstream item; a detected campaign reads its own forks. */
+export function upstreamItemRows(snapshot: ViewSnapshot): SelectionRow[] {
+  return (upstreamReading(snapshot).content?.items ?? []).map((item): SelectionRow => {
+    const campaign = snapshot.campaigns.find(({ id }) => id === item.id);
+    return {
+      id: item.id,
+      title: item.title,
+      kind: "queue",
+      inspectId: null,
+      fields: [
+        ...(item.cause ? [{ label: "Cause", value: item.cause }] : []),
+        ...(campaign ? [{ label: "Forks", value: campaign.forks.join(", ") }] : []),
+      ],
+    };
+  });
+}
+
 export const themeRow = (theme: Theme, index: number): SelectionRow => ({
   id: theme.inspect ?? `theme:${theme.id}`,
   title: theme.title,
