@@ -4,10 +4,10 @@
 import type { RepoLine, ViewSnapshot } from "@spi-code/contracts";
 import { type ReactNode, useId } from "react";
 import { useStore } from "zustand";
-import { navigate } from "../../app/routes.js";
+import { navigate } from "../../app/navigation.js";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
+import { Place } from "../../components/place/Place.js";
 import { inScope } from "../../components/sidebar/attention.js";
-import { Stations } from "../../components/stations/index.js";
 import { type SelectionStore, selectionStore } from "../../panels/selection.js";
 import {
   repositoryLineRow,
@@ -24,8 +24,14 @@ import "./service.css";
 
 type WatchStore = ReturnType<typeof createWatchStore>;
 
-const THREADS_UNAVAILABLE = "Threads are not available yet.";
-const LINE_LABELS = ["Sync PR", "Cascade", "Sync to main", "Main run"];
+const STATION_LABELS = {
+  upstream: "Upstream",
+  sync: "Sync PR",
+  cascade: "Cascade",
+  main: "Main",
+  release: "Release review",
+  lane: "Lane context",
+};
 
 const openExternal = (url: string | undefined) => {
   if (url) void window.spi?.openExternal(url);
@@ -65,14 +71,16 @@ function Section({
 }) {
   const heading = useId();
   return (
-    <section className="service-section" data-section={name} aria-labelledby={heading}>
-      <div className="service-section-header">
-        <h2 id={heading}>{title}</h2>
+    <details className="service-details" data-section={name}>
+      <summary id={heading}>
+        {title}
         {count !== undefined && <span className="service-section-count">{count}</span>}
-      </div>
-      {prefixes.length > 0 && <SectionEvidence evidence={evidence} prefixes={prefixes} />}
-      {children}
-    </section>
+      </summary>
+      <section className="service-section" aria-labelledby={heading}>
+        {prefixes.length > 0 && <SectionEvidence evidence={evidence} prefixes={prefixes} />}
+        {children}
+      </section>
+    </details>
   );
 }
 
@@ -181,46 +189,6 @@ function LineBody({ line }: { line: RepoLine }) {
   );
 }
 
-function Toolbar({
-  id,
-  sub,
-  fallback,
-  store,
-}: {
-  id: string;
-  sub: string | undefined;
-  fallback: SelectionRow | undefined;
-  store: SelectionStore;
-}) {
-  const reason = useId();
-  const showDetail = () => {
-    const state = store.getState();
-    if (state.selected === null && fallback) state.select(fallback.id, fallback);
-    state.setOpen(true);
-    state.setTab("detail");
-  };
-  return (
-    <div className="service-tool">
-      <h1>{id}</h1>
-      {sub && <span className="service-tool-sub">{sub}</span>}
-      <span className="service-tool-actions">
-        <button type="button" onClick={showDetail}>
-          Detail
-        </button>
-        {["Ask", "Add to chat", "+ Thread"].map((label) => (
-          <button key={label} type="button" disabled aria-describedby={reason}>
-            {label}
-          </button>
-        ))}
-        <span id={reason} className="service-tool-reason">
-          {THREADS_UNAVAILABLE}
-        </span>
-      </span>
-    </div>
-  );
-}
-
-/** One service line's page (PS-05): the six stations, then its sections in a fixed order. */
 export default function ServicePage({
   id,
   store = watchStore,
@@ -234,8 +202,11 @@ export default function ServicePage({
   if (!evidence) {
     return (
       <section className="service-page" data-view-pane="service" aria-label={id}>
-        <h1>{id}</h1>
-        <p role="status">No sweep has read {id} yet.</p>
+        <Place
+          name={id}
+          reading={{ anchor: { kind: "service", id }, content: null }}
+          onNavigate={navigate}
+        />
       </section>
     );
   }
@@ -254,13 +225,17 @@ function ServiceBody({
   const { briefing } = evidence;
   const rows = selectionRows(evidence);
   const services = treeServices(evidence.tree);
-
-  const stationIndex = evidence.stations.findIndex(({ service }) => service === id);
-  const stations = evidence.stations[stationIndex];
+  const reading = evidence.readings.find(
+    ({ anchor }) => anchor.kind === "service" && anchor.id === id,
+  );
+  const selected = useStore(selection, (state) => state.selected);
+  const select = (row: SelectionRow) => {
+    selection.getState().select(row.id, row);
+    selection.getState().setTab("detail");
+  };
   const stationRows = rows.filter(
     (row) => row.kind === "station" && row.id.startsWith(`station:${id}:`),
   );
-  const stationList = useSelectionList(stationRows, undefined, selection);
 
   const attention = [...briefing.focus, ...briefing.rest]
     .map((item, index) => ({ item, index }))
@@ -286,35 +261,56 @@ function ServiceBody({
 
   return (
     <section className="service-page watch-pane" data-view-pane="service" aria-label={id}>
-      <Toolbar id={id} sub={attention[0]?.item.title} fallback={flowRow} store={selection} />
-
-      <div className="service-stations-strip" data-section="stations">
-        {stations ? (
-          <Stations
-            services={[stations]}
-            evidence={evidence}
-            from={stationIndex}
-            named={false}
-            tileProps={(_, station) => {
+      <Place
+        name={id}
+        reading={reading ?? { anchor: { kind: "service", id }, content: null }}
+        services={services}
+        onNavigate={navigate}
+        onSelect={(itemId) => {
+          const row = rows.find((row) => row.kind === "queue" && row.id === itemId);
+          if (row) select(row);
+        }}
+        {...(selected !== null ? { selectedId: selected } : {})}
+        actions={
+          flow &&
+          flowRow && (
+            <button type="button" data-service-detail="upstream" onClick={() => select(flowRow)}>
+              Upstream sync · {flow.ready.text}
+            </button>
+          )
+        }
+      />
+      {stationRows.length > 0 && (
+        <nav className="service-station-actions" aria-label={`${id} station details`}>
+          {evidence.stations
+            .find(({ service }) => service === id)
+            ?.stations.map((station) => {
               const row = stationRows.find((row) => row.id === `station:${id}:${station.id}`);
-              return row ? stationList.rowProps(row) : {};
-            }}
-          />
-        ) : (
-          <p className="service-empty">No stations were read for {id}.</p>
-        )}
-      </div>
-
-      <Section
-        name="attention"
-        title="Attention"
-        count={attention.length}
-        evidence={evidence}
-        prefixes={attention.flatMap(({ row }) => row.prefixes ?? [])}
-      >
-        {attention.length === 0 ? (
-          <p className="service-empty">Nothing in the queue names {id}.</p>
-        ) : (
+              return (
+                row && (
+                  <button
+                    key={station.id}
+                    type="button"
+                    data-station={station.id}
+                    data-selection-id={row.id}
+                    aria-pressed={selected === row.id}
+                    onClick={() => select(row)}
+                  >
+                    {STATION_LABELS[station.id]}
+                  </button>
+                )
+              );
+            })}
+        </nav>
+      )}
+      {attention.length > 0 && (
+        <Section
+          name="attention"
+          title="Attention"
+          count={attention.length}
+          evidence={evidence}
+          prefixes={attention.flatMap(({ row }) => row.prefixes ?? [])}
+        >
           <SelectList
             label={`${id} attention`}
             rows={attention.map(({ row }) => row)}
@@ -339,166 +335,105 @@ function ServiceBody({
               );
             }}
           />
-        )}
-      </Section>
-
-      <Section name="threads" title="Threads" evidence={evidence} prefixes={[]}>
-        <p className="service-empty">{THREADS_UNAVAILABLE}</p>
-      </Section>
-
-      <Section
-        name="upstream"
-        title="Upstream sync"
-        count={flow && <span data-tone={flow.ready.tone}>{flow.ready.text}</span>}
-        evidence={evidence}
-        prefixes={flow ? [`/briefing/flow/rows/${flowIndex}`] : []}
-      >
-        {flow && flowRow ? (
-          <SelectList
-            label={`${id} upstream sync`}
-            rows={[flowRow]}
-            store={selection}
-            render={() => (
-              <dl className="service-kv" data-pointer={`/briefing/flow/rows/${flowIndex}`}>
-                <dt>Behind</dt>
-                <dd>{flow.behind}</dd>
-                <dt>Carries</dt>
-                <dd>{flow.carries}</dd>
-                <dt>Plan</dt>
-                <dd data-tone={flow.plan.tone}>{flow.plan.text}</dd>
-                <dt>Line</dt>
-                <dd className="service-line">
-                  {flow.line.map((cell, index) => (
-                    <span key={LINE_LABELS[index]} data-tone={cell.tone}>
-                      {LINE_LABELS[index]}
-                      {cell.text === "·" ? "" : ` ${cell.text}`}
-                    </span>
-                  ))}
-                </dd>
-                <dt>Next</dt>
-                <dd data-tone={flow.next.tone}>
-                  {flow.next.strong ? <strong>{flow.next.text}</strong> : flow.next.text}
-                </dd>
-                {flow.detail.lines.length > 0 && (
-                  <>
-                    <dt>Detail</dt>
-                    <dd>
-                      {flow.detail.lines.map((line) => (
-                        <span key={line} className="service-detail-line">
-                          {line}
-                        </span>
-                      ))}
-                    </dd>
-                  </>
-                )}
-              </dl>
-            )}
-          />
-        ) : (
-          <p className="service-empty">The flow has no row for {id}.</p>
-        )}
-      </Section>
-
-      <Section
-        name="repository"
-        title="Repository"
-        count={repo && <span data-tone={repo.tone}>{repo.title}</span>}
-        evidence={evidence}
-        prefixes={repo ? [`/briefing/repositories/rows/${repoIndex}`] : []}
-      >
-        {repo ? (
-          <>
-            {repoRow && (
-              <SelectList
-                label={`${id} repository`}
-                rows={[repoRow]}
-                store={selection}
-                render={() => <span className="service-row-sub">{repo.sub}</span>}
-              />
-            )}
-            {repo.sections.map((section, sectionIndex) => (
-              <div
-                key={section.title}
-                className="service-repo-section"
-                data-weight={section.weight}
-              >
-                <div className="repo-section-title">
-                  <span>{section.title}</span>
-                  <span>
-                    {section.count}
-                    {section.rest}
-                  </span>
-                </div>
-                <RepoLines
-                  label={`${id} ${section.title}`}
-                  lines={section.lines}
-                  repoIndex={repoIndex}
-                  sectionIndex={sectionIndex}
-                  store={selection}
-                />
-              </div>
-            ))}
-            {repo.note && <p className="service-empty">{repo.note}</p>}
-          </>
-        ) : (
-          <p className="service-empty">No repository was read for {id}.</p>
-        )}
-      </Section>
-
-      {evidence.services !== undefined && (
-        <Section
-          name="release"
-          title="Release"
-          count={service?.releases.length ?? 0}
-          evidence={evidence}
-          prefixes={service ? [`/services/${serviceIndex}/releases`] : []}
-        >
-          {service && service.releases.length > 0 ? (
-            <ul className="service-rows">
-              {service.releases.map((release) => (
-                <li key={release.month} className="service-row" data-release={release.month}>
-                  <button
-                    type="button"
-                    className="service-month"
-                    onClick={() => navigate({ kind: "release", month: release.month })}
-                  >
-                    {release.month}
-                  </button>
-                  <span className="service-row-body">
-                    <span className="service-row-title">
-                      {release.version}
-                      <span className="service-class">{release.state}</span>
-                    </span>
-                    <span className="service-row-sub">
-                      {release.gate && (
-                        <span data-gate={release.gate.state}>
-                          gate {release.gate.state} · {release.gate.text}
-                        </span>
-                      )}
-                      <GateHint release={release} />
-                      {release.releasePr && (
-                        <a
-                          href={release.releasePr.url}
-                          onClick={(event) => {
-                            event.preventDefault();
-                            openExternal(release.releasePr?.url);
-                          }}
-                        >
-                          PR #{release.releasePr.number} {release.releasePr.title}
-                        </a>
-                      )}
-                    </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="service-empty">No release rows were read for {id}.</p>
-          )}
         </Section>
       )}
 
-      {evidence.services !== undefined && (
+      {repo && (
+        <Section
+          name="repository"
+          title="Repository"
+          count={<span data-tone={repo.tone}>{repo.title}</span>}
+          evidence={evidence}
+          prefixes={[`/briefing/repositories/rows/${repoIndex}`]}
+        >
+          {repoRow && (
+            <SelectList
+              label={`${id} repository`}
+              rows={[repoRow]}
+              store={selection}
+              render={() => <span className="service-row-sub">{repo.sub}</span>}
+            />
+          )}
+          {repo.sections.map(
+            (section, sectionIndex) =>
+              section.lines.length > 0 && (
+                <div
+                  key={section.title}
+                  className="service-repo-section"
+                  data-weight={section.weight}
+                >
+                  <div className="repo-section-title">
+                    <span>{section.title}</span>
+                    <span>
+                      {section.count}
+                      {section.rest}
+                    </span>
+                  </div>
+                  <RepoLines
+                    label={`${id} ${section.title}`}
+                    lines={section.lines}
+                    repoIndex={repoIndex}
+                    sectionIndex={sectionIndex}
+                    store={selection}
+                  />
+                </div>
+              ),
+          )}
+          {repo.note && <p className="service-empty">{repo.note}</p>}
+        </Section>
+      )}
+
+      {service && service.releases.length > 0 && (
+        <Section
+          name="release"
+          title="Release"
+          count={service.releases.length}
+          evidence={evidence}
+          prefixes={[`/services/${serviceIndex}/releases`]}
+        >
+          <ul className="service-rows">
+            {service.releases.map((release) => (
+              <li key={release.month} className="service-row" data-release={release.month}>
+                <button
+                  type="button"
+                  className="service-month"
+                  onClick={() => navigate({ kind: "release", month: release.month })}
+                >
+                  {release.month}
+                </button>
+                <span className="service-row-body">
+                  <span className="service-row-title">
+                    {release.version}
+                    <span className="service-class">{release.state}</span>
+                  </span>
+                  <span className="service-row-sub">
+                    {release.gate && (
+                      <span data-gate={release.gate.state}>
+                        release review {release.gate.state} ·{" "}
+                        {release.gate.text.replace(/\bgate 3\b(?:\s*·\s*)?/g, "")}
+                      </span>
+                    )}
+                    <GateHint release={release} />
+                    {release.releasePr && (
+                      <a
+                        href={release.releasePr.url}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          openExternal(release.releasePr?.url);
+                        }}
+                      >
+                        PR #{release.releasePr.number} {release.releasePr.title}
+                      </a>
+                    )}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
+      {runRows.length > 0 && (
         <Section
           name="runs"
           title="Runs"
@@ -506,30 +441,26 @@ function ServiceBody({
           evidence={evidence}
           prefixes={service ? [`/services/${serviceIndex}/runs`] : []}
         >
-          {runRows.length > 0 ? (
-            <SelectList
-              label={`${id} runs`}
-              rows={runRows}
-              open={(row) => openExternal(runs.find((run) => run.id === row.id)?.url)}
-              store={selection}
-              render={(row) => {
-                const run = runs.find((run) => run.id === row.id);
-                return (
-                  run && (
-                    <>
-                      <span className="service-row-title">{run.workflow}</span>
-                      <span data-result={run.result} data-tone={resultTone(run.result)}>
-                        {run.result}
-                      </span>
-                      <time dateTime={run.time}>{utc(run.time)}</time>
-                    </>
-                  )
-                );
-              }}
-            />
-          ) : (
-            <p className="service-empty">No runs were read for {id}.</p>
-          )}
+          <SelectList
+            label={`${id} runs`}
+            rows={runRows}
+            open={(row) => openExternal(runs.find((run) => run.id === row.id)?.url)}
+            store={selection}
+            render={(row) => {
+              const run = runs.find((run) => run.id === row.id);
+              return (
+                run && (
+                  <>
+                    <span className="service-row-title">{run.workflow}</span>
+                    <span data-result={run.result} data-tone={resultTone(run.result)}>
+                      {run.result}
+                    </span>
+                    <time dateTime={run.time}>{utc(run.time)}</time>
+                  </>
+                )
+              );
+            }}
+          />
         </Section>
       )}
     </section>
