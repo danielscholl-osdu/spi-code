@@ -81,6 +81,20 @@ packaging. Manifest discovery uses pnpm's workspace patterns and exclusions rath
 than a separate directory list. The packaged smoke test runs the app extracted from
 the generated ZIP, including the shipped runtime handshake, rather than the
 builder's app directory.
+Before starting the host proof, it renders `fixtures/watch/snapshot-1106.json`
+at 1280 x 800 content bounds and pins the app's Appearance selector to light
+and dark. `build/package-<mac|win>/views/` holds 22 PNGs, a side-by-side
+`index.html` review report and a copy of the window design. `smoke.json.views`
+lists the shots and their image and DOM qualifier evidence; the existing smoke
+artifact uploads the folder on both platforms. Setup tools are fixture-ready,
+not a live sign-in check. The renderer reloads before the host proof, so the
+fixture cannot affect its persisted-snapshot and supervision checks.
+Missing shots, images smaller than 640 x 400 or 1024 PNG bytes, or images
+with 99.5% of pixels in one 4-bit-per-channel RGB bucket fail the smoke.
+Every shot must carry the title-bar sweep line; Today, Upstream, the selected
+Detail's place and the affected service must also carry their failed-read or
+truncation qualifier. The report names the corresponding window-design section;
+the reviewer records match or mismatch per surface on the bead, not the smoke.
 The listener scan checks the main pid and every app descendant, including the
 Copilot runtime before it stops. Each scan takes one socket snapshot (`lsof` on
 macOS, `netstat -ano` on Windows), followed by one process-table snapshot (`ps`

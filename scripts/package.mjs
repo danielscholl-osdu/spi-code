@@ -337,7 +337,14 @@ export async function packageDesktop(platform = process.platform) {
     const { launchSmoke } = await import("../apps/desktop/dist/smoke-launch.js");
     launchSmoke(
       join(bundle, windows ? "SPI Code.exe" : "MacOS/SPI Code"),
-      ["--smoke-report", reportPath],
+      [
+        "--smoke-report",
+        reportPath,
+        "--smoke-views-fixture",
+        join(root, "fixtures/watch/snapshot-1106.json"),
+        "--smoke-views-design",
+        join(root, "design/spi-code-window-design.html"),
+      ],
       { ...env, SPI_CODE_RUNTIME_REPORT: runtimeReportPath },
     );
     const report = await readJson(reportPath);

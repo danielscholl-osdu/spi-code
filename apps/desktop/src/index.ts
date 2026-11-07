@@ -244,11 +244,29 @@ async function run(): Promise<void> {
     { initialSmoke, writeSmokeSnapshot },
     { exerciseSupervision, smokeClock },
     { scanAfterRuntimeReport },
+    { captureSmokeViews },
   ] = await Promise.all([
     import("./smoke-snapshot.js"),
     import("./smoke-supervision.js"),
     import("./smoke-runtime-report.js"),
+    import("./smoke-views.js"),
   ]);
+  const fixtureFlag = process.argv.indexOf("--smoke-views-fixture");
+  const designFlag = process.argv.indexOf("--smoke-views-design");
+  const fixturePath =
+    fixtureFlag >= 0
+      ? process.argv[fixtureFlag + 1]
+      : fileURLToPath(new URL("../../../fixtures/watch/snapshot-1106.json", import.meta.url));
+  const designPath =
+    designFlag >= 0
+      ? process.argv[designFlag + 1]
+      : fileURLToPath(new URL("../../../design/spi-code-window-design.html", import.meta.url));
+  assert(
+    fixturePath && !fixturePath.startsWith("--"),
+    "Smoke views require the Nov 6 fixture path",
+  );
+  assert(designPath && !designPath.startsWith("--"), "Smoke views require the window design path");
+  const views = await captureSmokeViews(window, reportPath, fixturePath, designPath);
   const rowId = randomUUID();
   const probePath = join(dataDir, "probe.json");
   const firstCursor = writeSmokeSnapshot(hostStorePath, initialSmoke);
@@ -348,6 +366,7 @@ async function run(): Promise<void> {
     tools,
     deniedBuiltIn: { name: deniedBuiltIn.name, outcome: deniedBuiltIn.outcome },
     supervision,
+    views,
   };
   assertSmokeReport(report);
   await stopHost();

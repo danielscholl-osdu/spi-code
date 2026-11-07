@@ -76,6 +76,7 @@ jobs:
           path: |
             build/package-${{ matrix.package }}/smoke.json
             build/package-${{ matrix.package }}/runtime.json
+            build/package-${{ matrix.package }}/views/
           if-no-files-found: error
           retention-days: 30
 
