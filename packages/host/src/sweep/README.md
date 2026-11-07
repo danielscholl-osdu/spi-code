@@ -66,6 +66,18 @@ At startup and on the same daily clock, budget-log trimming atomically replaces
 the file with records that ended within the last day, including the boundary
 and all fleets. Invalid log records leave the file intact and report an error
 rather than discarding budget evidence.
+A malformed, unterminated final fragment is preserved byte-for-byte in
+`sweep-budget.jsonl.<sha256>.torn` before removing it from the active log.
+Exclusive creation and byte comparison make retries reuse the same quarantine;
+different bytes at that path fail without overwriting evidence. Quarantines are
+not retention-trimmed. Successful repair reports its quarantine path through
+`onError`. Complete unterminated JSON records instead receive a newline before
+the next append.
+Quarantines and temporary rewrites are flushed and closed before replacement.
+The app-data directory is flushed before repairing (to persist the quarantine
+entry) and after each repair or trim rename. Windows directory-flush failures
+with `EPERM` or `EISDIR` are unsupported operations and skipped; other failures
+remain visible through the existing error path.
 Pruning is deliberately unfenced: it is store-wide retention housekeeping, not
 a fleet observation or cursor allocation. Its single atomic DELETE preserves
 each fleet's latest row and is safe to repeat across services. Running it even
