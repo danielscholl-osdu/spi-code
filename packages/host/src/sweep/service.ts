@@ -1,10 +1,13 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   appendFileSync,
+  closeSync,
+  fsyncSync,
   mkdirSync,
+  openSync,
   readFileSync,
   renameSync,
   rmSync,
@@ -261,9 +264,29 @@ export class SweepService {
     } catch (error) {
       if (!(error instanceof SyntaxError)) throw error;
       // Quarantine exact bytes before repairing, including any partial UTF-8 sequence.
-      writeFileSync(`${path}.${randomUUID()}.torn`, fragment, { flag: "wx" });
+      const quarantine = `${path}.${createHash("sha256").update(fragment).digest("hex")}.torn`;
+      try {
+        this.writeBudgetFile(quarantine, fragment);
+      } catch (error) {
+        if (!(error instanceof Error && "code" in error && error.code === "EEXIST")) throw error;
+        const fd = openSync(quarantine, "r+");
+        try {
+          if (!readFileSync(fd).equals(fragment)) {
+            throw new Error(`Quarantine contents differ: ${quarantine}`, { cause: error });
+          }
+          fsyncSync(fd);
+        } finally {
+          closeSync(fd);
+        }
+      }
+      this.syncBudgetDirectory();
       const prefix = bytes.subarray(0, end);
       this.replaceBudgetLog(prefix);
+      this.options.onError(
+        new Error(
+          `Repaired sweep budget log; quarantined ${fragment.length} bytes at ${quarantine}`,
+        ),
+      );
       return prefix.toString("utf8");
     }
     appendFileSync(path, "\n");
@@ -294,10 +317,39 @@ export class SweepService {
     const path = join(this.options.appData, "sweep-budget.jsonl");
     const temporary = `${path}.${randomUUID()}.tmp`;
     try {
-      writeFileSync(temporary, contents, { flag: "wx" });
+      this.writeBudgetFile(temporary, contents);
       renameSync(temporary, path);
+      this.syncBudgetDirectory();
     } finally {
       rmSync(temporary, { force: true });
+    }
+  }
+
+  private writeBudgetFile(path: string, contents: string | Buffer): void {
+    const fd = openSync(path, "wx");
+    try {
+      writeFileSync(fd, contents);
+      fsyncSync(fd);
+    } finally {
+      closeSync(fd);
+    }
+  }
+
+  private syncBudgetDirectory(): void {
+    let fd: number | undefined;
+    try {
+      fd = openSync(this.options.appData, "r");
+      fsyncSync(fd);
+    } catch (error) {
+      if (
+        process.platform !== "win32" ||
+        !(error instanceof Error && "code" in error) ||
+        (error.code !== "EPERM" && error.code !== "EISDIR")
+      ) {
+        throw error;
+      }
+    } finally {
+      if (fd !== undefined) closeSync(fd);
     }
   }
 

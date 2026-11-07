@@ -2,10 +2,22 @@
 // SPDX-License-Identifier: MIT
 
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { once } from "node:events";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  fsyncSync,
+  mkdirSync,
+  mkdtempSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { createInterface } from "node:readline";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
@@ -34,6 +46,19 @@ import * as project from "../watch/project.js";
 import { fixtureInput } from "../watch/snapshot-fixture.js";
 import { DAY_MS, SweepService, type SweepServiceOptions } from "./service.js";
 
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    openSync: vi.fn(actual.openSync),
+    writeFileSync: vi.fn(actual.writeFileSync),
+    fsyncSync: vi.fn(actual.fsyncSync),
+    closeSync: vi.fn(actual.closeSync),
+    renameSync: vi.fn(actual.renameSync),
+  };
+});
+
+const realFs = await vi.importActual<typeof import("node:fs")>("node:fs");
 let directory: string;
 let db: DatabaseSync;
 let path: string;
@@ -58,6 +83,10 @@ beforeEach(() => {
 afterEach(async () => {
   for (const service of services.splice(0)) await service.stop();
   db.close();
+  for (const fn of [openSync, writeFileSync, fsyncSync, closeSync, renameSync]) {
+    vi.mocked(fn).mockReset();
+  }
+  vi.unstubAllGlobals();
   vi.useRealTimers();
   rmSync(directory, { recursive: true, force: true });
 });
@@ -96,6 +125,36 @@ function budgets() {
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line));
+}
+
+function traceBudgetIO(beforeSync: (file: string | undefined) => void = () => {}) {
+  const files = new Map<number, string>();
+  const events: string[] = [];
+  vi.mocked(openSync).mockImplementation((file, flags, mode) => {
+    const fd = realFs.openSync(file === directory ? path : file, flags, mode);
+    files.set(fd, String(file));
+    return fd;
+  });
+  vi.mocked(writeFileSync).mockImplementation((file, contents, options) => {
+    events.push(`write:${typeof file === "number" ? files.get(file) : file}`);
+    realFs.writeFileSync(file, contents, options);
+  });
+  vi.mocked(fsyncSync).mockImplementation((fd) => {
+    const file = files.get(fd);
+    events.push(`fsync:${file}`);
+    beforeSync(file);
+    if (file !== directory) realFs.fsyncSync(fd);
+  });
+  vi.mocked(closeSync).mockImplementation((fd) => {
+    events.push(`close:${files.get(fd)}`);
+    files.delete(fd);
+    realFs.closeSync(fd);
+  });
+  vi.mocked(renameSync).mockImplementation((from, to) => {
+    events.push(`rename:${from}`);
+    realFs.renameSync(from, to);
+  });
+  return events;
 }
 
 it("renews at ttl/3, excludes a second service and schedules full sweeps at SWEEP_MS", async () => {
@@ -695,7 +754,11 @@ it.each(["startup", "append", "daily trim"])(
     );
     expect(quarantines).toHaveLength(1);
     expect(readFileSync(join(directory, quarantines[0] ?? ""))).toEqual(fragment);
-    expect(onError).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        message: expect.stringContaining(join(directory, quarantines[0] ?? "")),
+      }),
+    );
     expect(budgets()).toContainEqual(record);
     if (recovery !== "append") expect(budgets()).not.toContainEqual(old);
     await first.sweep(true);
@@ -703,20 +766,192 @@ it.each(["startup", "append", "daily trim"])(
     await vi.advanceTimersByTimeAsync(DAY_MS);
     expect(budgets()).not.toContainEqual(old);
     expect(readFileSync(join(directory, quarantines[0] ?? ""))).toEqual(fragment);
-    expect(onError).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledOnce();
   },
 );
 
 it("quarantines a wholly torn budget log before the next sweep", async () => {
   const fragment = '{"fleet":"test","cost":';
   writeFileSync(join(directory, "sweep-budget.jsonl"), fragment);
-  const first = service();
+  const first = service([], { onError: vi.fn() });
   await expect(first.start()).resolves.toBe(true);
   expect(budgets()).toHaveLength(1);
   const quarantines = readdirSync(directory).filter((name) => name.endsWith(".torn"));
   expect(quarantines).toHaveLength(1);
   expect(readFileSync(join(directory, quarantines[0] ?? ""), "utf8")).toBe(fragment);
 });
+
+it.each(["sweep", "daily trim"])(
+  "reuses one content-addressed quarantine after a failed rename and a later %s",
+  async (recovery) => {
+    const onError = vi.fn();
+    const first = service([], { intervalMs: 2 * DAY_MS, ttlMs: 3 * DAY_MS, onError });
+    await first.start();
+    const log = join(directory, "sweep-budget.jsonl");
+    const fragment = Buffer.from([0x7b, 0x22, 0xe2, 0x82]);
+    const contents = Buffer.concat([readFileSync(log), fragment]);
+    writeFileSync(log, contents);
+    const failure = Object.assign(new Error("held Windows handle"), { code: "EPERM" });
+    vi.mocked(renameSync).mockImplementationOnce(() => {
+      throw failure;
+    });
+    await expect(first.sweep(true)).rejects.toBe(failure);
+    expect(readFileSync(log)).toEqual(contents);
+    expect(readdirSync(directory).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+    if (recovery === "sweep") await first.sweep(true);
+    else await vi.advanceTimersByTimeAsync(DAY_MS);
+    await first.sweep(true);
+    await vi.advanceTimersByTimeAsync(DAY_MS);
+    const quarantine = `${log}.${createHash("sha256").update(fragment).digest("hex")}.torn`;
+    expect(readdirSync(directory).filter((name) => name.endsWith(".torn"))).toEqual([
+      basename(quarantine),
+    ]);
+    expect(readFileSync(quarantine)).toEqual(fragment);
+    expect(onError).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ message: expect.stringContaining(quarantine) }),
+    );
+    expect(budgets().at(-1)?.fleet).toBe("test");
+  },
+);
+
+it("refuses different bytes at the content-addressed quarantine path without overwriting", async () => {
+  const first = service();
+  await first.start();
+  const log = join(directory, "sweep-budget.jsonl");
+  const fragment = Buffer.from('{"torn":');
+  const contents = Buffer.concat([readFileSync(log), fragment]);
+  writeFileSync(log, contents);
+  const quarantine = `${log}.${createHash("sha256").update(fragment).digest("hex")}.torn`;
+  writeFileSync(quarantine, "other evidence");
+  await expect(first.sweep(true)).rejects.toThrow("Quarantine contents differ");
+  expect(readFileSync(quarantine, "utf8")).toBe("other evidence");
+  expect(readFileSync(log)).toEqual(contents);
+});
+
+it.each(["repair", "daily trim"])(
+  "flushes and closes budget evidence before %s renames and flushes its directory",
+  async (operation) => {
+    const first = service([], {
+      intervalMs: 2 * DAY_MS,
+      ttlMs: 3 * DAY_MS,
+      onError: vi.fn(),
+    });
+    await first.start();
+    const log = join(directory, "sweep-budget.jsonl");
+    const fragment = Buffer.from('{"torn":');
+    if (operation === "repair") {
+      writeFileSync(log, Buffer.concat([readFileSync(log), fragment]));
+    }
+    const events = traceBudgetIO();
+    if (operation === "repair") await first.sweep(true);
+    else await vi.advanceTimersByTimeAsync(DAY_MS);
+    const temporary = String(vi.mocked(renameSync).mock.calls[0]?.[0]);
+    expect(temporary).toMatch(/\.tmp$/);
+    const expected: string[] = [];
+    if (operation === "repair") {
+      const quarantine = `${log}.${createHash("sha256").update(fragment).digest("hex")}.torn`;
+      expect(openSync).toHaveBeenCalledWith(quarantine, "wx");
+      expected.push(
+        `write:${quarantine}`,
+        `fsync:${quarantine}`,
+        `close:${quarantine}`,
+        `fsync:${directory}`,
+        `close:${directory}`,
+      );
+    }
+    expect(events).toEqual([
+      ...expected,
+      `write:${temporary}`,
+      `fsync:${temporary}`,
+      `close:${temporary}`,
+      `rename:${temporary}`,
+      `fsync:${directory}`,
+      `close:${directory}`,
+    ]);
+    expect(readdirSync(directory).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+  },
+);
+
+it.each(["EPERM", "EISDIR"])(
+  "skips unsupported Windows directory opens with %s after the rewrite",
+  async (code) => {
+    const onError = vi.fn();
+    const first = service([], { intervalMs: 2 * DAY_MS, ttlMs: 3 * DAY_MS, onError });
+    await first.start();
+    vi.mocked(openSync).mockImplementation((file, flags, mode) => {
+      if (file === directory) {
+        throw Object.assign(new Error("unsupported directory open"), { code });
+      }
+      return realFs.openSync(file, flags, mode);
+    });
+    vi.stubGlobal("process", { ...process, platform: "win32" });
+    await vi.advanceTimersByTimeAsync(DAY_MS);
+    expect(openSync).toHaveBeenCalledWith(directory, "r");
+    expect(renameSync).toHaveBeenCalledOnce();
+    expect(onError).not.toHaveBeenCalled();
+    expect(budgets()).toHaveLength(1);
+    expect(readdirSync(directory).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+  },
+);
+
+it.each([".torn", ".tmp"])(
+  "keeps the active log intact when a %s fsync fails and durably retries",
+  async (extension) => {
+    const onError = vi.fn();
+    const first = service([], { onError });
+    await first.start();
+    const log = join(directory, "sweep-budget.jsonl");
+    const fragment = Buffer.from('{"torn":');
+    const contents = Buffer.concat([readFileSync(log), fragment]);
+    writeFileSync(log, contents);
+    const failure = new Error("fsync failed");
+    let failed = false;
+    const events = traceBudgetIO((file) => {
+      if (!failed && file?.endsWith(extension)) {
+        failed = true;
+        throw failure;
+      }
+    });
+    await expect(first.sweep(true)).rejects.toBe(failure);
+    expect(readFileSync(log)).toEqual(contents);
+    expect(renameSync).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    expect(readdirSync(directory).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+    events.length = 0;
+    await first.sweep(true);
+    const quarantine = `${log}.${createHash("sha256").update(fragment).digest("hex")}.torn`;
+    expect(events.indexOf(`fsync:${quarantine}`)).toBeGreaterThanOrEqual(0);
+    expect(events.indexOf(`fsync:${quarantine}`)).toBeLessThan(
+      events.findIndex((event) => event.startsWith("rename:")),
+    );
+    expect(readdirSync(directory).filter((name) => name.endsWith(".torn"))).toHaveLength(1);
+    expect(onError).toHaveBeenCalledOnce();
+  },
+);
+
+it.each([
+  ["win32", "EPERM", false],
+  ["win32", "EISDIR", false],
+  ["win32", "EIO", true],
+  ["darwin", "EPERM", true],
+  ["darwin", "EISDIR", true],
+] as const)(
+  "handles directory fsync on %s with %s (reported: %s)",
+  async (platform, code, reported) => {
+    const onError = vi.fn();
+    const first = service([], { intervalMs: 2 * DAY_MS, ttlMs: 3 * DAY_MS, onError });
+    await first.start();
+    const failure = Object.assign(new Error("directory fsync failed"), { code });
+    traceBudgetIO((file) => {
+      if (file === directory) throw failure;
+    });
+    vi.stubGlobal("process", { ...process, platform });
+    await vi.advanceTimersByTimeAsync(DAY_MS);
+    if (reported) expect(onError).toHaveBeenCalledExactlyOnceWith(failure);
+    else expect(onError).not.toHaveBeenCalled();
+    expect(readdirSync(directory).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+  },
+);
 
 it("separates a complete unterminated budget record from the next append", async () => {
   const first = service();
