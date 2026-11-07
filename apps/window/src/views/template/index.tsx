@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { Reading, RepoEntry, RepoLine, ViewSnapshot } from "@spi-code/contracts";
+import { useLayoutEffect, useRef } from "react";
 import { useStore } from "zustand";
 import { navigate } from "../../app/navigation.js";
 import { type QueueEntry, treeServices } from "../../app/queue.js";
@@ -118,20 +119,33 @@ export default function Template({
     },
     inspector,
   );
+  const inside = rows.some((row) => row.id === list.selected) ? list.selected : null;
+  const pane = useRef<HTMLDivElement>(null);
+  // Runs only when the selection moves to another row inside Details, so a reader who closes it keeps it closed.
+  useLayoutEffect(() => {
+    const details = pane.current?.querySelector<HTMLDetailsElement>(".template-details");
+    if (!inside || !details) return;
+    const shown = [
+      ...(pane.current?.querySelectorAll<HTMLElement>(".place [data-selection-id]") ?? []),
+    ].some((element) => element.dataset.selectionId === inside);
+    if (!shown) details.open = true;
+  }, [inside]);
   const fact = parts?.fact;
   const fleetFacts =
     snapshot?.briefing.repositories.facts
       .map((fact, index) => ({ fact, pointer: `/briefing/repositories/facts/${index}` }))
       .filter(({ fact }) => isReadFigure(fact.figure)) ?? [];
   return (
-    <div className="inbox template" data-view-pane="engineering-system">
+    <div className="inbox template" data-view-pane="engineering-system" ref={pane}>
       <Place
         name="Engineering system"
         reading={reading}
         services={treeServices(snapshot?.tree)}
         onNavigate={navigate}
         onSelect={(id) => {
-          const row = snapshot && selectionRows(snapshot).find((row) => row.id === id);
+          const row =
+            snapshot &&
+            selectionRows(snapshot).find((row) => row.kind === "queue" && row.id === id);
           if (!row) return;
           list.select(row);
           inspector.getState().setTab("detail");
