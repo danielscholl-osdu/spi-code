@@ -110,6 +110,15 @@ it("selects a reading item into the right panel without opening a different rout
   expect(window.location.hash).toBe(hash);
 });
 
+it("selects the recorded repository-backed reading item into repository Detail", async () => {
+  const { selection, click } = await mount();
+  await click('.place-item-content[data-selection-id="repo:legal"]');
+  expect(selection.getState().selected).toBe("repo:legal");
+  expect(selection.getState().row?.kind).toBe("repository");
+  expect(selection.getState().open).toBe(true);
+  expect(selection.getState().tab).toBe("detail");
+});
+
 it("renders no empty or future parts on the recorded sweep or when optional facts are absent", async () => {
   const { container, click, watch } = await mount();
   expect(container.querySelector('[data-section="threads"], [data-section="composer"]')).toBeNull();

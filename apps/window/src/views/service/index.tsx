@@ -267,7 +267,7 @@ function ServiceBody({
         services={services}
         onNavigate={navigate}
         onSelect={(itemId) => {
-          const row = rows.find((row) => row.kind === "queue" && row.id === itemId);
+          const row = rows.find((row) => row.id === itemId);
           if (row) select(row);
         }}
         {...(selected !== null ? { selectedId: selected } : {})}
