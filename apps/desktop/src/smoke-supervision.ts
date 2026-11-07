@@ -43,8 +43,10 @@ export interface SupervisionReport {
   canceledNavigationNoReconnect: true;
 }
 
-// The sidebar lists the snapshot's services on every route; the window is wide enough to show it.
+// The sidebar lists the pinned services the snapshot names on every route; the window is wide
+// enough to show it. The window keeps its pins in this local storage entry.
 const SIDEBAR = "#app-sidebar";
+const PINS_STORAGE_KEY = "spi-code.sidebar.pins";
 
 async function displayed(
   window: BrowserWindow,
@@ -94,6 +96,11 @@ export async function exerciseSupervision(options: {
   listeners: string[];
 }): Promise<SupervisionReport> {
   const { window, messages, channels, storePath, firstCursor, clock } = options;
+  const key = JSON.stringify(PINS_STORAGE_KEY);
+  await window.webContents.executeJavaScript(`{
+    localStorage.setItem(${key}, ${JSON.stringify(JSON.stringify([initialSmoke.service, resumedSmoke.service]))});
+    window.dispatchEvent(new StorageEvent("storage", { key: ${key} }));
+  }`);
   await displayed(window, SIDEBAR, initialSmoke.service);
   assert.equal(
     channels.length,

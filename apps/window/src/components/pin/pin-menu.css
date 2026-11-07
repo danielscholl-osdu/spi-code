@@ -1,0 +1,6 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.pin-menu { min-width: 140px; padding: 4px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-raised); box-shadow: 0 8px 24px rgb(0 0 0 / 0.25); color: var(--text); font-size: 12.5px; outline: none; }
+.pin-menu-item { padding: 4px 8px; border-radius: 5px; cursor: default; outline: none; }
+.pin-menu-item[data-highlighted] { background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); color: var(--text-strong); }

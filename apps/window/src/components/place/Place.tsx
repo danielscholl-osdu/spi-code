@@ -18,6 +18,8 @@ export type PlaceProps = {
   actions?: ReactNode;
   /** Supply only when the place is outside the sidebar; pin persistence belongs to the caller. */
   onPin?: () => void;
+  /** With onPin, the header button reads Unpin. */
+  pinned?: boolean;
 };
 
 /** A null reading content leaves only the place header, without an empty reading region. */
@@ -30,6 +32,7 @@ export function Place({
   selectedId,
   actions,
   onPin,
+  pinned = false,
 }: PlaceProps) {
   const { content } = reading;
   const ItemContent = onSelect ? "button" : "div";
@@ -45,8 +48,12 @@ export function Place({
         <h1>{name}</h1>
         {actions}
         {onPin && (
-          <button type="button" aria-label={`Pin ${name}`} onClick={() => onPin()}>
-            Pin
+          <button
+            type="button"
+            aria-label={`${pinned ? "Unpin" : "Pin"} ${name}`}
+            onClick={() => onPin()}
+          >
+            {pinned ? "Unpin" : "Pin"}
           </button>
         )}
       </header>

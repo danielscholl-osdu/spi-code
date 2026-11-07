@@ -11,6 +11,7 @@ import { closeSheet, navigate, openSheet, type Route, routeHash } from "../../ap
 import { DEFAULT_REGISTRY } from "../../app/routes.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
+import { PINS_STORAGE_KEY, readPins } from "../../store/pins.js";
 import { watchStore } from "../../store/watch.js";
 
 const recording = () => ViewSnapshotSchema.parse(JSON.parse(recorded));
@@ -77,6 +78,7 @@ afterEach(async () => {
   unmount = undefined;
   closeSheet();
   localStorage.removeItem(PINNED_KEY);
+  localStorage.removeItem(PINS_STORAGE_KEY);
   watchStore.setState(previousWatch, true);
   window.spi = previousSpi;
   vi.restoreAllMocks();
@@ -172,6 +174,45 @@ it("restores a pinned sheet on reload from the persisted pin", async () => {
   expect(sheet()?.querySelector("h1")?.textContent).toBe("Line");
   expect(main()?.hasAttribute("inert")).toBe(false);
   expect(window.location.hash).toBe("#service/legal");
+});
+
+it("pins and unpins a row's service from its context menu, by pointer and keyboard, keeping the sheet open", async () => {
+  await mount();
+  await open();
+  const row = () => sheet()?.querySelector<HTMLElement>('tbody tr[data-service="legal"]');
+  const menu = () => document.querySelector<HTMLElement>('[data-pin-menu="legal"]');
+  const item = () => menu()?.querySelector<HTMLElement>("[role='menuitem']");
+  const pinned = () =>
+    [...container.querySelectorAll('ul[aria-label="Pinned"] [data-sidebar-row]')].map((pin) =>
+      pin.getAttribute("data-sidebar-row"),
+    );
+  await act(async () => {
+    row()
+      ?.querySelector("td")
+      ?.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 8, clientY: 8 }),
+      );
+  });
+  expect(item()?.textContent).toBe("Pin legal");
+  await act(async () => item()?.click());
+  expect(readPins()).toEqual(["legal"]);
+  expect(pinned()).toEqual(["service/legal"]);
+  expect(sheet()).not.toBeNull();
+  expect(window.location.hash).toBe("#today");
+
+  const name = row()?.querySelector<HTMLButtonElement>("th button");
+  await act(async () => name?.focus());
+  await press("F10", { shiftKey: true });
+  expect(item()?.textContent).toBe("Unpin legal");
+  await press("Escape");
+  expect(menu()).toBeNull();
+  expect(sheet()).not.toBeNull();
+  await act(async () => name?.focus());
+  await press("ContextMenu");
+  await act(async () => item()?.click());
+  expect(readPins()).toEqual([]);
+  expect(pinned()).toEqual([]);
+  expect(sheet()).not.toBeNull();
 });
 
 it("folds quiet rows into one named line and expands them in fleet order", async () => {

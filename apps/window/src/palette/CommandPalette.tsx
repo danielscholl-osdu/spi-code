@@ -26,8 +26,10 @@ import { Dialog } from "@base-ui/react/dialog";
 import { useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { type Route, useRegistry } from "../app/routes.js";
+import { isMacPlatform } from "../app/shortcuts.js";
 import { AttentionDot } from "../components/AttentionDot.js";
 import { useSidebarAttention } from "../components/sidebar/attention.js";
+import { togglePin, usePins } from "../store/pins.js";
 import type { createWatchStore } from "../store/watch.js";
 import {
   buildPaletteGroups,
@@ -39,7 +41,8 @@ import "./palette.css";
 
 /**
  * Find (PS-12): Go to, Services, Lenses and Queue. The shell opens it from ⌘K or Ctrl+K (through
- * PanelControls' shortcuts) and from the sidebar's field. Esc closes it and focus returns to the
+ * PanelControls' shortcuts) and from the sidebar's field. ⏎ opens a result; ⌘↩ (Ctrl+Enter) opens
+ * a service and pins it, or unpins it when it is pinned. Esc closes it and focus returns to the
  * opener.
  */
 export function CommandPalette({
@@ -92,9 +95,18 @@ function PaletteContent({
   const body = useStore(store, (state) => state.snapshot?.body);
   const select = useStore(store, (state) => state.select);
   const [query, setQuery] = useState("");
+  const [highlighted, setHighlighted] = useState<string | undefined>(undefined);
+  const pins = usePins();
   const registry = useRegistry();
   const groups = useMemo(() => buildPaletteGroups(body, registry), [body, registry]);
   const shown = useMemo(() => filterPaletteGroups(groups, query), [groups, query]);
+  const highlightedItem = shown
+    .flatMap(({ items }) => items)
+    .find(({ value }) => value === highlighted);
+  const highlightedService =
+    highlightedItem?.target.kind === "route" && highlightedItem.target.route.kind === "service"
+      ? highlightedItem.target.route.id
+      : undefined;
   const values = useMemo(
     () => shown.flatMap(({ items }) => items.map(({ value }) => value)),
     [shown],
@@ -117,6 +129,7 @@ function PaletteContent({
       mode="none"
       autoHighlight="always"
       keepHighlight
+      onItemHighlighted={(value) => setHighlighted(value)}
     >
       <Autocomplete.Input
         className="palette-input"
@@ -128,6 +141,16 @@ function PaletteContent({
             (
               event as typeof event & { preventBaseUIHandler?: () => void }
             ).preventBaseUIHandler?.();
+            return;
+          }
+          if (
+            event.key === "Enter" &&
+            (isMacPlatform() ? event.metaKey : event.ctrlKey) &&
+            highlightedItem
+          ) {
+            event.preventDefault();
+            if (highlightedService) togglePin(highlightedService);
+            run(highlightedItem);
           }
         }}
       />
@@ -179,6 +202,10 @@ function PaletteContent({
       <div className="palette-hint">
         <span>↑↓ move</span>
         <span>⏎ open</span>
+        <span>
+          {isMacPlatform() ? "⌘↩" : "Ctrl+Enter"} open and{" "}
+          {highlightedService && pins.includes(highlightedService) ? "unpin" : "pin"}
+        </span>
         <span>esc close</span>
       </div>
     </Autocomplete.Root>

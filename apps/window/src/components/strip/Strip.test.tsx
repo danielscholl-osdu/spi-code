@@ -14,6 +14,7 @@ import november6 from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { closeSheet } from "../../app/navigation.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
+import { PINS_STORAGE_KEY, readPins } from "../../store/pins.js";
 import { selectStrip } from "../../store/strip.js";
 import { watchStore } from "../../store/watch.js";
 import { clock } from "../evidence/words.js";
@@ -82,6 +83,7 @@ afterEach(async () => {
   closeSheet();
   watchStore.setState(previousWatch, true);
   window.spi = previousSpi;
+  localStorage.removeItem(PINS_STORAGE_KEY);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -279,6 +281,66 @@ it("opens the Line sheet from the strip and from its Line button", async () => {
   expect(line?.textContent).toBe("Line ⌘L");
   await act(async () => line?.click());
   expect(sheet()).not.toBeNull();
+});
+
+const pip = (service: string) => strip()?.querySelector<HTMLElement>(`[data-service="${service}"]`);
+const menu = (service: string) =>
+  document.querySelector<HTMLElement>(`[data-pin-menu="${service}"]`);
+const pinned = () =>
+  [...container.querySelectorAll('ul[aria-label="Pinned"] [data-sidebar-row]')].map((row) =>
+    row.getAttribute("data-sidebar-row"),
+  );
+const keydown = (target: Element | null | undefined, init: KeyboardEventInit) =>
+  act(async () => {
+    target?.dispatchEvent(
+      new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init }),
+    );
+  });
+
+it("pins and unpins a service from its pip's context menu without opening the Line sheet", async () => {
+  await mount();
+  const rightClick = () =>
+    act(async () => {
+      pip("legal")?.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 4, clientY: 4 }),
+      );
+    });
+  await rightClick();
+  expect(menu("legal")?.textContent).toBe("Pin legal");
+  await act(async () => menu("legal")?.querySelector<HTMLElement>("[role='menuitem']")?.click());
+  expect(readPins()).toEqual(["legal"]);
+  expect(pinned()).toEqual(["service/legal"]);
+  expect(sheet()).toBeNull();
+  await rightClick();
+  expect(menu("legal")?.textContent).toBe("Unpin legal");
+  await act(async () => menu("legal")?.querySelector<HTMLElement>("[role='menuitem']")?.click());
+  expect(readPins()).toEqual([]);
+  expect(pinned()).toEqual([]);
+  expect(sheet()).toBeNull();
+});
+
+it("moves between pips with the arrows and opens a pip's menu from the keyboard, Escape closing it", async () => {
+  await mount();
+  expect(pips().map((item) => item.tabIndex)).toEqual(FLEET.map((_, index) => (index ? -1 : 0)));
+  await act(async () => pips()[0]?.focus());
+  await keydown(pips()[0], { key: "ArrowRight" });
+  await keydown(document.activeElement, { key: "ArrowRight" });
+  expect(document.activeElement).toBe(pip("legal"));
+  expect(pip("legal")?.tabIndex).toBe(0);
+  expect(pip("partition")?.tabIndex).toBe(-1);
+  await keydown(document.activeElement, { key: "ArrowLeft" });
+  expect(document.activeElement).toBe(pip("entitlements"));
+  await keydown(pip("entitlements"), { key: "F10", shiftKey: true });
+  expect(menu("entitlements")).not.toBeNull();
+  await keydown(document.activeElement, { key: "Escape" });
+  expect(menu("entitlements")).toBeNull();
+  await keydown(pip("entitlements"), { key: "F10" });
+  expect(menu("entitlements")).toBeNull();
+  await keydown(pip("entitlements"), { key: "ContextMenu" });
+  expect(menu("entitlements")?.textContent).toBe("Pin entitlements");
+  await keydown(document.activeElement, { key: "Escape" });
+  expect(menu("entitlements")).toBeNull();
+  expect(sheet()).toBeNull();
 });
 
 it("shows the freshness glyph in the title bar and opens the sweep Evidence from it", async () => {

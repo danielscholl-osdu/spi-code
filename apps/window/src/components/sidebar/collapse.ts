@@ -3,17 +3,16 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-export const SIDEBAR_GROUPS = ["program", "services", "lenses", "settled"] as const;
+export const SIDEBAR_GROUPS = ["places", "pinned", "settled"] as const;
 export type SidebarGroupId = (typeof SIDEBAR_GROUPS)[number];
 type CollapseChoices = Partial<Record<SidebarGroupId, boolean>>;
 
 export const COLLAPSE_STORAGE_KEY = "spi-code.sidebar.collapsed";
 /** Below these window heights a group folds unless the operator has opened or folded it. */
-export const FOLD_HEIGHTS: Partial<Record<SidebarGroupId, number>> = { lenses: 760, program: 640 };
+export const FOLD_HEIGHTS: Partial<Record<SidebarGroupId, number>> = { places: 640 };
 const DEFAULT_COLLAPSED: Record<SidebarGroupId, boolean> = {
-  program: false,
-  services: false,
-  lenses: false,
+  places: false,
+  pinned: false,
   settled: true,
 };
 

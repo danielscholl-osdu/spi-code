@@ -6,8 +6,11 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import recorded from "../../../../fixtures/watch/snapshot-59d6895.json?raw";
+import fleet from "../../../../fixtures/watch/snapshot-1106.json?raw";
+import { PLACES, routeLabel } from "../app/navigation.js";
 import { Shell } from "../app/Shell.js";
 import { selectionStore } from "../panels/selection.js";
+import { PINS_STORAGE_KEY, readPins } from "../store/pins.js";
 import { watchStore } from "../store/watch.js";
 import { buildPaletteGroups, filterPaletteGroups } from "./palette.logic.js";
 
@@ -19,6 +22,7 @@ let root: Root;
 
 beforeEach(async () => {
   window.location.hash = "";
+  localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(serviceIds));
   window.spi = {
     proof: false,
     openExternal: vi.fn(),
@@ -39,6 +43,7 @@ afterEach(async () => {
   watchStore.setState(previous);
   window.spi = previousSpi;
   window.location.hash = "";
+  localStorage.removeItem(PINS_STORAGE_KEY);
   vi.restoreAllMocks();
 });
 
@@ -88,10 +93,11 @@ const shortcut = (init: KeyboardEventInit) =>
   act(async () => {
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", bubbles: true, ...init }));
   });
-const key = (name: string) =>
+const key = (name: string, init: KeyboardEventInit = {}) =>
   act(async () => {
-    input()?.dispatchEvent(new KeyboardEvent("keydown", { key: name, bubbles: true }));
+    input()?.dispatchEvent(new KeyboardEvent("keydown", { key: name, bubbles: true, ...init }));
   });
+const hint = () => palette()?.querySelector(".palette-hint")?.textContent;
 async function type(text: string) {
   const field = input();
   if (!field) throw new Error("palette is closed");
@@ -292,6 +298,58 @@ it("moves with the arrows, opens with Enter, and filters as the operator types",
   await key("Enter");
   expect(palettes()).toHaveLength(0);
   expect(window.location.hash).toBe("#service/legal");
+});
+
+it("opens a service result and pins it on Ctrl+Enter, and unpins it when pinned", async () => {
+  localStorage.setItem(PINS_STORAGE_KEY, "[]");
+  await shortcut({ ctrlKey: true });
+  await type("legal");
+  expect(highlighted()).toBe("legaltoolchain");
+  expect(hint()).toContain("Ctrl+Enter open and pin");
+  await key("Enter", { ctrlKey: true });
+  expect(palettes()).toHaveLength(0);
+  expect(window.location.hash).toBe("#service/legal");
+  expect(readPins()).toEqual(["legal"]);
+  expect(container.querySelector('[data-sidebar-row="service/legal"]')).not.toBeNull();
+
+  await shortcut({ ctrlKey: true });
+  await type("legal");
+  expect(hint()).toContain("Ctrl+Enter open and unpin");
+  await key("Enter", { ctrlKey: true });
+  expect(readPins()).toEqual([]);
+  expect(container.querySelector('[data-sidebar-row="service/legal"]')).toBeNull();
+
+  await shortcut({ ctrlKey: true });
+  await type("Releases");
+  await key("Enter", { ctrlKey: true });
+  expect(window.location.hash).toBe("#releases");
+  expect(readPins()).toEqual([]);
+
+  vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+  );
+  await shortcut({ metaKey: true });
+  await type("schema");
+  expect(hint()).toContain("⌘↩ open and pin");
+  await key("Enter", { ctrlKey: true });
+  expect(readPins()).toEqual([]);
+  expect(palettes()).toHaveLength(1);
+  await key("Enter", { metaKey: true });
+  expect(window.location.hash).toBe("#service/schema");
+  expect(readPins()).toEqual(["schema"]);
+});
+
+it("finds every place and every service of the Nov 6 fleet", async () => {
+  const next = ViewSnapshotSchema.parse(JSON.parse(fleet));
+  await act(async () => watchStore.setState({ snapshot: { cursor: next.cursor, body: next } }));
+  await shortcut({ ctrlKey: true });
+  const found = (group: string) =>
+    [...(palette()?.querySelectorAll(`[data-group="${group}"] .palette-label`) ?? [])].map(
+      (row) => row.textContent,
+    );
+  expect(found("go-to")).toEqual(expect.arrayContaining(PLACES.map(routeLabel)));
+  expect(found("services")).toEqual(next.stations.map(({ service }) => service));
+  expect(found("services")).toHaveLength(13);
 });
 
 it("lets Enter confirm an IME composition without choosing a row", async () => {

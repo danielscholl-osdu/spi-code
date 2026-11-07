@@ -7,6 +7,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import recorded from "../../../../../fixtures/watch/snapshot-59d6895.json?raw";
 import type { Route } from "../../app/routes.js";
+import { PINS_STORAGE_KEY, pin, unpin } from "../../store/pins.js";
 import { createWatchStore } from "../../store/watch.js";
 import { COLLAPSE_STORAGE_KEY, isCollapsed } from "./collapse.js";
 import { ProgramSidebar } from "./ProgramSidebar.js";
@@ -29,14 +30,26 @@ afterEach(async () => {
 });
 
 const recordedBody = ViewSnapshotSchema.parse(JSON.parse(recorded));
+const FLEET = ["partition", "entitlements", "legal", "schema", "file"];
+const pinFleet = () => localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(FLEET));
 
-async function render(route: Route = { kind: "today" }, onNavigate = vi.fn(), body = recordedBody) {
+async function render(
+  route: Route = { kind: "today" },
+  onNavigate = vi.fn(),
+  body = recordedBody,
+  onLine?: () => void,
+) {
   const store = createWatchStore(vi.fn());
   store.setState({ snapshot: { cursor: body.cursor, body } });
   await act(async () =>
     root.render(
       <SidebarProvider>
-        <ProgramSidebar store={store} route={route} onNavigate={onNavigate} />
+        <ProgramSidebar
+          store={store}
+          route={route}
+          onNavigate={onNavigate}
+          {...(onLine ? { onLine } : {})}
+        />
       </SidebarProvider>,
     ),
   );
@@ -58,37 +71,79 @@ const attention = (key: string) => ({
   word: row(key)?.querySelector(".sidebar-row-note")?.textContent ?? null,
 });
 
-it("lists the things in order, with services in the recorded fleet order", async () => {
-  const { onNavigate } = await render({ kind: "service", id: "legal" });
+it("lists Find or ask, Today, Line, the places, Settled and Setup, and no service unpinned", async () => {
+  const onLine = vi.fn();
+  await render({ kind: "service", id: "legal" }, vi.fn(), recordedBody, onLine);
   const nav = container.querySelector('nav[aria-label="Sidebar"]');
   expect(nav?.querySelector("button")?.textContent).toContain("Find or ask");
   expect(rows("Today")).toEqual(["Today"]);
   expect(rows("Inbox")).toEqual([]);
   expect(container.querySelector('ul[aria-label="Today"] .sidebar-pip')?.textContent).toBe("6");
-  expect(rows("Program")).toEqual([
+  expect(rows("Line")).toEqual(["Line"]);
+  expect(rows("Places")).toEqual([
     "Upstream",
     "Environment",
     "Engineering system",
     "Releases",
     "Security",
   ]);
-  expect(rows("Services")).toEqual(["partition", "entitlements", "legal", "schema", "file"]);
-  expect(header("Services")?.textContent).toContain("5");
-  expect(rows("Lenses")).toEqual(["Flow", "Repositories", "Horizon"]);
   expect(header("Settled")?.textContent).toContain("0");
   expect(rows("Setup")).toEqual(["Setup"]);
+  expect(
+    [...container.querySelectorAll('[data-slot="section-header"]')].map((h) => h.textContent),
+  ).toEqual(["Places", "Settled0"]);
+  expect(container.querySelector('[data-sidebar-row^="service/"]')).toBeNull();
+  expect(container.querySelector('[data-sidebar-row^="lens/"]')).toBeNull();
+  expect(container.querySelector('[aria-current="page"]')).toBeNull();
   expect(container.querySelector("time")?.getAttribute("dateTime")).toBe(
     "2026-10-12T21:58:14.428Z",
   );
-  expect(container.querySelector('[aria-current="page"]')?.textContent).toContain("legal");
-  const schema = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
-    (button) => button.querySelector(".sidebar-row-label")?.textContent === "schema",
-  );
-  await act(async () => schema?.click());
-  expect(onNavigate).toHaveBeenCalledWith({ kind: "service", id: "schema" });
+  const line = row("line");
+  expect(line?.querySelector("kbd")?.textContent).toMatch(/^(⌘L|Ctrl\+L)$/);
+  await act(async () => (line as HTMLButtonElement | null)?.click());
+  expect(onLine).toHaveBeenCalledExactlyOnceWith();
+  await render();
+  expect(container.querySelector('ul[aria-label="Line"]')).toBeNull();
+});
+
+it("draws Pinned only with a pin the sweep names, in pin order, with the strip's glyph", async () => {
+  localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(["gone", "schema", "entitlements"]));
+  const { onNavigate } = await render({ kind: "service", id: "schema" });
+  expect(rows("Pinned")).toEqual(["schema", "entitlements"]);
+  expect(
+    [...container.querySelectorAll('[data-slot="section-header"]')].map((h) => h.textContent),
+  ).toEqual(["Places", "Pinned", "Settled0"]);
+  expect(container.querySelector('[aria-current="page"]')?.textContent).toContain("schema");
+  expect(
+    ["schema", "entitlements"].map((id) => {
+      const glyph = row(`service/${id}`)?.querySelector(".sidebar-pin-glyph");
+      return glyph && [glyph.textContent, glyph.getAttribute("aria-label")];
+    }),
+  ).toEqual([null, ["✕", "stopped"]]);
+  await act(async () => (row("service/entitlements") as HTMLButtonElement | null)?.click());
+  expect(onNavigate).toHaveBeenCalledWith({ kind: "service", id: "entitlements" });
+  await act(async () => unpin("schema"));
+  await act(async () => unpin("entitlements"));
+  expect(header("Pinned")).toBeUndefined();
+  expect(container.querySelector('ul[aria-label="Pinned"]')).toBeNull();
+  expect(JSON.parse(localStorage.getItem(PINS_STORAGE_KEY) ?? "[]")).toEqual(["gone"]);
+});
+
+it("keeps pins across a reload, from local storage", async () => {
+  await render();
+  await act(async () => pin("schema"));
+  await act(async () => pin("partition"));
+  expect(rows("Pinned")).toEqual(["schema", "partition"]);
+  await act(async () => root.unmount());
+  root = createRoot(container);
+  await render();
+  expect(rows("Pinned")).toEqual(["schema", "partition"]);
+  await act(async () => unpin("schema"));
+  expect(rows("Pinned")).toEqual(["partition"]);
 });
 
 it("shows each recorded service's highest queue priority and class word, not a count", async () => {
+  pinFleet();
   await render();
   expect(
     ["partition", "entitlements", "legal", "schema", "file"].map((id) =>
@@ -102,10 +157,11 @@ it("shows each recorded service's highest queue priority and class word, not a c
     { dot: "unread", priority: "Unread", word: "unread" },
   ]);
   expect(container.querySelectorAll(".sidebar-pip")).toHaveLength(1);
-  expect(container.querySelector('ul[aria-label="Services"] .sidebar-pip')).toBeNull();
+  expect(container.querySelector('ul[aria-label="Pinned"] .sidebar-pip')).toBeNull();
 });
 
 it("shows a read service's flow tag when it has no queue items", async () => {
+  pinFleet();
   const body = structuredClone(recordedBody);
   body.briefing.focus = [];
   body.briefing.rest = [];
@@ -117,6 +173,7 @@ it("shows a read service's flow tag when it has no queue items", async () => {
 });
 
 it.each(["", "  ", "·", " · "])("skips flow tag %j before the unread fallback", async (tag) => {
+  pinFleet();
   const body = structuredClone(recordedBody);
   body.briefing.focus = [];
   body.briefing.rest = [];
@@ -136,6 +193,7 @@ it.each([
   ["ENV", "environment"],
   ["BUILD", "build red"],
 ] as const)("uses the sidebar class word for %s", async (cls, word) => {
+  pinFleet();
   const first = recordedBody.briefing.focus[0];
   if (!first) throw new Error("Recorded queue required");
   const body = structuredClone(recordedBody);
@@ -146,6 +204,7 @@ it.each([
 });
 
 it("takes the highest rung across focus and rest, including a folded port's services", async () => {
+  pinFleet();
   const first = recordedBody.briefing.focus[0];
   const port = recordedBody.briefing.rest[0];
   if (!first || !port) throw new Error("Recorded queue required");
@@ -169,7 +228,7 @@ it("takes the highest rung across focus and rest, including a folded port's serv
   expect(attention("service/schema")).toEqual({ dot: "p1", priority: "P1", word: "port" });
 });
 
-it("carries the Program facts beside their attention dots", async () => {
+it("carries the places' facts beside their attention dots", async () => {
   await render();
   expect(attention("engineering-system")).toEqual({ dot: "p1", priority: "P1", word: "0 of 5" });
   expect(attention("environment")).toEqual({
@@ -181,6 +240,7 @@ it("carries the Program facts beside their attention dots", async () => {
 });
 
 it("uses hollow only for an empty unread scope, and no dot for an empty read scope", async () => {
+  pinFleet();
   const body = structuredClone(recordedBody);
   body.tree = body.tree.map((node) =>
     node.id === "service:file" ? { ...node, status: "fresh" } : node,
@@ -207,6 +267,7 @@ it("uses hollow only for an empty unread scope, and no dot for an empty read sco
 });
 
 it("leaves every dot unchanged when an area read and the tree scopes fail", async () => {
+  pinFleet();
   const body = structuredClone(recordedBody);
   body.tree = body.tree.map((node) =>
     node.id === "service:file" ? { ...node, status: "fresh" } : node,
@@ -263,14 +324,17 @@ it("leaves every dot unchanged when an area read and the tree scopes fail", asyn
   expect(attention("service/entitlements").dot).toBe("p0");
 });
 
-it("pins Find or ask and Today above the scrolling groups, and the footer below them", async () => {
-  await render();
+it("pins Find or ask, Today and Line above the scrolling groups, and the footer below them", async () => {
+  pinFleet();
+  await render(undefined, undefined, undefined, vi.fn());
   const scroller = container.querySelector('[data-slot="sidebar-content"]');
   const pinnedTop = container.querySelector('[data-slot="sidebar-header"]');
   expect(pinnedTop?.querySelector('ul[aria-label="Today"]')).not.toBeNull();
+  expect(pinnedTop?.querySelector('ul[aria-label="Line"]')).not.toBeNull();
   expect(pinnedTop?.textContent).toContain("Find or ask");
   expect(scroller?.querySelector('ul[aria-label="Today"]')).toBeNull();
-  expect(scroller?.contains(container.querySelector('ul[aria-label="Services"]'))).toBe(true);
+  expect(scroller?.contains(container.querySelector('ul[aria-label="Places"]'))).toBe(true);
+  expect(scroller?.contains(container.querySelector('ul[aria-label="Pinned"]'))).toBe(true);
   expect(scroller?.querySelector('ul[aria-label="Setup"]')).toBeNull();
   expect(
     container.querySelector('[data-slot="sidebar-footer"] ul[aria-label="Setup"]'),
@@ -278,28 +342,26 @@ it("pins Find or ask and Today above the scrolling groups, and the footer below 
 });
 
 it("keeps a folded group folded across a fresh render, from local storage", async () => {
+  pinFleet();
   await render();
-  expect(header("Program")?.getAttribute("aria-expanded")).toBe("true");
-  await act(async () => header("Program")?.click());
-  expect(header("Program")?.getAttribute("aria-expanded")).toBe("false");
-  expect(container.querySelector('ul[aria-label="Program"]')).toBeNull();
+  expect(header("Places")?.getAttribute("aria-expanded")).toBe("true");
+  await act(async () => header("Places")?.click());
+  expect(header("Places")?.getAttribute("aria-expanded")).toBe("false");
+  expect(container.querySelector('ul[aria-label="Places"]')).toBeNull();
   expect(JSON.parse(localStorage.getItem(COLLAPSE_STORAGE_KEY) ?? "{}")).toEqual({
-    program: true,
+    places: true,
   });
   await act(async () => root.unmount());
   root = createRoot(container);
   await render();
-  expect(header("Program")?.getAttribute("aria-expanded")).toBe("false");
-  expect(header("Services")?.getAttribute("aria-expanded")).toBe("true");
+  expect(header("Places")?.getAttribute("aria-expanded")).toBe("false");
+  expect(header("Pinned")?.getAttribute("aria-expanded")).toBe("true");
 });
 
-it("folds Lenses first, then Program, on a short window unless the operator chose", () => {
-  expect(isCollapsed("lenses", {}, 900)).toBe(false);
-  expect(isCollapsed("lenses", {}, 700)).toBe(true);
-  expect(isCollapsed("program", {}, 700)).toBe(false);
-  expect(isCollapsed("program", {}, 600)).toBe(true);
-  expect(isCollapsed("services", {}, 400)).toBe(false);
-  expect(isCollapsed("lenses", { lenses: false }, 600)).toBe(false);
-  expect(isCollapsed("program", { program: false }, 600)).toBe(false);
-  expect(isCollapsed("services", { services: true }, 900)).toBe(true);
+it("folds Places on a short window unless the operator chose", () => {
+  expect(isCollapsed("places", {}, 700)).toBe(false);
+  expect(isCollapsed("places", {}, 600)).toBe(true);
+  expect(isCollapsed("pinned", {}, 400)).toBe(false);
+  expect(isCollapsed("places", { places: false }, 600)).toBe(false);
+  expect(isCollapsed("pinned", { pinned: true }, 900)).toBe(true);
 });

@@ -23,17 +23,12 @@
 
 import { type ReactNode, useId } from "react";
 import { useStore } from "zustand";
-import {
-  isReachable,
-  LENSES,
-  PLACES,
-  type Route,
-  routeLabel,
-  useRegistry,
-} from "../../app/routes.js";
+import { isReachable, PLACES, type Route, routeLabel, useRegistry } from "../../app/routes.js";
 import { ariaShortcut, shortcutLabel } from "../../app/shortcuts.js";
+import { usePins } from "../../store/pins.js";
+import { PIPS, selectStrip } from "../../store/strip.js";
 import type { createWatchStore } from "../../store/watch.js";
-import { inboxCount } from "../../views/inbox/queue.js";
+import { inboxCount, treeServices } from "../../views/inbox/queue.js";
 import { AttentionDot } from "../AttentionDot.js";
 import { useSidebarAttention } from "./attention.js";
 import { type SidebarGroupId, useGroupCollapse } from "./collapse.js";
@@ -76,16 +71,23 @@ function rowFor(route: Route): string {
   }
 }
 
+/**
+ * The sidebar (PS-08): Find or ask, Today, Line, the places, the operator's pins, Settled and
+ * Setup. A service has a row only while pinned, and a pin the sweep no longer names has none.
+ */
 export function ProgramSidebar({
   store,
   route,
   onNavigate,
   onFind,
+  onLine,
 }: {
   store: ReturnType<typeof createWatchStore>;
   route: Route;
   onNavigate(route: Route): void;
   onFind?(): void;
+  /** Opens the Line sheet; without it the sidebar has no Line row. */
+  onLine?(): void;
 }) {
   const body = useStore(store, (state) => state.snapshot?.body);
   const { tree, sweptAt, briefing } = body ?? {};
@@ -93,14 +95,19 @@ export function ProgramSidebar({
   const inbox = briefing ? inboxCount(briefing) : 0;
   const { isMobile, setOpenMobile } = useSidebar();
   const { collapsed, toggle } = useGroupCollapse();
-  const ids = { program: useId(), services: useId(), lenses: useId(), settled: useId() };
+  const ids = { places: useId(), pinned: useId(), settled: useId() };
   const active = rowFor(route);
   const registry = useRegistry();
   const reachable = (target: Route) => isReachable(target, registry);
   const places = PLACES.filter(reachable);
-  const services = (tree ?? [])
-    .filter((node) => node.id.startsWith(SERVICE_PREFIX))
-    .map((node) => node.id.slice(SERVICE_PREFIX.length));
+  const services = treeServices(tree);
+  const pins = usePins().filter((id) => services.includes(id));
+  const pips = new Map(
+    body ? selectStrip(body).pips.map(({ service, state }) => [service, state]) : [],
+  );
+  const closeMobile = () => {
+    if (isMobile) setOpenMobile(false);
+  };
 
   const row = (
     key: string,
@@ -116,7 +123,7 @@ export function ProgramSidebar({
         aria-current={active === key ? (route.kind === "release" ? "true" : "page") : undefined}
         onClick={() => {
           onNavigate(target);
-          if (isMobile) setOpenMobile(false);
+          closeMobile();
         }}
       >
         <AttentionDot dot={mark?.dot} />
@@ -131,17 +138,11 @@ export function ProgramSidebar({
     </SidebarMenuItem>
   );
 
-  const group = (
-    id: Exclude<SidebarGroupId, "settled">,
-    label: string,
-    rows: ReactNode,
-    count?: number,
-  ) => (
+  const group = (id: Exclude<SidebarGroupId, "settled">, label: string, rows: ReactNode) => (
     <SidebarGroup data-group={id}>
       <CollapsibleSectionHeader
         expanded={!collapsed(id)}
         aria-controls={ids[id]}
-        accessory={count}
         onClick={() => toggle(id)}
       >
         {label}
@@ -163,7 +164,7 @@ export function ProgramSidebar({
           aria-haspopup="dialog"
           aria-keyshortcuts={ariaShortcut("k")}
           onClick={() => {
-            if (isMobile) setOpenMobile(false);
+            closeMobile();
             onFind?.();
           }}
         >
@@ -185,32 +186,54 @@ export function ProgramSidebar({
             )}
           </SidebarMenu>
         )}
+        {onLine && (
+          <SidebarMenu aria-label="Line">
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                data-sidebar-row="line"
+                aria-keyshortcuts={ariaShortcut("l")}
+                onClick={() => {
+                  onLine();
+                  closeMobile();
+                }}
+              >
+                <span className="sidebar-row-label">Line</span>
+                <kbd className="sidebar-row-note">{shortcutLabel("l")}</kbd>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        )}
       </SidebarHeader>
       <SidebarContent>
         {places.length > 0 &&
           group(
-            "program",
-            "Program",
+            "places",
+            "Places",
             places.map((place) => row(place.kind, place)),
           )}
-        {reachable({ kind: "service", id: "" }) &&
+        {pins.length > 0 &&
           group(
-            "services",
-            "Services",
-            services.length === 0 ? (
-              <li className="sidebar-empty">
-                {tree ? "No services in this sweep" : "No services read yet"}
-              </li>
-            ) : (
-              services.map((id) => row(`service/${id}`, { kind: "service", id }))
-            ),
-            services.length,
-          )}
-        {reachable({ kind: "lens", lens: "flow" }) &&
-          group(
-            "lenses",
-            "Lenses",
-            LENSES.map((lens) => row(`lens/${lens}`, { kind: "lens", lens })),
+            "pinned",
+            "Pinned",
+            pins.map((id) => {
+              const pip = pips.get(id);
+              return row(
+                `service/${id}`,
+                { kind: "service", id },
+                undefined,
+                pip && pip !== "nothing-due" && (
+                  <span
+                    className="sidebar-pin-glyph"
+                    data-pip={pip}
+                    role="img"
+                    aria-label={PIPS[pip].words}
+                    title={PIPS[pip].words}
+                  >
+                    {PIPS[pip].mark}
+                  </span>
+                ),
+              );
+            }),
           )}
       </SidebarContent>
       <SidebarGroup data-group="settled" className="settled-shelf">

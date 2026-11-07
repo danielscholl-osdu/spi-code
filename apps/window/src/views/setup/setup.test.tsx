@@ -623,7 +623,7 @@ it("lands on Setup when the first host state is not ready and gates every Watch 
   expect(container.querySelector("main h1")?.textContent).toBe("Setup");
   expect(container.querySelector('nav [aria-current="page"]')?.textContent).toBe("Setup");
   const watchRoutes = [...container.querySelectorAll<HTMLButtonElement>("nav ul button")].filter(
-    (button) => button.textContent !== "Setup",
+    (button) => button.textContent !== "Setup" && button.dataset.sidebarRow !== "line",
   );
   expect(watchRoutes.map((button) => button.textContent)).toEqual([
     "Today",
@@ -632,9 +632,6 @@ it("lands on Setup when the first host state is not ready and gates every Watch 
     "Engineering system",
     "Releases",
     "Security",
-    "Flow",
-    "Repositories",
-    "Horizon",
   ]);
   for (const button of watchRoutes) {
     await act(async () => button.click());
@@ -644,7 +641,7 @@ it("lands on Setup when the first host state is not ready and gates every Watch 
     );
   }
   await receive("setup.state", state());
-  expect(container.querySelector("main h1")?.textContent).toBe("Horizon");
+  expect(container.querySelector("main h1")?.textContent).toBe("Security");
   await receive("setup.state", { ...state(), watchReady: true, disabledReason: null });
   expect(container.textContent).not.toContain("Watch unavailable");
 });

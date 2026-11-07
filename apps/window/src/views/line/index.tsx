@@ -13,6 +13,7 @@ import {
   unpinSheet,
   useLineSheetRequest,
 } from "../../app/navigation.js";
+import { PinMenu } from "../../components/pin/PinMenu.js";
 import { selectionStore } from "../../panels/selection.js";
 import { selectionRows } from "../../panels/selection-rows.js";
 import { watchStore } from "../../store/watch.js";
@@ -132,50 +133,56 @@ function LineContent({
             </thead>
             <tbody>
               {visible.map(({ service, stations }) => (
-                <tr key={service} data-service={service}>
-                  <th scope="row">
-                    <button
-                      type="button"
-                      onClick={() => navigate({ kind: "service", id: service })}
-                    >
-                      {service}
-                    </button>
-                  </th>
-                  {populatedColumns.map(({ id, label }) => {
-                    const station = stations.find((station) => station.id === id);
-                    const selection = selections.get(`station:${service}:${id}`);
-                    const glyph = station && glyphs[station.substate];
-                    return (
-                      <td key={id} data-station={id}>
-                        {station?.text.trim() && glyph && selection && (
-                          <button
-                            type="button"
-                            data-station={id}
-                            data-selection-id={selection.id}
-                            aria-pressed={selected === selection.id}
-                            onClick={() =>
-                              selectionStore.getState().select(selection.id, selection)
-                            }
-                          >
-                            <span className="visually-hidden">
-                              {label} · {service}:{" "}
-                            </span>
-                            <span
-                              className="line-glyph"
-                              data-substate={station.substate}
-                              role="img"
-                              aria-label={glyph.name}
-                            >
-                              {glyph.mark}
-                            </span>{" "}
-                            {station.text}
-                          </button>
-                        )}
-                      </td>
-                    );
-                  })}
-                  {campaign && <td data-campaign="">Included</td>}
-                </tr>
+                <PinMenu
+                  key={service}
+                  service={service}
+                  render={
+                    <tr data-service={service}>
+                      <th scope="row">
+                        <button
+                          type="button"
+                          onClick={() => navigate({ kind: "service", id: service })}
+                        >
+                          {service}
+                        </button>
+                      </th>
+                      {populatedColumns.map(({ id, label }) => {
+                        const station = stations.find((station) => station.id === id);
+                        const selection = selections.get(`station:${service}:${id}`);
+                        const glyph = station && glyphs[station.substate];
+                        return (
+                          <td key={id} data-station={id}>
+                            {station?.text.trim() && glyph && selection && (
+                              <button
+                                type="button"
+                                data-station={id}
+                                data-selection-id={selection.id}
+                                aria-pressed={selected === selection.id}
+                                onClick={() =>
+                                  selectionStore.getState().select(selection.id, selection)
+                                }
+                              >
+                                <span className="visually-hidden">
+                                  {label} · {service}:{" "}
+                                </span>
+                                <span
+                                  className="line-glyph"
+                                  data-substate={station.substate}
+                                  role="img"
+                                  aria-label={glyph.name}
+                                >
+                                  {glyph.mark}
+                                </span>{" "}
+                                {station.text}
+                              </button>
+                            )}
+                          </td>
+                        );
+                      })}
+                      {campaign && <td data-campaign="">Included</td>}
+                    </tr>
+                  }
+                />
               ))}
               {folded.length > 0 && (
                 <tr>

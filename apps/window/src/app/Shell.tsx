@@ -17,6 +17,7 @@ import { LineSheet } from "./LineSheet.js";
 import { PanelControls } from "./PanelControls.js";
 import {
   DEFAULT_REGISTRY,
+  LINE,
   type Registry,
   RegistryProvider,
   RouteView,
@@ -139,6 +140,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
           route={route}
           onNavigate={navigate}
           onFind={() => setFindOpen(true)}
+          {...(registry.sheet ? { onLine: () => navigate(LINE) } : {})}
         />
         <CommandPalette
           store={watchStore}
