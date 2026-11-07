@@ -6,6 +6,7 @@ import { clock } from "../components/evidence/words.js";
 import { inScope } from "../components/sidebar/attention.js";
 import { selectionRows } from "../panels/selection-rows.js";
 import { plainTitle } from "../text.js";
+import { runningFactHome } from "../views/environment/running-fact.js";
 import { eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
 import { selectTodayItems } from "../views/today/selectors.js";
 import { lensFields } from "./lens-fields.test-helper.js";
@@ -450,12 +451,42 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
   );
   if (environment.note)
     add("/briefing/environment/note", environment.note, runs, at("/briefing/environment/note"));
+  const environmentReading = snapshot.readings.find(({ anchor }) => anchor.kind === "environment");
+  const environmentHome = home("Environment", STARTS.environment);
+  const environmentPlace = 'section.place[aria-label="Environment"]';
   environment.facts.forEach((fact, index) => {
     const pointer = `/briefing/environment/facts/${index}`;
     const div = at(`${pointer}/figure`);
-    add(`${pointer}/label`, fact.label, runs, `${div} .env-fact-label`);
-    add(`${pointer}/figure`, fact.figure, runs, `${div} strong`);
-    add(`${pointer}/sub`, fact.sub, runs, `${div} > div:last-child`);
+    const { versionTile, subInHeadline } = runningFactHome(
+      fact,
+      environmentReading ?? { anchor: { kind: "environment" }, content: null },
+    );
+    const tile = `${environmentPlace} .place-tile:nth-child(${versionTile + 1})`;
+    if (versionTile >= 0) {
+      add(`${pointer}/label`, "running", environmentHome, `${tile} .place-tile-counts`, {
+        read: (element) => firstClause(element.textContent ?? ""),
+        canon: (value) => value.toLowerCase(),
+      });
+      add(`${pointer}/figure`, fact.figure, environmentHome, `${tile} .place-tile-value`);
+    } else {
+      add(`${pointer}/label`, fact.label, runs, `${div} .env-fact-label`);
+      add(`${pointer}/figure`, fact.figure, runs, `${div} strong`);
+    }
+    add(
+      `${pointer}/sub`,
+      fact.sub,
+      subInHeadline ? environmentHome : runs,
+      subInHeadline ? `${environmentPlace} .place-headline` : `${div} > div:last-child`,
+      subInHeadline
+        ? {
+            read: (element) =>
+              (element.textContent ?? "")
+                .replace(/^v\S+ is /, "")
+                .replace(", green since ", " · green at ")
+                .replace(/\.$/, ""),
+          }
+        : {},
+    );
   });
   const now = new Date(Date.parse(environment.to));
   const overlapped = new Set<string>();

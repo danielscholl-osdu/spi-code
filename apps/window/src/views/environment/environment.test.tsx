@@ -25,6 +25,7 @@ import { inspectFromOracle, type OracleBoard } from "../../panels/test-inspect.j
 import { mixedSnapshot, testSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore } from "../../store/watch.js";
 import Environment from "./index.js";
+import { runningFactHome } from "./running-fact.js";
 import { eventWhen, hourTicks, place } from "./timeline.js";
 
 const snapshot = testSnapshot(briefing, releases);
@@ -682,6 +683,106 @@ it("draws the recorded environment reading through the place, with no placeholde
   }
 });
 
+it.each([
+  ["1106", recorded],
+  ["mixed", mixed],
+] as const)(
+  "keeps matching %s running facts in the reading and unique facts one visible click away",
+  async (name, raw) => {
+    const view = await renderRecorded(mixedSnapshot(raw));
+    try {
+      const runs = view.page.querySelector<HTMLDetailsElement>('[data-part="runs"]');
+      const summary = runs?.querySelector<HTMLElement>(":scope > summary");
+      if (!runs || !summary) throw new Error("Missing Stack runs disclosure");
+      expect(runs.open).toBe(false);
+      expect(summary.closest("details")).toBe(runs);
+      await act(async () => summary.click());
+      expect(runs.open).toBe(true);
+      const running = runs.querySelector('[data-pointer="/briefing/environment/facts/0/figure"]');
+      expect(running?.querySelector("strong") ?? null).toBeNull();
+      expect(view.page.querySelector(".place-tile-value")?.textContent).toBe(
+        view.body.briefing.environment.facts[0]?.figure,
+      );
+      if (name === "1106") {
+        expect(running).toBeNull();
+        expect(runs.querySelector(".env-facts")?.textContent).not.toContain(
+          "deployable \u00b7 green at 04:20",
+        );
+      } else {
+        expect(running?.textContent).toContain("upgrade running \u00b7 at verify");
+        expect(running?.textContent).toContain("declares v0.28.2");
+      }
+      for (const index of [1, 2]) {
+        const fact = view.body.briefing.environment.facts[index];
+        const element = runs.querySelector(
+          `[data-pointer="/briefing/environment/facts/${index}/figure"]`,
+        );
+        if (!fact) throw new Error("Missing unique supporting fact");
+        expect(element, fact.label).not.toBeNull();
+        for (const text of [fact.label, fact.figure, fact.sub])
+          expect(element?.textContent, fact.label).toContain(text);
+      }
+      expect(runs.querySelectorAll("[data-lane]")).toHaveLength(
+        view.body.briefing.environment.lanes.length,
+      );
+      expect(runs.querySelector(".env-note")?.textContent).toBe(
+        view.body.briefing.environment.note,
+      );
+    } finally {
+      await view.done();
+    }
+  },
+);
+
+it.each(["different version", "unread fact", "unread tile", "declared tile", "no reading"])(
+  "keeps the supplemental running source explicit with %s",
+  async (change) => {
+    const body = mixedSnapshot(recorded);
+    const fact = body.briefing.environment.facts[0];
+    const reading = body.readings.find(({ anchor }) => anchor.kind === "environment");
+    const tile = reading?.content?.tiles[0];
+    if (!fact || !reading || !tile) throw new Error("Missing recorded running sources");
+    if (change === "different version") fact.figure = "v0.35.2";
+    if (change === "unread fact") {
+      fact.figure = "?";
+      fact.sub = "deployability unread";
+    }
+    if (change === "unread tile") tile.value = "not read yet";
+    if (change === "declared tile") tile.counts = "declared \u00b7 running version not read yet";
+    if (change === "no reading") reading.content = null;
+    const view = await renderRecorded(body);
+    try {
+      const running = view.page.querySelector(
+        '[data-pointer="/briefing/environment/facts/0/figure"]',
+      );
+      expect(running?.querySelector("strong")?.textContent).toBe(fact.figure);
+      expect(running?.textContent).toContain(fact.sub);
+    } finally {
+      await view.done();
+    }
+  },
+);
+
+it.each(["deployable \u00b7 green at 03:20", "deployability unread"])(
+  "retains differing or unavailable deployability: %s",
+  async (sub) => {
+    const body = mixedSnapshot(recorded);
+    const fact = body.briefing.environment.facts[0];
+    if (!fact) throw new Error("Missing recorded running fact");
+    fact.sub = sub;
+    const view = await renderRecorded(body);
+    try {
+      const running = view.page.querySelector(
+        '[data-pointer="/briefing/environment/facts/0/figure"]',
+      );
+      expect(running?.querySelector("strong") ?? null).toBeNull();
+      expect(running?.textContent).toContain(sub);
+    } finally {
+      await view.done();
+    }
+  },
+);
+
 type FormerField = {
   field: string;
   find: (page: HTMLElement) => Element | undefined;
@@ -690,6 +791,7 @@ type FormerField = {
 
 function formerFields(body: ReturnType<typeof mixedSnapshot>): FormerField[] {
   const env = body.briefing.environment;
+  const reading = body.readings.find(({ anchor }) => anchor.kind === "environment");
   const now = new Date(Date.parse(env.to));
   const repo = body.briefing.repositories.rows.find(({ name }) => name === "osdu-spi-stack");
   if (!repo || !env.note) throw new Error("Recorded snapshot needs the stack row and lane note");
@@ -698,15 +800,30 @@ function formerFields(body: ReturnType<typeof mixedSnapshot>): FormerField[] {
     all(page, selector).find((element) => element.textContent?.includes(text));
   return [
     { field: "headline", find: holding(".env-lead", env.headline), text: env.headline },
-    ...env.facts.flatMap((fact, index) =>
-      (["label", "figure", "sub"] as const).map((part) => ({
+    ...env.facts.flatMap((fact, index) => {
+      const { versionTile, subInHeadline } = runningFactHome(
+        fact,
+        reading ?? { anchor: { kind: "environment" }, content: null },
+      );
+      const tile = `.place-tile:nth-child(${versionTile + 1})`;
+      return (["label", "figure", "sub"] as const).map((part) => ({
         field: `fact ${index} ${part}`,
         find: (page: HTMLElement) =>
-          page.querySelector(`[data-pointer='/briefing/environment/facts/${index}/figure']`) ??
-          undefined,
-        text: fact[part],
-      })),
-    ),
+          page.querySelector(
+            part === "sub" && subInHeadline
+              ? ".place-headline"
+              : part !== "sub" && versionTile >= 0
+                ? `${tile} ${part === "label" ? ".place-tile-counts" : ".place-tile-value"}`
+                : `[data-pointer='/briefing/environment/facts/${index}/figure']`,
+          ) ?? undefined,
+        text:
+          part === "sub" && subInHeadline
+            ? (reading?.content?.headline ?? "")
+            : part === "label" && versionTile >= 0
+              ? "running"
+              : fact[part],
+      }));
+    }),
     ...env.lanes.flatMap((lane) => [
       {
         field: `lane ${lane.id}`,

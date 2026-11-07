@@ -20,6 +20,7 @@ import { useSelectionList } from "../../panels/useSelectionList.js";
 import { watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
 import { FlowContext } from "./flow-context.js";
+import { runningFactHome } from "./running-fact.js";
 import {
   eventKey,
   eventText,
@@ -67,6 +68,10 @@ export default function Environment({
   const body = snapshot?.body;
   const env = body?.briefing.environment;
   const reading = body?.readings.find(({ anchor }) => anchor.kind === "environment") ?? NO_READING;
+  const facts =
+    env?.facts
+      .map((fact, index) => ({ fact, index, home: runningFactHome(fact, reading) }))
+      .filter(({ home }) => home.versionTile < 0 || !home.subInHeadline) ?? [];
   const from = env ? Date.parse(env.from) : 0;
   const to = env ? Date.parse(env.to) : 0;
   const lanes =
@@ -156,22 +161,24 @@ export default function Environment({
           {env.facts.length > 0 && (
             <>
               <SectionEvidence evidence={body} prefixes={["/briefing/environment/facts"]} />
-              <div className="env-facts">
-                {env.facts.map((fact, index) => {
-                  const pointer = `/briefing/environment/facts/${index}/figure`;
-                  return (
-                    <div
-                      className={`env-fact tone-${fact.tone}`}
-                      data-pointer={pointer}
-                      key={fact.label}
-                    >
-                      <div className="env-fact-label">{fact.label}</div>
-                      <strong>{fact.figure}</strong>
-                      <div>{fact.sub}</div>
-                    </div>
-                  );
-                })}
-              </div>
+              {facts.length > 0 && (
+                <div className="env-facts">
+                  {facts.map(({ fact, index, home }) => {
+                    const pointer = `/briefing/environment/facts/${index}/figure`;
+                    return (
+                      <div
+                        className={`env-fact tone-${fact.tone}`}
+                        data-pointer={pointer}
+                        key={fact.label}
+                      >
+                        <div className="env-fact-label">{fact.label}</div>
+                        {home.versionTile < 0 && <strong>{fact.figure}</strong>}
+                        {!home.subInHeadline && <div>{fact.sub}</div>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </>
           )}
           {env.lanes.length > 0 && (
