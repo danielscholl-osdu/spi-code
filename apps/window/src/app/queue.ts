@@ -28,14 +28,6 @@ export function queueGroups(briefing: Pick<Briefing, "focus">): QueueGroup[] {
   })).filter(({ entries }) => entries.length > 0);
 }
 
-/**
- * The Inbox's one combined total (AU-09): every P0 and P1 item the briefing carries, folded or
- * not, plus pending cards, of which there are none until approvals exist.
- */
-export function inboxCount(briefing: Pick<Briefing, "focus" | "rest">): number {
-  return [...briefing.focus, ...briefing.rest].filter(({ rung }) => rung <= 1).length;
-}
-
 /** The services a sweep's tree names, in its order. */
 export function treeServices(tree: readonly { id: string }[] | undefined): string[] {
   return (tree ?? [])

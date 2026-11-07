@@ -10,17 +10,15 @@ import { byWorst } from "../../components/evidence/words.js";
 import { Place } from "../../components/place/Place.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
+import { selectTodayItems } from "./selectors.js";
 import "./today.css";
 
 type Item = ViewSnapshot["briefing"]["focus"][number];
 type Content = NonNullable<Reading["content"]>;
 
-function headline({ seen, briefing }: ViewSnapshot): string {
+function headline({ seen }: ViewSnapshot, interrupts: number): string {
   const count = seen.since.length;
   if (seen.cursor === null && !seen.at) {
-    const interrupts = [...briefing.focus, ...briefing.rest].filter(
-      ({ attention }) => attention === "interrupt",
-    ).length;
     return `First look: ${interrupts} interruption${interrupts === 1 ? " needs" : "s need"} you.`;
   }
   const since = seen.at
@@ -121,11 +119,7 @@ export default function Today({
   const measures = tiles(brief.facts);
   if (!measures) return <FirstSweep sweep={sweep} />;
   const services = treeServices(body.tree);
-  const focus = brief.focus
-    .filter(({ attention, owned }) => attention !== "ambient" || owned)
-    .slice(0, 5);
-  const ids = new Set(focus.map(({ id }) => id));
-  const folded = [...brief.focus, ...brief.rest].filter(({ id }) => !ids.has(id));
+  const { focus, folded, interrupts } = selectTodayItems(brief);
   const groups = ["Before next sync", "Owned", "New"];
   const groupOf = (item: Item) => (item.owned ? "Owned" : item.due ? "Before next sync" : "New");
   const items = groups.flatMap((group) =>
@@ -160,7 +154,7 @@ export default function Today({
         reading={{
           anchor: { kind: "program" },
           content: {
-            headline: headline(body),
+            headline: headline(body, interrupts),
             ...(qualification ? { qualifier: qualification } : {}),
             tiles: measures,
             items,
