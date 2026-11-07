@@ -6,6 +6,7 @@ import {
   appendFileSync,
   closeSync,
   fsyncSync,
+  linkSync,
   mkdirSync,
   openSync,
   readFileSync,
@@ -265,19 +266,37 @@ export class SweepService {
       if (!(error instanceof SyntaxError)) throw error;
       // Quarantine exact bytes before repairing, including any partial UTF-8 sequence.
       const quarantine = `${path}.${createHash("sha256").update(fragment).digest("hex")}.torn`;
+      const temporary = `${quarantine}.${randomUUID()}.tmp`;
       try {
-        this.writeBudgetFile(quarantine, fragment);
-      } catch (error) {
-        if (!(error instanceof Error && "code" in error && error.code === "EEXIST")) throw error;
-        const fd = openSync(quarantine, "r+");
+        this.writeBudgetFile(temporary, fragment);
         try {
-          if (!readFileSync(fd).equals(fragment)) {
-            throw new Error(`Quarantine contents differ: ${quarantine}`, { cause: error });
+          linkSync(temporary, quarantine);
+        } catch (error) {
+          if (
+            !(error instanceof Error && "code" in error) ||
+            (error.code !== "EEXIST" &&
+              error.code !== "EPERM" &&
+              error.code !== "ENOTSUP" &&
+              error.code !== "EXDEV")
+          ) {
+            throw error;
           }
-          fsyncSync(fd);
-        } finally {
-          closeSync(fd);
+          try {
+            this.syncBudgetQuarantine(quarantine, fragment, error);
+          } catch (existingError) {
+            if (
+              error.code === "EEXIST" ||
+              !(existingError instanceof Error && "code" in existingError) ||
+              existingError.code !== "ENOENT"
+            ) {
+              throw existingError;
+            }
+            // Same-digest writers publish identical, fully flushed bytes if links are unavailable.
+            renameSync(temporary, quarantine);
+          }
         }
+      } finally {
+        rmSync(temporary, { force: true });
       }
       this.syncBudgetDirectory();
       const prefix = bytes.subarray(0, end);
@@ -291,6 +310,18 @@ export class SweepService {
     }
     appendFileSync(path, "\n");
     return `${text}\n`;
+  }
+
+  private syncBudgetQuarantine(path: string, fragment: Buffer, cause: Error): void {
+    const fd = openSync(path, "r+");
+    try {
+      if (!readFileSync(fd).equals(fragment)) {
+        throw new Error(`Quarantine contents differ: ${path}`, { cause });
+      }
+      fsyncSync(fd);
+    } finally {
+      closeSync(fd);
+    }
   }
 
   private trimBudgetLog(): void {
