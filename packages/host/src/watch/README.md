@@ -65,6 +65,12 @@ or incomplete template, GitHub repository or Actions reads add a source-named
 qualifier; radar toolchain reads do not feed it. A later successful main run after
 the template merge preserves confirmed adoption when the merge-time run is absent
 from the rollout model. Unread values say "not read yet".
+Core also returns optional `content.verifiedTemplate` data (`verified`, `total`,
+`unread` and the full target SHA), which the engineering handler projects unchanged.
+The strip reads these typed fields, never the tiles' display wording, and retains
+the fleet-wide denominator when some markers are unread. Core omits the field
+when the target is absent or every marker is unread; older snapshots without it
+remain valid and draw no template strip entry.
 `seen.cursor: null` means no acknowledged baseline; `seen.since` lists the
 Interrupt item IDs that arrived since that baseline, and `seen.at` is when it was
 acknowledged. An item arrived when the baseline has no item sharing one of its ids,

@@ -2462,7 +2462,13 @@
             "group": "New"
           }
         ],
-        "folded": "On osdu-spi: PR #263 chore: release 1.5.0 · review required."
+        "folded": "On osdu-spi: PR #263 chore: release 1.5.0 · review required.",
+        "verifiedTemplate": {
+          "verified": 0,
+          "total": 13,
+          "unread": 0,
+          "target": "7d269b57e9b114711a7de9d0052b5ae4fd261e97"
+        }
       }
     },
     {

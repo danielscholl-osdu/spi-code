@@ -42,6 +42,12 @@ describe("Engineering system reading", () => {
       counts: "forks on 7d269b5",
     });
     expect(`${reading.tiles[0].value} ${reading.tiles[0].counts}`).toBe("0 of 13 forks on 7d269b5");
+    expect(reading.verifiedTemplate).toEqual({
+      verified: 0,
+      total: 13,
+      unread: 0,
+      target: input.model.rollout?.target.sha ?? input.model.template.head?.sha,
+    });
     expect(reading.tiles[1]).toEqual({
       label: "Template PRs",
       value: "13",
@@ -57,6 +63,7 @@ describe("Engineering system reading", () => {
       repo.prs = repo.prs.filter((pr) => !pr.head.startsWith("template-sync/"));
     });
     expect(engineeringReading(fewerPrs).tiles[0]).toEqual(reading.tiles[0]);
+    expect(engineeringReading(fewerPrs).verifiedTemplate).toEqual(reading.verifiedTemplate);
     expect(engineeringReading(fewerPrs).tiles[1].value).toBe("12");
   });
 
@@ -104,17 +111,26 @@ describe("Engineering system reading", () => {
     const pending = merged("in_progress");
     expect(pending.model.rollout?.merged).toBe(1);
     expect(engineeringReading(pending).tiles[0].value).toBe("0 of 13");
+    expect(engineeringReading(pending).verifiedTemplate?.verified).toBe(0);
     expect(engineeringReading(merged("completed", "failure")).tiles[0].value).toBe("0 of 13");
+    expect(engineeringReading(merged("completed", "failure")).verifiedTemplate?.verified).toBe(0);
     expect(engineeringReading(merged("completed", "success")).tiles[0].value).toBe("1 of 13");
+    expect(engineeringReading(merged("completed", "success")).verifiedTemplate).toMatchObject({
+      verified: 1,
+      total: 13,
+      unread: 0,
+    });
     const later = merged("completed", "success", true);
     expect(
       later.model.rollout?.forks.find((fork) => fork.service === "partition")?.mainRun,
     ).toBeUndefined();
     expect(engineeringReading(later).tiles[0].value).toBe("1 of 13");
+    expect(engineeringReading(later).verifiedTemplate?.verified).toBe(1);
     const runs = later.runs?.["Azure/osdu-spi-partition"];
     if (!runs) throw new Error("Missing partition runs");
     runs.main = runs.main.map((run) => ({ ...run, createdAt: "2026-11-06T12:00:00Z" }));
     expect(engineeringReading(later).tiles[0].value).toBe("0 of 13");
+    expect(engineeringReading(later).verifiedTemplate?.verified).toBe(0);
   });
 
   it("does not turn unread template positions or PR lists into zero", () => {
@@ -123,12 +139,31 @@ describe("Engineering system reading", () => {
     expect(reading.headline).toBe("Engineering system not read yet.");
     expect(reading.tiles.map((tile) => tile.value)).toEqual([NOT_READ, NOT_READ, NOT_READ]);
     expect(readingText(reading).join(" ")).not.toMatch(/\b0\b/);
+    expect(reading).not.toHaveProperty("verifiedTemplate");
     const partial = fixture((f) => {
       const repo = f.github.data?.repos["Azure/osdu-spi-partition"];
       if (!repo) throw new Error("Missing partition");
       repo.marker = undefined;
     });
     expect(engineeringReading(partial).tiles[0].counts).toBe("forks on 7d269b5 · 1 not read yet");
+    expect(engineeringReading(partial).verifiedTemplate).toMatchObject({
+      verified: 0,
+      total: 13,
+      unread: 1,
+    });
+    const unread = fixture((f) => {
+      if (!f.github.data) throw new Error("Missing repositories");
+      for (const fork of context.fleet.forks) {
+        const repo = f.github.data.repos[fork.repo];
+        if (repo) repo.marker = undefined;
+      }
+    });
+    expect(engineeringReading(unread).tiles[0].value).toBe(NOT_READ);
+    expect(engineeringReading(unread)).not.toHaveProperty("verifiedTemplate");
+    const absentTarget = fixture();
+    delete absentTarget.model.rollout;
+    delete absentTarget.model.template.head;
+    expect(engineeringReading(absentTarget)).not.toHaveProperty("verifiedTemplate");
   });
 
   it("keeps checking adoption after the active rollout has left the model", () => {
@@ -164,6 +199,7 @@ describe("Engineering system reading", () => {
         },
       });
     expect(read("2026-11-06T12:02:00Z").tiles[0].value).toBe("1 of 13");
+    expect(read("2026-11-06T12:02:00Z").verifiedTemplate?.verified).toBe(1);
     expect(read("2026-11-06T12:00:00Z").tiles[0].value).toBe("0 of 13");
     expect(read("2026-11-06T12:02:00Z", []).tiles[0].value).toBe("0 of 13");
   });

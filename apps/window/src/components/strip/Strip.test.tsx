@@ -196,11 +196,11 @@ it("gives a field with no data no space", async () => {
   expect(strip()?.textContent).toBe(`${"○".repeat(13)}Line ⌘L`);
 });
 
-/** The marker figure the Briefing carries and the engineering reading's tiles, as projected from the sweep. */
 function adoption(
   body: ViewSnapshot,
   marker: string,
-  [verified, counts, rollout]: [string, string, string],
+  verifiedTemplate: NonNullable<ViewSnapshot["readings"][number]["content"]>["verifiedTemplate"],
+  rollout: string,
 ) {
   body.briefing.facts = body.briefing.facts.map((fact) =>
     fact.label.startsWith("Template") ? { ...fact, figure: marker } : fact,
@@ -208,8 +208,16 @@ function adoption(
   for (const reading of body.readings) {
     if (reading.anchor.kind !== "engineering" || !reading.content) continue;
     const [system, prs, state] = reading.content.tiles;
+    if (verifiedTemplate) reading.content.verifiedTemplate = verifiedTemplate;
+    else delete reading.content.verifiedTemplate;
     reading.content.tiles = [
-      { ...system, value: verified, counts },
+      {
+        ...system,
+        value: verifiedTemplate
+          ? `${verifiedTemplate.verified} of ${verifiedTemplate.total}`
+          : "not read yet",
+        counts: "forks on the target template",
+      },
       prs,
       { ...state, value: rollout },
     ];
@@ -221,26 +229,35 @@ it.each([
   [
     "merged, main validation pending",
     "1 of 13",
-    ["0 of 13", "forks on 7d269b5", "In progress"],
+    { verified: 0, total: 13, unread: 0, target: "7d269b5" },
+    "In progress",
     "0/13",
   ],
-  ["merged, main validation failed", "1 of 13", ["0 of 13", "forks on 7d269b5", "Stopped"], "0/13"],
+  [
+    "merged, main validation failed",
+    "1 of 13",
+    { verified: 0, total: 13, unread: 0, target: "7d269b5" },
+    "Stopped",
+    "0/13",
+  ],
   [
     "merged and verified, another fork's marker unread",
     "1 of 12",
-    ["1 of 13", "forks on 7d269b5 · 1 not read yet", "In progress"],
+    { verified: 1, total: 13, unread: 1, target: "7d269b5" },
+    "In progress",
     "1/13",
   ],
   [
     "one fork's marker unread",
     "0 of 12",
-    ["0 of 13", "forks on 7d269b5 · 1 not read yet", "In progress"],
+    { verified: 0, total: 13, unread: 1, target: "7d269b5" },
+    "In progress",
     "0/13",
   ],
 ] as const)(
   "counts verified forks over the fleet for the template: %s",
-  async (_case, marker, tiles, shown) => {
-    show(adoption(fixture(), marker, [...tiles]));
+  async (_case, marker, verifiedTemplate, rollout, shown) => {
+    show(adoption(fixture(), marker, verifiedTemplate, rollout));
     await mount();
     expect(pips()).toHaveLength(13);
     expect(field("template")?.textContent).toBe(`template ${shown}`);
@@ -257,16 +274,50 @@ it("gives the template no space when the engineering reading is absent or not re
     readings: body.readings.filter(({ anchor }) => anchor.kind !== "engineering"),
   };
   expect(selectStrip(absent).template).toBeUndefined();
-  const unread = adoption(fixture(), "0 of 0", [
-    "not read yet",
-    "forks on 7d269b5 · 13 not read yet",
-    "not read yet",
-  ]);
+  const unread = adoption(fixture(), "0 of 0", undefined, "not read yet");
   expect(selectStrip(unread).template).toBeUndefined();
+  expect(
+    selectStrip(
+      adoption(
+        fixture(),
+        "0 of 0",
+        {
+          verified: 0,
+          total: 13,
+          unread: 13,
+          target: "7d269b5",
+        },
+        "not read yet",
+      ),
+    ).template,
+  ).toBeUndefined();
   show(absent);
   await mount();
   expect(field("template")).toBeNull();
   expect(field("environment")).not.toBeNull();
+});
+
+it("keeps typed adoption unchanged when every engineering tile's wording changes", () => {
+  const body = adoption(
+    fixture(),
+    "9 of 12",
+    {
+      verified: 1,
+      total: 13,
+      unread: 1,
+      target: `7d269b5${"a".repeat(33)}`,
+    },
+    "In progress",
+  );
+  expect(selectStrip(body).template).toEqual({ verified: 1, total: 13, target: "7d269b5" });
+  const reading = body.readings.find(({ anchor }) => anchor.kind === "engineering");
+  if (!reading?.content) throw new Error("Missing engineering reading");
+  reading.content.tiles = reading.content.tiles.map(() => ({
+    label: "Adoption",
+    value: "Editorial words",
+    counts: "A different description",
+  })) as typeof reading.content.tiles;
+  expect(selectStrip(body).template).toEqual({ verified: 1, total: 13, target: "7d269b5" });
 });
 
 it("opens the Line sheet from the strip and from its Line button", async () => {
