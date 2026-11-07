@@ -11,6 +11,12 @@
 .app-sidebar [data-slot="sidebar-menu-button"] > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sidebar-row-label { min-width: 0; }
 .sidebar-row-note { flex: 0 1 auto; margin-left: auto; color: var(--placeholder); font-size: 11px; font-weight: 400; }
+kbd.sidebar-row-note { font-family: var(--font-mono); }
+.sidebar-pin-glyph { flex: none; margin-left: auto; font: 11px var(--font-mono); color: var(--text-muted); }
+.sidebar-row-note + .sidebar-pin-glyph { margin-left: 0; }
+.sidebar-pin-glyph[data-pip="stopped"] { color: var(--error-text); }
+.sidebar-pin-glyph[data-pip="needs-person"] { color: var(--warning-text); }
+.sidebar-pin-glyph[data-pip="in-progress"] { color: var(--accent-text); }
 .app-sidebar [data-slot="sidebar-menu-button"]:hover { background: var(--surface-raised); }
 .app-sidebar [data-slot="sidebar-menu-button"][data-active="true"] { background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); color: var(--text-strong); font-weight: 600; }
 .find-or-ask { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text-muted); font-size: 12.5px; text-align: left; cursor: default; }

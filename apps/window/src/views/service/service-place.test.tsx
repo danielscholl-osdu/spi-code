@@ -11,6 +11,7 @@ import { inScope } from "../../components/sidebar/attention.js";
 import { RightPanel } from "../../panels/RightPanel.js";
 import { createSelectionStore } from "../../panels/selection.js";
 import { utc } from "../../panels/selection-rows.js";
+import { PINS_STORAGE_KEY, readPins } from "../../store/pins.js";
 import { createWatchStore } from "../../store/watch.js";
 import { treeServices } from "../inbox/queue.js";
 import ServicePlace from "./index.js";
@@ -48,6 +49,24 @@ async function mount(body: ViewSnapshot = snapshot(), id = "legal") {
 
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0)) await cleanup();
+  localStorage.removeItem(PINS_STORAGE_KEY);
+});
+
+it("pins the service from its place header, labels the control Unpin, and unpins it", async () => {
+  const { container } = await mount();
+  const pinButton = () =>
+    [...container.querySelectorAll<HTMLButtonElement>(".place header button")].find((button) =>
+      /^(Pin|Unpin)$/.test(button.textContent ?? ""),
+    );
+  expect(pinButton()?.getAttribute("aria-label")).toBe("Pin legal");
+  await act(async () => pinButton()?.click());
+  expect(readPins()).toEqual(["legal"]);
+  expect(JSON.parse(localStorage.getItem(PINS_STORAGE_KEY) ?? "[]")).toEqual(["legal"]);
+  expect(pinButton()?.textContent).toBe("Unpin");
+  expect(pinButton()?.getAttribute("aria-label")).toBe("Unpin legal");
+  await act(async () => pinButton()?.click());
+  expect(readPins()).toEqual([]);
+  expect(pinButton()?.getAttribute("aria-label")).toBe("Pin legal");
 });
 
 it("renders legal's recorded service reading, including 17 incoming commits and Release #48 ready", async () => {

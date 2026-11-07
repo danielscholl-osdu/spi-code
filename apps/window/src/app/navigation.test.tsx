@@ -6,6 +6,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import recorded from "../../../../fixtures/watch/snapshot-59d6895.json?raw";
+import { PINS_STORAGE_KEY } from "../store/pins.js";
 import { watchStore } from "../store/watch.js";
 import {
   closeSheet,
@@ -88,6 +89,7 @@ beforeEach(() => {
   window.location.hash = "";
   localStorage.removeItem(PINNED_KEY);
   localStorage.removeItem(LAST_PLACE_KEY);
+  localStorage.removeItem(PINS_STORAGE_KEY);
   sheet.mockClear();
   window.spi = {
     proof: false,
@@ -106,6 +108,7 @@ afterEach(async () => {
   closeSheet();
   localStorage.removeItem(PINNED_KEY);
   localStorage.removeItem(LAST_PLACE_KEY);
+  localStorage.removeItem(PINS_STORAGE_KEY);
   vi.restoreAllMocks();
   relaunch();
 });
@@ -282,6 +285,10 @@ it("lists only registered places in the sidebar and Find, and falls back from th
     environment: _e,
     ...views
   } = every;
+  localStorage.setItem(
+    PINS_STORAGE_KEY,
+    JSON.stringify(body.stations.map(({ service }) => service)),
+  );
   await mount({ views, fallback: { kind: "today" } });
   const nav = container.querySelector('nav[aria-label="Sidebar"]');
   const rows = (group: string) =>
@@ -290,8 +297,8 @@ it("lists only registered places in the sidebar and Find, and falls back from th
     );
   expect(rows("Today")).toEqual(["Today"]);
   expect(rows("Inbox")).toEqual([]);
-  expect(rows("Program")).toEqual(["Engineering system", "Releases"]);
-  expect(rows("Services")).toEqual(["partition", "entitlements", "legal", "schema", "file"]);
+  expect(rows("Places")).toEqual(["Engineering system", "Releases"]);
+  expect(rows("Pinned")).toEqual(["partition", "entitlements", "legal", "schema", "file"]);
   expect(nav?.querySelector('ul[aria-label="Lenses"]')).toBeNull();
   expect(nav?.textContent).not.toMatch(/Upstream|Security|Environment|Setup|Flow/);
 

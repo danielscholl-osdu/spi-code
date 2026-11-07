@@ -8,6 +8,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import briefing from "../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import releases from "../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
 import { selectionStore } from "../panels/selection.js";
+import { PINS_STORAGE_KEY } from "../store/pins.js";
 import { testSnapshot } from "../store/test-snapshot.js";
 import { watchStore } from "../store/watch.js";
 import { navigate } from "./routes.js";
@@ -80,9 +81,6 @@ it("navigates every sidebar thing through the hash, naming the place in the titl
       ["Engineering system", "#engineering-system"],
       ["Environment", "#environment"],
       ["Releases", "#releases"],
-      ["Flow", "#lens/flow"],
-      ["Repositories", "#lens/repositories"],
-      ["Horizon", "#lens/horizon"],
       ["Setup", "#setup"],
     ] as const) {
       await act(async () => button(label)?.click());
@@ -686,7 +684,8 @@ it.each(["failed", "stale"] as const)(
   },
 );
 
-it("shows each snapshot's services in the sidebar on every route, as the packaged smoke reads it", async () => {
+it("shows each pinned snapshot service in the sidebar on every route, as the packaged smoke reads it", async () => {
+  localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(["smoke-persisted", "smoke-resumed"]));
   const previous = window.spi;
   const previousState = watchStore.getState();
   let receive: Parameters<typeof window.spi.onMessage>[0] | undefined;
@@ -737,6 +736,7 @@ it("shows each snapshot's services in the sidebar on every route, as the package
     container.remove();
     watchStore.setState(previousState);
     window.spi = previous;
+    localStorage.removeItem(PINS_STORAGE_KEY);
   }
 });
 

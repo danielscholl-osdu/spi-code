@@ -19,7 +19,7 @@ const store: typeof Store = await import(
 );
 
 const fleet = "Azure/osdu-spi-stack";
-// The service names the shell sidebar renders on every route, so the smoke can see each snapshot.
+// The service names the smoke pins, so the shell sidebar shows each snapshot on every route.
 export const initialSmoke = {
   headline: "Persisted Watch smoke snapshot",
   service: "smoke-persisted",

@@ -171,6 +171,11 @@ it("omits Pin without a callback and invokes the supplied callback from the head
   expect(button?.getAttribute("aria-label")).toBe("Pin legal");
   await act(async () => button?.click());
   expect(onPin).toHaveBeenCalledExactlyOnceWith();
+  await render({ name: "legal", onPin, pinned: true });
+  expect(button?.textContent).toBe("Unpin");
+  expect(button?.getAttribute("aria-label")).toBe("Unpin legal");
+  await act(async () => button?.click());
+  expect(onPin).toHaveBeenCalledTimes(2);
   await render({ name: "legal" });
   expect(container.querySelector("header button")).toBeNull();
 });
