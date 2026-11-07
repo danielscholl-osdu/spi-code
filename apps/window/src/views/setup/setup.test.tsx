@@ -627,7 +627,6 @@ it("lands on Setup when the first host state is not ready and gates every Watch 
   );
   expect(watchRoutes.map((button) => button.textContent)).toEqual([
     "Today",
-    "Inbox",
     "Environment",
     "Engineering system",
     "Releases",
@@ -649,8 +648,8 @@ it("lands on Setup when the first host state is not ready and gates every Watch 
   expect(container.textContent).not.toContain("Watch unavailable");
 });
 
-it("keeps the Inbox as the first route when Watch is ready", async () => {
+it("keeps Today as the first route when Watch is ready", async () => {
   await receive("setup.state", { ...state(), watchReady: true, disabledReason: null });
   await render(<Shell />);
-  expect(container.querySelector("main h1")?.textContent).toBe("Inbox");
+  expect(container.querySelector("main h1")?.textContent).toBe("Today");
 });

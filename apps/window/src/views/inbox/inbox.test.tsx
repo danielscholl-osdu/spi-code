@@ -11,6 +11,7 @@ import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import recorded from "../../../../../fixtures/watch/snapshot-59d6895.json?raw";
+import { DEFAULT_REGISTRY, navigate } from "../../app/routes.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { createWatchStore, watchStore } from "../../store/watch.js";
@@ -119,7 +120,14 @@ it("groups the queue by rung into Now, Next and Later in briefing order", async 
 
 it("routes a scope chip to the thing's page and keeps the row selected there", async () => {
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
-  await render(<Shell />);
+  await render(
+    <Shell
+      registry={{
+        ...DEFAULT_REGISTRY,
+        views: { ...DEFAULT_REGISTRY.views, today: () => <Inbox onNavigate={navigate} /> },
+      }}
+    />,
+  );
   const row = container.querySelector('[data-selection-id="halt:entitlements"]');
   const chip = row?.querySelector<HTMLButtonElement>("button.inbox-scope");
   expect(chip?.textContent).toBe("entitlements");
@@ -143,7 +151,7 @@ it("routes a scope chip to the thing's page and keeps the row selected there", a
   expect(fleet?.tagName).toBe("SPAN");
 });
 
-it("shows the Inbox pip once in the window as P0 plus P1", async () => {
+it("shows the former Inbox pip once on Today as P0 plus P1", async () => {
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
   await render(<Shell />);
   const count = inboxCount(body.briefing);
@@ -152,7 +160,7 @@ it("shows the Inbox pip once in the window as P0 plus P1", async () => {
   expect(count).toBe(6);
   const pips = container.querySelectorAll(".sidebar-pip");
   expect(pips).toHaveLength(1);
-  expect(pips[0]?.closest('ul[aria-label="Inbox"]')).not.toBeNull();
+  expect(pips[0]?.closest('ul[aria-label="Today"]')).not.toBeNull();
   const shown = [...container.querySelectorAll("*")].filter(
     (element) => element.children.length === 0 && element.textContent?.trim() === String(count),
   );

@@ -30,7 +30,7 @@ afterEach(async () => {
 
 const recordedBody = ViewSnapshotSchema.parse(JSON.parse(recorded));
 
-async function render(route: Route = { kind: "inbox" }, onNavigate = vi.fn(), body = recordedBody) {
+async function render(route: Route = { kind: "today" }, onNavigate = vi.fn(), body = recordedBody) {
   const store = createWatchStore(vi.fn());
   store.setState({ snapshot: { cursor: body.cursor, body } });
   await act(async () =>
@@ -63,8 +63,8 @@ it("lists the things in order, with services in the recorded fleet order", async
   const nav = container.querySelector('nav[aria-label="Sidebar"]');
   expect(nav?.querySelector("button")?.textContent).toContain("Find or ask");
   expect(rows("Today")).toEqual(["Today"]);
-  expect(rows("Inbox")).toEqual(["Inbox"]);
-  expect(container.querySelector('ul[aria-label="Inbox"] .sidebar-pip')?.textContent).toBe("6");
+  expect(rows("Inbox")).toEqual([]);
+  expect(container.querySelector('ul[aria-label="Today"] .sidebar-pip')?.textContent).toBe("6");
   expect(rows("Program")).toEqual(["Environment", "Engineering system", "Releases", "Security"]);
   expect(rows("Services")).toEqual(["partition", "entitlements", "legal", "schema", "file"]);
   expect(header("Services")?.textContent).toContain("5");
@@ -257,13 +257,13 @@ it("leaves every dot unchanged when an area read and the tree scopes fail", asyn
   expect(attention("service/entitlements").dot).toBe("p0");
 });
 
-it("pins Find or ask and the Inbox above the scrolling groups, and the footer below them", async () => {
+it("pins Find or ask and Today above the scrolling groups, and the footer below them", async () => {
   await render();
   const scroller = container.querySelector('[data-slot="sidebar-content"]');
   const pinnedTop = container.querySelector('[data-slot="sidebar-header"]');
-  expect(pinnedTop?.querySelector('ul[aria-label="Inbox"]')).not.toBeNull();
+  expect(pinnedTop?.querySelector('ul[aria-label="Today"]')).not.toBeNull();
   expect(pinnedTop?.textContent).toContain("Find or ask");
-  expect(scroller?.querySelector('ul[aria-label="Inbox"]')).toBeNull();
+  expect(scroller?.querySelector('ul[aria-label="Today"]')).toBeNull();
   expect(scroller?.contains(container.querySelector('ul[aria-label="Services"]'))).toBe(true);
   expect(scroller?.querySelector('ul[aria-label="Setup"]')).toBeNull();
   expect(

@@ -72,8 +72,8 @@ it("navigates every sidebar thing through the hash, naming the place in the titl
       [...container.querySelectorAll<HTMLButtonElement>("nav button")].find(
         (item) => item.textContent === label,
       );
-    expect(place()).toBe("Inbox");
-    expect(container.querySelector("main h1")?.textContent).toBe("Inbox");
+    expect(place()).toBe("Today");
+    expect(container.querySelector("main h1")?.textContent).toBe("Today");
     expect(container.querySelector("main")?.textContent).toContain("First sweep running");
     for (const [label, hash, heading = label] of [
       ["Today", "#today"],
@@ -84,7 +84,6 @@ it("navigates every sidebar thing through the hash, naming the place in the titl
       ["Repositories", "#lens/repositories"],
       ["Horizon", "#lens/horizon"],
       ["Setup", "#setup"],
-      ["Inbox", "#inbox"],
     ] as const) {
       await act(async () => button(label)?.click());
       expect(window.location.hash).toBe(hash);
@@ -195,10 +194,14 @@ it.each([900, 979, 980, 1280])(
     viewport(width);
     const previous = watchStore.getState();
     const body = testSnapshot(briefing, releases);
+    body.briefing.focus = body.briefing.focus.map((item) => ({
+      ...item,
+      attention: item.rung === 0 ? "interrupt" : "surface",
+    }));
     watchStore.setState({ snapshot: { cursor: body.cursor, body } });
     const shell = await mountShell();
     const { container } = shell;
-    const row = container.querySelector<HTMLButtonElement>("main .inbox-row-title");
+    const row = container.querySelector<HTMLButtonElement>("main .place-item-content");
     const trigger = container.querySelector<HTMLButtonElement>(
       'header button[aria-controls="app-right-panel"]',
     );
@@ -332,7 +335,7 @@ it.each([900, 1280])(
         }),
       );
     try {
-      await act(async () => navigate({ kind: "inbox" }));
+      await act(async () => navigate({ kind: "today" }));
       await act(async () => selectionStore.getState().select(item.id));
       await act(async () =>
         selectionStore.getState().receive({
@@ -370,7 +373,7 @@ it.each([900, 1280])(
       );
       await act(async () => navigate({ kind: "setup" }));
       expect(selectionStore.getState().selected).toBeNull();
-      await act(async () => navigate({ kind: "inbox" }));
+      await act(async () => navigate({ kind: "today" }));
       await act(async () => selectionStore.getState().select(item.id));
       await refresh(4);
       expect(selectionStore.getState().selected).toBe(item.id);
@@ -721,7 +724,7 @@ it("shows each snapshot's services in the sidebar on every route, as the package
     expect(sidebar()?.getAttribute("data-state")).toBe("expanded");
     expect(sidebar()?.textContent).not.toContain("smoke-persisted");
     await deliver(1, "smoke-persisted");
-    for (const hash of ["#inbox", "#setup", "#environment", "#service/smoke-persisted"]) {
+    for (const hash of ["#today", "#setup", "#environment", "#service/smoke-persisted"]) {
       await act(async () => {
         window.location.hash = hash;
         window.dispatchEvent(new HashChangeEvent("hashchange"));

@@ -130,7 +130,6 @@ it.each([false, true])(
       });
       const routes: Record<Route["kind"], Route[]> = {
         today: [{ kind: "today" }],
-        inbox: [{ kind: "inbox" }],
         upstream: [{ kind: "upstream" }],
         environment: [{ kind: "environment" }],
         "engineering-system": [{ kind: "engineering-system" }],

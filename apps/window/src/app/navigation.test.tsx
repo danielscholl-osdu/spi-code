@@ -46,7 +46,6 @@ const ALL_KINDS: readonly RouteKind[] = [
   "security",
   "service",
   "release",
-  "inbox",
   "lens",
   "setup",
 ];
@@ -112,7 +111,7 @@ afterEach(async () => {
 });
 
 it("renders the registered component for every route id, with its service id and month", async () => {
-  await mount({ views: every, fallback: { kind: "inbox" } });
+  await mount({ views: every, fallback: { kind: "today" } });
   const routes: Route[] = [
     { kind: "today" },
     { kind: "upstream" },
@@ -122,7 +121,6 @@ it("renders the registered component for every route id, with its service id and
     { kind: "security" },
     { kind: "service", id: "legal" },
     { kind: "release", month: "2026-10" },
-    { kind: "inbox" },
     { kind: "lens", lens: "flow" },
     { kind: "lens", lens: "horizon" },
     { kind: "setup" },
@@ -139,7 +137,7 @@ it("renders the registered component for every route id, with its service id and
 });
 
 it("opens the Line sheet over the current place with ⌘L and returns to the same place on close", async () => {
-  await mount({ views: every, sheet, fallback: { kind: "inbox" } });
+  await mount({ views: every, sheet, fallback: { kind: "today" } });
   for (const [origin, close] of [
     [{ kind: "service", id: "legal" }, () => press("Escape", {})],
     [{ kind: "release", month: "2026-10" }, () => press("l")],
@@ -174,7 +172,7 @@ it("opens the Line sheet over the current place with ⌘L and returns to the sam
 });
 
 it("pins the Line sheet beside a live centre across navigation and a reload; unpin closes it", async () => {
-  await mount({ views: every, sheet, fallback: { kind: "inbox" } });
+  await mount({ views: every, sheet, fallback: { kind: "today" } });
   const legal: Route = { kind: "service", id: "legal" };
   await go(legal);
   const beneath = main()?.querySelector("[data-view]");
@@ -212,7 +210,7 @@ it("pins the Line sheet beside a live centre across navigation and a reload; unp
   // A reload starts from what the last session stored.
   await unmount();
   localStorage.setItem(PINNED_KEY, "1");
-  await mount({ views: every, sheet, fallback: { kind: "inbox" } });
+  await mount({ views: every, sheet, fallback: { kind: "today" } });
   expect(lineSheet()?.dataset.presentation).toBe("pinned");
   expect(main()?.hasAttribute("inert")).toBe(false);
   expect(shown()).toBe("#environment");
@@ -222,7 +220,7 @@ it("pins the Line sheet beside a live centre across navigation and a reload; unp
 
 it("draws a registered strip under the title bar on every route and beside either sheet", async () => {
   const strip = vi.fn(() => <p>line state</p>);
-  await mount({ views: every, sheet, strip, fallback: { kind: "inbox" } });
+  await mount({ views: every, sheet, strip, fallback: { kind: "today" } });
   const header = () => container.querySelector("header.title-bar");
   const drawn = () => {
     const slot = header()?.nextElementSibling;
@@ -240,13 +238,13 @@ it("draws a registered strip under the title bar on every route and beside eithe
   expect(drawn()).toBe("line state");
 
   await unmount();
-  await mount({ views: every, sheet, fallback: { kind: "inbox" } });
+  await mount({ views: every, sheet, fallback: { kind: "today" } });
   expect(container.querySelector(".window-strip")).toBeNull();
   expect(header()?.nextElementSibling?.matches(".app-sidebar, .sidebar-backdrop, nav")).toBe(true);
 });
 
 it("closes the Line sheet when the operator goes somewhere else", async () => {
-  await mount({ views: every, sheet, fallback: { kind: "inbox" } });
+  await mount({ views: every, sheet, fallback: { kind: "today" } });
   await go({ kind: "environment" });
   await go(LINE);
   expect(lineSheet()?.textContent).toBe("#environment");
@@ -263,7 +261,7 @@ it("closes the Line sheet when the operator goes somewhere else", async () => {
 });
 
 it("leaves ⌘L alone when no Line sheet is registered", async () => {
-  await mount({ views: every, fallback: { kind: "inbox" } });
+  await mount({ views: every, fallback: { kind: "today" } });
   await go({ kind: "environment" });
   const event = new KeyboardEvent("keydown", { key: "l", ctrlKey: true, cancelable: true });
   await act(async () => window.dispatchEvent(event));
@@ -291,7 +289,7 @@ it("lists only registered places in the sidebar and Find, and falls back from th
       (row) => row.textContent,
     );
   expect(rows("Today")).toEqual(["Today"]);
-  expect(rows("Inbox")).toEqual(["Inbox"]);
+  expect(rows("Inbox")).toEqual([]);
   expect(rows("Program")).toEqual(["Engineering system", "Releases"]);
   expect(rows("Services")).toEqual(["partition", "entitlements", "legal", "schema", "file"]);
   expect(nav?.querySelector('ul[aria-label="Lenses"]')).toBeNull();
@@ -303,7 +301,7 @@ it("lists only registered places in the sidebar and Find, and falls back from th
     [...(palette?.querySelectorAll(`[data-group="${group}"] .palette-label`) ?? [])].map(
       (row) => row.textContent,
     );
-  expect(found("go-to")).toEqual(["Today", "Inbox", "Engineering system", "Releases"]);
+  expect(found("go-to")).toEqual(["Today", "Engineering system", "Releases"]);
   expect(found("services")).toEqual(["partition", "entitlements", "legal", "schema", "file"]);
   expect(found("lenses")).toEqual([]);
   await press("k");
@@ -317,7 +315,7 @@ it("lists only registered places in the sidebar and Find, and falls back from th
 
 describe("landing", () => {
   const recordedBody = ViewSnapshotSchema.parse(JSON.parse(recorded));
-  const registry: Registry = { views: every, sheet, fallback: { kind: "inbox" } };
+  const registry: Registry = { views: every, sheet, fallback: { kind: "today" } };
   const arrive = (cursor: number, seen: { cursor: number; since: string[] }) =>
     act(async () => {
       const body = { ...recordedBody, cursor, seen };
@@ -380,7 +378,7 @@ describe("landing", () => {
 
   it("keeps a place chosen before the first snapshot, and falls back without a last place", async () => {
     await launch();
-    expect(shown()).toBe("#inbox");
+    expect(shown()).toBe("#today");
     await go({ kind: "security" });
     await arrive(4, { cursor: 3, since: ["halt:legal"] });
     expect(shown()).toBe("#security");
@@ -398,7 +396,7 @@ describe("landing", () => {
     expect(acknowledged()).toEqual([{ cursor: 4 }]);
 
     vi.mocked(document.hasFocus).mockReturnValue(false);
-    await go({ kind: "inbox" });
+    await go({ kind: "environment" });
     await arrive(5, { cursor: 4, since: [] });
     await go({ kind: "today" });
     expect(acknowledged()).toEqual([{ cursor: 4 }]);
@@ -407,7 +405,7 @@ describe("landing", () => {
     expect(acknowledged()).toEqual([{ cursor: 4 }, { cursor: 5 }]);
 
     await act(async () => window.dispatchEvent(new FocusEvent("focus")));
-    await go({ kind: "inbox" });
+    await go({ kind: "environment" });
     await go({ kind: "today" });
     expect(acknowledged()).toEqual([{ cursor: 4 }, { cursor: 5 }]);
   });
