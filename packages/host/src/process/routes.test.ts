@@ -619,17 +619,22 @@ describe("view.acknowledge", () => {
   });
 
   it("never clears a stopped station or lowers the Interrupt count", async () => {
+    const watch = routes();
     const first = writeSnapshot();
-    const before = await subscribe();
+    const fresh = p0((await subscribe(watch)).view);
+    const second = write(withBriefing([{ ...fresh, id: "halt:legal", ids: ["halt:legal"] }]));
+    const before = await subscribe(watch);
+    expect(before.view.seen).toMatchObject({ cursor: first, since: ["halt:legal"] });
     const stopped = before.view.stations.flatMap((s) =>
       s.stations.filter((station) => station.substate === "stopped"),
     );
     expect(stopped.length).toBeGreaterThan(0);
     const count = interruptCount(items(before.view.briefing));
     expect(count).toBeGreaterThan(0);
-    await before.acknowledge(first);
+    await before.acknowledge(second);
     const after = await subscribe(routes());
-    expect(after.view.seen.since).toEqual([]);
+    expect(after.view.cursor).toBe(second);
+    expect(after.view.seen).toMatchObject({ cursor: second, since: [] });
     expect(after.view.stations).toEqual(before.view.stations);
     expect(after.view.briefing).toEqual(before.view.briefing);
     expect(interruptCount(items(after.view.briefing))).toBe(count);
