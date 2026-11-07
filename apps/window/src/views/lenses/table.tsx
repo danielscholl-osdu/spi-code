@@ -9,10 +9,9 @@ import type { SelectionRow } from "../../panels/selection-rows.js";
 import { useSelectionList } from "../../panels/useSelectionList.js";
 import "./table.css";
 
-export type Lens = "flow" | "repositories" | "horizon";
+export type Lens = "repositories" | "horizon";
 type Sort = { column: string; descending: boolean } | null;
 export const lensSortStore = createStore<Record<Lens, Sort>>(() => ({
-  flow: null,
   repositories: null,
   horizon: null,
 }));

@@ -12,7 +12,6 @@ import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { testSnapshot } from "../../store/test-snapshot.js";
 import { watchStore } from "../../store/watch.js";
-import Flow from "../flow/index.js";
 import Horizon from "../horizon/index.js";
 import Repositories from "../repositories/index.js";
 import { type Lens, lensSortStore } from "./table.js";
@@ -32,7 +31,7 @@ beforeEach(() => {
     onMessage: () => () => {},
   };
   send.mockClear();
-  lensSortStore.setState({ flow: null, repositories: null, horizon: null });
+  lensSortStore.setState({ repositories: null, horizon: null });
   selectionStore.getState().clear();
   selectionStore.getState().setTab("detail");
   watchStore.setState({ snapshot: { cursor: 1, body: recorded() }, setup: null });
@@ -72,7 +71,7 @@ const rows = () => [...table().querySelectorAll<HTMLTableRowElement>("tr[data-se
 const ids = () => rows().map((row) => row.dataset.selectionId);
 const click = (element: HTMLElement) => act(async () => element.click());
 function renderLens(lens: Lens) {
-  const views = { flow: Flow, repositories: Repositories, horizon: Horizon };
+  const views = { repositories: Repositories, horizon: Horizon };
   const View = views[lens];
   root.render(
     <Shell
@@ -92,40 +91,6 @@ async function sort(label: string) {
   if (!header) throw new Error(`Missing ${label} sort`);
   await click(need("button", header));
 }
-
-it("renders every recorded Flow row in the design's columns, not a local pane or station fleet", async () => {
-  const body = recorded();
-  await mount("flow", body);
-  expect([...table().querySelectorAll("thead th")].map((cell) => cell.textContent)).toEqual([
-    "Fork",
-    "Plan",
-    "Behind",
-    "Carries",
-    "Ready",
-    "Sync PR",
-    "Cascade",
-    "Sync to main",
-    "Main run",
-    "Next",
-  ]);
-  expect(ids()).toEqual(body.briefing.flow.rows.map((row) => row.inspect));
-  for (const [index, row] of body.briefing.flow.rows.entries()) {
-    const cells = [...(rows()[index]?.querySelectorAll("td") ?? [])].map(
-      (cell) => cell.textContent,
-    );
-    expect(cells).toEqual([
-      `${row.fork}${row.tag}`,
-      row.plan.text,
-      row.behind,
-      row.carries,
-      row.ready.text,
-      ...row.line.map((cell) => (cell.text === "·" ? "" : cell.text)),
-      row.next.text,
-    ]);
-  }
-  expect(container.querySelector("main [data-up-detail]")).toBeNull();
-  expect(container.querySelector("main .service-stations")).toBeNull();
-});
 
 it("renders each recorded Horizon row with its original title, kind, sub and when", async () => {
   const body = recorded();
@@ -157,7 +122,7 @@ it("keeps Program before Forks when a fork leads the repository data", async () 
     );
 });
 
-it.each(["flow", "repositories", "horizon"] as const)(
+it.each(["repositories", "horizon"] as const)(
   "toggles every %s column's sort, preserving repository groups",
   async (lens) => {
     await mount(lens);
@@ -169,16 +134,12 @@ it.each(["flow", "repositories", "horizon"] as const)(
       const original = rows().map((row) => ({
         id: row.dataset.selectionId,
         group: row.parentElement?.dataset.group,
-        // A Flow fork's tag and a theme's sub are displayed with their names, not sort keys.
+        // A theme's sub is displayed with its name, not as a sort key.
         value:
-          index === 0
-            ? lens === "flow"
-              ? (row.dataset.selectionId?.replace(/^upstream:/, "") ?? "")
-              : lens === "horizon"
-                ? (recorded().briefing.themes.find(
-                    (theme) => (theme.inspect ?? `theme:${theme.id}`) === row.dataset.selectionId,
-                  )?.title ?? "")
-                : (row.cells[index]?.textContent ?? "")
+          index === 0 && lens === "horizon"
+            ? (recorded().briefing.themes.find(
+                (theme) => (theme.inspect ?? `theme:${theme.id}`) === row.dataset.selectionId,
+              )?.title ?? "")
             : (row.cells[index]?.textContent ?? ""),
       }));
       const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
@@ -204,11 +165,7 @@ it.each(["flow", "repositories", "horizon"] as const)(
 );
 
 it("keeps a separate sort per retired view after unmounting", async () => {
-  await mount("flow");
-  await sort("Fork");
-  await sort("Fork");
-  const flow = ids();
-  await go("repositories");
+  await mount("repositories");
   await sort("Repository");
   const repositories = ids();
   await go("horizon");
@@ -216,7 +173,6 @@ it("keeps a separate sort per retired view after unmounting", async () => {
   await sort("Theme");
   const horizon = ids();
   for (const [lens, expected, direction] of [
-    ["flow", flow, "descending"],
     ["repositories", repositories, "ascending"],
     ["horizon", horizon, "descending"],
   ] as const) {
@@ -226,45 +182,19 @@ it("keeps a separate sort per retired view after unmounting", async () => {
   }
 });
 
-it("sorts Behind numerically rather than putting ten before two", async () => {
-  const body = recorded();
-  const first = body.briefing.flow.rows[0];
-  if (!first) throw new Error("Missing Flow fixture");
-  first.behind = "10";
-  await mount("flow", body);
-  await sort("Behind");
-  expect(rows().map((row) => row.querySelector('[data-column="Behind"]')?.textContent)).toEqual([
-    "0",
-    "0",
-    "0",
-    "2",
-    "10",
-  ]);
-});
-
-it.each(["flow", "repositories", "horizon"] as const)(
+it.each(["repositories", "horizon"] as const)(
   "leaves lone dot cells blank in %s without stripping real separators",
   async (lens) => {
     const body = recorded();
-    const flow = body.briefing.flow.rows[0];
     const repo = body.briefing.repositories.rows[0];
     const theme = body.briefing.themes[0];
-    if (!flow || !repo || !theme) throw new Error("Missing recorded rows");
-    flow.plan.text = "·";
-    flow.carries = "·";
-    flow.ready.text = "·";
-    flow.next.text = "·";
+    if (!repo || !theme) throw new Error("Missing recorded rows");
     repo.cells.changes.text = "·";
     repo.cells.changes.rest = "·";
     repo.title = "·";
     theme.when = "·";
     await mount(lens, body);
-    const blankLabels =
-      lens === "flow"
-        ? ["Plan", "Carries", "Ready", "Next"]
-        : lens === "repositories"
-          ? ["Pull Requests", "Needs"]
-          : ["When"];
+    const blankLabels = lens === "repositories" ? ["Pull Requests", "Needs"] : ["When"];
     for (const label of blankLabels)
       expect(rows()[0]?.querySelector(`[data-column="${label}"]`)?.textContent).toBe("");
     expect(
@@ -277,7 +207,7 @@ it.each(["flow", "repositories", "horizon"] as const)(
   },
 );
 
-it.each(["flow", "repositories", "horizon"] as const)(
+it.each(["repositories", "horizon"] as const)(
   "selects a %s row through the shared inspect path into the right panel",
   async (lens) => {
     await mount(lens);
@@ -320,29 +250,6 @@ it.each(["flow", "repositories", "horizon"] as const)(
   },
 );
 
-it.each(["name", "Enter", "double-click"] as const)(
-  "opens a Flow row by %s with its selection still in Detail",
-  async (method) => {
-    const flow = recorded().briefing.flow.rows[0];
-    if (!flow) throw new Error("Missing Flow fixture");
-    await mount("flow");
-    const row = rows()[0];
-    if (!row) throw new Error("Missing Flow row");
-    if (method === "name") await click(need("button.lens-name", row));
-    else
-      await act(async () =>
-        row.dispatchEvent(
-          method === "Enter"
-            ? new KeyboardEvent("keydown", { key: "Enter", bubbles: true })
-            : new MouseEvent("dblclick", { bubbles: true }),
-        ),
-      );
-    expect(window.location.hash).toBe(`#service/${flow.fork}`);
-    expect(selectionStore.getState().selected).toBe(flow.inspect);
-    expect(need("aside .detail-title").textContent).toBe(flow.detail.title);
-  },
-);
-
 it.each([
   ["repo:osdu-spi", "#engineering-system"],
   ["repo:osdu-spi-stack", "#environment"],
@@ -373,8 +280,8 @@ it("opens a named Horizon fork while retaining a theme-only selection", async ()
 });
 
 it("uses the displayed sort order for keyboard selection", async () => {
-  await mount("flow");
-  await sort("Fork");
+  await mount("horizon");
+  await sort("Theme");
   const ordered = rows();
   const first = ordered[0];
   if (!first) throw new Error("Missing sorted row");
@@ -385,48 +292,3 @@ it("uses the displayed sort order for keyboard selection", async () => {
   expect(selectionStore.getState().selected).toBe(ordered[1]?.dataset.selectionId);
   expect(document.activeElement).toBe(ordered[1]);
 });
-
-it.each(["planning", "flight", "quiet"] as const)(
-  "shows next, also and the schedule under the %s table; Plan selects its title, lines and note",
-  async (mode) => {
-    const body = recorded();
-    const view = body.briefing.flow;
-    view.mode = mode;
-    view.next.text = "Start the prepared forks";
-    view.next.quiet = mode === "quiet";
-    view.also = [
-      { text: "Wait for the pilot", inspect: "upstream:legal" },
-      { text: "Read the rollout" },
-    ];
-    await mount("flow", body);
-    const next = need('main [data-pointer="/briefing/flow/next"]');
-    expect(next.textContent).toContain(view.next.title);
-    expect(next.textContent).toContain(view.next.text);
-    expect(need("button", next).classList.contains("lens-quiet")).toBe(view.next.quiet);
-    const also = need('main [aria-label="Also waiting"]');
-    for (const item of view.also) expect(also.textContent).toContain(item.text);
-    const schedule = need('main [data-pointer="/briefing/flow/schedule"]');
-    expect(schedule.textContent).toBe(`${view.schedule?.title}${view.schedule?.text}`);
-    expect(table().compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(next.compareDocumentPosition(also) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(also.compareDocumentPosition(schedule) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(container.querySelector("main")?.textContent).not.toContain(view.plan.note);
-    await click(need("main .lens-toolbar button"));
-    expect(selectionStore.getState().selected).toBe(view.inspect);
-    expect(send).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        type: "inspect.request",
-        payload: { id: view.inspect },
-      }),
-    );
-    const detail = need("aside");
-    expect(need(".detail-title", detail).textContent).toBe(view.plan.title);
-    for (const line of view.plan.lines) {
-      expect(detail.textContent).toContain(line.label);
-      expect(detail.textContent).toContain(line.text);
-    }
-    expect(detail.textContent).toContain(view.plan.note);
-    await click(need("button", also));
-    expect(selectionStore.getState().selected).toBe("upstream:legal");
-  },
-);
