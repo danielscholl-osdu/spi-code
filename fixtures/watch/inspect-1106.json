@@ -1,0 +1,3072 @@
+[
+  {
+    "id": "conflict:entitlements:121",
+    "title": "entitlements · cascade conflict",
+    "class": "CONFLICT",
+    "cause": "Cascade blocked: 🚨 Integration Validation Failed: Build/Test Errors - 2026-11-05.",
+    "effect": "Nothing else waits on it.",
+    "next": "Resolve the conflict named in the issue on the fork, then dispatch the cascade.",
+    "why": "Issue: #121 · cascade-blocked, high-priority, human-required, validation-failed · opened 11-05 16:30",
+    "evidence": [],
+    "related": [],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "rollout",
+    "title": "fleet · template rollout",
+    "class": "ROLLOUT",
+    "cause": "osdu-spi main 7d269b5 is on its way to the fleet: 0 of 13 forks merged.",
+    "effect": "The change reaches actions, workflows and settings, so every PR and every merge takes a deploy lane: 13 lanes, 5 at a time still to go.",
+    "next": "Merge partition, entitlements, legal, schema and file. Five lanes are free.",
+    "why": "Main: 7d269b5 · v1.4.0 +80; Forks on: 5398e93 · 1 merge behind",
+    "evidence": [],
+    "related": [],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "release-red:Azure/osdu-spi-entitlements#89",
+    "title": "entitlements · release PR failing",
+    "class": "BUILD",
+    "cause": "Release PR #89 fails 📊 Code Coverage.",
+    "effect": "Nothing else waits on it.",
+    "next": "Open the failed job (📊 Code Coverage › Setup Maven); the reason is in the cause above.",
+    "why": "Pull request: #89 · chore: release 1.2.2 · opened 10-20 18:45; Failed check: 📊 Code Coverage › Setup Maven; Head: 37da05a",
+    "evidence": [],
+    "related": [],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "radar:indexer",
+    "title": "indexer · next sync predicted",
+    "class": "TOOLCHAIN",
+    "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
+    "effect": "25 commits reach the fork at the 00:00 sync.",
+    "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
+    "why": "Commit: 7749dc4b · Upgrade to Spring Boot 4 / Spring Framework 7 on Java 17 for M27 vulnerabilities; Filter: .github/upstream-filter.yml on main; Queued: 25 commits wait for the next Sync Upstream at 00:00Z",
+    "evidence": [],
+    "related": [],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "radar:legal",
+    "title": "legal · next sync predicted",
+    "class": "TOOLCHAIN",
+    "cause": "Queued upstream commits move the root pom to os-core-common 8.4.1-boot4-SNAPSHOT, os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT and os-core-common 8.5.0.",
+    "effect": "17 commits reach the fork at the 00:00 sync.",
+    "next": "Absorb os-core-common 8.4.1-boot4-SNAPSHOT on the fork before the next Sync Upstream carries it.",
+    "why": "Commit: 0cab1090 · Migrate Legal to Spring Boot 4 on Java 17; Filter: .github/upstream-filter.yml on main; Queued: 17 commits wait for the next Sync Upstream at 00:00Z",
+    "evidence": [],
+    "related": [],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "radar:schema",
+    "title": "schema · next sync predicted",
+    "class": "TOOLCHAIN",
+    "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
+    "effect": "16 commits reach the fork at the 00:00 sync.",
+    "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
+    "why": "Commit: 28d5a930 · Migrate Schema to Spring Boot 4 / Spring 7 on Java 17; Filter: .github/upstream-filter.yml on main; Queued: 16 commits wait for the next Sync Upstream at 00:00Z",
+    "evidence": [],
+    "related": [],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "radar:storage",
+    "title": "storage · next sync predicted",
+    "class": "TOOLCHAIN",
+    "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
+    "effect": "11 commits reach the fork at the 00:00 sync.",
+    "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
+    "why": "Commit: 9acda5e5 · Upgrade to Spring Boot 4 / Spring Framework 7 on Java 17 for M27 vulnerability fixes; Filter: .github/upstream-filter.yml on main; Queued: 11 commits wait for the next Sync Upstream at 00:00Z",
+    "evidence": [],
+    "related": [],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "radar:partition",
+    "title": "partition · next sync predicted",
+    "class": "HALT",
+    "cause": "Queued upstream commits add schemathesis-tests, which the fork's filter has no rule for.",
+    "effect": "8 commits reach the fork at the 00:00 sync.",
+    "next": "Pre-classify: add schemathesis-tests to top_level in .github/upstream-filter.yml before the next Sync Upstream.",
+    "why": "Commit: 69785fa5 · Schemathesis Fix; Map: top_level; Filter: .github/upstream-filter.yml on main · no rule for schemathesis-tests; Queued: 8 commits wait for the next Sync Upstream at 00:00Z",
+    "evidence": [
+      {
+        "source": "Azure/osdu-spi-entitlements",
+        "object": ".github/upstream-filter.yml",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "gh api repos/Azure/osdu-spi-entitlements/contents/.github/upstream-filter.yml: offline"
+      },
+      {
+        "source": "osdu/platform/security-and-compliance/entitlements",
+        "object": "repository/tree?ref=master",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "glab api projects/osdu%2Fplatform%2Fsecurity-and-compliance%2Fentitlements/repository/tree?ref=master&per_page=100&page=1: offline"
+      },
+      {
+        "source": "Azure/osdu-spi-legal",
+        "object": ".github/upstream-filter.yml",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "gh api repos/Azure/osdu-spi-legal/contents/.github/upstream-filter.yml: offline"
+      },
+      {
+        "source": "osdu/platform/security-and-compliance/legal",
+        "object": "repository/tree?ref=master",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "glab api projects/osdu%2Fplatform%2Fsecurity-and-compliance%2Flegal/repository/tree?ref=master&per_page=100&page=1: offline"
+      },
+      {
+        "source": "Azure/osdu-spi-schema",
+        "object": ".github/upstream-filter.yml",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "gh api repos/Azure/osdu-spi-schema/contents/.github/upstream-filter.yml: offline"
+      },
+      {
+        "source": "osdu/platform/system/schema-service",
+        "object": "repository/tree?ref=master",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "glab api projects/osdu%2Fplatform%2Fsystem%2Fschema-service/repository/tree?ref=master&per_page=100&page=1: offline"
+      },
+      {
+        "source": "Azure/osdu-spi-file",
+        "object": ".github/upstream-filter.yml",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "gh api repos/Azure/osdu-spi-file/contents/.github/upstream-filter.yml: offline"
+      },
+      {
+        "source": "osdu/platform/system/file",
+        "object": "repository/tree?ref=master",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "glab api projects/osdu%2Fplatform%2Fsystem%2Ffile/repository/tree?ref=master&per_page=100&page=1: offline"
+      },
+      {
+        "source": "Azure/osdu-spi-storage",
+        "object": ".github/upstream-filter.yml",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "gh api repos/Azure/osdu-spi-storage/contents/.github/upstream-filter.yml: offline"
+      },
+      {
+        "source": "osdu/platform/system/storage",
+        "object": "repository/tree?ref=master",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "glab api projects/osdu%2Fplatform%2Fsystem%2Fstorage/repository/tree?ref=master&per_page=100&page=1: offline"
+      },
+      {
+        "source": "Azure/osdu-spi-indexer",
+        "object": ".github/upstream-filter.yml",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "gh api repos/Azure/osdu-spi-indexer/contents/.github/upstream-filter.yml: offline"
+      },
+      {
+        "source": "osdu/platform/system/indexer-service",
+        "object": "repository/tree?ref=master",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "glab api projects/osdu%2Fplatform%2Fsystem%2Findexer-service/repository/tree?ref=master&per_page=100&page=1: offline"
+      },
+      {
+        "source": "Azure/osdu-spi-search",
+        "object": ".github/upstream-filter.yml",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "gh api repos/Azure/osdu-spi-search/contents/.github/upstream-filter.yml: offline"
+      },
+      {
+        "source": "osdu/platform/system/search-service",
+        "object": "repository/tree?ref=master",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "glab api projects/osdu%2Fplatform%2Fsystem%2Fsearch-service/repository/tree?ref=master&per_page=100&page=1: offline"
+      },
+      {
+        "source": "Azure/osdu-spi-workflow",
+        "object": ".github/upstream-filter.yml",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "gh api repos/Azure/osdu-spi-workflow/contents/.github/upstream-filter.yml: offline"
+      },
+      {
+        "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+        "object": "repository/tree?ref=master",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "glab api projects/osdu%2Fplatform%2Fdata-flow%2Fingestion%2Fingestion-workflow/repository/tree?ref=master&per_page=100&page=1: offline"
+      },
+      {
+        "source": "Azure/osdu-spi-indexer-queue",
+        "object": ".github/upstream-filter.yml",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "gh api repos/Azure/osdu-spi-indexer-queue/contents/.github/upstream-filter.yml: offline"
+      },
+      {
+        "source": "osdu/platform/system/indexer-queue",
+        "object": "repository/tree?ref=master",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "glab api projects/osdu%2Fplatform%2Fsystem%2Findexer-queue/repository/tree?ref=master&per_page=100&page=1: offline"
+      },
+      {
+        "source": "Azure/osdu-spi-unit",
+        "object": ".github/upstream-filter.yml",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "gh api repos/Azure/osdu-spi-unit/contents/.github/upstream-filter.yml: offline"
+      },
+      {
+        "source": "osdu/platform/system/reference/unit-service",
+        "object": "repository/tree?ref=master",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "glab api projects/osdu%2Fplatform%2Fsystem%2Freference%2Funit-service/repository/tree?ref=master&per_page=100&page=1: offline"
+      },
+      {
+        "source": "Azure/osdu-spi-crs-catalog",
+        "object": ".github/upstream-filter.yml",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "gh api repos/Azure/osdu-spi-crs-catalog/contents/.github/upstream-filter.yml: offline"
+      },
+      {
+        "source": "osdu/platform/system/reference/crs-catalog-service",
+        "object": "repository/tree?ref=master",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "glab api projects/osdu%2Fplatform%2Fsystem%2Freference%2Fcrs-catalog-service/repository/tree?ref=master&per_page=100&page=1: offline"
+      },
+      {
+        "source": "Azure/osdu-spi-crs-conversion",
+        "object": ".github/upstream-filter.yml",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "gh api repos/Azure/osdu-spi-crs-conversion/contents/.github/upstream-filter.yml: offline"
+      },
+      {
+        "source": "osdu/platform/system/reference/crs-conversion-service",
+        "object": "repository/tree?ref=master",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "failure": "glab api projects/osdu%2Fplatform%2Fsystem%2Freference%2Fcrs-conversion-service/repository/tree?ref=master&per_page=100&page=1: offline"
+      }
+    ],
+    "related": [
+      {
+        "text": "legal",
+        "state": "open MR !756",
+        "inspect": "mr:legal:756"
+      },
+      {
+        "text": "crs-conversion",
+        "state": "open MR !563",
+        "inspect": "mr:crs-conversion:563"
+      },
+      {
+        "text": "entitlements",
+        "state": "?"
+      },
+      {
+        "text": "legal",
+        "state": "?"
+      },
+      {
+        "text": "schema",
+        "state": "?"
+      },
+      {
+        "text": "file",
+        "state": "?"
+      },
+      {
+        "text": "storage",
+        "state": "?"
+      },
+      {
+        "text": "indexer",
+        "state": "?"
+      },
+      {
+        "text": "search",
+        "state": "?"
+      },
+      {
+        "text": "workflow",
+        "state": "?"
+      },
+      {
+        "text": "indexer-queue",
+        "state": "?"
+      },
+      {
+        "text": "unit",
+        "state": "?"
+      },
+      {
+        "text": "crs-catalog",
+        "state": "?"
+      },
+      {
+        "text": "crs-conversion",
+        "state": "?"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "radar:unit",
+    "title": "unit · next sync predicted",
+    "class": "TOOLCHAIN",
+    "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
+    "effect": "7 commits reach the fork at the 00:00 sync.",
+    "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
+    "why": "Commit: 3a69766c · Upgrade to Spring Boot 4.0.8 / Spring Framework 7.0.9 on Java 17 (M27 vulnerability remediation); Filter: .github/upstream-filter.yml on main; Queued: 7 commits wait for the next Sync Upstream at 00:00Z",
+    "evidence": [],
+    "related": [],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "radar:workflow",
+    "title": "workflow · next sync predicted",
+    "class": "TOOLCHAIN",
+    "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
+    "effect": "7 commits reach the fork at the 00:00 sync.",
+    "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
+    "why": "Commit: d6847cea · Upgrade to Spring Boot 4 / Spring Framework 7 on Java 17 for M27 vulnerabilities; Filter: .github/upstream-filter.yml on main; Queued: 7 commits wait for the next Sync Upstream at 00:00Z",
+    "evidence": [],
+    "related": [],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "radar:search",
+    "title": "search · next sync predicted",
+    "class": "TOOLCHAIN",
+    "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
+    "effect": "6 commits reach the fork at the 00:00 sync.",
+    "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
+    "why": "Commit: aded8a3f · Upgrade to Spring Boot 4 / Spring Framework 7 on Java 17 for M27 vulnerabilities; Filter: .github/upstream-filter.yml on main; Queued: 6 commits wait for the next Sync Upstream at 00:00Z",
+    "evidence": [],
+    "related": [],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "radar:file",
+    "title": "file · next sync predicted",
+    "class": "TOOLCHAIN",
+    "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
+    "effect": "5 commits reach the fork at the 00:00 sync.",
+    "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
+    "why": "Commit: 4d0ff1f4 · Upgrade to Spring Boot 4 / Spring Framework 7 on Java 17 for M27 vulnerabilities; Filter: .github/upstream-filter.yml on main; Queued: 5 commits wait for the next Sync Upstream at 00:00Z",
+    "evidence": [],
+    "related": [],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "radar:crs-conversion",
+    "title": "crs-conversion · next sync predicted",
+    "class": "TOOLCHAIN",
+    "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
+    "effect": "5 commits reach the fork at the 00:00 sync.",
+    "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
+    "why": "Commit: 80e3497b · Upgrade to Spring Boot 4 / Spring Framework 7 on Java 17 for M27 vulnerabilities; Filter: .github/upstream-filter.yml on main; Queued: 5 commits wait for the next Sync Upstream at 00:00Z",
+    "evidence": [],
+    "related": [],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "gate1:indexer",
+    "title": "indexer · sync PR",
+    "class": "GATE",
+    "cause": "Sync PR #58 waits for review.",
+    "effect": "25 upstream commits wait on this PR.",
+    "next": "Review the sync PR on GitHub and merge it.",
+    "why": "Pull request: #58 · ⬆️ Sync with upstream f3342aa8 · opened 11-05 00:33; Head: 5cf4e11",
+    "evidence": [],
+    "related": [],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "gate1:storage",
+    "title": "storage · sync PR",
+    "class": "GATE",
+    "cause": "Sync PR #58 waits for review.",
+    "effect": "11 upstream commits wait on this PR.",
+    "next": "Review the sync PR on GitHub and merge it.",
+    "why": "Pull request: #58 · ⬆️ Sync with upstream 21ac469f (Updated) · opened 11-05 00:29; Head: 2d818bf",
+    "evidence": [],
+    "related": [],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "gate1:indexer-queue",
+    "title": "indexer-queue · sync PR",
+    "class": "GATE",
+    "cause": "Sync PR #58 waits for review.",
+    "effect": "3 upstream commits wait on this PR.",
+    "next": "Review the sync PR on GitHub and merge it.",
+    "why": "Pull request: #58 · ⬆️ Sync with upstream 606c103b · opened 11-05 00:19; Head: 2337576",
+    "evidence": [],
+    "related": [],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "port:entitlements",
+    "title": "entitlements · upstream change owed a port",
+    "class": "PORT",
+    "cause": "Upstream changed provider/entitlements-v2-azure and testing/entitlements-v2-test-azure since the seed, and no fork PR cites the MR.",
+    "effect": "!968 · Entitlements - migration to java 25 · merged 10-16 14:05. !967 · Resolve \"[Venus] CI-friendly Maven versions for Entitlements\" · merged 10-16 07:31. !963 · Merge forward 'fix/cve-critical-high-tomcat-netty' (!962) from release/0.30 · merged 09-14 14:02.",
+    "next": "Port !968 into provider/entitlements-v2-azure; cite the MR URL in the PR body.",
+    "why": "Seeded: 2026-09-14; Owed: !968 (provider/entitlements-v2-azure), !967 (provider/entitlements-v2-azure and testing/entitlements-v2-test-azure), !963 (testing/entitlements-v2-test-azure), !956 (provider/entitlements-v2-azure); Match: a fork PR whose body or a commit message cites the MR's GitLab URL",
+    "evidence": [],
+    "related": [
+      {
+        "text": "partition",
+        "state": "2 owed",
+        "inspect": "port:partition"
+      },
+      {
+        "text": "legal",
+        "state": "2 owed",
+        "inspect": "port:legal"
+      },
+      {
+        "text": "schema",
+        "state": "1 owed",
+        "inspect": "port:schema"
+      },
+      {
+        "text": "file",
+        "state": "1 owed",
+        "inspect": "port:file"
+      },
+      {
+        "text": "storage",
+        "state": "1 owed",
+        "inspect": "port:storage"
+      },
+      {
+        "text": "indexer",
+        "state": "3 owed",
+        "inspect": "port:indexer"
+      },
+      {
+        "text": "search",
+        "state": "2 owed",
+        "inspect": "port:search"
+      },
+      {
+        "text": "workflow",
+        "state": "2 owed",
+        "inspect": "port:workflow"
+      },
+      {
+        "text": "unit",
+        "state": "3 owed",
+        "inspect": "port:unit"
+      },
+      {
+        "text": "crs-catalog",
+        "state": "1 owed",
+        "inspect": "port:crs-catalog"
+      },
+      {
+        "text": "crs-conversion",
+        "state": "1 owed",
+        "inspect": "port:crs-conversion"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "theme:deadline:azure-removal",
+    "title": "Azure removal upstream",
+    "class": "GATE",
+    "cause": "Azure removal upstream",
+    "effect": "2 pending · 5 established · 6 fork-only",
+    "next": "Upstream removes the Azure provider code at the deadline; forks keep their own copy.",
+    "why": "7 days left",
+    "evidence": [],
+    "related": [
+      {
+        "text": "partition",
+        "state": "certain · fork-only"
+      },
+      {
+        "text": "entitlements",
+        "state": "certain · fork-only"
+      },
+      {
+        "text": "legal",
+        "state": "certain · fork-only"
+      },
+      {
+        "text": "schema",
+        "state": "certain · fork-only"
+      },
+      {
+        "text": "file",
+        "state": "certain · fork-only"
+      },
+      {
+        "text": "storage",
+        "state": "certain · fork-only"
+      },
+      {
+        "text": "indexer",
+        "state": "certain · established"
+      },
+      {
+        "text": "search",
+        "state": "certain · established"
+      },
+      {
+        "text": "workflow",
+        "state": "certain · established"
+      },
+      {
+        "text": "indexer-queue",
+        "state": "certain · established"
+      },
+      {
+        "text": "unit",
+        "state": "certain · established"
+      },
+      {
+        "text": "crs-catalog",
+        "state": "certain · pending"
+      },
+      {
+        "text": "crs-conversion",
+        "state": "certain · pending"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "hold:1793938025000",
+    "title": "Held 13 min",
+    "class": "READY",
+    "cause": "Held 13 min",
+    "effect": "in maintenance for 13 min",
+    "next": "",
+    "why": "2026-11-06T04:07:05.000Z to 2026-11-06T04:20:16.000Z",
+    "evidence": [],
+    "related": [
+      {
+        "text": "Refresh v0.35.3",
+        "state": "green in 14 min",
+        "inspect": "run:42160446124"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  }
+]

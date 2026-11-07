@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { InspectResult, ViewSnapshot } from "@spi-code/contracts";
+import { type InspectResult, InspectResultSchema, type ViewSnapshot } from "@spi-code/contracts";
 import { clock } from "../components/evidence/words.js";
 import { inScope } from "../components/sidebar/attention.js";
 import { selectionRows } from "../panels/selection-rows.js";
@@ -14,15 +14,17 @@ import { treeServices } from "./queue.js";
 
 export type Selector = string | ((root: ParentNode) => Element | null | undefined);
 
+/** A signed-off place a field's home starts from: Today, the strip, the Line sheet, a place. */
+export type Start = { name: string; surface: string; route: Destination };
+
 /**
- * Where a field lives: a route, then at most one click. A Detail home also carries the host's
- * answer, and its click is the row that names it, which is itself reachable from its place.
+ * Where a field lives: its start, then at most one click on a visible target. A Detail home also
+ * carries the host's answer, and its click is the row that names it.
  */
 export type Home = {
   name: string;
-  surface: string;
-  route: Destination;
-  steps: Selector[];
+  start: Start;
+  step?: Selector;
   detail?: InspectResult;
 };
 
@@ -39,12 +41,17 @@ export type Reach = {
   /** Folds a surface's own wording of the field before two surfaces are compared. */
   canon?: (value: string) => string;
   exempt?: string;
+  /** The surface draws only `value`, a prefix of the leaf; `tail` renders nowhere, named by `reason`. */
+  partial?: { tail: string; reason: string };
 };
 
-export type Exemption = { pattern: RegExp; reason: string; when?: (value: unknown) => boolean };
+/** Exact index-free leaf patterns, so a new leaf elsewhere never inherits the exemption. */
+export type Exemption = {
+  patterns: readonly string[];
+  reason: string;
+  when?: (value: unknown) => boolean;
+};
 
-type Item = ViewSnapshot["briefing"]["focus"][number];
-type Theme = ViewSnapshot["briefing"]["themes"][number];
 type Lane = ViewSnapshot["briefing"]["environment"]["lanes"][number];
 type Event = Lane["events"][number];
 type Repo = ViewSnapshot["briefing"]["repositories"]["rows"][number];
@@ -61,37 +68,57 @@ const ownText = (element: Element) =>
     .join("")
     .trim();
 
-const PLACE_ROUTES: Record<string, (id?: string) => { name: string; route: Destination }> = {
-  upstream: () => ({ name: "Upstream", route: { kind: "upstream" } }),
-  environment: () => ({ name: "Environment", route: { kind: "environment" } }),
-  engineering: () => ({ name: "Engineering system", route: { kind: "engineering-system" } }),
-  releases: () => ({ name: "Releases", route: { kind: "releases" } }),
-  security: () => ({ name: "Security", route: { kind: "security" } }),
-  service: (id = "") => ({ name: id, route: { kind: "service", id } }),
+const start = (name: string, route: Destination, surface: string = route.kind): Start => ({
+  name,
+  surface,
+  route,
+});
+
+export const STARTS = {
+  today: start("Today", { kind: "today" }),
+  strip: start("Strip", { kind: "today" }, "strip"),
+  line: start("Line sheet", { kind: "line" }, "sheet"),
+  upstream: start("Upstream", { kind: "upstream" }),
+  environment: start("Environment", { kind: "environment" }),
+  engineering: start("Engineering system", { kind: "engineering-system" }),
+  releases: start("Releases", { kind: "releases" }),
+  security: start("Security", { kind: "security" }),
+  service: (id: string) => start(`Service ${id}`, { kind: "service", id }),
+  release: (month: string) => start(`Release ${month}`, { kind: "release", month }),
+} as const;
+
+const PLACE_STARTS: Record<string, (id?: string) => Start> = {
+  upstream: () => STARTS.upstream,
+  environment: () => STARTS.environment,
+  engineering: () => STARTS.engineering,
+  releases: () => STARTS.releases,
+  security: () => STARTS.security,
+  service: (id = "") => STARTS.service(id),
 };
 const SELECTABLE_PLACES = new Set(["upstream", "environment", "engineering", "service"]);
+/** A place's own heading, which differs from its start's name only for a service. */
+const placeLabel = (from: Start) => (from.route.kind === "service" ? from.route.id : from.name);
 
-function home(name: string, route: Destination, steps: Selector[] = [], detail?: InspectResult) {
-  const surface = route.kind === "line" ? "sheet" : route.kind;
-  return { name, surface, route, steps, ...(detail ? { detail } : {}) };
+function home(name: string, from: Start, step?: Selector, detail?: InspectResult): Home {
+  return { name, start: from, ...(step ? { step } : {}), ...(detail ? { detail } : {}) };
 }
 
-const TODAY = home("Today", { kind: "today" });
-const STRIP: Home = { ...home("Strip", { kind: "today" }), surface: "strip" };
-const LINE = home("Line sheet", { kind: "line" });
+const TODAY = home("Today", STARTS.today);
+const STRIP = home("Strip", STARTS.strip);
+const LINE = home("Line sheet", STARTS.line);
 
 /** The lens-field homes t1k.189 ruled, opened the way lens-retirement.test.tsx opens them. */
 function lensHome(name: string): Home {
   const [place = "", target] = name.split(" · ");
-  const route: Destination = place.startsWith("Service ")
-    ? { kind: "service", id: place.slice(8) }
+  const from = place.startsWith("Service ")
+    ? STARTS.service(place.slice(8))
     : place === "Environment"
-      ? { kind: "environment" }
+      ? STARTS.environment
       : place === "Engineering system"
-        ? { kind: "engineering-system" }
+        ? STARTS.engineering
         : place === "Today"
-          ? { kind: "today" }
-          : { kind: "upstream" };
+          ? STARTS.today
+          : STARTS.upstream;
   const step =
     target === "Stack runs"
       ? '[data-part="runs"] > summary'
@@ -104,76 +131,46 @@ function lensHome(name: string): Home {
             : target === "Upstream sync Detail"
               ? "[data-service-detail='upstream']"
               : undefined;
-  return home(name, route, step ? [step] : []);
+  return home(name, from, step);
 }
 
-const THEME_CLASS: Record<Theme["kind"], InspectResult["class"]> = {
-  halt: "HALT",
-  toolchain: "TOOLCHAIN",
-  port: "PORT",
-  rollout: "ROLLOUT",
-  deadline: "GATE",
-};
+type DetailFeed = Readonly<Record<string, InspectResult>>;
 
-const answer = (
-  id: string,
-  fields: Pick<InspectResult, "class" | "cause" | "effect" | "next" | "why" | "related">,
-): InspectResult => ({ id, ...fields, evidence: [], actions: [], approval: null });
-
-/** A queue item's Detail as the host answers it; packages/host/src/watch/parity.test.ts holds the host to it. */
-const itemAnswer = (item: Item) =>
-  answer(item.id, {
-    class: item.cls,
-    cause: item.cause,
-    effect: item.effect,
-    next: item.next,
-    why: "",
-    related: [],
-  });
-
-const themeAnswer = (theme: Theme) =>
-  answer(`theme:${theme.id}`, {
-    class: THEME_CLASS[theme.kind],
-    cause: theme.title,
-    effect: theme.sub,
-    next: theme.next,
-    why: theme.when ?? "",
-    related: [
-      ...theme.certain.map((f) => ({ text: f.fork, state: `certain · ${f.state}` })),
-      ...theme.possible.map((f) => ({ text: f.fork, state: `possible · ${f.state}` })),
-      ...theme.exposed.map((name) => ({ text: name, state: "exposed" })),
-    ],
-  });
+/**
+ * The router's Detail answers on the recorded sweep (fixtures/watch/inspect-1106.json), which
+ * packages/host/src/watch/parity.test.ts pins to the router field for field: the feed Detail
+ * draws here is the host's.
+ */
+export const detailFeed = (raw: string): DetailFeed =>
+  Object.fromEntries(
+    InspectResultSchema.array()
+      .parse(JSON.parse(raw))
+      .map((result) => [result.id, result]),
+  );
 
 function overlaps(hold: Event, e: Event) {
   const end = (x: Event) => (x.end === undefined ? Number.POSITIVE_INFINITY : Date.parse(x.end));
   return Date.parse(e.start) <= end(hold) && end(e) >= Date.parse(hold.start);
 }
 
-function holdAnswer(hold: Event, lanes: readonly Lane[]) {
-  return answer(`hold:${hold.id}`, {
-    class: hold.end === undefined ? "GATE" : "READY",
-    cause: `Held ${hold.label}`,
-    effect: hold.detail,
-    next: "",
-    why: `${hold.start} to ${hold.end ?? "now"}`,
-    related: lanes
-      .filter((lane) => lane.id !== "holds")
-      .flatMap((lane) =>
-        lane.events
-          .filter((e) => overlaps(hold, e))
-          .map((e) => ({ text: `${lane.label} ${e.label}`, state: e.detail })),
-      ),
-  });
-}
+/** The hold Detail sits behind Stack runs and its bar: two clicks from Environment. */
+export const HOLD_GAP = "spicode-t1k.226: a hold's Detail is two clicks from Environment";
+/** Fact sublines whose tail no surface draws. */
+export const FACT_TAIL_GAP = "spicode-t1k.222: the fact's tail renders on no surface";
 
 const detailField = (field: string) => `.inspector dd[data-field="${field}"]`;
 const related = (index: number, part: "dt" | "dd") =>
   `.inspector-related > div:nth-child(${index + 1}) > ${part}`;
 
 /** Every Briefing and Releases field the window draws, each at its home surface. */
-export function reachCases(snapshot: ViewSnapshot): Reach[] {
+export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
   const { briefing, releases } = snapshot;
+  const answer = (id: string) => {
+    const result = feed[id];
+    if (!result)
+      throw new Error(`No host Detail answer for ${id} in fixtures/watch/inspect-1106.json`);
+    return result;
+  };
   const cases: Reach[] = [];
   const add = (
     pointer: string,
@@ -194,6 +191,12 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
 
   const today = 'section.place[aria-label="Today"]';
   const facts = briefing.facts;
+  const firstClausePart = (sub: string): Partial<Reach> => {
+    const shown = firstClause(sub);
+    return shown === sub
+      ? {}
+      : { partial: { tail: sub.slice(shown.length + " · ".length), reason: FACT_TAIL_GAP } };
+  };
   facts.slice(0, 3).forEach((fact, index) => {
     const pointer = `/briefing/facts/${index}`;
     const tile = `${today} .place-tile:nth-child(${index + 1})`;
@@ -205,9 +208,13 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
       });
     } else {
       add(`${pointer}/label`, fact.label, TODAY, `${tile} dt`);
-      add(`${pointer}/sub`, firstClause(fact.sub), TODAY, `${tile} .place-tile-counts`, {
-        canon: firstClause,
-      });
+      add(
+        `${pointer}/sub`,
+        firstClause(fact.sub),
+        TODAY,
+        `${tile} .place-tile-counts`,
+        firstClausePart(fact.sub),
+      );
     }
   });
   const engineeringDetails = lensHome("Engineering system · Details");
@@ -233,7 +240,7 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
       '.window-strip [data-field="environment"]',
       {
         read: (element) => (element.textContent ?? "").replace(`env ${envFact.figure}`, "").trim(),
-        canon: firstClause,
+        ...firstClausePart(envFact.sub),
       },
     );
   }
@@ -249,7 +256,7 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
   const { focus: todayFocus, folded } = selectTodayItems(briefing);
   const focusIds = new Set(todayFocus.map(({ id }) => id));
   const foldedIds = new Set(folded.map(({ id }) => id));
-  const more = home("Today · More", { kind: "today" }, ["details.today-folded > summary"]);
+  const more = home("Today · More", STARTS.today, "details.today-folded > summary");
   const summary = "details.today-folded > summary";
   if (folded.length > 0)
     add("/briefing/more", `${briefing.more} more`, TODAY, summary, {
@@ -261,11 +268,16 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
   });
 
   const readings = snapshot.readings.flatMap(({ anchor, content }) => {
-    const route = PLACE_ROUTES[anchor.kind];
-    if (!content || !route) return [];
-    const { name, route: destination } = route("id" in anchor ? anchor.id : undefined);
+    const place = PLACE_STARTS[anchor.kind];
+    if (!content || !place) return [];
+    const from = place("id" in anchor ? anchor.id : undefined);
     return [
-      { kind: anchor.kind, name, destination, ids: new Set(content.items.map(({ id }) => id)) },
+      {
+        kind: anchor.kind,
+        name: placeLabel(from),
+        from,
+        ids: new Set(content.items.map(({ id }) => id)),
+      },
     ];
   });
   const themeHead = (index: number) =>
@@ -301,7 +313,7 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
       if (item.sub) add(`${pointer}/sub`, plainTitle(item.sub), more, part(":scope > p"));
     }
     for (const reading of readings.filter(({ ids }) => ids.has(item.id))) {
-      const where = home(reading.name, reading.destination);
+      const where = home(reading.from.name, reading.from);
       const li = `section.place[aria-label=${quote(reading.name)}] li.place-item[data-item-id=${id}]`;
       add(`${pointer}/title`, title, where, `${li} .place-item-title`, { canon: nextSync });
       add(`${pointer}/rung`, `P${item.rung}`, where, `${li} .place-rank`);
@@ -317,9 +329,11 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
     for (const service of services) {
       if (!inScope(item, `service:${service}`, services)) continue;
       if (!rows.some((row) => row.kind === "queue" && row.id === item.id)) continue;
-      const where = home(`Service ${service} · Attention`, { kind: "service", id: service }, [
+      const where = home(
+        `Service ${service} · Attention`,
+        STARTS.service(service),
         '[data-section="attention"] > summary',
-      ]);
+      );
       const row = `[data-section="attention"] .service-row[data-selection-id=${id}]`;
       add(`${pointer}/rung`, `P${item.rung}`, where, `${row} .service-priority`);
       add(`${pointer}/title`, title, where, `${row} .service-row-title`, {
@@ -351,22 +365,21 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
     );
     const theme = briefing.themes.findIndex(({ inspect }) => inspect === item.id);
     const opener = focusIds.has(item.id)
-      ? { name: "Today", route: TODAY.route, step: `${today} [data-selection-id=${id}]` }
+      ? { from: STARTS.today, step: `${today} [data-selection-id=${id}]` }
       : reading
         ? {
-            name: reading.name,
-            route: reading.destination,
+            from: reading.from,
             step: `section.place[aria-label=${quote(reading.name)}] [data-selection-id=${id}]`,
           }
         : theme >= 0
-          ? { name: "Upstream", route: { kind: "upstream" } as const, step: themeHead(theme) }
+          ? { from: STARTS.upstream, step: themeHead(theme) }
           : undefined;
     if (!opener) continue;
     const detail = home(
-      `${opener.name} · Detail ${item.id}`,
-      opener.route,
-      [opener.step],
-      itemAnswer(item),
+      `${opener.from.name} · Detail ${item.id}`,
+      opener.from,
+      opener.step,
+      answer(item.id),
     );
     add(`${pointer}/cls`, item.cls, detail, '.inspector [data-field="class"]');
     const grouped = item.cls === "PORT" && item.ids.length > 1;
@@ -379,27 +392,31 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
         });
   }
 
+  const upstream = home("Upstream", STARTS.upstream);
   briefing.themes.forEach((theme, index) => {
     const pointer = `/briefing/themes/${index}`;
     if (theme.inspect) {
-      const ahead = home("Upstream", { kind: "upstream" });
       const gap = "spicode-t1k.217: a theme with an inspect id opens its item, not the theme";
-      add(`${pointer}/next`, theme.next, ahead, "", { exempt: gap });
+      const forkButton = (fork: string) => (root: ParentNode) =>
+        [...root.querySelectorAll(`li.upstream-theme${at(pointer)} button.upstream-fork`)].find(
+          (button) => button.textContent === fork,
+        );
+      add(`${pointer}/next`, theme.next, upstream, "", { exempt: gap });
       for (const list of ["certain", "possible"] as const)
-        theme[list].forEach((fork, at) => {
-          add(`${pointer}/${list}/${at}/fork`, fork.fork, ahead, "", { exempt: gap });
-          add(`${pointer}/${list}/${at}/state`, fork.state, ahead, "", { exempt: gap });
+        theme[list].forEach((fork, slot) => {
+          add(`${pointer}/${list}/${slot}/fork`, fork.fork, upstream, forkButton(fork.fork));
+          add(`${pointer}/${list}/${slot}/state`, fork.state, upstream, "", { exempt: gap });
         });
-      theme.exposed.forEach((fork, at) => {
-        add(`${pointer}/exposed/${at}`, fork, ahead, "", { exempt: gap });
+      theme.exposed.forEach((fork, slot) => {
+        add(`${pointer}/exposed/${slot}`, fork, upstream, "", { exempt: gap });
       });
       return;
     }
     const where = home(
       `Upstream · Detail theme:${theme.id}`,
-      { kind: "upstream" },
-      [themeHead(index)],
-      themeAnswer(theme),
+      STARTS.upstream,
+      themeHead(index),
+      answer(`theme:${theme.id}`),
     );
     add(`${pointer}/title`, theme.title, where, detailField("cause"));
     if (theme.sub) add(`${pointer}/sub`, theme.sub, where, detailField("effect"));
@@ -466,21 +483,24 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
       if (lane.id !== "holds") return;
       const where = home(
         `Environment · Detail hold:${e.id}`,
-        { kind: "environment" },
-        ['[data-part="runs"] > summary', bar],
-        holdAnswer(e, environment.lanes),
+        STARTS.environment,
+        bar,
+        answer(e.inspect ?? `hold:${e.id}`),
       );
+      const gap = { exempt: HOLD_GAP };
       add(`${event}/label`, `Held ${e.label}`, where, detailField("cause"), {
         canon: (value) => value.replace(/^Held /, ""),
+        ...gap,
       });
-      if (e.detail) add(`${event}/detail`, e.detail, where, detailField("effect"));
+      if (e.detail) add(`${event}/detail`, e.detail, where, detailField("effect"), gap);
       const when = (element: Element) => {
         const [start = "", end = ""] = (element.textContent ?? "").split(" to ");
         const { end: _, ...running } = e;
         return eventWhen(end === "now" ? { ...running, start } : { ...running, start, end }, now);
       };
-      add(`${event}/start`, eventWhen(e, now), where, detailField("why"), { read: when });
-      if (e.end) add(`${event}/end`, eventWhen(e, now), where, detailField("why"), { read: when });
+      add(`${event}/start`, eventWhen(e, now), where, detailField("why"), { read: when, ...gap });
+      if (e.end)
+        add(`${event}/end`, eventWhen(e, now), where, detailField("why"), { read: when, ...gap });
       let offset = 0;
       environment.lanes
         .filter(({ id }) => id !== "holds")
@@ -490,7 +510,7 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
             if (!overlaps(e, run)) return;
             const runPointer = `/briefing/environment/lanes/${otherIndex}/events/${runIndex}`;
             overlapped.add(runPointer);
-            add(`${runPointer}/detail`, run.detail, where, related(offset, "dt"));
+            add(`${runPointer}/detail`, run.detail, where, related(offset, "dt"), gap);
             offset += 1;
           });
         });
@@ -524,12 +544,12 @@ export function reachCases(snapshot: ViewSnapshot): Reach[] {
     );
   }
 
-  const releasesPlace = home("Releases", { kind: "releases" });
+  const releasesPlace = home("Releases", STARTS.releases);
   const ofName = (element: Element) => (element.textContent ?? "").replace(/^SPI /, "");
   releases.lines.forEach((line, index) => {
     const pointer = `/releases/lines/${index}`;
     const row = `tr${at(pointer)}`;
-    const month = home(`Release ${line.month}`, { kind: "release", month: line.month });
+    const month = home(`Release ${line.month}`, STARTS.release(line.month));
     const page = `div${at(pointer)}`;
     add(`${pointer}/name`, line.name, releasesPlace, `${row} button.release-name`, {
       read: ofName,
@@ -700,45 +720,91 @@ function repositoryCases(
 /** Leaves the window draws nowhere by design, each with the reason or the bead that owns it. */
 export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
   transport: {
-    pattern: /\/(id|ids\/#|inspect|url)$|^\/briefing\/repositories\/first$/,
+    patterns: [
+      "/briefing/focus/#/id",
+      "/briefing/focus/#/ids/#",
+      "/briefing/focus/#/evidence/#/url",
+      "/briefing/rest/#/id",
+      "/briefing/rest/#/ids/#",
+      "/briefing/rest/#/evidence/#/url",
+      "/briefing/ready/#/id",
+      "/briefing/themes/#/id",
+      "/briefing/themes/#/inspect",
+      "/briefing/themes/#/certain/#/url",
+      "/briefing/themes/#/possible/#/url",
+      "/briefing/themes/#/possible/#/inspect",
+      "/briefing/flow/inspect",
+      "/briefing/flow/rows/#/inspect",
+      "/briefing/flow/also/#/inspect",
+      "/briefing/environment/lanes/#/id",
+      "/briefing/environment/lanes/#/events/#/id",
+      "/briefing/repositories/first",
+      "/briefing/repositories/rows/#/id",
+      "/briefing/repositories/rows/#/sections/#/lines/#/id",
+      "/briefing/repositories/rows/#/sections/#/lines/#/url",
+      "/releases/lines/#/id",
+    ],
     reason: "Transport: ids, inspect ids and links the window keys rows and opens Detail with",
   },
   styling: {
-    pattern: /\/(tone|fade|strong|weight|attention)$|\/plan\/kind$|^\/releases\/lines\/#\/open$/,
+    patterns: [
+      "/briefing/facts/#/tone",
+      "/briefing/focus/#/attention",
+      "/briefing/rest/#/attention",
+      "/briefing/themes/#/tone",
+      "/briefing/flow/tiles/#/tone",
+      "/briefing/flow/rows/#/ready/tone",
+      "/briefing/flow/rows/#/plan/tone",
+      "/briefing/flow/rows/#/plan/kind",
+      "/briefing/flow/rows/#/line/#/tone",
+      "/briefing/flow/rows/#/next/tone",
+      "/briefing/flow/rows/#/next/strong",
+      "/briefing/environment/facts/#/tone",
+      "/briefing/repositories/facts/#/tone",
+      "/briefing/repositories/rows/#/tone",
+      "/briefing/repositories/rows/#/cells/changes/tone",
+      "/briefing/repositories/rows/#/cells/dependabot/tone",
+      "/briefing/repositories/rows/#/cells/issues/tone",
+      "/briefing/repositories/rows/#/cells/issues/fade",
+      "/briefing/repositories/rows/#/cells/vulnerabilities/tone",
+      "/briefing/repositories/rows/#/cells/codeScanning/tone",
+      "/briefing/repositories/rows/#/sections/#/lines/#/tone",
+      "/releases/lines/#/open",
+    ],
     reason: "Styling and grouping metadata, drawn as tone, order or a data attribute",
   },
   "releases-reading": {
-    pattern: /^\/releases\/reading$/,
+    patterns: ["/releases/reading"],
     reason: "Read state: ReleaseMonth words it as its status line, not as a field",
   },
   verb: {
-    pattern: /\/verb$/,
+    patterns: ["/briefing/focus/#/verb", "/briefing/rest/#/verb"],
     reason: "Verbs are not drawn until actions ship (PS-04, CO-05; spicode-t1k.56)",
   },
   "unset-flag": {
-    pattern: /\/(owned|upstream)$|\/next\/quiet$/,
+    patterns: ["/briefing/focus/#/owned", "/briefing/rest/#/owned", "/briefing/flow/next/quiet"],
     reason: "An unset flag draws nothing",
     when: (value) => value === false,
   },
   axis: {
-    pattern: /^\/briefing\/environment\/(from|to)$/,
+    patterns: ["/briefing/environment/from", "/briefing/environment/to"],
     reason: "The Stack runs timeline's axis frame, drawn as its hour ticks",
   },
   "lens-button": {
-    pattern: /^\/briefing\/flow\/plan\/button$/,
+    patterns: ["/briefing/flow/plan/button"],
     reason:
       "The retired Flow lens's button label; Stack runs draws its own control (spicode-t1k.189)",
   },
   "evidence-label": {
-    pattern: /\/evidence\/#\/label$/,
+    patterns: ["/briefing/focus/#/evidence/#/label", "/briefing/rest/#/evidence/#/label"],
     reason: "spicode-t1k.218: item evidence links render on no surface",
   },
   "briefing-voice": {
-    pattern: /^\/briefing\/(headline|summary|doctor\/.+)$/,
+    patterns: ["/briefing/headline", "/briefing/summary", "/briefing/doctor/state"],
     reason: "spicode-t1k.219: the briefing headline, summary and doctor have no home yet",
   },
   "stats-short": {
-    pattern: /^\/releases\/lines\/#\/stats\/#\/short$/,
+    patterns: ["/releases/lines/#/stats/#/short"],
     reason: "spicode-t1k.224: a release stat's short label renders on no surface",
   },
 };
@@ -758,7 +824,10 @@ export function leaves(snapshot: Pick<ViewSnapshot, "briefing" | "releases">) {
   return out;
 }
 
-/** Leaves with no case or exemption, cases that point at no leaf, and exemptions no leaf uses. */
+/**
+ * Leaves with no case or exemption, cases that point at no leaf, exemption patterns no leaf uses,
+ * and leaves only partly drawn: each with the tail no surface shows and the bead that owns it.
+ */
 export function coverage(
   snapshot: Pick<ViewSnapshot, "briefing" | "releases">,
   cases: readonly Reach[],
@@ -771,17 +840,41 @@ export function coverage(
     .filter(({ pointer, pattern, value }) => {
       if (pointers.has(pointer)) return false;
       const name = Object.entries(exemptions).find(
-        ([, exemption]) => exemption.pattern.test(pattern) && (exemption.when?.(value) ?? true),
+        ([, exemption]) =>
+          exemption.patterns.includes(pattern) && (exemption.when?.(value) ?? true),
       )?.[0];
-      if (name) used.add(name);
+      if (name) used.add(`${name} ${pattern}`);
       return !name;
     })
     .map(({ pointer }) => pointer);
-  const known = new Set(all.map(({ pointer }) => pointer));
+  const values = new Map(all.map(({ pointer, value }) => [pointer, String(value)]));
+  const partial = [...pointers].flatMap((pointer) => {
+    const rows = cases.filter((row) => row.pointer === pointer);
+    if (!rows.every(({ partial }) => partial)) return [];
+    const parts = new Set(
+      rows.map(({ value, partial }) => `${value}|${partial?.tail}|${partial?.reason}`),
+    );
+    const [row] = rows;
+    if (!row?.partial || parts.size > 1) return [{ pointer, misfit: [...parts] }];
+    const full = values.get(pointer) ?? "";
+    const fits =
+      row.partial.tail !== "" &&
+      full.startsWith(row.value) &&
+      full.endsWith(row.partial.tail) &&
+      row.value.length + row.partial.tail.length < full.length;
+    return [
+      fits
+        ? { pointer, tail: row.partial.tail, reason: row.partial.reason }
+        : { pointer, misfit: [...parts] },
+    ];
+  });
   return {
     uncovered,
-    stray: [...pointers].filter((pointer) => !known.has(pointer)),
-    stale: Object.keys(exemptions).filter((name) => !used.has(name)),
+    stray: [...pointers].filter((pointer) => !values.has(pointer)),
+    stale: Object.entries(exemptions).flatMap(([name, { patterns }]) =>
+      patterns.map((pattern) => `${name} ${pattern}`).filter((entry) => !used.has(entry)),
+    ),
+    partial,
   };
 }
 
@@ -798,7 +891,9 @@ export function uncoveredRoutes(
   cases: readonly Reach[],
   exemptions: Readonly<Record<string, string>> = ROUTE_EXEMPTIONS,
 ) {
-  const surfaces = new Set(cases.filter(({ exempt }) => !exempt).map(({ home }) => home.surface));
+  const surfaces = new Set(
+    cases.filter(({ exempt }) => !exempt).map(({ home }) => home.start.surface),
+  );
   return [
     ...Object.keys(registry.views),
     ...(registry.sheet ? ["sheet"] : []),

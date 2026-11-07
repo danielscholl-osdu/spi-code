@@ -5,6 +5,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { fileURLToPath } from "node:url";
 import {
   type InspectResult,
   InspectResultSchema,
@@ -23,12 +24,17 @@ import { openRunStore } from "../store/store.js";
 import { projectWatch } from "./project.js";
 import { recordedInput, recordedSnapshotPath } from "./snapshot-fixture.js";
 
+const detailFeedPath = fileURLToPath(
+  new URL("../../../../fixtures/watch/inspect-1106.json", import.meta.url),
+);
+
 process.env.TZ = "UTC";
 
 /**
  * The window's Detail draws what inspect.request answers. These checks hold that answer to the
  * recorded snapshot: a briefing value the window sends to Detail must come back unchanged after the
- * sweep is persisted and served by the router. Projection, the store's replay and the oracle
+ * sweep is persisted and served by the router. The window's reachability suite draws Detail from
+ * fixtures/watch/inspect-1106.json, which must equal the router's answers field for field. Projection, the store's replay and the oracle
  * comparisons live in project.test.ts, snapshot-1106.test.ts and process/routes.test.ts.
  */
 const snapshot: ViewSnapshot = JSON.parse(readFileSync(recordedSnapshotPath, "utf8"));
@@ -140,6 +146,17 @@ function answer(id: string): InspectResult {
   return result;
 }
 
+/** What the window's Detail draws from an answer: the inspector and its Related rows. */
+function drawn({ actions: _a, areas: _r, provenance: _p, ...shown }: InspectResult) {
+  return shown;
+}
+
+const overlaps = (hold: (typeof holds)[number]["event"], e: typeof hold) => {
+  const end = (x: typeof hold) =>
+    x.end === undefined ? Number.POSITIVE_INFINITY : Date.parse(x.end);
+  return Date.parse(e.start) <= end(hold) && end(e) >= Date.parse(hold.start);
+};
+
 describe("Detail answers on the recorded 6 Nov sweep equal its briefing", () => {
   it.each(queue.map((item) => [item.id, item] as const))(
     "answers queue item %s with the briefing's class, cause, effect and next",
@@ -181,9 +198,41 @@ describe("Detail answers on the recorded 6 Nov sweep equal its briefing", () => 
   );
 
   it.each(holds.map(({ id, event }) => [id, event] as const))(
-    "answers hold %s with the Held lane's label and detail",
+    "answers hold %s with every field its Detail draws, Related runs in lane order",
     (id, event) => {
-      expect(answer(id)).toMatchObject({ cause: `Held ${event.label}`, effect: event.detail });
+      const runs = briefing.environment.lanes
+        .filter((lane) => lane.id !== "holds")
+        .flatMap((lane) =>
+          lane.events
+            .filter((e) => overlaps(event, e))
+            .map((e) => ({
+              text: `${lane.label} ${e.label}`,
+              state: e.detail,
+              inspect: e.inspect ?? `run:${e.id}`,
+            })),
+        );
+      expect(runs.length).toBeGreaterThan(0);
+      expect(drawn(answer(id))).toEqual({
+        id,
+        title: `Held ${event.label}`,
+        class: event.end === undefined ? "GATE" : "READY",
+        cause: `Held ${event.label}`,
+        effect: event.detail,
+        next: "",
+        why: `${event.start} to ${event.end ?? "now"}`,
+        evidence: [],
+        related: runs,
+        approval: null,
+      });
     },
   );
+
+  it("serves the Detail feed the window's reachability suite draws, field for field", () => {
+    const ids = [
+      ...queue.map(({ id }) => id),
+      ...briefing.themes.filter((theme) => !theme.inspect).map((theme) => `theme:${theme.id}`),
+      ...holds.map(({ id }) => id),
+    ];
+    expect(ids.map(answer)).toEqual(JSON.parse(readFileSync(detailFeedPath, "utf8")));
+  });
 });
