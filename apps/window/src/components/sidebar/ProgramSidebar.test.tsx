@@ -65,7 +65,13 @@ it("lists the things in order, with services in the recorded fleet order", async
   expect(rows("Today")).toEqual(["Today"]);
   expect(rows("Inbox")).toEqual([]);
   expect(container.querySelector('ul[aria-label="Today"] .sidebar-pip')?.textContent).toBe("6");
-  expect(rows("Program")).toEqual(["Environment", "Engineering system", "Releases", "Security"]);
+  expect(rows("Program")).toEqual([
+    "Upstream",
+    "Environment",
+    "Engineering system",
+    "Releases",
+    "Security",
+  ]);
   expect(rows("Services")).toEqual(["partition", "entitlements", "legal", "schema", "file"]);
   expect(header("Services")?.textContent).toContain("5");
   expect(rows("Lenses")).toEqual(["Flow", "Repositories", "Horizon"]);

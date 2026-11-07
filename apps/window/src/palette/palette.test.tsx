@@ -149,6 +149,7 @@ it("lists Go to, Services, Lenses and Queue from the routes and the snapshot, wi
   expect(palette()?.textContent).not.toMatch(/Actions/);
   expect(rows("go-to")).toEqual([
     "Todaypage",
+    "Upstreampage",
     "Environmentpage",
     "Engineering systempage",
     "Releasespage",
@@ -278,10 +279,10 @@ it("moves with the arrows, opens with Enter, and filters as the operator types",
   await shortcut({ ctrlKey: true });
   expect(highlighted()).toBe("Todaypage");
   await key("ArrowDown");
-  expect(highlighted()).toBe("Environmentpage");
+  expect(highlighted()).toBe("Upstreampage");
   await key("ArrowDown");
   await key("ArrowUp");
-  expect(highlighted()).toBe("Environmentpage");
+  expect(highlighted()).toBe("Upstreampage");
 
   await type("legal");
   expect(labels()).toEqual(["Services", "Queue", "Threads", "Ask"]);
