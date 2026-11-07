@@ -307,6 +307,41 @@ it("omits Detail fields and their list when they contain only emoji", async () =
   assertRules("Emoji-only Detail fields");
 });
 
+it("omits a Related entry whose text is only emoji, and Related when none is left", async () => {
+  const body = snapshots[0]?.body;
+  const recorded = inspections[0];
+  if (!body || !recorded) throw new Error("Missing snapshot or inspection");
+  await open(body);
+  const result = {
+    ...recorded,
+    related: [
+      { text: "📥", state: "Upstream" },
+      { text: "#32 📥 Upstream Sync Ready for Review", state: "Sync" },
+      { text: "🏴\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F} 🔄", state: "Cascade" },
+    ],
+  };
+  await act(async () => {
+    selectionStore.getState().select(result.id);
+    selectionStore.setState({ result, request: null });
+  });
+  const rows = [...(container.querySelector('dl[aria-label="Related"]')?.children ?? [])];
+  expect(rows.map((row) => [row.querySelector("dt")?.textContent, row.textContent])).toEqual([
+    ["Sync", "Sync#32 Upstream Sync Ready for Review"],
+  ]);
+  assertRules("Related with an emoji-only entry");
+  await act(async () => {
+    selectionStore.setState({
+      result: { ...result, related: [{ text: "📥", state: "Upstream" }] },
+      request: null,
+    });
+  });
+  expect(container.querySelector('[aria-label="Related"]')).toBeNull();
+  expect(
+    [...container.querySelectorAll(".inspector h3")].map((heading) => heading.textContent),
+  ).not.toContain("Related");
+  assertRules("Related with only emoji entries");
+});
+
 it("strips injected emoji from a folded Today item subline", async () => {
   const body = structuredClone(snapshots[0]?.body);
   const item = body?.briefing.rest[0];
@@ -382,6 +417,28 @@ it("strips joined emoji, modifiers, flags and keycaps without losing issue numbe
   expect(plainTitle("👩🏽‍💻 🇺🇸 1️⃣ 🔧 Fix #42 build · PR #7")).toBe("Fix #42 build · PR #7");
   expect(plainTitle("Open (📊 Code Coverage) [🔧 build 🔧]")).toBe("Open (Code Coverage) [build]");
   expect(plainTitle("🏳️‍🌈 ⚙️ Fix #42")).toBe("Fix #42");
+});
+
+it("removes subdivision flags whole, with their tag characters", () => {
+  const england = "🏴\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}";
+  const scotland = "🏴\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}";
+  const wales = "🏴\u{E0067}\u{E0062}\u{E0077}\u{E006C}\u{E0073}\u{E007F}";
+  for (const flag of [england, scotland, wales]) {
+    expect(plainTitle(`${flag} Fix #42`)).toBe("Fix #42");
+    expect(plainTitle(`Fix ${flag} #42 ${flag}`)).toBe("Fix #42");
+  }
+  expect(plainTitle(`${england}${scotland}${wales}`)).toBe("");
+  expect(plainTitle(`${england} Fix`)).not.toMatch(/[\u{E0000}-\u{E007F}]/u);
+});
+
+it("keeps text-style pictographs without U+FE0F and strips them as emoji with it", () => {
+  const text = "\u26A0 \u2764 \u2600 \u2714 Check the build";
+  expect(plainTitle(text)).toBe(text);
+  container.innerHTML = `<dd data-field="cause">${text}</dd>`;
+  expect(violations(container)).toEqual([]);
+  expect(plainTitle("\u26A0\uFE0F \u2764\uFE0F \u2600\uFE0F \u2714\uFE0F Check the build")).toBe(
+    "Check the build",
+  );
 });
 
 it("preserves ordinary symbols and the strip and command glyphs", () => {
