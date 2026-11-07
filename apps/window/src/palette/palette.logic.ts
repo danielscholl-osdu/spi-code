@@ -61,12 +61,7 @@ export const DISABLED_ROWS: readonly DisabledRow[] = [
   { value: "ask", label: "Ask", reason: "Asking needs threads, which are not available yet" },
 ];
 
-const GO_TO: readonly Route[] = [
-  { kind: "today" },
-  { kind: "inbox" },
-  ...PLACES,
-  { kind: "setup" },
-];
+const GO_TO: readonly Route[] = [{ kind: "today" }, ...PLACES, { kind: "setup" }];
 
 type SnapshotBody = {
   briefing: Pick<Briefing, "focus" | "rest">;

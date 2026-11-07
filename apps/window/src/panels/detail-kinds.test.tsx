@@ -458,11 +458,11 @@ async function mountRelated(kind: "flow" | "repository", width = 1280) {
           sweepEvidence={<p data-sweep-evidence="">Sweep evidence {body.cursor}</p>}
         />,
       );
-      store.getState().visit("#inbox", routeSelectionIds(body, { kind: "inbox" }), 0);
+      store.getState().visit("#today", routeSelectionIds(body, { kind: "today" }), 0);
     });
   };
   await refresh(snapshot);
-  expect(routeSelectionIds(snapshot, { kind: "inbox" })).not.toContain(target.id);
+  expect(routeSelectionIds(snapshot, { kind: "today" })).not.toContain(target.id);
   await act(async () => store.getState().select(parent.id, parent));
   await act(async () =>
     store.getState().receive({

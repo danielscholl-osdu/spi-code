@@ -244,8 +244,8 @@ export function routeSelectionIds(snapshot: ViewSnapshot, route: Route): string[
   const queue = [...briefing.focus, ...briefing.rest];
   const repos = briefing.repositories.rows;
   switch (route.kind) {
-    case "inbox":
-      return queue.map(({ id }) => id);
+    case "today":
+      return [...queue.map(({ id }) => id), ...briefing.ready.map(({ id }) => id)];
     case "lens":
       if (route.lens === "flow")
         return [briefing.flow.inspect, ...briefing.flow.rows.map(({ inspect }) => inspect)];
@@ -296,7 +296,6 @@ export function routeSelectionIds(snapshot: ViewSnapshot, route: Route): string[
       return snapshot.releases.lines
         .filter(({ month }) => month === route.month)
         .map(({ id }) => id);
-    case "today":
     case "upstream":
     case "security":
     case "setup":

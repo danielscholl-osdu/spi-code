@@ -1,328 +1,224 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION, type ViewSnapshot } from "@spi-code/contracts";
+import { PROTOCOL_VERSION, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { expect, it, vi } from "vitest";
-import briefing from "../../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
-import releases from "../../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
-import mixed from "../../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
-import {
-  expectEvidenceMarks,
-  expectNoEvidenceMarks,
-} from "../../components/evidence/marks.test-helper.js";
-import { RightPanel } from "../../panels/RightPanel.js";
+import { afterEach, expect, it, vi } from "vitest";
+import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { createSelectionStore } from "../../panels/selection.js";
-import { mixedSnapshot, testSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore } from "../../store/watch.js";
 import Today from "./index.js";
 
-const oracle = testSnapshot(briefing, releases);
+const fixture = ViewSnapshotSchema.parse(JSON.parse(recorded));
+const cleanups: (() => Promise<void>)[] = [];
 
-async function mount(body: ViewSnapshot | null = oracle) {
+async function mount(body: ViewSnapshot | null = fixture) {
   const port = { postMessage: vi.fn() };
-  const inspector = createSelectionStore(port);
-  const store = createWatchStore(vi.fn(), inspector);
-  const receive = (payload: ViewSnapshot) =>
-    store.getState().receive({
-      version: PROTOCOL_VERSION,
-      id: "today-test",
-      kind: "event",
-      type: "view.snapshot",
-      payload,
-    });
-  if (body) receive(body);
+  const store = createWatchStore(vi.fn(), createSelectionStore(port));
+  if (body) store.setState({ snapshot: { cursor: body.cursor, body } });
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
-  await act(async () =>
-    root.render(
-      <>
-        <Today store={store} />
-        <RightPanel store={inspector} />
-      </>,
-    ),
-  );
-  return {
-    container,
-    store,
-    port,
-    inspector,
-    receive,
-    cleanup: async () => {
-      await act(async () => root.unmount());
-      container.remove();
-    },
-  };
+  const onNavigate = vi.fn();
+  await act(async () => root.render(<Today store={store} onNavigate={onNavigate} />));
+  cleanups.push(async () => {
+    await act(async () => root.unmount());
+    container.remove();
+  });
+  return { container, store, port, onNavigate };
 }
+
+afterEach(async () => {
+  for (const cleanup of cleanups.splice(0)) await cleanup();
+});
 
 const text = (container: Element, selector: string) =>
   [...container.querySelectorAll(selector)].map((element) => element.textContent);
 
-it("renders the schema-validated oracle's headline, summary, facts, focus, ready and overflow", async () => {
-  const { container, cleanup } = await mount();
-  const brief = oracle.briefing;
-  try {
-    expect(container.querySelector("h1")?.textContent).toBe(brief.headline);
-    expect(container.querySelector(".today-summary")?.textContent).toBe(brief.summary);
-    expect(text(container, ".today-fact-label")).toEqual(brief.facts.map((fact) => fact.label));
-    expect(text(container, ".today-figure")).toEqual(brief.facts.map((fact) => fact.figure));
-    expect(text(container, ".today-fact-sub")).toEqual(brief.facts.map((fact) => fact.sub));
-    expect(text(container, ".today-focus > button .today-item-title")).toEqual(
-      brief.focus.map((item) => item.title),
-    );
-    expect(text(container, ".today-focus > button .today-priority")).toEqual(
-      brief.focus.map((item) => `P${item.rung}`),
-    );
-    expect(text(container, ".today-ready button")).toEqual(brief.ready.map((item) => item.text));
-    expect(container.querySelector("summary")?.textContent).toBe(`${brief.more} more in the queue`);
-    expect(text(container, "details .today-item-title")).toEqual(
-      brief.rest.map((item) => item.title),
-    );
-    expect(text(container, ".today-theme h3")).toEqual(brief.themes.map((theme) => theme.title));
-    expect(text(container, ".today-theme-sub")).toEqual(brief.themes.map((theme) => theme.sub));
-    expect(text(container, ".today-theme-next")).toEqual(brief.themes.map((theme) => theme.next));
-    expect(text(container, ".today-theme time")).toEqual(brief.themes.map((theme) => theme.when));
-    for (const theme of brief.themes) {
-      const card = container.querySelector(`[data-theme-id="${theme.id}"]`);
-      if (!card) throw new Error(`Missing theme ${theme.id}`);
-      expect(text(card, ".today-certain li")).toEqual(
-        theme.certain.map((fork) => `${fork.fork} · ${fork.state}`),
-      );
-      expect(text(card, ".today-possible li")).toEqual(
-        theme.possible.map((fork) => `${fork.fork} · ${fork.state}`),
-      );
-      if (theme.exposed.length) expect(card?.textContent).toContain(theme.exposed.join(", "));
+function visibleText(container: Element): string {
+  const copy = container.cloneNode(true) as Element;
+  for (const details of copy.querySelectorAll("details:not([open])")) {
+    for (const child of [...details.children]) {
+      if (child.tagName !== "SUMMARY") child.remove();
     }
-  } finally {
-    await cleanup();
   }
+  const walker = document.createTreeWalker(copy, NodeFilter.SHOW_TEXT);
+  const parts: string[] = [];
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    parts.push(node.textContent ?? "");
+  }
+  return parts.join(" ");
+}
+
+it("keeps the recorded brief near 75 visible words, with three named measures and no future parts", async () => {
+  const { container } = await mount();
+  const words = visibleText(container).trim().split(/\s+/);
+  expect(words.length).toBeGreaterThanOrEqual(60);
+  expect(words.length).toBeLessThanOrEqual(95);
+  expect(text(container, ".place-tile-value")).toEqual(["v0.35.3", "1 of 13", "0 of 13"]);
+  expect(text(container, ".place-tile-counts")).toEqual([
+    "deployable",
+    "forks stopped",
+    "forks on 7d269b5",
+  ]);
+  expect(text(container, ".place-tile dt")).toEqual([
+    "Environment",
+    "Upstream sync",
+    "Engineering system",
+  ]);
+  expect(container.querySelector("textarea, [contenteditable], [data-slot='composer']")).toBeNull();
+  expect(container.textContent).not.toMatch(/Waiting for you|Owned|not available|gate 3|📊/u);
 });
 
-it("selects focus, overflow, ready and theme targets in the watch store", async () => {
-  const { container, store, cleanup } = await mount();
-  try {
-    for (const button of container.querySelectorAll<HTMLButtonElement>("[data-selection-id]")) {
-      await act(async () => button.click());
-      expect(store.getState().selection?.id).toBe(button.dataset.selectionId);
-      if (button.classList.contains("today-row"))
-        expect(button.getAttribute("aria-pressed")).toBe("true");
-    }
-    await act(async () => store.getState().clear());
-    expect(
-      container.querySelector('.today-row[aria-pressed="true"]')?.getAttribute("data-selection-id"),
-    ).toBe(oracle.briefing.focus[0]?.id);
-  } finally {
-    await cleanup();
-  }
+it("groups the five focus items by their typed due and ownership, never by P rank", async () => {
+  const { container } = await mount();
+  expect(container.querySelectorAll(".place-item")).toHaveLength(5);
+  expect(text(container, ".place-group h3")).toEqual(["Before next sync", "New"]);
+  expect(
+    text(container, '[aria-label="Before next sync"] .place-item').map((value) => value?.trim()),
+  ).toEqual([
+    "P1indexercarries os-core-common 8.5.0",
+    "P1legalcarries os-core-common 8.4.1-boot4-SNAPSHOT",
+  ]);
+  expect(text(container, '[aria-label="New"] .place-rank')).toEqual(["P0", "P1", "P1"]);
+  expect(text(container, "summary")).toEqual(["12 more · 13 release PRs open, 1 failing"]);
+  const owned = structuredClone(fixture);
+  const item = owned.briefing.focus[3];
+  if (!item) throw new Error("Recorded due item missing");
+  item.owned = true;
+  const next = await mount(owned);
+  expect(text(next.container, ".place-group h3")).toEqual(["Before next sync", "Owned", "New"]);
+  expect(
+    next.container
+      .querySelector('[aria-label="Owned"] [data-item-id]')
+      ?.getAttribute("data-item-id"),
+  ).toBe(item.id);
 });
 
-it("seeds the one selection with the first focus, as the rib console does, so row and inspector agree", async () => {
-  const { container, store, port, cleanup } = await mount();
-  const first = oracle.briefing.focus[0];
-  if (!first) throw new Error("Oracle must contain a focus item");
-  try {
-    expect(store.getState().selection).toEqual({ id: first.id });
-    expect(port.postMessage).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ type: "inspect.request", payload: { id: first.id } }),
-    );
-    expect(text(container, '.today-row[aria-pressed="true"] .today-item-title')).toEqual([
-      first.title,
-    ]);
-    expect(container.querySelector('[aria-label="Detail"]')?.textContent).toContain(
-      `Reading ${first.id}`,
-    );
-    const target = oracle.briefing.rest[0];
-    if (!target) throw new Error("Oracle must contain an overflow item");
-    await act(async () => store.getState().select(target.id));
-    expect(text(container, '.today-row[aria-pressed="true"] .today-item-title')).toEqual([
-      target.title,
-    ]);
-    await act(async () => store.getState().select("another-view"));
-    expect(container.querySelector('.today-row[aria-pressed="true"]')).toBeNull();
-    expect(container.querySelector('[aria-label="Detail"]')?.textContent).toContain(
-      "Reading another-view",
-    );
-  } finally {
-    await cleanup();
-  }
-});
-
-it("opens a clicked Today focus row in the inspector through inspect.request on the port", async () => {
-  const { container, store, port, cleanup } = await mount();
-  const target = oracle.briefing.focus[1];
-  if (!target) throw new Error("Oracle must contain a second focus item");
-  try {
-    port.postMessage.mockClear();
-    const row = container.querySelector<HTMLButtonElement>(
-      `.today-row[data-selection-id="${target.id}"]`,
-    );
-    await act(async () => row?.click());
-    expect(port.postMessage).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({
-        kind: "request",
-        type: "inspect.request",
-        payload: { id: target.id },
-      }),
-    );
-    expect(store.getState().selection).toEqual({ id: target.id });
-    expect(row?.getAttribute("aria-pressed")).toBe("true");
-    expect(container.querySelectorAll('.today-row[aria-pressed="true"]')).toHaveLength(1);
-    expect(container.querySelector('[aria-label="Detail"]')?.textContent).toContain(
-      `Reading ${target.id}`,
-    );
-  } finally {
-    await cleanup();
-  }
-});
-
-it("omits empty summary, facts and focus for the unmeasured briefing shape", async () => {
-  const headline = "The first sweep has not finished.";
-  const { container, receive, store, port, cleanup } = await mount({
-    ...oracle,
-    briefing: {
-      ...oracle.briefing,
-      doctor: { state: "waiting", problems: [] },
-      headline,
-      summary: "",
-      facts: [],
-      focus: [],
-      rest: [],
-      more: 0,
-      ready: [],
-      themes: [],
-    },
+it("caps focus at five, folds ambient items and leaves empty groups out", async () => {
+  const body = structuredClone(fixture);
+  const first = body.briefing.focus[0];
+  if (!first) throw new Error("Recorded focus missing");
+  body.briefing.focus.push(
+    { ...first, id: "sixth", title: "Sixth item" },
+    { ...first, id: "seventh", title: "Seventh item" },
+  );
+  first.attention = "ambient";
+  const { container } = await mount(body);
+  expect(container.querySelectorAll(".place-item")).toHaveLength(5);
+  expect(container.querySelector(`.place-item[data-item-id="${first.id}"]`)).toBeNull();
+  expect(container.querySelector(`details [data-selection-id="${first.id}"]`)).not.toBeNull();
+  const empty = await mount({
+    ...fixture,
+    briefing: { ...fixture.briefing, focus: [], rest: [], ready: [], more: 0 },
   });
-  try {
-    expect(container.querySelector("h1")?.textContent).toBe(headline);
-    expect(container.querySelector(".today-summary")).toBeNull();
-    expect(container.querySelector(".today-facts")).toBeNull();
-    expect(container.querySelector(".today-focus")).toBeNull();
-    expect(container.querySelector(".today-ready")).toBeNull();
-    expect(store.getState().selection).toBeNull();
-    expect(port.postMessage).not.toHaveBeenCalled();
-    await act(async () => receive({ ...oracle, cursor: 2 }));
-    expect(container.querySelector(".today-facts")).not.toBeNull();
-    expect(container.querySelector(".today-focus")).not.toBeNull();
-    expect(
-      container.querySelector('.today-row[aria-pressed="true"]')?.getAttribute("data-selection-id"),
-    ).toBe(oracle.briefing.focus[0]?.id);
-    expect(store.getState().selection?.id).toBe(oracle.briefing.focus[0]?.id);
-  } finally {
-    await cleanup();
-  }
+  expect(empty.container.querySelector(".place-group, details")).toBeNull();
 });
 
-it("uses the rib's bad, neutral PORT and warning tones on both rung and class", async () => {
-  const port = oracle.briefing.rest.find((item) => item.cls === "PORT");
-  const seed = oracle.briefing.focus[0];
-  if (!port || !seed) throw new Error("Oracle must contain PORT and focus items");
-  const { container, cleanup } = await mount({
-    ...oracle,
-    briefing: {
-      ...oracle.briefing,
-      rest: [
-        ...oracle.briefing.rest,
-        { ...port, id: "port:p0", rung: 0 },
-        { ...port, id: "port:p2", rung: 2 },
-        { ...seed, id: "other:p2", rung: 2 },
-      ],
-    },
-  });
-  try {
-    for (const [id, tone] of [
-      [seed.id, "bad"],
-      [oracle.briefing.focus[2]?.id, "warn"],
-      [port.id, "neutral"],
-      ["port:p0", "bad"],
-      ["port:p2", "neutral"],
-      ["other:p2", "warn"],
-    ]) {
-      const row = container.querySelector(`[data-selection-id="${id}"]`);
-      expect(row?.querySelector(".today-priority")?.getAttribute("data-tone")).toBe(tone);
-      expect(row?.querySelector(".today-class")?.getAttribute("data-tone")).toBe(tone);
-    }
-  } finally {
-    await cleanup();
-  }
-});
-
-it("orders priorities stably without mutating the snapshot", async () => {
-  const seed = oracle.briefing.focus[0];
-  if (!seed) throw new Error("Oracle must contain a focus item");
-  const focus = ([2, 0, 1, 0] as const).map((rung, index) => ({
-    ...seed,
-    id: `item:${index}`,
-    title: `Item ${index}`,
-    rung,
-  }));
-  const { container, cleanup } = await mount({
-    ...oracle,
-    briefing: { ...oracle.briefing, focus },
-  });
-  try {
-    expect(text(container, ".today-focus > button .today-item-title")).toEqual([
-      "Item 1",
-      "Item 3",
-      "Item 2",
-      "Item 0",
-    ]);
-    expect(focus.map((item) => item.rung)).toEqual([2, 0, 1, 0]);
-  } finally {
-    await cleanup();
-  }
-});
-
-it("waits for a snapshot and updates reactively without inventing empty content", async () => {
-  const { container, receive, cleanup } = await mount(null);
-  try {
-    expect(container.textContent).toContain("Waiting for the first sweep.");
-    await act(async () => receive(oracle));
-    expect(container.querySelector("h1")?.textContent).toBe(oracle.briefing.headline);
-    await act(async () =>
-      receive({
-        ...oracle,
-        cursor: 2,
-        briefing: { ...oracle.briefing, focus: [], rest: [], more: 0, ready: [], themes: [] },
-      }),
+it("writes the headline from the acknowledged baseline and counts only newly arrived Interrupts", async () => {
+  const at = "2026-11-06T17:40:00Z";
+  const since = new Date(at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  for (const ids of [[], ["conflict:entitlements:121"], ["a", "b"]]) {
+    const body = { ...fixture, seen: { cursor: 1, at, since: ids } };
+    const { container } = await mount(body);
+    expect(container.querySelector(".place-headline")?.textContent).toBe(
+      `${ids.length === 0 ? "No" : ids.length} new interruption${ids.length === 1 ? "" : "s"} since ${since}.`,
     );
-    expect(container.querySelector("details")).toBeNull();
-    expect(container.querySelector(".today-ready")).toBeNull();
-    expect(container.querySelector(".today-themes")).toBeNull();
-    expect(container.querySelector(".today-row")).toBeNull();
-  } finally {
-    await cleanup();
+    expect(
+      container.querySelector(".place-headline")?.textContent?.split(/\s+/).length,
+    ).toBeLessThanOrEqual(12);
   }
+  const first = await mount();
+  expect(first.container.querySelector(".place-headline")?.textContent).toBe(
+    "First look: 1 interruption needs you.",
+  );
 });
 
-it("gives each Today section one evidence line and marks no value", async () => {
-  const body = mixedSnapshot(mixed);
-  const view = await mount(body);
-  try {
-    const today = view.container.querySelector('[aria-label="Today"]');
-    if (!today) throw new Error("Today did not render");
-    expectEvidenceMarks(today, body, {
-      sections: [
-        ["/briefing/headline", "/briefing/summary"],
-        ["/briefing/facts"],
-        ["/briefing/focus", "/briefing/rest", "/briefing/more"],
-        ["/briefing/ready"],
-        ["/briefing/themes"],
-      ],
-    });
-    expect(
-      today.querySelector('[data-pointer="/briefing/facts/0/figure"] [data-inferred]'),
-    ).toBeNull();
-  } finally {
-    await view.cleanup();
+it("qualifies a failed or incomplete feeding source without claiming the reading is complete", async () => {
+  const { container } = await mount();
+  expect(container.querySelector(".place-qualifier")?.textContent).toBe(
+    "Upstream radar read failed; items may be missing.",
+  );
+  const incomplete = structuredClone(fixture);
+  const radar = incomplete.areas.find(({ area }) => area === "radar");
+  if (!radar) throw new Error("Recorded radar source missing");
+  radar.envelope = {
+    source: radar.envelope.source,
+    state: "incomplete",
+    observedAt: fixture.sweptAt,
+    completeness: { kind: "cut", read: 6, total: 13, reason: "budget" },
+  };
+  const cut = await mount(incomplete);
+  expect(cut.container.querySelector(".place-qualifier")?.textContent).toBe(
+    "Upstream radar incomplete; items may be missing.",
+  );
+  radar.envelope = {
+    source: radar.envelope.source,
+    state: "fresh",
+    observedAt: fixture.sweptAt,
+    completeness: { kind: "complete" },
+  };
+  const fresh = await mount(incomplete);
+  expect(fresh.container.querySelector(".place-qualifier")).toBeNull();
+});
+
+it("keeps every former Inbox item readable in one click and selectable through inspect.request", async () => {
+  const { container, store, port, onNavigate } = await mount();
+  const details = container.querySelector("details");
+  const summary = details?.querySelector("summary");
+  if (!details || !summary) throw new Error("Missing folded queue");
+  expect(details.open).toBe(false);
+  const all = [...fixture.briefing.focus, ...fixture.briefing.rest];
+  const initial = visibleText(container);
+  await act(async () => summary.click());
+  expect(details.open).toBe(true);
+  for (const item of all) {
+    const button = container.querySelector<HTMLButtonElement>(`[data-selection-id="${item.id}"]`);
+    if (!button) throw new Error(`Missing former Inbox item ${item.id}`);
+    expect(button.closest("details")?.open ?? true).toBe(true);
+    expect(visibleText(container)).toContain(button.textContent);
+    if (!initial.includes(button.textContent ?? ""))
+      expect(button.closest("details")).toBe(details);
+    await act(async () => button.click());
+    expect(store.getState().selection?.id).toBe(item.id);
+    expect(port.postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({ type: "inspect.request", payload: { id: item.id } }),
+    );
   }
-  const plain = await mount();
-  try {
-    const today = plain.container.querySelector('[aria-label="Today"]');
-    if (!today) throw new Error("Today did not render");
-    expectNoEvidenceMarks(today);
-  } finally {
-    await plain.cleanup();
+  for (const ready of fixture.briefing.ready) {
+    const button = container.querySelector<HTMLButtonElement>(`[data-selection-id="${ready.id}"]`);
+    expect(button).not.toBeNull();
+    await act(async () => button?.click());
+    expect(store.getState().selection?.id).toBe(ready.id);
   }
+  const scope = container.querySelector<HTMLButtonElement>('.place-scope[title="Open legal"]');
+  await act(async () => scope?.click());
+  expect(onNavigate).toHaveBeenLastCalledWith({ kind: "service", id: "legal" });
+});
+
+it("shows only named sweep.status fields before the first snapshot and does not auto-select", async () => {
+  const { container, store, port } = await mount(null);
+  await act(async () =>
+    store.getState().receive({
+      version: PROTOCOL_VERSION,
+      id: "sweep",
+      kind: "event",
+      type: "sweep.status",
+      payload: {
+        remaining: 123,
+        floor: 100,
+        resetAt: null,
+        deferredAreas: [{ area: "radar", reason: "budget" }],
+      },
+    }),
+  );
+  expect(text(container, "dt")).toEqual(["remaining", "floor", "resetAt", "deferredAreas"]);
+  expect(container.textContent).toContain("123 API calls");
+  expect(container.textContent).toContain("radar: budget");
+  expect(container.querySelector(".place-tiles, .place-group, details")).toBeNull();
+  await act(async () => store.setState({ snapshot: { cursor: fixture.cursor, body: fixture } }));
+  expect(container.querySelectorAll(".place-tile")).toHaveLength(3);
+  expect(store.getState().selection).toBeNull();
+  expect(port.postMessage).not.toHaveBeenCalled();
 });

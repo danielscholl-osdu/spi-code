@@ -35,11 +35,10 @@ export type PlaceRoute =
   | { kind: "service"; id: string }
   | { kind: "release"; month: string };
 
-/** What the centre can hold. Inbox, the lenses and Setup are the surfaces still on main. */
+/** What the centre can hold. The lenses and Setup are the older surfaces still on main. */
 export type Route =
   | { kind: "today" }
   | PlaceRoute
-  | { kind: "inbox" }
   | { kind: "lens"; lens: Lens }
   | { kind: "setup" };
 
@@ -53,8 +52,6 @@ export type LineSheetOptions = { readonly column?: LineColumn };
 export type Destination = Route | (typeof LINE & LineSheetOptions);
 /** Over the centre, which is inert beneath it, or pinned beside a centre that stays live. */
 export type SheetPresentation = "closed" | "overlay" | "pinned";
-
-export const INBOX: Route = { kind: "inbox" };
 
 /**
  * The components the window can show. A route whose kind has no view is not listed in the
@@ -85,7 +82,6 @@ const PLAIN = new Set<string>([
   "engineering-system",
   "releases",
   "security",
-  "inbox",
   "setup",
 ]);
 /** Hashes from before the places, still parsed so saved locations keep working. */
@@ -157,8 +153,6 @@ export function routeLabel(route: Route): string {
       return route.id;
     case "release":
       return `Release ${route.month}`;
-    case "inbox":
-      return "Inbox";
     case "lens":
       return LENS_LABELS[route.lens];
     case "setup":

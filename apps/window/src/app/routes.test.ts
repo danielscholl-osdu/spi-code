@@ -2,11 +2,17 @@
 // SPDX-License-Identifier: MIT
 
 import { expect, it } from "vitest";
-import { parseRoute, type Route, routeHash, routeLabel } from "./routes.js";
+import {
+  DEFAULT_REGISTRY,
+  parseRoute,
+  type Route,
+  resolveRoute,
+  routeHash,
+  routeLabel,
+} from "./routes.js";
 
 it.each<[string, Route, string]>([
   ["#today", { kind: "today" }, "Today"],
-  ["#inbox", { kind: "inbox" }, "Inbox"],
   ["#upstream", { kind: "upstream" }, "Upstream"],
   ["#engineering-system", { kind: "engineering-system" }, "Engineering system"],
   ["#security", { kind: "security" }, "Security"],
@@ -35,9 +41,18 @@ it("still reads the old #template hash as the engineering system", () => {
   expect(parseRoute("#template/extra")).toBeUndefined();
 });
 
+it("retires Inbox and falls back to Today for a fresh launch or an old saved Inbox", () => {
+  expect(Object.keys(DEFAULT_REGISTRY.views)).not.toContain("inbox");
+  expect(DEFAULT_REGISTRY.fallback).toEqual({ kind: "today" });
+  for (const hash of ["", "#inbox", "#unknown"]) {
+    expect(resolveRoute(hash, DEFAULT_REGISTRY)).toEqual({ kind: "today" });
+  }
+});
+
 it.each([
   "",
   "#",
+  "#inbox",
   "#flow",
   "#service",
   "#service/",

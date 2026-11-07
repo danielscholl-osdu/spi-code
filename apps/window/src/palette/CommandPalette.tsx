@@ -25,7 +25,7 @@ import { Autocomplete } from "@base-ui/react/autocomplete";
 import { Dialog } from "@base-ui/react/dialog";
 import { useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
-import { INBOX, type Route, useRegistry } from "../app/routes.js";
+import { type Route, useRegistry } from "../app/routes.js";
 import { AttentionDot } from "../components/AttentionDot.js";
 import { useSidebarAttention } from "../components/sidebar/attention.js";
 import type { createWatchStore } from "../store/watch.js";
@@ -103,7 +103,7 @@ function PaletteContent({
     if (item.target.kind === "route") onNavigate(item.target.route);
     else {
       select(item.target.id);
-      onNavigate(INBOX);
+      onNavigate({ kind: "today" });
     }
     onClose();
   };

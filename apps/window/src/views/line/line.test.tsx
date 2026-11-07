@@ -93,7 +93,6 @@ it("opens with Cmd-L over every registered surface and Escape restores its centr
     { kind: "security" },
     { kind: "release", month: "2026-11" },
     { kind: "service", id: "legal" },
-    { kind: "inbox" },
     { kind: "lens", lens: "flow" },
     { kind: "lens", lens: "repositories" },
     { kind: "lens", lens: "horizon" },

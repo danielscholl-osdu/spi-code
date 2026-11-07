@@ -7,7 +7,6 @@ import { watchStore } from "../store/watch.js";
 import Environment from "../views/environment/index.js";
 import Flow from "../views/flow/index.js";
 import Horizon from "../views/horizon/index.js";
-import Inbox from "../views/inbox/index.js";
 import Line from "../views/line/index.js";
 import Releases, { ReleaseMonth } from "../views/releases/index.js";
 import Repositories from "../views/repositories/index.js";
@@ -19,7 +18,6 @@ import Template from "../views/template/index.js";
 import Today from "../views/today/index.js";
 import {
   type Destination,
-  navigate,
   type Registry,
   type Route,
   renderRoute,
@@ -44,7 +42,6 @@ export const DEFAULT_REGISTRY: Registry = {
     security: (route) => gated(route, <Security />),
     service: (route) => gated(route, <ServicePage id={route.id} />),
     release: (route) => gated(route, <ReleaseMonth month={route.month} />),
-    inbox: (route) => gated(route, <Inbox onNavigate={navigate} />),
     lens: (route) =>
       gated(
         route,
@@ -59,7 +56,7 @@ export const DEFAULT_REGISTRY: Registry = {
     setup: () => <Setup />,
   },
   sheet: (_origin, presentation) => <Line presentation={presentation} />,
-  fallback: { kind: "inbox" },
+  fallback: { kind: "today" },
 };
 
 /** The registry the shell provides, or the window's own outside a shell. */

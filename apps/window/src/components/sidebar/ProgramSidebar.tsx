@@ -172,13 +172,10 @@ export function ProgramSidebar({
           <kbd>{shortcutLabel("k")}</kbd>
         </button>
         {reachable({ kind: "today" }) && (
-          <SidebarMenu aria-label="Today">{row("today", { kind: "today" })}</SidebarMenu>
-        )}
-        {reachable({ kind: "inbox" }) && (
-          <SidebarMenu aria-label="Inbox">
+          <SidebarMenu aria-label="Today">
             {row(
-              "inbox",
-              { kind: "inbox" },
+              "today",
+              { kind: "today" },
               undefined,
               inbox > 0 && (
                 <span className="sidebar-pip" title={`${inbox} at P0 or P1`}>

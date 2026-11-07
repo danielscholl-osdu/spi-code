@@ -149,7 +149,6 @@ it("lists Go to, Services, Lenses and Queue from the routes and the snapshot, wi
   expect(palette()?.textContent).not.toMatch(/Actions/);
   expect(rows("go-to")).toEqual([
     "Todaypage",
-    "Inboxpage",
     "Environmentpage",
     "Engineering systempage",
     "Releasespage",
@@ -279,10 +278,10 @@ it("moves with the arrows, opens with Enter, and filters as the operator types",
   await shortcut({ ctrlKey: true });
   expect(highlighted()).toBe("Todaypage");
   await key("ArrowDown");
-  expect(highlighted()).toBe("Inboxpage");
+  expect(highlighted()).toBe("Environmentpage");
   await key("ArrowDown");
   await key("ArrowUp");
-  expect(highlighted()).toBe("Inboxpage");
+  expect(highlighted()).toBe("Environmentpage");
 
   await type("legal");
   expect(labels()).toEqual(["Services", "Queue", "Threads", "Ask"]);
@@ -319,13 +318,13 @@ it("lets Enter confirm an IME composition without choosing a row", async () => {
   expect(window.location.hash).toBe("#service/legal");
 });
 
-it("selects a Queue row's item on the Inbox", async () => {
+it("selects a Queue row's item on Today", async () => {
   await shortcut({ ctrlKey: true });
   await type("schemathesis");
   expect(highlighted()).toBe("P0entitlements · Sync halted on schemathesis-testsP0");
   await key("Enter");
   expect(palettes()).toHaveLength(0);
-  expect(window.location.hash).toBe("#inbox");
+  expect(window.location.hash).toBe("#today");
   expect(watchStore.getState().selection?.id).toBe("halt:entitlements");
 });
 
