@@ -200,7 +200,21 @@ describe("Environment reading on the recorded 6 Nov sweep", () => {
           }),
         ],
       }).qualifier,
-    ).toBe("GitHub cut a read of the environment, so this reading could be missing something.");
+    ).toBe(
+      "GitHub truncated a read of the environment, so this reading could be missing something.",
+    );
+    expect(
+      environment({
+        reads: [read(stackRepo, { failure: "HTTP 502" })],
+        lifecycle: [
+          read(`repos/${stackRepo}/actions/runs`, {
+            completeness: { kind: "cut", reason: "page limit", read: 100, total: 240 },
+          }),
+        ],
+      }).qualifier,
+    ).toBe(
+      "GitHub truncated a read of the environment and a read failed, so this reading could be missing something.",
+    );
   });
 
   it("keeps a held or running environment's headline within 12 words", () => {

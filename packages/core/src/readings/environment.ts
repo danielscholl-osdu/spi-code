@@ -177,8 +177,8 @@ function environmentQualifier(reads: readonly ReadRecord[]): string | undefined 
   const failed = reads.filter(isFailed).length;
   const failure = failed === 1 ? "a read failed" : `${failed} reads failed`;
   if (cut && failed > 0)
-    return `GitHub cut a read of the environment and ${failure}, so this reading could be missing something.`;
-  if (cut) return "GitHub cut a read of the environment, so this reading could be missing something.";
+    return `GitHub truncated a read of the environment and ${failure}, so this reading could be missing something.`;
+  if (cut) return "GitHub truncated a read of the environment, so this reading could be missing something.";
   if (failed > 0)
     return `${failure.charAt(0).toUpperCase()}${failure.slice(1)} for the environment, so this reading could be missing something.`;
   return undefined;

@@ -230,7 +230,7 @@ function campaignItem<T extends ReadingItem>(campaign: ReadingCampaign, members:
 
 function readQualifier(cut: number, failed: number, subject: string, unit: string): string | undefined {
   const parts = [
-    cut > 0 ? `GitLab cut the upstream diffs for ${plural(cut, unit)}` : undefined,
+    cut > 0 ? `GitLab truncated the upstream diffs for ${plural(cut, unit)}` : undefined,
     failed > 0 ? `${cut > 0 ? "the" : "The"} reads failed for ${plural(failed, unit)}` : undefined,
   ].filter(Boolean);
   return parts.length > 0 ? `${parts.join(" and ")}, so ${subject} could be missing.` : undefined;
@@ -506,8 +506,8 @@ function serviceQualifier(reads: readonly ReadRecord[]): string | undefined {
   const failed = reads.filter(isFailed).length;
   const failure = failed === 1 ? "a read failed" : `${failed} reads failed`;
   if (cut && failed > 0)
-    return `GitLab cut this service's upstream diffs and ${failure}, so this reading could be missing something.`;
-  if (cut) return "GitLab cut this service's upstream diffs, so a toolchain move could be missing.";
+    return `GitLab truncated this service's upstream diffs and ${failure}, so this reading could be missing something.`;
+  if (cut) return "GitLab truncated this service's upstream diffs, so a toolchain move could be missing.";
   if (failed > 0) return `${cap(failure)} for this service, so this reading could be missing something.`;
   return undefined;
 }

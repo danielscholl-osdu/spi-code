@@ -151,7 +151,7 @@ describe("Releases reading on the recorded 6 Nov sweep", () => {
         ],
       }).qualifier,
     ).toBe(
-      "GitHub cut the reads for 1 repository and the reads failed for 1 repository, so a release PR or month could be missing.",
+      "GitHub truncated the reads for 1 repository and the reads failed for 1 repository, so a release PR or month could be missing.",
     );
   });
 
