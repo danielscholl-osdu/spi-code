@@ -47,11 +47,12 @@ const KIND_LABEL: Readonly<Record<SelectionKind, string>> = {
 };
 
 function Field({ label, value }: { label: string; value: string }) {
-  if (!value.trim()) return null;
+  const text = plainTitle(value);
+  if (!text) return null;
   return (
     <>
       <dt>{label}</dt>
-      <dd data-field={label.toLowerCase()}>{value}</dd>
+      <dd data-field={label.toLowerCase()}>{text}</dd>
     </>
   );
 }
@@ -72,7 +73,9 @@ function Inspector({
       <p className="inspector-kicker">
         <span data-field="class">{result.class}</span> · {result.id}
       </p>
-      {[result.cause, result.effect, result.next, result.why].some((value) => value.trim()) && (
+      {[result.cause, result.effect, result.next, result.why].some((value) =>
+        plainTitle(value),
+      ) && (
         <dl>
           <Field label="Cause" value={result.cause} />
           <Field label="Effect" value={result.effect} />

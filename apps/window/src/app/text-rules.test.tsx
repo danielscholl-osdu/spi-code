@@ -32,7 +32,7 @@ const placeholder = /not available yet|No settled threads yet|ships in M[3-9]/i;
 const headlines =
   '.place-headline, [data-pointer$="/headline"], .release-months td:nth-child(3), .release-page > [data-pointer] > p:nth-of-type(2)';
 const titles =
-  ".place-item-title, .place-item-sub, .place-item-next, .template-line-text, .template-line-sub, .env-repo-line-text, .env-muted, .template-repo-title, .service-row-title, .service-section-count, .service-row-sub, .detail-title, .inspector-related dd, .palette-label, .inbox-row-title, .inbox-sub, .today-folded li button[data-selection-id]";
+  ".place-item-title, .place-item-sub, .place-item-next, .template-line-text, .template-line-sub, .env-repo-line-text, .env-repo-line small, .env-muted, .template-repo-title, .service-row-title, .service-section-count, .service-row-sub, .detail-title, [data-field], .inspector-related dd, .palette-label, .inbox-row-title, .inbox-sub, .today-folded li button[data-selection-id], .today-folded li p";
 
 function violations(scope: ParentNode): string[] {
   const failures: string[] = [];
@@ -64,7 +64,11 @@ function violations(scope: ParentNode): string[] {
     if (text.split(/\s+/).length > 12) failures.push(`headline: ${text}`);
   }
   for (const element of scope.querySelectorAll(titles)) {
-    if (/\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20E3/u.test(element.textContent ?? ""))
+    if (
+      /\p{Emoji_Presentation}|\p{Extended_Pictographic}\uFE0F|\u20E3/u.test(
+        element.textContent ?? "",
+      )
+    )
       failures.push(`emoji: ${element.textContent}`);
   }
   return failures;
@@ -81,6 +85,7 @@ beforeEach(() => {
   closeSheet();
   relaunch();
   selectionStore.getState().clear();
+  selectionStore.getState().setTab("detail");
   window.location.hash = "#today";
   window.spi = {
     proof: false,
@@ -254,6 +259,93 @@ it.each(inspections)("renders the recorded Detail and Evidence for $id", async (
   assertRules(`Recorded Evidence ${result.id}`);
 });
 
+it("strips emoji from every Detail field without removing ordinary symbols", async () => {
+  const body = snapshots[0]?.body;
+  const recorded = inspections[0];
+  if (!body || !recorded) throw new Error("Missing snapshot or inspection");
+  await open(body);
+  const result = {
+    ...recorded,
+    cause: "📊 Code Coverage failed ©",
+    effect: "🚨 Release blocked ™",
+    next: "🔧 Fix the check ✔",
+    why: "👩🏽‍💻 Keep the release safe",
+  };
+  await act(async () => {
+    selectionStore.getState().select(result.id);
+    selectionStore.setState({ result, request: null });
+  });
+  for (const [field, text] of Object.entries({
+    cause: "Code Coverage failed ©",
+    effect: "Release blocked ™",
+    next: "Fix the check ✔",
+    why: "Keep the release safe",
+  })) {
+    expect(container.querySelector(`[data-field="${field}"]`)?.textContent).toBe(text);
+  }
+  assertRules("Detail fields with emoji");
+});
+
+it("omits Detail fields and their list when they contain only emoji", async () => {
+  const body = snapshots[0]?.body;
+  const recorded = inspections[0];
+  if (!body || !recorded) throw new Error("Missing snapshot or inspection");
+  await open(body);
+  const result = {
+    ...recorded,
+    cause: "📊",
+    effect: "🚨",
+    next: "🔧",
+    why: "👩🏽‍💻",
+    related: [],
+  };
+  await act(async () => {
+    selectionStore.getState().select(result.id);
+    selectionStore.setState({ result, request: null });
+  });
+  expect(container.querySelector(".inspector dl")).toBeNull();
+  assertRules("Emoji-only Detail fields");
+});
+
+it("strips injected emoji from a folded Today item subline", async () => {
+  const body = structuredClone(snapshots[0]?.body);
+  const item = body?.briefing.rest[0];
+  if (!body || !item) throw new Error("Missing folded item");
+  item.sub = "🚨 Review the queued change";
+  await open(body);
+  expect(
+    container.querySelector(`.today-folded button[data-selection-id="${item.id}"] + p`)
+      ?.textContent,
+  ).toBe("Review the queued change");
+  assertRules("Today item subline with emoji");
+});
+
+it("strips injected emoji from the template queue row", async () => {
+  const body = structuredClone(snapshots[0]?.body);
+  const item =
+    body && [...body.briefing.focus, ...body.briefing.rest].find(({ id }) => id === "rollout");
+  if (!body || !item) throw new Error("Missing rollout");
+  item.title = "🐛 Refresh the template";
+  item.sub = "🚨 Review queued changes";
+  await open(body, { kind: "engineering-system" });
+  expect(container.querySelector(".inbox-row-title")?.textContent).toBe("Refresh the template");
+  expect(container.querySelector(".inbox-sub")?.textContent).toBe("Review queued changes");
+  assertRules("Template queue row with emoji");
+});
+
+it("strips injected emoji from an environment repository line", async () => {
+  const body = structuredClone(snapshots[0]?.body);
+  const repository = body?.briefing.repositories.rows.find(({ name }) => name === "osdu-spi-stack");
+  const line = repository?.sections.flatMap(({ lines }) => lines)[0];
+  if (!body || !line) throw new Error("Missing stack repository line");
+  line.text = "🐛 Fix the stack";
+  line.sub = "🚨 Check the build";
+  await open(body, { kind: "environment" });
+  expect(container.querySelector(".env-repo-line-text")?.textContent).toBe("Fix the stack");
+  expect(container.querySelector(".env-repo-line small")?.textContent).toBe("Check the build");
+  assertRules("Environment repository line with emoji");
+});
+
 it.each([
   ["internal", "fork_upstream stopped"],
   ["headline", "One two three four five six seven eight nine ten eleven twelve thirteen"],
@@ -270,6 +362,8 @@ it.each([
 it.each([
   ["empty", "<section><h3></h3><dl></dl></section>"],
   ["emoji", '<span class="template-line-text">🐛 Fix the issue</span>'],
+  ["emoji", '<dd data-field="cause">📊 Code Coverage failed</dd>'],
+  ["emoji", '<details class="today-folded"><ul><li><p>🚨 Check the build</p></li></ul></details>'],
   ["action", "<button>Open in inspector · Investigate, then Dispatch cascade</button>"],
 ])("rejects a %s rule mutation", (kind, html) => {
   container.innerHTML = html;
@@ -287,4 +381,12 @@ it("allows internal names only in Detail or Evidence, never placeholders", () =>
 it("strips joined emoji, modifiers, flags and keycaps without losing issue numbers", () => {
   expect(plainTitle("👩🏽‍💻 🇺🇸 1️⃣ 🔧 Fix #42 build · PR #7")).toBe("Fix #42 build · PR #7");
   expect(plainTitle("Open (📊 Code Coverage) [🔧 build 🔧]")).toBe("Open (Code Coverage) [build]");
+  expect(plainTitle("🏳️‍🌈 ⚙️ Fix #42")).toBe("Fix #42");
+});
+
+it("preserves ordinary symbols and the strip and command glyphs", () => {
+  const text = "© ™ ✔ ✕ ! ◐ ○ ⌘";
+  expect(plainTitle(text)).toBe(text);
+  container.innerHTML = `<dd data-field="cause">${text}</dd>`;
+  expect(violations(container)).toEqual([]);
 });

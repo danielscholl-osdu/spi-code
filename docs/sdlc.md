@@ -57,6 +57,8 @@ extensionless shebang scripts. Build output and dependencies are ignored.
 The window's `app/text-rules.test.tsx` renders every Watch fixture across its places,
 strip, Line sheet, sidebar, command palette and Detail kinds. It checks headline length,
 internal names, title emoji and empty or placeholder sections, with rule mutations.
+Injected emoji cases cover Detail fields, Today sublines, template queue rows and
+environment repository lines; ordinary symbols and navigation glyphs stay intact.
 
 `scripts/check` repeats Vitest with `SPI_TEST_CLOCK_SHIFT=1`, moving the wall
 clock 400 days forward to catch expiring fixtures before they break main.
