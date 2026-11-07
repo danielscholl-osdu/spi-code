@@ -398,3 +398,38 @@ it("opens Details when a row inside it is selected from outside the place, until
     "true",
   );
 });
+
+it("opens a reading item only as a queue row, never as another kind sharing its id", async () => {
+  const body = snapshot();
+  const queued = body.briefing.focus.find(({ id }) => id === "rollout");
+  if (!queued) throw new Error("Recorded rollout missing");
+  queued.id = "queued-rollout";
+  const repo = body.briefing.repositories.rows.find(({ name }) => name === "osdu-spi");
+  if (!repo) throw new Error("Recorded template repository missing");
+  repo.id = "rollout";
+  const { selection } = await mount(ViewSnapshotSchema.parse(body));
+  expect(
+    selectionRows(body)
+      .filter(({ id }) => id === "rollout")
+      .map(({ kind }) => kind),
+  ).toEqual(["repository"]);
+  await click('.place-item-content[data-selection-id="rollout"]');
+  expect(selection.getState()).toMatchObject({ selected: null, row: null });
+  expect(container.querySelector<HTMLDetailsElement>(".template-details")?.open).toBe(false);
+});
+
+it("opens Details when the selected rollout is reachable only inside it", async () => {
+  const body = snapshot();
+  const reading = body.readings.find(({ anchor }) => anchor.kind === "engineering")?.content;
+  if (!reading) throw new Error("Recorded engineering reading missing");
+  reading.items = reading.items.filter(({ id }) => id !== "rollout");
+  const { selection } = await mount(ViewSnapshotSchema.parse(body));
+  const row = selectionRows(body).find(({ id, kind }) => id === "rollout" && kind === "queue");
+  await act(async () => selection.getState().select("rollout", row));
+  const details = container.querySelector<HTMLDetailsElement>(".template-details");
+  expect(container.querySelector('.place [data-selection-id="rollout"]')).toBeNull();
+  expect(details?.open).toBe(true);
+  expect(
+    details?.querySelector('[data-selection-id="rollout"]')?.getAttribute("aria-selected"),
+  ).toBe("true");
+});
