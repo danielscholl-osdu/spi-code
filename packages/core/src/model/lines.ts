@@ -308,7 +308,7 @@ export function buildLine(input: {
   else if (syncPr && prRed(syncPr))
     stations.push({ id: "sync", state: "stopped", text: `PR #${syncPr.pr.number} red` });
   else if (syncPr)
-    stations.push({ id: "sync", state: "waiting", text: `gate 1 · PR #${syncPr.pr.number}` });
+    stations.push({ id: "sync", state: "waiting", text: `PR #${syncPr.pr.number}` });
   else if (syncRun && syncRun.conclusion === "failure")
     stations.push({ id: "sync", state: "stopped", text: "Sync Upstream failed" });
   else stations.push({ id: "sync", state: "idle", text: "clean" });
@@ -343,7 +343,7 @@ export function buildLine(input: {
   else stations.push({ id: "main", state: "idle", text: "idle" });
   // release
   if (releasePr)
-    stations.push({ id: "release", state: "waiting", text: `gate 3 · PR #${releasePr.pr.number}` });
+    stations.push({ id: "release", state: "waiting", text: `PR #${releasePr.pr.number}` });
   else stations.push({ id: "release", state: "idle", text: repo?.release?.tag ?? "no release" });
   // stack lane
   const lane = laneStats(repo?.deployments ?? [], now);

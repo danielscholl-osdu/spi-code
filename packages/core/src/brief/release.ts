@@ -144,7 +144,7 @@ function computedChangelog(f: MonthFacts): DocArea[] {
 
 function computedHeadline(f: MonthFacts): string {
   if (f.releases === null || f.released === null) {
-    return `Releases for ${f.label} are not fully read yet: ${f.unread.join(", ")}.`;
+    return `Releases for ${f.label} are not fully read yet.`;
   }
   if (f.releases === 0) return `No SPI releases ${f.open ? "yet " : ""}in ${f.label}.`;
   return `${plural(f.releases, "release")} across ${plural(f.released, "repository", "repositories")} in ${f.label}.`;

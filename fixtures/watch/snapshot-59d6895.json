@@ -341,8 +341,8 @@
     },
     "flow": {
       "mode": "planning",
-      "headline": "6 upstream commits wait across 2 forks. 2 forks move their toolchain, so start with one pilot.",
-      "sub": "1 sync PR is prepared. Nothing syncs until you merge one.",
+      "headline": "6 upstream commits wait across 2 forks.",
+      "sub": "2 forks move their toolchain, so start with one pilot. 1 sync PR is prepared. Nothing syncs until you merge one.",
       "tiles": [
         {
           "label": "Behind upstream",

@@ -319,7 +319,19 @@ describe("Watch projection", () => {
   it("matches the frozen briefing, Releases pane, flow rows and six service stations", () => {
     const snapshot = projectWatch(fixtureInput());
     const legacy = withoutAdditions(snapshot);
-    expect(legacy.briefing).toEqual(oracle("briefing"));
+    // The rib's 17-word flow headline breaks the 12-word rule; its pilot sentence leads sub instead.
+    const frozen = oracle("briefing") as { flow: { headline: string; sub: string } };
+    expect(legacy.briefing).toEqual({
+      ...frozen,
+      flow: {
+        ...frozen.flow,
+        headline: "6 upstream commits wait across 2 forks.",
+        sub: "2 forks move their toolchain, so start with one pilot. 1 sync PR is prepared. Nothing syncs until you merge one.",
+      },
+    });
+    expect(frozen.flow.headline).toBe(
+      "6 upstream commits wait across 2 forks. 2 forks move their toolchain, so start with one pilot.",
+    );
     expect(snapshot.releases).toEqual(oracle("releases"));
     const lines = oracle("lines");
     expect({
@@ -516,7 +528,7 @@ describe("Watch projection", () => {
     const rows = service?.releases;
     expect(rows?.find((r) => r.month === "2026-10")).toMatchObject({
       releasePr: { number: 700, title: releasePr.title, url: releasePr.url },
-      gate: { state: "waiting", text: "gate 3 · PR #700" },
+      gate: { state: "waiting", text: "PR #700" },
     });
     expect(rows?.filter((r) => r.month !== "2026-10").every((r) => !r.gate && !r.releasePr)).toBe(
       true,

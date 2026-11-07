@@ -4,6 +4,7 @@
 import { planActions } from "../act/upstream.js";
 import {
   carriesText,
+  flowStatement,
   LINE_COLUMNS,
   planOrder,
   stepWhy,
@@ -252,7 +253,7 @@ export function inspectUpstreamPlan(
   ];
   const targets = step.forks.map((f) => f.repo);
   const sections: Section[] = [
-    { kind: "rows", items: [{ text: sub }, { text: view.headline }] },
+    { kind: "rows", items: [{ text: sub }, { text: flowStatement(u) }] },
     nextCard(
       `${view.next.title}.`,
       [stepWhy(u, step, now, voice), targets.length ? `Touches ${targets.join(", ")}.` : ""]
