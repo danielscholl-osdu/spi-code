@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: MIT
 
 import { Dialog } from "@base-ui/react/dialog";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import type { Appearance } from "../app/appearance.js";
+import { navigate } from "../app/navigation.js";
 import { useMediaQuery } from "../components/sidebar/ui-sidebar.js";
 import { watchStore } from "../store/watch.js";
 import Setup, { ReadinessCheck } from "../views/setup/index.js";
-import { READINESS_DOT_LABEL, type ReadinessDot, readinessDot } from "./readiness.js";
+import { READINESS_DOT_LABEL, type ReadinessDot, readinessDot, watchNeeds } from "./readiness.js";
 import "./settings.css";
 
 /** Below this window width the section nav folds into a picker in the dialog header. */
@@ -90,11 +91,21 @@ export function SettingsDialog({
   onTheme(theme: Appearance): void;
 }) {
   const picker = useMediaQuery(SETTINGS_PICKER_MEDIA_QUERY);
-  const dot = readinessDot(useStore(watchStore, (state) => state.setup));
+  const setup = useStore(watchStore, (state) => state.setup);
+  const dot = readinessDot(setup);
+  const [awaitingWatch, setAwaitingWatch] = useState(false);
+  useEffect(() => {
+    if (!open) setAwaitingWatch(false);
+    else if (setup && !setup.watchReady) setAwaitingWatch(true);
+  }, [open, setup]);
+  const changeOpen = (next: boolean) => {
+    if (!next && awaitingWatch && setup?.watchReady) navigate({ kind: "today" });
+    onOpenChange(next);
+  };
   const popup = useRef<HTMLDivElement>(null);
   const current = SECTIONS.find(({ id }) => id === section) ?? SECTIONS[0];
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root open={open} onOpenChange={changeOpen}>
       <Dialog.Portal>
         <Dialog.Backdrop className="settings-backdrop" />
         <Dialog.Popup
@@ -164,7 +175,24 @@ export function SettingsDialog({
               data-settings-section={section}
             >
               {section === "readiness" ? (
-                <Setup inSettings />
+                <>
+                  {setup && (!setup.watchReady || awaitingWatch) && (
+                    <div
+                      className="settings-readiness-banner"
+                      data-readiness={setup.watchReady ? "ready" : "attention"}
+                    >
+                      <span role="status">
+                        {setup.watchReady ? "Watch is ready" : watchNeeds(setup)}
+                      </span>
+                      {setup.watchReady && (
+                        <button type="button" onClick={() => changeOpen(false)}>
+                          Go to Today
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  <Setup inSettings />
+                </>
               ) : (
                 <AppearanceSection theme={theme} onTheme={onTheme} />
               )}

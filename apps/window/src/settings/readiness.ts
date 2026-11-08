@@ -3,6 +3,21 @@
 
 import type { SetupState } from "@spi-code/contracts";
 
+export const OPEN_READINESS_EVENT = "spi-code:open-readiness";
+
+export function openReadiness() {
+  window.dispatchEvent(new Event(OPEN_READINESS_EVENT));
+}
+
+export function watchNeeds(setup: SetupState): string {
+  const tools = setup.tools
+    .filter((tool) => tool.state !== "ready")
+    .map(({ tool }) => (tool === "copilot" ? "Copilot" : tool));
+  return tools.length
+    ? `Watch needs ${new Intl.ListFormat("en", { type: "conjunction" }).format(tools)}.`
+    : (setup.disabledReason ?? "Watch is ready");
+}
+
 export type ReadinessDot = "attention" | "failure";
 
 /** Red when a tool failed, amber when one needs the operator; none while ready, installing or unchecked. */

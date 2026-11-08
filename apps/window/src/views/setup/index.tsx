@@ -185,9 +185,8 @@ function ToolRow({ tool }: { tool: Tool }) {
     tool.tool === "git" ? undefined : (state.signin[tool.tool] ?? state.signinOutcome[tool.tool]),
   );
   const epoch = useStore(watchStore, (state) => state.epoch);
-  const pending = useStore(
-    watchStore,
-    (state) => tool.tool !== "git" && state.signinRequest[tool.tool] !== undefined,
+  const requestId = useStore(watchStore, (state) =>
+    tool.tool === "git" ? undefined : state.signinRequest[tool.tool],
   );
   const [failure, setFailure] = useState<{
     epoch: number;
@@ -211,11 +210,9 @@ function ToolRow({ tool }: { tool: Tool }) {
   const busy =
     tool.state === "installing" ||
     sending ||
-    pending ||
+    requestId !== undefined ||
     (progress && ["starting", "device-code", "waiting"].includes(progress.state));
   const running = progress && ["starting", "device-code", "waiting"].includes(progress.state);
-  const requestId =
-    tool.tool === "git" ? undefined : watchStore.getState().signinRequest[tool.tool];
   const signinError =
     progress?.state === "failed"
       ? progress.reason === signinRunningReason("glab") ||
@@ -350,7 +347,7 @@ export default function Setup({ inSettings = false }: { inSettings?: boolean }) 
       {!setup ? (
         <p role="status">Checking Watch tools...</p>
       ) : (
-        !setup.watchReady && <p role="status">{setup.disabledReason}</p>
+        !inSettings && !setup.watchReady && <p role="status">{setup.disabledReason}</p>
       )}
       <h2 className="readiness-group-title">Watch · read the program</h2>
       <div className="readiness-group">

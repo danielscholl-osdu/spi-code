@@ -497,7 +497,7 @@ const glab = () => {
   const row = container.querySelector('.readiness-row[aria-label="glab"]');
   const field = row?.querySelector<HTMLInputElement>("input");
   const button = row?.querySelector<HTMLButtonElement>("button");
-  if (!row || !field || !button) throw new Error("glab row needs a token field and Sign in");
+  if (!row || !field || !button) throw new Error("glab row needs a token field and Save");
   return { row, field, button };
 };
 const paste = (value: string) =>
@@ -545,13 +545,42 @@ const sent = () =>
     return { type: parsed.type, payload: parsed.payload };
   });
 
-it("sends the pasted glab token with Sign in as a schema-valid setup.signin", async () => {
+it("sends the pasted glab token with Save as a schema-valid setup.signin", async () => {
   await receive("setup.state", state({ state: "signed-out", action: "signin" }));
   await render();
+  expect(glab().button.textContent).toBe("Save");
   await paste(` ${token} `);
   await act(async () => glab().button.click());
   expect(sent()).toEqual([{ type: "setup.signin", payload: { tool: "glab", token } }]);
   expect(SetupSigninSchema.parse(sent()[0]?.payload)).toEqual({ tool: "glab", token });
+});
+
+it("offers no Cancel on the glab row while its sign-in waits", async () => {
+  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+  await pending({ glab: "waiting-glab" });
+  await progress({ tool: "glab", state: "waiting" });
+  await render();
+  expect(glab().button.textContent).toBe("Save");
+  expect(glab().button.disabled).toBe(true);
+  expect(glab().field.disabled).toBe(true);
+  expect(glab().row.querySelector(".readiness-action")).toBeNull();
+  expect(glab().row.textContent).not.toContain("Cancel");
+});
+
+it("uses the current selected request id to cancel a waiting sign-in", async () => {
+  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+  await pending({ gh: "waiting-gh" });
+  await progress({ tool: "gh", state: "waiting" });
+  await render();
+  await pending({ gh: "new-waiting-gh" });
+  const cancel = container.querySelector<HTMLButtonElement>(
+    '.readiness-row[aria-label="gh"] .readiness-action',
+  );
+  expect(cancel?.textContent).toBe("Cancel");
+  await act(async () => cancel?.click());
+  expect(sent()).toEqual([
+    { type: "setup.signin.cancel", payload: { requestId: "new-waiting-gh" } },
+  ]);
 });
 
 it.each(["", "   "])("keeps Sign in disabled and sends nothing for token %j", async (value) => {
@@ -689,6 +718,34 @@ it("unlocks and empties the field on host.hello alone before any sign-in progres
   expect(glab().field.disabled).toBe(false);
   expect(glab().field.value).toBe("");
   expect(glab().button.disabled).toBe(true);
+});
+
+it("unlocks Check all and a sent glab field when the supervisor gives up before sign-in progress", async () => {
+  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+  await render();
+  await paste(token);
+  await act(async () => glab().button.click());
+  const check = () => container.querySelector<HTMLButtonElement>(".readiness-check");
+  await act(async () => check()?.click());
+  expect(glab().field.disabled).toBe(true);
+  expect(check()?.disabled).toBe(true);
+  const message = "Host stopped after repeated crashes. Restart SPI Code to reconnect.";
+  await act(async () => {
+    expect(() =>
+      watchStore.getState().receive({
+        version: PROTOCOL_VERSION,
+        id: "host-supervisor",
+        kind: "response",
+        type: "error",
+        payload: { code: "host_unavailable", message },
+      }),
+    ).toThrow(message);
+  });
+  expect(check()?.disabled).toBe(false);
+  expect(container.querySelector(".readiness-check-error")?.textContent).toBe(message);
+  expect(glab().field.disabled).toBe(false);
+  expect(glab().field.value).toBe("");
+  expect(watchStore.getState().signinRequest).toEqual({});
 });
 
 const OLD = "req-before-reconnect";

@@ -4,6 +4,7 @@
 import { type ReactNode, useEffect, useRef } from "react";
 import { useStore } from "zustand";
 import { Strip } from "../components/strip/Strip.js";
+import { OPEN_READINESS_EVENT } from "../settings/readiness.js";
 import { watchStore } from "../store/watch.js";
 import Environment from "../views/environment/index.js";
 import Line from "../views/line/index.js";
@@ -52,6 +53,10 @@ export function useRegistry(): Registry {
 export function useSetupLanding(openReadiness: () => void) {
   const setup = useStore(watchStore, (state) => state.setup);
   const checked = useRef(false);
+  useEffect(() => {
+    window.addEventListener(OPEN_READINESS_EVENT, openReadiness);
+    return () => window.removeEventListener(OPEN_READINESS_EVENT, openReadiness);
+  }, [openReadiness]);
   useEffect(() => {
     if (!setup || checked.current) return;
     checked.current = true;

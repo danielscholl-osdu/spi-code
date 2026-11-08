@@ -106,6 +106,31 @@ it("unlocks a check on its host error without rendering that error's secrets", (
   expect(store.getState().setupCheckError).toBe("Could not check Watch tools. Try again.");
 });
 
+it("clears pending checks and sign-ins before throwing the supervisor's give-up error", () => {
+  const store = createWatchStore(vi.fn());
+  store.getState().requestSetup("setup.check");
+  store.getState().requestSetup("setup.signin", "gh");
+  const requestId = store.getState().signinRequest.gh;
+  store
+    .getState()
+    .receive(event("setup.signin.progress", { requestId, tool: "gh", state: "waiting" }));
+  expect(store.getState().setupCheckRequest).not.toBeNull();
+  expect(store.getState().signinRequest.gh).toBe(requestId);
+  const message = "Host stopped after repeated crashes. Restart SPI Code to reconnect.";
+  expect(() =>
+    store.getState().receive({
+      ...event("error", { code: "host_unavailable", message }),
+      id: "host-supervisor",
+      kind: "response",
+    }),
+  ).toThrow(message);
+  expect(store.getState().setupCheckRequest).toBeNull();
+  expect(store.getState().setupCheckError).toBe(message);
+  expect(store.getState().signinRequest).toEqual({});
+  expect(store.getState().signin).toEqual({});
+  expect(store.getState().signinOutcome).toEqual({});
+});
+
 it("releases a failed check and does not let an old connection's rejection release a newer one", async () => {
   let rejectSend: (error: Error) => void = () => {};
   const send = vi.fn().mockImplementationOnce(

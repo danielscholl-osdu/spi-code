@@ -3,6 +3,7 @@
 
 import type { ReactNode } from "react";
 import { useStore } from "zustand";
+import { openReadiness } from "../../settings/readiness.js";
 import { watchStore } from "../../store/watch.js";
 
 export function WatchGate({ label, children }: { label: string; children: ReactNode }) {
@@ -12,6 +13,9 @@ export function WatchGate({ label, children }: { label: string; children: ReactN
     <>
       <h1>{label}</h1>
       <p role="status">Watch unavailable: {setup.disabledReason}. Open Settings to continue.</p>
+      <button type="button" onClick={openReadiness}>
+        Open Settings
+      </button>
     </>
   );
 }

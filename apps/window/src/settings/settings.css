@@ -93,6 +93,29 @@
 }
 .settings-close:hover { color: var(--text); }
 .settings-body { flex: 1; min-height: 0; padding: 14px 18px; overflow: auto; }
+.settings-readiness-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--warning);
+  border-radius: 6px;
+  background: var(--warning-surface);
+  color: var(--warning-text);
+}
+.settings-readiness-banner[data-readiness="ready"] {
+  border-color: var(--success);
+  background: var(--surface-raised);
+  color: var(--success-text);
+}
+.settings-readiness-banner button {
+  padding: 2px 10px;
+  font: inherit;
+  white-space: nowrap;
+}
 .settings-group { overflow: hidden; border: 1px solid var(--border); border-radius: 8px; }
 .settings-row {
   display: grid;

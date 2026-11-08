@@ -7,7 +7,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import briefing from "../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import releases from "../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
-import { navigate } from "../app/routes.js";
+import { navigate, relaunch } from "../app/routes.js";
 import { Shell } from "../app/Shell.js";
 import { selectionStore } from "../panels/selection.js";
 import { testSnapshot } from "../store/test-snapshot.js";
@@ -77,6 +77,8 @@ const tools = (states: SetupState["tools"][number]["state"][]): SetupState => {
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   window.location.hash = "";
+  localStorage.removeItem("spi-code.last-place");
+  relaunch();
   viewport(1280);
   watchStore.setState({
     setup: tools(["ready", "ready", "ready", "ready"]),
@@ -92,7 +94,104 @@ afterEach(() => {
   vi.unstubAllGlobals();
   watchStore.setState(previousStore);
   localStorage.removeItem("spi-code.appearance");
+  localStorage.removeItem("spi-code.last-place");
+  relaunch();
 });
+
+it("opens once on the first not-ready state over the gate, names every missing tool and reopens from the gate", async () => {
+  watchStore.setState({ setup: null });
+  window.location.hash = "#security";
+  const shell = await mountShell();
+  const banner = () => dialog()?.querySelector<HTMLElement>(".settings-readiness-banner");
+  try {
+    expect(dialog()).toBeNull();
+    await act(async () =>
+      watchStore.setState({ setup: tools(["ready", "ready", "signed-out", "missing"]) }),
+    );
+    expect(section()?.dataset.settingsSection).toBe("readiness");
+    expect(banner()?.textContent).toBe("Watch needs gh and glab.");
+    expect(banner()?.dataset.readiness).toBe("attention");
+    expect(shell.container.querySelector("main [role='status']")?.textContent).toContain(
+      "Watch unavailable",
+    );
+    expect(shell.container.querySelector("main h1")?.textContent).toBe("Security");
+    await act(async () =>
+      watchStore.setState({ setup: tools(["ready", "ready", "ready", "missing"]) }),
+    );
+    expect(banner()?.textContent).toBe("Watch needs glab.");
+    await act(async () => navItem("Appearance")?.click());
+    await close();
+    expect(dialog()).toBeNull();
+    expect(window.location.hash).toBe("#security");
+    await act(async () =>
+      watchStore.setState({ setup: tools(["ready", "ready", "signed-out", "missing"]) }),
+    );
+    expect(dialog()).toBeNull();
+    const opener = [...shell.container.querySelectorAll<HTMLButtonElement>("main button")].find(
+      (button) => button.textContent === "Open Settings",
+    );
+    expect(opener).toBeDefined();
+    opener?.focus();
+    await act(async () => opener?.click());
+    expect(section()?.dataset.settingsSection).toBe("readiness");
+    expect(banner()?.textContent).toBe("Watch needs gh and glab.");
+    await close();
+    expect(dialog()).toBeNull();
+    expect(document.activeElement).toBe(opener);
+    expect(shell.container.querySelector("main [role='status']")?.textContent).toContain(
+      "Watch unavailable",
+    );
+  } finally {
+    await shell.cleanup();
+  }
+});
+
+it.each(["Go to Today", "close", "Escape", "close from Appearance"])(
+  "keeps Settings open when Watch becomes ready, then lands on Today with %s",
+  async (action) => {
+    watchStore.setState({ setup: tools(["ready", "ready", "signed-out", "missing"]) });
+    window.location.hash = "#environment";
+    const shell = await mountShell();
+    try {
+      expect(dialog()).not.toBeNull();
+      const mounted = dialog();
+      await act(async () =>
+        watchStore.setState({ setup: tools(["ready", "ready", "ready", "ready"]) }),
+      );
+      expect(dialog()).toBe(mounted);
+      const banner = dialog()?.querySelector<HTMLElement>(".settings-readiness-banner");
+      expect(banner?.dataset.readiness).toBe("ready");
+      expect(banner?.querySelector("[role='status']")?.textContent).toBe("Watch is ready");
+      expect(banner?.querySelector("button")?.textContent).toBe("Go to Today");
+      expect(shell.container.querySelector("main")?.textContent).not.toContain("Watch unavailable");
+      expect(window.location.hash).toBe("#environment");
+      if (action === "Go to Today") {
+        await act(async () => banner?.querySelector<HTMLButtonElement>("button")?.click());
+      } else if (action === "Escape") {
+        await press("Escape", {});
+      } else {
+        if (action === "close from Appearance")
+          await act(async () => navItem("Appearance")?.click());
+        await close();
+      }
+      expect(dialog()).toBeNull();
+      expect(window.location.hash).toBe("#today");
+      expect(shell.container.querySelector("header [data-place]")?.textContent).toBe("Today");
+      await act(async () => navigate({ kind: "security" }));
+      await press(",");
+      expect(dialog()?.querySelector(".settings-readiness-banner")).toBeNull();
+      await close();
+      expect(window.location.hash).toBe("#security");
+      await act(async () =>
+        watchStore.setState({ setup: tools(["ready", "ready", "failed", "ready"]) }),
+      );
+      expect(dialog()).toBeNull();
+      expect(window.location.hash).toBe("#security");
+    } finally {
+      await shell.cleanup();
+    }
+  },
+);
 
 it("opens on Cmd-comma over the current place, on the last section viewed, and closes on Escape", async () => {
   const shell = await mountShell();

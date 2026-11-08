@@ -28,7 +28,7 @@ type WatchState = {
   setupCheckError: string | null;
   signin: Partial<Record<SetupSigninProgress["tool"], SetupSigninProgress>>;
   signinOutcome: Partial<Record<SetupSigninProgress["tool"], SetupSigninProgress>>;
-  /** Bumps on every host.hello, so views can drop state tied to the previous connection. */
+  /** Bumps when the host reconnects or gives up, invalidating views' connection-bound state. */
   epoch: number;
   /**
    * The setup.signin request each row waits on. Progress for any other request is dropped, and a
@@ -143,8 +143,17 @@ export function createWatchStore(
       const parsed = parseMessage(input);
       if (!parsed.ok) throw new Error("Invalid host message");
       const message = parsed.message;
-      if (message.type === "error" && message.payload.code === "host_unavailable")
+      if (message.type === "error" && message.payload.code === "host_unavailable") {
+        set({
+          setupCheckRequest: null,
+          setupCheckError: message.payload.message,
+          signin: {},
+          signinOutcome: {},
+          signinRequest: {},
+          epoch: get().epoch + 1,
+        });
         throw new Error(message.payload.message);
+      }
       if (message.type === "error" && message.id === get().setupCheckRequest)
         set({
           setupCheckRequest: null,

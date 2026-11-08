@@ -64,6 +64,14 @@ fields; waiting gh and Copilot sign-ins offer Cancel. Check all stays disabled
 until its request-correlated `setup.state` arrives after the budget read. An
 uncorrelated readiness refresh can update the Checked time without unlocking
 the check; a correlated failure or a host reconnect releases it for retry.
+If the host supervisor gives up, pending checks and sign-ins are cleared before
+the stop message is surfaced, so the Readiness controls do not stay locked.
+The first not-ready setup state opens Settings on Readiness once over the Watch
+gate. Its banner names the tools still needed, and the gate offers Open Settings
+after the dialog closes. If Watch becomes ready while Settings is open, the
+banner turns green with Go to Today; Settings stays open, and either that button
+or closing the dialog lands on Today. A later readiness loss opens nothing, and
+ordinary Settings visits preserve the place behind them.
 `pnpm run build` compiles all six workspaces; `pnpm run lint`, `pnpm run typecheck`,
 `pnpm run test` and `pnpm run check:headers` run individual checks. Vitest discovers
 `src/**/*.test.ts` and `src/**/*.test.tsx` in each workspace, plus script tests.
