@@ -12,8 +12,13 @@ if [[ -f package.json ]]; then
     pnpm install --frozen-lockfile
   fi
   pnpm run check
-  echo "check: testing with the wall clock 400 days forward"
-  SPI_TEST_CLOCK_SHIFT=1 pnpm run test
+  # A second zone too, so a test that only passes in this machine's zone fails here, not in CI.
+  zone=UTC
+  if [[ $(node -e 'process.stdout.write(String(new Date().getTimezoneOffset()))') == 0 ]]; then
+    zone=Pacific/Kiritimati
+  fi
+  echo "check: testing with the wall clock 400 days forward in time zone $zone"
+  TZ=$zone SPI_TEST_CLOCK_SHIFT=1 pnpm run test
   node scripts/third-party-notices.mjs
   exit 0
 fi

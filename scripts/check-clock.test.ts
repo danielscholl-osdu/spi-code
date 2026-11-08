@@ -86,13 +86,14 @@ describe("vitest project diagnostics", () => {
 });
 
 it.each(["2040-01-01T00:00:00.998Z", "2040-01-01T00:00:00.999Z"])(
-  "scripts/check rejects expiry and preserves fake clocks with Date text sampled at %s",
+  "scripts/check rejects expiry and another zone, and preserves fake clocks with Date text sampled at %s",
   (boundary) => {
     const directory = mkdtempSync(join(tmpdir(), "spi code clock-"));
     const root = fileURLToPath(new URL("../", import.meta.url));
     const header = "// Copyright 2026, Daniel Scholl\n// SPDX-License-Identifier: MIT\n";
     const now = performance.timeOrigin + performance.now();
     const expiry = now + 200 * 24 * 60 * 60 * 1_000;
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const args = [
       join(root, "node_modules/vitest/vitest.mjs"),
       "run",
@@ -176,6 +177,9 @@ it("accepts Date text sampled before or across a simulated second boundary", () 
   expectDateString(() => vi.advanceTimersByTime(1));
   expect(Date.now()).toBe(start + 1);
 });
+it("reads the time zone scripts/check started in", () => {
+  expect(Intl.DateTimeFormat().resolvedOptions().timeZone).toBe(${JSON.stringify(zone)});
+});
 `;
       for (const project of projects) {
         mkdirSync(join(directory, project.directory), { recursive: true });
@@ -191,8 +195,8 @@ it("accepts Date text sampled before or across a simulated second boundary", () 
       const output = result.stdout + result.stderr;
       const ran = realpathSync.native(directory);
       for (const [report, expected] of [
-        ["check.json", { passed: 4, failed: 0 }],
-        ["test.json", { passed: 3, failed: 1 }],
+        ["check.json", { passed: 5, failed: 0 }],
+        ["test.json", { passed: 3, failed: 2 }],
       ] as const) {
         const summary = projectSummary(
           projects,
@@ -204,12 +208,15 @@ it("accepts Date text sampled before or across a simulated second boundary", () 
       }
       expect(result.status, output).toBe(1);
       expect(output).not.toContain("third-party notices: fixture stub ran");
-      expect(output).toContain(`${projects.length * 4} passed`);
+      expect(output).toContain(`${projects.length * 5} passed`);
       const shifted = output.indexOf("wall clock 400 days forward");
       expect(shifted, output).toBeGreaterThan(-1);
       const shiftedOutput = output.slice(shifted);
-      expect(shiftedOutput).toContain(`${projects.length} failed | ${projects.length * 3} passed`);
+      expect(shiftedOutput).toContain(
+        `${projects.length * 2} failed | ${projects.length * 3} passed`,
+      );
       expect(shiftedOutput).toContain("expires at a fixed future date");
+      expect(shiftedOutput).toContain("reads the time zone scripts/check started in");
       expect(shiftedOutput).toMatch(/ELIFECYCLE\s+Test failed/);
     } finally {
       rmSync(directory, { recursive: true, force: true });

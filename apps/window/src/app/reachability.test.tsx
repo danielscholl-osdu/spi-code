@@ -63,6 +63,7 @@ afterEach(async () => {
   closeSheet();
   relaunch();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 const find = (selector: Selector) =>
@@ -310,6 +311,9 @@ describe("named gaps the suite tracks until their beads close", () => {
     expect(hold?.step).toBeDefined();
     expect(rows.some(({ selector }) => String(selector).includes("inspector-related"))).toBe(true);
     if (!hold?.step) return;
+    // The Detail reads its times against the wall clock; pin it to the track's clock the expected
+    // text reads against, so the day prefix agrees in every zone.
+    vi.useFakeTimers({ toFake: ["Date"], now: Date.parse(fixture().briefing.environment.to) });
     await start(hold);
     expect(await click('[data-part="runs"] > summary', hold.name)).toBe(1);
     expect(container.querySelector(".inspector")).toBeNull();

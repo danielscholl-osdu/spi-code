@@ -530,10 +530,19 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
         ...gap,
       });
       if (e.detail) add(`${event}/detail`, e.detail, where, detailField("effect"), gap);
+      // The Detail draws its instants as `time` elements and no span; read the instants from their
+      // datetime, and require the drawn text to be the same reading against the test's pinned clock.
       const when = (element: Element) => {
-        const [start = "", end = ""] = (element.textContent ?? "").split(" to ");
+        const [start = "", end] = [...element.querySelectorAll("time")].map(
+          (time) => time.getAttribute("datetime") ?? "",
+        );
         const { end: _, ...running } = e;
-        return eventWhen(end === "now" ? { ...running, start } : { ...running, start, end }, now);
+        const read = eventWhen(
+          end === undefined ? { ...running, start } : { ...running, start, end },
+          now,
+        );
+        const drawn = element.textContent ?? "";
+        return drawn === read.split(" \u00b7 ")[0] ? read : drawn;
       };
       add(`${event}/start`, eventWhen(e, now), where, detailField("why"), { read: when, ...gap });
       if (e.end)
