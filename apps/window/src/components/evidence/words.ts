@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { AREAS, type AreaName, type Envelope, type ViewSnapshot } from "@spi-code/contracts";
+import { clockTime } from "../../time.js";
 
 /** Appendix C: each area in the words an operator reads. */
 export const AREA_NAMES: Readonly<Record<AreaName, string>> = {
@@ -250,19 +251,14 @@ export function sweepLine({ sources, sweptAt, nextSyncAt, now }: SweepLineInput)
   return { text: parts.join(" · "), tone: worstTone(sources) };
 }
 
-/** A clock reading in the window's time zone, 24-hour `HH:MM`. */
-export function clock(at: string | number): string {
-  const date = new Date(at);
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 /**
  * The title bar's freshness glyph (EV-03): when the sweep ran, then `⌀` and the count of sources
- * failed, cut or stale when there are any. A source not read yet is not counted here.
+ * failed, cut or stale when there are any. A source not read yet is not counted here. `tail` is
+ * the text after the sweep time.
  */
 export function freshnessGlyph({ sources, sweptAt }: Omit<SweepLineInput, "now" | "nextSyncAt">): {
   text: string;
+  tail: string;
   tone: EvidenceTone;
 } {
   const tally = (state: Envelope["state"]) =>
@@ -272,7 +268,7 @@ export function freshnessGlyph({ sources, sweptAt }: Omit<SweepLineInput, "now" 
     [tally("incomplete"), "incomplete"],
     [tally("stale"), "stale"],
   ] as const;
-  const parts = [`swept ${clock(sweptAt)}`];
+  const parts: string[] = [];
   const marks = counts
     .filter(([n]) => n > 0)
     .map(([n, word], index) =>
@@ -280,5 +276,6 @@ export function freshnessGlyph({ sources, sweptAt }: Omit<SweepLineInput, "now" 
     );
   if (marks.length > 0) parts.push(`⌀ ${marks.join(", ")}`);
   if (everyInferred(sources)) parts.push("inferred");
-  return { text: parts.join(" · "), tone: worstTone(sources) };
+  const tail = parts.map((part) => ` · ${part}`).join("");
+  return { text: `swept ${clockTime(sweptAt)}${tail}`, tail, tone: worstTone(sources) };
 }

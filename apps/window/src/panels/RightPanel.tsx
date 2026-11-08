@@ -26,6 +26,7 @@ import { type KeyboardEvent, type ReactNode, useId } from "react";
 import { useStore } from "zustand";
 import { SelectionEvidence, SelectionEvidenceChip } from "../components/evidence/index.js";
 import { plainTitle } from "../text.js";
+import { Time, TimedText } from "../time.js";
 import { detailAction, runDetailAction } from "./detail-action.js";
 import { PANEL_TABS, type PanelTab, type SelectionStore } from "./selection.js";
 import { type SelectionKind, type SelectionRow, selectionRows } from "./selection-rows.js";
@@ -52,7 +53,9 @@ function Field({ label, value }: { label: string; value: string }) {
   return (
     <>
       <dt>{label}</dt>
-      <dd data-field={label.toLowerCase()}>{text}</dd>
+      <dd data-field={label.toLowerCase()}>
+        <TimedText text={text} />
+      </dd>
     </>
   );
 }
@@ -124,14 +127,14 @@ function Inspector({
                           );
                       }}
                     >
-                      {plainTitle(related.text)}
+                      <TimedText text={plainTitle(related.text)} />
                     </button>
                   ) : related.url ? (
                     <a href={related.url} target="_blank" rel="noreferrer">
-                      {plainTitle(related.text)}
+                      <TimedText text={plainTitle(related.text)} />
                     </a>
                   ) : (
-                    plainTitle(related.text)
+                    <TimedText text={plainTitle(related.text)} />
                   )}
                 </dd>
               </div>
@@ -298,7 +301,7 @@ export function RightPanel({
                           {value}
                         </a>
                       ) : dateTime ? (
-                        <time dateTime={dateTime}>{value}</time>
+                        <Time at={dateTime} />
                       ) : value === "·" ? (
                         ""
                       ) : (

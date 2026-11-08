@@ -13,12 +13,13 @@ import {
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
+import { clockTime } from "../../time.js";
 import { EnvelopeBadge } from "./EnvelopeBadge.js";
 import { SelectionEvidence, SelectionEvidenceChip, SweepEvidence } from "./EvidenceTab.js";
 import { expectEvidenceMarks, expectNoEvidenceMarks } from "./marks.test-helper.js";
 import { SectionEvidence } from "./SectionEvidence.js";
 import { SweepLine, type SweepLineSnapshot } from "./SweepLine.js";
-import { AREA_NAMES, clock, freshnessGlyph, sweepLine, sweepSources } from "./words.js";
+import { AREA_NAMES, freshnessGlyph, sweepLine, sweepSources } from "./words.js";
 
 const now = Date.parse("2026-11-05T12:00:00Z");
 const minutes = (n: number) => new Date(now - n * 60_000).toISOString();
@@ -126,8 +127,8 @@ it.each([
   async (_, list, text, glyph, tone) => {
     const sources = sweepSources(snapshot([...list])).map(({ envelope }) => envelope);
     expect(sweepLine({ sources, sweptAt, nextSyncAt, now })).toEqual({ text, tone });
-    const swept = `swept ${clock(sweptAt)}${glyph}`;
-    expect(freshnessGlyph({ sources, sweptAt })).toEqual({ text: swept, tone });
+    const swept = `swept ${clockTime(sweptAt)}${glyph}`;
+    expect(freshnessGlyph({ sources, sweptAt })).toEqual({ text: swept, tail: glyph, tone });
     const onOpen = vi.fn();
     const view = await render(<SweepLine snapshot={snapshot([...list])} onOpen={onOpen} />);
     try {
@@ -188,7 +189,7 @@ it.each([
     const view = await render(<SweepLine snapshot={body} onOpen={() => {}} />);
     try {
       const line = view.container.querySelector("[data-sweep-line]");
-      expect(line?.textContent).toBe(`swept ${clock(sweptAt)}${glyph}`);
+      expect(line?.textContent).toBe(`swept ${clockTime(sweptAt)}${glyph}`);
       expect(line?.getAttribute("data-tone")).toBe("bad");
     } finally {
       await view.cleanup();

@@ -579,7 +579,7 @@ it("updates the title-bar sweep line from the live areas with the worst tone, an
         }),
       );
       expect(line()?.getAttribute("data-tone")).toBe(tone);
-      expect(line()?.textContent).toMatch(/^swept \d\d:\d\d/);
+      expect(line()?.textContent).toMatch(/^swept (\d\d-\d\d )?\d\d:\d\d/);
       if (words === null) expect(line()?.textContent).not.toContain("⌀");
       else expect(line()?.textContent).toContain(words);
       expect(line()?.textContent).not.toContain("inferred");

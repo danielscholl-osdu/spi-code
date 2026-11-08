@@ -10,6 +10,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { watchStore } from "../../store/watch.js";
+import { Time } from "../../time.js";
 
 type Tool = SetupState["tools"][number];
 const names = { copilot: "Copilot", git: "git", gh: "gh", glab: "glab" };
@@ -222,7 +223,7 @@ export default function Setup() {
         {sweep?.floor === undefined && <p>Pacer floor not reported by the host.</p>}
         {sweep?.resetAt && (
           <p>
-            Resets at <time dateTime={sweep.resetAt}>{sweep.resetAt}</time>
+            Resets at <Time at={sweep.resetAt} />
           </p>
         )}
         {sweep?.deferredAreas.map(({ area, reason }) => (

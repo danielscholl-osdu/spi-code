@@ -28,6 +28,7 @@ import UNREAD from "../../../../fixtures/rib-59d6895/oracle/inspect/UNREAD.json?
 import mixed from "../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
 import { expectNoEvidenceMarks } from "../components/evidence/marks.test-helper.js";
 import { mixedSnapshot } from "../store/test-snapshot.js";
+import { clockTime } from "../time.js";
 import { RightPanel } from "./RightPanel.js";
 import { createSelectionStore, type SelectionStore } from "./selection.js";
 import { runRow, type SelectionKind, type SelectionRow, selectionRows } from "./selection-rows.js";
@@ -642,7 +643,7 @@ it("leaves a repository line's missing tag, reading and link out of Detail", asy
   }
 });
 
-it("shows a run's workflow, result and time in UTC, with its snapshot URL", async () => {
+it("shows a run's workflow, result and local time, with its snapshot URL", async () => {
   const snapshot = mixedSnapshot(mixed);
   const services = snapshot.services ?? [];
   const recorded = services[0]?.runs[0];
@@ -658,7 +659,7 @@ it("shows a run's workflow, result and time in UTC, with its snapshot URL", asyn
     expect(view.fields()).toEqual([
       ["Workflow", run.workflow],
       ["Result", run.result],
-      ["When", "2026-10-13 05:15 UTC"],
+      ["When", clockTime(run.time)],
       ["Link", run.url],
     ]);
     expect(view.container.querySelector(".detail-row-fields time")?.getAttribute("datetime")).toBe(

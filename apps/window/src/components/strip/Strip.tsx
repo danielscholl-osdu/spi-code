@@ -7,9 +7,9 @@ import { openSheet } from "../../app/navigation.js";
 import { ariaShortcut, shortcutLabel } from "../../app/shortcuts.js";
 import { PIPS, selectStrip } from "../../store/strip.js";
 import { watchStore } from "../../store/watch.js";
-import { clock } from "../evidence/words.js";
 import { PinMenu } from "../pin/PinMenu.js";
 import "./strip.css";
+import { Time } from "../../time.js";
 
 /**
  * The strip under the title bar (PS-18): one pip per service in fleet order, then the fields a
@@ -74,12 +74,15 @@ export function Strip() {
       <span className="strip-space" />
       {due && (
         <span data-field="due" data-tone="warn">
-          {due.count} due before {clock(due.before)}
+          {due.count} due before <Time at={due.before} />
         </span>
       )}
       {nextSync && (
         <span data-field="next-sync">
-          next sync <b>{clock(nextSync)}</b>
+          next sync{" "}
+          <b>
+            <Time at={nextSync} />
+          </b>
         </span>
       )}
       <button

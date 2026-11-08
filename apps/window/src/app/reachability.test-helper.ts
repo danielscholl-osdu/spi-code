@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: MIT
 
 import { type InspectResult, InspectResultSchema, type ViewSnapshot } from "@spi-code/contracts";
-import { clock } from "../components/evidence/words.js";
 import { inScope } from "../components/sidebar/attention.js";
 import { selectionRows } from "../panels/selection-rows.js";
 import { plainTitle } from "../text.js";
+import { clockTime } from "../time.js";
 import { runningFactHome } from "../views/environment/running-fact.js";
 import { eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
 import { selectTodayItems } from "../views/today/selectors.js";
@@ -252,13 +252,13 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
     );
   }
   if (briefing.nextSyncAt) {
-    const time = clock(briefing.nextSyncAt);
+    const time = clockTime(briefing.nextSyncAt);
     add("/briefing/nextSyncAt", time, STRIP, '.window-strip [data-field="next-sync"] b');
     add("/briefing/nextSyncAt", time, STRIP, '.window-strip [data-field="due"]', {
       read: (element) => (element.textContent ?? "").split(" due before ")[1] ?? "",
     });
   }
-  add("/briefing/sweptAt", briefing.sweptAt, TODAY, "time.sweep-stamp", { attribute: "dateTime" });
+  add("/briefing/sweptAt", briefing.sweptAt, TODAY, ".sweep-stamp time", { attribute: "dateTime" });
 
   const { focus: todayFocus, folded } = selectTodayItems(briefing);
   const focusIds = new Set(todayFocus.map(({ id }) => id));

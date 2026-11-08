@@ -14,6 +14,7 @@ import { selectionRows } from "../../panels/selection-rows.js";
 import { inspectFromOracle, type OracleBoard } from "../../panels/test-inspect.js";
 import { mixedSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore, watchStore } from "../../store/watch.js";
+import { clockTime } from "../../time.js";
 import Environment from "../environment/index.js";
 import ServicePage from "./index.js";
 
@@ -144,8 +145,10 @@ const hintOf = (month: string) =>
 
 const UNTIMED =
   "The gate and this row can differ because they use separate reads: the GitHub read for the gate and the release history read for this row.";
-const TIMED =
-  "The gate and this row can differ because they use separate reads: the GitHub read at 2026-10-12 21:58 UTC for the gate and the release history read at 2026-10-21 15:10 UTC for this row.";
+const RECORDED = mixedSnapshot(mixed).services?.find((s) => s.service === SERVICE)?.releases[0]
+  ?.readTimes;
+const timed = (github = RECORDED?.github ?? "", history = RECORDED?.history ?? "") =>
+  `The gate and this row can differ because they use separate reads: the GitHub read at ${clockTime(github)} for the gate and the release history read at ${clockTime(history)} for this row.`;
 const read = (source: string, object: string, observedAt: string) => ({
   source,
   object,
@@ -158,7 +161,7 @@ it("shows entitlements' own read times in the October hint from the mixed fixtur
   const october = section("release")?.querySelector('[data-release="2026-10"]');
   expect(october?.textContent).toContain("new → v1.2.1");
   expect(october?.textContent).toContain("release review idle · v1.2.0");
-  expect(hintOf("2026-10")).toBe(TIMED);
+  expect(hintOf("2026-10")).toBe(timed());
   expect(hintOf("2026-09")).toBeUndefined();
 });
 
@@ -190,7 +193,7 @@ it("does not stamp the gate with another repository's GitHub read from a split b
         : entry,
     ),
   });
-  expect(hintOf("2026-10")).toBe(TIMED.replace("21:58 UTC", "21:59 UTC"));
+  expect(hintOf("2026-10")).toBe(timed(own));
 });
 
 it("does not date the release history by a cached build pin", async () => {
@@ -213,7 +216,7 @@ it("does not date the release history by a cached build pin", async () => {
         : source,
     ),
   });
-  expect(hintOf("2026-10")).toBe(TIMED.replace("15:10 UTC", "16:00 UTC"));
+  expect(hintOf("2026-10")).toBe(timed(undefined, history));
 });
 
 it("keeps the untimed hint for older snapshots without per-service observations", async () => {
@@ -333,7 +336,7 @@ it("fills the right panel's Detail with the selected tile", async () => {
   );
 });
 
-it("converts an offset run time to UTC before labelling it", async () => {
+it("reads an offset run time as a local clock time", async () => {
   const body = mixedSnapshot(mixed);
   const services = body.services?.map((entry) =>
     entry.service === SERVICE
@@ -347,11 +350,11 @@ it("converts an offset run time to UTC before labelling it", async () => {
   );
   const { selection } = await render({ ...body, services });
   const first = section("runs")?.querySelector<HTMLElement>("[data-selection-id]");
-  expect(first?.querySelector("time")?.textContent).toBe("2026-10-13 08:15 UTC");
+  expect(first?.querySelector("time")?.textContent).toBe(clockTime("2026-10-13T08:15:00Z"));
   await click(first);
   expect(selection.getState().row?.fields).toContainEqual({
     label: "When",
-    value: "2026-10-13 08:15 UTC",
+    value: clockTime("2026-10-13T08:15:00Z"),
     dateTime: "2026-10-13T10:15:00+02:00",
   });
 });

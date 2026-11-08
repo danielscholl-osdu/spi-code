@@ -73,7 +73,7 @@ const attention = (key: string) => ({
   word: row(key)?.querySelector(".sidebar-row-note")?.textContent ?? null,
 });
 
-it("lists Find or ask, Today, Line, the places, Settled and Setup, and no service unpinned", async () => {
+it("lists Find or ask, Today, Line, the places and Setup, and no service unpinned", async () => {
   const onLine = vi.fn();
   await render({ kind: "service", id: "legal" }, vi.fn(), recordedBody, onLine);
   const nav = container.querySelector('nav[aria-label="Sidebar"]');
@@ -89,13 +89,13 @@ it("lists Find or ask, Today, Line, the places, Settled and Setup, and no servic
     "Releases",
     "Security",
   ]);
-  expect(header("Settled")?.textContent).toContain("0");
-  expect(container.querySelector(".settled-shelf")?.children).toHaveLength(1);
-  expect(container.textContent).not.toContain("No settled threads yet");
+  expect(header("Settled")).toBeUndefined();
+  expect(container.querySelector('[data-group="settled"]')).toBeNull();
+  expect(container.textContent).not.toContain("Settled");
   expect(rows("Setup")).toEqual(["Setup"]);
   expect(
     [...container.querySelectorAll('[data-slot="section-header"]')].map((h) => h.textContent),
-  ).toEqual(["Places", "Settled0"]);
+  ).toEqual(["Places"]);
   expect(container.querySelector('[data-sidebar-row^="service/"]')).toBeNull();
   expect(container.querySelector('[data-sidebar-row^="lens/"]')).toBeNull();
   expect(container.querySelector('[aria-current="page"]')).toBeNull();
@@ -168,7 +168,7 @@ it("draws Pinned only with a pin the sweep names, in pin order, with the strip's
   expect(rows("Pinned")).toEqual(["schema", "entitlements"]);
   expect(
     [...container.querySelectorAll('[data-slot="section-header"]')].map((h) => h.textContent),
-  ).toEqual(["Places", "Pinned", "Settled0"]);
+  ).toEqual(["Places", "Pinned"]);
   expect(container.querySelector('[aria-current="page"]')?.textContent).toContain("schema");
   expect(
     ["schema", "entitlements"].map((id) => {

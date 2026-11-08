@@ -11,6 +11,7 @@ import projected from "../../../../fixtures/watch/snapshot-59d6895.json?raw";
 import recorded from "../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
 import { NARROW_LAYOUT_MEDIA_QUERY } from "../components/sidebar/ui-sidebar.js";
 import { plainTitle } from "../text.js";
+import { clockTime } from "../time.js";
 import { bridgeOpens } from "./detail-action.js";
 import { RightPanel } from "./RightPanel.js";
 import { RightPanelFrame } from "./RightPanelFrame.js";
@@ -400,7 +401,13 @@ it("renders Related as label and value rows, never one paragraph", async () => {
     for (const [index, entry] of result.related.entries()) {
       const row = rows[index];
       expect(row?.querySelector("dt")?.textContent).toBe(entry.state);
-      expect(row?.querySelector("dd")?.textContent).toBe(plainTitle(entry.text));
+      const iso = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/g;
+      expect(row?.querySelector("dd")?.textContent).toBe(
+        plainTitle(entry.text).replace(iso, (at) => clockTime(at)),
+      );
+      expect([...(row?.querySelectorAll("time") ?? [])].map((time) => time.dateTime)).toEqual(
+        entry.text.match(iso) ?? [],
+      );
       expect(row?.querySelector("dd")?.textContent).not.toContain(entry.state);
     }
   } finally {

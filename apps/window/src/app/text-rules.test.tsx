@@ -28,6 +28,7 @@ const inspections = files
     InspectResultSchema.array().parse(JSON.parse(readFileSync(`${directory}${file}`, "utf8"))),
   );
 const internal = /\bfork_upstream\b|\bgate\s+\d+\b|\bpresses\b|\bcut\b/i;
+const machineTime = /\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}|\bUTC\b/;
 const placeholder = /not available yet|No settled threads yet|ships in M[3-9]/i;
 const headlines = '.place-headline, [data-pointer$="/headline"], .release-months td:nth-child(3)';
 const titles =
@@ -49,6 +50,9 @@ function violations(scope: ParentNode): string[] {
       failures.push(`internal: ${copy}`);
     if (placeholder.test(copy)) failures.push(`placeholder: ${copy}`);
     if (/\bNot stated\b/i.test(copy)) failures.push(`unstated: ${copy}`);
+    if (machineTime.test(copy)) failures.push(`time: ${copy}`);
+    if (element.matches("time") && Number.isNaN(Date.parse(element.getAttribute("datetime") ?? "")))
+      failures.push(`time: ${element.outerHTML}`);
     if (element.matches("button") && /Open in inspector\s*·/i.test(element.textContent ?? ""))
       failures.push(`action: ${element.textContent}`);
     if (
@@ -258,6 +262,20 @@ it.each(inspections)("renders the recorded Detail and Evidence for $id", async (
   assertRules(`Recorded Evidence ${result.id}`);
 });
 
+it("reads Setup's budget reset and the sweep line as local clock times with ISO attributes", async () => {
+  const body = snapshots[0]?.body;
+  if (!body) throw new Error("Missing snapshot");
+  const resetAt = new Date(Date.now() + 32 * 60_000).toISOString();
+  await open(body, { kind: "setup" });
+  await act(async () =>
+    watchStore.setState({ sweep: { remaining: 5, floor: 10, resetAt, deferredAreas: [] } }),
+  );
+  const reset = [...container.querySelectorAll("time")].find((time) => time.dateTime === resetAt);
+  expect(reset?.textContent).toMatch(/^\d\d:\d\d \(in 3[12] min\)$/);
+  expect(container.querySelector(".sweep-line time")?.getAttribute("datetime")).toBe(body.sweptAt);
+  assertRules("Setup with a budget reset");
+});
+
 it("strips emoji from every Detail field without removing ordinary symbols", async () => {
   const body = snapshots[0]?.body;
   const recorded = inspections[0];
@@ -399,6 +417,10 @@ it.each([
   ["emoji", '<dd data-field="cause">📊 Code Coverage failed</dd>'],
   ["emoji", '<details class="today-folded"><ul><li><p>🚨 Check the build</p></li></ul></details>'],
   ["action", "<button>Open in inspector · Investigate, then Dispatch cascade</button>"],
+  ["time", "<p>swept 2026-11-06T14:02:00Z</p>"],
+  ["time", "<p>at 2026-10-12 21:58 UTC</p>"],
+  ["time", "<p>swept <time>14:02</time></p>"],
+  ["time", '<p>swept <time datetime="soon">14:02</time></p>'],
 ])("rejects a %s rule mutation", (kind, html) => {
   container.innerHTML = html;
   expect(violations(container).some((failure) => failure.startsWith(`${kind}:`))).toBe(true);

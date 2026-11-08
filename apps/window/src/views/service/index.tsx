@@ -16,12 +16,12 @@ import {
   runRow,
   type SelectionRow,
   selectionRows,
-  utc,
 } from "../../panels/selection-rows.js";
 import { useSelectionList } from "../../panels/useSelectionList.js";
 import { togglePin, usePins } from "../../store/pins.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
+import { Time } from "../../time.js";
 import "../releases/panes.css";
 import "./service.css";
 
@@ -50,9 +50,20 @@ function GateHint({ release: { gate, to, readTimes } }: { release: ServiceReleas
   return (
     <span data-gate-hint="">
       The gate and this row can differ because they use separate reads: the GitHub read
-      {readTimes?.github ? ` at ${utc(readTimes.github)}` : ""} for the gate and the release history
-      read
-      {readTimes?.history ? ` at ${utc(readTimes.history)}` : ""} for this row.
+      {readTimes?.github && (
+        <>
+          {" "}
+          at <Time at={readTimes.github} />
+        </>
+      )}{" "}
+      for the gate and the release history read
+      {readTimes?.history && (
+        <>
+          {" "}
+          at <Time at={readTimes.history} />
+        </>
+      )}{" "}
+      for this row.
     </span>
   );
 }
@@ -465,7 +476,7 @@ function ServiceBody({
                     <span data-result={run.result} data-tone={resultTone(run.result)}>
                       {run.result}
                     </span>
-                    <time dateTime={run.time}>{utc(run.time)}</time>
+                    <Time at={run.time} />
                   </>
                 )
               );

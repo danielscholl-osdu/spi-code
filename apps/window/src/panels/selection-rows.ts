@@ -3,6 +3,7 @@
 
 import type { RepoLine, ViewSnapshot } from "@spi-code/contracts";
 import type { Route } from "../app/routes.js";
+import { clockTime } from "../time.js";
 import { inspectId } from "../views/environment/timeline.js";
 import { upstreamItemRows, upstreamSelectionIds } from "../views/upstream/reading.js";
 
@@ -77,14 +78,6 @@ export function repositoryLineRow(
   };
 }
 
-/** An absolute time in UTC, whatever offset the snapshot wrote it with. */
-export const utc = (time: string) => {
-  const at = new Date(time);
-  return Number.isNaN(at.getTime())
-    ? time
-    : `${at.toISOString().slice(0, 16).replace("T", " ")} UTC`;
-};
-
 type ServiceRun = NonNullable<ViewSnapshot["services"]>[number]["runs"][number];
 
 /** The selection row for a service's workflow run; a fact the run left empty is left out. */
@@ -98,7 +91,7 @@ export function runRow(run: ServiceRun, serviceIndex: number): SelectionRow {
       ...(run.workflow ? [{ label: "Workflow", value: run.workflow }] : []),
       ...(run.result ? [{ label: "Result", value: run.result }] : []),
       ...(run.time && !Number.isNaN(Date.parse(run.time))
-        ? [{ label: "When", value: utc(run.time), dateTime: run.time }]
+        ? [{ label: "When", value: clockTime(run.time), dateTime: run.time }]
         : []),
       ...(run.url ? [{ label: "Link", value: run.url, href: run.url }] : []),
     ],

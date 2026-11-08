@@ -11,10 +11,10 @@ import { DEFAULT_REGISTRY } from "../../app/routes.js";
 import { inScope } from "../../components/sidebar/attention.js";
 import { RightPanel } from "../../panels/RightPanel.js";
 import { createSelectionStore } from "../../panels/selection.js";
-import { utc } from "../../panels/selection-rows.js";
 import { PINS_STORAGE_KEY, readPins } from "../../store/pins.js";
 import { createWatchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
+import { clockTime } from "../../time.js";
 import ServicePlace from "./index.js";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -309,7 +309,7 @@ it("keeps former release month, version, state, review and PR link one click awa
   );
 });
 
-it("keeps every former run's workflow, result and UTC time one click away", async () => {
+it("keeps every former run's workflow, result and local time one click away", async () => {
   const body = snapshot();
   const runs = body.services?.find(({ service }) => service === "legal")?.runs ?? [];
   expect(runs.length).toBeGreaterThan(0);
@@ -322,7 +322,7 @@ it("keeps every former run's workflow, result and UTC time one click away", asyn
     const row = container.querySelector(`[data-section="runs"] [data-selection-id="${run.id}"]`);
     expect(row?.querySelector(".service-row-title")?.textContent).toBe(run.workflow);
     expect(row?.querySelector("[data-result]")?.textContent).toBe(run.result);
-    expect(row?.querySelector("time")?.textContent).toBe(utc(run.time));
+    expect(row?.querySelector("time")?.textContent).toBe(clockTime(run.time));
     expect(row?.querySelector("time")?.getAttribute("datetime")).toBe(run.time);
   }
 });

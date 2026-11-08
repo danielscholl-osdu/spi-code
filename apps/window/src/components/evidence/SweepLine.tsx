@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { ViewSnapshot } from "@spi-code/contracts";
+import { Time } from "../../time.js";
 import { freshnessGlyph, sweepSources } from "./words.js";
 import "./evidence.css";
 
@@ -17,13 +18,15 @@ export function SweepLine({
   snapshot: SweepLineSnapshot | null;
   onOpen(): void;
 }) {
-  const { text, tone } =
+  const glyph =
     snapshot === null
-      ? { text: "waiting for the first sweep", tone: "muted" as const }
+      ? null
       : freshnessGlyph({
           sources: sweepSources(snapshot).map(({ envelope }) => envelope),
           sweptAt: snapshot.sweptAt,
         });
+  const text = glyph?.text ?? "waiting for the first sweep";
+  const tone = glyph?.tone ?? "muted";
   return (
     <button
       type="button"
@@ -34,7 +37,16 @@ export function SweepLine({
       onClick={onOpen}
     >
       <span className="evidence-dot" data-tone={tone} aria-hidden />
-      <span>{text}</span>
+      <span>
+        {snapshot === null || glyph === null ? (
+          text
+        ) : (
+          <>
+            swept <Time at={snapshot.sweptAt} />
+            {glyph.tail}
+          </>
+        )}
+      </span>
     </button>
   );
 }

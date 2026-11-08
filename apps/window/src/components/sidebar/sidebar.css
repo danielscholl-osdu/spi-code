@@ -30,7 +30,6 @@ kbd.sidebar-row-note { font-family: var(--font-mono); }
 .section-header-chevron { width: 5px; height: 5px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); transition: transform .12s ease-out; }
 .section-header-chevron[data-expanded="false"] { transform: rotate(-45deg); }
 .sidebar-empty { margin: 2px 8px; color: var(--text-muted); font-size: 12px; }
-.settled-shelf { flex: none; padding: 2px 8px 6px; border-top: 1px solid var(--border); }
 .app-sidebar [data-slot="sidebar-footer"] { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-top: 1px solid var(--border); }
 .app-sidebar [data-slot="sidebar-footer"] ul { flex: 1; min-width: 0; }
 .sweep-stamp { flex: none; color: var(--text-muted); font-size: 11px; }

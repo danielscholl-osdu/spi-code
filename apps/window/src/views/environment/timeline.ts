@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { EnvEvent, EnvLane } from "@spi-code/contracts";
+import { clockTime } from "../../time.js";
 
 // Ported from keelson-rib-spi @59d6895, src/boards/console.ts.
 export const TRACK_MIN_PX = 960;
@@ -68,21 +69,13 @@ export function hourTicks(from: number, to: number): { at: number; text: string 
   if (t.getTime() <= from) t.setHours(t.getHours() + 1);
   const out: { at: number; text: string }[] = [];
   for (; t.getTime() < to; t.setHours(t.getHours() + 1)) {
-    out.push({ at: t.getTime(), text: `${String(t.getHours()).padStart(2, "0")}:00` });
+    out.push({ at: t.getTime(), text: clockTime(t, { now: t.getTime() }) });
   }
   return out;
 }
 
 function stamp(iso: string, now: Date): string {
-  const d = new Date(iso);
-  if (!Number.isFinite(d.getTime())) return "?";
-  const two = (n: number) => String(n).padStart(2, "0");
-  const hm = `${two(d.getHours())}:${two(d.getMinutes())}`;
-  const today =
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate();
-  return today ? hm : `${two(d.getMonth() + 1)}-${two(d.getDate())} ${hm}`;
+  return Number.isNaN(Date.parse(iso)) ? "?" : clockTime(iso, { now: now.getTime() });
 }
 
 // Ported from the rib's src/util.ts; use the track's clock, not the renderer wall clock.

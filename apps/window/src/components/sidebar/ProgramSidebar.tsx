@@ -29,6 +29,7 @@ import { ariaShortcut, shortcutLabel } from "../../app/shortcuts.js";
 import { usePins } from "../../store/pins.js";
 import { PIPS, selectStrip } from "../../store/strip.js";
 import type { createWatchStore } from "../../store/watch.js";
+import { Time } from "../../time.js";
 import { selectTodayItems } from "../../views/today/selectors.js";
 import { AttentionDot } from "../AttentionDot.js";
 import { useSidebarAttention } from "./attention.js";
@@ -51,13 +52,6 @@ const SERVICE_PREFIX = "service:";
 /** Sidebar rows whose attention comes from a sweep tree node of another name. */
 const TREE_IDS: Record<string, string> = { "engineering-system": "template" };
 
-function formatSweep(sweptAt: string | undefined): string {
-  if (!sweptAt) return "not swept yet";
-  const date = new Date(sweptAt);
-  if (Number.isNaN(date.getTime())) return "not swept yet";
-  return `swept ${date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`;
-}
-
 /** The route whose sidebar row stays lit: a month lights Releases. */
 function rowFor(route: Route): string {
   switch (route.kind) {
@@ -71,8 +65,8 @@ function rowFor(route: Route): string {
 }
 
 /**
- * The sidebar (PS-08): Find or ask, Today, Line, the places, the operator's pins, Settled and
- * Setup. A service has a row only while pinned, and a pin the sweep no longer names has none.
+ * The sidebar (PS-08): Find or ask, Today, Line, the places, the operator's pins and Setup. The
+ * Settled shelf waits for threads (M3). A service has a row only while pinned, and a pin the sweep no longer names has none.
  */
 export function ProgramSidebar({
   store,
@@ -238,18 +232,19 @@ export function ProgramSidebar({
             }),
           )}
       </SidebarContent>
-      <SidebarGroup data-group="settled" className="settled-shelf">
-        <CollapsibleSectionHeader expanded={false} accessory={0} disabled>
-          Settled
-        </CollapsibleSectionHeader>
-      </SidebarGroup>
       <SidebarFooter>
         {reachable({ kind: "setup" }) && (
           <SidebarMenu aria-label="Setup">{row("setup", { kind: "setup" })}</SidebarMenu>
         )}
-        <time className="sweep-stamp" dateTime={sweptAt}>
-          {formatSweep(sweptAt)}
-        </time>
+        <span className="sweep-stamp">
+          {sweptAt && !Number.isNaN(Date.parse(sweptAt)) ? (
+            <>
+              swept <Time at={sweptAt} />
+            </>
+          ) : (
+            "not swept yet"
+          )}
+        </span>
       </SidebarFooter>
     </Sidebar>
   );

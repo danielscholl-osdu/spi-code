@@ -17,7 +17,7 @@ import { selectionStore } from "../../panels/selection.js";
 import { PINS_STORAGE_KEY, readPins } from "../../store/pins.js";
 import { selectStrip } from "../../store/strip.js";
 import { watchStore } from "../../store/watch.js";
-import { clock } from "../evidence/words.js";
+import { clockTime } from "../../time.js";
 
 const FLEET = [
   "partition",
@@ -131,8 +131,8 @@ it("renders the fields from the November 6 sweep", async () => {
   expect(field("environment")?.textContent).toBe("env v0.35.3 deployable");
   expect(field("template")?.textContent).toBe("template 0/13");
   expect(field("template")?.title).toBe("0 of 13 forks on template 7d269b5");
-  expect(field("due")?.textContent).toBe(`10 due before ${clock(nextSync)}`);
-  expect(field("next-sync")?.textContent).toBe(`next sync ${clock(nextSync)}`);
+  expect(field("due")?.textContent).toBe(`10 due before ${clockTime(nextSync)}`);
+  expect(field("next-sync")?.textContent).toBe(`next sync ${clockTime(nextSync)}`);
   expect(
     [...(strip()?.querySelectorAll<HTMLElement>("[data-field]") ?? [])].map(
       (node) => node.dataset.field,
@@ -153,15 +153,15 @@ it("raises the due count when an item falls due before the next sync, and not af
     due: { at: new Date(Date.parse(nextSync) + 60_000).toISOString(), before: "next sync" },
   };
   await mount();
-  expect(field("due")?.textContent).toBe(`10 due before ${clock(nextSync)}`);
+  expect(field("due")?.textContent).toBe(`10 due before ${clockTime(nextSync)}`);
   await act(async () =>
     show({ ...body, briefing: { ...body.briefing, rest: [...body.briefing.rest, before] } }),
   );
-  expect(field("due")?.textContent).toBe(`11 due before ${clock(nextSync)}`);
+  expect(field("due")?.textContent).toBe(`11 due before ${clockTime(nextSync)}`);
   await act(async () =>
     show({ ...body, briefing: { ...body.briefing, rest: [...body.briefing.rest, before, later] } }),
   );
-  expect(field("due")?.textContent).toBe(`11 due before ${clock(nextSync)}`);
+  expect(field("due")?.textContent).toBe(`11 due before ${clockTime(nextSync)}`);
 });
 
 it("gives a field with no data no space", async () => {
@@ -398,7 +398,7 @@ it("shows the freshness glyph in the title bar and opens the sweep Evidence from
   const body = fixture();
   await mount();
   const glyph = container.querySelector<HTMLButtonElement>("header [data-sweep-line]");
-  expect(glyph?.textContent).toBe(`swept ${clock(body.sweptAt)} · ⌀ 1 source failed`);
+  expect(glyph?.textContent).toBe(`swept ${clockTime(body.sweptAt)} · ⌀ 1 source failed`);
   expect(glyph?.getAttribute("data-tone")).toBe("bad");
   expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).toBeNull();
   await act(async () => glyph?.click());

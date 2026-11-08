@@ -8,6 +8,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { createSelectionStore } from "../../panels/selection.js";
 import { createWatchStore } from "../../store/watch.js";
+import { clockTime } from "../../time.js";
 import Today from "./index.js";
 
 const fixture = ViewSnapshotSchema.parse(JSON.parse(recorded));
@@ -118,7 +119,7 @@ it("caps focus at five, folds ambient items and leaves empty groups out", async 
 
 it("writes the headline from the acknowledged baseline and counts only newly arrived Interrupts", async () => {
   const at = "2026-11-06T17:40:00Z";
-  const since = new Date(at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  const since = clockTime(at);
   for (const ids of [[], ["conflict:entitlements:121"], ["a", "b"]]) {
     const body = { ...fixture, seen: { cursor: 1, at, since: ids } };
     const { container } = await mount(body);

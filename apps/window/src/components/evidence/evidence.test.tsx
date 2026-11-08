@@ -5,6 +5,7 @@ import type { Envelope, ReadRecord } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it } from "vitest";
+import { clockTime } from "../../time.js";
 import { Derived, EnvelopeBadge, ReadList } from "./index.js";
 import { worstEnvelope } from "./WorstEnvelope.js";
 
@@ -105,10 +106,14 @@ it("ReadList shows observedAt per record and retainedFrom for a retained read", 
   const { container, cleanup } = await render(<ReadList records={records} />);
   try {
     const rows = container.querySelectorAll("li");
-    expect(rows[0]?.textContent).toContain(`observed ${at}`);
+    expect(rows[0]?.textContent).toContain(`observed ${clockTime(at)}`);
     expect(rows[0]?.textContent).not.toContain("retained from");
-    expect(rows[1]?.textContent).toContain("observed 2026-11-05T11:00:00Z");
-    expect(rows[1]?.textContent).toContain("retained from 2026-11-05T08:00:00Z");
+    expect(rows[1]?.textContent).toContain(`observed ${clockTime("2026-11-05T11:00:00Z")}`);
+    expect(rows[1]?.textContent).toContain(`retained from ${clockTime("2026-11-05T08:00:00Z")}`);
+    expect([...(rows[1]?.querySelectorAll("time") ?? [])].map((time) => time.dateTime)).toEqual([
+      "2026-11-05T11:00:00Z",
+      "2026-11-05T08:00:00Z",
+    ]);
     expect(rows[1]?.textContent).toContain("failed: timeout");
   } finally {
     await cleanup();
