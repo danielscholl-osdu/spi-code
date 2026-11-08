@@ -11,6 +11,7 @@ import { selectionStore } from "../panels/selection.js";
 import { runRow, type SelectionKind, selectionRows } from "../panels/selection-rows.js";
 import { watchStore } from "../store/watch.js";
 import { plainTitle } from "../text.js";
+import { clockTime } from "../time.js";
 import { closeSheet, navigate, type Route, relaunch } from "./navigation.js";
 import { Shell } from "./Shell.js";
 
@@ -265,15 +266,29 @@ it.each(inspections)("renders the recorded Detail and Evidence for $id", async (
 it("reads Setup's budget reset and the sweep line as local clock times with ISO attributes", async () => {
   const body = snapshots[0]?.body;
   if (!body) throw new Error("Missing snapshot");
-  const resetAt = new Date(Date.now() + 32 * 60_000).toISOString();
-  await open(body, { kind: "setup" });
-  await act(async () =>
-    watchStore.setState({ sweep: { remaining: 5, floor: 10, resetAt, deferredAreas: [] } }),
-  );
-  const reset = [...container.querySelectorAll("time")].find((time) => time.dateTime === resetAt);
-  expect(reset?.textContent).toMatch(/^\d\d:\d\d \(in 3[12] min\)$/);
-  expect(container.querySelector(".sweep-line time")?.getAttribute("datetime")).toBe(body.sweptAt);
-  assertRules("Setup with a budget reset");
+  // 23:50 in Chicago, so the reset falls on the next local day there.
+  const now = Date.parse("2026-11-08T05:50:00Z");
+  const resetAt = new Date(now + 32 * 60_000).toISOString();
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(now);
+  try {
+    await open(body, { kind: "setup" });
+    await act(async () =>
+      watchStore.setState({ sweep: { remaining: 5, floor: 10, resetAt, deferredAreas: [] } }),
+    );
+    const reset = [...container.querySelectorAll("time")].find((time) => time.dateTime === resetAt);
+    expect(reset?.textContent).toBe(clockTime(resetAt, { now }));
+    expect(reset?.textContent).toMatch(/^(\d\d-\d\d )?\d\d:\d\d \(in 32 min\)$/);
+    expect(clockTime(resetAt, { now, timeZone: "America/Chicago" })).toBe(
+      "11-08 00:22 (in 32 min)",
+    );
+    expect(container.querySelector(".sweep-line time")?.getAttribute("datetime")).toBe(
+      body.sweptAt,
+    );
+    assertRules("Setup with a budget reset");
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 it("strips emoji from every Detail field without removing ordinary symbols", async () => {

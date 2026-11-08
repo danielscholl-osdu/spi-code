@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { type Navigation, PLACES, routeLabel } from "../../app/navigation.js";
 import { scopeRoute } from "../../app/queue.js";
 import { plainTitle } from "../../text.js";
+import { TimedText } from "../../time.js";
 import "./place.css";
 
 export type PlaceProps = {
@@ -60,7 +61,9 @@ export function Place({
       </header>
       {content && (
         <section className="place-reading" aria-label={`${name} reading`}>
-          <h2 className="place-headline">{content.headline}</h2>
+          <h2 className="place-headline">
+            <TimedText text={content.headline} />
+          </h2>
           {content.qualifier && <p className="place-qualifier">{content.qualifier}</p>}
           <dl className="place-tiles">
             {content.tiles.map((tile, index) => (

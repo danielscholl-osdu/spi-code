@@ -83,3 +83,40 @@ it("reads each ISO instant inside composed text as a time element", async () => 
   expect(container.innerHTML).toBe("No time here");
   await act(async () => root.unmount());
 });
+
+it.each([
+  ["an identifier", "job-12026-11-06T04:07:05Z-tail failed"],
+  ["an identifier suffix", "run_2026-11-06T04:07:05Z"],
+  ["a URL", "see https://example.test/runs/2026-11-06T04:07:05Z/log"],
+  ["a query string", "https://example.test/?at=2026-11-06T04:07:05Z"],
+  ["a word after a full stop", "at 2026-11-06T04:07:05Z.tail"],
+  ["a malformed date", "on 2026-02-30T10:00:00Z"],
+  ["an out-of-range hour", "at 2026-11-06T25:00:00Z"],
+  ["an out-of-range offset", "at 2026-11-06T04:07:05+24:00"],
+])("leaves an ISO-looking string inside %s as text", async (_, text) => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  await act(async () => root.render(<TimedText text={text} />));
+  expect(container.querySelector("time")).toBeNull();
+  expect(container.textContent).toBe(text);
+  await act(async () => root.unmount());
+});
+
+it("reads a standalone instant beside punctuation, brackets and the sentence's end", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const at = "2026-11-06T04:07:05Z";
+  const text = `since ${at}. (${at}), "${at}"; ${at}`;
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  await act(async () => root.render(<TimedText text={text} />));
+  expect([...container.querySelectorAll("time")].map((time) => time.dateTime)).toEqual([
+    at,
+    at,
+    at,
+    at,
+  ]);
+  const local = clockTime(at);
+  expect(container.textContent).toBe(`since ${local}. (${local}), "${local}"; ${local}`);
+  await act(async () => root.unmount());
+});

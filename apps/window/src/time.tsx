@@ -81,13 +81,30 @@ export function Time({
   );
 }
 
-const instant = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})/g;
+// A standalone instant: bounded by whitespace, brackets or quotes, or by closing punctuation at the
+// end of a word, never inside an identifier or a URL.
+const instant =
+  /(?<=^|[\s([{"'])(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)(?=$|[\s)\]}"']|[.,;:!?](?:$|[\s)\]}"']))/g;
 
-/** Text another layer composed, with each ISO instant in it read through {@link Time}. */
+function valid(match: RegExpMatchArray): boolean {
+  const [y, mo, d, h, mi, sec] = match.slice(1, 7).map((field) => Number(field ?? 0));
+  const day = new Date(Date.UTC(y ?? 0, (mo ?? 0) - 1, d));
+  return (
+    day.getUTCMonth() === (mo ?? 0) - 1 &&
+    day.getUTCDate() === d &&
+    (h ?? 24) < 24 &&
+    (mi ?? 60) < 60 &&
+    (sec ?? 60) < 60 &&
+    !Number.isNaN(Date.parse(match[0]))
+  );
+}
+
+/** Text another layer composed, with each standalone ISO instant in it read through {@link Time}. */
 export function TimedText({ text }: { text: string }) {
   const parts: React.ReactNode[] = [];
   let last = 0;
   for (const match of text.matchAll(instant)) {
+    if (!valid(match)) continue;
     parts.push(text.slice(last, match.index), <Time key={match.index} at={match[0]} />);
     last = match.index + match[0].length;
   }

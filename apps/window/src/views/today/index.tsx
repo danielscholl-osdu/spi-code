@@ -10,7 +10,7 @@ import { byWorst } from "../../components/evidence/words.js";
 import { Place } from "../../components/place/Place.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
-import { clockTime, Time } from "../../time.js";
+import { Time } from "../../time.js";
 import { selectTodayItems } from "./selectors.js";
 import "./today.css";
 
@@ -22,7 +22,7 @@ function headline({ seen }: ViewSnapshot, interrupts: number): string {
   if (seen.cursor === null && !seen.at) {
     return `First look: ${interrupts} interruption${interrupts === 1 ? " needs" : "s need"} you.`;
   }
-  const since = seen.at ? clockTime(seen.at) : "you last looked";
+  const since = seen.at && !Number.isNaN(Date.parse(seen.at)) ? seen.at : "you last looked";
   return `${count === 0 ? "No" : count} new interruption${count === 1 ? "" : "s"} since ${since}.`;
 }
 

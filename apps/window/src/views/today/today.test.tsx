@@ -127,6 +127,11 @@ it("writes the headline from the acknowledged baseline and counts only newly arr
       `${ids.length === 0 ? "No" : ids.length} new interruption${ids.length === 1 ? "" : "s"} since ${since}.`,
     );
     expect(
+      [...(container.querySelectorAll(".place-headline time") ?? [])].map((time) =>
+        time.getAttribute("datetime"),
+      ),
+    ).toEqual([at]);
+    expect(
       container.querySelector(".place-headline")?.textContent?.split(/\s+/).length,
     ).toBeLessThanOrEqual(12);
   }
