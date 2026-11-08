@@ -71,7 +71,6 @@ export function Strip() {
                   data-service={service}
                   aria-label={`${service}: ${PIPS[state].words}`}
                   title={`${service}: ${PIPS[state].words}`}
-                  tabIndex={-1}
                 >
                   <span className="strip-pip-mark" data-shape={SHAPES[state]} aria-hidden />
                 </span>

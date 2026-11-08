@@ -150,6 +150,15 @@ it("holds pips, fields and panel controls beside the native window controls in o
   expect(container.querySelector("main .place-header [data-place]")?.textContent).toBe("Today");
   expect(document.title).toBe("SPI Code · Today");
   expect(getComputedStyle(row).height).toBe("44px");
+  const rowStyle = getComputedStyle(row);
+  const contentHeight =
+    Number.parseFloat(rowStyle.height) -
+    Number.parseFloat(rowStyle.borderTopWidth || "0") -
+    Number.parseFloat(rowStyle.borderBottomWidth || "0");
+  expect(getComputedStyle(status).height).toBe(`${contentHeight}px`);
+  for (const target of status.querySelectorAll<HTMLElement>("button, .strip-pip-target")) {
+    expect(getComputedStyle(target).height).toBe(`${contentHeight}px`);
+  }
   expect(container.querySelector(".shell")?.getAttribute("data-window-controls")).toBe("inset");
   expect(getComputedStyle(row).paddingLeft).toBe("84px");
   expect(row?.querySelector(".strip-line")).toBeNull();
@@ -383,9 +392,14 @@ it("aggregates pip states into one Line button without roving tab stops", async 
   );
   expect(line?.getAttribute("aria-keyshortcuts")).toBe("Meta+L");
   expect(pips().map((item) => item.tabIndex)).toEqual(FLEET.map(() => -1));
+  expect(pips().every((item) => !item.hasAttribute("tabindex"))).toBe(true);
+  await act(async () => line?.focus());
   expect(sheet()).toBeNull();
-  await act(async () => line?.click());
+  await act(async () => pips()[0]?.click());
   expect(sheet()).not.toBeNull();
+  await keydown(document.activeElement, { key: "Escape" });
+  expect(sheet()).toBeNull();
+  expect(document.activeElement).toBe(line);
 });
 
 const pip = (service: string) => strip()?.querySelector<HTMLElement>(`[data-service="${service}"]`);
@@ -456,8 +470,10 @@ it("shows the freshness glyph in the title bar and opens the sweep Evidence from
   const body = fixture();
   await mount();
   const glyph = container.querySelector<HTMLButtonElement>("header [data-sweep-line]");
-  expect(glyph?.textContent).toBe(`${clockTime(body.sweptAt)} · 1`);
-  expect(glyph?.getAttribute("aria-label")).toBe(
+  expect(glyph?.querySelector("[data-sweep-display]")?.textContent).toBe(
+    `${clockTime(body.sweptAt)} · 1`,
+  );
+  expect(document.getElementById(glyph?.getAttribute("aria-labelledby") ?? "")?.textContent).toBe(
     `Swept ${clockTime(body.sweptAt)} · 1 failed, 3 not read yet`,
   );
   expect(glyph?.getAttribute("data-tone")).toBe("bad");

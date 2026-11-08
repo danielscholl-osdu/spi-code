@@ -13,7 +13,7 @@ body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.5
 .shell { display: grid; grid-template-columns: var(--sidebar-col) minmax(0, 1fr) var(--sheet-col) var(--panel-col); grid-template-rows: 44px minmax(0, 1fr); height: 100dvh; }
 .shell[data-line-presentation="stacked"] { grid-template-rows: 44px minmax(0, 1fr) minmax(0, 1fr); }
 .shell[data-line-presentation="stacked"] :is(.app-sidebar, .right-panel-frame:not([data-sheet])) { grid-row: 2 / 4; }
-.title-bar { grid-column: 1 / -1; grid-row: 1; box-sizing: border-box; height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 8px 0 16px; border-bottom: 1px solid var(--border); background: var(--chrome); font-size: 12.5px; white-space: nowrap; min-width: 0; -webkit-app-region: drag; }
+.title-bar { grid-column: 1 / -1; grid-row: 1; box-sizing: border-box; height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 8px 0 16px; box-shadow: inset 0 -1px 0 var(--border); background: var(--sidebar); font-size: 12.5px; white-space: nowrap; min-width: 0; -webkit-app-region: drag; }
 /* Electron 44 inherits app-region; children reset to initial so they add no drag rectangles of their own. */
 .title-bar > * { -webkit-app-region: initial; }
 .title-bar :is(button, select, input, textarea, a, label, summary) { -webkit-app-region: no-drag; }

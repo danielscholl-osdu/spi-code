@@ -72,59 +72,52 @@ async function render(node: ReactNode) {
 }
 
 it.each([
-  ["fresh", areas(), "swept 2 min ago · all fresh · next sync in 3 h", "", "fresh"],
+  ["fresh", areas(), "swept 2 min ago · all fresh · next sync in 3 h", "fresh"],
   [
     "failed",
     areas({ github: { state: "failed" }, runs: { state: "stale" }, security: cut }),
     "swept 2 min ago · 1 area failed · 1 incomplete · 1 stale · next sync in 3 h",
-    " · ⌀ 1 source failed, 1 incomplete, 1 stale",
     "bad",
   ],
   [
     "cut",
     areas({ security: cut }),
     "swept 2 min ago · 1 area incomplete · next sync in 3 h",
-    " · ⌀ 1 source incomplete",
     "warn",
   ],
   [
     "stale",
     areas({ radar: { state: "stale" }, upstream: { state: "stale" } }),
     "swept 2 min ago · 2 areas stale · next sync in 3 h",
-    " · ⌀ 2 sources stale",
     "warn",
   ],
   [
     "all-inferred",
     areas({}, { inferred: true }),
     "swept 2 min ago · next sync in 3 h · inferred",
-    " · inferred",
     "inferred",
   ],
   [
     "one-inferred",
     areas({ fleet: { inferred: true } }),
     "swept 2 min ago · all fresh · next sync in 3 h",
-    "",
     "fresh",
   ],
   [
     "stale and all inferred",
     areas({ auth: { state: "stale" } }, { inferred: true }),
     "swept 2 min ago · 1 area stale · next sync in 3 h · inferred",
-    " · ⌀ 1 source stale · inferred",
     "warn",
   ],
   [
     "unread",
     areas().filter(({ area }) => area !== "details"),
     "swept 2 min ago · 1 area not read yet · next sync in 3 h",
-    "",
     "muted",
   ],
 ] as const)(
   "says the %s sweep in the Evidence sentence with the worst tone",
-  async (_, list, text, _glyph, tone) => {
+  async (_, list, text, tone) => {
     const sources = sweepSources(snapshot([...list])).map(({ envelope }) => envelope);
     expect(sweepLine({ sources, sweptAt, nextSyncAt, now })).toEqual({ text, tone });
   },
@@ -143,7 +136,33 @@ it.each([
     "1 failed, 1 incomplete, 1 stale",
     "bad",
   ],
-  ["cut", areas({ security: cut }), " · 1", "1 cut", "bad"],
+  ["cut", areas({ security: cut }), " · 1", "1 incomplete", "bad"],
+  [
+    "two failed reads",
+    areas({ github: { state: "failed" }, runs: { state: "failed" } }),
+    " · 2",
+    "2 failed",
+    "bad",
+  ],
+  ["two cut reads", areas({ github: cut, security: cut }), " · 2", "2 incomplete", "bad"],
+  [
+    "three incomplete reads",
+    areas({
+      github: { state: "incomplete" },
+      runs: { state: "incomplete" },
+      security: { state: "incomplete" },
+    }),
+    " · 3",
+    "3 incomplete",
+    "warn",
+  ],
+  [
+    "two stale reads",
+    areas({ upstream: { state: "stale" }, radar: { state: "stale" } }),
+    " · 2",
+    "2 stale",
+    "warn",
+  ],
   [
     "incomplete and stale",
     areas({ security: { state: "incomplete" }, runs: { state: "stale" } }),
@@ -152,7 +171,7 @@ it.each([
     "warn",
   ],
   [
-    "all four affected states",
+    "cut and other incomplete reads counted together",
     areas({
       github: { state: "failed" },
       security: cut,
@@ -160,7 +179,7 @@ it.each([
       runs: { state: "stale" },
     }),
     " · 4",
-    "1 failed, 1 cut, 1 incomplete, 1 stale",
+    "1 failed, 2 incomplete, 1 stale",
     "bad",
   ],
   [
@@ -171,6 +190,30 @@ it.each([
     "bad",
   ],
   ["unread", areas().filter(({ area }) => area !== "details"), "", "1 not read yet", "muted"],
+  [
+    "two unread areas",
+    areas({ auth: { state: "unread" }, details: { state: "unread" } }),
+    "",
+    "2 not read yet",
+    "muted",
+  ],
+  [
+    "mixed multi-count states",
+    areas({
+      runs: { state: "failed" },
+      approvals: { state: "failed" },
+      github: cut,
+      security: cut,
+      template: { state: "incomplete" },
+      upstream: { state: "stale" },
+      radar: { state: "stale" },
+      auth: { state: "unread" },
+      details: { state: "unread" },
+    }),
+    " · 7",
+    "2 failed, 3 incomplete, 2 stale, 2 not read yet",
+    "bad",
+  ],
   ["all inferred", areas({}, { inferred: true }), "", "all areas read · inferred", "muted"],
 ] as const)(
   "shows a compact %s freshness field with a matching worst tone and named counts",
@@ -183,9 +226,13 @@ it.each([
     const view = await render(<SweepLine snapshot={body} onOpen={onOpen} />);
     try {
       const line = view.container.querySelector<HTMLButtonElement>("[data-sweep-line]");
-      expect(line?.textContent).toBe(`${clockTime(sweptAt)}${tail}`);
+      expect(line?.querySelector("[data-sweep-display]")?.textContent).toBe(
+        `${clockTime(sweptAt)}${tail}`,
+      );
       expect(line?.getAttribute("data-tone")).toBe(tone);
-      expect(line?.getAttribute("aria-label")).toBe(name);
+      expect(
+        document.getElementById(line?.getAttribute("aria-labelledby") ?? "")?.textContent,
+      ).toBe(name);
       expect(line?.title).toBe(name);
       expect(line?.getAttribute("data-field")).toBe("freshness");
       expect(line?.querySelector(".evidence-dot")?.getAttribute("data-tone")).toBe(tone);
@@ -238,7 +285,9 @@ it.each([
     const view = await render(<SweepLine snapshot={body} onOpen={() => {}} />);
     try {
       const line = view.container.querySelector("[data-sweep-line]");
-      expect(line?.textContent).toBe(`${clockTime(sweptAt)}${glyph}`);
+      expect(line?.querySelector("[data-sweep-display]")?.textContent).toBe(
+        `${clockTime(sweptAt)}${glyph}`,
+      );
       expect(line?.getAttribute("data-tone")).toBe("bad");
     } finally {
       await view.cleanup();
@@ -250,7 +299,9 @@ it("waits in muted words before the first sweep", async () => {
   const view = await render(<SweepLine snapshot={null} onOpen={() => {}} />);
   try {
     const line = view.container.querySelector("[data-sweep-line]");
-    expect(line?.textContent).toBe("waiting for the first sweep");
+    expect(line?.querySelector("[data-sweep-display]")?.textContent).toBe(
+      "waiting for the first sweep",
+    );
     expect(line?.getAttribute("data-tone")).toBe("muted");
   } finally {
     await view.cleanup();

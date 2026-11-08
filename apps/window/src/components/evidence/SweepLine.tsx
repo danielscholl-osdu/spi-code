@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { ViewSnapshot } from "@spi-code/contracts";
+import { useId } from "react";
 import { Time } from "../../time.js";
 import { useNow } from "./useNow.js";
 import { freshnessGlyph, sweepSources } from "./words.js";
@@ -19,6 +20,7 @@ export function SweepLine({
   snapshot: SweepLineSnapshot | null;
   onOpen(): void;
 }) {
+  const labelId = useId();
   const now = useNow();
   const glyph =
     snapshot === null
@@ -37,12 +39,15 @@ export function SweepLine({
       data-sweep-line=""
       data-field="freshness"
       data-tone={tone}
-      aria-label={text}
+      aria-labelledby={labelId}
       title={text}
       onClick={onOpen}
     >
       <span className="evidence-dot" data-tone={tone} aria-hidden />
-      <span>
+      <span id={labelId} className="visually-hidden">
+        {text}
+      </span>
+      <span data-sweep-display="" aria-hidden>
         {snapshot === null || glyph === null ? (
           text
         ) : (

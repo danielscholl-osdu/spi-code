@@ -200,7 +200,11 @@ it.each(["light", "dark"])(
       await act(async () => selectionStore.getState().openSweepEvidence());
       const main = element(view.container, "main");
       const panel = element(view.container, "aside");
+      const topRow = element(view.container, ".title-bar");
       const tokens = getComputedStyle(document.documentElement);
+      expect(getComputedStyle(topRow).backgroundColor).toBe(
+        tokens.getPropertyValue("--sidebar").trim(),
+      );
       expect(getComputedStyle(document.body).backgroundColor).toBe(
         tokens.getPropertyValue("--surface").trim(),
       );

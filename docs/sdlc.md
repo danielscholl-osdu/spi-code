@@ -98,9 +98,11 @@ one 44 px top row; the place name is in the centre header and the OS title stays
 each full-height pip target retains its service context menu, also reachable from
 the service's Line sheet row. Status field buttons open Line and Cmd-L still toggles it.
 Freshness is the last field: a muted, amber or red dot, the sweep time and an
-affected-source count. Its hover and accessible name spell out failed, cut,
-incomplete and stale counts; unread sources are named too. Failed or cut reads
-turn it red, other incomplete or stale reads amber. It opens the sweep's Evidence.
+affected-source count. Its hover and linked accessible label spell out failed,
+incomplete and stale counts; unread sources are named too. Cut reads count as
+incomplete but stay red, as do failures; other incomplete or stale reads are amber.
+It opens the sweep's Evidence. The row's inset divider leaves the full 44 px for targets,
+and pip marks themselves never take focus from their button.
 The shell measures the row into `--topbar-height`; narrow sidebar and Detail sheets
 and their backdrops use that offset, fall back to 44 px before measurement,
 and update when the row resizes.

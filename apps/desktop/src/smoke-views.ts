@@ -105,7 +105,7 @@ export async function captureSmokeViews(
       }
       await rendered(window, `document.querySelector(${JSON.stringify(surface.selector)})`);
       const qualifiers: string[] = await window.webContents.executeJavaScript(`[
-        document.querySelector("[data-sweep-line]")?.getAttribute("aria-label") ?? "",
+        document.getElementById(document.querySelector("[data-sweep-line]")?.getAttribute("aria-labelledby") ?? "")?.textContent ?? "",
         document.querySelector("main .place-qualifier")?.innerText?.trim() ?? ""
       ]`);
       const image = await window.webContents.capturePage();

@@ -251,7 +251,7 @@ export function sweepLine({ sources, sweptAt, nextSyncAt, now }: SweepLineInput)
   return { text: parts.join(" · "), tone: worstTone(sources) };
 }
 
-/** One count per affected source, with cut reads distinct from other incomplete reads. */
+/** One count per affected source; cut reads are incomplete and keep their red tone. */
 export function freshnessGlyph({
   sources,
   sweptAt,
@@ -261,13 +261,16 @@ export function freshnessGlyph({
   tail: string;
   tone: EvidenceTone;
 } {
-  const counts = { failed: 0, cut: 0, incomplete: 0, stale: 0 };
+  const counts = { failed: 0, incomplete: 0, stale: 0 };
+  let hasCut = false;
   let unread = 0;
   for (const envelope of sources) {
     if (envelope.state === "failed") counts.failed++;
     else if (envelope.state === "unread") unread++;
-    else if (envelope.completeness.kind === "cut") counts.cut++;
-    else if (envelope.state === "incomplete") counts.incomplete++;
+    else if (envelope.completeness.kind === "cut") {
+      counts.incomplete++;
+      hasCut = true;
+    } else if (envelope.state === "incomplete") counts.incomplete++;
     else if (envelope.state === "stale") counts.stale++;
   }
   const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
@@ -279,6 +282,6 @@ export function freshnessGlyph({
   return {
     text: `Swept ${clockTime(sweptAt, now === undefined ? {} : { now })} · ${detail}${everyInferred(sources) ? " · inferred" : ""}`,
     tail: total > 0 ? ` · ${total}` : "",
-    tone: counts.failed + counts.cut > 0 ? "bad" : total > 0 ? "warn" : "muted",
+    tone: counts.failed > 0 || hasCut ? "bad" : total > 0 ? "warn" : "muted",
   };
 }

@@ -748,10 +748,15 @@ it("updates the title-bar sweep line from the live areas with the worst tone, an
         }),
       );
       expect(line()?.getAttribute("data-tone")).toBe(tone);
-      expect(line()?.textContent).toMatch(/^(\d\d-\d\d )?\d\d:\d\d/);
-      if (words === null) expect(line()?.getAttribute("aria-label")).toContain("all areas read");
-      else expect(line()?.getAttribute("aria-label")).toContain(words);
-      expect(line()?.textContent).not.toContain("inferred");
+      expect(line()?.querySelector("[data-sweep-display]")?.textContent).toMatch(
+        /^(\d\d-\d\d )?\d\d:\d\d/,
+      );
+      const name = document.getElementById(
+        line()?.getAttribute("aria-labelledby") ?? "",
+      )?.textContent;
+      if (words === null) expect(name).toContain("all areas read");
+      else expect(name).toContain(words);
+      expect(line()?.querySelector("[data-sweep-display]")?.textContent).not.toContain("inferred");
     }
     await act(async () =>
       container.querySelector<HTMLButtonElement>('[aria-label="Toggle right panel"]')?.click(),
@@ -832,9 +837,11 @@ it.each(["failed", "stale"] as const)(
         );
         const line = container.querySelector("header [data-sweep-line]");
         expect(line?.getAttribute("data-tone")).toBe(expected);
-        if (expected === "muted")
-          expect(line?.getAttribute("aria-label")).toContain("all areas read");
-        else expect(line?.getAttribute("aria-label")).toContain(`1 ${state}`);
+        const name = document.getElementById(
+          line?.getAttribute("aria-labelledby") ?? "",
+        )?.textContent;
+        if (expected === "muted") expect(name).toContain("all areas read");
+        else expect(name).toContain(`1 ${state}`);
       }
     } finally {
       await act(async () => root.unmount());
