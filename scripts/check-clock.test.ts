@@ -93,7 +93,18 @@ it.each(["2040-01-01T00:00:00.998Z", "2040-01-01T00:00:00.999Z"])(
     const header = "// Copyright 2026, Daniel Scholl\n// SPDX-License-Identifier: MIT\n";
     const now = performance.timeOrigin + performance.now();
     const expiry = now + 200 * 24 * 60 * 60 * 1_000;
-    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const env = {
+      ...process.env,
+      SPI_TEST_CLOCK_SHIFT: "",
+      SPI_TEST_ZONE: "",
+      VITEST_MAX_WORKERS: "1",
+    };
+    // The zone a Node started by scripts/check reads; Git Bash drops TZ on Windows.
+    const zone = execFileSync(
+      "bash",
+      ["-c", "node -p 'Intl.DateTimeFormat().resolvedOptions().timeZone'"],
+      { encoding: "utf8", env },
+    ).trim();
     const args = [
       join(root, "node_modules/vitest/vitest.mjs"),
       "run",
@@ -188,12 +199,7 @@ it("reads the time zone scripts/check started in", () => {
       const result = spawnSync("bash", ["check"], {
         cwd: directory,
         encoding: "utf8",
-        env: {
-          ...process.env,
-          SPI_TEST_CLOCK_SHIFT: "",
-          SPI_TEST_ZONE: "",
-          VITEST_MAX_WORKERS: "1",
-        },
+        env,
         timeout: 90_000,
       });
       expect(result.error).toBeUndefined();
