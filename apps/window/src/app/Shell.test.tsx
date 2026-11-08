@@ -730,27 +730,3 @@ it("shows each pinned snapshot service in the sidebar on every route, as the pac
     localStorage.removeItem(PINS_STORAGE_KEY);
   }
 });
-
-it("restores a saved Dark pin into the caption controls at startup and follows the Appearance menu", async () => {
-  localStorage.setItem("spi-code.appearance", "dark");
-  const shell = await mountShell();
-  try {
-    const menu = shell.container.querySelector<HTMLSelectElement>("select[aria-label=Appearance]");
-    if (!menu) throw new Error("Missing Appearance menu");
-    const choose = (value: string) =>
-      act(async () => {
-        menu.value = value;
-        menu.dispatchEvent(new Event("change", { bubbles: true }));
-      });
-    expect(shell.spi.setAppearance).toHaveBeenLastCalledWith("dark");
-    await choose("light");
-    expect(shell.spi.setAppearance).toHaveBeenLastCalledWith("light");
-    await choose("system");
-    expect(shell.spi.setAppearance).toHaveBeenLastCalledWith(
-      matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
-    );
-  } finally {
-    await shell.cleanup();
-    localStorage.removeItem("spi-code.appearance");
-  }
-});

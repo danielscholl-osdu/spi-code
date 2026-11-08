@@ -35,7 +35,7 @@ export async function captureSmokeViews(
   window.setContentSize(1280, 800);
   const shots: SmokeShot[] = [];
   for (const appearance of ["light", "dark"] as const) {
-    await rendered(window, 'document.querySelector("select[aria-label=Appearance]")');
+    await rendered(window, 'document.querySelector("header [data-place]")');
     window.webContents.send("smoke:fixture", {
       version: PROTOCOL_VERSION,
       id: "smoke-views",
@@ -60,15 +60,28 @@ export async function captureSmokeViews(
     });
     await rendered(window, 'document.querySelector("[data-strip] [data-service=entitlements]")');
     await window.webContents.executeJavaScript(`{
-      const select = document.querySelector('select[aria-label="Appearance"]');
-      select.value = ${JSON.stringify(appearance)};
-      select.dispatchEvent(new Event("change", { bubbles: true }));
+      const mac = /Mac|iPhone|iPad/.test(navigator.userAgent);
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", { key: ",", metaKey: mac, ctrlKey: !mac, bubbles: true }),
+      );
     }`);
+    await rendered(window, 'document.querySelector("[role=dialog] .settings-nav")');
+    await window.webContents.executeJavaScript(
+      `[...document.querySelectorAll("[role=dialog] .settings-nav button")].find((item) => item.textContent === "Appearance").click()`,
+    );
+    await rendered(window, 'document.querySelector("[data-settings-section=appearance]")');
+    await window.webContents.executeJavaScript(
+      `document.querySelector(${JSON.stringify(`input[name="settings-theme"][value="${appearance}"]`)}).click()`,
+    );
     await rendered(
       window,
       `document.documentElement.dataset.theme === ${JSON.stringify(appearance)} &&
        localStorage.getItem("spi-code.appearance") === ${JSON.stringify(appearance)}`,
     );
+    await window.webContents.executeJavaScript(
+      "document.querySelector(\"[role=dialog] [aria-label='Close settings']\").click()",
+    );
+    await rendered(window, '!document.querySelector("[role=dialog]")');
     for (const surface of VIEW_SURFACES) {
       await window.webContents.executeJavaScript(
         `location.hash = ${JSON.stringify(`#${surface.route}`)}`,

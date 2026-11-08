@@ -11,8 +11,9 @@ import { CommandPalette } from "../palette/CommandPalette.js";
 import { selectionStore } from "../panels/index.js";
 import { RightPanelFrame } from "../panels/RightPanelFrame.js";
 import { routeSelectionIds } from "../panels/selection-rows.js";
+import { SettingsDialog } from "../settings/SettingsDialog.js";
 import { watchStore } from "../store/watch.js";
-import { createAppearance } from "./appearance.js";
+import { type Appearance, createAppearance } from "./appearance.js";
 import { LineSheet } from "./LineSheet.js";
 import { PanelControls } from "./PanelControls.js";
 import {
@@ -44,9 +45,17 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
   const openSweepEvidence = useCallback(() => selectionStore.getState().openSweepEvidence(), []);
   const [findOpen, setFindOpen] = useState(false);
   const toggleFind = useCallback(() => setFindOpen((open) => !open), []);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || !registry.sheet || !matchesShortcut(event, "l")) return;
+      if (event.defaultPrevented) return;
+      if (matchesShortcut(event, ",")) {
+        event.preventDefault();
+        setFindOpen(false);
+        setSettingsOpen(true);
+        return;
+      }
+      if (!registry.sheet || !matchesShortcut(event, "l")) return;
       event.preventDefault();
       toggleSheet();
     };
@@ -93,12 +102,21 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
     position.current = { route: key, top };
   }, [route, snapshot]);
   const [appearance, setAppearance] = useState<ReturnType<typeof createAppearance>>();
+  const [theme, setTheme] = useState<Appearance>();
+  const pinTheme = useCallback(
+    (value: Appearance) => {
+      appearance?.setPin(value);
+      setTheme(value);
+    },
+    [appearance],
+  );
   const [error, setError] = useState("");
   useEffect(() => {
     const controller = createAppearance(undefined, undefined, undefined, (theme) => {
       void window.spi.setAppearance?.(theme);
     });
     setAppearance(controller);
+    setTheme(controller.pin);
     const unsubscribe = window.spi.onMessage((message) => {
       selectionStore.getState().receive(message);
       try {
@@ -128,23 +146,6 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
           </div>
           <div className="title-bar-controls">
             <SweepLine snapshot={snapshot ?? null} onOpen={openSweepEvidence} />
-            <label>
-              Appearance{" "}
-              <select
-                aria-label="Appearance"
-                key={appearance?.pin}
-                defaultValue={appearance?.pin ?? "system"}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  if (value === "system" || value === "light" || value === "dark")
-                    appearance?.setPin(value);
-                }}
-              >
-                <option value="system">System</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-              </select>
-            </label>
             <PanelControls
               rightPanelOpen={rightPanelOpen}
               onToggleRightPanel={toggleRightPanel}
@@ -169,6 +170,12 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
           open={findOpen}
           onOpenChange={setFindOpen}
           onNavigate={navigate}
+        />
+        <SettingsDialog
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          theme={theme}
+          onTheme={pinTheme}
         />
         <main
           className="middle-frame"

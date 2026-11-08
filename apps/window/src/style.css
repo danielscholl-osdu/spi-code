@@ -23,7 +23,6 @@ body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.5
 .title-bar-place { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .title-bar-place [data-place] { color: var(--text-strong); font-weight: 600; }
 .title-bar-controls { display: flex; align-items: center; gap: 10px; }
-.title-bar select { padding: 2px 4px; font-size: 12px; }
 .panel-controls { display: flex; align-items: center; gap: 2px; }
 .panel-toggle { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); }
 .panel-toggle:hover { background: var(--surface-raised); color: var(--text); }
