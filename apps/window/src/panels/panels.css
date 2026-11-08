@@ -1,11 +1,11 @@
 /* Copyright 2026, Daniel Scholl */
 /* SPDX-License-Identifier: MIT */
 
-.right-panel { padding: 0; display: flex; flex-direction: column; }
-.panel-tabs { display: flex; gap: 2px; padding: 8px 10px 0; border-bottom: 1px solid var(--border); }
-.panel-tabs [role="tab"] { padding: 4px 8px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--text-muted); font-size: 12px; }
+.right-panel { padding: 0; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.panel-tabs { gap: 2px; padding: 0 10px; }
+.panel-tabs [role="tab"] { align-self: stretch; padding: 4px 8px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--text-muted); font-size: 12px; }
 .panel-tabs [role="tab"][aria-selected="true"] { color: var(--text-strong); border-bottom-color: var(--accent); font-weight: 600; }
-.panel-body { padding: 12px 16px; overflow: auto; font-size: 12px; }
+.panel-body { flex: 1; min-height: 0; padding: 12px 16px; overflow: auto; font-size: 12px; }
 .panel-empty { color: var(--text-muted); }
 .inspector-kicker { margin: 0 0 4px; color: var(--text-muted); font-size: 11px; font-weight: 600; letter-spacing: .07em; }
 .inspector dl { margin: 0; }
@@ -18,7 +18,7 @@
 .inspector .inspector-related dd { margin: 4px 0 0; overflow-wrap: anywhere; }
 .detail-title { font-size: 17px; line-height: 1.3; overflow-wrap: anywhere; }
 .panel-unavailable { margin: 4px 16px 0; color: var(--text-muted); font-size: 10.5px; }
-.panel-close { margin-left: auto; padding: 2px 6px; border: 0; background: transparent; }
+.panel-tabs .panel-close { flex: none; width: var(--panel-icon-size); height: var(--panel-icon-size); margin-left: auto; }
 .detail-row-fields { margin: 12px 0; }
 .detail-row-fields dt { color: var(--text-muted); font-size: 10.5px; font-weight: 600; text-transform: uppercase; }
 .detail-row-fields dd { margin: 0 0 8px; overflow-wrap: anywhere; }

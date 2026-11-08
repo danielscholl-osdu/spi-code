@@ -79,7 +79,7 @@ function LineContent({
   const selections = new Map(snapshot ? selectionRows(snapshot).map((row) => [row.id, row]) : []);
   return (
     <div className="line-content">
-      <div className="line-toolbar">
+      <div className="line-toolbar pane-header">
         <h1>Line</h1>
         {rows.length > 0 && <span>{rows.length} services</span>}
         <div className="line-controls">
@@ -90,119 +90,120 @@ function LineContent({
             Close
           </button>
         </div>
-      </div>
-      {column && (
-        <fieldset className="line-campaigns" aria-label="Station filter">
-          <button
-            type="button"
-            aria-label={`Clear ${column.label} filter`}
-            aria-pressed="true"
-            onClick={() => setColumnId(undefined)}
-          >
-            {column.label} · Clear
-          </button>
-        </fieldset>
-      )}
-      {campaigns.length > 0 && (
-        <fieldset className="line-campaigns" aria-label="Campaigns">
-          {campaigns.map(({ id, fact, forks }) => (
+        <div className="line-body"></div>
+        {column && (
+          <fieldset className="line-campaigns" aria-label="Station filter">
             <button
               type="button"
-              key={id}
-              aria-pressed={campaign?.id === id}
-              onClick={() => setCampaignId(campaign?.id === id ? null : id)}
+              aria-label={`Clear ${column.label} filter`}
+              aria-pressed="true"
+              onClick={() => setColumnId(undefined)}
             >
-              {fact} · {forks.length} forks
+              {column.label} · Clear
             </button>
-          ))}
-        </fieldset>
-      )}
-      {rows.length > 0 && (
-        <div className="line-grid-scroll">
-          <table className="line-grid" aria-label="Service stations">
-            <thead>
-              <tr>
-                <th scope="col">Service</th>
-                {populatedColumns.map(({ id, label }) => (
-                  <th scope="col" key={id}>
-                    {label}
-                  </th>
-                ))}
-                {campaign && <th scope="col">Campaign</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map(({ service, stations }) => (
-                <PinMenu
-                  key={service}
-                  service={service}
-                  render={
-                    <tr data-service={service}>
-                      <th scope="row">
-                        <button
-                          type="button"
-                          onClick={() => navigate({ kind: "service", id: service })}
-                        >
-                          {service}
-                        </button>
-                      </th>
-                      {populatedColumns.map(({ id, label }) => {
-                        const station = stations.find((station) => station.id === id);
-                        const selection = selections.get(`station:${service}:${id}`);
-                        const glyph = station && glyphs[station.substate];
-                        return (
-                          <td key={id} data-station={id}>
-                            {station?.text.trim() && glyph && selection && (
-                              <button
-                                type="button"
-                                data-station={id}
-                                data-selection-id={selection.id}
-                                aria-pressed={selected === selection.id}
-                                onClick={() =>
-                                  selectionStore.getState().select(selection.id, selection)
-                                }
-                              >
-                                <span className="visually-hidden">
-                                  {label} · {service}:{" "}
-                                </span>
-                                <span
-                                  className="line-glyph"
-                                  data-substate={station.substate}
-                                  role="img"
-                                  aria-label={glyph.name}
-                                >
-                                  {glyph.mark}
-                                </span>{" "}
-                                {station.text}
-                              </button>
-                            )}
-                          </td>
-                        );
-                      })}
-                      {campaign && <td data-campaign="">Included</td>}
-                    </tr>
-                  }
-                />
-              ))}
-              {folded.length > 0 && (
+          </fieldset>
+        )}
+        {campaigns.length > 0 && (
+          <fieldset className="line-campaigns" aria-label="Campaigns">
+            {campaigns.map(({ id, fact, forks }) => (
+              <button
+                type="button"
+                key={id}
+                aria-pressed={campaign?.id === id}
+                onClick={() => setCampaignId(campaign?.id === id ? null : id)}
+              >
+                {fact} · {forks.length} forks
+              </button>
+            ))}
+          </fieldset>
+        )}
+        {rows.length > 0 && (
+          <div className="line-grid-scroll">
+            <table className="line-grid" aria-label="Service stations">
+              <thead>
                 <tr>
-                  <td colSpan={populatedColumns.length + 1}>
-                    <button
-                      type="button"
-                      className="line-fold"
-                      aria-expanded={expanded}
-                      onClick={() => setExpanded(!expanded)}
-                    >
-                      {folded.length} services need nothing:{" "}
-                      {folded.map(({ service }) => service).join(", ")}
-                    </button>
-                  </td>
+                  <th scope="col">Service</th>
+                  {populatedColumns.map(({ id, label }) => (
+                    <th scope="col" key={id}>
+                      {label}
+                    </th>
+                  ))}
+                  {campaign && <th scope="col">Campaign</th>}
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {visible.map(({ service, stations }) => (
+                  <PinMenu
+                    key={service}
+                    service={service}
+                    render={
+                      <tr data-service={service}>
+                        <th scope="row">
+                          <button
+                            type="button"
+                            onClick={() => navigate({ kind: "service", id: service })}
+                          >
+                            {service}
+                          </button>
+                        </th>
+                        {populatedColumns.map(({ id, label }) => {
+                          const station = stations.find((station) => station.id === id);
+                          const selection = selections.get(`station:${service}:${id}`);
+                          const glyph = station && glyphs[station.substate];
+                          return (
+                            <td key={id} data-station={id}>
+                              {station?.text.trim() && glyph && selection && (
+                                <button
+                                  type="button"
+                                  data-station={id}
+                                  data-selection-id={selection.id}
+                                  aria-pressed={selected === selection.id}
+                                  onClick={() =>
+                                    selectionStore.getState().select(selection.id, selection)
+                                  }
+                                >
+                                  <span className="visually-hidden">
+                                    {label} · {service}:{" "}
+                                  </span>
+                                  <span
+                                    className="line-glyph"
+                                    data-substate={station.substate}
+                                    role="img"
+                                    aria-label={glyph.name}
+                                  >
+                                    {glyph.mark}
+                                  </span>{" "}
+                                  {station.text}
+                                </button>
+                              )}
+                            </td>
+                          );
+                        })}
+                        {campaign && <td data-campaign="">Included</td>}
+                      </tr>
+                    }
+                  />
+                ))}
+                {folded.length > 0 && (
+                  <tr>
+                    <td colSpan={populatedColumns.length + 1}>
+                      <button
+                        type="button"
+                        className="line-fold"
+                        aria-expanded={expanded}
+                        onClick={() => setExpanded(!expanded)}
+                      >
+                        {folded.length} services need nothing:{" "}
+                        {folded.map(({ service }) => service).join(", ")}
+                      </button>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

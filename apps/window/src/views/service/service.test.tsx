@@ -65,7 +65,7 @@ const section = (name: string) => container.querySelector<HTMLElement>(`[data-se
 const click = (element: Element | null | undefined) =>
   act(async () => (element as HTMLElement | null)?.click());
 
-it("draws the service reading and folds only nonempty source sections", async () => {
+it("draws styled nonempty sections with Attention open by default", async () => {
   await render();
   expect(container.querySelector("h1")?.textContent).toBe(SERVICE);
   expect(
@@ -75,10 +75,43 @@ it("draws the service reading and folds only nonempty source sections", async ()
   ).toEqual(["attention", "repository", "release", "runs"]);
   expect(container.querySelector(".place-reading")).not.toBeNull();
   expect(section("threads")).toBeNull();
-  expect(container.querySelectorAll("details[open]")).toHaveLength(0);
+  expect(container.querySelectorAll("details[open]")).toHaveLength(1);
+  expect(section("attention")?.hasAttribute("open")).toBe(true);
+  for (const name of ["attention", "repository", "release", "runs"]) {
+    const heading = section(name)?.querySelector(":scope > summary");
+    expect(heading?.classList.contains("service-section-header")).toBe(true);
+    expect(heading?.querySelector(".section-header-chevron")?.hasAttribute("aria-hidden")).toBe(
+      true,
+    );
+    expect(heading?.querySelector(".service-section-label")?.textContent).toBe(
+      name[0]?.toUpperCase() + name.slice(1),
+    );
+    expect(heading?.querySelector(".service-section-count")).not.toBeNull();
+  }
   expect(
     section("attention")?.querySelector("[data-selection-id]")?.getAttribute("data-selection-id"),
   ).toBe("halt:entitlements");
+});
+
+it("preserves Attention's fold across a sweep, opens it for another service and omits it without items", async () => {
+  const { body, selection } = await render();
+  await click(section("attention")?.querySelector(":scope > summary"));
+  expect(section("attention")?.hasAttribute("open")).toBe(false);
+  await act(async () =>
+    watchStore.setState({ snapshot: { cursor: body.cursor + 1, body: { ...body } } }),
+  );
+  expect(section("attention")?.hasAttribute("open")).toBe(false);
+  await act(async () => root?.render(<ServicePage id="legal" selection={selection} />));
+  expect(section("attention")?.hasAttribute("open")).toBe(true);
+  const empty = {
+    ...body,
+    briefing: { ...body.briefing, focus: [], rest: [] },
+  };
+  await act(async () =>
+    watchStore.setState({ snapshot: { cursor: body.cursor + 2, body: empty } }),
+  );
+  expect(section("attention")).toBeNull();
+  expect(container.querySelectorAll("details[open]")).toHaveLength(0);
 });
 
 it("makes each of the six station tiles a selection that asks for its inspect", async () => {

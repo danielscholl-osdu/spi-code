@@ -142,7 +142,8 @@ it("selects the recorded repository-backed reading item into repository Detail",
 it("renders no empty or future parts on the recorded sweep or when optional facts are absent", async () => {
   const { container, click, watch } = await mount();
   expect(container.querySelector('[data-section="threads"], [data-section="composer"]')).toBeNull();
-  expect(container.querySelectorAll("details[open]")).toHaveLength(0);
+  expect(container.querySelectorAll("details[open]")).toHaveLength(1);
+  expect(container.querySelector("details[open]")?.getAttribute("data-section")).toBe("attention");
   expect(container.querySelector(".service-page")?.textContent).not.toMatch(
     /gate 3|Upstream MRs|not available yet|No runs|No release/,
   );
@@ -228,8 +229,8 @@ it.each([
 
 it("keeps every former attention field reachable through its nonempty disclosure", async () => {
   const body = snapshot();
-  const { container, click } = await mount(body);
-  await click('[data-section="attention"] > summary');
+  const { container } = await mount(body);
+  expect(container.querySelector('[data-section="attention"]')?.hasAttribute("open")).toBe(true);
   const items = [...body.briefing.focus, ...body.briefing.rest].filter((item) =>
     inScope(item, "service:legal", treeServices(body.tree)),
   );

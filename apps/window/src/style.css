@@ -1,6 +1,14 @@
 /* Copyright 2026, Daniel Scholl */
 /* SPDX-License-Identifier: MIT */
 
+:root {
+  --pane-header-height: 44px;
+  --centre-content-max-width: 960px;
+  --centre-content-padding-block: 20px;
+  --centre-content-padding-inline: 24px;
+  --panel-icon-size: 24px;
+}
+
 body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.5 var(--font-sans); }
 .shell { --sidebar-col: 232px; --sheet-col: 0px; --panel-col: 300px; display: grid; grid-template-columns: var(--sidebar-col) minmax(0, 1fr) var(--sheet-col) var(--panel-col); grid-template-rows: 40px auto minmax(0, 1fr); height: 100dvh; }
 .shell[data-sidebar-state="collapsed"] { --sidebar-col: 0px; }
@@ -30,7 +38,13 @@ body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.5
 .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 /* The strip's row is auto: with no strip registered nothing occupies it and it takes no height. */
 .window-strip { grid-column: 1 / -1; grid-row: 2; min-width: 0; border-bottom: 1px solid var(--border); background: var(--chrome); }
-.middle-frame { grid-column: 2; grid-row: 3; padding: 16px; overflow: auto; min-width: 0; background: var(--surface); }
+.middle-frame { grid-column: 2; grid-row: 3; padding: 0; overflow: auto; min-width: 0; background: var(--surface); }
+.middle-frame > :not([role="alert"]) { box-sizing: border-box; min-height: 100%; padding: var(--centre-content-padding-block) var(--centre-content-padding-inline); overflow: visible; }
+.middle-frame > * > .place { display: contents; }
+.middle-frame .place-reading,
+.middle-frame > * > :not(.place, .place-header) { max-width: var(--centre-content-max-width); }
+.pane-header { display: flex; align-items: center; flex: none; box-sizing: border-box; height: var(--pane-header-height); border-bottom: 1px solid var(--border); }
+.middle-frame .place-header { position: sticky; top: 0; z-index: 1; margin: calc(-1 * var(--centre-content-padding-block)) calc(-1 * var(--centre-content-padding-inline)) var(--centre-content-padding-block); padding: 0 var(--centre-content-padding-inline); background: var(--surface); }
 .right-panel-frame { grid-column: 4; grid-row: 3; display: grid; min-width: 0; min-height: 0; }
 aside { padding: 16px; overflow: auto; min-width: 0; background: var(--chrome); border-left: 1px solid var(--border); }
 h1, h2 { margin: 0 0 8px; color: var(--text-strong); }

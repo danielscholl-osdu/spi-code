@@ -74,6 +74,10 @@ Window layout tests keep logical sections flat and reserve `.card` for separate
 objects such as repository fact summaries. The shell measures the title bar plus
 strip into `--topbar-height`; narrow sidebar and Detail sheets and their backdrops
 use that offset, fall back to 40 px before measurement, and update when either row resizes.
+Pane headers share the 44 px `pane-header` rule. The centre reads left-aligned at
+most 960 px wide with 20 by 24 px padding; its place header stays at the top of
+the scrolling frame. Service source sections use named, styled disclosures,
+with nonempty Attention open by default.
 
 `scripts/check` repeats Vitest with `SPI_TEST_CLOCK_SHIFT=1`, moving the wall
 clock 400 days forward to catch expiring fixtures before they break main.

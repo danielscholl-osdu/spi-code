@@ -230,7 +230,7 @@ export function RightPanel({
     ) : null;
   return (
     <aside aria-label="Detail" className="right-panel" aria-busy={request !== null}>
-      <div role="tablist" aria-label="Right panel" className="panel-tabs">
+      <div role="tablist" aria-label="Right panel" className="panel-tabs pane-header">
         {PANEL_TABS.map((id) => (
           <button
             key={id}
@@ -247,7 +247,12 @@ export function RightPanel({
           </button>
         ))}
         {onClose && (
-          <button type="button" className="panel-close" aria-label="Close detail" onClick={onClose}>
+          <button
+            type="button"
+            className="panel-close panel-toggle"
+            aria-label="Close detail"
+            onClick={onClose}
+          >
             ×
           </button>
         )}

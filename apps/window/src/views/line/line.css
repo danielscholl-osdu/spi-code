@@ -1,7 +1,9 @@
 /* Copyright 2026, Daniel Scholl */
 /* SPDX-License-Identifier: MIT */
 
-.line-toolbar { display: flex; align-items: center; gap: 12px; }
+.line-content { min-height: 100%; }
+.line-toolbar { position: sticky; top: 0; z-index: 1; gap: 12px; padding: 0 16px; background: var(--chrome); }
+.line-body { padding: 20px 24px; }
 .line-toolbar h1 { margin: 0; font-size: 16px; }
 .line-toolbar > span { color: var(--text-muted); font-size: 12px; }
 .line-controls { display: flex; gap: 6px; margin-left: auto; }

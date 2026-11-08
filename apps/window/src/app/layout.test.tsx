@@ -9,7 +9,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import recorded from "../../../../fixtures/watch/snapshot-1106.json?raw";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
-import { navigate, type Registry, type Route } from "./routes.js";
+import { navigate, openSheet, pinSheet, type Registry, type Route } from "./routes.js";
 import { Shell } from "./Shell.js";
 
 const styles = readdirSync("apps/window/src", { recursive: true, encoding: "utf8" })
@@ -87,6 +87,84 @@ it("gives every topbar-height reference in window styles a fallback", () => {
     }
   }
 });
+
+it.each(["overlay", "pinned"] as const)(
+  "uses flush panes with shared headers and bounded centre content beside a %s Line sheet",
+  async (presentation) => {
+    const view = await mount();
+    try {
+      await act(async () => {
+        navigate({ kind: "service", id: "indexer" });
+        selectionStore.getState().openSweepEvidence();
+        openSheet();
+        if (presentation === "pinned") pinSheet();
+      });
+      const shell = element(view.container, ".shell");
+      const tokens = getComputedStyle(document.documentElement);
+      expect(tokens.getPropertyValue("--pane-header-height").trim()).toBe("44px");
+      expect(tokens.getPropertyValue("--centre-content-max-width").trim()).toBe("960px");
+      expect(tokens.getPropertyValue("--centre-content-padding-block").trim()).toBe("20px");
+      expect(tokens.getPropertyValue("--centre-content-padding-inline").trim()).toBe("24px");
+      expect(tokens.getPropertyValue("--panel-icon-size").trim()).toBe("24px");
+      expect(["", "0px", "normal"]).toContain(getComputedStyle(shell).columnGap);
+      for (const selector of [".middle-frame", ".line-sheet", ".right-panel"]) {
+        const computed = getComputedStyle(element(view.container, selector));
+        expect(computed.padding, selector).toBe("0px");
+        expect(["", "0px", "0"]).toContain(computed.borderRadius);
+      }
+      for (const selector of [".place-header", ".line-toolbar", ".panel-tabs"]) {
+        const header = element(view.container, selector);
+        expect(header.classList.contains("pane-header"), selector).toBe(true);
+        const computed = getComputedStyle(header);
+        expect(computed.height, selector).toBe("44px");
+        expect(computed.boxSizing, selector).toBe("border-box");
+        expect(computed.borderBottomWidth, selector).toBe("1px");
+        expect(computed.borderBottomColor, selector).toBe(
+          tokens.getPropertyValue("--border").trim(),
+        );
+      }
+      const placeHeader = getComputedStyle(element(view.container, ".place-header"));
+      expect(placeHeader.position).toBe("sticky");
+      expect(placeHeader.top).toBe("0px");
+      expect(getComputedStyle(element(view.container, ".panel-body")).overflow).toBe("auto");
+      const close = element(view.container, '[aria-label="Close detail"]');
+      expect(close.classList.contains("panel-toggle")).toBe(true);
+      expect(getComputedStyle(close).width).toBe("24px");
+      expect(getComputedStyle(close).height).toBe("24px");
+      for (const name of ["attention", "repository", "release", "runs"]) {
+        const header = element(
+          view.container,
+          `[data-section="${name}"] > .service-section-header`,
+        );
+        expect(getComputedStyle(header).listStyle).toBe("none");
+        const count = element(header, ".service-section-count");
+        expect(getComputedStyle(count).marginLeft).toBe("auto");
+        const chevron = element(header, ".section-header-chevron");
+        expect(getComputedStyle(chevron).transform).toBe(
+          name === "attention" ? "rotate(45deg)" : "rotate(-45deg)",
+        );
+      }
+      for (const route of [
+        { kind: "service", id: "indexer" },
+        { kind: "security" },
+        { kind: "releases" },
+      ] satisfies Route[]) {
+        await act(async () => navigate(route));
+        const page = element(view.container, "main > *");
+        const computed = getComputedStyle(page);
+        expect(computed.padding).toBe("20px 24px");
+        for (const content of page.querySelectorAll(
+          ":scope > :not(.place, .place-header), .place-reading",
+        )) {
+          expect(getComputedStyle(content).maxWidth).toBe("960px");
+          expect(getComputedStyle(content).marginLeft).not.toBe("auto");
+        }
+      }
+    } finally {
+      await view.cleanup();
+    }
+  },
+);
 
 it.each(["light", "dark"])(
   "keeps the centre on surface, the panel on chrome and logical sections flat in %s",

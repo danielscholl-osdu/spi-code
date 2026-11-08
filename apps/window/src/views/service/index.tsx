@@ -85,9 +85,10 @@ function Section({
 }) {
   const heading = useId();
   return (
-    <details className="service-details" data-section={name}>
-      <summary id={heading}>
-        {title}
+    <details className="service-details" data-section={name} open={name === "attention"}>
+      <summary id={heading} className="service-section-header">
+        <span aria-hidden className="section-header-chevron" />
+        <span className="service-section-label">{title}</span>
         {count !== undefined && <span className="service-section-count">{count}</span>}
       </summary>
       <section className="service-section" aria-labelledby={heading}>
@@ -227,7 +228,7 @@ export default function ServicePage({
       </section>
     );
   }
-  return <ServiceBody id={id} evidence={evidence} selection={selection} pinned={pinned} />;
+  return <ServiceBody key={id} id={id} evidence={evidence} selection={selection} pinned={pinned} />;
 }
 
 function ServiceBody({
