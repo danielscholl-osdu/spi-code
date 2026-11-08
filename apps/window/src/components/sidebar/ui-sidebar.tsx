@@ -32,6 +32,18 @@ import {
   useSyncExternalStore,
 } from "react";
 
+export function useMediaQuery(query: string): boolean {
+  return useSyncExternalStore(
+    (listener) => {
+      const list = window.matchMedia(query);
+      list.addEventListener("change", listener);
+      return () => list.removeEventListener("change", listener);
+    },
+    () => window.matchMedia(query).matches,
+    () => false,
+  );
+}
+
 // An off-canvas sidebar turns inert once it closes, which would drop focus to the body.
 function moveFocusOutOfClosingSidebar() {
   const sidebar = document.activeElement?.closest<HTMLElement>('[data-slot="sidebar"]');

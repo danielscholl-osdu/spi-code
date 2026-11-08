@@ -55,6 +55,10 @@ const services = () =>
   );
 
 beforeEach(() => {
+  type HappyWindow = {
+    happyDOM: { setViewport(viewport: { width: number; height: number }): void };
+  };
+  (window as unknown as HappyWindow).happyDOM.setViewport({ width: 1440, height: 900 });
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (Macintosh; Mac OS X)");
   closeSheet();
