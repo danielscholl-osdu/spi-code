@@ -481,7 +481,12 @@ it("terminates a running child on abort and does not spawn for a pre-aborted sig
   } finally {
     controller.abort("opaque.abort-reason");
   }
-  expect(await run).toMatchObject({ ok: false, error: "Command aborted." });
+  const result = await run;
+  expect(result).toMatchObject({ ok: false, error: "Command aborted." });
+  if (!result.ok) {
+    expect(result.code).not.toBe(0);
+    if (process.platform !== "win32") expect(result.code).toBeNull();
+  }
   expect(() => process.kill(pid, 0)).toThrow();
   expect(
     await exec.runText("nonexistent-command", [], {

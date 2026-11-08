@@ -26,7 +26,7 @@ import {
 import { ToolInstaller } from "@spi-code/tools";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { HostExec } from "../exec/host-exec.js";
+import { HostExec, type HostExecLog } from "../exec/host-exec.js";
 import { openRunStore } from "../store/store.js";
 import { SweepService } from "../sweep/service.js";
 import {
@@ -845,6 +845,15 @@ function cancelRequest(requestId: string): Message {
   };
 }
 
+function killFixtureProcess(pid: number): void {
+  if (pid <= 0) return;
+  try {
+    process.kill(pid, "SIGKILL");
+  } catch (error) {
+    if (!(error instanceof Error) || !("code" in error) || error.code !== "ESRCH") throw error;
+  }
+}
+
 const DEVICE_OUTPUT =
   "! First copy your one-time code: WXYZ-9876\nOpen this URL to continue in your web browser: https://github.com/login/device\n";
 const PAT_SELF = JSON.stringify({ scopes: ["api"] });
@@ -954,6 +963,77 @@ it("ignores cancellation once terminal progress is published, before the flow un
 });
 
 it.skipIf(process.platform === "win32").each(["gh", "copilot"])(
+  "reports completed when fixture gh exits zero with updated credentials and open pipes before %s is cancelled",
+  async (tool) => {
+    const bin = join(directory, "exited-bin");
+    const pidFile = join(directory, "exited-pid");
+    const grandchildPidFile = join(directory, "exited-grandchild-pid");
+    const credentials = join(directory, "exited-hosts.yml");
+    mkdirSync(bin);
+    writeFileSync(credentials, "stored-fixture-credential\n");
+    writeFileSync(
+      join(bin, "gh"),
+      `#!/bin/sh
+case "$1 $2" in
+  "auth login")
+    echo $$ > "${pidFile}"
+    printf 'replacement-fixture-credential\\n' > "${credentials}"
+    sleep 30 &
+    echo $! > "${grandchildPidFile}"
+    exit 0;;
+  *) exit 1;;
+esac
+`,
+    );
+    chmodSync(join(bin, "gh"), 0o755);
+    const logs: HostExecLog[] = [];
+    const exec = new HostExec({
+      appData,
+      capturedPath: `${bin}:/usr/bin:/bin`,
+      installer: { binDir: async () => undefined },
+      env: { HOME: directory, PATH: "/usr/bin:/bin" },
+      log: (entry) => logs.push(entry),
+    });
+    const { service, progress } = setup({ exec, tools: async () => managedGh });
+    const flow = service.routes["setup.signin"]?.(
+      signinRequest("req-exited-pipes", { tool }),
+      () => {},
+    );
+    let grandchildPid = 0;
+    try {
+      await vi.waitFor(
+        () => {
+          const pid = Number(readFileSync(pidFile, "utf8"));
+          grandchildPid = Number(readFileSync(grandchildPidFile, "utf8"));
+          expect(pid).toBeGreaterThan(0);
+          expect(grandchildPid).toBeGreaterThan(0);
+          expect(() => process.kill(pid, 0)).toThrow();
+          expect(() => process.kill(grandchildPid, 0)).not.toThrow();
+        },
+        { timeout: 5000 },
+      );
+      expect(progress()).toEqual([{ requestId: "req-exited-pipes", tool, state: "starting" }]);
+      await service.routes["setup.signin.cancel"]?.(cancelRequest("req-exited-pipes"), () => {});
+      await flow;
+      expect(logs.find(({ args }) => args[1] === "login")).toMatchObject({
+        exit: 0,
+        error: "Command aborted.",
+      });
+      expect(progress()).toEqual([
+        { requestId: "req-exited-pipes", tool, state: "starting" },
+        { requestId: "req-exited-pipes", tool, state: "completed" },
+      ]);
+      expect(readFileSync(credentials, "utf8")).toBe("replacement-fixture-credential\n");
+    } finally {
+      service.connect(() => {});
+      killFixtureProcess(grandchildPid);
+      await flow;
+    }
+  },
+  25_000,
+);
+
+it.skipIf(process.platform === "win32").each(["gh", "copilot"])(
   "kills the fixture gh child and grandchild when %s is cancelled without changing stored credentials",
   async (tool) => {
     const bin = join(directory, "cancel-bin");
@@ -973,9 +1053,9 @@ case "$1 $2" in
     sleep 300 &
     echo $! > "${grandchildPidFile}"
     printf '${DEVICE_OUTPUT}' >&2
-    while [ ! -f "$GH_CONFIG_DIR/finish" ]; do sleep 1; done
-    printf 'replacement-fixture-credential\\n' > "$GH_CONFIG_DIR/hosts.yml";;
-  "auth logout") : > "$GH_CONFIG_DIR/hosts.yml";;
+    while [ ! -f "${config}/finish" ]; do sleep 1; done
+    printf 'replacement-fixture-credential\\n' > "${credentials}";;
+  "auth logout") : > "${credentials}";;
   *) exit 1;;
 esac
 `,
@@ -1021,6 +1101,7 @@ esac
       expect(logs.some(({ args }) => args.includes("logout"))).toBe(false);
     } finally {
       service.connect(() => {});
+      killFixtureProcess(grandchildPid);
       await flow;
     }
   },

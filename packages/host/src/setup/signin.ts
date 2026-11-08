@@ -102,7 +102,7 @@ export async function signinGh(exec: Exec, options: SigninOptions): Promise<Sign
       },
     },
   );
-  if (result.ok) {
+  if (result.ok || result.code === 0) {
     emit(options, { tool: "gh", state: "completed" });
     return { state: "completed" };
   }
