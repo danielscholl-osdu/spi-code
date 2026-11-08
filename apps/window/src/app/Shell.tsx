@@ -160,23 +160,21 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
   }, [registry.sheet, toggleSheet, openSettings]);
   const middle = useRef<HTMLElement>(null);
   const titleBar = useRef<HTMLElement>(null);
-  const strip = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    document.title = `SPI Code · ${routeLabel(route)}`;
+  }, [route]);
   useLayoutEffect(() => {
     const title = titleBar.current;
     const shell = title?.parentElement;
     if (!title || !shell) return;
-    const status = registry.strip ? strip.current : null;
     const measure = () => {
-      const height =
-        title.getBoundingClientRect().height + (status?.getBoundingClientRect().height ?? 0);
-      shell.style.setProperty("--topbar-height", `${height}px`);
+      shell.style.setProperty("--topbar-height", `${title.getBoundingClientRect().height}px`);
     };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(title, { box: "border-box" });
-    if (status) observer.observe(status, { box: "border-box" });
     return () => observer.disconnect();
-  }, [registry.strip]);
+  }, []);
   const position = useRef({ route: routeHash(route), top: 0 });
   useLayoutEffect(() => {
     const frame = middle.current;
@@ -252,13 +250,14 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
         }
       >
         <header className="title-bar" ref={titleBar}>
-          <div className="title-bar-place">
-            <strong>SPI Code</strong>
-            <span aria-hidden>·</span>
-            <span data-place>{routeLabel(route)}</span>
+          <div className="window-strip">
+            {registry.strip ? (
+              registry.strip()
+            ) : (
+              <SweepLine snapshot={snapshot ?? null} onOpen={openSweepEvidence} />
+            )}
           </div>
           <div className="title-bar-controls">
-            <SweepLine snapshot={snapshot ?? null} onOpen={openSweepEvidence} />
             <PanelControls
               rightPanelOpen={rightPanelOpen}
               onToggleRightPanel={toggleRightPanel}
@@ -266,11 +265,6 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
             />
           </div>
         </header>
-        {registry.strip && (
-          <div className="window-strip" ref={strip}>
-            {registry.strip()}
-          </div>
-        )}
         <ProgramSidebar
           store={watchStore}
           route={route}

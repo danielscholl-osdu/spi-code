@@ -11,7 +11,9 @@ export function WatchGate({ label, children }: { label: string; children: ReactN
   if (!setup || setup.watchReady) return children;
   return (
     <>
-      <h1>{label}</h1>
+      <header className="place-header pane-header">
+        <h1 data-place>{label}</h1>
+      </header>
       <p role="status">Watch unavailable: {setup.disabledReason}. Open Settings to continue.</p>
       <button type="button" onClick={openReadiness}>
         Open Settings

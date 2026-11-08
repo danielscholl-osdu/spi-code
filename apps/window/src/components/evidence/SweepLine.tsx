@@ -3,6 +3,7 @@
 
 import type { ViewSnapshot } from "@spi-code/contracts";
 import { Time } from "../../time.js";
+import { useNow } from "./useNow.js";
 import { freshnessGlyph, sweepSources } from "./words.js";
 import "./evidence.css";
 
@@ -18,12 +19,14 @@ export function SweepLine({
   snapshot: SweepLineSnapshot | null;
   onOpen(): void;
 }) {
+  const now = useNow();
   const glyph =
     snapshot === null
       ? null
       : freshnessGlyph({
           sources: sweepSources(snapshot).map(({ envelope }) => envelope),
           sweptAt: snapshot.sweptAt,
+          now,
         });
   const text = glyph?.text ?? "waiting for the first sweep";
   const tone = glyph?.tone ?? "muted";
@@ -32,8 +35,10 @@ export function SweepLine({
       type="button"
       className="sweep-line"
       data-sweep-line=""
+      data-field="freshness"
       data-tone={tone}
-      aria-label={`${text}. Open the sweep evidence`}
+      aria-label={text}
+      title={text}
       onClick={onOpen}
     >
       <span className="evidence-dot" data-tone={tone} aria-hidden />
@@ -42,7 +47,7 @@ export function SweepLine({
           text
         ) : (
           <>
-            swept <Time at={snapshot.sweptAt} />
+            <Time at={snapshot.sweptAt} now={now} />
             {glyph.tail}
           </>
         )}

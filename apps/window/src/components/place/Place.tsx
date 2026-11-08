@@ -47,7 +47,7 @@ export function Place({
   return (
     <section className="place" aria-label={name}>
       <header className="place-header pane-header">
-        <h1>{name}</h1>
+        <h1 data-place>{name}</h1>
         {actions}
         {onPin && (
           <button

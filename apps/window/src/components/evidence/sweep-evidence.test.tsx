@@ -123,18 +123,72 @@ it.each([
     "muted",
   ],
 ] as const)(
-  "says the %s sweep in the Evidence sentence and the title-bar glyph with the worst tone",
-  async (_, list, text, glyph, tone) => {
+  "says the %s sweep in the Evidence sentence with the worst tone",
+  async (_, list, text, _glyph, tone) => {
     const sources = sweepSources(snapshot([...list])).map(({ envelope }) => envelope);
     expect(sweepLine({ sources, sweptAt, nextSyncAt, now })).toEqual({ text, tone });
-    const swept = `swept ${clockTime(sweptAt)}${glyph}`;
-    expect(freshnessGlyph({ sources, sweptAt })).toEqual({ text: swept, tail: glyph, tone });
+  },
+);
+
+it.each([
+  ["fresh", areas(), "", "all areas read", "muted"],
+  [
+    "failed, incomplete and stale",
+    areas({
+      github: { state: "failed" },
+      security: { state: "incomplete" },
+      runs: { state: "stale" },
+    }),
+    " · 3",
+    "1 failed, 1 incomplete, 1 stale",
+    "bad",
+  ],
+  ["cut", areas({ security: cut }), " · 1", "1 cut", "bad"],
+  [
+    "incomplete and stale",
+    areas({ security: { state: "incomplete" }, runs: { state: "stale" } }),
+    " · 2",
+    "1 incomplete, 1 stale",
+    "warn",
+  ],
+  [
+    "all four affected states",
+    areas({
+      github: { state: "failed" },
+      security: cut,
+      upstream: { state: "incomplete" },
+      runs: { state: "stale" },
+    }),
+    " · 4",
+    "1 failed, 1 cut, 1 incomplete, 1 stale",
+    "bad",
+  ],
+  [
+    "a failed cut read counted once",
+    areas({ security: { ...cut, state: "failed" } }),
+    " · 1",
+    "1 failed",
+    "bad",
+  ],
+  ["unread", areas().filter(({ area }) => area !== "details"), "", "1 not read yet", "muted"],
+  ["all inferred", areas({}, { inferred: true }), "", "all areas read · inferred", "muted"],
+] as const)(
+  "shows a compact %s freshness field with a matching worst tone and named counts",
+  async (_, list, tail, counts, tone) => {
+    const body = snapshot([...list]);
+    const sources = sweepSources(body).map(({ envelope }) => envelope);
+    const name = `Swept ${clockTime(sweptAt)} · ${counts}`;
+    expect(freshnessGlyph({ sources, sweptAt })).toEqual({ text: name, tail, tone });
     const onOpen = vi.fn();
-    const view = await render(<SweepLine snapshot={snapshot([...list])} onOpen={onOpen} />);
+    const view = await render(<SweepLine snapshot={body} onOpen={onOpen} />);
     try {
       const line = view.container.querySelector<HTMLButtonElement>("[data-sweep-line]");
-      expect(line?.textContent).toBe(swept);
+      expect(line?.textContent).toBe(`${clockTime(sweptAt)}${tail}`);
       expect(line?.getAttribute("data-tone")).toBe(tone);
+      expect(line?.getAttribute("aria-label")).toBe(name);
+      expect(line?.title).toBe(name);
+      expect(line?.getAttribute("data-field")).toBe("freshness");
+      expect(line?.querySelector(".evidence-dot")?.getAttribute("data-tone")).toBe(tone);
       await act(async () => line?.click());
       expect(onOpen).toHaveBeenCalledOnce();
     } finally {
@@ -144,17 +198,12 @@ it.each([
 );
 
 it.each([
-  [
-    "eleven fresh areas",
-    areas(),
-    "swept 2 min ago · release lines read failed",
-    " · ⌀ 1 source failed",
-  ],
+  ["eleven fresh areas", areas(), "swept 2 min ago · release lines read failed", " · 1"],
   [
     "a stale area",
     areas({ runs: { state: "stale" } }),
     "swept 2 min ago · 1 area stale · release lines read failed",
-    " · ⌀ 1 source failed, 1 stale",
+    " · 2",
   ],
 ] as const)(
   "names a failed supplemental source apart from the area counts beside %s, worst tone kept",
@@ -189,7 +238,7 @@ it.each([
     const view = await render(<SweepLine snapshot={body} onOpen={() => {}} />);
     try {
       const line = view.container.querySelector("[data-sweep-line]");
-      expect(line?.textContent).toBe(`swept ${clockTime(sweptAt)}${glyph}`);
+      expect(line?.textContent).toBe(`${clockTime(sweptAt)}${glyph}`);
       expect(line?.getAttribute("data-tone")).toBe("bad");
     } finally {
       await view.cleanup();

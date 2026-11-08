@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { readFileSync } from "node:fs";
 import {
   type Station,
   type StationSubstate,
@@ -45,6 +46,12 @@ function show(body: ViewSnapshot) {
 }
 
 async function mount() {
+  const style = document.createElement("style");
+  style.textContent = [
+    readFileSync("apps/window/src/style.css", "utf8"),
+    readFileSync("apps/window/src/components/strip/strip.css", "utf8"),
+  ].join("\n");
+  document.head.append(style);
   container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -52,6 +59,7 @@ async function mount() {
   unmount = async () => {
     await act(async () => root.unmount());
     container.remove();
+    style.remove();
   };
 }
 
@@ -62,7 +70,9 @@ const sheet = () => container.querySelector(".line-sheet");
 
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (Macintosh; Mac OS X)");
+  vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
+    "Mozilla/5.0 (Macintosh; Mac OS X) Electron/44.10.0",
+  );
   closeSheet();
   window.location.hash = "#today";
   window.spi = {
@@ -95,7 +105,7 @@ it("draws one pip per service in fleet order, partition first", async () => {
   expect(services[0]).toBe("partition");
 });
 
-it("names each pip by its service and its state in words, the worst line station winning", async () => {
+it("draws and names the four pip shapes, the worst line station winning", async () => {
   const body = fixture();
   const set = (service: string, substate: (id: Station["id"]) => StationSubstate) => {
     const row = body.stations.find((entry) => entry.service === service);
@@ -111,16 +121,39 @@ it("names each pip by its service and its state in words, the worst line station
   show(body);
   await mount();
   const names = Object.fromEntries(
-    pips().map((pip) => [pip.dataset.service, [pip.getAttribute("aria-label"), pip.textContent]]),
+    pips().map((pip) => [
+      pip.dataset.service,
+      [pip.title, pip.querySelector(".strip-pip-mark")?.getAttribute("data-shape")],
+    ]),
   );
   expect(names).toMatchObject({
-    partition: ["partition: needs a person", "!"],
-    entitlements: ["entitlements: stopped", "✕"],
-    legal: ["legal: nothing due", "○"],
-    schema: ["schema: nothing due", "○"],
-    file: ["file: in progress", "◐"],
+    partition: ["partition: needs a person", "filled"],
+    entitlements: ["entitlements: stopped", "diamond"],
+    legal: ["legal: nothing due", "hollow"],
+    schema: ["schema: nothing due", "hollow"],
+    file: ["file: in progress", "half"],
   });
-  expect(strip()?.querySelector('[aria-label="Services"]')).not.toBeNull();
+  const mark = pips()[1]?.querySelector(".strip-pip-mark");
+  if (!mark) throw new Error("Missing stopped pip mark");
+  expect(getComputedStyle(mark).transform).toBe("rotate(45deg)");
+});
+
+it("holds pips, fields and panel controls beside the native window controls in one 44 px row", async () => {
+  await mount();
+  const row = container.querySelector<HTMLElement>(".title-bar");
+  const status = strip();
+  if (!row || !status) throw new Error("Missing top row");
+  expect(row?.contains(strip() ?? null)).toBe(true);
+  expect(row?.querySelectorAll(".panel-controls")).toHaveLength(1);
+  expect(row?.querySelector("[data-sweep-line]")).not.toBeNull();
+  expect(row?.querySelector("[data-place]")).toBeNull();
+  expect(container.querySelector("main .place-header [data-place]")?.textContent).toBe("Today");
+  expect(document.title).toBe("SPI Code · Today");
+  expect(getComputedStyle(row).height).toBe("44px");
+  expect(container.querySelector(".shell")?.getAttribute("data-window-controls")).toBe("inset");
+  expect(getComputedStyle(row).paddingLeft).toBe("84px");
+  expect(row?.querySelector(".strip-line")).toBeNull();
+  expect(getComputedStyle(status).flexWrap).toBe("nowrap");
 });
 
 it("renders the fields from the November 6 sweep", async () => {
@@ -137,7 +170,7 @@ it("renders the fields from the November 6 sweep", async () => {
     [...(strip()?.querySelectorAll<HTMLElement>("[data-field]") ?? [])].map(
       (node) => node.dataset.field,
     ),
-  ).toEqual(["stopped", "environment", "template", "due", "next-sync"]);
+  ).toEqual(["stopped", "environment", "template", "due", "next-sync", "freshness"]);
 });
 
 it("raises the due count when an item falls due before the next sync, and not after it", async () => {
@@ -192,8 +225,9 @@ it("gives a field with no data no space", async () => {
   });
   show(body);
   await mount();
-  expect(strip()?.querySelectorAll("[data-field]")).toHaveLength(0);
-  expect(strip()?.textContent).toBe(`${"○".repeat(13)}Line ⌘L`);
+  expect(strip()?.querySelectorAll("[data-field]")).toHaveLength(1);
+  expect(field("freshness")).not.toBeNull();
+  expect(strip()?.querySelector(".strip-line")).toBeNull();
 });
 
 function adoption(
@@ -320,16 +354,36 @@ it("keeps typed adoption unchanged when every engineering tile's wording changes
   expect(selectStrip(body).template).toEqual({ verified: 1, total: 13, target: "7d269b5" });
 });
 
-it("opens the Line sheet from the strip and from its Line button", async () => {
+it.each(["stopped", "environment", "template", "due", "next-sync"])(
+  "opens the Line sheet from the %s field button",
+  async (name) => {
+    await mount();
+    const button = field(name);
+    expect(button?.tagName).toBe("BUTTON");
+    expect(sheet()).toBeNull();
+    await act(async () => button?.click());
+    expect(sheet()).not.toBeNull();
+  },
+);
+
+it("aggregates pip states into one Line button without roving tab stops", async () => {
+  const body = fixture();
+  for (const row of body.stations) {
+    if (row.service !== "file" && row.service !== "legal") continue;
+    row.stations = row.stations.map((station) => ({
+      ...station,
+      substate: row.service === "file" ? "in-progress" : "ready",
+    })) as typeof row.stations;
+  }
+  show(body);
   await mount();
+  const line = strip()?.querySelector<HTMLButtonElement>(".strip-pips");
+  expect(line?.getAttribute("aria-label")).toBe(
+    "Line: 1 stopped, 10 need a person, 1 in progress, 1 nothing due",
+  );
+  expect(line?.getAttribute("aria-keyshortcuts")).toBe("Meta+L");
+  expect(pips().map((item) => item.tabIndex)).toEqual(FLEET.map(() => -1));
   expect(sheet()).toBeNull();
-  await act(async () => field("environment")?.click());
-  expect(sheet()).not.toBeNull();
-  closeSheet();
-  await act(async () => {});
-  expect(sheet()).toBeNull();
-  const line = strip()?.querySelector<HTMLButtonElement>("button");
-  expect(line?.textContent).toBe("Line ⌘L");
   await act(async () => line?.click());
   expect(sheet()).not.toBeNull();
 });
@@ -348,8 +402,14 @@ const keydown = (target: Element | null | undefined, init: KeyboardEventInit) =>
     );
   });
 
-it("pins and unpins a service from its pip's context menu without opening the Line sheet", async () => {
+it("opens a pip's menu from its full-height hit area and pins without opening the Line sheet", async () => {
   await mount();
+  const target = pip("legal");
+  if (!target) throw new Error("Missing legal pip");
+  expect(target?.classList.contains("strip-pip-target")).toBe(true);
+  expect(getComputedStyle(target).height).toBe("44px");
+  expect(getComputedStyle(target).width).toBe("12px");
+  expect(target?.querySelector(".strip-pip-mark")).not.toBeNull();
   const rightClick = () =>
     act(async () => {
       pip("legal")?.dispatchEvent(
@@ -370,35 +430,36 @@ it("pins and unpins a service from its pip's context menu without opening the Li
   expect(sheet()).toBeNull();
 });
 
-it("moves between pips with the arrows and opens a pip's menu from the keyboard, Escape closing it", async () => {
+it("keeps each pip menu action on its service row in the Line sheet for the keyboard path", async () => {
   await mount();
-  expect(pips().map((item) => item.tabIndex)).toEqual(FLEET.map((_, index) => (index ? -1 : 0)));
-  await act(async () => pips()[0]?.focus());
-  await keydown(pips()[0], { key: "ArrowRight" });
-  await keydown(document.activeElement, { key: "ArrowRight" });
-  expect(document.activeElement).toBe(pip("legal"));
-  expect(pip("legal")?.tabIndex).toBe(0);
-  expect(pip("partition")?.tabIndex).toBe(-1);
-  await keydown(document.activeElement, { key: "ArrowLeft" });
-  expect(document.activeElement).toBe(pip("entitlements"));
-  await keydown(pip("entitlements"), { key: "F10", shiftKey: true });
+  await keydown(document.body, { key: "l", metaKey: true });
+  const service = sheet()?.querySelector<HTMLButtonElement>(
+    '[data-service="entitlements"] th button',
+  );
+  expect(service).not.toBeNull();
+  await act(async () => service?.focus());
+  await keydown(service, { key: "F10", shiftKey: true });
   expect(menu("entitlements")).not.toBeNull();
-  await keydown(document.activeElement, { key: "Escape" });
-  expect(menu("entitlements")).toBeNull();
-  await keydown(pip("entitlements"), { key: "F10" });
-  expect(menu("entitlements")).toBeNull();
-  await keydown(pip("entitlements"), { key: "ContextMenu" });
   expect(menu("entitlements")?.textContent).toBe("Pin entitlements");
+  await act(async () =>
+    menu("entitlements")?.querySelector<HTMLElement>("[role='menuitem']")?.click(),
+  );
+  expect(readPins()).toEqual(["entitlements"]);
+  await keydown(service, { key: "ContextMenu" });
+  expect(menu("entitlements")?.textContent).toBe("Unpin entitlements");
   await keydown(document.activeElement, { key: "Escape" });
   expect(menu("entitlements")).toBeNull();
-  expect(sheet()).toBeNull();
+  expect(sheet()).not.toBeNull();
 });
 
 it("shows the freshness glyph in the title bar and opens the sweep Evidence from it", async () => {
   const body = fixture();
   await mount();
   const glyph = container.querySelector<HTMLButtonElement>("header [data-sweep-line]");
-  expect(glyph?.textContent).toBe(`swept ${clockTime(body.sweptAt)} · ⌀ 1 source failed`);
+  expect(glyph?.textContent).toBe(`${clockTime(body.sweptAt)} · 1`);
+  expect(glyph?.getAttribute("aria-label")).toBe(
+    `Swept ${clockTime(body.sweptAt)} · 1 failed, 3 not read yet`,
+  );
   expect(glyph?.getAttribute("data-tone")).toBe("bad");
   expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).toBeNull();
   await act(async () => glyph?.click());

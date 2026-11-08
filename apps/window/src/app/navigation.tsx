@@ -55,7 +55,7 @@ export type Registry = {
   readonly sheet?:
     | ((origin: Route, presentation: Exclude<SheetPresentation, "closed">) => ReactNode)
     | undefined;
-  /** Drawn under the title bar on every route and beside either sheet; nothing when absent. */
+  /** Drawn in the top row on every route and beside either sheet; nothing when absent. */
   readonly strip?: (() => ReactNode) | undefined;
   /** Where an unknown or unregistered hash lands; it must be registered. */
   readonly fallback: Route;
@@ -113,7 +113,7 @@ export function routeHash(route: Route): string {
   }
 }
 
-/** The place a route names, as the title bar, the sidebar and Find show it. */
+/** The place a route names in the document title, sidebar and Find. */
 export function routeLabel(route: Route): string {
   switch (route.kind) {
     case "today":

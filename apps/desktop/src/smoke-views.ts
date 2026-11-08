@@ -91,7 +91,7 @@ export async function captureSmokeViews(
         `document.querySelector("[data-place]")?.textContent === ${JSON.stringify(surface.place)}`,
       );
       if (surface.id === "line") {
-        await window.webContents.executeJavaScript('document.querySelector(".strip-line").click()');
+        await window.webContents.executeJavaScript('document.querySelector(".strip-pips").click()');
       }
       if (surface.id === "detail") {
         await window.webContents.executeJavaScript(
@@ -105,7 +105,7 @@ export async function captureSmokeViews(
       }
       await rendered(window, `document.querySelector(${JSON.stringify(surface.selector)})`);
       const qualifiers: string[] = await window.webContents.executeJavaScript(`[
-        document.querySelector("[data-sweep-line]")?.innerText?.trim() ?? "",
+        document.querySelector("[data-sweep-line]")?.getAttribute("aria-label") ?? "",
         document.querySelector("main .place-qualifier")?.innerText?.trim() ?? ""
       ]`);
       const image = await window.webContents.capturePage();

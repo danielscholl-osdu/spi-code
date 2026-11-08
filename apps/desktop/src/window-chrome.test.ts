@@ -15,18 +15,18 @@ it("insets the macOS traffic lights in the middle of the title bar, with no over
   for (const dark of [true, false])
     expect(windowTitleBarOptions(dark, "darwin")).toEqual({
       titleBarStyle: "hiddenInset",
-      trafficLightPosition: { x: 16, y: 13 },
+      trafficLightPosition: { x: 16, y: 15 },
     });
 });
 
-it("hides the Windows title bar and draws its caption buttons over the 40 px row", () => {
+it("hides the Windows title bar and draws its caption buttons over the 44 px row", () => {
   expect(windowTitleBarOptions(true, "win32")).toEqual({
     titleBarStyle: "hidden",
-    titleBarOverlay: { color: "#01000000", height: 40, symbolColor: "#f8fafc" },
+    titleBarOverlay: { color: "#01000000", height: 44, symbolColor: "#f8fafc" },
   });
   expect(windowTitleBarOptions(false, "win32").titleBarOverlay).toEqual({
     color: "#01000000",
-    height: 40,
+    height: 44,
     symbolColor: "#1f2937",
   });
 });
@@ -97,9 +97,9 @@ it("redraws the Windows caption symbols in each theme the renderer shows", () =>
   expect(harness.send("light")).toBe(true);
   expect(harness.send("dark")).toBe(true);
   expect(harness.window.setTitleBarOverlay.mock.calls).toEqual([
-    [{ color: "#01000000", height: 40, symbolColor: "#f8fafc" }],
-    [{ color: "#01000000", height: 40, symbolColor: "#1f2937" }],
-    [{ color: "#01000000", height: 40, symbolColor: "#f8fafc" }],
+    [{ color: "#01000000", height: 44, symbolColor: "#f8fafc" }],
+    [{ color: "#01000000", height: 44, symbolColor: "#1f2937" }],
+    [{ color: "#01000000", height: 44, symbolColor: "#f8fafc" }],
   ]);
 });
 

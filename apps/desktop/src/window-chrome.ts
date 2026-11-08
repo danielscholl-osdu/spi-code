@@ -24,7 +24,7 @@
 import type { BrowserWindowConstructorOptions, TitleBarOverlayOptions } from "electron";
 
 /** Height of the window's integrated title bar; apps/window/src/style.css draws its row at the same height. */
-export const TITLEBAR_HEIGHT = 40;
+export const TITLEBAR_HEIGHT = 44;
 const MACOS_WINDOW_BUTTON_RADIUS = 7;
 const TITLEBAR_COLOR = "#01000000"; // #00000000 does not work correctly on Linux
 const TITLEBAR_LIGHT_SYMBOL_COLOR = "#1f2937";

@@ -251,31 +251,34 @@ export function sweepLine({ sources, sweptAt, nextSyncAt, now }: SweepLineInput)
   return { text: parts.join(" · "), tone: worstTone(sources) };
 }
 
-/**
- * The title bar's freshness glyph (EV-03): when the sweep ran, then `⌀` and the count of sources
- * failed, cut or stale when there are any. A source not read yet is not counted here. `tail` is
- * the text after the sweep time.
- */
-export function freshnessGlyph({ sources, sweptAt }: Omit<SweepLineInput, "now" | "nextSyncAt">): {
+/** One count per affected source, with cut reads distinct from other incomplete reads. */
+export function freshnessGlyph({
+  sources,
+  sweptAt,
+  now,
+}: Omit<SweepLineInput, "now" | "nextSyncAt"> & { now?: number | undefined }): {
   text: string;
   tail: string;
   tone: EvidenceTone;
 } {
-  const tally = (state: Envelope["state"]) =>
-    sources.filter((envelope) => envelope.state === state).length;
-  const counts = [
-    [tally("failed"), "failed"],
-    [tally("incomplete"), "incomplete"],
-    [tally("stale"), "stale"],
-  ] as const;
-  const parts: string[] = [];
-  const marks = counts
-    .filter(([n]) => n > 0)
-    .map(([n, word], index) =>
-      index === 0 ? `${n} ${n === 1 ? "source" : "sources"} ${word}` : `${n} ${word}`,
-    );
-  if (marks.length > 0) parts.push(`⌀ ${marks.join(", ")}`);
-  if (everyInferred(sources)) parts.push("inferred");
-  const tail = parts.map((part) => ` · ${part}`).join("");
-  return { text: `swept ${clockTime(sweptAt)}${tail}`, tail, tone: worstTone(sources) };
+  const counts = { failed: 0, cut: 0, incomplete: 0, stale: 0 };
+  let unread = 0;
+  for (const envelope of sources) {
+    if (envelope.state === "failed") counts.failed++;
+    else if (envelope.state === "unread") unread++;
+    else if (envelope.completeness.kind === "cut") counts.cut++;
+    else if (envelope.state === "incomplete") counts.incomplete++;
+    else if (envelope.state === "stale") counts.stale++;
+  }
+  const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+  const parts = Object.entries(counts)
+    .filter(([, count]) => count > 0)
+    .map(([word, count]) => `${count} ${word}`);
+  if (unread > 0) parts.push(`${unread} not read yet`);
+  const detail = parts.length > 0 ? parts.join(", ") : "all areas read";
+  return {
+    text: `Swept ${clockTime(sweptAt, now === undefined ? {} : { now })} · ${detail}${everyInferred(sources) ? " · inferred" : ""}`,
+    tail: total > 0 ? ` · ${total}` : "",
+    tone: counts.failed + counts.cut > 0 ? "bad" : total > 0 ? "warn" : "muted",
+  };
 }

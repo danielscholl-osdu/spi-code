@@ -1,6 +1,6 @@
 /* Copyright 2026, Daniel Scholl */
 /* SPDX-License-Identifier: MIT */
 
-.line-sheet { grid-column: 2; grid-row: 3; z-index: 20; min-width: 0; min-height: 0; padding: 0; overflow: auto; background: var(--chrome); outline: none; }
+.line-sheet { grid-column: 2; grid-row: 2; z-index: 20; min-width: 0; min-height: 0; padding: 0; overflow: auto; background: var(--chrome); outline: none; }
 .line-sheet[data-presentation="pinned"] { grid-column: 3; z-index: auto; border-left: 1px solid var(--border); }
-.line-sheet[data-presentation="stacked"] { grid-column: 2; grid-row: 4; z-index: auto; border-top: 1px solid var(--border); }
+.line-sheet[data-presentation="stacked"] { grid-column: 2; grid-row: 3; z-index: auto; border-top: 1px solid var(--border); }

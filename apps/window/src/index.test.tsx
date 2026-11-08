@@ -146,9 +146,7 @@ it.each([false, true])(
           window.location.hash = routeHash(route);
           window.dispatchEvent(new HashChangeEvent("hashchange"));
         });
-        expect(app.container.querySelector("header [data-place]")?.textContent).toBe(
-          routeLabel(route),
-        );
+        expect(document.title).toBe(`SPI Code · ${routeLabel(route)}`);
         expectNoTurnUI(app.container);
       }
       if (!proof) {

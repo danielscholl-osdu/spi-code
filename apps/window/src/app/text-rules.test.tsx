@@ -28,7 +28,7 @@ const inspections = files
   .flatMap((file) =>
     InspectResultSchema.array().parse(JSON.parse(readFileSync(`${directory}${file}`, "utf8"))),
   );
-const internal = /\bfork_upstream\b|\bgate\s+\d+\b|\bpresses\b|\bcut\b/i;
+const internal = /\bfork_upstream\b|\bgate\s+\d+\b|\bpresses\b/i;
 const machineTime = /\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}|\bUTC\b/;
 const placeholder = /not available yet|No settled threads yet|ships in M[3-9]/i;
 const headlines = '.place-headline, [data-pointer$="/headline"], .release-months td:nth-child(3)';
@@ -47,7 +47,12 @@ function violations(scope: ParentNode): string[] {
     const copy = [text, element.getAttribute("aria-label"), element.getAttribute("title")]
       .filter(Boolean)
       .join(" ");
-    if (outsideDetail(element) && (internal.test(copy) || /^(flight|quiet)$/i.test(text.trim())))
+    if (
+      outsideDetail(element) &&
+      (internal.test(copy) ||
+        (/\bcut\b/i.test(copy) && !element.matches("[data-sweep-line]")) ||
+        /^(flight|quiet)$/i.test(text.trim()))
+    )
       failures.push(`internal: ${copy}`);
     if (placeholder.test(copy)) failures.push(`placeholder: ${copy}`);
     if (/\bNot stated\b/i.test(copy)) failures.push(`unstated: ${copy}`);
@@ -234,7 +239,9 @@ it("labels an incomplete sweep without exposing its internal state name", async 
     completeness: { kind: "cut", read: 1, total: 3, reason: "page_limit" },
   };
   await open(body);
-  expect(container.querySelector("[data-sweep-line]")?.textContent).toContain("1 incomplete");
+  expect(container.querySelector("[data-sweep-line]")?.getAttribute("aria-label")).toContain(
+    "1 cut",
+  );
   assertRules("Incomplete sweep");
 });
 

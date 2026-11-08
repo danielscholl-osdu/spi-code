@@ -4,13 +4,13 @@
 /* A zero-width grid item on a pane's divider; the separator straddles it. */
 .pane-edge {
   position: relative;
-  grid-row: 3;
+  grid-row: 2;
   width: 0;
   z-index: 3;
 }
 
 .shell[data-line-presentation="stacked"] .pane-edge:is([data-pane="sidebar"], [data-pane="right-panel"]) {
-  grid-row: 3 / 5;
+  grid-row: 2 / 4;
 }
 
 .pane-edge[data-pane="sidebar"] {

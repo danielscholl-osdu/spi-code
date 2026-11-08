@@ -1,12 +1,18 @@
 /* Copyright 2026, Daniel Scholl */
 /* SPDX-License-Identifier: MIT */
 
-.strip { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 6px 14px; color: var(--text-muted); font-size: 12.5px; font-variant-numeric: tabular-nums; cursor: pointer; }
+.strip { display: flex; flex-wrap: nowrap; align-items: center; gap: 14px; height: 44px; color: var(--text-muted); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .strip b { color: var(--text); font-weight: 600; }
-.strip-pips { display: inline-flex; margin: 0; padding: 0; list-style: none; gap: 2px; font-family: var(--font-mono); font-size: 12px; }
-.strip-pip { color: var(--text-muted); }
-.strip-pip[data-pip="stopped"], .strip [data-tone="bad"] { color: var(--error-text); }
-.strip-pip[data-pip="needs-person"], .strip [data-tone="warn"] { color: var(--warning-text); }
-.strip-pip[data-pip="in-progress"] { color: var(--accent-text); }
-.strip-space { flex: 1; }
-.strip-line { padding: 1px 8px; font-size: 12px; border-radius: 5px; color: var(--text-muted); }
+.strip > button { flex: none; height: 44px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: inherit; font: inherit; }
+.strip > button:hover { background: var(--surface-raised); }
+.strip-pips { display: inline-flex; align-items: center; }
+.strip-pip-target { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 12px; height: 44px; color: var(--text-muted); }
+.strip-pip-target:last-child { width: 9px; }
+.strip-pip-mark { box-sizing: border-box; width: 9px; height: 9px; border: 1.3px solid currentColor; border-radius: 50%; }
+.strip-pip-mark[data-shape="diamond"] { width: 7px; height: 7px; border-radius: 0; background: currentColor; transform: rotate(45deg); }
+.strip-pip-mark[data-shape="filled"] { background: currentColor; }
+.strip-pip-mark[data-shape="half"] { background: linear-gradient(to right, currentColor 50%, transparent 50%); }
+.strip-pip-target[data-pip="stopped"], .strip [data-tone="bad"] { color: var(--error-text); }
+.strip-pip-target[data-pip="needs-person"], .strip [data-tone="warn"] { color: var(--warning-text); }
+.strip-pip-target[data-pip="in-progress"] { color: var(--accent-text); }
+.strip-space { flex: 1; min-width: 48px; }

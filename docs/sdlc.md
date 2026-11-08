@@ -92,9 +92,18 @@ objects such as repository fact summaries. The shell calls the width budget on
 resize and pane toggles, narrowing Detail, moving it to a sheet, stacking pinned
 Line context and finally moving the sidebar off-canvas. The eight drawn cases are
 covered together in the shell test. The desktop sets a 740 px content minimum;
-the renderer clamps smaller viewports before budgeting. The shell measures the title bar plus
-strip into `--topbar-height`; narrow sidebar and Detail sheets and their backdrops
-use that offset, fall back to 40 px before measurement, and update when either row resizes.
+the renderer clamps smaller viewports before budgeting. The title bar and strip share
+one 44 px top row; the place name is in the centre header and the OS title stays
+`SPI Code · <place>`. The pips share one Line button with aggregate state counts;
+each full-height pip target retains its service context menu, also reachable from
+the service's Line sheet row. Status field buttons open Line and Cmd-L still toggles it.
+Freshness is the last field: a muted, amber or red dot, the sweep time and an
+affected-source count. Its hover and accessible name spell out failed, cut,
+incomplete and stale counts; unread sources are named too. Failed or cut reads
+turn it red, other incomplete or stale reads amber. It opens the sweep's Evidence.
+The shell measures the row into `--topbar-height`; narrow sidebar and Detail sheets
+and their backdrops use that offset, fall back to 44 px before measurement,
+and update when the row resizes.
 Opening a collapsed sidebar uses the budget for its open state, so one shortcut
 opens it off-canvas after narrowing. Clearing a selection closes a Detail sheet;
 inline sweep Evidence may stay open. Resizing an inline sidebar off-canvas moves

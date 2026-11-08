@@ -129,11 +129,11 @@ it("re-decides the pane presentations and widths through all eight drawn cases",
   }
 });
 
-it("navigates every sidebar thing through the hash, naming the place in the title bar", async () => {
+it("names every navigated place in the centre header and keeps it in the document title", async () => {
   const shell = await mountShell();
   const { container } = shell;
   try {
-    const place = () => container.querySelector("header [data-place]")?.textContent;
+    const place = () => container.querySelector("main header [data-place]")?.textContent;
     const button = (label: string) =>
       [...container.querySelectorAll<HTMLButtonElement>("nav button")].find(
         (item) => item.textContent === label,
@@ -151,6 +151,7 @@ it("navigates every sidebar thing through the hash, naming the place in the titl
       expect(window.location.hash).toBe(hash);
       expect(container.querySelector("main h1")?.textContent).toBe(heading);
       expect(place()).toBe(label);
+      expect(document.title).toBe(`SPI Code · ${label}`);
       expect(button(label)?.getAttribute("aria-current")).toBe("page");
     }
     for (const [hash, label] of [
@@ -163,9 +164,10 @@ it("navigates every sidebar thing through the hash, naming the place in the titl
       });
       expect(container.querySelector("main h1")?.textContent).toBe(label);
       expect(place()).toBe(label);
+      expect(document.title).toBe(`SPI Code · ${label}`);
     }
     expect(button("Releases")?.getAttribute("aria-current")).toBe("true");
-    expect(container.querySelector("header strong")?.textContent).toBe("SPI Code");
+    expect(container.querySelector(".title-bar [data-place]")).toBeNull();
     expect(container.querySelector("aside")?.getAttribute("aria-label")).toBe("Detail");
   } finally {
     await shell.cleanup();
@@ -732,9 +734,9 @@ it("updates the title-bar sweep line from the live areas with the worst tone, an
     expect(line()?.getAttribute("data-tone")).toBe("muted");
     expect(line()?.textContent).toContain("waiting for the first sweep");
     for (const [snapshot, tone, words] of [
-      [failed, "bad", "⌀ 1 source failed"],
-      [recovered, "fresh", null],
-      [failed, "fresh", null],
+      [failed, "bad", "1 failed"],
+      [recovered, "muted", null],
+      [failed, "muted", null],
     ] as const) {
       await act(async () =>
         receive?.({
@@ -746,9 +748,9 @@ it("updates the title-bar sweep line from the live areas with the worst tone, an
         }),
       );
       expect(line()?.getAttribute("data-tone")).toBe(tone);
-      expect(line()?.textContent).toMatch(/^swept (\d\d-\d\d )?\d\d:\d\d/);
-      if (words === null) expect(line()?.textContent).not.toContain("⌀");
-      else expect(line()?.textContent).toContain(words);
+      expect(line()?.textContent).toMatch(/^(\d\d-\d\d )?\d\d:\d\d/);
+      if (words === null) expect(line()?.getAttribute("aria-label")).toContain("all areas read");
+      else expect(line()?.getAttribute("aria-label")).toContain(words);
       expect(line()?.textContent).not.toContain("inferred");
     }
     await act(async () =>
@@ -816,8 +818,8 @@ it.each(["failed", "stale"] as const)(
       const tone = state === "failed" ? "bad" : "warn";
       for (const [snapshot, expected] of [
         [degraded, tone],
-        [recovered, "fresh"],
-        [degraded, "fresh"],
+        [recovered, "muted"],
+        [degraded, "muted"],
       ] as const) {
         await act(async () =>
           receive?.({
@@ -830,8 +832,9 @@ it.each(["failed", "stale"] as const)(
         );
         const line = container.querySelector("header [data-sweep-line]");
         expect(line?.getAttribute("data-tone")).toBe(expected);
-        if (expected === "fresh") expect(line?.textContent).not.toContain("⌀");
-        else expect(line?.textContent).toContain(`⌀ 1 source ${state}`);
+        if (expected === "muted")
+          expect(line?.getAttribute("aria-label")).toContain("all areas read");
+        else expect(line?.getAttribute("aria-label")).toContain(`1 ${state}`);
       }
     } finally {
       await act(async () => root.unmount());

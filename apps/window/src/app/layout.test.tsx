@@ -254,14 +254,12 @@ it.each([true, false])(
     };
     const dom = (window as unknown as HappyWindow).happyDOM;
     dom.setViewport({ width: 740, height: 900 });
-    let titleHeight = 40;
-    let stripHeight = 31;
+    let titleHeight = 44;
     const rect = HTMLElement.prototype.getBoundingClientRect;
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
       this: HTMLElement,
     ) {
       if (this.matches(".title-bar")) return DOMRect.fromRect({ height: titleHeight });
-      if (this.matches(".window-strip")) return DOMRect.fromRect({ height: stripHeight });
       return rect.call(this);
     });
     let measure: (() => void) | undefined;
@@ -308,14 +306,11 @@ it.each([true, false])(
           expect(offset, selector).toBe(`${height}px`);
         }
       };
-      assertOffsets(withStrip ? 71 : 40);
-      expect(observed.map((element) => element.className)).toEqual(
-        withStrip ? ["title-bar", "window-strip"] : ["title-bar"],
-      );
-      titleHeight = 44;
-      stripHeight = 62;
+      assertOffsets(44);
+      expect(observed.map((element) => element.className)).toEqual(["title-bar"]);
+      titleHeight = 75;
       await act(async () => measure?.());
-      assertOffsets(withStrip ? 106 : 44);
+      assertOffsets(75);
     } finally {
       await view.cleanup();
       dom.setViewport(previousViewport);

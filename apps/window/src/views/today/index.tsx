@@ -57,7 +57,9 @@ function tiles(facts: ViewSnapshot["briefing"]["facts"]): Content["tiles"] | und
 function FirstSweep({ sweep }: { sweep: SweepStatus | null }) {
   return (
     <section className="today" aria-label="Today">
-      <h1>Today</h1>
+      <header className="place-header pane-header">
+        <h1 data-place>Today</h1>
+      </header>
       <p role="status">First sweep running</p>
       {sweep && (
         <dl className="today-sweep">

@@ -31,7 +31,10 @@ const previousWatch = watchStore.getState();
 function View({ route }: { route: Route }) {
   return (
     <section data-view={route.kind}>
-      <h1>{routeHash(route)}</h1>
+      <header className="place-header pane-header">
+        <span data-place>{routeLabel(route)}</span>
+        <h1>{routeHash(route)}</h1>
+      </header>
       <input aria-label="Draft" />
     </section>
   );
@@ -220,12 +223,12 @@ it("pins the Line sheet beside a live centre across navigation and a reload; unp
   expect(lineSheet()).toBeNull();
 });
 
-it("draws a registered strip under the title bar on every route and beside either sheet", async () => {
+it("draws a registered strip in the title bar on every route and beside either sheet", async () => {
   const strip = vi.fn(() => <p>line state</p>);
   await mount({ views: every, sheet, strip, fallback: { kind: "today" } });
   const header = () => container.querySelector("header.title-bar");
   const drawn = () => {
-    const slot = header()?.nextElementSibling;
+    const slot = header()?.querySelector(".window-strip");
     return slot?.matches(".window-strip") && !slot.closest("[inert]") ? slot.textContent : null;
   };
   for (const route of [{ kind: "today" }, { kind: "service", id: "legal" }] as const) {
@@ -241,7 +244,8 @@ it("draws a registered strip under the title bar on every route and beside eithe
 
   await unmount();
   await mount({ views: every, sheet, fallback: { kind: "today" } });
-  expect(container.querySelector(".window-strip")).toBeNull();
+  expect(container.querySelector("[data-strip]")).toBeNull();
+  expect(header()?.querySelector("[data-sweep-line]")).not.toBeNull();
   expect(header()?.nextElementSibling?.matches(".app-sidebar, .sidebar-backdrop, nav")).toBe(true);
 });
 
