@@ -23,7 +23,7 @@ export function RepositoryFacts({
   const columns = COLUMNS.filter(([key]) => isReadFigure(repository.cells[key].text));
   if (columns.length === 0) return null;
   return (
-    <section className="repository-counts" data-pointer={`${pointer}/cells`}>
+    <section className="card repository-counts" data-pointer={`${pointer}/cells`}>
       <h3>
         {repository.group === "program" ? "Program" : "Forks"} · {repository.name}
       </h3>

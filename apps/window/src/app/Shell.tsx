@@ -54,6 +54,24 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [registry.sheet, toggleSheet]);
   const middle = useRef<HTMLElement>(null);
+  const titleBar = useRef<HTMLElement>(null);
+  const strip = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const title = titleBar.current;
+    const shell = title?.parentElement;
+    if (!title || !shell) return;
+    const status = registry.strip ? strip.current : null;
+    const measure = () => {
+      const height =
+        title.getBoundingClientRect().height + (status?.getBoundingClientRect().height ?? 0);
+      shell.style.setProperty("--topbar-height", `${height}px`);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(title, { box: "border-box" });
+    if (status) observer.observe(status, { box: "border-box" });
+    return () => observer.disconnect();
+  }, [registry.strip]);
   const position = useRef({ route: routeHash(route), top: 0 });
   useLayoutEffect(() => {
     const frame = middle.current;
@@ -102,7 +120,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
         data-window-controls={windowControls()}
         data-line-sheet={sheet}
       >
-        <header className="title-bar">
+        <header className="title-bar" ref={titleBar}>
           <div className="title-bar-place">
             <strong>SPI Code</strong>
             <span aria-hidden>·</span>
@@ -134,7 +152,11 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
             />
           </div>
         </header>
-        {registry.strip && <div className="window-strip">{registry.strip()}</div>}
+        {registry.strip && (
+          <div className="window-strip" ref={strip}>
+            {registry.strip()}
+          </div>
+        )}
         <ProgramSidebar
           store={watchStore}
           route={route}

@@ -60,6 +60,11 @@ internal names, title emoji and empty or placeholder sections, with rule mutatio
 Injected emoji cases cover Detail fields, Today sublines, template queue rows and
 environment repository lines; ordinary symbols and navigation glyphs stay intact.
 
+Window layout tests keep logical sections flat and reserve `.card` for separate
+objects such as repository fact summaries. The shell measures the title bar plus
+strip into `--topbar-height`; narrow sidebar and Detail sheets and their backdrops
+use that offset and update when either row resizes.
+
 `scripts/check` repeats Vitest with `SPI_TEST_CLOCK_SHIFT=1`, moving the wall
 clock 400 days forward to catch expiring fixtures before they break main.
 The shifted clock still ticks, leaves real timers alone, and allows explicit

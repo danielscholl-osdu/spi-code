@@ -34,9 +34,9 @@ kbd.sidebar-row-note { font-family: var(--font-mono); }
 .app-sidebar [data-slot="sidebar-footer"] { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-top: 1px solid var(--border); }
 .app-sidebar [data-slot="sidebar-footer"] ul { flex: 1; min-width: 0; }
 .sweep-stamp { flex: none; color: var(--text-muted); font-size: 11px; }
-.sidebar-backdrop { position: fixed; inset: 40px 0 0; z-index: 9; background: color-mix(in srgb, var(--chrome) 60%, transparent); }
+.sidebar-backdrop { position: fixed; inset: var(--topbar-height) 0 0; z-index: 9; background: color-mix(in srgb, var(--chrome) 60%, transparent); }
 @media (max-width: 979px) {
-  .app-sidebar { position: fixed; top: 40px; bottom: 0; left: 0; z-index: 10; width: 232px; transform: translateX(-100%); transition: transform .15s ease-out; }
+  .app-sidebar { position: fixed; top: var(--topbar-height); bottom: 0; left: 0; z-index: 10; width: 232px; transform: translateX(-100%); transition: transform .15s ease-out; }
   .app-sidebar[data-state="expanded"] { transform: none; box-shadow: 0 8px 24px rgb(0 0 0 / 0.25); }
   .app-sidebar[data-state="collapsed"] { visibility: hidden; }
 }
