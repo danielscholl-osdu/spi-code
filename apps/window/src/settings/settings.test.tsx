@@ -190,7 +190,8 @@ it("lights the footer row with readiness, shows no sweep time there, and reaches
 
 it("checks all from the header, stays disabled through the host check and updates the local Checked time", async () => {
   const now = new Date("2026-11-08T15:05:00.000Z").getTime();
-  vi.spyOn(Date, "now").mockReturnValue(now);
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(now);
   const initial = "2026-11-08T15:04:00.000Z";
   watchStore.setState({ setup: { ...tools(["ready"]), checkedAt: initial } });
   const shell = await mountShell();
@@ -242,7 +243,7 @@ it("checks all from the header, stays disabled through the host check and update
     await close();
   } finally {
     await shell.cleanup();
-    vi.restoreAllMocks();
+    vi.useRealTimers();
   }
 });
 
