@@ -58,6 +58,18 @@ export type SelectionState = {
   receive(input: unknown): void;
 };
 
+function createInspectRequest(id: string) {
+  const parsed = parseMessage({
+    version: PROTOCOL_VERSION,
+    id: crypto.randomUUID(),
+    kind: "request",
+    type: "inspect.request",
+    payload: { id },
+  });
+  if (!parsed.ok) throw new Error("Invalid inspect request");
+  return parsed.message;
+}
+
 export function createSelectionStore(port: InspectPort) {
   let hostPid: number | undefined;
   let snapshotCursor = -1;
@@ -94,27 +106,20 @@ export function createSelectionStore(port: InspectPort) {
         });
         return;
       }
-      const parsed = parseMessage({
-        version: PROTOCOL_VERSION,
-        id: crypto.randomUUID(),
-        kind: "request",
-        type: "inspect.request",
-        payload: { id: row?.inspectId ?? id },
-      });
-      if (!parsed.ok) throw new Error("Invalid inspect request");
+      const message = createInspectRequest(row?.inspectId ?? id);
       const result = get().result;
       set({
         selected: id,
         row: row ?? null,
         open: true,
-        request: parsed.message.id,
+        request: message.id,
         result: result?.id === (row?.inspectId ?? id) ? result : null,
         error: null,
         missing: null,
         tab: "detail",
         evidenceScope: "selection",
       });
-      port.postMessage(parsed.message);
+      port.postMessage(message);
     },
     clear() {
       const { open, tab, evidenceScope } = get();
@@ -192,8 +197,11 @@ export function createSelectionStore(port: InspectPort) {
       if (message.type === "host.hello") {
         const changed = message.payload.pid !== hostPid;
         hostPid = message.payload.pid;
-        if (changed && request !== null && selected !== null)
-          get().select(selected, get().row ?? undefined);
+        if (changed && request !== null && selected !== null) {
+          const retry = createInspectRequest(get().row?.inspectId ?? selected);
+          set({ request: retry.id });
+          port.postMessage(retry);
+        }
         return;
       }
       if (message.type === "error" && message.payload.code === "host_unavailable") {
