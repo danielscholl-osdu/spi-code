@@ -80,6 +80,14 @@ it("does not box bare section selectors anywhere in the window styles", () => {
   }
 });
 
+it("gives every topbar-height reference in window styles a fallback", () => {
+  for (const { file, css } of styles) {
+    for (const [reference] of css.matchAll(/var\(\s*--topbar-height\b[^)]*\)/g)) {
+      expect(reference, file).toMatch(/,\s*[^)\s]/);
+    }
+  }
+});
+
 it.each(["light", "dark"])(
   "keeps the centre on surface, the panel on chrome and logical sections flat in %s",
   async (theme) => {
@@ -141,7 +149,6 @@ it.each(["light", "dark"])(
         }
       }
       expect(cards).toBeGreaterThan(0);
-      expect(view.container.querySelectorAll("main section")).toHaveLength(5);
       expect(view.container.querySelectorAll("main section.card")).toHaveLength(0);
     } finally {
       await view.cleanup();

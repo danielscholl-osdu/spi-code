@@ -63,7 +63,7 @@ environment repository lines; ordinary symbols and navigation glyphs stay intact
 Window layout tests keep logical sections flat and reserve `.card` for separate
 objects such as repository fact summaries. The shell measures the title bar plus
 strip into `--topbar-height`; narrow sidebar and Detail sheets and their backdrops
-use that offset and update when either row resizes.
+use that offset, fall back to 40 px before measurement, and update when either row resizes.
 
 `scripts/check` repeats Vitest with `SPI_TEST_CLOCK_SHIFT=1`, moving the wall
 clock 400 days forward to catch expiring fixtures before they break main.
