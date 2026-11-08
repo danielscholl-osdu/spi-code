@@ -1,0 +1,859 @@
+<title>SPI Code Window Layout</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a design document with before/after window mockups drawn in the app's own Shore tokens. */
+:root{
+  --chrome:#f3efe4; --sidebar:#ece6d7; --surface:#fbf9f3; --raised:#f2ede1;
+  --border:#dcd3bf; --border-soft:#e8e1d0;
+  --text:#23211c; --strong:#15130f; --muted:#665f4f;
+  --accent:#1d7a6c; --accent-text:#1b7366; --accent-surface:#d9ece7;
+  --error:#bb4a2b; --error-text:#ac4428; --error-surface:#f4dfd6;
+  --warning:#a07b3a; --warning-text:#80622e; --warning-surface:#f3e8cf;
+  --success:#3a7633; --success-text:#356c2f; --success-surface:#e1eedc;
+  --agent:#8a5cc0; --agent-text:#7e4cba; --agent-surface:#ece2f6;
+  --scrim:#15130f40; --on-fill:#ffffff;
+  --k-fix:var(--error); --k-fix-bg:var(--error-surface); --k-fix-ink:var(--error-text);
+  --k-lay:var(--accent); --k-lay-bg:var(--accent-surface); --k-lay-ink:var(--accent-text);
+  --k-prd:var(--agent); --k-prd-bg:var(--agent-surface); --k-prd-ink:var(--agent-text);
+  --doc:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --app:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --chrome:#0f1a1b; --sidebar:#132021; --surface:#162324; --raised:#1d2d2e;
+    --border:#2b3d3d; --border-soft:#213132;
+    --text:#e4dfd1; --strong:#f6f2e6; --muted:#a59d8a;
+    --accent:#5cc4b2; --accent-text:#5cc4b2; --accent-surface:#173b37;
+    --error:#ec8a6e; --error-text:#ec8a6e; --error-surface:#3a211b;
+    --warning:#e2b45c; --warning-text:#e2b45c; --warning-surface:#33291a;
+    --success:#8fcf86; --success-text:#8fcf86; --success-surface:#1d3320;
+    --agent:#c3a2e8; --agent-text:#c3a2e8; --agent-surface:#2c2340;
+    --scrim:#00000066; --on-fill:#0f1a1b;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --chrome:#0f1a1b; --sidebar:#132021; --surface:#162324; --raised:#1d2d2e;
+  --border:#2b3d3d; --border-soft:#213132;
+  --text:#e4dfd1; --strong:#f6f2e6; --muted:#a59d8a;
+  --accent:#5cc4b2; --accent-text:#5cc4b2; --accent-surface:#173b37;
+  --error:#ec8a6e; --error-text:#ec8a6e; --error-surface:#3a211b;
+  --warning:#e2b45c; --warning-text:#e2b45c; --warning-surface:#33291a;
+  --success:#8fcf86; --success-text:#8fcf86; --success-surface:#1d3320;
+  --agent:#c3a2e8; --agent-text:#c3a2e8; --agent-surface:#2c2340;
+  --scrim:#00000066; --on-fill:#0f1a1b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--chrome);color:var(--text);font-family:var(--doc);font-size:15px;line-height:1.55}
+.wrap{max-width:1120px;margin:0 auto;padding-block:36px 72px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-size:clamp(26px,4vw,36px);font-weight:600;letter-spacing:-.01em;margin:0 0 10px;color:var(--strong);text-wrap:balance}
+h2{font-size:22px;font-weight:600;margin:0 0 8px;color:var(--strong);text-wrap:balance}
+h3{font-size:15px;font-weight:600;margin:22px 0 6px;color:var(--strong)}
+p{margin:0 0 10px;max-width:72ch;color:var(--text)}
+p.lead{font-size:17px;max-width:66ch}
+.eyebrow{font-size:11.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+section{margin-top:52px;padding-top:30px;border-top:1px solid var(--border)}
+code{font-family:var(--mono);font-size:.9em}
+.problem{margin-top:22px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 22px}
+.problem p{max-width:80ch}
+.legend{display:flex;flex-wrap:wrap;gap:10px 22px;margin-top:14px;font-size:13.5px}
+.kind{display:inline-flex;align-items:center;gap:7px;font-weight:600}
+.kind::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
+.kind span{font-weight:400;color:var(--muted)}
+.k-fix{--c:var(--k-fix);color:var(--k-fix-ink)} .k-lay{--c:var(--k-lay);color:var(--k-lay-ink)} .k-prd{--c:var(--k-prd);color:var(--k-prd-ink)}
+.note{font-size:13px;color:var(--muted);margin-top:10px;max-width:80ch}
+.tblwrap{overflow-x:auto;margin-top:16px}
+.tbl{width:100%;min-width:640px;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);font-size:14px}
+.tbl th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--raised)}
+.tbl td{padding:10px 14px;border-bottom:1px solid var(--border-soft);vertical-align:top;color:var(--text)}
+.tbl tr:last-child td{border-bottom:none}
+.tbl td b{font-weight:600;color:var(--strong)}
+.tbl td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl td.mono{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+.tbl.compact td{padding:8px 12px;font-size:13.5px}
+.tag{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:4px;white-space:nowrap;margin:0 4px 4px 0}
+.tag.k-fix{background:var(--k-fix-bg)} .tag.k-lay{background:var(--k-lay-bg)} .tag.k-prd{background:var(--k-prd-bg)}
+.tag::before{display:none}
+.appendix{margin-top:64px;padding-top:30px;border-top:3px solid var(--border)}
+.appendix h2{font-size:18px}
+.appendix section{margin-top:32px;padding-top:22px}
+
+/* ---------- window mockups (69% of 1440) ---------- */
+.shot{margin-top:16px;overflow-x:auto;padding-bottom:4px}
+.shot-cap{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:22px 0 0}
+.winwrap{position:relative;width:1000px;padding-top:24px}
+.win{position:relative;width:1000px;height:560px;border:1px solid var(--border);border-radius:10px;overflow:hidden;font-family:var(--app);font-size:10.5px;line-height:1.4;color:var(--text);display:grid;background:var(--chrome);box-shadow:0 8px 28px #0000001a}
+.win.today{grid-template-columns:161px minmax(0,1fr) 208px;grid-template-rows:28px 21px minmax(0,1fr)}
+.win.next{grid-template-columns:161px minmax(0,1fr) 250px;grid-template-rows:31px minmax(0,1fr)}
+.lights{display:flex;gap:6px;margin-right:12px}
+.lights i{width:9px;height:9px;border-radius:50%;background:var(--border)}
+.tb{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:0 8px 0 12px;background:var(--sidebar);border-bottom:1px solid var(--border);white-space:nowrap;min-width:0}
+.tb .place{color:var(--strong);font-weight:600}
+.tb .sp{flex:1}
+.tb .bad{color:var(--error-text)}
+.tb .sel{border:1px solid var(--border);border-radius:4px;padding:0 5px;background:var(--surface);font-size:9.5px}
+.tgl{display:inline-flex;gap:4px}
+.tgl i{width:12px;height:10px;border:1.3px solid var(--muted);border-radius:2px;position:relative}
+.tgl i.l::after{content:"";position:absolute;left:2.5px;top:0;bottom:0;width:1.3px;background:var(--muted)}
+.tgl i.r::after{content:"";position:absolute;right:2.5px;top:0;bottom:0;width:1.3px;background:var(--muted)}
+.strip{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:0 12px;background:var(--chrome);border-bottom:1px solid var(--border);color:var(--muted);white-space:nowrap;font-size:9.5px}
+.strip b,.tb b{color:var(--text);font-weight:600}
+.pipt{font-family:var(--mono);color:var(--warning-text);letter-spacing:2px}
+.pipt .x{color:var(--error-text)}
+.stopped{color:var(--error-text)}
+.due{color:var(--warning-text)}
+.linebtn{border:1px solid var(--border);border-radius:4px;padding:0 5px;color:var(--muted)}
+.pips{display:inline-flex;gap:3px;align-items:center}
+.pips i{width:7px;height:7px;border-radius:50%;border:1.3px solid var(--muted)}
+.pips i.w{border-color:var(--warning);background:var(--warning)}
+.pips i.x{border-color:var(--error);background:var(--error);border-radius:1px;transform:rotate(45deg) scale(.85)}
+.pips i.p{border-color:var(--accent);background:linear-gradient(90deg,var(--accent) 50%,transparent 50%)}
+.pips.small{gap:2px} .pips.small i{width:6px!important;height:6px!important}
+.fresh{display:inline-flex;align-items:center;gap:4px;color:var(--error-text)}
+.fresh::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--error)}
+.fresh.ok{color:var(--muted)} .fresh.ok::before{background:var(--muted)}
+.fresh.warn{color:var(--warning-text)} .fresh.warn::before{background:var(--warning)}
+.sb{background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:8px 6px;gap:1px;min-width:0;position:relative}
+.sb .find{border:1px solid var(--border);border-radius:5px;background:var(--surface);padding:3px 6px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between}
+.sb .row{display:flex;justify-content:space-between;padding:3px 6px;border-radius:4px}
+.sb .row small{color:var(--muted);font-size:9.5px}
+.sb .badge{background:var(--error);color:var(--on-fill);border-radius:8px;padding:0 5px;font-size:9px;font-weight:600}
+.sb .grp{font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:10px 6px 3px}
+.sb .foot{margin-top:auto;border-top:1px solid var(--border);padding-top:6px}
+.dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--success);margin-left:5px;vertical-align:1px}
+.mid{min-width:0;overflow:hidden;position:relative}
+.today .mid{padding:10px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:10px 12px;height:100%;overflow:hidden}
+.next .mid{background:var(--surface);display:grid;grid-template-rows:31px minmax(0,1fr)}
+.phead{display:flex;align-items:center;gap:8px;padding:0 14px;border-bottom:1px solid var(--border);white-space:nowrap;min-width:0}
+.phead .nm{font-weight:600;color:var(--strong);font-size:11.5px}
+.phead .sp{flex:1}
+.chip,.pinb{border:1px solid var(--border);border-radius:4px;padding:0 6px;color:var(--accent-text);font-size:9.5px}
+.body{padding:10px 14px;overflow:hidden;max-width:640px}
+.hl{font-size:13px;font-weight:600;color:var(--strong);margin:2px 0 8px}
+.today .hl{margin-top:8px;padding-top:8px;border-top:1px solid var(--border-soft)}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.tile{border:1px solid var(--border);border-radius:6px;padding:5px 7px;background:var(--chrome)}
+.today .tile{background:var(--surface)}
+.tile .k{font-size:8px;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.tile .v{font-size:13px;font-weight:600;color:var(--strong)}
+.tile .s{font-size:9px;color:var(--muted)}
+.lbl{font-size:8.5px;letter-spacing:.08em;color:var(--muted);font-weight:600;text-transform:uppercase;margin:8px 0 3px}
+.item{display:flex;gap:5px;align-items:baseline;padding:3px 0;border-bottom:1px solid var(--border-soft)}
+.item .p{font-size:8.5px;font-weight:600;padding:0 4px;border-radius:3px;background:var(--warning-surface);color:var(--warning-text)}
+.item .p.p2{background:var(--accent-surface);color:var(--accent-text)}
+.item .svc{font-size:8.5px;padding:0 4px;border-radius:3px;background:var(--accent-surface);color:var(--accent-text)}
+.item .t{color:var(--strong);font-weight:500}
+.disc{padding:4px 0;border-bottom:1px solid var(--border-soft);color:var(--strong);font-weight:600}
+.disc small{color:var(--muted);font-weight:400;margin-left:4px}
+.disc.styled{display:flex;align-items:center;gap:6px;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.disc.styled::before{content:"";width:5px;height:5px;border-right:1.3px solid var(--muted);border-bottom:1.3px solid var(--muted);transform:rotate(-45deg);margin-right:2px}
+.disc.styled.open{border-bottom:none}
+.disc.styled.open::before{transform:rotate(45deg)}
+.disc.styled .n{margin-left:auto;font-variant-numeric:tabular-nums;letter-spacing:0}
+.kid{padding:2px 0 2px 13px;border-bottom:1px solid var(--border-soft);color:var(--text)}
+.kid:last-of-type{margin-bottom:0}
+.rp{min-width:0;display:flex;flex-direction:column;position:relative;border-left:1px solid var(--border)}
+.today .rp{background:var(--surface)}
+.next .rp{background:var(--chrome)}
+.tabs{display:flex;align-items:center;gap:10px;padding:0 10px;border-bottom:1px solid var(--border);height:26px;white-space:nowrap}
+.next .tabs{height:31px}
+.tabs .on{color:var(--strong);font-weight:600;border-bottom:2px solid var(--accent);padding-bottom:3px}
+.tabs .off{color:var(--muted)}
+.tabs .x{margin-left:auto;color:var(--muted)}
+.next .tabs .x{width:16px;height:16px;border-radius:4px;display:grid;place-items:center;background:var(--raised)}
+.insp{padding:8px 10px;overflow:hidden}
+.insp .k{font-size:8px;letter-spacing:.08em;color:var(--muted);font-weight:600;text-transform:uppercase;margin-top:6px}
+.insp .v{font-size:10px}
+.insp .ttl{font-size:12.5px;font-weight:600;color:var(--strong)}
+.rel{display:grid;grid-template-columns:150px 18px;column-gap:6px;font-size:10px;word-break:break-all;line-height:1.25}
+.relx .r{padding:3px 0;border-bottom:1px solid var(--border-soft)}
+.relx .r small{display:block;font-size:8px;letter-spacing:.06em;color:var(--muted);text-transform:uppercase;font-weight:600}
+.relx .r a{color:var(--accent-text);text-decoration:none}
+.handle{position:absolute;left:-1px;top:0;bottom:0;width:2px;background:var(--accent)}
+.mk{position:absolute;z-index:5;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font:600 10px/1 var(--doc);color:var(--on-fill);background:var(--c);box-shadow:0 0 0 2px var(--chrome)}
+.mk.k-fix{--c:var(--k-fix)} .mk.k-lay{--c:var(--k-lay)} .mk.k-prd{--c:var(--k-prd)}
+
+/* top row studies, 84% */
+.rowstudy{zoom:.84;width:1280px;font-family:var(--app);font-size:12.5px;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--chrome)}
+.rowstudy.w1100{width:1100px} .rowstudy.w980{width:980px}
+.rowstudy .tb{height:40px;padding-left:16px}
+.rowstudy .strip{height:31px;padding:0 14px;gap:14px;font-size:12.5px}
+.rowstudy .one{height:44px;display:flex;align-items:center;gap:14px;padding:0 10px 0 16px;background:var(--sidebar);white-space:nowrap;color:var(--muted)}
+.rowstudy .one b{color:var(--text);font-weight:600}
+.rowstudy .lights i{width:12px;height:12px}
+.rowstudy .lights{gap:8px;margin-right:22px}
+.rowstudy .pips i{width:9px;height:9px}
+.rowstudy .pips{gap:3px}
+.rowstudy .tgl i{width:14px;height:11px}
+.rowstudy .tgl{gap:10px}
+.rowstudy .fresh::before{width:7px;height:7px}
+.rowstudy .sel{font-size:12px;padding:1px 6px}
+.rowstudy.w740{width:740px}
+.caps{display:inline-flex;margin-right:-10px;align-self:stretch}
+.caps i{width:46px;display:grid;place-items:center;font-style:normal;color:var(--muted);font-size:12px}
+.rowstudy .one.r2{height:31px;background:var(--chrome);border-top:1px solid var(--border)}
+.tip{display:inline-block;margin-left:8px;font-size:11px;background:var(--strong);color:var(--chrome);border-radius:4px;padding:1px 7px;white-space:nowrap}
+
+/* width budget */
+.budget{margin-top:16px;overflow-x:auto}
+.budget svg{display:block;width:100%;min-width:860px;height:auto}
+.budget text{font-family:var(--doc);font-size:11.5px;fill:var(--text)}
+.budget .w{font-weight:600;font-size:12.5px;fill:var(--strong);font-variant-numeric:tabular-nums}
+.budget .sm{font-size:11px;fill:var(--muted)}
+.budget .sbar{fill:var(--sidebar);stroke:var(--border)}
+.budget .cbar{fill:var(--surface);stroke:var(--border)}
+.budget .lbar{fill:var(--warning-surface);stroke:var(--warning)}
+.budget .pbar{fill:var(--accent-surface);stroke:var(--accent)}
+.budget .obar{fill:var(--accent-surface);stroke:var(--accent);stroke-dasharray:4 3}
+.budget .wedge{fill:none;stroke:var(--muted);stroke-width:1}
+
+/* detail panel 1:1 */
+.pair{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;margin-top:16px}
+.pane1{font-family:var(--app);font-size:12px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.pane1 .tabs{height:38px;padding:0 14px;gap:14px;font-size:12px}
+.pane1 .insp{padding:12px 16px}
+.pane1 .insp .k{font-size:10.5px;margin-top:10px}
+.pane1 .insp .v{font-size:12.5px}
+.pane1 .rel{grid-template-columns:236px 21px;font-size:12px}
+.pane1 .relx .r{padding:6px 0}
+.pane1 .relx .r small{font-size:10px}
+.pane1 .relx .r span{font-size:12.5px}
+.cap2{font-size:12px;color:var(--muted);margin:6px 0 0;max-width:360px}
+
+/* resize states */
+.edge{display:flex;gap:18px;flex-wrap:wrap;margin-top:16px}
+.edge figure{margin:0}
+.edge .e{position:relative;width:220px;height:120px;border:1px solid var(--border);border-radius:8px;overflow:hidden;display:grid;grid-template-columns:1fr 1fr}
+.edge .e .l{background:var(--surface)} .edge .e .r{background:var(--chrome);border-left:1px solid var(--border)}
+.edge .e .hz{position:absolute;left:106px;top:0;bottom:0;width:8px;border:1px dashed var(--muted);border-radius:2px}
+.edge .e .ln{position:absolute;left:109px;top:0;bottom:0;width:2px;background:var(--accent)}
+.edge figcaption{font-size:12.5px;color:var(--muted);margin-top:6px;max-width:220px}
+
+/* settings */
+.setwin{position:relative;width:1000px;height:640px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--chrome);font-family:var(--app);font-size:12px}
+.setwin.narrow{width:740px;height:560px}
+.setwin .ghost{position:absolute;inset:0;opacity:.55;display:grid;grid-template-rows:44px 1fr}
+.setwin .ghost .t{background:var(--sidebar);border-bottom:1px solid var(--border)}
+.setwin .ghost .b{display:grid;grid-template-columns:232px 1fr}
+.setwin .ghost .b i{background:var(--sidebar);border-right:1px solid var(--border)}
+.setwin .ghost .b u{background:var(--surface)}
+.setwin.narrow .ghost .b{grid-template-columns:1fr}
+.setwin.narrow .ghost .b i{display:none}
+.setwin .scrim{position:absolute;inset:0;background:var(--scrim)}
+.modal{position:absolute;left:90px;top:44px;width:820px;height:560px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 20px 60px #0000003d;display:grid;grid-template-columns:184px minmax(0,1fr);overflow:hidden}
+.setwin.narrow .modal{left:24px;top:44px;width:692px;height:472px;grid-template-columns:minmax(0,1fr)}
+.modal nav{background:var(--sidebar);border-right:1px solid var(--border);padding:14px 10px;display:flex;flex-direction:column;gap:2px}
+.modal nav .h{font-weight:600;color:var(--strong);font-size:14px;padding:0 8px 10px}
+.modal nav .i{padding:5px 8px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;color:var(--text)}
+.modal nav .i.on{background:var(--raised);font-weight:600;color:var(--strong)}
+.navdot{width:7px;height:7px;border-radius:50%;background:var(--warning)}
+.modal .main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.modal .mh{display:flex;align-items:center;gap:10px;height:44px;flex:none;padding:0 16px;border-bottom:1px solid var(--border)}
+.modal .mh .crumb{color:var(--muted)} .modal .mh .crumb b{color:var(--strong);font-weight:600}
+.modal .mh .sp{flex:1}
+.btn{border:1px solid var(--border);border-radius:6px;padding:2px 10px;background:var(--surface);color:var(--accent-text);white-space:nowrap;font-size:11.5px}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--on-fill)}
+.close{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;color:var(--muted);background:var(--raised)}
+.navsel{border:1px solid var(--border);border-radius:6px;padding:2px 8px;background:var(--surface);color:var(--strong);font-weight:600}
+.modal .mb{padding:14px 18px;overflow:hidden;flex:1;position:relative}
+.scrollbar{position:absolute;right:4px;top:10px;width:4px;height:120px;border-radius:2px;background:var(--border)}
+.modal .g{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:4px 0 6px}
+.banner{display:flex;align-items:center;gap:10px;border:1px solid var(--border);border-radius:8px;background:var(--warning-surface);color:var(--warning-text);padding:7px 12px;margin-bottom:12px}
+.banner.ok{background:var(--success-surface);color:var(--success-text)}
+.banner .sp{flex:1}
+.sgroup{border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:14px}
+.srow{display:grid;grid-template-columns:120px 82px minmax(0,1fr) auto;gap:4px 12px;align-items:start;padding:8px 12px;border-bottom:1px solid var(--border-soft);background:var(--surface)}
+.srow:last-child{border-bottom:none}
+.srow .nm{font-weight:600;color:var(--strong)}
+.srow .why{color:var(--muted);font-size:11.5px}
+.srow .act{display:flex;gap:6px}
+.srow .more{grid-column:2/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--chrome);border:1px solid var(--border-soft);border-radius:6px;padding:8px 10px;margin-top:4px}
+.code{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--strong);letter-spacing:.08em}
+.bar{display:block;height:4px;border-radius:2px;background:var(--border);margin-top:5px;position:relative;overflow:hidden}
+.bar::after{content:"";position:absolute;left:0;top:0;bottom:0;width:34%;background:var(--accent)}
+.st{font-size:10.5px;font-weight:700;border-radius:4px;padding:1px 7px;justify-self:start;white-space:nowrap}
+.st.ok{background:var(--success-surface);color:var(--success-text)}
+.st.si{background:var(--warning-surface);color:var(--warning-text)}
+.st.in{background:var(--accent-surface);color:var(--accent-text)}
+.st.at{background:var(--error-surface);color:var(--error-text)}
+.err{color:var(--error-text)}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.seg span{padding:2px 10px;border-right:1px solid var(--border)} .seg span:last-child{border-right:none}
+.seg .on{background:var(--accent-surface);color:var(--accent-text);font-weight:600}
+.appear{width:560px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface);font-family:var(--app);font-size:12px}
+.appear .mh{display:flex;align-items:center;gap:10px;height:44px;padding:0 16px;border-bottom:1px solid var(--border)}
+.appear .mh .crumb{color:var(--muted)} .appear .mh .crumb b{color:var(--strong);font-weight:600}
+.appear .mb{padding:14px 18px}
+.appear .srow{grid-template-columns:120px minmax(0,1fr) auto}
+.twoup{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;margin-top:16px}
+@media (max-width:520px){ p.lead{font-size:16px} }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">spi-code · window shell · design</p>
+  <h1>SPI Code Window Layout</h1>
+  <p class="lead">What the window looks like after the M2 layout pass: one top row, flush panes that resize, a Detail panel that reads at any width, and Setup folded into a Settings dialog.</p>
+
+  <div class="problem">
+    <p>Today the window spends 71 px on two status rows before any work shows, says when it last swept in three places, and frames the centre as a floating card while the right panel sits flush. The Detail panel is a fixed 300 px with no way to widen it, and its Related list collapses to one syllable per line. Setup is five full-width cards that state readiness in prose, offer no way to check again, and fail silently when a request does not send; Appearance lives in the title bar.</p>
+    <p>This change merges the title bar and the strip into one 44 px row, draws every pane flush with 1 px dividers and one shared header line, makes the sidebar, the right panel and a pinned Line sheet resizable with remembered widths, folds panes by the width actually left for the centre, fixes the Detail panel's layout, and turns Setup into the Readiness section of a Settings dialog opened with ⌘, that also holds Appearance.</p>
+    <p>It does not change what any place, the strip or the Detail panel says, only where and how it is laid out. Service-page station cells, right-panel editor tabs, the Models section and the GitHub token override are not part of this change. Seven requirements in the PRD and the window design change wording; appendix B lists each.</p>
+  </div>
+
+  <p class="eyebrow" style="margin-top:28px">Colors mark the kind of change</p>
+  <div class="legend">
+    <span class="kind k-fix">Defect fix <span>· the app does not do what the design already says</span></span>
+    <span class="kind k-lay">Layout change <span>· new behavior the current design allows</span></span>
+    <span class="kind k-prd">Design change <span>· needs a PRD or window design edit (appendix B)</span></span>
+  </div>
+
+  <!-- ================= WINDOW BEFORE / AFTER ================= -->
+  <section>
+    <h2>The window at 1440 px</h2>
+    <p>Both drawings show the same indexer place with Detail open, at 69% scale. The numbered marks on the second drawing are keyed to the table under it. The centre's 960 px reading width is not visible at this size; the Panes table covers it.</p>
+
+    <p class="shot-cap">Today</p>
+    <div class="shot">
+      <div class="win today" role="img" aria-label="Today's window: two status rows at the top, centre in a bordered card, a fixed 300 px Detail panel whose Related list wraps one syllable per line.">
+        <div class="tb"><span class="lights"><i></i><i></i><i></i></span><span class="place">SPI Code · indexer</span><span class="sp"></span><span class="bad">● swept 08:58 · ⌀ 1 source failed, 1 incomplete, 1 stale</span><span>Appearance <span class="sel">Light ▾</span></span><span class="tgl"><i class="l"></i><i class="r"></i></span></div>
+        <div class="strip"><span class="pipt">!!!!!<span class="x">×</span>!!!<span class="x">×</span>!!!</span><span class="stopped">storage, indexer-queue stopped</span><span>env <b>v0.35.5</b> deployable</span><span>template <b>12/13</b></span><span style="flex:1"></span><span class="due">5 due before 18:00</span><span>next sync <b>18:00</b></span><span class="linebtn">Line ⌘L</span></div>
+        <div class="sb">
+          <div class="find"><span>○ Find or ask</span><span>⌘K</span></div>
+          <div class="row"><span>Today</span><span class="badge">1</span></div>
+          <div class="row"><span>Line</span><small>⌘L</small></div>
+          <div class="grp">Places</div>
+          <div class="row"><span>Upstream</span></div>
+          <div class="row"><span>Environment</span><small>v0.35.5</small></div>
+          <div class="row"><span>Engineering system</span><small>13 of 13</small></div>
+          <div class="row"><span>Releases</span><small>2026.11</small></div>
+          <div class="row"><span>Security</span></div>
+          <div class="foot"><div class="row"><span class="grp" style="padding:0">Settled</span><small>0 ›</small></div><div class="row"><span>Setup</span><small>swept 08:58 AM</small></div></div>
+        </div>
+        <div class="mid"><div class="card">
+          <div style="display:flex;gap:8px;align-items:center"><span style="font-weight:600;color:var(--strong);font-size:11.5px">indexer</span><span style="flex:1"></span><span class="chip">Upstream sync · toolchain move · pilot decides</span><span class="pinb">Pin</span></div>
+          <div class="hl">Sync PR #58 waits for review.</div>
+          <div class="tiles"><div class="tile"><div class="k">UPSTREAM</div><div class="v">29</div><div class="s">commits behind · port owed</div></div><div class="tile"><div class="k">LINE</div><div class="v">Waiting</div><div class="s">PR #58 waits for review</div></div><div class="tile"><div class="k">RELEASE REVIEW</div><div class="v">PR #33</div><div class="s">checks pass · open 16d</div></div></div>
+          <div class="lbl">Before 18:00</div>
+          <div class="item"><span class="p">P1</span><span class="svc">indexer</span><span class="t">Next sync carries os-core-common 8.5.0</span></div>
+          <div class="lbl">Needs a decision</div>
+          <div class="item"><span class="p">P1</span><span class="svc">indexer</span><span class="t">Sync PR #58 waits for review</span></div>
+          <div class="lbl">Security</div>
+          <div class="item"><span class="p p2">P2</span><span class="svc">indexer</span><span class="t">2 SPI-owned CodeQL findings · 3 dependency findings</span></div>
+          <div style="height:8px"></div>
+          <div class="disc">▸ Attention <small>3</small></div>
+          <div class="disc">▸ Repository <small style="color:var(--error-text)">1 issue needs a person</small></div>
+          <div class="disc">▸ Release <small>2</small></div>
+          <div class="disc">▸ Runs <small>25</small></div>
+        </div></div>
+        <div class="rp">
+          <div class="tabs"><span class="on">Detail</span><span class="off">Evidence</span><span class="x">×</span></div>
+          <div class="insp">
+            <div class="k">upstream sync</div><div class="ttl">indexer · wave 1</div>
+            <div class="k">Cause</div><div class="v">indexer's sync PR #58 is prepared</div>
+            <div class="k">Effect</div><div class="v">29 upstream commits queued · carries os-core-common 8.5.0</div>
+            <div class="k">Next</div><div class="v">Start: merge #58, then dispatch the cascade.</div>
+            <div class="k">Why</div><div class="v">PREPARED</div>
+            <div class="k">Related</div>
+            <div class="rel"><span></span><span>29<br>ups<br>trea<br>m<br>co<br>mmi<br>ts<br>que<br>ued<br>·<br>carr<br>ies</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="shot-cap">After this change</p>
+    <div class="shot">
+      <div class="winwrap">
+        <div class="win next" role="img" aria-label="The proposed window: one top row, flush panes with a shared header line, a 360 px Detail panel with its drag edge highlighted, Related stacked label over value, styled section headers, and a Settings footer row.">
+          <div class="tb" style="gap:12px"><span class="lights"><i></i><i></i><i></i></span>
+            <span class="pips"><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="x"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="x"></i><i class="w"></i><i class="p"></i><i></i></span>
+            <span class="stopped">storage, indexer-queue stopped</span><span>env <b>v0.35.5</b> deployable</span><span>template <b>12/13</b></span>
+            <span class="sp"></span><span class="due">5 due before 18:00</span><span>next sync <b>18:00</b></span><span class="fresh">08:58 · 3</span><span class="tgl"><i class="l"></i><i class="r"></i></span></div>
+          <div class="sb">
+            <div class="find"><span>○ Find or ask</span><span>⌘K</span></div>
+            <div class="row"><span>Today</span><span class="badge">1</span></div>
+            <div class="row"><span>Line</span><small>⌘L</small></div>
+            <div class="grp">Places</div>
+            <div class="row"><span>Upstream</span></div>
+            <div class="row"><span>Environment</span><small>v0.35.5</small></div>
+            <div class="row"><span>Engineering system</span><small>13 of 13</small></div>
+            <div class="row"><span>Releases</span><small>2026.11</small></div>
+            <div class="row"><span>Security</span></div>
+            <div class="foot"><div class="row"><span>Settings<span class="dot"></span></span><small>⌘,</small></div></div>
+          </div>
+          <div class="mid">
+            <div class="phead"><span class="nm">indexer</span><span class="sp"></span><span class="chip">Upstream sync · toolchain move · pilot decides</span><span class="pinb">Pin</span></div>
+            <div class="body">
+              <div class="hl">Sync PR #58 waits for review.</div>
+              <div class="tiles"><div class="tile"><div class="k">UPSTREAM</div><div class="v">29</div><div class="s">commits behind · port owed</div></div><div class="tile"><div class="k">LINE</div><div class="v">Waiting</div><div class="s">PR #58 waits for review</div></div><div class="tile"><div class="k">RELEASE REVIEW</div><div class="v">PR #33</div><div class="s">checks pass · open 16d</div></div></div>
+              <div class="lbl">Before 18:00</div>
+              <div class="item"><span class="p">P1</span><span class="svc">indexer</span><span class="t">Next sync carries os-core-common 8.5.0</span></div>
+              <div class="lbl">Needs a decision</div>
+              <div class="item"><span class="p">P1</span><span class="svc">indexer</span><span class="t">Sync PR #58 waits for review</span></div>
+              <div class="lbl">Security</div>
+              <div class="item"><span class="p p2">P2</span><span class="svc">indexer</span><span class="t">2 SPI-owned CodeQL findings · 3 dependency findings</span></div>
+              <div style="height:10px"></div>
+              <div class="disc styled open">Attention<span class="n">3</span></div>
+              <div class="kid">storage is stopped: the last deploy failed its smoke test</div>
+              <div class="kid">indexer-queue is stopped: cascade blocked on partition</div>
+              <div class="kid">Sync PR #58 has waited 3d 14h for a reviewer</div>
+              <div class="disc styled">Repository<span class="n" style="color:var(--error-text)">1 needs a person</span></div>
+              <div class="disc styled">Release<span class="n">2</span></div>
+              <div class="disc styled">Runs<span class="n">25</span></div>
+            </div>
+          </div>
+          <div class="rp">
+            <span class="handle"></span>
+            <div class="tabs"><span class="on">Detail</span><span class="off">Evidence</span><span class="x">×</span></div>
+            <div class="insp">
+              <div class="k">Upstream sync</div><div class="ttl">indexer · wave 1</div>
+              <div class="k">Cause</div><div class="v">indexer's sync PR #58 is prepared</div>
+              <div class="k">Effect</div><div class="v">29 upstream commits queued · carries os-core-common 8.5.0 · wave 1 starts once partition's cascade is green</div>
+              <div class="k">Next</div><div class="v">Start: merge #58, then dispatch the cascade.</div>
+              <div class="k">Why</div><div class="v">Prepared</div>
+              <div class="k">Related</div>
+              <div class="relx">
+                <div class="r"><small>What the next sync carries</small><a>os-core-common 8.5.0 · 29 commits</a></div>
+                <div class="r"><small>Sync PR</small><a>#58 · waits for review · 3d 14h</a></div>
+                <div class="r"><small>Release review</small><a>PR #33 · checks pass</a></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <span class="mk k-prd" style="left:30px;top:0">1</span>
+        <span class="mk k-prd" style="left:130px;top:0">2</span>
+        <span class="mk k-prd" style="left:925px;top:0">3</span>
+        <span class="mk k-fix" style="left:880px;top:500px">4</span>
+        <span class="mk k-lay" style="left:400px;top:46px">5</span>
+        <span class="mk k-prd" style="left:152px;top:274px">6</span>
+        <span class="mk k-fix" style="left:741px;top:420px">7</span>
+        <span class="mk k-lay" style="left:560px;top:354px">8</span>
+        <span class="mk k-prd" style="left:110px;top:552px">9</span>
+      </div>
+    </div>
+
+    <div class="tblwrap">
+      <table class="tbl">
+        <thead><tr><th>#</th><th>What changes</th><th>Kind</th></tr></thead>
+        <tbody>
+          <tr><td class="num">1</td><td><b>One top row.</b> The title bar and the strip merge into one 44 px row. The place name leaves it, because the centre's header already shows it; the OS window title keeps "SPI Code · indexer".</td><td><span class="tag kind k-prd">Design change</span></td></tr>
+          <tr><td class="num">2</td><td><b>Pips as marks.</b> One 9 px mark per service in fleet order, shape and tone together: a red diamond for stopped, a filled amber dot for needs a person, a half-filled dot for in progress, a hollow dot for nothing due. They replace the monospace ✕ ! ◐ ○ characters.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
+          <tr><td class="num">3</td><td><b>Freshness appears once.</b> A dot, the sweep time and the count of areas failed, cut, incomplete or stale; the Top row section defines its tones and name. The sidebar footer no longer repeats the sweep time.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
+          <tr><td class="num">4</td><td><b>Flush panes.</b> The centre is no longer a bordered card. It fills its column on <code>surface</code>, the right panel sits on <code>chrome</code> as the visual design's token table assigns it, and panes meet at 1 px <code>border</code> lines.</td><td><span class="tag kind k-fix">Defect fix</span></td></tr>
+          <tr><td class="num">5</td><td><b>One header line.</b> The centre's header (place, chips, Pin) and the right panel's tabs share a 44 px height and one bottom rule. The centre header stays put while the body scrolls.</td><td><span class="tag kind k-lay">Layout change</span></td></tr>
+          <tr><td class="num">6</td><td><b>Sidebar resizes.</b> A drag edge on the sidebar's right border, 200 to 320 px.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
+          <tr><td class="num">7</td><td><b>Detail resizes and reads.</b> A drag edge on the panel's left border, 360 px by default. Related lists each entry with its label above the value. Values keep sentence case ("Prepared", not "PREPARED").</td><td><span class="tag kind k-fix">Defect fix</span><span class="tag kind k-prd">Design change</span></td></tr>
+          <tr><td class="num">8</td><td><b>Section headers.</b> Attention, Repository, Release and Runs get the sidebar's chevron, label and right-aligned count in place of the browser's disclosure triangle. Attention opens by default when it has items.</td><td><span class="tag kind k-lay">Layout change</span></td></tr>
+          <tr><td class="num">9</td><td><b>Settings in the footer.</b> The footer row reads Settings with a readiness dot and opens the Settings dialog. The Settled shelf is hidden until threads ship at M3.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= TOP ROW ================= -->
+  <section>
+    <h2>Top row</h2>
+    <p>The strip keeps every field and its PS-18 order, read left to right and then onto the second row when it wraps. What moves: the place name goes to the centre header, Appearance goes to Settings, the <code>Line ⌘L</code> button goes because the strip itself opens the Line sheet, and the sweep sentence becomes the freshness field.</p>
+
+    <p class="shot-cap">Today at 1280 px · two rows, 71 px · drawn at 84%</p>
+    <div class="shot"><div class="rowstudy">
+      <div class="tb"><span class="lights"><i></i><i></i><i></i></span><span class="place">SPI Code · indexer</span><span class="sp"></span><span class="bad">● swept 08:58 · ⌀ 1 source failed, 1 incomplete, 1 stale</span><span>Appearance <span class="sel">Light ▾</span></span><span class="tgl"><i class="l"></i><i class="r"></i></span></div>
+      <div class="strip"><span class="pipt">!!!!!<span class="x">×</span>!!!<span class="x">×</span>!!!</span><span class="stopped">storage, indexer-queue stopped</span><span>env <b>v0.35.5</b> deployable</span><span>template <b>12/13</b></span><span style="flex:1"></span><span class="due">5 due before 18:00</span><span>next sync <b>18:00</b></span><span class="linebtn">Line ⌘L</span></div>
+    </div></div>
+
+    <p class="shot-cap">After at 1280 px · one row, 44 px</p>
+    <div class="shot"><div class="rowstudy">
+      <div class="one"><span class="lights"><i></i><i></i><i></i></span><span class="pips"><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="x"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="x"></i><i class="w"></i><i class="p"></i><i></i></span><span class="stopped">storage, indexer-queue stopped</span><span>env <b>v0.35.5</b> deployable</span><span>template <b>12/13</b></span><span style="flex:1"></span><span class="due">5 due before 18:00</span><span>next sync <b>18:00</b></span><span class="fresh">08:58 · 3</span><span class="tip">Swept 08:58 · 1 failed, 1 incomplete, 1 stale</span><span class="tgl"><i class="l"></i><i class="r"></i></span></div>
+    </div></div>
+
+    <p class="shot-cap">After at 1100 px · stopped names fold to a count, pips shrink</p>
+    <div class="shot"><div class="rowstudy w1100">
+      <div class="one"><span class="lights"><i></i><i></i><i></i></span><span class="pips small"><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="x"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="x"></i><i class="w"></i><i class="p"></i><i></i></span><span class="stopped">2 stopped</span><span>env <b>v0.35.5</b> deployable</span><span>template <b>12/13</b></span><span style="flex:1"></span><span class="due">5 due before 18:00</span><span>next sync <b>18:00</b></span><span class="fresh">08:58 · 3</span><span class="tgl"><i class="l"></i><i class="r"></i></span></div>
+    </div></div>
+
+    <p class="shot-cap">After at 980 px · the trailing fields wrap, order kept</p>
+    <div class="shot"><div class="rowstudy w980">
+      <div class="one"><span class="lights"><i></i><i></i><i></i></span><span class="pips small"><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="x"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="x"></i><i class="w"></i><i class="p"></i><i></i></span><span class="stopped">2 stopped</span><span>env <b>v0.35.5</b> deployable</span><span>template <b>12/13</b></span><span style="flex:1"></span><span class="tgl"><i class="l"></i><i class="r"></i></span></div>
+      <div class="one r2"><span class="due">5 due before 18:00</span><span>next sync <b>18:00</b></span><span class="fresh">08:58 · 3</span></div>
+    </div></div>
+
+    <p class="shot-cap">After at 740 px on Windows, 20 services · every status field on the second row</p>
+    <div class="shot"><div class="rowstudy w740">
+      <div class="one" style="padding-left:14px"><span class="pips small"><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="w"></i><i class="x"></i><i class="w"></i><i class="x"></i><i class="w"></i><i class="p"></i><i></i></span><span style="flex:1"></span><span class="tgl"><i class="l"></i><i class="r"></i></span><span class="caps"><i>—</i><i>▢</i><i>✕</i></span></div>
+      <div class="one r2"><span class="stopped">2 stopped</span><span>env <b>v0.35.5</b> deployable</span><span>template <b>12/13</b></span><span class="due">5 due before 18:00</span><span>next sync <b>18:00</b></span><span class="fresh">08:58 · 3</span></div>
+    </div></div>
+
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>When the row runs short</th><th>What gives</th></tr></thead>
+        <tbody>
+          <tr><td>First</td><td>Stopped service names fold to a count ("2 stopped"); the names stay in its hover and in the Line sheet.</td></tr>
+          <tr><td>Then</td><td>Pips shrink from 9 px to 6 px marks with 2 px gaps. At 20 services they take 160 px.</td></tr>
+          <tr><td>Then</td><td>The last fields wrap to a 31 px second row: due, next sync and freshness first, then template, environment and stopped as needed, always a run from the end so the PS-18 reading order holds. Pips, the window controls and the panel toggles stay on the first row.</td></tr>
+          <tr><td>Last</td><td>The second row never wraps again. If it still runs short, environment drops to its version and due drops to its count, with the full text in their hover.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The row re-measures whenever its content changes and folds or wraps at once when its fields no longer fit with 48 px of empty row left as a window drag area. It unfolds or unwraps only on a window resize or a new sweep, and only once 24 px more than it needs is free, so data refreshes never make the window flip between 44 and 75 px.</p>
+
+    <h3>Freshness field</h3>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>Sweep</th><th>Shows</th><th>Dot</th><th>Hover and accessible name</th></tr></thead>
+        <tbody>
+          <tr><td>Every area fresh</td><td><span class="fresh ok" style="font-family:var(--app)">08:58</span></td><td>Muted</td><td>Swept 08:58 · all areas read</td></tr>
+          <tr><td>Some area stale or incomplete</td><td><span class="fresh warn" style="font-family:var(--app)">08:58 · 2</span></td><td>Amber</td><td>Swept 08:58 · 1 incomplete, 1 stale</td></tr>
+          <tr><td>Some area failed or cut</td><td><span class="fresh" style="font-family:var(--app)">08:58 · 3</span></td><td>Red</td><td>Swept 08:58 · 1 failed, 1 incomplete, 1 stale</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Clicking the field opens Evidence for the sweep, as the sweep sentence does today.</p>
+
+    <h3>Targets</h3>
+    <p>The pips are one button that opens the Line sheet. Its accessible name summarises them ("Line: 2 stopped, 9 need a person, 1 in progress"). Each pip still has its own hover name and context menu, with a hit area the full row height by its spacing, so a 6 px mark is not a 6 px target. Every action in a pip's menu is also on that service's row in the Line sheet, which is the keyboard path. Stopped, environment, template, due and next sync are buttons that open the Line sheet; freshness opens Evidence.</p>
+
+    <h3>Windows</h3>
+    <p>On Windows the row is the 44 px <code>titleBarOverlay</code> height. The panel toggles sit to the left of the caption buttons, which take about 140 px, so the fold steps start about 140 px sooner than on macOS. The row measures its own fields, so no separate threshold is needed.</p>
+  </section>
+
+  <!-- ================= PANES ================= -->
+  <section>
+    <h2>Panes and surfaces</h2>
+    <p>Each pane is a full-height column that touches its neighbours at a 1 px line. Nothing inside a pane is boxed unless it is a separate object: tiles, chips and list rows keep their own borders, and a place no longer sits inside a card. The global rule that gives every <code>&lt;section&gt;</code> a border is replaced by an explicit card class; that rule is what turned the service page and every Setup row into cards.</p>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>Pane</th><th>Today</th><th>After</th></tr></thead>
+        <tbody>
+          <tr><td><b>Top row</b></td><td>Title bar on <code>sidebar</code>, strip on <code>chrome</code></td><td>One row on <code>sidebar</code>; a wrapped second row on <code>chrome</code></td></tr>
+          <tr><td><b>Sidebar</b></td><td><code>sidebar</code></td><td><code>sidebar</code>, unchanged</td></tr>
+          <tr><td><b>Centre</b></td><td>Transparent over <code>chrome</code>, content in a bordered <code>surface</code> card with 16 px of frame around it</td><td><code>surface</code> edge to edge, 44 px header, content padded 20 px by 24 px and at most 960 px wide, left-aligned</td></tr>
+          <tr><td><b>Right panel</b></td><td><code>surface</code></td><td><code>chrome</code></td></tr>
+          <tr><td><b>Pinned Line sheet</b></td><td><code>chrome</code> with a left border</td><td><code>chrome</code>, with its own 44 px header</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Header heights match across panes, so there is one rule under the top row and one under the pane headers. The right panel's close button becomes a 24 px icon button matching the panel toggles.</p>
+  </section>
+
+  <!-- ================= RESIZING ================= -->
+  <section>
+    <h2>Resizing</h2>
+    <p>The sidebar, the right panel and a pinned Line sheet each have a drag edge on the line they share with their neighbour. The edge is an 8 px target straddling the 1 px divider; on hover, focus or drag the divider turns accent and the cursor becomes a column resize. The width a drag ends on is the pane's preferred width, saved and restored on the next launch on the same machine together with whether each pane was open or collapsed.</p>
+    <div class="edge">
+      <figure><div class="e"><div class="l"></div><div class="r"></div><span class="hz"></span></div><figcaption>At rest: a 1 px divider. The dashed area is the 8 px drag target and is not drawn in the app.</figcaption></figure>
+      <figure><div class="e"><div class="l"></div><div class="r"></div><span class="ln"></span></div><figcaption>Hover, keyboard focus or dragging: the divider turns accent; the centre reflows live while dragging.</figcaption></figure>
+    </div>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>Pane</th><th>Preferred, default</th><th>Inline min</th><th>Preferred max</th><th>Double-click</th></tr></thead>
+        <tbody>
+          <tr><td><b>Sidebar</b></td><td class="num">232 px</td><td class="num">200 px</td><td class="num">320 px</td><td>Back to 232 px</td></tr>
+          <tr><td><b>Right panel</b></td><td class="num">360 px</td><td class="num">280 px</td><td>55% of the window</td><td>Back to 360 px</td></tr>
+          <tr><td><b>Pinned Line sheet</b></td><td class="num">360 px</td><td class="num">320 px</td><td>55% of the window</td><td>Back to 360 px</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The preferred width is what the operator chose. The width budget below decides the displayed width, which can be narrower than preferred, down to the inline minimum, without changing what is saved. Each edge is a focusable separator that announces its current, minimum and maximum width; arrow keys move it 16 px and Shift with an arrow 64 px. While dragging, a pane stops at the width that leaves the centre 520 px; each arrow-key step counts as a finished drag.</p>
+  </section>
+
+  <!-- ================= WIDTH BUDGET ================= -->
+  <section>
+    <h2>Width budget</h2>
+    <p>Panes fold by the width left for the centre, not by one window breakpoint. The centre keeps at least 520 px. When the panes at their preferred widths do not fit beside it, the window takes these steps in order and stops at the first that fits:</p>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>Step</th><th>What happens</th></tr></thead>
+        <tbody>
+          <tr><td class="num">1</td><td><b>Narrow.</b> The right panel narrows toward 280 px, then the pinned Line sheet toward 320 px.</td></tr>
+          <tr><td class="num">2</td><td><b>Detail becomes a sheet.</b> The right panel opens as a sheet over the right edge of the window at its preferred width, at most the window width less 48 px. The panes still inline go back to their preferred widths, then step 1's narrowing applies again to them.</td></tr>
+          <tr><td class="num">3</td><td><b>Line sheet stacks.</b> A pinned Line sheet moves under the centre; the two split the height equally.</td></tr>
+          <tr><td class="num">4</td><td><b>Sidebar off-canvas.</b> The sidebar slides away behind ⌘B and its toggle.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="budget">
+      <svg viewBox="0 0 1080 532" role="img" aria-label="Pane widths at eight cases, drawn to one scale. Detail open at 1600, 1100, 980 and 740 px; Line pinned with Detail open at 1440, 1280, 1100 and 900 px.">
+        <rect x="110" y="6" width="14" height="12" class="sbar"/><text x="130" y="16" class="sm">sidebar</text>
+        <rect x="190" y="6" width="14" height="12" class="cbar"/><text x="210" y="16" class="sm">centre</text>
+        <rect x="262" y="6" width="14" height="12" class="lbar"/><text x="282" y="16" class="sm">pinned Line sheet</text>
+        <rect x="392" y="6" width="14" height="12" class="pbar"/><text x="412" y="16" class="sm">Detail inline</text>
+        <rect x="502" y="6" width="14" height="12" class="obar"/><text x="522" y="16" class="sm">Detail as a sheet over the window</text>
+
+        <text x="0" y="56" class="w">1600</text><text x="0" y="70" class="sm">Detail</text>
+        <rect x="110" y="40" width="134.6" height="26" class="sbar"/><text x="118" y="58" class="sm">232</text>
+        <rect x="244.6" y="40" width="584.6" height="26" class="cbar"/><text x="252" y="58">centre 1008</text>
+        <rect x="829.2" y="40" width="208.8" height="26" class="pbar"/><text x="837" y="58">360</text>
+        <text x="110" y="82" class="sm">Everything at its preferred width.</text>
+
+        <text x="0" y="118" class="w">1440</text><text x="0" y="132" class="sm">Line + Detail</text>
+        <rect x="110" y="102" width="134.6" height="26" class="sbar"/><text x="118" y="120" class="sm">232</text>
+        <rect x="244.6" y="102" width="301.6" height="26" class="cbar"/><text x="252" y="120">centre 520</text>
+        <rect x="546.2" y="102" width="208.8" height="26" class="lbar"/><text x="554" y="120">Line 360</text>
+        <rect x="755" y="102" width="190.2" height="26" class="pbar"/><text x="763" y="120">328</text>
+        <text x="110" y="144" class="sm">Step 1: preferred widths need 1472, so Detail narrows to 328.</text>
+
+        <text x="0" y="180" class="w">1280</text><text x="0" y="194" class="sm">Line + Detail</text>
+        <rect x="110" y="164" width="134.6" height="26" class="sbar"/><text x="118" y="182" class="sm">232</text>
+        <rect x="244.6" y="164" width="399" height="26" class="cbar"/><text x="252" y="182">centre 688</text>
+        <rect x="643.6" y="164" width="208.8" height="26" class="lbar"/><text x="651" y="182">Line 360</text>
+        <rect x="643.6" y="160" width="208.8" height="34" class="obar"/><text x="651" y="182">Detail 360 over Line 360</text>
+        <text x="110" y="206" class="sm">Step 2: even at 280 and 320 the panes need 1352, so Detail opens as a sheet over the Line sheet.</text>
+
+        <text x="0" y="242" class="w">1100</text><text x="0" y="256" class="sm">Detail</text>
+        <rect x="110" y="226" width="134.6" height="26" class="sbar"/><text x="118" y="244" class="sm">232</text>
+        <rect x="244.6" y="226" width="301.6" height="26" class="cbar"/><text x="252" y="244">centre 520</text>
+        <rect x="546.2" y="226" width="201.8" height="26" class="pbar"/><text x="554" y="244">348</text>
+        <text x="110" y="268" class="sm">Step 1: Detail narrows from 360 to 348 and stays inline.</text>
+
+        <text x="0" y="304" class="w">1100</text><text x="0" y="318" class="sm">Line + Detail</text>
+        <rect x="110" y="288" width="134.6" height="26" class="sbar"/><text x="118" y="306" class="sm">232</text>
+        <rect x="244.6" y="288" width="301.6" height="26" class="cbar"/><text x="252" y="306">centre 520</text>
+        <rect x="546.2" y="288" width="201.8" height="26" class="lbar"/><text x="554" y="306">Line 348</text>
+        <rect x="539.2" y="284" width="208.8" height="34" class="obar"/><text x="547" y="306">Detail 360 over Line 348</text>
+        <text x="110" y="330" class="sm">Steps 2 then 1 again: Detail opens as a sheet over the Line sheet and 12 px of the centre; the Line sheet narrows to 348 to stay beside the centre.</text>
+
+        <text x="0" y="366" class="w">980</text><text x="0" y="380" class="sm">Detail</text>
+        <rect x="110" y="350" width="134.6" height="26" class="sbar"/><text x="118" y="368" class="sm">232</text>
+        <rect x="244.6" y="350" width="433.8" height="26" class="cbar"/><text x="252" y="368">centre 748</text>
+        <rect x="469.6" y="346" width="208.8" height="34" class="obar"/><text x="477" y="368">Detail 360</text>
+        <text x="110" y="392" class="sm">Step 2: inline at 280 would need 1032.</text>
+
+        <text x="0" y="428" class="w">900</text><text x="0" y="442" class="sm">Line + Detail</text>
+        <rect x="110" y="412" width="134.6" height="34" class="sbar"/><text x="118" y="434" class="sm">232</text>
+        <rect x="244.6" y="412" width="387.4" height="17" class="cbar"/><text x="252" y="425" class="sm">centre 668</text>
+        <rect x="244.6" y="429" width="387.4" height="17" class="lbar"/><text x="252" y="442" class="sm">Line 668, under the centre</text>
+        <rect x="423.2" y="408" width="208.8" height="42" class="obar"/><text x="431" y="433">Detail 360</text>
+        <text x="110" y="462" class="sm">Steps 2 and 3: the Line sheet beside the centre would need 1072.</text>
+
+        <text x="0" y="498" class="w">740</text><text x="0" y="512" class="sm">Detail</text>
+        <rect x="110" y="482" width="429.2" height="26" class="cbar"/><text x="118" y="500">centre 740</text>
+        <rect x="330.4" y="478" width="208.8" height="34" class="obar"/><text x="338" y="500">Detail 360</text>
+        <text x="560" y="500" class="sm">Step 4: 232 + 520 is more than 740, so the sidebar goes off-canvas.</text>
+      </svg>
+    </div>
+    <p class="note">Bars are drawn to one scale, 0.58. Widths use the default preferred sizes; a pane resized wider moves each threshold by the same amount. The budget is re-decided on window resize, on opening or closing a pane, when a drag ends and on each arrow-key step. The window cannot be made narrower than 740 px, the last case drawn. Sheets open below the top row, close with Escape or their close button, and return focus to the control that opened them, as they do today. Today the only rule is the 980 px breakpoint, so at 1000 px the centre is left 468 px.</p>
+  </section>
+
+  <!-- ================= DETAIL PANEL ================= -->
+  <section>
+    <h2>Detail panel</h2>
+    <p>Every field in the panel puts a small label above its value, and Related does the same for each entry, so no column can starve another. Entries with no label show the value alone. The host stops repeating the untitled lead section of a board as the first Related entry, because the same text already fills Effect. Selecting an item switches the panel to Detail even when Evidence was showing, and the panel toggle with nothing selected opens the sweep's Evidence, never an empty Detail.</p>
+    <div class="pair">
+      <div>
+        <div class="pane1" style="width:300px;background:var(--surface)">
+          <div class="tabs"><span class="on">Detail</span><span class="off">Evidence</span><span class="x">×</span></div>
+          <div class="insp">
+            <div class="k">Effect</div><div class="v">29 upstream commits queued · carries os-core-common 8.5.0</div>
+            <div class="k">Why</div><div class="v">PREPARED</div>
+            <div class="k">Related</div>
+            <div class="rel"><span></span><span>29<br>ups<br>trea<br>m<br>co<br>mmi<br>ts<br>que<br>ued</span></div>
+          </div>
+        </div>
+        <p class="cap2">Today, 300 px: the label column takes the width of its longest label.</p>
+      </div>
+      <div>
+        <div class="pane1" style="width:280px;background:var(--chrome)">
+          <div class="tabs" style="height:44px"><span class="on">Detail</span><span class="off">Evidence</span><span class="close" style="margin-left:auto">×</span></div>
+          <div class="insp">
+            <div class="k">Effect</div><div class="v">29 upstream commits queued · carries os-core-common 8.5.0 · wave 1 starts once partition's cascade is green</div>
+            <div class="k">Why</div><div class="v">Prepared</div>
+            <div class="k">Related</div>
+            <div class="relx">
+              <div class="r"><small>What the next sync carries</small><span><a>os-core-common 8.5.0 · 29 commits</a></span></div>
+              <div class="r"><small>Sync PR</small><span><a>#58 · waits for review · 3d 14h</a></span></div>
+              <div class="r"><small>Release review</small><span><a>PR #33 · checks pass</a></span></div>
+            </div>
+          </div>
+        </div>
+        <p class="cap2">After, at its narrowest inline width of 280 px.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SETTINGS ================= -->
+  <section>
+    <h2>Settings</h2>
+    <p>Setup becomes the Readiness section of a Settings dialog that opens over the current place with ⌘, or from the sidebar footer, and closes with Escape or its close button without changing the place behind it. It has two sections at this change, Readiness and Appearance. The dialog is at most 820 by 560 px and never closer than 24 px to the window edge; its body scrolls. Below 760 px of window width the left nav becomes a section picker in the dialog header.</p>
+    <p>Each tool is one row: name, a status chip, the reason or version, and an action on the right. Rows keep a fixed order whatever their state. Reasons wrap; nothing is cut off. A row that needs more than a line (a sign-in code, a token field, an install in progress, an error) grows a body under its first line. Rows that are ready have no button; Check all in the header checks every tool again, and the header says when it last checked.</p>
+
+    <p class="shot-cap">In a 1000 px window, first launch, gh signing in and glab installing</p>
+    <div class="shot">
+      <div class="setwin" role="img" aria-label="The Settings dialog over a dimmed window: left nav with Readiness and Appearance; a banner saying Watch needs gh and glab; rows for Copilot, git, gh with a sign-in code and Copy and Open buttons, glab installing with a progress bar, and the GitHub API budget.">
+        <div class="ghost"><div class="t"></div><div class="b"><i></i><u></u></div></div>
+        <div class="scrim"></div>
+        <div class="modal">
+          <nav>
+            <div class="h">Settings</div>
+            <div class="i on"><span>Readiness</span><span class="navdot"></span></div>
+            <div class="i"><span>Appearance</span></div>
+          </nav>
+          <div class="main">
+            <div class="mh"><span class="crumb">Settings / <b>Readiness</b></span><span class="sp"></span><span style="color:var(--muted);font-size:11.5px">Checked 09:04</span><span class="btn">Check all</span><span class="close">✕</span></div>
+            <div class="mb">
+              <div class="banner"><span>Watch places open once gh is signed in and glab is installed.</span></div>
+              <div class="g">Watch · read the program</div>
+              <div class="sgroup">
+                <div class="srow"><span class="nm">Copilot</span><span class="st ok">Ready</span><span class="why">octocat · Business seat</span><span></span></div>
+                <div class="srow"><span class="nm">git</span><span class="st ok">Ready</span><span class="why">2.56.0 · installed by SPI Code</span><span></span></div>
+                <div class="srow"><span class="nm">gh</span><span class="st si">Sign in</span><span class="why">Waiting for you to finish in the browser.</span><span class="act"><span class="btn">Cancel</span></span>
+                  <div class="more"><span class="why">Code</span><span class="code">WDJB-MJHT</span><span class="btn">Copy code</span><span class="btn pri">Open github.com</span></div></div>
+                <div class="srow"><span class="nm">glab</span><span class="st in">Installing</span><span class="why">1.128.0 · 4.1 of 12 MB<span class="bar"></span></span><span></span></div>
+                <div class="srow"><span class="nm">GitHub API budget</span><span class="st ok">Ready</span><span class="why">4,865 points left · resets 09:36 (in 32 min)</span><span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="twoup">
+      <div>
+        <p class="shot-cap" style="margin-top:0">At 740 px, a failed sign-in</p>
+        <div class="shot" style="margin-top:8px">
+          <div class="setwin narrow" role="img" aria-label="The Settings dialog in a 740 px window: the section picker sits in the header, the gh row shows Attention with a wrapped reason and a Try again button, and the body scrolls.">
+            <div class="ghost"><div class="t"></div><div class="b"><i></i><u></u></div></div>
+            <div class="scrim"></div>
+            <div class="modal">
+              <div class="main">
+                <div class="mh"><span class="navsel">Readiness ▾</span><span class="sp"></span><span style="color:var(--muted);font-size:11.5px">Checked 09:04</span><span class="btn">Check all</span><span class="close">✕</span></div>
+                <div class="mb">
+                                    <div class="banner"><span>Watch places open once gh and glab are signed in.</span></div>
+                  <div class="g">Watch · read the program</div>
+                  <div class="sgroup">
+                    <div class="srow"><span class="nm">Copilot</span><span class="st ok">Ready</span><span class="why">octocat · Business seat</span><span></span></div>
+                    <div class="srow"><span class="nm">git</span><span class="st ok">Ready</span><span class="why">2.56.0 · installed by SPI Code</span><span></span></div>
+                    <div class="srow"><span class="nm">gh</span><span class="st at">Attention</span><span class="why err">Sign-in did not finish: the code expired before it was entered on github.com.</span><span class="act"><span class="btn">Try again</span></span></div>
+                    <div class="srow"><span class="nm">glab</span><span class="st si">Sign in</span><span class="why">Paste a personal access token for community.opengroup.org with the api scope.</span><span></span>
+                      <div class="more"><span style="flex:1;min-width:160px;border:1px solid var(--border);border-radius:6px;padding:3px 8px;color:var(--muted);background:var(--surface)">Token</span><span class="btn pri">Save</span></div></div>
+                    <div class="srow"><span class="nm">GitHub API budget</span><span class="st ok">Ready</span><span class="why">4,865 points left · resets 09:36 (in 32 min)</span><span></span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="shot-cap">The Appearance section</p>
+    <div class="shot" style="margin-top:8px">
+      <div class="appear" role="img" aria-label="The Appearance section: a Theme row with a System, Light, Dark segmented control.">
+        <div class="mh"><span class="crumb">Settings / <b>Appearance</b></span></div>
+        <div class="mb"><div class="sgroup"><div class="srow"><span class="nm">Theme</span><span class="why">Follows the system unless you pin one.</span><span class="seg"><span class="on">System</span><span>Light</span><span>Dark</span></span></div></div></div>
+      </div>
+    </div>
+    <p class="note">Example values throughout. 740 px is the narrowest window, so it is the narrowest the dialog is drawn.</p>
+
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>Situation</th><th>What opens</th><th>Behind it</th></tr></thead>
+        <tbody>
+          <tr><td><b>First launch, Watch tools not ready</b></td><td>Settings opens on Readiness by itself, with a banner naming what Watch still needs</td><td>The existing Watch gate, now with an Open Settings button. Closing the dialog returns to the gate; the gate, not the dialog, keeps Watch places closed.</td></tr>
+          <tr><td><b>Watch becomes ready while the dialog is open</b></td><td>The banner turns green: "Watch is ready" with a Go to Today button. The dialog stays open until closed.</td><td>The gate lifts; closing the dialog or Go to Today lands on Today</td></tr>
+          <tr><td><b>⌘, or the footer row</b></td><td>Settings on the last section viewed</td><td>The current place, unchanged</td></tr>
+          <tr><td><b>A tool needs attention later</b></td><td>Nothing opens. The footer dot and the Readiness nav dot turn amber, or red for a failure.</td><td>The current place</td></tr>
+          <tr><td><b>A request fails to send</b></td><td>The row shows the error in its reason and a Try again action</td><td>The current place</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Times read as local 24-hour clock times everywhere in the window, with a relative hint for times in the future; the ISO value stays in the element's machine-readable attribute.</p>
+  </section>
+
+  <!-- ================= NOT IN THIS CHANGE ================= -->
+  <section>
+    <h2>Not in this change</h2>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>Item</th><th>Where it goes</th></tr></thead>
+        <tbody>
+          <tr><td><b>Service-page stations as status cells</b></td><td>A separate change against the window design's place readings</td></tr>
+          <tr><td><b>Models section and thread defaults</b></td><td>M3, with threads (TH-08). Settings shows no section for it until then.</td></tr>
+          <tr><td><b>GitHub token override (ST-04)</b></td><td>Its own work; it adds an Advanced section when built</td></tr>
+          <tr><td><b>Right-panel editor tabs, split, expand, open in editor</b></td><td>Not planned. The panel is context for one selection.</td></tr>
+          <tr><td><b>A bottom status bar</b></td><td>Not planned. The top row carries the program's state.</td></tr>
+          <tr><td><b>Thread surfaces, terminal drawer</b></td><td>M3. They follow the pane rules here: flush, resizable, 44 px header, inside the width budget.</td></tr>
+          <tr><td><b>What any field says</b></td><td>Unchanged. Copy and data are out of scope.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================= VALIDATION ================= -->
+  <section>
+    <h2>Validation</h2>
+    <p>The width budget is a pure function from window width, preferred widths and open panes to displayed widths and presentations, tested at the eight cases drawn above and at the thresholds either side of each step. The separators have component tests for pointer drag, arrow keys, double-click reset, the announced values, and a displayed width narrower than the saved one without the saved one changing. The Detail panel has a test that renders a long Related label at 280 px and asserts every value keeps at least 160 px.</p>
+    <p>The top row runs the existing PS-18 order test at 13 and 20 services at 1440, 1100, 980 and 740 px on macOS and Windows, including the wrapped order, the 48 px drag area and a long environment state at 740 px, plus a test that a refresh that shrinks the content does not unwrap the row and that the freshness field's accessible name matches its counts. Settings has tests for ⌘, and the footer, focus moving in and returning on close, the first-launch open over the Watch gate, the banner turning green, and each row state drawn above. The packaged screenshot suite captures every surface, Settings included, at 1440, 900 and 740 px in light and dark on macOS and Windows; those captures are the maintainer's visual check against this page.</p>
+  </section>
+
+  <!-- ================= APPENDIX ================= -->
+  <div class="appendix">
+    <p class="eyebrow">Appendix · reference material</p>
+    <h2>Reference detail</h2>
+
+    <section>
+      <h3>A · Defects this change fixes</h3>
+      <div class="tblwrap"><table class="tbl compact">
+        <thead><tr><th>Defect</th><th>Where</th><th>Cause</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td><b>Related wraps one syllable per line</b></td><td class="mono">panels/panels.css:15</td><td>The label column is <code>minmax(84px, max-content)</code>, so the longest label in any row sets the column for all rows; <code>overflow-wrap: anywhere</code> then lets the value shrink to one glyph.</td><td>Stack label over value; omit empty labels</td></tr>
+          <tr><td><b>Related repeats Effect</b></td><td class="mono">packages/host/src/process/routes.ts:388</td><td>Every board section is flattened into Related, including the untitled lead section that already feeds Effect, with an empty label.</td><td>Skip the lead section when it fed Effect</td></tr>
+          <tr><td><b>Every section is a card</b></td><td class="mono">window/src/style.css:47</td><td>A bare <code>section</code> rule adds surface, border, radius and padding to every section element.</td><td>Move the styling to an explicit card class</td></tr>
+          <tr><td><b>Centre and right panel surfaces swapped</b></td><td class="mono">style.css:4, 33, 35</td><td>The centre is transparent over <code>chrome</code> and <code>aside</code> is on <code>surface</code>; the visual design assigns the reverse.</td><td>Centre on <code>surface</code>, right panel on <code>chrome</code></td></tr>
+          <tr><td><b>Narrow sheets overlap the strip</b></td><td class="mono">style.css:53-54, sidebar.css:37,39</td><td>Sheets and backdrops start at a fixed 40 px, which counts only the title bar.</td><td>Offset by the top row's measured height</td></tr>
+          <tr><td><b>Selecting an item can leave Evidence showing</b></td><td class="mono">panels/selection.ts:82-117</td><td><code>select()</code> never sets the tab, so a panel opened on Evidence stays there.</td><td>Selecting a row switches to Detail</td></tr>
+          <tr><td><b>Times read three ways</b></td><td class="mono">views/setup/index.tsx:225, ProgramSidebar.tsx:250</td><td>Setup prints the raw ISO reset time; the title bar and sidebar use different formatters.</td><td>One formatter for the window</td></tr>
+          <tr><td><b>Setup requests fail silently</b></td><td class="mono">views/setup/index.tsx:153, store/watch.ts:98</td><td>Install and Sign in sends have no transport-error handling, and a throw escapes the click handler; GitLab sign-in does handle it.</td><td>Inline error and Try again on every row</td></tr>
+          <tr><td><b>Attention button only reveals text</b></td><td class="mono">views/setup/index.tsx:143-165</td><td>The button toggles a hidden reason without checking or fixing anything.</td><td>Always show the reason; the action re-checks or fixes</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section>
+      <h3>B · PRD and window design changes</h3>
+      <p>These edit the documents in <code>design/</code> in the same work that builds them.</p>
+      <div class="tblwrap"><table class="tbl compact">
+        <thead><tr><th>Requirement</th><th>Today it says</th><th>It would say</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">PS-18</td><td>One strip runs under the title bar on every surface; pips show ✕ ! ◐ ○.</td><td>The strip is the window's top row, beside the window controls and the panel toggles, and moves a run of its last fields to a second row, in order, as far back as the stopped field, when they do not fit. Pips are shaped marks: diamond, filled dot, half dot, hollow dot. Fields and order unchanged.</td></tr>
+          <tr><td class="mono">EV-03</td><td>Freshness is the title bar's sweep line, which is also the strip's freshness field.</td><td>Freshness is one field at the end of the top row: a dot toned by the worst area, the sweep time, and the count of areas failed, cut, incomplete or stale. Clicking it opens the sweep's Evidence.</td></tr>
+          <tr><td class="mono">PS-08</td><td>Footer with Setup and the sweep time; the Settled shelf with its count.</td><td>Footer with Settings and a readiness dot. The Settled shelf appears when threads ship.</td></tr>
+          <tr><td class="mono">PS-13</td><td>One breakpoint, T3 Code's 980 px.</td><td>Panes fold by the centre's minimum of 520 px in four steps: narrow, Detail to a sheet, pinned context stacks, sidebar off-canvas. Sheet, focus and keyboard rules unchanged.</td></tr>
+          <tr><td class="mono">PS-11</td><td>The title bar carries T3 Code's three toggles.</td><td>The top row carries them. The sidebar, the right panel and pinned sheets are resizable with saved preferred widths.</td></tr>
+          <tr><td class="mono">Setup section</td><td>Setup is the first screen, a place reached from the footer.</td><td>Setup is the Readiness section of the Settings dialog, which opens by itself on first launch over the Watch gate and from ⌘, or the footer at any time.</td></tr>
+          <tr><td class="mono">Window design</td><td>Fixed right panel and sidebar widths; title bar and strip as two rows; place name in the title bar; Setup as a centre surface.</td><td>The layout on this page: one top row, resizable panes in a width budget, Settings as a dialog.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section>
+      <h3>C · Alternatives not chosen</h3>
+      <div class="tblwrap"><table class="tbl compact">
+        <thead><tr><th>Alternative</th><th>Why not</th></tr></thead>
+        <tbody>
+          <tr><td><b>Keep two rows and thin them</b></td><td>Once Appearance and the sweep sentence leave, the title bar holds only the place name, which the centre header already shows.</td></tr>
+          <tr><td><b>Move the strip to a bottom bar</b></td><td>The pips, due count and next sync are what the operator checks first; the bottom of the window is where the eye goes last.</td></tr>
+          <tr><td><b>Keep Setup as a centre place</b></td><td>Opening it replaces the place the operator was working in, and Appearance is not a program place. The first-launch case is kept by opening the dialog over the Watch gate.</td></tr>
+          <tr><td><b>Settings as a separate OS window</b></td><td>A second window can fall behind the main one, and on first launch it must sit over the gate it explains.</td></tr>
+          <tr><td><b>Two-column Related with a bounded label column</b></td><td>Still squeezes at 280 px with long labels, and the other Detail fields already stack.</td></tr>
+          <tr><td><b>Fold Detail to a sheet before narrowing it</b></td><td>Covers the centre when 40 px of narrowing would have kept everything visible.</td></tr>
+          <tr><td><b>Sync widths across machines</b></td><td>Screens differ per machine; a width that suits a laptop is wrong on a desktop display.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <section>
+      <h3>D · Build order</h3>
+      <div class="tblwrap"><table class="tbl compact">
+        <thead><tr><th>Wave</th><th>Contents</th><th>Size</th></tr></thead>
+        <tbody>
+          <tr><td><b>1 · Defects</b></td><td>Every row of appendix A, the Settled shelf hidden, Detail values in sentence case.</td><td>Small, parallel</td></tr>
+          <tr><td><b>2 · Panes</b></td><td>Flush panes and surfaces, shared pane headers, styled section headers, resizable sidebar, right panel and Line sheet with saved widths, the width budget.</td><td>Medium</td></tr>
+          <tr><td><b>3 · Top row and Settings</b></td><td>The merged top row with its fold, wrap and freshness rules, the Settings dialog with Readiness and Appearance, and the appendix B document edits. A maintainer checkpoint on packaged screenshots closes the wave.</td><td>Medium</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+  </div>
+</div>
