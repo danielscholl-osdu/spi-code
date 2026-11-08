@@ -39,6 +39,14 @@ export const SetupStateSchema = z
     message: "Each tool appears once",
     path: ["tools"],
   });
+
+export function blocksWatch({
+  tool,
+  state,
+}: Pick<SetupState["tools"][number], "tool" | "state">): boolean {
+  return (tool === "git" || tool === "gh") && state !== "ready" && state !== "needs-update";
+}
+
 export const SetupInstallSchema = z.strictObject({ tool: WatchToolSchema });
 export const SetupCheckSchema = z.strictObject({});
 export const SigninToolSchema = z.enum(["copilot", "gh", "glab"]);

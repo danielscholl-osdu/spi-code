@@ -685,6 +685,39 @@ it("reports the GitLab areas disabled while glab is missing, without blocking Wa
   ]);
 });
 
+it.each(["git", "gh"] as const)("keeps Watch ready when %s needs an update", async (tool) => {
+  const exec = fakeExec((cmd, args) => {
+    if (cmd === "gh" && args[1] === "status") return GH_STATUS_OK;
+    if (cmd === "gh" && args[1] === "token") return "gho_fixture";
+    return undefined;
+  });
+  const start = vi.fn(async () => true);
+  const createSweep = vi.fn(() => ({ start, stop: async () => {} }));
+  const { service, states } = setup({
+    exec,
+    git: async () => ({
+      ...git,
+      readiness: async () => ({
+        state: tool === "git" ? "needs-update" : "ready",
+        version: "2.45.0",
+      }),
+    }),
+    tools: async () => ({
+      ...managedGh,
+      readiness: async (name) =>
+        name === "gh"
+          ? { state: tool === "gh" ? "needs-update" : "ready", version: "2.74.0" }
+          : { state: "missing" },
+    }),
+    createSweep,
+  });
+  await service.refresh();
+  expect(row(states().at(-1), tool)).toMatchObject({ state: "needs-update", action: "install" });
+  expect(states().at(-1)).toMatchObject({ watchReady: true, disabledReason: null });
+  expect(createSweep).toHaveBeenCalledOnce();
+  expect(start).toHaveBeenCalledOnce();
+});
+
 it("sends setup.state to each fresh connection", async () => {
   const exec = fakeExec((_cmd, args) => (args[0] === "--version" ? undefined : GH_STATUS_OK));
   const tools = {

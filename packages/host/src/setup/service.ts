@@ -3,6 +3,7 @@
 
 import { createHash } from "node:crypto";
 import {
+  blocksWatch,
   type Message,
   PROTOCOL_VERSION,
   type SetupInstallSchema,
@@ -385,12 +386,13 @@ export class SetupService {
       glab.reason = glab.reason ? `${glab.reason} ${GITLAB_AREAS_REASON}` : GITLAB_AREAS_REASON;
     }
     const copilot = await this.copilotRow(gh, force);
-    const blocking = [git, gh].find((row) => row.state !== "ready" && row.state !== "needs-update");
+    const tools = [copilot, git, gh, glab];
+    const blocking = tools.find(blocksWatch);
     const disabledReason = blocking
       ? `${WATCH_OFF} ${blocking.reason ?? `${blocking.tool} is not ready.`}`
       : null;
     return SetupStateSchema.parse({
-      tools: [copilot, git, gh, glab],
+      tools,
       watchReady: disabledReason === null,
       disabledReason,
     });

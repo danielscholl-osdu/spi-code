@@ -69,7 +69,9 @@ the stop message is surfaced, so the Readiness controls do not stay locked.
 The first not-ready setup state opens Settings on Readiness once over the Watch
 gate. Its banner names only blocking git and gh states; tools that need an update
 remain usable, and Copilot or glab attention does not block Watch. The gate offers
-Open Settings after the dialog closes. If Watch becomes ready while Settings is open, the
+Open Settings after the dialog closes. Host readiness, the banner and the window's
+test fixtures share the contracts' `blocksWatch` predicate, whose tests pin usable
+updates. If Watch becomes ready while Settings is open, the
 banner turns green with Go to Today; Settings stays open, and either that button
 or closing the dialog lands on Today. A later readiness loss opens nothing, and
 ordinary Settings visits preserve the place behind them.

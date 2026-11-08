@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { SetupState } from "@spi-code/contracts";
+import { blocksWatch, type SetupState } from "@spi-code/contracts";
 
 export const OPEN_READINESS_EVENT = "spi-code:open-readiness";
 
@@ -10,12 +10,7 @@ export function openReadiness() {
 }
 
 export function watchNeeds(setup: SetupState): string {
-  const tools = setup.tools
-    .filter(
-      ({ tool, state }) =>
-        (tool === "git" || tool === "gh") && state !== "ready" && state !== "needs-update",
-    )
-    .map(({ tool }) => tool);
+  const tools = setup.tools.filter(blocksWatch).map(({ tool }) => tool);
   return tools.length
     ? `Watch needs ${new Intl.ListFormat("en", { type: "conjunction" }).format(tools)}.`
     : (setup.disabledReason ?? "Watch is ready");

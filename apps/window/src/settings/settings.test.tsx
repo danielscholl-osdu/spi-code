@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION, type SetupState } from "@spi-code/contracts";
+import { blocksWatch, PROTOCOL_VERSION, type SetupState } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -67,10 +67,7 @@ const tools = (states: SetupState["tools"][number]["state"][]): SetupState => {
     state: states[index] ?? "ready",
     action: null,
   }));
-  const blocking = rows.find(
-    ({ tool, state }) =>
-      (tool === "git" || tool === "gh") && state !== "ready" && state !== "needs-update",
-  );
+  const blocking = rows.find(blocksWatch);
   return {
     watchReady: blocking === undefined,
     disabledReason: blocking ? `${blocking.tool} is not ready` : null,
