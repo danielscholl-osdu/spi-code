@@ -27,7 +27,7 @@ import {
   useNavigation,
   useSetupLanding,
 } from "./routes.js";
-import { matchesShortcut } from "./shortcuts.js";
+import { isTypingEvent, matchesShortcut } from "./shortcuts.js";
 import { windowControls } from "./window-controls.js";
 
 export { watchStore };
@@ -50,6 +50,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if (matchesShortcut(event, ",")) {
+        if (isTypingEvent(event)) return;
         event.preventDefault();
         setFindOpen(false);
         setSettingsOpen(true);

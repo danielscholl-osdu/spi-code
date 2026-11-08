@@ -4,7 +4,7 @@
 import type { SetupState } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import briefing from "../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import releases from "../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
 import { navigate } from "../app/routes.js";
@@ -267,4 +267,108 @@ it("changes the theme from Appearance in the dialog, and the title bar has no Ap
   } finally {
     await shell.cleanup();
   }
+});
+
+describe.each([
+  { platform: "macOS", userAgent: "Mozilla/5.0 (Macintosh; Mac OS X)", mod: { metaKey: true } },
+  { platform: "Windows", userAgent: "Mozilla/5.0 (Windows NT 10.0)", mod: { ctrlKey: true } },
+])("the Settings shortcut on $platform", ({ userAgent, mod }) => {
+  const comma = (
+    target: EventTarget,
+    init: KeyboardEventInit = {},
+    keyCode?: number,
+  ): Promise<KeyboardEvent> =>
+    act(async () => {
+      const event = new KeyboardEvent("keydown", {
+        key: ",",
+        bubbles: true,
+        cancelable: true,
+        ...mod,
+        ...init,
+      });
+      if (keyCode !== undefined) Object.defineProperty(event, "keyCode", { value: keyCode });
+      target.dispatchEvent(event);
+      return event;
+    });
+
+  beforeEach(() => {
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue(userAgent);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("opens from the page", async () => {
+    const shell = await mountShell();
+    try {
+      const event = await comma(document.body);
+      expect(event.defaultPrevented).toBe(true);
+      expect(dialog()).not.toBeNull();
+      await close();
+    } finally {
+      await shell.cleanup();
+    }
+  });
+
+  it("does not fire from Find's query input, and Find stays open", async () => {
+    const shell = await mountShell();
+    try {
+      await act(async () => {
+        document.body.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "k", bubbles: true, cancelable: true, ...mod }),
+        );
+      });
+      const query = document.querySelector<HTMLInputElement>('input[aria-label="Find"]');
+      expect(query).not.toBeNull();
+      query?.focus();
+      const event = await comma(query as HTMLInputElement);
+      expect(event.defaultPrevented).toBe(false);
+      expect(document.querySelector("[data-settings-section]")).toBeNull();
+      expect(document.querySelector('input[aria-label="Find"]')).not.toBeNull();
+    } finally {
+      await shell.cleanup();
+    }
+  });
+
+  it.each([
+    ["an input", () => document.createElement("input")],
+    ["a textarea", () => document.createElement("textarea")],
+    ["a select", () => document.createElement("select")],
+    [
+      "a contenteditable",
+      () => {
+        const editor = document.createElement("div");
+        editor.setAttribute("contenteditable", "true");
+        editor.append(document.createElement("span"));
+        return editor;
+      },
+    ],
+  ])("does not fire from %s", async (_name, make) => {
+    const shell = await mountShell();
+    const field = make();
+    shell.container.append(field);
+    try {
+      const event = await comma(field.firstElementChild ?? field);
+      expect(event.defaultPrevented).toBe(false);
+      expect(dialog()).toBeNull();
+    } finally {
+      field.remove();
+      await shell.cleanup();
+    }
+  });
+
+  it.each([
+    ["isComposing", { isComposing: true }, undefined],
+    ["keyCode 229", {}, 229],
+  ])("does not fire while composing (%s)", async (_name, init, keyCode) => {
+    const shell = await mountShell();
+    try {
+      const event = await comma(document.body, init, keyCode);
+      expect(event.defaultPrevented).toBe(false);
+      expect(dialog()).toBeNull();
+    } finally {
+      await shell.cleanup();
+    }
+  });
 });
