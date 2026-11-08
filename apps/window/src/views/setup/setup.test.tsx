@@ -1035,7 +1035,7 @@ it("opens Settings on Readiness when the first host state is not ready and gates
   expect(
     dialog()?.querySelector("[data-settings-section]")?.getAttribute("data-settings-section"),
   ).toBe("readiness");
-  expect(dialog()?.querySelector("h1")?.textContent).toBe("Setup");
+  expect(dialog()?.querySelector(".readiness-group")).not.toBeNull();
   expect(container.querySelector("main h1")?.textContent).toBe("Today");
   await act(async () =>
     dialog()?.querySelector<HTMLButtonElement>('[aria-label="Close settings"]')?.click(),
