@@ -11,6 +11,7 @@ import { selectionStore } from "../panels/selection.js";
 import { PINS_STORAGE_KEY } from "../store/pins.js";
 import { testSnapshot } from "../store/test-snapshot.js";
 import { watchStore } from "../store/watch.js";
+import { PANES_STORAGE_KEY } from "./pane-layout.js";
 import { closeSheet, navigate, pinSheet } from "./routes.js";
 import { Shell } from "./Shell.js";
 
@@ -51,6 +52,7 @@ const press = (key: string, init: KeyboardEventInit = { ctrlKey: true }) =>
   });
 
 beforeEach(() => {
+  localStorage.removeItem(PANES_STORAGE_KEY);
   closeSheet();
   window.location.hash = "";
   viewport(1280);

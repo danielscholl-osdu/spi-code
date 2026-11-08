@@ -23,7 +23,9 @@ import { SettingsDialog, type SettingsSection } from "../settings/SettingsDialog
 import { watchStore } from "../store/watch.js";
 import { type Appearance, createAppearance } from "./appearance.js";
 import { LineSheet } from "./LineSheet.js";
+import { edgePanes, PaneEdges } from "./PaneEdges.js";
 import { PanelControls } from "./PanelControls.js";
+import { budgetPreferred, loadPanes, type ResizablePane, savePanes } from "./pane-layout.js";
 import {
   DEFAULT_REGISTRY,
   LINE,
@@ -36,7 +38,7 @@ import {
   useSetupLanding,
 } from "./routes.js";
 import { isTypingEvent, matchesShortcut } from "./shortcuts.js";
-import { widthBudget } from "./width-budget.js";
+import { type PaneWidths, widthBudget } from "./width-budget.js";
 import { windowControls } from "./window-controls.js";
 
 export { watchStore };
@@ -46,7 +48,8 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
   const sweep = useStore(watchStore, (state) => state.sweep);
   const { route, sheet, navigate, toggleSheet, closeSheet } = useNavigation(registry);
   const rightPanelOpen = useStore(selectionStore, (state) => state.open);
-  const [sidebarStore] = useState(() => createSidebarOpenStore());
+  const [saved] = useState(loadPanes);
+  const [sidebarStore] = useState(() => createSidebarOpenStore(saved.open.sidebar));
   const sidebarOpen = useSyncExternalStore(
     sidebarStore.subscribe,
     sidebarStore.getSnapshot,
@@ -58,11 +61,66 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
   }, []);
+  const [widths, setWidths] = useState<PaneWidths>(saved.widths);
+  const [live, setLive] = useState<Partial<PaneWidths>>({});
+  const budgetWidth = Math.max(740, windowWidth);
   const budgetInput = {
-    windowWidth: Math.max(740, windowWidth),
+    windowWidth: budgetWidth,
+    preferred: budgetPreferred({ ...widths, ...live }, budgetWidth),
     open: { sidebar: sidebarOpen, rightPanel: rightPanelOpen, lineSheet: sheet === "pinned" },
   };
   const budget = widthBudget(budgetInput);
+  /** Stops come from the committed widths, so a drag never squeezes the other panes. */
+  const settled = widthBudget({
+    ...budgetInput,
+    preferred: budgetPreferred(widths, budgetWidth),
+  });
+  const resizeLive = useCallback(
+    (pane: ResizablePane, width: number | undefined) =>
+      setLive((current) => {
+        if (current[pane] === width) return current;
+        const { [pane]: _, ...rest } = current;
+        return width === undefined ? rest : { ...rest, [pane]: width };
+      }),
+    [],
+  );
+  const commitWidth = useCallback(
+    (pane: ResizablePane, width: number) => {
+      setWidths((current) => ({ ...current, [pane]: width }));
+      resizeLive(pane, undefined);
+      savePanes({ widths: { [pane]: width } });
+    },
+    [resizeLive],
+  );
+  useEffect(() => {
+    let open = sidebarStore.getSnapshot().open;
+    return sidebarStore.subscribe(() => {
+      if (sidebarStore.getSnapshot().open === open) return;
+      open = sidebarStore.getSnapshot().open;
+      savePanes({ open: { sidebar: open } });
+    });
+  }, [sidebarStore]);
+  useEffect(
+    () =>
+      selectionStore.subscribe((state, previous) => {
+        if (state.open !== previous.open) savePanes({ open: { rightPanel: state.open } });
+      }),
+    [],
+  );
+  const edges = edgePanes(settled, sheet === "pinned" && Boolean(registry.sheet)).join();
+  useEffect(() => {
+    // A drag ends without a width when its pane folds mid-drag.
+    for (const pane of Object.keys(live) as ResizablePane[]) {
+      if (!edges.split(",").includes(pane)) resizeLive(pane, undefined);
+    }
+  }, [live, edges, resizeLive]);
+  const launch = useRef(budgetInput);
+  useLayoutEffect(() => {
+    const input = launch.current;
+    if (!saved.open.rightPanel || selectionStore.getState().open) return;
+    const restored = widthBudget({ ...input, open: { ...input.open, rightPanel: true } });
+    if (restored.rightPanel.presentation === "inline") selectionStore.getState().setOpen(true);
+  }, [saved]);
   const sidebarPresentation = sidebarOpen
     ? budget.sidebar.presentation
     : widthBudget({ ...budgetInput, open: { ...budgetInput.open, sidebar: true } }).sidebar
@@ -184,7 +242,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
           {
             "--sidebar-col":
               budget.sidebar.presentation === "inline" ? `${budget.sidebar.width}px` : "0px",
-            "--sidebar-width": `${budget.sidebar.width}px`,
+            "--sidebar-width": `${budgetInput.preferred.sidebar}px`,
             "--panel-col":
               budget.rightPanel.presentation === "inline" ? `${budget.rightPanel.width}px` : "0px",
             "--right-panel-width": `${budget.rightPanel.width}px`,
@@ -260,6 +318,14 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
           presentation={budget.rightPanel.presentation}
           {...(snapshot ? { snapshot } : {})}
           sweepEvidence={<SweepEvidence snapshot={snapshot ?? null} sweep={sweep} />}
+        />
+        <PaneEdges
+          budget={budget}
+          settled={settled}
+          windowWidth={budgetWidth}
+          lineSheet={sheet === "pinned" && Boolean(registry.sheet)}
+          onResize={resizeLive}
+          onResizeEnd={commitWidth}
         />
       </SidebarProvider>
     </RegistryProvider>

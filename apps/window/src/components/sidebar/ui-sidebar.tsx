@@ -86,10 +86,10 @@ export function createSidebarOpenStore(defaultOpen = true) {
     getSnapshot: () => state,
     setOpen,
     setOpenMobile,
+    /** Off-canvas toggles only peek; the inline open state is what a wide window remembers. */
     toggle(offCanvas: boolean) {
-      if (!offCanvas) setOpen(!state.open);
-      else if (!state.open) publish({ open: true, openMobile: true });
-      else setOpenMobile(!state.openMobile);
+      if (offCanvas) setOpenMobile(!state.openMobile);
+      else setOpen(!state.open);
     },
   };
 }

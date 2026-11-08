@@ -21,7 +21,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { type ResizeControllerOptions, useResizeController } from "./resize-controller.js";
 import "./pane-separator.css";
 
@@ -30,15 +30,25 @@ export type PaneSeparatorProps = ResizeControllerOptions & {
   label: string;
   /** The id of the pane this separator resizes. */
   controls?: string;
+  /** Whether a drag is in progress, including one cancelled without a finished width. */
+  onDraggingChange?: (dragging: boolean) => void;
 };
 
 /**
  * An 8 px drag target straddling a pane's 1 px divider. Its parent is the pane,
  * positioned, with the divider as its border on `edge`.
  */
-export function PaneSeparator({ label, controls, ...options }: PaneSeparatorProps) {
+export function PaneSeparator({
+  label,
+  controls,
+  onDraggingChange,
+  ...options
+}: PaneSeparatorProps) {
   const resize = useResizeController(options);
   const { handlers } = resize;
+  const draggingChange = useRef(onDraggingChange);
+  draggingChange.current = onDraggingChange;
+  useEffect(() => draggingChange.current?.(resize.dragging), [resize.dragging]);
   const [hovered, setHovered] = useState(false);
   const [keyboardFocus, setKeyboardFocus] = useState(false);
   const pointerPressed = useRef(false);

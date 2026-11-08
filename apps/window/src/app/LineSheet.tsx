@@ -39,6 +39,7 @@ export function LineSheet({
   return (
     <section
       ref={sheet}
+      id="app-line-sheet"
       className="line-sheet"
       data-presentation={presentation}
       aria-label="Line"

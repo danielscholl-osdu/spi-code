@@ -1,0 +1,32 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+/* A zero-width grid item on a pane's divider; the separator straddles it. */
+.pane-edge {
+  position: relative;
+  grid-row: 3;
+  width: 0;
+  z-index: 3;
+}
+
+.shell[data-line-presentation="stacked"] .pane-edge:is([data-pane="sidebar"], [data-pane="right-panel"]) {
+  grid-row: 3 / 5;
+}
+
+.pane-edge[data-pane="sidebar"] {
+  grid-column: 1;
+  justify-self: end;
+  margin-right: 1px;
+}
+
+.pane-edge[data-pane="line-sheet"] {
+  grid-column: 3;
+  justify-self: start;
+  margin-left: 1px;
+}
+
+.pane-edge[data-pane="right-panel"] {
+  grid-column: 4;
+  justify-self: start;
+  margin-left: 1px;
+}
