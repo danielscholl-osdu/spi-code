@@ -84,6 +84,10 @@ const setHash = (hash: string) =>
   });
 
 beforeEach(() => {
+  type HappyWindow = {
+    happyDOM: { setViewport(viewport: { width: number; height: number }): void };
+  };
+  (window as unknown as HappyWindow).happyDOM.setViewport({ width: 1440, height: 900 });
   window.location.hash = "";
   localStorage.removeItem(PINNED_KEY);
   localStorage.removeItem(LAST_PLACE_KEY);

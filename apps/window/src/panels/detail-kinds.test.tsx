@@ -10,7 +10,7 @@ import actions from "../../../../fixtures/rib-59d6895/oracle/inspect-actions.jso
 import legalStations from "../../../../fixtures/watch/inspect-stations-legal-59d6895.json?raw";
 import projected from "../../../../fixtures/watch/snapshot-59d6895.json?raw";
 import recorded from "../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
-import { NARROW_LAYOUT_MEDIA_QUERY } from "../components/sidebar/ui-sidebar.js";
+import { widthBudget } from "../app/width-budget.js";
 import { plainTitle, sentenceCase } from "../text.js";
 import { clockTime } from "../time.js";
 import { bridgeOpens } from "./detail-action.js";
@@ -580,9 +580,10 @@ it("opens the fork's place as the one action for an upstream sync row", async ()
 });
 
 async function mountRelated(kind: "flow" | "repository", width = 1280) {
-  const media = window.matchMedia(NARROW_LAYOUT_MEDIA_QUERY);
-  const matches = vi.spyOn(media, "matches", "get").mockReturnValue(width < 980);
-  const matchMedia = vi.spyOn(window, "matchMedia").mockReturnValue(media);
+  const budget = widthBudget({
+    windowWidth: width,
+    open: { sidebar: true, rightPanel: true, lineSheet: false },
+  });
   const rows = selectionRows(snapshot);
   const parent = rows.find((row) => row.kind === "queue");
   const target = rows.find((row) => row.kind === kind);
@@ -604,6 +605,7 @@ async function mountRelated(kind: "flow" | "repository", width = 1280) {
       root.render(
         <RightPanelFrame
           store={store}
+          presentation={budget.rightPanel.presentation}
           snapshot={body}
           sweepEvidence={<p data-sweep-evidence="">Sweep evidence {body.cursor}</p>}
         />,
@@ -646,8 +648,6 @@ async function mountRelated(kind: "flow" | "repository", width = 1280) {
     cleanup: async () => {
       await act(async () => root.unmount());
       container.remove();
-      matchMedia.mockRestore();
-      matches.mockRestore();
     },
   };
 }

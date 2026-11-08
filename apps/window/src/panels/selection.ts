@@ -28,7 +28,6 @@ import {
   parseMessage,
 } from "@spi-code/contracts";
 import { createStore } from "zustand/vanilla";
-import { NARROW_LAYOUT_MEDIA_QUERY } from "../components/sidebar/ui-sidebar.js";
 import { type SelectionRow, snapshotHasSelection } from "./selection-rows.js";
 
 export const PANEL_TABS = ["detail", "evidence"] as const;
@@ -123,11 +122,7 @@ export function createSelectionStore(port: InspectPort) {
         selected: null,
         row: null,
         // Only the sweep's Evidence still has something to show once the selection is gone.
-        open:
-          open &&
-          tab === "evidence" &&
-          evidenceScope === "sweep" &&
-          !window.matchMedia(NARROW_LAYOUT_MEDIA_QUERY).matches,
+        open: open && tab === "evidence" && evidenceScope === "sweep",
         request: null,
         result: null,
         error: null,

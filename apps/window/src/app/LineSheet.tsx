@@ -14,7 +14,7 @@ export function LineSheet({
   onClose,
   children,
 }: {
-  presentation: "overlay" | "pinned";
+  presentation: "overlay" | "pinned" | "stacked";
   onClose(): void;
   children: ReactNode;
 }) {

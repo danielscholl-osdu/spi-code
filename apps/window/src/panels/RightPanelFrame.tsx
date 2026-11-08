@@ -4,7 +4,6 @@
 import type { ViewSnapshot } from "@spi-code/contracts";
 import { type ReactNode, useEffect, useRef } from "react";
 import { useStore } from "zustand";
-import { NARROW_LAYOUT_MEDIA_QUERY, useMediaQuery } from "../components/sidebar/ui-sidebar.js";
 import { RightPanel } from "./RightPanel.js";
 import type { SelectionStore } from "./selection.js";
 
@@ -12,27 +11,18 @@ export function RightPanelFrame({
   store,
   snapshot,
   sweepEvidence,
+  presentation = "inline",
 }: {
   store: SelectionStore;
   snapshot?: ViewSnapshot;
   sweepEvidence?: ReactNode;
+  presentation?: "inline" | "sheet" | "closed";
 }) {
-  const narrow = useMediaQuery(NARROW_LAYOUT_MEDIA_QUERY);
   const open = useStore(store, (state) => state.open);
   const frame = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLElement | null>(null);
-  const preserveFocus = useRef(false);
-  useEffect(() => {
-    if (
-      narrow &&
-      store.getState().open &&
-      store.getState().selected === null &&
-      !frame.current?.contains(document.activeElement)
-    ) {
-      preserveFocus.current = true;
-      store.getState().setOpen(false);
-    }
-  }, [narrow, store]);
+  const currentPresentation = useRef(presentation);
+  currentPresentation.current = presentation;
   useEffect(
     () =>
       store.subscribe((state, previous) => {
@@ -41,22 +31,24 @@ export function RightPanelFrame({
           state.selected !== null &&
           document.activeElement instanceof HTMLElement &&
           !frame.current?.contains(document.activeElement)
-        )
+        ) {
           opener.current = document.activeElement;
+          if (currentPresentation.current === "sheet")
+            frame.current
+              ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
+              ?.focus({ preventScroll: true });
+        }
       }),
     [store],
   );
   useEffect(() => {
-    if (!open || preserveFocus.current) {
-      preserveFocus.current = false;
-      return;
-    }
+    if (!open) return;
     if (
       document.activeElement instanceof HTMLElement &&
       !frame.current?.contains(document.activeElement)
     )
       opener.current = document.activeElement;
-    if (window.matchMedia(NARROW_LAYOUT_MEDIA_QUERY).matches)
+    if (currentPresentation.current === "sheet")
       frame.current
         ?.querySelector<HTMLButtonElement>("button:not(:disabled)")
         ?.focus({ preventScroll: true });
@@ -73,7 +65,6 @@ export function RightPanelFrame({
     window.addEventListener("keydown", close);
     return () => {
       window.removeEventListener("keydown", close);
-      if (preserveFocus.current) return;
       const target = opener.current?.isConnected
         ? opener.current
         : document.querySelector<HTMLElement>('[aria-controls="app-right-panel"]');
@@ -83,7 +74,7 @@ export function RightPanelFrame({
   if (!open) return null;
   return (
     <>
-      {narrow && (
+      {presentation === "sheet" && (
         <div
           className="detail-backdrop"
           aria-hidden
@@ -93,7 +84,7 @@ export function RightPanelFrame({
       <div
         id="app-right-panel"
         className="right-panel-frame"
-        data-sheet={narrow || undefined}
+        data-sheet={presentation === "sheet" || undefined}
         ref={frame}
       >
         <RightPanel

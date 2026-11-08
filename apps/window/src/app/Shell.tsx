@@ -1,12 +1,20 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useStore } from "zustand";
 import { SweepEvidence } from "../components/evidence/EvidenceTab.js";
 import { SweepLine } from "../components/evidence/SweepLine.js";
 import { ProgramSidebar } from "../components/sidebar/ProgramSidebar.js";
-import { SidebarProvider } from "../components/sidebar/ui-sidebar.js";
+import { createSidebarOpenStore, SidebarProvider } from "../components/sidebar/ui-sidebar.js";
 import { CommandPalette } from "../palette/CommandPalette.js";
 import { selectionStore } from "../panels/index.js";
 import { RightPanelFrame } from "../panels/RightPanelFrame.js";
@@ -28,6 +36,7 @@ import {
   useSetupLanding,
 } from "./routes.js";
 import { isTypingEvent, matchesShortcut } from "./shortcuts.js";
+import { widthBudget } from "./width-budget.js";
 import { windowControls } from "./window-controls.js";
 
 export { watchStore };
@@ -37,6 +46,22 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
   const sweep = useStore(watchStore, (state) => state.sweep);
   const { route, sheet, navigate, toggleSheet, closeSheet } = useNavigation(registry);
   const rightPanelOpen = useStore(selectionStore, (state) => state.open);
+  const [sidebarStore] = useState(() => createSidebarOpenStore());
+  const sidebarOpen = useSyncExternalStore(
+    sidebarStore.subscribe,
+    sidebarStore.getSnapshot,
+    sidebarStore.getSnapshot,
+  ).open;
+  const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const resize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
+  const budget = widthBudget({
+    windowWidth: Math.max(740, windowWidth),
+    open: { sidebar: sidebarOpen, rightPanel: rightPanelOpen, lineSheet: sheet === "pinned" },
+  });
   const toggleRightPanel = useCallback(
     () => selectionStore.getState().setOpen(!selectionStore.getState().open),
     [],
@@ -141,10 +166,27 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
   return (
     <RegistryProvider registry={registry}>
       <SidebarProvider
+        store={sidebarStore}
+        presentation={budget.sidebar.presentation}
         className="shell"
         data-right-panel={rightPanelOpen ? "open" : "closed"}
         data-window-controls={windowControls()}
         data-line-sheet={sheet}
+        data-sidebar-presentation={budget.sidebar.presentation}
+        data-right-presentation={budget.rightPanel.presentation}
+        data-line-presentation={budget.lineSheet.presentation}
+        style={
+          {
+            "--sidebar-col":
+              budget.sidebar.presentation === "inline" ? `${budget.sidebar.width}px` : "0px",
+            "--sidebar-width": `${budget.sidebar.width}px`,
+            "--panel-col":
+              budget.rightPanel.presentation === "inline" ? `${budget.rightPanel.width}px` : "0px",
+            "--right-panel-width": `${budget.rightPanel.width}px`,
+            "--sheet-col":
+              budget.lineSheet.presentation === "inline" ? `${budget.lineSheet.width}px` : "0px",
+          } as CSSProperties
+        }
       >
         <header className="title-bar" ref={titleBar}>
           <div className="title-bar-place">
@@ -201,12 +243,16 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
           <RouteView route={route} />
         </main>
         {sheet !== "closed" && registry.sheet && (
-          <LineSheet presentation={sheet} onClose={closeSheet}>
+          <LineSheet
+            presentation={budget.lineSheet.presentation === "stacked" ? "stacked" : sheet}
+            onClose={closeSheet}
+          >
             {registry.sheet(route, sheet)}
           </LineSheet>
         )}
         <RightPanelFrame
           store={selectionStore}
+          presentation={budget.rightPanel.presentation}
           {...(snapshot ? { snapshot } : {})}
           sweepEvidence={<SweepEvidence snapshot={snapshot ?? null} sweep={sweep} />}
         />

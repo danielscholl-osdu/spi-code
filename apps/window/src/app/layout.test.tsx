@@ -37,6 +37,7 @@ async function mount(registry?: Registry) {
   const previousTheme = document.documentElement.dataset.theme;
   const previousHash = window.location.hash;
   const body = ViewSnapshotSchema.parse(JSON.parse(recorded));
+  let receive: Parameters<typeof window.spi.onMessage>[0] | undefined;
   window.location.hash = "#today";
   watchStore.setState({ snapshot: { cursor: body.cursor, body }, setup: null });
   selectionStore.setState({ selected: null, open: false });
@@ -44,7 +45,10 @@ async function mount(registry?: Registry) {
     proof: false,
     openExternal: vi.fn(),
     postMessage: vi.fn(),
-    onMessage: () => () => {},
+    onMessage: (listener) => {
+      receive = listener;
+      return () => {};
+    },
   };
   const style = document.createElement("style");
   style.textContent = styles.map(({ css }) => css).join("\n");
@@ -55,6 +59,7 @@ async function mount(registry?: Registry) {
   await act(async () => root.render(<Shell {...(registry ? { registry } : {})} />));
   return {
     container,
+    receive: (message: unknown) => receive?.(message),
     async cleanup() {
       await act(async () => root.unmount());
       container.remove();
@@ -128,6 +133,9 @@ it.each(["overlay", "pinned"] as const)(
       expect(placeHeader.top).toBe("0px");
       const lineBody = element(view.container, ".line-content > .line-body");
       expect(getComputedStyle(lineBody).padding).toBe("20px 24px");
+      const lineHeader = getComputedStyle(element(view.container, ".line-toolbar"));
+      expect(lineHeader.paddingLeft).toBe("24px");
+      expect(lineHeader.paddingRight).toBe("24px");
       expect(lineBody.querySelector(".line-grid")).not.toBeNull();
       expect(view.container.querySelector(".line-toolbar :is(table, fieldset)")).toBeNull();
       expect(getComputedStyle(element(view.container, ".panel-body")).overflow).toBe("auto");
@@ -169,6 +177,19 @@ it.each(["overlay", "pinned"] as const)(
     }
   },
 );
+
+it("keeps the shell error banner inset with the centre's content", async () => {
+  const view = await mount();
+  try {
+    await act(async () => view.receive({ invalid: true }));
+    const alert = element(view.container, '.middle-frame > [role="alert"]');
+    expect(alert.textContent).toBe("Invalid host message");
+    expect(getComputedStyle(alert).padding).toBe("20px 24px 0px");
+    expect(getComputedStyle(alert).margin).toBe("0px");
+  } finally {
+    await view.cleanup();
+  }
+});
 
 it.each(["light", "dark"])(
   "keeps the centre on surface, the panel on chrome and logical sections flat in %s",
@@ -232,7 +253,7 @@ it.each([true, false])(
       happyDOM: { setViewport(viewport: { width: number; height: number }): void };
     };
     const dom = (window as unknown as HappyWindow).happyDOM;
-    dom.setViewport({ width: 900, height: 900 });
+    dom.setViewport({ width: 740, height: 900 });
     let titleHeight = 40;
     let stripHeight = 31;
     const rect = HTMLElement.prototype.getBoundingClientRect;

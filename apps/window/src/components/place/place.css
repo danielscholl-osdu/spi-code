@@ -186,7 +186,7 @@
   color: var(--text-muted);
   font-size: 12px;
 }
-@media (max-width: 979px) {
+@container (max-width: 640px) {
   .place-tiles {
     grid-template-columns: minmax(0, 1fr);
   }

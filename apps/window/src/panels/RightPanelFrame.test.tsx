@@ -4,21 +4,22 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
-import { NARROW_LAYOUT_MEDIA_QUERY } from "../components/sidebar/ui-sidebar.js";
+import { widthBudget } from "../app/width-budget.js";
 import { RightPanelFrame } from "./RightPanelFrame.js";
 import { createSelectionStore } from "./selection.js";
 
 afterEach(() => vi.restoreAllMocks());
 
 async function mount(width: number) {
-  const media = window.matchMedia(NARROW_LAYOUT_MEDIA_QUERY);
-  vi.spyOn(media, "matches", "get").mockImplementation(() => width < 980);
-  vi.spyOn(window, "matchMedia").mockReturnValue(media);
   const store = createSelectionStore({ postMessage: vi.fn() });
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
-  await act(async () =>
+  const render = () => {
+    const budget = widthBudget({
+      windowWidth: width,
+      open: { sidebar: true, rightPanel: true, lineSheet: false },
+    });
     root.render(
       <>
         <button
@@ -31,10 +32,11 @@ async function mount(width: number) {
         <button type="button" onClick={() => store.getState().select("repo:legal")}>
           Legal
         </button>
-        <RightPanelFrame store={store} />
+        <RightPanelFrame store={store} presentation={budget.rightPanel.presentation} />
       </>,
-    ),
-  );
+    );
+  };
+  await act(async () => render());
   const trigger = container.querySelector<HTMLButtonElement>("[aria-controls]");
   const row = container.querySelectorAll<HTMLButtonElement>("button")[1];
   if (!trigger || !row) throw new Error("Missing test controls");
@@ -47,7 +49,7 @@ async function mount(width: number) {
     resize: async (next: number) =>
       act(async () => {
         width = next;
-        media.dispatchEvent(new Event("change"));
+        render();
       }),
     cleanup: async () => {
       await act(async () => root.unmount());
@@ -56,7 +58,7 @@ async function mount(width: number) {
   };
 }
 
-it.each([980, 1280])(
+it.each([1100, 1280])(
   "starts closed, and navigation clears the selection and closes the panel at %i px",
   async (width) => {
     const view = await mount(width);
@@ -82,8 +84,8 @@ it.each([980, 1280])(
   },
 );
 
-it.each([979, 980])(
-  "keeps focus inside or outside the panel when crossing 980 px from %i px",
+it.each([1031, 1032])(
+  "keeps focus inside or outside the panel when crossing the budget's sheet step from %i px",
   async (width) => {
     const view = await mount(width);
     try {
@@ -93,14 +95,14 @@ it.each([979, 980])(
       if (!evidence) throw new Error("Missing Evidence tab");
       evidence.focus();
       await act(async () => evidence.click());
-      for (const next of [width < 980 ? 980 : 979, width]) {
+      for (const next of [width === 1031 ? 1032 : 1031, width]) {
         await view.resize(next);
         expect(document.activeElement).toBe(evidence);
-        expect(view.panel()?.hasAttribute("data-sheet")).toBe(next < 980);
+        expect(view.panel()?.hasAttribute("data-sheet")).toBe(next === 1031);
         expect(evidence.getAttribute("aria-selected")).toBe("true");
       }
       view.row.focus();
-      await view.resize(width < 980 ? 980 : 979);
+      await view.resize(width === 1031 ? 1032 : 1031);
       expect(document.activeElement).toBe(view.row);
       evidence.focus();
       await act(async () => view.store.getState().setOpen(false));
@@ -111,14 +113,14 @@ it.each([979, 980])(
   },
 );
 
-it("keeps an empty inline panel and its focus when it becomes a sheet", async () => {
-  const view = await mount(980);
+it("keeps the sweep Evidence and its focus when it becomes a sheet", async () => {
+  const view = await mount(1100);
   try {
     await act(async () => view.trigger.click());
     const detail = view.panel()?.querySelector<HTMLButtonElement>('[role="tab"]');
     if (!detail) throw new Error("Missing Detail tab");
     detail.focus();
-    await view.resize(979);
+    await view.resize(900);
     expect(view.panel()?.hasAttribute("data-sheet")).toBe(true);
     expect(document.activeElement).toBe(detail);
   } finally {
@@ -126,13 +128,13 @@ it("keeps an empty inline panel and its focus when it becomes a sheet", async ()
   }
 });
 
-it.each([980, 1280])(
-  "closes an empty panel on narrowing from %i px without moving outside focus",
+it.each([1100, 1280])(
+  "keeps a closed panel closed on narrowing from %i px without moving outside focus",
   async (width) => {
     const view = await mount(width);
     try {
       view.row.focus();
-      await view.resize(979);
+      await view.resize(900);
       expect(view.panel()).toBeNull();
       expect(view.container.querySelector(".detail-backdrop")).toBeNull();
       expect(document.activeElement).toBe(view.row);
@@ -148,7 +150,7 @@ it.each([980, 1280])(
   },
 );
 
-it.each([979, 980])("Escape closes only with focus inside the panel at %i px", async (width) => {
+it.each([900, 1100])("Escape closes only with focus inside the panel at %i px", async (width) => {
   const view = await mount(width);
   const pressEscape = (target: EventTarget, prevented = false) => {
     const event = new KeyboardEvent("keydown", {
@@ -183,7 +185,7 @@ it.each([979, 980])("Escape closes only with focus inside the panel at %i px", a
   }
 });
 
-it.each([980, 1280])(
+it.each([900, 1100, 1280])(
   "keeps the sweep's Evidence reachable with nothing selected at %i px",
   async (width) => {
     const view = await mount(width);
@@ -208,7 +210,7 @@ it.each([980, 1280])(
   },
 );
 
-it.each([979, 1280])(
+it.each([900, 1280])(
   "reopens the selected item's Detail after either Evidence scope at %i px",
   async (width) => {
     const view = await mount(width);
@@ -242,7 +244,7 @@ it.each([979, 1280])(
   },
 );
 
-it.each([979, 1280])(
+it.each([900, 1280])(
   "closes rather than showing an empty Detail after the sweep's Evidence at %i px",
   async (width) => {
     const view = await mount(width);

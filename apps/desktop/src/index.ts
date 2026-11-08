@@ -147,9 +147,10 @@ async function run(): Promise<void> {
   mkdirSync(dataDir, { recursive: true });
   storePath = join(dataDir, "runs.sqlite");
   const window = new BrowserWindow({
-    // The smoke reads the sidebar, which the wide layout (980 px and up) keeps on screen.
     width: smoke ? 1280 : 900,
     height: smoke ? 800 : 650,
+    minWidth: 740,
+    useContentSize: true,
     show: !smoke,
     ...windowTitleBarOptions(nativeTheme.shouldUseDarkColors, process.platform),
     webPreferences: {

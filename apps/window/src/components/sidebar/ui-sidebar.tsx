@@ -32,25 +32,6 @@ import {
   useSyncExternalStore,
 } from "react";
 
-/** Below this width the sidebar leaves the grid and opens off-canvas over the middle frame. */
-export const NARROW_LAYOUT_MEDIA_QUERY = "(max-width: 979px)";
-
-function isNarrowViewport(): boolean {
-  return window.matchMedia(NARROW_LAYOUT_MEDIA_QUERY).matches;
-}
-
-export function useMediaQuery(query: string): boolean {
-  return useSyncExternalStore(
-    (listener) => {
-      const list = window.matchMedia(query);
-      list.addEventListener("change", listener);
-      return () => list.removeEventListener("change", listener);
-    },
-    () => window.matchMedia(query).matches,
-    () => false,
-  );
-}
-
 // An off-canvas sidebar turns inert once it closes, which would drop focus to the body.
 function moveFocusOutOfClosingSidebar() {
   const sidebar = document.activeElement?.closest<HTMLElement>('[data-slot="sidebar"]');
@@ -93,7 +74,8 @@ export function createSidebarOpenStore(defaultOpen = true) {
     getSnapshot: () => state,
     setOpen,
     setOpenMobile,
-    toggle: () => (isNarrowViewport() ? setOpenMobile(!state.openMobile) : setOpen(!state.open)),
+    toggle: (offCanvas: boolean) =>
+      offCanvas ? setOpenMobile(!state.openMobile) : setOpen(!state.open),
   };
 }
 
@@ -118,16 +100,23 @@ export function useSidebar(): SidebarContextValue {
 
 export function SidebarProvider({
   defaultOpen = true,
+  store: suppliedStore,
+  presentation = "inline",
   children,
   ...props
-}: ComponentProps<"div"> & { defaultOpen?: boolean }) {
-  const [store] = useState(() => createSidebarOpenStore(defaultOpen));
+}: ComponentProps<"div"> & {
+  defaultOpen?: boolean;
+  store?: ReturnType<typeof createSidebarOpenStore>;
+  presentation?: "inline" | "off-canvas" | "closed";
+}) {
+  const [internalStore] = useState(() => createSidebarOpenStore(defaultOpen));
+  const store = suppliedStore ?? internalStore;
   const { open, openMobile } = useSyncExternalStore(
     store.subscribe,
     store.getSnapshot,
     store.getSnapshot,
   );
-  const isMobile = useMediaQuery(NARROW_LAYOUT_MEDIA_QUERY);
+  const isMobile = presentation === "off-canvas";
   useEffect(() => {
     if (!isMobile && store.getSnapshot().openMobile) store.setOpenMobile(false);
   }, [isMobile, store]);
@@ -141,7 +130,7 @@ export function SidebarProvider({
         visible,
         setOpen: store.setOpen,
         setOpenMobile: store.setOpenMobile,
-        toggleSidebar: store.toggle,
+        toggleSidebar: () => store.toggle(isMobile),
       }}
     >
       <div
@@ -160,6 +149,9 @@ export function Sidebar({ children, ...props }: ComponentProps<"nav">) {
   const { isMobile, openMobile, visible, setOpenMobile } = useSidebar();
   const ref = useRef<HTMLElement>(null);
   const offCanvas = isMobile && openMobile;
+  useEffect(() => {
+    if (!visible && ref.current?.contains(document.activeElement)) focusTrigger(ref.current);
+  }, [visible]);
   useEffect(() => {
     if (!offCanvas) return;
     ref.current

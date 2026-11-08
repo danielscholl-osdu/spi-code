@@ -37,11 +37,8 @@ kbd.sidebar-row-note { font-family: var(--font-mono); }
 .sidebar-readiness-dot[data-readiness="attention"] { background: var(--warning); }
 .sidebar-readiness-dot[data-readiness="failure"] { background: var(--error); }
 .sidebar-backdrop { position: fixed; inset: var(--topbar-height, 40px) 0 0; z-index: 9; background: color-mix(in srgb, var(--chrome) 60%, transparent); }
-@media (max-width: 979px) {
-  .app-sidebar { position: fixed; top: var(--topbar-height, 40px); bottom: 0; left: 0; z-index: 10; width: 232px; transform: translateX(-100%); transition: transform .15s ease-out; }
-  .app-sidebar[data-state="expanded"] { transform: none; box-shadow: 0 8px 24px rgb(0 0 0 / 0.25); }
-  .app-sidebar[data-state="collapsed"] { visibility: hidden; }
-}
+.app-sidebar[data-mobile="true"] { position: fixed; top: var(--topbar-height, 40px); bottom: 0; left: 0; z-index: 10; width: var(--sidebar-width, 232px); transform: translateX(-100%); transition: transform .15s ease-out; }
+.app-sidebar[data-mobile="true"][data-state="expanded"] { transform: none; box-shadow: 0 8px 24px rgb(0 0 0 / 0.25); }
 .sidebar-pip {
   flex: none;
   margin-left: auto;

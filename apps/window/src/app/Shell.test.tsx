@@ -11,7 +11,7 @@ import { selectionStore } from "../panels/selection.js";
 import { PINS_STORAGE_KEY } from "../store/pins.js";
 import { testSnapshot } from "../store/test-snapshot.js";
 import { watchStore } from "../store/watch.js";
-import { navigate } from "./routes.js";
+import { closeSheet, navigate, pinSheet } from "./routes.js";
 import { Shell } from "./Shell.js";
 
 type HappyWindow = { happyDOM: { setViewport(viewport: { width: number; height: number }): void } };
@@ -51,6 +51,7 @@ const press = (key: string, init: KeyboardEventInit = { ctrlKey: true }) =>
   });
 
 beforeEach(() => {
+  closeSheet();
   window.location.hash = "";
   viewport(1280);
   selectionStore.setState({
@@ -62,6 +63,68 @@ beforeEach(() => {
     tab: "detail",
     evidenceScope: "selection",
   });
+});
+
+it("re-decides the pane presentations and widths through all eight drawn cases", async () => {
+  const shell = await mountShell();
+  const layout = shell.container.querySelector<HTMLElement>(".shell");
+  if (!layout) throw new Error("Missing shell");
+  try {
+    for (const [width, pinned, centre, sidebar, line, lineWidth, detail, detailWidth] of [
+      [1600, false, 1008, "inline", "closed", 0, "inline", 360],
+      [1440, true, 520, "inline", "inline", 360, "inline", 328],
+      [1280, true, 688, "inline", "inline", 360, "sheet", 360],
+      [1100, false, 520, "inline", "closed", 0, "inline", 348],
+      [1100, true, 520, "inline", "inline", 348, "sheet", 360],
+      [980, false, 748, "inline", "closed", 0, "sheet", 360],
+      [900, true, 668, "inline", "stacked", 668, "sheet", 360],
+      [740, false, 740, "off-canvas", "closed", 0, "sheet", 360],
+    ] as const) {
+      await act(async () => {
+        viewport(width);
+        window.dispatchEvent(new Event("resize"));
+        if (pinned) pinSheet();
+        else closeSheet();
+      });
+      expect(layout.dataset.sidebarPresentation).toBe(sidebar);
+      expect(layout.dataset.linePresentation).toBe(line);
+      expect(layout.dataset.rightPresentation).toBe(detail);
+      expect(
+        width -
+          Number.parseFloat(layout.style.getPropertyValue("--sidebar-col")) -
+          Number.parseFloat(layout.style.getPropertyValue("--sheet-col")) -
+          Number.parseFloat(layout.style.getPropertyValue("--panel-col")),
+      ).toBe(centre);
+      expect(layout.style.getPropertyValue("--panel-col")).toBe(
+        `${detail === "inline" ? detailWidth : 0}px`,
+      );
+      expect(layout.style.getPropertyValue("--sheet-col")).toBe(
+        `${line === "inline" ? lineWidth : 0}px`,
+      );
+      expect(layout.style.getPropertyValue("--right-panel-width")).toBe(`${detailWidth}px`);
+      expect(layout.style.getPropertyValue("--sidebar-col")).toBe(
+        `${sidebar === "inline" ? 232 : 0}px`,
+      );
+      expect(shell.container.querySelector(".line-sheet")?.getAttribute("data-presentation")).toBe(
+        pinned ? (line === "stacked" ? "stacked" : "pinned") : undefined,
+      );
+      expect(shell.container.querySelector("#app-right-panel")?.hasAttribute("data-sheet")).toBe(
+        detail === "sheet",
+      );
+    }
+    await act(async () => {
+      viewport(600);
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(layout.dataset.sidebarPresentation).toBe("off-canvas");
+    expect(layout.style.getPropertyValue("--sidebar-col")).toBe("0px");
+    await act(async () => selectionStore.getState().setOpen(false));
+    expect(layout.dataset.rightPresentation).toBe("closed");
+    expect(layout.style.getPropertyValue("--panel-col")).toBe("0px");
+  } finally {
+    await shell.cleanup();
+    closeSheet();
+  }
 });
 
 it("navigates every sidebar thing through the hash, naming the place in the title bar", async () => {
@@ -146,8 +209,8 @@ it("toggles the sidebar and right panel, omitting the unshipped terminal", async
   }
 });
 
-it("opens the sidebar off-canvas below 980 px and closes it on Escape, back to its toggle", async () => {
-  viewport(800);
+it("opens the sidebar at the off-canvas budget step and closes it on Escape, back to its toggle", async () => {
+  viewport(740);
   const shell = await mountShell();
   const { container } = shell;
   try {
@@ -179,7 +242,7 @@ it("opens the sidebar off-canvas below 980 px and closes it on Escape, back to i
   }
 });
 
-it.each([900, 979, 980, 1280])(
+it.each([740, 900, 980, 1100, 1280])(
   "opens one detail surface at %i px and restores focus on Escape or close",
   async (width) => {
     viewport(width);
@@ -198,14 +261,13 @@ it.each([900, 979, 980, 1280])(
     );
     try {
       expect(row).not.toBeNull();
-      if (width < 980) expect(container.querySelector("#app-right-panel")).toBeNull();
       row?.focus();
       await act(async () => row?.click());
       expect(container.querySelectorAll('aside[aria-label="Detail"]')).toHaveLength(1);
       expect(container.querySelector("#app-right-panel")?.hasAttribute("data-sheet")).toBe(
-        width < 980,
+        width < 1032,
       );
-      if (width < 980)
+      if (width < 1032)
         expect(container.querySelector("#app-right-panel")?.contains(document.activeElement)).toBe(
           true,
         );
@@ -220,7 +282,7 @@ it.each([900, 979, 980, 1280])(
       expect(document.activeElement).toBe(row);
       trigger?.focus();
       await act(async () => trigger?.click());
-      if (width < 980)
+      if (width < 1032)
         expect(container.querySelector("#app-right-panel")?.contains(document.activeElement)).toBe(
           true,
         );
@@ -268,7 +330,8 @@ it("keeps a Flow selection on its service and restores middle-frame scroll when 
 });
 
 it("keeps the narrow Sidebar and Detail toggles reachable without stacking their overlays", async () => {
-  viewport(900);
+  viewport(740);
+  selectionStore.setState({ open: false });
   const shell = await mountShell();
   try {
     const sidebar = shell.container.querySelector<HTMLButtonElement>(
@@ -292,6 +355,37 @@ it("keeps the narrow Sidebar and Detail toggles reachable without stacking their
     expect(shell.container.querySelector('nav[data-state="expanded"]')).not.toBeNull();
   } finally {
     await shell.cleanup();
+  }
+});
+
+it("uses Command+B at the off-canvas step and restores focus when the sidebar closes", async () => {
+  viewport(740);
+  selectionStore.setState({ open: false });
+  const platform = vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Macintosh");
+  const shell = await mountShell();
+  const toggle = shell.container.querySelector<HTMLButtonElement>('[aria-label="Toggle sidebar"]');
+  const sidebar = shell.container.querySelector<HTMLElement>("#app-sidebar");
+  try {
+    expect(toggle?.getAttribute("aria-keyshortcuts")).toBe("Meta+B");
+    toggle?.focus();
+    await press("b", { metaKey: true });
+    expect(sidebar?.dataset.mobile).toBe("true");
+    expect(sidebar?.dataset.state).toBe("expanded");
+    expect(sidebar?.contains(document.activeElement)).toBe(true);
+    await press("b", { metaKey: true });
+    expect(sidebar?.hasAttribute("inert")).toBe(true);
+    expect(document.activeElement).toBe(toggle);
+    await press("b", { metaKey: true });
+    await act(async () => {
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+    });
+    expect(sidebar?.dataset.state).toBe("collapsed");
+    expect(document.activeElement).toBe(toggle);
+  } finally {
+    await shell.cleanup();
+    platform.mockRestore();
   }
 });
 
@@ -357,7 +451,7 @@ it.each([900, 1280])(
       expect(selectionStore.getState().request).toBe(request);
       expect(shell.container.querySelector("#app-right-panel")).not.toBeNull();
       expect(shell.container.querySelector("#app-right-panel")?.hasAttribute("data-sheet")).toBe(
-        width < 980,
+        width < 1032,
       );
       await act(async () => navigate({ kind: "security" }));
       expect(selectionStore.getState().selected).toBeNull();
@@ -436,7 +530,7 @@ it.each([900, 1280])(
         }),
       );
       const panel = shell.container.querySelector("#app-right-panel");
-      expect(panel?.hasAttribute("data-sheet")).toBe(width < 980);
+      expect(panel?.hasAttribute("data-sheet")).toBe(width < 1032);
       const chips = panel?.querySelectorAll<HTMLButtonElement>("[data-selection-evidence]");
       expect(chips).toHaveLength(1);
       expect(panel?.querySelector(".detail-title")?.nextElementSibling).toBe(chips?.[0]);
@@ -500,7 +594,7 @@ it.each([900, 1280])(
           shell.container.querySelector<HTMLButtonElement>("header [data-sweep-line]")?.click(),
         );
         const panel = shell.container.querySelector("#app-right-panel");
-        expect(panel?.hasAttribute("data-sheet")).toBe(width < 980);
+        expect(panel?.hasAttribute("data-sheet")).toBe(width < 1032);
         expect(panel?.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
           "Evidence",
         );

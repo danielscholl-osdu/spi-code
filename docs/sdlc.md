@@ -71,7 +71,11 @@ Injected emoji cases cover Detail fields, Today sublines, template queue rows an
 environment repository lines; ordinary symbols and navigation glyphs stay intact.
 
 Window layout tests keep logical sections flat and reserve `.card` for separate
-objects such as repository fact summaries. The shell measures the title bar plus
+objects such as repository fact summaries. The shell calls the width budget on
+resize and pane toggles, narrowing Detail, moving it to a sheet, stacking pinned
+Line context and finally moving the sidebar off-canvas. The eight drawn cases are
+covered together in the shell test. The desktop sets a 740 px content minimum;
+the renderer clamps smaller viewports before budgeting. The shell measures the title bar plus
 strip into `--topbar-height`; narrow sidebar and Detail sheets and their backdrops
 use that offset, fall back to 40 px before measurement, and update when either row resizes.
 Pane headers share the 44 px `pane-header` rule. The centre reads left-aligned at

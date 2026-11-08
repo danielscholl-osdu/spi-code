@@ -36,6 +36,35 @@ it("matches the overlay height to the row the window draws its title bar in", ()
   expect(css).toMatch(new RegExp(`grid-template-rows: ${TITLEBAR_HEIGHT}px `));
 });
 
+it.each(["darwin", "win32"])(
+  "sets a 740 px content minimum on the actual %s BrowserWindow",
+  (platform) => {
+    const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+    const construction = source.slice(
+      source.indexOf("const window = new BrowserWindow("),
+      source.indexOf("lifecycle.setWindow(window)"),
+    );
+    const options: Record<string, unknown>[] = [];
+    runInNewContext(construction, {
+      BrowserWindow: class {
+        constructor(value: Record<string, unknown>) {
+          options.push(value);
+        }
+      },
+      smoke: false,
+      proof: false,
+      nativeTheme: { shouldUseDarkColors: false },
+      process: { platform },
+      windowTitleBarOptions,
+      app: { isPackaged: false },
+      desktopDir: "/desktop",
+      join: (...parts: string[]) => parts.join("/"),
+    });
+    expect(options).toHaveLength(1);
+    expect(options[0]).toMatchObject({ minWidth: 740, useContentSize: true });
+  },
+);
+
 function appearanceHarness(platform: NodeJS.Platform) {
   const handlers = new Map<string, (event: unknown, theme: unknown) => boolean>();
   const ipc = {
