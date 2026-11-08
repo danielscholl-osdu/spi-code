@@ -784,6 +784,51 @@ it("settles a stopped service only after the reconnect read it left running has 
   expect(existsSync(directory)).toBe(false);
 });
 
+it("rejects settling after its bound, naming the reads a hung gh still holds", async () => {
+  vi.useFakeTimers();
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  try {
+    let reads = 0;
+    const exec: Exec = {
+      runText: async (cmd, args) => {
+        if (cmd === "gh" && args[1] === "status") {
+          reads += 1;
+          await gate;
+        }
+        return { ok: false, error: "absent", code: null };
+      },
+      runJSON: async () => ({ ok: false, error: "unused", code: null }),
+    };
+    const { service } = setup({ exec, tools: async () => managedGh });
+    await vi.waitFor(() => expect(reads).toBe(1));
+    service.connect(() => {});
+    await service.stop();
+
+    let outcome: unknown;
+    const settling = service.settled().then(
+      () => {
+        outcome = "settled";
+      },
+      (error: unknown) => {
+        outcome = error;
+      },
+    );
+    await vi.advanceTimersByTimeAsync(9_999);
+    expect(outcome).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1);
+    await settling;
+    expect(outcome).toEqual(
+      new Error("Setup did not settle within 10000 ms: a queued refresh, a refresh still running."),
+    );
+  } finally {
+    release();
+    vi.useRealTimers();
+  }
+});
+
 it.skipIf(process.platform === "win32")(
   "uses a signed-in gh from the login-shell PATH when no managed copy exists",
   async () => {

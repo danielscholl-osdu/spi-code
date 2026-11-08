@@ -80,6 +80,7 @@ const WATCH_OFF = "Watch is off:";
 const REFRESH_MS = 60_000;
 const PROBE_TIMEOUT_MS = 10_000;
 const BUDGET_TIMEOUT_MS = 5_000;
+const SETTLE_TIMEOUT_MS = 10_000;
 const GH_USABLE = new Set(["ready", "needs-update", "scope-missing", "classic-token"]);
 
 type Source = "managed" | "path";
@@ -324,13 +325,33 @@ export class SetupService {
 
   /**
    * Resolves once no read is in flight or queued, including one a reconnect started unawaited.
-   * A read's own failure stays with its caller; this only waits for it to end.
+   * A read's own failure stays with its caller; this only waits for it to end, and rejects
+   * naming what still runs once `timeoutMs` passes.
    */
-  async settled(): Promise<void> {
-    for (;;) {
-      const pending = this.checking ?? this.queued?.promise ?? this.refreshing;
-      if (!pending) return;
-      await pending.catch(() => {});
+  async settled(timeoutMs = SETTLE_TIMEOUT_MS): Promise<void> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const expired = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const running = [
+          this.checking && "a check",
+          this.queued && "a queued refresh",
+          this.refreshing && "a refresh",
+        ].filter(Boolean);
+        reject(
+          new Error(
+            `Setup did not settle within ${timeoutMs} ms: ${running.join(", ")} still running.`,
+          ),
+        );
+      }, timeoutMs);
+    });
+    try {
+      for (;;) {
+        const pending = this.checking ?? this.queued?.promise ?? this.refreshing;
+        if (!pending) return;
+        await Promise.race([pending.catch(() => {}), expired]);
+      }
+    } finally {
+      clearTimeout(timer);
     }
   }
 
