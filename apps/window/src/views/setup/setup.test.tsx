@@ -89,6 +89,15 @@ const state = (overrides: Partial<Tool> = {}): SetupState => ({
   disabledReason: "Sign in to gh with repo and workflow scopes",
   tools: tools.map((tool) => ({ tool, state: "ready", action: null, ...overrides })),
 });
+const deferredSend = () => {
+  let resolve: () => void;
+  let reject: (error: Error) => void;
+  const promise = new Promise<void>((accept, fail) => {
+    resolve = accept;
+    reject = fail;
+  });
+  return { promise, resolve: () => resolve(), reject: (error: Error) => reject(error) };
+};
 
 const cases: [Tool["state"], Tool["action"], string][] = [
   ["missing", "install", "Missing"],
@@ -173,8 +182,8 @@ it.each([
       button()?.click();
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
-    expect(row?.querySelector('[role="alert"]')?.textContent).toContain(
-      "Host port is not connected",
+    expect(row?.querySelector('[role="alert"]')?.textContent).toBe(
+      "Could not send the request to SPI Code.",
     );
     expect(button()?.textContent).toBe("Try again");
     expect(button()?.disabled).toBe(false);
@@ -187,6 +196,129 @@ it.each([
     expect(row?.querySelector('[role="alert"]')).toBeNull();
     expect(button()?.textContent).toBe(action === "install" ? "Install" : "Sign in");
     expect(button()?.disabled).toBe(action === "signin");
+    expect(unhandled).not.toHaveBeenCalled();
+  },
+);
+
+it.each([
+  ["install", "missing", "setup.install"],
+  ["attention", "failed", "setup.check"],
+] as const)(
+  "sends once for double-clicked %s and Try again while pending",
+  async (action, status, type) => {
+    const request = deferredSend();
+    send.mockReturnValueOnce(request.promise);
+    const setup = state();
+    setup.tools[1] = { tool: "git", state: status, action };
+    await receive("setup.state", setup);
+    await render();
+    const row = container.querySelector('section[aria-label="git"]');
+    const button = () => row?.querySelector<HTMLButtonElement>("button");
+    await act(async () => {
+      button()?.click();
+      button()?.click();
+    });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(sent()[0]?.type).toBe(type);
+    expect(button()?.disabled).toBe(true);
+    await act(async () => request.reject(new Error("Send failed")));
+    expect(button()?.disabled).toBe(false);
+    expect(button()?.textContent).toBe("Try again");
+    const retry = deferredSend();
+    send.mockReturnValueOnce(retry.promise);
+    await act(async () => {
+      button()?.click();
+      button()?.click();
+    });
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(button()?.disabled).toBe(true);
+    await act(async () => retry.resolve());
+    expect(button()?.disabled).toBe(false);
+    expect(row?.querySelector('[role="alert"]')).toBeNull();
+    expect(unhandled).not.toHaveBeenCalled();
+  },
+);
+
+it("ignores an older click's late rejection after a newer send succeeds in the same connection", async () => {
+  const request = deferredSend();
+  send.mockReturnValueOnce(request.promise);
+  const setup = state();
+  setup.tools[1] = { tool: "git", state: "missing", action: "install" };
+  await receive("setup.state", setup);
+  await render();
+  const row = container.querySelector('section[aria-label="git"]');
+  const button = () => row?.querySelector<HTMLButtonElement>("button");
+  const epoch = watchStore.getState().epoch;
+  await act(async () => button()?.click());
+  setup.tools[1] = { tool: "git", state: "failed", action: "attention" };
+  await receive("setup.state", setup);
+  await act(async () => button()?.click());
+  expect(send).toHaveBeenCalledTimes(2);
+  expect(button()?.disabled).toBe(false);
+  setup.tools[1] = { tool: "git", state: "missing", action: "install" };
+  await receive("setup.state", setup);
+  await act(async () => request.reject(new Error("Old send failed")));
+  expect(watchStore.getState().epoch).toBe(epoch);
+  expect(row?.querySelector('[role="alert"]')).toBeNull();
+  expect(button()?.disabled).toBe(false);
+  expect(unhandled).not.toHaveBeenCalled();
+});
+
+it("does not clear a newer click's pending flag when an older send rejects", async () => {
+  const older = deferredSend();
+  const newer = deferredSend();
+  send.mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise);
+  const setup = state();
+  setup.tools[1] = { tool: "git", state: "missing", action: "install" };
+  await receive("setup.state", setup);
+  await render();
+  const row = container.querySelector('section[aria-label="git"]');
+  const button = () => row?.querySelector<HTMLButtonElement>("button");
+  await act(async () => button()?.click());
+  setup.tools[1] = { tool: "git", state: "failed", action: "attention" };
+  await receive("setup.state", setup);
+  await act(async () => button()?.click());
+  expect(send).toHaveBeenCalledTimes(2);
+  await act(async () => older.reject(new Error("Old send failed")));
+  expect(button()?.disabled).toBe(true);
+  expect(row?.querySelector('[role="alert"]')).toBeNull();
+  await act(async () => button()?.click());
+  expect(send).toHaveBeenCalledTimes(2);
+  await act(async () => newer.resolve());
+  expect(button()?.disabled).toBe(false);
+});
+
+it.each([
+  ["git", "install", "missing"],
+  ["gh", "signin", "signed-out"],
+  ["copilot", "signin", "signed-out"],
+  ["git", "attention", "failed"],
+] as const)(
+  "uses fixed error copy for %s %s without showing transport secrets",
+  async (tool, action, status) => {
+    const token = "ghp_FixtureSecret0123456789";
+    const deviceCode = "ABCD-1234";
+    send.mockImplementationOnce(() => {
+      throw new Error(`Send failed with ${token} and ${deviceCode}`);
+    });
+    const setup = state();
+    setup.tools = setup.tools.map((row) =>
+      row.tool === tool ? { tool, state: status, action } : row,
+    );
+    await receive("setup.state", setup);
+    await render();
+    const row = container.querySelector(
+      `section[aria-label="${tool === "copilot" ? "Copilot" : tool}"]`,
+    );
+    await act(async () => row?.querySelector<HTMLButtonElement>("button")?.click());
+    expect(row?.querySelector('[role="alert"]')?.textContent).toBe(
+      "Could not send the request to SPI Code.",
+    );
+    expect(row?.querySelector("button")?.textContent).toBe("Try again");
+    for (const secret of [token, deviceCode]) {
+      expect(container.innerHTML).not.toContain(secret);
+      expect(reactStrings()).not.toContain(secret);
+    }
     expect(unhandled).not.toHaveBeenCalled();
   },
 );
@@ -609,12 +741,12 @@ it("drops a send error on reconnect and keeps a late rejection tied to the old c
     throw new Error("New connection is not ready");
   });
   await act(async () => button()?.click());
-  expect(row?.querySelector('[role="alert"]')?.textContent).toContain(
-    "New connection is not ready",
+  expect(row?.querySelector('[role="alert"]')?.textContent).toBe(
+    "Could not send the request to SPI Code.",
   );
   await act(async () => rejectSend(new Error("Old connection failed")));
-  expect(row?.querySelector('[role="alert"]')?.textContent).toContain(
-    "New connection is not ready",
+  expect(row?.querySelector('[role="alert"]')?.textContent).toBe(
+    "Could not send the request to SPI Code.",
   );
   await receive("host.hello", { pid: 789 });
   expect(row?.querySelector('[role="alert"]')).toBeNull();

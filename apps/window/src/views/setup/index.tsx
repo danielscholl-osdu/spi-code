@@ -55,6 +55,7 @@ function CopyText({ label, value }: { label: string; value: string }) {
 type Progress = SetupSigninProgress | undefined;
 const GLAB_FAILED = "glab sign-in failed. Check the GitLab token and try again.";
 const GLAB_UNSENT = "Could not send the sign-in to SPI Code. Try again.";
+const SETUP_UNSENT = "Could not send the request to SPI Code.";
 
 function GlabSignin({ busy, progress }: { busy: boolean; progress: Progress }) {
   const field = useRef<HTMLInputElement>(null);
@@ -125,12 +126,25 @@ function ToolRow({ tool }: { tool: Tool }) {
   const [failure, setFailure] = useState<{
     epoch: number;
     action: Tool["action"];
-    reason: string;
   } | null>(null);
+  const sends = useRef({ sequence: 0, pending: false });
+  const [sending, setSending] = useState(false);
+  useEffect(() => {
+    sends.current.sequence++;
+    sends.current.pending = false;
+    setSending(false);
+    setFailure((current) =>
+      current?.epoch === epoch && current.action === tool.action ? current : null,
+    );
+    return () => {
+      sends.current.sequence++;
+    };
+  }, [epoch, tool.action]);
   const error =
-    failure?.epoch === epoch && failure.action === tool.action ? failure.reason : undefined;
+    failure?.epoch === epoch && failure.action === tool.action ? SETUP_UNSENT : undefined;
   const busy =
     tool.state === "installing" ||
+    sending ||
     pending ||
     (progress && ["starting", "device-code", "waiting"].includes(progress.state));
   const reason =
@@ -159,6 +173,10 @@ function ToolRow({ tool }: { tool: Tool }) {
           type="button"
           disabled={!!busy}
           onClick={async () => {
+            if (busy || sends.current.pending) return;
+            const sequence = ++sends.current.sequence;
+            sends.current.pending = true;
+            setSending(true);
             setFailure(null);
             try {
               if (tool.action === "attention")
@@ -168,16 +186,13 @@ function ToolRow({ tool }: { tool: Tool }) {
               else if (tool.action === "signin" && tool.tool !== "git" && tool.tool !== "glab")
                 await watchStore.getState().requestSetup("setup.signin", tool.tool);
               else throw new Error(`Unsupported setup action for ${tool.tool}`);
-            } catch (error) {
-              setFailure((current) =>
-                current && current.epoch > epoch
-                  ? current
-                  : {
-                      epoch,
-                      action: tool.action,
-                      reason: `Could not send the request to SPI Code. ${error instanceof Error ? error.message : String(error)}`,
-                    },
-              );
+            } catch {
+              if (sends.current.sequence === sequence) setFailure({ epoch, action: tool.action });
+            } finally {
+              if (sends.current.sequence === sequence) {
+                sends.current.pending = false;
+                setSending(false);
+              }
             }
           }}
         >
