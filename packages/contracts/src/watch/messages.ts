@@ -8,6 +8,7 @@ import { ViewAcknowledgeSchema } from "./reading.js";
 import {
   SetupCheckSchema,
   SetupInstallSchema,
+  SetupSigninCancelSchema,
   SetupSigninProgressSchema,
   SetupSigninSchema,
   SetupStateSchema,
@@ -71,6 +72,12 @@ export const WatchMessageSchema = z.discriminatedUnion("type", [
     kind: z.literal("request"),
     type: z.literal("setup.signin"),
     payload: SetupSigninSchema,
+  }),
+  z.strictObject({
+    ...envelope,
+    kind: z.literal("request"),
+    type: z.literal("setup.signin.cancel"),
+    payload: SetupSigninCancelSchema,
   }),
   z.strictObject({
     ...envelope,

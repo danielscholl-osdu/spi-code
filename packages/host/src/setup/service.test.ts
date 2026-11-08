@@ -835,6 +835,16 @@ function signinRequest(id: string, payload: { tool: string; token?: string }) {
   return { ...request("setup.signin", payload), id };
 }
 
+function cancelRequest(requestId: string): Message {
+  return {
+    version: PROTOCOL_VERSION,
+    id: `cancel-${requestId}`,
+    kind: "request",
+    type: "setup.signin.cancel",
+    payload: { requestId },
+  };
+}
+
 const DEVICE_OUTPUT =
   "! First copy your one-time code: WXYZ-9876\nOpen this URL to continue in your web browser: https://github.com/login/device\n";
 const PAT_SELF = JSON.stringify({ scopes: ["api"] });
@@ -844,6 +854,150 @@ function progressOf(messages: Message[]) {
     message.type === "setup.signin.progress" ? [message.payload] : [],
   );
 }
+
+it.each(["gh", "copilot"])(
+  "cancels only the requested %s flow and ignores unknown, rejected and stale requests",
+  async (tool) => {
+    const { exec, held } = heldExec((cmd, args) =>
+      cmd === "glab" && args[0] === "api" ? PAT_SELF : undefined,
+    );
+    const { service, progress } = setup({ exec, tools: async () => managedGh });
+    const route = service.routes["setup.signin"];
+    const cancel = service.routes["setup.signin.cancel"];
+    expect(cancel).toBeTypeOf("function");
+    const first = route?.(signinRequest("req-first", { tool }), () => {});
+    const other = route?.(
+      signinRequest("req-glab", { tool: "glab", token: "glpat-OtherFlow0123456789" }),
+      () => {},
+    );
+    await vi.waitFor(() => expect(held).toHaveLength(2));
+    await route?.(
+      signinRequest("req-rejected", { tool: tool === "gh" ? "copilot" : "gh" }),
+      () => {},
+    );
+    const before = [...progress()];
+    await cancel?.(cancelRequest("req-unknown"), () => {});
+    await cancel?.(cancelRequest("req-rejected"), () => {});
+    await cancel?.(cancelRequest("req-glab"), () => {});
+    expect(progress()).toEqual(before);
+    expect(held.every((call) => !call.opts?.signal?.aborted)).toBe(true);
+
+    await cancel?.(cancelRequest("req-first"), () => {});
+    await cancel?.(cancelRequest("req-first"), () => {});
+    expect(held[0]?.opts?.signal?.aborted).toBe(true);
+    expect(held[1]?.opts?.signal?.aborted).toBe(false);
+    held[0]?.opts?.onOutput?.("stderr", DEVICE_OUTPUT);
+    held[0]?.release("");
+    await first;
+    expect(progress().filter(({ requestId }) => requestId === "req-first")).toEqual([
+      { requestId: "req-first", tool, state: "starting" },
+      { requestId: "req-first", tool, state: "failed", reason: "Sign-in was cancelled." },
+    ]);
+    expect(progress().filter(({ requestId }) => requestId === "req-glab")).toEqual([
+      { requestId: "req-glab", tool: "glab", state: "starting" },
+      { requestId: "req-glab", tool: "glab", state: "waiting" },
+    ]);
+
+    const fresh = route?.(signinRequest("req-fresh", { tool }), () => {});
+    await vi.waitFor(() => expect(held).toHaveLength(3));
+    const after = [...progress()];
+    await cancel?.(cancelRequest("req-first"), () => {});
+    expect(held[2]?.opts?.signal?.aborted).toBe(false);
+    expect(progress()).toEqual(after);
+    held[2]?.release("");
+    await fresh;
+    const finished = [...progress()];
+    await cancel?.(cancelRequest("req-fresh"), () => {});
+    expect(held[2]?.opts?.signal?.aborted).toBe(false);
+    expect(progress()).toEqual(finished);
+    await drain(other, held, PAT_SELF);
+    expect(progress().at(-1)).toEqual({
+      requestId: "req-glab",
+      tool: "glab",
+      state: "completed",
+    });
+  },
+);
+
+it("ignores cancellation once terminal progress is published, before the flow unwinds", async () => {
+  const { exec, held } = heldExec();
+  const { service } = setup({ exec, tools: async () => managedGh });
+  service.connect((message) => {
+    if (message.type === "setup.signin.progress" && message.payload.state === "completed") {
+      void service.routes["setup.signin.cancel"]?.(cancelRequest("req-gh"), () => {});
+    }
+  });
+  const flow = service.routes["setup.signin"]?.(signinRequest("req-gh", { tool: "gh" }), () => {});
+  await vi.waitFor(() => expect(held).toHaveLength(1));
+  held[0]?.release("");
+  await flow;
+  expect(held[0]?.opts?.signal?.aborted).toBe(false);
+});
+
+it.skipIf(process.platform === "win32").each(["gh", "copilot"])(
+  "kills the fixture gh child when %s is cancelled without changing stored credentials",
+  async (tool) => {
+    const bin = join(directory, "cancel-bin");
+    const pidFile = join(directory, "login-pid");
+    const config = join(directory, "gh-config");
+    const credentials = join(config, "hosts.yml");
+    mkdirSync(bin);
+    mkdirSync(config);
+    writeFileSync(credentials, "stored-fixture-credential\n");
+    writeFileSync(
+      join(bin, "gh"),
+      `#!/bin/sh
+case "$1 $2" in
+  "auth login")
+    echo $$ > "${pidFile}"
+    printf '${DEVICE_OUTPUT}' >&2
+    while [ ! -f "$GH_CONFIG_DIR/finish" ]; do sleep 1; done
+    printf 'replacement-fixture-credential\\n' > "$GH_CONFIG_DIR/hosts.yml";;
+  "auth logout") : > "$GH_CONFIG_DIR/hosts.yml";;
+  *) exit 1;;
+esac
+`,
+    );
+    chmodSync(join(bin, "gh"), 0o755);
+    const logs: { args: string[] }[] = [];
+    const exec = new HostExec({
+      appData,
+      capturedPath: `${bin}:/usr/bin:/bin`,
+      installer: { binDir: async () => undefined },
+      env: { HOME: directory, PATH: "/usr/bin:/bin", GH_CONFIG_DIR: config },
+      log: (entry) => logs.push(entry),
+    });
+    const { service, progress } = setup({ exec, tools: async () => managedGh });
+    expect(service.routes["setup.signin.cancel"]).toBeTypeOf("function");
+    const flow = service.routes["setup.signin"]?.(signinRequest("req-cancel", { tool }), () => {});
+    let pid = 0;
+    try {
+      await vi.waitFor(
+        () => {
+          pid = Number(readFileSync(pidFile, "utf8"));
+          expect(progress().at(-1)?.state).toBe("waiting");
+        },
+        { timeout: 5000 },
+      );
+      await service.routes["setup.signin.cancel"]?.(cancelRequest("req-cancel"), () => {});
+      await flow;
+      await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow());
+      expect(progress().at(-1)).toEqual({
+        requestId: "req-cancel",
+        tool,
+        state: "failed",
+        reason: "Sign-in was cancelled.",
+      });
+      expect(progress().every(({ requestId }) => requestId === "req-cancel")).toBe(true);
+      expect(readFileSync(credentials, "utf8")).toBe("stored-fixture-credential\n");
+      expect(logs.some(({ args }) => args.includes("logout"))).toBe(false);
+    } finally {
+      service.connect(() => {});
+      await flow;
+    }
+  },
+  25_000,
+);
 
 it("stamps every sign-in progress with the id of the request that started it", async () => {
   const { exec, held } = heldExec();

@@ -149,7 +149,14 @@ const messages = [
   { ...envelope, kind: "event", type: "view.snapshot", payload: snapshot },
   { ...envelope, kind: "request", type: "view.acknowledge", payload: { cursor: 1 } },
   { ...envelope, kind: "request", type: "setup.check", payload: {} },
+  {
+    ...envelope,
+    kind: "request",
+    type: "setup.signin.cancel",
+    payload: { requestId: "signin-1" },
+  },
 ] satisfies [
+  WatchMessage,
   WatchMessage,
   WatchMessage,
   WatchMessage,
@@ -168,6 +175,21 @@ describe("Watch protocol", () => {
     const message = messages[10];
     expect(parseMessage(JSON.parse(JSON.stringify(message)))).toEqual({ ok: true, message });
     for (const payload of [{ tool: "gh" }, { token: "opaque.credential" }, null]) {
+      expect(parseMessage({ ...message, payload }).ok).toBe(false);
+    }
+    expect(parseMessage({ ...message, kind: "event" }).ok).toBe(false);
+  });
+  it("round-trips a sign-in cancellation naming the original request", () => {
+    const message = messages[11];
+    expect(parseMessage(JSON.parse(JSON.stringify(message)))).toEqual({ ok: true, message });
+    for (const payload of [
+      {},
+      { requestId: "" },
+      { requestId: null },
+      { requestId: 1 },
+      { requestId: "signin-1", tool: "gh" },
+      { requestId: "signin-1", token: "opaque.credential" },
+    ]) {
       expect(parseMessage({ ...message, payload }).ok).toBe(false);
     }
     expect(parseMessage({ ...message, kind: "event" }).ok).toBe(false);

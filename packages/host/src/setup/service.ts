@@ -27,7 +27,12 @@ import { GH_HOST, ghStatus, glabStatus } from "./status.js";
 type ToolRow = z.infer<typeof SetupToolSchema>;
 type InstallTool = z.infer<typeof SetupInstallSchema>["tool"];
 type SigninRequest = z.infer<typeof SetupSigninSchema>;
-type SigninFlow = { readonly abort: AbortController; retired: boolean };
+type SigninFlow = {
+  readonly requestId: string;
+  readonly abort: AbortController;
+  retired: boolean;
+  finished: boolean;
+};
 
 /** The managed tool installer: gh and glab. */
 export interface SetupTools {
@@ -155,6 +160,13 @@ export class SetupService {
     "setup.signin": async (message) => {
       if (message.type !== "setup.signin") return;
       await this.signin(message.payload, message.id);
+    },
+    "setup.signin.cancel": (message) => {
+      if (message.type !== "setup.signin.cancel") return;
+      const flow = this.flows.get("gh");
+      if (flow?.requestId === message.payload.requestId && !flow.finished) {
+        flow.abort.abort();
+      }
     },
   };
 
@@ -318,12 +330,20 @@ export class SetupService {
       this.emit({ requestId, tool, state: "failed", reason: signinRunningReason(key) });
       return;
     }
-    const flow: SigninFlow = { abort: new AbortController(), retired: false };
-    this.flows.set(key, flow);
-    const report = (step: SetupSigninStep) => {
-      if (!flow.retired) this.emit({ ...step, tool, requestId });
+    const flow: SigninFlow = {
+      requestId,
+      abort: new AbortController(),
+      retired: false,
+      finished: false,
     };
+    this.flows.set(key, flow);
     const signal = flow.abort.signal;
+    const report = (step: SetupSigninStep) => {
+      if (flow.retired || flow.finished) return;
+      if (signal.aborted && step.state !== "failed") return;
+      flow.finished = step.state === "failed" || step.state === "completed";
+      this.emit({ ...step, tool, requestId });
+    };
     try {
       if (request.tool === "glab") {
         if (request.token !== undefined) {

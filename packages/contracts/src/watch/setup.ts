@@ -73,6 +73,7 @@ export const SetupSigninStepSchema = z.discriminatedUnion("state", [
 // requestId is the id of the setup.signin request that started the flow. It is required: host and
 // window ship together, so progress without it is rejected rather than applied to any request.
 const requestId = { requestId: IdentifierSchema };
+export const SetupSigninCancelSchema = z.strictObject(requestId);
 export const SetupSigninProgressSchema = z.discriminatedUnion("state", [
   z.strictObject({ ...signinSteps.deviceCode, ...requestId }),
   z.strictObject({ ...signinSteps.running, ...requestId }),
