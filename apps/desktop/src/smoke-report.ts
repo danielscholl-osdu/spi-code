@@ -102,7 +102,7 @@ export const VIEW_SURFACES = [
     route: "today",
     place: "Today",
     selector:
-      "[role=dialog] [data-settings-section=readiness] section[aria-label='GraphQL budget']",
+      "[role=dialog] [data-settings-section=readiness] .readiness-row[aria-label='GitHub API budget']",
     designSection: "Layout / Settings (Readiness, opened from the sidebar footer); PRD PS-07",
     qualified: false,
   },
