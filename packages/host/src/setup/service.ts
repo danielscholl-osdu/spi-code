@@ -322,6 +322,18 @@ export class SetupService {
     await sweep?.instance.stop();
   }
 
+  /**
+   * Resolves once no read is in flight or queued, including one a reconnect started unawaited.
+   * A read's own failure stays with its caller; this only waits for it to end.
+   */
+  async settled(): Promise<void> {
+    for (;;) {
+      const pending = this.checking ?? this.queued?.promise ?? this.refreshing;
+      if (!pending) return;
+      await pending.catch(() => {});
+    }
+  }
+
   private async install(tool: InstallTool): Promise<void> {
     if (tool === "copilot") throw new Error("Copilot is not installed through Setup");
     const job = (

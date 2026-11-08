@@ -3,7 +3,15 @@
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -86,7 +94,10 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  for (const service of services.splice(0)) await service.stop();
+  for (const service of services.splice(0)) {
+    await service.stop();
+    await service.settled();
+  }
   const listening = server;
   if (listening) await new Promise<void>((resolve) => listening.close(() => resolve()));
   rmSync(directory, { recursive: true, force: true });
@@ -732,6 +743,45 @@ it("sends setup.state to each fresh connection", async () => {
   service.connect((message) => reloaded.push(message));
   expect(reloaded.map(({ type }) => type)).toEqual(["setup.state"]);
   expect(reloaded[0]?.payload).toEqual(states()[0]);
+});
+
+it("settles a stopped service only after the reconnect read it left running has written its last file", async () => {
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const late = join(appData, "kube");
+  let reads = 0;
+  const exec: Exec = {
+    runText: async (cmd, args) => {
+      if (cmd === "gh" && args[1] === "status") {
+        reads += 1;
+        await gate;
+        mkdirSync(late, { recursive: true });
+      }
+      return { ok: false, error: "absent", code: null };
+    },
+    runJSON: async () => ({ ok: false, error: "unused", code: null }),
+  };
+  const { service } = setup({ exec, tools: async () => managedGh });
+  await vi.waitFor(() => expect(reads).toBe(1));
+  service.connect(() => {});
+  await service.stop();
+
+  let settled = false;
+  const settling = service.settled().then(() => {
+    settled = true;
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  expect(settled).toBe(false);
+
+  release();
+  await settling;
+  expect(reads).toBe(2);
+  expect(existsSync(late)).toBe(true);
+  expect(row(service.current, "gh")).toMatchObject({ state: "failed" });
+  rmSync(directory, { recursive: true });
+  expect(existsSync(directory)).toBe(false);
 });
 
 it.skipIf(process.platform === "win32")(
