@@ -11,8 +11,11 @@ export function openReadiness() {
 
 export function watchNeeds(setup: SetupState): string {
   const tools = setup.tools
-    .filter((tool) => tool.state !== "ready")
-    .map(({ tool }) => (tool === "copilot" ? "Copilot" : tool));
+    .filter(
+      ({ tool, state }) =>
+        (tool === "git" || tool === "gh") && state !== "ready" && state !== "needs-update",
+    )
+    .map(({ tool }) => tool);
   return tools.length
     ? `Watch needs ${new Intl.ListFormat("en", { type: "conjunction" }).format(tools)}.`
     : (setup.disabledReason ?? "Watch is ready");

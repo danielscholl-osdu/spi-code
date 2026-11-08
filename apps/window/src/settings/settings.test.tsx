@@ -62,15 +62,19 @@ const close = () =>
     dialog()?.querySelector<HTMLButtonElement>('[aria-label="Close settings"]')?.click(),
   );
 const tools = (states: SetupState["tools"][number]["state"][]): SetupState => {
-  const ready = states.every((state) => state === "ready");
+  const rows = (["copilot", "git", "gh", "glab"] as const).map((tool, index) => ({
+    tool,
+    state: states[index] ?? "ready",
+    action: null,
+  }));
+  const blocking = rows.find(
+    ({ tool, state }) =>
+      (tool === "git" || tool === "gh") && state !== "ready" && state !== "needs-update",
+  );
   return {
-    watchReady: ready,
-    disabledReason: ready ? null : "gh is not signed in",
-    tools: (["copilot", "git", "gh", "glab"] as const).map((tool, index) => ({
-      tool,
-      state: states[index] ?? "ready",
-      action: null,
-    })),
+    watchReady: blocking === undefined,
+    disabledReason: blocking ? `${blocking.tool} is not ready` : null,
+    tools: rows,
   };
 };
 
@@ -98,7 +102,7 @@ afterEach(() => {
   relaunch();
 });
 
-it("opens once on the first not-ready state over the gate, names every missing tool and reopens from the gate", async () => {
+it("opens once on the first not-ready state over the gate, names only Watch blockers and reopens from the gate", async () => {
   watchStore.setState({ setup: null });
   window.location.hash = "#security";
   const shell = await mountShell();
@@ -106,25 +110,25 @@ it("opens once on the first not-ready state over the gate, names every missing t
   try {
     expect(dialog()).toBeNull();
     await act(async () =>
-      watchStore.setState({ setup: tools(["ready", "ready", "signed-out", "missing"]) }),
+      watchStore.setState({ setup: tools(["signed-out", "ready", "signed-out", "missing"]) }),
     );
     expect(section()?.dataset.settingsSection).toBe("readiness");
-    expect(banner()?.textContent).toBe("Watch needs gh and glab.");
+    expect(banner()?.textContent).toBe("Watch needs gh.");
     expect(banner()?.dataset.readiness).toBe("attention");
     expect(shell.container.querySelector("main [role='status']")?.textContent).toContain(
       "Watch unavailable",
     );
     expect(shell.container.querySelector("main h1")?.textContent).toBe("Security");
     await act(async () =>
-      watchStore.setState({ setup: tools(["ready", "ready", "ready", "missing"]) }),
+      watchStore.setState({ setup: tools(["no-seat", "missing", "needs-update", "missing"]) }),
     );
-    expect(banner()?.textContent).toBe("Watch needs glab.");
+    expect(banner()?.textContent).toBe("Watch needs git.");
     await act(async () => navItem("Appearance")?.click());
     await close();
     expect(dialog()).toBeNull();
     expect(window.location.hash).toBe("#security");
     await act(async () =>
-      watchStore.setState({ setup: tools(["ready", "ready", "signed-out", "missing"]) }),
+      watchStore.setState({ setup: tools(["signed-out", "ready", "signed-out", "missing"]) }),
     );
     expect(dialog()).toBeNull();
     const opener = [...shell.container.querySelectorAll<HTMLButtonElement>("main button")].find(
@@ -134,13 +138,47 @@ it("opens once on the first not-ready state over the gate, names every missing t
     opener?.focus();
     await act(async () => opener?.click());
     expect(section()?.dataset.settingsSection).toBe("readiness");
-    expect(banner()?.textContent).toBe("Watch needs gh and glab.");
+    expect(banner()?.textContent).toBe("Watch needs gh.");
     await close();
     expect(dialog()).toBeNull();
     expect(document.activeElement).toBe(opener);
     expect(shell.container.querySelector("main [role='status']")?.textContent).toContain(
       "Watch unavailable",
     );
+  } finally {
+    await shell.cleanup();
+  }
+});
+
+it.each([
+  { git: "missing", gh: "signed-out", message: "Watch needs git and gh." },
+  { git: "needs-update", gh: "signed-out", message: "Watch needs gh." },
+  { git: "missing", gh: "needs-update", message: "Watch needs git." },
+] as const)("names the Watch blockers with git $git and gh $gh", async ({ git, gh, message }) => {
+  watchStore.setState({ setup: tools(["signed-out", git, gh, "missing"]) });
+  const shell = await mountShell();
+  try {
+    expect(dialog()?.querySelector(".settings-readiness-banner")?.textContent).toBe(message);
+    expect(shell.container.querySelector("main [role='status']")?.textContent).toContain(
+      "Watch unavailable",
+    );
+    await close();
+  } finally {
+    await shell.cleanup();
+  }
+});
+
+it("opens nothing and shows no needs banner when only Copilot and glab need attention", async () => {
+  watchStore.setState({ setup: tools(["no-seat", "needs-update", "needs-update", "missing"]) });
+  const shell = await mountShell();
+  try {
+    expect(dialog()).toBeNull();
+    expect(shell.container.querySelector("main")?.textContent).not.toContain("Watch unavailable");
+    await press(",");
+    expect(section()?.dataset.settingsSection).toBe("readiness");
+    expect(dialog()?.querySelector(".settings-readiness-banner")).toBeNull();
+    expect(section()?.textContent).not.toContain("Watch needs");
+    await close();
   } finally {
     await shell.cleanup();
   }
@@ -156,7 +194,7 @@ it.each(["Go to Today", "close", "Escape", "close from Appearance"])(
       expect(dialog()).not.toBeNull();
       const mounted = dialog();
       await act(async () =>
-        watchStore.setState({ setup: tools(["ready", "ready", "ready", "ready"]) }),
+        watchStore.setState({ setup: tools(["signed-out", "ready", "ready", "missing"]) }),
       );
       expect(dialog()).toBe(mounted);
       const banner = dialog()?.querySelector<HTMLElement>(".settings-readiness-banner");
