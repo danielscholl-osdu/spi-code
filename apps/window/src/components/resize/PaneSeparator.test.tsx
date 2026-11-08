@@ -61,7 +61,9 @@ async function mount(options: Options = {}) {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
-  await act(async () => root.render(<Pane options={options} live={live} finished={finished} />));
+  const render = (next: Options) =>
+    act(async () => root.render(<Pane options={next} live={live} finished={finished} />));
+  await render(options);
   cleanups.push(async () => {
     await act(async () => root.unmount());
     container.remove();
@@ -70,7 +72,7 @@ async function mount(options: Options = {}) {
   const separator = container.querySelector<HTMLElement>('[role="separator"]');
   const line = container.querySelector<HTMLElement>(".pane-separator-line");
   if (!separator || !line) throw new Error("Missing separator");
-  return { separator, line, live, finished };
+  return { separator, line, live, finished, render };
 }
 
 async function pointer(target: HTMLElement, type: string, clientX: number) {
@@ -125,6 +127,33 @@ it("announces a focusable vertical separator with its width and bounds", async (
 it("announces the stop as the maximum when it is narrower than the pane's maximum", async () => {
   const { separator } = await mount({ edge: "left", width: 360, min: 280, max: 792, stop: 600 });
   expect(values(separator)).toEqual(["360", "280", "600"]);
+});
+
+it("announces a width above the stop as the stop", async () => {
+  const { separator } = await mount({ width: 300, stop: 250 });
+  expect(values(separator)).toEqual(["250", "200", "250"]);
+});
+
+it("re-clamps a stationary drag when the stop shrinks", async () => {
+  const { separator, live, finished, render } = await mount();
+  await pointer(separator, "pointerdown", 100);
+  await pointer(separator, "pointermove", 160);
+  await frame();
+  expect(separator.getAttribute("aria-valuenow")).toBe("292");
+  await render({ stop: 250 });
+  expect(values(separator)).toEqual(["250", "200", "250"]);
+  expect(live).toEqual([292, 250]);
+  await pointer(separator, "pointerup", 160);
+  expect(finished).toEqual([250]);
+});
+
+it("finishes an unmoved press at the stop when the stop shrinks under it", async () => {
+  const { separator, finished, render } = await mount({ width: 300 });
+  await pointer(separator, "pointerdown", 100);
+  await render({ width: 300, stop: 250 });
+  expect(separator.getAttribute("aria-valuenow")).toBe("250");
+  await pointer(separator, "pointerup", 100);
+  expect(finished).toEqual([250]);
 });
 
 it("reflows live while dragging and reports the width the drag ends on", async () => {
@@ -209,6 +238,15 @@ it("returns to the default width on double-click", async () => {
   expect(separator.getAttribute("aria-valuenow")).toBe("232");
 });
 
+it("reports the default on double-click and announces it within the stop", async () => {
+  const { separator, finished } = await mount({ width: 200, stop: 210 });
+  await act(async () => {
+    separator.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+  });
+  expect(finished).toEqual([232]);
+  expect(values(separator)).toEqual(["210", "200", "210"]);
+});
+
 it("turns the divider accent on hover and keyboard focus", async () => {
   const { separator, line } = await mount();
   expect(accent(line)).toBe(false);
@@ -243,10 +281,16 @@ it("keeps the divider accent for the whole drag", async () => {
   expect(accent(line)).toBe(false);
 });
 
-it("draws an 8 px column-resize target", () => {
-  const rule = css.match(/\.pane-separator \{([^}]*)\}/)?.[1] ?? "";
-  expect(rule).toMatch(/width: 8px/);
-  expect(rule).toMatch(/cursor: col-resize/);
+it("draws an 8 px column-resize target with a 1 px divider line at its centre", async () => {
+  const { separator, line } = await mount();
+  const target = getComputedStyle(separator);
+  const divider = getComputedStyle(line);
+  expect(target.width).toBe("8px");
+  expect(target.cursor).toBe("col-resize");
+  expect(divider.width).toBe("1px");
+  expect(Number.parseFloat(divider.left) + Number.parseFloat(divider.width) / 2).toBe(
+    Number.parseFloat(target.width) / 2,
+  );
 });
 
 it("restores the start width when the separator unmounts mid-drag", async () => {

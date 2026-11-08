@@ -95,14 +95,12 @@ function createController(
     return resizeBounds(min, max, stop);
   };
 
-  const flush = () => {
+  const flush = (limits: ResizeBounds = bounds()) => {
     const active = drag;
-    if (!active?.moved) return;
+    if (!active) return;
     const sign = latest.current.edge === "right" ? 1 : -1;
-    const width = clampWidth(
-      active.startWidth + (active.pendingX - active.startX) * sign,
-      bounds(),
-    );
+    const delta = active.moved ? (active.pendingX - active.startX) * sign : 0;
+    const width = clampWidth(active.startWidth + delta, limits);
     if (width === active.width) return;
     active.width = width;
     setDragWidth(width);
@@ -125,9 +123,9 @@ function createController(
     document.body.style.removeProperty("cursor");
     document.body.style.removeProperty("user-select");
     setDragWidth(null);
-    if (!active.moved) return;
-    if (commit) latest.current.onResizeEnd(active.width);
-    else if (active.width !== active.startWidth) latest.current.onResize?.(active.startWidth);
+    const changed = active.width !== active.startWidth;
+    if (commit && (active.moved || changed)) latest.current.onResizeEnd(active.width);
+    else if (!commit && changed) latest.current.onResize?.(active.startWidth);
   };
 
   const end = (event: PointerEvent<HTMLElement>, usePosition: boolean) => {
@@ -143,6 +141,10 @@ function createController(
 
   return {
     ref: (node: HTMLElement | null) => (node === null ? undefined : () => finish(false)),
+    /** Re-clamps a drag in progress when its bounds or stop change. */
+    refresh(limits: ResizeBounds) {
+      flush(limits);
+    },
     onPointerDown(event: PointerEvent<HTMLElement>) {
       if (event.button !== 0 || drag) return;
       const target = event.currentTarget;
@@ -155,7 +157,7 @@ function createController(
       // Leaving the window mid-drag finishes where the pointer last was.
       const onBlur = () => finish(true);
       window.addEventListener("blur", onBlur);
-      const width = latest.current.width;
+      const width = clampWidth(latest.current.width, bounds());
       drag = {
         target,
         pointerId: event.pointerId,
@@ -188,12 +190,13 @@ function createController(
     onLostPointerCapture: (event: PointerEvent<HTMLElement>) => end(event, false),
     onKeyDown(event: KeyboardEvent<HTMLElement>) {
       if (drag) return;
-      const { width, edge, onResizeEnd } = latest.current;
+      const { edge, onResizeEnd } = latest.current;
       const delta = keyDelta(event.key, event.shiftKey, edge);
       if (delta === null) return;
       event.preventDefault();
+      const width = clampWidth(latest.current.width, bounds());
       const next = clampWidth(width + delta, bounds());
-      if (Math.sign(next - width) === Math.sign(delta)) onResizeEnd(next);
+      if (next !== width) onResizeEnd(next);
     },
     onDoubleClick() {
       if (drag) return;
@@ -207,9 +210,10 @@ export type ResizeHandlers = ReturnType<typeof createController>;
 
 /**
  * Drives one pane edge by pointer drag, arrow keys and double-click. Options are
- * read when each event arrives, so bounds and the stop can change mid-drag. A
- * double-click resets to the default within min and max, ignoring the stop: the
- * width budget, not the reset, keeps the centre wide enough.
+ * read when each event arrives, and a drag in progress re-clamps when the bounds
+ * or the stop change. The width it returns and announces always lies within the
+ * bounds. A double-click reports the default within min and max, ignoring the
+ * stop: it is the preferred width, and the width budget decides the displayed one.
  */
 export function useResizeController(options: ResizeControllerOptions): {
   width: number;
@@ -224,10 +228,13 @@ export function useResizeController(options: ResizeControllerOptions): {
   const [dragWidth, setDragWidth] = useState<number | null>(null);
   // Created once: `ref` keeps its identity, or a re-render mid-drag would run its cleanup.
   const [handlers] = useState(() => createController(latest, setDragWidth));
+  const { min, max, stop } = options;
+  useLayoutEffect(() => handlers.refresh(resizeBounds(min, max, stop)), [handlers, min, max, stop]);
+  const bounds = resizeBounds(min, max, stop);
   return {
-    width: dragWidth ?? options.width,
+    width: dragWidth ?? clampWidth(options.width, bounds),
     dragging: dragWidth !== null,
-    bounds: resizeBounds(options.min, options.max, options.stop),
+    bounds,
     handlers,
   };
 }
