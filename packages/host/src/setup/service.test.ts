@@ -343,6 +343,37 @@ it("reports an unavailable budget without retaining stale points, and retries on
   });
 });
 
+it("completes a check from a fallback base when the stored sweep status cannot be read", async () => {
+  const onError = vi.fn();
+  const unreadable = new Error("stored snapshot is unreadable");
+  const sweepStatus = vi.fn<SetupServiceOptions["sweepStatus"]>(() => {
+    throw unreadable;
+  });
+  const { service, sent, states } = setup({
+    exec: fakeExec((cmd, args) =>
+      cmd === "gh" && args[1] === "status" ? GH_STATUS_OK : undefined,
+    ),
+    tools: async () => managedGh,
+    refreshBudget: async () => ({ remaining: 2500, resetAt: "2026-11-08T16:00:00Z" }),
+    sweepStatus,
+    onError,
+  });
+  await service.refresh();
+  const before = states().length;
+
+  await service.routes["setup.check"]?.(checkRequest, () => {});
+
+  expect(sweepStatus).toHaveBeenCalledOnce();
+  expect(onError).toHaveBeenCalledExactlyOnceWith(unreadable);
+  expect(states()).toHaveLength(before + 1);
+  expect(states().at(-1)?.checkedAt).toBeDefined();
+  expect(sent.filter(({ type }) => type === "sweep.status")).toEqual([
+    expect.objectContaining({
+      payload: { remaining: 2500, resetAt: "2026-11-08T16:00:00Z", deferredAreas: [] },
+    }),
+  ]);
+});
+
 it("posts checked state before a bounded budget read and leaves ordinary refreshes unblocked", async () => {
   vi.useFakeTimers();
   const refreshBudget = vi.fn<SetupServiceOptions["refreshBudget"]>(() => new Promise(() => {}));

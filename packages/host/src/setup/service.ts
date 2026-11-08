@@ -287,7 +287,14 @@ export class SetupService {
     } finally {
       clearTimeout(timer);
     }
-    const status = SweepStatusSchema.parse({ ...this.options.sweepStatus(), ...rate });
+    let base: SweepStatus;
+    try {
+      base = SweepStatusSchema.parse(this.options.sweepStatus());
+    } catch (error) {
+      this.options.onError(error);
+      base = { remaining: null, resetAt: null, deferredAreas: [] };
+    }
+    const status = SweepStatusSchema.parse({ ...base, ...rate });
     this.send({
       version: PROTOCOL_VERSION,
       id: `setup-budget-${++this.sequence}`,
