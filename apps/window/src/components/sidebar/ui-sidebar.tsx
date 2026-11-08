@@ -86,8 +86,11 @@ export function createSidebarOpenStore(defaultOpen = true) {
     getSnapshot: () => state,
     setOpen,
     setOpenMobile,
-    toggle: (offCanvas: boolean) =>
-      offCanvas ? setOpenMobile(!state.openMobile) : setOpen(!state.open),
+    toggle(offCanvas: boolean) {
+      if (!offCanvas) setOpen(!state.open);
+      else if (!state.open) publish({ open: true, openMobile: true });
+      else setOpenMobile(!state.openMobile);
+    },
   };
 }
 

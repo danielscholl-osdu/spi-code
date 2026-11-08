@@ -78,6 +78,10 @@ covered together in the shell test. The desktop sets a 740 px content minimum;
 the renderer clamps smaller viewports before budgeting. The shell measures the title bar plus
 strip into `--topbar-height`; narrow sidebar and Detail sheets and their backdrops
 use that offset, fall back to 40 px before measurement, and update when either row resizes.
+Opening a collapsed sidebar uses the budget for its open state, so one shortcut
+opens it off-canvas after narrowing. Clearing a selection closes a Detail sheet;
+inline sweep Evidence may stay open. Resizing an inline sidebar off-canvas moves
+focus out of its hidden content to the sidebar toggle.
 Pane headers share the 44 px `pane-header` rule. The centre reads left-aligned at
 most 960 px wide with 20 by 24 px padding; its place header stays at the top of
 the scrolling frame. Service source sections use named, styled disclosures,

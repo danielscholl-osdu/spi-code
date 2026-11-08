@@ -27,6 +27,15 @@ export function RightPanelFrame({
     () =>
       store.subscribe((state, previous) => {
         if (
+          previous.selected !== null &&
+          state.selected === null &&
+          state.open &&
+          currentPresentation.current === "sheet"
+        ) {
+          store.getState().setOpen(false);
+          return;
+        }
+        if (
           state.selected !== previous.selected &&
           state.selected !== null &&
           document.activeElement instanceof HTMLElement &&

@@ -58,10 +58,15 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
   }, []);
-  const budget = widthBudget({
+  const budgetInput = {
     windowWidth: Math.max(740, windowWidth),
     open: { sidebar: sidebarOpen, rightPanel: rightPanelOpen, lineSheet: sheet === "pinned" },
-  });
+  };
+  const budget = widthBudget(budgetInput);
+  const sidebarPresentation = sidebarOpen
+    ? budget.sidebar.presentation
+    : widthBudget({ ...budgetInput, open: { ...budgetInput.open, sidebar: true } }).sidebar
+        .presentation;
   const toggleRightPanel = useCallback(
     () => selectionStore.getState().setOpen(!selectionStore.getState().open),
     [],
@@ -167,7 +172,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
     <RegistryProvider registry={registry}>
       <SidebarProvider
         store={sidebarStore}
-        presentation={budget.sidebar.presentation}
+        presentation={sidebarPresentation}
         className="shell"
         data-right-panel={rightPanelOpen ? "open" : "closed"}
         data-window-controls={windowControls()}

@@ -389,6 +389,78 @@ it("uses Command+B at the off-canvas step and restores focus when the sidebar cl
   }
 });
 
+it("opens the sidebar on the first Command+B after collapsing inline and narrowing to 740 px", async () => {
+  selectionStore.setState({ open: false });
+  const platform = vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Macintosh");
+  const shell = await mountShell();
+  const toggle = shell.container.querySelector<HTMLButtonElement>('[aria-label="Toggle sidebar"]');
+  const sidebar = shell.container.querySelector<HTMLElement>("#app-sidebar");
+  try {
+    expect(sidebar?.dataset.mobile).toBeUndefined();
+    expect(sidebar?.dataset.state).toBe("expanded");
+    toggle?.focus();
+    await press("b", { metaKey: true });
+    expect(sidebar?.dataset.state).toBe("collapsed");
+    await act(async () => {
+      viewport(740);
+      window.dispatchEvent(new Event("resize"));
+    });
+    await press("b", { metaKey: true });
+    expect(sidebar?.dataset.mobile).toBe("true");
+    expect(sidebar?.dataset.state).toBe("expanded");
+    expect(sidebar?.hasAttribute("inert")).toBe(false);
+    expect(sidebar?.contains(document.activeElement)).toBe(true);
+    expect(shell.container.querySelector('[data-slot="sidebar-backdrop"]')).not.toBeNull();
+  } finally {
+    await shell.cleanup();
+    platform.mockRestore();
+  }
+});
+
+it.each([900, 1280])(
+  "closes cleared selection Evidence on navigation only when presented as a sheet at %i px",
+  async (width) => {
+    viewport(width);
+    selectionStore.setState({ open: false });
+    const shell = await mountShell();
+    try {
+      await act(async () => selectionStore.getState().select("repo:legal"));
+      await act(async () => selectionStore.getState().openSweepEvidence());
+      expect(selectionStore.getState().selected).toBe("repo:legal");
+      expect(shell.container.querySelector("#app-right-panel")?.hasAttribute("data-sheet")).toBe(
+        width === 900,
+      );
+      await act(async () => navigate({ kind: "setup" }));
+      expect(shell.container.querySelector("main h1")?.textContent).toBe("Setup");
+      expect(selectionStore.getState().selected).toBeNull();
+      expect(selectionStore.getState().open).toBe(width === 1280);
+      expect(shell.container.querySelector("#app-right-panel") !== null).toBe(width === 1280);
+      expect(shell.container.querySelector(".detail-backdrop")).toBeNull();
+    } finally {
+      await shell.cleanup();
+    }
+  },
+);
+
+it("returns sidebar focus to its toggle when resizing hides the inline sidebar", async () => {
+  const shell = await mountShell();
+  const toggle = shell.container.querySelector<HTMLButtonElement>('[aria-label="Toggle sidebar"]');
+  const sidebar = shell.container.querySelector<HTMLElement>("#app-sidebar");
+  try {
+    sidebar?.querySelector<HTMLButtonElement>("button")?.focus();
+    expect(sidebar?.contains(document.activeElement)).toBe(true);
+    await act(async () => {
+      viewport(740);
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(sidebar?.dataset.mobile).toBe("true");
+    expect(sidebar?.hasAttribute("inert")).toBe(true);
+    expect(document.activeElement).toBe(toggle);
+  } finally {
+    await shell.cleanup();
+  }
+});
+
 it.each([900, 1280])(
   "keeps a Related selection through snapshot refresh at %i px, but clears a removed listed row",
   async (width) => {
