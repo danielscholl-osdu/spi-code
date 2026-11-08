@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { readFileSync } from "node:fs";
 import { type InspectResult, PROTOCOL_VERSION, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -10,7 +11,7 @@ import legalStations from "../../../../fixtures/watch/inspect-stations-legal-59d
 import projected from "../../../../fixtures/watch/snapshot-59d6895.json?raw";
 import recorded from "../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
 import { NARROW_LAYOUT_MEDIA_QUERY } from "../components/sidebar/ui-sidebar.js";
-import { plainTitle } from "../text.js";
+import { plainTitle, sentenceCase } from "../text.js";
 import { clockTime } from "../time.js";
 import { bridgeOpens } from "./detail-action.js";
 import { RightPanel } from "./RightPanel.js";
@@ -18,6 +19,7 @@ import { RightPanelFrame } from "./RightPanelFrame.js";
 import { createSelectionStore } from "./selection.js";
 import { routeSelectionIds, type SelectionRow, selectionRows } from "./selection-rows.js";
 
+const panelsCss = readFileSync("apps/window/src/panels/panels.css", "utf8");
 const snapshot = ViewSnapshotSchema.parse(JSON.parse(recorded));
 const steps: { steps: { id: string; board: { header: { status: { label: string } } } }[] } =
   JSON.parse(actions);
@@ -389,6 +391,50 @@ it("offers the place, never a GitLab link the bridge would refuse, for a GitLab-
   }
 });
 
+async function mountResult(result: InspectResult) {
+  const row = recordedRows.find(({ kind }) => kind === "queue");
+  if (!row) throw new Error("Missing recorded queue row");
+  const postMessage = vi.fn();
+  const store = createSelectionStore({ postMessage });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  await act(async () => root.render(<RightPanel store={store} snapshot={snapshot} />));
+  await act(async () => store.getState().select(row.id, row));
+  const request = postMessage.mock.lastCall?.[0];
+  await act(async () =>
+    store.getState().receive({
+      version: PROTOCOL_VERSION,
+      id: request.id,
+      kind: "response",
+      type: "inspect.result",
+      payload: { ...result, id: row.inspectId ?? row.id },
+    }),
+  );
+  return {
+    container,
+    cleanup: async () => {
+      await act(async () => root.unmount());
+      container.remove();
+    },
+  };
+}
+
+const hostResult = (over: Partial<InspectResult>): InspectResult => ({
+  id: "x",
+  title: "x",
+  class: "ROLLOUT",
+  cause: "",
+  effect: "",
+  next: "",
+  why: "",
+  related: [],
+  evidence: [],
+  actions: [],
+  approval: null,
+  ...over,
+});
+
 it("renders Related as label and value rows, never one paragraph", async () => {
   const view = await mountStation("sync");
   try {
@@ -400,16 +446,82 @@ it("renders Related as label and value rows, never one paragraph", async () => {
     expect(rows).toHaveLength(result.related.length);
     for (const [index, entry] of result.related.entries()) {
       const row = rows[index];
-      expect(row?.querySelector("dt")?.textContent).toBe(entry.state);
+      expect(row?.querySelector("dt")?.textContent ?? "").toBe(
+        sentenceCase(plainTitle(entry.state)),
+      );
       const iso = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/g;
       expect(row?.querySelector("dd")?.textContent).toBe(
-        plainTitle(entry.text).replace(iso, (at) => clockTime(at)),
+        sentenceCase(plainTitle(entry.text)).replace(iso, (at) => clockTime(at)),
       );
       expect([...(row?.querySelectorAll("time") ?? [])].map((time) => time.dateTime)).toEqual(
         entry.text.match(iso) ?? [],
       );
-      expect(row?.querySelector("dd")?.textContent).not.toContain(entry.state);
+      if (entry.state) expect(row?.querySelector("dd")?.textContent).not.toContain(entry.state);
     }
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("stacks each Related label above its value and draws no label for an empty one", async () => {
+  const long = "What the next sync carries · 29 commits behind upstream and a port owed";
+  const view = await mountResult(
+    hostResult({
+      effect: "29 upstream commits queued",
+      related: [
+        { text: "os-core-common 8.5.0 · 29 commits", state: long },
+        { text: "Back to the upstream plan", state: "", inspect: "upstream" },
+        { text: "#58 · waits for review", state: "Sync PR" },
+      ],
+    }),
+  );
+  try {
+    const related = view.container.querySelector('dl[aria-label="Related"]');
+    if (!related) throw new Error("Missing Related list");
+    const entries = [...related.children].map((entry) =>
+      [...entry.children].map((child) => [child.tagName, child.textContent]),
+    );
+    expect(entries).toEqual([
+      [
+        ["DT", long],
+        ["DD", "os-core-common 8.5.0 · 29 commits"],
+      ],
+      [["DD", "Back to the upstream plan"]],
+      [
+        ["DT", "Sync PR"],
+        ["DD", "#58 · waits for review"],
+      ],
+    ]);
+    const rules = panelsCss.match(/[^{}]*inspector-related[^{}]*\{[^}]*\}/g) ?? [];
+    expect(rules.length).toBeGreaterThan(0);
+    for (const rule of rules) {
+      expect(rule).not.toMatch(/grid-template-columns|display:\s*(grid|contents)/);
+    }
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("renders an all-caps host state word in sentence case and leaves the host text alone", async () => {
+  const result = hostResult({
+    why: "PREPARED",
+    effect: "P1 · CASCADE STOPPED",
+    next: "Review PR #58 on GitHub",
+    cause: "SPI CI",
+    related: [{ text: "IN_PROGRESS", state: "SYNC TO MAIN" }],
+  });
+  const view = await mountResult(result);
+  try {
+    const field = (name: string) =>
+      view.container.querySelector(`[data-field="${name}"]`)?.textContent;
+    expect(field("why")).toBe("Prepared");
+    expect(field("effect")).toBe("P1 · Cascade stopped");
+    expect(field("next")).toBe("Review PR #58 on GitHub");
+    expect(field("cause")).toBe("SPI CI");
+    const entry = view.container.querySelector('dl[aria-label="Related"] > div');
+    expect(entry?.querySelector("dt")?.textContent).toBe("Sync to main");
+    expect(entry?.querySelector("dd")?.textContent).toBe("In progress");
+    expect(result.why).toBe("PREPARED");
   } finally {
     await view.cleanup();
   }

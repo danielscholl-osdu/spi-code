@@ -370,12 +370,19 @@ function repoResult(
   });
 }
 
+/** The board's untitled lead rows, whose first line becomes Effect and so stays out of Related. */
+function untitledLead(board: UpstreamBoard) {
+  const lead = board.sections[0];
+  return lead?.kind === "rows" && lead.title === undefined ? lead : undefined;
+}
+
 export function upstreamPlanResult(
   board: UpstreamBoard,
   areas: readonly AreaEnvelope[],
 ): InspectResult {
   const rows = board.sections[0];
   const next = board.sections.find((section) => section.kind === "cards")?.items[0];
+  const lead = untitledLead(board);
   return InspectResultSchema.parse({
     id: UPSTREAM_ITEM,
     title: board.title,
@@ -386,6 +393,7 @@ export function upstreamPlanResult(
     why: board.header.status.label,
     evidence: [],
     related: board.sections.flatMap((section): InspectResult["related"] => {
+      if (section === lead) return [];
       const state = section.title ?? "";
       switch (section.kind) {
         case "rows":
@@ -438,7 +446,7 @@ export function upstreamForkResult(
   areas: readonly AreaEnvelope[],
 ): InspectResult {
   const { label, tone } = board.header.status;
-  const lead = board.sections[0];
+  const lead = untitledLead(board);
   return InspectResultSchema.parse({
     ...upstreamPlanResult(board, areas),
     id,
@@ -453,10 +461,7 @@ export function upstreamForkResult(
               ? "READY"
               : "ROLLOUT",
     cause: board.title,
-    effect:
-      lead?.kind === "rows" && lead.title === undefined
-        ? (lead.items[0]?.text ?? "")
-        : board.header.chip,
+    effect: lead ? (lead.items[0]?.text ?? "") : board.header.chip,
   });
 }
 

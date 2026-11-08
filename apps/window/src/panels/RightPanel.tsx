@@ -25,7 +25,7 @@ import type { InspectResult, ReadRecord, ViewSnapshot } from "@spi-code/contract
 import { type KeyboardEvent, type ReactNode, useId } from "react";
 import { useStore } from "zustand";
 import { SelectionEvidence, SelectionEvidenceChip } from "../components/evidence/index.js";
-import { plainTitle } from "../text.js";
+import { plainTitle, sentenceCase } from "../text.js";
 import { Time, TimedText } from "../time.js";
 import { detailAction, runDetailAction } from "./detail-action.js";
 import { PANEL_TABS, type PanelTab, type SelectionStore } from "./selection.js";
@@ -48,7 +48,7 @@ const KIND_LABEL: Readonly<Record<SelectionKind, string>> = {
 };
 
 function Field({ label, value }: { label: string; value: string }) {
-  const text = plainTitle(value);
+  const text = sentenceCase(plainTitle(value));
   if (!text) return null;
   return (
     <>
@@ -105,7 +105,7 @@ function Inspector({
           <dl className="inspector-related" aria-label="Related">
             {relatedEntries.map((related) => (
               <div key={`${related.text}/${related.state}`}>
-                <dt>{related.state}</dt>
+                {plainTitle(related.state) && <dt>{sentenceCase(plainTitle(related.state))}</dt>}
                 <dd>
                   {related.inspect ? (
                     <button
@@ -127,14 +127,14 @@ function Inspector({
                           );
                       }}
                     >
-                      <TimedText text={plainTitle(related.text)} />
+                      <TimedText text={sentenceCase(plainTitle(related.text))} />
                     </button>
                   ) : related.url ? (
                     <a href={related.url} target="_blank" rel="noreferrer">
-                      <TimedText text={plainTitle(related.text)} />
+                      <TimedText text={sentenceCase(plainTitle(related.text))} />
                     </a>
                   ) : (
-                    <TimedText text={plainTitle(related.text)} />
+                    <TimedText text={sentenceCase(plainTitle(related.text))} />
                   )}
                 </dd>
               </div>

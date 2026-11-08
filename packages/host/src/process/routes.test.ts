@@ -47,7 +47,13 @@ import { SweepService } from "../sweep/service.js";
 import { projectReleases, projectWatch } from "../watch/project.js";
 import { fixtureInput, oracle } from "../watch/snapshot-fixture.js";
 import { attachHostPort, type HostPort } from "./port.js";
-import { inspectResult, upstreamPlanResult, WatchRoutes, watchFleet } from "./routes.js";
+import {
+  inspectResult,
+  upstreamForkResult,
+  upstreamPlanResult,
+  WatchRoutes,
+  watchFleet,
+} from "./routes.js";
 
 const input = fixtureInput();
 const ctx = input.context;
@@ -765,6 +771,34 @@ describe("inspect.request", () => {
     const result = upstreamPlanResult(board, areas);
     expect(result.related).toContainEqual({ text: "Build failed", state: "What failed" });
     expect(result.actions).toEqual([]);
+  });
+
+  it("keeps the untitled lead section that fed Effect out of Related", () => {
+    const boards = [
+      { board: inspectUpstreamPlan(model, ctx.clock.now()), fork: false },
+      ...model.upstream.forks.flatMap((f) => {
+        const board = inspectUpstreamFork(model, f.service, ctx.clock.now());
+        return board ? [{ board, fork: true }] : [];
+      }),
+    ];
+    let checked = 0;
+    for (const { board, fork } of boards) {
+      const lead = board.sections[0];
+      if (lead?.kind !== "rows" || lead.title !== undefined) continue;
+      const result = fork
+        ? upstreamForkResult("upstream:x", board, areas)
+        : upstreamPlanResult(board, areas);
+      const leadText = lead.items[0]?.text;
+      expect(leadText).toBeTruthy();
+      expect(result.effect).toBe(leadText);
+      for (const item of lead.items) {
+        expect(result.related.map(({ text }) => text)).not.toContain(item.text);
+      }
+      expect(result.related.length).toBeGreaterThan(0);
+      checked += 1;
+    }
+    expect(boards.some(({ fork }) => !fork)).toBe(true);
+    expect(checked).toBeGreaterThan(1);
   });
 
   it("inspects the upstream plan from a reopened snapshot without running commands", async () => {
