@@ -21,8 +21,13 @@ let container: HTMLDivElement;
 let root: Root;
 let previous: Window["spi"];
 const send = vi.fn();
+const unhandled = vi.fn();
 
 beforeEach(() => {
+  unhandled.mockClear();
+  window.addEventListener("error", unhandled);
+  window.addEventListener("unhandledrejection", unhandled);
+  process.on("unhandledRejection", unhandled);
   window.location.hash = "";
   previous = window.spi;
   window.spi = {
@@ -45,6 +50,9 @@ beforeEach(() => {
   root = createRoot(container);
 });
 afterEach(async () => {
+  window.removeEventListener("error", unhandled);
+  window.removeEventListener("unhandledrejection", unhandled);
+  process.off("unhandledRejection", unhandled);
   await act(async () => root.unmount());
   container.remove();
   watchStore.setState({
@@ -135,6 +143,53 @@ it("sends validated install and sign-in requests through the shared store port",
   ]);
   expect(container.textContent).toContain("Required scopes: workflow");
 });
+
+it.each([
+  ["git", "setup.install", "install", "missing", "throws"],
+  ["git", "setup.install", "install", "missing", "rejects"],
+  ["gh", "setup.signin", "signin", "signed-out", "throws"],
+  ["gh", "setup.signin", "signin", "signed-out", "rejects"],
+  ["copilot", "setup.signin", "signin", "signed-out", "throws"],
+  ["copilot", "setup.signin", "signin", "signed-out", "rejects"],
+] as const)(
+  "shows an inline error and resends when %s %s (%s, %s) send %s",
+  async (tool, type, action, status, failure) => {
+    send.mockImplementationOnce(() => {
+      const error = new Error("Host port is not connected");
+      if (failure === "throws") throw error;
+      return Promise.reject(error);
+    });
+    const setup = state();
+    setup.tools = setup.tools.map((row) =>
+      row.tool === tool ? { tool, state: status, action } : row,
+    );
+    await receive("setup.state", setup);
+    await render();
+    const row = container.querySelector(
+      `section[aria-label="${tool === "copilot" ? "Copilot" : tool}"]`,
+    );
+    const button = () => row?.querySelector<HTMLButtonElement>("button");
+    await act(async () => {
+      button()?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(row?.querySelector('[role="alert"]')?.textContent).toContain(
+      "Host port is not connected",
+    );
+    expect(button()?.textContent).toBe("Try again");
+    expect(button()?.disabled).toBe(false);
+    expect(watchStore.getState().signinRequest).toEqual({});
+    await act(async () => button()?.click());
+    expect(sent()).toEqual([
+      { type, payload: { tool } },
+      { type, payload: { tool } },
+    ]);
+    expect(row?.querySelector('[role="alert"]')).toBeNull();
+    expect(button()?.textContent).toBe(action === "install" ? "Install" : "Sign in");
+    expect(button()?.disabled).toBe(action === "signin");
+    expect(unhandled).not.toHaveBeenCalled();
+  },
+);
 
 const token = "glpat-Secret0123456789";
 const glab = () => {
@@ -464,29 +519,35 @@ it.each([
   },
 );
 
-it("keeps the glab form usable when the sign-in cannot be sent", async () => {
-  send.mockImplementationOnce(() => {
-    throw new Error("Host port is not connected");
-  });
-  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
-  await render();
-  await paste(token);
-  await act(async () => glab().button.click());
-  expect(glab().row.querySelector('[role="alert"]')?.textContent).toBe(
-    "Could not send the sign-in to SPI Code. Try again.",
-  );
-  expect(glab().field.disabled).toBe(false);
-  expect(glab().field.value).toBe("");
-  expect(watchStore.getState().signinRequest).toEqual({});
-  expect(JSON.stringify(watchStore.getState())).not.toContain(token);
-  expect(container.innerHTML).not.toContain(token);
-  await paste(token);
-  expect(glab().button.disabled).toBe(false);
-  await act(async () => glab().button.click());
-  expect(send).toHaveBeenCalledTimes(2);
-  expect(glab().field.disabled).toBe(true);
-  expect(glab().row.querySelector('[role="alert"]')).toBeNull();
-});
+it.each(["throws", "rejects"])(
+  "keeps the glab form usable and its token private when the sign-in send %s",
+  async (failure) => {
+    send.mockImplementationOnce(() => {
+      const error = new Error(`Host port is not connected: ${token}`);
+      if (failure === "throws") throw error;
+      return Promise.reject(error);
+    });
+    await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+    await render();
+    await paste(token);
+    await act(async () => glab().button.click());
+    expect(glab().row.querySelector('[role="alert"]')?.textContent).toBe(
+      "Could not send the sign-in to SPI Code. Try again.",
+    );
+    expect(glab().field.disabled).toBe(false);
+    expect(glab().field.value).toBe("");
+    expect(watchStore.getState().signinRequest).toEqual({});
+    expect(JSON.stringify(watchStore.getState())).not.toContain(token);
+    expect(container.innerHTML).not.toContain(token);
+    await paste(token);
+    expect(glab().button.disabled).toBe(false);
+    await act(async () => glab().button.click());
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(glab().field.disabled).toBe(true);
+    expect(glab().row.querySelector('[role="alert"]')).toBeNull();
+    expect(unhandled).not.toHaveBeenCalled();
+  },
+);
 
 it("shows the host's reason when a glab sign-in is already running", async () => {
   await receive("setup.state", state({ state: "signed-out", action: "signin" }));
@@ -500,23 +561,64 @@ it("shows the host's reason when a glab sign-in is already running", async () =>
   expect(glab().field.disabled).toBe(false);
 });
 
-it("shows attention explanations without sending an install or sign-in", async () => {
+it("shows attention explanations immediately and sends a re-check without toggling", async () => {
   await receive("setup.state", state({ state: "classic-token", action: "attention" }));
   await render();
-  await act(async () => container.querySelector<HTMLButtonElement>("button")?.click());
-  expect(container.textContent).toContain("gh OAuth browser sign-in");
-  expect(send).not.toHaveBeenCalled();
+  const row = container.querySelector('section[aria-label="Copilot"]');
+  const button = row?.querySelector<HTMLButtonElement>("button");
+  expect(row?.textContent).toContain("gh OAuth browser sign-in");
+  expect(button?.hasAttribute("aria-expanded")).toBe(false);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await act(async () => button?.click());
+    expect(row?.textContent).toContain("gh OAuth browser sign-in");
+  }
+  expect(sent()).toEqual([
+    { type: "setup.check", payload: {} },
+    { type: "setup.check", payload: {} },
+  ]);
 });
 
-it("shows a supplied reason only once when Attention is open", async () => {
+it("always shows a supplied attention reason only once", async () => {
   await receive(
     "setup.state",
     state({ state: "failed", action: "attention", reason: "Install failed" }),
   );
   await render();
-  await act(async () => container.querySelector<HTMLButtonElement>("button")?.click());
   const row = container.querySelector('section[aria-label="Copilot"]');
   expect(row?.textContent?.split("Install failed")).toHaveLength(2);
+  await act(async () => row?.querySelector<HTMLButtonElement>("button")?.click());
+  expect(row?.textContent?.split("Install failed")).toHaveLength(2);
+});
+
+it("drops a send error on reconnect and keeps a late rejection tied to the old connection", async () => {
+  let rejectSend: (error: Error) => void = () => {};
+  send.mockImplementationOnce(
+    () =>
+      new Promise<void>((_resolve, reject) => {
+        rejectSend = reject;
+      }),
+  );
+  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+  await render();
+  const row = container.querySelector('section[aria-label="gh"]');
+  const button = () => row?.querySelector<HTMLButtonElement>("button");
+  await act(async () => button()?.click());
+  expect(button()?.disabled).toBe(true);
+  await receive("host.hello", { pid: 456 });
+  send.mockImplementationOnce(() => {
+    throw new Error("New connection is not ready");
+  });
+  await act(async () => button()?.click());
+  expect(row?.querySelector('[role="alert"]')?.textContent).toContain(
+    "New connection is not ready",
+  );
+  await act(async () => rejectSend(new Error("Old connection failed")));
+  expect(row?.querySelector('[role="alert"]')?.textContent).toContain(
+    "New connection is not ready",
+  );
+  await receive("host.hello", { pid: 789 });
+  expect(row?.querySelector('[role="alert"]')).toBeNull();
+  expect(button()?.disabled).toBe(false);
 });
 
 it("shows live device codes and URLs independently for each tool, then errors and completion", async () => {

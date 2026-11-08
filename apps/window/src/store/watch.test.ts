@@ -163,6 +163,47 @@ it.each([
   });
 });
 
+it.each(["gh", "glab"] as const)(
+  "releases a rejected %s send before allowing a retry without retaining a credential",
+  async (tool) => {
+    const token = "glpat-Secret0123456789";
+    const error = new Error("Host port is not connected");
+    const send = vi.fn().mockRejectedValueOnce(error);
+    const store = createWatchStore(send);
+    const request = () =>
+      tool === "glab"
+        ? store.getState().requestSetup("setup.signin", tool, token)
+        : store.getState().requestSetup("setup.signin", tool);
+    await expect(request()).rejects.toBe(error);
+    expect(store.getState().signinRequest).toEqual({});
+    expect(JSON.stringify(store.getState())).not.toContain(token);
+    await request();
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(store.getState().signinRequest).toEqual({
+      [tool]: WatchMessageSchema.parse(send.mock.calls[1]?.[0]).id,
+    });
+  },
+);
+
+it("keeps a new pending sign-in when an old connection's send rejects", async () => {
+  let rejectSend: (error: Error) => void = () => {};
+  const send = vi.fn().mockImplementationOnce(
+    () =>
+      new Promise<void>((_resolve, reject) => {
+        rejectSend = reject;
+      }),
+  );
+  const store = createWatchStore(send);
+  const first = store.getState().requestSetup("setup.signin", "gh");
+  store.getState().receive(event("host.hello", { pid: 456 }));
+  store.getState().requestSetup("setup.signin", "gh");
+  const requests = store.getState().signinRequest;
+  const error = new Error("Old connection failed");
+  rejectSend(error);
+  await expect(first).rejects.toBe(error);
+  expect(store.getState().signinRequest).toBe(requests);
+});
+
 it("keeps the newest full snapshot and ignores late and duplicate cursors", () => {
   const store = createWatchStore(vi.fn());
   const body = testSnapshot({ cursor: 9 });

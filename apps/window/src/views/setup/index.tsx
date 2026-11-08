@@ -25,7 +25,7 @@ const labels = {
   "no-seat": "No Copilot seat",
   "classic-token": "Classic ghp_ token",
 };
-const actions = { install: "Install", signin: "Sign in", attention: "Attention" };
+const actions = { install: "Install", signin: "Sign in", attention: "Check again" };
 
 function CopyText({ label, value }: { label: string; value: string }) {
   const [status, setStatus] = useState("");
@@ -70,7 +70,7 @@ function GlabSignin({ busy, progress }: { busy: boolean; progress: Progress }) {
   return (
     <form
       aria-label="glab sign-in"
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault();
         const input = field.current;
         if (!input || disabled) return;
@@ -84,7 +84,7 @@ function GlabSignin({ busy, progress }: { busy: boolean; progress: Progress }) {
           return;
         }
         try {
-          watchStore.getState().requestSetup("setup.signin", "glab", token);
+          await watchStore.getState().requestSetup("setup.signin", "glab", token);
         } catch {
           setError(GLAB_UNSENT);
           return;
@@ -122,7 +122,13 @@ function ToolRow({ tool }: { tool: Tool }) {
     watchStore,
     (state) => tool.tool !== "git" && state.signinRequest[tool.tool] !== undefined,
   );
-  const [attention, setAttention] = useState(false);
+  const [failure, setFailure] = useState<{
+    epoch: number;
+    action: Tool["action"];
+    reason: string;
+  } | null>(null);
+  const error =
+    failure?.epoch === epoch && failure.action === tool.action ? failure.reason : undefined;
   const busy =
     tool.state === "installing" ||
     pending ||
@@ -141,7 +147,9 @@ function ToolRow({ tool }: { tool: Tool }) {
         {labels[tool.state]}
         {tool.version && ` (${tool.version})`}
       </p>
-      {tool.reason && !attention && <p>{tool.reason}</p>}
+      {(error || tool.reason || tool.action === "attention") && (
+        <p role={error ? "alert" : undefined}>{error ?? reason}</p>
+      )}
       {!!tool.missingScopes?.length && <p>Required scopes: {tool.missingScopes.join(", ")}</p>}
       {tool.tool === "glab" && tool.action === "signin" && (
         <GlabSignin key={epoch} busy={!!busy} progress={progress} />
@@ -150,20 +158,32 @@ function ToolRow({ tool }: { tool: Tool }) {
         <button
           type="button"
           disabled={!!busy}
-          aria-expanded={tool.action === "attention" ? attention : undefined}
-          onClick={() => {
-            if (tool.action === "attention") setAttention(!attention);
-            else if (tool.action === "install")
-              watchStore.getState().requestSetup("setup.install", tool.tool);
-            else if (tool.action === "signin" && tool.tool !== "git" && tool.tool !== "glab")
-              watchStore.getState().requestSetup("setup.signin", tool.tool);
-            else throw new Error(`Unsupported setup action for ${tool.tool}`);
+          onClick={async () => {
+            setFailure(null);
+            try {
+              if (tool.action === "attention")
+                await watchStore.getState().requestSetup("setup.check");
+              else if (tool.action === "install")
+                await watchStore.getState().requestSetup("setup.install", tool.tool);
+              else if (tool.action === "signin" && tool.tool !== "git" && tool.tool !== "glab")
+                await watchStore.getState().requestSetup("setup.signin", tool.tool);
+              else throw new Error(`Unsupported setup action for ${tool.tool}`);
+            } catch (error) {
+              setFailure((current) =>
+                current && current.epoch > epoch
+                  ? current
+                  : {
+                      epoch,
+                      action: tool.action,
+                      reason: `Could not send the request to SPI Code. ${error instanceof Error ? error.message : String(error)}`,
+                    },
+              );
+            }
           }}
         >
-          {actions[tool.action]}
+          {error ? "Try again" : actions[tool.action]}
         </button>
       )}
-      {attention && <p role="status">{reason}</p>}
       {progress?.state === "device-code" && (
         <div>
           <p>Open the URL in your browser and enter the device code.</p>

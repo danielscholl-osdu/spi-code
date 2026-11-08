@@ -34,6 +34,7 @@ type WatchState = {
   signinRequest: Partial<Record<SetupSigninProgress["tool"], string>>;
   requestSetup(
     ...request:
+      | [type: "setup.check", tool?: never, token?: never]
       | [
           type: "setup.install",
           tool: Extract<WatchMessage, { type: "setup.install" }>["payload"]["tool"],
@@ -45,7 +46,7 @@ type WatchState = {
           token?: never,
         ]
       | [type: "setup.signin", tool: "glab", token: string]
-  ): void;
+  ): void | Promise<void>;
   receive(input: unknown): void;
 };
 
@@ -67,7 +68,7 @@ export function selectEnvelopes(state: Pick<WatchState, "snapshot">): Envelope[]
 }
 
 export function createWatchStore(
-  send: (message: Message) => void,
+  send: (message: Message) => void | Promise<void>,
   inspector: SelectionStore = createSelectionStore({ postMessage: send }),
 ) {
   const store = createStore<WatchState>((set, get) => ({
@@ -85,27 +86,35 @@ export function createWatchStore(
     signinOutcome: {},
     epoch: 0,
     signinRequest: {},
-    requestSetup(type, tool, token?: string) {
+    requestSetup(...request) {
+      const [type, tool, token] = request;
       const id = crypto.randomUUID();
       const parsed = parseMessage({
         version: PROTOCOL_VERSION,
         id,
         kind: "request",
         type,
-        payload: token === undefined ? { tool } : { tool, token },
+        payload: type === "setup.check" ? {} : token === undefined ? { tool } : { tool, token },
       });
       if (!parsed.ok) throw new Error("Invalid setup request");
-      if (type !== "setup.signin") return send(parsed.message);
-      // One pending sign-in per tool: a second request would replace the id the host's flow reports.
-      if (get().signinRequest[tool] !== undefined) return;
-      set({ signinRequest: { ...get().signinRequest, [tool]: id } });
-      try {
-        send(parsed.message);
-      } catch (error) {
-        const signinRequest = { ...get().signinRequest };
-        if (signinRequest[tool] === id) delete signinRequest[tool];
-        set({ signinRequest });
+      if (type === "setup.signin") {
+        // One pending sign-in per tool: a second request would replace the id the host's flow reports.
+        if (get().signinRequest[tool] !== undefined) return;
+        set({ signinRequest: { ...get().signinRequest, [tool]: id } });
+      }
+      const failed = (error: unknown): never => {
+        if (type === "setup.signin" && get().signinRequest[tool] === id) {
+          const signinRequest = { ...get().signinRequest };
+          delete signinRequest[tool];
+          set({ signinRequest });
+        }
         throw error;
+      };
+      try {
+        const sent = send(parsed.message);
+        if (sent) return sent.catch(failed);
+      } catch (error) {
+        failed(error);
       }
     },
     receive(input) {
