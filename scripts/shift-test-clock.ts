@@ -3,6 +3,9 @@
 
 import { beforeEach } from "vitest";
 
+// Git Bash drops TZ before it starts a Windows program, so scripts/check names its zone here.
+if (process.env.SPI_TEST_ZONE) process.env.TZ = process.env.SPI_TEST_ZONE;
+
 const RealDate = globalThis.Date;
 const offset = 400 * 24 * 60 * 60 * 1_000;
 

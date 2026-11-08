@@ -18,7 +18,7 @@ if [[ -f package.json ]]; then
     zone=Pacific/Kiritimati
   fi
   echo "check: testing with the wall clock 400 days forward in time zone $zone"
-  TZ=$zone SPI_TEST_CLOCK_SHIFT=1 pnpm run test
+  SPI_TEST_ZONE=$zone SPI_TEST_CLOCK_SHIFT=1 pnpm run test
   node scripts/third-party-notices.mjs
   exit 0
 fi

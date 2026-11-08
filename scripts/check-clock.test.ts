@@ -188,7 +188,12 @@ it("reads the time zone scripts/check started in", () => {
       const result = spawnSync("bash", ["check"], {
         cwd: directory,
         encoding: "utf8",
-        env: { ...process.env, SPI_TEST_CLOCK_SHIFT: "", VITEST_MAX_WORKERS: "1" },
+        env: {
+          ...process.env,
+          SPI_TEST_CLOCK_SHIFT: "",
+          SPI_TEST_ZONE: "",
+          VITEST_MAX_WORKERS: "1",
+        },
         timeout: 90_000,
       });
       expect(result.error).toBeUndefined();
