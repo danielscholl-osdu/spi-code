@@ -52,7 +52,10 @@ export interface SetupServiceOptions {
   readonly tools: () => Promise<SetupTools>;
   readonly git: () => Promise<SetupGit>;
   readonly probeSeat: () => Promise<SeatResult>;
-  readonly refreshBudget: () => Promise<SweepStatus>;
+  readonly refreshBudget: (
+    signal: AbortSignal,
+  ) => Promise<Pick<SweepStatus, "remaining" | "resetAt">>;
+  readonly sweepStatus: () => SweepStatus;
   readonly clock?: Clock;
   /** Builds the fleet's SweepService once git and gh are ready. */
   readonly createSweep: () => SetupSweep;
@@ -70,6 +73,8 @@ const COPILOT_NEEDS_GH = "Copilot signs in through gh. Install gh and sign in fi
 const WATCH_OFF = "Watch is off:";
 const REFRESH_MS = 60_000;
 const PROBE_TIMEOUT_MS = 10_000;
+const BUDGET_TIMEOUT_MS = 5_000;
+const GH_USABLE = new Set(["ready", "needs-update", "scope-missing", "classic-token"]);
 
 type Source = "managed" | "path";
 type Found =
@@ -214,12 +219,14 @@ export class SetupService {
     const run = (async () => {
       try {
         const computed = await this.compute(force);
-        if (force) await this.refreshBudget();
         const { checkedAt: _checkedAt, ...previous } = this.state ?? {};
         const changed = JSON.stringify(computed) !== JSON.stringify(previous);
+        const checkedAt = force
+          ? (this.options.clock ?? systemClock).now().toISOString()
+          : this.state?.checkedAt;
         const next = {
           ...computed,
-          checkedAt: (this.options.clock ?? systemClock).now().toISOString(),
+          ...(checkedAt === undefined ? {} : { checkedAt }),
         };
         this.state = next;
         if (changed || force) this.post(next);
@@ -234,24 +241,41 @@ export class SetupService {
   }
 
   private check(): Promise<SetupState> {
-    this.checking ??= this.refresh(true).finally(() => {
-      this.checking = undefined;
-    });
+    this.checking ??= this.refresh(true)
+      .then(async (next) => {
+        const gh = next.tools.find((row) => row.tool === "gh");
+        if (gh && GH_USABLE.has(gh.state)) await this.refreshBudget();
+        return next;
+      })
+      .finally(() => {
+        this.checking = undefined;
+      });
     return this.checking;
   }
 
   private async refreshBudget(): Promise<void> {
-    let status: SweepStatus;
+    let rate: Pick<SweepStatus, "remaining" | "resetAt">;
+    const abort = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      status = SweepStatusSchema.parse(await this.options.refreshBudget());
+      const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          abort.abort();
+          reject(new Error(BUDGET_FAILED));
+        }, BUDGET_TIMEOUT_MS);
+      });
+      const result = await Promise.race([this.options.refreshBudget(abort.signal), timeout]);
+      rate = SweepStatusSchema.pick({ remaining: true, resetAt: true }).parse({
+        remaining: result.remaining,
+        resetAt: result.resetAt,
+      });
     } catch {
       this.options.onError(new Error(BUDGET_FAILED));
-      status = {
-        remaining: null,
-        resetAt: null,
-        deferredAreas: [{ area: "github", reason: BUDGET_FAILED }],
-      };
+      rate = { remaining: null, resetAt: null };
+    } finally {
+      clearTimeout(timer);
     }
+    const status = SweepStatusSchema.parse({ ...this.options.sweepStatus(), ...rate });
     this.send({
       version: PROTOCOL_VERSION,
       id: `setup-budget-${++this.sequence}`,
@@ -406,10 +430,9 @@ export class SetupService {
     return row;
   }
 
-  /** Probes the seat only when gh can supply a token, and again once gh or its credential changes. */
+  /** Probes a usable gh credential on change or an explicit check; otherwise uses the cached seat. */
   private async copilotRow(gh: ToolRow, force: boolean): Promise<ToolRow> {
-    const usable = ["ready", "needs-update", "scope-missing", "classic-token"].includes(gh.state);
-    if (!usable) {
+    if (!GH_USABLE.has(gh.state)) {
       this.seat = undefined;
       return { tool: "copilot", state: "signed-out", action: "signin", reason: COPILOT_NEEDS_GH };
     }

@@ -8,7 +8,7 @@ import { type Message, PROTOCOL_VERSION } from "@spi-code/contracts";
 import { expect, it, vi } from "vitest";
 import type { HostConnection } from "./process/connections.js";
 import type { ConversationBackend } from "./process/conversation.js";
-import type { SetupServiceOptions } from "./setup/service.js";
+import type { SetupService, SetupServiceOptions } from "./setup/service.js";
 import type { SweepServiceOptions } from "./sweep/service.js";
 
 const mocks = vi.hoisted(() => ({
@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   setupConnect: vi.fn(),
   setupRoute: vi.fn(),
   setupOptions: [] as SetupServiceOptions[],
+  setupServices: [] as SetupService[],
   probeSeat: vi.fn().mockResolvedValue({ kind: "seat-ok", models: ["auto"] }),
 }));
 vi.mock("./store/store.js", () => ({ openRunStore: () => ({ close: mocks.close }) }));
@@ -29,7 +30,11 @@ vi.mock("./setup/service.js", async (original) => {
     ...actual,
     SetupService: function SetupService(options: SetupServiceOptions) {
       mocks.setupOptions.push(options);
-      if (mocks.realSetup) return new actual.SetupService(options);
+      if (mocks.realSetup) {
+        const service = new actual.SetupService(options);
+        mocks.setupServices.push(service);
+        return service;
+      }
       return {
         routes: { "setup.install": mocks.setupRoute },
         connect: mocks.setupConnect,
@@ -225,12 +230,14 @@ case "$1 $2" in
   "auth token")
     [ -f "$mark" ] && echo gho_fixture && exit 0
     exit 1;;
-  "api graphql")
+  "api rate_limit")
     echo check >> "$here/../../budget-checks"
     if [ -f "$here/../../budget-failed" ]; then
       printf '{"errors":[{"message":"budget unavailable"}]}'
+    elif [ -f "$here/../../budget-exhausted" ]; then
+      printf '{"resources":{"graphql":{"remaining":0,"reset":${Date.parse("2026-11-08T16:05:00Z") / 1000}}}}'
     else
-      printf '{"data":{"rateLimit":{"remaining":1234,"resetAt":"2026-11-08T16:00:00Z"},"spicodeBudget":{"cost":1,"remaining":1234,"resetAt":"2026-11-08T16:00:00Z"}}}'
+      printf '{"resources":{"graphql":{"remaining":1234,"reset":${Date.parse("2026-11-08T16:00:00Z") / 1000}}}}'
     fi
     exit 0;;
   "--version ")
@@ -303,7 +310,7 @@ it("keeps explicit smoke Setup fixture-only and forbids every external command",
 });
 
 it.skipIf(process.platform === "win32")(
-  "gates the real SweepService on a login-shell gh and stops it after an outside sign-out",
+  "checks an exhausted budget without blocking ordinary refreshes, and maintains the Watch gate",
   async () => {
     const actualStore =
       await vi.importActual<typeof import("./store/store.js")>("./store/store.js");
@@ -320,6 +327,14 @@ it.skipIf(process.platform === "win32")(
     mocks.realSetup = true;
     vi.resetModules();
     const { SweepService } = await import("./sweep/service.js");
+    const { WatchRoutes } = await import("./process/routes.js");
+    const deferredAreas = [{ area: "security", reason: "insufficient budget" }];
+    const status = vi.spyOn(WatchRoutes.prototype, "status", "get").mockReturnValue({
+      remaining: 10,
+      resetAt: null,
+      floor: 125,
+      deferredAreas,
+    });
     const start = vi.spyOn(SweepService.prototype, "start").mockResolvedValue(true);
     const stop = vi.spyOn(SweepService.prototype, "stop").mockResolvedValue();
     let connect: (event: HostConnection) => void = () => {};
@@ -387,6 +402,12 @@ it.skipIf(process.platform === "win32")(
       await vi.waitFor(() => expect(setupStates(first.sent)).toHaveLength(2), {
         timeout: 10_000,
       });
+      await vi.waitFor(
+        () => expect(first.sent.filter(({ type }) => type === "sweep.status")).toHaveLength(1),
+        {
+          timeout: 10_000,
+        },
+      );
       expect(mocks.probeSeat).toHaveBeenCalledOnce();
       expect(setupStates(first.sent).at(-1)?.checkedAt).toBeDefined();
       expect(setupStates(first.sent).at(-1)?.checkedAt).toMatch(/^2026-11-08T15:05:/);
@@ -395,18 +416,51 @@ it.skipIf(process.platform === "win32")(
           type: "sweep.status",
           payload: {
             remaining: 1234,
-            resetAt: "2026-11-08T16:00:00Z",
-            floor: 100,
-            deferredAreas: [],
+            resetAt: "2026-11-08T16:00:00.000Z",
+            floor: 125,
+            deferredAreas,
           },
         }),
       );
       expect(readFileSync(join(directory, "budget-checks"), "utf8")).toBe("check\n");
-      expect(wired.budget?.snapshot()).toMatchObject({
-        remaining: 1234,
-        resetAt: "2026-11-08T16:00:00Z",
-        calls: 1,
+      const service = mocks.setupServices.at(-1);
+      const budget = wired.budget;
+      if (!service || !budget) throw new Error("Setup service and sweep budget missing.");
+      vi.setSystemTime(new Date("2026-11-08T15:05:00Z"));
+      await budget.run(1, async () => ({
+        value: undefined,
+        rate: { cost: 1, remaining: 0, resetAt: "2026-11-08T16:05:00Z" },
+      }));
+      budget.hold(90_000, "fixture throttle");
+      writeFileSync(join(directory, "budget-exhausted"), "");
+      let checked = false;
+      const check = Promise.resolve(
+        service.routes["setup.check"]?.(
+          {
+            version: PROTOCOL_VERSION,
+            id: "exhausted",
+            kind: "request",
+            type: "setup.check",
+            payload: {},
+          },
+          () => {},
+        ),
+      ).then(() => {
+        checked = true;
       });
+      await vi.waitFor(() => expect(checked).toBe(true), { timeout: 5000 });
+      await check;
+      expect(setupStates(first.sent)).toHaveLength(3);
+      expect(first.sent.filter(({ type }) => type === "sweep.status").at(-1)).toMatchObject({
+        payload: { remaining: 0, resetAt: "2026-11-08T16:05:00.000Z", floor: 125, deferredAreas },
+      });
+      let refreshed = false;
+      const refresh = service.refresh().then(() => {
+        refreshed = true;
+      });
+      await vi.waitFor(() => expect(refreshed).toBe(true), { timeout: 5000 });
+      await refresh;
+      expect(readFileSync(join(directory, "budget-checks"), "utf8")).toBe("check\ncheck\n");
 
       writeFileSync(join(directory, "budget-failed"), "");
       const setupOptions = mocks.setupOptions.at(-1);
@@ -414,16 +468,18 @@ it.skipIf(process.platform === "win32")(
       const error = vi.spyOn(setupOptions, "onError").mockImplementation(() => {});
       try {
         first.check("check-failed");
-        await vi.waitFor(() => expect(setupStates(first.sent)).toHaveLength(3), {
-          timeout: 10_000,
-        });
+        await vi.waitFor(
+          () => expect(first.sent.filter(({ type }) => type === "sweep.status")).toHaveLength(3),
+          {
+            timeout: 10_000,
+          },
+        );
         expect(first.sent.filter(({ type }) => type === "sweep.status").at(-1)).toMatchObject({
           payload: {
             remaining: null,
             resetAt: null,
-            deferredAreas: [
-              { area: "github", reason: "The GitHub API budget check did not complete." },
-            ],
+            floor: 125,
+            deferredAreas,
           },
         });
         expect(error).toHaveBeenCalledWith(
@@ -476,6 +532,7 @@ it.skipIf(process.platform === "win32")(
       exit.mockRestore();
       start.mockRestore();
       stop.mockRestore();
+      status.mockRestore();
       rmSync(directory, { recursive: true, force: true });
     }
   },

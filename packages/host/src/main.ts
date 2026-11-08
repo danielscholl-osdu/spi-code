@@ -9,13 +9,14 @@ import {
   parseMessage,
   SweepStatusSchema,
 } from "@spi-code/contracts";
-import { contextFromEnv, type Exec, factsSchema, Gh, GraphqlBudget } from "@spi-code/core";
+import { contextFromEnv, type Exec, factsSchema, GraphqlBudget } from "@spi-code/core";
 import {
   createToolInstaller,
   createWindowsGitInstaller,
   MacGitInstaller,
   type ToolInstaller,
 } from "@spi-code/tools";
+import { z } from "zod";
 import { captureLoginShellPath } from "./env/shell-environment.js";
 import { HostExec } from "./exec/host-exec.js";
 import { attachHostConnections, type HostConnection } from "./process/connections.js";
@@ -123,12 +124,23 @@ const setup: SetupService = new SetupService({
       capturedPath: await capturedPath(),
       installer: await toolInstaller(),
     }),
-  refreshBudget: async () => {
-    const { data, errors } = await new Gh(exec, undefined, budget).graphql<{
-      rateLimit: { remaining: number; resetAt: string };
-    }>("{ rateLimit { remaining resetAt } }");
-    if (errors.length) throw new Error("The GitHub API budget query failed.");
-    return SweepStatusSchema.parse({ ...data.rateLimit, floor: 100, deferredAreas: [] });
+  sweepStatus: () => watch.status,
+  refreshBudget: async (signal) => {
+    const result = await exec.runJSON("gh", ["api", "rate_limit"], { timeoutMs: 5000, signal });
+    if (!result.ok) throw new Error("The GitHub API budget query failed.");
+    const {
+      resources: { graphql },
+    } = z
+      .object({
+        resources: z.object({
+          graphql: z.object({ remaining: z.int().nonnegative(), reset: z.int().nonnegative() }),
+        }),
+      })
+      .parse(result.data);
+    return SweepStatusSchema.pick({ remaining: true, resetAt: true }).parse({
+      remaining: graphql.remaining,
+      resetAt: new Date(graphql.reset * 1000).toISOString(),
+    });
   },
   createSweep: () =>
     new SweepService({

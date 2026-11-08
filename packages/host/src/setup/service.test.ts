@@ -122,6 +122,7 @@ function setup(overrides: Partial<SetupServiceOptions> & Pick<SetupServiceOption
     git: async () => git,
     probeSeat: async () => ({ kind: "seat-ok", models: ["auto"] }),
     refreshBudget: async () => ({ remaining: 4000, resetAt: null, deferredAreas: [] }),
+    sweepStatus: () => ({ remaining: null, resetAt: null, deferredAreas: [] }),
     createSweep: () => ({ start: async () => true, stop: async () => {} }),
     onError: (error) => {
       throw error;
@@ -210,10 +211,10 @@ it("checks every tool and auth scope, bypasses the cached seat, and publishes a 
     .fn<SetupServiceOptions["probeSeat"]>()
     .mockResolvedValueOnce({ kind: "seat-ok", models: ["auto"] })
     .mockResolvedValue({ kind: "no-seat", reason: "The seat was removed." });
-  const refreshBudget = vi.fn(async () => {
-    now = new Date("2026-11-08T15:05:01Z");
-    return { remaining: 1234, resetAt: "2026-11-08T16:00:00Z", deferredAreas: [] };
-  });
+  const refreshBudget = vi.fn(async () => ({
+    remaining: 1234,
+    resetAt: "2026-11-08T16:00:00Z",
+  }));
   const { service, states, sent } = setup({
     exec,
     tools: async () => ({ readiness, install: async () => {} }),
@@ -229,6 +230,7 @@ it("checks every tool and auth scope, bypasses the cached seat, and publishes a 
   calls.length = 0;
   readiness.mockClear();
   gitReadiness.mockClear();
+  now = new Date("2026-11-08T15:05:01Z");
 
   await service.routes["setup.check"]?.(checkRequest, () => {});
 
@@ -308,10 +310,15 @@ it("reports an unavailable budget without retaining stale points, and retries on
   const refreshBudget = vi
     .fn<SetupServiceOptions["refreshBudget"]>()
     .mockRejectedValueOnce(new Error("unavailable"))
-    .mockResolvedValue({ remaining: 3000, resetAt: null, deferredAreas: [] });
+    .mockResolvedValue({ remaining: 3000, resetAt: null });
+  const deferredAreas = [{ area: "security", reason: "insufficient budget" }];
   const { service, sent, states } = setup({
-    exec: fakeExec(() => undefined),
+    exec: fakeExec((cmd, args) =>
+      cmd === "gh" && args[1] === "status" ? GH_STATUS_OK : undefined,
+    ),
+    tools: async () => managedGh,
     refreshBudget,
+    sweepStatus: () => ({ remaining: 1000, resetAt: null, floor: 75, deferredAreas }),
     onError,
   });
   await service.refresh();
@@ -323,9 +330,8 @@ it("reports an unavailable budget without retaining stale points, and retries on
       payload: {
         remaining: null,
         resetAt: null,
-        deferredAreas: [
-          { area: "github", reason: "The GitHub API budget check did not complete." },
-        ],
+        floor: 75,
+        deferredAreas,
       },
     }),
   );
@@ -333,8 +339,142 @@ it("reports an unavailable budget without retaining stale points, and retries on
   await service.routes["setup.check"]?.(checkRequest, () => {});
   expect(refreshBudget).toHaveBeenCalledTimes(2);
   expect(sent.filter(({ type }) => type === "sweep.status").at(-1)).toMatchObject({
-    payload: { remaining: 3000 },
+    payload: { remaining: 3000, floor: 75, deferredAreas },
   });
+});
+
+it("posts checked state before a bounded budget read and leaves ordinary refreshes unblocked", async () => {
+  vi.useFakeTimers();
+  const refreshBudget = vi.fn<SetupServiceOptions["refreshBudget"]>(() => new Promise(() => {}));
+  const onError = vi.fn();
+  const { service, states } = setup({
+    exec: fakeExec((cmd, args) =>
+      cmd === "gh" && args[1] === "status" ? GH_STATUS_OK : undefined,
+    ),
+    tools: async () => managedGh,
+    refreshBudget,
+    onError,
+  });
+  try {
+    await service.refresh();
+    let done = false;
+    const check = Promise.resolve(service.routes["setup.check"]?.(checkRequest, () => {})).then(
+      () => {
+        done = true;
+      },
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(states()).toHaveLength(2);
+    expect(states().at(-1)?.checkedAt).toBeDefined();
+    expect(done).toBe(false);
+    await service.refresh();
+    await vi.advanceTimersByTimeAsync(5000);
+    await check;
+    expect(done).toBe(true);
+    expect(onError).toHaveBeenCalledOnce();
+    expect(refreshBudget.mock.calls[0]?.[0].aborted).toBe(true);
+  } finally {
+    await service.stop();
+    vi.useRealTimers();
+  }
+});
+
+it("merges fresh budget figures into the latest sweep floor and deferred areas", async () => {
+  let release: (rate: { remaining: number; resetAt: string | null }) => void = () => {};
+  const held = new Promise<{ remaining: number; resetAt: string | null }>((resolve) => {
+    release = resolve;
+  });
+  let latest = {
+    remaining: 1000,
+    resetAt: null,
+    floor: 75,
+    deferredAreas: [] as { area: string; reason: string }[],
+  };
+  const { service, sent } = setup({
+    exec: fakeExec((cmd, args) =>
+      cmd === "gh" && args[1] === "status" ? GH_STATUS_OK : undefined,
+    ),
+    tools: async () => managedGh,
+    refreshBudget: () => held,
+    sweepStatus: () => latest,
+  });
+  await service.refresh();
+  const check = service.routes["setup.check"]?.(checkRequest, () => {});
+  await vi.waitFor(() => expect(service.current?.checkedAt).toBeDefined());
+  latest = {
+    remaining: 10,
+    resetAt: null,
+    floor: 125,
+    deferredAreas: [{ area: "radar", reason: "insufficient budget" }],
+  };
+  release({ remaining: 1234, resetAt: "2026-11-08T16:00:00Z" });
+  await check;
+  expect(sent.at(-1)).toMatchObject({
+    type: "sweep.status",
+    payload: { ...latest, remaining: 1234, resetAt: "2026-11-08T16:00:00Z" },
+  });
+});
+
+it("upgrades an already queued ordinary refresh when a check arrives behind it", async () => {
+  let release: () => void = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const readiness = vi.fn(managedGh.readiness);
+  const probeSeat = vi.fn(async () => ({ kind: "seat-ok" as const, models: ["auto"] }));
+  const refreshBudget = vi.fn(async () => ({ remaining: 1000, resetAt: null }));
+  const { service } = setup({
+    exec: fakeExec((cmd, args) =>
+      cmd === "gh" && args[1] === "status" ? GH_STATUS_OK : undefined,
+    ),
+    tools: async () => ({ ...managedGh, readiness }),
+    probeSeat,
+    refreshBudget,
+  });
+  await service.refresh();
+  readiness.mockImplementationOnce(async (tool) => {
+    await held;
+    return managedGh.readiness(tool);
+  });
+  const running = service.refresh();
+  const queued = service.refresh();
+  const check = service.routes["setup.check"]?.(checkRequest, () => {});
+  release();
+  await Promise.all([running, queued, check]);
+  expect(probeSeat).toHaveBeenCalledTimes(2);
+  expect(refreshBudget).toHaveBeenCalledOnce();
+});
+
+it("stamps only forced checks and carries their timestamp through ordinary refreshes", async () => {
+  let now = new Date("2026-11-08T15:00:00Z");
+  const { service, states } = setup({ exec: fakeExec(() => undefined), clock: { now: () => now } });
+  await service.refresh();
+  expect(service.current).not.toHaveProperty("checkedAt");
+  await service.routes["setup.check"]?.(checkRequest, () => {});
+  expect(service.current?.checkedAt).toBe(now.toISOString());
+  now = new Date("2026-11-08T15:10:00Z");
+  await service.refresh();
+  expect(service.current?.checkedAt).toBe("2026-11-08T15:00:00.000Z");
+  expect(states()).toHaveLength(2);
+});
+
+it.each(["missing", "signed-out"] as const)("skips budget reads when gh is %s", async (state) => {
+  const refreshBudget = vi.fn();
+  const onError = vi.fn();
+  const { service } = setup({
+    exec: fakeExec(() => (state === "signed-out" ? "" : undefined)),
+    tools: async () =>
+      state === "missing"
+        ? { ...managedGh, readiness: async () => ({ state: "missing" as const }) }
+        : managedGh,
+    refreshBudget,
+    onError,
+  });
+  await service.refresh();
+  await service.routes["setup.check"]?.(checkRequest, () => {});
+  expect(row(service.current, "gh")?.state).toBe(state);
+  expect(refreshBudget).not.toHaveBeenCalled();
+  expect(onError).not.toHaveBeenCalled();
 });
 
 it.skipIf(process.platform === "win32")(

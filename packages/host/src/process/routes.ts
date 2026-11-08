@@ -893,6 +893,10 @@ export class WatchRoutes {
 
   constructor(private readonly options: WatchRoutesOptions) {}
 
+  get status(): SweepStatus {
+    return this.latest()?.status ?? { remaining: null, resetAt: null, deferredAreas: [] };
+  }
+
   /** Pushes a snapshot newer than the subscriber's cursor, with its sweep status. */
   publish(): void {
     try {

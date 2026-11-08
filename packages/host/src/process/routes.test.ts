@@ -165,6 +165,25 @@ function routes(database: () => DatabaseSync = () => db) {
 }
 
 describe("view.subscribe", () => {
+  it("exposes the latest persisted budget floor and deferrals before a window subscribes", () => {
+    const watch = routes();
+    expect(watch.status).toEqual({ remaining: null, resetAt: null, deferredAreas: [] });
+    writeSnapshot(4321, 75);
+    expect(watch.status).toEqual({
+      remaining: 4321,
+      resetAt,
+      floor: 75,
+      deferredAreas: [{ area: "security", reason: "budget" }],
+    });
+    writeSnapshot(1234, 125);
+    expect(watch.status).toEqual({
+      remaining: 1234,
+      resetAt,
+      floor: 125,
+      deferredAreas: [{ area: "security", reason: "budget" }],
+    });
+    expect(calls).toBe(0);
+  });
   it.each([1234, 0, undefined])(
     "publishes the configured pacer floor %s on every sweep status, including replay",
     async (floor) => {
