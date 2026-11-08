@@ -13,26 +13,62 @@ export function plainTitle(title: string): string {
     .trim();
 }
 
+/** The host's all-caps state words: board statuses, fork phases and GitHub run and check states. */
+const STATE_WORDS: ReadonlySet<string> = new Set([
+  "UNREAD",
+  "CURRENT",
+  "BEHIND UPSTREAM",
+  "SYNC HALTS",
+  "PREPARING",
+  "PREPARED",
+  "CASCADE OWED",
+  "IN CASCADE",
+  "CASCADE STOPPED",
+  "SYNC TO MAIN",
+  "MAIN RUN",
+  "MAIN RED",
+  "ON MAIN",
+  "UPSTREAM PLAN",
+  "UPSTREAM PLAN PAUSED",
+  "SNAPSHOT",
+  "CLOSED",
+  "HALT",
+  "TOOLCHAIN",
+  "NO BREAK",
+  "MOVED",
+  "PROGRAM",
+  "FORK",
+  "SUCCESS",
+  "FAILURE",
+  "ERROR",
+  "PENDING",
+  "EXPECTED",
+  "INACTIVE",
+  "QUEUED",
+  "IN PROGRESS",
+  "COMPLETED",
+  "CANCELLED",
+  "TIMED OUT",
+  "SKIPPED",
+  "NEUTRAL",
+  "STALE",
+  "ACTION REQUIRED",
+  "STARTUP FAILURE",
+]);
+
 /**
- * Host state words arrive in capitals ("PREPARED", "P1 · CASCADE STOPPED"); Detail shows them in
- * sentence case. Text with any lower-case letter, or only short capitals such as "PR #58", is kept.
+ * Detail shows the host's all-caps state words in sentence case ("PREPARED" reads "Prepared").
+ * Each " · " part is matched whole against the state vocabulary, so acronyms such as "SPI CI",
+ * "PR #58" or "OSDU SPI" and every other part keep their spelling.
  */
 export function sentenceCase(text: string): string {
-  if (/\p{Ll}/u.test(text) || !/\p{Lu}{4,}/u.test(text)) return text;
   return text
     .split(" · ")
     .map((part) => {
-      let first = true;
-      return part
-        .split(/[ _]+/)
-        .map((word) => {
-          if (!/^\p{Lu}+$/u.test(word)) return word;
-          const lower = word.toLowerCase();
-          if (!first) return lower;
-          first = false;
-          return lower.charAt(0).toUpperCase() + lower.slice(1);
-        })
-        .join(" ");
+      const words = part.replace(/_/g, " ");
+      if (!STATE_WORDS.has(words)) return part;
+      const lower = words.toLowerCase();
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
     })
     .join(" · ");
 }

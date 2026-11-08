@@ -527,6 +527,36 @@ it("renders an all-caps host state word in sentence case and leaves the host tex
   }
 });
 
+it.each([
+  ["PREPARED · SPI CI · PR #58", "Prepared · SPI CI · PR #58"],
+  ["OSDU SPI", "OSDU SPI"],
+  ["CONFLICT", "CONFLICT"],
+  ["v0.35.5", "v0.35.5"],
+  ["8.4.1-BOOT4-SNAPSHOT", "8.4.1-BOOT4-SNAPSHOT"],
+  ["Azure/osdu-spi-entitlements#89", "Azure/osdu-spi-entitlements#89"],
+  ["P1 · CASCADE STOPPED", "P1 · Cascade stopped"],
+  ["UPSTREAM PLAN PAUSED", "Upstream plan paused"],
+])("sentence-cases only the host's state words in %j", (value, shown) => {
+  expect(sentenceCase(value)).toBe(shown);
+});
+
+it("knows every all-caps status the host's inspect boards emit", () => {
+  const boards = ["upstream-fork", "upstream-plan", "mr", "step", "repo"];
+  const labels = boards.flatMap((board) =>
+    [
+      ...readFileSync(`packages/core/src/inspect/${board}.ts`, "utf8").matchAll(
+        /"([A-Z][A-Z0-9 ·_]{2,})"/g,
+      ),
+    ].map((match) => match[1] ?? ""),
+  );
+  expect(labels).toContain("PREPARED");
+  for (const label of labels) {
+    for (const part of label.split(" · ").filter((part) => !/\d/.test(part))) {
+      expect(sentenceCase(part), label).not.toBe(part);
+    }
+  }
+});
+
 it("opens the fork's place as the one action for an upstream sync row", async () => {
   const body = ViewSnapshotSchema.parse(JSON.parse(projected));
   const row = selectionRows(body).find(({ id }) => id === "upstream:legal");
