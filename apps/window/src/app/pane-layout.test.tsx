@@ -202,6 +202,65 @@ describe("pane separators", () => {
     expect(saved().widths.rightPanel).toBe(880);
   });
 
+  it("keeps the preferred width when the stop blocks an outward drag on a narrowed pane", async () => {
+    savePanes({ widths: { rightPanel: 440 } });
+    const shell = await mountShell();
+    await resizeWindow(1100);
+    expect(shell.column("--panel-col")).toBe("348px");
+    await drag(shell.separator("Resize right panel"), 752, 700);
+    expect(shell.column("--panel-col")).toBe("348px");
+    expect(saved().widths.rightPanel).toBe(440);
+    await resizeWindow(1280);
+    expect(shell.column("--panel-col")).toBe("440px");
+  });
+
+  it("keeps the preferred width when an unmoved press spans a window resize", async () => {
+    savePanes({ widths: { rightPanel: 440 } });
+    const shell = await mountShell();
+    const right = shell.separator("Resize right panel");
+    if (!right) throw new Error("Missing right panel separator");
+    await pointer(right, "pointerdown", 840);
+    await resizeWindow(1100);
+    expect(shell.column("--panel-col")).toBe("348px");
+    await pointer(right, "pointerup", 840);
+    expect(saved().widths.rightPanel).toBe(440);
+    await resizeWindow(1280);
+    expect(shell.column("--panel-col")).toBe("440px");
+  });
+
+  it("keeps a preferred width above the 55% maximum when an outward drag is held there", async () => {
+    savePanes({ widths: { rightPanel: 880 }, open: { sidebar: false } });
+    const shell = await mountShell();
+    expect(shell.column("--panel-col")).toBe("704px");
+    await drag(shell.separator("Resize right panel"), 576, 400);
+    expect(saved().widths.rightPanel).toBe(880);
+    await resizeWindow(1600);
+    expect(shell.column("--panel-col")).toBe("880px");
+  });
+
+  it("keeps the pinned Line sheet's preferred width when the stop holds its drag", async () => {
+    savePanes({ widths: { lineSheet: 440 } });
+    await resizeWindow(1400);
+    pinSheet();
+    const shell = await mountShell();
+    const shown = shell.column("--sheet-col");
+    expect(shown).toBe("368px");
+    await drag(shell.separator("Resize Line sheet"), 700, 600);
+    expect(shell.column("--sheet-col")).toBe(shown);
+    expect(saved().widths.lineSheet).toBe(440);
+  });
+
+  it("saves a real drag inward while narrowed, as the width the user dragged to", async () => {
+    savePanes({ widths: { rightPanel: 440 } });
+    const shell = await mountShell();
+    await resizeWindow(1100);
+    await drag(shell.separator("Resize right panel"), 752, 800);
+    expect(saved().widths.rightPanel).toBe(300);
+    expect(shell.column("--panel-col")).toBe("300px");
+    await resizeWindow(1280);
+    expect(shell.column("--panel-col")).toBe("300px");
+  });
+
   it("restores widths and open or collapsed panes on the next launch", async () => {
     await resizeWindow(1600);
     pinSheet();

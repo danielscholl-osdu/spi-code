@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { useRef } from "react";
 import { PaneSeparator } from "../components/resize/PaneSeparator.js";
 import { PANE_BOUNDS, paneMaximum, paneStop, type ResizablePane } from "./pane-layout.js";
 import type { WidthBudget } from "./width-budget.js";
@@ -64,9 +65,20 @@ export function PaneEdges({
   lineSheet: boolean;
   /** A live drag width, or undefined once a drag ends without one. */
   onResize: (pane: ResizablePane, width: number | undefined) => void;
+  /** A width the user chose; a drag held at the displayed width is not one. */
   onResizeEnd: (pane: ResizablePane, width: number) => void;
 }) {
   const shown = edgePanes(settled, lineSheet);
+  const dragging = useRef(new Set<ResizablePane>());
+  /**
+   * A drag that ends where its pane already sits, because the stop or the maximum
+   * held it there or the window moved under an unmoved press, is not a resize: it
+   * leaves the preferred width alone. Arrow steps and double-clicks always count.
+   */
+  const finish = (pane: ResizablePane, width: number) => {
+    if (dragging.current.has(pane) && width === settled[pane].width) onResize(pane, undefined);
+    else onResizeEnd(pane, width);
+  };
   return EDGES.filter(({ pane }) => shown.includes(pane)).map(
     ({ pane, slot, label, controls, edge }) => (
       <div key={pane} className="pane-edge" data-pane={slot}>
@@ -80,9 +92,13 @@ export function PaneEdges({
           defaultWidth={PANE_BOUNDS[pane].defaultWidth}
           stop={paneStop(pane, settled, windowWidth)}
           onResize={(width) => onResize(pane, width)}
-          onResizeEnd={(width) => onResizeEnd(pane, width)}
-          onDraggingChange={(dragging) => {
-            if (!dragging) onResize(pane, undefined);
+          onResizeEnd={(width) => finish(pane, width)}
+          onDraggingChange={(active) => {
+            if (active) dragging.current.add(pane);
+            else {
+              dragging.current.delete(pane);
+              onResize(pane, undefined);
+            }
           }}
         />
       </div>
