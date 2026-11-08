@@ -102,10 +102,12 @@ export async function signinGh(exec: Exec, options: SigninOptions): Promise<Sign
       },
     },
   );
+  if (result.ok) {
+    emit(options, { tool: "gh", state: "completed" });
+    return { state: "completed" };
+  }
   if (options.signal?.aborted) return failed(options, "gh", REASON.cancelled);
-  if (!result.ok) return failed(options, "gh", shown ? REASON.ghFailed : REASON.ghNoCode);
-  emit(options, { tool: "gh", state: "completed" });
-  return { state: "completed" };
+  return failed(options, "gh", shown ? REASON.ghFailed : REASON.ghNoCode);
 }
 
 /**

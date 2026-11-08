@@ -887,7 +887,7 @@ it.each(["gh", "copilot"])(
     expect(held[0]?.opts?.signal?.aborted).toBe(true);
     expect(held[1]?.opts?.signal?.aborted).toBe(false);
     held[0]?.opts?.onOutput?.("stderr", DEVICE_OUTPUT);
-    held[0]?.release("");
+    held[0]?.release();
     await first;
     expect(progress().filter(({ requestId }) => requestId === "req-first")).toEqual([
       { requestId: "req-first", tool, state: "starting" },
@@ -919,6 +919,25 @@ it.each(["gh", "copilot"])(
   },
 );
 
+it.each(["gh", "copilot"])(
+  "reports completed when %s exits successfully before cancellation but before terminal progress",
+  async (tool) => {
+    const { exec, held } = heldExec();
+    const { service, progress } = setup({ exec, tools: async () => managedGh });
+    const flow = service.routes["setup.signin"]?.(signinRequest("req-exited", { tool }), () => {});
+    await vi.waitFor(() => expect(held).toHaveLength(1));
+    held[0]?.release("");
+    expect(progress()).toEqual([{ requestId: "req-exited", tool, state: "starting" }]);
+    await service.routes["setup.signin.cancel"]?.(cancelRequest("req-exited"), () => {});
+    expect(held[0]?.opts?.signal?.aborted).toBe(true);
+    await flow;
+    expect(progress()).toEqual([
+      { requestId: "req-exited", tool, state: "starting" },
+      { requestId: "req-exited", tool, state: "completed" },
+    ]);
+  },
+);
+
 it("ignores cancellation once terminal progress is published, before the flow unwinds", async () => {
   const { exec, held } = heldExec();
   const { service } = setup({ exec, tools: async () => managedGh });
@@ -935,10 +954,11 @@ it("ignores cancellation once terminal progress is published, before the flow un
 });
 
 it.skipIf(process.platform === "win32").each(["gh", "copilot"])(
-  "kills the fixture gh child when %s is cancelled without changing stored credentials",
+  "kills the fixture gh child and grandchild when %s is cancelled without changing stored credentials",
   async (tool) => {
     const bin = join(directory, "cancel-bin");
     const pidFile = join(directory, "login-pid");
+    const grandchildPidFile = join(directory, "login-grandchild-pid");
     const config = join(directory, "gh-config");
     const credentials = join(config, "hosts.yml");
     mkdirSync(bin);
@@ -950,6 +970,8 @@ it.skipIf(process.platform === "win32").each(["gh", "copilot"])(
 case "$1 $2" in
   "auth login")
     echo $$ > "${pidFile}"
+    sleep 300 &
+    echo $! > "${grandchildPidFile}"
     printf '${DEVICE_OUTPUT}' >&2
     while [ ! -f "$GH_CONFIG_DIR/finish" ]; do sleep 1; done
     printf 'replacement-fixture-credential\\n' > "$GH_CONFIG_DIR/hosts.yml";;
@@ -971,10 +993,15 @@ esac
     expect(service.routes["setup.signin.cancel"]).toBeTypeOf("function");
     const flow = service.routes["setup.signin"]?.(signinRequest("req-cancel", { tool }), () => {});
     let pid = 0;
+    let grandchildPid = 0;
     try {
       await vi.waitFor(
         () => {
           pid = Number(readFileSync(pidFile, "utf8"));
+          grandchildPid = Number(readFileSync(grandchildPidFile, "utf8"));
+          expect(pid).toBeGreaterThan(0);
+          expect(grandchildPid).toBeGreaterThan(0);
+          expect(() => process.kill(grandchildPid, 0)).not.toThrow();
           expect(progress().at(-1)?.state).toBe("waiting");
         },
         { timeout: 5000 },
@@ -982,6 +1009,7 @@ esac
       await service.routes["setup.signin.cancel"]?.(cancelRequest("req-cancel"), () => {});
       await flow;
       await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow());
+      await vi.waitFor(() => expect(() => process.kill(grandchildPid, 0)).toThrow());
       expect(progress().at(-1)).toEqual({
         requestId: "req-cancel",
         tool,

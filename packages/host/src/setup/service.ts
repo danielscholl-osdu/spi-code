@@ -340,7 +340,7 @@ export class SetupService {
     const signal = flow.abort.signal;
     const report = (step: SetupSigninStep) => {
       if (flow.retired || flow.finished) return;
-      if (signal.aborted && step.state !== "failed") return;
+      if (signal.aborted && step.state !== "failed" && step.state !== "completed") return;
       flow.finished = step.state === "failed" || step.state === "completed";
       this.emit({ ...step, tool, requestId });
     };

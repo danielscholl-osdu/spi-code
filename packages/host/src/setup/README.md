@@ -11,6 +11,8 @@ progress reports `failed` with
 `Sign-in was cancelled.` for the original tool and request. Late device codes
 and waiting events are suppressed. Unknown, rejected and finished requests are
 no-ops, including an old request cancelled while a newer flow runs.
+If gh has already exited successfully, completion wins over a cancellation
+received before its terminal progress is published.
 
 Cancellation does not log out or delete credentials from the tool's store or
 keychain. Reconnecting retires old flows instead: their progress cannot reach the
