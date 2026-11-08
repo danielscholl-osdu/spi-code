@@ -58,6 +58,12 @@ and merges the figures into the latest `sweep.status`, retaining its floor and
 deferred areas. Failed budget probes report unavailable points rather than stale
 ones. Older state fixtures may omit the timestamp; tests use fixture tools and
 never a live credential or Copilot seat.
+Readiness shows Copilot, git, gh, glab and the GitHub API budget in that order,
+with no action on ready rows. Sign-in codes and GitLab tokens stay in their own
+fields; waiting gh and Copilot sign-ins offer Cancel. Check all stays disabled
+until its request-correlated `setup.state` arrives after the budget read. An
+uncorrelated readiness refresh can update the Checked time without unlocking
+the check; a correlated failure or a host reconnect releases it for retry.
 `pnpm run build` compiles all six workspaces; `pnpm run lint`, `pnpm run typecheck`,
 `pnpm run test` and `pnpm run check:headers` run individual checks. Vitest discovers
 `src/**/*.test.ts` and `src/**/*.test.tsx` in each workspace, plus script tests.

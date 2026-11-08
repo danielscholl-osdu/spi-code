@@ -63,6 +63,89 @@ it("rejects git sign-in at the type and runtime boundaries", () => {
   expect(send).not.toHaveBeenCalled();
 });
 
+it("keeps Check all pending until its correlated completion, not just until send or checkedAt", async () => {
+  const send = vi.fn().mockResolvedValue(undefined);
+  const store = createWatchStore(send);
+  const setup = { tools: [], watchReady: true, disabledReason: null };
+  store.getState().receive(event("setup.state", setup));
+  await store.getState().requestSetup("setup.check");
+  const request = store.getState().setupCheckRequest;
+  expect(request).toBe(WatchMessageSchema.parse(send.mock.calls[0]?.[0]).id);
+  await store.getState().requestSetup("setup.check");
+  expect(send).toHaveBeenCalledTimes(1);
+  store.getState().receive(event("setup.state", setup));
+  expect(store.getState().setupCheckRequest).toBe(request);
+  store
+    .getState()
+    .receive(event("setup.state", { ...setup, checkedAt: "2026-11-08T15:04:00.000Z" }));
+  expect(store.getState().setupCheckRequest).toBe(request);
+  store.getState().receive({
+    ...event("setup.state", { ...setup, checkedAt: "2026-11-08T15:04:00.000Z" }),
+    id: request,
+  });
+  expect(store.getState().setupCheckRequest).toBeNull();
+  await store.getState().requestSetup("setup.check");
+  expect(send).toHaveBeenCalledTimes(2);
+});
+
+it("unlocks a check on its host error without rendering that error's secrets", () => {
+  const store = createWatchStore(vi.fn());
+  store.getState().requestSetup("setup.check");
+  const id = store.getState().setupCheckRequest;
+  const error = {
+    version: PROTOCOL_VERSION,
+    id: "old-check",
+    kind: "response",
+    type: "error",
+    payload: { code: "host_failed", message: "Failed with ghp_FixtureSecret and ABCD-1234" },
+  };
+  store.getState().receive(error);
+  expect(store.getState().setupCheckRequest).toBe(id);
+  store.getState().receive({ ...error, id });
+  expect(store.getState().setupCheckRequest).toBeNull();
+  expect(store.getState().setupCheckError).toBe("Could not check Watch tools. Try again.");
+});
+
+it("releases a failed check and does not let an old connection's rejection release a newer one", async () => {
+  let rejectSend: (error: Error) => void = () => {};
+  const send = vi.fn().mockImplementationOnce(
+    () =>
+      new Promise<void>((_resolve, reject) => {
+        rejectSend = reject;
+      }),
+  );
+  const store = createWatchStore(send);
+  const first = store.getState().requestSetup("setup.check");
+  store.getState().receive(event("host.hello", { pid: 456 }));
+  expect(store.getState().setupCheckRequest).toBeNull();
+  store.getState().requestSetup("setup.check");
+  const newer = store.getState().setupCheckRequest;
+  const error = new Error("Old send failed");
+  rejectSend(error);
+  await expect(first).rejects.toBe(error);
+  expect(store.getState().setupCheckRequest).toBe(newer);
+  store.getState().receive(event("host.hello", { pid: 789 }));
+  send.mockImplementationOnce(() => {
+    throw error;
+  });
+  expect(() => store.getState().requestSetup("setup.check")).toThrow(error);
+  expect(store.getState().setupCheckRequest).toBeNull();
+});
+
+it("sends cancellation for the original sign-in without dropping its pending progress", () => {
+  const send = vi.fn();
+  const store = createWatchStore(send);
+  store.getState().requestSetup("setup.signin", "gh");
+  const requestId = store.getState().signinRequest.gh;
+  if (!requestId) throw new Error("Missing sign-in request");
+  store.getState().requestSetup("setup.signin.cancel", requestId);
+  expect(WatchMessageSchema.parse(send.mock.calls[1]?.[0])).toMatchObject({
+    type: "setup.signin.cancel",
+    payload: { requestId },
+  });
+  expect(store.getState().signinRequest.gh).toBe(requestId);
+});
+
 it("sends a glab token only with glab sign-in and keeps it out of store state", () => {
   const send = vi.fn();
   const store = createWatchStore(send);

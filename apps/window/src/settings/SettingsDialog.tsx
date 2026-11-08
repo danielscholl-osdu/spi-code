@@ -7,7 +7,7 @@ import { useStore } from "zustand";
 import type { Appearance } from "../app/appearance.js";
 import { useMediaQuery } from "../components/sidebar/ui-sidebar.js";
 import { watchStore } from "../store/watch.js";
-import Setup from "../views/setup/index.js";
+import Setup, { ReadinessCheck } from "../views/setup/index.js";
 import { READINESS_DOT_LABEL, type ReadinessDot, readinessDot } from "./readiness.js";
 import "./settings.css";
 
@@ -153,6 +153,7 @@ export function SettingsDialog({
                 </span>
               )}
               <span className="settings-spacer" />
+              {section === "readiness" && <ReadinessCheck />}
               <Dialog.Close className="settings-close" aria-label="Close settings">
                 <span aria-hidden>✕</span>
               </Dialog.Close>
@@ -163,7 +164,7 @@ export function SettingsDialog({
               data-settings-section={section}
             >
               {section === "readiness" ? (
-                <Setup />
+                <Setup inSettings />
               ) : (
                 <AppearanceSection theme={theme} onTheme={onTheme} />
               )}

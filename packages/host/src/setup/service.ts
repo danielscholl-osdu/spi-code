@@ -149,9 +149,16 @@ export class SetupService {
   private sequence = 0;
 
   readonly routes: HostRoutes = {
-    "setup.check": async (message) => {
+    "setup.check": async (message, send) => {
       if (message.type !== "setup.check") return;
-      await this.check();
+      const state = await this.check();
+      send({
+        version: PROTOCOL_VERSION,
+        id: message.id,
+        kind: "event",
+        type: "setup.state",
+        payload: this.state ?? state,
+      });
     },
     "setup.install": async (message) => {
       if (message.type !== "setup.install") return;

@@ -388,8 +388,9 @@ it("posts checked state before a bounded budget read and leaves ordinary refresh
   });
   try {
     await service.refresh();
+    const completion = vi.fn();
     let done = false;
-    const check = Promise.resolve(service.routes["setup.check"]?.(checkRequest, () => {})).then(
+    const check = Promise.resolve(service.routes["setup.check"]?.(checkRequest, completion)).then(
       () => {
         done = true;
       },
@@ -398,10 +399,18 @@ it("posts checked state before a bounded budget read and leaves ordinary refresh
     expect(states()).toHaveLength(2);
     expect(states().at(-1)?.checkedAt).toBeDefined();
     expect(done).toBe(false);
+    expect(completion).not.toHaveBeenCalled();
     await service.refresh();
     await vi.advanceTimersByTimeAsync(5000);
     await check;
     expect(done).toBe(true);
+    expect(completion).toHaveBeenCalledExactlyOnceWith({
+      version: PROTOCOL_VERSION,
+      id: checkRequest.id,
+      kind: "event",
+      type: "setup.state",
+      payload: service.current,
+    });
     expect(onError).toHaveBeenCalledOnce();
     expect(refreshBudget.mock.calls[0]?.[0].aborted).toBe(true);
   } finally {

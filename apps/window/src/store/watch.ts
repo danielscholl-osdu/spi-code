@@ -23,6 +23,9 @@ type WatchState = {
   clear(): void;
   sweep: SweepStatus | null;
   setup: SetupState | null;
+  /** A recheck stays pending through the budget probe, until its correlated state or error. */
+  setupCheckRequest: string | null;
+  setupCheckError: string | null;
   signin: Partial<Record<SetupSigninProgress["tool"], SetupSigninProgress>>;
   signinOutcome: Partial<Record<SetupSigninProgress["tool"], SetupSigninProgress>>;
   /** Bumps on every host.hello, so views can drop state tied to the previous connection. */
@@ -35,6 +38,7 @@ type WatchState = {
   requestSetup(
     ...request:
       | [type: "setup.check", tool?: never, token?: never]
+      | [type: "setup.signin.cancel", requestId: string, token?: never]
       | [
           type: "setup.install",
           tool: Extract<WatchMessage, { type: "setup.install" }>["payload"]["tool"],
@@ -82,6 +86,8 @@ export function createWatchStore(
     },
     sweep: null,
     setup: null,
+    setupCheckRequest: null,
+    setupCheckError: null,
     signin: {},
     signinOutcome: {},
     epoch: 0,
@@ -94,15 +100,31 @@ export function createWatchStore(
         id,
         kind: "request",
         type,
-        payload: type === "setup.check" ? {} : token === undefined ? { tool } : { tool, token },
+        payload:
+          type === "setup.check"
+            ? {}
+            : type === "setup.signin.cancel"
+              ? { requestId: tool }
+              : token === undefined
+                ? { tool }
+                : { tool, token },
       });
       if (!parsed.ok) throw new Error("Invalid setup request");
+      if (type === "setup.check") {
+        if (get().setupCheckRequest !== null) return;
+        set({ setupCheckRequest: id, setupCheckError: null });
+      }
       if (type === "setup.signin") {
         // One pending sign-in per tool: a second request would replace the id the host's flow reports.
         if (get().signinRequest[tool] !== undefined) return;
         set({ signinRequest: { ...get().signinRequest, [tool]: id } });
       }
       const failed = (error: unknown): never => {
+        if (type === "setup.check" && get().setupCheckRequest === id)
+          set({
+            setupCheckRequest: null,
+            setupCheckError: "Could not send the request to SPI Code.",
+          });
         if (type === "setup.signin" && get().signinRequest[tool] === id) {
           const signinRequest = { ...get().signinRequest };
           delete signinRequest[tool];
@@ -123,6 +145,11 @@ export function createWatchStore(
       const message = parsed.message;
       if (message.type === "error" && message.payload.code === "host_unavailable")
         throw new Error(message.payload.message);
+      if (message.type === "error" && message.id === get().setupCheckRequest)
+        set({
+          setupCheckRequest: null,
+          setupCheckError: "Could not check Watch tools. Try again.",
+        });
       if (message.type === "view.snapshot") {
         const payload = message.payload;
         const last = get().snapshot;
@@ -132,7 +159,13 @@ export function createWatchStore(
         return;
       }
       if (message.type === "sweep.status") set({ sweep: message.payload });
-      if (message.type === "setup.state") set({ setup: message.payload });
+      if (message.type === "setup.state") {
+        const checked = message.id === get().setupCheckRequest;
+        set({
+          setup: message.payload,
+          ...(checked ? { setupCheckRequest: null } : {}),
+        });
+      }
       if (message.type === "setup.signin.progress") {
         const progress = message.payload;
         if (progress.requestId !== get().signinRequest[progress.tool]) return;
@@ -154,7 +187,14 @@ export function createWatchStore(
         set({ signin, signinOutcome });
       }
       if (message.type === "host.hello") {
-        set({ signin: {}, signinOutcome: {}, signinRequest: {}, epoch: get().epoch + 1 });
+        set({
+          signin: {},
+          signinOutcome: {},
+          signinRequest: {},
+          setupCheckRequest: null,
+          setupCheckError: null,
+          epoch: get().epoch + 1,
+        });
         const outgoing = parseMessage({
           version: PROTOCOL_VERSION,
           id: crypto.randomUUID(),

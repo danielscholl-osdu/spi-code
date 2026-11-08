@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { SetupState } from "@spi-code/contracts";
+import { PROTOCOL_VERSION, type SetupState } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,6 +12,7 @@ import { Shell } from "../app/Shell.js";
 import { selectionStore } from "../panels/selection.js";
 import { testSnapshot } from "../store/test-snapshot.js";
 import { watchStore } from "../store/watch.js";
+import { clockTime } from "../time.js";
 
 type HappyWindow = { happyDOM: { setViewport(viewport: { width: number; height: number }): void } };
 const viewport = (width: number, height = 900) =>
@@ -77,7 +78,14 @@ beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   window.location.hash = "";
   viewport(1280);
-  watchStore.setState({ setup: tools(["ready", "ready", "ready", "ready"]) });
+  watchStore.setState({
+    setup: tools(["ready", "ready", "ready", "ready"]),
+    setupCheckRequest: null,
+    setupCheckError: null,
+    signin: {},
+    signinOutcome: {},
+    signinRequest: {},
+  });
 });
 
 afterEach(() => {
@@ -96,7 +104,8 @@ it("opens on Cmd-comma over the current place, on the last section viewed, and c
       document.getElementById(dialog()?.getAttribute("aria-labelledby") ?? "")?.textContent,
     ).toBe("Settings");
     expect(section()?.dataset.settingsSection).toBe("readiness");
-    expect(section()?.querySelector("h1")?.textContent).toBe("Setup");
+    expect(section()?.querySelector("h1")).toBeNull();
+    expect(section()?.querySelector(".readiness-group")).not.toBeNull();
     expect(navItem("Readiness")?.getAttribute("aria-current")).toBe("page");
     await act(async () => navItem("Appearance")?.click());
     expect(section()?.dataset.settingsSection).toBe("appearance");
@@ -176,6 +185,64 @@ it("lights the footer row with readiness, shows no sweep time there, and reaches
     await press("k");
   } finally {
     await shell.cleanup();
+  }
+});
+
+it("checks all from the header, stays disabled through the host check and updates the local Checked time", async () => {
+  const now = new Date("2026-11-08T15:05:00.000Z").getTime();
+  vi.spyOn(Date, "now").mockReturnValue(now);
+  const initial = "2026-11-08T15:04:00.000Z";
+  watchStore.setState({ setup: { ...tools(["ready"]), checkedAt: initial } });
+  const shell = await mountShell();
+  const check = () => dialog()?.querySelector<HTMLButtonElement>(".readiness-check");
+  try {
+    await press(",");
+    expect(dialog()?.querySelector("header time")?.getAttribute("datetime")).toBe(initial);
+    expect(dialog()?.querySelector(".readiness-checked")?.textContent).toBe(
+      `Checked ${clockTime(initial, { now })}`,
+    );
+    await act(async () => {
+      check()?.click();
+      check()?.click();
+    });
+    expect(shell.spi.postMessage).toHaveBeenCalledTimes(1);
+    expect(shell.spi.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "setup.check", payload: {} }),
+    );
+    expect(check()?.disabled).toBe(true);
+    const requestId = watchStore.getState().setupCheckRequest;
+    const updated = "2026-11-08T15:05:00.000Z";
+    await act(async () =>
+      watchStore.getState().receive({
+        version: PROTOCOL_VERSION,
+        id: "host",
+        kind: "event",
+        type: "setup.state",
+        payload: { ...tools(["ready"]), checkedAt: updated },
+      }),
+    );
+    expect(check()?.disabled).toBe(true);
+    await act(async () =>
+      watchStore.getState().receive({
+        version: PROTOCOL_VERSION,
+        id: requestId,
+        kind: "event",
+        type: "setup.state",
+        payload: { ...tools(["ready"]), checkedAt: updated },
+      }),
+    );
+    expect(check()?.disabled).toBe(false);
+    expect(dialog()?.querySelector("header time")?.getAttribute("datetime")).toBe(updated);
+    expect(dialog()?.querySelector(".readiness-checked")?.textContent).toBe(
+      `Checked ${clockTime(updated, { now })}`,
+    );
+    await act(async () => navItem("Appearance")?.click());
+    expect(check()).toBeNull();
+    expect(dialog()?.querySelector(".readiness-checked")).toBeNull();
+    await close();
+  } finally {
+    await shell.cleanup();
+    vi.restoreAllMocks();
   }
 });
 

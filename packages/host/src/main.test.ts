@@ -399,7 +399,7 @@ it.skipIf(process.platform === "win32")(
       mocks.probeSeat.mockClear();
       first.check("check-one");
       first.check("check-two");
-      await vi.waitFor(() => expect(setupStates(first.sent)).toHaveLength(2), {
+      await vi.waitFor(() => expect(setupStates(first.sent)).toHaveLength(4), {
         timeout: 10_000,
       });
       await vi.waitFor(
@@ -409,6 +409,8 @@ it.skipIf(process.platform === "win32")(
         },
       );
       expect(mocks.probeSeat).toHaveBeenCalledOnce();
+      for (const id of ["check-one", "check-two"])
+        expect(first.sent).toContainEqual(expect.objectContaining({ id, type: "setup.state" }));
       expect(setupStates(first.sent).at(-1)?.checkedAt).toBeDefined();
       expect(setupStates(first.sent).at(-1)?.checkedAt).toMatch(/^2026-11-08T15:05:/);
       expect(first.sent).toContainEqual(
@@ -450,7 +452,7 @@ it.skipIf(process.platform === "win32")(
       });
       await vi.waitFor(() => expect(checked).toBe(true), { timeout: 5000 });
       await check;
-      expect(setupStates(first.sent)).toHaveLength(3);
+      expect(setupStates(first.sent)).toHaveLength(5);
       expect(first.sent.filter(({ type }) => type === "sweep.status").at(-1)).toMatchObject({
         payload: { remaining: 0, resetAt: "2026-11-08T16:05:00.000Z", floor: 125, deferredAreas },
       });
