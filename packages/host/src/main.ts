@@ -3,8 +3,13 @@
 
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { type Message, PROTOCOL_VERSION, parseMessage } from "@spi-code/contracts";
-import { contextFromEnv, type Exec, factsSchema } from "@spi-code/core";
+import {
+  type Message,
+  PROTOCOL_VERSION,
+  parseMessage,
+  SweepStatusSchema,
+} from "@spi-code/contracts";
+import { contextFromEnv, type Exec, factsSchema, Gh, GraphqlBudget } from "@spi-code/core";
 import {
   createToolInstaller,
   createWindowsGitInstaller,
@@ -105,17 +110,26 @@ const watch = new WatchRoutes({
   exec,
   onError: console.error,
 });
+const budget = new GraphqlBudget(ctx.clock);
 // Setup gates Watch: the SweepService writes through watch.sweeper() so commits reach the subscriber.
 const setup: SetupService = new SetupService({
   exec,
   tools: toolInstaller,
   git: gitInstaller,
+  clock: ctx.clock,
   probeSeat: async () =>
     probeCopilotSeat({
       appDataDir: appData,
       capturedPath: await capturedPath(),
       installer: await toolInstaller(),
     }),
+  refreshBudget: async () => {
+    const { data, errors } = await new Gh(exec, undefined, budget).graphql<{
+      rateLimit: { remaining: number; resetAt: string };
+    }>("{ rateLimit { remaining resetAt } }");
+    if (errors.length) throw new Error("The GitHub API budget query failed.");
+    return SweepStatusSchema.parse({ ...data.rateLimit, floor: 100, deferredAreas: [] });
+  },
   createSweep: () =>
     new SweepService({
       db: openWatchDb(),
@@ -123,6 +137,7 @@ const setup: SetupService = new SetupService({
       appData,
       ctx,
       exec,
+      budget,
       factsSchema,
       doctor: () => setup.doctor(),
       onError: console.error,
@@ -194,7 +209,12 @@ attachHostConnections(
         id: "smoke-setup",
         kind: "event",
         type: "setup.state",
-        payload: { tools: [], watchReady: true, disabledReason: null },
+        payload: {
+          tools: [],
+          watchReady: true,
+          disabledReason: null,
+          checkedAt: ctx.clock.now().toISOString(),
+        },
       });
     } else setup.connect(sendToWindow);
   },

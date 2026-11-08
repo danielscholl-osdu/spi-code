@@ -12,9 +12,11 @@ import {
   type SetupState,
   SetupStateSchema,
   type SetupToolSchema,
+  type SweepStatus,
+  SweepStatusSchema,
   signinRunningReason,
 } from "@spi-code/contracts";
-import type { DoctorView, Exec } from "@spi-code/core";
+import { type Clock, type DoctorView, type Exec, systemClock } from "@spi-code/core";
 import type { Readiness } from "@spi-code/tools";
 import type { z } from "zod";
 import type { HostRoutes, HostSend } from "../process/port.js";
@@ -50,6 +52,8 @@ export interface SetupServiceOptions {
   readonly tools: () => Promise<SetupTools>;
   readonly git: () => Promise<SetupGit>;
   readonly probeSeat: () => Promise<SeatResult>;
+  readonly refreshBudget: () => Promise<SweepStatus>;
+  readonly clock?: Clock;
   /** Builds the fleet's SweepService once git and gh are ready. */
   readonly createSweep: () => SetupSweep;
   readonly onError: (error: unknown) => void;
@@ -61,6 +65,7 @@ export const GITLAB_AREAS_REASON =
   "The GitLab areas (upstream, radar) are disabled until glab is ready.";
 const GLAB_TOKEN_NEEDED = "Paste a GitLab token to sign in glab.";
 const SEAT_FAILED = "The Copilot seat check did not complete.";
+const BUDGET_FAILED = "The GitHub API budget check did not complete.";
 const COPILOT_NEEDS_GH = "Copilot signs in through gh. Install gh and sign in first.";
 const WATCH_OFF = "Watch is off:";
 const REFRESH_MS = 60_000;
@@ -123,7 +128,8 @@ export class SetupService {
   private sender: HostSend | undefined;
   private state: SetupState | undefined;
   private refreshing: Promise<SetupState> | undefined;
-  private queued: Promise<SetupState> | undefined;
+  private queued: { force: boolean; promise: Promise<SetupState> } | undefined;
+  private checking: Promise<SetupState> | undefined;
   private seat: { key: string; row: ToolRow } | undefined;
   private sweep: { instance: SetupSweep; failed: boolean } | undefined;
   private timer: ReturnType<typeof setInterval> | undefined;
@@ -133,6 +139,10 @@ export class SetupService {
   private sequence = 0;
 
   readonly routes: HostRoutes = {
+    "setup.check": async (message) => {
+      if (message.type !== "setup.check") return;
+      await this.check();
+    },
     "setup.install": async (message) => {
       if (message.type !== "setup.install") return;
       await this.install(message.payload.tool);
@@ -182,25 +192,37 @@ export class SetupService {
   }
 
   /** Re-reads every tool, broadcasts a change, and starts or stops the sweep to match. */
-  refresh(): Promise<SetupState> {
-    if (this.queued) return this.queued;
+  refresh(force = false): Promise<SetupState> {
+    if (this.queued) {
+      this.queued.force ||= force;
+      return this.queued.promise;
+    }
     if (this.refreshing) {
       // Requests made during a read coalesce into one read after it.
-      const queued = this.refreshing
-        .catch(() => {})
-        .then(() => {
-          this.queued = undefined;
-          return this.refresh();
-        });
+      const queued: { force: boolean; promise: Promise<SetupState> } = {
+        force,
+        promise: this.refreshing
+          .catch(() => {})
+          .then(() => {
+            this.queued = undefined;
+            return this.refresh(queued.force);
+          }),
+      };
       this.queued = queued;
-      return queued;
+      return queued.promise;
     }
     const run = (async () => {
       try {
-        const next = await this.compute();
-        const changed = JSON.stringify(next) !== JSON.stringify(this.state);
+        const computed = await this.compute(force);
+        if (force) await this.refreshBudget();
+        const { checkedAt: _checkedAt, ...previous } = this.state ?? {};
+        const changed = JSON.stringify(computed) !== JSON.stringify(previous);
+        const next = {
+          ...computed,
+          checkedAt: (this.options.clock ?? systemClock).now().toISOString(),
+        };
         this.state = next;
-        if (changed) this.post(next);
+        if (changed || force) this.post(next);
         await this.gate(next.watchReady);
         return next;
       } finally {
@@ -209,6 +231,34 @@ export class SetupService {
     })();
     this.refreshing = run;
     return run;
+  }
+
+  private check(): Promise<SetupState> {
+    this.checking ??= this.refresh(true).finally(() => {
+      this.checking = undefined;
+    });
+    return this.checking;
+  }
+
+  private async refreshBudget(): Promise<void> {
+    let status: SweepStatus;
+    try {
+      status = SweepStatusSchema.parse(await this.options.refreshBudget());
+    } catch {
+      this.options.onError(new Error(BUDGET_FAILED));
+      status = {
+        remaining: null,
+        resetAt: null,
+        deferredAreas: [{ area: "github", reason: BUDGET_FAILED }],
+      };
+    }
+    this.send({
+      version: PROTOCOL_VERSION,
+      id: `setup-budget-${++this.sequence}`,
+      kind: "event",
+      type: "sweep.status",
+      payload: status,
+    });
   }
 
   /** Stops the sweep; await before closing its store. */
@@ -267,7 +317,7 @@ export class SetupService {
     await this.refresh();
   }
 
-  private async compute(): Promise<SetupState> {
+  private async compute(force: boolean): Promise<SetupState> {
     const [git, gh, glab] = await Promise.all([
       this.gitRow(),
       this.toolRow("gh"),
@@ -276,7 +326,7 @@ export class SetupService {
     if (glab.state !== "ready") {
       glab.reason = glab.reason ? `${glab.reason} ${GITLAB_AREAS_REASON}` : GITLAB_AREAS_REASON;
     }
-    const copilot = await this.copilotRow(gh);
+    const copilot = await this.copilotRow(gh, force);
     const blocking = [git, gh].find((row) => row.state !== "ready" && row.state !== "needs-update");
     const disabledReason = blocking
       ? `${WATCH_OFF} ${blocking.reason ?? `${blocking.tool} is not ready.`}`
@@ -357,14 +407,14 @@ export class SetupService {
   }
 
   /** Probes the seat only when gh can supply a token, and again once gh or its credential changes. */
-  private async copilotRow(gh: ToolRow): Promise<ToolRow> {
+  private async copilotRow(gh: ToolRow, force: boolean): Promise<ToolRow> {
     const usable = ["ready", "needs-update", "scope-missing", "classic-token"].includes(gh.state);
     if (!usable) {
       this.seat = undefined;
       return { tool: "copilot", state: "signed-out", action: "signin", reason: COPILOT_NEEDS_GH };
     }
     const key = `${gh.state}:${await this.credential()}`;
-    if (this.seat?.key === key) return this.seat.row;
+    if (!force && this.seat?.key === key) return this.seat.row;
     let row: ToolRow;
     try {
       row = seatRow(await this.options.probeSeat());

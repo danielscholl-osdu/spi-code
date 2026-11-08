@@ -148,7 +148,9 @@ const messages = [
   { ...envelope, kind: "request", type: "view.subscribe", payload: { fromCursor: 0 } },
   { ...envelope, kind: "event", type: "view.snapshot", payload: snapshot },
   { ...envelope, kind: "request", type: "view.acknowledge", payload: { cursor: 1 } },
+  { ...envelope, kind: "request", type: "setup.check", payload: {} },
 ] satisfies [
+  WatchMessage,
   WatchMessage,
   WatchMessage,
   WatchMessage,
@@ -162,6 +164,27 @@ const messages = [
 ];
 
 describe("Watch protocol", () => {
+  it("round-trips a check-all request and rejects tool, credential and envelope additions", () => {
+    const message = messages[10];
+    expect(parseMessage(JSON.parse(JSON.stringify(message)))).toEqual({ ok: true, message });
+    for (const payload of [{ tool: "gh" }, { token: "opaque.credential" }, null]) {
+      expect(parseMessage({ ...message, payload }).ok).toBe(false);
+    }
+    expect(parseMessage({ ...message, kind: "event" }).ok).toBe(false);
+  });
+  it("round-trips a completed setup check time, retaining support for older state fixtures", () => {
+    const message = {
+      ...messages[3],
+      payload: { ...messages[3].payload, checkedAt: at },
+    };
+    expect(parseMessage(JSON.parse(JSON.stringify(message)))).toEqual({ ok: true, message });
+    expect(parseMessage(messages[3]).ok).toBe(true);
+    for (const checkedAt of ["yesterday", "", null, 42, "2026-11-05T06:00:00"]) {
+      expect(parseMessage({ ...message, payload: { ...message.payload, checkedAt } }).ok).toBe(
+        false,
+      );
+    }
+  });
   it("round-trips an acknowledgement and rejects missing, invalid or extra fields", () => {
     const message = messages[9];
     expect(WatchMessageSchema.parse(message)).toEqual(message);

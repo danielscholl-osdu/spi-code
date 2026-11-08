@@ -121,6 +121,7 @@ function setup(overrides: Partial<SetupServiceOptions> & Pick<SetupServiceOption
     tools: async () => installer(),
     git: async () => git,
     probeSeat: async () => ({ kind: "seat-ok", models: ["auto"] }),
+    refreshBudget: async () => ({ remaining: 4000, resetAt: null, deferredAreas: [] }),
     createSweep: () => ({ start: async () => true, stop: async () => {} }),
     onError: (error) => {
       throw error;
@@ -180,6 +181,161 @@ const managedGh = {
     tool === "gh" ? { state: "ready" as const, version: "2.74.0" } : { state: "missing" as const },
   install: async () => {},
 };
+
+const checkRequest = {
+  version: PROTOCOL_VERSION,
+  id: "req-setup.check",
+  kind: "request",
+  type: "setup.check",
+  payload: {},
+} as const;
+
+it("checks every tool and auth scope, bypasses the cached seat, and publishes a refreshed budget and completion time", async () => {
+  let now = new Date("2026-11-08T15:00:00Z");
+  const calls: string[] = [];
+  const exec = fakeExec((cmd, args) => {
+    calls.push(`${cmd} ${args.join(" ")}`);
+    if (cmd === "gh" && args[1] === "status") return GH_STATUS_OK;
+    if (cmd === "gh" && args[1] === "token") return "gho_fixture";
+    if (cmd === "glab" && args[1] === "status") return "Logged in to fixture";
+    if (cmd === "glab" && args[0] === "api") return '{"scopes":["api"]}';
+    return undefined;
+  });
+  const readiness = vi.fn(async (_tool: string) => ({
+    state: "ready" as const,
+    version: "2.74.0",
+  }));
+  const gitReadiness = vi.fn(git.readiness);
+  const probeSeat = vi
+    .fn<SetupServiceOptions["probeSeat"]>()
+    .mockResolvedValueOnce({ kind: "seat-ok", models: ["auto"] })
+    .mockResolvedValue({ kind: "no-seat", reason: "The seat was removed." });
+  const refreshBudget = vi.fn(async () => {
+    now = new Date("2026-11-08T15:05:01Z");
+    return { remaining: 1234, resetAt: "2026-11-08T16:00:00Z", deferredAreas: [] };
+  });
+  const { service, states, sent } = setup({
+    exec,
+    tools: async () => ({ readiness, install: async () => {} }),
+    git: async () => ({ ...git, readiness: gitReadiness }),
+    probeSeat,
+    refreshBudget,
+    clock: { now: () => now },
+  });
+  await service.refresh();
+  expect(probeSeat).toHaveBeenCalledOnce();
+  expect(refreshBudget).not.toHaveBeenCalled();
+  const previousTime = states().at(-1)?.checkedAt;
+  calls.length = 0;
+  readiness.mockClear();
+  gitReadiness.mockClear();
+
+  await service.routes["setup.check"]?.(checkRequest, () => {});
+
+  expect(gitReadiness).toHaveBeenCalledOnce();
+  expect(readiness.mock.calls.map(([tool]) => tool)).toEqual(["gh", "glab"]);
+  expect(calls).toEqual(
+    expect.arrayContaining([
+      "gh auth status --hostname github.com",
+      "gh auth token --hostname github.com",
+      "glab auth status --hostname community.opengroup.org",
+      "glab api personal_access_tokens/self --hostname community.opengroup.org",
+    ]),
+  );
+  expect(probeSeat).toHaveBeenCalledTimes(2);
+  expect(row(states().at(-1), "copilot")).toMatchObject({
+    state: "no-seat",
+    reason: "The seat was removed.",
+  });
+  expect(refreshBudget).toHaveBeenCalledOnce();
+  expect(sent).toContainEqual(
+    expect.objectContaining({
+      type: "sweep.status",
+      payload: { remaining: 1234, resetAt: "2026-11-08T16:00:00Z", deferredAreas: [] },
+    }),
+  );
+  expect(states().at(-1)?.checkedAt).toBe("2026-11-08T15:05:01.000Z");
+  expect(states().at(-1)?.checkedAt).not.toBe(previousTime);
+});
+
+it("collapses concurrent check requests into one probe, even behind an ordinary refresh", async () => {
+  let release: () => void = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const readiness = vi.fn(async () => {
+    await held;
+    return { state: "ready" as const, version: "2.74.0" };
+  });
+  const probeSeat = vi.fn(async () => ({ kind: "seat-ok" as const, models: ["auto"] }));
+  const refreshBudget = vi.fn(async () => ({
+    remaining: 4000,
+    resetAt: null,
+    deferredAreas: [],
+  }));
+  const { service, states } = setup({
+    exec: fakeExec((cmd, args) =>
+      cmd === "gh" && args[1] === "status" ? GH_STATUS_OK : undefined,
+    ),
+    tools: async () => ({ readiness, install: async () => {} }),
+    probeSeat,
+    refreshBudget,
+    clock: { now: () => new Date("2026-11-08T15:00:00Z") },
+  });
+  const first = service.routes["setup.check"]?.(checkRequest, () => {});
+  const second = service.routes["setup.check"]?.({ ...checkRequest, id: "second" }, () => {});
+  release();
+  await Promise.all([first, second]);
+  expect(readiness).toHaveBeenCalledTimes(4);
+  expect(probeSeat).toHaveBeenCalledTimes(2);
+  expect(refreshBudget).toHaveBeenCalledOnce();
+  expect(states()).toHaveLength(2);
+
+  readiness.mockClear();
+  probeSeat.mockClear();
+  refreshBudget.mockClear();
+  const third = service.routes["setup.check"]?.(checkRequest, () => {});
+  const fourth = service.routes["setup.check"]?.({ ...checkRequest, id: "fourth" }, () => {});
+  await Promise.all([third, fourth]);
+  expect(readiness).toHaveBeenCalledTimes(2);
+  expect(probeSeat).toHaveBeenCalledOnce();
+  expect(refreshBudget).toHaveBeenCalledOnce();
+  expect(states()).toHaveLength(3);
+});
+
+it("reports an unavailable budget without retaining stale points, and retries on the next check", async () => {
+  const onError = vi.fn();
+  const refreshBudget = vi
+    .fn<SetupServiceOptions["refreshBudget"]>()
+    .mockRejectedValueOnce(new Error("unavailable"))
+    .mockResolvedValue({ remaining: 3000, resetAt: null, deferredAreas: [] });
+  const { service, sent, states } = setup({
+    exec: fakeExec(() => undefined),
+    refreshBudget,
+    onError,
+  });
+  await service.refresh();
+  await service.routes["setup.check"]?.(checkRequest, () => {});
+  expect(onError).toHaveBeenCalledOnce();
+  expect(sent).toContainEqual(
+    expect.objectContaining({
+      type: "sweep.status",
+      payload: {
+        remaining: null,
+        resetAt: null,
+        deferredAreas: [
+          { area: "github", reason: "The GitHub API budget check did not complete." },
+        ],
+      },
+    }),
+  );
+  expect(states().at(-1)?.checkedAt).toBeDefined();
+  await service.routes["setup.check"]?.(checkRequest, () => {});
+  expect(refreshBudget).toHaveBeenCalledTimes(2);
+  expect(sent.filter(({ type }) => type === "sweep.status").at(-1)).toMatchObject({
+    payload: { remaining: 3000 },
+  });
+});
 
 it.skipIf(process.platform === "win32")(
   "installs gh from the pinned download and runs the managed binary through HostExec",

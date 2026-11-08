@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { z } from "zod";
-import { IdentifierSchema } from "./evidence.js";
+import { IdentifierSchema, ObservedAtSchema } from "./evidence.js";
 import { WebUrlSchema } from "./inspect.js";
 
 export const WatchToolSchema = z.enum(["copilot", "git", "gh", "glab"]);
@@ -30,6 +30,7 @@ export const SetupStateSchema = z
     tools: z.array(SetupToolSchema),
     watchReady: z.boolean(),
     disabledReason: IdentifierSchema.nullable(),
+    checkedAt: ObservedAtSchema.optional(),
   })
   .refine(({ watchReady, disabledReason }) => watchReady === (disabledReason === null), {
     message: "Watch readiness must agree with its disabled reason",
@@ -39,6 +40,7 @@ export const SetupStateSchema = z
     path: ["tools"],
   });
 export const SetupInstallSchema = z.strictObject({ tool: WatchToolSchema });
+export const SetupCheckSchema = z.strictObject({});
 export const SigninToolSchema = z.enum(["copilot", "gh", "glab"]);
 export const SetupSigninSchema = z.discriminatedUnion("tool", [
   z.strictObject({ tool: z.enum(["copilot", "gh"]) }),

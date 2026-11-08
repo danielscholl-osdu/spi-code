@@ -6,6 +6,7 @@ import { IdentifierSchema, ObservedAtSchema } from "./evidence.js";
 import { InspectRequestSchema, InspectResultSchema } from "./inspect.js";
 import { ViewAcknowledgeSchema } from "./reading.js";
 import {
+  SetupCheckSchema,
   SetupInstallSchema,
   SetupSigninProgressSchema,
   SetupSigninSchema,
@@ -52,6 +53,12 @@ export const WatchMessageSchema = z.discriminatedUnion("type", [
     kind: z.literal("event"),
     type: z.literal("setup.state"),
     payload: SetupStateSchema,
+  }),
+  z.strictObject({
+    ...envelope,
+    kind: z.literal("request"),
+    type: z.literal("setup.check"),
+    payload: SetupCheckSchema,
   }),
   z.strictObject({
     ...envelope,

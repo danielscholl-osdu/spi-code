@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type Message, PROTOCOL_VERSION } from "@spi-code/contracts";
@@ -225,6 +225,14 @@ case "$1 $2" in
   "auth token")
     [ -f "$mark" ] && echo gho_fixture && exit 0
     exit 1;;
+  "api graphql")
+    echo check >> "$here/../../budget-checks"
+    if [ -f "$here/../../budget-failed" ]; then
+      printf '{"errors":[{"message":"budget unavailable"}]}'
+    else
+      printf '{"data":{"rateLimit":{"remaining":1234,"resetAt":"2026-11-08T16:00:00Z"},"spicodeBudget":{"cost":1,"remaining":1234,"resetAt":"2026-11-08T16:00:00Z"}}}'
+    fi
+    exit 0;;
   "--version ")
     echo "gh version 2.74.0 (2025-06-01)"
     exit 0;;
@@ -274,7 +282,12 @@ it("keeps explicit smoke Setup fixture-only and forbids every external command",
     expect(sent).toContainEqual(
       expect.objectContaining({
         type: "setup.state",
-        payload: { tools: [], watchReady: true, disabledReason: null },
+        payload: {
+          tools: [],
+          watchReady: true,
+          disabledReason: null,
+          checkedAt: expect.any(String),
+        },
       }),
     );
     const options = mocks.setupOptions.at(-1);
@@ -321,12 +334,26 @@ it.skipIf(process.platform === "win32")(
     process.argv = [originalArgs[0] ?? "node", "host", storePath];
     const port = () => {
       const sent: Message[] = [];
+      let receive: (event: { data: unknown }) => void = () => {};
       return {
         sent,
-        on() {},
+        on(_event: string, listener: typeof receive) {
+          receive = listener;
+        },
         postMessage: (message: Message) => sent.push(message),
         start() {},
         close() {},
+        check(id: string) {
+          receive({
+            data: {
+              version: PROTOCOL_VERSION,
+              id,
+              kind: "request",
+              type: "setup.check",
+              payload: {},
+            },
+          });
+        },
       };
     };
     const ping = {
@@ -352,6 +379,59 @@ it.skipIf(process.platform === "win32")(
       await vi.waitFor(() => expect(start).toHaveBeenCalledOnce());
       expect(stop).not.toHaveBeenCalled();
       const wired = (start.mock.contexts[0] as unknown as { options: SweepServiceOptions }).options;
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-11-08T15:05:00Z"));
+      mocks.probeSeat.mockClear();
+      first.check("check-one");
+      first.check("check-two");
+      await vi.waitFor(() => expect(setupStates(first.sent)).toHaveLength(2), {
+        timeout: 10_000,
+      });
+      expect(mocks.probeSeat).toHaveBeenCalledOnce();
+      expect(setupStates(first.sent).at(-1)?.checkedAt).toBeDefined();
+      expect(setupStates(first.sent).at(-1)?.checkedAt).toMatch(/^2026-11-08T15:05:/);
+      expect(first.sent).toContainEqual(
+        expect.objectContaining({
+          type: "sweep.status",
+          payload: {
+            remaining: 1234,
+            resetAt: "2026-11-08T16:00:00Z",
+            floor: 100,
+            deferredAreas: [],
+          },
+        }),
+      );
+      expect(readFileSync(join(directory, "budget-checks"), "utf8")).toBe("check\n");
+      expect(wired.budget?.snapshot()).toMatchObject({
+        remaining: 1234,
+        resetAt: "2026-11-08T16:00:00Z",
+        calls: 1,
+      });
+
+      writeFileSync(join(directory, "budget-failed"), "");
+      const setupOptions = mocks.setupOptions.at(-1);
+      if (!setupOptions) throw new Error("Setup options missing.");
+      const error = vi.spyOn(setupOptions, "onError").mockImplementation(() => {});
+      try {
+        first.check("check-failed");
+        await vi.waitFor(() => expect(setupStates(first.sent)).toHaveLength(3), {
+          timeout: 10_000,
+        });
+        expect(first.sent.filter(({ type }) => type === "sweep.status").at(-1)).toMatchObject({
+          payload: {
+            remaining: null,
+            resetAt: null,
+            deferredAreas: [
+              { area: "github", reason: "The GitHub API budget check did not complete." },
+            ],
+          },
+        });
+        expect(error).toHaveBeenCalledWith(
+          expect.objectContaining({ message: "The GitHub API budget check did not complete." }),
+        );
+      } finally {
+        error.mockRestore();
+      }
       const core = await import("@spi-code/core");
       const replay = new core.Sweeper({
         ctx: wired.ctx,
@@ -382,6 +462,7 @@ it.skipIf(process.platform === "win32")(
       });
       await vi.waitFor(() => expect(stop).toHaveBeenCalled());
     } finally {
+      vi.useRealTimers();
       const handler = (event: string) =>
         once.mock.calls.find(([name]) => name === event)?.[1] as (() => void) | undefined;
       handler("SIGTERM")?.();

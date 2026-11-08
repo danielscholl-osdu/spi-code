@@ -48,6 +48,13 @@ Skill: `bead-build`. Work happens only in the bead's worktree, on branch `bead/<
 `scripts/land` rejects AI co-author trailers and "Generated with" lines in incoming commits; human co-authors and existing `main` history are allowed.
 
 The scaffold uses Node 22.16 or newer, matching `engines` in `package.json`, and pnpm 10 (the exact pnpm version is in `package.json`). `node:sqlite` is unflagged from 22.13, but the host store also needs `DatabaseSync.isTransaction`, which arrived in 22.16.
+The host's `setup.check` request rechecks every readiness row, bypasses the Copilot
+seat cache, and refreshes the GitHub GraphQL budget through the same Exec boundary
+and budget account as the sweeper. Concurrent requests share one check. The host
+publishes `sweep.status` and a `setup.state` stamped with the completion time in
+`checkedAt`, even when readiness is unchanged. Older state fixtures may omit the
+timestamp. Failed budget probes report unavailable points rather than stale ones;
+tests use fixture tools and never a live credential or Copilot seat.
 `pnpm run build` compiles all six workspaces; `pnpm run lint`, `pnpm run typecheck`,
 `pnpm run test` and `pnpm run check:headers` run individual checks. Vitest discovers
 `src/**/*.test.ts` and `src/**/*.test.tsx` in each workspace, plus script tests.
