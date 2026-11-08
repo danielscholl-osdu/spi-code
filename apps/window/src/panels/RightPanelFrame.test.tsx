@@ -209,6 +209,40 @@ it.each([980, 1280])(
 );
 
 it.each([979, 1280])(
+  "reopens the selected item's Detail after either Evidence scope at %i px",
+  async (width) => {
+    const view = await mount(width);
+    try {
+      await act(async () => view.row.click());
+      const request = view.store.getState().request;
+      for (const scope of ["selection", "sweep"]) {
+        await act(async () =>
+          scope === "sweep"
+            ? view.store.getState().openSweepEvidence()
+            : view.store.getState().setTab("evidence"),
+        );
+        await act(async () => view.trigger.click());
+        expect(view.panel()).toBeNull();
+        expect(view.store.getState().tab).toBe("evidence");
+        await act(async () => view.trigger.click());
+        expect(view.store.getState()).toMatchObject({
+          selected: "repo:legal",
+          request,
+          tab: "detail",
+          evidenceScope: "selection",
+        });
+        expect(view.panel()?.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
+          "Detail",
+        );
+        expect(view.panel()?.querySelector('[role="status"]')?.textContent).toContain("repo:legal");
+      }
+    } finally {
+      await view.cleanup();
+    }
+  },
+);
+
+it.each([979, 1280])(
   "closes rather than showing an empty Detail after the sweep's Evidence at %i px",
   async (width) => {
     const view = await mount(width);

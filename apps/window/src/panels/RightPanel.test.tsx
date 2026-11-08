@@ -131,7 +131,7 @@ it.each(
   }
 });
 
-it("explains an Evidence tab with a row-only selection instead of leaving it empty", async () => {
+it("selects a row-only item's Detail from Evidence and explains its empty Evidence tab", async () => {
   const port = fakePort();
   const view = await mount(port.store);
   try {
@@ -144,6 +144,11 @@ it("explains an Evidence tab with a row-only selection instead of leaving it emp
         inspectId: null,
       }),
     );
+    expect(view.container.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
+      "Detail",
+    );
+    expect(view.container.querySelector(".detail-title")?.textContent).toBe("Stack lane");
+    await act(async () => port.store.getState().setTab("evidence"));
     expect(view.container.querySelector('[role="tabpanel"]')?.textContent).toBe(
       "No evidence for this selection.",
     );
@@ -434,7 +439,7 @@ it.each(["", "   "])(
   },
 );
 
-it("opens the sweep Evidence from the title bar and returns to the selection's Evidence on select", async () => {
+it("opens the sweep Evidence from the title bar and switches to the selection's Detail on select", async () => {
   const port = fakePort();
   const view = await mount(port.store, <p data-sweep-stub="">the sweep</p>);
   try {
@@ -456,8 +461,10 @@ it("opens the sweep Evidence from the title bar and returns to the selection's E
         ],
       }),
     );
-    expect(selected()).toBe("Evidence");
+    expect(selected()).toBe("Detail");
+    expect(view.text("class")).toBe("HALT");
     expect(view.container.querySelector("[data-sweep-stub]")).toBeNull();
+    await act(async () => port.store.getState().setTab("evidence"));
     const article = view.container.querySelector('[data-evidence="selection"]');
     expect(article?.querySelector('table[aria-label^="Reads for"]')?.textContent).toContain(
       "Azure/osdu-spi-entitlements",

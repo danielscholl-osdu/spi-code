@@ -90,6 +90,7 @@ export function createSelectionStore(port: InspectPort) {
           result: null,
           error: null,
           missing: null,
+          tab: "detail",
           evidenceScope: "selection",
         });
         return;
@@ -111,6 +112,7 @@ export function createSelectionStore(port: InspectPort) {
         result: result?.id === (row?.inspectId ?? id) ? result : null,
         error: null,
         missing: null,
+        tab: "detail",
         evidenceScope: "selection",
       });
       port.postMessage(parsed.message);
@@ -133,9 +135,9 @@ export function createSelectionStore(port: InspectPort) {
       });
     },
     setOpen(open) {
-      // With nothing selected, opening the panel shows the sweep's Evidence rather than an empty Detail.
-      if (open && get().selected === null) set({ open, tab: "evidence", evidenceScope: "sweep" });
-      else set({ open });
+      if (!open) set({ open });
+      else if (get().selected === null) set({ open, tab: "evidence", evidenceScope: "sweep" });
+      else set({ open, tab: "detail", evidenceScope: "selection" });
     },
     visit(nextRoute, ids, scrollTop) {
       const current = get();
