@@ -135,7 +135,6 @@ it.each([false, true])(
         "engineering-system": [{ kind: "engineering-system" }],
         releases: [{ kind: "releases" }],
         security: [{ kind: "security" }],
-        setup: [{ kind: "setup" }],
         service: snapshot.stations.map(({ service }) => ({ kind: "service", id: service })),
         release: snapshot.releases.lines.map(({ month }) => ({ kind: "release", month })),
       };

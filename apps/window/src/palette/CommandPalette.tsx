@@ -45,11 +45,14 @@ export function CommandPalette({
   open,
   onOpenChange,
   onNavigate,
+  onSettings,
 }: {
   store: ReturnType<typeof createWatchStore>;
   open: boolean;
   onOpenChange(open: boolean): void;
   onNavigate(route: Route): void;
+  /** Opens Settings on Readiness. */
+  onSettings(): void;
 }) {
   const popupRef = useRef<HTMLDivElement>(null);
   const body = useStore(store, (state) => state.snapshot?.body);
@@ -68,6 +71,7 @@ export function CommandPalette({
             store={store}
             attention={attention}
             onNavigate={onNavigate}
+            onSettings={onSettings}
             onClose={() => onOpenChange(false)}
           />
         </Dialog.Popup>
@@ -80,11 +84,13 @@ function PaletteContent({
   store,
   attention,
   onNavigate,
+  onSettings,
   onClose,
 }: {
   store: ReturnType<typeof createWatchStore>;
   attention: ReturnType<typeof useSidebarAttention>;
   onNavigate(route: Route): void;
+  onSettings(): void;
   onClose(): void;
 }) {
   const body = useStore(store, (state) => state.snapshot?.body);
@@ -107,6 +113,7 @@ function PaletteContent({
   );
   const run = (item: PaletteItem) => {
     if (item.target.kind === "route") onNavigate(item.target.route);
+    else if (item.target.kind === "settings") onSettings();
     else {
       select(item.target.id);
       onNavigate({ kind: "today" });

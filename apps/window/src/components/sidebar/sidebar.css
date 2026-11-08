@@ -32,7 +32,10 @@ kbd.sidebar-row-note { font-family: var(--font-mono); }
 .sidebar-empty { margin: 2px 8px; color: var(--text-muted); font-size: 12px; }
 .app-sidebar [data-slot="sidebar-footer"] { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-top: 1px solid var(--border); }
 .app-sidebar [data-slot="sidebar-footer"] ul { flex: 1; min-width: 0; }
-.sweep-stamp { flex: none; color: var(--text-muted); font-size: 11px; }
+.sidebar-readiness-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; }
+.sidebar-readiness-dot[data-readiness="ready"] { background: var(--success); }
+.sidebar-readiness-dot[data-readiness="attention"] { background: var(--warning); }
+.sidebar-readiness-dot[data-readiness="failure"] { background: var(--error); }
 .sidebar-backdrop { position: fixed; inset: var(--topbar-height, 40px) 0 0; z-index: 9; background: color-mix(in srgb, var(--chrome) 60%, transparent); }
 @media (max-width: 979px) {
   .app-sidebar { position: fixed; top: var(--topbar-height, 40px); bottom: 0; left: 0; z-index: 10; width: 232px; transform: translateX(-100%); transition: transform .15s ease-out; }

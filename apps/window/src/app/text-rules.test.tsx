@@ -272,11 +272,16 @@ it("reads Setup's budget reset and the sweep line as local clock times with ISO 
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(now);
   try {
-    await open(body, { kind: "setup" });
+    await open(body);
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[data-sidebar-row="settings"]')?.click(),
+    );
     await act(async () =>
       watchStore.setState({ sweep: { remaining: 5, floor: 10, resetAt, deferredAreas: [] } }),
     );
-    const reset = [...container.querySelectorAll("time")].find((time) => time.dateTime === resetAt);
+    const reset = [...document.querySelectorAll('[role="dialog"] time')].find(
+      (time) => time instanceof HTMLTimeElement && time.dateTime === resetAt,
+    );
     expect(reset?.textContent).toBe(clockTime(resetAt, { now }));
     expect(reset?.textContent).toMatch(/^(\d\d-\d\d )?\d\d:\d\d \(in 32 min\)$/);
     expect(clockTime(resetAt, { now, timeZone: "America/Chicago" })).toBe(

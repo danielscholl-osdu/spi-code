@@ -258,7 +258,9 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
       read: (element) => (element.textContent ?? "").split(" due before ")[1] ?? "",
     });
   }
-  add("/briefing/sweptAt", briefing.sweptAt, TODAY, ".sweep-stamp time", { attribute: "dateTime" });
+  add("/briefing/sweptAt", briefing.sweptAt, TODAY, "[data-sweep-line] time", {
+    attribute: "dateTime",
+  });
 
   const { focus: todayFocus, folded } = selectTodayItems(briefing);
   const focusIds = new Set(todayFocus.map(({ id }) => id));
@@ -922,7 +924,6 @@ export function coverage(
 
 /** Routes the window draws no Briefing or Releases field on, each with its reason. */
 export const ROUTE_EXEMPTIONS: Readonly<Record<string, string>> = {
-  setup: "Setup is not a watch place: it draws the host's setup state, before any sweep",
   security:
     "Security draws its own reading; on the 6 Nov sweep it holds no Briefing item, and its tiles are not Briefing fields",
 };

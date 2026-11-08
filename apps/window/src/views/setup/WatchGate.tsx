@@ -11,7 +11,7 @@ export function WatchGate({ label, children }: { label: string; children: ReactN
   return (
     <>
       <h1>{label}</h1>
-      <p role="status">Watch unavailable: {setup.disabledReason}. Open Setup to continue.</p>
+      <p role="status">Watch unavailable: {setup.disabledReason}. Open Settings to continue.</p>
     </>
   );
 }

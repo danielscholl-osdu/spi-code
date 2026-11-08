@@ -47,7 +47,6 @@ const ALL_KINDS: readonly RouteKind[] = [
   "security",
   "service",
   "release",
-  "setup",
 ];
 const every = Object.fromEntries(ALL_KINDS.map((kind) => [kind, view])) as Registry["views"];
 const sheet = vi.fn((origin: Route, _presentation: string) => (
@@ -123,7 +122,6 @@ it("renders the registered component for every route id, with its service id and
     { kind: "security" },
     { kind: "service", id: "legal" },
     { kind: "release", month: "2026-10" },
-    { kind: "setup" },
   ];
   for (const route of routes) {
     await go(route);
@@ -274,7 +272,7 @@ it("leaves ⌘L alone when no Line sheet is registered", async () => {
 it("lists only registered places in the sidebar and Find, and falls back from the rest", async () => {
   const body = ViewSnapshotSchema.parse(JSON.parse(recorded));
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
-  const { setup: _setup, upstream: _u, security: _s, environment: _e, ...views } = every;
+  const { upstream: _u, security: _s, environment: _e, ...views } = every;
   localStorage.setItem(
     PINS_STORAGE_KEY,
     JSON.stringify(body.stations.map(({ service }) => service)),
@@ -298,7 +296,7 @@ it("lists only registered places in the sidebar and Find, and falls back from th
     [...(palette?.querySelectorAll(`[data-group="${group}"] .palette-label`) ?? [])].map(
       (row) => row.textContent,
     );
-  expect(found("go-to")).toEqual(["Today", "Engineering system", "Releases"]);
+  expect(found("go-to")).toEqual(["Today", "Engineering system", "Releases", "Settings"]);
   expect(found("services")).toEqual(["partition", "entitlements", "legal", "schema", "file"]);
   expect(found("lenses")).toEqual([]);
   await press("k");

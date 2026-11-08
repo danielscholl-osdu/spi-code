@@ -10,19 +10,11 @@ import Line from "../views/line/index.js";
 import Releases, { ReleaseMonth } from "../views/releases/index.js";
 import Security from "../views/security/index.js";
 import ServicePage from "../views/service/index.js";
-import Setup from "../views/setup/index.js";
 import { WatchGate } from "../views/setup/WatchGate.js";
 import Template from "../views/template/index.js";
 import Today from "../views/today/index.js";
 import Upstream from "../views/upstream/index.js";
-import {
-  type Destination,
-  type Registry,
-  type Route,
-  renderRoute,
-  routeLabel,
-  useRegistryOr,
-} from "./navigation.js";
+import { type Registry, type Route, renderRoute, routeLabel, useRegistryOr } from "./navigation.js";
 
 export * from "./navigation.js";
 
@@ -42,7 +34,6 @@ export const DEFAULT_REGISTRY: Registry = {
     security: (route) => gated(route, <Security />),
     service: (route) => gated(route, <ServicePage id={route.id} />),
     release: (route) => gated(route, <ReleaseMonth month={route.month} />),
-    setup: () => <Setup />,
   },
   sheet: (_origin, presentation) => <Line presentation={presentation} />,
   strip: () => <Strip />,
@@ -54,15 +45,18 @@ export function useRegistry(): Registry {
   return useRegistryOr(DEFAULT_REGISTRY);
 }
 
-/** Opens Setup once when the host's first setup state says Watch is not ready. */
-export function useSetupLanding(go: (destination: Destination) => void) {
+/**
+ * Opens Settings on Readiness once when the host's first setup state says Watch is not ready; a
+ * tool that needs attention later opens nothing.
+ */
+export function useSetupLanding(openReadiness: () => void) {
   const setup = useStore(watchStore, (state) => state.setup);
   const checked = useRef(false);
   useEffect(() => {
     if (!setup || checked.current) return;
     checked.current = true;
-    if (!setup.watchReady) go({ kind: "setup" });
-  }, [setup, go]);
+    if (!setup.watchReady) openReadiness();
+  }, [setup, openReadiness]);
 }
 
 /** The centre's content for a route. */

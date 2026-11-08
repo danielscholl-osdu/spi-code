@@ -295,7 +295,6 @@ export function routeSelectionIds(snapshot: ViewSnapshot, route: Route): string[
     case "upstream":
       return upstreamSelectionIds(snapshot);
     case "security":
-    case "setup":
       return [];
   }
 }

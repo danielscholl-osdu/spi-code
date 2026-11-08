@@ -116,6 +116,69 @@ it("opens on Cmd-comma over the current place, on the last section viewed, and c
   }
 });
 
+it("opens on Readiness from the footer row and from Find, even after Appearance was the last section", async () => {
+  const shell = await mountShell();
+  const footer = () =>
+    shell.container.querySelector<HTMLButtonElement>(
+      '[data-slot="sidebar-footer"] [data-sidebar-row="settings"]',
+    );
+  try {
+    await press(",");
+    await act(async () => navItem("Appearance")?.click());
+    await close();
+    await act(async () => footer()?.click());
+    expect(section()?.dataset.settingsSection).toBe("readiness");
+    expect(shell.container.querySelector("header [data-place]")?.textContent).toBe("Today");
+    await act(async () => navItem("Appearance")?.click());
+    await close();
+    await press("k");
+    const settings = [...document.querySelectorAll<HTMLElement>(".palette-row")].find(
+      (row) => row.querySelector(".palette-label")?.textContent === "Settings",
+    );
+    expect(settings?.querySelector(".palette-kind")?.textContent).toBe("Readiness");
+    await act(async () => settings?.click());
+    expect(document.querySelector('[aria-label="Find or ask"]')).toBeNull();
+    expect(section()?.dataset.settingsSection).toBe("readiness");
+    await close();
+  } finally {
+    await shell.cleanup();
+  }
+});
+
+it("lights the footer row with readiness, shows no sweep time there, and reaches no Setup place", async () => {
+  const shell = await mountShell();
+  const footer = () => shell.container.querySelector('[data-slot="sidebar-footer"]');
+  const dot = () => footer()?.querySelector<HTMLElement>(".sidebar-readiness-dot");
+  try {
+    expect(dot()?.dataset.readiness).toBe("ready");
+    await act(async () => watchStore.setState({ setup: tools(["ready", "ready", "signed-out"]) }));
+    expect(dot()?.dataset.readiness).toBe("attention");
+    await act(async () =>
+      watchStore.setState({ setup: tools(["ready", "failed", "signed-out", "ready"]) }),
+    );
+    expect(dot()?.dataset.readiness).toBe("failure");
+    expect(dialog()).toBeNull();
+    expect(footer()?.querySelector("time")).toBeNull();
+    expect(footer()?.textContent).not.toMatch(/swept/i);
+    expect(shell.container.querySelector('[data-sidebar-row="setup"]')).toBeNull();
+    await act(async () => {
+      window.location.hash = "#setup";
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    });
+    expect(shell.container.querySelector("header [data-place]")?.textContent).toBe("Today");
+    expect(dialog()).toBeNull();
+    await press("k");
+    const labels = [...document.querySelectorAll(".palette-row .palette-label")].map(
+      (label) => label.textContent,
+    );
+    expect(labels).toContain("Settings");
+    expect(labels).not.toContain("Setup");
+    await press("k");
+  } finally {
+    await shell.cleanup();
+  }
+});
+
 it("moves focus into the dialog on open and back to where it was on close", async () => {
   const shell = await mountShell();
   try {

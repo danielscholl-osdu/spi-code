@@ -97,12 +97,13 @@ export const VIEW_SURFACES = [
     qualified: true,
   },
   {
-    id: "setup",
-    name: "Setup",
-    route: "setup",
-    place: "Setup",
-    selector: "main section[aria-label='GraphQL budget']",
-    designSection: "A / PS-08 (Setup in sidebar); PRD PS-07",
+    id: "settings",
+    name: "Settings / Readiness",
+    route: "today",
+    place: "Today",
+    selector:
+      "[role=dialog] [data-settings-section=readiness] section[aria-label='GraphQL budget']",
+    designSection: "Layout / Settings (Readiness, opened from the sidebar footer); PRD PS-07",
     qualified: false,
   },
 ] as const;

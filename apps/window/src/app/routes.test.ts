@@ -21,7 +21,6 @@ it.each<[string, Route, string]>([
   ["#environment", { kind: "environment" }, "Environment"],
   ["#releases", { kind: "releases" }, "Releases"],
   ["#release/2026-10", { kind: "release", month: "2026-10" }, "Release 2026-10"],
-  ["#setup", { kind: "setup" }, "Setup"],
 ])("parses %s and writes it back", (hash, route, label) => {
   expect(parseRoute(hash)).toEqual(route);
   expect(parseRoute(hash.slice(1))).toEqual(route);
@@ -67,6 +66,7 @@ it.each([
   "#release/latest",
   "#lens/today",
   "#lens",
+  "#setup",
   "#setup/extra",
   "#today/extra",
   "#line",

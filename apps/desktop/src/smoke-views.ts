@@ -98,6 +98,11 @@ export async function captureSmokeViews(
           "document.querySelector(\".place-item-content[data-selection-id='campaign:toolchain:os-core-common%208.5.0']\").click()",
         );
       }
+      if (surface.id === "settings") {
+        await window.webContents.executeJavaScript(
+          'document.querySelector("[data-sidebar-row=settings]").click()',
+        );
+      }
       await rendered(window, `document.querySelector(${JSON.stringify(surface.selector)})`);
       const qualifiers: string[] = await window.webContents.executeJavaScript(`[
         document.querySelector("[data-sweep-line]")?.innerText?.trim() ?? "",
@@ -126,6 +131,12 @@ export async function captureSmokeViews(
         await window.webContents.executeJavaScript(
           "document.querySelector(\"[aria-label='Close detail']\").click()",
         );
+      if (surface.id === "settings") {
+        await window.webContents.executeJavaScript(
+          "document.querySelector(\"[role=dialog] [aria-label='Close settings']\").click()",
+        );
+        await rendered(window, '!document.querySelector("[role=dialog]")');
+      }
     }
     const loaded = once(window.webContents, "did-finish-load");
     window.webContents.reload();

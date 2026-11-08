@@ -26,10 +26,10 @@ import { useStore } from "zustand";
 import { treeServices } from "../../app/queue.js";
 import { isReachable, PLACES, type Route, routeLabel, useRegistry } from "../../app/routes.js";
 import { ariaShortcut, shortcutLabel } from "../../app/shortcuts.js";
+import { READINESS_LIGHT_LABEL, readinessLight } from "../../settings/readiness.js";
 import { usePins } from "../../store/pins.js";
 import { PIPS, selectStrip } from "../../store/strip.js";
 import type { createWatchStore } from "../../store/watch.js";
-import { Time } from "../../time.js";
 import { selectTodayItems } from "../../views/today/selectors.js";
 import { AttentionDot } from "../AttentionDot.js";
 import { useSidebarAttention } from "./attention.js";
@@ -65,8 +65,8 @@ function rowFor(route: Route): string {
 }
 
 /**
- * The sidebar (PS-08): Find or ask, Today, Line, the places, the operator's pins and Setup. The
- * Settled shelf waits for threads (M3). A service has a row only while pinned, and a pin the sweep no longer names has none.
+ * The sidebar (PS-08): Find or ask, Today, Line, the places, the operator's pins, and a footer row
+ * that opens Settings with a readiness dot. The Settled shelf waits for threads (M3). A service has a row only while pinned, and a pin the sweep no longer names has none.
  */
 export function ProgramSidebar({
   store,
@@ -74,6 +74,7 @@ export function ProgramSidebar({
   onNavigate,
   onFind,
   onLine,
+  onSettings,
 }: {
   store: ReturnType<typeof createWatchStore>;
   route: Route;
@@ -81,9 +82,12 @@ export function ProgramSidebar({
   onFind?(): void;
   /** Opens the Line sheet; without it the sidebar has no Line row. */
   onLine?(): void;
+  /** Opens Settings on Readiness; without it the sidebar has no footer row. */
+  onSettings?(): void;
 }) {
   const body = useStore(store, (state) => state.snapshot?.body);
-  const { tree, sweptAt, briefing } = body ?? {};
+  const light = readinessLight(useStore(store, (state) => state.setup));
+  const { tree, briefing } = body ?? {};
   const attention = useSidebarAttention(body);
   const interrupts = briefing ? selectTodayItems(briefing).interrupts : 0;
   const { isMobile, setOpenMobile } = useSidebar();
@@ -232,20 +236,35 @@ export function ProgramSidebar({
             }),
           )}
       </SidebarContent>
-      <SidebarFooter>
-        {reachable({ kind: "setup" }) && (
-          <SidebarMenu aria-label="Setup">{row("setup", { kind: "setup" })}</SidebarMenu>
-        )}
-        <span className="sweep-stamp">
-          {sweptAt && !Number.isNaN(Date.parse(sweptAt)) ? (
-            <>
-              swept <Time at={sweptAt} />
-            </>
-          ) : (
-            "not swept yet"
-          )}
-        </span>
-      </SidebarFooter>
+      {onSettings && (
+        <SidebarFooter>
+          <SidebarMenu aria-label="Settings">
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                data-sidebar-row="settings"
+                aria-haspopup="dialog"
+                aria-keyshortcuts={ariaShortcut(",")}
+                onClick={() => {
+                  closeMobile();
+                  onSettings();
+                }}
+              >
+                <span className="sidebar-row-label">Settings</span>
+                {light && (
+                  <span
+                    className="sidebar-readiness-dot"
+                    data-readiness={light}
+                    role="img"
+                    aria-label={READINESS_LIGHT_LABEL[light]}
+                    title={READINESS_LIGHT_LABEL[light]}
+                  />
+                )}
+                <kbd className="sidebar-row-note">{shortcutLabel(",")}</kbd>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      )}
     </Sidebar>
   );
 }

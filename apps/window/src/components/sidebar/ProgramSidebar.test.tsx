@@ -1,7 +1,12 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
+import {
+  PROTOCOL_VERSION,
+  type SetupState,
+  type ViewSnapshot,
+  ViewSnapshotSchema,
+} from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -40,6 +45,7 @@ async function render(
   onNavigate = vi.fn(),
   body = recordedBody,
   onLine?: () => void,
+  onSettings?: () => void,
 ) {
   const store = createWatchStore(vi.fn());
   store.setState({ snapshot: { cursor: body.cursor, body } });
@@ -51,6 +57,7 @@ async function render(
           route={route}
           onNavigate={onNavigate}
           {...(onLine ? { onLine } : {})}
+          {...(onSettings ? { onSettings } : {})}
         />
       </SidebarProvider>,
     ),
@@ -73,7 +80,7 @@ const attention = (key: string) => ({
   word: row(key)?.querySelector(".sidebar-row-note")?.textContent ?? null,
 });
 
-it("lists Find or ask, Today, Line, the places and Setup, and no service unpinned", async () => {
+it("lists Find or ask, Today, Line and the places, no Setup place, and no service unpinned", async () => {
   const onLine = vi.fn();
   await render({ kind: "service", id: "legal" }, vi.fn(), recordedBody, onLine);
   const nav = container.querySelector('nav[aria-label="Sidebar"]');
@@ -92,16 +99,16 @@ it("lists Find or ask, Today, Line, the places and Setup, and no service unpinne
   expect(header("Settled")).toBeUndefined();
   expect(container.querySelector('[data-group="settled"]')).toBeNull();
   expect(container.textContent).not.toContain("Settled");
-  expect(rows("Setup")).toEqual(["Setup"]);
+  expect(rows("Setup")).toEqual([]);
+  expect(container.querySelector('[data-sidebar-row="setup"]')).toBeNull();
+  expect(nav?.textContent).not.toContain("Setup");
   expect(
     [...container.querySelectorAll('[data-slot="section-header"]')].map((h) => h.textContent),
   ).toEqual(["Places"]);
   expect(container.querySelector('[data-sidebar-row^="service/"]')).toBeNull();
   expect(container.querySelector('[data-sidebar-row^="lens/"]')).toBeNull();
   expect(container.querySelector('[aria-current="page"]')).toBeNull();
-  expect(container.querySelector("time")?.getAttribute("dateTime")).toBe(
-    "2026-10-12T21:58:14.428Z",
-  );
+  expect(container.querySelector("time")).toBeNull();
   const line = row("line");
   expect(line?.querySelector("kbd")?.textContent).toMatch(/^(⌘L|Ctrl\+L)$/);
   await act(async () => (line as HTMLButtonElement | null)?.click());
@@ -396,7 +403,7 @@ it("leaves every dot unchanged when an area read and the tree scopes fail", asyn
 
 it("pins Find or ask, Today and Line above the scrolling groups, and the footer below them", async () => {
   pinFleet();
-  await render(undefined, undefined, undefined, vi.fn());
+  await render(undefined, undefined, undefined, vi.fn(), vi.fn());
   const scroller = container.querySelector('[data-slot="sidebar-content"]');
   const pinnedTop = container.querySelector('[data-slot="sidebar-header"]');
   expect(pinnedTop?.querySelector('ul[aria-label="Today"]')).not.toBeNull();
@@ -405,10 +412,62 @@ it("pins Find or ask, Today and Line above the scrolling groups, and the footer 
   expect(scroller?.querySelector('ul[aria-label="Today"]')).toBeNull();
   expect(scroller?.contains(container.querySelector('ul[aria-label="Places"]'))).toBe(true);
   expect(scroller?.contains(container.querySelector('ul[aria-label="Pinned"]'))).toBe(true);
-  expect(scroller?.querySelector('ul[aria-label="Setup"]')).toBeNull();
+  expect(scroller?.querySelector('ul[aria-label="Settings"]')).toBeNull();
   expect(
-    container.querySelector('[data-slot="sidebar-footer"] ul[aria-label="Setup"]'),
+    container.querySelector('[data-slot="sidebar-footer"] ul[aria-label="Settings"]'),
   ).not.toBeNull();
+});
+
+it("ends with a Settings row that opens Settings, and no sweep time", async () => {
+  const onSettings = vi.fn();
+  await render(undefined, undefined, undefined, undefined, onSettings);
+  const footer = container.querySelector('[data-slot="sidebar-footer"]');
+  const settings = footer?.querySelector<HTMLButtonElement>('[data-sidebar-row="settings"]');
+  expect(settings?.querySelector(".sidebar-row-label")?.textContent).toBe("Settings");
+  expect(settings?.getAttribute("aria-haspopup")).toBe("dialog");
+  expect(settings?.getAttribute("aria-keyshortcuts")).toMatch(/^(Meta|Control)\+,$/);
+  expect(settings?.querySelector("kbd")?.textContent).toMatch(/^(⌘|Ctrl\+),$/);
+  expect(footer?.querySelector("time")).toBeNull();
+  expect(footer?.querySelector(".sweep-stamp")).toBeNull();
+  expect(footer?.textContent).not.toMatch(/swept|not swept/);
+  await act(async () => settings?.click());
+  expect(onSettings).toHaveBeenCalledTimes(1);
+});
+
+it("has no footer row without a way to open Settings", async () => {
+  await render();
+  expect(container.querySelector('[data-slot="sidebar-footer"]')).toBeNull();
+});
+
+it("lights the Settings row green when ready, amber on attention and red on a failure", async () => {
+  const { store } = await render(undefined, undefined, undefined, undefined, vi.fn());
+  const dot = () => container.querySelector('[data-sidebar-row="settings"] .sidebar-readiness-dot');
+  const states = (...states: SetupState["tools"][number]["state"][]) =>
+    act(async () =>
+      store.setState({
+        setup: {
+          watchReady: states.every((state) => state === "ready"),
+          disabledReason: states.every((state) => state === "ready") ? null : "gh is not ready",
+          tools: (["copilot", "git", "gh", "glab"] as const).map((tool, index) => ({
+            tool,
+            state: states[index] ?? "ready",
+            action: null,
+          })),
+        },
+      }),
+    );
+  expect(dot()).toBeNull();
+  await states("ready", "ready", "ready", "ready");
+  expect(dot()?.getAttribute("data-readiness")).toBe("ready");
+  expect(dot()?.getAttribute("aria-label")).toBe("Every tool is ready");
+  await states("ready", "ready", "signed-out", "ready");
+  expect(dot()?.getAttribute("data-readiness")).toBe("attention");
+  expect(dot()?.getAttribute("aria-label")).toBe("A tool needs attention");
+  await states("ready", "failed", "signed-out", "ready");
+  expect(dot()?.getAttribute("data-readiness")).toBe("failure");
+  expect(dot()?.getAttribute("aria-label")).toBe("A tool failed");
+  await states("ready", "ready", "installing", "ready");
+  expect(dot()).toBeNull();
 });
 
 it("keeps a folded group folded across a fresh render, from local storage", async () => {

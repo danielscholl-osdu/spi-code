@@ -96,7 +96,6 @@ it("opens with Cmd-L over every registered surface and Escape restores its centr
     { kind: "security" },
     { kind: "release", month: "2026-11" },
     { kind: "service", id: "legal" },
-    { kind: "setup" },
   ];
   expect(new Set(routes.map(({ kind }) => kind))).toEqual(
     new Set(Object.keys(DEFAULT_REGISTRY.views)),

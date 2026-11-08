@@ -34,7 +34,10 @@ import {
 import { plainTitle } from "../text.js";
 import { foldSearchQuery, rankSearchGroups, scoreSearchTerms } from "./search.js";
 
-export type PaletteTarget = { kind: "route"; route: Route } | { kind: "queue"; id: string };
+export type PaletteTarget =
+  | { kind: "route"; route: Route }
+  | { kind: "queue"; id: string }
+  | { kind: "settings" };
 
 export type PaletteItem = {
   value: string;
@@ -53,7 +56,15 @@ export type PaletteGroup = {
   items: PaletteItem[];
 };
 
-const GO_TO: readonly Route[] = [{ kind: "today" }, ...PLACES, { kind: "setup" }];
+const GO_TO: readonly Route[] = [{ kind: "today" }, ...PLACES];
+/** Settings is a dialog, not a place: Find opens it on Readiness, where Setup now lives. */
+const SETTINGS: PaletteItem = {
+  value: "settings",
+  label: "Settings",
+  kind: "Readiness",
+  keywords: ["Setup", "Appearance"],
+  target: { kind: "settings" },
+};
 
 type SnapshotBody = {
   briefing: Pick<Briefing, "focus" | "rest">;
@@ -99,7 +110,7 @@ export function buildPaletteGroups(
     {
       value: "go-to",
       label: "Go to",
-      items: GO_TO.filter(reachable).map((route) => routeItem(route, "page")),
+      items: [...GO_TO.filter(reachable).map((route) => routeItem(route, "page")), SETTINGS],
     },
     { value: "services", label: "Services", items: services },
     { value: "queue", label: "Queue", items: queue },

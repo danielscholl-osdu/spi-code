@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { Dialog } from "@base-ui/react/dialog";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { useStore } from "zustand";
 import type { Appearance } from "../app/appearance.js";
 import { useMediaQuery } from "../components/sidebar/ui-sidebar.js";
@@ -71,21 +71,24 @@ function AppearanceSection({
 
 /**
  * Settings (PS-08, Setup): a dialog over the current place with Readiness, which hosts Setup, and
- * Appearance. It reopens on the last section viewed; Escape or the close button closes it and
- * focus returns to where it was.
+ * Appearance, on the section its opener chose. Escape or the close button closes it and focus
+ * returns to where it was.
  */
 export function SettingsDialog({
   open,
   onOpenChange,
+  section,
+  onSection: setSection,
   theme,
   onTheme,
 }: {
   open: boolean;
   onOpenChange(open: boolean): void;
+  section: SettingsSection;
+  onSection(section: SettingsSection): void;
   theme: Appearance | undefined;
   onTheme(theme: Appearance): void;
 }) {
-  const [section, setSection] = useState<SettingsSection>("readiness");
   const picker = useMediaQuery(SETTINGS_PICKER_MEDIA_QUERY);
   const dot = readinessDot(useStore(watchStore, (state) => state.setup));
   const popup = useRef<HTMLDivElement>(null);

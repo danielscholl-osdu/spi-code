@@ -33,7 +33,7 @@ export type PlaceRoute =
   | { kind: "release"; month: string };
 
 /** What the centre can hold. */
-export type Route = { kind: "today" } | PlaceRoute | { kind: "setup" };
+export type Route = { kind: "today" } | PlaceRoute;
 
 export type RouteKind = Route["kind"];
 export type RouteOf<K extends RouteKind> = Extract<Route, { kind: K }>;
@@ -70,7 +70,6 @@ const PLAIN = new Set<string>([
   "engineering-system",
   "releases",
   "security",
-  "setup",
 ]);
 /** Hashes from before the places, still parsed so saved locations keep working. */
 const ALIASES: Record<string, Route> = { template: { kind: "engineering-system" } };
@@ -133,8 +132,6 @@ export function routeLabel(route: Route): string {
       return route.id;
     case "release":
       return `Release ${route.month}`;
-    case "setup":
-      return "Setup";
   }
 }
 
@@ -312,7 +309,7 @@ function restoreLastPlace(registry: Registry) {
       saved = window.localStorage.getItem(LAST_PLACE_KEY);
     } catch {}
     const route = saved === null ? undefined : parseRoute(saved);
-    if (route && route.kind !== "setup" && isReachable(route, registry)) {
+    if (route && isReachable(route, registry)) {
       hash = routeHash(route);
       window.history.replaceState(window.history.state, "", hash);
     }
@@ -321,7 +318,6 @@ function restoreLastPlace(registry: Registry) {
 }
 
 function saveLastPlace(route: Route) {
-  if (route.kind === "setup") return;
   try {
     window.localStorage.setItem(LAST_PLACE_KEY, routeHash(route));
   } catch {}
@@ -353,7 +349,7 @@ function useLanding(route: Route, sheet: SheetPresentation, registry: Registry) 
   useEffect(() => {
     if (!snapshot || !launch || launch.decided) return;
     launch.decided = true;
-    // A place the operator, or the setup landing, chose since launch is not overridden.
+    // A place the operator chose since launch is not overridden.
     if (window.location.hash !== launch.hash || !registry.views.today) return;
     // The host lists in `seen.since` the Interrupt items that arrived since the last acknowledgement.
     if (snapshot.body.seen.since.length > 0) navigate({ kind: "today" });

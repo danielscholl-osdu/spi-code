@@ -81,7 +81,6 @@ it("navigates every sidebar thing through the hash, naming the place in the titl
       ["Engineering system", "#engineering-system"],
       ["Environment", "#environment"],
       ["Releases", "#releases"],
-      ["Setup", "#setup"],
     ] as const) {
       await act(async () => button(label)?.click());
       expect(window.location.hash).toBe(hash);
@@ -257,7 +256,7 @@ it("keeps a Flow selection on its service and restores middle-frame scroll when 
     if (!middle) throw new Error("Missing middle frame");
     middle.scrollTop = 320;
     await act(async () => middle.dispatchEvent(new Event("scroll")));
-    await act(async () => navigate({ kind: "setup" }));
+    await act(async () => navigate({ kind: "security" }));
     expect(selectionStore.getState().selected).toBeNull();
     await act(async () => navigate({ kind: "service", id: flow.fork }));
     expect(selectionStore.getState().selected).toBe(flow.inspect);
@@ -360,7 +359,7 @@ it.each([900, 1280])(
       expect(shell.container.querySelector("#app-right-panel")?.hasAttribute("data-sheet")).toBe(
         width < 980,
       );
-      await act(async () => navigate({ kind: "setup" }));
+      await act(async () => navigate({ kind: "security" }));
       expect(selectionStore.getState().selected).toBeNull();
       await act(async () => navigate({ kind: "today" }));
       await act(async () => selectionStore.getState().select(item.id));
@@ -712,7 +711,7 @@ it("shows each pinned snapshot service in the sidebar on every route, as the pac
     expect(sidebar()?.getAttribute("data-state")).toBe("expanded");
     expect(sidebar()?.textContent).not.toContain("smoke-persisted");
     await deliver(1, "smoke-persisted");
-    for (const hash of ["#today", "#setup", "#environment", "#service/smoke-persisted"]) {
+    for (const hash of ["#today", "#environment", "#service/smoke-persisted"]) {
       await act(async () => {
         window.location.hash = hash;
         window.dispatchEvent(new HashChangeEvent("hashchange"));

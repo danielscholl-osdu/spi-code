@@ -851,13 +851,21 @@ it("distinguishes an unknown budget and floor from zero", async () => {
   expect(container.textContent).toContain("Pacer floor not reported");
 });
 
-it("lands on Setup when the first host state is not ready and gates every Watch route with its reason", async () => {
+it("opens Settings on Readiness when the first host state is not ready and gates every Watch route with its reason", async () => {
   await render(<Shell />);
   await receive("setup.state", state());
-  expect(container.querySelector("main h1")?.textContent).toBe("Setup");
-  expect(container.querySelector('nav [aria-current="page"]')?.textContent).toBe("Setup");
+  const dialog = () => document.querySelector<HTMLElement>('[role="dialog"]');
+  expect(
+    dialog()?.querySelector("[data-settings-section]")?.getAttribute("data-settings-section"),
+  ).toBe("readiness");
+  expect(dialog()?.querySelector("h1")?.textContent).toBe("Setup");
+  expect(container.querySelector("main h1")?.textContent).toBe("Today");
+  await act(async () =>
+    dialog()?.querySelector<HTMLButtonElement>('[aria-label="Close settings"]')?.click(),
+  );
+  expect(dialog()).toBeNull();
   const watchRoutes = [...container.querySelectorAll<HTMLButtonElement>("nav ul button")].filter(
-    (button) => button.textContent !== "Setup" && button.dataset.sidebarRow !== "line",
+    (button) => !["line", "settings"].includes(button.dataset.sidebarRow ?? ""),
   );
   expect(watchRoutes.map((button) => button.textContent)).toEqual([
     "Today",
@@ -875,6 +883,7 @@ it("lands on Setup when the first host state is not ready and gates every Watch 
     );
   }
   await receive("setup.state", state());
+  expect(dialog()).toBeNull();
   expect(container.querySelector("main h1")?.textContent).toBe("Security");
   await receive("setup.state", { ...state(), watchReady: true, disabledReason: null });
   expect(container.textContent).not.toContain("Watch unavailable");
@@ -884,4 +893,18 @@ it("keeps Today as the first route when Watch is ready", async () => {
   await receive("setup.state", { ...state(), watchReady: true, disabledReason: null });
   await render(<Shell />);
   expect(container.querySelector("main h1")?.textContent).toBe("Today");
+});
+
+it("opens nothing when a tool turns to attention after a ready first state", async () => {
+  const ready = (tool: Tool["tool"]): Tool => ({ tool, state: "ready", action: null });
+  await render(<Shell />);
+  await receive("setup.state", { watchReady: true, disabledReason: null, tools: tools.map(ready) });
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  await receive("setup.state", state({ state: "signed-out", action: "signin" }));
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(
+    container
+      .querySelector('[data-sidebar-row="settings"] .sidebar-readiness-dot')
+      ?.getAttribute("data-readiness"),
+  ).toBe("attention");
 });

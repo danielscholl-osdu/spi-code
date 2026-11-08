@@ -11,7 +11,7 @@ import { CommandPalette } from "../palette/CommandPalette.js";
 import { selectionStore } from "../panels/index.js";
 import { RightPanelFrame } from "../panels/RightPanelFrame.js";
 import { routeSelectionIds } from "../panels/selection-rows.js";
-import { SettingsDialog } from "../settings/SettingsDialog.js";
+import { SettingsDialog, type SettingsSection } from "../settings/SettingsDialog.js";
 import { watchStore } from "../store/watch.js";
 import { type Appearance, createAppearance } from "./appearance.js";
 import { LineSheet } from "./LineSheet.js";
@@ -36,7 +36,6 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
   const snapshot = useStore(watchStore, (state) => state.snapshot?.body);
   const sweep = useStore(watchStore, (state) => state.sweep);
   const { route, sheet, navigate, toggleSheet, closeSheet } = useNavigation(registry);
-  useSetupLanding(navigate);
   const rightPanelOpen = useStore(selectionStore, (state) => state.open);
   const toggleRightPanel = useCallback(
     () => selectionStore.getState().setOpen(!selectionStore.getState().open),
@@ -46,14 +45,22 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
   const [findOpen, setFindOpen] = useState(false);
   const toggleFind = useCallback(() => setFindOpen((open) => !open), []);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>("readiness");
+  /** Without a section Settings reopens on the last one viewed. */
+  const openSettings = useCallback((section?: SettingsSection) => {
+    setFindOpen(false);
+    if (section) setSettingsSection(section);
+    setSettingsOpen(true);
+  }, []);
+  const openReadiness = useCallback(() => openSettings("readiness"), [openSettings]);
+  useSetupLanding(openReadiness);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
       if (matchesShortcut(event, ",")) {
         if (isTypingEvent(event)) return;
         event.preventDefault();
-        setFindOpen(false);
-        setSettingsOpen(true);
+        openSettings();
         return;
       }
       if (!registry.sheet || !matchesShortcut(event, "l")) return;
@@ -62,7 +69,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [registry.sheet, toggleSheet]);
+  }, [registry.sheet, toggleSheet, openSettings]);
   const middle = useRef<HTMLElement>(null);
   const titleBar = useRef<HTMLElement>(null);
   const strip = useRef<HTMLDivElement>(null);
@@ -164,6 +171,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
           route={route}
           onNavigate={navigate}
           onFind={() => setFindOpen(true)}
+          onSettings={openReadiness}
           {...(registry.sheet ? { onLine: () => navigate(LINE) } : {})}
         />
         <CommandPalette
@@ -171,10 +179,13 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
           open={findOpen}
           onOpenChange={setFindOpen}
           onNavigate={navigate}
+          onSettings={openReadiness}
         />
         <SettingsDialog
           open={settingsOpen}
           onOpenChange={setSettingsOpen}
+          section={settingsSection}
+          onSection={setSettingsSection}
           theme={theme}
           onTheme={pinTheme}
         />

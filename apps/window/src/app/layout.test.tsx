@@ -198,24 +198,10 @@ it.each(["light", "dark"])(
         { kind: "security" },
         { kind: "service", id: "indexer" },
         { kind: "release", month: "2026-11" },
-        { kind: "setup" },
       ];
       let cards = 0;
       for (const route of routes) {
-        await act(async () => {
-          if (route.kind === "setup")
-            watchStore.setState({
-              setup: {
-                watchReady: true,
-                disabledReason: null,
-                tools: [
-                  { tool: "copilot", state: "ready", action: null },
-                  { tool: "gh", state: "ready", action: null },
-                ],
-              },
-            });
-          navigate(route);
-        });
+        await act(async () => navigate(route));
         for (const section of view.container.querySelectorAll("main section")) {
           const computed = getComputedStyle(section);
           if (section.classList.contains("card")) {

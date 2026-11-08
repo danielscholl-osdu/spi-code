@@ -160,7 +160,7 @@ it("lists Go to, Services and Queue from the routes and the snapshot, without le
     "Engineering systempage",
     "Releasespage",
     "Securitypage",
-    "Setuppage",
+    "SettingsReadiness",
   ]);
   expect(rows("services")).toEqual([
     "partitionunread",

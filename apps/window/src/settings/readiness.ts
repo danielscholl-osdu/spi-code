@@ -18,3 +18,17 @@ export const READINESS_DOT_LABEL: Record<ReadinessDot, string> = {
   attention: "A tool needs attention",
   failure: "A tool failed",
 };
+
+export type ReadinessLight = "ready" | ReadinessDot;
+
+/** The footer's light: the nav dot, or green once every tool is ready; none before the first check. */
+export function readinessLight(setup: SetupState | null | undefined): ReadinessLight | null {
+  const dot = readinessDot(setup);
+  if (dot || !setup) return dot;
+  return setup.tools.every((tool) => tool.state === "ready") ? "ready" : null;
+}
+
+export const READINESS_LIGHT_LABEL: Record<ReadinessLight, string> = {
+  ready: "Every tool is ready",
+  ...READINESS_DOT_LABEL,
+};
