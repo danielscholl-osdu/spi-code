@@ -1,0 +1,9 @@
+/* Copyright 2026, Daniel Scholl
+ * SPDX-License-Identifier: MIT */
+
+.pane-separator { position: absolute; top: 0; bottom: 0; z-index: 10; width: 8px; cursor: col-resize; touch-action: none; user-select: none; }
+.pane-separator[data-edge="right"] { right: -4.5px; }
+.pane-separator[data-edge="left"] { left: -4.5px; }
+.pane-separator:focus-visible { outline: none; }
+.pane-separator-line { position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; background-color: transparent; pointer-events: none; }
+.pane-separator[data-active] .pane-separator-line { background-color: var(--accent); }
