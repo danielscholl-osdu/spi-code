@@ -90,7 +90,8 @@ function LineContent({
             Close
           </button>
         </div>
-        <div className="line-body"></div>
+      </div>
+      <div className="line-body">
         {column && (
           <fieldset className="line-campaigns" aria-label="Station filter">
             <button

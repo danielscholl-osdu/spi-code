@@ -126,6 +126,10 @@ it.each(["overlay", "pinned"] as const)(
       const placeHeader = getComputedStyle(element(view.container, ".place-header"));
       expect(placeHeader.position).toBe("sticky");
       expect(placeHeader.top).toBe("0px");
+      const lineBody = element(view.container, ".line-content > .line-body");
+      expect(getComputedStyle(lineBody).padding).toBe("20px 24px");
+      expect(lineBody.querySelector(".line-grid")).not.toBeNull();
+      expect(view.container.querySelector(".line-toolbar :is(table, fieldset)")).toBeNull();
       expect(getComputedStyle(element(view.container, ".panel-body")).overflow).toBe("auto");
       const close = element(view.container, '[aria-label="Close detail"]');
       expect(close.classList.contains("panel-toggle")).toBe(true);
