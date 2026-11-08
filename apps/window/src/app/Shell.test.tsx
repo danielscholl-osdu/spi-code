@@ -430,8 +430,8 @@ it.each([900, 1280])(
       expect(shell.container.querySelector("#app-right-panel")?.hasAttribute("data-sheet")).toBe(
         width === 900,
       );
-      await act(async () => navigate({ kind: "setup" }));
-      expect(shell.container.querySelector("main h1")?.textContent).toBe("Setup");
+      await act(async () => navigate({ kind: "releases" }));
+      expect(shell.container.querySelector("main h1")?.textContent).toBe("Releases");
       expect(selectionStore.getState().selected).toBeNull();
       expect(selectionStore.getState().open).toBe(width === 1280);
       expect(shell.container.querySelector("#app-right-panel") !== null).toBe(width === 1280);
