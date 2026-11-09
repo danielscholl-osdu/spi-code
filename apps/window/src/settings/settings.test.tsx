@@ -818,6 +818,71 @@ describe("the Sweep section", () => {
     }
   });
 
+  it.each([
+    ["the next sweep comes first", { nextSweepAt: 1_000, resetAt: 2_000 }],
+    ["the reset comes first", { nextSweepAt: 2_000, resetAt: 1_000 }],
+  ])("takes each shown time down at its exact deadline when %s", async (_, after) => {
+    vi.useFakeTimers({
+      toFake: ["Date", "setTimeout", "clearTimeout", "setInterval", "clearInterval"],
+      now: NOW,
+    });
+    const iso = (ms: number) => new Date(NOW + ms).toISOString();
+    watchStore.setState({
+      sweep: status({ nextSweepAt: iso(after.nextSweepAt), resetAt: iso(after.resetAt) }),
+    });
+    const shown = () => ({
+      next: body()?.textContent?.includes("Next sweep"),
+      reset: body()?.textContent?.includes("resets"),
+    });
+    const advance = (ms: number) => act(async () => vi.advanceTimersByTime(ms));
+    const shell = await mountShell();
+    try {
+      await openSweep();
+      expect(shown()).toEqual({ next: true, reset: true });
+      await advance(999);
+      expect(shown()).toEqual({ next: true, reset: true });
+      await advance(1);
+      expect(shown()).toEqual({ next: after.nextSweepAt > 1_000, reset: after.resetAt > 1_000 });
+      await advance(999);
+      expect(shown()).toEqual({ next: after.nextSweepAt > 1_000, reset: after.resetAt > 1_000 });
+      await advance(1);
+      expect(shown()).toEqual({ next: false, reset: false });
+    } finally {
+      await shell.cleanup();
+    }
+  });
+
+  it("keeps the last sweep's failures once the next sweep starts", async () => {
+    watchStore.setState({ progress: null, completed: null });
+    const shell = await mountShell();
+    try {
+      await act(async () =>
+        watchStore.getState().receive({
+          version: PROTOCOL_VERSION,
+          id: "progress-1",
+          kind: "event",
+          type: "sweep.progress",
+          payload: oneFailed(),
+        }),
+      );
+      await openSweep();
+      expect(summary()[1]).toMatch(/ · 1 source failed$/);
+      await act(async () =>
+        watchStore.getState().receive({
+          version: PROTOCOL_VERSION,
+          id: "progress-2",
+          kind: "event",
+          type: "sweep.progress",
+          payload: midSweep({ sweep: "sweep-2", first: false }),
+        }),
+      );
+      expect(watchStore.getState().progress?.sweep).toBe("sweep-2");
+      expect(summary()[1]).toMatch(/ · 1 source failed$/);
+    } finally {
+      await shell.cleanup();
+    }
+  });
+
   it("names a stopped or unfinished last sweep, an unknown or low budget and never an expired reset", async () => {
     watchStore.setState({
       sweep: status({ lastSweep: null, remaining: null, resetAt: at("14:00:00") }),
@@ -844,7 +909,7 @@ describe("the Sweep section", () => {
       expect(budget()).toEqual([
         "42 points left · below the floor",
         "Below 100 points, GitHub reads wait for the reset so sweeps never spend what your own gh use needs.",
-        "Run details: budget floor",
+        "Run details waits for the next sweep · budget floor",
       ]);
       expect(body()?.querySelector(".sweep-budget [role=alert]")?.textContent).toBe(
         "42 points left · below the floor",

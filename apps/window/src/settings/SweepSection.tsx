@@ -48,22 +48,34 @@ function lastRead(envelopes: ReadonlyMap<string, Envelope>, sources: readonly st
     : (times.reduce((oldest, at) => (Date.parse(at) < Date.parse(oldest) ? at : oldest)) ?? null);
 }
 
-/** The wall clock, ticking every 15 s and again the moment a shown future time passes. */
+/** setTimeout's longest delay; a longer one fires at once. */
+const LONGEST_DELAY = 2_147_483_647;
+
+/**
+ * The wall clock, ticking every 15 s and again at each shown future time, so no time stays on
+ * screen as a promise once it has passed.
+ */
 function useClock(deadlines: readonly (string | null | undefined)[]): number {
   const [now, setNow] = useState(() => Date.now());
   const key = deadlines.join("|");
   useEffect(() => {
-    setNow(Date.now());
-    const tick = setInterval(() => setNow(Date.now()), 15_000);
-    const ahead = key
+    const times = key
       .split("|")
-      .map((at) => Date.parse(at) - Date.now())
-      .filter((ms) => ms > 0);
-    const timer =
-      ahead.length > 0 ? setTimeout(() => setNow(Date.now()), Math.min(...ahead) + 50) : undefined;
+      .map((at) => Date.parse(at))
+      .filter(Number.isFinite);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const arm = () => {
+      const current = Date.now();
+      setNow(current);
+      const ahead = times.filter((at) => at > current);
+      if (ahead.length > 0)
+        timer = setTimeout(arm, Math.min(Math.min(...ahead) - current, LONGEST_DELAY));
+    };
+    arm();
+    const tick = setInterval(() => setNow(Date.now()), 15_000);
     return () => {
       clearInterval(tick);
-      if (timer) clearTimeout(timer);
+      clearTimeout(timer);
     };
   }, [key]);
   return now;
@@ -80,6 +92,7 @@ function Clock({ at, now, hint = true }: { at: string; now: number; hint?: boole
 export function SweepSection({ store = watchStore }: { store?: typeof watchStore }) {
   const sweep = useStore(store, (state) => state.sweep);
   const progress = useStore(store, (state) => state.progress);
+  const completed = useStore(store, (state) => state.completed);
   const snapshot = useStore(store, (state) => state.snapshot);
   const now = useClock([sweep?.nextSweepAt, sweep?.resetAt]);
   const last = sweep?.lastSweep ?? null;
@@ -87,13 +100,13 @@ export function SweepSection({ store = watchStore }: { store?: typeof watchStore
     snapshot && sweep?.nextSweepAt && Date.parse(sweep.nextSweepAt) > now
       ? sweep.nextSweepAt
       : null;
+  // The last sweep's own progress: still current, or kept as completed once the next one starts.
+  const ended = last ? [progress, completed].find((entry) => entry?.sweep === last.sweep) : null;
   const failures =
-    last && progress?.sweep === last.sweep
-      ? progress.sources.filter(
-          (source) =>
-            source.state === "failed" || (source.state === "cut" && !!source.incomplete.failed),
-        ).length
-      : 0;
+    ended?.sources.filter(
+      (source) =>
+        source.state === "failed" || (source.state === "cut" && !!source.incomplete.failed),
+    ).length ?? 0;
   const outcome =
     last?.outcome !== "committed"
       ? "stopped"
@@ -186,7 +199,7 @@ export function SweepSection({ store = watchStore }: { store?: typeof watchStore
         </p>
         {sweep?.deferredAreas.map(({ area, reason }) => (
           <p key={area}>
-            {sourceName(area)}: {plain(reason)}
+            {sourceName(area)} waits for the next sweep · {plain(reason)}
           </p>
         ))}
       </div>
