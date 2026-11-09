@@ -405,12 +405,15 @@ export class Gh {
     );
   }
 
-  async status(): Promise<{ ok: boolean; detail: string; scopes?: string[] }> {
+  async status(onSigninFailure?: () => void): Promise<{ ok: boolean; detail: string; scopes?: string[] }> {
     const res = await this.exec.runText("gh", ["auth", "status", "--hostname", "github.com"], {
       timeoutMs: 15_000, acceptNonZeroExit: true,
     });
     if (!res.ok) return { ok: false, detail: res.error };
-    if (res.exitCode !== 0) return { ok: false, detail: "gh is not signed in to github.com" };
+    if (res.exitCode !== 0) {
+      onSigninFailure?.();
+      return { ok: false, detail: "gh is not signed in to github.com" };
+    }
     const scopes = tokenScopes(res.data);
     const user = await this.exec.runText("gh", ["api", "user", "--jq", ".login"], { timeoutMs: 15_000 });
     return { ok: true, detail: user.ok ? `signed in as ${user.data.trim()}` : "signed in", ...(scopes ? { scopes } : {}) };
@@ -447,11 +450,12 @@ export class Glab {
     }
   }
 
-  async status(): Promise<{ ok: boolean; detail: string }> {
+  async status(onSigninFailure?: () => void): Promise<{ ok: boolean; detail: string }> {
     const res = await this.exec.runText("glab", ["auth", "status", "--hostname", GITLAB_HOST], {
       timeoutMs: 15_000, acceptNonZeroExit: true,
     });
     if (!res.ok) return { ok: false, detail: res.error };
+    if (res.exitCode !== 0) onSigninFailure?.();
     return res.exitCode === 0
       ? { ok: true, detail: `signed in to ${GITLAB_HOST}` }
       : { ok: false, detail: `glab is not signed in to ${GITLAB_HOST}` };

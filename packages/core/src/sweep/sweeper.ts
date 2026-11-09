@@ -15,10 +15,13 @@ import { readRecordSchema } from "./record.js";
 export type SweepReads = Partial<Record<AreaName | "persist", readonly ReadRecord[]>>;
 
 export type SweepSource = AreaName | "releases";
+export type SweepReasonCode = "signin" | "budget" | "throttled" | "cadence" | "limit"
+  | "unavailable" | "timeout" | "save" | "other";
 export type SweepReadDecision = boolean | {
   readonly state: "deferred" | "skipped" | "throttled";
   readonly reason: string;
   readonly resumeAt?: string;
+  readonly code?: SweepReasonCode;
 };
 
 export type SweepSourceProgress = {
@@ -30,6 +33,7 @@ export type SweepSourceProgress = {
     readonly state: "read" | "cut" | "deferred" | "skipped" | "throttled" | "failed";
     readonly endedAt: string;
     readonly reason?: string;
+    readonly code?: SweepReasonCode;
     readonly completeness?: ReadCompleteness;
     readonly resumeAt?: string;
     readonly incomplete?: { readonly count: number; readonly total: number };
@@ -41,16 +45,18 @@ export type SweepProgress = SweepSourceProgress | {
   readonly source: SweepSource;
   readonly reason: string;
   readonly resumeAt: string;
+  readonly code: "throttled";
 } | {
   readonly kind: "failed";
   readonly endedAt: string;
   readonly reason: string;
+  readonly code: SweepReasonCode;
 };
 /** Ordered boundaries and live waits; only the caller's snapshot commit confirms success. */
 export type SweepProgressHook = (event: SweepProgress) => void;
 
 export function sweepReadProgress(
-  source: SweepSource, records: readonly ReadRecord[], endedAt: string,
+  source: SweepSource, records: readonly ReadRecord[], endedAt: string, failureCode?: SweepReasonCode,
 ): Exclude<SweepSourceProgress, { state: "reading" }> {
   const { completeness } = envelopeOf(records, { intervalMs: 0, now: Date.parse(endedAt) });
   const failure = records.find((record) => record.failure !== undefined)?.failure;
@@ -60,7 +66,7 @@ export function sweepReadProgress(
     kind: "source", source, endedAt,
     state: failure !== undefined ? "failed" : completeness.kind === "cut" ? "cut" : "read",
     completeness,
-    ...(reason === undefined ? {} : { reason }),
+    ...(reason === undefined ? {} : { reason, code: failure === undefined ? "limit" : failureCode ?? "other" }),
     ...(count === 0 ? {} : { incomplete: { count, total: records.length } }),
   };
 }
@@ -74,8 +80,18 @@ export function sweepFailureProgress(
     ...outcome,
     state: error instanceof ForgeError && error.kind === "throttle" ? "throttled" : "failed",
     reason: errorText(error) || "Unknown error",
+    code: sweepErrorCode(error),
     ...(error instanceof ForgeError && error.resumeAt !== undefined ? { resumeAt: error.resumeAt } : {}),
   };
+}
+
+function sweepErrorCode(error: unknown): SweepReasonCode {
+  if (error instanceof ForgeError) {
+    if (error.kind === "throttle") return "throttled";
+    if (error.kind === "gateway") return "unavailable";
+    if (error.kind === "cut") return "limit";
+  }
+  return "other";
 }
 
 export interface SweepState<C> {
@@ -104,6 +120,7 @@ export type SweepArea<C> = {
     readonly read: (input: SweepInput<C>) => Promise<{
       data: NonNullable<Facts[K]["data"]>;
       reads: readonly ReadRecord[];
+      code?: SweepReasonCode;
     }>;
   };
 }[AreaName];
@@ -152,6 +169,15 @@ export class Sweeper<C> {
   private loading: Promise<void> | undefined;
   private polling: Promise<void> | undefined;
   private sweeps = 0;
+  private terminalCode: SweepReasonCode | undefined;
+  private readonly notify: SweepProgressHook = (event) => {
+    try {
+      this.opts.progress?.(event.kind === "source" && "reason" in event && event.reason !== undefined
+        ? { ...event, code: event.code ?? "other" } : event);
+    } catch {
+      // An observer must not alter collected facts, persistence or the original rejection.
+    }
+  };
 
   constructor(private readonly opts: SweeperOptions<C>) {
     const names = opts.areas.map((area) => area.name);
@@ -169,10 +195,12 @@ export class Sweeper<C> {
   sweep({ force = false }: { force?: boolean } = {}): Promise<void> {
     if (!this.running) {
       this.sweeps++;
+      this.terminalCode = undefined;
       this.running = this.run(force).catch((error: unknown) => {
-        this.opts.progress?.({
+        if (this.opts.progress) this.notify({
           kind: "failed", endedAt: this.clock.now().toISOString(),
           reason: errorText(error) || "Unknown error",
+          code: this.terminalCode ?? sweepErrorCode(error),
         });
         throw error;
       }).finally(() => {
@@ -271,17 +299,18 @@ export class Sweeper<C> {
       const input = {
         ctx: this.context(), exec, clock: this.clock, force,
         facts: structuredClone(this.facts), cache, reads: structuredClone(this.reads),
+        progress: this.opts.progress ? this.notify : undefined,
       };
       const decision = area.shouldRead?.(input) ?? true;
       if (decision !== true) {
         this.cache = this.opts.cacheSchema.parse(cache);
-        this.opts.progress?.({
+        if (this.opts.progress) this.notify({
           kind: "source", source: area.name, endedAt: this.clock.now().toISOString(),
           ...(decision === false ? { state: "skipped" } : decision),
         });
         return true;
       }
-      this.opts.progress?.({
+      if (this.opts.progress) this.notify({
         kind: "source", source: area.name, state: "reading",
         startedAt: this.clock.now().toISOString(),
       });
@@ -298,7 +327,7 @@ export class Sweeper<C> {
         source: area.name, object: area.name, observedAt: at, completeness: { kind: "complete" },
       }];
       this.reads[area.name] = currentRecords;
-      if (this.opts.progress) outcome = sweepReadProgress(area.name, currentRecords, at);
+      if (this.opts.progress) outcome = sweepReadProgress(area.name, currentRecords, at, result.code);
     } catch (error) {
       const at = this.clock.now().toISOString();
       const failure = errorText(error) || "Unknown error";
@@ -322,7 +351,7 @@ export class Sweeper<C> {
       if (this.opts.progress) outcome = sweepFailureProgress(area.name, error, failedRecords, at);
       success = false;
     }
-    if (outcome) this.opts.progress?.(outcome);
+    if (outcome) this.notify(outcome);
     return success;
   }
 
@@ -357,7 +386,7 @@ export class Sweeper<C> {
     await this.opts.afterAreas?.({
       ctx: this.context(), exec, clock: this.clock, force,
       facts: this.facts, cache: this.cache, reads: this.reads,
-      progress: this.opts.progress,
+      progress: this.opts.progress ? this.notify : undefined,
     });
     this.facts.sweep = {
       at: started.toISOString(),
@@ -374,6 +403,7 @@ export class Sweeper<C> {
       if (this.reads.persist === previousPersistFailure) delete this.reads.persist;
     } catch (error) {
       this.failure("save", error);
+      this.terminalCode = "save";
       throw error;
     }
   }

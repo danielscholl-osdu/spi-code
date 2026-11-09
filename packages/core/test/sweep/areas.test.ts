@@ -211,6 +211,99 @@ test("multi-area exec replay accounts for ledger, release, pin and retried Graph
   expect(progress.length).toBeGreaterThan(0);
 });
 
+test.each(["read", "deferred", "throttled"] as const)(
+  "a factory hook throwing on every event cannot change a %s sweep",
+  async (outcome) => {
+    const run = async (progress?: (event: SweepProgress) => void) => {
+      const h = harness("owner/partition", outcome === "deferred" ? 50 : 4000);
+      if (outcome === "throttled")
+        h.setRoute((cmd, args) =>
+          cmd === "gh" && args.some((arg) => arg.startsWith("query="))
+            ? {
+                stdout: JSON.stringify({ message: "Retry after 600 seconds." }),
+                stderr: "gh: HTTP 429\n",
+                exit: 1,
+              }
+            : undefined,
+        );
+      let saved: unknown;
+      const sweeper = createSweeper({
+        ...h.options,
+        progress,
+        persist: {
+          ...h.options.persist,
+          save: async (state) => {
+            saved = structuredClone(state);
+            await h.options.persist.save(state);
+          },
+        },
+      });
+      const first = await sweeper.sweep();
+      h.advance(1);
+      const second = await sweeper.sweep();
+      return {
+        results: [first, second],
+        facts: sweeper.facts,
+        cache: sweeper.cache,
+        reads: sweeper.reads,
+        model: sweeper.model,
+        saved,
+      };
+    };
+    const baseline = await run();
+    const events: SweepProgress[] = [];
+    expect(
+      await run((event) => {
+        events.push(event);
+        throw new Error("observer failed");
+      }),
+    ).toEqual(baseline);
+    expect(events).toContainEqual(
+      expect.objectContaining({ kind: "source", source: "releases", state: outcome }),
+    );
+    if (outcome === "read")
+      expect(events).toContainEqual(expect.objectContaining({ state: "skipped" }));
+    if (outcome === "throttled")
+      expect(events).toContainEqual(expect.objectContaining({ kind: "throttle" }));
+  },
+);
+
+test.each(["gh", "glab"] as const)(
+  "the factory identifies %s sign-in failures from status, not text",
+  async (tool) => {
+    const h = harness();
+    h.setRoute((cmd, args) =>
+      cmd === tool && args[0] === "auth"
+        ? { stdout: "opaque status", stderr: "opaque status", exit: 1 }
+        : undefined,
+    );
+    const events: SweepProgress[] = [];
+    const sweeper = createSweeper({ ...h.options, progress: (event) => events.push(event) });
+    await sweeper.sweep();
+    expect(
+      events.find(
+        (event) => event.kind === "source" && event.source === "auth" && event.state === "failed",
+      ),
+    ).toMatchObject({ code: "signin", reason: sweeper.facts.auth.data?.[tool].detail });
+  },
+);
+
+test("an unclassified auth transport failure reports other instead of guessing signin", async () => {
+  const h = harness();
+  h.setRoute((cmd, args) =>
+    cmd === "gh" && args[0] === "auth"
+      ? { stdout: "", stderr: "", exit: null, error: "sign in or retry after a timeout" }
+      : undefined,
+  );
+  const events: SweepProgress[] = [];
+  await createSweeper({ ...h.options, progress: (event) => events.push(event) }).sweep();
+  expect(
+    events.find(
+      (event) => event.kind === "source" && event.source === "auth" && event.state === "failed",
+    ),
+  ).toMatchObject({ code: "other", reason: "sign in or retry after a timeout" });
+});
+
 test("the collector reports releases in sweep order, including cadence skips and failed reads", async () => {
   const h = harness();
   const calls: SweepProgress[] = [];
@@ -253,6 +346,7 @@ test("the collector reports releases in sweep order, including cadence skips and
       state: "skipped",
       endedAt: START,
       reason: "not due",
+      code: "cadence",
     })),
   );
   h.setRoute((cmd, args) =>
@@ -270,6 +364,7 @@ test("the collector reports releases in sweep order, including cadence skips and
       state: "failed",
       endedAt: START,
       reason: sweeper.cache.releases.records.find((record) => record.failure)?.failure,
+      code: "other",
       completeness: { kind: "complete" },
     },
   ]);
@@ -292,6 +387,7 @@ test("the collector reports releases in sweep order, including cadence skips and
       state: "throttled",
       endedAt: START,
       reason: sweeper.cache.releases.records.find((record) => record.failure)?.failure,
+      code: "throttled",
       completeness: { kind: "complete" },
       resumeAt: "2026-10-14T00:10:00.000Z",
     },
@@ -299,7 +395,7 @@ test("the collector reports releases in sweep order, including cadence skips and
 });
 
 test.each(["fleet", "releases"] as const)(
-  "the factory reports %s's live throttle before its reservation wait completes",
+  "the factory reports %s's live throttle before its wait completes even if the hook throws",
   async (source) => {
     const h = harness();
     const calls: SweepProgress[] = [];
@@ -333,7 +429,14 @@ test.each(["fleet", "releases"] as const)(
       await waiting;
       h.advance(ms);
     });
-    const sweeper = createSweeper({ ...h.options, budget, progress: (event) => calls.push(event) });
+    const sweeper = createSweeper({
+      ...h.options,
+      budget,
+      progress: (event) => {
+        calls.push(event);
+        throw new Error("observer failed");
+      },
+    });
     const pending = sweeper.sweep();
     await sleeping;
     try {
@@ -341,6 +444,7 @@ test.each(["fleet", "releases"] as const)(
         {
           kind: "throttle",
           source,
+          code: "throttled",
           reason: "Retry after 30 seconds.",
           resumeAt: "2026-10-14T00:00:30.000Z",
         },
@@ -380,6 +484,7 @@ test("low and unknown budgets defer optional work with reasons while core reads 
       state: "deferred",
       endedAt: START,
       reason: "insufficient budget",
+      code: "budget",
       resumeAt: "2099-01-01T00:00:00Z",
     })),
   );
@@ -404,6 +509,7 @@ test("low and unknown budgets defer optional work with reasons while core reads 
       state: "deferred",
       endedAt: START,
       reason: "budget unknown",
+      code: "budget",
     })),
   );
   expect(cold.facts.github.error).toContain("gh");
@@ -1012,6 +1118,7 @@ test("a GitHub throttle longer than the sweep may wait defers the remaining Grap
       state: "throttled",
       endedAt: START,
       reason: source === "fleet" ? sweeper.facts.fleet.error : reason,
+      code: "throttled",
       ...(source === "fleet" ? { completeness: { kind: "complete" } } : {}),
       resumeAt: "2026-10-14T00:10:00.000Z",
     })),

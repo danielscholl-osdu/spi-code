@@ -182,6 +182,7 @@ describe("Sweeper shell", () => {
             cache.entries.push("deferred");
             return {
               state: "deferred",
+              code: "budget",
               reason: "insufficient budget",
               resumeAt: "2026-11-05T08:00:00.000Z",
             };
@@ -201,6 +202,7 @@ describe("Sweeper shell", () => {
           name: "radar",
           shouldRead: () => ({
             state: "throttled",
+            code: "throttled",
             reason: "GitHub throttled GraphQL until 07:10",
             resumeAt: "2026-11-05T07:10:00.000Z",
           }),
@@ -256,6 +258,7 @@ describe("Sweeper shell", () => {
         state: "cut",
         endedAt: "2026-11-05T07:02:00.000Z",
         reason: "2 reads cut in gh, other: page limit; size limit",
+        code: "limit",
         completeness: {
           kind: "cut",
           reason: "2 reads cut in gh, other: page limit; size limit",
@@ -269,6 +272,7 @@ describe("Sweeper shell", () => {
         source: "details",
         state: "deferred",
         endedAt: "2026-11-05T07:02:00.000Z",
+        code: "budget",
         reason: "insufficient budget",
         resumeAt: "2026-11-05T08:00:00.000Z",
       },
@@ -278,6 +282,7 @@ describe("Sweeper shell", () => {
         source: "radar",
         state: "throttled",
         endedAt: "2026-11-05T07:02:00.000Z",
+        code: "throttled",
         reason: "GitHub throttled GraphQL until 07:10",
         resumeAt: "2026-11-05T07:10:00.000Z",
       },
@@ -292,6 +297,7 @@ describe("Sweeper shell", () => {
         source: "security",
         state: "throttled",
         endedAt: "2026-11-05T07:03:00.000Z",
+        code: "throttled",
         reason: "GitHub throttled the query",
         resumeAt: "2026-11-05T07:09:00.000Z",
         completeness: { kind: "complete" },
@@ -302,6 +308,7 @@ describe("Sweeper shell", () => {
         source: "fleet",
         state: "failed",
         endedAt: "2026-11-05T07:04:00.000Z",
+        code: "other",
         reason: "fleet unavailable",
         completeness: { kind: "complete" },
       },
@@ -351,6 +358,7 @@ describe("Sweeper shell", () => {
         state: "failed",
         endedAt: "2026-11-05T07:00:00.000Z",
         reason: "one repo failed",
+        code: "other",
         completeness: { kind: "cut", reason: "page limit", read: 1, total: 2 },
         incomplete: { count: 1, total: 1 },
       },
@@ -378,6 +386,20 @@ describe("Sweeper shell", () => {
         ...(stage === "replay" ? { replay: async () => fail() } : {}),
       });
       await expect(sweeper.sweep()).rejects.toBe(failure);
+      const throwingHook = new Sweeper({
+        ...h.options,
+        areas: [github()],
+        progress: () => {
+          throw new Error("observer failed");
+        },
+        ...(stage === "beforeSweep" ? { beforeSweep: fail } : {}),
+        ...(stage === "afterAreas" ? { afterAreas: async () => fail() } : {}),
+        ...(stage === "save"
+          ? { persist: { ...h.options.persist, save: async () => fail() } }
+          : {}),
+        ...(stage === "replay" ? { replay: async () => fail() } : {}),
+      });
+      await expect(throwingHook.sweep()).rejects.toBe(failure);
       expect(calls).toEqual([
         ...(stage === "afterAreas" || stage === "save"
           ? [
@@ -393,18 +415,24 @@ describe("Sweeper shell", () => {
                 state: "cut",
                 endedAt: "2026-11-05T07:00:00.000Z",
                 reason: "page limit",
+                code: "limit",
                 completeness: { kind: "cut", reason: "page limit", read: 1, total: 2 },
                 incomplete: { count: 1, total: 1 },
               },
             ]
           : []),
-        { kind: "failed", endedAt: "2026-11-05T07:00:00.000Z", reason: `${stage} unavailable` },
+        {
+          kind: "failed",
+          endedAt: "2026-11-05T07:00:00.000Z",
+          reason: `${stage} unavailable`,
+          code: stage === "save" ? "save" : "other",
+        },
       ]);
       expect(sweeper.sweeping).toBe(false);
     },
   );
 
-  it("returns and persists identical results with and without the hook", async () => {
+  it("returns and persists identical results with absent, recording and throwing hooks", async () => {
     const run = async (progress?: (event: SweepProgress) => void) => {
       const h = harness();
       const records: ReadRecord[] = [];
@@ -418,9 +446,29 @@ describe("Sweeper shell", () => {
               throw new Error("offline");
             },
           },
+          {
+            name: "upstream",
+            shouldRead: () => false,
+            read: async () => {
+              throw new Error("must not read");
+            },
+          },
+          {
+            name: "details",
+            shouldRead: () => ({ state: "deferred", reason: "budget unknown" }),
+            read: async () => {
+              throw new Error("must not read");
+            },
+          },
         ],
         progress,
-        afterAreas: async ({ clock, exec: port }) => {
+        afterAreas: async ({ clock, exec: port, progress }) => {
+          progress?.({
+            kind: "source",
+            source: "releases",
+            state: "reading",
+            startedAt: clock.now().toISOString(),
+          });
           await port.runText("fixture", []);
           records.push({
             source: "releases",
@@ -429,6 +477,7 @@ describe("Sweeper shell", () => {
             completeness: { kind: "complete" },
           });
           h.advance();
+          progress?.(sweepReadProgress("releases", records, clock.now().toISOString()));
         },
       });
       const result = await sweeper.sweep({ force: true });
@@ -444,9 +493,49 @@ describe("Sweeper shell", () => {
       };
     };
     const calls: SweepProgress[] = [];
-    expect(await run()).toEqual(await run((event) => calls.push(event)));
-    expect(calls).toHaveLength(4);
+    const baseline = await run();
+    expect(baseline).toEqual(await run((event) => calls.push(event)));
+    expect(calls).toHaveLength(8);
+    const throwing: SweepProgress[] = [];
+    expect(baseline).toEqual(
+      await run((event) => {
+        throwing.push(event);
+        throw new Error("observer failed");
+      }),
+    );
+    expect(throwing).toEqual(calls);
   });
+
+  it.each([
+    { error: new ForgeError("opaque gateway reply", null, "gateway"), code: "unavailable" },
+    { error: new ForgeError("opaque cut reply", null, "cut"), code: "limit" },
+    { error: new Error("sign in or retry after a timeout"), code: "other" },
+  ])(
+    "uses $code for a typed failure without inferring it from display text",
+    async ({ error, code }) => {
+      const h = harness();
+      const calls: SweepProgress[] = [];
+      await new Sweeper({
+        ...h.options,
+        areas: [
+          {
+            name: "fleet",
+            read: async () => {
+              throw error;
+            },
+          },
+        ],
+        progress: (event) => calls.push(event),
+      }).sweep();
+      expect(calls.at(-1)).toMatchObject({
+        kind: "source",
+        source: "fleet",
+        state: "failed",
+        code,
+        reason: error.message,
+      });
+    },
+  );
 
   it("awaits areas in order, forwards ports and force, prunes, persists and rebuilds", async () => {
     const h = harness();

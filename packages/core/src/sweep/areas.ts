@@ -27,6 +27,7 @@ import {
   type SweepArea, type SweepInput, type SweepPersist, Sweeper, type SweepState,
   type SweepProgressHook, type SweepReadDecision, sweepFailureProgress, sweepReadProgress,
   type SweepSource,
+  type SweepReasonCode,
 } from "./sweeper.js";
 
 export interface CollectorOptions {
@@ -59,10 +60,11 @@ function retain<T>(data: Record<string, T>, previous: Record<string, T> | undefi
 
 export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache> {
   let readingSource: SweepSource | undefined;
+  let notify: SweepProgressHook | undefined;
   const account = (options.budget ?? new GraphqlBudget(options.ctx.clock)).scope(
     options.progress ? (event) => {
       if (readingSource !== undefined)
-        options.progress?.({ kind: "throttle", source: readingSource, ...event });
+        notify?.({ kind: "throttle", source: readingSource, code: "throttled", ...event });
     } : undefined,
   );
   const pacer = options.pacer ?? new BudgetPacer({ floor: 100, resetBudget: 5000 });
@@ -81,16 +83,17 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
   }
   // A GraphQL area whose throttle hold outlasts what this sweep may still wait is deferred
   // rather than read, so the sweep ends inside its interval and says why it skipped.
-  function throttledReason(): { reason: string; resumeAt: string } | undefined {
+  function throttledReason(): { code: "throttled"; reason: string; resumeAt: string } | undefined {
     const held = account.throttled();
     return held && {
-      reason: `GitHub throttled GraphQL until ${held.until} (${held.reason})`, resumeAt: held.until,
+      code: "throttled", reason: `GitHub throttled GraphQL until ${held.until} (${held.reason})`, resumeAt: held.until,
     };
   }
   function area<K extends AreaName>(
     name: K, core: boolean, estimate: number, interval: number,
     read: (input: Input, gh: Gh, glab: Glab) => Promise<{
       data: NonNullable<Facts[K]["data"]>; reads: readonly ReadRecord[];
+      code?: SweepReasonCode;
     }>,
   ) {
     // The discriminated union is preserved at the table boundary.
@@ -99,10 +102,10 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
       shouldRead: (input: Input): SweepReadDecision => {
         const { cache, facts, force, clock } = input;
         if (name === "upstream" && facts.upstream.data && !upstreamForks(input).length)
-          return { state: "skipped", reason: "not due" };
+          return { state: "skipped", code: "cadence", reason: "not due" };
         if (name !== "upstream" && interval && facts[name].data && !(name === "radar" && upstreamChanged) &&
           !due(facts[name].at, interval, clock.now(), force))
-          return { state: "skipped", reason: "not due" };
+          return { state: "skipped", code: "cadence", reason: "not due" };
         const throttled = estimate > 0 && throttledReason();
         if (throttled) {
           cache.budget.deferred.push({ area: name, reason: throttled.reason });
@@ -118,7 +121,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
           const reason = decision?.reason ?? "budget unknown";
           cache.budget.deferred.push({ area: name, reason });
           return {
-            state: "deferred", reason,
+            state: "deferred", code: "budget", reason,
             ...(decision?.kind === "wait-until-reset" ? { resumeAt: decision.until } : {}),
           };
         }
@@ -127,6 +130,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
       read: async (input: Input) => {
         const { cache } = input;
         readingSource = name;
+        notify = input.progress;
         const before = account.snapshot();
         try {
           const result = await read(input, new Gh(input.exec, undefined, account), new Glab(input.exec));
@@ -139,6 +143,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
           return result;
         } finally {
           readingSource = undefined;
+          notify = undefined;
           const cost = account.snapshot().spent - before.spent;
           cache.history = [...cache.history.filter((h) => h.area !== name), { area: name, cost }];
         }
@@ -147,8 +152,10 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
     areas.push(entry as SweepArea<CollectorCache>);
   }
   area("auth", true, 0, 0, async ({ clock }, gh, glab) => {
-    const data = { gh: await gh.status(), glab: await glab.status() };
-    return { data, reads: Object.entries(data).map(([source, result]) => ({
+    let code: SweepReasonCode = "other";
+    const signin = () => { code = "signin"; };
+    const data = { gh: await gh.status(signin), glab: await glab.status(signin) };
+    return { data, code, reads: Object.entries(data).map(([source, result]) => ({
       source, object: "auth", observedAt: clock.now().toISOString(), completeness: { kind: "complete" as const },
       ...(!result.ok ? { failure: result.detail } : {}),
     })) };
@@ -336,6 +343,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
             kind: "source", source: "releases", state: "reading", startedAt: clock.now().toISOString(),
           });
           readingSource = "releases";
+          notify = progress;
           try {
             await reader.read({ force });
           } catch (error) {
@@ -343,13 +351,14 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
             throw error;
           } finally {
             readingSource = undefined;
+            notify = undefined;
           }
           if (progress) {
             const outcome = sweepReadProgress("releases", reader.records, clock.now().toISOString());
             const held = throttledReason();
             progress({
               ...outcome,
-              ...(outcome.state === "failed" && held ? { state: "throttled", resumeAt: held.resumeAt } : {}),
+              ...(outcome.state === "failed" && held ? { state: "throttled", code: "throttled", resumeAt: held.resumeAt } : {}),
             });
           }
           cache.history = [...cache.history.filter((h) => h.area !== "releases"),
@@ -359,14 +368,14 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
           cache.budget.deferred.push({ area: "releases", reason });
           progress?.({
             kind: "source", source: "releases", state: "deferred",
-            endedAt: clock.now().toISOString(), reason,
+            endedAt: clock.now().toISOString(), code: "budget", reason,
             ...(decision?.kind === "wait-until-reset" ? { resumeAt: decision.until } : {}),
           });
         }
       } else {
         progress?.({
           kind: "source", source: "releases", state: "skipped",
-          endedAt: clock.now().toISOString(), reason: "not due",
+          endedAt: clock.now().toISOString(), code: "cadence", reason: "not due",
         });
       }
       const snapshot = account.snapshot();
