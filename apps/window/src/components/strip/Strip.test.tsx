@@ -521,51 +521,62 @@ it("carries the first sweep's count and scrolls the list into view", async () =>
     expect(scrolled).toEqual([container.querySelector(".today-first .sweep-sources")]);
     expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).toBeNull();
     await receive("sweep.progress", { ...midSweep(), outcome: "cancelled" });
-    expect(display()).toBe("waiting for the first sweep");
+    expect(display()).toBe("first sweep stopped");
   } finally {
     Element.prototype.scrollIntoView = scrollIntoView;
   }
 });
 
-it("names a stopped first sweep in the failed tone, reveals its panel, and resumes on retry", async () => {
-  const scrolled: Element[] = [];
-  vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(function (this: Element) {
-    scrolled.push(this);
-  });
-  vi.stubGlobal("requestAnimationFrame", (step: FrameRequestCallback) =>
-    setTimeout(() => step(0), 0),
-  );
-  window.location.hash = "#security";
-  watchStore.setState({ snapshot: null, setup: null });
-  await mount();
-  await receive("sweep.progress", {
-    ...midSweep(),
-    outcome: "failed",
-    code: "timeout",
-    failure: "GitHub did not answer in time.",
-    source: "radar",
-    nextAttemptAt: null,
-  });
-  expect(display()).toBe("first sweep stopped");
-  expect(glyphName()).toBe("first sweep stopped");
-  expect(glyph()?.title).toBe("first sweep stopped");
-  expect(glyph()?.dataset.tone).toBe("bad");
-  expect(glyph()?.querySelector(".evidence-dot")?.getAttribute("data-tone")).toBe("bad");
-  await act(async () => glyph()?.click());
-  await act(() => new Promise((done) => setTimeout(done, 20)));
-  expect(window.location.hash).toBe("#today");
-  expect(scrolled).toEqual([container.querySelector(".today-first")]);
-  expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).toBeNull();
-  const retry = container.querySelector<HTMLButtonElement>(".today-first-actions button");
-  expect(retry?.textContent).toBe("Try again");
-  await act(async () => retry?.click());
-  expect(window.spi.postMessage).toHaveBeenCalledWith(
-    expect.objectContaining({ type: "sweep.request", payload: {} }),
-  );
-  await receive("sweep.progress", midSweep({ sweep: "sweep-2" }));
-  expect(display()).toBe("sweeping · 9 of 12");
-  expect(glyph()?.dataset.tone).toBe("run");
-});
+it.each(["failed", "cancelled"] as const)(
+  "names a %s first sweep as stopped, reveals its panel, and resumes on retry",
+  async (outcome) => {
+    const scrolled: Element[] = [];
+    vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(function (this: Element) {
+      scrolled.push(this);
+    });
+    vi.stubGlobal("requestAnimationFrame", (step: FrameRequestCallback) =>
+      setTimeout(() => step(0), 0),
+    );
+    window.location.hash = "#security";
+    watchStore.setState({ snapshot: null, setup: null });
+    await mount();
+    await receive(
+      "sweep.progress",
+      outcome === "cancelled"
+        ? {
+            ...midSweep(),
+            outcome,
+          }
+        : {
+            ...midSweep(),
+            outcome: "failed",
+            code: "timeout",
+            failure: "GitHub did not answer in time.",
+            source: "radar",
+            nextAttemptAt: null,
+          },
+    );
+    expect(display()).toBe("first sweep stopped");
+    expect(glyphName()).toBe("first sweep stopped");
+    expect(glyph()?.title).toBe("first sweep stopped");
+    expect(glyph()?.dataset.tone).toBe("bad");
+    expect(glyph()?.querySelector(".evidence-dot")?.getAttribute("data-tone")).toBe("bad");
+    await act(async () => glyph()?.click());
+    await act(() => new Promise((done) => setTimeout(done, 20)));
+    expect(window.location.hash).toBe("#today");
+    expect(scrolled).toEqual([container.querySelector(".today-first")]);
+    expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).toBeNull();
+    const retry = container.querySelector<HTMLButtonElement>(".today-first-actions button");
+    expect(retry?.textContent).toBe("Try again");
+    await act(async () => retry?.click());
+    expect(window.spi.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "sweep.request", payload: {} }),
+    );
+    await receive("sweep.progress", midSweep({ sweep: "sweep-2" }));
+    expect(display()).toBe("sweeping · 9 of 12");
+    expect(glyph()?.dataset.tone).toBe("run");
+  },
+);
 
 it("keeps the sweep time over an older snapshot while a later sweep runs and opens its live list", async () => {
   const body = fixture();
@@ -600,6 +611,7 @@ it("keeps the sweep time over an older snapshot while a later sweep runs and ope
 });
 
 it("shows a newer sweep that stopped over the last completed list, with its reason and retry", async () => {
+  vi.spyOn(Date, "now").mockReturnValue(Date.parse(after(130)));
   await mount();
   const done = midSweep({ first: false, sweep: "sweep-2" });
   await receive("sweep.progress", {

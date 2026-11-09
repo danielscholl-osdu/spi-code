@@ -19,6 +19,7 @@ import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { clockTime } from "../../time.js";
 import { applyContainerRules } from "../sweep/container-rules.test-helper.js";
+import { midSweep } from "../sweep/test-helper.js";
 import { EnvelopeBadge } from "./EnvelopeBadge.js";
 import { SelectionEvidence, SelectionEvidenceChip, SweepEvidence } from "./EvidenceTab.js";
 import { expectEvidenceMarks, expectNoEvidenceMarks } from "./marks.test-helper.js";
@@ -482,6 +483,124 @@ const committed = () =>
     ),
   });
 const NAMES = [...AREAS.map((area) => AREA_NAMES[area]), "Release lines"];
+
+it.each(["signin", "timeout", "save", "cancelled"] as const)(
+  "shows a stopped first sweep without a snapshot in Evidence: %s",
+  async (code) => {
+    const retryAt = new Date(now + 5 * 60_000).toISOString();
+    const progress = SweepProgressSchema.parse({
+      ...midSweep(),
+      sources: [{ source: "runs", state: "reading", startedAt: minutes(1) }],
+      ...(code === "cancelled"
+        ? { outcome: "cancelled" }
+        : {
+            outcome: "failed",
+            code,
+            failure: "The read stopped.",
+            ...(code === "save" ? {} : { source: "runs" }),
+            nextAttemptAt: retryAt,
+          }),
+    });
+    const onRequestSweep = vi.fn();
+    const onOpenSettings = vi.fn();
+    const view = await render(
+      <SweepEvidence
+        snapshot={null}
+        sweep={{
+          remaining: null,
+          resetAt: null,
+          deferredAreas: [],
+          nextSweepAt: retryAt,
+          schedule: sweepSchedule,
+          lastSweep: null,
+        }}
+        progress={progress}
+        onRequestSweep={onRequestSweep}
+        onOpenSettings={onOpenSettings}
+        now={now}
+      />,
+    );
+    try {
+      expect(view.container.querySelector("h2")?.textContent).toBe("The first sweep stopped.");
+      const reason = view.container.querySelector(".today-first-sub");
+      expect(reason?.textContent).toContain(
+        code === "cancelled" ? "The sweep was cancelled." : "The read stopped.",
+      );
+      expect(reason?.querySelector("time")?.dateTime).toBe(retryAt);
+      expect(view.container.textContent).not.toContain("Waiting for the first sweep");
+      expect(view.container.querySelectorAll(".sweep-row")).toHaveLength(1);
+      const actions = [
+        ...view.container.querySelectorAll<HTMLButtonElement>(".today-first-actions button"),
+      ];
+      expect(actions.map((action) => action.textContent)).toEqual(
+        code === "signin" ? ["Try again", "Open Settings"] : ["Try again"],
+      );
+      await act(async () => actions[0]?.click());
+      expect(onRequestSweep).toHaveBeenCalledOnce();
+      if (code === "signin") {
+        await act(async () => actions[1]?.click());
+        expect(onOpenSettings).toHaveBeenCalledOnce();
+      }
+    } finally {
+      await view.cleanup();
+    }
+  },
+);
+
+it.each(["failed", "cancelled"] as const)(
+  "never promises an expired next attempt for a %s first sweep in Evidence",
+  async (outcome) => {
+    const progress = SweepProgressSchema.parse({
+      ...midSweep(),
+      sources: [],
+      outcome,
+      ...(outcome === "failed"
+        ? { code: "timeout", failure: "GitHub did not answer in time.", nextAttemptAt: minutes(1) }
+        : {}),
+    });
+    const view = await render(
+      <SweepEvidence
+        snapshot={null}
+        sweep={{
+          remaining: null,
+          resetAt: null,
+          deferredAreas: [],
+          nextSweepAt: minutes(1),
+          schedule: sweepSchedule,
+          lastSweep: null,
+        }}
+        progress={progress}
+        now={now}
+      />,
+    );
+    try {
+      expect(view.container.querySelector("h2")?.textContent).toBe("The first sweep stopped.");
+      expect(view.container.querySelector(".today-first-sub time")).toBeNull();
+      expect(view.container.querySelector(".today-first-sub")?.textContent).not.toContain(
+        "tries again at",
+      );
+    } finally {
+      await view.cleanup();
+    }
+  },
+);
+
+it("shows a new first sweep's live progress in Evidence before any snapshot", async () => {
+  const view = await render(
+    <SweepEvidence snapshot={null} sweep={null} progress={midSweep()} now={now} />,
+  );
+  try {
+    expect(view.container.querySelector("h2")?.textContent).toBe(
+      "First sweep is reading the program.",
+    );
+    expect(view.container.querySelectorAll(".sweep-row")).toHaveLength(12);
+    expect(view.container.querySelector(".sweep-meta")).not.toBeNull();
+    expect(view.container.querySelector(".today-first-actions")).toBeNull();
+    expect(view.container.textContent).not.toContain("Waiting for the first sweep");
+  } finally {
+    await view.cleanup();
+  }
+});
 
 it.each([true, false])(
   "keeps last-read hours inseparable in 360 px Evidence with a retained list: %s",

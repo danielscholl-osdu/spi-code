@@ -7,6 +7,7 @@ import { createRoot } from "react-dom/client";
 import { beforeEach, expect, it, vi } from "vitest";
 import briefing from "../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import releases from "../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
+import { after, midSweep, SWEEP_START, sweepStatus } from "../components/sweep/test-helper.js";
 import { selectionStore } from "../panels/selection.js";
 import { PINS_STORAGE_KEY } from "../store/pins.js";
 import { testSnapshot } from "../store/test-snapshot.js";
@@ -66,6 +67,56 @@ beforeEach(() => {
     evidenceScope: "selection",
   });
 });
+
+it.each(["failed", "cancelled"] as const)(
+  "opens the right panel with nothing selected onto the same %s first-sweep panel as Today",
+  async (outcome) => {
+    vi.useFakeTimers({ now: SWEEP_START + 130_000, toFake: ["Date"] });
+    const previous = watchStore.getState();
+    watchStore.setState({
+      snapshot: null,
+      setup: null,
+      progress:
+        outcome === "cancelled"
+          ? midSweep({ outcome })
+          : {
+              ...midSweep(),
+              outcome,
+              code: "timeout",
+              failure: "GitHub did not answer in time.",
+              source: "runs",
+              nextAttemptAt: after(420),
+            },
+      sweep: sweepStatus({ nextSweepAt: after(420) }),
+    });
+    selectionStore.getState().setOpen(false);
+    const shell = await mountShell();
+    try {
+      expect(selectionStore.getState().selected).toBeNull();
+      expect(shell.container.querySelector("#app-right-panel")).toBeNull();
+      await act(async () =>
+        shell.container
+          .querySelector<HTMLButtonElement>('[aria-label="Toggle right panel"]')
+          ?.click(),
+      );
+      const today = shell.container.querySelector("main .today-first");
+      const evidence = shell.container.querySelector('#app-right-panel [data-evidence="sweep"]');
+      expect(evidence?.querySelector(".today-first")?.outerHTML).toBe(today?.outerHTML);
+      expect(evidence?.querySelector("h2")?.textContent).toBe("The first sweep stopped.");
+      expect(evidence?.textContent).not.toContain("Waiting for the first sweep");
+      await act(async () =>
+        evidence?.querySelector<HTMLButtonElement>(".today-first-actions button")?.click(),
+      );
+      expect(shell.spi.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "sweep.request", payload: {} }),
+      );
+    } finally {
+      await shell.cleanup();
+      watchStore.setState(previous, true);
+      vi.useRealTimers();
+    }
+  },
+);
 
 it("re-decides the pane presentations and widths through all eight drawn cases", async () => {
   const shell = await mountShell();

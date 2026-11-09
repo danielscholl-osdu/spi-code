@@ -10,9 +10,8 @@ import { sectionSources } from "../../components/evidence/SectionEvidence.js";
 import { useNow } from "../../components/evidence/useNow.js";
 import { byWorst } from "../../components/evidence/words.js";
 import { Place } from "../../components/place/Place.js";
-import { SweepSources } from "../../components/sweep/SweepSources.js";
-import { SweepStopped } from "../../components/sweep/SweepStopped.js";
-import { about, failedCount, readinessCanFix, settled } from "../../components/sweep/words.js";
+import { FirstSweepBody } from "../../components/sweep/FirstSweepBody.js";
+import { failedCount, settled } from "../../components/sweep/words.js";
 import { openReadiness } from "../../settings/readiness.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
@@ -67,7 +66,6 @@ function tiles(facts: ViewSnapshot["briefing"]["facts"]): Content["tiles"] | und
   ];
 }
 
-const SWEEP_UNSENT = "Could not send the request to SPI Code.";
 const HAND_OVER_MS = 150;
 
 function reducedMotion(): boolean {
@@ -76,79 +74,24 @@ function reducedMotion(): boolean {
 
 function stage(progress: SweepProgress | null): string {
   if (!progress) return "";
-  if (progress.outcome === "failed") return "The first sweep stopped.";
+  if (progress.outcome === "failed" || progress.outcome === "cancelled")
+    return "The first sweep stopped.";
   const failures = failedCount(progress);
   return `${settled(progress)} of ${progress.sources.length} sources done${failures > 0 ? `, ${failures} failed` : ""}.`;
 }
 
-function FirstSweepBody({
-  progress,
-  now,
-  onOpenSettings,
-  onRetry,
-  error,
-}: {
-  progress: SweepProgress | null;
-  now: number;
-  onOpenSettings: () => void;
-  onRetry?: () => void;
-  error?: string | undefined;
-}) {
-  if (progress?.outcome === "failed") {
-    return (
-      <div className="today-first">
-        <h2 className="today-first-lead">The first sweep stopped.</h2>
-        <p className="today-first-sub">
-          <SweepStopped progress={progress} now={now} />
-        </p>
-        <div className="today-first-actions">
-          <button type="button" onClick={onRetry}>
-            Try again
-          </button>
-          {readinessCanFix(progress.code) && (
-            <button type="button" onClick={onOpenSettings}>
-              Open Settings
-            </button>
-          )}
-        </div>
-        {error && <p role="alert">{error}</p>}
-        <SweepSources progress={progress} now={now} meta={false} onOpenSettings={onOpenSettings} />
-      </div>
-    );
-  }
-  return (
-    <div className="today-first">
-      <h2 className="today-first-lead">First sweep is reading the program.</h2>
-      <p className="today-first-sub">
-        {progress?.usualMs
-          ? `Usually about ${about(progress.usualMs)}.`
-          : "A first sweep takes a few minutes. Today opens here when it's done."}
-      </p>
-      {progress && <SweepSources progress={progress} now={now} onOpenSettings={onOpenSettings} />}
-      <p className="today-first-foot">
-        You can close this window. SPI Code tells you when Today is ready.
-      </p>
-    </div>
-  );
-}
-
 function FirstSweep({
   progress,
+  nextSweepAt,
   onOpenSettings,
   onRequestSweep,
 }: {
   progress: SweepProgress | null;
+  nextSweepAt: string | null | undefined;
   onOpenSettings: () => void;
   onRequestSweep: () => void | Promise<void>;
 }) {
   const now = useNow(progress?.outcome === "running" ? 1000 : 30_000);
-  const [error, setError] = useState<string>();
-  const retry = () => {
-    setError(undefined);
-    Promise.resolve()
-      .then(onRequestSweep)
-      .catch(() => setError(SWEEP_UNSENT));
-  };
   return (
     <section className="today" aria-label="Today">
       <header className="place-header pane-header">
@@ -157,9 +100,9 @@ function FirstSweep({
       <FirstSweepBody
         progress={progress}
         now={now}
+        nextSweepAt={nextSweepAt}
         onOpenSettings={onOpenSettings}
-        onRetry={retry}
-        error={error}
+        onRequestSweep={onRequestSweep}
       />
       <p className="visually-hidden" role="status">
         {stage(progress)}
@@ -201,6 +144,7 @@ export default function Today({
 }) {
   const snapshot = useStore(store, (state) => state.snapshot);
   const progress = useStore(store, (state) => state.progress);
+  const nextSweepAt = useStore(store, (state) => state.sweep?.nextSweepAt);
   const requestSweep = useStore(store, (state) => state.requestSweep);
   const selectedId = useStore(store, (state) => state.selection?.id);
   const select = useStore(store, (state) => state.select);
@@ -210,6 +154,7 @@ export default function Today({
     return (
       <FirstSweep
         progress={progress}
+        nextSweepAt={nextSweepAt}
         onOpenSettings={onOpenSettings}
         onRequestSweep={requestSweep}
       />
@@ -315,6 +260,7 @@ export default function Today({
             progress={leaving.progress}
             now={leaving.now}
             onOpenSettings={onOpenSettings}
+            onRequestSweep={requestSweep}
           />
         </div>
       )}

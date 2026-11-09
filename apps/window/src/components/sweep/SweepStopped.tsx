@@ -9,19 +9,23 @@ import { at } from "./words.js";
 export function SweepStopped({
   progress,
   now,
+  nextSweepAt,
 }: {
-  progress: Extract<SweepProgress, { outcome: "failed" }>;
+  progress: SweepProgress;
   now: number;
+  nextSweepAt?: string | null | undefined;
 }) {
-  const reason = progress.failure.replace(/[.!?]$/, "");
-  const where = progress.source ? `while reading ${sourceName(progress.source)}` : "while saving";
+  const failure = progress.outcome === "failed" ? progress : null;
+  const retryAt = failure ? failure.nextAttemptAt : nextSweepAt;
+  const reason = failure?.failure.replace(/[.!?]$/, "");
+  const where = failure?.source ? `while reading ${sourceName(failure.source)}` : "while saving";
   return (
     <>
-      It stopped {where}: {reason}.
-      {progress.nextAttemptAt && (
+      {failure ? `It stopped ${where}: ${reason}.` : "The sweep was cancelled."}
+      {retryAt && Date.parse(retryAt) > now && (
         <>
           {" SPI Code tries again at "}
-          <time dateTime={progress.nextAttemptAt}>{at(progress.nextAttemptAt, now)}</time>.
+          <time dateTime={retryAt}>{at(retryAt, now)}</time>.
         </>
       )}
     </>

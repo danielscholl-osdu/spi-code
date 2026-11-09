@@ -310,6 +310,34 @@ it("names a stop while saving, leaves out an unscheduled retry and says when Try
   );
 });
 
+it("treats a cancelled first sweep as stopped, using only the future scheduled retry", async () => {
+  const { container, send, receive } = await mount();
+  await receive("sweep.status", {
+    remaining: null,
+    resetAt: after(3600),
+    deferredAreas: [],
+    nextSweepAt: after(420),
+    schedule: sweepSchedule,
+    lastSweep: null,
+  });
+  await receive("sweep.progress", midSweep({ outcome: "cancelled", sources: [] }));
+  expect(one(container, "h2")).toBe("The first sweep stopped.");
+  expect(status(container)).toBe("The first sweep stopped.");
+  expect(one(container, ".today-first-sub")).toBe(
+    `The sweep was cancelled. SPI Code tries again at ${clock(after(420))}.`,
+  );
+  expect(button(container, "Open Settings")).toBeUndefined();
+  await act(async () => button(container, "Try again")?.click());
+  expect(send).toHaveBeenCalledWith(
+    expect.objectContaining({ type: "sweep.request", payload: {} }),
+  );
+  await act(async () => vi.advanceTimersByTime(300_000));
+  expect(container.querySelector(".today-first-sub time")).toBeNull();
+  await receive("sweep.progress", midSweep({ sweep: "sweep-2" }));
+  expect(one(container, "h2")).toBe("First sweep is reading the program.");
+  expect(container.querySelector(".today-first-actions")).toBeNull();
+});
+
 it("keeps Settings on an earlier sign-in failure, not on the panel for a save failure", async () => {
   const { container, onOpenSettings, receive } = await mount();
   await receive(

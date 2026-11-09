@@ -35,7 +35,8 @@ export function Strip() {
   const plan = useFoldPlan(root, snapshot, isMobile);
   const now = useNow();
   const stoppedLabel = useId();
-  const firstStopped = !snapshot && progress?.outcome === "failed";
+  const firstStopped =
+    !snapshot && (progress?.outcome === "failed" || progress?.outcome === "cancelled");
   const stoppedForms = { full: "first sweep stopped", short: "stopped" };
   const freshness = firstStopped ? (
     <button

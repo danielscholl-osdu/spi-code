@@ -1,6 +1,29 @@
 /* Copyright 2026, Daniel Scholl
  * SPDX-License-Identifier: MIT */
 
+.today-first-lead {
+  margin: 0 0 4px;
+  color: var(--text-strong);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.today-first-sub {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+}
+.today-first-actions {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+.today-first-actions button {
+  padding: 3px 12px;
+}
+.today-first-foot {
+  margin: 16px 0 0;
+  color: var(--text-muted);
+}
 .sweep-sources {
   container: sweep-sources / inline-size;
   font: 13px/1.5 var(--font-sans);

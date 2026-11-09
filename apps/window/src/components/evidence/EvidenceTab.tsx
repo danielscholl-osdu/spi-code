@@ -10,6 +10,8 @@ import type {
   SweepProgress,
   SweepStatus,
 } from "@spi-code/contracts";
+import { watchStore } from "../../store/watch.js";
+import { FirstSweepBody } from "../sweep/FirstSweepBody.js";
 import { SweepSources } from "../sweep/SweepSources.js";
 import { SweepStopped } from "../sweep/SweepStopped.js";
 import type { SourceTone } from "../sweep/words.js";
@@ -192,6 +194,7 @@ export function SweepEvidence({
   progress = null,
   completed = null,
   onOpenSettings = () => {},
+  onRequestSweep = () => watchStore.getState().requestSweep(),
   now,
 }: {
   snapshot: (SweepLineSnapshot & { reads: readonly ReadRecord[] }) | null;
@@ -204,6 +207,7 @@ export function SweepEvidence({
   /** The last committed sweep's list, kept with each source's final state. */
   completed?: SweepProgress | null | undefined;
   onOpenSettings?: () => void;
+  onRequestSweep?: () => void | Promise<void>;
   now?: number | undefined;
 }) {
   const live = progress?.outcome === "running" ? progress : null;
@@ -213,7 +217,17 @@ export function SweepEvidence({
     return (
       <article className="evidence" data-evidence="sweep">
         <p className="inspector-kicker">what the sweep is drawn from</p>
-        <p className="panel-empty">Waiting for the first sweep. Nothing has been read yet.</p>
+        {progress ? (
+          <FirstSweepBody
+            progress={progress}
+            now={at}
+            nextSweepAt={sweep?.nextSweepAt}
+            onOpenSettings={onOpenSettings}
+            onRequestSweep={onRequestSweep}
+          />
+        ) : (
+          <p className="panel-empty">Waiting for the first sweep. Nothing has been read yet.</p>
+        )}
         <h3>API budget</h3>
         <Budget sweep={sweep} now={at} />
       </article>
