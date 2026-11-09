@@ -40,6 +40,8 @@ export type SweepSourceProgress = {
     readonly incomplete?: { readonly count: number; readonly total: number };
     /** Reads that failed in a source that still read; services are fleet ids, empty when a failed read is not a fork's. */
     readonly failed?: { readonly count: number; readonly services: readonly string[] };
+    /** Reads a source that read carried over from an earlier sweep, and the oldest one's observation. */
+    readonly reused?: { readonly count: number; readonly from: string };
   }
 );
 
@@ -96,6 +98,18 @@ export function sweepReadProgress(
       failed: { count: failedRecords.length, services: failedServices(failedRecords, fleet) },
     } : {}),
   };
+}
+
+/** Reads observed before this read began were reused from an earlier sweep, not read again. */
+function reusedReads(records: readonly ReadRecord[], startedAt: string) {
+  const start = Date.parse(startedAt);
+  const reused = records.filter((record) =>
+    record.failure === undefined && record.retainedFrom === undefined &&
+    Date.parse(record.observedAt) < start);
+  if (reused.length === 0) return {};
+  const from = reused.map((record) => record.observedAt)
+    .reduce((oldest, at) => (Date.parse(at) < Date.parse(oldest) ? at : oldest));
+  return { reused: { count: reused.length, from } };
 }
 
 export function sweepFailureProgress(
@@ -358,9 +372,9 @@ export class Sweeper<C> {
         }
         return true;
       }
+      const startedAt = this.clock.now().toISOString();
       if (this.opts.progress) this.notify({
-        kind: "source", source: area.name, state: "reading",
-        startedAt: this.clock.now().toISOString(),
+        kind: "source", source: area.name, state: "reading", startedAt,
       });
       const result = await area.read(input);
       const records = z.array(readRecordSchema).parse(result.reads);
@@ -376,9 +390,12 @@ export class Sweeper<C> {
       }];
       this.reads[area.name] = currentRecords;
       if (this.opts.progress) {
-        outcome = sweepReadProgress(
+        const read = sweepReadProgress(
           area.name, currentRecords, at, result.code, result.reason, input.ctx.fleet,
         );
+        outcome = read.state === "read" || read.state === "cut"
+          ? { ...read, ...reusedReads(currentRecords, startedAt) }
+          : read;
       }
     } catch (error) {
       const at = this.clock.now().toISOString();

@@ -181,7 +181,11 @@
         "source": "fleet",
         "state": "read",
         "startedAt": "2026-11-09T17:19:57.436Z",
-        "endedAt": "2026-11-09T17:19:58.368Z"
+        "endedAt": "2026-11-09T17:19:58.368Z",
+        "reused": {
+          "count": 13,
+          "from": "2026-11-09T17:09:18.244Z"
+        }
       },
       {
         "source": "github",
@@ -193,7 +197,11 @@
         "source": "runs",
         "state": "read",
         "startedAt": "2026-11-09T17:20:07.639Z",
-        "endedAt": "2026-11-09T17:20:22.593Z"
+        "endedAt": "2026-11-09T17:20:22.593Z",
+        "reused": {
+          "count": 16,
+          "from": "2026-11-09T17:09:47.298Z"
+        }
       },
       {
         "source": "approvals",
@@ -212,19 +220,31 @@
         "incomplete": {
           "count": 1,
           "total": 69
+        },
+        "reused": {
+          "count": 65,
+          "from": "2026-11-09T17:10:12.808Z"
         }
       },
       {
         "source": "template",
         "state": "read",
         "startedAt": "2026-11-09T17:20:31.786Z",
-        "endedAt": "2026-11-09T17:20:31.830Z"
+        "endedAt": "2026-11-09T17:20:31.830Z",
+        "reused": {
+          "count": 4,
+          "from": "2026-11-09T17:10:26.342Z"
+        }
       },
       {
         "source": "details",
         "state": "read",
         "startedAt": "2026-11-09T17:20:31.830Z",
-        "endedAt": "2026-11-09T17:20:31.896Z"
+        "endedAt": "2026-11-09T17:20:31.896Z",
+        "reused": {
+          "count": 2,
+          "from": "2026-11-09T17:14:52.985Z"
+        }
       },
       {
         "source": "upstream",

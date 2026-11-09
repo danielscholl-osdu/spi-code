@@ -128,13 +128,14 @@ export function envelopeSentence(envelope: Envelope, now: number): string {
 /**
  * What an area's envelope adds to a sweep source's row, which already says how this sweep read
  * it: when it was last read, and whether the data is stale or retained from an earlier read. An
- * unread area adds nothing. `readSince` is when this sweep read the source; data observed before
- * it was reused, not read again, so the row says so rather than pairing "read" with an older age.
+ * unread area adds nothing. `reusedFrom` is the oldest read this sweep's read carried over from an
+ * earlier sweep, as the sweep recorded it; the row says the read reused data from then rather than
+ * pairing "read" with an older age.
  */
 export function areaFact(
   envelope: Envelope,
   now: number,
-  readSince?: string,
+  reusedFrom?: string,
 ): { text: string; tone?: EvidenceTone } | null {
   if (envelope.state === "unread") return null;
   const { observedAt } = envelope;
@@ -144,12 +145,13 @@ export function areaFact(
         observedAt === undefined ? "nothing retained" : `showing data from ${ago(observedAt, now)}`,
       tone: "bad",
     };
-  if (observedAt === undefined)
-    return envelope.state === "stale" ? { text: "stale", tone: "warn" } : null;
   const age =
-    readSince !== undefined && Date.parse(observedAt) < Date.parse(readSince)
-      ? `reuses reads from ${ago(observedAt, now)}`
-      : `last read ${ago(observedAt, now)}`;
+    reusedFrom !== undefined
+      ? `reuses reads from ${ago(reusedFrom, now)}`
+      : observedAt === undefined
+        ? undefined
+        : `last read ${ago(observedAt, now)}`;
+  if (age === undefined) return envelope.state === "stale" ? { text: "stale", tone: "warn" } : null;
   return envelope.state === "stale" ? { text: `stale, ${age}`, tone: "warn" } : { text: age };
 }
 

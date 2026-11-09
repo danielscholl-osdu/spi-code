@@ -384,6 +384,31 @@ describe("sweep progress", () => {
       expect(withSource(invalid).ok).toBe(false);
     }
   });
+  it("carries the reads a read or cut source reused, from before it began", () => {
+    const startedAt = "2026-11-09T17:20:07.639Z";
+    const reused = { count: 16, from: "2026-11-09T17:09:47.298Z" };
+    const read = { source: "runs", state: "read", startedAt };
+    const cut = {
+      source: "lifecycle",
+      state: "cut",
+      startedAt,
+      code: "limit",
+      reason: "Job log character limit: 64,000 of 92,438 characters read.",
+      cutKind: "job-log",
+      incomplete: { count: 1, total: 69 },
+    };
+    expect(withSource({ ...read, reused }).ok).toBe(true);
+    expect(withSource({ ...cut, reused }).ok).toBe(true);
+    for (const invalid of [
+      { ...read, reused: { count: 0, from: reused.from } },
+      { ...read, reused: { ...reused, from: startedAt } },
+      { ...read, reused: { ...reused, extra: true } },
+      { ...cut, reused: { ...reused, count: 70 } },
+      { source: "radar", state: "skipped", code: "cadence", reason: "not due", reused },
+    ]) {
+      expect(withSource(invalid).ok).toBe(false);
+    }
+  });
   it("carries failed reads on a cut source without changing older cut messages", () => {
     const failure = "Reads failed for 3 services: unit, crs-catalog, crs-conversion.";
     const partial = {

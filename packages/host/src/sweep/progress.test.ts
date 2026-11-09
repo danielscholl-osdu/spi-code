@@ -682,3 +682,39 @@ it("keeps a not-due source's last cut read, in the recorded radar's words", asyn
     incomplete: { count: 14, total: reads.length },
   });
 });
+
+it("keeps the reads a read or cut source reused, and drops a reuse that does not predate the read", () => {
+  const onError = vi.fn();
+  const feed = new SweepProgressFeed({ timers, now: () => epoch, onError });
+  feed.begin(false, null);
+  const startedAt = new Date(epoch).toISOString();
+  const endedAt = new Date(epoch + 9_000).toISOString();
+  const reused = { count: 2, from: new Date(epoch - 960_000).toISOString() };
+  const cut = { kind: "cut", reason: "Job log character limit", read: 64, total: 92 } as const;
+  for (const source of ["runs", "lifecycle"] as const)
+    feed.report({ kind: "source", source, state: "reading", startedAt });
+  feed.report({ kind: "source", source: "runs", state: "read", endedAt, reused });
+  feed.report({
+    kind: "source",
+    source: "lifecycle",
+    state: "cut",
+    endedAt,
+    completeness: cut,
+    incomplete: { count: 1, total: 3 },
+    reused,
+  });
+  const entry = (name: string) => feed.latest?.sources.find(({ source }) => source === name);
+  expect(entry("runs")).toEqual({ source: "runs", state: "read", startedAt, endedAt, reused });
+  expect(entry("lifecycle")).toMatchObject({ state: "cut", reused });
+  expect(onError).not.toHaveBeenCalled();
+  feed.report({ kind: "source", source: "approvals", state: "reading", startedAt });
+  feed.report({
+    kind: "source",
+    source: "approvals",
+    state: "read",
+    endedAt,
+    reused: { count: 1, from: startedAt },
+  });
+  expect(entry("approvals")).toEqual({ source: "approvals", state: "reading", startedAt });
+  expect(onError).toHaveBeenCalledOnce();
+});

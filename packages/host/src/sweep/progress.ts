@@ -133,9 +133,10 @@ export function foldSweepProgress(current: SweepProgress, event: CoreProgress): 
               : "other"),
     );
     const reason = safeSweepReason(code);
+    const reused = event.reused === undefined ? {} : { reused: event.reused };
     switch (event.state) {
       case "read":
-        source = { ...ended, state: "read" };
+        source = { ...ended, state: "read", ...reused };
         break;
       case "cut": {
         const failed = event.failed?.count ?? 0;
@@ -147,6 +148,7 @@ export function foldSweepProgress(current: SweepProgress, event: CoreProgress): 
           incomplete:
             event.incomplete && failed > 0 ? { ...event.incomplete, failed } : event.incomplete,
           ...(failure === undefined ? {} : { failure }),
+          ...reused,
         };
         break;
       }

@@ -230,16 +230,18 @@ export function SweepEvidence({
   const envelopes = new Map(sources.map(({ key, envelope }) => [key, envelope]));
   const listed = new Set(list?.sources.map(({ source }) => source));
   const unlisted = sources.filter(({ key }) => !listed.has(key));
+  // A snapshot taken before the listed sweep began holds the previous sweep's reads.
   const own = list !== null && Date.parse(snapshot.sweptAt) >= Date.parse(list.startedAt);
-  const readSince = (source: string) => {
-    const entry = own ? list.sources.find((candidate) => candidate.source === source) : undefined;
-    return entry?.state === "read" || entry?.state === "cut"
-      ? (entry.startedAt ?? list?.startedAt)
-      : undefined;
-  };
   const fact = (source: string) => {
     const envelope = envelopes.get(source);
-    const words = envelope && areaFact(envelope, at, readSince(source));
+    const entry = list?.sources.find((candidate) => candidate.source === source);
+    const read = entry?.state === "read" || entry?.state === "cut" ? entry : undefined;
+    // A read the snapshot does not hold yet says only what the sweep recorded it reused; the
+    // snapshot's age is the previous read's, not this one's.
+    const words: { text: string; tone?: EvidenceTone } | null | undefined =
+      read !== undefined && !own
+        ? read.reused && { text: `reuses reads from ${ago(read.reused.from, at)}` }
+        : envelope && areaFact(envelope, at, read?.reused?.from);
     return (
       words && (
         <span className="evidence-fact" data-tone={words.tone}>

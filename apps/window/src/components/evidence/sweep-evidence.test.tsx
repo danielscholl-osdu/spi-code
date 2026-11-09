@@ -19,7 +19,6 @@ import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { clockTime } from "../../time.js";
 import { applyContainerRules } from "../sweep/container-rules.test-helper.js";
-import { after } from "../sweep/test-helper.js";
 import { EnvelopeBadge } from "./EnvelopeBadge.js";
 import { SelectionEvidence, SelectionEvidenceChip, SweepEvidence } from "./EvidenceTab.js";
 import { expectEvidenceMarks, expectNoEvidenceMarks } from "./marks.test-helper.js";
@@ -458,10 +457,12 @@ const firstSweep = () => ({
     },
   ] satisfies ReadRecord[],
 });
+// The committed sweep began before the snapshot it wrote.
+const ran = (seconds: number) => new Date(Date.parse(minutes(10)) + seconds * 1000).toISOString();
 const committed = () =>
   SweepProgressSchema.parse({
     sweep: "sweep-1",
-    startedAt: after(0),
+    startedAt: ran(0),
     first: true,
     usualMs: null,
     outcome: "committed",
@@ -471,13 +472,13 @@ const committed = () =>
         ? {
             source,
             state: "cut",
-            startedAt: after(index),
-            endedAt: after(index + 1),
+            startedAt: ran(index),
+            endedAt: ran(index + 1),
             code: "limit",
             reason: "GitLab omitted oversized or collapsed classification hunks",
             incomplete: { count: 2, total: 9 },
           }
-        : { source, state: "read", startedAt: after(index), endedAt: after(index + 1) },
+        : { source, state: "read", startedAt: ran(index), endedAt: ran(index + 1) },
     ),
   });
 const NAMES = [...AREAS.map((area) => AREA_NAMES[area]), "Release lines"];
@@ -605,15 +606,15 @@ it("keeps not-due sources neutral and says a read reused older data, in the 11:1
       ["Sign-in", "ok", "read · 2\u00a0s · last read 3\u00a0min ago"],
       ["Fleet membership", "ok", "read · 0\u00a0s · reuses reads from 14\u00a0min ago"],
       ["GitHub issues and PRs", "ok", "read · 9\u00a0s · last read 3\u00a0min ago"],
-      ["Workflow runs", "ok", "read · 14\u00a0s · last read 3\u00a0min ago"],
+      ["Workflow runs", "ok", "read · 14\u00a0s · reuses reads from 14\u00a0min ago"],
       ["Run approvals", "ok", "read · 6\u00a0s · last read 3\u00a0min ago"],
       [
         "Stack lifecycle runs",
         "warn",
         "read · 3\u00a0s · 1 job log cut short; rest read · reuses reads from 13\u00a0min ago",
       ],
-      ["Template", "ok", "read · 0\u00a0s · last read 3\u00a0min ago"],
-      ["Run details", "ok", "read · 0\u00a0s · last read 3\u00a0min ago"],
+      ["Template", "ok", "read · 0\u00a0s · reuses reads from 13\u00a0min ago"],
+      ["Run details", "ok", "read · 0\u00a0s · reuses reads from 8\u00a0min ago"],
       ["Upstream GitLab", "idle", "skipped · last read 13\u00a0min ago"],
       [
         "Upstream radar",
@@ -1279,6 +1280,105 @@ it("fails both evidence guards when a value carries an ordinary envelope badge",
     expect(() =>
       expectEvidenceMarks(view.container, { areas: areas(), provenance: [] }, { sections: [] }),
     ).toThrow(/per-value envelope badges/);
+  } finally {
+    await view.cleanup();
+  }
+});
+
+// The window has no dependency on core or the host; this test drives their real sweep and feed by
+// path so the row reads what a later sweep actually reports.
+type Area = {
+  name: AreaName;
+  read: (input: { clock: { now: () => Date } }) => Promise<{ data: unknown; reads: ReadRecord[] }>;
+};
+type SweeperModule = {
+  Sweeper: new (
+    options: Record<string, unknown>,
+  ) => { sweep(options: { force: boolean }): Promise<void> };
+};
+type CoreModule = {
+  factsSchema: unknown;
+  cacheSchema: unknown;
+  createContext(input: { clock: { now: () => Date } }): unknown;
+  emptyCache(): unknown;
+};
+type FeedModule = {
+  SweepProgressFeed: new (options: {
+    now: () => number;
+    timers: { after(ms: number, callback: () => void): () => void };
+    onError: (error: unknown) => void;
+  }) => {
+    latest: unknown;
+    begin(first: boolean, usualMs: number | null): void;
+    report(event: unknown): void;
+  };
+};
+const load = <T,>(path: string) => import(/* @vite-ignore */ path) as Promise<T>;
+
+it("says a live later sweep's cached read reused older reads and pairs no old age with a fresh read", async () => {
+  const [{ Sweeper }, core, { SweepProgressFeed }] = await Promise.all([
+    load<SweeperModule>("../../../../../packages/core/src/sweep/sweeper.js"),
+    load<CoreModule>("../../../../../packages/core/src/index.js"),
+    load<FeedModule>("../../../../../packages/host/src/sweep/progress.js"),
+  ]);
+  const earlier = "2026-11-09T17:08:54.524Z";
+  let clock = Date.parse("2026-11-09T17:24:54.524Z");
+  const now = () => new Date(clock);
+  const record = (object: string, observedAt: string): ReadRecord => ({
+    source: "danielscholl-osdu/partition",
+    object,
+    observedAt,
+    completeness: { kind: "complete" },
+  });
+  const feed = new SweepProgressFeed({
+    now: () => clock,
+    timers: { after: () => () => {} },
+    onError: (error) => {
+      throw error;
+    },
+  });
+  feed.begin(false, 60_000);
+  const areaRead =
+    (cached: boolean): Area["read"] =>
+    async ({ clock: sweepClock }) => {
+      clock += 9_000;
+      return {
+        data: {},
+        reads: cached
+          ? [record("jobs/101/logs", earlier), record("runs", sweepClock.now().toISOString())]
+          : [record("runs/waiting", sweepClock.now().toISOString())],
+      };
+    };
+  const areasRead: Area[] = [
+    { name: "runs", read: areaRead(true) },
+    { name: "approvals", read: areaRead(false) },
+  ];
+  await new Sweeper({
+    ctx: core.createContext({ clock: { now } }),
+    exec: {
+      runJSON: async () => ({ ok: false, error: "offline", code: 1 }),
+      runText: async () => ({ ok: true, data: "" }),
+    },
+    factsSchema: core.factsSchema,
+    cacheSchema: core.cacheSchema,
+    emptyCache: core.emptyCache,
+    persist: { load: async () => undefined, save: async () => {} },
+    progress: (event: unknown) => feed.report(event),
+    areas: areasRead,
+  }).sweep({ force: true });
+  const live = SweepProgressSchema.parse(feed.latest);
+  expect(live.outcome).toBe("running");
+  const older = {
+    ...snapshot(areas({}, { observedAt: earlier })),
+    sweptAt: earlier,
+  };
+  const view = await render(
+    <SweepEvidence snapshot={older} sweep={null} progress={live} now={clock} />,
+  );
+  try {
+    const rows = new Map(sourceRows(view.container).map(([name, , outcome]) => [name, outcome]));
+    expect(rows.get("Workflow runs")).toBe("read · 9\u00a0s · reuses reads from 16\u00a0min ago");
+    expect(rows.get("Run approvals")).toBe("read · 9\u00a0s");
   } finally {
     await view.cleanup();
   }

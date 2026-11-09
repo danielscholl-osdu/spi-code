@@ -1143,3 +1143,58 @@ describe("Sweeper skipped sources", () => {
     ]);
   });
 });
+
+describe("Sweeper reused reads", () => {
+  it("records the reads a read carried over from an earlier sweep, and none when all were read again", async () => {
+    const h = harness();
+    const calls: SweepProgress[] = [];
+    let earlier: string | undefined;
+    const record = (object: string, observedAt: string) => ({
+      source: "gh",
+      object,
+      observedAt,
+      completeness: { kind: "complete" as const },
+    });
+    const sweeper = new Sweeper({
+      ...h.options,
+      factsSchema: z.custom<ReturnType<typeof emptyFacts>>(),
+      progress: (event) => calls.push(event),
+      areas: [
+        {
+          name: "runs",
+          read: async ({ clock }) => {
+            const at = clock.now().toISOString();
+            earlier ??= at;
+            return {
+              data: {} as never,
+              reads: [
+                record("jobs/1/logs", earlier),
+                record("jobs/2/logs", earlier),
+                record("runs", at),
+              ],
+            };
+          },
+        },
+        {
+          name: "approvals",
+          read: async ({ clock }) => ({
+            data: {} as never,
+            reads: [record("waiting", clock.now().toISOString())],
+          }),
+        },
+      ],
+    });
+    await sweeper.sweep();
+    expect(calls.filter((event) => "reused" in event)).toEqual([]);
+    h.advance();
+    calls.length = 0;
+    await sweeper.sweep();
+    const ended = calls.filter((event) => event.kind === "source" && event.state !== "reading");
+    expect(
+      ended.map((event) => [event.source, "reused" in event ? event.reused : undefined]),
+    ).toEqual([
+      ["runs", { count: 2, from: earlier }],
+      ["approvals", undefined],
+    ]);
+  });
+});

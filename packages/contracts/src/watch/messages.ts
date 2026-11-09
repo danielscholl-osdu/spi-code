@@ -103,6 +103,9 @@ const incompleteSchema = z
   .refine(({ count, total, failed = 0 }) => count + failed <= total, {
     message: "Incomplete count exceeds total",
   });
+// Reads a source that read carried over from an earlier sweep rather than reading them again;
+// from is the oldest one's observation, before this read began.
+const reusedSchema = z.strictObject({ count: z.int().positive(), from: ObservedAtSchema });
 // throttled pauses a read within this sweep and resumes at resumeAt; deferred leaves the source
 // unread this sweep, and resumeAt, when known, is when its budget allows a read again. A cut source
 // is one that read but not all of it: incomplete.count reads were cut short, incomplete.failed reads
@@ -122,7 +125,7 @@ export const SweepSourceProgressSchema = z
       ...reasoned,
       resumeAt: ObservedAtSchema,
     }),
-    z.strictObject({ ...ended, state: z.literal("read") }),
+    z.strictObject({ ...ended, state: z.literal("read"), reused: reusedSchema.optional() }),
     z.strictObject({
       ...ended,
       state: z.literal("cut"),
@@ -130,6 +133,7 @@ export const SweepSourceProgressSchema = z
       cutKind: cutKindSchema.optional(),
       incomplete: incompleteSchema,
       failure: SweepReasonSchema.optional(),
+      reused: reusedSchema.optional(),
     }),
     z.strictObject({
       ...ended,
@@ -172,6 +176,19 @@ export const SweepSourceProgressSchema = z
       source.cutKind === undefined ||
       (source.incomplete?.count ?? 0) > 0,
     { message: "A cut kind needs a cut read", path: ["cutKind"] },
+  )
+  .refine(
+    (source) =>
+      source.state !== "cut" ||
+      source.reused === undefined ||
+      source.reused.count <= source.incomplete.total,
+    { message: "Reused reads exceed the total", path: ["reused"] },
+  )
+  .refine(
+    (source) =>
+      !("reused" in source && source.reused && source.startedAt) ||
+      Date.parse(source.reused.from) < Date.parse(source.startedAt),
+    { message: "A reused read predates the read", path: ["reused"] },
   )
   .refine(
     (source) =>
