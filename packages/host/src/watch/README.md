@@ -11,6 +11,9 @@ armed), the cadences in `schedule`, and the last finished sweep in `lastSweep`
 (in memory only; null until a sweep finishes). The host sends it with each
 snapshot, on every scheduler transition (timer armed, sweep started, committed,
 failed or cancelled), and on `view.subscribe`, even when the cursor is current.
+A deadline that passed before its timer fired is rearmed before a finished sweep
+is reported, so `nextSweepAt` is never an expired time. The subscribe replay
+keeps the live order: any newer snapshot, then progress, then `sweep.status`.
 Updates from an older sweep id cannot replace a newer sweep's progress.
 Every progress update and replay has a distinct sequence-suffixed event id;
 the sweep id in the payload remains stable for the sweep.

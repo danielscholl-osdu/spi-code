@@ -722,6 +722,78 @@ describe("view.subscribe", () => {
     ]);
     expect(watch.status).toMatchObject({ remaining: 50, nextSweepAt: null, lastSweep: failed });
   });
+
+  it("replays a snapshot, then progress, then the status it settles, as they went live", async () => {
+    const watch = routes();
+    const replay = async (fromCursor = 0) => {
+      const port = host(watch);
+      port.request("view.subscribe", { fromCursor });
+      await settle();
+      return port.sent;
+    };
+    const running = {
+      sweep: "sweep-1",
+      startedAt: new Date(now).toISOString(),
+      first: true,
+      usualMs: null,
+      sources: [],
+      outcome: "running" as const,
+      nextAttemptAt: null,
+    };
+    watch.publishProgress(running);
+    watch.publishStatus({ nextSweepAt: null });
+    const midSweep = await replay();
+    expect(midSweep.map(({ type }) => type)).toEqual([
+      "host.hello",
+      "sweep.progress",
+      "sweep.status",
+    ]);
+    expect(midSweep.slice(1)).toMatchObject([
+      { payload: { outcome: "running" } },
+      { payload: { nextSweepAt: null, lastSweep: null } },
+    ]);
+
+    const nextSweepAt = new Date(now + 300_000).toISOString();
+    const lastSweep: LastSweep = {
+      sweep: "sweep-1",
+      startedAt: running.startedAt,
+      endedAt: new Date(now + 3000).toISOString(),
+      outcome: "failed",
+      code: "signin",
+      requested: false,
+    };
+    watch.publishProgress({
+      ...running,
+      outcome: "failed",
+      code: "signin",
+      failure: "GitHub is not signed in",
+      nextAttemptAt: nextSweepAt,
+    });
+    watch.publishStatus({ nextSweepAt, lastSweep });
+    const failed = await replay();
+    expect(failed.map(({ type }) => type)).toEqual([
+      "host.hello",
+      "sweep.progress",
+      "sweep.status",
+    ]);
+    expect(failed.slice(1)).toMatchObject([
+      { payload: { outcome: "failed" } },
+      { payload: { nextSweepAt, lastSweep } },
+    ]);
+
+    const cursor = writeSnapshot();
+    expect((await replay()).map(({ type }) => type)).toEqual([
+      "host.hello",
+      "view.snapshot",
+      "sweep.progress",
+      "sweep.status",
+    ]);
+    expect((await replay(cursor)).map(({ type }) => type)).toEqual([
+      "host.hello",
+      "sweep.progress",
+      "sweep.status",
+    ]);
+  });
 });
 
 describe("view.acknowledge", () => {

@@ -1567,6 +1567,54 @@ it("reports the armed timer's deadline as the next sweep, null while one runs", 
   expect(statuses.at(-1)).toEqual({ nextSweepAt: null });
 });
 
+it("rearms a deadline a sweep ran past, so no outcome promises an expired next sweep", async () => {
+  let fail = false;
+  const { deadlines, timers } = scheduled();
+  const statuses: SweepSchedulerStatus[] = [];
+  const first = service([], {
+    timers,
+    ttlMs: 10 * SWEEP_MS,
+    onError: vi.fn(),
+    onStatus: (status) => statuses.push(status),
+    createSweeper: (options) =>
+      new Sweeper({
+        ...options,
+        areas: [],
+        cacheSchema,
+        emptyCache,
+        afterAreas: async () => {
+          vi.setSystemTime(Date.now() + SWEEP_MS + 1000);
+          if (fail) throw new ForgeError("gh failed", 503, "gateway");
+        },
+      }),
+  });
+  const finished = () => {
+    const status = statuses.at(-1);
+    expect(status?.lastSweep).toBeDefined();
+    expect(status?.nextSweepAt).not.toBeNull();
+    expect(Date.parse(status?.nextSweepAt ?? "")).toBeGreaterThan(
+      Date.parse(status?.lastSweep?.endedAt ?? ""),
+    );
+    return status;
+  };
+
+  await first.start();
+  expect(finished()).toMatchObject({
+    nextSweepAt: new Date(epoch + 2 * SWEEP_MS + 1000).toISOString(),
+    lastSweep: { outcome: "committed", endedAt: new Date(epoch + SWEEP_MS + 1000).toISOString() },
+  });
+
+  fail = true;
+  await expect(first.sweep(false, true)).rejects.toThrow("gh failed");
+  expect(finished()).toMatchObject({ lastSweep: { outcome: "failed" } });
+  expect(first.progress?.nextAttemptAt).toBe(statuses.at(-1)?.nextSweepAt);
+  expect(deadlines).toEqual([
+    epoch + SWEEP_MS,
+    epoch + 2 * SWEEP_MS + 1000,
+    epoch + 3 * SWEEP_MS + 2000,
+  ]);
+});
+
 it("reports the last sweep committed, failed and cancelled, and whether it was requested", async () => {
   let fail = false;
   let block = false;

@@ -278,7 +278,14 @@ export class SweepService {
   }
 
   private scheduleSweep(): void {
-    if (!this.started || this.nextSweepAt !== undefined) return;
+    if (!this.started) return;
+    if (this.nextSweepAt !== undefined) {
+      if (this.nextSweepAt > this.now()) return;
+      // A deadline that passed while its timer had not fired would promise an expired time.
+      this.cancelSweep?.();
+      this.cancelSweep = undefined;
+      this.nextSweepAt = undefined;
+    }
     const generation = this.generation;
     this.nextSweepAt = this.now() + this.interval;
     this.cancelSweep = this.timers.after(this.interval, () => {

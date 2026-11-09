@@ -904,9 +904,15 @@ export class WatchRoutes {
     "view.subscribe": (message, send) => {
       if (message.type !== "view.subscribe") return;
       this.subscriber = { send, cursor: message.payload.fromCursor };
-      if (!this.flush()) this.sendStatus(send, `sweep-status-replay-${++this.statusSequence}`);
-      const progress = this.options.sweepProgress?.() ?? this.progress;
-      if (progress) this.sendProgress(progress);
+      // The live order: a snapshot, then the progress feed, then the status it settles.
+      const replayProgress = () => {
+        const progress = this.options.sweepProgress?.() ?? this.progress;
+        if (progress) this.sendProgress(progress);
+      };
+      if (!this.flush(replayProgress)) {
+        replayProgress();
+        this.sendStatus(send, `sweep-status-replay-${++this.statusSequence}`);
+      }
     },
     "view.acknowledge": (message) => {
       if (message.type !== "view.acknowledge") return;
@@ -1072,7 +1078,7 @@ export class WatchRoutes {
   }
 
   /** True when it sent a snapshot and its sweep.status. */
-  private flush(): boolean {
+  private flush(beforeStatus?: () => void): boolean {
     const subscriber = this.subscriber;
     if (!subscriber) return false;
     const latest = this.latest();
@@ -1088,6 +1094,7 @@ export class WatchRoutes {
         seen: seenSince(this.baselineFor(latest.view), latest.view.briefing),
       },
     });
+    beforeStatus?.();
     subscriber.send({
       version: PROTOCOL_VERSION,
       id: `sweep-status-${cursor}`,
