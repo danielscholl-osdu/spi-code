@@ -304,6 +304,88 @@ test("an unclassified auth transport failure reports other instead of guessing s
   ).toMatchObject({ code: "other", reason: "sign in or retry after a timeout" });
 });
 
+test.each(["gh", "glab"] as const)(
+  "the auth reason names %s when its sign-in fails and the other tool has a transport error",
+  async (tool) => {
+    const h = harness();
+    h.setRoute((cmd, args) => {
+      if (args[0] !== "auth") return undefined;
+      return cmd === tool
+        ? { stdout: "opaque status", stderr: "opaque status", exit: 1 }
+        : { stdout: "", stderr: "", exit: null, error: `${cmd} transport unavailable` };
+    });
+    const calls: SweepProgress[] = [];
+    const sweeper = createSweeper({ ...h.options, progress: (event) => calls.push(event) });
+    await sweeper.sweep();
+    expect(
+      calls.find(
+        (event) => event.kind === "source" && event.source === "auth" && event.state === "failed",
+      ),
+    ).toMatchObject({ code: "signin", reason: sweeper.facts.auth.data?.[tool].detail });
+    expect(sweeper.reads.auth?.find((record) => record.source !== tool)?.failure).toContain(
+      "transport unavailable",
+    );
+  },
+);
+
+test.each(["cut", "failed", "throttled"] as const)(
+  "mixed release reads expose state-appropriate incomplete counts for %s outcomes",
+  async (state) => {
+    const h = harness();
+    const initial = createSweeper(h.options);
+    await initial.sweep();
+    const saved = structuredClone({
+      facts: initial.facts,
+      cache: initial.cache,
+      reads: initial.reads,
+    });
+    saved.cache.releases.records = saved.cache.releases.records.map((record) =>
+      record.source === "github-pins"
+        ? {
+            ...record,
+            completeness: { kind: "cut", reason: "page limit", read: 1, total: 2 },
+          }
+        : record,
+    );
+    if (state === "failed")
+      h.setRoute((cmd, args) =>
+        cmd === "gh" && args.some((arg) => arg.startsWith("repos/owner/partition/releases?"))
+          ? { stdout: "", stderr: "releases unavailable", exit: 1 }
+          : undefined,
+      );
+    if (state === "throttled")
+      h.setRoute((cmd, args) =>
+        cmd === "gh" &&
+        args.some((arg) => arg.startsWith("query=") && arg.includes("{ createdAt }"))
+          ? {
+              stdout: JSON.stringify({ message: "Retry after 600 seconds." }),
+              stderr: "gh: HTTP 429\n",
+              exit: 1,
+            }
+          : undefined,
+      );
+    const calls: SweepProgress[] = [];
+    const sweeper = createSweeper({
+      ...h.options,
+      persist: { ...h.options.persist, load: async () => structuredClone(saved) },
+      progress: (event) => calls.push(event),
+    });
+    await sweeper.sweep({ force: true });
+    const records = sweeper.cache.releases.records;
+    expect(records.filter((record) => record.completeness.kind === "cut")).toHaveLength(1);
+    const outcome = calls.find(
+      (event) => event.kind === "source" && event.source === "releases" && event.state === state,
+    );
+    expect(outcome).toBeDefined();
+    if (state === "cut")
+      expect(outcome).toMatchObject({ incomplete: { count: 1, total: records.length } });
+    else {
+      expect(records.some((record) => record.failure !== undefined)).toBe(true);
+      expect(outcome).not.toHaveProperty("incomplete");
+    }
+  },
+);
+
 test("the collector reports releases in sweep order, including cadence skips and failed reads", async () => {
   const h = harness();
   const calls: SweepProgress[] = [];

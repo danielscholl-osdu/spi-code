@@ -94,6 +94,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
     read: (input: Input, gh: Gh, glab: Glab) => Promise<{
       data: NonNullable<Facts[K]["data"]>; reads: readonly ReadRecord[];
       code?: SweepReasonCode;
+      reason?: string;
     }>,
   ) {
     // The discriminated union is preserved at the table boundary.
@@ -152,10 +153,14 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
     areas.push(entry as SweepArea<CollectorCache>);
   }
   area("auth", true, 0, 0, async ({ clock }, gh, glab) => {
-    let code: SweepReasonCode = "other";
-    const signin = () => { code = "signin"; };
-    const data = { gh: await gh.status(signin), glab: await glab.status(signin) };
-    return { data, code, reads: Object.entries(data).map(([source, result]) => ({
+    let signinTool: "gh" | "glab" | undefined;
+    const data = {
+      gh: await gh.status(() => { signinTool = "gh"; }),
+      glab: await glab.status(() => { signinTool ??= "glab"; }),
+    };
+    return { data, code: signinTool ? "signin" : "other",
+      ...(signinTool ? { reason: data[signinTool].detail } : {}),
+      reads: Object.entries(data).map(([source, result]) => ({
       source, object: "auth", observedAt: clock.now().toISOString(), completeness: { kind: "complete" as const },
       ...(!result.ok ? { failure: result.detail } : {}),
     })) };

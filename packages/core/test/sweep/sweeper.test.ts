@@ -7,7 +7,7 @@ import { createContext } from "../../src/context.js";
 import type { ReadRecord } from "../../src/evidence/index.js";
 import { type Exec, execOutputDelivery } from "../../src/exec/port.js";
 import { emptyFacts } from "../../src/facts.js";
-import { ForgeError } from "../../src/forge.js";
+import { ForgeError, Gh, GraphqlBudget } from "../../src/forge.js";
 import {
   type SweepArea,
   Sweeper,
@@ -360,9 +360,52 @@ describe("Sweeper shell", () => {
         reason: "one repo failed",
         code: "other",
         completeness: { kind: "cut", reason: "page limit", read: 1, total: 2 },
-        incomplete: { count: 1, total: 1 },
       },
     ]);
+  });
+
+  it("reports zero-second GraphQL throttles with the source notice time", async () => {
+    const h = harness();
+    const calls: SweepProgress[] = [];
+    const limited: Exec = {
+      ...exec,
+      runText: async () => ({
+        ok: true,
+        data: JSON.stringify({ message: "Retry after 0 seconds." }),
+        stderr: "gh: HTTP 429\n",
+        exitCode: 1,
+      }),
+    };
+    const gh = new Gh(
+      limited,
+      undefined,
+      new GraphqlBudget(h.options.clock, async () => {
+        throw new Error("A zero-second throttle must not sleep");
+      }),
+    );
+    await new Sweeper({
+      ...h.options,
+      areas: [
+        {
+          ...github(),
+          read: async (input) => {
+            await gh.graphql("query { viewer { login } }");
+            return github().read(input);
+          },
+        },
+      ],
+      progress: (event) => calls.push(event),
+    }).sweep();
+    expect(gh.budget.snapshot().calls).toBe(2);
+    expect(calls.at(-1)).toMatchObject({
+      kind: "source",
+      source: "github",
+      state: "throttled",
+      code: "throttled",
+      endedAt: "2026-11-05T07:00:00.000Z",
+      resumeAt: "2026-11-05T07:00:00.000Z",
+    });
+    expect(calls.at(-1)).not.toHaveProperty("incomplete");
   });
 
   it.each(["beforeSweep", "afterAreas", "save", "replay"] as const)(

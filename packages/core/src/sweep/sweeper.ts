@@ -56,18 +56,21 @@ export type SweepProgress = SweepSourceProgress | {
 export type SweepProgressHook = (event: SweepProgress) => void;
 
 export function sweepReadProgress(
-  source: SweepSource, records: readonly ReadRecord[], endedAt: string, failureCode?: SweepReasonCode,
+  source: SweepSource, records: readonly ReadRecord[], endedAt: string,
+  failureCode?: SweepReasonCode, failureReason?: string,
 ): Exclude<SweepSourceProgress, { state: "reading" }> {
   const { completeness } = envelopeOf(records, { intervalMs: 0, now: Date.parse(endedAt) });
   const failure = records.find((record) => record.failure !== undefined)?.failure;
-  const reason = failure ?? (completeness.kind === "cut" ? completeness.reason : undefined);
+  const state = failure !== undefined ? "failed" : completeness.kind === "cut" ? "cut" : "read";
+  const reason = failure !== undefined ? failureReason ?? failure
+    : completeness.kind === "cut" ? completeness.reason : undefined;
   const count = records.filter((record) => record.completeness.kind === "cut").length;
   return {
     kind: "source", source, endedAt,
-    state: failure !== undefined ? "failed" : completeness.kind === "cut" ? "cut" : "read",
+    state,
     completeness,
     ...(reason === undefined ? {} : { reason, code: failure === undefined ? "limit" : failureCode ?? "other" }),
-    ...(count === 0 ? {} : { incomplete: { count, total: records.length } }),
+    ...(state === "cut" ? { incomplete: { count, total: records.length } } : {}),
   };
 }
 
@@ -76,12 +79,13 @@ export function sweepFailureProgress(
 ): Exclude<SweepSourceProgress, { state: "reading" }> {
   // A throw supplies no current read set; retained records cannot count as new reads.
   const { incomplete: _incomplete, ...outcome } = sweepReadProgress(source, records, endedAt);
+  const throttled = error instanceof ForgeError && error.kind === "throttle";
   return {
     ...outcome,
-    state: error instanceof ForgeError && error.kind === "throttle" ? "throttled" : "failed",
+    state: throttled ? "throttled" : "failed",
     reason: errorText(error) || "Unknown error",
     code: sweepErrorCode(error),
-    ...(error instanceof ForgeError && error.resumeAt !== undefined ? { resumeAt: error.resumeAt } : {}),
+    ...(throttled ? { resumeAt: error.resumeAt ?? endedAt } : {}),
   };
 }
 
@@ -121,6 +125,7 @@ export type SweepArea<C> = {
       data: NonNullable<Facts[K]["data"]>;
       reads: readonly ReadRecord[];
       code?: SweepReasonCode;
+      reason?: string;
     }>;
   };
 }[AreaName];
@@ -327,7 +332,7 @@ export class Sweeper<C> {
         source: area.name, object: area.name, observedAt: at, completeness: { kind: "complete" },
       }];
       this.reads[area.name] = currentRecords;
-      if (this.opts.progress) outcome = sweepReadProgress(area.name, currentRecords, at, result.code);
+      if (this.opts.progress) outcome = sweepReadProgress(area.name, currentRecords, at, result.code, result.reason);
     } catch (error) {
       const at = this.clock.now().toISOString();
       const failure = errorText(error) || "Unknown error";
