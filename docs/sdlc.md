@@ -58,6 +58,14 @@ and merges the figures into the latest `sweep.status`, retaining its floor,
 deferred areas, next sweep, schedule and last sweep. Failed budget probes report unavailable points rather than stale
 ones. Older state fixtures may omit the timestamp; tests use fixture tools and
 never a live credential or Copilot seat.
+The host always publishes `forceCooldownUntil` in `sweep.status`: the epoch-millisecond
+deadline 60 seconds after the last forced sweep ended, or `null` when no cooldown
+remains. Joined and cooldown-downgraded requests, and later ordinary sweeps, do not
+move this session-only anchor. Failed and cancelled forced sweeps start it too.
+Expiry publishes `null`; subscription replay also clears expired deadlines and
+keeps snapshot, progress, status order. The field is optional in the contract
+for existing fixtures, so protocol version 3 and the desktop preload stay unchanged.
+Consumers treat an absent or past deadline as no cooldown.
 Readiness shows Copilot, git, gh and glab in that order, with no action on ready
 rows. Settings → Sweep holds the GitHub API budget; Readiness keeps a one-line
 link to it. Sign-in codes and GitLab tokens stay in their own

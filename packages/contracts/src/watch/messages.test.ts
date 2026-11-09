@@ -163,6 +163,7 @@ const messages = [
       resetAt: at,
       deferredAreas: [{ area: "security", reason: "budget floor" }],
       nextSweepAt: "2026-11-05T06:05:00Z",
+      forceCooldownUntil: Date.parse("2026-11-05T06:02:12Z"),
       schedule: {
         sweepMs: 300_000,
         gitlabMs: 1_800_000,
@@ -599,6 +600,17 @@ describe("Watch protocol", () => {
     it("accepts null for the next sweep and the last sweep", () => {
       expect(parse({ ...status.payload, nextSweepAt: null, lastSweep: null }).ok).toBe(true);
     });
+    it("accepts a null or absent cooldown without changing the protocol's required shape", () => {
+      expect(parse({ ...status.payload, forceCooldownUntil: null }).ok).toBe(true);
+      const { forceCooldownUntil: _cooldown, ...payload } = status.payload;
+      expect(parse(payload)).toEqual({ ok: true, message: { ...status, payload } });
+    });
+    it.each([-1, 1.5, Number.MAX_SAFE_INTEGER + 1, "2026-11-05T06:02:12Z", {}, true])(
+      "rejects an invalid force cooldown of %s",
+      (forceCooldownUntil) => {
+        expect(parse({ ...status.payload, forceCooldownUntil }).ok).toBe(false);
+      },
+    );
     it.each(["nextSweepAt", "schedule", "lastSweep"])("requires %s", (field) => {
       const payload = { ...status.payload };
       Reflect.deleteProperty(payload, field);

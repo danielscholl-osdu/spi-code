@@ -1538,8 +1538,8 @@ it("reports the armed timer's deadline as the next sweep, null while one runs", 
   });
   const started = first.start();
   expect(statuses).toEqual([
-    { nextSweepAt: new Date(epoch + SWEEP_MS).toISOString() },
-    { nextSweepAt: null },
+    { nextSweepAt: new Date(epoch + SWEEP_MS).toISOString(), forceCooldownUntil: null },
+    { nextSweepAt: null, forceCooldownUntil: null },
   ]);
   await vi.advanceTimersByTimeAsync(4000);
   await gate.open();
@@ -1551,7 +1551,7 @@ it("reports the armed timer's deadline as the next sweep, null while one runs", 
   });
 
   await vi.advanceTimersByTimeAsync(SWEEP_MS - 4000);
-  expect(statuses.at(-1)).toEqual({ nextSweepAt: null });
+  expect(statuses.at(-1)).toEqual({ nextSweepAt: null, forceCooldownUntil: null });
   await vi.advanceTimersByTimeAsync(2000);
   await gate.open();
   await vi.advanceTimersByTimeAsync(0);
@@ -1560,7 +1560,7 @@ it("reports the armed timer's deadline as the next sweep, null while one runs", 
 
   await vi.advanceTimersByTimeAsync(60_000);
   const requested = first.sweep(false, true);
-  expect(statuses.at(-1)).toEqual({ nextSweepAt: null });
+  expect(statuses.at(-1)).toEqual({ nextSweepAt: null, forceCooldownUntil: null });
   await gate.open();
   await requested;
   expect(deadlines).toEqual([
@@ -1570,7 +1570,7 @@ it("reports the armed timer's deadline as the next sweep, null while one runs", 
   ]);
   expect(statuses.at(-1)?.nextSweepAt).toBe(new Date(epoch + 2 * SWEEP_MS + 62_000).toISOString());
   await first.stop();
-  expect(statuses.at(-1)).toEqual({ nextSweepAt: null });
+  expect(statuses.at(-1)).toEqual({ nextSweepAt: null, forceCooldownUntil: null });
 });
 
 it("rearms a deadline a sweep ran past, so no outcome promises an expired next sweep", async () => {
@@ -1682,6 +1682,7 @@ it("reports the last sweep committed, failed and cancelled, and whether it was r
   await rejected;
   expect(statuses.at(-1)).toEqual({
     nextSweepAt: null,
+    forceCooldownUntil: null,
     lastSweep: {
       sweep: first.progress?.sweep,
       startedAt: new Date(epoch + 4500).toISOString(),
@@ -1834,29 +1835,137 @@ it("drops force within the cooldown after a forced sweep ends, and when joining 
     { ttlMs: 10 * SWEEP_MS, onStatus: (status) => statuses.push(status) },
   );
   const started = first.start();
+  const joinedStartup = first.sweep(true, true);
+  expect(joinedStartup).toBe(started);
   await gate.open();
   await started;
+  expect(statuses.at(-1)?.forceCooldownUntil).toBeNull();
   const forced = first.sweep(true, true);
   await gate.open();
   await forced;
   const endedAt = Date.now();
-  await vi.advanceTimersByTimeAsync(FORCE_COOLDOWN_MS - 2000);
+  const cooldownUntil = endedAt + FORCE_COOLDOWN_MS;
+  expect(statuses.at(-1)?.forceCooldownUntil).toBe(cooldownUntil);
+  await vi.advanceTimersByTimeAsync(10_000);
   const again = first.sweep(true, true);
   await gate.open();
   await again;
-  expect(statuses.at(-1)?.lastSweep).toMatchObject({ outcome: "committed", requested: true });
-  vi.setSystemTime(endedAt + FORCE_COOLDOWN_MS);
+  expect(statuses.at(-1)).toMatchObject({
+    forceCooldownUntil: cooldownUntil,
+    lastSweep: { outcome: "committed", requested: true },
+  });
+  const unforced = first.sweep();
+  await gate.open();
+  await unforced;
+  expect(statuses.at(-1)).toMatchObject({
+    forceCooldownUntil: cooldownUntil,
+    lastSweep: { outcome: "committed", requested: false },
+  });
+  await vi.advanceTimersByTimeAsync(cooldownUntil - Date.now() - 1);
+  expect(statuses.at(-1)?.forceCooldownUntil).toBe(cooldownUntil);
+  const previous = statuses.length;
+  await vi.advanceTimersByTimeAsync(1);
+  expect(statuses).toHaveLength(previous + 1);
+  expect(statuses.at(-1)?.forceCooldownUntil).toBeNull();
   const later = first.sweep(true, true);
   await gate.open();
   await later;
+  expect(statuses.at(-1)?.forceCooldownUntil).toBe(Date.now() + FORCE_COOLDOWN_MS);
   vi.setSystemTime(Date.now() + FORCE_COOLDOWN_MS);
   const plain = first.sweep();
   const joined = first.sweep(true, true);
   expect(joined).toBe(plain);
   await gate.open();
   await plain;
-  expect(statuses.at(-1)?.lastSweep).toMatchObject({ requested: true });
-  expect(forces).toEqual([false, true, false, true, false]);
+  expect(statuses.at(-1)).toMatchObject({
+    forceCooldownUntil: null,
+    lastSweep: { requested: true },
+  });
+  expect(forces).toEqual([false, true, false, false, true, false]);
+});
+
+it.each(["failed", "cancelled"] as const)(
+  "starts the force cooldown when a forced sweep is %s",
+  async (outcome) => {
+    let fail = false;
+    const { gate, read } = gated();
+    const statuses: SweepSchedulerStatus[] = [];
+    const first = service([], {
+      onStatus: (status) => statuses.push(status),
+      createSweeper: (options) =>
+        new Sweeper({
+          ...options,
+          areas: [],
+          cacheSchema,
+          emptyCache,
+          afterAreas: async () => {
+            if (!fail) return;
+            await read();
+            if (outcome === "failed") throw new ForgeError("gh failed", 503, "gateway");
+          },
+        }),
+    });
+    await first.start();
+    fail = true;
+    const running = first.sweep(true, true);
+    const rejected = expect(running).rejects.toThrow(
+      outcome === "failed" ? "gh failed" : "Sweep service stopped",
+    );
+    await vi.advanceTimersByTimeAsync(1500);
+    const stopping = outcome === "cancelled" ? first.stop() : undefined;
+    await gate.open();
+    await stopping;
+    await rejected;
+    expect(statuses.at(-1)).toMatchObject({
+      forceCooldownUntil: Date.now() + FORCE_COOLDOWN_MS,
+      lastSweep: { outcome, requested: true, endedAt: new Date(Date.now()).toISOString() },
+    });
+    if (outcome === "failed") {
+      await vi.advanceTimersByTimeAsync(FORCE_COOLDOWN_MS);
+      expect(statuses.at(-1)?.forceCooldownUntil).toBeNull();
+    }
+    await first.stop();
+    expect(vi.getTimerCount()).toBe(0);
+  },
+);
+
+it("never promises an expired deadline when the cooldown timer follows a wall-clock jump", async () => {
+  const statuses: SweepSchedulerStatus[] = [];
+  const first = service([], {
+    ttlMs: 10 * SWEEP_MS,
+    onStatus: (status) => statuses.push(status),
+  });
+  await first.start();
+  await first.sweep(true, true);
+  vi.setSystemTime(epoch + SWEEP_MS);
+  await vi.advanceTimersByTimeAsync(FORCE_COOLDOWN_MS);
+  expect(statuses.at(-1)).toEqual({ nextSweepAt: null, forceCooldownUntil: null });
+});
+
+it("expires cooldown during a requested sweep without moving its timer from the sweep's end", async () => {
+  const { gate, read } = gated();
+  const statuses: SweepSchedulerStatus[] = [];
+  const first = service([{ name: "auth", read }], {
+    onStatus: (status) => statuses.push(status),
+  });
+  const started = first.start();
+  await gate.open();
+  await started;
+  const forced = first.sweep(true, true);
+  await gate.open();
+  await forced;
+  await vi.advanceTimersByTimeAsync(FORCE_COOLDOWN_MS - 1);
+  const requested = first.sweep(true, true);
+  await vi.advanceTimersByTimeAsync(1);
+  expect(statuses.at(-1)).toEqual({ nextSweepAt: null, forceCooldownUntil: null });
+  await vi.advanceTimersByTimeAsync(2000);
+  await gate.open();
+  await requested;
+  expect(statuses.at(-1)).toMatchObject({
+    forceCooldownUntil: null,
+    nextSweepAt: new Date(Date.now() + SWEEP_MS).toISOString(),
+    lastSweep: { outcome: "committed", requested: true },
+  });
 });
 
 it("restarts the timer from the end of a requested sweep and never reports an expired next sweep", async () => {

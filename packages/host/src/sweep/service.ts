@@ -80,7 +80,7 @@ export interface SweepServiceOptions extends Omit<CollectorOptions, "persist" | 
   readonly timers?: SweepTimers;
   readonly onError: (error: unknown) => void;
   readonly onProgress?: (progress: SweepProgress) => void;
-  /** Called when a timer is armed, a sweep starts or finishes, and on stop. */
+  /** Called when a timer is armed, a sweep starts or finishes, cooldown expires, and on stop. */
   readonly onStatus?: (status: SweepSchedulerStatus) => void;
   readonly createSweeper?: typeof createSweeper;
 }
@@ -132,6 +132,7 @@ export class SweepService {
   /** A person asked for this sweep, so the timer restarts from its end. */
   private restart = false;
   private forcedEndedAt: number | undefined;
+  private cancelForceCooldown: (() => void) | undefined;
   private finished: LastSweep | undefined;
   private nextSweepAt: number | undefined;
   private cancelSweep: (() => void) | undefined;
@@ -205,6 +206,7 @@ export class SweepService {
       this.started = true;
       this.generation++;
       this.scheduleSweep();
+      this.scheduleForceCooldown();
       this.repeat(INFLIGHT_POLL_MS, () => this.poll());
       this.repeat(DAY_MS, async () => {
         this.prune.run(this.now() - 7 * DAY_MS);
@@ -246,13 +248,7 @@ export class SweepService {
       this.restart ||= requested;
       return this.running;
     }
-    if (
-      force &&
-      this.forcedEndedAt !== undefined &&
-      this.now() - this.forcedEndedAt < FORCE_COOLDOWN_MS
-    ) {
-      force = false;
-    }
+    if (force && this.forceCooldownUntil !== null) force = false;
     this.requested = requested;
     this.restart = requested;
     this.running = this.run(false, force).finally(() => {
@@ -266,6 +262,8 @@ export class SweepService {
     this.generation++;
     this.cancelSweep?.();
     this.cancelSweep = undefined;
+    this.cancelForceCooldown?.();
+    this.cancelForceCooldown = undefined;
     this.nextSweepAt = undefined;
     this.restart = false;
     this.publishStatus();
@@ -331,11 +329,32 @@ export class SweepService {
     return this.progressActive && this.progressFeed.latest?.outcome === "running";
   }
 
+  private get forceCooldownUntil(): number | null {
+    const until =
+      this.forcedEndedAt === undefined ? undefined : this.forcedEndedAt + FORCE_COOLDOWN_MS;
+    return until !== undefined && until > this.now() ? until : null;
+  }
+
+  private scheduleForceCooldown(): void {
+    this.cancelForceCooldown?.();
+    this.cancelForceCooldown = undefined;
+    const until = this.forceCooldownUntil;
+    if (!this.started || until === null) return;
+    this.cancelForceCooldown = this.timers.after(until - this.now(), () => {
+      this.cancelForceCooldown = undefined;
+      this.scheduleForceCooldown();
+      this.publishStatus();
+    });
+  }
+
   private publishStatus(lastSweep?: LastSweep): void {
     if (!this.options.onStatus) return;
-    const nextSweepAt = this.sweepRunning ? null : this.nextAttemptAt();
+    const status = {
+      nextSweepAt: this.sweepRunning ? null : this.nextAttemptAt(),
+      forceCooldownUntil: this.forceCooldownUntil,
+    };
     try {
-      this.options.onStatus(lastSweep ? { nextSweepAt, lastSweep } : { nextSweepAt });
+      this.options.onStatus(lastSweep ? { ...status, lastSweep } : status);
     } catch (error) {
       this.options.onError(error);
     }
@@ -682,7 +701,10 @@ export class SweepService {
       failure = { error };
       throw error;
     } finally {
-      if (force && this.progressActive) this.forcedEndedAt = this.now();
+      if (force && this.progressActive) {
+        this.forcedEndedAt = this.now();
+        this.scheduleForceCooldown();
+      }
       this.scheduleSweep();
       if (this.progressActive) {
         const cancelled = failure?.error === this.stopReason;
@@ -699,7 +721,9 @@ export class SweepService {
   }
 
   private nextAttemptAt(): string | null {
-    return this.nextSweepAt === undefined ? null : new Date(this.nextSweepAt).toISOString();
+    return this.nextSweepAt !== undefined && this.nextSweepAt > this.now()
+      ? new Date(this.nextSweepAt).toISOString()
+      : null;
   }
 
   private beginProgress(): void {

@@ -14,6 +14,7 @@ export const SWEEP_SCHEDULE: SweepSchedule = Object.freeze({
 /** The scheduler's half of sweep.status; lastSweep is present only when a sweep just finished. */
 export interface SweepSchedulerStatus {
   readonly nextSweepAt: string | null;
+  readonly forceCooldownUntil: number | null;
   readonly lastSweep?: LastSweep;
 }
 
@@ -24,6 +25,7 @@ export function emptySweepStatus(): SweepStatus {
     resetAt: null,
     deferredAreas: [],
     nextSweepAt: null,
+    forceCooldownUntil: null,
     schedule: SWEEP_SCHEDULE,
     lastSweep: null,
   };

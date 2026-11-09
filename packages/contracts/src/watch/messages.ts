@@ -64,12 +64,15 @@ export const LastSweepSchema = z
   });
 // nextSweepAt is the armed timer's deadline, null while a sweep runs or no timer is armed.
 // lastSweep is held in memory for this host run and is null until a sweep finishes.
+// The host always sends forceCooldownUntil: epoch ms when force is allowed again, or null.
+// An additive optional extension; consumers treat an absent or past deadline as no cooldown.
 export const SweepStatusSchema = z.strictObject({
   remaining: z.int().nonnegative().nullable(),
   floor: z.int().nonnegative().optional(),
   resetAt: ObservedAtSchema.nullable(),
   deferredAreas: z.array(z.strictObject({ area: IdentifierSchema, reason: IdentifierSchema })),
   nextSweepAt: ObservedAtSchema.nullable(),
+  forceCooldownUntil: z.int().nonnegative().nullable().optional(),
   schedule: SweepScheduleSchema,
   lastSweep: LastSweepSchema.nullable(),
 });

@@ -477,6 +477,7 @@ it("merges fresh budget figures into the latest sweep floor and deferred areas",
     floor: 125,
     deferredAreas: [{ area: "radar", reason: "insufficient budget" }],
     nextSweepAt: "2026-11-08T15:05:00Z",
+    forceCooldownUntil: Date.parse("2026-11-08T15:01:02Z"),
     schedule: SWEEP_SCHEDULE,
     lastSweep: {
       sweep: "sweep-1",

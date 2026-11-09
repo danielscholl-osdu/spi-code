@@ -399,9 +399,10 @@ it.skipIf(process.platform === "win32")(
       const publishStatus = vi
         .spyOn(WatchRoutes.prototype, "publishStatus")
         .mockImplementation(() => {});
-      wired.onStatus?.({ nextSweepAt: "2026-11-08T15:10:00.000Z" });
+      wired.onStatus?.({ nextSweepAt: "2026-11-08T15:10:00.000Z", forceCooldownUntil: null });
       expect(publishStatus).toHaveBeenCalledExactlyOnceWith({
         nextSweepAt: "2026-11-08T15:10:00.000Z",
+        forceCooldownUntil: null,
       });
       publishStatus.mockRestore();
       vi.useFakeTimers({ toFake: ["Date"] });

@@ -102,6 +102,7 @@ const persistedSchema = z.object({
 
 const SweepBudgetSchema = SweepStatusSchema.omit({
   nextSweepAt: true,
+  forceCooldownUntil: true,
   schedule: true,
   lastSweep: true,
 });
@@ -897,6 +898,7 @@ export class WatchRoutes {
   private progress: SweepProgress | undefined;
   private progressSequence = 0;
   private nextSweepAt: string | null = null;
+  private forceCooldownUntil: number | null = null;
   private lastSweep: LastSweep | null = null;
   private statusSequence = 0;
 
@@ -943,6 +945,7 @@ export class WatchRoutes {
       ...emptySweepStatus(),
       ...budget,
       nextSweepAt: this.nextSweepAt,
+      forceCooldownUntil: this.activeForceCooldown,
       schedule: SWEEP_SCHEDULE,
       lastSweep: this.lastSweep,
     };
@@ -951,6 +954,7 @@ export class WatchRoutes {
   /** Records a scheduler transition and sends the subscriber the whole sweep.status. */
   publishStatus(status: SweepSchedulerStatus): void {
     this.nextSweepAt = status.nextSweepAt;
+    this.forceCooldownUntil = status.forceCooldownUntil;
     if (
       status.lastSweep &&
       (!this.lastSweep ||
@@ -975,6 +979,13 @@ export class WatchRoutes {
       type: "sweep.status",
       payload: this.status,
     });
+  }
+
+  private get activeForceCooldown(): number | null {
+    return this.forceCooldownUntil !== null &&
+      this.forceCooldownUntil > this.options.ctx.clock.now().getTime()
+      ? this.forceCooldownUntil
+      : null;
   }
 
   /** Pushes a snapshot newer than the subscriber's cursor, with its sweep status. */
@@ -1103,6 +1114,7 @@ export class WatchRoutes {
       payload: {
         ...latest.status,
         nextSweepAt: this.nextSweepAt,
+        forceCooldownUntil: this.activeForceCooldown,
         schedule: SWEEP_SCHEDULE,
         lastSweep: this.lastSweep,
       },

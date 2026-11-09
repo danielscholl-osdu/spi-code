@@ -714,9 +714,14 @@ describe("view.subscribe", () => {
       code: "signin",
       requested: true,
     };
-    watch.publishStatus({ nextSweepAt: "2026-11-08T15:10:00.000Z", lastSweep: failed });
     watch.publishStatus({
       nextSweepAt: "2026-11-08T15:10:00.000Z",
+      forceCooldownUntil: null,
+      lastSweep: failed,
+    });
+    watch.publishStatus({
+      nextSweepAt: "2026-11-08T15:10:00.000Z",
+      forceCooldownUntil: null,
       lastSweep: { ...failed, sweep: "sweep-1", startedAt: "2026-11-08T15:00:00.000Z" },
     });
     const port = host(watch);
@@ -731,7 +736,7 @@ describe("view.subscribe", () => {
     expect(port.sent.slice(1)).toMatchObject([{ type: "sweep.status", payload: live }]);
     expect(SweepStatusSchema.parse(port.sent[1]?.payload)).toEqual(port.sent[1]?.payload);
 
-    watch.publishStatus({ nextSweepAt: null });
+    watch.publishStatus({ nextSweepAt: null, forceCooldownUntil: null });
     expect(port.sent.slice(2)).toMatchObject([
       { type: "sweep.status", payload: { ...live, nextSweepAt: null } },
     ]);
@@ -762,7 +767,7 @@ describe("view.subscribe", () => {
       nextAttemptAt: null,
     };
     watch.publishProgress(running);
-    watch.publishStatus({ nextSweepAt: null });
+    watch.publishStatus({ nextSweepAt: null, forceCooldownUntil: null });
     const midSweep = await replay();
     expect(midSweep.map(({ type }) => type)).toEqual([
       "host.hello",
@@ -790,7 +795,7 @@ describe("view.subscribe", () => {
       failure: "GitHub is not signed in",
       nextAttemptAt: nextSweepAt,
     });
-    watch.publishStatus({ nextSweepAt, lastSweep });
+    watch.publishStatus({ nextSweepAt, forceCooldownUntil: null, lastSweep });
     const failed = await replay();
     expect(failed.map(({ type }) => type)).toEqual([
       "host.hello",
@@ -814,6 +819,62 @@ describe("view.subscribe", () => {
       "sweep.progress",
       "sweep.status",
     ]);
+  });
+
+  it("replays the session cooldown after an unforced sweep, never an expired deadline", async () => {
+    let at = now;
+    const watch = new WatchRoutes({
+      db: () => db,
+      fleet,
+      ctx: { ...ctx, clock: { now: () => new Date(at) } },
+      appData: input.appData,
+      exec: failing,
+      onError: (error) => {
+        throw error;
+      },
+    });
+    const cursor = writeSnapshot();
+    const lastSweep: LastSweep = {
+      sweep: "unforced",
+      startedAt: new Date(now).toISOString(),
+      endedAt: new Date(now + 1000).toISOString(),
+      outcome: "committed",
+      requested: false,
+    };
+    const forceCooldownUntil = now + 60_000;
+    watch.publishProgress({
+      sweep: lastSweep.sweep,
+      startedAt: lastSweep.startedAt,
+      outcome: "committed",
+      first: false,
+      usualMs: null,
+      sources: [],
+      nextAttemptAt: null,
+    });
+    watch.publishStatus({ nextSweepAt: null, forceCooldownUntil, lastSweep });
+    for (const fromCursor of [0, cursor]) {
+      const replay = host(watch);
+      replay.request("view.subscribe", { fromCursor });
+      await settle();
+      expect(replay.sent.map(({ type }) => type)).toEqual([
+        "host.hello",
+        ...(fromCursor === 0 ? ["view.snapshot"] : []),
+        "sweep.progress",
+        "sweep.status",
+      ]);
+      expect(replay.sent.at(-1)).toMatchObject({
+        payload: { forceCooldownUntil, lastSweep },
+      });
+    }
+
+    at = forceCooldownUntil;
+    const expired = host(watch);
+    expired.request("view.subscribe", { fromCursor: 0 });
+    await settle();
+    expect(expired.sent.at(-1)).toMatchObject({ payload: { forceCooldownUntil: null } });
+    expect(watch.status.forceCooldownUntil).toBeNull();
+    const restarted = routes();
+    expect(restarted.status).toMatchObject({ forceCooldownUntil: null, lastSweep: null });
   });
 });
 
