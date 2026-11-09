@@ -81,7 +81,7 @@ export interface WatchRoutesOptions {
   readonly exec: Exec;
   readonly inspect?: InspectOptions;
   readonly onError: (error: unknown) => void;
-  readonly requestSweep?: () => Promise<boolean>;
+  readonly requestSweep?: (request: { now?: true | undefined }) => Promise<boolean>;
   readonly sweepProgress?: () => SweepProgress | undefined;
 }
 
@@ -922,7 +922,7 @@ export class WatchRoutes {
     "sweep.request": async (message) => {
       if (message.type !== "sweep.request") return;
       if (!this.options.requestSweep) throw new Error("Watch sweep requests are not configured");
-      await this.options.requestSweep();
+      await this.options.requestSweep(message.payload);
     },
   };
 

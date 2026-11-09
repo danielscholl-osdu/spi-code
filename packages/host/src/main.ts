@@ -110,7 +110,7 @@ const watch = new WatchRoutes({
   appData,
   exec,
   onError: console.error,
-  requestSweep: () => setup.requestSweep(),
+  requestSweep: (request) => setup.requestSweep(request),
   sweepProgress: () => setup.progress,
 });
 const budget = new GraphqlBudget(ctx.clock);

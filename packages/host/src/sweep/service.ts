@@ -49,6 +49,8 @@ import { SweepProgressFeed } from "./progress.js";
 import type { SweepSchedulerStatus } from "./status.js";
 
 export const DAY_MS = 24 * 60 * 60_000;
+/** A forced request this soon after a forced sweep ended runs at cadence, so Sweep now cannot drain the budget. */
+export const FORCE_COOLDOWN_MS = 60_000;
 const persistedDuration = z.object({
   facts: z.object({ sweep: z.object({ ms: z.int().positive() }).optional() }),
 });
@@ -127,6 +129,9 @@ export class SweepService {
   private readonly progressFeed: SweepProgressFeed;
   private progressActive = false;
   private requested = false;
+  /** A person asked for this sweep, so the timer restarts from its end. */
+  private restart = false;
+  private forcedEndedAt: number | undefined;
   private finished: LastSweep | undefined;
   private nextSweepAt: number | undefined;
   private cancelSweep: (() => void) | undefined;
@@ -210,8 +215,10 @@ export class SweepService {
   }
 
   /**
-   * False means another owner holds the fleet; concurrent requests coalesce. Requested marks a
-   * sweep a person asked for, including one it joins.
+   * False means another owner holds the fleet; concurrent requests coalesce, so a forced request
+   * that joins a running sweep does not force it. Requested marks a sweep a person asked for,
+   * including one it joins, and restarts the timer from that sweep's end. Force within
+   * FORCE_COOLDOWN_MS of a forced sweep's end is dropped.
    */
   sweep(force = false, requested = false): Promise<boolean> {
     if (!this.started) return Promise.reject(this.stopReason);
@@ -236,9 +243,18 @@ export class SweepService {
     }
     if (this.running) {
       this.requested ||= requested;
+      this.restart ||= requested;
       return this.running;
     }
+    if (
+      force &&
+      this.forcedEndedAt !== undefined &&
+      this.now() - this.forcedEndedAt < FORCE_COOLDOWN_MS
+    ) {
+      force = false;
+    }
     this.requested = requested;
+    this.restart = requested;
     this.running = this.run(false, force).finally(() => {
       this.running = undefined;
     });
@@ -251,6 +267,7 @@ export class SweepService {
     this.cancelSweep?.();
     this.cancelSweep = undefined;
     this.nextSweepAt = undefined;
+    this.restart = false;
     this.publishStatus();
     for (const cancel of this.cancellations.splice(0)) cancel();
     const holder = this.holder;
@@ -279,6 +296,12 @@ export class SweepService {
 
   private scheduleSweep(): void {
     if (!this.started) return;
+    if (this.restart) {
+      this.restart = false;
+      this.cancelSweep?.();
+      this.cancelSweep = undefined;
+      this.nextSweepAt = undefined;
+    }
     if (this.nextSweepAt !== undefined) {
       if (this.nextSweepAt > this.now()) return;
       // A deadline that passed while its timer had not fired would promise an expired time.
@@ -659,6 +682,7 @@ export class SweepService {
       failure = { error };
       throw error;
     } finally {
+      if (force && this.progressActive) this.forcedEndedAt = this.now();
       this.scheduleSweep();
       if (this.progressActive) {
         const cancelled = failure?.error === this.stopReason;

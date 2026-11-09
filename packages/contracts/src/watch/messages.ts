@@ -202,7 +202,8 @@ export const SweepProgressSchema = z
       progress.outcome !== "failed" || progress.code !== "save" || progress.source === undefined,
     { message: "A failure while saving names no source", path: ["source"] },
   );
-export const SweepRequestSchema = z.strictObject({});
+// `now` is optional, so a payload without it still parses and the protocol version stays.
+export const SweepRequestSchema = z.strictObject({ now: z.literal(true).optional() });
 export const ViewSubscribeSchema = z.strictObject({ fromCursor: z.int().nonnegative() });
 const envelope = { version: z.literal(PROTOCOL_VERSION), id: IdentifierSchema };
 export const WatchMessageSchema = z.discriminatedUnion("type", [

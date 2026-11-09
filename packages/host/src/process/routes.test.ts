@@ -310,6 +310,27 @@ describe("view.subscribe", () => {
     }
   });
 
+  it("passes Sweep now's payload through to the requested sweep", async () => {
+    const requestSweep = vi.fn(async () => true);
+    const watch = new WatchRoutes({
+      db: () => db,
+      fleet,
+      ctx,
+      appData: input.appData,
+      exec: failing,
+      onError: (error) => {
+        throw error;
+      },
+      requestSweep,
+    });
+    const window = host(watch);
+    window.request("sweep.request", {}, "try-again");
+    window.request("sweep.request", { now: true }, "sweep-now");
+    await settle();
+    expect(requestSweep.mock.calls).toEqual([[{}], [{ now: true }]]);
+    expect(window.sent.filter(({ type }) => type === "error")).toEqual([]);
+  });
+
   it("exposes the latest persisted budget floor and deferrals before a window subscribes", () => {
     const watch = routes();
     expect(watch.status).toEqual(emptySweepStatus());

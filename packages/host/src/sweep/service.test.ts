@@ -30,6 +30,7 @@ import {
   createSweeper,
   type Exec,
   emptyCache,
+  emptyFacts,
   type Facts,
   fleetOf,
   INFLIGHT_POLL_MS,
@@ -47,7 +48,7 @@ import { createSnapshotStore } from "../store/snapshots.js";
 import { openRunStore } from "../store/store.js";
 import * as project from "../watch/project.js";
 import { fixtureInput } from "../watch/snapshot-fixture.js";
-import { DAY_MS, SweepService, type SweepServiceOptions } from "./service.js";
+import { DAY_MS, FORCE_COOLDOWN_MS, SweepService, type SweepServiceOptions } from "./service.js";
 import type { SweepSchedulerStatus } from "./status.js";
 
 vi.mock("node:fs", async (importOriginal) => {
@@ -1557,12 +1558,17 @@ it("reports the armed timer's deadline as the next sweep, null while one runs", 
   expect(deadlines).toEqual([epoch + SWEEP_MS, epoch + 2 * SWEEP_MS + 2000]);
   expect(statuses.at(-1)?.nextSweepAt).toBe(new Date(epoch + 2 * SWEEP_MS + 2000).toISOString());
 
+  await vi.advanceTimersByTimeAsync(60_000);
   const requested = first.sweep(false, true);
   expect(statuses.at(-1)).toEqual({ nextSweepAt: null });
   await gate.open();
   await requested;
-  expect(statuses.at(-1)?.nextSweepAt).toBe(new Date(deadlines.at(-1) ?? 0).toISOString());
-  expect(deadlines).toHaveLength(2);
+  expect(deadlines).toEqual([
+    epoch + SWEEP_MS,
+    epoch + 2 * SWEEP_MS + 2000,
+    epoch + 2 * SWEEP_MS + 62_000,
+  ]);
+  expect(statuses.at(-1)?.nextSweepAt).toBe(new Date(epoch + 2 * SWEEP_MS + 62_000).toISOString());
   await first.stop();
   expect(statuses.at(-1)).toEqual({ nextSweepAt: null });
 });
@@ -1684,4 +1690,173 @@ it("reports the last sweep committed, failed and cancelled, and whether it was r
       requested: false,
     },
   });
+});
+
+type SourceEvent = Parameters<NonNullable<SweepServiceOptions["progress"]>>[0];
+
+/** A real collector over one fork whose GitLab, Security and Releases reads are fresh. */
+function fresh(remaining: number) {
+  const at = new Date(epoch).toISOString();
+  const stored = {
+    facts: {
+      ...emptyFacts(),
+      upstream: { at, data: { partition: { service: "partition", commits: [] } } },
+      radar: { at, data: { services: {}, filters: {} } },
+      security: { at, data: {} },
+    },
+    cache: { ...emptyCache(), releases: { ...emptyCache().releases, at } },
+    reads: {},
+  };
+  // GitLab API reads only; glab auth status runs on every sweep.
+  const glab: string[] = [];
+  const outcomes = new Map<string, string>();
+  const instance = service([], {
+    ctx: createContext({
+      fleet: fleetOf([
+        { id: "partition", repo: "o/partition", upstream: "osdu/partition", seeded: "2026-01-01" },
+      ]),
+      clock: { now: () => new Date(Date.now()) },
+    }),
+    onError: vi.fn(),
+    progress: (event: SourceEvent) => {
+      if (event.kind !== "source" || event.state === "reading") return;
+      outcomes.set(event.source, `${event.state}${"code" in event ? `:${event.code}` : ""}`);
+    },
+    createSweeper: (options) =>
+      createSweeper({ ...options, persist: { ...options.persist, load: async () => stored } }),
+    exec: {
+      runJSON: async (cmd, args) => {
+        if (cmd === "glab" && args[0] === "api") glab.push(args.join(" "));
+        return { ok: false, code: 1, error: "offline fixture" };
+      },
+      runText: async (cmd, args) => {
+        if (cmd === "glab" && args[0] === "api") glab.push(args.join(" "));
+        if (cmd !== "gh" || args[1] !== "graphql") {
+          return { ok: false, code: 1, error: "offline fixture" };
+        }
+        const resetAt = new Date(epoch + 3600_000).toISOString();
+        return {
+          ok: true,
+          exitCode: 0,
+          data: JSON.stringify({ data: { spicodeBudget: { cost: 1, remaining, resetAt } } }),
+        };
+      },
+    },
+  });
+  const read = (sources: readonly string[]) => {
+    const seen = Object.fromEntries(sources.map((source) => [source, outcomes.get(source)]));
+    outcomes.clear();
+    return seen;
+  };
+  return { instance, glab, read };
+}
+
+const slow = ["upstream", "radar", "security", "releases"] as const;
+
+it("Sweep now reads GitLab, Security and Releases sources that are not due; Try again skips them", async () => {
+  const { instance, glab, read } = fresh(4000);
+  await instance.start();
+  read(slow);
+  vi.setSystemTime(epoch + 1000);
+  await instance.sweep(false, true);
+  expect(read(slow)).toEqual({
+    upstream: "skipped:cadence",
+    radar: "skipped:cadence",
+    security: "skipped:cadence",
+    releases: "skipped:cadence",
+  });
+  expect(glab).toEqual([]);
+  vi.setSystemTime(epoch + 2000);
+  await instance.sweep(true, true);
+  const forced = read(slow);
+  for (const source of slow) expect(forced[source]).not.toMatch(/^skipped/);
+  expect(glab.length).toBeGreaterThan(0);
+});
+
+it("Sweep now still defers a source the budget floor holds back", async () => {
+  const { instance, read } = fresh(50);
+  await instance.start();
+  vi.setSystemTime(epoch + 1000);
+  await instance.sweep(true, true);
+  expect(read(slow)).toMatchObject({ security: "deferred:budget", releases: "deferred:budget" });
+});
+
+it("drops force within the cooldown after a forced sweep ends, and when joining a running sweep", async () => {
+  const { gate, read } = gated();
+  const forces: boolean[] = [];
+  const statuses: SweepSchedulerStatus[] = [];
+  const first = service(
+    [
+      {
+        name: "auth",
+        read: async (input) => {
+          forces.push(input.force);
+          await vi.advanceTimersByTimeAsync(1000);
+          return read();
+        },
+      },
+    ],
+    { ttlMs: 10 * SWEEP_MS, onStatus: (status) => statuses.push(status) },
+  );
+  const started = first.start();
+  await gate.open();
+  await started;
+  const forced = first.sweep(true, true);
+  await gate.open();
+  await forced;
+  const endedAt = Date.now();
+  await vi.advanceTimersByTimeAsync(FORCE_COOLDOWN_MS - 2000);
+  const again = first.sweep(true, true);
+  await gate.open();
+  await again;
+  expect(statuses.at(-1)?.lastSweep).toMatchObject({ outcome: "committed", requested: true });
+  vi.setSystemTime(endedAt + FORCE_COOLDOWN_MS);
+  const later = first.sweep(true, true);
+  await gate.open();
+  await later;
+  vi.setSystemTime(Date.now() + FORCE_COOLDOWN_MS);
+  const plain = first.sweep();
+  const joined = first.sweep(true, true);
+  expect(joined).toBe(plain);
+  await gate.open();
+  await plain;
+  expect(statuses.at(-1)?.lastSweep).toMatchObject({ requested: true });
+  expect(forces).toEqual([false, true, false, true, false]);
+});
+
+it("restarts the timer from the end of a requested sweep and never reports an expired next sweep", async () => {
+  const { deadlines, timers } = scheduled();
+  const reads: number[] = [];
+  const statuses: SweepSchedulerStatus[] = [];
+  const first = service(
+    [
+      {
+        name: "auth",
+        read: async () => {
+          reads.push(Date.now());
+          await vi.advanceTimersByTimeAsync(3000);
+          return { data: auth, reads: [] };
+        },
+      },
+    ],
+    { timers, ttlMs: 10 * SWEEP_MS, onStatus: (status) => statuses.push(status) },
+  );
+  await first.start();
+  await vi.advanceTimersByTimeAsync(100_000);
+  await first.sweep(true, true);
+  const end = epoch + 106_000;
+  expect(deadlines).toEqual([epoch + SWEEP_MS, end + SWEEP_MS]);
+  const last = statuses.at(-1);
+  expect(last).toMatchObject({
+    nextSweepAt: new Date(end + SWEEP_MS).toISOString(),
+    lastSweep: { requested: true, endedAt: new Date(end).toISOString() },
+  });
+  await vi.advanceTimersByTimeAsync(epoch + SWEEP_MS - Date.now() + 1000);
+  expect(reads).toHaveLength(2);
+  await vi.advanceTimersByTimeAsync(end + SWEEP_MS - Date.now());
+  expect(reads).toEqual([epoch, epoch + 103_000, end + SWEEP_MS]);
+  for (const status of statuses) {
+    if (status.nextSweepAt === null || !status.lastSweep) continue;
+    expect(Date.parse(status.nextSweepAt)).toBeGreaterThan(Date.parse(status.lastSweep.endedAt));
+  }
 });

@@ -194,11 +194,12 @@ export class SetupService {
     return this.sweep?.instance.progress;
   }
 
-  requestSweep(): Promise<boolean> {
+  /** Sweep now: `now` forces a full read past cadence; the gate and the budget floor still hold. */
+  requestSweep({ now }: { now?: boolean | undefined } = {}): Promise<boolean> {
     if (this.stopped || !this.state || this.state.tools.some(blocksWatch) || !this.sweep) {
       return Promise.reject(new Error("Watch is blocked by Readiness"));
     }
-    return this.sweep.instance.sweep(false, true);
+    return this.sweep.instance.sweep(now === true, true);
   }
 
   /**

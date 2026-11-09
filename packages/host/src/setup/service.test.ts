@@ -761,7 +761,7 @@ it.each(["git", "gh"] as const)("keeps Watch ready when %s needs an update", asy
   expect(start).toHaveBeenCalledOnce();
 });
 
-it("refuses Try again while Readiness blocks Watch and uses the non-forced sweep when ready", async () => {
+it("refuses Try again and Sweep now while Readiness blocks Watch, forcing only Sweep now when ready", async () => {
   let signedIn = false;
   const sweep = vi.fn(async () => true);
   const start = vi.fn(async () => true);
@@ -777,22 +777,26 @@ it("refuses Try again while Readiness blocks Watch and uses the non-forced sweep
   await expect(service.requestSweep()).rejects.toThrow("Readiness");
   await service.refresh();
   await expect(service.requestSweep()).rejects.toThrow("Readiness");
+  await expect(service.requestSweep({ now: true })).rejects.toThrow("Readiness");
   expect(start).not.toHaveBeenCalled();
   expect(sweep).not.toHaveBeenCalled();
   signedIn = true;
   await service.refresh();
   await expect(service.requestSweep()).resolves.toBe(true);
   expect(sweep).toHaveBeenCalledExactlyOnceWith(false, true);
+  await expect(service.requestSweep({ now: true })).resolves.toBe(true);
+  expect(sweep).toHaveBeenLastCalledWith(true, true);
   signedIn = false;
   await service.refresh();
   await expect(service.requestSweep()).rejects.toThrow("Readiness");
-  expect(sweep).toHaveBeenCalledOnce();
+  await expect(service.requestSweep({ now: true })).rejects.toThrow("Readiness");
+  expect(sweep).toHaveBeenCalledTimes(2);
   await service.stop();
   await expect(service.requestSweep()).rejects.toThrow("Readiness");
 });
 
 it.each(["git", "gh"] as const)(
-  "refuses Try again for blocking %s even with a sweep instance",
+  "refuses Try again and Sweep now for blocking %s even with a sweep instance",
   async (tool) => {
     const sweep = vi.fn(async () => true);
     const start = vi.fn(async () => true);
@@ -811,6 +815,7 @@ it.each(["git", "gh"] as const)(
     if (!row) throw new Error("Missing readiness fixture row");
     row.state = tool === "git" ? "missing" : "signed-out";
     await expect(service.requestSweep()).rejects.toThrow("Readiness");
+    await expect(service.requestSweep({ now: true })).rejects.toThrow("Readiness");
     expect(sweep).not.toHaveBeenCalled();
   },
 );

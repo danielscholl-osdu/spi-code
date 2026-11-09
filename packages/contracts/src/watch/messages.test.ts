@@ -423,10 +423,21 @@ describe("sweep progress", () => {
     expect(parse({ ...failed, nextAttemptAt: "soon" }).ok).toBe(false);
     expect(parse({ ...progress, sources: [source, source] }).ok).toBe(false);
   });
-  it("round-trips sweep.request with an empty payload only", () => {
+  it("round-trips sweep.request with an empty payload or now: true only", () => {
     const message = messages[13];
     expect(parseMessage(JSON.parse(JSON.stringify(message)))).toEqual({ ok: true, message });
-    for (const payload of [null, undefined, [], { area: "github" }]) {
+    const now = { ...message, payload: { now: true } };
+    expect(parseMessage(JSON.parse(JSON.stringify(now)))).toEqual({ ok: true, message: now });
+    for (const payload of [
+      null,
+      undefined,
+      [],
+      { area: "github" },
+      { now: false },
+      { now: "yes" },
+      { now: 1 },
+      { now: true, area: "github" },
+    ]) {
       expect(parseMessage({ ...message, payload }).ok).toBe(false);
     }
     expect(parseMessage({ ...message, kind: "event" }).ok).toBe(false);
