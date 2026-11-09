@@ -640,30 +640,52 @@ test.each(["fleet", "releases"] as const)(
   },
 );
 
-test("low and unknown budgets defer optional work with reasons while core reads run", async () => {
+test("a low budget defers every GitHub read but auth until the reset; an unknown budget runs core reads", async () => {
   const low = harness("owner/partition", 50);
+  const gh: string[] = [];
+  low.setRoute((cmd, args) => {
+    if (cmd === "gh") gh.push(args.join(" "));
+    return undefined;
+  });
   const calls: SweepProgress[] = [];
   const sweeper = createSweeper({ ...low.options, progress: (event) => calls.push(event) });
+  const github = ["github", "runs", "approvals", "lifecycle", "template", "details"];
+  const optional = ["radar", "security", "releases"];
+  const deferred = (sources: readonly string[]) => {
+    expect(sweeper.cache.budget.deferred).toEqual(
+      sources.map((area) => ({ area, reason: "insufficient budget" })),
+    );
+    expect(calls.filter((event) => event.kind === "source" && event.state === "deferred")).toEqual(
+      sources.map((source) => ({
+        kind: "source",
+        source,
+        state: "deferred",
+        endedAt: START,
+        reason: "insufficient budget",
+        code: "budget",
+        resumeAt: "2099-01-01T00:00:00Z",
+      })),
+    );
+    expect(calls.filter((event) => event.kind === "source" && event.state === "failed")).toEqual(
+      [],
+    );
+    calls.length = 0;
+  };
+  // The first sweep has no budget yet, so fleet reads and reports the 50 points left.
   await sweeper.sweep();
-  expect(sweeper.facts.github.data?.repos["owner/partition"]).toBeDefined();
+  expect(sweeper.facts.fleet.data).toBeDefined();
+  expect(sweeper.facts.github.data).toBeUndefined();
+  expect(sweeper.facts.auth.data?.gh.ok).toBe(true);
   expect(sweeper.facts.upstream.data?.partition).toBeDefined();
-  expect(sweeper.cache.budget.deferred).toEqual(
-    ["details", "radar", "security", "releases"].map((area) => ({
-      area,
-      reason: "insufficient budget",
-    })),
-  );
-  expect(calls.filter((event) => event.kind === "source" && event.state === "deferred")).toEqual(
-    ["details", "radar", "security", "releases"].map((source) => ({
-      kind: "source",
-      source,
-      state: "deferred",
-      endedAt: START,
-      reason: "insufficient budget",
-      code: "budget",
-      resumeAt: "2099-01-01T00:00:00Z",
-    })),
-  );
+  deferred([...github, ...optional]);
+  for (const force of [false, true]) {
+    gh.length = 0;
+    await sweeper.sweep({ force });
+    // Only the auth area touches GitHub: its status check and the login it reads.
+    expect(gh).toEqual(["auth status --hostname github.com", "api user --jq .login"]);
+    deferred(["fleet", ...github, ...optional]);
+  }
+  low.setRoute(undefined);
   low.setOffline();
   calls.length = 0;
   const cold = createSweeper({
@@ -736,7 +758,8 @@ test("two interleaved fleets keep facts, caches and budgets independent", async 
   a.advance(1);
   await one.sweep({ force: true });
   expect(Object.keys(one.facts.runs.data ?? {})).toEqual(["owner/one"]);
-  expect(Object.keys(two.facts.runs.data ?? {})).toEqual(["owner/two"]);
+  // Fleet two sits below the budget floor, so its runs wait for the reset.
+  expect(two.facts.runs.data).toBeUndefined();
   expect(one.cache.radar.pins.forks).toHaveProperty("owner/one:main:pom.xml");
   expect(Object.keys(two.cache.radar.pins.forks)).toEqual([]);
   expect(one.cache.budget.deferred).toEqual([]);
@@ -1223,6 +1246,8 @@ test("an auth exception cannot accumulate deferred entries across sweeps", async
       },
     },
   });
+  // The first sweep learns the budget during fleet; the second defers from the start.
+  await sweeper.sweep();
   await sweeper.sweep();
   const deferred = structuredClone(sweeper.cache.budget.deferred);
   throwAuth = true;

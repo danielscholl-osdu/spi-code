@@ -119,7 +119,9 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
           ...(before.resetAt === null ? {} : { resetAt: before.resetAt }),
           history: cache.history, areas: [{ area: name, core, estimate }], now: clock.now().getTime(),
         })[0];
-        if (!core && decision?.kind !== "run") {
+        // Below the floor every GitHub read waits; auth must run so sign-in is known, and upstream
+        // reads only GitLab. With the budget unknown the pacer still runs core areas.
+        if (name !== "auth" && name !== "upstream" && decision?.kind !== "run") {
           const reason = decision?.reason ?? "budget unknown";
           cache.budget.deferred.push({ area: name, reason });
           return {

@@ -1709,6 +1709,8 @@ function fresh(remaining: number) {
   };
   // GitLab API reads only; glab auth status runs on every sweep.
   const glab: string[] = [];
+  // GitHub REST reads; GraphQL carries the budget itself.
+  const gh: string[] = [];
   const outcomes = new Map<string, string>();
   const instance = service([], {
     ctx: createContext({
@@ -1727,10 +1729,12 @@ function fresh(remaining: number) {
     exec: {
       runJSON: async (cmd, args) => {
         if (cmd === "glab" && args[0] === "api") glab.push(args.join(" "));
+        if (cmd === "gh" && args[0] === "api") gh.push(args.join(" "));
         return { ok: false, code: 1, error: "offline fixture" };
       },
       runText: async (cmd, args) => {
         if (cmd === "glab" && args[0] === "api") glab.push(args.join(" "));
+        if (cmd === "gh" && args[0] === "api" && args[1] !== "graphql") gh.push(args.join(" "));
         if (cmd !== "gh" || args[1] !== "graphql") {
           return { ok: false, code: 1, error: "offline fixture" };
         }
@@ -1748,7 +1752,7 @@ function fresh(remaining: number) {
     outcomes.clear();
     return seen;
   };
-  return { instance, glab, read };
+  return { instance, glab, gh, read };
 }
 
 const slow = ["upstream", "radar", "security", "releases"] as const;
@@ -1779,6 +1783,37 @@ it("Sweep now still defers a source the budget floor holds back", async () => {
   vi.setSystemTime(epoch + 1000);
   await instance.sweep(true, true);
   expect(read(slow)).toMatchObject({ security: "deferred:budget", releases: "deferred:budget" });
+});
+
+it("below the budget floor the first sweep shows core GitHub sources waiting, and later sweeps make no GitHub REST calls", async () => {
+  const { instance, gh, read } = fresh(50);
+  const core = ["github", "runs", "approvals", "lifecycle", "template"];
+  const resumeAt = new Date(epoch + 3600_000).toISOString();
+  await instance.start();
+  const first = SweepProgressSchema.parse(instance.progress);
+  expect(first).toMatchObject({ first: true, outcome: "committed" });
+  for (const source of core) {
+    expect(first.sources.find((entry) => entry.source === source)).toMatchObject({
+      state: "deferred",
+      code: "budget",
+      resumeAt,
+    });
+  }
+  expect(first.sources.find((entry) => entry.source === "auth")?.state).not.toBe("deferred");
+  read(["auth"]);
+  for (const [at, force] of [
+    [1000, false],
+    [2000, true],
+  ] as const) {
+    gh.length = 0;
+    vi.setSystemTime(epoch + at);
+    await instance.sweep(force, true);
+    expect(gh).toEqual([]);
+    expect(read(["auth", "fleet", ...core])).toEqual({
+      auth: expect.not.stringMatching(/^deferred/),
+      ...Object.fromEntries(["fleet", ...core].map((source) => [source, "deferred:budget"])),
+    });
+  }
 });
 
 it("drops force within the cooldown after a forced sweep ends, and when joining a running sweep", async () => {
