@@ -36,6 +36,13 @@ vi.mock("electron", () => ({
 
 import { createSweepTray, trayChannel } from "./tray.js";
 
+const sweepSchedule = {
+  sweepMs: 300_000,
+  gitlabMs: 1_800_000,
+  securityMs: 1_800_000,
+  releasesMs: 3_600_000,
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   electron.trays.length = 0;
@@ -117,6 +124,9 @@ it("updates the dot and wording from validated host sweep evidence, including fa
       remaining: 0,
       resetAt: null,
       deferredAreas: [{ area: "security", reason: "budget" }],
+      nextSweepAt: null,
+      schedule: sweepSchedule,
+      lastSweep: null,
     },
   });
   expect(native?.setToolTip).toHaveBeenLastCalledWith("SPI Code - Read failed");
@@ -261,6 +271,9 @@ function status(deferred: boolean): Message {
       remaining: deferred ? 0 : 40,
       resetAt: null,
       deferredAreas: deferred ? [{ area: "security", reason: "budget" }] : [],
+      nextSweepAt: null,
+      schedule: sweepSchedule,
+      lastSweep: null,
     },
   } as Message;
 }

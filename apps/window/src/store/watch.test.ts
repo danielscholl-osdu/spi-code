@@ -487,7 +487,19 @@ it("keeps the mounted snapshot across reconnect and shows the supervisor's schem
 
 it("keeps the latest cursorless sweep and setup states independently of snapshots", () => {
   const store = createWatchStore(vi.fn());
-  const sweep = { remaining: 500, resetAt: null, deferredAreas: [] };
+  const sweep = {
+    remaining: 500,
+    resetAt: null,
+    deferredAreas: [],
+    nextSweepAt: null,
+    schedule: {
+      sweepMs: 300_000,
+      gitlabMs: 1_800_000,
+      securityMs: 1_800_000,
+      releasesMs: 3_600_000,
+    },
+    lastSweep: null,
+  };
   const setup = { tools: [], watchReady: false, disabledReason: "Install git" };
   store.getState().receive(event("sweep.status", { ...sweep, remaining: 1000 }));
   store

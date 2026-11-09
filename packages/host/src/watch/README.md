@@ -4,8 +4,13 @@
 and replays the service's latest state on `view.subscribe`, even when that state
 is still waiting for its send slot or the snapshot cursor is already current.
 `sweep.request` delegates to Setup's readiness-gated, non-forced sweep path.
-Neither route writes progress to the store; snapshot and `sweep.status` delivery
-are unchanged.
+Neither route writes progress to the store.
+`sweep.status` carries the stored budget with this host run's schedule: the armed
+timer's deadline in `nextSweepAt` (null while a sweep runs or before the timer is
+armed), the cadences in `schedule`, and the last finished sweep in `lastSweep`
+(in memory only; null until a sweep finishes). The host sends it with each
+snapshot, on every scheduler transition (timer armed, sweep started, committed,
+failed or cancelled), and on `view.subscribe`, even when the cursor is current.
 Updates from an older sweep id cannot replace a newer sweep's progress.
 Every progress update and replay has a distinct sequence-suffixed event id;
 the sweep id in the payload remains stable for the sweep.

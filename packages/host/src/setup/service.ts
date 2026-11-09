@@ -22,6 +22,7 @@ import { type Clock, type DoctorView, type Exec, systemClock } from "@spi-code/c
 import type { Readiness } from "@spi-code/tools";
 import type { z } from "zod";
 import type { HostRoutes, HostSend } from "../process/port.js";
+import { emptySweepStatus } from "../sweep/status.js";
 import type { SeatResult } from "./seat.js";
 import { signinGh, signinGlab } from "./signin.js";
 import { GH_HOST, ghStatus, glabStatus } from "./status.js";
@@ -52,7 +53,7 @@ export interface SetupGit {
 export interface SetupSweep {
   readonly progress?: SweepProgress | undefined;
   start(): Promise<boolean>;
-  sweep(force?: boolean): Promise<boolean>;
+  sweep(force?: boolean, requested?: boolean): Promise<boolean>;
   stop(): Promise<void>;
 }
 
@@ -197,7 +198,7 @@ export class SetupService {
     if (this.stopped || !this.state || this.state.tools.some(blocksWatch) || !this.sweep) {
       return Promise.reject(new Error("Watch is blocked by Readiness"));
     }
-    return this.sweep.instance.sweep();
+    return this.sweep.instance.sweep(false, true);
   }
 
   /**
@@ -315,7 +316,7 @@ export class SetupService {
       base = SweepStatusSchema.parse(this.options.sweepStatus());
     } catch (error) {
       this.options.onError(error);
-      base = { remaining: null, resetAt: null, deferredAreas: [] };
+      base = emptySweepStatus();
     }
     const status = SweepStatusSchema.parse({ ...base, ...rate });
     this.send({

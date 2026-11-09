@@ -17,6 +17,8 @@ import {
 import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import {
+  type LastSweep,
+  LastSweepSchema,
   type SweepProgress,
   type SweepReasonCode,
   type ViewSnapshot,
@@ -44,6 +46,7 @@ import { type AttentionInput, previousAttention, projectedAttention } from "../w
 import { projectWatch } from "../watch/project.js";
 import { sweepEvidence } from "./evidence.js";
 import { SweepProgressFeed } from "./progress.js";
+import type { SweepSchedulerStatus } from "./status.js";
 
 export const DAY_MS = 24 * 60 * 60_000;
 const persistedDuration = z.object({
@@ -75,6 +78,8 @@ export interface SweepServiceOptions extends Omit<CollectorOptions, "persist" | 
   readonly timers?: SweepTimers;
   readonly onError: (error: unknown) => void;
   readonly onProgress?: (progress: SweepProgress) => void;
+  /** Called when a timer is armed, a sweep starts or finishes, and on stop. */
+  readonly onStatus?: (status: SweepSchedulerStatus) => void;
   readonly createSweeper?: typeof createSweeper;
 }
 
@@ -92,6 +97,7 @@ interface Holder {
 
 interface QueuedSweep {
   force: boolean;
+  requested: boolean;
   promise: Promise<boolean>;
 }
 
@@ -120,6 +126,8 @@ export class SweepService {
   private cancellations: (() => void)[] = [];
   private readonly progressFeed: SweepProgressFeed;
   private progressActive = false;
+  private requested = false;
+  private finished: LastSweep | undefined;
   private nextSweepAt: number | undefined;
   private cancelSweep: (() => void) | undefined;
 
@@ -201,17 +209,23 @@ export class SweepService {
     return this.sweep();
   }
 
-  /** False means another owner holds the fleet; concurrent requests coalesce. */
-  sweep(force = false): Promise<boolean> {
+  /**
+   * False means another owner holds the fleet; concurrent requests coalesce. Requested marks a
+   * sweep a person asked for, including one it joins.
+   */
+  sweep(force = false, requested = false): Promise<boolean> {
     if (!this.started) return Promise.reject(this.stopReason);
     if (this.polling && this.running) {
-      if (this.queuedSweep) this.queuedSweep.force ||= force;
-      else {
+      if (this.queuedSweep) {
+        this.queuedSweep.force ||= force;
+        this.queuedSweep.requested ||= requested;
+      } else {
         const queued: QueuedSweep = {
           force,
+          requested,
           promise: this.running
             .catch(() => {})
-            .then(() => this.sweep(queued.force))
+            .then(() => this.sweep(queued.force, queued.requested))
             .finally(() => {
               if (this.queuedSweep === queued) this.queuedSweep = undefined;
             }),
@@ -220,7 +234,12 @@ export class SweepService {
       }
       return this.queuedSweep.promise;
     }
-    this.running ??= this.run(false, force).finally(() => {
+    if (this.running) {
+      this.requested ||= requested;
+      return this.running;
+    }
+    this.requested = requested;
+    this.running = this.run(false, force).finally(() => {
       this.running = undefined;
     });
     return this.running;
@@ -232,6 +251,7 @@ export class SweepService {
     this.cancelSweep?.();
     this.cancelSweep = undefined;
     this.nextSweepAt = undefined;
+    this.publishStatus();
     for (const cancel of this.cancellations.splice(0)) cancel();
     const holder = this.holder;
     if (holder) {
@@ -271,7 +291,47 @@ export class SweepService {
         .finally(() => {
           if (generation === this.generation) this.scheduleSweep();
         });
+      if (!this.sweepRunning) this.publishStatus();
     });
+    if (!this.sweepRunning) this.publishStatus();
+  }
+
+  /** A sweep has begun and not yet reached its outcome. */
+  private get sweepRunning(): boolean {
+    return this.progressActive && this.progressFeed.latest?.outcome === "running";
+  }
+
+  private publishStatus(lastSweep?: LastSweep): void {
+    if (!this.options.onStatus) return;
+    const nextSweepAt = this.sweepRunning ? null : this.nextAttemptAt();
+    try {
+      this.options.onStatus(lastSweep ? { nextSweepAt, lastSweep } : { nextSweepAt });
+    } catch (error) {
+      this.options.onError(error);
+    }
+  }
+
+  private finishProgress(
+    outcome: "committed" | "cancelled" | "failed",
+    code: unknown,
+    requested: boolean,
+  ): void {
+    this.progressFeed.finish(outcome, this.nextAttemptAt(), code);
+    const latest = this.progressFeed.latest;
+    if (!latest || latest.outcome === "running") return;
+    if (this.finished?.sweep !== latest.sweep) {
+      const parsed = LastSweepSchema.safeParse({
+        sweep: latest.sweep,
+        startedAt: latest.startedAt,
+        endedAt: new Date(Math.max(this.now(), Date.parse(latest.startedAt))).toISOString(),
+        outcome: latest.outcome,
+        requested,
+        ...(latest.outcome === "failed" ? { code: latest.code } : {}),
+      });
+      if (parsed.success) this.finished = parsed.data;
+      else this.options.onError(new Error("Dropped an invalid last sweep"));
+    }
+    this.publishStatus(this.finished?.sweep === latest.sweep ? this.finished : undefined);
   }
 
   private repeat(ms: number, task: () => Promise<unknown>): void {
@@ -435,7 +495,7 @@ export class SweepService {
     if (this.holder === holder) this.holder = undefined;
     if (this.progressActive) {
       this.scheduleSweep();
-      this.progressFeed.finish("failed", this.nextAttemptAt(), code);
+      this.finishProgress("failed", code, !this.polling && this.requested);
     }
   }
 
@@ -595,12 +655,12 @@ export class SweepService {
       this.scheduleSweep();
       if (this.progressActive) {
         const cancelled = failure?.error === this.stopReason;
-        this.progressFeed.finish(
+        this.finishProgress(
           cancelled ? "cancelled" : failure || !collected ? "failed" : "committed",
-          this.nextAttemptAt(),
           this.progressFeed.latest?.outcome === "failed"
             ? this.progressFeed.latest.code
             : this.progressFeed.failureCode,
+          !poll && this.requested,
         );
         this.progressActive = false;
       }
@@ -620,6 +680,7 @@ export class SweepService {
       ms !== undefined && Number.isSafeInteger(ms) && ms > 0 ? ms : null,
     );
     this.progressActive = true;
+    this.publishStatus();
   }
 
   private async collect(poll: boolean, force: boolean): Promise<boolean> {

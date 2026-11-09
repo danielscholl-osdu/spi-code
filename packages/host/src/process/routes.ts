@@ -7,6 +7,7 @@ import {
   type Briefing,
   type InspectResult,
   InspectResultSchema,
+  type LastSweep,
   type Message,
   PROTOCOL_VERSION,
   type ReadRecord,
@@ -64,6 +65,7 @@ import {
 import { z } from "zod";
 import { createSeenStore } from "../store/seen.js";
 import { createSnapshotStore, type SnapshotRecord } from "../store/snapshots.js";
+import { emptySweepStatus, SWEEP_SCHEDULE, type SweepSchedulerStatus } from "../sweep/status.js";
 import { appActions, readNotes } from "../watch/project.js";
 import { type RunHit, recordedRuns } from "../watch/recorded-runs.js";
 import { baselineItems, parseSeenItems, type SeenBaseline, seenSince } from "../watch/seen.js";
@@ -98,9 +100,16 @@ const persistedSchema = z.object({
     .optional(),
 });
 
+const SweepBudgetSchema = SweepStatusSchema.omit({
+  nextSweepAt: true,
+  schedule: true,
+  lastSweep: true,
+});
+type SweepBudget = z.infer<typeof SweepBudgetSchema>;
+
 interface Persisted {
   view: ViewSnapshot;
-  status: SweepStatus;
+  status: SweepBudget;
   facts: Facts | undefined;
   releases: unknown;
 }
@@ -113,8 +122,8 @@ function persisted(record: SnapshotRecord): Persisted {
   const view = ViewSnapshotSchema.parse({ ...envelope, cursor: record.cursor });
   const state = persistedSchema.safeParse(record.facts);
   const budget = state.success ? state.data.cache?.budget : undefined;
-  const floor = SweepStatusSchema.shape.floor.safeParse(budget?.floor);
-  const status = SweepStatusSchema.parse({
+  const floor = SweepBudgetSchema.shape.floor.safeParse(budget?.floor);
+  const status = SweepBudgetSchema.parse({
     remaining: budget?.remaining == null ? null : Math.floor(budget.remaining),
     ...(floor.success && floor.data !== undefined ? { floor: floor.data } : {}),
     resetAt: budget?.resetAt ?? null,
@@ -887,12 +896,15 @@ export class WatchRoutes {
   private subscriber: { send: HostSend; cursor: number } | undefined;
   private progress: SweepProgress | undefined;
   private progressSequence = 0;
+  private nextSweepAt: string | null = null;
+  private lastSweep: LastSweep | null = null;
+  private statusSequence = 0;
 
   readonly routes: HostRoutes = {
     "view.subscribe": (message, send) => {
       if (message.type !== "view.subscribe") return;
       this.subscriber = { send, cursor: message.payload.fromCursor };
-      this.flush();
+      if (!this.flush()) this.sendStatus(send, `sweep-status-replay-${++this.statusSequence}`);
       const progress = this.options.sweepProgress?.() ?? this.progress;
       if (progress) this.sendProgress(progress);
     },
@@ -910,8 +922,53 @@ export class WatchRoutes {
 
   constructor(private readonly options: WatchRoutesOptions) {}
 
+  /**
+   * The stored budget with this host run's schedule state; a store that cannot be read leaves
+   * the budget unknown rather than dropping the schedule.
+   */
   get status(): SweepStatus {
-    return this.latest()?.status ?? { remaining: null, resetAt: null, deferredAreas: [] };
+    let budget: SweepBudget | undefined;
+    try {
+      budget = this.latest()?.status;
+    } catch (error) {
+      this.options.onError(error);
+    }
+    return {
+      ...emptySweepStatus(),
+      ...budget,
+      nextSweepAt: this.nextSweepAt,
+      schedule: SWEEP_SCHEDULE,
+      lastSweep: this.lastSweep,
+    };
+  }
+
+  /** Records a scheduler transition and sends the subscriber the whole sweep.status. */
+  publishStatus(status: SweepSchedulerStatus): void {
+    this.nextSweepAt = status.nextSweepAt;
+    if (
+      status.lastSweep &&
+      (!this.lastSweep ||
+        Date.parse(status.lastSweep.startedAt) >= Date.parse(this.lastSweep.startedAt))
+    ) {
+      this.lastSweep = status.lastSweep;
+    }
+    const subscriber = this.subscriber;
+    if (!subscriber) return;
+    try {
+      this.sendStatus(subscriber.send, `sweep-schedule-${++this.statusSequence}`);
+    } catch (error) {
+      this.options.onError(error);
+    }
+  }
+
+  private sendStatus(send: HostSend, id: string): void {
+    send({
+      version: PROTOCOL_VERSION,
+      id,
+      kind: "event",
+      type: "sweep.status",
+      payload: this.status,
+    });
   }
 
   /** Pushes a snapshot newer than the subscriber's cursor, with its sweep status. */
@@ -1014,11 +1071,12 @@ export class WatchRoutes {
     );
   }
 
-  private flush(): void {
+  /** True when it sent a snapshot and its sweep.status. */
+  private flush(): boolean {
     const subscriber = this.subscriber;
-    if (!subscriber) return;
+    if (!subscriber) return false;
     const latest = this.latest();
-    if (!latest || latest.view.cursor <= subscriber.cursor) return;
+    if (!latest || latest.view.cursor <= subscriber.cursor) return false;
     const cursor = latest.view.cursor;
     subscriber.send({
       version: PROTOCOL_VERSION,
@@ -1035,9 +1093,15 @@ export class WatchRoutes {
       id: `sweep-status-${cursor}`,
       kind: "event",
       type: "sweep.status",
-      payload: latest.status,
+      payload: {
+        ...latest.status,
+        nextSweepAt: this.nextSweepAt,
+        schedule: SWEEP_SCHEDULE,
+        lastSweep: this.lastSweep,
+      },
     });
     subscriber.cursor = cursor;
+    return true;
   }
 
   private async inspect(message: Message, send: HostSend): Promise<void> {

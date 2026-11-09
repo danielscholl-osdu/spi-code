@@ -9,6 +9,7 @@ import {
   AREAS,
   type InspectResult,
   InspectResultSchema,
+  type LastSweep,
   type Message,
   PROTOCOL_VERSION,
   parseMessage,
@@ -47,6 +48,7 @@ import { createLeaseStore } from "../store/leases.js";
 import { createSnapshotStore } from "../store/snapshots.js";
 import { openRunStore } from "../store/store.js";
 import { SweepService } from "../sweep/service.js";
+import { emptySweepStatus, SWEEP_SCHEDULE } from "../sweep/status.js";
 import { projectReleases, projectWatch } from "../watch/project.js";
 import { fixtureInput, oracle } from "../watch/snapshot-fixture.js";
 import { attachHostPort, type HostPort } from "./port.js";
@@ -287,7 +289,10 @@ describe("view.subscribe", () => {
       await running;
       await settle();
       expect(late.sent.filter(({ type }) => type === "view.snapshot")).toHaveLength(1);
-      expect(late.sent.filter(({ type }) => type === "sweep.status")).toHaveLength(1);
+      expect(late.sent.filter(({ type }) => type === "sweep.status")).toMatchObject([
+        { id: expect.stringMatching(/^sweep-status-replay-/), payload: { remaining: null } },
+        { id: expect.stringMatching(/^sweep-status-\d+$/) },
+      ]);
       expect(late.sent.filter(({ type }) => type === "error")).toEqual([]);
       expect(read).toHaveBeenCalledOnce();
       const current = host(watch);
@@ -307,9 +312,10 @@ describe("view.subscribe", () => {
 
   it("exposes the latest persisted budget floor and deferrals before a window subscribes", () => {
     const watch = routes();
-    expect(watch.status).toEqual({ remaining: null, resetAt: null, deferredAreas: [] });
+    expect(watch.status).toEqual(emptySweepStatus());
     writeSnapshot(4321, 75);
     expect(watch.status).toEqual({
+      ...emptySweepStatus(),
       remaining: 4321,
       resetAt,
       floor: 75,
@@ -317,6 +323,7 @@ describe("view.subscribe", () => {
     });
     writeSnapshot(1234, 125);
     expect(watch.status).toEqual({
+      ...emptySweepStatus(),
       remaining: 1234,
       resetAt,
       floor: 125,
@@ -371,9 +378,10 @@ describe("view.subscribe", () => {
       const replay = host(routes());
       replay.request("view.subscribe", { fromCursor: 0 });
       await settle();
-      const statuses = [...port.sent, ...replay.sent].filter(
+      const [initial, ...statuses] = [...port.sent, ...replay.sent].filter(
         (message) => message.type === "sweep.status",
       );
+      expect(initial?.payload).toEqual(emptySweepStatus());
       expect(statuses).toHaveLength(3);
       for (const status of statuses) {
         expect(SweepStatusSchema.parse(status.payload)).toMatchObject({
@@ -623,9 +631,10 @@ describe("view.subscribe", () => {
     const current = host(watch);
     current.request("view.subscribe", { fromCursor: latest });
     await settle();
-    expect(current.sent.map((m) => m.type)).toEqual(["host.hello"]);
+    expect(current.sent.map((m) => m.type)).toEqual(["host.hello", "sweep.status"]);
+    expect(current.sent[1]?.payload).toEqual({ ...watch.status, remaining: 100 });
     watch.publish();
-    expect(current.sent.map((m) => m.type)).toEqual(["host.hello"]);
+    expect(current.sent.map((m) => m.type)).toEqual(["host.hello", "sweep.status"]);
 
     let sweep: CollectorOptions | undefined;
     const create = watch.sweeper((options) => {
@@ -635,7 +644,7 @@ describe("view.subscribe", () => {
     create({ persist: { load: () => undefined, save: async () => {} } } as never);
     const next = writeSnapshot(50);
     await sweep?.persist.save({} as never);
-    expect(current.sent.slice(1)).toMatchObject([
+    expect(current.sent.slice(2)).toMatchObject([
       { type: "view.snapshot", payload: { cursor: next } },
       { type: "sweep.status", payload: { remaining: 50 } },
     ]);
@@ -670,7 +679,48 @@ describe("view.subscribe", () => {
     port.request("view.subscribe", { fromCursor: 0 });
     await settle();
     expect(opened).toBe(1);
-    expect(port.sent.map((m) => m.type)).toEqual(["host.hello"]);
+    expect(port.sent.map((m) => m.type)).toEqual(["host.hello", "sweep.status"]);
+  });
+
+  it("replays the schedule and last sweep to a current subscriber and sends every transition", async () => {
+    const latest = writeSnapshot(100);
+    const watch = routes();
+    const failed: LastSweep = {
+      sweep: "sweep-2",
+      startedAt: "2026-11-08T15:05:00.000Z",
+      endedAt: "2026-11-08T15:05:03.000Z",
+      outcome: "failed",
+      code: "signin",
+      requested: true,
+    };
+    watch.publishStatus({ nextSweepAt: "2026-11-08T15:10:00.000Z", lastSweep: failed });
+    watch.publishStatus({
+      nextSweepAt: "2026-11-08T15:10:00.000Z",
+      lastSweep: { ...failed, sweep: "sweep-1", startedAt: "2026-11-08T15:00:00.000Z" },
+    });
+    const port = host(watch);
+    port.request("view.subscribe", { fromCursor: latest });
+    await settle();
+    const live = {
+      remaining: 100,
+      nextSweepAt: "2026-11-08T15:10:00.000Z",
+      schedule: SWEEP_SCHEDULE,
+      lastSweep: failed,
+    };
+    expect(port.sent.slice(1)).toMatchObject([{ type: "sweep.status", payload: live }]);
+    expect(SweepStatusSchema.parse(port.sent[1]?.payload)).toEqual(port.sent[1]?.payload);
+
+    watch.publishStatus({ nextSweepAt: null });
+    expect(port.sent.slice(2)).toMatchObject([
+      { type: "sweep.status", payload: { ...live, nextSweepAt: null } },
+    ]);
+    const next = writeSnapshot(50);
+    watch.publish();
+    expect(port.sent.slice(3)).toMatchObject([
+      { type: "view.snapshot", payload: { cursor: next } },
+      { type: "sweep.status", payload: { ...live, remaining: 50, nextSweepAt: null } },
+    ]);
+    expect(watch.status).toMatchObject({ remaining: 50, nextSweepAt: null, lastSweep: failed });
   });
 });
 

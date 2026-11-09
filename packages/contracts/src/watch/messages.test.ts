@@ -162,6 +162,21 @@ const messages = [
       remaining: 100,
       resetAt: at,
       deferredAreas: [{ area: "security", reason: "budget floor" }],
+      nextSweepAt: "2026-11-05T06:05:00Z",
+      schedule: {
+        sweepMs: 300_000,
+        gitlabMs: 1_800_000,
+        securityMs: 1_800_000,
+        releasesMs: 3_600_000,
+      },
+      lastSweep: {
+        sweep: "sweep-1",
+        startedAt: at,
+        endedAt: "2026-11-05T06:01:12Z",
+        outcome: "failed",
+        code: "signin",
+        requested: true,
+      },
     },
   },
   {
@@ -560,6 +575,55 @@ describe("Watch protocol", () => {
       }).ok,
     ).toBe(false);
   });
+  describe("sweep status schedule", () => {
+    const status = messages[2];
+    const parse = (payload: unknown) => parseMessage({ ...status, payload });
+    const last = status.payload.lastSweep;
+    it("round-trips the next sweep, the schedule and the last sweep", () => {
+      expect(parseMessage(JSON.parse(JSON.stringify(status)))).toEqual({
+        ok: true,
+        message: status,
+      });
+    });
+    it("accepts null for the next sweep and the last sweep", () => {
+      expect(parse({ ...status.payload, nextSweepAt: null, lastSweep: null }).ok).toBe(true);
+    });
+    it.each(["nextSweepAt", "schedule", "lastSweep"])("requires %s", (field) => {
+      const payload = { ...status.payload };
+      Reflect.deleteProperty(payload, field);
+      expect(parse(payload).ok).toBe(false);
+    });
+    it.each([
+      ["status", { ...status.payload, next: null }],
+      ["schedule", { ...status.payload, schedule: { ...status.payload.schedule, radarMs: 1 } }],
+      ["last sweep", { ...status.payload, lastSweep: { ...last, cursor: 4 } }],
+    ])("rejects an unknown %s field", (_, payload) => {
+      expect(parse(payload).ok).toBe(false);
+    });
+    it.each([
+      ["a schedule cadence of zero", { schedule: { ...status.payload.schedule, sweepMs: 0 } }],
+      ["a fractional cadence", { schedule: { ...status.payload.schedule, gitlabMs: 1.5 } }],
+      ["a missing cadence", { schedule: { sweepMs: 1, gitlabMs: 1, securityMs: 1 } }],
+      ["a next sweep without a zone", { nextSweepAt: "2026-11-05T06:05:00" }],
+      ["a running last sweep", { lastSweep: { ...last, outcome: "running" } }],
+      ["a failed last sweep without its code", { lastSweep: { ...last, code: undefined } }],
+      ["a committed last sweep with a code", { lastSweep: { ...last, outcome: "committed" } }],
+      ["a last sweep with an unknown code", { lastSweep: { ...last, code: "network" } }],
+      ["a last sweep without requested", { lastSweep: { ...last, requested: undefined } }],
+      ["a last sweep that ends first", { lastSweep: { ...last, endedAt: "2026-11-05T05:59:00Z" } }],
+    ])("rejects %s", (_, fields) => {
+      expect(parse(JSON.parse(JSON.stringify({ ...status.payload, ...fields }))).ok).toBe(false);
+    });
+    it.each(["committed", "cancelled"] as const)("accepts a %s last sweep", (outcome) => {
+      const { code: _code, ...rest } = last;
+      expect(
+        parse({ ...status.payload, lastSweep: { ...rest, outcome, requested: false } }).ok,
+      ).toBe(true);
+    });
+    it("rejects the status under the previous protocol version", () => {
+      expect(parseMessage({ ...status, version: 2 }).ok).toBe(false);
+    });
+  });
   it("round-trips a full snapshot fixture through the Watch schema and shared parser", () => {
     const message = messages[8];
     const wire: unknown = JSON.parse(JSON.stringify(message));
@@ -755,11 +819,11 @@ describe("Watch protocol", () => {
     });
   });
   it.each([
-    { ...messages[2], payload: { remaining: -1, resetAt: at, deferredAreas: [] } },
-    { ...messages[2], payload: { remaining: 10, resetAt: "tomorrow", deferredAreas: [] } },
+    { ...messages[2], payload: { ...messages[2].payload, remaining: -1 } },
+    { ...messages[2], payload: { ...messages[2].payload, resetAt: "tomorrow" } },
     {
       ...messages[2],
-      payload: { remaining: 10, resetAt: at, deferredAreas: [{ area: "security", reason: "" }] },
+      payload: { ...messages[2].payload, deferredAreas: [{ area: "security", reason: "" }] },
     },
     { ...messages[3], payload: { ...messages[3].payload, watchReady: true } },
     {

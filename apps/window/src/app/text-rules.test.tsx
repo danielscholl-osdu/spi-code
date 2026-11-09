@@ -15,6 +15,13 @@ import { clockTime } from "../time.js";
 import { closeSheet, navigate, type Route, relaunch } from "./navigation.js";
 import { Shell } from "./Shell.js";
 
+const sweepSchedule = {
+  sweepMs: 300_000,
+  gitlabMs: 1_800_000,
+  securityMs: 1_800_000,
+  releasesMs: 3_600_000,
+};
+
 const directory = `${resolve("fixtures/watch")}/`;
 const files = readdirSync(directory).filter((file) => file.endsWith(".json"));
 const snapshots = files
@@ -277,7 +284,17 @@ it("reads Setup's budget reset and the sweep line as local clock times with ISO 
       container.querySelector<HTMLButtonElement>('[data-sidebar-row="settings"]')?.click(),
     );
     await act(async () =>
-      watchStore.setState({ sweep: { remaining: 5, floor: 10, resetAt, deferredAreas: [] } }),
+      watchStore.setState({
+        sweep: {
+          remaining: 5,
+          floor: 10,
+          resetAt,
+          deferredAreas: [],
+          nextSweepAt: null,
+          schedule: sweepSchedule,
+          lastSweep: null,
+        },
+      }),
     );
     const reset = [...document.querySelectorAll('[role="dialog"] time')].find(
       (time) => time instanceof HTMLTimeElement && time.dateTime === resetAt,

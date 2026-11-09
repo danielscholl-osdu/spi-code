@@ -48,6 +48,7 @@ import { openRunStore } from "../store/store.js";
 import * as project from "../watch/project.js";
 import { fixtureInput } from "../watch/snapshot-fixture.js";
 import { DAY_MS, SweepService, type SweepServiceOptions } from "./service.js";
+import type { SweepSchedulerStatus } from "./status.js";
 
 vi.mock("node:fs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:fs")>();
@@ -1496,3 +1497,143 @@ it("recovers a complete snapshot and cursor after SIGKILL during writeSnapshot",
     lines.close();
   }
 }, 30_000);
+
+function scheduled() {
+  const deadlines: number[] = [];
+  const after = (ms: number, callback: () => void) => {
+    if (ms === SWEEP_MS) deadlines.push(Date.now() + ms);
+    const timer = setTimeout(callback, ms);
+    return () => clearTimeout(timer);
+  };
+  return { deadlines, timers: { after } };
+}
+
+function gated() {
+  const waiting: (() => void)[] = [];
+  let opened = 0;
+  const gate = {
+    open: async () => {
+      const resolve = waiting.shift();
+      if (resolve) resolve();
+      else opened++;
+      await vi.advanceTimersByTimeAsync(0);
+    },
+  };
+  const read = vi.fn(async () => {
+    if (opened > 0) opened--;
+    else await new Promise<void>((resolve) => waiting.push(resolve));
+    return { data: auth, reads: [] };
+  });
+  return { gate, read };
+}
+
+it("reports the armed timer's deadline as the next sweep, null while one runs", async () => {
+  const { deadlines, timers } = scheduled();
+  const { gate, read } = gated();
+  const statuses: SweepSchedulerStatus[] = [];
+  const first = service([{ name: "auth", read }], {
+    timers,
+    onStatus: (status) => statuses.push(status),
+  });
+  const started = first.start();
+  expect(statuses).toEqual([
+    { nextSweepAt: new Date(epoch + SWEEP_MS).toISOString() },
+    { nextSweepAt: null },
+  ]);
+  await vi.advanceTimersByTimeAsync(4000);
+  await gate.open();
+  await expect(started).resolves.toBe(true);
+  expect(deadlines).toEqual([epoch + SWEEP_MS]);
+  expect(statuses.at(-1)).toMatchObject({
+    nextSweepAt: new Date(epoch + SWEEP_MS).toISOString(),
+    lastSweep: { outcome: "committed" },
+  });
+
+  await vi.advanceTimersByTimeAsync(SWEEP_MS - 4000);
+  expect(statuses.at(-1)).toEqual({ nextSweepAt: null });
+  await vi.advanceTimersByTimeAsync(2000);
+  await gate.open();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(deadlines).toEqual([epoch + SWEEP_MS, epoch + 2 * SWEEP_MS + 2000]);
+  expect(statuses.at(-1)?.nextSweepAt).toBe(new Date(epoch + 2 * SWEEP_MS + 2000).toISOString());
+
+  const requested = first.sweep(false, true);
+  expect(statuses.at(-1)).toEqual({ nextSweepAt: null });
+  await gate.open();
+  await requested;
+  expect(statuses.at(-1)?.nextSweepAt).toBe(new Date(deadlines.at(-1) ?? 0).toISOString());
+  expect(deadlines).toHaveLength(2);
+  await first.stop();
+  expect(statuses.at(-1)).toEqual({ nextSweepAt: null });
+});
+
+it("reports the last sweep committed, failed and cancelled, and whether it was requested", async () => {
+  let fail = false;
+  let block = false;
+  const { gate, read } = gated();
+  const statuses: SweepSchedulerStatus[] = [];
+  const first = service([], {
+    onError: vi.fn(),
+    onStatus: (status) => statuses.push(status),
+    createSweeper: (options) =>
+      new Sweeper({
+        ...options,
+        areas: [],
+        cacheSchema,
+        emptyCache,
+        afterAreas: async () => {
+          if (block) await read();
+          vi.advanceTimersByTime(1500);
+          if (fail) throw new ForgeError("gh failed", 503, "gateway");
+        },
+      }),
+  });
+  const last = () => statuses.filter((status) => status.lastSweep).at(-1)?.lastSweep;
+
+  await first.start();
+  expect(last()).toEqual({
+    sweep: first.progress?.sweep,
+    startedAt: new Date(epoch).toISOString(),
+    endedAt: new Date(epoch + 1500).toISOString(),
+    outcome: "committed",
+    requested: false,
+  });
+
+  fail = true;
+  await expect(first.sweep(false, true)).rejects.toThrow("gh failed");
+  expect(last()).toEqual({
+    sweep: first.progress?.sweep,
+    startedAt: new Date(epoch + 1500).toISOString(),
+    endedAt: new Date(epoch + 3000).toISOString(),
+    outcome: "failed",
+    code: "unavailable",
+    requested: true,
+  });
+
+  fail = false;
+  block = true;
+  const running = first.sweep();
+  const joined = first.sweep(false, true);
+  expect(joined).toBe(running);
+  await gate.open();
+  await running;
+  expect(last()).toMatchObject({ outcome: "committed", requested: true });
+
+  const stopped = first.sweep();
+  const rejected = expect(stopped).rejects.toThrow("Sweep service stopped");
+  await vi.advanceTimersByTimeAsync(0);
+  const stopping = first.stop();
+  await gate.open();
+  await stopping;
+  await rejected;
+  expect(statuses.at(-1)).toEqual({
+    nextSweepAt: null,
+    lastSweep: {
+      sweep: first.progress?.sweep,
+      startedAt: new Date(epoch + 4500).toISOString(),
+      endedAt: new Date(epoch + 6000).toISOString(),
+      outcome: "cancelled",
+      requested: false,
+    },
+  });
+});

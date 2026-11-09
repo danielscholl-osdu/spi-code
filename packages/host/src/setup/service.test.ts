@@ -22,6 +22,7 @@ import {
   PROTOCOL_VERSION,
   type SetupSigninProgress,
   type SetupState,
+  type SweepStatus,
 } from "@spi-code/contracts";
 import {
   cacheSchema,
@@ -37,6 +38,7 @@ import { z } from "zod";
 import { HostExec, type HostExecLog } from "../exec/host-exec.js";
 import { openRunStore } from "../store/store.js";
 import { SweepService } from "../sweep/service.js";
+import { emptySweepStatus, SWEEP_SCHEDULE } from "../sweep/status.js";
 import {
   GITLAB_AREAS_REASON,
   type SetupGit,
@@ -133,7 +135,7 @@ function setup(overrides: Partial<SetupServiceOptions> & Pick<SetupServiceOption
     git: async () => git,
     probeSeat: async () => ({ kind: "seat-ok", models: ["auto"] }),
     refreshBudget: async () => ({ remaining: 4000, resetAt: null, deferredAreas: [] }),
-    sweepStatus: () => ({ remaining: null, resetAt: null, deferredAreas: [] }),
+    sweepStatus: () => emptySweepStatus(),
     createSweep: () => ({ start: async () => true, sweep: async () => true, stop: async () => {} }),
     onError: (error) => {
       throw error;
@@ -264,7 +266,12 @@ it("checks every tool and auth scope, bypasses the cached seat, and publishes a 
   expect(sent).toContainEqual(
     expect.objectContaining({
       type: "sweep.status",
-      payload: { remaining: 1234, resetAt: "2026-11-08T16:00:00Z", deferredAreas: [] },
+      payload: {
+        ...emptySweepStatus(),
+        remaining: 1234,
+        resetAt: "2026-11-08T16:00:00Z",
+        deferredAreas: [],
+      },
     }),
   );
   expect(states().at(-1)?.checkedAt).toBe("2026-11-08T15:05:01.000Z");
@@ -329,7 +336,13 @@ it("reports an unavailable budget without retaining stale points, and retries on
     ),
     tools: async () => managedGh,
     refreshBudget,
-    sweepStatus: () => ({ remaining: 1000, resetAt: null, floor: 75, deferredAreas }),
+    sweepStatus: () => ({
+      ...emptySweepStatus(),
+      remaining: 1000,
+      resetAt: null,
+      floor: 75,
+      deferredAreas,
+    }),
     onError,
   });
   await service.refresh();
@@ -339,6 +352,7 @@ it("reports an unavailable budget without retaining stale points, and retries on
     expect.objectContaining({
       type: "sweep.status",
       payload: {
+        ...emptySweepStatus(),
         remaining: null,
         resetAt: null,
         floor: 75,
@@ -380,7 +394,12 @@ it("completes a check from a fallback base when the stored sweep status cannot b
   expect(states().at(-1)?.checkedAt).toBeDefined();
   expect(sent.filter(({ type }) => type === "sweep.status")).toEqual([
     expect.objectContaining({
-      payload: { remaining: 2500, resetAt: "2026-11-08T16:00:00Z", deferredAreas: [] },
+      payload: {
+        ...emptySweepStatus(),
+        remaining: 2500,
+        resetAt: "2026-11-08T16:00:00Z",
+        deferredAreas: [],
+      },
     }),
   ]);
 });
@@ -435,11 +454,11 @@ it("merges fresh budget figures into the latest sweep floor and deferred areas",
   const held = new Promise<{ remaining: number; resetAt: string | null }>((resolve) => {
     release = resolve;
   });
-  let latest = {
+  let latest: SweepStatus = {
+    ...emptySweepStatus(),
     remaining: 1000,
     resetAt: null,
     floor: 75,
-    deferredAreas: [] as { area: string; reason: string }[],
   };
   const { service, sent } = setup({
     exec: fakeExec((cmd, args) =>
@@ -457,12 +476,24 @@ it("merges fresh budget figures into the latest sweep floor and deferred areas",
     resetAt: null,
     floor: 125,
     deferredAreas: [{ area: "radar", reason: "insufficient budget" }],
+    nextSweepAt: "2026-11-08T15:05:00Z",
+    schedule: SWEEP_SCHEDULE,
+    lastSweep: {
+      sweep: "sweep-1",
+      startedAt: "2026-11-08T15:00:00Z",
+      endedAt: "2026-11-08T15:00:02Z",
+      outcome: "failed",
+      code: "signin",
+      requested: true,
+    },
   };
   release({ remaining: 1234, resetAt: "2026-11-08T16:00:00Z" });
   await check;
-  expect(sent.at(-1)).toMatchObject({
-    type: "sweep.status",
-    payload: { ...latest, remaining: 1234, resetAt: "2026-11-08T16:00:00Z" },
+  expect(sent.at(-1)).toMatchObject({ type: "sweep.status" });
+  expect(sent.at(-1)?.payload).toEqual({
+    ...latest,
+    remaining: 1234,
+    resetAt: "2026-11-08T16:00:00Z",
   });
 });
 
@@ -751,7 +782,7 @@ it("refuses Try again while Readiness blocks Watch and uses the non-forced sweep
   signedIn = true;
   await service.refresh();
   await expect(service.requestSweep()).resolves.toBe(true);
-  expect(sweep).toHaveBeenCalledExactlyOnceWith();
+  expect(sweep).toHaveBeenCalledExactlyOnceWith(false, true);
   signedIn = false;
   await service.refresh();
   await expect(service.requestSweep()).rejects.toThrow("Readiness");

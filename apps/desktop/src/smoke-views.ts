@@ -24,6 +24,13 @@ import {
 } from "./smoke-report.js";
 import { smokeSweepProgress } from "./smoke-sweep.js";
 
+const sweepSchedule = {
+  sweepMs: 300_000,
+  gitlabMs: 1_800_000,
+  securityMs: 1_800_000,
+  releasesMs: 3_600_000,
+};
+
 async function rendered(window: BrowserWindow, condition: string): Promise<void> {
   await window.webContents.executeJavaScript(`new Promise((resolve, reject) => {
     const deadline = performance.now() + 5000;
@@ -292,6 +299,9 @@ export async function captureSmokeViews(
           floor: 100,
           resetAt: "2026-11-06T15:36:00.000Z",
           deferredAreas: [],
+          nextSweepAt: null,
+          schedule: sweepSchedule,
+          lastSweep: null,
         });
         fixture(window, "setup.state", {
           ...ready,
@@ -354,6 +364,9 @@ export async function captureSmokeViews(
               floor: 100,
               resetAt: "2026-11-06T15:10:00.000Z",
               deferredAreas: [{ area: "details", reason: "budget" }],
+              nextSweepAt: null,
+              schedule: sweepSchedule,
+              lastSweep: null,
             });
           }
           if (surface.id !== first.id) {
@@ -470,6 +483,9 @@ export async function captureSmokeViews(
                 floor: 100,
                 resetAt: "2026-11-06T15:36:00.000Z",
                 deferredAreas: [],
+                nextSweepAt: null,
+                schedule: sweepSchedule,
+                lastSweep: null,
               });
               fixture(window, "setup.state", ready);
               await rendered(window, 'document.querySelector(".upstream .place-reading")');

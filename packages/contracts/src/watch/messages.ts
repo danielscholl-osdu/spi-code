@@ -15,13 +15,9 @@ import {
 } from "./setup.js";
 import { ViewSnapshotSchema } from "./snapshot.js";
 
-export const PROTOCOL_VERSION = 2;
-export const SweepStatusSchema = z.strictObject({
-  remaining: z.int().nonnegative().nullable(),
-  floor: z.int().nonnegative().optional(),
-  resetAt: ObservedAtSchema.nullable(),
-  deferredAreas: z.array(z.strictObject({ area: IdentifierSchema, reason: IdentifierSchema })),
-});
+// Host, window and desktop ship together; bump when a message's required shape changes, so a
+// mismatched pair fails on the envelope rather than mid-payload.
+export const PROTOCOL_VERSION = 3;
 /** Reasons are plain text the host chose for display, never command output; the window branches on code. */
 export const SWEEP_REASON_MAX_LENGTH = 200;
 export const SweepReasonSchema = z.string().min(1).max(SWEEP_REASON_MAX_LENGTH);
@@ -42,6 +38,41 @@ export const SweepReasonCodeSchema = z.enum([
   "save",
   "other",
 ]);
+const cadenceMs = z.int().positive();
+/** The fixed cadences: every sweep, and the GitLab, Security and Releases reads within them. */
+export const SweepScheduleSchema = z.strictObject({
+  sweepMs: cadenceMs,
+  gitlabMs: cadenceMs,
+  securityMs: cadenceMs,
+  releasesMs: cadenceMs,
+});
+const lastSweep = {
+  sweep: IdentifierSchema,
+  startedAt: ObservedAtSchema,
+  endedAt: ObservedAtSchema,
+  requested: z.boolean(),
+};
+/** The last sweep this host run finished; requested when a sweep.request started or joined it. */
+export const LastSweepSchema = z
+  .discriminatedUnion("outcome", [
+    z.strictObject({ ...lastSweep, outcome: z.enum(["committed", "cancelled"]) }),
+    z.strictObject({ ...lastSweep, outcome: z.literal("failed"), code: SweepReasonCodeSchema }),
+  ])
+  .refine(({ startedAt, endedAt }) => Date.parse(endedAt) >= Date.parse(startedAt), {
+    message: "A sweep cannot end before it starts",
+    path: ["endedAt"],
+  });
+// nextSweepAt is the armed timer's deadline, null while a sweep runs or no timer is armed.
+// lastSweep is held in memory for this host run and is null until a sweep finishes.
+export const SweepStatusSchema = z.strictObject({
+  remaining: z.int().nonnegative().nullable(),
+  floor: z.int().nonnegative().optional(),
+  resetAt: ObservedAtSchema.nullable(),
+  deferredAreas: z.array(z.strictObject({ area: IdentifierSchema, reason: IdentifierSchema })),
+  nextSweepAt: ObservedAtSchema.nullable(),
+  schedule: SweepScheduleSchema,
+  lastSweep: LastSweepSchema.nullable(),
+});
 export const SweepSourceStateSchema = z.enum([
   "waiting",
   "reading",
@@ -262,6 +293,8 @@ export const WatchMessageSchema = z.discriminatedUnion("type", [
 ]);
 export type WatchMessage = z.infer<typeof WatchMessageSchema>;
 export type SweepStatus = z.infer<typeof SweepStatusSchema>;
+export type SweepSchedule = z.infer<typeof SweepScheduleSchema>;
+export type LastSweep = z.infer<typeof LastSweepSchema>;
 export type SweepSourceState = z.infer<typeof SweepSourceStateSchema>;
 export type SweepReasonCode = z.infer<typeof SweepReasonCodeSchema>;
 export type SweepSourceProgress = z.infer<typeof SweepSourceProgressSchema>;

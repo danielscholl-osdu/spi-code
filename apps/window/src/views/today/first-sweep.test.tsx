@@ -20,6 +20,13 @@ import { createWatchStore } from "../../store/watch.js";
 import { clockTime } from "../../time.js";
 import Today from "./index.js";
 
+const sweepSchedule = {
+  sweepMs: 300_000,
+  gitlabMs: 1_800_000,
+  securityMs: 1_800_000,
+  releasesMs: 3_600_000,
+};
+
 const fixture = ViewSnapshotSchema.parse(JSON.parse(recorded));
 const NOW = SWEEP_START + 130_000;
 const cleanups: (() => Promise<void>)[] = [];
@@ -117,6 +124,9 @@ it("reads the program before any progress, then lists the sweep live with no raw
     floor: 100,
     resetAt: "2026-11-09T09:00:00Z",
     deferredAreas: [{ area: "radar", reason: "budget" }],
+    nextSweepAt: null,
+    schedule: sweepSchedule,
+    lastSweep: null,
   });
   await receive("sweep.progress", midSweep());
   expect(container.querySelectorAll(".sweep-row")).toHaveLength(12);

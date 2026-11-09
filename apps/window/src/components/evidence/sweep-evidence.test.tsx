@@ -25,6 +25,13 @@ import { SectionEvidence } from "./SectionEvidence.js";
 import { SweepLine, type SweepLineSnapshot } from "./SweepLine.js";
 import { AREA_NAMES, freshnessGlyph, sweepLine, sweepSources } from "./words.js";
 
+const sweepSchedule = {
+  sweepMs: 300_000,
+  gitlabMs: 1_800_000,
+  securityMs: 1_800_000,
+  releasesMs: 3_600_000,
+};
+
 const now = Date.parse("2026-11-05T12:00:00Z");
 const minutes = (n: number) => new Date(now - n * 60_000).toISOString();
 const sweptAt = minutes(2);
@@ -329,6 +336,9 @@ it("lists every source of the sweep once in plain words with state, age and comp
     floor: 500,
     resetAt: new Date(now + 40 * 60_000).toISOString(),
     deferredAreas: [{ area: "security", reason: "budget_floor" }],
+    nextSweepAt: null,
+    schedule: sweepSchedule,
+    lastSweep: null,
   };
   const body = {
     ...snapshot(
@@ -473,7 +483,15 @@ it.each([
   "shows each source once with its last read in window words %s, then failed reads and the budget",
   async (_, list) => {
     const body = firstSweep();
-    const sweep: SweepStatus = { remaining: 4_800, floor: 500, resetAt: null, deferredAreas: [] };
+    const sweep: SweepStatus = {
+      remaining: 4_800,
+      floor: 500,
+      resetAt: null,
+      deferredAreas: [],
+      nextSweepAt: null,
+      schedule: sweepSchedule,
+      lastSweep: null,
+    };
     const view = await render(
       <SweepEvidence snapshot={body} sweep={sweep} completed={list} now={now} />,
     );

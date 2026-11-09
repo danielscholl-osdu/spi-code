@@ -54,8 +54,8 @@ when readiness is unchanged. Ordinary refreshes retain the last check time.
 Concurrent requests share one check. After publishing readiness, a five-second,
 abortable read of GitHub's REST `rate_limit` endpoint refreshes the GraphQL points
 without entering the sweeper's reservation queue. It runs only when gh is usable
-and merges the figures into the latest `sweep.status`, retaining its floor and
-deferred areas. Failed budget probes report unavailable points rather than stale
+and merges the figures into the latest `sweep.status`, retaining its floor,
+deferred areas, next sweep, schedule and last sweep. Failed budget probes report unavailable points rather than stale
 ones. Older state fixtures may omit the timestamp; tests use fixture tools and
 never a live credential or Copilot seat.
 Readiness shows Copilot, git, gh and glab in that order, with no action on ready

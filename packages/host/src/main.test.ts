@@ -10,6 +10,7 @@ import type { HostConnection } from "./process/connections.js";
 import type { ConversationBackend } from "./process/conversation.js";
 import type { SetupService, SetupServiceOptions } from "./setup/service.js";
 import type { SweepServiceOptions } from "./sweep/service.js";
+import { emptySweepStatus } from "./sweep/status.js";
 
 const mocks = vi.hoisted(() => ({
   createBackend: vi.fn(),
@@ -330,6 +331,7 @@ it.skipIf(process.platform === "win32")(
     const { WatchRoutes } = await import("./process/routes.js");
     const deferredAreas = [{ area: "security", reason: "insufficient budget" }];
     const status = vi.spyOn(WatchRoutes.prototype, "status", "get").mockReturnValue({
+      ...emptySweepStatus(),
       remaining: 10,
       resetAt: null,
       floor: 125,
@@ -394,6 +396,14 @@ it.skipIf(process.platform === "win32")(
       await vi.waitFor(() => expect(start).toHaveBeenCalledOnce());
       expect(stop).not.toHaveBeenCalled();
       const wired = (start.mock.contexts[0] as unknown as { options: SweepServiceOptions }).options;
+      const publishStatus = vi
+        .spyOn(WatchRoutes.prototype, "publishStatus")
+        .mockImplementation(() => {});
+      wired.onStatus?.({ nextSweepAt: "2026-11-08T15:10:00.000Z" });
+      expect(publishStatus).toHaveBeenCalledExactlyOnceWith({
+        nextSweepAt: "2026-11-08T15:10:00.000Z",
+      });
+      publishStatus.mockRestore();
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(new Date("2026-11-08T15:05:00Z"));
       mocks.probeSeat.mockClear();
@@ -417,6 +427,7 @@ it.skipIf(process.platform === "win32")(
         expect.objectContaining({
           type: "sweep.status",
           payload: {
+            ...emptySweepStatus(),
             remaining: 1234,
             resetAt: "2026-11-08T16:00:00.000Z",
             floor: 125,

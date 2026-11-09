@@ -156,6 +156,7 @@ const setup: SetupService = new SetupService({
       doctor: () => setup.doctor(),
       onError: console.error,
       onProgress: (progress) => watch.publishProgress(progress),
+      onStatus: (status) => watch.publishStatus(status),
       createSweeper: watch.sweeper(),
     }),
   onError: console.error,

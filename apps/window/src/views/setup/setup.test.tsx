@@ -15,6 +15,13 @@ import { Shell } from "../../app/Shell.js";
 import { watchStore } from "../../store/watch.js";
 import Setup from "./index.js";
 
+const sweepSchedule = {
+  sweepMs: 300_000,
+  gitlabMs: 1_800_000,
+  securityMs: 1_800_000,
+  releasesMs: 3_600_000,
+};
+
 type Tool = SetupState["tools"][number];
 const tools: Tool["tool"][] = ["copilot", "git", "gh", "glab"];
 let container: HTMLDivElement;
@@ -132,6 +139,9 @@ it("keeps the tool grid in fixed order with a wrapping reason, version and budge
     floor: 10,
     resetAt: "2026-11-08T15:36:00.000Z",
     deferredAreas: [],
+    nextSweepAt: null,
+    schedule: sweepSchedule,
+    lastSweep: null,
   });
   await render();
   expect(
@@ -1081,7 +1091,15 @@ it("reports clipboard failures with a manual copy fallback", async () => {
   expect(container.textContent).toContain("Could not copy. Select and copy the text manually.");
 });
 it.each([0, 9, 10, 11])("flags points only below the reported floor: %s", async (remaining) => {
-  await receive("sweep.status", { remaining, floor: 10, resetAt: null, deferredAreas: [] });
+  await receive("sweep.status", {
+    remaining,
+    floor: 10,
+    resetAt: null,
+    deferredAreas: [],
+    nextSweepAt: null,
+    schedule: sweepSchedule,
+    lastSweep: null,
+  });
   await render();
   const budget = container.querySelector('.readiness-row[aria-label="GitHub API budget"]');
   expect(budget?.textContent).toContain(`${remaining} points left`);
