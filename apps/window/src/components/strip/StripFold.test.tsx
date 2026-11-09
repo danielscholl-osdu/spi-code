@@ -365,3 +365,44 @@ it("shortens the first sweep's count in the narrow layout, where the sidebar lea
     window.innerWidth = width;
   }
 });
+
+it("shortens first sweep stopped to stopped at 740 px, retaining its full name and failed tone", async () => {
+  const width = window.innerWidth;
+  try {
+    window.innerWidth = 740;
+    watchStore.setState({
+      snapshot: null,
+      progress: {
+        ...midSweep(),
+        outcome: "failed",
+        code: "timeout",
+        failure: "GitHub did not answer in time.",
+        nextAttemptAt: null,
+      },
+    });
+    layout = {
+      ...layout,
+      first: 574,
+      widths: { ...layout.widths, "freshness.full": 130, "freshness.short": 55 },
+    };
+    await mount();
+    const shown = () => field("freshness")?.querySelector("[data-sweep-display]")?.textContent;
+    expect(shown()).toBe("stopped");
+    expect(field("freshness")?.title).toBe("first sweep stopped");
+    expect(field("freshness")?.dataset.tone).toBe("bad");
+    expect(field("freshness")?.querySelector(".evidence-dot")?.getAttribute("data-tone")).toBe(
+      "bad",
+    );
+    window.innerWidth = 900;
+    layout = { ...layout, first: 734 };
+    await act(async () => window.dispatchEvent(new Event("resize")));
+    await settle();
+    expect(shown()).toBe("first sweep stopped");
+    await act(async () => watchStore.setState({ progress: midSweep({ sweep: "sweep-2" }) }));
+    await settle();
+    expect(shown()).toBe("sweeping · 9 of 12");
+    expect(field("freshness")?.dataset.tone).toBe("run");
+  } finally {
+    window.innerWidth = width;
+  }
+});

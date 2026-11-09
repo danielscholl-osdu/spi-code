@@ -4,7 +4,15 @@
 import type { SweepProgress, SweepSourceProgress } from "@spi-code/contracts";
 import type { ReactNode } from "react";
 import { sourceName, sourceReads } from "../evidence/words.js";
-import { at, duration, failedCount, type SourceOutcome, sourceOutcome, sweepEnd } from "./words.js";
+import {
+  at,
+  duration,
+  failedCount,
+  readinessCanFix,
+  type SourceOutcome,
+  sourceOutcome,
+  sweepEnd,
+} from "./words.js";
 import "./sweep.css";
 
 const GITLAB_SOURCES: ReadonlySet<string> = new Set(["upstream", "radar"]);
@@ -97,7 +105,7 @@ export function SweepSources({
       <ul className="sweep-rows" aria-label="Sources">
         {rows.map(({ source, outcome }) => {
           const failed = outcome.tone === "bad";
-          const signin = failed && outcome.code === "signin";
+          const signin = failed && readinessCanFix(outcome.code);
           const extra = fact?.(source.source);
           const why =
             outcome.why &&
@@ -125,9 +133,9 @@ export function SweepSources({
                 {extra && <> · {extra}</>}
                 {stopped && failed && why && ` · ${why}`}
               </span>
-              {why && !(stopped && failed) && (
+              {why && (!(stopped && failed) || (progress.first && signin)) && (
                 <span className="sweep-why">
-                  {why}
+                  {!(stopped && failed) && why}
                   {signin && (
                     <button type="button" onClick={onOpenSettings}>
                       Open Settings

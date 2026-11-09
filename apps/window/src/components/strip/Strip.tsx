@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { Fragment, type ReactNode, useRef } from "react";
+import { Fragment, type ReactNode, useId, useRef } from "react";
 import { useStore } from "zustand";
 import { openSheet } from "../../app/navigation.js";
 import { ariaShortcut } from "../../app/shortcuts.js";
@@ -34,7 +34,30 @@ export function Strip() {
   const { isMobile } = useSidebar();
   const plan = useFoldPlan(root, snapshot, isMobile);
   const now = useNow();
-  const freshness = (
+  const stoppedLabel = useId();
+  const firstStopped = !snapshot && progress?.outcome === "failed";
+  const stoppedForms = { full: "first sweep stopped", short: "stopped" };
+  const freshness = firstStopped ? (
+    <button
+      key="freshness"
+      type="button"
+      className="sweep-line"
+      data-sweep-line=""
+      data-field="freshness"
+      data-tone="bad"
+      aria-labelledby={stoppedLabel}
+      title={stoppedForms.full}
+      onClick={() => openFreshness(snapshot)}
+    >
+      <span className="evidence-dot" data-tone="bad" aria-hidden />
+      <span id={stoppedLabel} className="visually-hidden">
+        {stoppedForms.full}
+      </span>
+      <span data-sweep-display="" aria-hidden>
+        {plan?.freshness === "short" ? stoppedForms.short : stoppedForms.full}
+      </span>
+    </button>
+  ) : (
     <SweepLine
       key="freshness"
       snapshot={snapshot ?? null}
@@ -44,7 +67,7 @@ export function Strip() {
     />
   );
   if (!snapshot) {
-    const forms = firstSweepForms(null, progress);
+    const forms = firstStopped ? stoppedForms : firstSweepForms(null, progress);
     return (
       <div className="strip" data-strip="" ref={root}>
         {freshness}

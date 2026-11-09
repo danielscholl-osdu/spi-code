@@ -12,7 +12,7 @@ import { byWorst } from "../../components/evidence/words.js";
 import { Place } from "../../components/place/Place.js";
 import { SweepSources } from "../../components/sweep/SweepSources.js";
 import { SweepStopped } from "../../components/sweep/SweepStopped.js";
-import { about, failedCount, settled } from "../../components/sweep/words.js";
+import { about, failedCount, readinessCanFix, settled } from "../../components/sweep/words.js";
 import { openReadiness } from "../../settings/readiness.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
@@ -105,9 +105,11 @@ function FirstSweepBody({
           <button type="button" onClick={onRetry}>
             Try again
           </button>
-          <button type="button" onClick={onOpenSettings}>
-            Open Settings
-          </button>
+          {readinessCanFix(progress.code) && (
+            <button type="button" onClick={onOpenSettings}>
+              Open Settings
+            </button>
+          )}
         </div>
         {error && <p role="alert">{error}</p>}
         <SweepSources progress={progress} now={now} meta={false} onOpenSettings={onOpenSettings} />

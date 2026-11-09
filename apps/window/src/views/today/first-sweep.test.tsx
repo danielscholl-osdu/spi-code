@@ -5,6 +5,8 @@ import {
   PROTOCOL_VERSION,
   type SweepProgress,
   SweepProgressSchema,
+  type SweepReasonCode,
+  SweepReasonCodeSchema,
   ViewSnapshotSchema,
   WatchMessageSchema,
 } from "@spi-code/contracts";
@@ -210,7 +212,7 @@ it("swaps the brief in without a crossfade under reduced motion", async () => {
   expect(container.querySelector(".today")?.className).toBe("today");
 });
 
-it("says where the first sweep stopped, when it tries again, and offers Try again and Open Settings", async () => {
+it("says where a timeout stopped the first sweep, when it tries again, and offers only Try again", async () => {
   const { container, send, onOpenSettings, receive } = await mount();
   await receive("sweep.progress", stopped());
   expect(one(container, "h2")).toBe("The first sweep stopped.");
@@ -237,9 +239,51 @@ it("says where the first sweep stopped, when it tries again, and offers Try agai
   expect(send).toHaveBeenCalledOnce();
   const request = WatchMessageSchema.parse(send.mock.calls[0]?.[0]);
   expect(request).toMatchObject({ kind: "request", type: "sweep.request", payload: {} });
-  await act(async () => button(container, "Open Settings")?.click());
-  expect(onOpenSettings).toHaveBeenCalledOnce();
+  expect(button(container, "Open Settings")).toBeUndefined();
+  expect(onOpenSettings).not.toHaveBeenCalled();
 });
+
+const SETTINGS_FIXABLE_STOP_CODES: readonly SweepReasonCode[] = ["signin"];
+
+it.each(SweepReasonCodeSchema.options)(
+  "offers Settings only for Readiness-fixable stop codes (signin), not reason text: %s",
+  async (code) => {
+    const { container, onOpenSettings, receive } = await mount();
+    const fixable = SETTINGS_FIXABLE_STOP_CODES.includes(code);
+    for (const state of ["reading", "throttled", "failed"] as const) {
+      await receive(
+        "sweep.progress",
+        stopped({
+          code,
+          failure: "A tool needs sign-in.",
+          source: code === "save" ? undefined : "runs",
+          sources: [
+            {
+              source: "runs",
+              state,
+              startedAt: after(43),
+              ...(state === "reading" ? {} : { code, reason: "A tool needs sign-in." }),
+              ...(state === "throttled" ? { resumeAt: after(180) } : {}),
+            },
+          ],
+        }),
+      );
+      const actions = container.querySelectorAll<HTMLButtonElement>(".today-first-actions button");
+      expect([...actions].map((action) => action.textContent)).toEqual(
+        fixable ? ["Try again", "Open Settings"] : ["Try again"],
+      );
+      const row = container.querySelector('.sweep-row[data-source="runs"]');
+      const settings = row?.querySelector<HTMLButtonElement>("button");
+      expect(settings?.textContent).toBe(fixable && code !== "save" ? "Open Settings" : undefined);
+      if (fixable) {
+        await act(async () => actions[1]?.click());
+        expect(onOpenSettings).toHaveBeenCalled();
+        await act(async () => settings?.click());
+      }
+    }
+    expect(onOpenSettings).toHaveBeenCalledTimes(fixable ? 6 : 0);
+  },
+);
 
 it("names a stop while saving, leaves out an unscheduled retry and says when Try again is not sent", async () => {
   const send = vi.fn(() => Promise.reject(new Error("closed")));
@@ -254,4 +298,25 @@ it("names a stop while saving, leaves out an unscheduled retry and says when Try
   expect(one(container, '.today-first [role="alert"]')).toBe(
     "Could not send the request to SPI Code.",
   );
+});
+
+it("keeps Settings on an earlier sign-in failure, not on the panel for a save failure", async () => {
+  const { container, onOpenSettings, receive } = await mount();
+  await receive(
+    "sweep.progress",
+    stopped({
+      code: "save",
+      failure: "SPI Code could not save the sweep.",
+      source: undefined,
+      sources: midSweep().sources,
+    }),
+  );
+  expect(one(container, ".today-first-actions")).toBe("Try again");
+  const settings = container.querySelectorAll<HTMLButtonElement>(".today-first button");
+  expect([...settings].map((action) => action.textContent)).toEqual(["Try again", "Open Settings"]);
+  expect(container.querySelector('.sweep-row[data-source="upstream"] button')?.textContent).toBe(
+    "Open Settings",
+  );
+  await act(async () => settings[1]?.click());
+  expect(onOpenSettings).toHaveBeenCalledOnce();
 });

@@ -303,14 +303,12 @@ function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
       /stopped while reading Workflow runs/,
       /tries again at 09:07/,
       /Try again/,
-      /Open Settings/,
     ],
     "first-sweep-stopped-saving": [
       /The first sweep stopped/,
       /stopped while saving/,
       /The disk is full/,
       /Try again/,
-      /Open Settings/,
     ],
     "first-sweep-place": [/Upstream opens after the first sweep/, /It is read 9th of 12/],
     "first-sweep-evidence": [
@@ -325,6 +323,12 @@ function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
   };
   for (const pattern of states[surfaceId] ?? [])
     assert(pattern.test(text), `Missing state qualifier: ${surfaceId} (${pattern})`);
+  if (["first-sweep-stopped", "first-sweep-stopped-saving"].includes(surfaceId)) {
+    assert(qualifiers[0] === "first sweep stopped", `Missing stopped qualifier: ${surfaceId}`);
+  }
+  if (surfaceId === "first-sweep-stopped") {
+    assert(!/Open Settings/.test(text), `Unfixable stop offers Settings: ${surfaceId}`);
+  }
   if (["first-sweep-running", "first-sweep-throttled", "first-sweep-place"].includes(surfaceId))
     assert(
       /First sweep · 9 of 12 sources done/.test(qualifiers[0] ?? ""),

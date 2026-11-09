@@ -6,6 +6,10 @@ import { clockTime } from "../../time.js";
 
 export type SourceTone = "wait" | "run" | "ok" | "warn" | "bad";
 
+export function readinessCanFix(code: SweepReasonCode | undefined): boolean {
+  return code === "signin";
+}
+
 /** An elapsed time in whole seconds: `22 s`, `1 min 10 s`, `1 h 2 min`. */
 export function duration(ms: number): string {
   const seconds = Math.max(0, Math.floor(ms / 1000));

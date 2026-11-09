@@ -25,12 +25,12 @@ const firstSweepQualifiers: Record<string, string[]> = {
     "GitHub asked SPI Code to slow down. Resumes at 09:10.",
   ],
   "first-sweep-stopped": [
-    "waiting for the first sweep",
-    "The first sweep stopped. It stopped while reading Workflow runs: GitHub did not answer in time. SPI Code tries again at 09:07. Try again Open Settings",
+    "first sweep stopped",
+    "The first sweep stopped. It stopped while reading Workflow runs: GitHub did not answer in time. SPI Code tries again at 09:07. Try again",
   ],
   "first-sweep-stopped-saving": [
-    "waiting for the first sweep",
-    "The first sweep stopped. It stopped while saving: The disk is full. Try again Open Settings",
+    "first sweep stopped",
+    "The first sweep stopped. It stopped while saving: The disk is full. Try again",
   ],
   "first-sweep-place": [
     "First sweep · 9 of 12 sources done",
@@ -304,6 +304,25 @@ it.each(Object.keys(firstSweepQualifiers))(
     }
   },
 );
+
+it.each(["first-sweep-stopped", "first-sweep-stopped-saving"])(
+  "rejects stale stopped capture qualifiers: %s",
+  (surface) => {
+    const mutate = (qualifiers: (text: readonly string[]) => string[]) =>
+      report.views.map((shot) =>
+        shot.surface === surface ? { ...shot, qualifiers: qualifiers(shot.qualifiers) } : shot,
+      );
+    expect(() =>
+      assertSmokeViews(mutate((text) => ["waiting for the first sweep", text[1] ?? ""])),
+    ).toThrow("Missing stopped qualifier");
+    if (surface === "first-sweep-stopped") {
+      expect(() =>
+        assertSmokeViews(mutate((text) => [text[0] ?? "", `${text[1]} Open Settings`])),
+      ).toThrow("Unfixable stop offers Settings");
+    }
+  },
+);
+
 it.each([24, 240])("fails uniform and nearly one-colour images (%s)", (background) => {
   for (const inkPixels of [0, 1, 1280]) {
     expect(() =>

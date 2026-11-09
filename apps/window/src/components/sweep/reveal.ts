@@ -11,6 +11,7 @@ export function revealFirstSweep() {
   navigate({ kind: "today" });
   const step = (left: number) => {
     const list =
+      document.querySelector<HTMLElement>(".today-first:has(.today-first-actions)") ??
       document.querySelector<HTMLElement>(".today-first .sweep-sources") ??
       document.querySelector<HTMLElement>(".today-first");
     if (list) list.scrollIntoView?.({ block: "start" });
