@@ -124,7 +124,9 @@ it("writes the headline from the acknowledged baseline and counts only newly arr
     const body = { ...fixture, seen: { cursor: 1, at, since: ids } };
     const { container } = await mount(body);
     expect(container.querySelector(".place-headline")?.textContent).toBe(
-      `${ids.length === 0 ? "No" : ids.length} new interruption${ids.length === 1 ? "" : "s"} since ${since}.`,
+      ids.length === 0
+        ? `Nothing new since ${since} · 1 interruption still needs you.`
+        : `${ids.length} new interruption${ids.length === 1 ? "" : "s"} since ${since}.`,
     );
     expect(
       [...(container.querySelectorAll(".place-headline time") ?? [])].map((time) =>
@@ -139,6 +141,57 @@ it("writes the headline from the acknowledged baseline and counts only newly arr
   expect(first.container.querySelector(".place-headline")?.textContent).toBe(
     "First look: 1 interruption needs you.",
   );
+});
+
+it("after the first look is acknowledged, names the Interrupts still open instead of claiming none", async () => {
+  const at = "2026-11-06T17:40:00Z";
+  const since = clockTime(at);
+  const acknowledged = { ...fixture, seen: { cursor: fixture.cursor, at, since: [] } };
+  const open = await mount(acknowledged);
+  const headline = open.container.querySelector(".place-headline")?.textContent ?? "";
+  expect(headline).not.toMatch(/No new interruptions/);
+  expect(headline).toBe(`Nothing new since ${since} · 1 interruption still needs you.`);
+  expect(headline.split(/\s+/).length).toBeLessThanOrEqual(12);
+
+  const two = structuredClone(acknowledged);
+  const other = two.briefing.focus.find(({ attention }) => attention !== "interrupt");
+  if (!other) throw new Error("Recorded non-interrupt item missing");
+  other.attention = "interrupt";
+  const several = await mount(two);
+  expect(several.container.querySelector(".place-headline")?.textContent).toBe(
+    `Nothing new since ${since} · 2 interruptions still need you.`,
+  );
+
+  const calm = structuredClone(acknowledged);
+  for (const item of [...calm.briefing.focus, ...calm.briefing.rest]) {
+    if (item.attention === "interrupt") item.attention = "surface";
+  }
+  const none = await mount(calm);
+  expect(none.container.querySelector(".place-headline")?.textContent).toBe(
+    `No new interruptions since ${since}.`,
+  );
+});
+
+it("writes one more affected source in the singular and the fold line's none in lower case", async () => {
+  const body = structuredClone(fixture);
+  const lifecycle = body.areas.find(({ area }) => area === "lifecycle");
+  if (!lifecycle) throw new Error("Recorded lifecycle source missing");
+  lifecycle.envelope = {
+    source: lifecycle.envelope.source,
+    state: "incomplete",
+    observedAt: fixture.sweptAt,
+    completeness: { kind: "cut", read: 6, total: 13, reason: "budget" },
+  };
+  const failing = body.readings
+    .find(({ anchor }) => anchor.kind === "releases")
+    ?.content?.tiles.find(({ label }) => label === "Failing");
+  if (!failing) throw new Error("Recorded Failing tile missing");
+  failing.value = "None";
+  const { container } = await mount(body);
+  expect(container.querySelector(".place-qualifier")?.textContent).toBe(
+    "Upstream radar read failed, 1 more source affected; items may be missing.",
+  );
+  expect(text(container, "summary")).toEqual(["12 more · 13 release PRs open, none failing"]);
 });
 
 it("qualifies a failed or incomplete feeding source without claiming the reading is complete", async () => {

@@ -28,7 +28,9 @@ function headline({ seen }: ViewSnapshot, interrupts: number): string {
     return `First look: ${interrupts} interruption${interrupts === 1 ? " needs" : "s need"} you.`;
   }
   const since = seen.at && !Number.isNaN(Date.parse(seen.at)) ? seen.at : "you last looked";
-  return `${count === 0 ? "No" : count} new interruption${count === 1 ? "" : "s"} since ${since}.`;
+  if (count > 0) return `${count} new interruption${count === 1 ? "" : "s"} since ${since}.`;
+  if (interrupts === 0) return `No new interruptions since ${since}.`;
+  return `Nothing new since ${since} · ${interrupts} interruption${interrupts === 1 ? " still needs" : "s still need"} you.`;
 }
 
 function qualifier(snapshot: ViewSnapshot): string | undefined {
@@ -38,7 +40,8 @@ function qualifier(snapshot: ViewSnapshot): string | undefined {
   const first = affected[0];
   if (!first) return undefined;
   const state = first.envelope.state === "failed" ? "read failed" : "incomplete";
-  return `${first.name} ${state}${affected.length > 1 ? `, ${affected.length - 1} more sources affected` : ""}; items may be missing.`;
+  const more = affected.length - 1;
+  return `${first.name} ${state}${more > 0 ? `, ${more} more source${more === 1 ? "" : "s"} affected` : ""}; items may be missing.`;
 }
 
 function tiles(facts: ViewSnapshot["briefing"]["facts"]): Content["tiles"] | undefined {
@@ -231,7 +234,9 @@ export default function Today({
     .join(", ");
   const foldedLine = [
     folded.length > 0 ? `${folded.length} more` : undefined,
-    ready ? `${ready}${failing !== undefined ? `, ${failing} failing` : ""}` : undefined,
+    ready
+      ? `${ready}${failing !== undefined ? `, ${failing.toLowerCase()} failing` : ""}`
+      : undefined,
   ]
     .filter(Boolean)
     .join(" · ");

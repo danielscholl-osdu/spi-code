@@ -107,7 +107,7 @@ it("keeps Today's distinct Interrupt count after foreground acknowledgement, unt
     watchStore.setState({ snapshot: { cursor: acknowledged.cursor, body: acknowledged } }),
   );
   expect(container.querySelector(".today .place-headline")?.textContent).toMatch(
-    /^No new interruptions since /,
+    /^Nothing new since .+ · 1 interruption still needs you\.$/,
   );
   expect(pip()?.textContent).toBe("1");
 
