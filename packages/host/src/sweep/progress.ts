@@ -53,26 +53,30 @@ export function safeSweepReason(code: unknown): string {
 function cutDetail(
   event: Exclude<Extract<CoreProgress, { kind: "source" }>, { state: "reading" }>,
 ): Pick<Extract<SweepSourceProgress, { state: "cut" }>, "cutKind" | "reason"> {
+  const generic = { cutKind: "read", reason: safeSweepReason("limit") } as const;
   const completeness = event.completeness;
-  if (completeness?.kind !== "cut") {
-    return { cutKind: "read", reason: safeSweepReason("limit") };
-  }
+  if (completeness?.kind !== "cut") return generic;
+  const cutReasons = completeness.reason.split("; ");
   const matches = (reason: string) =>
-    completeness.reason === reason ||
-    (event.incomplete !== undefined &&
-      event.incomplete.count > 1 &&
-      completeness.reason.endsWith(`: ${reason}`));
-  const [cutKind, reason, unit] = matches("Job log character limit")
+    cutReasons.length === 1 &&
+    (completeness.reason === reason ||
+      (event.incomplete !== undefined &&
+        event.incomplete.count > 1 &&
+        completeness.reason.startsWith(`${event.incomplete.count} reads cut in `) &&
+        completeness.reason.endsWith(`: ${reason}`)));
+  const detail = matches("Job log character limit")
     ? (["job-log", "Job log character limit", "characters"] as const)
     : matches("GitLab omitted oversized or collapsed classification hunks")
       ? (["diff", "Oversized or collapsed diffs", "files"] as const)
-      : event.source === "runs"
+      : cutReasons.every((reason) => reason.endsWith(": run read cut"))
         ? (["run-list", "Run list page limit or short read", "runs"] as const)
-        : (["read", "Page or size limit", ""] as const);
+        : undefined;
+  if (detail === undefined) return generic;
+  const [cutKind, reason, unit] = detail;
   const count = (value: number) => value.toLocaleString("en-US");
   return {
     cutKind,
-    reason: `${reason}: ${count(completeness.read)} of ${count(completeness.total)}${unit ? ` ${unit}` : ""} read.`,
+    reason: `${reason}: ${count(completeness.read)} of ${count(completeness.total)} ${unit} read.`,
   };
 }
 

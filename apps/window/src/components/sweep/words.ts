@@ -96,7 +96,7 @@ export function sourceOutcome(source: SweepSourceProgress, now: number): SourceO
         mark: "⚠",
         tone: "warn",
         text: `read${took(source.startedAt, source.endedAt)} · ${count} ${kind}${count === 1 ? "" : "s"} cut short${complete > 0 ? "; rest read" : ""}`,
-        detail: `${complete} of ${total} reads complete.${source.reason ? ` ${source.reason}` : ""}`,
+        detail: `${complete} of ${total} ${total === 1 ? "read" : "reads"} complete.${source.reason ? ` ${source.reason}` : ""}`,
       };
     }
     case "deferred": {

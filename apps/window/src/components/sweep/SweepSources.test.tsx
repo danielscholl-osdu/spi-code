@@ -150,25 +150,37 @@ it.each([
     outcome: "read · 12 s · 2 job logs cut short",
     detail: "0 of 2 reads complete. Job log character limit: 128,000 of 184,876 characters read.",
   },
-] as const)("names the cut reads and what was read for $count $cutKind cuts", async (example) => {
-  const { container } = await render(
-    withSource({
-      source: example.source,
-      state: "cut",
-      startedAt: after(0),
-      endedAt: after(12),
-      code: "limit",
-      reason: example.reason,
-      cutKind: example.cutKind,
-      incomplete: { count: example.count, total: example.total },
-    }),
-  );
-  const outcome = row(container, example.source)?.querySelector(".sweep-outcome");
-  expect(outcome?.textContent).toBe(example.outcome);
-  expect(outcome?.getAttribute("title")).toBe(example.detail);
-  expect(outcome?.getAttribute("aria-description")).toBe(example.detail);
-  expect(container.textContent).not.toContain("incomplete");
-});
+  {
+    source: "lifecycle",
+    cutKind: "job-log",
+    count: 1,
+    total: 1,
+    reason: "Job log character limit: 64,000 of 92,438 characters read.",
+    outcome: "read · 12 s · 1 job log cut short",
+    detail: "0 of 1 read complete. Job log character limit: 64,000 of 92,438 characters read.",
+  },
+] as const)(
+  "names the cut reads and what was read for $count of $total $cutKind cuts",
+  async (example) => {
+    const { container } = await render(
+      withSource({
+        source: example.source,
+        state: "cut",
+        startedAt: after(0),
+        endedAt: after(12),
+        code: "limit",
+        reason: example.reason,
+        cutKind: example.cutKind,
+        incomplete: { count: example.count, total: example.total },
+      }),
+    );
+    const outcome = row(container, example.source)?.querySelector(".sweep-outcome");
+    expect(outcome?.textContent).toBe(example.outcome);
+    expect(outcome?.getAttribute("title")).toBe(example.detail);
+    expect(outcome?.getAttribute("aria-description")).toBe(example.detail);
+    expect(container.textContent).not.toContain("incomplete");
+  },
+);
 
 it("tones one bar segment per source like its row, with no percentage or countdown", async () => {
   const { container } = await render(midSweep());

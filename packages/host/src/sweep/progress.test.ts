@@ -260,6 +260,98 @@ it.each([
   expect(JSON.stringify(feed.latest)).not.toMatch(/ghp_|ABCD-1234|stderr/);
 });
 
+it.each([
+  "Run jobs page limit or short read",
+  "repos/example/fork/actions/runs: run read cut; Run jobs page limit or short read",
+  "Run jobs page limit or short read; repos/example/fork/actions/runs: run read cut",
+])("does not label a jobs-page cut as a run list: %s", (reason) => {
+  const feed = new SweepProgressFeed({ timers, now: () => epoch, onError: vi.fn() });
+  feed.begin(true, null);
+  const report = (cutReason: string) =>
+    feed.report(
+      sweepReadProgress(
+        "runs",
+        [
+          {
+            source: "example/fork",
+            object: "runs",
+            observedAt: new Date(epoch).toISOString(),
+            completeness: { kind: "cut", reason: cutReason, read: 30, total: 45 },
+          },
+          {
+            source: "example/fork",
+            object: "fork-runs",
+            observedAt: new Date(epoch).toISOString(),
+            completeness: { kind: "complete" },
+          },
+        ],
+        new Date(epoch).toISOString(),
+      ),
+    );
+  report(reason);
+  expect(feed.latest?.sources.find(({ source }) => source === "runs")).toMatchObject({
+    cutKind: "read",
+    incomplete: { count: 1, total: 2 },
+    reason: safeSweepReason("limit"),
+  });
+  report(
+    "repos/example/fork/actions/workflows/main/runs: run read cut; repos/example/fork/actions/workflows/cascade/runs: run read cut",
+  );
+  expect(feed.latest?.sources.find(({ source }) => source === "runs")).toMatchObject({
+    cutKind: "run-list",
+    incomplete: { count: 1, total: 2 },
+    reason: "Run list page limit or short read: 30 of 45 runs read.",
+  });
+});
+
+it("omits mixed-unit totals when job-log and jobs-page reads are cut", () => {
+  const feed = new SweepProgressFeed({ timers, now: () => epoch, onError: vi.fn() });
+  feed.begin(true, null);
+  feed.report(
+    sweepReadProgress(
+      "lifecycle",
+      [
+        {
+          source: "example/stack",
+          object: "job-log",
+          observedAt: new Date(epoch).toISOString(),
+          completeness: {
+            kind: "cut",
+            reason: "Job log character limit",
+            read: 64_000,
+            total: 92_438,
+          },
+        },
+        {
+          source: "example/stack",
+          object: "jobs",
+          observedAt: new Date(epoch).toISOString(),
+          completeness: {
+            kind: "cut",
+            reason: "Run jobs page limit or short read",
+            read: 30,
+            total: 45,
+          },
+        },
+        {
+          source: "example/stack",
+          object: "runs",
+          observedAt: new Date(epoch).toISOString(),
+          completeness: { kind: "complete" },
+        },
+      ],
+      new Date(epoch).toISOString(),
+    ),
+  );
+  const source = feed.latest?.sources.find(({ source }) => source === "lifecycle");
+  expect(source).toMatchObject({
+    cutKind: "read",
+    incomplete: { count: 2, total: 3 },
+    reason: safeSweepReason("limit"),
+  });
+  expect(JSON.stringify(source)).not.toMatch(/64,030|92,483/);
+});
+
 it.each(["failed", "committed", "cancelled"] as const)(
   "sends %s synchronously before a new sweep begins",
   async (outcome) => {
