@@ -586,7 +586,6 @@ export class SweepService {
     let failure: { error: unknown } | undefined;
     let collected = false;
     try {
-      if (!poll) this.beginProgress();
       collected = await this.collect(poll, force);
       return collected;
     } catch (error) {
@@ -626,6 +625,7 @@ export class SweepService {
   private async collect(poll: boolean, force: boolean): Promise<boolean> {
     const holder = this.holder ?? (poll ? undefined : this.acquire());
     if (!holder) return false;
+    if (!poll) this.beginProgress();
     this.guard(holder);
     resetBudget(holder.sweeper.cache);
     const before = holder.budget.snapshot();

@@ -760,6 +760,30 @@ it("refuses Try again while Readiness blocks Watch and uses the non-forced sweep
   await expect(service.requestSweep()).rejects.toThrow("Readiness");
 });
 
+it.each(["git", "gh"] as const)(
+  "refuses Try again for blocking %s even with a sweep instance",
+  async (tool) => {
+    const sweep = vi.fn(async () => true);
+    const start = vi.fn(async () => true);
+    const { service } = setup({
+      exec: fakeExec((cmd, args) => {
+        if (cmd === "gh" && args[1] === "status") return GH_STATUS_OK;
+        if (cmd === "gh" && args[1] === "token") return "gho_fixture";
+        return undefined;
+      }),
+      tools: async () => managedGh,
+      createSweep: () => ({ start, sweep, stop: async () => {} }),
+    });
+    await service.refresh();
+    expect(start).toHaveBeenCalledOnce();
+    const row = service.current?.tools.find((row) => row.tool === tool);
+    if (!row) throw new Error("Missing readiness fixture row");
+    row.state = tool === "git" ? "missing" : "signed-out";
+    await expect(service.requestSweep()).rejects.toThrow("Readiness");
+    expect(sweep).not.toHaveBeenCalled();
+  },
+);
+
 it("sends setup.state to each fresh connection", async () => {
   const exec = fakeExec((_cmd, args) => (args[0] === "--version" ? undefined : GH_STATUS_OK));
   const tools = {

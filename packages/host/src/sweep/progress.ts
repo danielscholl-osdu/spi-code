@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: MIT
 
 import { randomUUID } from "node:crypto";
-import { type SweepProgress, SweepProgressSchema, type SweepReasonCode } from "@spi-code/contracts";
+import {
+  type SweepProgress,
+  SweepProgressSchema,
+  type SweepReasonCode,
+  SweepReasonCodeSchema,
+} from "@spi-code/contracts";
 import type { CollectorOptions } from "@spi-code/core";
 import type { SweepTimers } from "./service.js";
 
@@ -35,8 +40,13 @@ const reasons: Record<SweepReasonCode, string> = {
   other: "SPI Code could not complete the read.",
 };
 
-export function safeSweepReason(code: SweepReasonCode): string {
-  return reasons[code];
+function reasonCode(code: unknown): SweepReasonCode {
+  const parsed = SweepReasonCodeSchema.safeParse(code);
+  return parsed.success ? parsed.data : "other";
+}
+
+export function safeSweepReason(code: unknown): string {
+  return reasons[reasonCode(code)];
 }
 
 /** Core's completeness is item counts; only its cut outcome supplies incomplete read counts. */
@@ -48,7 +58,7 @@ export function foldSweepProgress(current: SweepProgress, event: CoreProgress): 
   const started = startedAt === undefined ? {} : { startedAt };
   let source: Record<string, unknown>;
   if (event.kind === "throttle" || event.state === "throttled") {
-    const code = event.code ?? "throttled";
+    const code = reasonCode(event.code ?? "throttled");
     source = {
       source: event.source,
       state: "throttled",
@@ -61,15 +71,16 @@ export function foldSweepProgress(current: SweepProgress, event: CoreProgress): 
     source = { source: event.source, state: "reading", startedAt: event.startedAt };
   } else {
     const ended = { source: event.source, ...started, endedAt: event.endedAt };
-    const code =
+    const code = reasonCode(
       event.code ??
-      (event.state === "cut"
-        ? "limit"
-        : event.state === "skipped"
-          ? "cadence"
-          : event.state === "deferred"
-            ? "budget"
-            : "other");
+        (event.state === "cut"
+          ? "limit"
+          : event.state === "skipped"
+            ? "cadence"
+            : event.state === "deferred"
+              ? "budget"
+              : "other"),
+    );
     const reason = safeSweepReason(code);
     switch (event.state) {
       case "read":
@@ -104,7 +115,6 @@ export function foldSweepProgress(current: SweepProgress, event: CoreProgress): 
 export class SweepProgressFeed {
   latest: SweepProgress | undefined;
   failureCode: SweepReasonCode | undefined;
-  private source: string | undefined;
   private pending = false;
   private cancel: (() => void) | undefined;
 
@@ -118,7 +128,6 @@ export class SweepProgressFeed {
   ) {}
 
   begin(first: boolean, usualMs: number | null): void {
-    this.source = undefined;
     this.failureCode = undefined;
     this.update({
       sweep: randomUUID(),
@@ -134,30 +143,32 @@ export class SweepProgressFeed {
   report(event: CoreProgress): void {
     if (this.latest?.outcome !== "running") return;
     if (event.kind === "failed") {
-      this.failureCode = event.code;
+      this.failureCode = reasonCode(event.code);
       return;
     }
     const next = foldSweepProgress(this.latest, event);
-    if (this.update(next)) this.source = event.source;
+    this.update(next);
   }
 
   finish(
     outcome: "committed" | "cancelled" | "failed",
     nextAttemptAt: string | null,
-    code: SweepReasonCode = this.failureCode ?? "other",
+    code: unknown = this.failureCode ?? "other",
   ): void {
     if (!this.latest) return;
     const { sweep, startedAt, first, usualMs, sources } = this.latest;
     const state = { sweep, startedAt, first, usualMs, sources };
+    const normalizedCode = reasonCode(code);
+    const source = sources.find(({ state }) => state === "reading")?.source;
     this.update(
       outcome === "failed"
         ? {
             ...state,
             outcome,
             nextAttemptAt,
-            code,
-            failure: safeSweepReason(code),
-            ...(code === "save" || this.source === undefined ? {} : { source: this.source }),
+            code: normalizedCode,
+            failure: safeSweepReason(normalizedCode),
+            ...(normalizedCode === "save" || source === undefined ? {} : { source }),
           }
         : { ...state, outcome, nextAttemptAt: null },
     );
@@ -171,8 +182,12 @@ export class SweepProgressFeed {
     }
     this.latest = parsed.data;
     this.pending = true;
-    if (this.options.send && !this.cancel) {
-      this.flush();
+    if (this.options.send) {
+      if (parsed.data.outcome !== "running") {
+        this.cancel?.();
+        this.cancel = undefined;
+        this.flush();
+      } else if (!this.cancel) this.flush();
     }
     return true;
   }
@@ -180,10 +195,12 @@ export class SweepProgressFeed {
   private flush(): void {
     if (!this.latest) return;
     this.pending = false;
-    this.cancel = this.options.timers.after(250, () => {
-      this.cancel = undefined;
-      if (this.pending) this.flush();
-    });
+    if (this.latest.outcome === "running") {
+      this.cancel = this.options.timers.after(250, () => {
+        this.cancel = undefined;
+        if (this.pending) this.flush();
+      });
+    }
     try {
       this.options.send?.(this.latest);
     } catch (error) {

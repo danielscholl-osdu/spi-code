@@ -174,6 +174,39 @@ function routes(database: () => DatabaseSync = () => db) {
 }
 
 describe("view.subscribe", () => {
+  it("ignores stale service progress and gives every update and replay a distinct event id", async () => {
+    const watch = routes();
+    const port = host(watch);
+    port.request("view.subscribe", { fromCursor: 0 });
+    await settle();
+    const old = {
+      sweep: "old-service",
+      startedAt: new Date(now).toISOString(),
+      first: true,
+      usualMs: null,
+      sources: [],
+      outcome: "running" as const,
+      nextAttemptAt: null,
+    };
+    const current = { ...old, sweep: "new-service", startedAt: new Date(now + 1000).toISOString() };
+    watch.publishProgress(old);
+    watch.publishProgress(current);
+    watch.publishProgress({ ...old, outcome: "cancelled" });
+    const late = host(watch);
+    late.request("view.subscribe", { fromCursor: 0 });
+    await settle();
+    expect(late.sent.find(({ type }) => type === "sweep.progress")?.payload).toEqual(current);
+    watch.publishProgress({ ...current, outcome: "committed" });
+    const events = [...port.sent, ...late.sent].filter(({ type }) => type === "sweep.progress");
+    expect(events.map(({ payload }) => SweepProgressSchema.parse(payload).outcome)).toEqual([
+      "running",
+      "running",
+      "running",
+      "committed",
+    ]);
+    expect(new Set(events.map(({ id }) => id)).size).toBe(events.length);
+  });
+
   it("replays the latest unsent progress immediately, coalesces Try again and keeps snapshot delivery", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     let finish = () => {};

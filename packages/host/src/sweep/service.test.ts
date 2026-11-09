@@ -188,6 +188,18 @@ it("renews at ttl/3, excludes a second service and schedules full sweeps at SWEE
   expect(second.latest()?.cursor).toBe(3);
 });
 
+it("sends no progress while another host holds the fleet lease", async () => {
+  const first = service();
+  await first.start();
+  const onProgress = vi.fn();
+  const onError = vi.fn();
+  const second = service([], { onProgress, onError });
+  await expect(second.start()).resolves.toBe(false);
+  expect(second.progress).toBeUndefined();
+  expect(onProgress).not.toHaveBeenCalled();
+  expect(onError).not.toHaveBeenCalled();
+});
+
 it("aborts an in-progress Exec when renewal runs after expiry and refuses its stale write", async () => {
   let signal: AbortSignal | undefined;
   const blocked: Exec = {

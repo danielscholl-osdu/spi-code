@@ -886,6 +886,7 @@ export class WatchRoutes {
   private seenStore: ReturnType<typeof createSeenStore> | undefined;
   private subscriber: { send: HostSend; cursor: number } | undefined;
   private progress: SweepProgress | undefined;
+  private progressSequence = 0;
 
   readonly routes: HostRoutes = {
     "view.subscribe": (message, send) => {
@@ -923,6 +924,12 @@ export class WatchRoutes {
   }
 
   publishProgress(progress: SweepProgress): void {
+    if (
+      this.progress &&
+      this.progress.sweep !== progress.sweep &&
+      Date.parse(progress.startedAt) < Date.parse(this.progress.startedAt)
+    )
+      return;
     this.progress = progress;
     try {
       this.sendProgress(progress);
@@ -934,7 +941,7 @@ export class WatchRoutes {
   private sendProgress(progress: SweepProgress): void {
     this.subscriber?.send({
       version: PROTOCOL_VERSION,
-      id: `sweep-progress-${progress.sweep}`,
+      id: `sweep-progress-${progress.sweep}-${++this.progressSequence}`,
       kind: "event",
       type: "sweep.progress",
       payload: progress,

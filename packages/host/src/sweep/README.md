@@ -26,13 +26,17 @@ function. The default timers are unreferenced and do not keep the host alive.
 The twelve sources stay in collector order, with releases last. The core hook
 fold drops item-level completeness and carries incomplete read counts only on
 cut sources. Every reason code maps to fixed display text; command output is
-never copied. Invalid reports are dropped and logged without altering the sweep.
-`onProgress` coalesces updates at 250 ms boundaries, including a trailing terminal
-state. The rate limiter uses timers, not wall-clock differences.
+never copied. Unknown reason codes fail closed to `other`; other invalid reports
+are dropped and logged without altering the sweep.
+`onProgress` coalesces running updates at 250 ms boundaries. Terminal states
+send synchronously, outside the rate cap, and cancel pending running updates
+before the next sweep begins. The rate limiter uses timers, not wall-clock differences.
+Progress begins only after obtaining the fleet lease; a contender publishes nothing.
 First and usual duration come from this fleet's latest persisted snapshot, never
 the collector's current, uncommitted facts. Each new sweep has a fresh id.
 Only a snapshot commit confirms success. Throws and lease loss report failed;
-commit failures use code `save` and name no source. Intentional stop reports
+commit failures use code `save` and name no source. Other failures name a source
+only while its state is reading. Intentional stop reports
 cancelled. Failed states carry the actual next full-sweep timer's deadline,
 or null when stopped, not the GitHub budget reset. Progress is never added to
 snapshots, read evidence or budget logs.

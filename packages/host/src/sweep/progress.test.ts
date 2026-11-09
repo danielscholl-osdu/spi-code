@@ -176,7 +176,7 @@ it("folds every real core fake-sweep boundary through the strict contract", asyn
   }
 });
 
-it("limits sends to four a second and always sends the last terminal state", async () => {
+it("limits running updates to four a second and sends terminal states immediately", async () => {
   vi.useFakeTimers();
   vi.setSystemTime(epoch);
   const sends: { at: number; outcome: string }[] = [];
@@ -197,12 +197,143 @@ it("limits sends to four a second and always sends the last terminal state", asy
     await vi.advanceTimersByTimeAsync(10);
   }
   feed.finish("failed", new Date(epoch + 300_000).toISOString(), "timeout");
+  expect(sends.at(-1)).toEqual({ at: epoch + 1000, outcome: "failed" });
   await vi.advanceTimersByTimeAsync(250);
-  for (let index = 1; index < sends.length; index++) {
-    expect((sends[index]?.at ?? 0) - (sends[index - 1]?.at ?? 0)).toBeGreaterThanOrEqual(250);
+  const running = sends.filter(({ outcome }) => outcome === "running");
+  for (let index = 1; index < running.length; index++) {
+    expect((running[index]?.at ?? 0) - (running[index - 1]?.at ?? 0)).toBeGreaterThanOrEqual(250);
   }
   expect(sends.at(-1)?.outcome).toBe("failed");
   expect(sends.filter(({ at }) => at < epoch + 1000)).toHaveLength(4);
+});
+
+it.each(["failed", "committed", "cancelled"] as const)(
+  "sends %s synchronously before a new sweep begins",
+  async (outcome) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(epoch);
+    const sends: SweepProgress[] = [];
+    const feed = new SweepProgressFeed({
+      timers,
+      now: Date.now,
+      onError: vi.fn(),
+      send: (progress) => sends.push(progress),
+    });
+    feed.begin(true, null);
+    const previous = feed.latest?.sweep;
+    feed.report({
+      kind: "source",
+      source: "auth",
+      state: "reading",
+      startedAt: new Date(epoch).toISOString(),
+    });
+    feed.finish(outcome, outcome === "failed" ? new Date(epoch + 300_000).toISOString() : null);
+    feed.begin(true, null);
+    expect(sends.map(({ outcome }) => outcome)).toEqual(["running", outcome, "running"]);
+    expect(sends[1]?.sweep).toBe(previous);
+    expect(sends[2]?.sweep).not.toBe(previous);
+    await vi.advanceTimersByTimeAsync(250);
+    expect(sends).toHaveLength(3);
+  },
+);
+
+it("normalizes unknown source reason codes in the fold and report", () => {
+  const onError = vi.fn();
+  const feed = new SweepProgressFeed({ timers, now: () => epoch, onError });
+  feed.begin(true, null);
+  const event = {
+    kind: "source" as const,
+    source: "auth" as const,
+    state: "failed" as const,
+    endedAt: new Date(epoch).toISOString(),
+    code: "other" as const,
+    reason: sensitive,
+  };
+  Reflect.set(event, "code", sensitive);
+  if (!feed.latest) throw new Error("Missing sweep progress");
+  const folded = SweepProgressSchema.parse(foldSweepProgress(feed.latest, event));
+  expect(folded.sources[0]).toMatchObject({
+    state: "failed",
+    code: "other",
+    reason: safeSweepReason("other"),
+  });
+  feed.report(event);
+  expect(feed.latest?.sources[0]).toEqual(folded.sources[0]);
+  expect(onError).not.toHaveBeenCalled();
+});
+
+it("normalizes unknown terminal report and finish codes instead of dropping the failure", () => {
+  const onError = vi.fn();
+  const send = vi.fn();
+  const feed = new SweepProgressFeed({ timers, now: () => epoch, onError, send });
+  const event = {
+    kind: "failed" as const,
+    endedAt: new Date(epoch).toISOString(),
+    code: "other" as const,
+    reason: sensitive,
+  };
+  Reflect.set(event, "code", sensitive);
+  feed.begin(true, null);
+  feed.report(event);
+  feed.finish("failed", null);
+  expect(SweepProgressSchema.parse(feed.latest)).toMatchObject({
+    outcome: "failed",
+    code: "other",
+    failure: safeSweepReason("other"),
+  });
+  feed.begin(true, null);
+  feed.finish("failed", null, sensitive);
+  expect(SweepProgressSchema.parse(feed.latest)).toMatchObject({
+    outcome: "failed",
+    code: "other",
+    failure: safeSweepReason("other"),
+  });
+  expect(send.mock.calls.map(([progress]) => progress.outcome)).toEqual([
+    "running",
+    "failed",
+    "running",
+    "failed",
+  ]);
+  expect(onError).not.toHaveBeenCalled();
+});
+
+it.each(["read", "cut", "deferred", "skipped", "failed"] as const)(
+  "names no failure source after its %s outcome",
+  (state) => {
+    const feed = new SweepProgressFeed({ timers, now: () => epoch, onError: vi.fn() });
+    feed.begin(true, null);
+    feed.report({
+      kind: "source",
+      source: "auth",
+      state: "reading",
+      startedAt: new Date(epoch).toISOString(),
+    });
+    feed.report({
+      kind: "source",
+      source: "auth",
+      state,
+      endedAt: new Date(epoch).toISOString(),
+      code: "other",
+      reason: sensitive,
+      incomplete: { count: 1, total: 1 },
+      resumeAt: new Date(epoch + 1000).toISOString(),
+    });
+    feed.finish("failed", null);
+    expect(SweepProgressSchema.parse(feed.latest)).not.toHaveProperty("source");
+  },
+);
+
+it("names a failure source only while it is reading", () => {
+  const feed = new SweepProgressFeed({ timers, now: () => epoch, onError: vi.fn() });
+  feed.begin(true, null);
+  feed.report({
+    kind: "source",
+    source: "auth",
+    state: "reading",
+    startedAt: new Date(epoch).toISOString(),
+  });
+  feed.finish("failed", null);
+  expect(SweepProgressSchema.parse(feed.latest)).toHaveProperty("source", "auth");
 });
 
 it("drops and logs invalid reports without disturbing the sweep or leaking their values", () => {

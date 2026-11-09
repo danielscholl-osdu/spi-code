@@ -6,6 +6,9 @@ is still waiting for its send slot or the snapshot cursor is already current.
 `sweep.request` delegates to Setup's readiness-gated, non-forced sweep path.
 Neither route writes progress to the store; snapshot and `sweep.status` delivery
 are unchanged.
+Updates from an older sweep id cannot replace a newer sweep's progress.
+Every progress update and replay has a distinct sequence-suffixed event id;
+the sweep id in the payload remains stable for the sweep.
 
 `projectWatch` accepts Facts, release reads, area-grouped `SweepReads`, release
 ReadRecords, the doctor summary, an explicit fleet context and the app data path.
