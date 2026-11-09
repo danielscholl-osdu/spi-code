@@ -294,7 +294,7 @@ code{font-family:var(--mono);font-size:.9em}
 .fresh.run{color:var(--accent-text)}
 .fresh.run::before{background:linear-gradient(90deg,var(--accent) 50%,transparent 50%);border:1.2px solid var(--accent)}
 .win.fsw{grid-template-columns:161px minmax(0,1fr)}
-.win.fsw.w740{width:511px;grid-template-columns:minmax(0,1fr)}
+.win.fsw.w740{width:511px;height:630px;grid-template-columns:minmax(0,1fr)}
 .winwrap.w740{width:511px}
 .sb .row.mut{color:var(--muted)}
 .fs-lead{font-size:13px;font-weight:600;color:var(--strong);margin:4px 0 2px}
@@ -710,7 +710,7 @@ code{font-family:var(--mono);font-size:.9em}
 
     <p class="shot-cap">In a 1000 px window, first launch, gh signing in and glab installing</p>
     <div class="shot">
-      <div class="setwin" role="img" aria-label="The Settings dialog over a dimmed window: left nav with Readiness and Appearance; a banner saying Watch needs gh and glab; rows for Copilot, git, gh with a sign-in code and Copy and Open buttons, glab installing with a progress bar, and the GitHub API budget.">
+      <div class="setwin" role="img" aria-label="The Settings dialog over a dimmed window: left nav with Readiness and Appearance; a banner saying Watch needs gh signed in and glab can finish later; rows for Copilot, git, gh with a sign-in code and Copy and Open buttons, glab installing with a progress bar, and the GitHub API budget.">
         <div class="ghost"><div class="t"></div><div class="b"><i></i><u></u></div></div>
         <div class="scrim"></div>
         <div class="modal">
@@ -722,7 +722,7 @@ code{font-family:var(--mono);font-size:.9em}
           <div class="main">
             <div class="mh"><span class="crumb">Settings / <b>Readiness</b></span><span class="sp"></span><span style="color:var(--muted);font-size:11.5px">Checked 09:04</span><span class="btn">Check all</span><span class="close">✕</span></div>
             <div class="mb">
-              <div class="banner"><span>Watch places open once gh is signed in and glab is installed.</span></div>
+              <div class="banner"><span>Watch places open once gh is signed in. glab can finish later; until it is signed in, the sweep shows its GitLab sources as failed.</span></div>
               <div class="g">Watch · read the program</div>
               <div class="sgroup">
                 <div class="srow"><span class="nm">Copilot</span><span class="st ok">Ready</span><span class="why">octocat · Business seat</span><span></span></div>
@@ -749,7 +749,7 @@ code{font-family:var(--mono);font-size:.9em}
               <div class="main">
                 <div class="mh"><span class="navsel">Readiness ▾</span><span class="sp"></span><span style="color:var(--muted);font-size:11.5px">Checked 09:04</span><span class="btn">Check all</span><span class="close">✕</span></div>
                 <div class="mb">
-                                    <div class="banner"><span>Watch places open once gh and glab are signed in.</span></div>
+                                    <div class="banner"><span>Watch places open once gh is signed in. glab can wait; until it is signed in, the sweep shows its GitLab sources as failed.</span></div>
                   <div class="g">Watch · read the program</div>
                   <div class="sgroup">
                     <div class="srow"><span class="nm">Copilot</span><span class="st ok">Ready</span><span class="why">octocat · Business seat</span><span></span></div>
@@ -865,7 +865,7 @@ code{font-family:var(--mono);font-size:.9em}
         <p class="shot-cap" style="margin-top:0">At 740 px · the middle column drops, outcomes sit under the name</p>
         <div class="shot" style="margin-top:8px">
           <div class="winwrap w740" style="padding-top:0">
-            <div class="win next fsw w740" role="img" aria-label="First launch at 740 px: the top row shows 9 of 12 with the half-filled mark; the sidebar is closed; each source shows its outcome under its name.">
+            <div class="win next fsw w740" role="img" aria-label="First launch at 740 px: the top row shows 9 of 12 with the half-filled mark; the sidebar is closed; each source shows its outcome under its name; the failed Upstream GitLab row gives its reason on its own line with Open Settings; the closing line says the window can be closed.">
               <div class="tb" style="gap:10px"><span class="lights"><i></i><i></i><i></i></span><span class="sp"></span><span class="fresh run">9 of 12</span><span class="tgl"><i class="l"></i><i class="r"></i></span></div>
               <div class="mid">
                 <div class="phead"><span class="nm">Today</span></div>
@@ -883,11 +883,13 @@ code{font-family:var(--mono);font-size:.9em}
                     <span class="m t-ok">✓</span><span>Stack lifecycle runs<small>read · 12 s</small></span>
                     <span class="m t-ok">✓</span><span>Template<small>read · 6 s</small></span>
                     <span class="m t-warn">–</span><span>Run details<small>waits for GitHub budget · after 09:10</small></span>
-                    <span class="m t-bad">✕</span><span>Upstream GitLab<small class="t-bad">failed · glab is not signed in.</small></span>
+                    <span class="m t-bad">✕</span><span>Upstream GitLab<small class="t-bad">failed</small></span>
+                    <span class="why">glab is not signed in to community.opengroup.org.<span class="btn">Open Settings</span></span>
                     <span class="m t-run">◐</span><span>Upstream radar<small>reading · 14 s</small></span>
                     <span class="m t-wait">○</span><span>Security alerts<small>waiting</small></span>
                     <span class="m t-wait">○</span><span>Release lines<small>waiting</small></span>
                   </div>
+                  <div class="fs-foot">You can close this window. SPI Code tells you when Today is ready.</div>
                 </div>
               </div>
             </div>
@@ -917,6 +919,9 @@ code{font-family:var(--mono);font-size:.9em}
                     <span class="m t-wait">○</span><span>Template<small>waiting</small></span>
                     <span class="m t-wait">○</span><span>Run details<small>waiting</small></span>
                     <span class="m t-wait">○</span><span>Upstream GitLab<small>waiting</small></span>
+                    <span class="m t-wait">○</span><span>Upstream radar<small>waiting</small></span>
+                    <span class="m t-wait">○</span><span>Security alerts<small>waiting</small></span>
+                    <span class="m t-wait">○</span><span>Release lines<small>waiting</small></span>
                   </div>
                 </div>
               </div>
@@ -938,7 +943,7 @@ code{font-family:var(--mono);font-size:.9em}
           <tr><td><b>First sweep running</b></td><td>"First sweep is reading the program." · "A first sweep takes a few minutes. Today opens here when it's done.", or "Usually about 2 min." once a usual duration is known · "{elapsed} so far · {n} source(s) failed" · the bar and twelve rows · the closing line</td><td><span class="fresh run" style="font-family:var(--app)">sweeping · 9 of 12</span>, "9 of 12" at 740 px; the click scrolls the list into view</td></tr>
           <tr><td><b>A source</b></td><td>○ waiting · ◐ "reading · 22 s", "still reading · 1 min 10 s" past a minute · ✓ "read · 31 s" · ⚠ "read · 52 s · 6 of 13 incomplete" · – "waits for GitHub budget · after 09:10", or skipped · ✕ "failed" with its reason on the next line, and Open Settings for a sign-in failure. The filled dot and the diamond are not used; on the top row they mean needs a person and stopped.</td><td>The count rises as each source settles: read, cut, put off or failed</td></tr>
           <tr><td><b>Throttled</b></td><td>"GitHub asked SPI Code to slow down. Resumes at 08:04." under the meta line</td><td>Unchanged</td></tr>
-          <tr><td><b>Hand-over</b></td><td>The brief replaces the list in place when <code>view.snapshot</code> lands. If some sources failed it still hands over, and the subline names what failed.</td><td>The field becomes the sweep time. The tray tooltip reads "Today is ready"; if the window is hidden, one notification says "Today is ready", with the interruption count when there is one.</td></tr>
+          <tr><td><b>Hand-over</b></td><td>The brief replaces the list in place when <code>view.snapshot</code> lands. If some sources failed it still hands over, and the subline names what failed.</td><td>The field becomes the sweep time, and one click on it opens the completed list, kept with each source's final state, as Evidence. The tray tooltip reads "Today is ready"; if the window is hidden, one notification says "Today is ready", with the interruption count when there is one.</td></tr>
           <tr><td><b>Stopped</b></td><td>"The first sweep stopped." over the rows, each keeping its state · "It stopped while reading {source}: {reason}. SPI Code tries again at {time}." · Try again sends <code>sweep.request</code> through the non-forced path and the readiness gate · Open Settings</td><td>The tray shows failed</td></tr>
           <tr><td><b>Later sweeps</b></td><td>The brief, unchanged until the sweep commits; items then change in place</td><td><span class="fresh run" style="font-family:var(--app)">08:02 · sweeping 4 of 12</span>; the click opens Evidence with the live list beside each source's last good read</td></tr>
         </tbody>
