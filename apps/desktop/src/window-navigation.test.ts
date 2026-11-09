@@ -85,6 +85,18 @@ it("routes Today item identifiers through preload, never paths, URLs or extra fi
     "a:repo/../file",
     "a:repo/..",
     "a:..",
+    "%2e%2e",
+    "a:%2E%2E/x",
+    "a:x/%2e%2e",
+    "a:..%2fetc",
+    "a:x%2F..",
+    "a:x..%2Fetc",
+    "a:x/..suffix",
+    "a:x../suffix",
+    " javascript:",
+    "halt:partition ",
+    "\thalt:partition",
+    "halt:partition\u00a0",
     "a:\u0000",
     "a:\n",
     "a:\u007f",
@@ -103,9 +115,10 @@ it("routes Today item identifiers through preload, never paths, URLs or extra fi
     "security:code:unsafe workflow",
     "a".repeat(256),
     "branch:v1..2",
+    "campaign:toolchain:os-core-common%2010.0.0",
   ])
     deliver({ to: "today", item });
-  expect(listener).toHaveBeenCalledTimes(5);
+  expect(listener).toHaveBeenCalledTimes(6);
 });
 
 it("rejects destinations outside the closed set before the renderer sees them", () => {

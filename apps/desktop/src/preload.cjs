@@ -20,9 +20,11 @@ function windowDestination(input) {
     input.to === "today" &&
     typeof input.item === "string" &&
     input.item.length <= 256 &&
-    input.item.trim().length > 0 &&
+    input.item.length > 0 &&
+    input.item.trim() === input.item &&
     !["__proto__", "constructor", "prototype"].includes(input.item) &&
     !/(?:^|[:/\\])\.\.(?:[/\\]|$)/.test(input.item) &&
+    !/%2e|\.\.(?:%2f|\/)|(?:%2f|\/)\.\./i.test(input.item) &&
     !/^(?:[./~\\]|[a-z]:\/|(?:https?|file|data|javascript|vbscript|mailto):)|\\|:\/\/|[\p{Cc}\u2028\u2029]/iu.test(
       input.item,
     ) &&

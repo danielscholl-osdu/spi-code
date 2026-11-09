@@ -75,8 +75,10 @@ the first-ever sweep keeps its existing "Today is ready" hand-over. Acknowledgem
 on the outgoing host channel close covered native handles without changing the
 snapshot or Today count. Clicks open Today with the item selected through the
 validated preload/renderer route. Both layers limit item ids to 256 UTF-16 code
-units and reject blank ids, control characters, Unicode line/paragraph separators,
-the reserved names __proto__, constructor and prototype, and any .. path segment.
+units and reject blank or edge-whitespace ids, control characters, Unicode
+line/paragraph separators, the reserved names __proto__, constructor and prototype,
+any .. path segment, %2e in either case, and .. adjacent to / or %2f in either case.
+Other percent encodings, including campaign ids containing %20, stay valid.
 They reject path and URL shapes while retaining namespaced repository-qualified
 ids; the renderer extends IdentifierSchema locally, without changing contracts.
 Banners use bounded, single-line item titles, truncate by code point, redact

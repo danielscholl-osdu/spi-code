@@ -41,6 +41,18 @@ it("accepts only the closed set of window destinations", () => {
       "a:repo/../file",
       "a:repo/..",
       "a:..",
+      "%2e%2e",
+      "a:%2E%2E/x",
+      "a:x/%2e%2e",
+      "a:..%2fetc",
+      "a:x%2F..",
+      "a:x..%2Fetc",
+      "a:x/..suffix",
+      "a:x../suffix",
+      " javascript:",
+      "halt:partition ",
+      "\thalt:partition",
+      "halt:partition\u00a0",
       "a:\u0000",
       "a:\n",
       "a:\u007f",
@@ -59,6 +71,7 @@ it("accepts only the closed set of window destinations", () => {
     "security:code:unsafe workflow",
     "a".repeat(256),
     "branch:v1..2",
+    "campaign:toolchain:os-core-common%2010.0.0",
   ])
     expect(parseDestination({ to: "today", item })).toEqual({ to: "today", item });
 });

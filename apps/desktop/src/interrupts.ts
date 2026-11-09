@@ -17,8 +17,9 @@ function notificationText(text: string, limit: number) {
       /\b(?:authorization\s*[:=]\s*(?:bearer\s+)?|bearer\s+|x-api-key\s*[:=]\s*|[\w-]*(?:token|secret|password)[\w-]*\s*[:=]\s*)["']?[^\s"']+["']?/gi,
       "[redacted]",
     )
-    .replace(/(?<![\w@/\\.-])["']?(?:\/|~[\w.-]*\/|[A-Za-z]:\\)\S*/g, "[redacted]")
+    .replace(/(?<![\w@/\\.-])["']?(?:\/(?=\S)|~[\w.-]*\/|[A-Za-z]:\\)\S*/g, "[redacted]")
     .replace(/\b[A-Za-z0-9_-]{32,}\b/g, "[redacted]")
+    .replace(/\t/g, " ")
     // biome-ignore lint/suspicious/noControlCharactersInRegex: Native banners must not carry control characters.
     .replace(/[\u0000-\u001f\u007f]/g, "")
     .trim();

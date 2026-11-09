@@ -24,9 +24,10 @@ export function parseDestination(input: unknown): WindowDestination | undefined 
     const item = IdentifierSchema.max(256).safeParse(input.item);
     if (
       item.success &&
-      item.data.trim().length > 0 &&
+      item.data.trim() === item.data &&
       !["__proto__", "constructor", "prototype"].includes(item.data) &&
       !/(?:^|[:/\\])\.\.(?:[/\\]|$)/.test(item.data) &&
+      !/%2e|\.\.(?:%2f|\/)|(?:%2f|\/)\.\./i.test(item.data) &&
       !/^(?:[./~\\]|[a-z]:\/|(?:https?|file|data|javascript|vbscript|mailto):)|\\|:\/\/|[\p{Cc}\u2028\u2029]/iu.test(
         item.data,
       ) &&
