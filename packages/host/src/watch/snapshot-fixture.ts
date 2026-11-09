@@ -157,3 +157,49 @@ export function recordedInput(): WatchInput {
     releaseRecords: [],
   };
 }
+
+export const unreadSnapshotPath = fileURLToPath(
+  new URL("../../../../fixtures/watch/snapshot-1106-unread.json", import.meta.url),
+);
+
+export const UNREAD_FORKS = ["workflow", "indexer-queue", "unit", "crs-catalog", "crs-conversion"];
+
+/** The 6 Nov sweep with five forks' GitHub reads failed (HTTP 504) and nothing retained for them. */
+export function unreadForksInput(): WatchInput {
+  const input = recordedInput();
+  const github = input.facts.github;
+  const at = github.at;
+  if (!github.data || !at) throw new Error("Recorded sweep must carry GitHub facts");
+  const repos = input.context.fleet.forks
+    .filter(({ id }) => UNREAD_FORKS.includes(id))
+    .map(({ repo }) => repo);
+  if (repos.length !== UNREAD_FORKS.length) throw new Error("Recorded fleet must hold the forks");
+  return {
+    ...input,
+    facts: {
+      ...input.facts,
+      github: {
+        ...github,
+        data: {
+          ...github.data,
+          repos: Object.fromEntries(
+            Object.entries(github.data.repos).filter(([repo]) => !repos.includes(repo)),
+          ),
+        },
+      },
+    },
+    reads: {
+      ...input.reads,
+      github: [
+        ...(input.reads.github ?? []),
+        ...repos.map((repo) => ({
+          source: "github",
+          object: repo,
+          observedAt: at,
+          completeness: { kind: "complete" as const },
+          failure: "HTTP 504: Gateway Timeout",
+        })),
+      ],
+    },
+  };
+}

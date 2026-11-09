@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 // pnpm build && TZ=UTC bun scripts/watch-snapshot.ts && pnpm biome check --write
-// Biome formats the three snapshots and the Detail feed back to their checked-in bytes.
+// Biome formats the four snapshots and the Detail feed back to their checked-in bytes.
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
@@ -14,6 +14,8 @@ import {
   recordedInput,
   recordedSnapshotPath,
   snapshotPath,
+  unreadForksInput,
+  unreadSnapshotPath,
 } from "../packages/host/src/watch/snapshot-fixture.js";
 
 process.env.TZ = "UTC";
@@ -22,6 +24,7 @@ for (const [path, input] of [
   [snapshotPath, fixtureInput()],
   [mixedSnapshotPath, mixedFixtureInput()],
   [recordedSnapshotPath, recordedInput()],
+  [unreadSnapshotPath, unreadForksInput()],
 ] as const) {
   writeFileSync(path, `${JSON.stringify(projectWatch(input), null, 2)}\n`);
 }

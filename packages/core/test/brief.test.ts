@@ -78,6 +78,18 @@ describe("the recorded sweep", () => {
     expect(b.facts[0]?.sub).toBe("upgrade running · at verify · declares v0.28.2");
   });
 
+  test("the template fact names forks not read and shows ? when none was read", () => {
+    const m = fixtureModel();
+    for (const row of m.template.rows) row.label = undefined;
+    m.template.read = 0;
+    m.template.current = 0;
+    m.template.onRelease = 0;
+    expect(buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext).facts[2]).toMatchObject({
+      figure: "?",
+      sub: "on main · 5 not read yet · 4 changes reach the forks · 0 of 5 on v1.2.0",
+    });
+  });
+
   test("focus puts incidents first and folds owed ports into one row", () => {
     expect(b.focus.map((f) => f.id)).toEqual([
       "stack:38181620856",

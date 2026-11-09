@@ -5,7 +5,12 @@ import { readFileSync } from "node:fs";
 import type { ViewSnapshot } from "@spi-code/contracts";
 import { describe, expect, it } from "vitest";
 import { projectWatch } from "./project.js";
-import { recordedInput, recordedSnapshotPath } from "./snapshot-fixture.js";
+import {
+  recordedInput,
+  recordedSnapshotPath,
+  unreadForksInput,
+  unreadSnapshotPath,
+} from "./snapshot-fixture.js";
 
 process.env.TZ = "UTC";
 
@@ -41,5 +46,35 @@ describe("the projected 6 Nov recorded sweep", () => {
       "unit",
       "workflow",
     ]);
+  });
+});
+
+describe("the 6 Nov sweep with five forks' GitHub reads failed", () => {
+  const unread: ViewSnapshot = JSON.parse(readFileSync(unreadSnapshotPath, "utf8"));
+
+  it("matches a fresh projection", () => {
+    expect(projectWatch(unreadForksInput())).toEqual(unread);
+  });
+
+  it("counts the engineering system over all 13 forks and names the 5 not read", () => {
+    expect(unread.briefing.facts[2]).toMatchObject({
+      label: "Template · main 7d269b5",
+      figure: "0 of 13",
+      sub: "on main · 5 not read yet · 1 change reaches the forks · 8 of 13 on v1.4.0",
+    });
+    const reading = unread.readings.find(({ anchor }) => anchor.kind === "engineering")?.content;
+    expect(reading?.tiles[0]).toEqual({
+      label: "Engineering system",
+      value: "0 of 13",
+      counts: "forks on 7d269b5 · 5 not read yet",
+    });
+    expect(reading?.verifiedTemplate).toMatchObject({ total: 13, unread: 5 });
+  });
+
+  it("leaves the fact unchanged when every fork is read", () => {
+    expect(snapshot.briefing.facts[2]).toMatchObject({
+      figure: "0 of 13",
+      sub: "on main · 1 change reaches the forks · 13 of 13 on v1.4.0",
+    });
   });
 });

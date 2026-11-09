@@ -53,11 +53,16 @@ function tiles(facts: ViewSnapshot["briefing"]["facts"]): Content["tiles"] | und
     counts: fact.sub.split(" · ")[0] ?? fact.sub,
   });
   const revision = /^Template · main (\S+)$/.exec(engineering.label)?.[1];
+  const unread = engineering.sub.split(" · ").find((part) => part.endsWith("not read yet"));
   return [
     tile(environment),
     tile(upstream),
     revision
-      ? { label: "Engineering system", value: engineering.figure, counts: `forks on ${revision}` }
+      ? {
+          label: "Engineering system",
+          value: engineering.figure,
+          counts: `forks on ${revision}${unread ? ` · ${unread}` : ""}`,
+        }
       : tile(engineering),
   ];
 }
