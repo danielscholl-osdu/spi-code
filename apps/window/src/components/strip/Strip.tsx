@@ -30,6 +30,7 @@ const RIGHT: readonly StripField[] = ["due", "nextSync", "freshness"];
 export function Strip() {
   const snapshot = useStore(watchStore, (state) => state.snapshot?.body);
   const progress = useStore(watchStore, (state) => state.progress);
+  const nextSweepAt = useStore(watchStore, (state) => state.sweep?.nextSweepAt);
   const root = useRef<HTMLDivElement>(null);
   const { isMobile } = useSidebar();
   const plan = useFoldPlan(root, snapshot, isMobile);
@@ -63,6 +64,7 @@ export function Strip() {
       key="freshness"
       snapshot={snapshot ?? null}
       progress={progress}
+      nextSweepAt={nextSweepAt}
       short={plan?.freshness === "short"}
       onOpen={() => openFreshness(snapshot)}
     />

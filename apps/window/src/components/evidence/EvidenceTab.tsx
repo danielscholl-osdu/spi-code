@@ -11,10 +11,12 @@ import type {
   SweepStatus,
 } from "@spi-code/contracts";
 import { watchStore } from "../../store/watch.js";
+import { clockTime } from "../../time.js";
 import { FirstSweepBody } from "../sweep/FirstSweepBody.js";
+import { SweepNow } from "../sweep/SweepNow.js";
 import { SweepSources } from "../sweep/SweepSources.js";
 import { SweepStopped } from "../sweep/SweepStopped.js";
-import type { SourceTone } from "../sweep/words.js";
+import { type SourceTone, settled } from "../sweep/words.js";
 import { FailedReads } from "./FailedReads.js";
 import type { SweepLineSnapshot } from "./SweepLine.js";
 import { useNow } from "./useNow.js";
@@ -211,7 +213,10 @@ export function SweepEvidence({
   now?: number | undefined;
 }) {
   const live = progress?.outcome === "running" ? progress : null;
-  const clock = useNow(live ? 1000 : 30_000);
+  const clock = useNow(
+    live ? 1000 : 30_000,
+    sweep?.nextSweepAt ? Date.parse(sweep.nextSweepAt) : undefined,
+  );
   const at = now ?? clock;
   if (snapshot === null)
     return (
@@ -240,6 +245,7 @@ export function SweepEvidence({
     now: at,
   });
   const failed = snapshot.reads.filter((record) => record.failure !== undefined);
+  const next = sweep?.nextSweepAt && Date.parse(sweep.nextSweepAt) > at ? sweep.nextSweepAt : null;
   const list = progress ?? completed;
   const envelopes = new Map(sources.map(({ key, envelope }) => [key, envelope]));
   const listed = new Set(list?.sources.map(({ source }) => source));
@@ -267,7 +273,36 @@ export function SweepEvidence({
   return (
     <article className="evidence" data-evidence="sweep">
       <p className="inspector-kicker">what the sweep is drawn from</p>
-      <h2 className="evidence-title">The sweep</h2>
+      <header className="evidence-header" data-sweep-header="">
+        <div>
+          <h2 className="evidence-title">The sweep</h2>
+          <p data-sweep-schedule="">
+            {live ? (
+              <>
+                Sweeping since{" "}
+                <time dateTime={live.startedAt}>
+                  {clockTime(live.startedAt, { now: at, hint: false })}
+                </time>{" "}
+                · {settled(live)} of {live.sources.length}
+              </>
+            ) : (
+              <>
+                Swept{" "}
+                <time dateTime={snapshot.sweptAt}>
+                  {clockTime(snapshot.sweptAt, { now: at, hint: false })}
+                </time>
+                {next && (
+                  <>
+                    {" · next sweep "}
+                    <time dateTime={next}>{clockTime(next, { now: at, hint: false })}</time>
+                  </>
+                )}
+              </>
+            )}
+          </p>
+        </div>
+        <SweepNow onViewSweep={() => {}} onOpenReadiness={onOpenSettings} />
+      </header>
       <p className="evidence-line" data-tone={line.tone}>
         {line.text}
       </p>

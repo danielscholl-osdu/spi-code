@@ -18,6 +18,10 @@
 .section-evidence[data-tone="bad"] { color: var(--error-text); }
 
 .evidence-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 4px; color: var(--text-strong); font-size: 14px; }
+.evidence-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 8px 12px; margin-bottom: 8px; }
+.evidence-header .sweep-now { max-width: 160px; }
+.evidence-header .sweep-now > button { white-space: nowrap; }
+.evidence-header [data-sweep-schedule] { margin: 0; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .evidence-line { margin: 0 0 8px; color: var(--text-muted); }
 .evidence-line[data-tone="warn"] { color: var(--warning-text); }
 .evidence-line[data-tone="bad"] { color: var(--error-text); }

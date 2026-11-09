@@ -40,16 +40,18 @@ export function firstSweepForms(
 export function SweepLine({
   snapshot,
   progress = null,
+  nextSweepAt = null,
   short = false,
   onOpen,
 }: {
   snapshot: SweepLineSnapshot | null;
   progress?: SweepProgress | null | undefined;
+  nextSweepAt?: string | null | undefined;
   short?: boolean;
   onOpen(): void;
 }) {
   const labelId = useId();
-  const now = useNow();
+  const now = useNow(30_000, nextSweepAt ? Date.parse(nextSweepAt) : undefined);
   const live = running(progress);
   const count = live && counted(live);
   const glyph =
@@ -62,11 +64,13 @@ export function SweepLine({
         });
   const first = snapshot === null && count ? count : null;
   const later = snapshot !== null && live && !live.first ? count : null;
-  const text = first
+  const detail = first
     ? `First sweep · ${first} sources done`
     : later && snapshot
       ? `Swept ${clockTime(snapshot.sweptAt, { now })} · sweeping, ${later} sources done`
       : (glyph?.text ?? "waiting for the first sweep");
+  const next = snapshot && nextSweepAt && Date.parse(nextSweepAt) > now ? nextSweepAt : null;
+  const text = `${detail}${next ? ` · next sweep ${clockTime(next, { now, hint: false })}` : ""}`;
   const tone = first || later ? "run" : (glyph?.tone ?? "muted");
   return (
     <button

@@ -20,7 +20,7 @@ import { PINS_STORAGE_KEY, readPins } from "../../store/pins.js";
 import { selectStrip } from "../../store/strip.js";
 import { watchStore } from "../../store/watch.js";
 import { clockTime } from "../../time.js";
-import { after, midSweep } from "../sweep/test-helper.js";
+import { after, midSweep, SWEEP_START, sweepStatus } from "../sweep/test-helper.js";
 
 const FLEET = [
   "partition",
@@ -99,6 +99,28 @@ afterEach(async () => {
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+it("adds only a future next sweep to the freshness hover and accessible name, expiring on time", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(SWEEP_START + 130_000);
+  const body = { ...fixture(), sweptAt: after(120) };
+  show(body);
+  watchStore.setState({ sweep: sweepStatus({ nextSweepAt: after(135) }) });
+  await mount();
+  const freshness = field("freshness");
+  const label = () => document.getElementById(freshness?.getAttribute("aria-labelledby") ?? "");
+  const next = `next sweep ${clockTime(after(135), { hint: false })}`;
+  expect(freshness?.title).toContain(next);
+  expect(label()?.textContent).toBe(freshness?.title);
+  expect(freshness?.querySelector("[data-sweep-display]")?.textContent).not.toContain("next sweep");
+  await act(async () => vi.advanceTimersByTimeAsync(5000));
+  expect(freshness?.title).not.toContain("next sweep");
+  expect(label()?.textContent).toBe(freshness?.title);
+  await act(async () => watchStore.setState({ sweep: sweepStatus({ nextSweepAt: after(140) }) }));
+  expect(freshness?.title).toContain("next sweep");
+  await act(async () => watchStore.setState({ sweep: sweepStatus({ nextSweepAt: null }) }));
+  expect(freshness?.title).not.toContain("next sweep");
 });
 
 it("draws one pip per service in fleet order, partition first", async () => {

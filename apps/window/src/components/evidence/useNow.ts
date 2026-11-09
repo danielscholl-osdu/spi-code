@@ -3,12 +3,23 @@
 
 import { useEffect, useState } from "react";
 
-/** The wall clock, ticking each `everyMs`, so relative ages in evidence stay current. */
-export function useNow(everyMs = 30_000): number {
-  const [now, setNow] = useState(() => Date.now());
+/** The wall clock, also rechecking at a deadline so an expired promise disappears on time. */
+export function useNow(everyMs = 30_000, deadline?: number): number {
+  const [, setNow] = useState(Date.now);
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), everyMs);
-    return () => clearInterval(timer);
-  }, [everyMs]);
-  return now;
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      const now = Date.now();
+      timer = setTimeout(
+        () => {
+          setNow(Date.now());
+          schedule();
+        },
+        deadline !== undefined && deadline > now ? Math.min(everyMs, deadline - now) : everyMs,
+      );
+    };
+    schedule();
+    return () => clearTimeout(timer);
+  }, [everyMs, deadline]);
+  return Date.now();
 }

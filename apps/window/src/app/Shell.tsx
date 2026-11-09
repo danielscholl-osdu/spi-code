@@ -275,7 +275,12 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
             {registry.strip ? (
               registry.strip()
             ) : (
-              <SweepLine snapshot={snapshot ?? null} progress={progress} onOpen={openSweepLine} />
+              <SweepLine
+                snapshot={snapshot ?? null}
+                progress={progress}
+                nextSweepAt={sweep?.nextSweepAt}
+                onOpen={openSweepLine}
+              />
             )}
           </div>
           <div className="title-bar-controls">

@@ -84,6 +84,10 @@ the requested sweep's terminal progress, status and committed snapshot.
 `lastSweep.requested`; the control expires it and retry promises on its own
 clock even when no further status arrives. Joining a routine sweep follows it
 without a forced follow-up.
+Evidence reuses that control beside its saved or live sweep time; View sweep there
+keeps Evidence open. Its next sweep time and the freshness field's hover and
+accessible name disappear at the scheduled deadline, without waiting for another
+host event. The strip's compact visible time and source counts stay unchanged.
 The first not-ready setup state opens Settings on Readiness once over the Watch
 gate. Its banner names only blocking git and gh states; tools that need an update
 remain usable, and Copilot or glab attention does not block Watch. The gate offers
