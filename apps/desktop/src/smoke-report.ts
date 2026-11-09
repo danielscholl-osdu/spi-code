@@ -229,6 +229,7 @@ export const VIEW_SURFACES = [
 ] as const;
 
 export function geometryRules(surface: string, width: number): SmokeGeometry["rule"][] {
+  if (surface === "first-sweep-evidence") return ["window", "headers", "failed-reads"];
   if (surface.startsWith("first-sweep-")) return ["window", "headers"];
   if (surface.startsWith("settings")) return ["window", "settings"];
   if (surface === "detail-related") return ["window", "related"];

@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { assertSmokeGeometry, type SmokeGeometry } from "./smoke-geometry.js";
 
 const rect = (x: number, y: number, width: number, height: number) => ({
@@ -53,13 +53,51 @@ const drag: SmokeGeometry = {
   region: rect(84, 0, 648, 44),
   targets: [rect(84, 0, 500, 44), rect(632, 0, 100, 44)],
 };
+const failedReads: SmokeGeometry = {
+  rule: "failed-reads",
+  section: rect(1101, 650, 323, 52),
+  panel: rect(1084, 88, 356, 712),
+  rows: [
+    { source: "GitHub issues and PRs", outcome: "read failed · unit, crs-catalog, crs-conversion" },
+  ],
+};
 
-it.each([window, related, panes, headers, settings, drag])(
+it.each([window, related, panes, headers, settings, drag, failedReads])(
   "accepts measured $rule geometry",
   (value) => {
     expect(() => assertSmokeGeometry(value)).not.toThrow();
   },
 );
+
+it("reports the quarter-pixel clipping reproduced at CI's 1x scale with the actual row text", () => {
+  const clipped = { ...failedReads, section: { ...failedReads.section, y: 748.25 } };
+  expect(() => assertSmokeGeometry(clipped)).toThrow(
+    `Failed reads outside panel: ${JSON.stringify(clipped)}`,
+  );
+});
+
+it("rejects incorrect failed-read wording after measurement instead of waiting for a DOM timeout", () => {
+  const wrong = {
+    ...failedReads,
+    rows: [{ source: "GitHub issues and PRs", outcome: "core text or missing fleet ids" }],
+  };
+  expect(() => assertSmokeGeometry(wrong)).toThrow(`Failed-read wording: ${JSON.stringify(wrong)}`);
+});
+
+it("checks failed-read bounds and wording in UTC with a clock shifted 400 days", () => {
+  vi.useFakeTimers();
+  vi.stubEnv("TZ", "UTC");
+  vi.setSystemTime(new Date(Date.parse("2026-11-06T15:04:00Z") + 400 * 86_400_000));
+  try {
+    expect(() => assertSmokeGeometry(failedReads)).not.toThrow();
+    expect(() =>
+      assertSmokeGeometry({ ...failedReads, rows: [{ ...failedReads.rows[0], outcome: "" }] }),
+    ).toThrow(/Failed-read wording/);
+  } finally {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+  }
+});
 
 it("rejects a mutually flush pane row inset from any window edge", () => {
   for (const changed of [

@@ -26,6 +26,12 @@ export type SmokeGeometry =
     }
   | { rule: "headers"; paneTop: number; panes: SmokeRect[]; headers: SmokeRect[] }
   | { rule: "settings"; viewport: SmokeRect; dialog: SmokeRect }
+  | {
+      rule: "failed-reads";
+      section: SmokeRect;
+      panel: SmokeRect;
+      rows: { source: string; outcome: string }[];
+    }
   | { rule: "drag"; services: number; appRegion: string; region: SmokeRect; targets: SmokeRect[] };
 
 function record(value: unknown): asserts value is Record<string, unknown> {
@@ -92,6 +98,27 @@ export function dragSpan(region: SmokeRect, targets: readonly SmokeRect[]): numb
 export function assertSmokeGeometry(value: unknown): asserts value is SmokeGeometry {
   record(value);
   switch (value.rule) {
+    case "failed-reads": {
+      rect(value.section);
+      rect(value.panel);
+      const evidence = JSON.stringify(value);
+      assert(
+        value.section.y >= value.panel.y &&
+          value.section.y + value.section.height <= value.panel.y + value.panel.height,
+        `Failed reads outside panel: ${evidence}`,
+      );
+      assert.deepEqual(
+        value.rows,
+        [
+          {
+            source: "GitHub issues and PRs",
+            outcome: "read failed · unit, crs-catalog, crs-conversion",
+          },
+        ],
+        `Failed-read wording: ${evidence}`,
+      );
+      break;
+    }
     case "window": {
       assert(Array.isArray(value.panes), "Window panes missing");
       for (const pane of value.panes) rect(pane);

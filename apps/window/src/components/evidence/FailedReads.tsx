@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { ReadRecord, SweepReasonCode } from "@spi-code/contracts";
-import { AREA_NAMES, sourceName } from "./words.js";
+import { sourceName } from "./words.js";
 
 type FailureCode = SweepReasonCode | "not-found" | "denied";
 
@@ -42,55 +42,122 @@ function failureCode(failure: string): FailureCode {
   return "other";
 }
 
-function forgeName(source: string): string {
-  if (["gitlab", "upstream", "radar"].includes(source) || source.split("/").length > 2)
-    return "GitLab";
-  if (source === "github" || source.includes("/")) return "GitHub";
-  return sourceName(source);
+const RECORDED_SOURCES = {
+  auth: "auth",
+  gh: "auth",
+  glab: "auth",
+  fleet: "fleet",
+  file: "fleet",
+  github: "github",
+  runs: "runs",
+  approvals: "approvals",
+  lifecycle: "lifecycle",
+  details: "details",
+  upstream: "upstream",
+  gitlab: "upstream",
+  radar: "radar",
+  template: "template",
+  security: "security",
+  releases: "releases",
+  "github-releases": "releases",
+  "github-created": "releases",
+  "github-pins": "releases",
+  persist: "local-state",
+  "ledger-state": "local-state",
+  "release-state": "local-state",
+} as const;
+
+type WindowSource =
+  | (typeof RECORDED_SOURCES)[keyof typeof RECORDED_SOURCES]
+  | "local-cache"
+  | "other";
+
+const LOCAL_NAMES = {
+  "local-state": "Local state",
+  "local-cache": "Saved reads",
+  other: "Other reads",
+};
+
+function windowName(source: WindowSource): string {
+  return source === "local-state" || source === "local-cache" || source === "other"
+    ? LOCAL_NAMES[source]
+    : sourceName(source);
 }
 
-function windowSource(source: string): string {
-  if (Object.hasOwn(AREA_NAMES, source) || source === "releases") return source;
-  // Repo-backed records do not carry an area; use their forge's window source.
-  return forgeName(source) === "GitLab" ? "upstream" : "github";
+function forgeName(source: WindowSource): string {
+  if (source === "local-state" || source === "local-cache" || source === "other") return "";
+  return source === "upstream" || source === "radar" ? "GitLab" : "GitHub";
 }
 
-function serviceName(record: ReadRecord): string {
-  const name = record.source.includes("/") ? record.source : record.object;
-  const service = (
-    name
-      .split("/")
-      .at(-1)
-      ?.replace(/^osdu-spi-/, "") ?? name
-  ).replace(/-service$/, "");
+function windowSource({ source, object }: ReadRecord): WindowSource {
+  if (source === "persist" && object !== "save" && object !== "load") return "local-cache";
+  if (Object.hasOwn(RECORDED_SOURCES, source))
+    return RECORDED_SOURCES[source as keyof typeof RECORDED_SOURCES];
+  // Flat SPI repo records lack their collecting area; unrelated paths are not forge sources.
+  if (/^osdu\/platform(?:\/[\w.-]+)*$/.test(source)) return "upstream";
+  if (/^[\w.-]+\/osdu-spi(?:-[\w.-]+)?$/.test(source)) return "github";
+  return "other";
+}
+
+function serviceName(record: ReadRecord, source: WindowSource): string | undefined {
+  if (
+    source === "local-state" ||
+    source === "local-cache" ||
+    source === "other" ||
+    source === "auth" ||
+    record.source === "file"
+  )
+    return undefined;
+  const key = (record.source.includes("/") ? record.source : record.object).split("@")[0] ?? "";
+  const parts = key.startsWith("repos/") ? key.split("/").slice(1, 3) : key.split("/");
+  const name = parts.at(-1);
+  if (
+    parts.length < 2 ||
+    !name ||
+    parts.includes("lib") ||
+    (parts.length === 2 && !name.startsWith("osdu-spi-")) ||
+    name === "osdu-spi-stack" ||
+    name === "osdu-spi-core-lib-azure"
+  )
+    return undefined;
+  const service = name.replace(/^osdu-spi-/, "").replace(/-service$/, "");
   return service === "ingestion-workflow" ? "workflow" : service;
 }
 
 export function FailedReads({ reads }: { reads: readonly ReadRecord[] }) {
   const groups = new Map<
     string,
-    { source: string; code: FailureCode; services: Set<string>; details: Set<string> }
+    { source: WindowSource; code: FailureCode; services: Set<string>; details: Set<string> }
   >();
   for (const record of reads) {
     if (record.failure === undefined) continue;
     const code = failureCode(record.failure);
-    const source = windowSource(record.source);
+    const source = windowSource(record);
     const key = JSON.stringify([source, code]);
     let group = groups.get(key);
     if (!group) {
       group = { source, code, services: new Set(), details: new Set() };
       groups.set(key, group);
     }
-    group.services.add(serviceName(record));
+    const service = serviceName(record, source);
+    if (service !== undefined) group.services.add(service);
     group.details.add(`${record.source} · ${record.object}: ${record.failure}`);
   }
   return (
     <div className="sweep-sources evidence-failures">
       <ul className="sweep-rows" aria-label="Failed reads">
         {[...groups].map(([key, { source, code, services, details }]) => {
-          const forge = source === "upstream" || source === "radar" ? "GitLab" : "GitHub";
-          const subject = code === "budget" || code === "throttled" ? forge : forgeName(source);
-          const outcome = `${FAILURE_WORDS[code].replace("{forge}", subject)} · ${[...services].join(", ")}`;
+          const subject =
+            code === "budget" ||
+            code === "throttled" ||
+            source === "github" ||
+            source === "releases" ||
+            source === "upstream" ||
+            source === "radar"
+              ? forgeName(source)
+              : "";
+          const words = FAILURE_WORDS[code].replace("{forge} ", subject ? `${subject} ` : "");
+          const outcome = services.size > 0 ? `${words} · ${[...services].join(", ")}` : words;
           return (
             <li
               key={key}
@@ -98,12 +165,12 @@ export function FailedReads({ reads }: { reads: readonly ReadRecord[] }) {
               data-source={source}
               data-failure={code}
               data-tone="bad"
-              aria-label={`${sourceName(source)} · ${outcome}`}
+              aria-label={`${windowName(source)} · ${outcome}`}
             >
               <span className="sweep-mark" aria-hidden="true" title={[...details].join("\n")}>
                 ✕
               </span>
-              <span className="sweep-name">{sourceName(source)}</span>
+              <span className="sweep-name">{windowName(source)}</span>
               <span className="sweep-outcome">{outcome}</span>
             </li>
           );

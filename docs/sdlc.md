@@ -177,7 +177,14 @@ fleet ids in the Sources list's two-column row form. Causes use window words;
 core's diagnostic text is available on an aria-hidden mark's hover, never inline
 or as the row's accessible name.
 Repo-backed records without an area use the forge's window source.
-The retained Evidence capture scrolls Failed reads into view.
+Known recorded sources map explicitly to their window source: release collectors to
+Release lines, sign-in tools to Sign-in, and local saves or discarded caches to
+Local state or Saved reads without a service list. Unknown sources use Other reads.
+Pin keys lose their version before naming a fleet id.
+The retained Evidence capture scrolls Failed reads away from the panel's edge:
+end alignment can round a quarter pixel outside the panel at CI's 1x display scale.
+After paint it records and asserts both bounds and exact row wording under the
+`failed-reads` geometry rule, independently of time formatting or the clock.
 The screenshot phase precedes host startup, so these schema-valid `sweep.progress`
 fixtures use the same smoke-only preload channel as `view.snapshot` and `setup.state`,
 not the real host progress feed. The later persisted-snapshot and supervision proof

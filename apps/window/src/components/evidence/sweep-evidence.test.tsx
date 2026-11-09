@@ -621,6 +621,115 @@ const failedRead = (object: string, failure = gatewayFailure, source = "github")
   failure,
 });
 
+// Literal read sources in core's collect/* and sweep/{areas,sweeper}, plus repo-backed reads.
+it.each([
+  ...AREAS.map((source) => [source, AREA_NAMES[source], ""]),
+  ["releases", "Release lines", ""],
+  ["gh", "Sign-in", ""],
+  ["glab", "Sign-in", ""],
+  ["gitlab", "Upstream GitLab", ""],
+  ["file", "Fleet membership", ""],
+  ["github-releases", "Release lines", ""],
+  ["github-created", "Release lines", ""],
+  ["github-pins", "Release lines", ""],
+  ["persist", "Local state", ""],
+  ["ledger-state", "Local state", ""],
+  ["release-state", "Local state", ""],
+  ["Azure/osdu-spi-unit", "GitHub issues and PRs", "unit"],
+  ["osdu/platform/system/indexer-service", "Upstream GitLab", "indexer"],
+  ["osdu/platform/system/lib/core/os-core-common", "Upstream GitLab", ""],
+  ["osdu/platform/system/lib/cloud/azure/os-core-lib-azure", "Upstream GitLab", ""],
+  ["osdu/platform", "Upstream GitLab", ""],
+  ["a-future-source", "Other reads", ""],
+  ["future/source/cache", "Other reads", ""],
+])("maps recorded source %s to the window's %s row", async (source, name, service) => {
+  const view = await render(
+    <SweepEvidence
+      snapshot={{ ...snapshot(areas()), reads: [failedRead("load", "other", source)] }}
+      sweep={null}
+      now={now}
+    />,
+  );
+  try {
+    const row = failedRows(view.container)[0];
+    expect(row?.querySelector(".sweep-name")?.textContent).toBe(name);
+    expect(row?.querySelector(".sweep-outcome")?.textContent).toBe(
+      service ? `read failed · ${service}` : "read failed",
+    );
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("keeps local saves and dropped caches out of forge groups and service lists", async () => {
+  const fixture = ViewSnapshotSchema.parse(
+    JSON.parse(readFileSync("fixtures/watch/snapshot-1106.json", "utf8")),
+  );
+  const view = await render(
+    <SweepEvidence
+      snapshot={{
+        ...snapshot(areas()),
+        reads: [
+          ...fixture.reads.filter((record) => record.failure),
+          failedRead("save", "other", "persist"),
+          failedRead("load", "other", "ledger-state"),
+          failedRead("load", "other", "release-state"),
+          ...[
+            "pr-files-cache",
+            "template",
+            "detail-cache",
+            "lifecycle-cache",
+            "repos/Azure/osdu-spi/compare/base...head",
+          ].map((key) => failedRead(key, "other", "persist")),
+        ],
+      }}
+      sweep={null}
+      now={now}
+    />,
+  );
+  try {
+    expect(
+      failedRows(view.container).map((row) => [
+        row.querySelector(".sweep-name")?.textContent,
+        row.querySelector(".sweep-outcome")?.textContent,
+      ]),
+    ).toEqual([
+      ["GitHub issues and PRs", "read failed · unit, crs-catalog, crs-conversion"],
+      ["Local state", "read failed"],
+      ["Saved reads", "read failed"],
+    ]);
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("groups release reads under Release lines and strips the pin version from fleet ids", async () => {
+  const view = await render(
+    <SweepEvidence
+      snapshot={{
+        ...snapshot(areas()),
+        reads: [
+          failedRead("Azure/osdu-spi-unit", "timeout", "github-releases"),
+          failedRead("Azure/osdu-spi-unit", "timeout", "github-created"),
+          failedRead("Azure/osdu-spi-unit@v0.28.0", "timeout", "github-pins"),
+          failedRead("Azure/osdu-spi-stack", "timeout", "github-releases"),
+          failedRead("Azure/osdu-spi-core-lib-azure", "timeout", "github-releases"),
+        ],
+      }}
+      sweep={null}
+      now={now}
+    />,
+  );
+  try {
+    const rows = failedRows(view.container);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.getAttribute("aria-label")).toBe("Release lines · GitHub timed out · unit");
+    expect(rows[0]?.textContent).not.toContain("@");
+  } finally {
+    await view.cleanup();
+  }
+});
+
 it("groups repo-backed pom failures under a window source name with the three fleet ids", async () => {
   const fixture = ViewSnapshotSchema.parse(
     JSON.parse(readFileSync("fixtures/watch/snapshot-1106.json", "utf8")),
@@ -783,8 +892,8 @@ it.each([
 });
 
 it.each([
-  ["security", "unavailable", "Security alerts unavailable"],
-  ["runs", "timeout", "Workflow runs timed out"],
+  ["security", "unavailable", "unavailable"],
+  ["runs", "timeout", "timed out"],
   ["gitlab", "budget", "waits for GitLab budget"],
 ])("uses window wording for %s failure %s", async (source, failure, words) => {
   const view = await render(

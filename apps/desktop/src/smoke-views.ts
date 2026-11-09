@@ -107,6 +107,15 @@ async function measure(window: BrowserWindow, rule: SmokeGeometry["rule"]): Prom
     if (!page) throw new Error("Missing page scroll geometry");
     const scroll = { width: page.scrollWidth, height: page.scrollHeight };
     switch (${JSON.stringify(rule)}) {
+      case "failed-reads": {
+        const section = element("[data-evidence=sweep] .evidence-failures");
+        return { rule: "failed-reads", section: rect(section),
+          panel: rect(section.closest(".panel-body")),
+          rows: [...section.querySelectorAll(".evidence-failure")].map(row => ({
+            source: row.querySelector(".sweep-name").textContent,
+            outcome: row.querySelector(".sweep-outcome").textContent
+          })) };
+      }
       case "window":
         return { rule: "window", viewport, scroll,
           panes: [...document.querySelectorAll(".app-sidebar:not([inert]), .middle-frame, .line-sheet, .right-panel-frame")].map(rect) };
@@ -148,6 +157,7 @@ async function measure(window: BrowserWindow, rule: SmokeGeometry["rule"]): Prom
       }
     }
   })()`);
+  if (rule === "failed-reads") console.log(`Packaged failed reads: ${JSON.stringify(value)}`);
   assertSmokeGeometry(value);
   return value;
 }
@@ -541,20 +551,14 @@ export async function captureSmokeViews(
           }
           await rendered(window, `document.querySelector(${JSON.stringify(surface.selector)})`);
           if (surface.id === "first-sweep-evidence") {
-            await window.webContents.executeJavaScript(
-              'document.querySelector(".evidence-failures").scrollIntoView({ block: "end" })',
-            );
             await rendered(
               window,
-              `(() => {
-                const failed = document.querySelector(".evidence-failures").getBoundingClientRect();
-                const panel = document.querySelector(".panel-body").getBoundingClientRect();
-                const row = document.querySelector(".evidence-failure");
-                return failed.top >= panel.top && failed.bottom <= panel.bottom &&
-                  row.querySelector(".sweep-name").textContent === "GitHub issues and PRs" &&
-                  row.querySelector(".sweep-outcome").textContent === "read failed · unit, crs-catalog, crs-conversion";
-              })()`,
+              'document.querySelector("[data-evidence=sweep] .evidence-failure")',
             );
+            await window.webContents.executeJavaScript(
+              'document.querySelector("[data-evidence=sweep] .evidence-failures").scrollIntoView({ block: "center" })',
+            );
+            await rendered(window, "true");
           }
           const geometry = [];
           for (const rule of geometryRules(surface.id, viewportWidth))

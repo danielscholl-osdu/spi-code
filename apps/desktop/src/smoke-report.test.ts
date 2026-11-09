@@ -120,6 +120,18 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
           panes: [rect(232, 75, 568, 725), rect(800, 75, 360, 725), rect(1160, 75, 280, 725)],
           headers: [rect(232, 75, 568, 44), rect(800, 75, 360, 44), rect(1160, 75, 280, 44)],
         };
+      case "failed-reads":
+        return {
+          rule,
+          section: rect(width - 360, 650, 360, 52),
+          panel: rect(width - 360, 88, 360, 712),
+          rows: [
+            {
+              source: "GitHub issues and PRs",
+              outcome: "read failed · unit, crs-catalog, crs-conversion",
+            },
+          ],
+        };
       case "drag":
         return {
           rule,
