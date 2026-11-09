@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useStore } from "zustand";
 import { isMacPlatform } from "../app/shortcuts.js";
 import { plain, sourceName, sweepSources } from "../components/evidence/words.js";
-import { duration } from "../components/sweep/words.js";
+import { duration, outcomeLine, sourceOutcome } from "../components/sweep/words.js";
 import { watchStore } from "../store/watch.js";
 import { clockTime, timeUnit } from "../time.js";
 
@@ -79,6 +79,26 @@ function useClock(deadlines: readonly (string | null | undefined)[]): number {
     };
   }, [key]);
   return now;
+}
+
+/**
+ * A deferred area in Evidence's words: a budget deferral waits for GitHub budget, after the reset
+ * only while that is still ahead; any other waits for the next sweep with its reason.
+ */
+function deferredLine(area: string, reason: string, reset: string | null, now: number): string {
+  const said = plain(reason);
+  if (!/\bbudget\b/.test(said)) return `waits for the next sweep · ${said}`;
+  const outcome = sourceOutcome(
+    {
+      source: area,
+      state: "deferred",
+      code: "budget",
+      reason: said,
+      ...(reset ? { resumeAt: reset } : {}),
+    },
+    now,
+  );
+  return outcomeLine(outcome, now);
 }
 
 function Clock({ at, now, hint = true }: { at: string; now: number; hint?: boolean }) {
@@ -199,7 +219,7 @@ export function SweepSection({ store = watchStore }: { store?: typeof watchStore
         </p>
         {sweep?.deferredAreas.map(({ area, reason }) => (
           <p key={area}>
-            {sourceName(area)} waits for the next sweep · {plain(reason)}
+            {sourceName(area)} {deferredLine(area, reason, reset, now)}
           </p>
         ))}
       </div>

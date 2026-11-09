@@ -899,7 +899,7 @@ describe("the Sweep section", () => {
             lastSweep: { ...lastSweep, outcome: "cancelled" },
             remaining: 42,
             resetAt: at("14:00:00"),
-            deferredAreas: [{ area: "details", reason: "budget_floor" }],
+            deferredAreas: [{ area: "details", reason: "paused_by_host" }],
           }),
         }),
       );
@@ -909,7 +909,7 @@ describe("the Sweep section", () => {
       expect(budget()).toEqual([
         "42 points left · below the floor",
         "Below 100 points, GitHub reads wait for the reset so sweeps never spend what your own gh use needs.",
-        "Run details waits for the next sweep · budget floor",
+        "Run details waits for the next sweep · paused by host",
       ]);
       expect(body()?.querySelector(".sweep-budget [role=alert]")?.textContent).toBe(
         "42 points left · below the floor",
@@ -918,6 +918,29 @@ describe("the Sweep section", () => {
       await shell.cleanup();
     }
   });
+
+  it.each([
+    ["a future reset", at("14:37:00"), "insufficient budget", " · after "],
+    ["a passed reset", at("14:00:00"), "insufficient budget", null],
+    ["a reset that is now", at("14:05:00"), "insufficient budget", null],
+    ["an unknown reset", null, "budget unknown", null],
+  ] as const)(
+    "words a budget deferral as Evidence does with %s",
+    async (_, resetAt, reason, after) => {
+      watchStore.setState({
+        sweep: status({ resetAt, deferredAreas: [{ area: "security", reason }] }),
+      });
+      const shell = await mountShell();
+      try {
+        await openSweep();
+        expect(budget().at(-1)).toBe(
+          `Security alerts waits for GitHub budget${after && resetAt ? `${after}${clock(resetAt)}` : ""}`,
+        );
+      } finally {
+        await shell.cleanup();
+      }
+    },
+  );
 
   it.each([0, 9, 10, 11])("flags points only below the reported floor: %s", async (remaining) => {
     watchStore.setState({ sweep: status({ remaining, floor: 10, resetAt: null }) });
