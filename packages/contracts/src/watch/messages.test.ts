@@ -7,7 +7,13 @@ import { parseMessage } from "../index.js";
 import { BriefingSchema } from "./briefing.js";
 import { AREAS, EnvelopeSchema, type ReadRecord, ReadRecordSchema } from "./evidence.js";
 import { InspectResultSchema, ItemClassSchema } from "./inspect.js";
-import { PROTOCOL_VERSION, type WatchMessage, WatchMessageSchema } from "./messages.js";
+import {
+  PROTOCOL_VERSION,
+  SWEEP_REASON_MAX_LENGTH,
+  type SweepProgress,
+  type WatchMessage,
+  WatchMessageSchema,
+} from "./messages.js";
 import { ReleasesPaneSchema, type ViewSnapshot } from "./snapshot.js";
 import { ServiceStationsSchema, StationIdSchema } from "./stations.js";
 import { TreeStatusSchema } from "./tree.js";
@@ -89,6 +95,41 @@ const snapshot = {
   provenance: [{ path: "/stations/0/stations/4", areas: ["github"] }],
   selection: "today",
 } satisfies ViewSnapshot;
+const progress = {
+  sweep: "sweep-1",
+  startedAt: at,
+  first: true,
+  usualMs: null,
+  outcome: "running",
+  nextAttemptAt: null,
+  sources: [
+    {
+      source: "github",
+      state: "cut",
+      startedAt: at,
+      endedAt: "2026-11-05T06:00:52Z",
+      reason: "page limit",
+      incomplete: { count: 6, total: 13 },
+    },
+    { source: "gitlab", state: "read", startedAt: at, endedAt: "2026-11-05T06:00:31Z" },
+    {
+      source: "workflows",
+      state: "deferred",
+      reason: "waits for GitHub budget",
+      resumeAt: "2026-11-05T07:10:00Z",
+    },
+    { source: "security", state: "skipped", reason: "read at its own cadence" },
+    {
+      source: "issues",
+      state: "failed",
+      startedAt: at,
+      endedAt: at,
+      reason: "glab is not signed in.",
+    },
+    { source: "stack", state: "reading", startedAt: at },
+    { source: "releases", state: "waiting" },
+  ],
+} satisfies SweepProgress;
 const messages = [
   { ...envelope, kind: "request", type: "inspect.request", payload: { id: "main:osdu-spi" } },
   {
@@ -155,6 +196,8 @@ const messages = [
     type: "setup.signin.cancel",
     payload: { requestId: "signin-1" },
   },
+  { ...envelope, kind: "event", type: "sweep.progress", payload: progress },
+  { ...envelope, kind: "request", type: "sweep.request", payload: {} },
 ] satisfies [
   WatchMessage,
   WatchMessage,
@@ -168,7 +211,93 @@ const messages = [
   WatchMessage,
   WatchMessage,
   WatchMessage,
+  WatchMessage,
+  WatchMessage,
 ];
+
+describe("sweep progress", () => {
+  const event = messages[12];
+  const parse = (payload: unknown) => parseMessage({ ...event, payload });
+  const failed = {
+    ...progress,
+    outcome: "failed",
+    failure: "It stopped while reading Workflow runs.",
+    nextAttemptAt: "2026-11-05T06:07:00Z",
+  } as const;
+  it.each([
+    ["running", progress],
+    ["committed", { ...progress, outcome: "committed", usualMs: 120_000, first: false }],
+    ["cancelled", { ...progress, outcome: "cancelled", sources: [] }],
+    ["failed", failed],
+    ["failed with no retry scheduled", { ...failed, nextAttemptAt: null }],
+  ])("round-trips a %s state", (_, payload) => {
+    const message = { ...event, payload };
+    expect(parseMessage(JSON.parse(JSON.stringify(message)))).toEqual({ ok: true, message });
+  });
+  it("rejects a failed outcome without its failure, and failure or retry on other outcomes", () => {
+    const { failure, ...withoutFailure } = failed;
+    expect(parse(withoutFailure).ok).toBe(false);
+    const { nextAttemptAt, ...withoutRetry } = failed;
+    expect(parse(withoutRetry).ok).toBe(false);
+    expect(parse({ ...progress, failure }).ok).toBe(false);
+    expect(parse({ ...progress, nextAttemptAt }).ok).toBe(false);
+    expect(parse({ ...progress, outcome: "committed", nextAttemptAt }).ok).toBe(false);
+  });
+  it("rejects unknown outcomes and source states", () => {
+    for (const outcome of ["done", "skipped", "", null]) {
+      expect(parse({ ...progress, outcome }).ok).toBe(false);
+    }
+    for (const state of ["throttled", "queued", "complete", ""]) {
+      expect(parse({ ...progress, sources: [{ source: "github", state }] }).ok).toBe(false);
+    }
+  });
+  it("rejects extra keys at every level", () => {
+    const [source] = progress.sources;
+    expect(
+      parse({ ...progress, sources: [{ ...source, completeness: { kind: "complete" } }] }).ok,
+    ).toBe(false);
+    expect(
+      parse({ ...progress, sources: [{ ...source, incomplete: { count: 6, total: 13, read: 7 } }] })
+        .ok,
+    ).toBe(false);
+    expect(parse({ ...failed, output: "gh: HTTP 502" }).ok).toBe(false);
+    expect(parseMessage({ ...messages[13], payload: { force: true } }).ok).toBe(false);
+  });
+  it("bounds every reason", () => {
+    const [source] = progress.sources;
+    const bounded = "x".repeat(SWEEP_REASON_MAX_LENGTH);
+    const over = `${bounded}x`;
+    expect(parse({ ...failed, failure: bounded }).ok).toBe(true);
+    expect(parse({ ...progress, sources: [{ ...source, reason: bounded }] }).ok).toBe(true);
+    expect(parse({ ...failed, failure: over }).ok).toBe(false);
+    expect(parse({ ...failed, failure: "" }).ok).toBe(false);
+    expect(parse({ ...progress, sources: [{ ...source, reason: over }] }).ok).toBe(false);
+    expect(parse({ ...progress, sources: [{ ...source, reason: "" }] }).ok).toBe(false);
+  });
+  it("rejects bad times, counts and repeated sources", () => {
+    const [source] = progress.sources;
+    for (const incomplete of [
+      { count: 14, total: 13 },
+      { count: -1, total: 13 },
+      { count: 0, total: 0 },
+      { count: 1.5, total: 13 },
+    ]) {
+      expect(parse({ ...progress, sources: [{ ...source, incomplete }] }).ok).toBe(false);
+    }
+    expect(parse({ ...progress, sources: [{ ...source, resumeAt: "08:04" }] }).ok).toBe(false);
+    expect(parse({ ...progress, usualMs: 0 }).ok).toBe(false);
+    expect(parse({ ...failed, nextAttemptAt: "soon" }).ok).toBe(false);
+    expect(parse({ ...progress, sources: [source, source] }).ok).toBe(false);
+  });
+  it("round-trips sweep.request with an empty payload only", () => {
+    const message = messages[13];
+    expect(parseMessage(JSON.parse(JSON.stringify(message)))).toEqual({ ok: true, message });
+    for (const payload of [null, undefined, [], { area: "github" }]) {
+      expect(parseMessage({ ...message, payload }).ok).toBe(false);
+    }
+    expect(parseMessage({ ...message, kind: "event" }).ok).toBe(false);
+  });
+});
 
 describe("Watch protocol", () => {
   it("round-trips a check-all request and rejects tool, credential and envelope additions", () => {
