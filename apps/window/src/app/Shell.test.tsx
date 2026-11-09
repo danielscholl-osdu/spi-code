@@ -308,25 +308,29 @@ it.each([740, 900, 980, 1100, 1280])(
   },
 );
 
-it("keeps a Flow selection on its service and restores middle-frame scroll when returning", async () => {
+it("keeps a Flow selection on its service and restores centre-body scroll when returning", async () => {
   const previous = watchStore.getState();
   const body = testSnapshot(briefing, releases);
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
   const flow = body.briefing.flow.rows[0];
   if (!flow) throw new Error("Missing recorded Flow row");
   const shell = await mountShell();
-  const middle = shell.container.querySelector("main");
+  const bodyScroll = () => {
+    const page = shell.container.querySelector<HTMLElement>("main > .service-page");
+    if (!page) throw new Error("Missing service scrolling body");
+    return page;
+  };
   try {
     await act(async () => navigate({ kind: "service", id: flow.fork }));
     await act(async () => selectionStore.getState().select(flow.inspect));
-    if (!middle) throw new Error("Missing middle frame");
-    middle.scrollTop = 320;
-    await act(async () => middle.dispatchEvent(new Event("scroll")));
+    bodyScroll().scrollTop = 320;
+    await act(async () => bodyScroll().dispatchEvent(new Event("scroll")));
+    expect(shell.container.querySelector("main")?.scrollTop).toBe(0);
     await act(async () => navigate({ kind: "security" }));
     expect(selectionStore.getState().selected).toBeNull();
     await act(async () => navigate({ kind: "service", id: flow.fork }));
     expect(selectionStore.getState().selected).toBe(flow.inspect);
-    expect(middle.scrollTop).toBe(320);
+    expect(bodyScroll().scrollTop).toBe(320);
   } finally {
     await shell.cleanup();
     watchStore.setState(previous);

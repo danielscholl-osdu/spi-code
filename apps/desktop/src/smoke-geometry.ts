@@ -11,9 +11,20 @@ export interface SmokeRect {
 }
 
 export type SmokeGeometry =
+  | {
+      rule: "window";
+      viewport: SmokeRect;
+      scroll: { width: number; height: number };
+      panes: SmokeRect[];
+    }
   | { rule: "related"; panel: SmokeRect; label: SmokeRect; labelText: string; values: SmokeRect[] }
-  | { rule: "panes"; panes: { rect: SmokeRect; borderLeft: number; borderRight: number }[] }
-  | { rule: "headers"; paneTop: number; headers: SmokeRect[] }
+  | {
+      rule: "panes";
+      viewport: SmokeRect;
+      scroll: { width: number; height: number };
+      panes: { rect: SmokeRect; borderLeft: number; borderRight: number }[];
+    }
+  | { rule: "headers"; paneTop: number; panes: SmokeRect[]; headers: SmokeRect[] }
   | { rule: "settings"; viewport: SmokeRect; dialog: SmokeRect }
   | { rule: "drag"; services: number; appRegion: string; region: SmokeRect; targets: SmokeRect[] };
 
@@ -33,6 +44,38 @@ function aligned(actual: number, expected: number, message: string): void {
   assert(Math.abs(actual - expected) < 0.02, `${message}: ${actual} != ${expected}`);
 }
 
+function windowEdges(viewport: unknown, scroll: unknown, panes: SmokeRect[]): void {
+  rect(viewport);
+  record(scroll);
+  for (const key of ["width", "height"] as const) {
+    assert(
+      typeof scroll[key] === "number" && Number.isFinite(scroll[key]),
+      `Invalid page scroll ${key}`,
+    );
+    aligned(scroll[key], viewport[key], `Page scroll ${key}`);
+  }
+  aligned(viewport.x, 0, "Viewport left");
+  aligned(viewport.y, 0, "Viewport top");
+  assert(panes.length > 0, "Window panes missing");
+  for (const pane of panes) {
+    rect(pane);
+    assert(
+      pane.x >= 0 &&
+        pane.y >= 0 &&
+        pane.x + pane.width <= viewport.width + 0.02 &&
+        pane.y + pane.height <= viewport.height + 0.02,
+      "Pane outside window",
+    );
+  }
+  aligned(Math.min(...panes.map((pane) => pane.x)), 0, "Pane row left");
+  aligned(Math.max(...panes.map((pane) => pane.x + pane.width)), viewport.width, "Pane row right");
+  aligned(
+    Math.max(...panes.map((pane) => pane.y + pane.height)),
+    viewport.height,
+    "Pane row bottom",
+  );
+}
+
 export function dragSpan(region: SmokeRect, targets: readonly SmokeRect[]): number {
   let edge = region.x;
   let span = 0;
@@ -49,6 +92,12 @@ export function dragSpan(region: SmokeRect, targets: readonly SmokeRect[]): numb
 export function assertSmokeGeometry(value: unknown): asserts value is SmokeGeometry {
   record(value);
   switch (value.rule) {
+    case "window": {
+      assert(Array.isArray(value.panes), "Window panes missing");
+      for (const pane of value.panes) rect(pane);
+      windowEdges(value.viewport, value.scroll, value.panes);
+      break;
+    }
     case "related": {
       rect(value.panel);
       rect(value.label);
@@ -94,6 +143,11 @@ export function assertSmokeGeometry(value: unknown): asserts value is SmokeGeome
         }
         previous = { rect: pane.rect, borderRight: pane.borderRight };
       }
+      windowEdges(
+        value.viewport,
+        value.scroll,
+        value.panes.map((pane) => pane.rect),
+      );
       break;
     }
     case "headers": {
@@ -105,10 +159,15 @@ export function assertSmokeGeometry(value: unknown): asserts value is SmokeGeome
         Array.isArray(value.headers) && value.headers.length === 3,
         "Header probe requires centre, Line and Detail",
       );
-      for (const header of value.headers) {
+      assert(Array.isArray(value.panes) && value.panes.length === 3, "Header panes missing");
+      for (const [index, header] of value.headers.entries()) {
         rect(header);
+        const pane = value.panes[index];
+        rect(pane);
         aligned(header.height, 44, "Header height");
         aligned(header.y, value.paneTop, "Header top");
+        aligned(header.x, pane.x, "Header left");
+        aligned(header.width, pane.width, "Header width");
       }
       break;
     }

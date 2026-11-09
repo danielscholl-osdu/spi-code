@@ -129,10 +129,17 @@ it.each(["overlay", "pinned"] as const)(
         );
       }
       const placeHeader = getComputedStyle(element(view.container, ".place-header"));
-      expect(placeHeader.position).toBe("sticky");
+      expect(placeHeader.position).toBe("absolute");
       expect(placeHeader.top).toBe("0px");
+      expect(placeHeader.left).toBe("0px");
+      expect(placeHeader.right).toBe("0px");
+      expect(getComputedStyle(element(view.container, ".middle-frame")).overflow).toBe("hidden");
+      expect(getComputedStyle(element(view.container, ".line-sheet")).position).toBe("relative");
       const lineBody = element(view.container, ".line-content > .line-body");
       expect(getComputedStyle(lineBody).padding).toBe("20px 24px");
+      expect(getComputedStyle(lineBody).overflow).toBe("auto");
+      expect(getComputedStyle(lineBody).position).toBe("relative");
+      expect(["0", "0px"]).toContain(getComputedStyle(lineBody).minHeight);
       const lineHeader = getComputedStyle(element(view.container, ".line-toolbar"));
       expect(lineHeader.paddingLeft).toBe("24px");
       expect(lineHeader.paddingRight).toBe("24px");
@@ -165,6 +172,8 @@ it.each(["overlay", "pinned"] as const)(
         const page = element(view.container, "main > *");
         const computed = getComputedStyle(page);
         expect(computed.padding).toBe("20px 24px");
+        expect(computed.overflow).toBe("auto");
+        expect(["0", "0px"]).toContain(computed.minHeight);
         for (const content of page.querySelectorAll(
           ":scope > :not(.place, .place-header), .place-reading",
         )) {
@@ -191,6 +200,30 @@ it("keeps the shell error banner inset with the centre's content", async () => {
   }
 });
 
+it("keeps Watch gate siblings below a 44 px header instead of making each a full-height page", async () => {
+  const view = await mount();
+  try {
+    await act(async () =>
+      watchStore.setState({
+        setup: {
+          watchReady: false,
+          disabledReason: "Watch needs gh.",
+          tools: [{ tool: "gh", state: "signed-out", action: "signin" }],
+        },
+      }),
+    );
+    const header = getComputedStyle(element(view.container, "main > .place-header"));
+    expect(header.height).toBe("44px");
+    expect(header.position).toBe("absolute");
+    for (const selector of ['main > [role="status"]', "main > button"]) {
+      const computed = getComputedStyle(element(view.container, selector));
+      expect(computed.minHeight).not.toBe("100%");
+      expect(computed.flexGrow).toBe("0");
+    }
+  } finally {
+    await view.cleanup();
+  }
+});
 it.each(["light", "dark"])(
   "keeps the centre on surface, the panel on chrome and logical sections flat in %s",
   async (theme) => {

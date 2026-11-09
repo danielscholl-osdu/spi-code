@@ -1090,7 +1090,7 @@ it.each([0, 9, 10, 11])("flags points only below the reported floor: %s", async 
 
 it("distinguishes an unknown budget and floor from zero", async () => {
   await render();
-  expect(container.textContent).toContain("Points left: unknown");
+  expect(container.textContent).toContain("Unknown points left");
   expect(container.textContent).toContain("Pacer floor not reported");
 });
 

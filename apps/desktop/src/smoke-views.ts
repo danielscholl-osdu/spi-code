@@ -95,19 +95,32 @@ async function measure(window: BrowserWindow, rule: SmokeGeometry["rule"]): Prom
       return { x, y, width, height };
     };
     const viewport = { x: 0, y: 0, width: innerWidth, height: innerHeight };
+    const page = document.scrollingElement;
+    if (!page) throw new Error("Missing page scroll geometry");
+    const scroll = { width: page.scrollWidth, height: page.scrollHeight };
     switch (${JSON.stringify(rule)}) {
+      case "window":
+        return { rule: "window", viewport, scroll,
+          panes: [...document.querySelectorAll(".app-sidebar:not([inert]), .middle-frame, .line-sheet, .right-panel-frame")].map(rect) };
       case "related":
         return { rule: "related", panel: rect(element(".right-panel-frame")),
           label: rect(element(".inspector-related dt")), labelText: element(".inspector-related dt").textContent,
           values: [...document.querySelectorAll(".inspector-related dd")].map(rect) };
       case "panes":
-        return { rule: "panes", panes: [".app-sidebar", ".middle-frame", ".line-sheet", ".right-panel"].map(selector => {
+        return { rule: "panes", viewport, scroll, panes: [".app-sidebar", ".middle-frame", ".line-sheet", ".right-panel"].map(selector => {
           const item = element(selector);
           const style = getComputedStyle(item);
           return { rect: rect(item), borderLeft: parseFloat(style.borderLeftWidth), borderRight: parseFloat(style.borderRightWidth) };
         }) };
       case "headers":
         return { rule: "headers", paneTop: rect(element(".middle-frame")).y,
+          panes: [".middle-frame", ".line-sheet", ".right-panel"].map(selector => {
+            const item = element(selector);
+            const bounds = rect(item);
+            const style = getComputedStyle(item);
+            const left = parseFloat(style.borderLeftWidth);
+            return { ...bounds, x: bounds.x + left, width: bounds.width - left - parseFloat(style.borderRightWidth) };
+          }),
           headers: [".place-header", ".line-toolbar", ".panel-tabs"].map(selector => rect(element(selector))) };
       case "settings":
         return { rule: "settings", viewport, dialog: rect(element("[role=dialog].settings")) };
@@ -418,6 +431,11 @@ export async function captureSmokeViews(
           const geometry = [];
           for (const rule of geometryRules(surface.id, viewportWidth))
             geometry.push(await measure(window, rule));
+          const bounds = geometry.find((check) => check.rule === "window");
+          assert(bounds?.rule === "window");
+          console.log(
+            `Packaged window ${surface.id}/${viewportWidth}/${appearance}: viewport ${bounds.viewport.width}x${bounds.viewport.height}, page ${bounds.scroll.width}x${bounds.scroll.height}, edges 0..${Math.max(...bounds.panes.map((pane) => pane.x + pane.width))}, bottom ${Math.max(...bounds.panes.map((pane) => pane.y + pane.height))}`,
+          );
           const rejectedGeometry =
             surface.id === "detail-related" && viewportWidth === 1440 && appearance === "light"
               ? await brokenRelatedProbe(window)

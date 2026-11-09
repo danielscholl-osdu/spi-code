@@ -20,6 +20,8 @@ const related: SmokeGeometry = {
 };
 const panes: SmokeGeometry = {
   rule: "panes",
+  viewport: rect(0, 0, 1440, 800),
+  scroll: { width: 1440, height: 800 },
   panes: [
     { rect: rect(0, 75, 232, 725), borderLeft: 0, borderRight: 1 },
     { rect: rect(232, 75, 568, 725), borderLeft: 0, borderRight: 0 },
@@ -30,7 +32,14 @@ const panes: SmokeGeometry = {
 const headers: SmokeGeometry = {
   rule: "headers",
   paneTop: 75,
+  panes: panes.panes.slice(1).map((pane) => pane.rect),
   headers: [rect(232, 75, 568, 44), rect(800, 75, 360, 44), rect(1160, 75, 280, 44)],
+};
+const window: SmokeGeometry = {
+  rule: "window",
+  viewport: panes.viewport,
+  scroll: panes.scroll,
+  panes: panes.panes.map((pane) => pane.rect),
 };
 const settings: SmokeGeometry = {
   rule: "settings",
@@ -45,8 +54,34 @@ const drag: SmokeGeometry = {
   targets: [rect(84, 0, 500, 44), rect(632, 0, 100, 44)],
 };
 
-it.each([related, panes, headers, settings, drag])("accepts measured $rule geometry", (value) => {
-  expect(() => assertSmokeGeometry(value)).not.toThrow();
+it.each([window, related, panes, headers, settings, drag])(
+  "accepts measured $rule geometry",
+  (value) => {
+    expect(() => assertSmokeGeometry(value)).not.toThrow();
+  },
+);
+
+it("rejects a mutually flush pane row inset from any window edge", () => {
+  for (const changed of [
+    panes.panes.map((pane, index) => ({
+      ...pane,
+      rect: { ...pane.rect, x: pane.rect.x + 15, width: pane.rect.width - (index === 3 ? 15 : 0) },
+    })),
+    panes.panes.map((pane, index) => ({
+      ...pane,
+      rect: { ...pane.rect, width: pane.rect.width - (index === 3 ? 15 : 0) },
+    })),
+    panes.panes.map((pane) => ({ ...pane, rect: { ...pane.rect, height: 710 } })),
+  ])
+    expect(() => assertSmokeGeometry({ ...panes, panes: changed })).toThrow(/Pane row/);
+});
+
+it.each([
+  { width: 1455, height: 800 },
+  { width: 1440, height: 1057 },
+])("rejects page overflow in either axis even when all panes fit: %j", (scroll) => {
+  expect(() => assertSmokeGeometry({ ...panes, scroll })).toThrow(/Page scroll/);
+  expect(() => assertSmokeGeometry({ ...window, scroll })).toThrow(/Page scroll/);
 });
 
 it.each([
@@ -80,6 +115,8 @@ it("fails a wrong header height or top, including three equally displaced header
     [rect(232, 75, 568, 43), ...headers.headers.slice(1)],
     [rect(232, 76, 568, 44), ...headers.headers.slice(1)],
     headers.headers.map((header) => ({ ...header, y: 76 })),
+    headers.headers.map((header) => ({ ...header, width: header.width - 15 })),
+    headers.headers.map((header) => ({ ...header, x: header.x + 15 })),
   ]) {
     expect(() => assertSmokeGeometry({ ...headers, headers: changed })).toThrow(/Header/);
   }

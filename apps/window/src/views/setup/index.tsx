@@ -375,7 +375,7 @@ export default function Setup({ inSettings = false }: { inSettings?: boolean }) 
           <div className="readiness-why">
             <p role={low ? "alert" : "status"}>
               {sweep?.remaining == null
-                ? "Points left: unknown"
+                ? "Unknown points left"
                 : `${sweep.remaining.toLocaleString("en-US")} points left`}
               {low && ` - below the pacer floor (${sweep.floor})`}
               {sweep?.resetAt && (

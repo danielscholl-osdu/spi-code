@@ -166,11 +166,11 @@ export const VIEW_SURFACES = [
 ] as const;
 
 export function geometryRules(surface: string, width: number): SmokeGeometry["rule"][] {
-  if (surface.startsWith("settings")) return ["settings"];
-  if (surface === "detail-related") return ["related"];
-  if (surface === "panes" && width === 1440) return ["panes", "headers"];
-  if (surface === "strip-20" && width === 740) return ["drag"];
-  return [];
+  if (surface.startsWith("settings")) return ["window", "settings"];
+  if (surface === "detail-related") return ["window", "related"];
+  if (surface === "panes" && width === 1440) return ["window", "panes", "headers"];
+  if (surface === "strip-20" && width === 740) return ["window", "drag"];
+  return ["window"];
 }
 
 export interface SmokeShot {

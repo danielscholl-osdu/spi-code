@@ -18,6 +18,13 @@ const rect = (x: number, y: number, width: number, height: number) => ({ x, y, w
 function geometry(surface: string, width: number): SmokeGeometry[] {
   return geometryRules(surface, width).map((rule) => {
     switch (rule) {
+      case "window":
+        return {
+          rule,
+          viewport: rect(0, 0, width, 800),
+          scroll: { width, height: 800 },
+          panes: [rect(0, 75, width, 725)],
+        };
       case "settings":
         return {
           rule,
@@ -40,6 +47,8 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
       case "panes":
         return {
           rule,
+          viewport: rect(0, 0, width, 800),
+          scroll: { width, height: 800 },
           panes: [232, 568, 360, 280].map((size, index, sizes) => ({
             rect: rect(
               sizes.slice(0, index).reduce((a, b) => a + b, 0),
@@ -55,6 +64,7 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
         return {
           rule,
           paneTop: 75,
+          panes: [rect(232, 75, 568, 725), rect(800, 75, 360, 725), rect(1160, 75, 280, 725)],
           headers: [rect(232, 75, 568, 44), rect(800, 75, 360, 44), rect(1160, 75, 280, 44)],
         };
       case "drag":
@@ -254,6 +264,42 @@ it("fails missing or broken renderer geometry in the terminal report", () => {
       })),
     ),
   ).toThrow("Missing packaged broken-rule proof");
+});
+
+it("requires the window edge and page scroll proof on every surface, width and appearance", () => {
+  for (const shot of report.views) {
+    expect(() =>
+      assertSmokeViews(
+        report.views.map((item) =>
+          item === shot
+            ? {
+                ...item,
+                geometry: item.geometry.filter((check) => check.rule !== "window"),
+              }
+            : item,
+        ),
+      ),
+    ).toThrow();
+    expect(() =>
+      assertSmokeViews(
+        report.views.map((item) =>
+          item === shot
+            ? {
+                ...item,
+                geometry: item.geometry.map((check) =>
+                  check.rule === "window"
+                    ? {
+                        ...check,
+                        scroll: { width: shot.viewportWidth, height: 1057 },
+                      }
+                    : check,
+                ),
+              }
+            : item,
+        ),
+      ),
+    ).toThrow(/Page scroll/);
+  }
 });
 it("fails undersized or truncated images", () => {
   const image = syntheticImage(24, 20000);

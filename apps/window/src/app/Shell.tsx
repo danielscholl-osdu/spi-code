@@ -177,7 +177,9 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
   }, []);
   const position = useRef({ route: routeHash(route), top: 0 });
   useLayoutEffect(() => {
-    const frame = middle.current;
+    const frame = middle.current?.querySelector<HTMLElement>(
+      ':scope > :not([role="alert"], .place-header, [role="status"], button)',
+    );
     if (!frame) return;
     const key = routeHash(route);
     const top = selectionStore
@@ -292,8 +294,12 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
           className="middle-frame"
           ref={middle}
           inert={sheet === "overlay"}
-          onScroll={(event) => {
-            position.current.top = event.currentTarget.scrollTop;
+          onScrollCapture={(event) => {
+            if (
+              event.target instanceof HTMLElement &&
+              event.target.parentElement === event.currentTarget
+            )
+              position.current.top = event.target.scrollTop;
           }}
         >
           {error && <p role="alert">{error}</p>}

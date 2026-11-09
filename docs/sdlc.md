@@ -111,8 +111,9 @@ opens it off-canvas after narrowing. Clearing a selection closes a Detail sheet;
 inline sweep Evidence may stay open. Resizing an inline sidebar off-canvas moves
 focus out of its hidden content to the sidebar toggle.
 Pane headers share the 44 px `pane-header` rule. The centre reads left-aligned at
-most 960 px wide with 20 by 24 px padding; its place header stays at the top of
-the scrolling frame. Service source sections use named, styled disclosures,
+most 960 px wide with 20 by 24 px padding; its full-width place header stays above
+the scrolling body. The Line body also scrolls below its header and contains its
+absolutely positioned accessibility labels. Service source sections use named, styled disclosures,
 with nonempty Attention open by default.
 
 `scripts/check` repeats Vitest with `SPI_TEST_CLOCK_SHIFT=1`, moving the wall
@@ -142,6 +143,11 @@ to light and dark. `build/package-<mac|win>/views/` holds 102 PNGs, a side-by-si
 `index.html` review report and a copy of the window layout design. `smoke.json.views`
 lists every surface/viewport width/appearance combination, its image and DOM
 qualifier evidence, and its measured geometry. Missing combinations fail.
+Every surface also measures the viewport, document scroll size and visible pane
+envelope. Its left, right and bottom edges must meet the window, and the page
+must not scroll in either axis. The wide four-pane probe checks individual
+adjacency and edges; each header spans its pane's interior width, excluding only
+the divider border, never a scrollbar gutter.
 Settings includes first-launch Readiness over the Watch gate, failed glab sign-in,
 ready Readiness and Appearance. The smoke pins its renderer clock to Nov 6,
 09:04 America/Chicago, including `checkedAt`, so the Checked time and reset hint

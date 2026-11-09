@@ -35,14 +35,17 @@ body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.5
 .panel-glyph[data-panel="right"]::after { inset: 0 3px 0 auto; width: 1.5px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .window-strip { flex: 1; min-width: 0; }
-.middle-frame { grid-column: 2; grid-row: 2; padding: 0; overflow: auto; min-width: 0; min-height: 0; background: var(--surface); container-type: inline-size; }
+.middle-frame { position: relative; display: flex; flex-direction: column; grid-column: 2; grid-row: 2; padding: 0; overflow: hidden; min-width: 0; min-height: 0; background: var(--surface); container-type: inline-size; }
+.middle-frame:has(.place-header)::before { content: ""; flex: none; height: var(--pane-header-height); }
 .middle-frame > [role="alert"] { padding: 20px 24px 0; margin: 0; }
-.middle-frame > :not([role="alert"]) { box-sizing: border-box; min-height: 100%; padding: var(--centre-content-padding-block) var(--centre-content-padding-inline); overflow: visible; }
+.middle-frame > :not([role="alert"], .place-header, [role="status"], button) { flex: 1; box-sizing: border-box; min-height: 0; padding: var(--centre-content-padding-block) var(--centre-content-padding-inline); overflow: auto; }
+.middle-frame > :is([role="alert"], [role="status"], button) { flex: none; }
+.middle-frame > :is([role="status"], button) { margin: 20px 24px; align-self: flex-start; }
 .middle-frame > * > .place { display: contents; }
 .middle-frame .place-reading,
 .middle-frame > * > :not(.place, .place-header) { max-width: var(--centre-content-max-width); }
 .pane-header { display: flex; align-items: center; flex: none; box-sizing: border-box; height: var(--pane-header-height); border-bottom: 1px solid var(--border); }
-.middle-frame .place-header { position: sticky; top: 0; z-index: 1; margin: calc(-1 * var(--centre-content-padding-block)) calc(-1 * var(--centre-content-padding-inline)) var(--centre-content-padding-block); padding: 0 var(--centre-content-padding-inline); background: var(--surface); }
+.middle-frame .place-header { position: absolute; top: 0; left: 0; right: 0; z-index: 1; margin: 0; padding: 0 var(--centre-content-padding-inline); background: var(--surface); }
 .right-panel-frame { grid-column: 4; grid-row: 2; display: grid; min-width: 0; min-height: 0; }
 aside { padding: 16px; overflow: auto; min-width: 0; background: var(--chrome); border-left: 1px solid var(--border); }
 h1, h2 { margin: 0 0 8px; color: var(--text-strong); }
