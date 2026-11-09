@@ -540,10 +540,19 @@ export async function captureSmokeViews(
             );
           }
           await rendered(window, `document.querySelector(${JSON.stringify(surface.selector)})`);
-          if (surface.id === "first-sweep-evidence")
+          if (surface.id === "first-sweep-evidence") {
             await window.webContents.executeJavaScript(
               'document.querySelector(".evidence-failures").scrollIntoView({ block: "end" })',
             );
+            await rendered(
+              window,
+              `(() => {
+                const failed = document.querySelector(".evidence-failures").getBoundingClientRect();
+                const panel = document.querySelector(".panel-body").getBoundingClientRect();
+                return failed.top >= panel.top && failed.bottom <= panel.bottom;
+              })()`,
+            );
+          }
           const geometry = [];
           for (const rule of geometryRules(surface.id, viewportWidth))
             geometry.push(await measure(window, rule));
