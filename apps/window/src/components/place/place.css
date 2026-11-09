@@ -25,6 +25,10 @@
   padding: 3px 9px;
   font-size: 11.5px;
 }
+.place-before-sweep {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+}
 .place-reading {
   margin: 0;
   padding: 0;

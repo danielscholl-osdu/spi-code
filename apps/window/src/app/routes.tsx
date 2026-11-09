@@ -4,6 +4,7 @@
 import { type ReactNode, useEffect, useRef } from "react";
 import { useStore } from "zustand";
 import { Strip } from "../components/strip/Strip.js";
+import { BeforeFirstSweep } from "../components/sweep/BeforeFirstSweep.js";
 import { OPEN_READINESS_EVENT } from "../settings/readiness.js";
 import { watchStore } from "../store/watch.js";
 import Environment from "../views/environment/index.js";
@@ -19,9 +20,16 @@ import { type Registry, type Route, renderRoute, routeLabel, useRegistryOr } fro
 
 export * from "./navigation.js";
 
-/** Watch pages wait behind the Watch gate, which names the place while it holds them. */
+/**
+ * Watch pages wait behind the Watch gate, which names the place while it holds them; a place
+ * other than Today opens one line until the first snapshot.
+ */
 function gated(route: Route, page: ReactNode) {
-  return <WatchGate label={routeLabel(route)}>{page}</WatchGate>;
+  return (
+    <WatchGate label={routeLabel(route)}>
+      {route.kind === "today" ? page : <BeforeFirstSweep route={route}>{page}</BeforeFirstSweep>}
+    </WatchGate>
+  );
 }
 
 /** The window's views by route. */

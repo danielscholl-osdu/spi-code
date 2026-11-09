@@ -12,6 +12,7 @@ import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { watchStore } from "../../store/watch.js";
 import { clockTime } from "../../time.js";
+import { midSweep } from "../sweep/test-helper.js";
 
 // Stubbed layout for the November 6 sweep: 13 pips are 153 px full and 102 px small, the gap is
 // 14 px. Unfolded the row needs 1028 px, with stopped as a count 878, with small pips 827; wrapped
@@ -292,4 +293,21 @@ it("names each folded field with its unfolded text", async () => {
     "10 due",
   ]);
   expect(folded.map(name)).toEqual(unfolded);
+});
+
+it("wraps a later sweep's longer freshness label to the second row like any other field", async () => {
+  const body = fixture();
+  await mount();
+  expect(strip()?.dataset.rows).toBe("1");
+  await act(async () => watchStore.setState({ progress: midSweep({ first: false }) }));
+  expect(field("freshness")?.querySelector("[data-sweep-display]")?.textContent).toBe(
+    `${clockTime(body.sweptAt)} · sweeping 9 of 12`,
+  );
+  await relayout({ widths: { ...layout.widths, freshness: 190 } });
+  expect(strip()?.dataset.rows).toBe("2");
+  expect(names("second")).toEqual(["due", "next-sync", "freshness"]);
+  expect(field("freshness")?.title).toBe(
+    `Swept ${clockTime(body.sweptAt)} · sweeping, 9 of 12 sources done`,
+  );
+  expect(topbar()).toBe("75px");
 });

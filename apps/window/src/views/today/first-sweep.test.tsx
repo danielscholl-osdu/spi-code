@@ -178,6 +178,22 @@ it("hands over on view.snapshot only, crossfades in place and keeps the complete
   expect(port.postMessage).not.toHaveBeenCalled();
 });
 
+it("never reflows the brief while a later sweep runs, fails or commits", async () => {
+  const { container, receive } = await mount();
+  await receive("sweep.progress", finished(midSweep()));
+  await receive("view.snapshot", fixture);
+  await act(async () => vi.advanceTimersByTime(200));
+  const brief = container.querySelector(".today")?.outerHTML;
+  const later = midSweep({ first: false, sweep: "sweep-2" });
+  await receive("sweep.progress", later);
+  expect(container.querySelector(".today")?.outerHTML).toBe(brief);
+  await receive("sweep.progress", stopped({ first: false, sweep: "sweep-2" }));
+  expect(container.querySelector(".today")?.outerHTML).toBe(brief);
+  await receive("sweep.progress", finished(later));
+  expect(container.querySelector(".today")?.outerHTML).toBe(brief);
+  expect(container.querySelector(".sweep-row, .today-first, .today-leaving")).toBeNull();
+});
+
 it("swaps the brief in without a crossfade under reduced motion", async () => {
   vi.stubGlobal(
     "matchMedia",

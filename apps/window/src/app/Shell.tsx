@@ -15,6 +15,7 @@ import { SweepEvidence } from "../components/evidence/EvidenceTab.js";
 import { SweepLine } from "../components/evidence/SweepLine.js";
 import { ProgramSidebar } from "../components/sidebar/ProgramSidebar.js";
 import { createSidebarOpenStore, SidebarProvider } from "../components/sidebar/ui-sidebar.js";
+import { openFreshness } from "../components/sweep/reveal.js";
 import { CommandPalette } from "../palette/CommandPalette.js";
 import { selectionStore } from "../panels/index.js";
 import { RightPanelFrame } from "../panels/RightPanelFrame.js";
@@ -46,6 +47,8 @@ export { watchStore };
 export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) {
   const snapshot = useStore(watchStore, (state) => state.snapshot?.body);
   const sweep = useStore(watchStore, (state) => state.sweep);
+  const progress = useStore(watchStore, (state) => state.progress);
+  const completed = useStore(watchStore, (state) => state.completed);
   const { route, sheet, navigate, toggleSheet, closeSheet } = useNavigation(registry);
   const rightPanelOpen = useStore(selectionStore, (state) => state.open);
   const [saved] = useState(loadPanes);
@@ -129,7 +132,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
     () => selectionStore.getState().setOpen(!selectionStore.getState().open),
     [],
   );
-  const openSweepEvidence = useCallback(() => selectionStore.getState().openSweepEvidence(), []);
+  const openSweepLine = useCallback(() => openFreshness(watchStore.getState().snapshot), []);
   const [findOpen, setFindOpen] = useState(false);
   const toggleFind = useCallback(() => setFindOpen((open) => !open), []);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -256,7 +259,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
             {registry.strip ? (
               registry.strip()
             ) : (
-              <SweepLine snapshot={snapshot ?? null} onOpen={openSweepEvidence} />
+              <SweepLine snapshot={snapshot ?? null} progress={progress} onOpen={openSweepLine} />
             )}
           </div>
           <div className="title-bar-controls">
@@ -317,7 +320,15 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
           store={selectionStore}
           presentation={budget.rightPanel.presentation}
           {...(snapshot ? { snapshot } : {})}
-          sweepEvidence={<SweepEvidence snapshot={snapshot ?? null} sweep={sweep} />}
+          sweepEvidence={
+            <SweepEvidence
+              snapshot={snapshot ?? null}
+              sweep={sweep}
+              progress={progress}
+              completed={completed}
+              onOpenSettings={openReadiness}
+            />
+          }
         />
         <PaneEdges
           budget={budget}

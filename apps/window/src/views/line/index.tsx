@@ -92,6 +92,9 @@ function LineContent({
         </div>
       </div>
       <div className="line-body">
+        {!snapshot && (
+          <p className="line-before-sweep">Service rows appear after the first sweep.</p>
+        )}
         {column && (
           <fieldset className="line-campaigns" aria-label="Station filter">
             <button

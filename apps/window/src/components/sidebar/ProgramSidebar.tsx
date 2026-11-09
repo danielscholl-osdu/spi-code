@@ -112,11 +112,13 @@ export function ProgramSidebar({
     label = routeLabel(target),
     pip?: ReactNode,
     mark = attention.get(TREE_IDS[key] ?? key.replace("service/", SERVICE_PREFIX)),
+    beforeSweep = false,
   ) => (
     <SidebarMenuItem key={key}>
       <SidebarMenuButton
         isActive={active === key}
         data-sidebar-row={key}
+        data-before-sweep={beforeSweep ? "" : undefined}
         aria-current={active === key ? (route.kind === "release" ? "true" : "page") : undefined}
         onClick={() => {
           onNavigate(target);
@@ -209,7 +211,7 @@ export function ProgramSidebar({
           group(
             "places",
             "Places",
-            places.map((place) => row(place.kind, place)),
+            places.map((place) => row(place.kind, place, undefined, undefined, undefined, !body)),
           )}
         {pins.length > 0 &&
           group(

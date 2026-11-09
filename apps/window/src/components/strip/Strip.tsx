@@ -5,13 +5,13 @@ import { Fragment, type ReactNode, useRef } from "react";
 import { useStore } from "zustand";
 import { openSheet } from "../../app/navigation.js";
 import { ariaShortcut } from "../../app/shortcuts.js";
-import { selectionStore } from "../../panels/selection.js";
 import { PIPS, type PipState, selectStrip } from "../../store/strip.js";
 import { watchStore } from "../../store/watch.js";
 import { clockTime, Time } from "../../time.js";
 import { SweepLine } from "../evidence/SweepLine.js";
 import { useNow } from "../evidence/useNow.js";
 import { PinMenu } from "../pin/PinMenu.js";
+import { openFreshness } from "../sweep/reveal.js";
 import { STRIP_FIELDS, type StripField } from "./fold-plan.js";
 import { MEASURE, useFoldPlan } from "./use-fold-plan.js";
 import "./strip.css";
@@ -28,6 +28,7 @@ const RIGHT: readonly StripField[] = ["due", "nextSync", "freshness"];
 /** The top row's pips and fields in PS-18 reading order, folded and wrapped by its fold plan. */
 export function Strip() {
   const snapshot = useStore(watchStore, (state) => state.snapshot?.body);
+  const progress = useStore(watchStore, (state) => state.progress);
   const root = useRef<HTMLDivElement>(null);
   const plan = useFoldPlan(root, snapshot);
   const now = useNow();
@@ -35,7 +36,8 @@ export function Strip() {
     <SweepLine
       key="freshness"
       snapshot={snapshot ?? null}
-      onOpen={() => selectionStore.getState().openSweepEvidence()}
+      progress={progress}
+      onOpen={() => openFreshness(snapshot)}
     />
   );
   if (!snapshot)

@@ -132,6 +132,125 @@ it("updates the dot and wording from validated host sweep evidence, including fa
   expect(native?.setToolTip).toHaveBeenLastCalledWith("SPI Code - Host stopped");
 });
 
+function progress(
+  outcome: "running" | "committed" | "failed",
+  { first = true, settled = 9 }: { first?: boolean; settled?: number } = {},
+): Message {
+  const at = "2026-11-09T08:00:00Z";
+  const sources = Array.from({ length: 12 }, (_, index) =>
+    index < settled
+      ? { source: `source-${index}`, state: "read" as const, startedAt: at, endedAt: at }
+      : index === settled
+        ? { source: `source-${index}`, state: "reading" as const, startedAt: at }
+        : { source: `source-${index}`, state: "waiting" as const },
+  );
+  const common = { sweep: "sweep-1", startedAt: at, first, usualMs: null, sources };
+  return {
+    version: PROTOCOL_VERSION,
+    id: `progress-${outcome}`,
+    kind: "event",
+    type: "sweep.progress",
+    payload:
+      outcome === "failed"
+        ? {
+            ...common,
+            outcome,
+            code: "save",
+            failure: "The snapshot could not be saved.",
+            nextAttemptAt: "2026-11-09T08:10:00Z",
+          }
+        : { ...common, outcome, nextAttemptAt: null },
+  } as Message;
+}
+
+/** The fixture's brief with `interrupts` distinct interruptions, one of them carried twice under an alias. */
+function briefed(message: Message, interrupts: number): Message {
+  if (message.type !== "view.snapshot") throw new Error("expected a snapshot");
+  const { briefing } = message.payload;
+  let left = interrupts;
+  const focus = briefing.focus.map((item) =>
+    item.attention === "interrupt" && left-- > 0
+      ? item
+      : { ...item, attention: "surface" as const },
+  );
+  const first = focus.find(({ attention }) => attention === "interrupt");
+  const rest = briefing.rest.map((item) =>
+    first ? { ...item, attention: "interrupt" as const, ids: [...item.ids, first.id] } : item,
+  );
+  return {
+    ...message,
+    payload: { ...message.payload, briefing: { ...briefing, focus, rest } },
+  } as Message;
+}
+
+it("counts the sweep's progress while the first sweep runs and paints failed when it stops outright", () => {
+  const tray = createSweepTray(vi.fn(), vi.fn());
+  const native = electron.trays[0];
+  tray.observe(progress("running"));
+  expect(native?.setToolTip).toHaveBeenLastCalledWith("SPI Code - First sweep running · 9 of 12");
+  const running = electron.bitmap.mock.calls.at(-1)?.[0];
+  tray.observe(progress("failed"));
+  expect(native?.setToolTip).toHaveBeenLastCalledWith("SPI Code - First sweep stopped");
+  expect(electron.bitmap.mock.calls.at(-1)?.[0]).not.toEqual(running);
+  tray.observe(progress("running", { settled: 2 }));
+  expect(native?.setToolTip).toHaveBeenLastCalledWith("SPI Code - First sweep running · 2 of 12");
+  tray.observe(snapshot(["fresh"]));
+  expect(native?.setToolTip).toHaveBeenLastCalledWith("SPI Code - Today is ready");
+  tray.observe(progress("running", { first: false }));
+  tray.observe(progress("failed", { first: false }));
+  expect(native?.setToolTip).toHaveBeenLastCalledWith("SPI Code - Today is ready");
+  tray.observe(snapshot(["fresh"]));
+  expect(native?.setToolTip).toHaveBeenLastCalledWith("SPI Code - All fresh");
+});
+
+it("notifies 'Today is ready' once, when hidden, from the first snapshot with its interruption count", () => {
+  const notify = vi.fn();
+  let hidden = true;
+  const tray = createSweepTray(vi.fn(), vi.fn(), { hidden: () => hidden, notify });
+  tray.observe(progress("running"));
+  tray.observe(progress("committed", { settled: 12 }));
+  expect(notify).not.toHaveBeenCalled();
+  tray.observe(briefed(snapshot(["fresh"]), 2));
+  expect(notify).toHaveBeenCalledExactlyOnceWith("Today is ready", "2 interruptions need you.");
+  tray.disconnected();
+  tray.observe(progress("running"));
+  tray.observe(briefed(snapshot(["fresh"]), 1));
+  tray.observe(progress("running", { first: false }));
+  tray.observe(briefed(snapshot(["fresh"]), 1));
+  expect(notify).toHaveBeenCalledOnce();
+
+  hidden = false;
+  const shown = vi.fn();
+  const visible = createSweepTray(vi.fn(), vi.fn(), { hidden: () => hidden, notify: shown });
+  visible.observe(progress("running"));
+  visible.observe(briefed(snapshot(["fresh"]), 1));
+  hidden = true;
+  visible.observe(briefed(snapshot(["fresh"]), 1));
+  expect(shown).not.toHaveBeenCalled();
+  expect(electron.trays[1]?.setToolTip).toHaveBeenCalledWith("SPI Code - Today is ready");
+});
+
+it("names one interruption or none in the hand-over notification, and stays quiet over a kept snapshot", () => {
+  const one = vi.fn();
+  const single = createSweepTray(vi.fn(), vi.fn(), { hidden: () => true, notify: one });
+  single.observe(progress("running"));
+  single.observe(briefed(snapshot(["fresh"]), 1));
+  expect(one).toHaveBeenCalledExactlyOnceWith("Today is ready", "1 interruption needs you.");
+
+  const none = vi.fn();
+  const quiet = createSweepTray(vi.fn(), vi.fn(), { hidden: () => true, notify: none });
+  quiet.observe(progress("running"));
+  quiet.observe(briefed(snapshot(["fresh"]), 0));
+  expect(none).toHaveBeenCalledExactlyOnceWith("Today is ready", undefined);
+
+  const kept = vi.fn();
+  const replay = createSweepTray(vi.fn(), vi.fn(), { hidden: () => true, notify: kept });
+  replay.observe(snapshot(["fresh"]));
+  replay.observe(progress("running", { first: false }));
+  replay.observe(snapshot(["fresh"]));
+  expect(kept).not.toHaveBeenCalled();
+});
+
 class Port extends EventEmitter {
   postMessage = vi.fn();
   start = vi.fn();

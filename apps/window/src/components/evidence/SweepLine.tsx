@@ -1,9 +1,10 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { ViewSnapshot } from "@spi-code/contracts";
-import { useId } from "react";
-import { Time } from "../../time.js";
+import type { SweepProgress, ViewSnapshot } from "@spi-code/contracts";
+import { useEffect, useId, useState } from "react";
+import { clockTime, Time } from "../../time.js";
+import { settled } from "../sweep/words.js";
 import { useNow } from "./useNow.js";
 import { freshnessGlyph, sweepSources } from "./words.js";
 import "./evidence.css";
@@ -12,16 +13,40 @@ export type SweepLineSnapshot = Pick<ViewSnapshot, "areas" | "provenance" | "swe
   briefing: { nextSyncAt?: string | undefined };
 };
 
-/** The title bar's freshness glyph (EV-03); a button that opens the sweep Evidence. */
+/** Below this window width the first sweep's field drops "sweeping ·" and reads "9 of 12". */
+export const SHORT_FRESHNESS_BELOW = 900;
+
+const narrow = () => window.innerWidth < SHORT_FRESHNESS_BELOW;
+
+function useShort(): boolean {
+  const [short, setShort] = useState(narrow);
+  useEffect(() => {
+    const resize = () => setShort(narrow());
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
+  return short;
+}
+
+/**
+ * The title bar's freshness glyph (EV-03); a button that opens the sweep Evidence. While a sweep
+ * runs it carries the sweep: "sweeping · 9 of 12" before the first snapshot, the sweep time and
+ * "sweeping 4 of 12" over an older one.
+ */
 export function SweepLine({
   snapshot,
+  progress = null,
   onOpen,
 }: {
   snapshot: SweepLineSnapshot | null;
+  progress?: SweepProgress | null | undefined;
   onOpen(): void;
 }) {
   const labelId = useId();
   const now = useNow();
+  const short = useShort();
+  const running = progress?.outcome === "running" ? progress : null;
+  const count = running && `${settled(running)} of ${running.sources.length}`;
   const glyph =
     snapshot === null
       ? null
@@ -30,8 +55,14 @@ export function SweepLine({
           sweptAt: snapshot.sweptAt,
           now,
         });
-  const text = glyph?.text ?? "waiting for the first sweep";
-  const tone = glyph?.tone ?? "muted";
+  const first = snapshot === null && count ? count : null;
+  const later = snapshot !== null && running && !running.first ? count : null;
+  const text = first
+    ? `First sweep · ${first} sources done`
+    : later && snapshot
+      ? `Swept ${clockTime(snapshot.sweptAt, { now })} · sweeping, ${later} sources done`
+      : (glyph?.text ?? "waiting for the first sweep");
+  const tone = first || later ? "run" : (glyph?.tone ?? "muted");
   return (
     <button
       type="button"
@@ -48,12 +79,18 @@ export function SweepLine({
         {text}
       </span>
       <span data-sweep-display="" aria-hidden>
-        {snapshot === null || glyph === null ? (
+        {first ? (
+          short ? (
+            first
+          ) : (
+            `sweeping · ${first}`
+          )
+        ) : snapshot === null || glyph === null ? (
           text
         ) : (
           <>
             <Time at={snapshot.sweptAt} now={now} />
-            {glyph.tail}
+            {later ? ` · sweeping ${later}` : glyph.tail}
           </>
         )}
       </span>

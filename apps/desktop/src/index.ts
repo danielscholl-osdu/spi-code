@@ -164,7 +164,9 @@ async function run(): Promise<void> {
     },
   });
   lifecycle.setWindow(window);
-  tray = createSweepTray(lifecycle.open, () => void lifecycle.quit().catch(fail));
+  tray = createSweepTray(lifecycle.open, () => void lifecycle.quit().catch(fail), {
+    hidden: () => window.isDestroyed() || !window.isVisible() || window.isMinimized(),
+  });
   relay = trayChannel(() => new MessageChannelMain(), tray.observe);
   const channels: MessageChannelMain[] = [];
   hostPorts = hostPortCallbacks(() => {

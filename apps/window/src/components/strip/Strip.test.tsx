@@ -3,6 +3,7 @@
 
 import { readFileSync } from "node:fs";
 import {
+  PROTOCOL_VERSION,
   type Station,
   type StationSubstate,
   type ViewSnapshot,
@@ -19,6 +20,7 @@ import { PINS_STORAGE_KEY, readPins } from "../../store/pins.js";
 import { selectStrip } from "../../store/strip.js";
 import { watchStore } from "../../store/watch.js";
 import { clockTime } from "../../time.js";
+import { after, midSweep } from "../sweep/test-helper.js";
 
 const FLEET = [
   "partition",
@@ -480,4 +482,139 @@ it("shows the freshness glyph in the title bar and opens the sweep Evidence from
   expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).toBeNull();
   await act(async () => glyph?.click());
   expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).not.toBeNull();
+});
+
+const glyph = () => container.querySelector<HTMLButtonElement>("header [data-sweep-line]");
+const display = () => glyph()?.querySelector("[data-sweep-display]")?.textContent;
+const glyphName = () =>
+  document.getElementById(glyph()?.getAttribute("aria-labelledby") ?? "")?.textContent;
+const receive = (type: string, payload: unknown) =>
+  act(async () =>
+    watchStore
+      .getState()
+      .receive({ version: PROTOCOL_VERSION, id: "host", kind: "event", type, payload }),
+  );
+
+it("carries the first sweep's count, shortens it on a narrow window and scrolls the list into view", async () => {
+  const width = window.innerWidth;
+  const scrolled: Element[] = [];
+  const scrollIntoView = Element.prototype.scrollIntoView;
+  Element.prototype.scrollIntoView = function (this: Element) {
+    scrolled.push(this);
+  };
+  vi.stubGlobal("requestAnimationFrame", (step: FrameRequestCallback) =>
+    setTimeout(() => step(0), 0),
+  );
+  try {
+    window.location.hash = "#security";
+    watchStore.setState({ snapshot: null, setup: null });
+    await mount();
+    expect(display()).toBe("waiting for the first sweep");
+    await receive("sweep.progress", midSweep());
+    expect(display()).toBe("sweeping · 9 of 12");
+    expect(glyphName()).toBe("First sweep · 9 of 12 sources done");
+    expect(glyph()?.title).toBe("First sweep · 9 of 12 sources done");
+    expect(glyph()?.dataset.tone).toBe("run");
+    expect(glyph()?.querySelector(".evidence-dot")?.getAttribute("data-tone")).toBe("run");
+    await act(async () => {
+      window.innerWidth = 740;
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(display()).toBe("9 of 12");
+    expect(glyphName()).toBe("First sweep · 9 of 12 sources done");
+    await act(async () => glyph()?.click());
+    await act(() => new Promise((done) => setTimeout(done, 20)));
+    expect(window.location.hash).toBe("#today");
+    expect(scrolled).toEqual([container.querySelector(".today-first .sweep-sources")]);
+    expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).toBeNull();
+    await receive("sweep.progress", { ...midSweep(), outcome: "cancelled" });
+    expect(display()).toBe("waiting for the first sweep");
+  } finally {
+    window.innerWidth = width;
+    Element.prototype.scrollIntoView = scrollIntoView;
+  }
+});
+
+it("keeps the sweep time over an older snapshot while a later sweep runs and opens its live list", async () => {
+  const body = fixture();
+  await mount();
+  const later = midSweep({ first: false, sweep: "sweep-2" });
+  await receive("sweep.progress", later);
+  expect(display()).toBe(`${clockTime(body.sweptAt)} · sweeping 9 of 12`);
+  expect(glyphName()).toBe(`Swept ${clockTime(body.sweptAt)} · sweeping, 9 of 12 sources done`);
+  expect(glyph()?.dataset.tone).toBe("run");
+  await act(async () => glyph()?.click());
+  const evidence = () => container.querySelector('#app-right-panel [data-evidence="sweep"]');
+  expect(evidence()?.querySelector("[data-sweep-list]")?.getAttribute("data-sweep-list")).toBe(
+    "live",
+  );
+  expect(evidence()?.querySelectorAll(".sweep-row")).toHaveLength(12);
+  expect(evidence()?.querySelector(".evidence-table")).not.toBeNull();
+  await receive("sweep.progress", {
+    ...later,
+    outcome: "committed",
+    sources: later.sources.map((source) =>
+      source.state === "reading" || source.state === "waiting"
+        ? { source: source.source, state: "read", startedAt: after(120), endedAt: after(128) }
+        : source,
+    ),
+  });
+  expect(display()).toBe(`${clockTime(body.sweptAt)} · 1`);
+  expect(evidence()?.querySelector("[data-sweep-list]")?.getAttribute("data-sweep-list")).toBe(
+    "completed",
+  );
+  expect(evidence()?.querySelectorAll(".sweep-row")).toHaveLength(12);
+  expect(evidence()?.querySelector(".sweep-meta")).toBeNull();
+});
+
+it("opens each place and the Line with one line before the first snapshot, its sidebar row muted", async () => {
+  window.location.hash = "#upstream";
+  watchStore.setState({ snapshot: null, setup: null, progress: midSweep() });
+  await mount();
+  const main = () => container.querySelector("[data-before-sweep] .place-before-sweep");
+  expect(container.querySelector("[data-before-sweep] h1")?.textContent).toBe("Upstream");
+  expect(main()?.textContent).toBe("Upstream opens after the first sweep. It is read 9th of 12.");
+  const row = (key: string) =>
+    container.querySelector<HTMLElement>(`.app-sidebar [data-sidebar-row="${key}"]`);
+  expect(row("upstream")?.hasAttribute("data-before-sweep")).toBe(true);
+  expect(row("today")?.hasAttribute("data-before-sweep")).toBe(false);
+  await act(async () => {
+    window.location.hash = "#security";
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+  });
+  expect(main()?.textContent).toBe("Security opens after the first sweep. It is read 11th of 12.");
+  await act(async () => container.querySelector<HTMLElement>('[data-sidebar-row="line"]')?.click());
+  expect(sheet()?.querySelector(".line-before-sweep")?.textContent).toBe(
+    "Service rows appear after the first sweep.",
+  );
+  await act(async () => show(fixture()));
+  expect(container.querySelector("[data-before-sweep]")).toBeNull();
+  expect(sheet()?.querySelector(".line-before-sweep")).toBeNull();
+  expect(row("upstream")?.hasAttribute("data-before-sweep")).toBe(false);
+});
+
+it("opens the first sweep's retained list in Evidence after hand-over", async () => {
+  const body = fixture();
+  watchStore.setState({ snapshot: null, setup: null });
+  await mount();
+  const first = midSweep();
+  await receive("sweep.progress", first);
+  await receive("sweep.progress", {
+    ...first,
+    outcome: "committed",
+    sources: first.sources.map((source) =>
+      source.state === "reading" || source.state === "waiting"
+        ? { source: source.source, state: "read", startedAt: after(120), endedAt: after(128) }
+        : source,
+    ),
+  });
+  await receive("view.snapshot", body);
+  expect(display()).toBe(`${clockTime(body.sweptAt)} · 1`);
+  await act(async () => glyph()?.click());
+  const list = container.querySelector(
+    '#app-right-panel [data-evidence="sweep"] [data-sweep-list]',
+  );
+  expect(list?.getAttribute("data-sweep-list")).toBe("completed");
+  expect(list?.querySelectorAll(".sweep-row")).toHaveLength(12);
+  expect(list?.querySelector('.sweep-row[data-source="upstream"]')?.textContent).toMatch(/failed/i);
 });

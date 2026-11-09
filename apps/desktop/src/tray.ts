@@ -1,8 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type Message, parseMessage } from "@spi-code/contracts";
-import { Menu, nativeImage, nativeTheme, Tray } from "electron";
+import { type Message, parseMessage, type WatchBriefing } from "@spi-code/contracts";
+import { Menu, Notification, nativeImage, nativeTheme, Tray } from "electron";
 
 type Dot = "fresh" | "warning" | "failed" | "unread";
 
@@ -33,10 +33,47 @@ function dotImage(dot: Dot) {
   return nativeImage.createFromBitmap(pixels, { width: 32, height: 32, scaleFactor: 2 });
 }
 
-export function createSweepTray(open: () => void, quit: () => void) {
+/** Distinct interruptions in a brief, one per item however many ids it carries. */
+export function interruptions(briefing: Pick<WatchBriefing, "focus" | "rest">) {
+  const all = [...briefing.focus, ...briefing.rest];
+  const identities = new Map<string, Set<string>>();
+  for (const item of all) {
+    const ids = new Set([item.id, ...item.ids]);
+    for (const id of ids) {
+      for (const alias of identities.get(id) ?? []) ids.add(alias);
+    }
+    for (const id of ids) identities.set(id, ids);
+  }
+  return new Set(
+    all.filter(({ attention }) => attention === "interrupt").map(({ id }) => identities.get(id)),
+  ).size;
+}
+
+function notifyNative(open: () => void) {
+  return (title: string, body: string | undefined) => {
+    if (!Notification.isSupported()) return;
+    const notification = new Notification(body === undefined ? { title } : { title, body });
+    notification.on("click", open);
+    notification.show();
+  };
+}
+
+export interface SweepTrayOptions {
+  /** Whether the window is out of sight, so the hand-over is worth a notification. */
+  hidden?: () => boolean;
+  notify?: (title: string, body: string | undefined) => void;
+}
+
+export function createSweepTray(
+  open: () => void,
+  quit: () => void,
+  { hidden = () => false, notify = notifyNative(open) }: SweepTrayOptions = {},
+) {
   const tray = new Tray(dotImage("unread"));
   let latest: Extract<Message, { type: "view.snapshot" }>["payload"] | undefined;
   let deferred = false;
+  let armed = false;
+  let handedOver = false;
   const paint = (dot: Dot, text: string) => {
     tray.setImage(dotImage(dot));
     tray.setToolTip(`SPI Code - ${text}`);
@@ -75,6 +112,31 @@ export function createSweepTray(open: () => void, quit: () => void) {
       if (message.type === "view.snapshot") {
         latest = message.payload;
         sweep();
+        if (armed) {
+          armed = false;
+          handedOver = true;
+          tray.setToolTip("SPI Code - Today is ready");
+          if (hidden()) {
+            const count = interruptions(message.payload.briefing);
+            notify(
+              "Today is ready",
+              count === 0
+                ? undefined
+                : `${count} interruption${count === 1 ? " needs" : "s need"} you.`,
+            );
+          }
+        }
+      } else if (message.type === "sweep.progress") {
+        const progress = message.payload;
+        if (latest || !progress.first) return;
+        if (!handedOver) armed = true;
+        if (progress.outcome === "failed") paint("failed", "First sweep stopped");
+        else if (progress.outcome === "running") {
+          const done = progress.sources.filter(
+            ({ state }) => state !== "waiting" && state !== "reading" && state !== "throttled",
+          ).length;
+          paint("unread", `First sweep running · ${done} of ${progress.sources.length}`);
+        }
       } else if (message.type === "sweep.status") {
         deferred = message.payload.deferredAreas.length > 0;
         sweep();

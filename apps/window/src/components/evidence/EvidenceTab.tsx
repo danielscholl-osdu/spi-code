@@ -6,8 +6,10 @@ import type {
   AreaName,
   InspectResult,
   ReadRecord,
+  SweepProgress,
   SweepStatus,
 } from "@spi-code/contracts";
+import { SweepSources } from "../sweep/SweepSources.js";
 import type { SweepLineSnapshot } from "./SweepLine.js";
 import { useNow } from "./useNow.js";
 import {
@@ -129,13 +131,22 @@ function Budget({ sweep, now }: { sweep: SweepStatus | null; now: number }) {
 export function SweepEvidence({
   snapshot,
   sweep,
+  progress = null,
+  completed = null,
+  onOpenSettings = () => {},
   now,
 }: {
   snapshot: (SweepLineSnapshot & { reads: readonly ReadRecord[] }) | null;
   sweep: SweepStatus | null;
+  /** The sweep running now; over an older snapshot its live list sits above the last good reads. */
+  progress?: SweepProgress | null | undefined;
+  /** The last committed sweep's list, kept with each source's final state. */
+  completed?: SweepProgress | null | undefined;
+  onOpenSettings?: () => void;
   now?: number | undefined;
 }) {
-  const clock = useNow();
+  const live = progress?.outcome === "running" ? progress : null;
+  const clock = useNow(live ? 1000 : 30_000);
   const at = now ?? clock;
   if (snapshot === null)
     return (
@@ -154,6 +165,7 @@ export function SweepEvidence({
     now: at,
   });
   const failed = snapshot.reads.filter((record) => record.failure !== undefined);
+  const list = live ?? completed;
   return (
     <article className="evidence" data-evidence="sweep">
       <p className="inspector-kicker">what the sweep is drawn from</p>
@@ -161,6 +173,17 @@ export function SweepEvidence({
       <p className="evidence-line" data-tone={line.tone}>
         {line.text}
       </p>
+      {list && (
+        <section data-sweep-list={live ? "live" : "completed"} aria-label="Sources">
+          <h3>Sources</h3>
+          <SweepSources
+            progress={list}
+            now={at}
+            meta={list === live}
+            onOpenSettings={onOpenSettings}
+          />
+        </section>
+      )}
       <h3>Areas</h3>
       <EvidenceTable label="Areas" rows={sources.map((source) => sourceRow(source, at))} />
       <h3>Failed reads</h3>
