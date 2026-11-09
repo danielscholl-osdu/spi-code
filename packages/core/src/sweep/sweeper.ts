@@ -115,6 +115,7 @@ export function sweepFailureProgress(
 
 function sweepErrorCode(error: unknown): SweepReasonCode {
   if (error instanceof ForgeError) {
+    if (error.kind === "signin") return "signin";
     if (error.kind === "throttle") return "throttled";
     if (error.kind === "gateway") return "unavailable";
     if (error.kind === "cut") return "limit";

@@ -280,6 +280,28 @@ it("puts a sign-in failure's reason on the next line with Open Settings, branchi
   );
 });
 
+it.each(["upstream", "radar"] as const)(
+  "offers Readiness on the failed %s row when core reports missing or signed-out glab as signin",
+  async (source) => {
+    const { container, onOpenSettings } = await render(
+      withSource({
+        source,
+        state: "failed",
+        startedAt: after(117),
+        endedAt: after(118),
+        code: "signin",
+        reason: "A tool needs sign-in or access. Open Settings to check Readiness.",
+      }),
+    );
+    const failed = row(container, source);
+    const button = failed?.querySelector("button");
+    expect(button?.textContent).toBe("Open Settings");
+    await act(async () => button?.click());
+    expect(onOpenSettings).toHaveBeenCalledOnce();
+    expect(failed?.textContent).not.toMatch(/ENOENT|Today will say/);
+  },
+);
+
 it("says still reading past a minute and counts the meta line's sources failed", async () => {
   const progress = midSweep();
   const { container } = await render(

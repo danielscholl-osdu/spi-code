@@ -70,6 +70,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
   const pacer = options.pacer ?? new BudgetPacer({ floor: 100, resetBudget: 5000 });
   let baseline = account.snapshot();
   let upstreamChanged = false;
+  let glabNeedsReadiness = false;
   let view: FleetView | undefined;
   const areas: SweepArea<CollectorCache>[] = [];
   type Input = SweepInput<CollectorCache>;
@@ -137,6 +138,8 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
           const result = await read(input, new Gh(input.exec, undefined, account), new Glab(input.exec));
           if (name !== "auth" && result.reads.length && result.reads.every((r) => r.failure)) {
             const failure = result.reads[0]?.failure;
+            if (name === "upstream" && glabNeedsReadiness)
+              throw new ForgeError(failure ?? "GitLab upstream reads failed", null, "signin");
             const throttled = throttledReason();
             if (failure && throttled) throw new ForgeError(failure, null, "throttle", throttled.resumeAt);
             throw new Error(failure);
@@ -156,7 +159,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
     let signinTool: "gh" | "glab" | undefined;
     const data = {
       gh: await gh.status(() => { signinTool = "gh"; }),
-      glab: await glab.status(() => { signinTool ??= "glab"; }),
+      glab: await glab.status(() => { signinTool ??= "glab"; glabNeedsReadiness = true; }),
     };
     return { data, code: signinTool ? "signin" : "other",
       ...(signinTool ? { reason: data[signinTool].detail } : {}),
@@ -291,7 +294,9 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
     const result = await readRadar(gh, glab, facts.upstream.data ?? {}, cache.radar, ctx,
       reads.upstream, facts.radar.data);
     const lists = result.reads.filter((r) => r.object === "merge_requests?state=opened&target_branch=master");
-    if (lists.length && lists.every((r) => r.failure)) throw new Error(lists[0]?.failure);
+    if (lists.length && lists.every((r) => r.failure))
+      throw new ForgeError(lists[0]?.failure ?? "GitLab merge request lists failed", null,
+        glabNeedsReadiness ? "signin" : undefined);
     const { reads: records, ...data } = result;
     return { data, reads: records };
   });
@@ -319,6 +324,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
       baseline = account.snapshot();
       account.allowThrottleWait(THROTTLE_WAIT_ALLOWANCE_MS);
       upstreamChanged = false;
+      glabNeedsReadiness = false;
       cache.budget.deferred = [];
     },
     afterAreas: async ({ ctx, exec, cache, force, clock, progress }) => {

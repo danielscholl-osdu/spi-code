@@ -21,7 +21,11 @@ import {
 const resetAt = "2026-11-05T08:00:00Z";
 const query = "{viewer{login}}";
 const charge = "spicodeBudget: rateLimit { cost remaining resetAt }";
-const output = (stdout: string, exit = 0): ExecOutput => ({ stdout, stderr: "", exit });
+const output = (stdout: string, exit: number | null = 0): ExecOutput => ({
+  stdout,
+  stderr: "",
+  exit,
+});
 const nextResetAt = "2026-11-05T09:00:00Z";
 const body = (cost: number, remaining: number, reset = resetAt) =>
   JSON.stringify({
@@ -326,6 +330,21 @@ describe("forge replay", () => {
       });
       expect((await gh.status()).ok).toBe(false);
       expect((await new Glab(exec).status()).ok).toBe(true);
+    });
+  });
+
+  it.each([
+    { error: "spawn glab ENOENT", signin: true, detail: "glab is not installed" },
+    { error: "Command timed out after 15000ms.", signin: false },
+    { error: "sign in or retry after a timeout", signin: false },
+  ])("classifies glab status execution failure: $error", async ({ error, signin, detail }) => {
+    await replay([{ ...output("", null), error }], async (exec) => {
+      const onSigninFailure = vi.fn();
+      expect(await new Glab(exec).status(onSigninFailure)).toEqual({
+        ok: false,
+        detail: detail ?? error,
+      });
+      expect(onSigninFailure).toHaveBeenCalledTimes(signin ? 1 : 0);
     });
   });
 

@@ -285,6 +285,89 @@ test.each(["gh", "glab"] as const)(
         (event) => event.kind === "source" && event.source === "auth" && event.state === "failed",
       ),
     ).toMatchObject({ code: "signin", reason: sweeper.facts.auth.data?.[tool].detail });
+    for (const source of ["upstream", "radar"]) {
+      expect(events).toContainEqual(
+        expect.objectContaining({ kind: "source", source, state: "read" }),
+      );
+    }
+  },
+);
+
+test.each([
+  {
+    state: "missing",
+    failure: { stdout: "", stderr: "", exit: null, error: "spawn glab ENOENT" },
+  },
+  {
+    state: "signed out",
+    failure: { stdout: "", stderr: "opaque status or API failure", exit: 1 },
+  },
+])("GitLab source failures carry signin when glab is $state, then recover", async ({ failure }) => {
+  const h = harness();
+  h.setRoute((cmd) => (cmd === "glab" ? failure : undefined));
+  const events: SweepProgress[] = [];
+  const sweeper = createSweeper({ ...h.options, progress: (event) => events.push(event) });
+  await sweeper.sweep();
+  expect(sweeper.facts.auth.data?.gh.ok).toBe(true);
+  expect(sweeper.facts.auth.data?.glab.ok).toBe(false);
+  for (const source of ["auth", "upstream", "radar"]) {
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        kind: "source",
+        source,
+        state: "failed",
+        code: "signin",
+      }),
+    );
+  }
+  expect(sweeper.facts.github.error).toBeUndefined();
+  h.setRoute(undefined);
+  events.length = 0;
+  await sweeper.sweep({ force: true });
+  for (const source of ["auth", "upstream", "radar"]) {
+    expect(events).toContainEqual(
+      expect.objectContaining({ kind: "source", source, state: "read" }),
+    );
+    expect(events).not.toContainEqual(expect.objectContaining({ source, code: "signin" }));
+  }
+  h.setRoute((cmd, args) =>
+    cmd === "glab" && args[0] !== "auth"
+      ? { stdout: "", stderr: "GitLab unavailable", exit: 1 }
+      : undefined,
+  );
+  events.length = 0;
+  await sweeper.sweep({ force: true });
+  for (const source of ["upstream", "radar"]) {
+    expect(events).toContainEqual(
+      expect.objectContaining({ kind: "source", source, state: "failed", code: "other" }),
+    );
+  }
+});
+
+test.each(["timeout", "signed in"] as const)(
+  "GitLab failures stay other when glab status is %s, regardless of API error prose",
+  async (state) => {
+    const h = harness();
+    h.setRoute((cmd, args) => {
+      if (cmd !== "glab") return undefined;
+      if (args[0] === "auth")
+        return state === "signed in"
+          ? undefined
+          : { stdout: "", stderr: "", exit: null, error: "Command timed out after 15000ms." };
+      return { stdout: "", stderr: "sign in or retry after a timeout", exit: 1 };
+    });
+    const events: SweepProgress[] = [];
+    await createSweeper({ ...h.options, progress: (event) => events.push(event) }).sweep();
+    for (const source of ["upstream", "radar"]) {
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          kind: "source",
+          source,
+          state: "failed",
+          code: "other",
+        }),
+      );
+    }
   },
 );
 

@@ -551,6 +551,7 @@ describe("Sweeper shell", () => {
   });
 
   it.each([
+    { error: new ForgeError("opaque GitLab setup failure", null, "signin"), code: "signin" },
     { error: new ForgeError("opaque gateway reply", null, "gateway"), code: "unavailable" },
     { error: new ForgeError("opaque cut reply", null, "cut"), code: "limit" },
     { error: new Error("sign in or retry after a timeout"), code: "other" },

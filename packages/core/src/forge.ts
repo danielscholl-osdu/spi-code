@@ -6,7 +6,7 @@ import { type Clock, systemClock } from "./clock.js";
 import { GITLAB_HOST } from "./config.js";
 import type { Exec } from "./exec/index.js";
 
-export type ForgeFailure = "throttle" | "gateway" | "cut";
+export type ForgeFailure = "throttle" | "gateway" | "cut" | "signin";
 
 export class ForgeError extends Error {
   constructor(
@@ -454,7 +454,13 @@ export class Glab {
     const res = await this.exec.runText("glab", ["auth", "status", "--hostname", GITLAB_HOST], {
       timeoutMs: 15_000, acceptNonZeroExit: true,
     });
-    if (!res.ok) return { ok: false, detail: res.error };
+    if (!res.ok) {
+      if (res.code === null && res.error === "spawn glab ENOENT") {
+        onSigninFailure?.();
+        return { ok: false, detail: "glab is not installed" };
+      }
+      return { ok: false, detail: res.error };
+    }
     if (res.exitCode !== 0) onSigninFailure?.();
     return res.exitCode === 0
       ? { ok: true, detail: `signed in to ${GITLAB_HOST}` }
