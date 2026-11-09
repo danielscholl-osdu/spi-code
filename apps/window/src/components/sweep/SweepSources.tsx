@@ -32,8 +32,10 @@ function Outcome({ outcome, now }: { outcome: SourceOutcome; now: number }) {
       {outcome.text}
       {outcome.after && (
         <>
-          {" · after "}
-          <time dateTime={outcome.after}>{at(outcome.after, now)}</time>
+          {" · "}
+          <span className="sweep-after">
+            after <time dateTime={outcome.after}>{at(outcome.after, now)}</time>
+          </span>
         </>
       )}
     </>

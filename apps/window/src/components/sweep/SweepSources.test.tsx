@@ -99,6 +99,7 @@ it("draws twelve rows in sweep order in the Evidence names, what each reads and 
     "waiting",
     "waiting",
   ]);
+  expect(all(container, ".sweep-after")).toEqual([`after ${clock("2026-11-09T09:10:00Z")}`]);
   expect(all(container, ".sweep-mark")).toEqual([
     "✓",
     "✓",

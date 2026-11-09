@@ -78,6 +78,9 @@
 .sweep-outcome {
   font-variant-numeric: tabular-nums;
 }
+.sweep-after {
+  white-space: nowrap;
+}
 .sweep-row[data-tone="wait"] .sweep-outcome {
   color: var(--text-muted);
 }
