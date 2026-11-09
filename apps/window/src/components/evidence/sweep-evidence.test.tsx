@@ -570,6 +570,92 @@ it.each([
   },
 );
 
+const recorded1119 = JSON.parse(
+  readFileSync("apps/window/src/components/evidence/fixtures/sweep-1119.json", "utf8"),
+) as {
+  now: string;
+  snapshot: unknown;
+  progress: unknown;
+};
+const sweep1119 = () => {
+  const view = ViewSnapshotSchema.shape;
+  const body = recorded1119.snapshot as SweepLineSnapshot & { reads: ReadRecord[] };
+  return {
+    body: {
+      ...body,
+      areas: view.areas.parse(body.areas),
+      provenance: view.provenance.parse(body.provenance),
+    },
+    list: SweepProgressSchema.parse(recorded1119.progress),
+    now: Date.parse(recorded1119.now),
+  };
+};
+
+it("keeps not-due sources neutral and says a read reused older data, in the 11:19 sweep", async () => {
+  const { body, list, now: at } = sweep1119();
+  const view = await render(
+    <SweepEvidence snapshot={body} sweep={null} completed={list} now={at} />,
+  );
+  try {
+    const article = view.container.querySelector('[data-evidence="sweep"]') as HTMLElement;
+    expect(article.querySelector(".evidence-line")?.textContent).toBe(
+      "swept 3\u00a0min ago · 2 areas incomplete · next sync in 7\u00a0h",
+    );
+    expect(sourceRows(article)).toEqual([
+      ["Sign-in", "ok", "read · 2\u00a0s · last read 3\u00a0min ago"],
+      ["Fleet membership", "ok", "read · 0\u00a0s · reuses reads from 14\u00a0min ago"],
+      ["GitHub issues and PRs", "ok", "read · 9\u00a0s · last read 3\u00a0min ago"],
+      ["Workflow runs", "ok", "read · 14\u00a0s · last read 3\u00a0min ago"],
+      ["Run approvals", "ok", "read · 6\u00a0s · last read 3\u00a0min ago"],
+      [
+        "Stack lifecycle runs",
+        "warn",
+        "read · 3\u00a0s · 1 job log cut short; rest read · reuses reads from 13\u00a0min ago",
+      ],
+      ["Template", "ok", "read · 0\u00a0s · last read 3\u00a0min ago"],
+      ["Run details", "ok", "read · 0\u00a0s · last read 3\u00a0min ago"],
+      ["Upstream GitLab", "idle", "skipped · last read 13\u00a0min ago"],
+      [
+        "Upstream radar",
+        "warn",
+        "skipped · 14 diffs cut short; rest read · last read 13\u00a0min ago",
+      ],
+      ["Security alerts", "idle", "skipped · last read 11\u00a0min ago"],
+      ["Release lines", "idle", "skipped · last read 11\u00a0min ago"],
+    ]);
+    expect(
+      [...article.querySelectorAll(".sweep-segment")].map((s) => s.getAttribute("data-tone")),
+    ).toEqual(["ok", "ok", "ok", "ok", "ok", "warn", "ok", "ok", "idle", "warn", "idle", "idle"]);
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it.each([
+  ["failed", "bad", "skipped · last read failed · showing data from 13\u00a0min ago"],
+  ["incomplete", "warn", "skipped · last read cut short · last read 13\u00a0min ago"],
+  ["stale", "warn", "skipped · stale, last read 13\u00a0min ago"],
+] as const)(
+  "tones a not-due source by its last read when that read %s",
+  async (state, tone, outcome) => {
+    const { body, list, now: at } = sweep1119();
+    const areas = body.areas.map((entry) =>
+      entry.area === "upstream"
+        ? { ...entry, envelope: { ...entry.envelope, state } as Envelope }
+        : entry,
+    );
+    const view = await render(
+      <SweepEvidence snapshot={{ ...body, areas }} sweep={null} completed={list} now={at} />,
+    );
+    try {
+      const upstream = sourceRows(view.container).find(([name]) => name === "Upstream GitLab");
+      expect(upstream?.slice(1)).toEqual([tone, outcome]);
+    } finally {
+      await view.cleanup();
+    }
+  },
+);
+
 it("adds no last read to a listed source whose area has not been read yet", async () => {
   const body = firstSweep();
   const view = await render(

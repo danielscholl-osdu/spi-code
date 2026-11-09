@@ -634,3 +634,51 @@ it("names failed services only from safe fleet ids", () => {
   expect(capped).toMatch(/^Reads failed for 30 services: service-name-0, .* and \d+ more\.$/);
   expect(capped?.length).toBeLessThanOrEqual(200);
 });
+
+it("keeps a not-due source's last cut read, in the recorded radar's words", async () => {
+  const reads = recordedRadar.reads.map(({ failure: _, ...read }) => read);
+  const cut = reads.filter((read) => read.completeness.kind === "cut");
+  const at = recordedRadar.recordedAt;
+  const feed = new SweepProgressFeed({ timers, now: () => Date.parse(at), onError: vi.fn() });
+  let due = true;
+  const sweeper = new Sweeper({
+    ctx: createContext({ clock: { now: () => new Date(at) } }),
+    exec: {
+      runJSON: async <T>() => ({ ok: true, data: {} as T }),
+      runText: async () => ({ ok: true, data: "" }),
+    },
+    factsSchema: z.custom<Facts>(),
+    cacheSchema,
+    emptyCache,
+    persist: { load: async () => undefined, save: async () => {} },
+    progress: (event) => feed.report(event),
+    areas: [
+      {
+        name: "radar",
+        shouldRead: () => due || { state: "skipped", code: "cadence", reason: "not due" },
+        read: async () => ({
+          data: { filters: {}, services: {} } as unknown as NonNullable<Facts["radar"]["data"]>,
+          reads: reads.map((read) => ({ ...read, observedAt: at })),
+        }),
+      },
+    ],
+  });
+  feed.begin(true, null);
+  await sweeper.sweep({ force: true });
+  due = false;
+  feed.begin(false, null);
+  await sweeper.sweep();
+  const radar = SweepProgressSchema.parse(feed.latest).sources.find(
+    ({ source }) => source === "radar",
+  );
+  expect(cut).toHaveLength(14);
+  expect(radar).toEqual({
+    source: "radar",
+    endedAt: at,
+    state: "skipped",
+    code: "cadence",
+    reason: safeSweepReason("cadence"),
+    cutKind: "diff",
+    incomplete: { count: 14, total: reads.length },
+  });
+});

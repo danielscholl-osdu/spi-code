@@ -1097,3 +1097,49 @@ describe("sweepReadProgress", () => {
     });
   });
 });
+
+describe("Sweeper skipped sources", () => {
+  it("carries a not-due source's last cut read, and nothing when that read was whole", async () => {
+    const h = harness();
+    const calls: SweepProgress[] = [];
+    let due = true;
+    const sweeper = new Sweeper({
+      ...h.options,
+      progress: (event) => calls.push(event),
+      areas: [
+        { ...github(), shouldRead: () => due },
+        {
+          name: "upstream",
+          shouldRead: () => due,
+          read: async ({ clock }) => ({
+            data: {} as never,
+            reads: [
+              {
+                source: "glab",
+                object: "master",
+                observedAt: clock.now().toISOString(),
+                completeness: { kind: "complete" },
+              },
+            ],
+          }),
+        },
+      ],
+    });
+    await sweeper.sweep();
+    due = false;
+    h.advance();
+    calls.length = 0;
+    await sweeper.sweep();
+    expect(calls).toEqual([
+      {
+        kind: "source",
+        source: "github",
+        state: "skipped",
+        endedAt: "2026-11-05T07:01:00.000Z",
+        completeness: { kind: "cut", reason: "page limit", read: 1, total: 2 },
+        incomplete: { count: 1, total: 1 },
+      },
+      { kind: "source", source: "upstream", state: "skipped", endedAt: "2026-11-05T07:01:00.000Z" },
+    ]);
+  });
+});

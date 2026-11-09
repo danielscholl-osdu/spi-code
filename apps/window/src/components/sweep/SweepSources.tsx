@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { SweepProgress, SweepSourceProgress } from "@spi-code/contracts";
+import type { Envelope, SweepProgress, SweepSourceProgress } from "@spi-code/contracts";
 import type { ReactNode } from "react";
 import { sourceName, sourceReads } from "../evidence/words.js";
 import {
@@ -21,6 +21,7 @@ function outcomeOf(
   progress: SweepProgress,
   source: SweepSourceProgress,
   now: number,
+  last: Envelope | undefined,
 ): SourceOutcome {
   const stoppedHere =
     progress.outcome === "failed" &&
@@ -28,7 +29,7 @@ function outcomeOf(
     (source.state === "reading" || source.state === "throttled");
   return stoppedHere
     ? { mark: "✕", tone: "bad", text: "failed", why: progress.failure, code: progress.code }
-    : sourceOutcome(source, now);
+    : sourceOutcome(source, now, last);
 }
 
 function sentence(text: string): string {
@@ -55,7 +56,7 @@ function Outcome({ outcome, now }: { outcome: SourceOutcome; now: number }) {
  * One sweep's sources in sweep order: the meta line, a throttle notice, one bar segment per source,
  * and a row each with its mark, name, what it reads and how it went. Today shows it on first
  * launch; Evidence shows the same list for a later sweep, with each source's `fact` after its
- * outcome.
+ * outcome and its `envelope`, so a source not due this sweep shows how its last read went.
  */
 export function SweepSources({
   progress,
@@ -63,12 +64,14 @@ export function SweepSources({
   meta = true,
   onOpenSettings,
   fact,
+  envelope,
 }: {
   progress: SweepProgress;
   now: number;
   meta?: boolean;
   onOpenSettings: () => void;
   fact?: ((source: string) => ReactNode) | undefined;
+  envelope?: ((source: string) => Envelope | undefined) | undefined;
 }) {
   const end = sweepEnd(progress, now);
   const running = progress.outcome === "running";
@@ -81,7 +84,7 @@ export function SweepSources({
     : undefined;
   const rows = progress.sources.map((source) => ({
     source,
-    outcome: outcomeOf(progress, source, end),
+    outcome: outcomeOf(progress, source, end, envelope?.(source.source)),
   }));
   return (
     <div className="sweep-sources">

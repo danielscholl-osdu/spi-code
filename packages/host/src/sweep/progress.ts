@@ -159,9 +159,23 @@ export function foldSweepProgress(current: SweepProgress, event: CoreProgress): 
           ...(event.resumeAt === undefined ? {} : { resumeAt: event.resumeAt }),
         };
         break;
-      case "skipped":
-        source = { ...ended, state: "skipped", code, reason };
+      case "skipped": {
+        const cut = event.incomplete?.count ?? 0;
+        const failed = event.failed?.count ?? 0;
+        source = {
+          ...ended,
+          state: "skipped",
+          code,
+          reason,
+          ...(event.incomplete && cut + failed > 0
+            ? {
+                ...(cut > 0 ? { cutKind: cutDetail(event).cutKind } : {}),
+                incomplete: failed > 0 ? { ...event.incomplete, failed } : event.incomplete,
+              }
+            : {}),
+        };
         break;
+      }
       case "failed":
         source = { ...ended, state: "failed", code, reason };
         break;

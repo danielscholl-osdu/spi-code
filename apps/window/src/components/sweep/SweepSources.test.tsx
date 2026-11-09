@@ -379,6 +379,10 @@ it("marks skipped and put-off sources, with a put-off reason on the next line", 
     "reading · 5\u00a0s",
   ]);
   expect(all(container, ".sweep-mark")).toEqual(["–", "–", "◐"]);
+  expect(
+    [...container.querySelectorAll(".sweep-segment")].map((s) => s.getAttribute("data-tone")),
+  ).toEqual(["idle", "warn", "run"]);
+  expect(row(container, "auth")?.getAttribute("data-tone")).toBe("idle");
   expect(row(container, "fleet")?.querySelector(".sweep-why")?.textContent).toBe(
     "Read less often.",
   );

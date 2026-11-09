@@ -230,9 +230,16 @@ export function SweepEvidence({
   const envelopes = new Map(sources.map(({ key, envelope }) => [key, envelope]));
   const listed = new Set(list?.sources.map(({ source }) => source));
   const unlisted = sources.filter(({ key }) => !listed.has(key));
+  const own = list !== null && Date.parse(snapshot.sweptAt) >= Date.parse(list.startedAt);
+  const readSince = (source: string) => {
+    const entry = own ? list.sources.find((candidate) => candidate.source === source) : undefined;
+    return entry?.state === "read" || entry?.state === "cut"
+      ? (entry.startedAt ?? list?.startedAt)
+      : undefined;
+  };
   const fact = (source: string) => {
     const envelope = envelopes.get(source);
-    const words = envelope && areaFact(envelope, at);
+    const words = envelope && areaFact(envelope, at, readSince(source));
     return (
       words && (
         <span className="evidence-fact" data-tone={words.tone}>
@@ -267,6 +274,7 @@ export function SweepEvidence({
             meta={list === live}
             onOpenSettings={onOpenSettings}
             fact={fact}
+            envelope={(source) => envelopes.get(source)}
           />
           {unlisted.length > 0 && <EnvelopeRows label="More sources" sources={unlisted} now={at} />}
         </section>

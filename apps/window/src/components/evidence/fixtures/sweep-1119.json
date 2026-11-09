@@ -1,0 +1,268 @@
+{
+  "recordedFrom": "runs.sqlite facts snapshot and view of the 11:19 sweep at checkpoint spicode-t1k.263; progress folded from each area's facts time and stored reads",
+  "now": "2026-11-09T17:23:20.000Z",
+  "snapshot": {
+    "sweptAt": "2026-11-09T17:19:54.524Z",
+    "briefing": {
+      "nextSyncAt": "2026-11-10T00:00:00.000Z"
+    },
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-09T17:09:18.244Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-09T17:20:01.710Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-09T17:20:07.688Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "fresh",
+          "observedAt": "2026-11-09T17:20:22.644Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "incomplete",
+          "observedAt": "2026-11-09T17:10:15.591Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "Job log character limit",
+            "read": 64000,
+            "total": 92438
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-09T17:20:31.896Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-09T17:10:30.727Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "incomplete",
+          "observedAt": "2026-11-09T17:10:33.959Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "14 reads cut in entitlements, file, indexer-service, ingestion-workflow, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1607,
+            "total": 1696
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-09T17:20:31.830Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-09T17:19:57.436Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "fresh",
+          "observedAt": "2026-11-09T17:11:55.651Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": false
+        }
+      }
+    ],
+    "provenance": [
+      {
+        "path": "/releases/lines/0",
+        "areas": ["fleet"],
+        "envelope": {
+          "source": "releases",
+          "state": "fresh",
+          "observedAt": "2026-11-09T17:11:59.470Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": false
+        }
+      }
+    ],
+    "reads": []
+  },
+  "progress": {
+    "sweep": "sweep-1119",
+    "startedAt": "2026-11-09T17:19:54.524Z",
+    "first": false,
+    "usualMs": null,
+    "outcome": "committed",
+    "nextAttemptAt": null,
+    "sources": [
+      {
+        "source": "auth",
+        "state": "read",
+        "startedAt": "2026-11-09T17:19:54.524Z",
+        "endedAt": "2026-11-09T17:19:57.436Z"
+      },
+      {
+        "source": "fleet",
+        "state": "read",
+        "startedAt": "2026-11-09T17:19:57.436Z",
+        "endedAt": "2026-11-09T17:19:58.368Z"
+      },
+      {
+        "source": "github",
+        "state": "read",
+        "startedAt": "2026-11-09T17:19:58.368Z",
+        "endedAt": "2026-11-09T17:20:07.639Z"
+      },
+      {
+        "source": "runs",
+        "state": "read",
+        "startedAt": "2026-11-09T17:20:07.639Z",
+        "endedAt": "2026-11-09T17:20:22.593Z"
+      },
+      {
+        "source": "approvals",
+        "state": "read",
+        "startedAt": "2026-11-09T17:20:22.593Z",
+        "endedAt": "2026-11-09T17:20:28.707Z"
+      },
+      {
+        "source": "lifecycle",
+        "state": "cut",
+        "startedAt": "2026-11-09T17:20:28.707Z",
+        "endedAt": "2026-11-09T17:20:31.786Z",
+        "code": "limit",
+        "cutKind": "job-log",
+        "reason": "Job log character limit: 64,000 of 92,438 characters read.",
+        "incomplete": {
+          "count": 1,
+          "total": 69
+        }
+      },
+      {
+        "source": "template",
+        "state": "read",
+        "startedAt": "2026-11-09T17:20:31.786Z",
+        "endedAt": "2026-11-09T17:20:31.830Z"
+      },
+      {
+        "source": "details",
+        "state": "read",
+        "startedAt": "2026-11-09T17:20:31.830Z",
+        "endedAt": "2026-11-09T17:20:31.896Z"
+      },
+      {
+        "source": "upstream",
+        "state": "skipped",
+        "startedAt": "2026-11-09T17:19:54.524Z",
+        "endedAt": "2026-11-09T17:19:54.524Z",
+        "code": "cadence",
+        "reason": "This source is not due yet."
+      },
+      {
+        "source": "radar",
+        "state": "skipped",
+        "startedAt": "2026-11-09T17:19:54.524Z",
+        "endedAt": "2026-11-09T17:19:54.524Z",
+        "code": "cadence",
+        "reason": "This source is not due yet.",
+        "cutKind": "diff",
+        "incomplete": {
+          "count": 14,
+          "total": 313
+        }
+      },
+      {
+        "source": "security",
+        "state": "skipped",
+        "startedAt": "2026-11-09T17:19:54.524Z",
+        "endedAt": "2026-11-09T17:19:54.524Z",
+        "code": "cadence",
+        "reason": "This source is not due yet."
+      },
+      {
+        "source": "releases",
+        "state": "skipped",
+        "startedAt": "2026-11-09T17:19:54.524Z",
+        "endedAt": "2026-11-09T17:19:54.524Z",
+        "code": "cadence",
+        "reason": "This source is not due yet."
+      }
+    ]
+  }
+}

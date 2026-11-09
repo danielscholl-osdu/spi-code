@@ -90,10 +90,24 @@ const sourceBase = { source: IdentifierSchema, startedAt: ObservedAtSchema.optio
 const ended = { ...sourceBase, endedAt: ObservedAtSchema.optional() };
 const reasoned = { code: SweepReasonCodeSchema, reason: SweepReasonSchema };
 const mayReason = { code: SweepReasonCodeSchema.optional(), reason: SweepReasonSchema.optional() };
+const cutKindSchema = z.enum(["job-log", "diff", "run-list", "read"]);
+const incompleteSchema = z
+  .strictObject({
+    count: z.int().nonnegative(),
+    total: z.int().positive(),
+    failed: z.int().positive().optional(),
+  })
+  .refine(({ count, failed = 0 }) => count + failed > 0, {
+    message: "A cut source has a cut or failed read",
+  })
+  .refine(({ count, total, failed = 0 }) => count + failed <= total, {
+    message: "Incomplete count exceeds total",
+  });
 // throttled pauses a read within this sweep and resumes at resumeAt; deferred leaves the source
 // unread this sweep, and resumeAt, when known, is when its budget allows a read again. A cut source
 // is one that read but not all of it: incomplete.count reads were cut short, incomplete.failed reads
-// failed while the rest read, and failure is the host's sentence naming what failed.
+// failed while the rest read, and failure is the host's sentence naming what failed. A skipped
+// source was not due; its incomplete and cutKind, when present, describe its last read's cut.
 export const SweepSourceProgressSchema = z
   .discriminatedUnion("state", [
     z.strictObject({ source: IdentifierSchema, state: z.literal("waiting") }),
@@ -113,19 +127,8 @@ export const SweepSourceProgressSchema = z
       ...ended,
       state: z.literal("cut"),
       ...mayReason,
-      cutKind: z.enum(["job-log", "diff", "run-list", "read"]).optional(),
-      incomplete: z
-        .strictObject({
-          count: z.int().nonnegative(),
-          total: z.int().positive(),
-          failed: z.int().positive().optional(),
-        })
-        .refine(({ count, failed = 0 }) => count + failed > 0, {
-          message: "A cut source has a cut or failed read",
-        })
-        .refine(({ count, total, failed = 0 }) => count + failed <= total, {
-          message: "Incomplete count exceeds total",
-        }),
+      cutKind: cutKindSchema.optional(),
+      incomplete: incompleteSchema,
       failure: SweepReasonSchema.optional(),
     }),
     z.strictObject({
@@ -134,7 +137,13 @@ export const SweepSourceProgressSchema = z
       ...reasoned,
       resumeAt: ObservedAtSchema.optional(),
     }),
-    z.strictObject({ ...ended, state: z.literal("skipped"), ...mayReason }),
+    z.strictObject({
+      ...ended,
+      state: z.literal("skipped"),
+      ...mayReason,
+      cutKind: cutKindSchema.optional(),
+      incomplete: incompleteSchema.optional(),
+    }),
     z.strictObject({ ...ended, state: z.literal("failed"), ...reasoned }),
   ])
   .refine((source) => !("reason" in source) || "code" in source, {
@@ -156,6 +165,13 @@ export const SweepSourceProgressSchema = z
       source.incomplete.count > 0 ||
       (source.cutKind === undefined && source.code === undefined),
     { message: "A cut kind or code needs a cut read", path: ["cutKind"] },
+  )
+  .refine(
+    (source) =>
+      source.state !== "skipped" ||
+      source.cutKind === undefined ||
+      (source.incomplete?.count ?? 0) > 0,
+    { message: "A cut kind needs a cut read", path: ["cutKind"] },
   )
   .refine(
     (source) =>

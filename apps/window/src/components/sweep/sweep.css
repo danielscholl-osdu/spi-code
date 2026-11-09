@@ -26,6 +26,10 @@
   border-radius: 2px;
   background: var(--border);
 }
+.sweep-segment[data-tone="idle"] {
+  background: var(--text-muted);
+  opacity: 0.45;
+}
 .sweep-segment[data-tone="run"] {
   background: var(--accent);
 }
@@ -54,7 +58,8 @@
 .sweep-mark {
   text-align: center;
 }
-.sweep-row[data-tone="wait"] .sweep-mark {
+.sweep-row[data-tone="wait"] .sweep-mark,
+.sweep-row[data-tone="idle"] .sweep-mark {
   color: var(--text-muted);
 }
 .sweep-row[data-tone="run"] .sweep-mark {
@@ -81,7 +86,8 @@
 .sweep-after {
   white-space: nowrap;
 }
-.sweep-row[data-tone="wait"] .sweep-outcome {
+.sweep-row[data-tone="wait"] .sweep-outcome,
+.sweep-row[data-tone="idle"] .sweep-outcome {
   color: var(--text-muted);
 }
 .sweep-row[data-tone="bad"] .sweep-outcome {

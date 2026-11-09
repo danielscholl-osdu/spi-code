@@ -1,10 +1,16 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { SweepProgress, SweepReasonCode, SweepSourceProgress } from "@spi-code/contracts";
+import type {
+  Envelope,
+  SweepProgress,
+  SweepReasonCode,
+  SweepSourceProgress,
+} from "@spi-code/contracts";
 import { clockTime, timeUnit } from "../../time.js";
 
-export type SourceTone = "wait" | "run" | "ok" | "warn" | "bad";
+/** `idle` is a source that settled without needing a look: not due, its last read whole. */
+export type SourceTone = "wait" | "run" | "idle" | "ok" | "warn" | "bad";
 
 export function readinessCanFix(code: SweepReasonCode | undefined): boolean {
   return code === "signin";
@@ -74,8 +80,61 @@ export type SourceOutcome = {
   code?: SweepReasonCode;
 };
 
-/** A source's mark, tone and outcome line in the first sweep's words. */
-export function sourceOutcome(source: SweepSourceProgress, now: number): SourceOutcome {
+type Incomplete = Extract<SweepSourceProgress, { state: "cut" }>["incomplete"];
+type CutKind = Extract<SweepSourceProgress, { state: "cut" }>["cutKind"];
+
+function cutWords(
+  { count, total, failed = 0 }: Incomplete,
+  cutKind: CutKind,
+): { text: string; detail: string } {
+  const kind = { "job-log": "job log", diff: "diff", "run-list": "run list", read: "read" }[
+    cutKind ?? "read"
+  ];
+  const complete = total - count - failed;
+  const parts = [
+    ...(count > 0 ? [`${count} ${kind}${count === 1 ? "" : "s"} cut short`] : []),
+    ...(failed > 0 ? [`${failed} ${failed === 1 ? "read" : "reads"} failed`] : []),
+    ...(failed === 0 && complete > 0 ? ["rest read"] : []),
+  ];
+  return {
+    text: parts.join("; "),
+    detail: `${complete} of ${total} ${total === 1 ? "read" : "reads"} complete.`,
+  };
+}
+
+/**
+ * A source not due this sweep keeps its last read's state: neutral while that read was whole and
+ * in date, otherwise as cut, failed or stale as the header counts it.
+ */
+function skippedOutcome(
+  source: Extract<SweepSourceProgress, { state: "skipped" }>,
+  last: Envelope | undefined,
+): SourceOutcome {
+  if (source.incomplete) {
+    const cut = cutWords(source.incomplete, source.cutKind);
+    return { mark: "⚠", tone: "warn", text: `skipped · ${cut.text}`, detail: cut.detail };
+  }
+  switch (last?.state) {
+    case "failed":
+      return { mark: "✕", tone: "bad", text: "skipped · last read failed" };
+    case "incomplete":
+      return { mark: "⚠", tone: "warn", text: "skipped · last read cut short" };
+    case "stale":
+      return { mark: "–", tone: "warn", text: "skipped" };
+    default:
+      return { mark: "–", tone: "idle", text: "skipped" };
+  }
+}
+
+/**
+ * A source's mark, tone and outcome line in the first sweep's words; `last` is the envelope of the
+ * source's last read, which a skipped source reports in place of a read this sweep.
+ */
+export function sourceOutcome(
+  source: SweepSourceProgress,
+  now: number,
+  last?: Envelope,
+): SourceOutcome {
   const took = (startedAt?: string, endedAt?: string) =>
     startedAt && endedAt ? ` · ${duration(Date.parse(endedAt) - Date.parse(startedAt))}` : "";
   switch (source.state) {
@@ -94,21 +153,12 @@ export function sourceOutcome(source: SweepSourceProgress, now: number): SourceO
     case "read":
       return { mark: "✓", tone: "ok", text: `read${took(source.startedAt, source.endedAt)}` };
     case "cut": {
-      const { count, total, failed = 0 } = source.incomplete;
-      const kind = { "job-log": "job log", diff: "diff", "run-list": "run list", read: "read" }[
-        source.cutKind ?? "read"
-      ];
-      const complete = total - count - failed;
-      const parts = [
-        ...(count > 0 ? [`${count} ${kind}${count === 1 ? "" : "s"} cut short`] : []),
-        ...(failed > 0 ? [`${failed} ${failed === 1 ? "read" : "reads"} failed`] : []),
-        ...(failed === 0 && complete > 0 ? ["rest read"] : []),
-      ];
+      const cut = cutWords(source.incomplete, source.cutKind);
       return {
         mark: "⚠",
         tone: "warn",
-        text: `read${took(source.startedAt, source.endedAt)} · ${parts.join("; ")}`,
-        detail: `${complete} of ${total} ${total === 1 ? "read" : "reads"} complete.${source.reason ? ` ${source.reason}` : ""}`,
+        text: `read${took(source.startedAt, source.endedAt)} · ${cut.text}`,
+        detail: `${cut.detail}${source.reason ? ` ${source.reason}` : ""}`,
         ...(source.failure ? { why: source.failure } : {}),
       };
     }
@@ -119,7 +169,7 @@ export function sourceOutcome(source: SweepSourceProgress, now: number): SourceO
         : { mark: "–", tone: "warn", text: "put off", ...after, why: source.reason };
     }
     case "skipped":
-      return { mark: "–", tone: "warn", text: "skipped" };
+      return skippedOutcome(source, last);
     case "failed":
       return { mark: "✕", tone: "bad", text: "failed", why: source.reason, code: source.code };
   }

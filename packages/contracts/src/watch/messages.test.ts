@@ -367,6 +367,23 @@ describe("sweep progress", () => {
     expect(withSource({ ...source, cutKind: "stderr" }).ok).toBe(false);
     expect(withSource({ source: "lifecycle", state: "read", cutKind: "job-log" }).ok).toBe(false);
   });
+  it("carries a skipped source's last cut read without changing older skipped messages", () => {
+    const skipped = { source: "radar", state: "skipped", code: "cadence", reason: "not due" };
+    expect(withSource(skipped).ok).toBe(true);
+    expect(
+      withSource({ ...skipped, cutKind: "diff", incomplete: { count: 14, total: 361 } }).ok,
+    ).toBe(true);
+    expect(withSource({ ...skipped, incomplete: { count: 0, total: 361, failed: 3 } }).ok).toBe(
+      true,
+    );
+    for (const invalid of [
+      { ...skipped, cutKind: "diff" },
+      { ...skipped, cutKind: "diff", incomplete: { count: 0, total: 361, failed: 3 } },
+      { ...skipped, incomplete: { count: 0, total: 361 } },
+    ]) {
+      expect(withSource(invalid).ok).toBe(false);
+    }
+  });
   it("carries failed reads on a cut source without changing older cut messages", () => {
     const failure = "Reads failed for 3 services: unit, crs-catalog, crs-conversion.";
     const partial = {

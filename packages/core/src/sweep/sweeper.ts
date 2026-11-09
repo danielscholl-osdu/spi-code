@@ -320,6 +320,19 @@ export class Sweeper<C> {
     this.failure(frame.success ? "cache" : "state", `Invalid persisted state: ${parsed.error.message}`);
   }
 
+  /** A source not due this sweep still says when its last read was cut short. */
+  private lastCut(source: AreaName, endedAt: string, fleet: Fleet | undefined) {
+    const records = this.reads[source] ?? [];
+    if (records.length === 0) return {};
+    const last = sweepReadProgress(source, records, endedAt, undefined, undefined, fleet);
+    if (last.state !== "cut") return {};
+    return {
+      ...(last.completeness === undefined ? {} : { completeness: last.completeness }),
+      ...(last.incomplete === undefined ? {} : { incomplete: last.incomplete }),
+      ...(last.failed === undefined ? {} : { failed: last.failed }),
+    };
+  }
+
   private async area(area: SweepArea<C>, exec: Exec, force: boolean): Promise<boolean> {
     const previous: Measured<unknown> = this.facts[area.name];
     let outcome: SweepSourceProgress | undefined;
@@ -334,10 +347,15 @@ export class Sweeper<C> {
       const decision = area.shouldRead?.(input) ?? true;
       if (decision !== true) {
         this.cache = this.opts.cacheSchema.parse(cache);
-        if (this.opts.progress) this.notify({
-          kind: "source", source: area.name, endedAt: this.clock.now().toISOString(),
-          ...(decision === false ? { state: "skipped" } : decision),
-        });
+        if (this.opts.progress) {
+          const endedAt = this.clock.now().toISOString();
+          const skipped = decision === false || decision.state === "skipped";
+          this.notify({
+            kind: "source", source: area.name, endedAt,
+            ...(decision === false ? { state: "skipped" } : decision),
+            ...(skipped ? this.lastCut(area.name, endedAt, input.ctx.fleet) : {}),
+          });
+        }
         return true;
       }
       if (this.opts.progress) this.notify({
