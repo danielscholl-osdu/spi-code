@@ -134,7 +134,7 @@ function setup(overrides: Partial<SetupServiceOptions> & Pick<SetupServiceOption
     probeSeat: async () => ({ kind: "seat-ok", models: ["auto"] }),
     refreshBudget: async () => ({ remaining: 4000, resetAt: null, deferredAreas: [] }),
     sweepStatus: () => ({ remaining: null, resetAt: null, deferredAreas: [] }),
-    createSweep: () => ({ start: async () => true, stop: async () => {} }),
+    createSweep: () => ({ start: async () => true, sweep: async () => true, stop: async () => {} }),
     onError: (error) => {
       throw error;
     },
@@ -599,6 +599,7 @@ it.skipIf(process.platform === "win32")(
             return started;
           },
           stop: () => instance.stop(),
+          sweep: () => instance.sweep(),
         };
       },
     });
@@ -703,7 +704,7 @@ it.each(["git", "gh"] as const)("keeps Watch ready when %s needs an update", asy
     return undefined;
   });
   const start = vi.fn(async () => true);
-  const createSweep = vi.fn(() => ({ start, stop: async () => {} }));
+  const createSweep = vi.fn(() => ({ start, sweep: async () => true, stop: async () => {} }));
   const { service, states } = setup({
     exec,
     git: async () => ({
@@ -727,6 +728,36 @@ it.each(["git", "gh"] as const)("keeps Watch ready when %s needs an update", asy
   expect(states().at(-1)).toMatchObject({ watchReady: true, disabledReason: null });
   expect(createSweep).toHaveBeenCalledOnce();
   expect(start).toHaveBeenCalledOnce();
+});
+
+it("refuses Try again while Readiness blocks Watch and uses the non-forced sweep when ready", async () => {
+  let signedIn = false;
+  const sweep = vi.fn(async () => true);
+  const start = vi.fn(async () => true);
+  const { service } = setup({
+    exec: fakeExec((cmd, args) => {
+      if (cmd === "gh" && args[1] === "status" && signedIn) return GH_STATUS_OK;
+      if (cmd === "gh" && args[1] === "token" && signedIn) return "gho_fixture";
+      return undefined;
+    }),
+    tools: async () => managedGh,
+    createSweep: () => ({ start, sweep, stop: async () => {} }),
+  });
+  await expect(service.requestSweep()).rejects.toThrow("Readiness");
+  await service.refresh();
+  await expect(service.requestSweep()).rejects.toThrow("Readiness");
+  expect(start).not.toHaveBeenCalled();
+  expect(sweep).not.toHaveBeenCalled();
+  signedIn = true;
+  await service.refresh();
+  await expect(service.requestSweep()).resolves.toBe(true);
+  expect(sweep).toHaveBeenCalledExactlyOnceWith();
+  signedIn = false;
+  await service.refresh();
+  await expect(service.requestSweep()).rejects.toThrow("Readiness");
+  expect(sweep).toHaveBeenCalledOnce();
+  await service.stop();
+  await expect(service.requestSweep()).rejects.toThrow("Readiness");
 });
 
 it("sends setup.state to each fresh connection", async () => {
@@ -844,7 +875,7 @@ it.skipIf(process.platform === "win32")(
       tools: async () => tools,
       createSweep: () => {
         created();
-        return { start: async () => true, stop: async () => {} };
+        return { start: async () => true, sweep: async () => true, stop: async () => {} };
       },
     });
     await service.refresh();
@@ -876,7 +907,7 @@ it("re-reads on its interval, stops the sweep after an outside sign-out, and re-
     tools: async () => managedGh,
     probeSeat,
     intervalMs: 20,
-    createSweep: () => ({ start: async () => true, stop }),
+    createSweep: () => ({ start: async () => true, sweep: async () => true, stop }),
   });
   await vi.waitFor(() => expect(states().at(-1)?.watchReady).toBe(true));
   expect(probeSeat).toHaveBeenCalledOnce();
@@ -896,7 +927,7 @@ it("starts a sweep again at the next ready read after its start rejected", async
     .fn<() => Promise<boolean>>()
     .mockRejectedValueOnce(new Error("prune failed"))
     .mockResolvedValue(true);
-  const createSweep = vi.fn(() => ({ start, stop: async () => {} }));
+  const createSweep = vi.fn(() => ({ start, sweep: async () => true, stop: async () => {} }));
   const { service, states } = setup({
     exec: fakeExec((cmd) => (cmd === "gh" && signedIn ? GH_STATUS_OK : undefined)),
     tools: async () => managedGh,

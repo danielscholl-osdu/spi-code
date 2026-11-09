@@ -12,6 +12,7 @@ import {
   type Message,
   PROTOCOL_VERSION,
   parseMessage,
+  SweepProgressSchema,
   SweepStatusSchema,
   type ViewSnapshot,
   type WatchBriefing,
@@ -21,6 +22,7 @@ import {
   BudgetPacer,
   buildModel,
   type CollectorOptions,
+  cacheSchema,
   type createSweeper,
   type Exec,
   emptyCache,
@@ -35,6 +37,7 @@ import {
   type QueueItem,
   REPO_PREFIX,
   STEP_PREFIX,
+  Sweeper,
   UPSTREAM_PREFIX,
 } from "@spi-code/core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -171,6 +174,104 @@ function routes(database: () => DatabaseSync = () => db) {
 }
 
 describe("view.subscribe", () => {
+  it("replays the latest unsent progress immediately, coalesces Try again and keeps snapshot delivery", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let finish = () => {};
+    const read = vi.fn(async () => {
+      await new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      return {
+        data: { gh: { ok: true, detail: "ready" }, glab: { ok: true, detail: "ready" } },
+        reads: [],
+      };
+    });
+    const forces: boolean[] = [];
+    const watch = new WatchRoutes({
+      db: () => db,
+      fleet,
+      ctx,
+      appData: directory,
+      exec: failing,
+      onError: vi.fn(),
+      requestSweep: () => sweep.sweep(),
+      sweepProgress: () => sweep.progress,
+    });
+    const sweep = new SweepService({
+      db,
+      fleet,
+      ctx,
+      exec: failing,
+      appData: directory,
+      factsSchema: z.custom<Facts>(),
+      doctor: () => input.doctor,
+      onError: vi.fn(),
+      onProgress: (progress) => watch.publishProgress(progress),
+      createSweeper: watch.sweeper(
+        (options) =>
+          new Sweeper({
+            ...options,
+            cacheSchema,
+            emptyCache,
+            areas: [
+              {
+                name: "auth",
+                read: async (input) => {
+                  forces.push(input.force);
+                  return read();
+                },
+              },
+            ],
+          }),
+      ),
+    });
+    try {
+      const first = host(watch);
+      first.request("view.subscribe", { fromCursor: 0 });
+      await settle();
+      const running = sweep.start();
+      await settle();
+      expect(first.sent.filter(({ type }) => type === "sweep.progress")).toMatchObject([
+        { payload: { sources: expect.arrayContaining([{ source: "auth", state: "waiting" }]) } },
+      ]);
+      const late = host(watch);
+      late.request("view.subscribe", { fromCursor: 0 });
+      late.request("sweep.request", {}, "try-one");
+      late.request("sweep.request", {}, "try-two");
+      await settle();
+      const replay = late.sent.find(({ type }) => type === "sweep.progress");
+      expect(SweepProgressSchema.parse(replay?.payload)).toEqual(sweep.progress);
+      expect(replay).toMatchObject({
+        payload: {
+          sources: expect.arrayContaining([
+            { source: "auth", state: "reading", startedAt: ctx.clock.now().toISOString() },
+          ]),
+        },
+      });
+      expect(read).toHaveBeenCalledOnce();
+      expect(forces).toEqual([false]);
+      finish();
+      await running;
+      await settle();
+      expect(late.sent.filter(({ type }) => type === "view.snapshot")).toHaveLength(1);
+      expect(late.sent.filter(({ type }) => type === "sweep.status")).toHaveLength(1);
+      expect(late.sent.filter(({ type }) => type === "error")).toEqual([]);
+      expect(read).toHaveBeenCalledOnce();
+      const current = host(watch);
+      current.request("view.subscribe", { fromCursor: sweep.latest()?.cursor });
+      await settle();
+      expect(current.sent.find(({ type }) => type === "sweep.progress")).toMatchObject({
+        payload: { outcome: "committed" },
+      });
+      expect(current.sent.filter(({ type }) => type === "view.snapshot")).toHaveLength(0);
+      await vi.advanceTimersByTimeAsync(500);
+    } finally {
+      finish();
+      await sweep.stop();
+      vi.useRealTimers();
+    }
+  });
+
   it("exposes the latest persisted budget floor and deferrals before a window subscribes", () => {
     const watch = routes();
     expect(watch.status).toEqual({ remaining: null, resetAt: null, deferredAreas: [] });

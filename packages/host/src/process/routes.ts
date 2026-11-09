@@ -11,6 +11,7 @@ import {
   PROTOCOL_VERSION,
   type ReadRecord,
   ReadRecordSchema,
+  type SweepProgress,
   type SweepStatus,
   SweepStatusSchema,
   type ViewSnapshot,
@@ -78,6 +79,8 @@ export interface WatchRoutesOptions {
   readonly exec: Exec;
   readonly inspect?: InspectOptions;
   readonly onError: (error: unknown) => void;
+  readonly requestSweep?: () => Promise<boolean>;
+  readonly sweepProgress?: () => SweepProgress | undefined;
 }
 
 /** The snapshot key a SweepService writes for this context's fleet. */
@@ -882,18 +885,26 @@ export class WatchRoutes {
   private store: ReturnType<typeof createSnapshotStore> | undefined;
   private seenStore: ReturnType<typeof createSeenStore> | undefined;
   private subscriber: { send: HostSend; cursor: number } | undefined;
+  private progress: SweepProgress | undefined;
 
   readonly routes: HostRoutes = {
     "view.subscribe": (message, send) => {
       if (message.type !== "view.subscribe") return;
       this.subscriber = { send, cursor: message.payload.fromCursor };
       this.flush();
+      const progress = this.options.sweepProgress?.() ?? this.progress;
+      if (progress) this.sendProgress(progress);
     },
     "view.acknowledge": (message) => {
       if (message.type !== "view.acknowledge") return;
       this.acknowledge(message.payload.cursor);
     },
     "inspect.request": (message, send) => this.inspect(message, send),
+    "sweep.request": async (message) => {
+      if (message.type !== "sweep.request") return;
+      if (!this.options.requestSweep) throw new Error("Watch sweep requests are not configured");
+      await this.options.requestSweep();
+    },
   };
 
   constructor(private readonly options: WatchRoutesOptions) {}
@@ -909,6 +920,25 @@ export class WatchRoutes {
     } catch (error) {
       this.options.onError(error);
     }
+  }
+
+  publishProgress(progress: SweepProgress): void {
+    this.progress = progress;
+    try {
+      this.sendProgress(progress);
+    } catch (error) {
+      this.options.onError(error);
+    }
+  }
+
+  private sendProgress(progress: SweepProgress): void {
+    this.subscriber?.send({
+      version: PROTOCOL_VERSION,
+      id: `sweep-progress-${progress.sweep}`,
+      kind: "event",
+      type: "sweep.progress",
+      payload: progress,
+    });
   }
 
   /** Wraps a sweeper factory so each committed snapshot is published. */

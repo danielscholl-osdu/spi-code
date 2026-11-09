@@ -110,6 +110,8 @@ const watch = new WatchRoutes({
   appData,
   exec,
   onError: console.error,
+  requestSweep: () => setup.requestSweep(),
+  sweepProgress: () => setup.progress,
 });
 const budget = new GraphqlBudget(ctx.clock);
 // Setup gates Watch: the SweepService writes through watch.sweeper() so commits reach the subscriber.
@@ -153,6 +155,7 @@ const setup: SetupService = new SetupService({
       factsSchema,
       doctor: () => setup.doctor(),
       onError: console.error,
+      onProgress: (progress) => watch.publishProgress(progress),
       createSweeper: watch.sweeper(),
     }),
   onError: console.error,

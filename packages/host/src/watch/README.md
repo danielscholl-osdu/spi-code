@@ -1,5 +1,12 @@
 # Watch projection
 
+`WatchRoutes` publishes coalesced live sweep progress separately from snapshots
+and replays the service's latest state on `view.subscribe`, even when that state
+is still waiting for its send slot or the snapshot cursor is already current.
+`sweep.request` delegates to Setup's readiness-gated, non-forced sweep path.
+Neither route writes progress to the store; snapshot and `sweep.status` delivery
+are unchanged.
+
 `projectWatch` accepts Facts, release reads, area-grouped `SweepReads`, release
 ReadRecords, the doctor summary, an explicit fleet context and the app data path.
 It reads the context clock once and returns a `ViewSnapshotSchema`-parsed value.

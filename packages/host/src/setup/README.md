@@ -1,5 +1,11 @@
 # Setup sign-in
 
+`requestSweep()` handles Watch's Try again action only after readiness is known
+and no row satisfies `blocksWatch`. It calls the existing service's non-forced
+`sweep()`, so concurrent requests join a full sweep or queue behind an in-flight
+poll rather than starting a parallel collector. Blocked or stopped Watch rejects
+the request through the host's error response.
+
 `setup.signin` starts the tool's own sign-in flow. Copilot and gh share one
 `gh auth login --web` child; glab validates its transient token before storing it.
 Every `setup.signin.progress` event names the original request in `requestId`.

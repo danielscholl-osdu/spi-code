@@ -16,7 +16,12 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
-import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
+import {
+  type SweepProgress,
+  type SweepReasonCode,
+  type ViewSnapshot,
+  ViewSnapshotSchema,
+} from "@spi-code/contracts";
 import {
   BudgetPacer,
   type CollectorCache,
@@ -32,13 +37,18 @@ import {
   SWEEP_MS,
   sweepStateSchema,
 } from "@spi-code/core";
+import { z } from "zod";
 import { createLeaseStore, type LeaseIdentity } from "../store/leases.js";
 import { createSnapshotStore } from "../store/snapshots.js";
 import { type AttentionInput, previousAttention, projectedAttention } from "../watch/attention.js";
 import { projectWatch } from "../watch/project.js";
 import { sweepEvidence } from "./evidence.js";
+import { SweepProgressFeed } from "./progress.js";
 
 export const DAY_MS = 24 * 60 * 60_000;
+const persistedDuration = z.object({
+  facts: z.object({ sweep: z.object({ ms: z.int().positive() }).optional() }),
+});
 
 export interface SweepTimers {
   after(ms: number, callback: () => void): () => void;
@@ -64,6 +74,7 @@ export interface SweepServiceOptions extends Omit<CollectorOptions, "persist" | 
   readonly leadTimeMs?: number;
   readonly timers?: SweepTimers;
   readonly onError: (error: unknown) => void;
+  readonly onProgress?: (progress: SweepProgress) => void;
   readonly createSweeper?: typeof createSweeper;
 }
 
@@ -107,6 +118,10 @@ export class SweepService {
   private generation = 0;
   private readonly stopReason = new Error("Sweep service stopped");
   private cancellations: (() => void)[] = [];
+  private readonly progressFeed: SweepProgressFeed;
+  private progressActive = false;
+  private nextSweepAt: number | undefined;
+  private cancelSweep: (() => void) | undefined;
 
   constructor(private readonly options: SweepServiceOptions) {
     this.pacer = options.pacer ?? new BudgetPacer({ floor: 100, resetBudget: 5000 });
@@ -124,6 +139,12 @@ export class SweepService {
       }
     }
     this.timers = options.timers ?? timers;
+    this.progressFeed = new SweepProgressFeed({
+      now: () => this.now(),
+      timers: this.timers,
+      send: options.onProgress,
+      onError: options.onError,
+    });
     const db = options.db;
     db.exec("PRAGMA busy_timeout = 5000; PRAGMA synchronous = FULL");
     if (db.prepare("PRAGMA journal_mode").get()?.journal_mode !== "wal") {
@@ -137,6 +158,10 @@ export class SweepService {
 
   get sweeping(): boolean {
     return this.running !== undefined;
+  }
+
+  get progress(): SweepProgress | undefined {
+    return this.progressFeed.latest;
   }
 
   latest(): ViewSnapshot | undefined {
@@ -166,7 +191,7 @@ export class SweepService {
       }
       this.started = true;
       this.generation++;
-      this.repeat(this.interval, () => this.sweep());
+      this.scheduleSweep();
       this.repeat(INFLIGHT_POLL_MS, () => this.poll());
       this.repeat(DAY_MS, async () => {
         this.prune.run(this.now() - 7 * DAY_MS);
@@ -204,6 +229,9 @@ export class SweepService {
   async stop(): Promise<void> {
     this.started = false;
     this.generation++;
+    this.cancelSweep?.();
+    this.cancelSweep = undefined;
+    this.nextSweepAt = undefined;
     for (const cancel of this.cancellations.splice(0)) cancel();
     const holder = this.holder;
     if (holder) {
@@ -227,6 +255,23 @@ export class SweepService {
 
   private now(): number {
     return this.options.ctx.clock.now().getTime();
+  }
+
+  private scheduleSweep(): void {
+    if (!this.started || this.nextSweepAt !== undefined) return;
+    const generation = this.generation;
+    this.nextSweepAt = this.now() + this.interval;
+    this.cancelSweep = this.timers.after(this.interval, () => {
+      this.cancelSweep = undefined;
+      this.nextSweepAt = undefined;
+      void this.sweep()
+        .catch((error: unknown) => {
+          if (error !== this.stopReason) this.options.onError(error);
+        })
+        .finally(() => {
+          if (generation === this.generation) this.scheduleSweep();
+        });
+    });
   }
 
   private repeat(ms: number, task: () => Promise<unknown>): void {
@@ -384,10 +429,14 @@ export class SweepService {
     }
   }
 
-  private lose(holder: Holder): void {
+  private lose(holder: Holder, code: SweepReasonCode = "other"): void {
     holder.cancelRenew?.();
     holder.abort.abort(new Error("Lease lost: sweep aborted"));
     if (this.holder === holder) this.holder = undefined;
+    if (this.progressActive) {
+      this.scheduleSweep();
+      this.progressFeed.finish("failed", this.nextAttemptAt(), code);
+    }
   }
 
   private guard(holder: Holder): void {
@@ -421,6 +470,11 @@ export class SweepService {
         budget,
         pacer: this.pacer,
         exec,
+        progress: (event) => {
+          if (!this.progressActive) this.beginProgress();
+          this.progressFeed.report(event);
+          this.options.progress?.(event);
+        },
         persist: {
           load: async () => {
             const latest = this.snapshots.latestSnapshot(identity.fleet);
@@ -434,6 +488,7 @@ export class SweepService {
             return parsed.data;
           },
           save: async (state) => {
+            if (!this.progressActive) this.beginProgress();
             holder.saves++;
             this.guard(holder);
             const { at, ...releases } = state.cache.releases;
@@ -472,7 +527,7 @@ export class SweepService {
               );
               holder.seen = projectedAttention(view);
             } catch (error) {
-              this.lose(holder);
+              this.lose(holder, "save");
               throw error;
             }
           },
@@ -528,6 +583,47 @@ export class SweepService {
   }
 
   private async run(poll: boolean, force: boolean): Promise<boolean> {
+    let failure: { error: unknown } | undefined;
+    let collected = false;
+    try {
+      if (!poll) this.beginProgress();
+      collected = await this.collect(poll, force);
+      return collected;
+    } catch (error) {
+      failure = { error };
+      throw error;
+    } finally {
+      this.scheduleSweep();
+      if (this.progressActive) {
+        const cancelled = failure?.error === this.stopReason;
+        this.progressFeed.finish(
+          cancelled ? "cancelled" : failure || !collected ? "failed" : "committed",
+          this.nextAttemptAt(),
+          this.progressFeed.latest?.outcome === "failed"
+            ? this.progressFeed.latest.code
+            : this.progressFeed.failureCode,
+        );
+        this.progressActive = false;
+      }
+    }
+  }
+
+  private nextAttemptAt(): string | null {
+    return this.nextSweepAt === undefined ? null : new Date(this.nextSweepAt).toISOString();
+  }
+
+  private beginProgress(): void {
+    const record = this.snapshots.latestSnapshot(this.options.fleet);
+    const stored = persistedDuration.safeParse(record?.facts);
+    const ms = stored.success ? stored.data.facts.sweep?.ms : undefined;
+    this.progressFeed.begin(
+      record === undefined,
+      ms !== undefined && Number.isSafeInteger(ms) && ms > 0 ? ms : null,
+    );
+    this.progressActive = true;
+  }
+
+  private async collect(poll: boolean, force: boolean): Promise<boolean> {
     const holder = this.holder ?? (poll ? undefined : this.acquire());
     if (!holder) return false;
     this.guard(holder);

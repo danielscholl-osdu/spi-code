@@ -22,6 +22,21 @@ prevent a stopped task from rearming after a restart.
 Clocks come from the context; `timers.after` is injectable and returns a cancel
 function. The default timers are unreferenced and do not keep the host alive.
 
+`progress` holds the latest validated `sweep.progress` whole state in memory.
+The twelve sources stay in collector order, with releases last. The core hook
+fold drops item-level completeness and carries incomplete read counts only on
+cut sources. Every reason code maps to fixed display text; command output is
+never copied. Invalid reports are dropped and logged without altering the sweep.
+`onProgress` coalesces updates at 250 ms boundaries, including a trailing terminal
+state. The rate limiter uses timers, not wall-clock differences.
+First and usual duration come from this fleet's latest persisted snapshot, never
+the collector's current, uncommitted facts. Each new sweep has a fresh id.
+Only a snapshot commit confirms success. Throws and lease loss report failed;
+commit failures use code `save` and name no source. Intentional stop reports
+cancelled. Failed states carry the actual next full-sweep timer's deadline,
+or null when stopped, not the GitHub budget reset. Progress is never added to
+snapshots, read evidence or budget logs.
+
 Each service has a fresh UUID owner. A held lease renews every `ttlMs / 3` (rounded
 down); failed renewal aborts its Exec signal and is reported to `onError`.
 Exec calls and saves check expiry even if the renewal timer was delayed. Every

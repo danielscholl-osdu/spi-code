@@ -22,6 +22,7 @@ import { basename, join } from "node:path";
 import { createInterface } from "node:readline";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
+import { type SweepProgress, SweepProgressSchema } from "@spi-code/contracts";
 import {
   BudgetPacer,
   cacheSchema,
@@ -35,11 +36,12 @@ import {
   LEAD_TIME_MS,
   SWEEP_MS,
   type SweepArea,
-  Sweeper,
   type SweepInput,
 } from "@spi-code/core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { z } from "zod";
+import { ForgeError } from "../../../core/src/forge.js";
+import { Sweeper } from "../../../core/src/sweep/sweeper.js";
 import { createLeaseStore } from "../store/leases.js";
 import { createSnapshotStore } from "../store/snapshots.js";
 import { openRunStore } from "../store/store.js";
@@ -219,6 +221,13 @@ it("aborts an in-progress Exec when renewal runs after expiry and refuses its st
   ).toThrow("Stale lease");
   await vi.advanceTimersByTimeAsync(1000);
   await rejected;
+  expect(SweepProgressSchema.parse(first.progress)).toMatchObject({
+    outcome: "failed",
+    code: "other",
+    source: "auth",
+    failure: "SPI Code could not complete the read.",
+    nextAttemptAt: new Date(epoch + SWEEP_MS).toISOString(),
+  });
   expect(signal?.aborted).toBe(true);
   expect(onError).toHaveBeenCalledWith(
     expect.objectContaining({ message: "Lease lost: sweep aborted" }),
@@ -289,6 +298,115 @@ it("logs every budget field once per sweep and persists a validated projection w
   expect(snapshot?.briefing).toBeDefined();
   expect(snapshot?.areas).toBeDefined();
   expect(createSnapshotStore(db).latestSnapshot("test")?.fence).toBe(1);
+});
+
+it("ends throwing sweeps safely and retries at the published timer, not the budget reset", async () => {
+  const failure = new ForgeError(
+    "gh stderr: ghp_NOT_A_REAL_TOKEN_1234567890 device code ABCD-1234",
+    503,
+    "gateway",
+  );
+  const sends: SweepProgress[] = [];
+  let attempts = 0;
+  const first = service([], {
+    intervalMs: 1000,
+    onError: vi.fn(),
+    onProgress: (progress) => sends.push(progress),
+    createSweeper: (options) =>
+      new Sweeper({
+        ...options,
+        areas: [],
+        cacheSchema,
+        emptyCache,
+        afterAreas: async ({ progress, clock, cache }) => {
+          attempts++;
+          cache.budget.resetAt = new Date(epoch + 3600_000).toISOString();
+          progress?.({
+            kind: "source",
+            source: "releases",
+            state: "reading",
+            startedAt: clock.now().toISOString(),
+          });
+          if (attempts < 3) throw failure;
+          progress?.({
+            kind: "source",
+            source: "releases",
+            state: "read",
+            endedAt: clock.now().toISOString(),
+          });
+        },
+      }),
+  });
+  await expect(first.start()).rejects.toBe(failure);
+  await vi.advanceTimersByTimeAsync(250);
+  expect(sends.at(-1)).toMatchObject({
+    outcome: "failed",
+    code: "unavailable",
+    source: "releases",
+    failure: "The source is unavailable.",
+    nextAttemptAt: new Date(epoch + 1000).toISOString(),
+  });
+  expect(JSON.stringify(sends)).not.toMatch(/ghp_|ABCD-1234|stderr/);
+  expect(budgets()[0]?.resetAt).not.toBe(first.progress?.nextAttemptAt);
+  await vi.advanceTimersByTimeAsync(750);
+  expect(attempts).toBe(2);
+  expect(first.progress).toMatchObject({
+    outcome: "failed",
+    nextAttemptAt: new Date(epoch + 2000).toISOString(),
+  });
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(attempts).toBe(3);
+  expect(first.progress).toMatchObject({ outcome: "committed", nextAttemptAt: null });
+  expect(first.latest()?.cursor).toBe(1);
+});
+
+it("a failed snapshot transaction ends failed/save with no source and no persisted progress", async () => {
+  db.exec(`CREATE TEMP TRIGGER reject_snapshot BEFORE INSERT ON facts_snapshots
+    BEGIN SELECT RAISE(ABORT, 'fixture commit failed ghp_NOT_A_REAL_TOKEN ABCD-1234'); END`);
+  const sends: SweepProgress[] = [];
+  const first = service([{ name: "auth", read: async () => ({ data: auth, reads: [] }) }], {
+    onError: vi.fn(),
+    onProgress: (progress) => sends.push(progress),
+  });
+  await expect(first.start()).rejects.toThrow("fixture commit failed");
+  await vi.advanceTimersByTimeAsync(250);
+  expect(SweepProgressSchema.parse(sends.at(-1))).toMatchObject({
+    outcome: "failed",
+    code: "save",
+    failure: "SPI Code could not save the sweep.",
+    nextAttemptAt: new Date(epoch + SWEEP_MS).toISOString(),
+  });
+  expect(first.progress).not.toHaveProperty("source");
+  expect(JSON.stringify(sends)).not.toMatch(/ghp_|ABCD-1234|fixture commit/);
+  expect(first.latest()).toBeUndefined();
+  expect(db.prepare("SELECT COUNT(*) AS count FROM facts_snapshots").get()?.count).toBe(0);
+  expect(JSON.stringify(budgets())).not.toMatch(
+    /sources|usualMs|nextAttemptAt|outcome|sweep.progress/,
+  );
+  db.exec("DROP TRIGGER reject_snapshot");
+  await vi.advanceTimersByTimeAsync(SWEEP_MS - 250);
+  const record = createSnapshotStore(db).latestSnapshot("test");
+  expect(JSON.stringify(record)).not.toMatch(/sources|usualMs|nextAttemptAt|sweep.progress/);
+  expect(first.latest()?.cursor).toBe(1);
+});
+
+it("takes first and usual duration from the fleet's persisted snapshot, with a fresh id on restart", async () => {
+  const read = async () => {
+    vi.setSystemTime(Date.now() + 100);
+    return { data: auth, reads: [] };
+  };
+  const first = service([{ name: "auth", read }]);
+  await first.start();
+  expect(first.progress).toMatchObject({ first: true, usualMs: null });
+  const sweep = first.progress?.sweep;
+  await first.stop();
+  const next = service([{ name: "auth", read }]);
+  await next.start();
+  expect(next.progress).toMatchObject({ first: false, usualMs: 100 });
+  expect(next.progress?.sweep).not.toBe(sweep);
+  const other = service([], { fleet: "other" });
+  await other.start();
+  expect(other.progress).toMatchObject({ first: true, usualMs: null });
 });
 
 it("logs the real collector's per-sweep GraphQL charges rather than accumulating prior sweeps", async () => {

@@ -13,6 +13,7 @@ import {
   type SetupState,
   SetupStateSchema,
   type SetupToolSchema,
+  type SweepProgress,
   type SweepStatus,
   SweepStatusSchema,
   signinRunningReason,
@@ -49,7 +50,9 @@ export interface SetupGit {
 
 /** The SweepService surface Setup drives. */
 export interface SetupSweep {
+  readonly progress?: SweepProgress | undefined;
   start(): Promise<boolean>;
+  sweep(force?: boolean): Promise<boolean>;
   stop(): Promise<void>;
 }
 
@@ -184,6 +187,17 @@ export class SetupService {
   /** The latest Setup state, or undefined before the first refresh completes. */
   get current(): SetupState | undefined {
     return this.state;
+  }
+
+  get progress(): SweepProgress | undefined {
+    return this.sweep?.instance.progress;
+  }
+
+  requestSweep(): Promise<boolean> {
+    if (this.stopped || !this.state || this.state.tools.some(blocksWatch) || !this.sweep) {
+      return Promise.reject(new Error("Watch is blocked by Readiness"));
+    }
+    return this.sweep.instance.sweep();
   }
 
   /**
