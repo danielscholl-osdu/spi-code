@@ -20,7 +20,7 @@ import { GraphqlBudget } from "../../src/forge.js";
 import { createSweeper } from "../../src/sweep/areas.js";
 import { cacheSchema, emptyCache, pruneCache } from "../../src/sweep/cache.js";
 import { due } from "../../src/sweep/cadence.js";
-import type { SweepState } from "../../src/sweep/sweeper.js";
+import type { SweepProgress, SweepState } from "../../src/sweep/sweeper.js";
 
 const START = "2026-10-14T00:00:00.000Z";
 
@@ -207,15 +207,111 @@ test("multi-area exec replay accounts for ledger, release, pin and retried Graph
   expect(replay.cache.budget).toEqual(sweeper.cache.budget);
 });
 
+test("the collector reports releases in sweep order, including cadence skips and failed reads", async () => {
+  const h = harness();
+  const calls: SweepProgress[] = [];
+  const sweeper = createSweeper({ ...h.options, progress: (event) => calls.push(event) });
+  await sweeper.sweep();
+  expect(
+    calls
+      .filter((event) => event.kind === "source" && event.state === "reading")
+      .map((event) => event.kind === "source" && event.source),
+  ).toEqual([
+    "auth",
+    "fleet",
+    "github",
+    "runs",
+    "approvals",
+    "lifecycle",
+    "template",
+    "details",
+    "upstream",
+    "radar",
+    "security",
+    "releases",
+  ]);
+  expect(calls.slice(-2)).toEqual([
+    { kind: "source", source: "releases", state: "reading", startedAt: START },
+    {
+      kind: "source",
+      source: "releases",
+      state: "read",
+      endedAt: START,
+      completeness: { kind: "complete" },
+    },
+  ]);
+  calls.length = 0;
+  await sweeper.sweep();
+  expect(calls.filter((event) => event.kind === "source" && event.state === "skipped")).toEqual(
+    ["upstream", "radar", "security", "releases"].map((source) => ({
+      kind: "source",
+      source,
+      state: "skipped",
+      endedAt: START,
+      reason: "not due",
+    })),
+  );
+  h.setRoute((cmd, args) =>
+    cmd === "gh" && args.some((arg) => arg.includes("/releases?"))
+      ? { stdout: "", stderr: "releases unavailable", exit: 1 }
+      : undefined,
+  );
+  calls.length = 0;
+  await sweeper.sweep({ force: true });
+  expect(calls.slice(-2)).toEqual([
+    { kind: "source", source: "releases", state: "reading", startedAt: START },
+    {
+      kind: "source",
+      source: "releases",
+      state: "failed",
+      endedAt: START,
+      reason: sweeper.cache.releases.records.find((record) => record.failure)?.failure,
+      completeness: { kind: "complete" },
+    },
+  ]);
+  h.setRoute((cmd, args) =>
+    cmd === "gh" && args.some((arg) => arg.startsWith("query=") && arg.includes("{ createdAt }"))
+      ? {
+          stdout: JSON.stringify({ message: "Retry after 600 seconds." }),
+          stderr: "gh: HTTP 429\n",
+          exit: 1,
+        }
+      : undefined,
+  );
+  calls.length = 0;
+  await sweeper.sweep({ force: true });
+  expect(calls.slice(-2)).toEqual([
+    { kind: "source", source: "releases", state: "reading", startedAt: START },
+    {
+      kind: "source",
+      source: "releases",
+      state: "throttled",
+      endedAt: START,
+      reason: sweeper.cache.releases.records.find((record) => record.failure)?.failure,
+      completeness: { kind: "complete" },
+    },
+  ]);
+});
+
 test("low and unknown budgets defer optional work with reasons while core reads run", async () => {
   const low = harness("owner/partition", 50);
-  const sweeper = createSweeper(low.options);
+  const calls: SweepProgress[] = [];
+  const sweeper = createSweeper({ ...low.options, progress: (event) => calls.push(event) });
   await sweeper.sweep();
   expect(sweeper.facts.github.data?.repos["owner/partition"]).toBeDefined();
   expect(sweeper.facts.upstream.data?.partition).toBeDefined();
   expect(sweeper.cache.budget.deferred).toEqual(
     ["details", "radar", "security", "releases"].map((area) => ({
       area,
+      reason: "insufficient budget",
+    })),
+  );
+  expect(calls.filter((event) => event.kind === "source" && event.state === "deferred")).toEqual(
+    ["details", "radar", "security", "releases"].map((source) => ({
+      kind: "source",
+      source,
+      state: "deferred",
+      endedAt: START,
       reason: "insufficient budget",
     })),
   );
@@ -807,7 +903,8 @@ test("a GitHub throttle longer than the sweep may wait defers the remaining Grap
       exit: 1,
     };
   });
-  const sweeper = createSweeper(h.options);
+  const calls: SweepProgress[] = [];
+  const sweeper = createSweeper({ ...h.options, progress: (event) => calls.push(event) });
   await sweeper.sweep();
   const reason = expect.stringMatching(
     /^GitHub throttled GraphQL until 2026-10-14T00:10:00\.000Z \(.*secondary rate limit/,
@@ -820,5 +917,15 @@ test("a GitHub throttle longer than the sweep may wait defers the remaining Grap
     { area: "security", reason: "budget unknown" },
     { area: "releases", reason },
   ]);
+  expect(calls.filter((event) => event.kind === "source" && event.state === "throttled")).toEqual(
+    ["fleet", "github", "details", "radar", "releases"].map((source) => ({
+      kind: "source",
+      source,
+      state: "throttled",
+      endedAt: START,
+      reason: source === "fleet" ? sweeper.facts.fleet.error : reason,
+      ...(source === "fleet" ? { completeness: { kind: "complete" } } : {}),
+    })),
+  );
   expect(throttled).toHaveLength(1);
 });

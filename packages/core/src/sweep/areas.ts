@@ -17,13 +17,16 @@ import { fleetOf, GITLAB_EVERY_MS, RELEASES_EVERY_MS, SECURITY_EVERY_MS } from "
 import { type CoreContext, createContext } from "../context.js";
 import { BudgetPacer, type ReadRecord } from "../evidence/index.js";
 import type { AreaName, Facts, JobDetail } from "../facts.js";
-import { Gh, Glab, GraphqlBudget, THROTTLE_WAIT_ALLOWANCE_MS } from "../forge.js";
+import { ForgeError, Gh, Glab, GraphqlBudget, THROTTLE_WAIT_ALLOWANCE_MS } from "../forge.js";
 import { failedChecks, javaBuilt } from "../model/checks.js";
 import { errorText } from "../util.js";
 import { type CollectorCache, cacheSchema, emptyCache, pruneCache } from "./cache.js";
 import { due } from "./cadence.js";
 import { collectorInflight } from "./inflight.js";
-import { type SweepArea, type SweepInput, type SweepPersist, Sweeper, type SweepState } from "./sweeper.js";
+import {
+  type SweepArea, type SweepInput, type SweepPersist, Sweeper, type SweepState,
+  type SweepProgressHook, type SweepReadDecision, sweepFailureProgress, sweepReadProgress,
+} from "./sweeper.js";
 
 export interface CollectorOptions {
   readonly ctx: CoreContext;
@@ -35,6 +38,7 @@ export interface CollectorOptions {
   readonly fleetFiles?: FleetFiles;
   readonly readFile?: FleetFileReader;
   readonly replay?: () => Promise<SweepState<CollectorCache>>;
+  readonly progress?: SweepProgressHook;
 }
 
 // Failed subreads retain their own prior observation, never the area's newest timestamp.
@@ -83,15 +87,17 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
     // The discriminated union is preserved at the table boundary.
     const entry = {
       name,
-      shouldRead: (input: Input) => {
+      shouldRead: (input: Input): SweepReadDecision => {
         const { cache, facts, force, clock } = input;
-        if (name === "upstream" && facts.upstream.data && !upstreamForks(input).length) return false;
+        if (name === "upstream" && facts.upstream.data && !upstreamForks(input).length)
+          return { state: "skipped", reason: "not due" };
         if (name !== "upstream" && interval && facts[name].data && !(name === "radar" && upstreamChanged) &&
-          !due(facts[name].at, interval, clock.now(), force)) return false;
+          !due(facts[name].at, interval, clock.now(), force))
+          return { state: "skipped", reason: "not due" };
         const throttled = estimate > 0 && throttledReason();
         if (throttled) {
           cache.budget.deferred.push({ area: name, reason: throttled });
-          return false;
+          return { state: "throttled", reason: throttled };
         }
         const before = account.snapshot();
         const decision = pacer.plan({
@@ -100,8 +106,9 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
           history: cache.history, areas: [{ area: name, core, estimate }], now: clock.now().getTime(),
         })[0];
         if (!core && decision?.kind !== "run") {
-          cache.budget.deferred.push({ area: name, reason: decision?.reason ?? "budget unknown" });
-          return false;
+          const reason = decision?.reason ?? "budget unknown";
+          cache.budget.deferred.push({ area: name, reason });
+          return { state: "deferred", reason };
         }
         return true;
       },
@@ -110,8 +117,11 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
         const before = account.snapshot();
         try {
           const result = await read(input, new Gh(input.exec, undefined, account), new Glab(input.exec));
-          if (name !== "auth" && result.reads.length && result.reads.every((r) => r.failure))
-            throw new Error(result.reads[0]?.failure);
+          if (name !== "auth" && result.reads.length && result.reads.every((r) => r.failure)) {
+            const failure = result.reads[0]?.failure;
+            if (failure && throttledReason()) throw new ForgeError(failure, null, "throttle");
+            throw new Error(failure);
+          }
           return result;
         } finally {
           const cost = account.snapshot().spent - before.spent;
@@ -284,10 +294,16 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
       upstreamChanged = false;
       cache.budget.deferred = [];
     },
-    afterAreas: async ({ ctx, exec, cache, force, clock }) => {
+    afterAreas: async ({ ctx, exec, cache, force, clock, progress }) => {
       // Deferred entries belong to this sweep, including collectors without a Facts area.
       const throttled = due(cache.releases.at, RELEASES_EVERY_MS, clock.now(), force) && throttledReason();
-      if (throttled) cache.budget.deferred.push({ area: "releases", reason: throttled });
+      if (throttled) {
+        cache.budget.deferred.push({ area: "releases", reason: throttled });
+        progress?.({
+          kind: "source", source: "releases", state: "throttled",
+          endedAt: clock.now().toISOString(), reason: throttled,
+        });
+      }
       else if (due(cache.releases.at, RELEASES_EVERY_MS, clock.now(), force)) {
         const snapshot = account.snapshot();
         const decision = pacer.plan({
@@ -301,10 +317,37 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
             load: async () => cache.releases,
             save: async (state) => { cache.releases = state; },
           }, ctx);
-          await reader.read({ force });
+          progress?.({
+            kind: "source", source: "releases", state: "reading", startedAt: clock.now().toISOString(),
+          });
+          try {
+            await reader.read({ force });
+          } catch (error) {
+            progress?.(sweepFailureProgress("releases", error, reader.records, clock.now().toISOString()));
+            throw error;
+          }
+          if (progress) {
+            const outcome = sweepReadProgress("releases", reader.records, clock.now().toISOString());
+            progress({
+              ...outcome,
+              ...(outcome.state === "failed" && throttledReason() ? { state: "throttled" } : {}),
+            });
+          }
           cache.history = [...cache.history.filter((h) => h.area !== "releases"),
             { area: "releases", cost: account.snapshot().spent - snapshot.spent }];
-        } else cache.budget.deferred.push({ area: "releases", reason: decision?.reason ?? "budget unknown" });
+        } else {
+          const reason = decision?.reason ?? "budget unknown";
+          cache.budget.deferred.push({ area: "releases", reason });
+          progress?.({
+            kind: "source", source: "releases", state: "deferred",
+            endedAt: clock.now().toISOString(), reason,
+          });
+        }
+      } else {
+        progress?.({
+          kind: "source", source: "releases", state: "skipped",
+          endedAt: clock.now().toISOString(), reason: "not due",
+        });
       }
       const snapshot = account.snapshot();
       cache.budget = {

@@ -4,9 +4,17 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { createContext } from "../../src/context.js";
+import type { ReadRecord } from "../../src/evidence/index.js";
 import { type Exec, execOutputDelivery } from "../../src/exec/port.js";
 import { emptyFacts } from "../../src/facts.js";
-import { type SweepArea, Sweeper, type SweepPersist } from "../../src/sweep/sweeper.js";
+import { ForgeError } from "../../src/forge.js";
+import {
+  type SweepArea,
+  Sweeper,
+  type SweepPersist,
+  type SweepProgress,
+  sweepReadProgress,
+} from "../../src/sweep/sweeper.js";
 
 const measured = z.strictObject({
   at: z.iso.datetime().optional(),
@@ -117,6 +125,307 @@ function github(): Extract<SweepArea<Cache>, { name: "github" }> {
 }
 
 describe("Sweeper shell", () => {
+  it("reports exact source boundaries and every outcome in sweep order", async () => {
+    const h = harness();
+    const calls: SweepProgress[] = [];
+    const sweeper = new Sweeper({
+      ...h.options,
+      progress: (event) => calls.push(event),
+      areas: [
+        {
+          name: "auth",
+          read: async () => {
+            expect(calls).toEqual([
+              {
+                kind: "source",
+                source: "auth",
+                state: "reading",
+                startedAt: "2026-11-05T07:00:00.000Z",
+              },
+            ]);
+            h.advance();
+            return {
+              data: { gh: { ok: true, detail: "ready" }, glab: { ok: true, detail: "ready" } },
+              reads: [],
+            };
+          },
+        },
+        {
+          ...github(),
+          read: async (input) => {
+            h.advance();
+            const result = await github().read(input);
+            return {
+              ...result,
+              reads: [
+                ...result.reads,
+                {
+                  ...result.reads[0],
+                  source: "other",
+                  object: "repositories",
+                  observedAt: input.clock.now().toISOString(),
+                  completeness: { kind: "cut", reason: "size limit", read: 2, total: 4 },
+                },
+              ],
+            };
+          },
+        },
+        {
+          name: "details",
+          shouldRead: ({ cache }) => {
+            cache.entries.push("deferred");
+            return { state: "deferred", reason: "insufficient budget" };
+          },
+          read: async () => {
+            throw new Error("must not read");
+          },
+        },
+        {
+          name: "upstream",
+          shouldRead: () => false,
+          read: async () => {
+            throw new Error("must not read");
+          },
+        },
+        {
+          name: "radar",
+          shouldRead: () => ({
+            state: "throttled",
+            reason: "GitHub throttled GraphQL until 07:10",
+          }),
+          read: async () => {
+            throw new Error("must not read");
+          },
+        },
+        {
+          name: "security",
+          read: async () => {
+            h.advance();
+            throw new ForgeError("GitHub throttled the query", null, "throttle");
+          },
+        },
+        {
+          name: "fleet",
+          read: async () => {
+            h.advance();
+            throw new Error("fleet unavailable");
+          },
+        },
+      ],
+      afterAreas: async ({ progress, clock }) => {
+        progress?.({
+          kind: "source",
+          source: "releases",
+          state: "reading",
+          startedAt: clock.now().toISOString(),
+        });
+        h.advance();
+        progress?.(sweepReadProgress("releases", [], clock.now().toISOString()));
+      },
+    });
+    await expect(sweeper.sweep()).resolves.toBeUndefined();
+    expect(calls).toEqual([
+      { kind: "source", source: "auth", state: "reading", startedAt: "2026-11-05T07:00:00.000Z" },
+      {
+        kind: "source",
+        source: "auth",
+        state: "read",
+        endedAt: "2026-11-05T07:01:00.000Z",
+        completeness: { kind: "complete" },
+      },
+      { kind: "source", source: "github", state: "reading", startedAt: "2026-11-05T07:01:00.000Z" },
+      {
+        kind: "source",
+        source: "github",
+        state: "cut",
+        endedAt: "2026-11-05T07:02:00.000Z",
+        reason: "2 reads cut in gh, other: page limit; size limit",
+        completeness: {
+          kind: "cut",
+          reason: "2 reads cut in gh, other: page limit; size limit",
+          read: 3,
+          total: 6,
+        },
+      },
+      {
+        kind: "source",
+        source: "details",
+        state: "deferred",
+        endedAt: "2026-11-05T07:02:00.000Z",
+        reason: "insufficient budget",
+      },
+      { kind: "source", source: "upstream", state: "skipped", endedAt: "2026-11-05T07:02:00.000Z" },
+      {
+        kind: "source",
+        source: "radar",
+        state: "throttled",
+        endedAt: "2026-11-05T07:02:00.000Z",
+        reason: "GitHub throttled GraphQL until 07:10",
+      },
+      {
+        kind: "source",
+        source: "security",
+        state: "reading",
+        startedAt: "2026-11-05T07:02:00.000Z",
+      },
+      {
+        kind: "source",
+        source: "security",
+        state: "throttled",
+        endedAt: "2026-11-05T07:03:00.000Z",
+        reason: "GitHub throttled the query",
+        completeness: { kind: "complete" },
+      },
+      { kind: "source", source: "fleet", state: "reading", startedAt: "2026-11-05T07:03:00.000Z" },
+      {
+        kind: "source",
+        source: "fleet",
+        state: "failed",
+        endedAt: "2026-11-05T07:04:00.000Z",
+        reason: "fleet unavailable",
+        completeness: { kind: "complete" },
+      },
+      {
+        kind: "source",
+        source: "releases",
+        state: "reading",
+        startedAt: "2026-11-05T07:04:00.000Z",
+      },
+      {
+        kind: "source",
+        source: "releases",
+        state: "read",
+        endedAt: "2026-11-05T07:05:00.000Z",
+        completeness: { kind: "complete" },
+      },
+    ]);
+    expect(sweeper.cache.entries).toEqual(["deferred"]);
+    expect(sweeper.facts.sweep?.errors).toBe(2);
+  });
+
+  it("reports failed subreads with their existing reason and completeness", async () => {
+    const h = harness();
+    const calls: SweepProgress[] = [];
+    const sweeper = new Sweeper({
+      ...h.options,
+      progress: (event) => calls.push(event),
+      areas: [
+        {
+          ...github(),
+          read: async (input) => {
+            const result = await github().read(input);
+            return {
+              ...result,
+              reads: result.reads.map((r) => ({ ...r, failure: "one repo failed" })),
+            };
+          },
+        },
+      ],
+    });
+    await sweeper.sweep();
+    expect(calls).toEqual([
+      { kind: "source", source: "github", state: "reading", startedAt: "2026-11-05T07:00:00.000Z" },
+      {
+        kind: "source",
+        source: "github",
+        state: "failed",
+        endedAt: "2026-11-05T07:00:00.000Z",
+        reason: "one repo failed",
+        completeness: { kind: "cut", reason: "page limit", read: 1, total: 2 },
+      },
+    ]);
+  });
+
+  it.each(["beforeSweep", "afterAreas", "save", "replay"] as const)(
+    "reports a terminal failure and preserves the rejection when %s throws",
+    async (stage) => {
+      const h = harness();
+      const calls: SweepProgress[] = [];
+      const failure = new Error(`${stage} unavailable`);
+      const fail = () => {
+        throw failure;
+      };
+      const sweeper = new Sweeper({
+        ...h.options,
+        areas: [github()],
+        progress: (event) => calls.push(event),
+        ...(stage === "beforeSweep" ? { beforeSweep: fail } : {}),
+        ...(stage === "afterAreas" ? { afterAreas: async () => fail() } : {}),
+        ...(stage === "save"
+          ? { persist: { ...h.options.persist, save: async () => fail() } }
+          : {}),
+        ...(stage === "replay" ? { replay: async () => fail() } : {}),
+      });
+      await expect(sweeper.sweep()).rejects.toBe(failure);
+      expect(calls).toEqual([
+        ...(stage === "afterAreas" || stage === "save"
+          ? [
+              {
+                kind: "source",
+                source: "github",
+                state: "reading",
+                startedAt: "2026-11-05T07:00:00.000Z",
+              },
+              {
+                kind: "source",
+                source: "github",
+                state: "cut",
+                endedAt: "2026-11-05T07:00:00.000Z",
+                reason: "page limit",
+                completeness: { kind: "cut", reason: "page limit", read: 1, total: 2 },
+              },
+            ]
+          : []),
+        { kind: "failed", endedAt: "2026-11-05T07:00:00.000Z", reason: `${stage} unavailable` },
+      ]);
+      expect(sweeper.sweeping).toBe(false);
+    },
+  );
+
+  it("returns and persists identical results with and without the hook", async () => {
+    const run = async (progress?: (event: SweepProgress) => void) => {
+      const h = harness();
+      const records: ReadRecord[] = [];
+      const sweeper = new Sweeper({
+        ...h.options,
+        areas: [
+          github(),
+          {
+            name: "auth",
+            read: async () => {
+              throw new Error("offline");
+            },
+          },
+        ],
+        progress,
+        afterAreas: async ({ clock, exec: port }) => {
+          await port.runText("fixture", []);
+          records.push({
+            source: "releases",
+            object: "releases",
+            observedAt: clock.now().toISOString(),
+            completeness: { kind: "complete" },
+          });
+          h.advance();
+        },
+      });
+      const result = await sweeper.sweep({ force: true });
+      return {
+        result,
+        facts: sweeper.facts,
+        cache: sweeper.cache,
+        reads: sweeper.reads,
+        model: sweeper.model,
+        stored: h.stored(),
+        records,
+        loads: h.loads(),
+      };
+    };
+    const calls: SweepProgress[] = [];
+    expect(await run()).toEqual(await run((event) => calls.push(event)));
+    expect(calls).toHaveLength(4);
+  });
+
   it("awaits areas in order, forwards ports and force, prunes, persists and rebuilds", async () => {
     const h = harness();
     const order: string[] = [];
