@@ -15,6 +15,33 @@ import {
 } from "./smoke-report.js";
 
 const rect = (x: number, y: number, width: number, height: number) => ({ x, y, width, height });
+const firstSweepQualifiers: Record<string, string[]> = {
+  "first-sweep-running": [
+    "First sweep · 9 of 12 sources done",
+    "First sweep is reading the program. 6 of 13 incomplete. waits for GitHub budget · after 09:10. glab is not signed in. Open Settings",
+  ],
+  "first-sweep-throttled": [
+    "First sweep · 9 of 12 sources done",
+    "GitHub asked SPI Code to slow down. Resumes at 09:10.",
+  ],
+  "first-sweep-stopped": [
+    "waiting for the first sweep",
+    "The first sweep stopped. It stopped while reading Workflow runs: GitHub did not answer in time. SPI Code tries again at 09:07. Try again Open Settings",
+  ],
+  "first-sweep-stopped-saving": [
+    "waiting for the first sweep",
+    "The first sweep stopped. It stopped while saving: The disk is full. Try again Open Settings",
+  ],
+  "first-sweep-place": [
+    "First sweep · 9 of 12 sources done",
+    "Upstream opens after the first sweep. It is read 9th of 12.",
+  ],
+  "first-sweep-evidence": [
+    "swept 08:02 · 1 failed",
+    "The sweep Sources 6 of 13 incomplete. waits for GitHub budget · after 09:10. glab is not signed in. Open Settings",
+  ],
+  "first-sweep-refresh": ["Swept 08:02 · sweeping, 4 of 12 sources done", "GitLab reads failed."],
+};
 function geometry(surface: string, width: number): SmokeGeometry[] {
   return geometryRules(surface, width).map((rule) => {
     switch (rule) {
@@ -112,7 +139,10 @@ const report: SmokeReport = {
         height: 800,
         bytes: 20000,
         dominantFraction: 0.6,
-        qualifiers: ["swept 08:02 · 1 failed", "GitLab reads failed; items may be missing."],
+        qualifiers: firstSweepQualifiers[id] ?? [
+          "swept 08:02 · 1 failed",
+          "GitLab reads failed; items may be missing.",
+        ],
         geometry: geometry(id, viewportWidth),
         ...(id === "detail-related" && viewportWidth === 1440 && appearance === "light"
           ? { rejectedGeometry: "Related value squeezed to 159 px" }
@@ -235,6 +265,45 @@ it("fails when a single surface/width/appearance combination is dropped or repla
   );
   expect(() => assertSmokeViews(disguised)).toThrow(/settings-failed\/900\/dark/);
 });
+
+it.each(Object.keys(firstSweepQualifiers))(
+  "requires every width and appearance and the state evidence for %s",
+  (surface) => {
+    for (const width of VIEW_WIDTHS) {
+      for (const appearance of ["light", "dark"]) {
+        const matches = (shot: SmokeReport["views"][number]) =>
+          shot.surface === surface &&
+          shot.viewportWidth === width &&
+          shot.appearance === appearance;
+        expect(report.views.some(matches)).toBe(true);
+        expect(() => assertSmokeViews(report.views.filter((shot) => !matches(shot)))).toThrow(
+          "Missing screenshot",
+        );
+        expect(() =>
+          assertSmokeViews(
+            report.views.map((shot) => (matches(shot) ? { ...shot, qualifiers: ["", ""] } : shot)),
+          ),
+        ).toThrow(/qualifier/);
+        expect(() =>
+          assertSmokeViews(
+            report.views.map((shot) =>
+              matches(shot) ? { ...shot, qualifiers: [shot.qualifiers[0], ""] } : shot,
+            ),
+          ),
+        ).toThrow(/qualifier/);
+        expect(() =>
+          assertSmokeViews(
+            report.views.map((shot) =>
+              matches(shot)
+                ? { ...shot, geometry: shot.geometry.filter((check) => check.rule !== "headers") }
+                : shot,
+            ),
+          ),
+        ).toThrow("Missing geometry rules");
+      }
+    }
+  },
+);
 it.each([24, 240])("fails uniform and nearly one-colour images (%s)", (background) => {
   for (const inkPixels of [0, 1, 1280]) {
     expect(() =>
@@ -264,6 +333,18 @@ it("fails missing or broken renderer geometry in the terminal report", () => {
       })),
     ),
   ).toThrow("Missing packaged broken-rule proof");
+  expect(() =>
+    assertSmokeViews(
+      report.views.map((shot) => ({
+        ...shot,
+        geometry: shot.geometry.map((check) =>
+          shot.surface === "panes" && check.rule === "headers"
+            ? { ...check, panes: check.panes.slice(0, 1), headers: check.headers.slice(0, 1) }
+            : check,
+        ),
+      })),
+    ),
+  ).toThrow("Header probe requires centre, Line and Detail");
 });
 
 it("requires the window edge and page scroll proof on every surface, width and appearance", () => {

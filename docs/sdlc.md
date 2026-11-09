@@ -139,7 +139,7 @@ the generated ZIP, including the shipped runtime handshake, rather than the
 builder's app directory.
 Before starting the host proof, it renders `fixtures/watch/snapshot-1106.json`
 at 1440, 900 and 740 x 800 content bounds and pins the app's Appearance selector
-to light and dark. `build/package-<mac|win>/views/` holds 102 PNGs, a side-by-side
+to light and dark. `build/package-<mac|win>/views/` holds 144 PNGs, a side-by-side
 `index.html` review report and a copy of the window layout design. `smoke.json.views`
 lists every surface/viewport width/appearance combination, its image and DOM
 qualifier evidence, and its measured geometry. Missing combinations fail.
@@ -165,9 +165,20 @@ restores the value before capturing it. Missing rejection evidence fails.
 The fixture clock, pane preferences and sign-in interception
 are removed before the host proof, so they cannot affect its persisted-snapshot
 and supervision checks. The larger matrix has a three-minute smoke deadline.
+Seven first-sweep surfaces add a running list with failed sign-in and budget deferral,
+throttling, stops while reading and while saving, a place before its first snapshot,
+the retained list in Evidence after hand-over, and a refresh over the older brief.
+Each joins the same width/appearance matrix and runs the window edge, page scroll
+and visible pane header rules. First-sweep state copy is recorded in the qualifiers;
+Open Settings, resume and retry times, the cut count and the refresh count are required.
+The screenshot phase precedes host startup, so these schema-valid `sweep.progress`
+fixtures use the same smoke-only preload channel as `view.snapshot` and `setup.state`,
+not the real host progress feed. The later persisted-snapshot and supervision proof
+starts only after removing fixtures.
 Missing shots, images smaller than 640 x 400 or 1024 PNG bytes, or images
 with 99.5% of pixels in one 4-bit-per-channel RGB bucket fail the smoke.
-Every shot must carry the title-bar sweep line; Today, Upstream, the selected
+Every shot must carry the title-bar sweep line (first-sweep captures carry its
+running or waiting form); Today, Upstream, the selected
 Detail's place and the affected service must also carry their failed-read or
 truncation qualifier. The report names the corresponding window-design section;
 the reviewer records match or mismatch per surface on the bead, not the smoke.

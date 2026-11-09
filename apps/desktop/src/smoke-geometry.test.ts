@@ -122,6 +122,25 @@ it("fails a wrong header height or top, including three equally displaced header
   }
 });
 
+it("checks the same header rules on a first-sweep centre and an Evidence pane", () => {
+  for (const count of [1, 2]) {
+    const probe = {
+      ...headers,
+      panes: headers.panes.slice(0, count),
+      headers: headers.headers.slice(0, count),
+    };
+    expect(() => assertSmokeGeometry(probe)).not.toThrow();
+    expect(() =>
+      assertSmokeGeometry({
+        ...probe,
+        headers: probe.headers.map((header) => ({ ...header, width: header.width - 15 })),
+      }),
+    ).toThrow("Header width");
+    expect(() => assertSmokeGeometry({ ...probe, headers: [] })).toThrow("Header probe");
+    expect(() => assertSmokeGeometry({ ...probe, panes: [] })).toThrow("Header panes");
+  }
+});
+
 it.each([
   rect(24, 120, 693, 560),
   rect(24, 120, 692, 561),

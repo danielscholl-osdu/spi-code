@@ -156,10 +156,13 @@ export function assertSmokeGeometry(value: unknown): asserts value is SmokeGeome
         "Header pane top missing",
       );
       assert(
-        Array.isArray(value.headers) && value.headers.length === 3,
-        "Header probe requires centre, Line and Detail",
+        Array.isArray(value.headers) && value.headers.length > 0,
+        "Header probe requires visible pane headers",
       );
-      assert(Array.isArray(value.panes) && value.panes.length === 3, "Header panes missing");
+      assert(
+        Array.isArray(value.panes) && value.panes.length === value.headers.length,
+        "Header panes missing",
+      );
       for (const [index, header] of value.headers.entries()) {
         rect(header);
         const pane = value.panes[index];

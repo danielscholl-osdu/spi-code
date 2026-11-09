@@ -163,9 +163,73 @@ export const VIEW_SURFACES = [
     designSection: "Layout / Top row at 740 px on Windows, 20 services",
     qualified: true,
   },
+  {
+    id: "first-sweep-running",
+    name: "First sweep / Failed sign-in and deferred source",
+    route: "today",
+    place: "Today",
+    selector: ".today-first .sweep-row[data-source=upstream] .sweep-why button",
+    designSection: "Layout / First sweep: running, sign-in failure and budget deferral",
+    qualified: false,
+  },
+  {
+    id: "first-sweep-throttled",
+    name: "First sweep / Throttled",
+    route: "today",
+    place: "Today",
+    selector: ".today-first .sweep-throttled time",
+    designSection: "Layout / First sweep: throttled",
+    qualified: false,
+  },
+  {
+    id: "first-sweep-stopped",
+    name: "First sweep / Stopped while reading",
+    route: "today",
+    place: "Today",
+    selector: ".today-first .today-first-actions",
+    designSection: "Layout / First sweep: stopped in a source",
+    qualified: false,
+  },
+  {
+    id: "first-sweep-stopped-saving",
+    name: "First sweep / Stopped while saving",
+    route: "today",
+    place: "Today",
+    selector: ".today-first .today-first-actions",
+    designSection: "Layout / First sweep: stopped without a source",
+    qualified: false,
+  },
+  {
+    id: "first-sweep-place",
+    name: "Upstream / Before the first snapshot",
+    route: "upstream",
+    place: "Upstream",
+    selector: "[data-before-sweep] .place-before-sweep",
+    designSection: "Layout / First sweep: a place before its first snapshot",
+    qualified: false,
+  },
+  {
+    id: "first-sweep-evidence",
+    name: "Evidence / Retained first-sweep sources after hand-over",
+    route: "today",
+    place: "Today",
+    selector: "[data-evidence=sweep] [data-sweep-list=completed] .sweep-rows",
+    designSection: "Layout / First sweep: hand-over and the completed list in Evidence",
+    qualified: false,
+  },
+  {
+    id: "first-sweep-refresh",
+    name: "Top row / Refresh over an older snapshot",
+    route: "today",
+    place: "Today",
+    selector: ".today .place-reading",
+    designSection: "Layout / First sweep: later sweep over an older snapshot",
+    qualified: true,
+  },
 ] as const;
 
 export function geometryRules(surface: string, width: number): SmokeGeometry["rule"][] {
+  if (surface.startsWith("first-sweep-")) return ["window", "headers"];
   if (surface.startsWith("settings")) return ["window", "settings"];
   if (surface === "detail-related") return ["window", "related"];
   if (surface === "panes" && width === 1440) return ["window", "panes", "headers"];
@@ -217,7 +281,58 @@ function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
   const surface = VIEW_SURFACES.find(({ id }) => id === surfaceId);
   assert(surface, `Unknown surface: ${surfaceId}`);
   assert(Array.isArray(qualifiers) && qualifiers.every((text) => typeof text === "string"));
-  assert(/swept/i.test(qualifiers[0] ?? ""), `Missing sweep qualifier: ${surfaceId}`);
+  const first = surfaceId.startsWith("first-sweep-");
+  assert(
+    (first ? /first sweep|swept/i : /swept/i).test(qualifiers[0] ?? ""),
+    `Missing sweep qualifier: ${surfaceId}`,
+  );
+  const text = qualifiers[1] ?? "";
+  const states: Record<string, RegExp[]> = {
+    "first-sweep-running": [
+      /First sweep is reading the program/,
+      /6 of 13 incomplete/,
+      /waits for GitHub budget.*after 09:10/,
+      /glab is not signed in/,
+      /Open Settings/,
+    ],
+    "first-sweep-throttled": [/GitHub asked SPI Code to slow down/, /Resumes at 09:10/],
+    "first-sweep-stopped": [
+      /The first sweep stopped/,
+      /stopped while reading Workflow runs/,
+      /tries again at 09:07/,
+      /Try again/,
+      /Open Settings/,
+    ],
+    "first-sweep-stopped-saving": [
+      /The first sweep stopped/,
+      /stopped while saving/,
+      /The disk is full/,
+      /Try again/,
+      /Open Settings/,
+    ],
+    "first-sweep-place": [/Upstream opens after the first sweep/, /It is read 9th of 12/],
+    "first-sweep-evidence": [
+      /The sweep/,
+      /Sources/i,
+      /6 of 13 incomplete/,
+      /waits for GitHub budget.*after 09:10/,
+      /glab is not signed in/,
+    ],
+  };
+  for (const pattern of states[surfaceId] ?? [])
+    assert(pattern.test(text), `Missing state qualifier: ${surfaceId} (${pattern})`);
+  if (["first-sweep-running", "first-sweep-throttled", "first-sweep-place"].includes(surfaceId))
+    assert(
+      /First sweep · 9 of 12 sources done/.test(qualifiers[0] ?? ""),
+      `Missing progress qualifier: ${surfaceId}`,
+    );
+  if (surfaceId === "first-sweep-evidence")
+    assert(/swept/i.test(qualifiers[0] ?? ""), "Missing hand-over qualifier");
+  if (surfaceId === "first-sweep-refresh")
+    assert(
+      /Swept 08:02.*sweeping, 4 of 12/i.test(qualifiers[0] ?? ""),
+      "Missing refresh qualifier",
+    );
   if (surface.qualified && !["strip", "line"].includes(surfaceId))
     assert(
       /failed|incomplete|truncated/i.test(qualifiers[1] ?? ""),
@@ -279,6 +394,12 @@ export function assertSmokeViews(value: unknown): asserts value is SmokeShot[] {
         for (const [index, geometry] of shot.geometry.entries()) {
           assertSmokeGeometry(geometry);
           assert.equal(geometry.rule, rules[index], `Wrong geometry rule: ${id}`);
+          if (id === "panes" && geometry.rule === "headers")
+            assert.equal(
+              geometry.headers.length,
+              3,
+              "Header probe requires centre, Line and Detail",
+            );
         }
         if (id === "detail-related" && viewportWidth === 1440 && appearance === "light") {
           assert.equal(

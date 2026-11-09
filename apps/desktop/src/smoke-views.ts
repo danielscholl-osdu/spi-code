@@ -22,6 +22,7 @@ import {
   VIEW_SURFACES,
   VIEW_WIDTHS,
 } from "./smoke-report.js";
+import { smokeSweepProgress } from "./smoke-sweep.js";
 
 async function rendered(window: BrowserWindow, condition: string): Promise<void> {
   await window.webContents.executeJavaScript(`new Promise((resolve, reject) => {
@@ -112,16 +113,18 @@ async function measure(window: BrowserWindow, rule: SmokeGeometry["rule"]): Prom
           const style = getComputedStyle(item);
           return { rect: rect(item), borderLeft: parseFloat(style.borderLeftWidth), borderRight: parseFloat(style.borderRightWidth) };
         }) };
-      case "headers":
+      case "headers": {
+        const panes = [".middle-frame", ".line-sheet", ".right-panel"]
+          .map(selector => document.querySelector(selector)).filter(Boolean);
         return { rule: "headers", paneTop: rect(element(".middle-frame")).y,
-          panes: [".middle-frame", ".line-sheet", ".right-panel"].map(selector => {
-            const item = element(selector);
+          panes: panes.map(item => {
             const bounds = rect(item);
             const style = getComputedStyle(item);
             const left = parseFloat(style.borderLeftWidth);
             return { ...bounds, x: bounds.x + left, width: bounds.width - left - parseFloat(style.borderRightWidth) };
           }),
-          headers: [".place-header", ".line-toolbar", ".panel-tabs"].map(selector => rect(element(selector))) };
+          headers: panes.map(item => rect(item.querySelector(".pane-header"))) };
+      }
       case "settings":
         return { rule: "settings", viewport, dialog: rect(element("[role=dialog].settings")) };
       case "drag": {
@@ -175,6 +178,7 @@ export async function captureSmokeViews(
   designPath: string,
 ): Promise<SmokeShot[]> {
   const snapshot = ViewSnapshotSchema.parse(JSON.parse(readFileSync(fixturePath, "utf8")));
+  const progress = smokeSweepProgress();
   const [originalWidth, originalHeight] = window.getContentSize();
   assert(originalWidth && originalHeight, "Missing original smoke viewport");
   assert.equal(snapshot.sweptAt, "2026-11-06T14:02:00.133Z", "Views require the Nov 6 projection");
@@ -322,6 +326,36 @@ export async function captureSmokeViews(
           'document.querySelector(".readiness-code") && document.querySelector(".readiness-checked")?.textContent.trim() === "Checked 09:04"',
         );
         for (const surface of surfaces) {
+          if (surface.id === "first-sweep-running") {
+            await window.webContents.executeJavaScript(`{
+              localStorage.removeItem("spi-code.panes");
+              localStorage.removeItem("spi-code.line-sheet.pinned");
+              location.hash = "#today";
+            }`);
+            const loaded = once(window.webContents, "did-finish-load");
+            window.webContents.reload();
+            await loaded;
+            await rendered(window, 'document.querySelector(".today-first")');
+            fixture(window, "setup.state", {
+              ...ready,
+              tools: ready.tools.map((tool) =>
+                tool.tool === "glab"
+                  ? {
+                      tool: "glab",
+                      state: "signed-out",
+                      action: "signin",
+                      reason: "glab is not signed in to community.opengroup.org.",
+                    }
+                  : tool,
+              ),
+            });
+            fixture(window, "sweep.status", {
+              remaining: 123,
+              floor: 100,
+              resetAt: "2026-11-06T15:10:00.000Z",
+              deferredAreas: [{ area: "details", reason: "budget" }],
+            });
+          }
           if (surface.id !== first.id) {
             await window.webContents.executeJavaScript(
               `location.hash = ${JSON.stringify(`#${surface.route}`)}`,
@@ -330,6 +364,68 @@ export async function captureSmokeViews(
               window,
               `document.querySelector("[data-place]")?.textContent === ${JSON.stringify(surface.place)}`,
             );
+          }
+          if (surface.id.startsWith("first-sweep-")) {
+            const state =
+              surface.id === "first-sweep-throttled"
+                ? progress.throttled
+                : surface.id === "first-sweep-stopped"
+                  ? progress.stopped
+                  : surface.id === "first-sweep-stopped-saving"
+                    ? progress.stoppedSaving
+                    : progress.running;
+            if (surface.id === "first-sweep-evidence") {
+              fixture(window, "sweep.progress", progress.committed);
+              await rendered(
+                window,
+                'document.querySelector(".today-first") && document.querySelectorAll(".sweep-row").length === 12',
+              );
+              fixture(window, "view.snapshot", snapshot);
+              await rendered(
+                window,
+                'document.querySelector(".today .place-reading") && !document.querySelector(".today-leaving")',
+              );
+              await window.webContents.executeJavaScript(
+                'document.querySelector("[data-sweep-line]").click()',
+              );
+              await rendered(window, `document.querySelector(${JSON.stringify(surface.selector)})`);
+              const retained = await window.webContents.executeJavaScript(`[
+                ...document.querySelectorAll("[data-sweep-list=completed] .sweep-row")
+              ].map(row => ({ source: row.dataset.source,
+                outcome: row.querySelector(".sweep-outcome").textContent.trim() }))`);
+              assert.deepEqual(
+                retained.map((row: { source: string }) => row.source),
+                progress.committed.sources.map(({ source }) => source),
+                "Hand-over must retain all twelve sources in sweep order",
+              );
+              assert(
+                retained.every((row: { outcome: string }) => !/waiting|reading/.test(row.outcome)),
+              );
+            } else if (surface.id === "first-sweep-refresh") {
+              const brief = await window.webContents.executeJavaScript(
+                'document.querySelector(".today").outerHTML',
+              );
+              fixture(window, "sweep.progress", progress.refresh);
+              await rendered(
+                window,
+                'document.querySelector("[data-sweep-display]")?.textContent.includes("sweeping 4 of 12")',
+              );
+              assert.equal(
+                await window.webContents.executeJavaScript(
+                  'document.querySelector(".today").outerHTML',
+                ),
+                brief,
+                "A later sweep must not reflow the older brief",
+              );
+            } else {
+              fixture(window, "sweep.progress", state);
+              await rendered(
+                window,
+                surface.id === "first-sweep-place"
+                  ? 'document.querySelector(".place-before-sweep")?.textContent.includes("9th of 12")'
+                  : 'document.querySelectorAll(".today-first .sweep-row").length === 12',
+              );
+            }
           }
           if (surface.id === "line" || surface.id === "panes") {
             await window.webContents.executeJavaScript(
@@ -442,7 +538,15 @@ export async function captureSmokeViews(
               : undefined;
           const qualifiers: string[] = await window.webContents.executeJavaScript(`[
             document.getElementById(document.querySelector("[data-sweep-line]")?.getAttribute("aria-labelledby") ?? "")?.textContent ?? "",
-            document.querySelector("main .place-qualifier")?.innerText?.trim() ?? ""
+            document.querySelector(${JSON.stringify(
+              surface.id === "first-sweep-evidence"
+                ? "[data-evidence=sweep]"
+                : surface.id === "first-sweep-place"
+                  ? ".place-before-sweep"
+                  : surface.id.startsWith("first-sweep-") && surface.id !== "first-sweep-refresh"
+                    ? ".today-first"
+                    : "main .place-qualifier",
+            )})?.innerText?.replace(/\\s+/g, " ").trim() ?? ""
           ]`);
           const file = `${surface.id}-${viewportWidth}-${appearance}.png`;
           const path = join(output, file);
@@ -476,7 +580,7 @@ export async function captureSmokeViews(
             await window.webContents.executeJavaScript(
               "document.querySelector(\"[aria-label='Close Line']\").click()",
             );
-          if (["detail", "detail-related", "panes"].includes(surface.id))
+          if (["detail", "detail-related", "panes", "first-sweep-evidence"].includes(surface.id))
             await window.webContents.executeJavaScript(
               "document.querySelector(\"[aria-label='Close detail']\").click()",
             );
@@ -510,7 +614,11 @@ export async function captureSmokeViews(
 <style>body{font-family:system-ui;margin:24px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #888;padding:8px;vertical-align:top}img{width:100%}td{width:50%}</style>
 <h1>Packaged Watch views</h1><p>Nov 6 projection: ${snapshot.sweptAt}. Content bounds: 1440, 900 and 740 x 800.
 Appearance pinned in the app. Fixture clock: Nov 6, 09:04 America/Chicago.
-Setup sign-ins are intercepted fixtures, never live authentication. Only the named Related and 20-service probes vary the projection.
+Setup sign-ins are intercepted fixtures, never live authentication. Related and 20-service probes vary the projection.
+First-sweep surfaces inject schema-valid sweep.progress messages through the same smoke-only preload channel as
+view.snapshot and setup.state. This screenshot phase precedes host startup, so it cannot feed the real host progress path;
+the persisted-snapshot and supervision host proof runs separately, after these fixtures are removed.
+Only view.snapshot hands over the first-sweep list; the refresh preserves the older brief.
 These captures support the maintainer's checkpoint; the smoke gives no visual verdict.</p>
 <p><a href="design.html">design/spi-code-window-layout.html</a> is the layout authority.
 Blank gate: 640 x 400 pixels, 1024 PNG bytes, no quantized RGB bucket at 99.5%.</p>
