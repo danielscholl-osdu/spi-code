@@ -15,6 +15,7 @@ import {
   MessageChannelMain,
   type MessagePortMain,
   nativeTheme,
+  powerMonitor,
   shell,
   type UtilityProcess,
   utilityProcess,
@@ -28,6 +29,7 @@ import { smokeMessages } from "./smoke-messages.js";
 import { assertSmokeReport, assertSmokeTools, type SmokeReport } from "./smoke-report.js";
 import { HostSupervisor, hostPortCallbacks } from "./supervisor.js";
 import { createSweepTray, trayChannel } from "./tray.js";
+import { wakeSweep } from "./wake.js";
 import { bindTitleBarAppearance, windowTitleBarOptions } from "./window-chrome.js";
 import { showDestination } from "./window-navigation.js";
 
@@ -52,6 +54,7 @@ let supervisor: HostSupervisor<UtilityProcess> | undefined;
 let hostPorts: ReturnType<typeof hostPortCallbacks<MessagePortMain>> | undefined;
 let tray: ReturnType<typeof createSweepTray> | undefined;
 let relay: ReturnType<typeof trayChannel<MessagePortMain>> | undefined;
+let wake: ReturnType<typeof wakeSweep> | undefined;
 let storePath: string | undefined;
 let failing = false;
 
@@ -136,6 +139,7 @@ async function run(): Promise<void> {
     dispose: () => {
       hostPorts?.dispose();
       relay?.dispose();
+      wake?.dispose();
       tray?.dispose();
     },
     onError: fail,
@@ -172,7 +176,14 @@ async function run(): Promise<void> {
     // AU-09: the dock carries the Today count on macOS; Windows reads it in the tooltip.
     ...(process.platform === "darwin" ? { badge: (text: string) => app.dock?.setBadge(text) } : {}),
   });
-  relay = trayChannel(() => new MessageChannelMain(), tray.observe);
+  wake = wakeSweep(powerMonitor, (message) => relay?.request(message) ?? false);
+  relay = trayChannel(
+    () => new MessageChannelMain(),
+    (message) => {
+      wake?.observe(message);
+      tray?.observe(message);
+    },
+  );
   const channels: MessageChannelMain[] = [];
   hostPorts = hostPortCallbacks(() => {
     assert(relay);
@@ -380,6 +391,7 @@ async function run(): Promise<void> {
   await stopHost();
   hostPorts.dispose();
   relay.dispose();
+  wake.dispose();
   tray.dispose();
   saveReport(report);
   console.log(JSON.stringify(report, null, 2));
