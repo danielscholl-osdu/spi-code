@@ -13,6 +13,7 @@ import type {
 import { SweepSources } from "../sweep/SweepSources.js";
 import { SweepStopped } from "../sweep/SweepStopped.js";
 import type { SourceTone } from "../sweep/words.js";
+import { FailedReads } from "./FailedReads.js";
 import type { SweepLineSnapshot } from "./SweepLine.js";
 import { useNow } from "./useNow.js";
 import {
@@ -183,7 +184,7 @@ const LIST: Readonly<Record<SweepProgress["outcome"], string>> = {
 
 /**
  * The Evidence tab for the sweep: each source once, with how the newest sweep read it and when its
- * data was last read; then every failed read and the API budget.
+ * data was last read; then failed reads grouped by source and cause, and the API budget.
  */
 export function SweepEvidence({
   snapshot,
@@ -277,7 +278,7 @@ export function SweepEvidence({
       )}
       <h3>Failed reads</h3>
       {failed.length > 0 ? (
-        <EvidenceTable label="Failed reads" rows={failed.map((record) => readRow(record, at))} />
+        <FailedReads reads={failed} />
       ) : (
         <p className="panel-empty">No read failed in this sweep.</p>
       )}

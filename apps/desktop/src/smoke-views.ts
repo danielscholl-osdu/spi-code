@@ -540,6 +540,10 @@ export async function captureSmokeViews(
             );
           }
           await rendered(window, `document.querySelector(${JSON.stringify(surface.selector)})`);
+          if (surface.id === "first-sweep-evidence")
+            await window.webContents.executeJavaScript(
+              'document.querySelector(".evidence-failures").scrollIntoView({ block: "end" })',
+            );
           const geometry = [];
           for (const rule of geometryRules(surface.id, viewportWidth))
             geometry.push(await measure(window, rule));

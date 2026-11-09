@@ -10,6 +10,7 @@ import {
   type InspectResult,
   type ReadRecord,
   SweepProgressSchema,
+  SweepReasonCodeSchema,
   type SweepStatus,
 } from "@spi-code/contracts";
 import { act, type ReactNode } from "react";
@@ -72,6 +73,10 @@ const sourceRows = (container: Element) =>
     row.getAttribute("data-tone"),
     row.querySelector(".sweep-outcome")?.textContent,
   ]);
+
+const failedRows = (container: Element) => [
+  ...container.querySelectorAll<HTMLElement>('ul[aria-label="Failed reads"] .evidence-failure'),
+];
 
 async function render(node: ReactNode) {
   const container = document.createElement("div");
@@ -388,13 +393,11 @@ it("lists every source of the sweep once in plain words with state, age and comp
     ]);
     expect(row("details")?.slice(1)).toEqual(["wait", "not read yet"]);
     expect(row("fleet")?.slice(1)).toEqual(["ok", "fresh, last read 2 min ago, complete"]);
-    expect(view.rows("Failed reads")).toEqual([
-      [
-        "gitlab · osdu/platform/system/partition",
-        "read failed",
-        "http 502, showing data from 30 min ago",
-      ],
+    expect(failedRows(view.container).map((row) => row.textContent)).toEqual([
+      "✕gitlabGitLab unavailable · partition",
     ]);
+    expect(failedRows(view.container)[0]?.title).toContain("http_502");
+    expect(sweepView?.textContent).not.toContain("http 502");
     expect(sweepView?.querySelector("[data-budget]")?.textContent).toBe(
       "1,234 GitHub requests left, resets in 40 min; reads pause at 500 to keep a reserve.",
     );
@@ -509,7 +512,7 @@ it.each([
         "Failed reads",
         "API budget",
       ]);
-      expect(view.rows("Failed reads")).toHaveLength(1);
+      expect(failedRows(article)).toHaveLength(1);
       expect(article.querySelector("[data-budget]")).not.toBeNull();
     } finally {
       await view.cleanup();
@@ -539,7 +542,12 @@ it("adds no last read to a listed source whose area has not been read yet", asyn
 
 it("keeps every source name on one line in a 360 px panel, two columns and no table", async () => {
   const style = document.createElement("style");
-  style.textContent = readFileSync("apps/window/src/components/sweep/sweep.css", "utf8");
+  style.textContent = [
+    "apps/window/src/components/sweep/sweep.css",
+    "apps/window/src/components/evidence/evidence.css",
+  ]
+    .map((path) => readFileSync(path, "utf8"))
+    .join("\n");
   document.head.append(style);
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
     this: HTMLElement,
@@ -560,16 +568,33 @@ it("keeps every source name on one line in a 360 px panel, two columns and no ta
     for (const list of [committed(), null]) {
       await act(async () =>
         root.render(
-          <SweepEvidence snapshot={firstSweep()} sweep={null} completed={list} now={now} />,
+          <SweepEvidence
+            snapshot={{
+              ...firstSweep(),
+              reads: ["storage", "indexer", "search", "workflow", "indexer-queue"].map((service) =>
+                failedRead(`Azure/osdu-spi-${service}`),
+              ),
+            }}
+            sweep={null}
+            completed={list}
+            now={now}
+          />,
         ),
       );
       applyContainerRules(style.sheet as CSSStyleSheet);
-      const rows = [...panel.querySelectorAll<HTMLElement>(".sweep-row")];
-      expect(rows).toHaveLength(NAMES.length);
+      expect(panel.querySelectorAll(".sweep-row")).toHaveLength(NAMES.length);
+      const rows = [...panel.querySelectorAll<HTMLElement>(".sweep-row, .evidence-failure")];
+      expect(rows).toHaveLength(NAMES.length + 1);
       for (const row of rows) {
         expect(getComputedStyle(row).gridTemplateColumns).toBe("16px minmax(0, 1fr)");
-        expect(getComputedStyle(row.querySelector(".sweep-what") as Element).display).toBe("none");
+        const what = row.querySelector(".sweep-what");
+        if (what) expect(getComputedStyle(what).display).toBe("none");
       }
+      expect(panel.querySelector('table[aria-label="Failed reads"]')).toBeNull();
+      expect(
+        getComputedStyle(failedRows(panel)[0]?.querySelector(".sweep-outcome") as Element)
+          .gridColumn,
+      ).toBe("2");
       for (const table of panel.querySelectorAll("table"))
         for (const name of NAMES) expect(table.textContent).not.toContain(name);
     }
@@ -578,6 +603,131 @@ it("keeps every source name on one line in a 360 px panel, two columns and no ta
     frame.remove();
     style.remove();
     vi.restoreAllMocks();
+  }
+});
+
+const gatewayFailure =
+  "gh api graphql: GitHub answered HTTP 504 twice (54881 bytes of HTML, a gateway error rather than a GraphQL reply)";
+const failedRead = (object: string, failure = gatewayFailure, source = "github"): ReadRecord => ({
+  source,
+  object,
+  observedAt: minutes(1),
+  completeness: { kind: "complete" },
+  failure,
+});
+
+it("groups five gateway failures by source and cause, naming services once without core text inline", async () => {
+  const services = ["storage", "indexer", "search", "workflow", "indexer-queue"];
+  const reads = services.map((service, index) =>
+    failedRead(`Azure/osdu-spi-${service}`, gatewayFailure.replace("54881", String(54881 + index))),
+  );
+  const list = committed();
+  list.sources = list.sources.map((source) =>
+    source.source === "github"
+      ? {
+          source: "github",
+          state: "cut",
+          incomplete: { count: 0, total: 14, failed: 5 },
+          failure: `Reads failed for 5 services: ${services.join(", ")}.`,
+        }
+      : source,
+  );
+  const view = await render(
+    <SweepEvidence
+      snapshot={{ ...snapshot(areas()), reads: [...reads, ...reads] }}
+      completed={list}
+      sweep={null}
+      now={now}
+    />,
+  );
+  try {
+    const rows = failedRows(view.container);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.querySelector(".sweep-name")?.textContent).toBe("GitHub issues and PRs");
+    expect(rows[0]?.querySelector(".sweep-outcome")?.textContent).toBe(
+      `GitHub timed out · ${services.join(", ")}`,
+    );
+    expect(rows[0]?.getAttribute("data-tone")).toBe("bad");
+    expect(rows[0]?.title).toContain(gatewayFailure);
+    expect(view.container.textContent).not.toMatch(
+      /gh api graphql|HTTP 504|bytes of HTML|gateway error/,
+    );
+    expect(view.container.querySelector('[data-source="github"] .sweep-why')?.textContent).toBe(
+      `Reads failed for 5 services: ${services.join(", ")}.`,
+    );
+  } finally {
+    await view.cleanup();
+  }
+});
+
+const failureWords = {
+  signin: "signed out",
+  budget: "waits for GitHub budget",
+  throttled: "GitHub asked to slow down",
+  cadence: "not due this sweep",
+  limit: "read limit reached",
+  unavailable: "GitHub unavailable",
+  timeout: "GitHub timed out",
+  save: "could not save the sweep",
+  other: "read failed",
+};
+
+it.each([
+  ...SweepReasonCodeSchema.options.map((code) => [code, failureWords[code]]),
+  ["NOT_FOUND", "not found"],
+  ["http_401", "signed out"],
+  ["http_403", "access denied"],
+  ["http_404", "not found"],
+  ["http_429", "GitHub asked to slow down"],
+  ["http_503", "GitHub unavailable"],
+  ["a future failure code", "read failed"],
+])("uses window words for failure %s", async (failure, words) => {
+  const view = await render(
+    <SweepEvidence
+      snapshot={{ ...snapshot(areas()), reads: [failedRead("Azure/osdu-spi-storage", failure)] }}
+      sweep={null}
+      now={now}
+    />,
+  );
+  try {
+    expect(failedRows(view.container)[0]?.querySelector(".sweep-outcome")?.textContent).toBe(
+      `${words} · storage`,
+    );
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("keeps distinct sources and causes separate and two-column even in a wide panel", async () => {
+  const style = document.createElement("style");
+  style.textContent = readFileSync("apps/window/src/components/evidence/evidence.css", "utf8");
+  document.head.append(style);
+  const view = await render(
+    <SweepEvidence
+      snapshot={{
+        ...snapshot(areas()),
+        reads: [
+          failedRead("Azure/osdu-spi-storage"),
+          failedRead("Azure/osdu-spi-indexer", "NOT_FOUND"),
+          failedRead("osdu/platform/system/search", "timeout", "gitlab"),
+        ],
+      }}
+      sweep={null}
+      now={now}
+    />,
+  );
+  try {
+    const rows = failedRows(view.container);
+    expect(rows.map((row) => row.querySelector(".sweep-outcome")?.textContent)).toEqual([
+      "GitHub timed out · storage",
+      "not found · indexer",
+      "GitLab timed out · search",
+    ]);
+    for (const row of rows)
+      expect(getComputedStyle(row).gridTemplateColumns).toBe("16px minmax(0, 1fr)");
+  } finally {
+    await view.cleanup();
+    style.remove();
   }
 });
 

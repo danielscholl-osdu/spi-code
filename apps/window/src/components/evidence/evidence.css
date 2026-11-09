@@ -37,3 +37,6 @@ button.evidence-chip { border-style: solid; cursor: pointer; }
 .evidence-chip[data-tone="inferred"] { border-style: dashed; }
 .evidence-fact[data-tone="warn"] { color: var(--warning-text); }
 .evidence-fact[data-tone="bad"] { color: var(--error-text); }
+.evidence-failure { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 2px 12px; align-items: baseline; padding: 5px 0; border-bottom: 1px solid var(--border-soft); }
+.evidence-failure .sweep-mark, .evidence-failure .sweep-outcome { color: var(--error-text); }
+.evidence-failures .sweep-outcome { grid-column: 2; overflow-wrap: anywhere; }
