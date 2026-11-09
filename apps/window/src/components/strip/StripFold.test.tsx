@@ -45,18 +45,18 @@ function rect(width: number, height = 0): DOMRect {
   return { x: 0, y: 0, left: 0, top: 0, right: width, bottom: height, width, height } as DOMRect;
 }
 
+function fire() {
+  for (const [callback, targets] of observers) {
+    callback(
+      [...targets].map((target) => ({ target }) as ResizeObserverEntry),
+      {} as never,
+    );
+  }
+}
+
 /** Fires every observer, then again for what that layout changed, as the browser does. */
 async function settle() {
-  for (const _pass of [1, 2]) {
-    await act(async () => {
-      for (const [callback, targets] of observers) {
-        callback(
-          [...targets].map((target) => ({ target }) as ResizeObserverEntry),
-          {} as never,
-        );
-      }
-    });
-  }
+  for (const _pass of [1, 2]) await act(async () => fire());
 }
 
 async function relayout(change: Partial<typeof layout>) {
@@ -216,6 +216,26 @@ it("unwraps on a resize only with 24 px to spare beyond the drag area", async ()
   expect(topbar()).toBe("44px");
 });
 
+it.each([
+  ["refresh, then resize", 899, "1"],
+  ["resize, then refresh", 899, "1"],
+  ["refresh, then resize", 898, "2"],
+  ["resize, then refresh", 898, "2"],
+])("a %s of the same sweep to %i px leaves %s row(s)", async (order, first, rows) => {
+  await mount();
+  await relayout({ widths: { ...layout.widths, "environment.full": 360 } });
+  layout.widths["environment.full"] = WIDTHS["environment.full"] as number;
+  // The window has resized before either lands; whichever runs first measures the new width.
+  layout.first = first;
+  const refresh = () => act(async () => show({ ...fixture() }));
+  const resize = () => act(async () => fire());
+  for (const step of order.startsWith("refresh") ? [refresh, resize] : [resize, refresh]) {
+    await step();
+  }
+  await settle();
+  expect(strip()?.dataset.rows).toBe(rows);
+});
+
 it("unwraps on a new sweep with slack", async () => {
   await mount();
   await relayout({ widths: { ...layout.widths, "environment.full": 360 } });
@@ -251,4 +271,25 @@ it("shows every field in full with no titles added when the row has room", async
   expect(field("stopped")?.hasAttribute("title")).toBe(false);
   expect(field("environment")?.hasAttribute("title")).toBe(false);
   expect(field("due")?.hasAttribute("title")).toBe(false);
+});
+
+it("names each folded field with its unfolded text", async () => {
+  const name = (field: string) => {
+    const node = strip()?.querySelector<HTMLElement>(`[data-field="${field}"]`);
+    return node?.getAttribute("aria-label") ?? node?.textContent;
+  };
+  const folded = ["stopped", "environment", "due"];
+  layout = { ...layout, first: 1200 };
+  await mount();
+  const unfolded = folded.map(name);
+  expect(unfolded.every((text) => text && !field("stopped")?.hasAttribute("aria-label"))).toBe(
+    true,
+  );
+  await relayout({ first: 240, second: 520 });
+  expect(folded.map((name) => field(name)?.textContent)).toEqual([
+    "1 stopped",
+    "env v0.35.3",
+    "10 due",
+  ]);
+  expect(folded.map(name)).toEqual(unfolded);
 });

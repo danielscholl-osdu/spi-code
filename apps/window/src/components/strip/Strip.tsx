@@ -10,6 +10,7 @@ import { PIPS, type PipState, selectStrip } from "../../store/strip.js";
 import { watchStore } from "../../store/watch.js";
 import { clockTime, Time } from "../../time.js";
 import { SweepLine } from "../evidence/SweepLine.js";
+import { useNow } from "../evidence/useNow.js";
 import { PinMenu } from "../pin/PinMenu.js";
 import { STRIP_FIELDS, type StripField } from "./fold-plan.js";
 import { MEASURE, useFoldPlan } from "./use-fold-plan.js";
@@ -29,6 +30,7 @@ export function Strip() {
   const snapshot = useStore(watchStore, (state) => state.snapshot?.body);
   const root = useRef<HTMLDivElement>(null);
   const plan = useFoldPlan(root, snapshot);
+  const now = useNow();
   const freshness = (
     <SweepLine
       key="freshness"
@@ -60,6 +62,8 @@ export function Strip() {
   const environmentFull = environment
     ? `env ${environment.version}${environment.state ? ` ${environment.state}` : ""}`
     : "";
+  // Folded fields keep their unfolded text as their accessible name, read as <Time> reads it.
+  const dueFull = due ? `${due.count} due before ${clockTime(due.before, { now })}` : "";
   const fields: Partial<Record<"pips" | StripField, ReactNode>> = {
     ...(pips.length > 0 && {
       pips: (
@@ -100,7 +104,7 @@ export function Strip() {
           type="button"
           data-field="stopped"
           data-tone="bad"
-          {...(plan?.stopped === "count" && { title: stoppedNames })}
+          {...(plan?.stopped === "count" && { title: stoppedNames, "aria-label": stoppedNames })}
           onClick={() => openSheet()}
         >
           {plan?.stopped === "count" ? `${stopped.length} stopped` : stoppedNames}
@@ -113,7 +117,10 @@ export function Strip() {
           key="environment"
           type="button"
           data-field="environment"
-          {...(plan?.environment === "version" && { title: environmentFull })}
+          {...(plan?.environment === "version" && {
+            title: environmentFull,
+            "aria-label": environmentFull,
+          })}
           onClick={() => openSheet()}
         >
           env <b>{environment.version}</b>
@@ -145,7 +152,8 @@ export function Strip() {
           data-field="due"
           data-tone="warn"
           {...(plan?.due === "count" && {
-            title: `${due.count} due before ${clockTime(due.before)}`,
+            title: dueFull,
+            "aria-label": dueFull,
           })}
           onClick={() => openSheet()}
         >

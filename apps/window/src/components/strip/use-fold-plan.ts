@@ -104,13 +104,14 @@ export function useFoldPlan(
       const measured = measureStrip(element, last.current.pips);
       if (!measured) return;
       const before = last.current.measured;
+      const resized = before !== undefined && !sameJson(before.width, measured.width);
+      // A width change measured alongside a refresh is still a resize, so it can unwrap.
       const change =
-        trigger ??
-        (before && !sameJson(before.width, measured.width)
-          ? "resize"
-          : !sameJson(before, measured)
-            ? "content"
-            : undefined);
+        trigger === "sweep"
+          ? trigger
+          : resized
+            ? "resize"
+            : (trigger ?? (!sameJson(before, measured) ? "content" : undefined));
       if (!change) return;
       const next = planFold({
         ...measured,
