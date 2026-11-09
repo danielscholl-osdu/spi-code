@@ -58,8 +58,9 @@ and merges the figures into the latest `sweep.status`, retaining its floor and
 deferred areas. Failed budget probes report unavailable points rather than stale
 ones. Older state fixtures may omit the timestamp; tests use fixture tools and
 never a live credential or Copilot seat.
-Readiness shows Copilot, git, gh, glab and the GitHub API budget in that order,
-with no action on ready rows. Sign-in codes and GitLab tokens stay in their own
+Readiness shows Copilot, git, gh and glab in that order, with no action on ready
+rows. Settings → Sweep holds the GitHub API budget; Readiness keeps a one-line
+link to it. Sign-in codes and GitLab tokens stay in their own
 fields; waiting gh and Copilot sign-ins offer Cancel. Check all stays disabled
 until its request-correlated `setup.state` arrives after the budget read. An
 uncorrelated readiness refresh can update the Checked time without unlocking
