@@ -96,6 +96,7 @@ afterEach(async () => {
   watchStore.setState(previousWatch, true);
   window.spi = previousSpi;
   localStorage.removeItem(PINS_STORAGE_KEY);
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -611,7 +612,7 @@ it("keeps the sweep time over an older snapshot while a later sweep runs and ope
 });
 
 it("shows a newer sweep that stopped over the last completed list, with its reason and retry", async () => {
-  vi.spyOn(Date, "now").mockReturnValue(Date.parse(after(130)));
+  vi.useFakeTimers({ now: Date.parse(after(130)), toFake: ["Date"] });
   await mount();
   const done = midSweep({ first: false, sweep: "sweep-2" });
   await receive("sweep.progress", {
