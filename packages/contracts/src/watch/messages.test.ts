@@ -108,6 +108,7 @@ const progress = {
       state: "cut",
       startedAt: at,
       endedAt: "2026-11-05T06:00:52Z",
+      code: "limit",
       reason: "page limit",
       incomplete: { count: 6, total: 13 },
     },
@@ -115,15 +116,25 @@ const progress = {
     {
       source: "workflows",
       state: "deferred",
+      code: "budget",
       reason: "waits for GitHub budget",
       resumeAt: "2026-11-05T07:10:00Z",
     },
-    { source: "security", state: "skipped", reason: "read at its own cadence" },
+    {
+      source: "pulls",
+      state: "throttled",
+      startedAt: at,
+      code: "throttled",
+      reason: "GitHub asked SPI Code to slow down.",
+      resumeAt: "2026-11-05T06:04:00Z",
+    },
+    { source: "security", state: "skipped", code: "cadence", reason: "not due" },
     {
       source: "issues",
       state: "failed",
       startedAt: at,
       endedAt: at,
+      code: "signin",
       reason: "glab is not signed in.",
     },
     { source: "stack", state: "reading", startedAt: at },
@@ -218,73 +229,137 @@ const messages = [
 describe("sweep progress", () => {
   const event = messages[12];
   const parse = (payload: unknown) => parseMessage({ ...event, payload });
+  const withSource = (source: unknown) => parse({ ...progress, sources: [source] });
   const failed = {
     ...progress,
     outcome: "failed",
-    failure: "It stopped while reading Workflow runs.",
+    code: "unavailable",
+    failure: "GitHub answered with a server error.",
+    source: "stack",
     nextAttemptAt: "2026-11-05T06:07:00Z",
   } as const;
   it.each([
     ["running", progress],
     ["committed", { ...progress, outcome: "committed", usualMs: 120_000, first: false }],
     ["cancelled", { ...progress, outcome: "cancelled", sources: [] }],
-    ["failed", failed],
-    ["failed with no retry scheduled", { ...failed, nextAttemptAt: null }],
+    ["failed while reading", failed],
+    [
+      "failed while saving with no retry",
+      { ...failed, code: "save", source: undefined, nextAttemptAt: null },
+    ],
   ])("round-trips a %s state", (_, payload) => {
-    const message = { ...event, payload };
+    const message = { ...event, payload: JSON.parse(JSON.stringify(payload)) };
     expect(parseMessage(JSON.parse(JSON.stringify(message)))).toEqual({ ok: true, message });
   });
   it("rejects a failed outcome without its failure, and failure or retry on other outcomes", () => {
     const { failure, ...withoutFailure } = failed;
     expect(parse(withoutFailure).ok).toBe(false);
+    const { code, ...withoutCode } = failed;
+    expect(parse(withoutCode).ok).toBe(false);
     const { nextAttemptAt, ...withoutRetry } = failed;
     expect(parse(withoutRetry).ok).toBe(false);
-    expect(parse({ ...progress, failure }).ok).toBe(false);
-    expect(parse({ ...progress, nextAttemptAt }).ok).toBe(false);
-    expect(parse({ ...progress, outcome: "committed", nextAttemptAt }).ok).toBe(false);
+    for (const outcome of ["running", "committed", "cancelled"]) {
+      expect(parse({ ...progress, outcome }).ok).toBe(true);
+      expect(parse({ ...progress, outcome, failure, code }).ok).toBe(false);
+      expect(parse({ ...progress, outcome, nextAttemptAt }).ok).toBe(false);
+      expect(parse({ ...progress, outcome, source: "stack" }).ok).toBe(false);
+    }
+    expect(parse({ ...failed, source: "packages" }).ok).toBe(false);
   });
-  it("rejects unknown outcomes and source states", () => {
+  it("rejects unknown outcomes, source states and reason codes", () => {
     for (const outcome of ["done", "skipped", "", null]) {
       expect(parse({ ...progress, outcome }).ok).toBe(false);
     }
-    for (const state of ["throttled", "queued", "complete", ""]) {
-      expect(parse({ ...progress, sources: [{ source: "github", state }] }).ok).toBe(false);
+    for (const state of ["queued", "complete", "paused", ""]) {
+      expect(withSource({ source: "github", state }).ok).toBe(false);
     }
+    for (const code of ["auth", "502", "", null]) {
+      expect(parse({ ...failed, code }).ok).toBe(false);
+      expect(withSource({ source: "github", state: "failed", code, reason: "failed" }).ok).toBe(
+        false,
+      );
+    }
+  });
+  it("tells a throttled pause from a budget deferral", () => {
+    const pause = { source: "pulls", code: "throttled", reason: "slow down" } as const;
+    const throttled = { ...pause, state: "throttled", resumeAt: at } as const;
+    const deferred = { ...pause, state: "deferred", code: "budget" } as const;
+    expect(withSource(throttled).ok).toBe(true);
+    expect(withSource(deferred).ok).toBe(true);
+    expect(withSource({ ...deferred, resumeAt: at }).ok).toBe(true);
+    expect(withSource({ ...throttled, resumeAt: undefined }).ok).toBe(false);
+    expect(withSource({ ...throttled, endedAt: "2026-11-05T06:01:00Z" }).ok).toBe(false);
+  });
+  it.each([
+    ["incomplete on read", { source: "a", state: "read", incomplete: { count: 1, total: 2 } }],
+    ["cut without incomplete", { source: "a", state: "cut" }],
+    [
+      "incomplete on failed",
+      {
+        source: "a",
+        state: "failed",
+        code: "other",
+        reason: "x",
+        incomplete: { count: 1, total: 2 },
+      },
+    ],
+    ["resumeAt on read", { source: "a", state: "read", resumeAt: at }],
+    [
+      "resumeAt on failed",
+      { source: "a", state: "failed", code: "other", reason: "x", resumeAt: at },
+    ],
+    ["resumeAt on reading", { source: "a", state: "reading", startedAt: at, resumeAt: at }],
+    ["endedAt on reading", { source: "a", state: "reading", startedAt: at, endedAt: at }],
+    ["endedAt on waiting", { source: "a", state: "waiting", endedAt: at }],
+    ["startedAt on waiting", { source: "a", state: "waiting", startedAt: at }],
+    ["reading without startedAt", { source: "a", state: "reading" }],
+    [
+      "endedAt before startedAt",
+      { source: "a", state: "read", startedAt: at, endedAt: "2026-11-05T05:59:59Z" },
+    ],
+    ["reason on waiting", { source: "a", state: "waiting", code: "other", reason: "x" }],
+    ["reason on read", { source: "a", state: "read", code: "other", reason: "x" }],
+    ["failed without reason", { source: "a", state: "failed", code: "other" }],
+    ["failed without code", { source: "a", state: "failed", reason: "x" }],
+    ["deferred without reason", { source: "a", state: "deferred" }],
+    ["throttled without code", { source: "a", state: "throttled", reason: "x", resumeAt: at }],
+    ["skipped reason without code", { source: "a", state: "skipped", reason: "not due" }],
+    [
+      "cut code without reason",
+      { source: "a", state: "cut", code: "limit", incomplete: { count: 1, total: 2 } },
+    ],
+  ])("rejects %s", (_, source) => {
+    expect(withSource(source).ok).toBe(false);
   });
   it("rejects extra keys at every level", () => {
     const [source] = progress.sources;
-    expect(
-      parse({ ...progress, sources: [{ ...source, completeness: { kind: "complete" } }] }).ok,
-    ).toBe(false);
-    expect(
-      parse({ ...progress, sources: [{ ...source, incomplete: { count: 6, total: 13, read: 7 } }] })
-        .ok,
-    ).toBe(false);
+    expect(withSource({ ...source, completeness: { kind: "complete" } }).ok).toBe(false);
+    expect(withSource({ ...source, incomplete: { count: 6, total: 13, read: 7 } }).ok).toBe(false);
     expect(parse({ ...failed, output: "gh: HTTP 502" }).ok).toBe(false);
     expect(parseMessage({ ...messages[13], payload: { force: true } }).ok).toBe(false);
   });
   it("bounds every reason", () => {
-    const [source] = progress.sources;
+    const source = progress.sources[5];
     const bounded = "x".repeat(SWEEP_REASON_MAX_LENGTH);
     const over = `${bounded}x`;
     expect(parse({ ...failed, failure: bounded }).ok).toBe(true);
-    expect(parse({ ...progress, sources: [{ ...source, reason: bounded }] }).ok).toBe(true);
+    expect(withSource({ ...source, reason: bounded }).ok).toBe(true);
     expect(parse({ ...failed, failure: over }).ok).toBe(false);
     expect(parse({ ...failed, failure: "" }).ok).toBe(false);
-    expect(parse({ ...progress, sources: [{ ...source, reason: over }] }).ok).toBe(false);
-    expect(parse({ ...progress, sources: [{ ...source, reason: "" }] }).ok).toBe(false);
+    expect(withSource({ ...source, reason: over }).ok).toBe(false);
+    expect(withSource({ ...source, reason: "" }).ok).toBe(false);
   });
   it("rejects bad times, counts and repeated sources", () => {
     const [source] = progress.sources;
     for (const incomplete of [
       { count: 14, total: 13 },
-      { count: -1, total: 13 },
+      { count: 0, total: 13 },
       { count: 0, total: 0 },
       { count: 1.5, total: 13 },
     ]) {
-      expect(parse({ ...progress, sources: [{ ...source, incomplete }] }).ok).toBe(false);
+      expect(withSource({ ...source, incomplete }).ok).toBe(false);
     }
-    expect(parse({ ...progress, sources: [{ ...source, resumeAt: "08:04" }] }).ok).toBe(false);
+    expect(withSource({ ...progress.sources[2], resumeAt: "08:04" }).ok).toBe(false);
     expect(parse({ ...progress, usualMs: 0 }).ok).toBe(false);
     expect(parse({ ...failed, nextAttemptAt: "soon" }).ok).toBe(false);
     expect(parse({ ...progress, sources: [source, source] }).ok).toBe(false);
