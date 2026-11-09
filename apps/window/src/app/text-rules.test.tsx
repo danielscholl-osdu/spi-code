@@ -270,7 +270,7 @@ it.each(inspections)("renders the recorded Detail and Evidence for $id", async (
   assertRules(`Recorded Evidence ${result.id}`);
 });
 
-it("reads Setup's budget reset and the sweep line as local clock times with ISO attributes", async () => {
+it("reads the Sweep budget reset and the sweep line as local clock times with ISO attributes", async () => {
   const body = snapshots[0]?.body;
   if (!body) throw new Error("Missing snapshot");
   // 23:50 in Chicago, so the reset falls on the next local day there.
@@ -282,6 +282,11 @@ it("reads Setup's budget reset and the sweep line as local clock times with ISO 
     await open(body);
     await act(async () =>
       container.querySelector<HTMLButtonElement>('[data-sidebar-row="settings"]')?.click(),
+    );
+    await act(async () =>
+      [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] .settings-nav button')]
+        .find((button) => button.textContent === "Sweep")
+        ?.click(),
     );
     await act(async () =>
       watchStore.setState({
@@ -307,7 +312,7 @@ it("reads Setup's budget reset and the sweep line as local clock times with ISO 
     expect(container.querySelector(".sweep-line time")?.getAttribute("datetime")).toBe(
       body.sweptAt,
     );
-    assertRules("Setup with a budget reset");
+    assertRules("Sweep with a budget reset");
   } finally {
     vi.useRealTimers();
   }

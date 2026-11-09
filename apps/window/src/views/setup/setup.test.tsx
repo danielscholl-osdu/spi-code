@@ -120,7 +120,7 @@ const cases: [Tool["state"], Tool["action"], string][] = [
   ["classic-token", "attention", "Classic ghp_ token"],
 ];
 
-it("keeps the tool grid in fixed order with a wrapping reason, version and budget, regardless of host order", async () => {
+it("keeps the tool grid in fixed order with a wrapping reason and version, regardless of host order, and no budget row", async () => {
   const setup = state();
   setup.tools = [
     { tool: "glab", state: "installing", action: "install" },
@@ -146,7 +146,9 @@ it("keeps the tool grid in fixed order with a wrapping reason, version and budge
   await render();
   expect(
     [...container.querySelectorAll(".readiness-row")].map((row) => row.getAttribute("aria-label")),
-  ).toEqual(["Copilot", "git", "gh", "glab", "GitHub API budget"]);
+  ).toEqual(["Copilot", "git", "gh", "glab"]);
+  expect(container.textContent).not.toContain("points left");
+  expect(container.querySelector(".readiness-sweep-link")).toBeNull();
   const row = (name: string) => container.querySelector(`.readiness-row[aria-label="${name}"]`);
   for (const name of ["Copilot", "git"]) expect(row(name)?.querySelector("button")).toBeNull();
   expect(row("Copilot")?.querySelector(".readiness-why")?.textContent).toBe(
@@ -161,16 +163,6 @@ it("keeps the tool grid in fixed order with a wrapping reason, version and budge
     "Installing glab",
   );
   expect(row("glab")?.querySelector("button")).toBeNull();
-  expect(row("GitHub API budget")?.querySelector(".readiness-chip")?.textContent).toBe("Ready");
-  expect(row("GitHub API budget")?.querySelector(".readiness-why")?.textContent).toContain(
-    "4,865 points left",
-  );
-  expect(row("GitHub API budget")?.querySelector(".readiness-why")?.textContent).toContain(
-    "resets ",
-  );
-  expect(row("GitHub API budget")?.querySelector("time")?.dateTime).toBe(
-    "2026-11-08T15:36:00.000Z",
-  );
 });
 
 it.each(["copilot", "gh"] as const)(
@@ -1090,28 +1082,6 @@ it("reports clipboard failures with a manual copy fallback", async () => {
   await act(async () => button?.click());
   expect(container.textContent).toContain("Could not copy. Select and copy the text manually.");
 });
-it.each([0, 9, 10, 11])("flags points only below the reported floor: %s", async (remaining) => {
-  await receive("sweep.status", {
-    remaining,
-    floor: 10,
-    resetAt: null,
-    deferredAreas: [],
-    nextSweepAt: null,
-    schedule: sweepSchedule,
-    lastSweep: null,
-  });
-  await render();
-  const budget = container.querySelector('.readiness-row[aria-label="GitHub API budget"]');
-  expect(budget?.textContent).toContain(`${remaining} points left`);
-  expect(budget?.querySelector('[role="alert"]') !== null).toBe(remaining < 10);
-});
-
-it("distinguishes an unknown budget and floor from zero", async () => {
-  await render();
-  expect(container.textContent).toContain("Unknown points left");
-  expect(container.textContent).toContain("Pacer floor not reported");
-});
-
 it("opens Settings on Readiness when the first host state is not ready and gates every Watch route with its reason", async () => {
   await render(<Shell />);
   await receive("setup.state", state());

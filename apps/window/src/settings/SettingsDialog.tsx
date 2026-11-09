@@ -7,17 +7,21 @@ import { useStore } from "zustand";
 import type { Appearance } from "../app/appearance.js";
 import { navigate } from "../app/navigation.js";
 import { useMediaQuery } from "../components/sidebar/ui-sidebar.js";
+import { openFreshness } from "../components/sweep/reveal.js";
+import { SweepNow } from "../components/sweep/SweepNow.js";
 import { watchStore } from "../store/watch.js";
 import Setup, { ReadinessCheck } from "../views/setup/index.js";
 import { READINESS_DOT_LABEL, type ReadinessDot, readinessDot, watchNeeds } from "./readiness.js";
+import { SweepSection } from "./SweepSection.js";
 import "./settings.css";
 
 /** Below this window width the section nav folds into a picker in the dialog header. */
 export const SETTINGS_PICKER_MEDIA_QUERY = "(max-width: 759px)";
 
-export type SettingsSection = "readiness" | "appearance";
+export type SettingsSection = "readiness" | "sweep" | "appearance";
 const SECTIONS: readonly { id: SettingsSection; label: string }[] = [
   { id: "readiness", label: "Readiness" },
+  { id: "sweep", label: "Sweep" },
   { id: "appearance", label: "Appearance" },
 ];
 const THEMES: readonly { id: Appearance; label: string }[] = [
@@ -71,8 +75,8 @@ function AppearanceSection({
 }
 
 /**
- * Settings (PS-08, Setup): a dialog over the current place with Readiness, which hosts Setup, and
- * Appearance, on the section its opener chose. Escape or the close button closes it and focus
+ * Settings (PS-08, Setup): a dialog over the current place with Readiness, which hosts Setup,
+ * Sweep and Appearance, on the section its opener chose. Escape or the close button closes it and focus
  * returns to where it was.
  */
 export function SettingsDialog({
@@ -165,6 +169,15 @@ export function SettingsDialog({
               )}
               <span className="settings-spacer" />
               {section === "readiness" && <ReadinessCheck />}
+              {section === "sweep" && (
+                <SweepNow
+                  onViewSweep={() => {
+                    changeOpen(false);
+                    openFreshness(watchStore.getState().snapshot);
+                  }}
+                  onOpenReadiness={() => setSection("readiness")}
+                />
+              )}
               <Dialog.Close className="settings-close" aria-label="Close settings">
                 <span aria-hidden>✕</span>
               </Dialog.Close>
@@ -191,8 +204,10 @@ export function SettingsDialog({
                       )}
                     </div>
                   )}
-                  <Setup inSettings />
+                  <Setup inSettings onOpenSweep={() => setSection("sweep")} />
                 </>
+              ) : section === "sweep" ? (
+                <SweepSection />
               ) : (
                 <AppearanceSection theme={theme} onTheme={onTheme} />
               )}

@@ -331,11 +331,14 @@ function ToolRow({ tool }: { tool: Tool }) {
   );
 }
 
-export default function Setup({ inSettings = false }: { inSettings?: boolean }) {
+export default function Setup({
+  inSettings = false,
+  onOpenSweep,
+}: {
+  inSettings?: boolean;
+  onOpenSweep?: () => void;
+}) {
   const setup = useStore(watchStore, (state) => state.setup);
-  const sweep = useStore(watchStore, (state) => state.sweep);
-  const low =
-    sweep?.remaining != null && sweep.floor !== undefined && sweep.remaining < sweep.floor;
   return (
     <>
       {!inSettings && (
@@ -364,37 +367,12 @@ export default function Setup({ inSettings = false }: { inSettings?: boolean }) 
             </fieldset>
           );
         })}
-        <fieldset className="readiness-row" aria-label="GitHub API budget">
-          <h3 className="readiness-name">GitHub API budget</h3>
-          <p
-            className="readiness-chip"
-            data-state={sweep?.remaining == null || low ? "scope-missing" : "ready"}
-          >
-            {sweep?.remaining == null ? "Unknown" : low ? "Attention" : "Ready"}
-          </p>
-          <div className="readiness-why">
-            <p role={low ? "alert" : "status"}>
-              {sweep?.remaining == null
-                ? "Unknown points left"
-                : `${sweep.remaining.toLocaleString("en-US")} points left`}
-              {low && ` - below the pacer floor (${sweep.floor})`}
-              {sweep?.resetAt && (
-                <>
-                  {" · resets "}
-                  <Time at={sweep.resetAt} />
-                </>
-              )}
-            </p>
-            {sweep?.floor === undefined && <p>Pacer floor not reported by the host.</p>}
-            {sweep?.deferredAreas.map(({ area, reason }) => (
-              <p key={area}>
-                {area}: {reason}
-              </p>
-            ))}
-          </div>
-          <span />
-        </fieldset>
       </div>
+      {onOpenSweep && (
+        <button type="button" className="readiness-sweep-link" onClick={onOpenSweep}>
+          GitHub budget is in Sweep →
+        </button>
+      )}
     </>
   );
 }

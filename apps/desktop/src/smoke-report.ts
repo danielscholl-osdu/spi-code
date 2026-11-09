@@ -104,8 +104,7 @@ export const VIEW_SURFACES = [
     name: "Settings / Readiness",
     route: "today",
     place: "Today",
-    selector:
-      "[role=dialog] [data-settings-section=readiness] .readiness-row[aria-label='GitHub API budget']",
+    selector: "[role=dialog] [data-settings-section=readiness] .readiness-sweep-link",
     designSection: "Layout / Settings (Readiness, opened from the sidebar footer); PRD PS-08",
     qualified: false,
   },

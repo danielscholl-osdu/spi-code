@@ -1,18 +1,29 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { blocksWatch, PROTOCOL_VERSION, type SetupState } from "@spi-code/contracts";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import {
+  blocksWatch,
+  PROTOCOL_VERSION,
+  type SetupState,
+  type SweepStatus,
+  type ViewSnapshot,
+  ViewSnapshotSchema,
+} from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import briefing from "../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import releases from "../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
+import november6 from "../../../../fixtures/watch/snapshot-1106.json?raw";
 import { navigate, relaunch } from "../app/routes.js";
 import { Shell } from "../app/Shell.js";
+import { midSweep, savedSweep, sweepStatus } from "../components/sweep/test-helper.js";
 import { selectionStore } from "../panels/selection.js";
 import { testSnapshot } from "../store/test-snapshot.js";
 import { watchStore } from "../store/watch.js";
-import { clockTime } from "../time.js";
+import { clockTime, timeUnit } from "../time.js";
 
 type HappyWindow = { happyDOM: { setViewport(viewport: { width: number; height: number }): void } };
 const viewport = (width: number, height = 900) =>
@@ -448,6 +459,7 @@ it.each([740, 759])("folds the section nav into a header picker at %i px", async
     expect(picker?.value).toBe("readiness");
     expect([...(picker?.options ?? [])].map((option) => option.textContent)).toEqual([
       "Readiness",
+      "Sweep",
       "Appearance",
     ]);
     await act(async () => {
@@ -632,6 +644,332 @@ describe.each([
       const event = await comma(document.body, init, keyCode);
       expect(event.defaultPrevented).toBe(false);
       expect(dialog()).toBeNull();
+    } finally {
+      await shell.cleanup();
+    }
+  });
+});
+
+describe("the Sweep section", () => {
+  const NOW = Date.parse("2026-11-06T14:05:00.000Z");
+  const at = (time: string) => `2026-11-06T${time}.000Z`;
+  const clock = (iso: string) => clockTime(iso, { now: NOW, hint: false });
+  const lastSweep = {
+    sweep: "sweep-1",
+    startedAt: at("14:00:50"),
+    endedAt: at("14:02:02"),
+    outcome: "committed" as const,
+    requested: false,
+  };
+  const status = (overrides: Partial<SweepStatus> = {}) =>
+    sweepStatus({
+      floor: 100,
+      resetAt: at("14:37:00"),
+      nextSweepAt: at("14:08:00"),
+      lastSweep,
+      ...overrides,
+    });
+  /** The recorded 11-06 snapshot, its release reads taken at 13:32. */
+  const snapshot = (): { cursor: number; body: ViewSnapshot } => {
+    const body = ViewSnapshotSchema.parse(JSON.parse(november6));
+    return {
+      cursor: 1,
+      body: {
+        ...body,
+        provenance: body.provenance.map((entry) =>
+          entry.envelope?.source === "releases"
+            ? {
+                ...entry,
+                envelope: {
+                  source: "releases",
+                  state: "fresh",
+                  observedAt: at("13:32:00"),
+                  completeness: { kind: "complete" },
+                },
+              }
+            : entry,
+        ),
+      },
+    };
+  };
+  const oneFailed = () =>
+    midSweep({
+      first: false,
+      outcome: "committed",
+      sources: savedSweep().sources.map((source) =>
+        source.source === "upstream"
+          ? {
+              source: "upstream",
+              state: "failed",
+              startedAt: at("14:01:00"),
+              endedAt: at("14:01:01"),
+              code: "signin",
+              reason: "glab is not signed in to community.opengroup.org.",
+            }
+          : source,
+      ),
+    });
+  const previousSelection = selectionStore.getState();
+  const body = () => dialog()?.querySelector<HTMLElement>("[data-settings-section=sweep]");
+  const summary = () =>
+    [...(body()?.querySelectorAll(".sweep-summary > *") ?? [])].map((item) => item.textContent);
+  const budget = () =>
+    [...(body()?.querySelectorAll(".sweep-budget p") ?? [])].map((item) => item.textContent);
+  const openSweep = async () => {
+    await press(",");
+    await act(async () => navItem("Sweep")?.click());
+  };
+  const style = document.createElement("style");
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"], now: NOW });
+    // Vitest leaves CSS out, so the stylesheet goes in by hand to read the stacked form.
+    style.textContent = readFileSync(resolve("apps/window/src/settings/settings.css"), "utf8");
+    document.head.append(style);
+    watchStore.setState({ snapshot: snapshot(), sweep: status(), progress: oneFailed() });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    style.remove();
+    selectionStore.setState(previousSelection);
+  });
+
+  it("sits between Readiness and Appearance with the schedule, reads, budget and notifications", async () => {
+    const shell = await mountShell();
+    try {
+      await openSweep();
+      expect(
+        [...(dialog()?.querySelectorAll(".settings-nav button") ?? [])].map(
+          (button) => button.textContent,
+        ),
+      ).toEqual(["Readiness", "Sweep", "Appearance"]);
+      expect(navItem("Sweep")?.getAttribute("aria-current")).toBe("page");
+      expect(dialog()?.querySelector(".settings-crumb")?.textContent).toBe("Settings / Sweep");
+      expect(dialog()?.querySelector("header .sweep-now > button")?.textContent).toBe("Sweep now");
+      expect(dialog()?.querySelector("header .readiness-check")).toBeNull();
+      expect(
+        [...(body()?.querySelectorAll(".readiness-group-title") ?? [])].map(
+          (title) => title.textContent,
+        ),
+      ).toEqual(["Schedule", "What a sweep reads", "GitHub budget", "Notifications"]);
+      expect(summary()).toEqual([
+        "Last sweep",
+        `${clock(at("14:02:02"))} · took ${timeUnit(1, "min")} ${timeUnit(12, "s")} · 1 source failed`,
+        "Next sweep",
+        clockTime(at("14:08:00"), { now: NOW }),
+      ]);
+      expect(summary()[3]).toContain(`(in ${timeUnit(3, "min")})`);
+      expect(
+        [...(body()?.querySelectorAll(".sweep-reads th") ?? [])].map((th) => th.textContent),
+      ).toEqual(["Source", "How often", "Last read"]);
+      expect(
+        [...(body()?.querySelectorAll(".sweep-reads tbody tr") ?? [])].map((row) =>
+          [...row.querySelectorAll("td")].map((cell) => cell.textContent),
+        ),
+      ).toEqual([
+        [
+          "Sign-in, Fleet membership, GitHub issues and PRs, Workflow runs, Run approvals, Stack lifecycle runs, Template, Run details",
+          "every sweep",
+          `last read ${clock("2026-11-06T14:02:01.332Z")}`,
+        ],
+        [
+          "Upstream GitLab, Upstream radar",
+          `every ${timeUnit(30, "min")}`,
+          `last read ${clock("2026-11-06T13:31:37.502Z")}`,
+        ],
+        ["Security alerts", `every ${timeUnit(30, "min")}`, "last read not read yet"],
+        ["Release lines", "every hour", `last read ${clock(at("13:32:00"))}`],
+      ]);
+      expect(budget()).toEqual([
+        `4,865 points left · resets ${clockTime(at("14:37:00"), { now: NOW })}`,
+        "Below 100 points, GitHub reads wait for the reset so sweeps never spend what your own gh use needs.",
+      ]);
+      expect(body()?.querySelector(".sweep-budget [role=alert]")).toBeNull();
+      expect([...(body()?.querySelectorAll(".sweep-prose") ?? [])].at(-1)?.textContent).toBe(
+        "SPI Code tells you when a sweep finds something new that needs you, or when it can no longer read the program. Routine sweeps are quiet. Your system's notification settings control sound and quiet hours.",
+      );
+    } finally {
+      await shell.cleanup();
+    }
+  });
+
+  it.each([
+    ["has passed", { nextSweepAt: at("14:04:59") }, true],
+    ["is now", { nextSweepAt: at("14:05:00") }, true],
+    ["is not armed", { nextSweepAt: null }, true],
+    ["comes before the first snapshot", {}, false],
+  ] as const)("shows no Next line when the next sweep %s", async (_, overrides, snapshotted) => {
+    watchStore.setState({
+      sweep: status(overrides),
+      ...(snapshotted ? {} : { snapshot: null }),
+    });
+    const shell = await mountShell();
+    try {
+      await openSweep();
+      expect(summary()).toEqual([
+        "Last sweep",
+        `${clock(at("14:02:02"))} · took ${timeUnit(1, "min")} ${timeUnit(12, "s")} · 1 source failed`,
+      ]);
+      expect(body()?.textContent).not.toContain("Next sweep");
+    } finally {
+      await shell.cleanup();
+    }
+  });
+
+  it("names a stopped or unfinished last sweep, an unknown or low budget and never an expired reset", async () => {
+    watchStore.setState({
+      sweep: status({ lastSweep: null, remaining: null, resetAt: at("14:00:00") }),
+    });
+    const shell = await mountShell();
+    try {
+      await openSweep();
+      expect(summary().slice(0, 2)).toEqual(["Last sweep", "none since SPI Code opened"]);
+      expect(budget()[0]).toBe("GitHub budget not reported yet.");
+      expect(body()?.textContent).not.toContain("points left");
+      await act(async () =>
+        watchStore.setState({
+          sweep: status({
+            lastSweep: { ...lastSweep, outcome: "cancelled" },
+            remaining: 42,
+            resetAt: at("14:00:00"),
+            deferredAreas: [{ area: "details", reason: "budget_floor" }],
+          }),
+        }),
+      );
+      expect(summary()[1]).toBe(
+        `${clock(at("14:02:02"))} · took ${timeUnit(1, "min")} ${timeUnit(12, "s")} · stopped`,
+      );
+      expect(budget()).toEqual([
+        "42 points left · below the floor",
+        "Below 100 points, GitHub reads wait for the reset so sweeps never spend what your own gh use needs.",
+        "Run details: budget floor",
+      ]);
+      expect(body()?.querySelector(".sweep-budget [role=alert]")?.textContent).toBe(
+        "42 points left · below the floor",
+      );
+    } finally {
+      await shell.cleanup();
+    }
+  });
+
+  it.each([0, 9, 10, 11])("flags points only below the reported floor: %s", async (remaining) => {
+    watchStore.setState({ sweep: status({ remaining, floor: 10, resetAt: null }) });
+    const shell = await mountShell();
+    try {
+      await openSweep();
+      expect(budget()[0]).toBe(
+        `${remaining} points left${remaining < 10 ? " · below the floor" : ""}`,
+      );
+      expect(body()?.querySelector(".sweep-budget [role=alert]") !== null).toBe(remaining < 10);
+    } finally {
+      await shell.cleanup();
+    }
+  });
+
+  it("tells an unreported floor from a zero floor and never flags against it", async () => {
+    watchStore.setState({ sweep: status({ remaining: 0, floor: undefined, resetAt: null }) });
+    const shell = await mountShell();
+    try {
+      await openSweep();
+      expect(budget()).toEqual(["0 points left", "The budget floor is not reported by the host."]);
+      expect(body()?.querySelector(".sweep-budget [role=alert]")).toBeNull();
+      await act(async () => watchStore.setState({ sweep: status({ remaining: 0, floor: 0 }) }));
+      expect(budget()[1]).toBe(
+        "Below 0 points, GitHub reads wait for the reset so sweeps never spend what your own gh use needs.",
+      );
+    } finally {
+      await shell.cleanup();
+    }
+  });
+
+  it.each([
+    ["Mozilla/5.0 (Macintosh; Mac OS X)", "this Mac"],
+    ["Mozilla/5.0 (Windows NT 10.0)", "Windows"],
+  ])("words the wake on %s", async (userAgent, wakes) => {
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue(userAgent);
+    const shell = await mountShell();
+    try {
+      await press(",", userAgent.includes("Mac") ? { metaKey: true } : { ctrlKey: true });
+      await act(async () => navItem("Sweep")?.click());
+      expect(body()?.querySelector(".sweep-prose")?.textContent).toBe(
+        `A sweep starts every 5\u00a0minutes while SPI Code is open, and when ${wakes} wakes. The top row's "next sync" is the forks' upstream sync, not a sweep.`,
+      );
+    } finally {
+      await shell.cleanup();
+    }
+  });
+
+  it("folds into the Sweep picker at 740 px and moves how often and last read under each source", async () => {
+    const display = (selector: string) => {
+      const element = body()?.querySelector(selector);
+      return element ? getComputedStyle(element).display : undefined;
+    };
+    const shell = await mountShell();
+    try {
+      await openSweep();
+      expect(display(".sweep-reads thead")).not.toBe("none");
+      expect(display(".sweep-reads .mobile-label")).toBe("none");
+      await close();
+      viewport(740);
+      await press(",");
+      const picker = dialog()?.querySelector<HTMLSelectElement>(
+        'header select[aria-label="Settings section"]',
+      );
+      expect(picker?.value).toBe("sweep");
+      expect(picker?.selectedOptions[0]?.textContent).toBe("Sweep");
+      expect(dialog()?.dataset.layout).toBe("picker");
+      expect(dialog()?.querySelector("header .sweep-now > button")?.textContent).toBe("Sweep now");
+      expect(display(".sweep-reads thead")).toBe("none");
+      expect(display(".sweep-reads tbody tr")).toBe("grid");
+      expect(display(".sweep-reads .mobile-label")).toBe("inline");
+      const first = body()?.querySelector<HTMLElement>(".sweep-reads tbody td");
+      expect(first && getComputedStyle(first).gridColumn).toBe("1 / -1");
+    } finally {
+      await shell.cleanup();
+    }
+  });
+
+  it("leaves Readiness without the budget row and with a link that opens Sweep", async () => {
+    const shell = await mountShell();
+    try {
+      await press(",");
+      expect(section()?.dataset.settingsSection).toBe("readiness");
+      expect(section()?.querySelector(".readiness-row[aria-label='GitHub API budget']")).toBeNull();
+      expect(section()?.textContent).not.toContain("points left");
+      const link = section()?.querySelector<HTMLButtonElement>(".readiness-sweep-link");
+      expect(link?.textContent).toBe("GitHub budget is in Sweep →");
+      await act(async () => link?.click());
+      expect(section()?.dataset.settingsSection).toBe("sweep");
+      expect(navItem("Sweep")?.getAttribute("aria-current")).toBe("page");
+      await act(async () =>
+        watchStore.setState({ setup: tools(["ready", "ready", "signed-out", "ready"]) }),
+      );
+      const readiness = [
+        ...(dialog()?.querySelectorAll<HTMLButtonElement>("header .sweep-now button") ?? []),
+      ].find((button) => button.textContent === "Open Readiness.");
+      await act(async () => readiness?.click());
+      expect(section()?.dataset.settingsSection).toBe("readiness");
+    } finally {
+      await shell.cleanup();
+    }
+  });
+
+  it("closes the dialog and opens the sweep's Evidence from View live sweep", async () => {
+    watchStore.setState({ progress: midSweep({ first: false }) });
+    const shell = await mountShell();
+    try {
+      await openSweep();
+      const view = dialog()?.querySelector<HTMLButtonElement>("header .sweep-now-view");
+      expect(view?.textContent).toBe("View live sweep →");
+      await act(async () => view?.click());
+      expect(dialog()).toBeNull();
+      expect(selectionStore.getState()).toMatchObject({
+        open: true,
+        tab: "evidence",
+        evidenceScope: "sweep",
+      });
     } finally {
       await shell.cleanup();
     }
