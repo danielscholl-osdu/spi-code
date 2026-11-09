@@ -77,6 +77,46 @@ it("does not mistake a newer cursor from an older sweep for the requested commit
   expect(store.getState().sweepRequest).toBeNull();
 });
 
+it("accepts a later committed snapshot when the requested sweep's last status is unchanged", () => {
+  const store = createWatchStore(vi.fn());
+  const receive = store.getState().receive;
+  receive(sweepEvent("view.snapshot", committed(1, after(-300))));
+  store.getState().requestSweepNow();
+  receive(sweepEvent("sweep.progress", savedSweep()));
+  receive(status());
+  expect(store.getState().sweepRequest).not.toBeNull();
+  receive(sweepEvent("view.snapshot", committed(2, after(160))));
+  expect(store.getState().sweepRequest).toBeNull();
+  expect(store.getState().sweep?.lastSweep).toEqual(last);
+});
+
+it.each(["committed", "failed", "cancelled"] as const)(
+  "releases a tracked %s sweep that was not requested without waiting for its snapshot",
+  (outcome) => {
+    const send = vi.fn();
+    const store = createWatchStore(send);
+    const receive = store.getState().receive;
+    store.getState().requestSweepNow();
+    receive(sweepEvent("sweep.progress", midSweep({ first: false })));
+    const progress =
+      outcome === "failed"
+        ? midSweep({ outcome, code: "save", failure: "Could not save.", nextAttemptAt: after(430) })
+        : midSweep({ outcome });
+    receive(sweepEvent("sweep.progress", progress));
+    receive(
+      status(
+        outcome === "failed"
+          ? { ...last, requested: false, outcome, code: "save" }
+          : { ...last, requested: false, outcome },
+      ),
+    );
+    expect(store.getState().sweepRequest).toBeNull();
+    expect(store.getState().sweepRequestError).toBeNull();
+    store.getState().requestSweepNow();
+    expect(send).toHaveBeenCalledTimes(2);
+  },
+);
+
 it("joins a non-forced sweep without queuing a forced follow-up or inventing a cooldown", () => {
   const send = vi.fn();
   const store = createWatchStore(send);

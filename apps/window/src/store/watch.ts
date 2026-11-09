@@ -75,11 +75,11 @@ type WatchState = {
 
 const selectionOf = (selected: string | null) => (selected === null ? null : { id: selected });
 
-/** A committed snapshot belongs to this sweep, not an earlier retained brief. */
+/** A committed snapshot is from this sweep or a later read, not an earlier retained brief. */
 export function hasSweepSnapshot(snapshot: Snapshot | null, sweep: LastSweep): boolean {
   if (!snapshot) return false;
   const at = Date.parse(snapshot.body.sweptAt);
-  return at >= Date.parse(sweep.startedAt) && at <= Date.parse(sweep.endedAt);
+  return at >= Date.parse(sweep.startedAt);
 }
 
 function trackSweepRequest(state: WatchState): SweepRequest | null {
@@ -97,11 +97,12 @@ function trackSweepRequest(state: WatchState): SweepRequest | null {
     request = { ...request, sweep };
   }
   if (
-    last?.requested &&
+    last &&
     last.sweep === request.sweep &&
     progress?.sweep === request.sweep &&
     progress.outcome === last.outcome &&
-    (last.outcome !== "committed" ||
+    (!last.requested ||
+      last.outcome !== "committed" ||
       (state.snapshot !== null &&
         (state.snapshot.cursor > request.afterCursor || request.joined) &&
         hasSweepSnapshot(state.snapshot, last)))

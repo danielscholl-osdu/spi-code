@@ -75,39 +75,42 @@ export function SweepNow({
       {live ? "View live sweep →" : "View sweep →"}
     </button>
   );
-  const feedback = disconnected ? (
-    "Reconnecting to the host."
-  ) : notReady ? (
-    <>
-      Watch is not ready.{" "}
-      <button type="button" className="sweep-now-readiness" onClick={onOpenReadiness}>
-        Open Readiness.
-      </button>
-    </>
-  ) : running ? (
-    view(true)
-  ) : waitingForSnapshot ? (
-    "Waiting for saved sweep."
-  ) : sweepRequest ? (
-    "Requesting sweep."
-  ) : requested && saved ? (
-    <>
-      Sweep saved at{" "}
-      <time dateTime={requested.endedAt}>{clockTime(requested.endedAt, { now, hint: false })}</time>
-      {failures > 0 ? ` · ${failures} ${failures === 1 ? "source" : "sources"} failed. ` : "."}
-      {failures > 0 && view()}
-    </>
-  ) : requested && requested.outcome !== "committed" ? (
-    <>
-      Sweep stopped.{" "}
-      {next && (
-        <>
-          Next attempt at <time dateTime={next}>{clockTime(next, { now, hint: false })}</time>.{" "}
-        </>
-      )}
-      {view()}
-    </>
-  ) : null;
+  const feedback =
+    setup === null ? null : disconnected ? (
+      "Reconnecting to the host."
+    ) : notReady ? (
+      <>
+        Watch is not ready.{" "}
+        <button type="button" className="sweep-now-readiness" onClick={onOpenReadiness}>
+          Open Readiness.
+        </button>
+      </>
+    ) : running ? (
+      view(true)
+    ) : waitingForSnapshot ? (
+      "Waiting for saved sweep."
+    ) : sweepRequest ? (
+      "Requesting sweep."
+    ) : requested && saved ? (
+      <>
+        Sweep saved at{" "}
+        <time dateTime={requested.endedAt}>
+          {clockTime(requested.endedAt, { now, hint: false })}
+        </time>
+        {failures > 0 ? ` · ${failures} ${failures === 1 ? "source" : "sources"} failed. ` : "."}
+        {failures > 0 && view()}
+      </>
+    ) : requested && requested.outcome !== "committed" ? (
+      <>
+        Sweep stopped.{" "}
+        {next && (
+          <>
+            Next attempt at <time dateTime={next}>{clockTime(next, { now, hint: false })}</time>.{" "}
+          </>
+        )}
+        {view()}
+      </>
+    ) : null;
   return (
     <div className="sweep-now">
       <button
@@ -127,7 +130,9 @@ export function SweepNow({
       </button>
       <div id={statusId} role="status" className="sweep-now-status">
         {feedback && <p>{feedback}</p>}
-        {!disconnected && sweep.remaining === null && <p>GitHub budget not reported yet.</p>}
+        {setup !== null && !disconnected && sweep.remaining === null && (
+          <p>GitHub budget not reported yet.</p>
+        )}
       </div>
       {sweepRequestError && <p role="alert">{sweepRequestError}</p>}
     </div>

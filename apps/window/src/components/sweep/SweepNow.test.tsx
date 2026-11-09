@@ -32,6 +32,7 @@ async function harness({
   first = false,
   connected = true,
   ready = true,
+  knownSetup = true,
   initialStatus = sweepStatus(),
 } = {}) {
   const send = vi.fn();
@@ -40,11 +41,12 @@ async function harness({
     act(async () => store.getState().receive(sweepEvent(type, payload)));
   if (!first) await receive("view.snapshot", { ...snapshot, cursor: 1, sweptAt: after(-300) });
   if (connected) await receive("sweep.status", initialStatus);
-  await receive("setup.state", {
-    tools: [],
-    watchReady: ready,
-    disabledReason: ready ? null : "Install git",
-  });
+  if (knownSetup)
+    await receive("setup.state", {
+      tools: [],
+      watchReady: ready,
+      disabledReason: ready ? null : "Install git",
+    });
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -132,6 +134,49 @@ it("does not claim saved on terminal progress or an older snapshot, then uses th
   await act(async () => vi.advanceTimersByTimeAsync(30_000));
   expect(h.container.textContent).toContain(`Sweep saved at ${clock(after(130))}.`);
 });
+
+it.each([false, true])(
+  "keeps the requested saved line after a later snapshot, including reload = %s",
+  async (reload) => {
+    let h = await harness();
+    await act(async () => h.button()?.click());
+    await h.finish(savedSweep());
+    const status = h.store.getState().sweep;
+    const progress = h.store.getState().progress;
+    expect(h.button()?.disabled).toBe(false);
+    if (reload) {
+      h = await harness();
+      await h.receive("sweep.progress", progress);
+      await h.receive("sweep.status", status);
+    }
+    vi.setSystemTime(SWEEP_START + 160_000);
+    await h.receive("view.snapshot", { ...snapshot, cursor: 3, sweptAt: after(160) });
+    expect(h.button()?.disabled).toBe(false);
+    expect(h.container.textContent).toContain(`Sweep saved at ${clock(after(130))}.`);
+    expect(h.container.textContent).not.toContain("Waiting for saved sweep.");
+  },
+);
+
+it.each([false, true])(
+  "releases the tracked sweep and gives completion feedback only when requested = %s",
+  async (requested) => {
+    const h = await harness();
+    if (requested) await h.receive("sweep.progress", midSweep({ first: false }));
+    await act(async () => h.store.getState().requestSweepNow());
+    if (!requested) await h.receive("sweep.progress", midSweep({ first: false }));
+    expect(h.button()?.disabled).toBe(true);
+    await h.finish(savedSweep(), { requested, commit: requested });
+    expect(h.store.getState().sweepRequest).toBeNull();
+    expect(h.button()?.disabled).toBe(false);
+    expect(h.send).toHaveBeenCalledTimes(1);
+    if (requested) {
+      expect(h.container.textContent).toContain(`Sweep saved at ${clock(after(130))}.`);
+    } else {
+      expect(h.container.querySelector('[role="status"]')?.textContent).toBe("");
+      expect(h.container.textContent).not.toMatch(/Requesting sweep|saved|stopped/);
+    }
+  },
+);
 
 it.each([1, 2])(
   "counts %s failed sources, including partial reads, and offers View sweep",
@@ -269,6 +314,20 @@ it("disables for Watch readiness and opens Readiness without a request", async (
   );
   expect(h.onOpenReadiness).toHaveBeenCalledTimes(1);
   expect(h.send).not.toHaveBeenCalled();
+});
+
+it("keeps the button disabled with no feedback until the first readiness state arrives", async () => {
+  const h = await harness({
+    knownSetup: false,
+    initialStatus: sweepStatus({ remaining: null }),
+  });
+  expect(h.button()?.disabled).toBe(true);
+  expect(h.container.querySelector('[role="status"]')?.textContent).toBe("");
+  expect(h.container.querySelector(".sweep-now-readiness")).toBeNull();
+  expect(h.send).not.toHaveBeenCalled();
+  await h.receive("setup.state", { tools: [], watchReady: true, disabledReason: null });
+  expect(h.button()?.disabled).toBe(false);
+  expect(h.container.textContent).toContain("GitHub budget not reported yet.");
 });
 
 it("reports an unknown budget without blocking reads or promising the expired reset", async () => {
