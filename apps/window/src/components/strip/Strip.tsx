@@ -11,6 +11,7 @@ import { clockTime, Time } from "../../time.js";
 import { firstSweepForms, SweepLine } from "../evidence/SweepLine.js";
 import { useNow } from "../evidence/useNow.js";
 import { PinMenu } from "../pin/PinMenu.js";
+import { useSidebar } from "../sidebar/ui-sidebar.js";
 import { openFreshness } from "../sweep/reveal.js";
 import { STRIP_FIELDS, type StripField } from "./fold-plan.js";
 import { MEASURE, useFoldPlan } from "./use-fold-plan.js";
@@ -30,7 +31,8 @@ export function Strip() {
   const snapshot = useStore(watchStore, (state) => state.snapshot?.body);
   const progress = useStore(watchStore, (state) => state.progress);
   const root = useRef<HTMLDivElement>(null);
-  const plan = useFoldPlan(root, snapshot);
+  const { isMobile } = useSidebar();
+  const plan = useFoldPlan(root, snapshot, isMobile);
   const now = useNow();
   const freshness = (
     <SweepLine

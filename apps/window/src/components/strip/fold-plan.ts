@@ -58,13 +58,18 @@ export type FoldInput = {
   width: { first: number; second: number };
   /** The gap between neighbouring pips and fields. */
   gap: number;
+  /**
+   * The window is in its narrow layout, too narrow for the sidebar beside the middle column, where
+   * the first sweep's freshness takes its short form whatever room the row has.
+   */
+  narrow?: boolean;
   change: FoldChange;
   previous?: FoldPlan | undefined;
 };
 
 /**
  * Levels, each keeping every step before it: 0 nothing folded, 1 stopped names fold to a count and the
- * first sweep's freshness to its short form, 2 the pips shrink, 3 due, next sync and freshness wrap, 4 template wraps too, 5 environment, 6 stopped.
+ * first sweep's freshness to its short form (already short in the narrow layout), 2 the pips shrink, 3 due, next sync and freshness wrap, 4 template wraps too, 5 environment, 6 stopped.
  */
 export type FoldLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 /** How far the second row shortens its fields: 1 environment to its version, 2 due to its count too. */
@@ -113,6 +118,7 @@ function fieldWidth(
   name: "pips" | StripField,
   level: FoldLevel,
   shorten: FoldShorten,
+  narrow: boolean,
 ): number {
   switch (name) {
     case "pips":
@@ -126,7 +132,7 @@ function fieldWidth(
     case "freshness": {
       const freshness = fields.freshness;
       if (typeof freshness !== "object") return freshness ?? 0;
-      return level >= 1 ? freshness.short : freshness.full;
+      return level >= 1 || narrow ? freshness.short : freshness.full;
     }
     default:
       return fields[name] ?? 0;
@@ -139,9 +145,13 @@ function runWidth(
   level: FoldLevel,
   shorten: FoldShorten,
   gap: number,
+  narrow: boolean,
 ): number {
   if (names.length === 0) return 0;
-  const sum = names.reduce((total, name) => total + fieldWidth(fields, name, level, shorten), 0);
+  const sum = names.reduce(
+    (total, name) => total + fieldWidth(fields, name, level, shorten, narrow),
+    0,
+  );
   return sum + gap * (names.length - 1);
 }
 
@@ -150,9 +160,16 @@ function runWidth(
  * row and fit the second. A content change never unfolds the previous plan; a resize or a new sweep
  * unfolds or unwraps only to a step that fits with UNFOLD_SLACK to spare.
  */
-export function planFold({ fields, width, gap, change, previous }: FoldInput): FoldPlan {
+export function planFold({
+  fields,
+  width,
+  gap,
+  narrow = false,
+  change,
+  previous,
+}: FoldInput): FoldPlan {
   const firstNeeds = (level: FoldLevel) =>
-    runWidth(fields, rows(fields, level).first, level, 0, gap);
+    runWidth(fields, rows(fields, level).first, level, 0, gap, narrow);
   const fitsFirst = (level: FoldLevel, slack: number) =>
     width.first - firstNeeds(level) >= DRAG_AREA + slack;
   const lowestLevel = (slack: number) => LEVELS.find((level) => fitsFirst(level, slack)) ?? 6;
@@ -160,7 +177,7 @@ export function planFold({ fields, width, gap, change, previous }: FoldInput): F
 
   const { first, second } = rows(fields, level);
   const fitsSecond = (shorten: FoldShorten, slack: number) =>
-    width.second - runWidth(fields, second, level, shorten, gap) >= slack;
+    width.second - runWidth(fields, second, level, shorten, gap, narrow) >= slack;
   const lowestShorten = (slack: number) =>
     SHORTENS.find((shorten) => fitsSecond(shorten, slack)) ?? 2;
   const shorten = second.length === 0 ? 0 : hold(lowestShorten, previous?.shorten, change);
@@ -172,7 +189,7 @@ export function planFold({ fields, width, gap, change, previous }: FoldInput): F
     stopped: level >= 1 ? "count" : "names",
     environment: shorten >= 1 && second.includes("environment") ? "version" : "full",
     due: shorten >= 2 && second.includes("due") ? "count" : "full",
-    freshness: level >= 1 && typeof fields.freshness === "object" ? "short" : "full",
+    freshness: (level >= 1 || narrow) && typeof fields.freshness === "object" ? "short" : "full",
     first,
     second,
     free: width.first - firstNeeds(level),

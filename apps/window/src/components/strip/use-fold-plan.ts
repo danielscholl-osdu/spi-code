@@ -40,7 +40,7 @@ export const MEASURE = {
   freshnessShort: "freshness.short",
 } as const;
 
-type Measured = Omit<FoldInput, "change" | "previous">;
+type Measured = Omit<FoldInput, "change" | "previous" | "narrow">;
 
 const widthOf = (element: Element | null) => element?.getBoundingClientRect().width;
 
@@ -91,25 +91,37 @@ const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringif
 
 /**
  * The top row's fold plan (PS-18), re-planned when the snapshot changes and whenever the row or a
- * field resizes. `undefined` until the row has been measured. Before the first snapshot it plans the
- * freshness field alone; the first snapshot plans afresh.
+ * field resizes, or when the window enters or leaves its narrow layout. `undefined` until the row has
+ * been measured. Before the first snapshot it plans the freshness field alone; the first snapshot
+ * plans afresh.
  */
 export function useFoldPlan(
   root: RefObject<HTMLElement | null>,
   snapshot: { sweptAt: string; stations: readonly unknown[] } | undefined,
+  narrow = false,
 ): FoldPlan | undefined {
   const [state, setState] = useState<{ plan: FoldPlan; snapshot: boolean }>();
-  const last = useRef<{ plan?: FoldPlan; measured?: Measured; sweep?: string; pips: number }>({
-    pips: 0,
-  });
+  const last = useRef<{
+    plan?: FoldPlan;
+    measured?: Measured & { narrow: boolean };
+    sweep?: string;
+    pips: number;
+  }>({ pips: 0 });
+  const layout = useRef(narrow);
+  useLayoutEffect(() => {
+    layout.current = narrow;
+  }, [narrow]);
   const replan = useCallback(
     (trigger?: StripTrigger) => {
       const element = root.current;
       if (!element) return;
-      const measured = measureStrip(element, last.current.pips);
-      if (!measured) return;
+      const measuredRow = measureStrip(element, last.current.pips);
+      if (!measuredRow) return;
+      const measured = { ...measuredRow, narrow: layout.current };
       const before = last.current.measured;
-      const resized = before !== undefined && !sameJson(before.width, measured.width);
+      const resized =
+        before !== undefined &&
+        (!sameJson(before.width, measured.width) || before.narrow !== measured.narrow);
       // A width change measured alongside a refresh is still a resize, so it can unwrap.
       const change =
         trigger === "sweep"
@@ -172,6 +184,10 @@ export function useFoldPlan(
     last.current.sweep = snapshot.sweptAt;
     replan(trigger);
   }, [snapshot, replan]);
+
+  useLayoutEffect(() => {
+    if (last.current.measured && last.current.measured.narrow !== narrow) replan();
+  }, [narrow, replan]);
 
   return state && state.snapshot === (snapshot !== undefined) ? state.plan : undefined;
 }

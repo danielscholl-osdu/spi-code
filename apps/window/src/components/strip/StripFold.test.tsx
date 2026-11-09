@@ -335,3 +335,33 @@ it("lets the fold plan, not the window width, shorten the first sweep's count", 
     window.innerWidth = width;
   }
 });
+
+it("shortens the first sweep's count in the narrow layout, where the sidebar leaves the row", async () => {
+  const width = window.innerWidth;
+  const resize = async (to: number, first: number) => {
+    window.innerWidth = to;
+    layout = { ...layout, first };
+    await act(async () => window.dispatchEvent(new Event("resize")));
+    await settle();
+  };
+  try {
+    window.innerWidth = 740;
+    watchStore.setState({ snapshot: null, progress: midSweep() });
+    layout = {
+      ...layout,
+      first: 574,
+      widths: { ...layout.widths, "freshness.full": 121, "freshness.short": 55 },
+    };
+    await mount();
+    const shown = () => field("freshness")?.querySelector("[data-sweep-display]")?.textContent;
+    expect(container.querySelector(".shell")?.getAttribute("data-layout")).toBe("narrow");
+    expect(shown()).toBe("9 of 12");
+    expect(field("freshness")?.title).toBe("First sweep · 9 of 12 sources done");
+    await resize(900, 734);
+    expect(shown()).toBe("sweeping · 9 of 12");
+    await resize(740, 574);
+    expect(shown()).toBe("9 of 12");
+  } finally {
+    window.innerWidth = width;
+  }
+});

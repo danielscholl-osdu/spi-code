@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { readFileSync } from "node:fs";
 import { type SweepProgress, SweepProgressSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -15,9 +16,9 @@ afterEach(async () => {
   for (const cleanup of cleanups.splice(0)) await cleanup();
 });
 
-async function render(progress: SweepProgress, seconds = 130) {
+async function render(progress: SweepProgress, seconds = 130, host: Element = document.body) {
   const container = document.createElement("div");
-  document.body.append(container);
+  host.append(container);
   const root = createRoot(container);
   const onOpenSettings = vi.fn();
   await act(async () =>
@@ -244,4 +245,76 @@ it("marks skipped and put-off sources, with a put-off reason on the next line", 
     "Read less often.",
   );
   expect(container.querySelector(".sweep-meta")?.textContent).toBe("2 min 10 s so far");
+});
+
+/** The nearest ancestor a container query with this name would query, as the browser picks it. */
+function queryContainer(element: Element, name: string | undefined) {
+  for (let node = element.parentElement; node; node = node.parentElement) {
+    const style = getComputedStyle(node);
+    const [names, type] = style.getPropertyValue("container").includes("/")
+      ? style.getPropertyValue("container").split("/")
+      : [style.getPropertyValue("container-name"), style.getPropertyValue("container-type")];
+    if (!/\b(inline-size|size)\b/.test(type ?? "")) continue;
+    if (name === undefined || (names ?? "").trim().split(/\s+/).includes(name)) return node;
+  }
+  return null;
+}
+
+/** happy-dom skips @container rules, so this applies the stylesheet's own ones inline. */
+function applyContainerRules(sheet: CSSStyleSheet) {
+  for (const rule of sheet.cssRules) {
+    if (!rule.cssText.startsWith("@container")) continue;
+    const { conditionText, cssRules } = rule as CSSConditionRule;
+    const query = /^(?:([\w-]+)\s+)?\(max-width:\s*(\d+)px\)$/.exec(conditionText.trim());
+    if (!query) throw new Error(`Unhandled container query: ${conditionText}`);
+    const [, name, max] = query;
+    for (const inner of cssRules) {
+      const { selectorText, style } = inner as CSSStyleRule;
+      for (const element of document.querySelectorAll<HTMLElement>(selectorText)) {
+        const container = queryContainer(element, name);
+        if (!container || container.getBoundingClientRect().width > Number(max)) continue;
+        for (let index = 0; index < style.length; index++) {
+          const property = style.item(index);
+          element.style.setProperty(property, style.getPropertyValue(property));
+        }
+      }
+    }
+  }
+}
+
+it("lays the rows out by the list's own width, two columns in a narrow panel inside a wide frame", async () => {
+  const style = document.createElement("style");
+  style.textContent = readFileSync("apps/window/src/components/sweep/sweep.css", "utf8");
+  document.head.append(style);
+  cleanups.push(async () => style.remove());
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    let node: HTMLElement | null = this;
+    while (node && !node.style.width) node = node.parentElement;
+    const width = Number.parseFloat(node?.style.width ?? "") || 0;
+    return { x: 0, y: 0, left: 0, top: 0, right: width, bottom: 0, width, height: 0 } as DOMRect;
+  });
+  cleanups.push(async () => {
+    vi.restoreAllMocks();
+  });
+  const frame = document.createElement("div");
+  frame.style.cssText = "container-type: inline-size; width: 1000px";
+  const panel = document.createElement("aside");
+  panel.style.width = "360px";
+  frame.append(panel);
+  document.body.append(frame);
+  cleanups.push(async () => frame.remove());
+  const { container: narrow } = await render(midSweep(), 130, panel);
+  const { container: wide } = await render(midSweep(), 130, frame);
+  applyContainerRules(style.sheet as CSSStyleSheet);
+
+  const columns = (list: Element) =>
+    getComputedStyle(list.querySelector(".sweep-row") as Element).gridTemplateColumns;
+  const shown = (list: Element, part: string) =>
+    getComputedStyle(list.querySelector(part) as Element).display;
+  expect(columns(narrow)).toBe("16px minmax(0, 1fr)");
+  expect(shown(narrow, ".sweep-what")).toBe("none");
+  expect(columns(wide)).toBe("16px minmax(0, 11rem) minmax(0, 1fr) minmax(0, 1.2fr)");
+  expect(shown(wide, ".sweep-what")).not.toBe("none");
 });
