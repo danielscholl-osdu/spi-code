@@ -6,6 +6,10 @@ import { type SweepProgress, SweepProgressSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
+import { closeSheet } from "../../app/navigation.js";
+import { Shell } from "../../app/Shell.js";
+import { selectionStore } from "../../panels/selection.js";
+import { watchStore } from "../../store/watch.js";
 import { clockTime } from "../../time.js";
 import { SweepSources } from "./SweepSources.js";
 import { after, midSweep, SWEEP_START } from "./test-helper.js";
@@ -282,21 +286,39 @@ function applyContainerRules(sheet: CSSStyleSheet) {
   }
 }
 
-it("lays the rows out by the list's own width, two columns in a narrow panel inside a wide frame", async () => {
+function sweepStyle() {
   const style = document.createElement("style");
   style.textContent = readFileSync("apps/window/src/components/sweep/sweep.css", "utf8");
   document.head.append(style);
   cleanups.push(async () => style.remove());
+  return style.sheet as CSSStyleSheet;
+}
+
+function stubWidths(width: (element: HTMLElement) => number) {
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
     this: HTMLElement,
   ) {
-    let node: HTMLElement | null = this;
-    while (node && !node.style.width) node = node.parentElement;
-    const width = Number.parseFloat(node?.style.width ?? "") || 0;
-    return { x: 0, y: 0, left: 0, top: 0, right: width, bottom: 0, width, height: 0 } as DOMRect;
+    const w = width(this);
+    return { x: 0, y: 0, left: 0, top: 0, right: w, bottom: 0, width: w, height: 0 } as DOMRect;
   });
   cleanups.push(async () => {
     vi.restoreAllMocks();
+  });
+}
+
+const columns = (list: Element) =>
+  getComputedStyle(list.querySelector(".sweep-row") as Element).gridTemplateColumns;
+const shown = (list: Element, part: string) =>
+  getComputedStyle(list.querySelector(part) as Element).display;
+const FOUR_COLUMNS = "16px minmax(0, 11rem) minmax(0, 1fr) minmax(0, 1.2fr)";
+const TWO_COLUMNS = "16px minmax(0, 1fr)";
+
+it("lays the rows out by the list's own width, two columns in a narrow panel inside a wide frame", async () => {
+  const sheet = sweepStyle();
+  stubWidths((element) => {
+    let node: HTMLElement | null = element;
+    while (node && !node.style.width) node = node.parentElement;
+    return Number.parseFloat(node?.style.width ?? "") || 0;
   });
   const frame = document.createElement("div");
   frame.style.cssText = "container-type: inline-size; width: 1000px";
@@ -307,14 +329,68 @@ it("lays the rows out by the list's own width, two columns in a narrow panel ins
   cleanups.push(async () => frame.remove());
   const { container: narrow } = await render(midSweep(), 130, panel);
   const { container: wide } = await render(midSweep(), 130, frame);
-  applyContainerRules(style.sheet as CSSStyleSheet);
+  applyContainerRules(sheet);
 
-  const columns = (list: Element) =>
-    getComputedStyle(list.querySelector(".sweep-row") as Element).gridTemplateColumns;
-  const shown = (list: Element, part: string) =>
-    getComputedStyle(list.querySelector(part) as Element).display;
-  expect(columns(narrow)).toBe("16px minmax(0, 1fr)");
+  expect(columns(narrow)).toBe(TWO_COLUMNS);
   expect(shown(narrow, ".sweep-what")).toBe("none");
-  expect(columns(wide)).toBe("16px minmax(0, 11rem) minmax(0, 1fr) minmax(0, 1.2fr)");
+  expect(columns(wide)).toBe(FOUR_COLUMNS);
   expect(shown(wide, ".sweep-what")).not.toBe("none");
+});
+
+it("drops Today's middle column in the 740 px layout, where the list is wider than at 900", async () => {
+  const previousWatch = watchStore.getState();
+  const previousSpi = window.spi;
+  const previousWidth = window.innerWidth;
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  cleanups.push(async () => {
+    closeSheet();
+    watchStore.setState(previousWatch, true);
+    window.spi = previousSpi;
+    window.innerWidth = previousWidth;
+    vi.unstubAllGlobals();
+  });
+  closeSheet();
+  window.location.hash = "#today";
+  window.spi = {
+    proof: false,
+    openExternal: vi.fn(),
+    setAppearance: vi.fn(async () => true),
+    postMessage: vi.fn(),
+    onMessage: () => () => {},
+  };
+  selectionStore.getState().clear();
+  selectionStore.getState().setOpen(false);
+  watchStore.setState({ snapshot: null, progress: midSweep() });
+  const sheet = sweepStyle();
+  // The list fills the middle column less Today's 24 px padding on each side.
+  stubWidths((element) => {
+    const shell = element.closest<HTMLElement>(".shell");
+    if (!element.matches(".sweep-sources") || !shell) return 0;
+    const column = (name: string) => Number.parseFloat(shell.style.getPropertyValue(name)) || 0;
+    return window.innerWidth - column("--sidebar-col") - column("--panel-col") - 48;
+  });
+
+  const today = async (width: number) => {
+    window.innerWidth = width;
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    await act(async () => root.render(<Shell />));
+    cleanups.push(async () => {
+      await act(async () => root.unmount());
+      host.remove();
+    });
+    const list = host.querySelector<HTMLElement>(".today-first .sweep-sources");
+    if (!list) throw new Error(`No first-sweep list at ${width} px`);
+    applyContainerRules(sheet);
+    return { list, wide: list.getBoundingClientRect().width };
+  };
+
+  const at740 = await today(740);
+  const at900 = await today(900);
+  expect(at740.wide).toBeGreaterThan(at900.wide);
+  expect(columns(at740.list)).toBe(TWO_COLUMNS);
+  expect(shown(at740.list, ".sweep-what")).toBe("none");
+  expect(columns(at900.list)).toBe(FOUR_COLUMNS);
+  expect(shown(at900.list, ".sweep-what")).not.toBe("none");
 });
