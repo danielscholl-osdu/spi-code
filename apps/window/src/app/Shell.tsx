@@ -23,6 +23,7 @@ import { routeSelectionIds } from "../panels/selection-rows.js";
 import { SettingsDialog, type SettingsSection } from "../settings/SettingsDialog.js";
 import { watchStore } from "../store/watch.js";
 import { type Appearance, createAppearance } from "./appearance.js";
+import { openDestination } from "./destination.js";
 import { LineSheet } from "./LineSheet.js";
 import { edgePanes, PaneEdges } from "./PaneEdges.js";
 import { PanelControls } from "./PanelControls.js";
@@ -224,9 +225,11 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
         setError(reason instanceof Error ? reason.message : String(reason));
       }
     });
+    const unroute = window.spi.onNavigate?.(openDestination);
     return () => {
       controller.dispose();
       unsubscribe();
+      unroute?.();
     };
   }, []);
   return (

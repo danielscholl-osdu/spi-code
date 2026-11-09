@@ -1,7 +1,13 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type Message, parseMessage, type WatchBriefing } from "@spi-code/contracts";
+import { randomUUID } from "node:crypto";
+import {
+  type Message,
+  PROTOCOL_VERSION,
+  parseMessage,
+  type WatchBriefing,
+} from "@spi-code/contracts";
 import { Menu, Notification, nativeImage, nativeTheme, Tray } from "electron";
 
 type Dot = "fresh" | "warning" | "failed" | "unread";
@@ -58,28 +64,83 @@ function notifyNative(open: () => void) {
   };
 }
 
+type Snapshot = Extract<Message, { type: "view.snapshot" }>["payload"];
+type Progress = Extract<Message, { type: "sweep.progress" }>["payload"];
+
+/** Sources read through glab; the rest read through gh. */
+const GLAB_SOURCES = new Set(["upstream", "radar"]);
+
+/** A wall-clock HH:MM in the machine's zone. */
+export function clockTime(iso: string) {
+  const at = new Date(iso);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${pad(at.getHours())}:${pad(at.getMinutes())}`;
+}
+
+/** The dock badge for the Today count: nothing at zero, "9+" past nine. */
+export function dockBadge(count: number) {
+  if (count <= 0) return "";
+  return count > 9 ? "9+" : String(count);
+}
+
+const settled = ({ sources }: Progress) =>
+  sources.filter(({ state }) => state !== "waiting" && state !== "reading" && state !== "throttled")
+    .length;
+
+/** Whether a finished sweep failed to read gh for want of a sign-in. */
+const ghSignedOut = (progress: Progress) =>
+  progress.sources.some(
+    (source) =>
+      source.state === "failed" && source.code === "signin" && !GLAB_SOURCES.has(source.source),
+  ) ||
+  (progress.outcome === "failed" &&
+    progress.code === "signin" &&
+    (progress.source === undefined || !GLAB_SOURCES.has(progress.source)));
+
 export interface SweepTrayOptions {
   /** Whether the window is out of sight, so the hand-over is worth a notification. */
   hidden?: () => boolean;
   notify?: (title: string, body: string | undefined) => void;
+  /** Sends a request to the host; false when no host is connected. */
+  request?: (message: Message) => boolean;
+  /** Shows the window on the sweep's Evidence. */
+  viewSweep?: () => void;
+  /** Sets the macOS dock badge; omitted where the platform has none. */
+  badge?: (text: string) => void;
+  /** The clock that decides whether the next sweep's time is still ahead. */
+  now?: () => number;
 }
 
 export function createSweepTray(
   open: () => void,
   quit: () => void,
-  { hidden = () => false, notify = notifyNative(open) }: SweepTrayOptions = {},
+  {
+    hidden = () => false,
+    notify = notifyNative(open),
+    request = () => false,
+    viewSweep = open,
+    badge,
+    now = Date.now,
+  }: SweepTrayOptions = {},
 ) {
   const tray = new Tray(dotImage("unread"));
-  let latest: Extract<Message, { type: "view.snapshot" }>["payload"] | undefined;
+  let latest: Snapshot | undefined;
   let deferred = false;
   let armed = false;
   let handedOver = false;
   /** The first sweep's running, stopped or ready text, kept over budget updates until it moves on. */
   let phase: { text: string; dot?: Dot } | null = null;
-  const paint = (dot: Dot, text: string) => {
-    tray.setImage(dotImage(dot));
-    tray.setToolTip(`SPI Code - ${text}`);
-  };
+  /** Watch off, a signed-out gh or a lost host: shown until the host reports again. */
+  let halt: { text: string; dot: Dot } | null = null;
+  /** A later sweep in flight, read for its count while the dot keeps the committed tone. */
+  let running: Progress | undefined;
+  let sweeping = false;
+  let signedOut = false;
+  let watchReady = true;
+  let nextSweepAt: string | null = null;
+  let shownMenu = "";
+  let shownBadge = "";
+  let expiry: ReturnType<typeof setTimeout> | undefined;
   const state = (): [Dot, string] => {
     if (latest?.areas.some(({ envelope }) => envelope.state === "failed"))
       return ["failed", "Read failed"];
@@ -95,18 +156,79 @@ export function createSweepTray(
     if (latest.areas.every(({ envelope }) => envelope.inferred)) return ["unread", "Inferred"];
     return ["fresh", "All fresh"];
   };
-  const sweep = () => {
+  const today = () => (latest ? interruptions(latest.briefing) : 0);
+  const tooltip = (): [Dot, string] => {
+    if (halt) return [halt.dot, halt.text];
     const [dot, text] = state();
-    paint(phase?.dot ?? dot, phase?.text ?? text);
+    if (phase) return [phase.dot ?? dot, phase.text];
+    if (!latest) return [dot, text];
+    const swept = clockTime(latest.sweptAt);
+    if (running)
+      return [dot, `Sweeping ${settled(running)} of ${running.sources.length} · last ${swept}`];
+    if (signedOut) return ["failed", "Can't read: gh signed out"];
+    const count = today();
+    if (count > 0) return [dot, `${count} need${count === 1 ? "s" : ""} you · swept ${swept}`];
+    return [dot, `${text} · swept ${swept}`];
   };
-  tray.setContextMenu(
-    Menu.buildFromTemplate([
-      { label: "Open", click: open },
-      { label: "Quit", click: quit },
-    ]),
-  );
+  const statusLine = (fallback: string) => {
+    if (running) return `Sweeping · ${settled(running)} of ${running.sources.length}`;
+    if (halt || !latest) return fallback;
+    const ahead = nextSweepAt !== null && Date.parse(nextSweepAt) > now();
+    return `Swept ${clockTime(latest.sweptAt)}${ahead && nextSweepAt ? ` · next ${clockTime(nextSweepAt)}` : ""}`;
+  };
+  const sweepNow = () => {
+    const sent = request({
+      version: PROTOCOL_VERSION,
+      id: randomUUID(),
+      kind: "request",
+      type: "sweep.request",
+      payload: { now: true },
+    });
+    if (!sent) console.warn("Sweep now could not reach the host");
+  };
+  const render = () => {
+    const [dot, text] = tooltip();
+    tray.setImage(dotImage(dot));
+    tray.setToolTip(`SPI Code - ${text}`);
+    const status = statusLine(text);
+    const enabled = !halt && watchReady && !sweeping;
+    const key = JSON.stringify([status, enabled]);
+    if (key !== shownMenu) {
+      shownMenu = key;
+      tray.setContextMenu(
+        Menu.buildFromTemplate([
+          { label: status, enabled: false },
+          { label: "Sweep now", enabled, click: sweepNow },
+          { label: "View sweep", click: viewSweep },
+          { type: "separator" },
+          { label: "Open", click: open },
+          { label: "Quit", click: quit },
+        ]),
+      );
+    }
+    const counted = dockBadge(today());
+    if (badge && counted !== shownBadge) {
+      shownBadge = counted;
+      badge(counted);
+    }
+    // Never show an expired time as a promise: drop the next sweep from the menu when it passes.
+    clearTimeout(expiry);
+    expiry = undefined;
+    const left = nextSweepAt === null ? 0 : Date.parse(nextSweepAt) - now();
+    // Capped: setTimeout fires at once past 2^31 - 1 ms, and a re-render re-arms it.
+    if (left > 0 && !running && latest && !halt)
+      expiry = setTimeout(render, Math.min(left + 1, 2 ** 31 - 1));
+  };
+  const reset = () => {
+    latest = undefined;
+    deferred = false;
+    phase = null;
+    running = undefined;
+    sweeping = false;
+    nextSweepAt = null;
+  };
   tray.on("click", open);
-  paint("unread", "First sweep running");
+  render();
   return {
     observe(input: unknown) {
       const parsed = parseMessage(input);
@@ -115,10 +237,12 @@ export function createSweepTray(
         return;
       }
       const message = parsed.message;
+      if (halt?.text === "Host reconnecting") halt = null;
       if (message.type === "view.snapshot") {
         latest = message.payload;
+        halt = null;
         phase = armed ? { text: "Today is ready" } : null;
-        sweep();
+        render();
         if (armed) {
           armed = false;
           handedOver = true;
@@ -134,38 +258,61 @@ export function createSweepTray(
         }
       } else if (message.type === "sweep.progress") {
         const progress = message.payload;
-        if (latest || !progress.first) return;
+        sweeping = progress.outcome === "running";
+        if (latest) {
+          running = progress.outcome === "running" ? progress : undefined;
+          if (running) phase = null;
+          if (progress.outcome === "committed") signedOut = ghSignedOut(progress);
+          else if (progress.outcome === "failed" && ghSignedOut(progress)) signedOut = true;
+          render();
+          return;
+        }
+        if (!progress.first) {
+          render();
+          return;
+        }
         if (!handedOver) armed = true;
         if (progress.outcome === "failed") {
           phase = { text: "First sweep stopped", dot: "failed" };
-          sweep();
         } else if (progress.outcome === "running") {
-          const done = progress.sources.filter(
-            ({ state }) => state !== "waiting" && state !== "reading" && state !== "throttled",
-          ).length;
-          phase = { text: `First sweep running · ${done} of ${progress.sources.length}` };
-          sweep();
+          phase = {
+            text: `First sweep running · ${settled(progress)} of ${progress.sources.length}`,
+          };
         }
+        render();
       } else if (message.type === "sweep.status") {
         deferred = message.payload.deferredAreas.length > 0;
-        sweep();
-      } else if (message.type === "setup.state" && !message.payload.watchReady) {
-        latest = undefined;
-        deferred = false;
-        phase = null;
-        paint("unread", "Watch is off");
+        nextSweepAt = message.payload.nextSweepAt;
+        render();
+      } else if (message.type === "setup.state") {
+        watchReady = message.payload.watchReady;
+        if (watchReady) {
+          if (halt?.text !== "Host stopped") halt = null;
+          render();
+          return;
+        }
+        reset();
+        const gh = message.payload.tools.find(({ tool }) => tool === "gh");
+        halt =
+          gh?.state === "signed-out"
+            ? { text: "Can't read: gh signed out", dot: "failed" }
+            : { text: "Watch is off", dot: "unread" };
+        render();
       } else if (message.type === "error" && message.payload.code === "host_unavailable") {
-        paint("failed", "Host stopped");
+        halt = { text: "Host stopped", dot: "failed" };
+        render();
       }
     },
     disconnected() {
-      latest = undefined;
-      deferred = false;
-      phase = null;
-      paint("failed", "Host reconnecting");
+      reset();
+      halt = { text: "Host reconnecting", dot: "failed" };
+      render();
     },
     present: () => !tray.isDestroyed(),
-    dispose: () => tray.destroy(),
+    dispose: () => {
+      clearTimeout(expiry);
+      tray.destroy();
+    },
   };
 }
 
@@ -181,13 +328,15 @@ export function trayChannel<P extends Port<P>>(
   observe: (message: unknown) => void,
 ) {
   let dispose = () => {};
+  let host: P | undefined;
   return {
     connect() {
       dispose();
       const window = makeChannel();
-      const host = makeChannel();
-      window.port2.on("message", ({ data, ports }) => host.port1.postMessage(data, ports));
-      host.port1.on("message", ({ data, ports }) => {
+      const channel = makeChannel();
+      host = channel.port1;
+      window.port2.on("message", ({ data, ports }) => channel.port1.postMessage(data, ports));
+      channel.port1.on("message", ({ data, ports }) => {
         window.port2.postMessage(data, ports);
         try {
           observe(data);
@@ -196,12 +345,22 @@ export function trayChannel<P extends Port<P>>(
         }
       });
       window.port2.start();
-      host.port1.start();
+      channel.port1.start();
       dispose = () => {
         window.port2.close();
-        host.port1.close();
+        channel.port1.close();
+        host = undefined;
       };
-      return { port1: window.port1, port2: host.port2 };
+      return { port1: window.port1, port2: channel.port2 };
+    },
+    /** Sends desktop main's own request to the host on the live relay; false when none is up. */
+    request(message: Message) {
+      const parsed = parseMessage(message);
+      if (!parsed.ok || parsed.message.kind !== "request")
+        throw new Error("Desktop generated an invalid host request");
+      if (!host) return false;
+      host.postMessage(parsed.message, []);
+      return true;
     },
     dispose: () => dispose(),
   };

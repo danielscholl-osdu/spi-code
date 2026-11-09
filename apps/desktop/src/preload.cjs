@@ -6,6 +6,17 @@ const { contextBridge, ipcRenderer } = require("electron");
 let port;
 let fixture = false;
 const listeners = new Set();
+const navigators = new Set();
+let pendingDestination;
+// The closed set of places desktop main may send the window to; anything else is dropped here.
+const DESTINATIONS = new Set(["evidence"]);
+function windowDestination(input) {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) return undefined;
+  const keys = Object.keys(input);
+  if (keys.length !== 1 || keys[0] !== "to") return undefined;
+  if (typeof input.to !== "string" || !DESTINATIONS.has(input.to)) return undefined;
+  return { to: input.to };
+}
 contextBridge.exposeInMainWorld("spi", {
   proof: process.argv.includes("--spi-proof"),
   openExternal(url) {
@@ -32,6 +43,22 @@ contextBridge.exposeInMainWorld("spi", {
     listeners.add(listener);
     return () => listeners.delete(listener);
   },
+  onNavigate(listener) {
+    navigators.add(listener);
+    if (pendingDestination) {
+      const destination = pendingDestination;
+      pendingDestination = undefined;
+      listener(destination);
+    }
+    return () => navigators.delete(listener);
+  },
+});
+ipcRenderer.on("window:navigate", (_event, input) => {
+  const destination = windowDestination(input);
+  if (!destination) return;
+  // Held for the renderer when it has not subscribed yet, so a tray click before it mounts lands.
+  if (navigators.size === 0) pendingDestination = destination;
+  for (const listener of navigators) listener({ ...destination });
 });
 ipcRenderer.on("host:port", (event) => {
   if (port) port.close();

@@ -914,3 +914,46 @@ it("shows each pinned snapshot service in the sidebar on every route, as the pac
     localStorage.removeItem(PINS_STORAGE_KEY);
   }
 });
+
+it("opens the sweep's Evidence when desktop main routes the tray's View sweep, and ignores other places", async () => {
+  const previous = window.spi;
+  const previousState = watchStore.getState();
+  let route: ((destination: unknown) => void) | undefined;
+  const unroute = vi.fn();
+  window.spi = {
+    proof: false,
+    openExternal: vi.fn(),
+    postMessage: vi.fn(),
+    onMessage: () => vi.fn(),
+    onNavigate: (listener) => {
+      route = listener;
+      return unroute;
+    },
+  };
+  watchStore.setState({ snapshot: { cursor: 1, body: testSnapshot(briefing, releases) } });
+  selectionStore.setState({ open: false, tab: "detail" });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<Shell />));
+    expect(container.querySelector("#app-right-panel")).toBeNull();
+    for (const destination of [{ to: "settings" }, { to: "evidence", item: "x" }, "evidence"])
+      await act(async () => route?.(destination));
+    expect(container.querySelector("#app-right-panel")).toBeNull();
+    await act(async () => route?.({ to: "evidence" }));
+    expect(selectionStore.getState()).toMatchObject({
+      open: true,
+      tab: "evidence",
+      evidenceScope: "sweep",
+    });
+    const sweep = container.querySelector('#app-right-panel [data-evidence="sweep"]');
+    expect(sweep?.querySelectorAll(".sweep-row[data-source]").length).toBeGreaterThanOrEqual(11);
+  } finally {
+    await act(async () => root.unmount());
+    expect(unroute).toHaveBeenCalledOnce();
+    container.remove();
+    watchStore.setState(previousState);
+    window.spi = previous;
+  }
+});

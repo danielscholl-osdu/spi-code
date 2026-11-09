@@ -29,6 +29,7 @@ import { assertSmokeReport, assertSmokeTools, type SmokeReport } from "./smoke-r
 import { HostSupervisor, hostPortCallbacks } from "./supervisor.js";
 import { createSweepTray, trayChannel } from "./tray.js";
 import { bindTitleBarAppearance, windowTitleBarOptions } from "./window-chrome.js";
+import { showDestination } from "./window-navigation.js";
 
 const smoke = process.argv.includes("--smoke");
 const liveFlag = process.argv.indexOf("--live-report");
@@ -166,6 +167,10 @@ async function run(): Promise<void> {
   lifecycle.setWindow(window);
   tray = createSweepTray(lifecycle.open, () => void lifecycle.quit().catch(fail), {
     hidden: () => window.isDestroyed() || !window.isVisible() || window.isMinimized(),
+    request: (message) => relay?.request(message) ?? false,
+    viewSweep: () => showDestination(lifecycle.open, window.webContents, { to: "evidence" }),
+    // AU-09: the dock carries the Today count on macOS; Windows reads it in the tooltip.
+    ...(process.platform === "darwin" ? { badge: (text: string) => app.dock?.setBadge(text) } : {}),
   });
   relay = trayChannel(() => new MessageChannelMain(), tray.observe);
   const channels: MessageChannelMain[] = [];
