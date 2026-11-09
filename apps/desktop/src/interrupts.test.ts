@@ -208,7 +208,7 @@ it("summarizes only unacknowledged Interrupts on the first snapshot of each run,
 it("leaves the first sweep's Today is ready hand-over to the existing tray", () => {
   const notifications = setup();
   notifications.observe(progress({ first: true }));
-  notifications.observe(snapshot(1, [item()], []));
+  notifications.observe(snapshot(1, [item()]));
   notifications.observe(progress({ first: true, outcome: "committed" }));
   expect(native.notifications).toHaveLength(0);
   notifications.observe(snapshot(2, [item(), item({ id: "main:legal" })], ["main:legal"]));
@@ -257,6 +257,26 @@ it("observes outgoing acknowledgement on the real relay, closing covered banners
   } finally {
     relay.dispose();
   }
+});
+
+it("releases a clicked handle without closing it again on acknowledgement, OS close or dispose", () => {
+  const notifications = setup();
+  notifications.observe(snapshot(1, [item()]));
+  notifications.observe(snapshot(2, [item({ id: "main:legal" })]));
+  native.notifications[0]?.emit("click");
+  expect(notifications.open).toHaveBeenCalledExactlyOnceWith({
+    to: "today",
+    item: "halt:partition",
+  });
+  notifications.outgoing(acknowledge(2));
+  notifications.dispose();
+  expect(native.notifications[0]?.close).not.toHaveBeenCalled();
+  expect(native.notifications[1]?.close).toHaveBeenCalledOnce();
+  native.notifications[0]?.emit("close");
+  notifications.outgoing(acknowledge(2));
+  notifications.dispose();
+  expect(native.notifications[0]?.close).not.toHaveBeenCalled();
+  expect(native.notifications[1]?.close).toHaveBeenCalledOnce();
 });
 
 it("clicks through showDestination and the real preload's validated Today route", () => {
@@ -415,6 +435,42 @@ it("uses only bounded, single-line item titles, redacting tokens and paths, neve
   expect(native.notifications[1]?.options.body.endsWith("...")).toBe(true);
   notifications.observe(snapshot(3, [item({ id: "output", title: "$ gh api commands" })]));
   expect(native.notifications[2]?.options.body).toBe("P1 [redacted]");
+});
+
+it.each([
+  ["scoped package", "Bump @types/node from 1.2 to 1.3", "Bump @types/node from 1.2 to 1.3"],
+  ["repository reference", "Blocked owner/repo#12", "Blocked owner/repo#12"],
+  ["relative path", "Changed packages/core/src/index.ts", "Changed packages/core/src/index.ts"],
+  ["absolute path", "Blocked /opt/spi/file", "Blocked [redacted]"],
+  ["quoted absolute path", 'Blocked "/opt/spi/file"', "Blocked [redacted]"],
+  ["Linux home", "Blocked /home/operator/private", "Blocked [redacted]"],
+  ["macOS home", "Blocked /Users/operator/private", "Blocked [redacted]"],
+  ["tilde home", "Blocked ~/private", "Blocked [redacted]"],
+  ["named home", "Blocked ~operator/private", "Blocked [redacted]"],
+  ["Windows home", "Blocked C:\\Users\\operator\\private", "Blocked [redacted]"],
+  ["AWS key", "Blocked AKIA1234567890ABCDEF", "Blocked [redacted]"],
+  ["API key header", "Blocked x-api-key: fixture-value", "Blocked [redacted]"],
+  ["Unicode line separator", "A title\u2028command output", "A title"],
+  ["Unicode paragraph separator", "A title\u2029command output", "A title"],
+  ["Unicode next line", "A title\u0085command output", "A title"],
+  ["leading newline", "\nA title", "A title"],
+  ["leading Unicode line separator", "\u2028A title", "A title"],
+  ["leading Unicode paragraph separator", "\u2029A title", "A title"],
+  ["leading Unicode next line", "\u0085A title", "A title"],
+  ["blank title", "\n \t ", ""],
+])("formats %s without exposing or erasing title content", (_label, title, expected) => {
+  const notifications = setup();
+  notifications.observe(snapshot(1, [item({ title })]));
+  expect(native.notifications[0]?.options.body).toBe(`P1 ${expected}`.trimEnd());
+});
+
+it("truncates by code point without splitting an emoji's surrogate pair", () => {
+  const notifications = setup();
+  const prefix = "x ".repeat(78);
+  const emoji = "\u{1f680}";
+  notifications.observe(snapshot(1, [item({ title: `${prefix}${emoji} extra` })]));
+  expect(native.notifications[0]?.options.body).toBe(`P1 ${prefix}${emoji}...`);
+  expect(Array.from(native.notifications[0]?.options.body ?? "")).toHaveLength(163);
 });
 
 it("does not keep closed or disposed native handles, and supports platforms without notifications", () => {

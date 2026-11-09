@@ -31,6 +31,22 @@ it("accepts only the closed set of window destinations", () => {
       "file:private",
       "data:payload",
       "javascript:alert(1)",
+      "vbscript:msgbox",
+      "a".repeat(257),
+      "a".repeat(1024 * 1024),
+      "__proto__",
+      "constructor",
+      "prototype",
+      "a:../../etc/passwd",
+      "a:repo/../file",
+      "a:repo/..",
+      "a:..",
+      "a:\u0000",
+      "a:\n",
+      "a:\u007f",
+      "a:\u0085",
+      "a:\u2028",
+      "a:\u2029",
       "https://example.com",
       " ",
       3,
@@ -38,6 +54,11 @@ it("accepts only the closed set of window destinations", () => {
     ].map((item) => ({ to: "today", item })),
   ])
     expect(parseDestination(input)).toBeUndefined();
-  for (const item of ["access:owner/repository#12", "security:code:unsafe workflow"])
+  for (const item of [
+    "access:owner/repository#12",
+    "security:code:unsafe workflow",
+    "a".repeat(256),
+    "branch:v1..2",
+  ])
     expect(parseDestination({ to: "today", item })).toEqual({ to: "today", item });
 });

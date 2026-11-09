@@ -6,18 +6,25 @@ import { Notification } from "electron";
 import type { WindowDestination } from "./window-navigation.js";
 
 function notificationText(text: string, limit: number) {
-  const safe = (text.split(/[\r\n]/, 1)[0] ?? "")
-    .replace(/(?:gh[opsur]_|github_pat_|glpat-)[A-Za-z0-9_-]+/g, "[redacted]")
+  const safe = (
+    text
+      .replace(/[\u2028\u2029\u0085]/g, "\n")
+      .trim()
+      .split(/[\r\n]/, 1)[0] ?? ""
+  )
+    .replace(/(?:gh[opsur]_|github_pat_|glpat-)[A-Za-z0-9_-]+|\bAKIA[0-9A-Z]{16}\b/g, "[redacted]")
     .replace(
-      /\b(?:authorization\s*[:=]\s*(?:bearer\s+)?|bearer\s+|[\w-]*(?:token|secret|password)[\w-]*\s*[:=]\s*)["']?[^\s"']+["']?/gi,
+      /\b(?:authorization\s*[:=]\s*(?:bearer\s+)?|bearer\s+|x-api-key\s*[:=]\s*|[\w-]*(?:token|secret|password)[\w-]*\s*[:=]\s*)["']?[^\s"']+["']?/gi,
       "[redacted]",
     )
-    .replace(/\S*[/\\]\S*|\b[A-Za-z0-9_-]{32,}\b/g, "[redacted]")
+    .replace(/(?<![\w@/\\.-])["']?(?:\/|~[\w.-]*\/|[A-Za-z]:\\)\S*/g, "[redacted]")
+    .replace(/\b[A-Za-z0-9_-]{32,}\b/g, "[redacted]")
     // biome-ignore lint/suspicious/noControlCharactersInRegex: Native banners must not carry control characters.
     .replace(/[\u0000-\u001f\u007f]/g, "")
     .trim();
   if (/^(?:[$>]|PS\s|fatal:|error:|stdout:|stderr:)/i.test(safe)) return "[redacted]";
-  return safe.length > limit ? `${safe.slice(0, limit - 3)}...` : safe;
+  const points = Array.from(safe);
+  return points.length > limit ? `${points.slice(0, limit - 3).join("")}...` : safe;
 }
 
 /** Per-run native banners; attention and acknowledgement stay owned by the snapshot and host. */
@@ -31,7 +38,6 @@ export function createInterruptNotifications({
   const rungs = new Map<string, number>();
   const banners = new Map<Notification, number>();
   let cursor = -1;
-  let acknowledged = -1;
   let firstSweep = false;
   return {
     observe(input: unknown) {
@@ -45,13 +51,7 @@ export function createInterruptNotifications({
       const initial = cursor < 0;
       const snapshot = message.payload;
       cursor = snapshot.cursor;
-      if (
-        (initial && firstSweep) ||
-        cursor <= acknowledged ||
-        focused() ||
-        !Notification.isSupported()
-      )
-        return;
+      if ((initial && firstSweep) || focused() || !Notification.isSupported()) return;
       const since = new Set(snapshot.seen.since);
       const items: WatchItem[] = [];
       for (const item of [...snapshot.briefing.focus, ...snapshot.briefing.rest]) {
@@ -70,14 +70,17 @@ export function createInterruptNotifications({
             : `${items.length} things need you`,
         body:
           items.length === 1
-            ? `P${first.rung} ${notificationText(first.title, 160)}`
+            ? `P${first.rung} ${notificationText(first.title, 160)}`.trimEnd()
             : items
                 .slice(0, 2)
                 .map(({ title }) => notificationText(title, 100))
                 .join("; "),
       });
       banners.set(notification, cursor);
-      notification.on("click", () => open({ to: "today", item: first.id }));
+      notification.on("click", () => {
+        banners.delete(notification);
+        open({ to: "today", item: first.id });
+      });
       notification.on("close", () => banners.delete(notification));
       notification.on("failed", () => {
         banners.delete(notification);
@@ -89,7 +92,7 @@ export function createInterruptNotifications({
       const parsed = parseMessage(input);
       if (!parsed.ok || parsed.message.type !== "view.acknowledge") return;
       if (parsed.message.payload.cursor > cursor) return;
-      acknowledged = Math.max(acknowledged, parsed.message.payload.cursor);
+      const acknowledged = parsed.message.payload.cursor;
       for (const [notification, at] of banners) {
         if (at > acknowledged) continue;
         banners.delete(notification);

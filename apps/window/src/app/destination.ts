@@ -21,11 +21,13 @@ export function parseDestination(input: unknown): WindowDestination | undefined 
     input.to === "today" &&
     "item" in input
   ) {
-    const item = IdentifierSchema.safeParse(input.item);
+    const item = IdentifierSchema.max(256).safeParse(input.item);
     if (
       item.success &&
       item.data.trim().length > 0 &&
-      !/^(?:[./~\\]|[a-z]:\/|(?:https?|file|data|javascript|mailto):)|\\|:\/\/|\p{Cc}/iu.test(
+      !["__proto__", "constructor", "prototype"].includes(item.data) &&
+      !/(?:^|[:/\\])\.\.(?:[/\\]|$)/.test(item.data) &&
+      !/^(?:[./~\\]|[a-z]:\/|(?:https?|file|data|javascript|vbscript|mailto):)|\\|:\/\/|[\p{Cc}\u2028\u2029]/iu.test(
         item.data,
       ) &&
       (!item.data.includes("/") || /^[a-z][a-z0-9-]*:/i.test(item.data))

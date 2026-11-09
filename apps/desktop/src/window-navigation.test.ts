@@ -75,6 +75,22 @@ it("routes Today item identifiers through preload, never paths, URLs or extra fi
     "file:private",
     "data:payload",
     "javascript:alert(1)",
+    "vbscript:msgbox",
+    "a".repeat(257),
+    "a".repeat(1024 * 1024),
+    "__proto__",
+    "constructor",
+    "prototype",
+    "a:../../etc/passwd",
+    "a:repo/../file",
+    "a:repo/..",
+    "a:..",
+    "a:\u0000",
+    "a:\n",
+    "a:\u007f",
+    "a:\u0085",
+    "a:\u2028",
+    "a:\u2029",
     null,
     3,
   ])
@@ -82,9 +98,14 @@ it("routes Today item identifiers through preload, never paths, URLs or extra fi
   deliver({ to: "today", item: "valid", url: "https://example.com" });
   deliver({ to: "today" });
   expect(listener).toHaveBeenCalledOnce();
-  for (const item of ["access:owner/repository#12", "security:code:unsafe workflow"])
+  for (const item of [
+    "access:owner/repository#12",
+    "security:code:unsafe workflow",
+    "a".repeat(256),
+    "branch:v1..2",
+  ])
     deliver({ to: "today", item });
-  expect(listener).toHaveBeenCalledTimes(3);
+  expect(listener).toHaveBeenCalledTimes(5);
 });
 
 it("rejects destinations outside the closed set before the renderer sees them", () => {
