@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { readFileSync } from "node:fs";
 import {
   type SweepProgress,
   SweepProgressSchema,
@@ -11,7 +12,12 @@ import { afterEach, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { ForgeError } from "../../../core/src/forge.js";
 import { Sweeper, sweepReadProgress } from "../../../core/src/sweep/sweeper.js";
-import { foldSweepProgress, SweepProgressFeed, safeSweepReason } from "./progress.js";
+import {
+  failedReadsReason,
+  foldSweepProgress,
+  SweepProgressFeed,
+  safeSweepReason,
+} from "./progress.js";
 
 const epoch = Date.parse("2026-01-01T00:00:00Z");
 const timers = {
@@ -512,4 +518,119 @@ it("maps every closed reason code to a fixed bounded phrase", () => {
     expect(safeSweepReason(code).length).toBeGreaterThan(0);
     expect(safeSweepReason(code).length).toBeLessThanOrEqual(200);
   }
+});
+
+const recordedRadar = z
+  .object({
+    recordedAt: z.iso.datetime(),
+    reads: z.array(
+      z.object({
+        source: z.string(),
+        object: z.string(),
+        completeness: z.union([
+          z.object({ kind: z.literal("complete") }),
+          z.object({
+            kind: z.literal("cut"),
+            reason: z.string(),
+            read: z.number(),
+            total: z.number(),
+          }),
+        ]),
+        failure: z.string().optional(),
+      }),
+    ),
+  })
+  .parse(
+    JSON.parse(
+      readFileSync(new URL("./fixtures/radar-partial-sweep.json", import.meta.url), "utf8"),
+    ),
+  );
+
+async function sweepRadar(reads: typeof recordedRadar.reads, code?: "unavailable") {
+  const at = recordedRadar.recordedAt;
+  const feed = new SweepProgressFeed({ timers, now: () => Date.parse(at), onError: vi.fn() });
+  feed.begin(true, null);
+  await new Sweeper({
+    ctx: createContext({ clock: { now: () => new Date(at) } }),
+    exec: {
+      runJSON: async <T>() => ({ ok: true, data: {} as T }),
+      runText: async () => ({ ok: true, data: "" }),
+    },
+    factsSchema: z.custom<Facts>(),
+    cacheSchema,
+    emptyCache,
+    persist: { load: async () => undefined, save: async () => {} },
+    progress: (event) => feed.report(event),
+    areas: [
+      {
+        name: "radar",
+        read: async () => ({
+          data: { filters: {}, services: {} } as unknown as NonNullable<Facts["radar"]["data"]>,
+          ...(code === undefined ? {} : { code }),
+          reads: reads.map(({ failure, ...read }) => ({
+            ...read,
+            ...(failure === undefined ? {} : { failure }),
+            observedAt: at,
+          })),
+        }),
+      },
+    ],
+  }).sweep({ force: true });
+  return feed.latest?.sources.find(({ source }) => source === "radar");
+}
+
+it("replays the recorded radar outcome as a partial read naming the services that failed", async () => {
+  const cut = recordedRadar.reads.filter((read) => read.completeness.kind === "cut");
+  expect(recordedRadar.reads.filter((read) => read.failure)).toHaveLength(3);
+  const radar = await sweepRadar(recordedRadar.reads);
+  expect(radar).toMatchObject({
+    state: "cut",
+    cutKind: "diff",
+    code: "limit",
+    incomplete: { count: cut.length, total: recordedRadar.reads.length, failed: 3 },
+    reason: "Oversized or collapsed diffs: 1,607 of 1,696 files read.",
+    failure: "Reads failed for 3 services: unit, crs-catalog, crs-conversion.",
+  });
+  expect(JSON.stringify(radar)).not.toMatch(/pom\.xml|not readable|Azure\//);
+});
+
+it("names failed reads without cut reads, and stays failed with its code when nothing read", async () => {
+  const complete = recordedRadar.reads.map(({ completeness: _, ...read }) => ({
+    ...read,
+    completeness: { kind: "complete" as const },
+  }));
+  const partial = await sweepRadar(complete);
+  expect(partial).toEqual(
+    expect.objectContaining({
+      state: "cut",
+      incomplete: { count: 0, total: complete.length, failed: 3 },
+      failure: "Reads failed for 3 services: unit, crs-catalog, crs-conversion.",
+    }),
+  );
+  expect(partial).not.toHaveProperty("cutKind");
+  expect(partial).not.toHaveProperty("code");
+  const failed = recordedRadar.reads
+    .filter((read) => read.failure)
+    .map(({ completeness: _, ...read }) => ({
+      ...read,
+      completeness: { kind: "complete" as const },
+    }));
+  expect(await sweepRadar(failed, "unavailable")).toMatchObject({
+    state: "failed",
+    code: "unavailable",
+    reason: safeSweepReason("unavailable"),
+  });
+  expect(await sweepRadar(failed)).toMatchObject({ state: "failed", code: "other" });
+});
+
+it("names failed services only from safe fleet ids", () => {
+  expect(failedReadsReason({ count: 1, services: ["unit"] })).toBe(
+    "Reads failed for 1 service: unit.",
+  );
+  expect(failedReadsReason({ count: 2, services: [] })).toBeUndefined();
+  expect(failedReadsReason({ count: 1, services: [sensitive] })).toBeUndefined();
+  const many = Array.from({ length: 30 }, (_, index) => `service-name-${index}`);
+  const capped = failedReadsReason({ count: 30, services: many });
+  expect(capped).toMatch(/^Reads failed for 30 services: service-name-0, .* and \d+ more\.$/);
+  expect(capped?.length).toBeLessThanOrEqual(200);
 });

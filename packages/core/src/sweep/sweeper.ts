@@ -3,6 +3,7 @@
 
 import { z } from "zod";
 import type { Clock } from "../clock.js";
+import type { Fleet } from "../config.js";
 import type { CoreContext } from "../context.js";
 import { envelopeOf, type ReadCompleteness, type ReadRecord } from "../evidence/index.js";
 import type { Exec } from "../exec/port.js";
@@ -37,6 +38,8 @@ export type SweepSourceProgress = {
     readonly completeness?: ReadCompleteness;
     readonly resumeAt?: string;
     readonly incomplete?: { readonly count: number; readonly total: number };
+    /** Reads that failed in a source that still read; services are fleet ids, empty when a failed read is not a fork's. */
+    readonly failed?: { readonly count: number; readonly services: readonly string[] };
   }
 );
 
@@ -55,22 +58,43 @@ export type SweepProgress = SweepSourceProgress | {
 /** Ordered boundaries and live waits; only the caller's snapshot commit confirms success. */
 export type SweepProgressHook = (event: SweepProgress) => void;
 
+function failedServices(failed: readonly ReadRecord[], fleet: Fleet | undefined): string[] {
+  const services = new Set<string>();
+  for (const record of failed) {
+    const names = [record.source, record.object, record.object.split("@")[0]];
+    const fork = fleet?.forks.find((f) => names.includes(f.repo) || names.includes(f.upstream));
+    if (!fork) return [];
+    services.add(fork.id);
+  }
+  return [...services];
+}
+
+/**
+ * A source whose reads all failed, or whose area named a cause, failed. One where some reads
+ * failed and the rest read is cut: it carries what it read and which reads failed.
+ */
 export function sweepReadProgress(
   source: SweepSource, records: readonly ReadRecord[], endedAt: string,
-  failureCode?: SweepReasonCode, failureReason?: string,
+  failureCode?: SweepReasonCode, failureReason?: string, fleet?: Fleet,
 ): Exclude<SweepSourceProgress, { state: "reading" }> {
   const { completeness } = envelopeOf(records, { intervalMs: 0, now: Date.parse(endedAt) });
-  const failure = records.find((record) => record.failure !== undefined)?.failure;
-  const state = failure !== undefined ? "failed" : completeness.kind === "cut" ? "cut" : "read";
-  const reason = failure !== undefined ? failureReason ?? failure
+  const failedRecords = records.filter((record) => record.failure !== undefined);
+  const failure = failedRecords[0]?.failure;
+  const partial = failure !== undefined && failedRecords.length < records.length && failureCode === undefined;
+  const state = failure !== undefined && !partial ? "failed"
+    : completeness.kind === "cut" || partial ? "cut" : "read";
+  const reason = state === "failed" ? failureReason ?? failure
     : completeness.kind === "cut" ? completeness.reason : undefined;
-  const count = records.filter((record) => record.completeness.kind === "cut").length;
+  const count = records.filter((record) => record.failure === undefined && record.completeness.kind === "cut").length;
   return {
     kind: "source", source, endedAt,
     state,
     completeness,
-    ...(reason === undefined ? {} : { reason, code: failure === undefined ? "limit" : failureCode ?? "other" }),
+    ...(reason === undefined ? {} : { reason, code: state === "failed" ? failureCode ?? "other" : "limit" }),
     ...(state === "cut" ? { incomplete: { count, total: records.length } } : {}),
+    ...(partial ? {
+      failed: { count: failedRecords.length, services: failedServices(failedRecords, fleet) },
+    } : {}),
   };
 }
 
@@ -78,7 +102,7 @@ export function sweepFailureProgress(
   source: SweepSource, error: unknown, records: readonly ReadRecord[], endedAt: string,
 ): Exclude<SweepSourceProgress, { state: "reading" }> {
   // A throw supplies no current read set; retained records cannot count as new reads.
-  const { incomplete: _incomplete, ...outcome } = sweepReadProgress(source, records, endedAt);
+  const { incomplete: _incomplete, failed: _failed, ...outcome } = sweepReadProgress(source, records, endedAt);
   const throttled = error instanceof ForgeError && error.kind === "throttle";
   return {
     ...outcome,
@@ -332,7 +356,11 @@ export class Sweeper<C> {
         source: area.name, object: area.name, observedAt: at, completeness: { kind: "complete" },
       }];
       this.reads[area.name] = currentRecords;
-      if (this.opts.progress) outcome = sweepReadProgress(area.name, currentRecords, at, result.code, result.reason);
+      if (this.opts.progress) {
+        outcome = sweepReadProgress(
+          area.name, currentRecords, at, result.code, result.reason, input.ctx.fleet,
+        );
+      }
     } catch (error) {
       const at = this.clock.now().toISOString();
       const failure = errorText(error) || "Unknown error";

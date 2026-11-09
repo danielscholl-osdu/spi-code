@@ -311,6 +311,7 @@ code{font-family:var(--mono);font-size:.9em}
 .fsrows .o{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--muted)}
 .fsrows .why{grid-column:2/-1;display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--error-text)}
 .fsrows .why .btn{font-size:9.5px;padding:0 7px}
+.fsrows .why.quiet{color:var(--muted)}
 .fsrows.narrow{grid-template-columns:20px minmax(0,1fr)}
 .fsrows.narrow small{display:block;font-size:9.5px;color:var(--muted)}
 .fsrows .t-ok,.fsrows.narrow small.t-ok{color:var(--success-text)} .fsrows .t-bad,.fsrows.narrow small.t-bad{color:var(--error-text)} .fsrows .t-run,.fsrows.narrow small.t-run{color:var(--accent-text)} .fsrows .t-warn{color:var(--warning-text)} .fsrows .t-wait{color:var(--muted)}
@@ -796,10 +797,10 @@ code{font-family:var(--mono);font-size:.9em}
     <h2>First sweep</h2>
     <p>Added 2026-11-09. On first launch nothing has been read yet, so Today shows the sweep itself: its twelve sources (the eleven areas and releases) in the order it reads them, named as the Evidence tab names them, each with what it reads and how it went. The rows never reorder. The list comes from the <code>sweep.progress</code> event; only <code>view.snapshot</code> hands over to the brief, in place, with a 150 ms crossfade (none under reduced motion). No raw field name appears. PRD rows PS-03, PS-05, PS-19 and EV-03 carry the behaviour.</p>
 
-    <p class="shot-cap">In a 1440 px window, mid-sweep · nine of twelve settled, one failed on sign-in</p>
+    <p class="shot-cap">In a 1440 px window, mid-sweep · nine of twelve settled, one partly failed, one failed on sign-in</p>
     <div class="shot">
       <div class="winwrap">
-        <div class="win next fsw" role="img" aria-label="First launch at 1440 px: the top row shows only the freshness field, sweeping 9 of 12. The sidebar's places are muted. Today lists twelve sources in sweep order with their marks, what each reads and its outcome; Upstream GitLab failed because glab is not signed in and offers Open Settings; Upstream radar is reading; two sources wait.">
+        <div class="win next fsw" role="img" aria-label="First launch at 1440 px: the top row shows only the freshness field, sweeping 9 of 12. The sidebar's places are muted. Today lists twelve sources in sweep order with their marks, what each reads and its outcome; Template read but 2 reads failed and names unit and crs-catalog on its own line; Upstream GitLab failed because glab is not signed in and offers Open Settings; Upstream radar is reading; two sources wait.">
           <div class="tb" style="gap:12px"><span class="lights"><i></i><i></i><i></i></span><span class="sp"></span><span class="fresh run">sweeping · 9 of 12</span><span class="tgl"><i class="l"></i><i class="r"></i></span></div>
           <div class="sb">
             <div class="find"><span>○ Find or ask</span><span>⌘K</span></div>
@@ -819,7 +820,7 @@ code{font-family:var(--mono);font-size:.9em}
               <div class="fs-lead">First sweep is reading the program.</div>
               <div class="fs-sub">A first sweep takes a few minutes. Today opens here when it's done.</div>
               <div class="fs-meta">2 min 10 s so far · 1 source failed</div>
-              <div class="fsbar" aria-hidden="true"><i class="t-ok"></i><i class="t-ok"></i><i class="t-ok"></i><i class="t-warn"></i><i class="t-ok"></i><i class="t-ok"></i><i class="t-ok"></i><i class="t-warn"></i><i class="t-bad"></i><i class="t-run"></i><i></i><i></i></div>
+              <div class="fsbar" aria-hidden="true"><i class="t-ok"></i><i class="t-ok"></i><i class="t-ok"></i><i class="t-warn"></i><i class="t-ok"></i><i class="t-ok"></i><i class="t-warn"></i><i class="t-warn"></i><i class="t-bad"></i><i class="t-run"></i><i></i><i></i></div>
               <div class="fsrows">
                 <span class="m t-ok">✓</span><span>Sign-in</span><span class="wh">gh and glab</span><span class="o">read · 3 s</span>
                 <span class="m t-ok">✓</span><span>Fleet membership</span><span class="wh">forks, stack and rollout</span><span class="o">read · 9 s</span>
@@ -827,7 +828,8 @@ code{font-family:var(--mono);font-size:.9em}
                 <span class="m t-warn">⚠</span><span>Workflow runs</span><span class="wh">main and cascade on each fork</span><span class="o" title="7 of 13 reads complete. Run list page limit or short read: 60 of 100 runs read.">read · 52 s · 6 run lists cut short; rest read</span>
                 <span class="m t-ok">✓</span><span>Run approvals</span><span class="wh">runs waiting for approval</span><span class="o">read · 4 s</span>
                 <span class="m t-ok">✓</span><span>Stack lifecycle runs</span><span class="wh">deploys on the stack repo</span><span class="o">read · 12 s</span>
-                <span class="m t-ok">✓</span><span>Template</span><span class="wh">template revision per fork</span><span class="o">read · 6 s</span>
+                <span class="m t-warn">⚠</span><span>Template</span><span class="wh">template revision per fork</span><span class="o" title="22 of 24 reads complete.">read · 6 s · 2 reads failed</span>
+                <span class="why quiet">Reads failed for 2 services: unit, crs-catalog.</span>
                 <span class="m t-warn">–</span><span>Run details</span><span class="wh">logs of failed checks</span><span class="o">waits for GitHub budget · after 09:10</span>
                 <span class="m t-bad">✕</span><span>Upstream GitLab</span><span class="wh">GitLab master per fork</span><span class="o t-bad">failed</span>
                 <span class="why">glab is not signed in to community.opengroup.org.<span class="btn">Open Settings</span></span>
@@ -873,7 +875,7 @@ code{font-family:var(--mono);font-size:.9em}
                   <div class="fs-lead">First sweep is reading the program.</div>
                   <div class="fs-sub">Usually about 2 min.</div>
                   <div class="fs-meta">2 min 10 s so far · 1 source failed</div>
-                  <div class="fsbar" aria-hidden="true"><i class="t-ok"></i><i class="t-ok"></i><i class="t-ok"></i><i class="t-warn"></i><i class="t-ok"></i><i class="t-ok"></i><i class="t-ok"></i><i class="t-warn"></i><i class="t-bad"></i><i class="t-run"></i><i></i><i></i></div>
+                  <div class="fsbar" aria-hidden="true"><i class="t-ok"></i><i class="t-ok"></i><i class="t-ok"></i><i class="t-warn"></i><i class="t-ok"></i><i class="t-ok"></i><i class="t-warn"></i><i class="t-warn"></i><i class="t-bad"></i><i class="t-run"></i><i></i><i></i></div>
                   <div class="fsrows narrow">
                     <span class="m t-ok">✓</span><span>Sign-in<small>read · 3 s</small></span>
                     <span class="m t-ok">✓</span><span>Fleet membership<small>read · 9 s</small></span>
@@ -881,7 +883,8 @@ code{font-family:var(--mono);font-size:.9em}
                     <span class="m t-warn">⚠</span><span>Workflow runs<small title="7 of 13 reads complete. Run list page limit or short read: 60 of 100 runs read.">read · 52 s · 6 run lists cut short; rest read</small></span>
                     <span class="m t-ok">✓</span><span>Run approvals<small>read · 4 s</small></span>
                     <span class="m t-ok">✓</span><span>Stack lifecycle runs<small>read · 12 s</small></span>
-                    <span class="m t-ok">✓</span><span>Template<small>read · 6 s</small></span>
+                    <span class="m t-warn">⚠</span><span>Template<small title="22 of 24 reads complete.">read · 6 s · 2 reads failed</small></span>
+                    <span class="why quiet">Reads failed for 2 services: unit, crs-catalog.</span>
                     <span class="m t-warn">–</span><span>Run details<small>waits for GitHub budget · after 09:10</small></span>
                     <span class="m t-bad">✕</span><span>Upstream GitLab<small class="t-bad">failed</small></span>
                     <span class="why">glab is not signed in to community.opengroup.org.<span class="btn">Open Settings</span></span>
@@ -941,7 +944,7 @@ code{font-family:var(--mono);font-size:.9em}
         <thead><tr><th>State</th><th>Today shows</th><th>Top row and tray</th></tr></thead>
         <tbody>
           <tr><td><b>First sweep running</b></td><td>"First sweep is reading the program." · "A first sweep takes a few minutes. Today opens here when it's done.", or "Usually about 2 min." once a usual duration is known · "{elapsed} so far · {n} source(s) failed" · the bar and twelve rows · the closing line</td><td><span class="fresh run" style="font-family:var(--app)">sweeping · 9 of 12</span>, "9 of 12" at 740 px; the click scrolls the list into view</td></tr>
-          <tr><td><b>A source</b></td><td>○ waiting · ◐ "reading · 22 s", "still reading · 1 min 10 s" past a minute · ✓ "read · 31 s" · ⚠ "read · 52 s · 6 run lists cut short; rest read", or "read · 12 s · 1 job log cut short; rest read", with the complete-read count and the cut's reason and read/total on hover and in its accessible description · – "waits for GitHub budget · after 09:10", or skipped · ✕ "failed" with its reason on the next line, and Open Settings for a sign-in failure. The filled dot and the diamond are not used; on the top row they mean needs a person and stopped.</td><td>The count rises as each source settles: read, cut, put off or failed</td></tr>
+          <tr><td><b>A source</b></td><td>○ waiting · ◐ "reading · 22 s", "still reading · 1 min 10 s" past a minute · ✓ "read · 31 s" · ⚠ "read · 52 s · 6 run lists cut short; rest read", or "read · 12 s · 1 job log cut short; rest read", with the complete-read count and the cut's reason and read/total on hover and in its accessible description · ⚠ "read · 6 s · 2 reads failed", or "read · 12 s · 14 diffs cut short; 3 reads failed", when some reads failed and the rest read, with the failed services on the next line ("Reads failed for 2 services: unit, crs-catalog.") · – "waits for GitHub budget · after 09:10", or skipped · ✕ "failed" when nothing read or the source named its cause, with its reason on the next line, and Open Settings for a sign-in failure. The filled dot and the diamond are not used; on the top row they mean needs a person and stopped.</td><td>The count rises as each source settles: read, cut, put off or failed</td></tr>
           <tr><td><b>Throttled</b></td><td>"GitHub asked SPI Code to slow down. Resumes at 08:04." under the meta line</td><td>Unchanged</td></tr>
           <tr><td><b>Hand-over</b></td><td>The brief replaces the list in place when <code>view.snapshot</code> lands. If some sources failed it still hands over, and the subline names what failed.</td><td>The field becomes the sweep time, and one click on it opens the completed list, kept with each source's final state, as Evidence. The tray tooltip reads "Today is ready"; if the window is hidden, one notification says "Today is ready", with the interruption count when there is one.</td></tr>
           <tr><td><b>Stopped</b></td><td>"The first sweep stopped." over the rows, each keeping its state · "It stopped while reading {source}: {reason}. SPI Code tries again at {time}." · Try again sends <code>sweep.request</code> through the non-forced path and the readiness gate · Open Settings</td><td>The tray shows failed</td></tr>
@@ -949,7 +952,7 @@ code{font-family:var(--mono);font-size:.9em}
         </tbody>
       </table>
     </div>
-    <p class="note">Example values throughout. The rows' names are the Evidence tab's area names, and the second column is fixed copy per source. Progress is never stored: the host sends at most four updates a second and replays the latest to a window that subscribes late; <code>sweep.status</code> is unchanged. Every time and count comes from a field, never from prose: a cut source names the read kind from <code>cutKind</code> and counts from <code>incomplete</code> (cut reads of the total), says "rest read" only when other reads completed, and gives the complete-read count and safe cut detail on hover in Today and Evidence. A job log cut at its character limit reads "1 job log cut short; rest read"; its hover says "68 of 69 reads complete. Job log character limit: 64,000 of 92,438 characters read." A put-off or throttled source's "after 09:10" or "Resumes at 08:04" comes from <code>resumeAt</code>, and the stopped sweep's "tries again at" from <code>nextAttemptAt</code>, the real retry time, not the budget reset in <code>sweep.status</code>.</p>
+    <p class="note">Example values throughout. The rows' names are the Evidence tab's area names, and the second column is fixed copy per source. Progress is never stored: the host sends at most four updates a second and replays the latest to a window that subscribes late; <code>sweep.status</code> is unchanged. Every time and count comes from a field, never from prose: a cut source names the read kind from <code>cutKind</code> and counts from <code>incomplete</code> (cut reads of the total), says "rest read" only when other reads completed and none failed, and gives the complete-read count and safe cut detail on hover in Today and Evidence. A job log cut at its character limit reads "1 job log cut short; rest read"; its hover says "68 of 69 reads complete. Job log character limit: 64,000 of 92,438 characters read." A source where some reads failed while the rest read is partial, not failed: it counts the failed reads from <code>incomplete.failed</code>, and the next line is the host's <code>failure</code> sentence naming services by fleet id, never core's failure text; a source that read nothing stays failed with its real reason code. A put-off or throttled source's "after 09:10" or "Resumes at 08:04" comes from <code>resumeAt</code>, and the stopped sweep's "tries again at" from <code>nextAttemptAt</code>, the real retry time, not the budget reset in <code>sweep.status</code>.</p>
   </section>
 
   <!-- ================= NOT IN THIS CHANGE ================= -->

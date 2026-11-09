@@ -359,8 +359,10 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
             notify = undefined;
           }
           if (progress) {
-            const outcome = sweepReadProgress("releases", reader.records, clock.now().toISOString());
             const held = throttledReason();
+            const outcome = sweepReadProgress(
+              "releases", reader.records, clock.now().toISOString(), held?.code, undefined, ctx.fleet,
+            );
             progress({
               ...outcome,
               ...(outcome.state === "failed" && held ? { state: "throttled", code: "throttled", resumeAt: held.resumeAt } : {}),

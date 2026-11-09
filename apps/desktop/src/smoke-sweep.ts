@@ -35,7 +35,14 @@ export function smokeSweepProgress() {
       },
       read("approvals", 95, 4),
       read("lifecycle", 99, 12),
-      read("template", 111, 6),
+      {
+        source: "template",
+        state: "cut",
+        startedAt: after(111),
+        endedAt: after(117),
+        incomplete: { count: 0, total: 24, failed: 2 },
+        failure: "Reads failed for 2 services: unit, crs-catalog.",
+      },
       {
         source: "details",
         state: "deferred",

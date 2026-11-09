@@ -87,16 +87,22 @@ export function sourceOutcome(source: SweepSourceProgress, now: number): SourceO
     case "read":
       return { mark: "✓", tone: "ok", text: `read${took(source.startedAt, source.endedAt)}` };
     case "cut": {
-      const { count, total } = source.incomplete;
+      const { count, total, failed = 0 } = source.incomplete;
       const kind = { "job-log": "job log", diff: "diff", "run-list": "run list", read: "read" }[
         source.cutKind ?? "read"
       ];
-      const complete = total - count;
+      const complete = total - count - failed;
+      const parts = [
+        ...(count > 0 ? [`${count} ${kind}${count === 1 ? "" : "s"} cut short`] : []),
+        ...(failed > 0 ? [`${failed} ${failed === 1 ? "read" : "reads"} failed`] : []),
+        ...(failed === 0 && complete > 0 ? ["rest read"] : []),
+      ];
       return {
         mark: "⚠",
         tone: "warn",
-        text: `read${took(source.startedAt, source.endedAt)} · ${count} ${kind}${count === 1 ? "" : "s"} cut short${complete > 0 ? "; rest read" : ""}`,
+        text: `read${took(source.startedAt, source.endedAt)} · ${parts.join("; ")}`,
         detail: `${complete} of ${total} ${total === 1 ? "read" : "reads"} complete.${source.reason ? ` ${source.reason}` : ""}`,
+        ...(source.failure ? { why: source.failure } : {}),
       };
     }
     case "deferred": {

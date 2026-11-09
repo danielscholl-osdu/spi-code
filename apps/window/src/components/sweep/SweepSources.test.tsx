@@ -13,6 +13,7 @@ import { watchStore } from "../../store/watch.js";
 import { clockTime } from "../../time.js";
 import { SweepSources } from "./SweepSources.js";
 import { after, midSweep, SWEEP_START } from "./test-helper.js";
+import { failedCount } from "./words.js";
 
 const cleanups: (() => Promise<void>)[] = [];
 
@@ -92,7 +93,7 @@ it("draws twelve rows in sweep order in the Evidence names, what each reads and 
     "read · 52 s · 6 run lists cut short; rest read",
     "read · 4 s",
     "read · 12 s",
-    "read · 6 s",
+    "read · 6 s · 2 reads failed",
     `waits for GitHub budget · after ${clock("2026-11-09T09:10:00Z")}`,
     "failed",
     "reading · 14 s",
@@ -107,7 +108,7 @@ it("draws twelve rows in sweep order in the Evidence names, what each reads and 
     "⚠",
     "✓",
     "✓",
-    "✓",
+    "⚠",
     "–",
     "✕",
     "◐",
@@ -182,6 +183,55 @@ it.each([
   },
 );
 
+it.each([
+  {
+    name: "the recorded radar sweep",
+    source: "radar",
+    cut: {
+      code: "limit",
+      cutKind: "diff",
+      reason: "Oversized or collapsed diffs: 1,607 of 1,696 files read.",
+    },
+    incomplete: { count: 14, total: 361, failed: 3 },
+    failure: "Reads failed for 3 services: unit, crs-catalog, crs-conversion.",
+    outcome: "read · 12 s · 14 diffs cut short; 3 reads failed",
+    detail: "344 of 361 reads complete. Oversized or collapsed diffs: 1,607 of 1,696 files read.",
+  },
+  {
+    name: "one failed read and no cut",
+    source: "template",
+    cut: {},
+    incomplete: { count: 0, total: 24, failed: 1 },
+    failure: "Reads failed for 1 service: unit.",
+    outcome: "read · 12 s · 1 read failed",
+    detail: "23 of 24 reads complete.",
+  },
+] as const)(
+  "marks a partly failed source as partial and names what failed: $name",
+  async (example) => {
+    const progress = withSource({
+      source: example.source,
+      state: "cut",
+      startedAt: after(0),
+      endedAt: after(12),
+      ...example.cut,
+      incomplete: example.incomplete,
+      failure: example.failure,
+    });
+    const { container } = await render(progress);
+    const line = row(container, example.source);
+    const outcome = line?.querySelector(".sweep-outcome");
+    expect(line?.querySelector(".sweep-mark")?.textContent).toBe("⚠");
+    expect(line?.getAttribute("data-tone")).toBe("warn");
+    expect(outcome?.textContent).toBe(example.outcome);
+    expect(outcome?.getAttribute("aria-description")).toBe(example.detail);
+    expect(line?.querySelector(".sweep-why")?.textContent).toBe(example.failure);
+    expect(line?.textContent).not.toMatch(/rest read|Today will say|could not complete/);
+    expect(failedCount(progress)).toBe(1);
+    expect(container.querySelector(".sweep-meta")?.textContent).toMatch(/· 1 source failed$/);
+  },
+);
+
 it("tones one bar segment per source like its row, with no percentage or countdown", async () => {
   const { container } = await render(midSweep());
   const bar = container.querySelector(".sweep-bar");
@@ -193,7 +243,7 @@ it("tones one bar segment per source like its row, with no percentage or countdo
     "warn",
     "ok",
     "ok",
-    "ok",
+    "warn",
     "warn",
     "bad",
     "run",

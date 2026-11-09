@@ -329,7 +329,7 @@ test.each(["gh", "glab"] as const)(
 );
 
 test.each(["cut", "failed", "throttled"] as const)(
-  "mixed release reads expose state-appropriate incomplete counts for %s outcomes",
+  "mixed release reads expose state-appropriate incomplete counts for %s reads",
   async (state) => {
     const h = harness();
     const initial = createSweeper(h.options);
@@ -374,11 +374,19 @@ test.each(["cut", "failed", "throttled"] as const)(
     const records = sweeper.cache.releases.records;
     expect(records.filter((record) => record.completeness.kind === "cut")).toHaveLength(1);
     const outcome = calls.find(
-      (event) => event.kind === "source" && event.source === "releases" && event.state === state,
+      (event) =>
+        event.kind === "source" &&
+        event.source === "releases" &&
+        event.state === (state === "failed" ? "cut" : state),
     );
     expect(outcome).toBeDefined();
     if (state === "cut")
       expect(outcome).toMatchObject({ incomplete: { count: 1, total: records.length } });
+    else if (state === "failed")
+      expect(outcome).toMatchObject({
+        incomplete: { count: 1, total: records.length },
+        failed: { count: 1, services: ["partition"] },
+      });
     else {
       expect(records.some((record) => record.failure !== undefined)).toBe(true);
       expect(outcome).not.toHaveProperty("incomplete");
@@ -443,11 +451,14 @@ test("the collector reports releases in sweep order, including cadence skips and
     {
       kind: "source",
       source: "releases",
-      state: "failed",
+      state: "cut",
       endedAt: START,
-      reason: sweeper.cache.releases.records.find((record) => record.failure)?.failure,
-      code: "other",
       completeness: { kind: "complete" },
+      incomplete: { count: 0, total: sweeper.cache.releases.records.length },
+      failed: {
+        count: sweeper.cache.releases.records.filter((record) => record.failure).length,
+        services: [],
+      },
     },
   ]);
   h.setRoute((cmd, args) =>

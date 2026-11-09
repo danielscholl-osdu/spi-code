@@ -351,6 +351,37 @@ describe("sweep progress", () => {
     expect(withSource({ ...source, cutKind: "stderr" }).ok).toBe(false);
     expect(withSource({ source: "lifecycle", state: "read", cutKind: "job-log" }).ok).toBe(false);
   });
+  it("carries failed reads on a cut source without changing older cut messages", () => {
+    const failure = "Reads failed for 3 services: unit, crs-catalog, crs-conversion.";
+    const partial = {
+      source: "radar",
+      state: "cut",
+      incomplete: { count: 0, total: 361, failed: 3 },
+    };
+    expect(withSource(partial).ok).toBe(true);
+    expect(withSource({ ...partial, failure }).ok).toBe(true);
+    expect(
+      withSource({
+        ...partial,
+        incomplete: { count: 14, total: 361, failed: 3 },
+        cutKind: "diff",
+        code: "limit",
+        reason: "Oversized or collapsed diffs",
+        failure,
+      }).ok,
+    ).toBe(true);
+    for (const invalid of [
+      { ...partial, incomplete: { count: 0, total: 361, failed: 0 } },
+      { ...partial, incomplete: { count: 359, total: 361, failed: 3 } },
+      { ...partial, cutKind: "diff" },
+      { ...partial, code: "limit", reason: "Oversized or collapsed diffs" },
+      { source: "radar", state: "cut", incomplete: { count: 1, total: 2 }, failure },
+      { source: "radar", state: "failed", code: "other", reason: "x", failure },
+      { ...partial, failure: "" },
+    ]) {
+      expect(withSource(invalid).ok).toBe(false);
+    }
+  });
   it("bounds every reason", () => {
     const source = progress.sources[5];
     const bounded = "x".repeat(SWEEP_REASON_MAX_LENGTH);

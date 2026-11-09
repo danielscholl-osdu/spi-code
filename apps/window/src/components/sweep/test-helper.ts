@@ -15,7 +15,7 @@ const read = (source: string, from: number, took: number) => ({
   endedAt: after(from + took),
 });
 
-/** The layout page's mid-sweep frame: nine of twelve settled, one failed on sign-in. */
+/** The layout page's mid-sweep frame: nine of twelve settled, one partly failed, one failed on sign-in. */
 export function midSweep(overrides: Partial<SweepProgress> = {}): SweepProgress {
   return SweepProgressSchema.parse({
     sweep: "sweep-1",
@@ -40,7 +40,14 @@ export function midSweep(overrides: Partial<SweepProgress> = {}): SweepProgress 
       },
       read("approvals", 95, 4),
       read("lifecycle", 99, 12),
-      read("template", 111, 6),
+      {
+        source: "template",
+        state: "cut",
+        startedAt: after(111),
+        endedAt: after(117),
+        incomplete: { count: 0, total: 24, failed: 2 },
+        failure: "Reads failed for 2 services: unit, crs-catalog.",
+      },
       {
         source: "details",
         state: "deferred",

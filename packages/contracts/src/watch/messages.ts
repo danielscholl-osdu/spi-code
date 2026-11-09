@@ -57,7 +57,9 @@ const ended = { ...sourceBase, endedAt: ObservedAtSchema.optional() };
 const reasoned = { code: SweepReasonCodeSchema, reason: SweepReasonSchema };
 const mayReason = { code: SweepReasonCodeSchema.optional(), reason: SweepReasonSchema.optional() };
 // throttled pauses a read within this sweep and resumes at resumeAt; deferred leaves the source
-// unread this sweep, and resumeAt, when known, is when its budget allows a read again.
+// unread this sweep, and resumeAt, when known, is when its budget allows a read again. A cut source
+// is one that read but not all of it: incomplete.count reads were cut short, incomplete.failed reads
+// failed while the rest read, and failure is the host's sentence naming what failed.
 export const SweepSourceProgressSchema = z
   .discriminatedUnion("state", [
     z.strictObject({ source: IdentifierSchema, state: z.literal("waiting") }),
@@ -79,10 +81,18 @@ export const SweepSourceProgressSchema = z
       ...mayReason,
       cutKind: z.enum(["job-log", "diff", "run-list", "read"]).optional(),
       incomplete: z
-        .strictObject({ count: z.int().positive(), total: z.int().positive() })
-        .refine(({ count, total }) => count <= total, {
+        .strictObject({
+          count: z.int().nonnegative(),
+          total: z.int().positive(),
+          failed: z.int().positive().optional(),
+        })
+        .refine(({ count, failed = 0 }) => count + failed > 0, {
+          message: "A cut source has a cut or failed read",
+        })
+        .refine(({ count, total, failed = 0 }) => count + failed <= total, {
           message: "Incomplete count exceeds total",
         }),
+      failure: SweepReasonSchema.optional(),
     }),
     z.strictObject({
       ...ended,
@@ -101,6 +111,18 @@ export const SweepSourceProgressSchema = z
     message: "A code needs its reason",
     path: ["reason"],
   })
+  .refine(
+    (source) =>
+      source.state !== "cut" || source.failure === undefined || !!source.incomplete.failed,
+    { message: "A failure needs its failed reads", path: ["failure"] },
+  )
+  .refine(
+    (source) =>
+      source.state !== "cut" ||
+      source.incomplete.count > 0 ||
+      (source.cutKind === undefined && source.code === undefined),
+    { message: "A cut kind or code needs a cut read", path: ["cutKind"] },
+  )
   .refine(
     (source) =>
       !("endedAt" in source && source.endedAt && source.startedAt) ||

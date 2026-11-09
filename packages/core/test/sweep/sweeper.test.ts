@@ -3,6 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { fleetOf } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
 import type { ReadRecord } from "../../src/evidence/index.js";
 import { type Exec, execOutputDelivery } from "../../src/exec/port.js";
@@ -1027,5 +1028,71 @@ describe("Sweeper shell", () => {
     expect(sweeper.reads.persist?.[0]?.failure).toBe("disk full");
     expect(sweeper.model.measured).toBe(true);
     expect(sweeper.sweeping).toBe(false);
+  });
+});
+
+describe("sweepReadProgress", () => {
+  const at = "2026-11-09T06:00:00.000Z";
+  const fleet = fleetOf(
+    [
+      { id: "unit", repo: "Azure/osdu-spi-unit", upstream: "osdu/unit", seeded: "2026-10-13" },
+      {
+        id: "crs-catalog",
+        repo: "Azure/osdu-spi-crs-catalog",
+        upstream: "osdu/crs",
+        seeded: "2026-10-13",
+      },
+    ],
+    "Azure/osdu-spi",
+    null,
+  );
+  const read = (source: string, failure?: string): ReadRecord => ({
+    source,
+    object: "main:pom.xml",
+    observedAt: at,
+    completeness: { kind: "complete" },
+    ...(failure === undefined ? {} : { failure }),
+  });
+
+  it("is cut and names the services when some reads failed and the rest read", () => {
+    const records = [
+      read("osdu/unit"),
+      read("Azure/osdu-spi-unit", "gh: not readable"),
+      read("Azure/osdu-spi-crs-catalog", "gh: not readable"),
+    ];
+    const outcome = sweepReadProgress("radar", records, at, undefined, undefined, fleet);
+    expect(outcome).toMatchObject({
+      state: "cut",
+      incomplete: { count: 0, total: 3 },
+      failed: { count: 2, services: ["unit", "crs-catalog"] },
+    });
+    expect(outcome).not.toHaveProperty("reason");
+    expect(outcome).not.toHaveProperty("code");
+  });
+
+  it("names no service when a failed read is not a fork's", () => {
+    const records = [read("osdu/unit"), read("Azure/osdu-spi-unit", "x"), read("elsewhere", "x")];
+    expect(sweepReadProgress("radar", records, at, undefined, undefined, fleet)).toMatchObject({
+      state: "cut",
+      failed: { count: 2, services: [] },
+    });
+  });
+
+  it("stays failed with its own code when every read failed or the area named the cause", () => {
+    const all = [read("Azure/osdu-spi-unit", "offline"), read("osdu/unit", "offline")];
+    expect(sweepReadProgress("radar", all, at, "unavailable", undefined, fleet)).toMatchObject({
+      state: "failed",
+      code: "unavailable",
+      reason: "offline",
+    });
+    expect(sweepReadProgress("radar", all, at, undefined, undefined, fleet)).not.toHaveProperty(
+      "failed",
+    );
+    const named = [read("gh", "signed out"), read("glab")];
+    expect(sweepReadProgress("auth", named, at, "signin", "Sign in to gh")).toMatchObject({
+      state: "failed",
+      code: "signin",
+      reason: "Sign in to gh",
+    });
   });
 });

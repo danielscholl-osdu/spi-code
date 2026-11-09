@@ -3,6 +3,7 @@
 
 import { randomUUID } from "node:crypto";
 import {
+  SWEEP_REASON_MAX_LENGTH,
   type SweepProgress,
   SweepProgressSchema,
   type SweepReasonCode,
@@ -80,6 +81,25 @@ function cutDetail(
   };
 }
 
+const SERVICE_ID = /^[a-z0-9][a-z0-9-]{0,39}$/;
+
+/** Names the services whose reads failed, only from fleet ids; core's failure text never passes. */
+export function failedReadsReason(
+  failed: { count: number; services: readonly string[] } | undefined,
+) {
+  const services = failed?.services ?? [];
+  if (services.length === 0 || !services.every((service) => SERVICE_ID.test(service)))
+    return undefined;
+  const lead = `Reads failed for ${services.length} service${services.length === 1 ? "" : "s"}: `;
+  for (let shown = services.length; shown > 0; shown--) {
+    const rest = services.length - shown;
+    const list = services.slice(0, shown).join(", ");
+    const sentence = `${lead}${rest === 0 ? list : `${list} and ${rest} more`}.`;
+    if (sentence.length <= SWEEP_REASON_MAX_LENGTH) return sentence;
+  }
+  return undefined;
+}
+
 /** Core's completeness is item counts; only its cut outcome supplies incomplete read counts. */
 export function foldSweepProgress(current: SweepProgress, event: CoreProgress): unknown {
   if (event.kind === "failed" || current.outcome !== "running") return current;
@@ -117,15 +137,19 @@ export function foldSweepProgress(current: SweepProgress, event: CoreProgress): 
       case "read":
         source = { ...ended, state: "read" };
         break;
-      case "cut":
+      case "cut": {
+        const failed = event.failed?.count ?? 0;
+        const failure = failedReadsReason(event.failed);
         source = {
           ...ended,
           state: "cut",
-          code,
-          ...cutDetail(event),
-          incomplete: event.incomplete,
+          ...((event.incomplete?.count ?? 0) > 0 ? { code, ...cutDetail(event) } : {}),
+          incomplete:
+            event.incomplete && failed > 0 ? { ...event.incomplete, failed } : event.incomplete,
+          ...(failure === undefined ? {} : { failure }),
         };
         break;
+      }
       case "deferred":
         source = {
           ...ended,
