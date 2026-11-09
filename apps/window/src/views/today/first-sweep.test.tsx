@@ -131,13 +131,13 @@ it("reads the program before any progress, then lists the sweep live with no raw
   await receive("sweep.progress", midSweep());
   expect(container.querySelectorAll(".sweep-row")).toHaveLength(12);
   expect(container.querySelectorAll(".sweep-segment")).toHaveLength(12);
-  expect(one(container, ".sweep-meta")).toBe("2 min 10 s so far · 1 source failed");
+  expect(one(container, ".sweep-meta")).toBe("2\u00a0min 10\u00a0s so far · 1 source failed");
   expect(container.querySelector("dl, dt")).toBeNull();
   expect(container.textContent).not.toMatch(
     /remaining|floor|resetAt|deferredAreas|nextAttemptAt|resumeAt|usualMs|startedAt|endedAt|outcome|incomplete:|signin|sweep-1|API calls/,
   );
   await receive("sweep.progress", midSweep({ usualMs: 125_000 }));
-  expect(one(container, ".today-first-sub")).toBe("Usually about 2 min.");
+  expect(one(container, ".today-first-sub")).toBe("Usually about 2\u00a0min.");
 });
 
 it("announces each stage politely and never the ticking seconds", async () => {
@@ -147,10 +147,10 @@ it("announces each stage politely and never the ticking seconds", async () => {
   expect(region?.className).toBe("visually-hidden");
   expect(status(container)).toBe("9 of 12 sources done, 1 failed.");
   const radar = () => one(container, '.sweep-row[data-source="radar"] .sweep-outcome');
-  expect(radar()).toBe("reading · 14 s");
+  expect(radar()).toBe("reading · 14\u00a0s");
   await act(async () => vi.advanceTimersByTime(5_000));
-  expect(radar()).toBe("reading · 19 s");
-  expect(one(container, ".sweep-meta")).toBe("2 min 15 s so far · 1 source failed");
+  expect(radar()).toBe("reading · 19\u00a0s");
+  expect(one(container, ".sweep-meta")).toBe("2\u00a0min 15\u00a0s so far · 1 source failed");
   expect(status(container)).toBe("9 of 12 sources done, 1 failed.");
   const progress = midSweep();
   await receive(
@@ -237,9 +237,9 @@ it("says where a timeout stopped the first sweep, when it tries again, and offer
   const outcomes = () =>
     [...container.querySelectorAll(".sweep-outcome")].map((element) => element.textContent);
   expect(outcomes()).toEqual([
-    "read · 3 s",
-    "read · 9 s",
-    "read · 31 s",
+    "read · 3\u00a0s",
+    "read · 9\u00a0s",
+    "read · 31\u00a0s",
     "failed · GitHub did not answer in time.",
     ...Array(8).fill("waiting"),
   ]);

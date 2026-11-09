@@ -88,16 +88,16 @@ it("draws twelve rows in sweep order in the Evidence names, what each reads and 
     "release PRs and tags",
   ]);
   expect(all(container, ".sweep-outcome")).toEqual([
-    "read · 3 s",
-    "read · 9 s",
-    "read · 31 s",
-    "read · 52 s · 6 run lists cut short; rest read",
-    "read · 4 s",
-    "read · 12 s",
-    "read · 6 s · 2 reads failed",
+    "read · 3\u00a0s",
+    "read · 9\u00a0s",
+    "read · 31\u00a0s",
+    "read · 52\u00a0s · 6 run lists cut short; rest read",
+    "read · 4\u00a0s",
+    "read · 12\u00a0s",
+    "read · 6\u00a0s · 2 reads failed",
     `waits for GitHub budget · after ${clock("2026-11-09T09:10:00Z")}`,
     "failed",
-    "reading · 14 s",
+    "reading · 14\u00a0s",
     "waiting",
     "waiting",
   ]);
@@ -120,7 +120,7 @@ it("draws twelve rows in sweep order in the Evidence names, what each reads and 
     "2026-11-09T09:10:00Z",
   );
   expect(container.querySelector(".sweep-meta")?.textContent).toBe(
-    "2 min 10 s so far · 1 source failed",
+    "2\u00a0min 10\u00a0s so far · 1 source failed",
   );
 });
 
@@ -131,7 +131,7 @@ it.each([
     count: 1,
     total: 69,
     reason: "Job log character limit: 64,000 of 92,438 characters read.",
-    outcome: "read · 12 s · 1 job log cut short; rest read",
+    outcome: "read · 12\u00a0s · 1 job log cut short; rest read",
     detail: "68 of 69 reads complete. Job log character limit: 64,000 of 92,438 characters read.",
   },
   {
@@ -140,7 +140,7 @@ it.each([
     count: 14,
     total: 200,
     reason: "Oversized or collapsed diffs: 1,607 of 1,696 files read.",
-    outcome: "read · 12 s · 14 diffs cut short; rest read",
+    outcome: "read · 12\u00a0s · 14 diffs cut short; rest read",
     detail: "186 of 200 reads complete. Oversized or collapsed diffs: 1,607 of 1,696 files read.",
   },
   {
@@ -149,7 +149,7 @@ it.each([
     count: 2,
     total: 2,
     reason: "Job log character limit: 128,000 of 184,876 characters read.",
-    outcome: "read · 12 s · 2 job logs cut short",
+    outcome: "read · 12\u00a0s · 2 job logs cut short",
     detail: "0 of 2 reads complete. Job log character limit: 128,000 of 184,876 characters read.",
   },
   {
@@ -158,7 +158,7 @@ it.each([
     count: 1,
     total: 1,
     reason: "Job log character limit: 64,000 of 92,438 characters read.",
-    outcome: "read · 12 s · 1 job log cut short",
+    outcome: "read · 12\u00a0s · 1 job log cut short",
     detail: "0 of 1 read complete. Job log character limit: 64,000 of 92,438 characters read.",
   },
 ] as const)(
@@ -195,7 +195,7 @@ it.each([
     },
     incomplete: { count: 14, total: 361, failed: 3 },
     failure: "Reads failed for 3 services: unit, crs-catalog, crs-conversion.",
-    outcome: "read · 12 s · 14 diffs cut short; 3 reads failed",
+    outcome: "read · 12\u00a0s · 14 diffs cut short; 3 reads failed",
     detail: "344 of 361 reads complete. Oversized or collapsed diffs: 1,607 of 1,696 files read.",
   },
   {
@@ -204,7 +204,7 @@ it.each([
     cut: {},
     incomplete: { count: 0, total: 24, failed: 1 },
     failure: "Reads failed for 1 service: unit.",
-    outcome: "read · 12 s · 1 read failed",
+    outcome: "read · 12\u00a0s · 1 read failed",
     detail: "23 of 24 reads complete.",
   },
 ] as const)(
@@ -316,10 +316,10 @@ it("says still reading past a minute and counts the meta line's sources failed",
     186,
   );
   expect(row(container, "radar")?.querySelector(".sweep-outcome")?.textContent).toBe(
-    "still reading · 1 min 10 s",
+    "still reading · 1\u00a0min 10\u00a0s",
   );
   expect(container.querySelector(".sweep-meta")?.textContent).toBe(
-    "3 min 6 s so far · 2 sources failed",
+    "3\u00a0min 6\u00a0s so far · 2 sources failed",
   );
 });
 
@@ -335,7 +335,7 @@ it("tells a throttled source to wait for its resume time under the meta line", a
     }),
   );
   expect(row(container, "radar")?.querySelector(".sweep-outcome")?.textContent).toBe(
-    "reading · 14 s",
+    "reading · 14\u00a0s",
   );
   expect(container.querySelector(".sweep-throttled")?.textContent).toBe(
     `GitLab asked SPI Code to slow down. Resumes at ${clock("2026-11-09T08:04:00Z")}.`,
@@ -376,13 +376,13 @@ it("marks skipped and put-off sources, with a put-off reason on the next line", 
   expect(all(container, ".sweep-outcome")).toEqual([
     "skipped",
     `put off · after ${clock("2026-11-09T09:30:00Z")}`,
-    "reading · 5 s",
+    "reading · 5\u00a0s",
   ]);
   expect(all(container, ".sweep-mark")).toEqual(["–", "–", "◐"]);
   expect(row(container, "fleet")?.querySelector(".sweep-why")?.textContent).toBe(
     "Read less often.",
   );
-  expect(container.querySelector(".sweep-meta")?.textContent).toBe("2 min 10 s so far");
+  expect(container.querySelector(".sweep-meta")?.textContent).toBe("2\u00a0min 10\u00a0s so far");
 });
 
 function sweepStyle() {

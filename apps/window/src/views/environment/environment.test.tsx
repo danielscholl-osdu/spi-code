@@ -96,7 +96,7 @@ it("reuses cleared tiers and reserves space for a flipped label", () => {
 
 it("uses the track clock for event duration", () => {
   expect(eventWhen({ ...first, start: new Date(0).toISOString() }, new Date(3_600_000))).toContain(
-    "to now \u00b7 1 h",
+    "to now \u00b7 1\u00a0h",
   );
 });
 

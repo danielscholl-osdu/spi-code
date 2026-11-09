@@ -35,8 +35,8 @@ const envelopes: Record<string, Envelope> = {
 };
 
 it.each([
-  ["fresh", "fresh · 2 min", "fresh"],
-  ["stale", "stale · 2 min", "stale"],
+  ["fresh", "fresh · 2\u00a0min", "fresh"],
+  ["stale", "stale · 2\u00a0min", "stale"],
   ["incomplete", "incomplete · 40 of 52", "stale"],
   ["failed", "read failed · Actions", "bad"],
   ["unread", "unread · GitLab", "muted"],

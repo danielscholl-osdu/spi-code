@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { SweepProgress, SweepReasonCode, SweepSourceProgress } from "@spi-code/contracts";
-import { clockTime } from "../../time.js";
+import { clockTime, timeUnit } from "../../time.js";
 
 export type SourceTone = "wait" | "run" | "ok" | "warn" | "bad";
 
@@ -13,15 +13,18 @@ export function readinessCanFix(code: SweepReasonCode | undefined): boolean {
 /** An elapsed time in whole seconds: `22 s`, `1 min 10 s`, `1 h 2 min`. */
 export function duration(ms: number): string {
   const seconds = Math.max(0, Math.floor(ms / 1000));
-  if (seconds < 60) return `${seconds} s`;
+  if (seconds < 60) return timeUnit(seconds, "s");
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} min${seconds % 60 ? ` ${seconds % 60} s` : ""}`;
-  return `${Math.floor(minutes / 60)} h${minutes % 60 ? ` ${minutes % 60} min` : ""}`;
+  if (minutes < 60)
+    return `${timeUnit(minutes, "min")}${seconds % 60 ? ` ${timeUnit(seconds % 60, "s")}` : ""}`;
+  return `${timeUnit(Math.floor(minutes / 60), "h")}${minutes % 60 ? ` ${timeUnit(minutes % 60, "min")}` : ""}`;
 }
 
 /** A usual sweep length, rounded: `40 s`, `2 min`. */
 export function about(ms: number): string {
-  return ms < 60_000 ? `${Math.max(1, Math.round(ms / 1000))} s` : `${Math.round(ms / 60_000)} min`;
+  return ms < 60_000
+    ? timeUnit(Math.max(1, Math.round(ms / 1000)), "s")
+    : timeUnit(Math.round(ms / 60_000), "min");
 }
 
 /** A clock time the copy already places: no relative hint. */

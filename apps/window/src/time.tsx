@@ -15,6 +15,11 @@ export interface ClockOptions {
 
 const formats = new Map<string, Intl.DateTimeFormat>();
 
+/** Bind each number to its unit, leaving compound durations free to wrap between pairs. */
+export function timeUnit(value: number, unit: "s" | "min" | "h" | "d"): string {
+  return `${value}\u00a0${unit}`;
+}
+
 function fields(date: Date, timeZone: string | undefined) {
   const key = timeZone ?? "";
   let format = formats.get(key);
@@ -42,12 +47,12 @@ function fields(date: Date, timeZone: string | undefined) {
 
 function until(ms: number): string {
   const minutes = Math.max(1, Math.round(ms / 60_000));
-  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 60) return timeUnit(minutes, "min");
   if (minutes < 48 * 60) {
     const rest = minutes % 60;
-    return `${Math.floor(minutes / 60)} h${rest > 0 ? ` ${rest} min` : ""}`;
+    return `${timeUnit(Math.floor(minutes / 60), "h")}${rest > 0 ? ` ${timeUnit(rest, "min")}` : ""}`;
   }
-  return `${Math.round(minutes / (24 * 60))} d`;
+  return timeUnit(Math.round(minutes / (24 * 60)), "d");
 }
 
 /**

@@ -3,6 +3,7 @@
 
 import type { Envelope } from "@spi-code/contracts";
 import type { CSSProperties } from "react";
+import { timeUnit } from "../../time.js";
 
 export type EnvelopeTone = "fresh" | "stale" | "bad" | "muted";
 
@@ -49,9 +50,9 @@ export function InferredMarker() {
 
 function age(observedAt: string, now: number): string {
   const minutes = Math.max(0, Math.round((now - Date.parse(observedAt)) / 60_000));
-  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 60) return timeUnit(minutes, "min");
   const hours = Math.round(minutes / 60);
-  return hours < 48 ? `${hours} h` : `${Math.round(hours / 24)} d`;
+  return hours < 48 ? timeUnit(hours, "h") : timeUnit(Math.round(hours / 24), "d");
 }
 
 export function envelopeText(envelope: Envelope, now?: number): string {

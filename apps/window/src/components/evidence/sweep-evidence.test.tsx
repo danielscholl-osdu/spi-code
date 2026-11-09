@@ -100,47 +100,47 @@ async function render(node: ReactNode) {
 }
 
 it.each([
-  ["fresh", areas(), "swept 2 min ago · all fresh · next sync in 3 h", "fresh"],
+  ["fresh", areas(), "swept 2\u00a0min ago · all fresh · next sync in 3\u00a0h", "fresh"],
   [
     "failed",
     areas({ github: { state: "failed" }, runs: { state: "stale" }, security: cut }),
-    "swept 2 min ago · 1 area failed · 1 incomplete · 1 stale · next sync in 3 h",
+    "swept 2\u00a0min ago · 1 area failed · 1 incomplete · 1 stale · next sync in 3\u00a0h",
     "bad",
   ],
   [
     "cut",
     areas({ security: cut }),
-    "swept 2 min ago · 1 area incomplete · next sync in 3 h",
+    "swept 2\u00a0min ago · 1 area incomplete · next sync in 3\u00a0h",
     "warn",
   ],
   [
     "stale",
     areas({ radar: { state: "stale" }, upstream: { state: "stale" } }),
-    "swept 2 min ago · 2 areas stale · next sync in 3 h",
+    "swept 2\u00a0min ago · 2 areas stale · next sync in 3\u00a0h",
     "warn",
   ],
   [
     "all-inferred",
     areas({}, { inferred: true }),
-    "swept 2 min ago · next sync in 3 h · inferred",
+    "swept 2\u00a0min ago · next sync in 3\u00a0h · inferred",
     "inferred",
   ],
   [
     "one-inferred",
     areas({ fleet: { inferred: true } }),
-    "swept 2 min ago · all fresh · next sync in 3 h",
+    "swept 2\u00a0min ago · all fresh · next sync in 3\u00a0h",
     "fresh",
   ],
   [
     "stale and all inferred",
     areas({ auth: { state: "stale" } }, { inferred: true }),
-    "swept 2 min ago · 1 area stale · next sync in 3 h · inferred",
+    "swept 2\u00a0min ago · 1 area stale · next sync in 3\u00a0h · inferred",
     "warn",
   ],
   [
     "unread",
     areas().filter(({ area }) => area !== "details"),
-    "swept 2 min ago · 1 area not read yet · next sync in 3 h",
+    "swept 2\u00a0min ago · 1 area not read yet · next sync in 3\u00a0h",
     "muted",
   ],
 ] as const)(
@@ -273,11 +273,11 @@ it.each([
 );
 
 it.each([
-  ["eleven fresh areas", areas(), "swept 2 min ago · release lines read failed", " · 1"],
+  ["eleven fresh areas", areas(), "swept 2\u00a0min ago · release lines read failed", " · 1"],
   [
     "a stale area",
     areas({ runs: { state: "stale" } }),
-    "swept 2 min ago · 1 area stale · release lines read failed",
+    "swept 2\u00a0min ago · 1 area stale · release lines read failed",
     " · 2",
   ],
 ] as const)(
@@ -375,7 +375,7 @@ it("lists every source of the sweep once in plain words with state, age and comp
   try {
     const sweepView = view.container.querySelector('[data-evidence="sweep"]');
     expect(sweepView?.querySelector(".evidence-line")?.textContent).toBe(
-      "swept 2 min ago · 1 area failed · 1 incomplete · 1 stale · 1 not read yet · next sync in 3 h",
+      "swept 2\u00a0min ago · 1 area failed · 1 incomplete · 1 stale · 1 not read yet · next sync in 3\u00a0h",
     );
     expect(view.container.querySelector("table[aria-label='Areas']")).toBeNull();
     const rows = sourceRows(view.container);
@@ -385,15 +385,15 @@ it("lists every source of the sweep once in plain words with state, age and comp
     expect(row("github")).toEqual([
       "GitHub issues and PRs",
       "bad",
-      "read failed, showing data from 25 min ago",
+      "read failed, showing data from 25\u00a0min ago",
     ]);
-    expect(row("runs")?.slice(1)).toEqual(["warn", "stale, last read 23 min ago, complete"]);
+    expect(row("runs")?.slice(1)).toEqual(["warn", "stale, last read 23\u00a0min ago, complete"]);
     expect(row("security")?.slice(1)).toEqual([
       "warn",
-      "cut, last read 5 min ago, 48,000 of 71,250 read",
+      "cut, last read 5\u00a0min ago, 48,000 of 71,250 read",
     ]);
     expect(row("details")?.slice(1)).toEqual(["wait", "not read yet"]);
-    expect(row("fleet")?.slice(1)).toEqual(["ok", "fresh, last read 2 min ago, complete"]);
+    expect(row("fleet")?.slice(1)).toEqual(["ok", "fresh, last read 2\u00a0min ago, complete"]);
     expect(failedRows(view.container).map((row) => row.textContent)).toEqual([
       "✕Upstream GitLabGitLab unavailable · partition",
     ]);
@@ -402,7 +402,7 @@ it("lists every source of the sweep once in plain words with state, age and comp
     ).toContain("http_502");
     expect(sweepView?.textContent).not.toContain("http 502");
     expect(sweepView?.querySelector("[data-budget]")?.textContent).toBe(
-      "1,234 GitHub requests left, resets in 40 min; reads pause at 500 to keep a reserve.",
+      "1,234 GitHub requests left, resets in 40\u00a0min; reads pause at 500 to keep a reserve.",
     );
     expect(sweepView?.querySelector('[data-deferred="security"]')?.textContent).toBe(
       `${AREA_NAMES.security} waits for the next sweep · budget floor`,
@@ -482,6 +482,52 @@ const committed = () =>
   });
 const NAMES = [...AREAS.map((area) => AREA_NAMES[area]), "Release lines"];
 
+it.each([true, false])(
+  "keeps last-read hours inseparable in 360 px Evidence with a retained list: %s",
+  async (retained) => {
+    const body = firstSweep();
+    const list = committed();
+    const resumeAt = new Date(now + 10 * 60_000).toISOString();
+    list.sources = list.sources.map((source) =>
+      source.source === "details"
+        ? {
+            source: "details",
+            state: "deferred",
+            code: "budget",
+            reason: "GitHub budget is low.",
+            resumeAt,
+          }
+        : source,
+    );
+    const view = await render(
+      <SweepEvidence
+        snapshot={{
+          ...body,
+          areas: areas({ details: { observedAt: minutes(60) } }),
+        }}
+        sweep={null}
+        completed={retained ? list : null}
+        now={now}
+      />,
+    );
+    view.container.style.width = "360px";
+    try {
+      const outcome = view.container.querySelector(
+        '.sweep-row[data-source="details"] .sweep-outcome',
+      )?.textContent;
+      expect(view.container.style.width).toBe("360px");
+      expect(outcome).toContain("last read 1\u00a0h ago");
+      expect(outcome).not.toMatch(/\d[ \t]+h\b/);
+      if (retained)
+        expect(outcome).toBe(
+          `waits for GitHub budget · after ${clockTime(resumeAt, { now, hint: false })} · last read 1\u00a0h ago`,
+        );
+    } finally {
+      await view.cleanup();
+    }
+  },
+);
+
 it.each([
   ["after the first sweep", committed()],
   ["after a relaunch, with no list kept", null],
@@ -509,7 +555,7 @@ it.each([
       for (const name of NAMES)
         expect(sourceSection?.textContent?.split(name).length, name).toBe(2);
       for (const [name, , outcome] of rows)
-        expect(outcome, name ?? "").toMatch(/last read \d+ min ago/);
+        expect(outcome, name ?? "").toMatch(/last read \d+\u00a0min ago/);
       expect(article.textContent).not.toMatch(/GitLab omitted|Job log character limit|hunks/);
       expect(article.querySelector("table[aria-label='Areas']")).toBeNull();
       expect([...article.querySelectorAll("h3")].map((h) => h.textContent)).toEqual([
@@ -539,7 +585,7 @@ it("adds no last read to a listed source whose area has not been read yet", asyn
     const outcome = view.container.querySelector(
       '.sweep-row[data-source="approvals"] .sweep-outcome',
     )?.textContent;
-    expect(outcome).toMatch(/^read · \d+ s$/);
+    expect(outcome).toMatch(/^read · \d+\u00a0s$/);
   } finally {
     await view.cleanup();
   }
@@ -1015,14 +1061,14 @@ it.each([
         [...(article?.querySelectorAll("h3") ?? [])].map((heading) => heading.textContent),
       ).toEqual(["Areas", "Reads for partition"]);
       expect(view.rows("Areas")).toEqual([
-        ["GitHub issues and PRs", "fresh", "fresh, last read 2 min ago, complete"],
-        ["Workflow runs", "stale", "stale, last read 23 min ago, complete"],
+        ["GitHub issues and PRs", "fresh", "fresh, last read 2\u00a0min ago, complete"],
+        ["Workflow runs", "stale", "stale, last read 23\u00a0min ago, complete"],
       ]);
       expect(view.rows("Reads for partition")).toEqual([
         [
           "GitHub issues and PRs · Azure/osdu-spi-partition",
           "cut",
-          "read 4 min ago, cut, 40 of 52 · page limit",
+          "read 4\u00a0min ago, cut, 40 of 52 · page limit",
         ],
       ]);
       const all = areasInferred && readInferred;
@@ -1065,7 +1111,7 @@ it.each([
     "stale",
     areas({ runs: { state: "stale", observedAt: minutes(23) } }),
     [read(false)],
-    "stale · 23 min",
+    "stale · 23\u00a0min",
   ],
   ["inferred", areas({}, { inferred: true }), [read(true)], "inferred · every source"],
 ] as const)(

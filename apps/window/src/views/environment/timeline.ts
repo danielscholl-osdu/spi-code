@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { EnvEvent, EnvLane } from "@spi-code/contracts";
-import { clockTime } from "../../time.js";
+import { clockTime, timeUnit } from "../../time.js";
 
 // Ported from keelson-rib-spi @59d6895, src/boards/console.ts.
 export const TRACK_MIN_PX = 960;
@@ -83,13 +83,13 @@ function span(ms: number): string | undefined {
   const hour = 3_600_000;
   const day = 24 * hour;
   if (!Number.isFinite(ms) || ms < 0) return undefined;
-  if (ms < hour) return `${Math.max(1, Math.round(ms / 60_000))} min`;
+  if (ms < hour) return timeUnit(Math.max(1, Math.round(ms / 60_000)), "min");
   if (ms < 2 * day) {
     const m = Math.round((ms % hour) / 60_000);
-    return `${Math.floor(ms / hour)} h${m > 0 ? ` ${m} min` : ""}`;
+    return `${timeUnit(Math.floor(ms / hour), "h")}${m > 0 ? ` ${timeUnit(m, "min")}` : ""}`;
   }
   const h = Math.floor((ms % day) / hour);
-  return `${Math.floor(ms / day)} d${h > 0 ? ` ${h} h` : ""}`;
+  return `${timeUnit(Math.floor(ms / day), "d")}${h > 0 ? ` ${timeUnit(h, "h")}` : ""}`;
 }
 
 export function eventWhen(e: EnvEvent, now: Date): string {

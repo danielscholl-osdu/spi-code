@@ -4,12 +4,33 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
+import { span } from "./components/evidence/words.js";
+import { about, duration } from "./components/sweep/words.js";
 import { clockTime, Time, TimedText } from "./time.js";
 
 // 2026-11-06 09:04 in Chicago (UTC-6), 2026-11-07 00:04 in Tokyo (UTC+9).
 const now = Date.parse("2026-11-06T15:04:00Z");
 const chicago = { now, timeZone: "America/Chicago" };
 const tokyo = { now, timeZone: "Asia/Tokyo" };
+
+it.each([
+  ["relative minutes", span(180_000), "3\u00a0min"],
+  ["relative hours", span(3_600_000), "1\u00a0h"],
+  ["relative days", span(172_800_000), "2\u00a0d"],
+  ["elapsed seconds", duration(52_000), "52\u00a0s"],
+  ["elapsed minutes and seconds", duration(82_000), "1\u00a0min 22\u00a0s"],
+  ["elapsed hours and minutes", duration(3_720_000), "1\u00a0h 2\u00a0min"],
+  ["usual seconds", about(39_600), "40\u00a0s"],
+  ["usual minutes", about(120_000), "2\u00a0min"],
+  [
+    "future clock hints",
+    clockTime("2026-11-06T17:19:00Z", chicago),
+    "11:19 (in 2\u00a0h 15\u00a0min)",
+  ],
+])("keeps numbers and units inseparable in %s", (_, text, expected) => {
+  expect(text).toBe(expected);
+  expect(text).not.toMatch(/\d[ \t]+(?:s|min|h|d)\b/);
+});
 
 afterEach(() => {
   vi.useRealTimers();
@@ -25,16 +46,16 @@ it("reads a past time today as a bare 24-hour clock time", () => {
 });
 
 it("adds a relative hint to a future time", () => {
-  expect(clockTime("2026-11-06T15:36:00Z", chicago)).toBe("09:36 (in 32 min)");
-  expect(clockTime("2026-11-06T15:04:20Z", chicago)).toBe("09:04 (in 1 min)");
-  expect(clockTime("2026-11-06T17:04:00Z", chicago)).toBe("11:04 (in 2 h)");
-  expect(clockTime("2026-11-06T17:19:00Z", chicago)).toBe("11:19 (in 2 h 15 min)");
-  expect(clockTime("2026-11-10T15:04:00Z", chicago)).toBe("11-10 09:04 (in 4 d)");
+  expect(clockTime("2026-11-06T15:36:00Z", chicago)).toBe("09:36 (in 32\u00a0min)");
+  expect(clockTime("2026-11-06T15:04:20Z", chicago)).toBe("09:04 (in 1\u00a0min)");
+  expect(clockTime("2026-11-06T17:04:00Z", chicago)).toBe("11:04 (in 2\u00a0h)");
+  expect(clockTime("2026-11-06T17:19:00Z", chicago)).toBe("11:19 (in 2\u00a0h 15\u00a0min)");
+  expect(clockTime("2026-11-10T15:04:00Z", chicago)).toBe("11-10 09:04 (in 4\u00a0d)");
 });
 
 it("dates a time across midnight, before and after", () => {
   const late = { ...chicago, now: Date.parse("2026-11-07T05:50:00Z") };
-  expect(clockTime("2026-11-07T06:10:00Z", late)).toBe("11-07 00:10 (in 20 min)");
+  expect(clockTime("2026-11-07T06:10:00Z", late)).toBe("11-07 00:10 (in 20\u00a0min)");
   const early = { ...chicago, now: Date.parse("2026-11-07T06:10:00Z") };
   expect(clockTime("2026-11-07T05:50:00Z", early)).toBe("11-06 23:50");
 });
@@ -42,7 +63,7 @@ it("dates a time across midnight, before and after", () => {
 it("reads one instant in the window's zone, not UTC", () => {
   expect(clockTime("2026-11-06T14:02:00Z", chicago)).toBe("08:02");
   expect(clockTime("2026-11-06T14:02:00Z", tokyo)).toBe("11-06 23:02");
-  expect(clockTime("2026-11-06T15:30:00Z", tokyo)).toBe("00:30 (in 26 min)");
+  expect(clockTime("2026-11-06T15:30:00Z", tokyo)).toBe("00:30 (in 26\u00a0min)");
 });
 
 it("passes through what it cannot read", () => {
@@ -61,7 +82,7 @@ it("renders a time element that keeps the ISO value in datetime", async () => {
   const time = container.querySelector("time");
   expect(time?.getAttribute("datetime")).toBe(at);
   expect(time?.textContent).toBe(clockTime(at, { now }));
-  expect(time?.textContent).toMatch(/^\d\d:\d\d \(in 32 min\)$/);
+  expect(time?.textContent).toMatch(/^\d\d:\d\d \(in 32\u00a0min\)$/);
   await act(async () => root.unmount());
 });
 

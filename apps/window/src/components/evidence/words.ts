@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { AREAS, type AreaName, type Envelope, type ViewSnapshot } from "@spi-code/contracts";
-import { clockTime } from "../../time.js";
+import { clockTime, timeUnit } from "../../time.js";
 
 /** Appendix C: each area in the words an operator reads. */
 export const AREA_NAMES: Readonly<Record<AreaName, string>> = {
@@ -59,9 +59,9 @@ const count = (value: number) => value.toLocaleString("en-US");
 /** A duration in the largest whole unit: `4 min`, `3 h`, `2 d`. */
 export function span(ms: number): string {
   const minutes = Math.max(0, Math.round(ms / 60_000));
-  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 60) return timeUnit(minutes, "min");
   const hours = Math.round(minutes / 60);
-  return hours < 48 ? `${hours} h` : `${Math.round(hours / 24)} d`;
+  return hours < 48 ? timeUnit(hours, "h") : timeUnit(Math.round(hours / 24), "d");
 }
 
 export function ago(at: string, now: number): string {
