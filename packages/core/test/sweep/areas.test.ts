@@ -184,7 +184,8 @@ function harness(repo = "owner/partition", remaining = 4000) {
 
 test("multi-area exec replay accounts for ledger, release, pin and retried GraphQL calls", async () => {
   const h = harness();
-  const sweeper = createSweeper(h.options);
+  const progress: SweepProgress[] = [];
+  const sweeper = createSweeper({ ...h.options, progress: (event) => progress.push(event) });
   await sweeper.sweep();
   expect(sweeper.facts.github.error).toBeUndefined();
   expect(sweeper.facts.radar.error).toBeUndefined();
@@ -204,7 +205,10 @@ test("multi-area exec replay accounts for ledger, release, pin and retried Graph
   });
   await replay.sweep();
   expect(replay.facts).toEqual(sweeper.facts);
-  expect(replay.cache.budget).toEqual(sweeper.cache.budget);
+  expect(replay.cache).toEqual(sweeper.cache);
+  expect(replay.reads).toEqual(sweeper.reads);
+  expect(replay.model).toEqual(sweeper.model);
+  expect(progress.length).toBeGreaterThan(0);
 });
 
 test("the collector reports releases in sweep order, including cadence skips and failed reads", async () => {
@@ -230,7 +234,7 @@ test("the collector reports releases in sweep order, including cadence skips and
     "security",
     "releases",
   ]);
-  expect(calls.slice(-2)).toEqual([
+  expect(calls.filter((event) => event.kind === "source").slice(-2)).toEqual([
     { kind: "source", source: "releases", state: "reading", startedAt: START },
     {
       kind: "source",
@@ -258,7 +262,7 @@ test("the collector reports releases in sweep order, including cadence skips and
   );
   calls.length = 0;
   await sweeper.sweep({ force: true });
-  expect(calls.slice(-2)).toEqual([
+  expect(calls.filter((event) => event.kind === "source").slice(-2)).toEqual([
     { kind: "source", source: "releases", state: "reading", startedAt: START },
     {
       kind: "source",
@@ -280,7 +284,7 @@ test("the collector reports releases in sweep order, including cadence skips and
   );
   calls.length = 0;
   await sweeper.sweep({ force: true });
-  expect(calls.slice(-2)).toEqual([
+  expect(calls.filter((event) => event.kind === "source").slice(-2)).toEqual([
     { kind: "source", source: "releases", state: "reading", startedAt: START },
     {
       kind: "source",
@@ -289,9 +293,72 @@ test("the collector reports releases in sweep order, including cadence skips and
       endedAt: START,
       reason: sweeper.cache.releases.records.find((record) => record.failure)?.failure,
       completeness: { kind: "complete" },
+      resumeAt: "2026-10-14T00:10:00.000Z",
     },
   ]);
 });
+
+test.each(["fleet", "releases"] as const)(
+  "the factory reports %s's live throttle before its reservation wait completes",
+  async (source) => {
+    const h = harness();
+    const calls: SweepProgress[] = [];
+    let limited = false;
+    h.setRoute((cmd, args) => {
+      const marker = source === "fleet" ? "stack: repository" : "{ createdAt }";
+      if (
+        limited ||
+        cmd !== "gh" ||
+        !args.some((arg) => arg.startsWith("query=") && arg.includes(marker))
+      )
+        return undefined;
+      limited = true;
+      return {
+        stdout: JSON.stringify({ message: "Retry after 30 seconds." }),
+        stderr: "gh: HTTP 429\n",
+        exit: 1,
+      };
+    });
+    let release: (() => void) | undefined;
+    let entered: (() => void) | undefined;
+    const waiting = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const sleeping = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const budget = new GraphqlBudget(h.options.ctx.clock, async (ms) => {
+      expect(ms).toBe(30_000);
+      entered?.();
+      await waiting;
+      h.advance(ms);
+    });
+    const sweeper = createSweeper({ ...h.options, budget, progress: (event) => calls.push(event) });
+    const pending = sweeper.sweep();
+    await sleeping;
+    try {
+      expect(calls.filter((event) => event.kind === "throttle")).toEqual([
+        {
+          kind: "throttle",
+          source,
+          reason: "Retry after 30 seconds.",
+          resumeAt: "2026-10-14T00:00:30.000Z",
+        },
+      ]);
+      expect(calls.filter((event) => event.kind === "source" && event.source === source)).toEqual([
+        { kind: "source", source, state: "reading", startedAt: START },
+      ]);
+      expect(sweeper.sweeping).toBe(true);
+    } finally {
+      release?.();
+      await pending;
+    }
+    expect(
+      calls.filter((event) => event.kind === "source" && event.source === source).at(-1),
+    ).toMatchObject({ state: "read", endedAt: "2026-10-14T00:00:30.000Z" });
+    expect(sweeper.cache.budget.deferred).toEqual([]);
+  },
+);
 
 test("low and unknown budgets defer optional work with reasons while core reads run", async () => {
   const low = harness("owner/partition", 50);
@@ -313,17 +380,29 @@ test("low and unknown budgets defer optional work with reasons while core reads 
       state: "deferred",
       endedAt: START,
       reason: "insufficient budget",
+      resumeAt: "2099-01-01T00:00:00Z",
     })),
   );
   low.setOffline();
+  calls.length = 0;
   const cold = createSweeper({
     ...low.options,
+    progress: (event) => calls.push(event),
     persist: { load: async () => undefined, save: async () => {} },
   });
   await cold.sweep({ force: true });
   expect(cold.cache.budget.deferred).toEqual(
     ["details", "radar", "security", "releases"].map((area) => ({
       area,
+      reason: "budget unknown",
+    })),
+  );
+  expect(calls.filter((event) => event.kind === "source" && event.state === "deferred")).toEqual(
+    ["details", "radar", "security", "releases"].map((source) => ({
+      kind: "source",
+      source,
+      state: "deferred",
+      endedAt: START,
       reason: "budget unknown",
     })),
   );
@@ -587,13 +666,22 @@ test("a run whose only cut is an over-limit job log settles and is not re-listed
     if (all.includes("/check-runs/9/annotations")) return { stdout: "", stderr: "", exit: 0 };
     if (all.includes("/jobs/9/logs")) return { stdout: "x".repeat(70_000), stderr: "", exit: 0 };
   });
-  const sweeper = createSweeper(h.options);
+  const progress: SweepProgress[] = [];
+  const sweeper = createSweeper({ ...h.options, progress: (event) => progress.push(event) });
   await sweeper.sweep();
   expect(
     sweeper.cache.lifecycle.runJobs["5#1"]?.reads.some(
       (r) => r.completeness.kind === "cut" && r.completeness.reason === "Job log character limit",
     ),
   ).toBe(true);
+  expect(
+    progress.find(
+      (event) => event.kind === "source" && event.source === "runs" && event.state === "cut",
+    ),
+  ).toMatchObject({
+    incomplete: { count: 1, total: sweeper.reads.runs?.length },
+    completeness: { kind: "cut", reason: "Job log character limit", read: 64_000, total: 70_000 },
+  });
   const settled = listings;
   await sweeper.sweep();
   await sweeper.sweep();
@@ -925,6 +1013,7 @@ test("a GitHub throttle longer than the sweep may wait defers the remaining Grap
       endedAt: START,
       reason: source === "fleet" ? sweeper.facts.fleet.error : reason,
       ...(source === "fleet" ? { completeness: { kind: "complete" } } : {}),
+      resumeAt: "2026-10-14T00:10:00.000Z",
     })),
   );
   expect(throttled).toHaveLength(1);

@@ -18,6 +18,7 @@ export type SweepSource = AreaName | "releases";
 export type SweepReadDecision = boolean | {
   readonly state: "deferred" | "skipped" | "throttled";
   readonly reason: string;
+  readonly resumeAt?: string;
 };
 
 export type SweepSourceProgress = {
@@ -30,15 +31,22 @@ export type SweepSourceProgress = {
     readonly endedAt: string;
     readonly reason?: string;
     readonly completeness?: ReadCompleteness;
+    readonly resumeAt?: string;
+    readonly incomplete?: { readonly count: number; readonly total: number };
   }
 );
 
 export type SweepProgress = SweepSourceProgress | {
+  readonly kind: "throttle";
+  readonly source: SweepSource;
+  readonly reason: string;
+  readonly resumeAt: string;
+} | {
   readonly kind: "failed";
   readonly endedAt: string;
   readonly reason: string;
 };
-/** Synchronous source boundaries; only the caller's snapshot commit confirms success. */
+/** Ordered boundaries and live waits; only the caller's snapshot commit confirms success. */
 export type SweepProgressHook = (event: SweepProgress) => void;
 
 export function sweepReadProgress(
@@ -47,21 +55,26 @@ export function sweepReadProgress(
   const { completeness } = envelopeOf(records, { intervalMs: 0, now: Date.parse(endedAt) });
   const failure = records.find((record) => record.failure !== undefined)?.failure;
   const reason = failure ?? (completeness.kind === "cut" ? completeness.reason : undefined);
+  const count = records.filter((record) => record.completeness.kind === "cut").length;
   return {
     kind: "source", source, endedAt,
     state: failure !== undefined ? "failed" : completeness.kind === "cut" ? "cut" : "read",
     completeness,
     ...(reason === undefined ? {} : { reason }),
+    ...(count === 0 ? {} : { incomplete: { count, total: records.length } }),
   };
 }
 
 export function sweepFailureProgress(
   source: SweepSource, error: unknown, records: readonly ReadRecord[], endedAt: string,
 ): Exclude<SweepSourceProgress, { state: "reading" }> {
+  // A throw supplies no current read set; retained records cannot count as new reads.
+  const { incomplete: _incomplete, ...outcome } = sweepReadProgress(source, records, endedAt);
   return {
-    ...sweepReadProgress(source, records, endedAt),
+    ...outcome,
     state: error instanceof ForgeError && error.kind === "throttle" ? "throttled" : "failed",
     reason: errorText(error) || "Unknown error",
+    ...(error instanceof ForgeError && error.resumeAt !== undefined ? { resumeAt: error.resumeAt } : {}),
   };
 }
 

@@ -9,7 +9,10 @@ import type { Exec } from "./exec/index.js";
 export type ForgeFailure = "throttle" | "gateway" | "cut";
 
 export class ForgeError extends Error {
-  constructor(message: string, readonly code: number | null, readonly kind?: ForgeFailure) {
+  constructor(
+    message: string, readonly code: number | null, readonly kind?: ForgeFailure,
+    readonly resumeAt?: string,
+  ) {
     super(message);
   }
 }
@@ -38,6 +41,11 @@ export interface GraphqlBudgetSnapshot {
 }
 
 export type Sleep = (ms: number) => Promise<void>;
+export interface GraphqlThrottle {
+  readonly reason: string;
+  readonly resumeAt: string;
+}
+export type GraphqlThrottleHook = (event: GraphqlThrottle) => void;
 const realSleep: Sleep = (ms) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 /** How long one sweep may spend, in total, waiting out GitHub throttles: well under the
@@ -53,6 +61,7 @@ export class GraphqlBudget {
   private allowance = { ms: THROTTLE_WAIT_ALLOWANCE_MS };
   private state: GraphqlBudgetSnapshot = { remaining: null, resetAt: null, spent: 0, calls: 0 };
   private parent: GraphqlBudget | undefined;
+  private onThrottle: GraphqlThrottleHook | undefined;
 
   constructor(
     private readonly clock: Clock = systemClock,
@@ -66,10 +75,11 @@ export class GraphqlBudget {
     return { ...this.state };
   }
 
-  /** Shares reservations and rate limits while attributing charges to this caller only. */
-  scope(): GraphqlBudget {
+  /** Shares reservations and rate limits; charges and throttle notifications belong to this scope. */
+  scope(onThrottle?: GraphqlThrottleHook): GraphqlBudget {
     const scoped = new GraphqlBudget(this.clock, this.sleep);
     scoped.parent = this;
+    scoped.onThrottle = onThrottle;
     return scoped;
   }
 
@@ -100,6 +110,13 @@ export class GraphqlBudget {
     return { until: new Date(root.heldUntil).toISOString(), reason: root.heldFor };
   }
 
+  /** The current hold, including waits this scope can still afford. */
+  throttle(): GraphqlThrottle | undefined {
+    const root = this.root();
+    if (root.heldUntil <= this.clock.now().getTime()) return undefined;
+    return { resumeAt: new Date(root.heldUntil).toISOString(), reason: root.heldFor };
+  }
+
   private root(): GraphqlBudget {
     return this.parent ? this.parent.root() : this;
   }
@@ -107,11 +124,12 @@ export class GraphqlBudget {
   // Reservations are serialised; the calls they pay for run concurrently once the
   // remaining budget is known. While it is unknown, one call probes it and the rest wait.
   run<T>(estimate: number, call: () => Promise<{ value: T; rate?: Rate }>): Promise<T> {
-    return this.reserve(estimate, call, this.allowance);
+    return this.reserve(estimate, call, this.allowance, this.onThrottle);
   }
 
   private async reserve<T>(
     estimate: number, call: () => Promise<{ value: T; rate?: Rate }>, allowance: { ms: number },
+    onThrottle?: GraphqlThrottleHook,
   ): Promise<T> {
     if (this.parent) return this.parent.reserve(estimate, async () => {
       this.state.calls++;
@@ -119,7 +137,7 @@ export class GraphqlBudget {
       const result = await call();
       if (result.rate) this.state.spent += result.rate.cost - estimate;
       return result;
-    }, allowance);
+    }, allowance, onThrottle);
     if (!Number.isSafeInteger(estimate) || estimate < 1) {
       throw new ForgeError("GraphQL cost estimate must be a positive integer", null);
     }
@@ -134,10 +152,12 @@ export class GraphqlBudget {
         const held = this.heldUntil;
         if (held > this.clock.now().getTime()) {
           const wait = held - this.clock.now().getTime();
+          const resumeAt = new Date(held).toISOString();
+          onThrottle?.({ resumeAt, reason: this.heldFor });
           if (wait > allowance.ms) {
             throw new ForgeError(
               `gh api graphql: GitHub throttled GraphQL until ${new Date(held).toISOString()}, longer than this sweep may wait (${this.heldFor})`,
-              null, "throttle",
+              null, "throttle", resumeAt,
             );
           }
           allowance.ms -= wait;
@@ -369,7 +389,10 @@ export class Gh {
       return { data: body.data, errors };
     }
     if (failed.kind === "throttle") {
-      throw new ForgeError(`gh api graphql: GitHub throttled the query (${failed.detail})`, exitCode, "throttle");
+      throw new ForgeError(
+        `gh api graphql: GitHub throttled the query (${failed.detail})`, exitCode, "throttle",
+        this.budget.throttle()?.resumeAt,
+      );
     }
     if (failed.kind === "gateway") {
       throw new ForgeError(

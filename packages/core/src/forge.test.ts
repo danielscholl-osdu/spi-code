@@ -13,6 +13,7 @@ import {
   Gh,
   Glab,
   GraphqlBudget,
+  type GraphqlThrottle,
   THROTTLE_WAIT_ALLOWANCE_MS,
   tokenScopes,
 } from "./forge.js";
@@ -496,6 +497,36 @@ describe("GraphQL throttle holds", () => {
     const sibling = new Gh(exec, undefined, budget.scope());
     await settle(Promise.all([first.graphql(query), sibling.graphql("{viewer{id}}")]));
     expect(calls).toEqual([0, 60_000, 60_000]);
+  });
+
+  it("notifies only the reserving scope before its throttle sleep completes", async () => {
+    const { calls, exec, budget } = timed(() => output(body(1, 41)));
+    const notices: GraphqlThrottle[] = [];
+    const siblingNotices: GraphqlThrottle[] = [];
+    budget.hold(30_000, "secondary rate limit");
+    const first = new Gh(
+      exec,
+      undefined,
+      budget.scope((event) => notices.push(event)),
+    );
+    const sibling = new Gh(
+      exec,
+      undefined,
+      budget.scope((event) => siblingNotices.push(event)),
+    );
+    const pending = first.graphql(query);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(notices).toEqual([
+      { reason: "secondary rate limit", resumeAt: "2026-11-05T07:00:30.000Z" },
+    ]);
+    expect(siblingNotices).toEqual([]);
+    expect(calls).toEqual([]);
+    await vi.advanceTimersByTimeAsync(30_000);
+    await pending;
+    await sibling.graphql(query);
+    expect(calls).toEqual([30_000, 30_000]);
+    expect(notices).toHaveLength(1);
+    expect(siblingNotices).toEqual([]);
   });
 
   it("keeps the not-before time of a wait too long to retry inline", async () => {

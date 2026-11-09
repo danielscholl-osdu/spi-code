@@ -26,6 +26,7 @@ import { collectorInflight } from "./inflight.js";
 import {
   type SweepArea, type SweepInput, type SweepPersist, Sweeper, type SweepState,
   type SweepProgressHook, type SweepReadDecision, sweepFailureProgress, sweepReadProgress,
+  type SweepSource,
 } from "./sweeper.js";
 
 export interface CollectorOptions {
@@ -57,7 +58,13 @@ function retain<T>(data: Record<string, T>, previous: Record<string, T> | undefi
 }
 
 export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache> {
-  const account = (options.budget ?? new GraphqlBudget(options.ctx.clock)).scope();
+  let readingSource: SweepSource | undefined;
+  const account = (options.budget ?? new GraphqlBudget(options.ctx.clock)).scope(
+    options.progress ? (event) => {
+      if (readingSource !== undefined)
+        options.progress?.({ kind: "throttle", source: readingSource, ...event });
+    } : undefined,
+  );
   const pacer = options.pacer ?? new BudgetPacer({ floor: 100, resetBudget: 5000 });
   let baseline = account.snapshot();
   let upstreamChanged = false;
@@ -74,9 +81,11 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
   }
   // A GraphQL area whose throttle hold outlasts what this sweep may still wait is deferred
   // rather than read, so the sweep ends inside its interval and says why it skipped.
-  function throttledReason(): string | undefined {
+  function throttledReason(): { reason: string; resumeAt: string } | undefined {
     const held = account.throttled();
-    return held && `GitHub throttled GraphQL until ${held.until} (${held.reason})`;
+    return held && {
+      reason: `GitHub throttled GraphQL until ${held.until} (${held.reason})`, resumeAt: held.until,
+    };
   }
   function area<K extends AreaName>(
     name: K, core: boolean, estimate: number, interval: number,
@@ -96,8 +105,8 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
           return { state: "skipped", reason: "not due" };
         const throttled = estimate > 0 && throttledReason();
         if (throttled) {
-          cache.budget.deferred.push({ area: name, reason: throttled });
-          return { state: "throttled", reason: throttled };
+          cache.budget.deferred.push({ area: name, reason: throttled.reason });
+          return { state: "throttled", ...throttled };
         }
         const before = account.snapshot();
         const decision = pacer.plan({
@@ -108,22 +117,28 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
         if (!core && decision?.kind !== "run") {
           const reason = decision?.reason ?? "budget unknown";
           cache.budget.deferred.push({ area: name, reason });
-          return { state: "deferred", reason };
+          return {
+            state: "deferred", reason,
+            ...(decision?.kind === "wait-until-reset" ? { resumeAt: decision.until } : {}),
+          };
         }
         return true;
       },
       read: async (input: Input) => {
         const { cache } = input;
+        readingSource = name;
         const before = account.snapshot();
         try {
           const result = await read(input, new Gh(input.exec, undefined, account), new Glab(input.exec));
           if (name !== "auth" && result.reads.length && result.reads.every((r) => r.failure)) {
             const failure = result.reads[0]?.failure;
-            if (failure && throttledReason()) throw new ForgeError(failure, null, "throttle");
+            const throttled = throttledReason();
+            if (failure && throttled) throw new ForgeError(failure, null, "throttle", throttled.resumeAt);
             throw new Error(failure);
           }
           return result;
         } finally {
+          readingSource = undefined;
           const cost = account.snapshot().spent - before.spent;
           cache.history = [...cache.history.filter((h) => h.area !== name), { area: name, cost }];
         }
@@ -298,10 +313,10 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
       // Deferred entries belong to this sweep, including collectors without a Facts area.
       const throttled = due(cache.releases.at, RELEASES_EVERY_MS, clock.now(), force) && throttledReason();
       if (throttled) {
-        cache.budget.deferred.push({ area: "releases", reason: throttled });
+        cache.budget.deferred.push({ area: "releases", reason: throttled.reason });
         progress?.({
           kind: "source", source: "releases", state: "throttled",
-          endedAt: clock.now().toISOString(), reason: throttled,
+          endedAt: clock.now().toISOString(), ...throttled,
         });
       }
       else if (due(cache.releases.at, RELEASES_EVERY_MS, clock.now(), force)) {
@@ -320,17 +335,21 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
           progress?.({
             kind: "source", source: "releases", state: "reading", startedAt: clock.now().toISOString(),
           });
+          readingSource = "releases";
           try {
             await reader.read({ force });
           } catch (error) {
             progress?.(sweepFailureProgress("releases", error, reader.records, clock.now().toISOString()));
             throw error;
+          } finally {
+            readingSource = undefined;
           }
           if (progress) {
             const outcome = sweepReadProgress("releases", reader.records, clock.now().toISOString());
+            const held = throttledReason();
             progress({
               ...outcome,
-              ...(outcome.state === "failed" && throttledReason() ? { state: "throttled" } : {}),
+              ...(outcome.state === "failed" && held ? { state: "throttled", resumeAt: held.resumeAt } : {}),
             });
           }
           cache.history = [...cache.history.filter((h) => h.area !== "releases"),
@@ -341,6 +360,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
           progress?.({
             kind: "source", source: "releases", state: "deferred",
             endedAt: clock.now().toISOString(), reason,
+            ...(decision?.kind === "wait-until-reset" ? { resumeAt: decision.until } : {}),
           });
         }
       } else {

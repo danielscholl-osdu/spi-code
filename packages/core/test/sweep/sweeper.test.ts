@@ -166,6 +166,12 @@ describe("Sweeper shell", () => {
                   observedAt: input.clock.now().toISOString(),
                   completeness: { kind: "cut", reason: "size limit", read: 2, total: 4 },
                 },
+                {
+                  source: "other",
+                  object: "complete",
+                  observedAt: input.clock.now().toISOString(),
+                  completeness: { kind: "complete" },
+                },
               ],
             };
           },
@@ -174,7 +180,11 @@ describe("Sweeper shell", () => {
           name: "details",
           shouldRead: ({ cache }) => {
             cache.entries.push("deferred");
-            return { state: "deferred", reason: "insufficient budget" };
+            return {
+              state: "deferred",
+              reason: "insufficient budget",
+              resumeAt: "2026-11-05T08:00:00.000Z",
+            };
           },
           read: async () => {
             throw new Error("must not read");
@@ -192,6 +202,7 @@ describe("Sweeper shell", () => {
           shouldRead: () => ({
             state: "throttled",
             reason: "GitHub throttled GraphQL until 07:10",
+            resumeAt: "2026-11-05T07:10:00.000Z",
           }),
           read: async () => {
             throw new Error("must not read");
@@ -201,7 +212,12 @@ describe("Sweeper shell", () => {
           name: "security",
           read: async () => {
             h.advance();
-            throw new ForgeError("GitHub throttled the query", null, "throttle");
+            throw new ForgeError(
+              "GitHub throttled the query",
+              null,
+              "throttle",
+              "2026-11-05T07:09:00.000Z",
+            );
           },
         },
         {
@@ -246,6 +262,7 @@ describe("Sweeper shell", () => {
           read: 3,
           total: 6,
         },
+        incomplete: { count: 2, total: 3 },
       },
       {
         kind: "source",
@@ -253,6 +270,7 @@ describe("Sweeper shell", () => {
         state: "deferred",
         endedAt: "2026-11-05T07:02:00.000Z",
         reason: "insufficient budget",
+        resumeAt: "2026-11-05T08:00:00.000Z",
       },
       { kind: "source", source: "upstream", state: "skipped", endedAt: "2026-11-05T07:02:00.000Z" },
       {
@@ -261,6 +279,7 @@ describe("Sweeper shell", () => {
         state: "throttled",
         endedAt: "2026-11-05T07:02:00.000Z",
         reason: "GitHub throttled GraphQL until 07:10",
+        resumeAt: "2026-11-05T07:10:00.000Z",
       },
       {
         kind: "source",
@@ -274,6 +293,7 @@ describe("Sweeper shell", () => {
         state: "throttled",
         endedAt: "2026-11-05T07:03:00.000Z",
         reason: "GitHub throttled the query",
+        resumeAt: "2026-11-05T07:09:00.000Z",
         completeness: { kind: "complete" },
       },
       { kind: "source", source: "fleet", state: "reading", startedAt: "2026-11-05T07:03:00.000Z" },
@@ -332,6 +352,7 @@ describe("Sweeper shell", () => {
         endedAt: "2026-11-05T07:00:00.000Z",
         reason: "one repo failed",
         completeness: { kind: "cut", reason: "page limit", read: 1, total: 2 },
+        incomplete: { count: 1, total: 1 },
       },
     ]);
   });
@@ -373,6 +394,7 @@ describe("Sweeper shell", () => {
                 endedAt: "2026-11-05T07:00:00.000Z",
                 reason: "page limit",
                 completeness: { kind: "cut", reason: "page limit", read: 1, total: 2 },
+                incomplete: { count: 1, total: 1 },
               },
             ]
           : []),
@@ -484,8 +506,10 @@ describe("Sweeper shell", () => {
     const h = harness();
     let fails = false;
     const area = github();
+    const progress: SweepProgress[] = [];
     const sweeper = new Sweeper({
       ...h.options,
+      progress: (event) => progress.push(event),
       areas: [
         {
           ...area,
@@ -504,6 +528,7 @@ describe("Sweeper shell", () => {
       ],
     });
     await sweeper.sweep();
+    expect(progress.at(-1)).toMatchObject({ incomplete: { count: 1, total: 1 } });
     const good = structuredClone(sweeper.facts.github);
     const original = sweeper.reads.github?.[0]?.observedAt;
     expect(original).not.toBe(good.at);
@@ -511,6 +536,7 @@ describe("Sweeper shell", () => {
     for (let i = 0; i < 2; i++) {
       h.advance();
       await sweeper.sweep();
+      expect(progress.at(-1)).not.toHaveProperty("incomplete");
       expect(sweeper.facts.github).toEqual({
         ...good,
         error: "gh unreachable",
