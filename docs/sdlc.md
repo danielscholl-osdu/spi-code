@@ -164,7 +164,7 @@ value to 159 px, records the expected rejection in `rejectedGeometry`, then
 restores the value before capturing it. Missing rejection evidence fails.
 The fixture clock, pane preferences and sign-in interception
 are removed before the host proof, so they cannot affect its persisted-snapshot
-and supervision checks. The larger matrix has a three-minute smoke deadline.
+and supervision checks. The 144-capture matrix has a four-minute smoke deadline.
 Seven first-sweep surfaces add a running list with failed sign-in and budget deferral,
 throttling, stops while reading and while saving, a place before its first snapshot,
 the retained list in Evidence after hand-over, and a refresh over the older brief.
@@ -175,9 +175,9 @@ The screenshot phase precedes host startup, so these schema-valid `sweep.progres
 fixtures use the same smoke-only preload channel as `view.snapshot` and `setup.state`,
 not the real host progress feed. The later persisted-snapshot and supervision proof
 starts only after removing fixtures.
-The hidden smoke window disables background throttling during captures, then restores
-its original setting before the host proof. This keeps animation-frame and hand-over
-waits on their real cadence on Windows, within the unchanged three-minute deadline.
+The launcher and in-app deadlines both allow four minutes: Windows CI's real capture
+timings reached the last 740 px appearance near the former three-minute deadline,
+before the host proof could run. Per-DOM waits and all geometry/image gates are unchanged.
 Missing shots, images smaller than 640 x 400 or 1024 PNG bytes, or images
 with 99.5% of pixels in one 4-bit-per-channel RGB bucket fail the smoke.
 Every shot must carry the title-bar sweep line (first-sweep captures carry its

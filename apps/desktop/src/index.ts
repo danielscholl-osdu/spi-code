@@ -386,6 +386,6 @@ app.on("window-all-closed", () => {});
 if (proof)
   setTimeout(
     () => fail(new Error("Proof exceeded its time limit")),
-    smoke ? 180000 : 120000,
+    smoke ? 240000 : 120000,
   ).unref();
 void run().catch(fail);
