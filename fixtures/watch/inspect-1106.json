@@ -2924,17 +2924,17 @@
   },
   {
     "id": "hold:1793938025000",
-    "title": "Held 13 min",
+    "title": "Held 13 min",
     "class": "READY",
-    "cause": "Held 13 min",
-    "effect": "in maintenance for 13 min",
+    "cause": "Held 13 min",
+    "effect": "in maintenance for 13 min",
     "next": "",
     "why": "2026-11-06T04:07:05.000Z to 2026-11-06T04:20:16.000Z",
     "evidence": [],
     "related": [
       {
         "text": "Refresh v0.35.3",
-        "state": "green in 14 min",
+        "state": "green in 14 min",
         "inspect": "run:42160446124"
       }
     ],

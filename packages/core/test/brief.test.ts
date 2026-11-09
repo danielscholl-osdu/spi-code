@@ -401,7 +401,7 @@ describe("wording", () => {
 });
 
 describe("the environment", () => {
-  const FIGURE = /^(v\d+\.\d+\.\d+|\d+%|\d+ (min|h|d)( \d+ (min|h))?|\?)$/;
+  const FIGURE = /^(v\d+\.\d+\.\d+|\d+%|\d+\u00a0(min|h|d)( \d+\u00a0(min|h))?|\?)$/;
   const IN_FLIGHT = 38312331838;
   const WINDOW_FROM = FIXTURE_NOW.getTime() - 86_400_000;
 
@@ -454,8 +454,8 @@ describe("the environment", () => {
     figuresHold(env.facts);
     expect(env.facts[0]?.sub).toBe("upgrade running · at verify · declares v0.28.2");
     expect(env.facts[2]).toMatchObject({
-      figure: "26 min",
-      sub: "smoke · fresh cluster · 12 h 52 min ago · 7 in a row",
+      figure: "26\u00a0min",
+      sub: "smoke · fresh cluster · 12\u00a0h 52\u00a0min ago · 7 in a row",
     });
     const queue = new Set(m.queue.items.map((i) => i.id));
     const inspected = env.lanes.flatMap((l) => l.events.flatMap((e) => e.inspect ?? []));
@@ -534,7 +534,9 @@ describe("shared wording", () => {
   test("deployable is the share of the window not held, with its long holds and the hold now", () => {
     const d = deployableWords(fixtureModel(), FIXTURE_NOW);
     expect(d).toMatchObject({ label: "Deployable · 21 days", figure: "63%" });
-    expect(d.sub).toMatch(/^6 holds over an hour, 7 d 14 h in all · held since 10-11 22:44$/);
+    expect(d.sub).toMatch(
+      /^6 holds over an hour, 7\u00a0d 14\u00a0h in all · held since 10-11 22:44$/,
+    );
   });
 
   test("an environment back up says since when; one with no lifecycle read has no figure", () => {
@@ -566,7 +568,7 @@ describe("shared wording", () => {
     expect(streakText(smoke)).toBe("7 in a row");
     expect(streakText({ ...smoke, streak: { n: 1, green: true } })).toBeUndefined();
     expect(streakText({ ...smoke, streak: { n: 2, green: false } })).toBe("red 2 in a row");
-    expect(ago("2026-10-12T20:58:30Z", FIXTURE_NOW)).toBe("1 h ago");
+    expect(ago("2026-10-12T20:58:30Z", FIXTURE_NOW)).toBe("1\u00a0h ago");
   });
 });
 

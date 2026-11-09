@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { timeUnit } from "@spi-code/contracts";
 import { HISTORY_DAYS, type LifecycleKind } from "../config.js";
 import type {
   Declaration,
@@ -685,7 +686,7 @@ export function overdue(stack: StackModel, now: Date): boolean {
 
 function minutes(ms: number): string {
   const m = Math.max(1, Math.round(ms / 60_000));
-  return m < 90 ? `${m}` : `${Math.floor(m / 60)}h ${m % 60}`;
+  return m < 90 ? `${m}` : `${timeUnit(Math.floor(m / 60), "h")} ${m % 60}`;
 }
 
 // "green runs 1–12 min"
@@ -693,7 +694,7 @@ export function usualText(usual: StackModel["usual"]): string | undefined {
   if (!usual) return undefined;
   const lo = minutes(usual.min);
   const hi = minutes(usual.max);
-  return lo === hi ? `green runs ${hi} min` : `green runs ${lo}–${hi} min`;
+  return `green runs ${timeUnit(lo === hi ? hi : `${lo}–${hi}`, "min")}`;
 }
 
 export function runName(run: LifecycleRun): string {

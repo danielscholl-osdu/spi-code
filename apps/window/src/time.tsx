@@ -1,8 +1,11 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { timeUnit } from "@spi-code/contracts";
 import type React from "react";
 import { useNow } from "./components/evidence/useNow.js";
+
+export { timeUnit };
 
 export interface ClockOptions {
   /** The moment the time is read against; a later time gets a relative hint. */
@@ -14,11 +17,6 @@ export interface ClockOptions {
 }
 
 const formats = new Map<string, Intl.DateTimeFormat>();
-
-/** Bind each number to its unit, leaving compound durations free to wrap between pairs. */
-export function timeUnit(value: number, unit: "s" | "min" | "h" | "d"): string {
-  return `${value}\u00a0${unit}`;
-}
 
 function fields(date: Date, timeZone: string | undefined) {
   const key = timeZone ?? "";

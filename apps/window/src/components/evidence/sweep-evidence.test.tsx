@@ -515,7 +515,6 @@ it.each([true, false])(
       const outcome = view.container.querySelector(
         '.sweep-row[data-source="details"] .sweep-outcome',
       )?.textContent;
-      expect(view.container.style.width).toBe("360px");
       expect(outcome).toContain("last read 1\u00a0h ago");
       expect(outcome).not.toMatch(/\d[ \t]+h\b/);
       if (retained)

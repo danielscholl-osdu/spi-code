@@ -648,13 +648,13 @@
         {
           "label": "Deployable · 21 days",
           "figure": "35%",
-          "sub": "4 holds over an hour, 13 d 7 h in all · held since 10-11 22:44",
+          "sub": "4 holds over an hour, 13 d 7 h in all · held since 10-11 22:44",
           "tone": "warn"
         },
         {
           "label": "Last proof",
-          "figure": "26 min",
-          "sub": "smoke · fresh cluster · 9 d 5 h ago · 7 in a row",
+          "figure": "26 min",
+          "sub": "smoke · fresh cluster · 9 d 5 h ago · 7 in a row",
           "tone": "ok"
         }
       ],
@@ -691,8 +691,8 @@
               "id": "1791758673000",
               "start": "2026-10-11T22:44:33.000Z",
               "state": "held",
-              "label": "9 d 16 h",
-              "detail": "in maintenance for 9 d 16 h so far",
+              "label": "9 d 16 h",
+              "detail": "in maintenance for 9 d 16 h so far",
               "inspect": "stack:38181620856"
             }
           ]
@@ -1436,7 +1436,7 @@
           {
             "label": "Version",
             "value": "v0.28.0",
-            "counts": "running · latest release v0.28.2 · declares v0.28.2 · landed 50 min after its release"
+            "counts": "running · latest release v0.28.2 · declares v0.28.2 · landed 50 min after its release"
           },
           {
             "label": "Lane",

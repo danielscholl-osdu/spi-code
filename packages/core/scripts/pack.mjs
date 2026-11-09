@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const core = fileURLToPath(new URL("../", import.meta.url));
@@ -38,16 +38,30 @@ try {
     filter: (path) =>
       !/^(?:src|test|fixtures|testing)$/.test(basename(path)) && !/\.test\.|\.map$/.test(path),
   });
-  function assertNoContracts(directory) {
+  const sharedTime = join(staging, "dist/contracts/time.js");
+  mkdirSync(dirname(sharedTime), { recursive: true });
+  for (const file of ["time.js", "time.d.ts"]) {
+    cpSync(resolve(core, "../contracts/dist", file), join(dirname(sharedTime), file));
+  }
+  function linkContractsTime(directory) {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
-      if (entry.isDirectory()) assertNoContracts(path);
-      else if (readFileSync(path, "utf8").includes("@spi-code/contracts")) {
-        throw new Error(`Cannot omit contracts dependency: ${path} references it`);
+      if (entry.isDirectory()) linkContractsTime(path);
+      else {
+        const source = readFileSync(path, "utf8");
+        const target = relative(dirname(path), sharedTime).split(sep).join("/");
+        const linked = source.replace(
+          /(?<=import \{ timeUnit \} from ")@spi-code\/contracts(?=";)/g,
+          target.startsWith(".") ? target : `./${target}`,
+        );
+        if (linked.includes("@spi-code/contracts")) {
+          throw new Error(`Cannot omit contracts dependency: ${path} references it`);
+        }
+        if (linked !== source) writeFileSync(path, linked);
       }
     }
   }
-  assertNoContracts(join(staging, "dist"));
+  linkContractsTime(join(staging, "dist"));
   for (const file of ["LICENSE", "README.md"]) {
     cpSync(join(core, file), join(staging, file));
   }

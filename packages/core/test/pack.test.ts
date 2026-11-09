@@ -310,6 +310,8 @@ it("packs a pinned, source-free tarball that installs outside the workspace", as
     const entries = listing.trim().split("\n");
     expect(entries).toContain("package/dist/index.js");
     expect(entries).toContain("package/dist/index.d.ts");
+    expect(entries).toContain("package/dist/contracts/time.js");
+    expect(entries).toContain("package/dist/contracts/time.d.ts");
     expect(entries).toContain("package/LICENSE");
     expect(entries).toContain("package/README.md");
     expect(entries.filter((entry) => /\/(?:src|test|fixtures)\//.test(entry))).toEqual([]);

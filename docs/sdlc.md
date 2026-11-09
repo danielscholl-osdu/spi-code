@@ -96,6 +96,14 @@ internal names, title emoji and empty or placeholder sections, with rule mutatio
 Injected emoji cases cover Detail fields, Today sublines, template queue rows and
 environment repository lines; ordinary symbols and navigation glyphs stay intact.
 
+Core and window duration formatters share `timeUnit` from contracts. It binds each
+number to its unit with U+00A0; compound durations may wrap between pairs. Title
+cleanup preserves those bindings. After changing core time copy, regenerate Watch
+fixtures with `TZ=UTC bun scripts/watch-snapshot.ts` after building, then format
+`fixtures/watch`. Recompute the models digest with
+`SPI_RECORD_MODEL_DIGEST=1 pnpm vitest run packages/core/test/inspect/identity.test.ts`.
+The frozen rib oracle stays unchanged; its comparison ignores only U+00A0.
+
 Window layout tests keep logical sections flat and reserve `.card` for separate
 objects such as repository fact summaries. The shell calls the width budget on
 resize and pane toggles, narrowing Detail, moving it to a sheet, stacking pinned

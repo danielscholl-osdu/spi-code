@@ -1386,13 +1386,13 @@
         {
           "label": "Deployable · 21 days",
           "figure": "89%",
-          "sub": "6 holds over an hour, 44 h 10 min in all · up since 04:20",
+          "sub": "6 holds over an hour, 44 h 10 min in all · up since 04:20",
           "tone": "neutral"
         },
         {
           "label": "Last proof",
-          "figure": "27 min",
-          "sub": "smoke · fresh cluster · 5 h 20 min ago · 21 in a row",
+          "figure": "27 min",
+          "sub": "smoke · fresh cluster · 5 h 20 min ago · 21 in a row",
           "tone": "ok"
         }
       ],
@@ -1412,7 +1412,7 @@
               "end": "2026-11-06T04:20:19Z",
               "state": "ok",
               "label": "v0.35.3",
-              "detail": "green in 14 min"
+              "detail": "green in 14 min"
             }
           ]
         },
@@ -1426,7 +1426,7 @@
               "end": "2026-11-06T08:42:09Z",
               "state": "ok",
               "label": "smoke",
-              "detail": "green in 27 min"
+              "detail": "green in 27 min"
             }
           ]
         },
@@ -1439,8 +1439,8 @@
               "start": "2026-11-06T04:07:05.000Z",
               "end": "2026-11-06T04:20:16.000Z",
               "state": "held",
-              "label": "13 min",
-              "detail": "in maintenance for 13 min"
+              "label": "13 min",
+              "detail": "in maintenance for 13 min"
             }
           ]
         }
@@ -2380,7 +2380,7 @@
           {
             "label": "Version",
             "value": "v0.35.3",
-            "counts": "running · the latest release · landed 3 h 32 min after its release"
+            "counts": "running · the latest release · landed 3 h 32 min after its release"
           },
           {
             "label": "Lane",

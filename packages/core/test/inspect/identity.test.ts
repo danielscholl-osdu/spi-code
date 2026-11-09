@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { expect, test } from "vitest";
 import type { ForkEntry } from "../../src/collect/filters.js";
 import { createContext } from "../../src/context.js";
@@ -23,6 +23,7 @@ import { FIXTURE_NOW, fixtureFacts, laneFacts } from "../harness.js";
 // before reads were attached to FILTERS rows and action reasons. The models digest was
 // re-recorded when findings that name no file took the settings reach (spicode-xzj), and when
 // the template model gained its verified fork count (spicode-t1k.289); nothing else moved.
+// Re-record only models with SPI_RECORD_MODEL_DIGEST=1.
 const RECORDED = {
   models: "e155000cd799aec79b955c189d1aad53678b78004d193f23831223ea19ebee0b",
   inspections: "3777546a40cff0970a1bfbc65d5fd8b136ef0f788c30a17a6f3d4218152fddf6",
@@ -99,5 +100,13 @@ test("FILTERS reads and reason sources leave the rib's model, inspector and acti
       inspectItem(models.fixture, halt, FIXTURE_NOW, context, { others: { id: halt.id, entries } }),
     ),
   };
+  if (process.env.SPI_RECORD_MODEL_DIGEST === "1") {
+    const file = new URL(import.meta.url);
+    const source = readFileSync(file, "utf8");
+    const recorded = /(?<= {2}models: ")[a-f0-9]{64}(?=",)/;
+    expect(source).toMatch(recorded);
+    writeFileSync(file, source.replace(recorded, actual.models));
+    RECORDED.models = actual.models;
+  }
   expect(actual).toEqual(RECORDED);
 });

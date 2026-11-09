@@ -471,6 +471,10 @@ it("allows internal names only in Detail or Evidence, never placeholders", () =>
   expect(violations(container)).toEqual([expect.stringContaining("unstated:")]);
 });
 
+it("keeps bound time units while collapsing ordinary title whitespace", () => {
+  expect(plainTitle("  Held\t 9\u00a0d 16\u00a0h \n")).toBe("Held 9\u00a0d 16\u00a0h");
+});
+
 it("strips joined emoji, modifiers, flags and keycaps without losing issue numbers", () => {
   expect(plainTitle("👩🏽‍💻 🇺🇸 1️⃣ 🔧 Fix #42 build · PR #7")).toBe("Fix #42 build · PR #7");
   expect(plainTitle("Open (📊 Code Coverage) [🔧 build 🔧]")).toBe("Open (Code Coverage) [build]");

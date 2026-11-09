@@ -366,7 +366,8 @@ describe("Watch projection", () => {
     const legacy = withoutAdditions(snapshot);
     // The rib's 17-word flow headline breaks the 12-word rule; its pilot sentence leads sub instead.
     const frozen = settingsReach(oracle("briefing")) as { flow: { headline: string; sub: string } };
-    expect(legacy.briefing).toEqual({
+    // Bound time units change typography, not the frozen rib's words.
+    expect(JSON.parse(JSON.stringify(legacy.briefing).replaceAll("\u00a0", " "))).toEqual({
       ...frozen,
       flow: {
         ...frozen.flow,

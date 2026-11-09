@@ -1,6 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { timeUnit } from "@spi-code/contracts";
+
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
@@ -131,13 +133,13 @@ export function errorText(err: unknown): string {
 // "34 min", "5 h 12 min", "4 d 17 h": a duration in the two largest units.
 export function span(ms: number | undefined): string | undefined {
   if (ms === undefined || !Number.isFinite(ms) || ms < 0) return undefined;
-  if (ms < HOUR) return `${Math.max(1, Math.round(ms / MINUTE))} min`;
+  if (ms < HOUR) return timeUnit(Math.max(1, Math.round(ms / MINUTE)), "min");
   if (ms < 2 * DAY) {
     const m = Math.round((ms % HOUR) / MINUTE);
-    return `${Math.floor(ms / HOUR)} h${m > 0 ? ` ${m} min` : ""}`;
+    return `${timeUnit(Math.floor(ms / HOUR), "h")}${m > 0 ? ` ${timeUnit(m, "min")}` : ""}`;
   }
   const h = Math.floor((ms % DAY) / HOUR);
-  return `${Math.floor(ms / DAY)} d${h > 0 ? ` ${h} h` : ""}`;
+  return `${timeUnit(Math.floor(ms / DAY), "d")}${h > 0 ? ` ${timeUnit(h, "h")}` : ""}`;
 }
 
 // "7 min, usually 2": a duration beside its usual, the unit said once when both are minutes.
@@ -150,9 +152,9 @@ export function againstUsual(
   if (!now) return undefined;
   const typical = span(usual);
   if (!typical || typical === now) return `${now}${after}`;
-  const minutes = /^\d+ min$/;
+  const minutes = /^\d+\u00a0min$/;
   return minutes.test(now) && minutes.test(typical)
-    ? `${now}${after}, usually ${typical.replace(/ min$/, "")}`
+    ? `${now}${after}, usually ${typical.replace(/\u00a0min$/, "")}`
     : `${now}${after}, usually ${typical}`;
 }
 

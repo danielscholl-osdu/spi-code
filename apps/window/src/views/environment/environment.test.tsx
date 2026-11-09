@@ -100,6 +100,16 @@ it("uses the track clock for event duration", () => {
   );
 });
 
+it.each([
+  [2 * 24, "2\u00a0d"],
+  [9 * 24 + 16, "9\u00a0d 16\u00a0h"],
+])("keeps day and hour units bound in a %i-hour timeline event", (hours, expected) => {
+  const end = new Date(hours * 3_600_000);
+  expect(
+    eventWhen({ ...first, start: new Date(0).toISOString(), end: end.toISOString() }, end),
+  ).toContain(` \u00b7 ${expected}`);
+});
+
 it("ticks at local hours strictly inside the window", () => {
   const start = new Date(2026, 9, 21, 10, 30).getTime();
   const end = new Date(2026, 9, 21, 13).getTime();

@@ -71,11 +71,12 @@ SHA-256. Vendor that tarball and pin it with a `file:` dependency in the consume
 `node scripts/pack.mjs <release-directory>` from this package accepts an alternate
 output directory.
 
-The workspace manifest retains `@spi-code/contracts` for the workspace dependency
-graph, but core currently imports neither its runtime code nor its types.
-The release manifest omits that unused workspace dependency rather than requiring
-an unpublished contracts version from npm. Packing fails if compiled JavaScript
-or declarations reference contracts. No core runtime behavior is changed.
+Core and the window share contracts' `timeUnit` formatter, which binds each number
+to its unit with U+00A0. The packer copies that compiled helper into
+`dist/contracts/` and links core's imports to it. The release manifest omits the
+workspace dependency rather than requiring an unpublished contracts version from
+npm. Packing still fails if any other compiled JavaScript or declarations
+reference contracts.
 `yaml` and `zod` remain exact-version registry dependencies; an initial consumer
 install needs registry access or a populated npm cache.
 

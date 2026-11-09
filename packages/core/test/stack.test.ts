@@ -259,7 +259,7 @@ describe("remote-mode inference", () => {
       step: "Wait for Flux Kustomizations to be Ready",
       startedAt: "2026-10-12T21:58:00Z",
     });
-    expect(usualText(early.usual)).toBe("green runs 1–12 min");
+    expect(usualText(early.usual)).toBe("green runs 1–12\u00a0min");
     expect(overdue(early, new Date("2026-10-12T22:08:00Z"))).toBe(false);
     expect(overdue(early, new Date("2026-10-12T22:29:00Z"))).toBe(true);
   });

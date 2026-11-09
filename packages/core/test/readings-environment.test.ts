@@ -75,7 +75,7 @@ describe("Environment reading on the recorded 6 Nov sweep", () => {
     expect(reading.tiles[0]).toEqual({
       label: "Version",
       value: "v0.35.3",
-      counts: "running · the latest release · landed 3 h 32 min after its release",
+      counts: "running · the latest release · landed 3\u00a0h 32\u00a0min after its release",
     });
   });
 
