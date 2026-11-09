@@ -1,6 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { readFileSync } from "node:fs";
+import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { expect, it } from "vitest";
 import { APPENDIX_A_TOOLS } from "../../../packages/host/src/tools/tool-names.js";
 import type { SmokeGeometry } from "./smoke-geometry.js";
@@ -13,12 +15,13 @@ import {
   VIEW_SURFACES,
   VIEW_WIDTHS,
 } from "./smoke-report.js";
+import { smokeSweepProgress } from "./smoke-sweep.js";
 
 const rect = (x: number, y: number, width: number, height: number) => ({ x, y, width, height });
 const firstSweepQualifiers: Record<string, string[]> = {
   "first-sweep-running": [
     "First sweep · 9 of 12 sources done",
-    "First sweep is reading the program. 6 run lists cut short; rest read. 2 reads failed. Reads failed for 2 services: unit, crs-catalog. waits for GitHub budget · after 09:10. glab is not signed in. Open Settings",
+    "First sweep is reading the program. 6 run lists cut short; rest read. 3 reads failed. Reads failed for 3 services: unit, crs-catalog, crs-conversion. waits for GitHub budget · after 09:10. glab is not signed in. Open Settings",
   ],
   "first-sweep-throttled": [
     "First sweep · 9 of 12 sources done",
@@ -38,10 +41,33 @@ const firstSweepQualifiers: Record<string, string[]> = {
   ],
   "first-sweep-evidence": [
     "swept 08:02 · 1 failed",
-    "The sweep Sources 6 run lists cut short; rest read. 2 reads failed. Reads failed for 2 services: unit, crs-catalog. waits for GitHub budget · after 09:10. glab is not signed in. Open Settings",
+    "The sweep Sources 6 run lists cut short; rest read. 3 reads failed. Reads failed for 3 services: unit, crs-catalog, crs-conversion. waits for GitHub budget · after 09:10. glab is not signed in. Open Settings",
   ],
   "first-sweep-refresh": ["Swept 08:02 · sweeping, 4 of 12 sources done", "GitLab reads failed."],
 };
+
+it("keeps the retained first-sweep failure line consistent with the snapshot's failed services", () => {
+  const snapshot = ViewSnapshotSchema.parse(
+    JSON.parse(
+      readFileSync(new URL("../../../fixtures/watch/snapshot-1106.json", import.meta.url), "utf8"),
+    ),
+  );
+  const services = [
+    ...new Set(
+      snapshot.reads
+        .filter((record) => record.failure !== undefined)
+        .map(({ source }) => (source.split("/").at(-1) ?? source).replace(/^osdu-spi-/, "")),
+    ),
+  ];
+  expect(
+    smokeSweepProgress().committed.sources.find(({ source }) => source === "template"),
+  ).toMatchObject({
+    state: "cut",
+    incomplete: { failed: services.length },
+    failure: `Reads failed for ${services.length} services: ${services.join(", ")}.`,
+  });
+});
+
 function geometry(surface: string, width: number): SmokeGeometry[] {
   return geometryRules(surface, width).map((rule) => {
     switch (rule) {

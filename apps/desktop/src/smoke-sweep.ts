@@ -40,8 +40,8 @@ export function smokeSweepProgress() {
         state: "cut",
         startedAt: after(111),
         endedAt: after(117),
-        incomplete: { count: 0, total: 24, failed: 2 },
-        failure: "Reads failed for 2 services: unit, crs-catalog.",
+        incomplete: { count: 0, total: 24, failed: 3 },
+        failure: "Reads failed for 3 services: unit, crs-catalog, crs-conversion.",
       },
       {
         source: "details",
