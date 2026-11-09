@@ -3,6 +3,7 @@
 
 import { afterEach, expect, test, vi } from "vitest";
 import {
+  azureModule,
   diffEntry,
   emptyRadarState,
   mrKey,
@@ -17,6 +18,7 @@ import { RecordingExec, ReplayExec } from "../../src/exec/recording.js";
 import { Gh, Glab } from "../../src/forge.js";
 import { parseFilter } from "../../src/model/filter.js";
 import { diffVerdicts } from "../../src/model/radar.js";
+import sweep from "../fixtures/upstream-1106.json";
 import { FIXTURE_NOW, fixtureFacts } from "../harness.js";
 
 const fork = { id: "partition", repo: "owner/partition", upstream: "osdu/partition" };
@@ -559,4 +561,68 @@ test("the recorded frame holds every fixture fork's filters and halt-producing d
       .flatMap((s) => s.mrs)
       .every((m) => /^upstream-author-\d+$/.test(m.author)),
   ).toBe(true);
+});
+
+test("each recorded fork's Azure pom lives in the module its injected azure profile builds", () => {
+  const filters = (sweep as { radar: { data: { filters: Record<string, { text: string }> } } })
+    .radar.data.filters;
+  const modules = Object.fromEntries(
+    Object.entries(filters).map(([id, f]) => [id, azureModule(f.text)]),
+  );
+  expect(modules).toMatchObject({
+    unit: "provider/unit-azure/unit-aks",
+    "crs-catalog": "provider/crs-catalog-azure/crs-catalog-aks",
+    "crs-conversion": "provider/crs-converter-azure/crs-converter-aks",
+    entitlements: "provider/entitlements-v2-azure",
+    legal: "provider/legal-azure",
+  });
+});
+
+test("a nested Azure reactor reads its pin from the nested module, not a missing tree pom", async () => {
+  const unit = { id: "unit", repo: "Azure/osdu-spi-unit", upstream: "osdu/unit-service" };
+  const context = createContext({ fleet: fleetOf([unit]), clock: { now: () => FIXTURE_NOW } });
+  const text =
+    (sweep as { radar: { data: { filters: Record<string, { text: string }> } } }).radar.data.filters
+      .unit?.text ?? "";
+  const exec = new RecordingExec(
+    async (cmd, args) => {
+      const path = args.at(-1) ?? "";
+      let data: unknown;
+      if (cmd === "gh" && path.startsWith("query=")) {
+        // GitHub answers a missing object expression with null and no error.
+        data = {
+          data: {
+            pom0: {
+              root: { oid: "root-blob" },
+              azure: path.includes("main:provider/unit-azure/unit-aks/pom.xml")
+                ? { oid: "aks-blob" }
+                : null,
+            },
+            spicodeBudget: { cost: 1, remaining: 4999, resetAt: "2099-01-01T00:00:00Z" },
+          },
+        };
+      } else if (path.endsWith("contents/.github/upstream-filter.yml")) {
+        data = { sha: "unit-filter", content: Buffer.from(text).toString("base64") };
+      } else if (path.includes("/git/blobs/")) {
+        const pom = path.endsWith("aks-blob")
+          ? "<core-lib-azure.version>2.5.10</core-lib-azure.version>"
+          : "<os-core-common.version>7.0.0</os-core-common.version>";
+        data = { content: Buffer.from(pom).toString("base64") };
+      } else if (path.includes("/merge_requests?state=opened")) data = [];
+      return data === undefined
+        ? { stdout: "", stderr: `${cmd} ${path}: unavailable`, exit: 1 }
+        : { stdout: JSON.stringify(data), stderr: "", exit: 0 };
+    },
+    () => {},
+  );
+  const result = await readRadar(new Gh(exec), new Glab(exec), {}, emptyRadarState(), context);
+  const pom = result.reads.filter((r) => r.source === unit.repo && r.object.endsWith("pom.xml"));
+  expect(pom.map((r) => [r.object, r.failure])).toEqual([
+    ["main:pom.xml", undefined],
+    ["main:provider/unit-azure/unit-aks/pom.xml", undefined],
+  ]);
+  expect(result.services.unit?.pins?.fork).toEqual({
+    osCoreCommon: "7.0.0",
+    coreLibAzure: "2.5.10",
+  });
 });

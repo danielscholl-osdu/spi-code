@@ -94,6 +94,21 @@ function withDiff<T extends object>(fact: T, entry: DiffEntry | undefined): T {
   return entry ? { ...fact, paths: entry.paths, ...(entry.hunks ? { hunks: entry.hunks } : {}) } : fact;
 }
 
+// A nested Azure reactor keeps its pom in the module the injected azure profile builds, under the owned tree.
+export function azureModule(text: string): string | undefined {
+  const tree = forkOwned(parseFilter(text)).find((p) => p.startsWith("provider/"));
+  if (!tree) return undefined;
+  const lines = text.split("\n");
+  const start = lines.findIndex((line) => line.startsWith("inject_root_pom_azure_profile:"));
+  const block: string[] = [];
+  for (const line of start < 0 ? [] : lines.slice(start + 1)) {
+    if (/^\S/.test(line)) break;
+    block.push(line);
+  }
+  const modules = [...block.join("\n").matchAll(/<module>\s*([^<\s]+)\s*<\/module>/g)].map((m) => m[1] as string);
+  return modules.find((m) => m === tree) ?? modules.find((m) => m.startsWith(`${tree}/`)) ?? tree;
+}
+
 export async function readRadar(
   gh: Gh,
   glab: Glab,
@@ -213,7 +228,7 @@ export async function readRadar(
   });
   const forkPins = await readForkPins(gh, ctx.fleet.forks.map((f) => {
     const text = out.filters[f.id]?.text;
-    const azure = text ? forkOwned(parseFilter(text)).find((p) => p.startsWith("provider/")) : undefined;
+    const azure = text ? azureModule(text) : undefined;
     return { id: f.id, repo: f.repo, ...(azure ? { azure } : {}) };
   }), state.pins, ctx);
   out.reads.push(...forkPins.reads);
