@@ -1000,6 +1000,18 @@ it("opens the sweep's Evidence when desktop main routes the tray's View sweep, a
     });
     const sweep = container.querySelector('#app-right-panel [data-evidence="sweep"]');
     expect(sweep?.querySelectorAll(".sweep-row[data-source]").length).toBeGreaterThanOrEqual(11);
+    await act(async () => navigate({ kind: "environment" }));
+    const item = watchStore.getState().snapshot?.body.briefing.focus[0];
+    if (!item) throw new Error("Missing recorded item");
+    await act(async () => route?.({ to: "today", item: item.id }));
+    expect(window.location.hash).toBe("#today");
+    expect(container.querySelector("main h1")?.textContent).toBe("Today");
+    expect(selectionStore.getState()).toMatchObject({
+      selected: item.id,
+      open: true,
+      tab: "detail",
+      evidenceScope: "selection",
+    });
   } finally {
     await act(async () => root.unmount());
     expect(unroute).toHaveBeenCalledOnce();

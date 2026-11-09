@@ -23,6 +23,7 @@ import {
 import { externalLinkHandlers } from "./external-links.js";
 import { hostLaunch } from "./host-launch.js";
 import { stopHostTree } from "./host-tree.js";
+import { createInterruptNotifications } from "./interrupts.js";
 import { createLifecycle, stopHostAndReleaseLeases, stopWithin } from "./lifecycle.js";
 import { assertNoProcessListeners } from "./smoke-listeners.js";
 import { smokeMessages } from "./smoke-messages.js";
@@ -53,6 +54,7 @@ let child: UtilityProcess | undefined;
 let supervisor: HostSupervisor<UtilityProcess> | undefined;
 let hostPorts: ReturnType<typeof hostPortCallbacks<MessagePortMain>> | undefined;
 let tray: ReturnType<typeof createSweepTray> | undefined;
+let interrupts: ReturnType<typeof createInterruptNotifications> | undefined;
 let relay: ReturnType<typeof trayChannel<MessagePortMain>> | undefined;
 let wake: ReturnType<typeof wakeSweep> | undefined;
 let storePath: string | undefined;
@@ -141,6 +143,7 @@ async function run(): Promise<void> {
       relay?.dispose();
       wake?.dispose();
       tray?.dispose();
+      interrupts?.dispose();
     },
     onError: fail,
   });
@@ -177,12 +180,18 @@ async function run(): Promise<void> {
     ...(process.platform === "darwin" ? { badge: (text: string) => app.dock?.setBadge(text) } : {}),
   });
   wake = wakeSweep(powerMonitor, (message) => relay?.request(message) ?? false);
+  interrupts = createInterruptNotifications({
+    focused: () => !window.isDestroyed() && window.isFocused(),
+    open: (destination) => showDestination(lifecycle.open, window.webContents, destination),
+  });
   relay = trayChannel(
     () => new MessageChannelMain(),
     (message) => {
       wake?.observe(message);
       tray?.observe(message);
+      interrupts?.observe(message);
     },
+    interrupts.outgoing,
   );
   const channels: MessageChannelMain[] = [];
   hostPorts = hostPortCallbacks(() => {
@@ -393,6 +402,7 @@ async function run(): Promise<void> {
   relay.dispose();
   wake.dispose();
   tray.dispose();
+  interrupts.dispose();
   saveReport(report);
   console.log(JSON.stringify(report, null, 2));
   window.destroy();

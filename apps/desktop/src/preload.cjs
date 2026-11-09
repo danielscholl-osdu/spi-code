@@ -13,6 +13,19 @@ const DESTINATIONS = new Set(["evidence"]);
 function windowDestination(input) {
   if (typeof input !== "object" || input === null || Array.isArray(input)) return undefined;
   const keys = Object.keys(input);
+  if (
+    keys.length === 2 &&
+    keys.includes("to") &&
+    keys.includes("item") &&
+    input.to === "today" &&
+    typeof input.item === "string" &&
+    input.item.trim().length > 0 &&
+    !/^(?:[./~\\]|[a-z]:\/|(?:https?|file|data|javascript|mailto):)|\\|:\/\/|\p{Cc}/iu.test(
+      input.item,
+    ) &&
+    (!input.item.includes("/") || /^[a-z][a-z0-9-]*:/i.test(input.item))
+  )
+    return { to: "today", item: input.item };
   if (keys.length !== 1 || keys[0] !== "to") return undefined;
   if (typeof input.to !== "string" || !DESTINATIONS.has(input.to)) return undefined;
   return { to: input.to };

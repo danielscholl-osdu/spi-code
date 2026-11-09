@@ -5,7 +5,7 @@
 export const WINDOW_NAVIGATE_CHANNEL = "window:navigate";
 
 /** The closed set of places desktop main can send the window to. preload.cjs rejects the rest. */
-export type WindowDestination = { to: "evidence" };
+export type WindowDestination = { to: "evidence" } | { to: "today"; item: string };
 
 /** Shows the window, then sends it to a destination its preload accepts. */
 export function showDestination(

@@ -359,6 +359,7 @@ interface Port<P> {
 export function trayChannel<P extends Port<P>>(
   makeChannel: () => { port1: P; port2: P },
   observe: (message: unknown) => void,
+  outgoing: (message: unknown) => void = () => {},
 ) {
   let dispose = () => {};
   let host: P | undefined;
@@ -368,7 +369,14 @@ export function trayChannel<P extends Port<P>>(
       const window = makeChannel();
       const channel = makeChannel();
       host = channel.port1;
-      window.port2.on("message", ({ data, ports }) => channel.port1.postMessage(data, ports));
+      window.port2.on("message", ({ data, ports }) => {
+        channel.port1.postMessage(data, ports);
+        try {
+          outgoing(data);
+        } catch (error) {
+          console.error("Desktop failed to observe an outgoing host request", error);
+        }
+      });
       channel.port1.on("message", ({ data, ports }) => {
         window.port2.postMessage(data, ports);
         try {

@@ -54,6 +54,39 @@ it("shows the window and routes View sweep through the preload to the renderer",
   expect(listener).toHaveBeenCalledOnce();
 });
 
+it("routes Today item identifiers through preload, never paths, URLs or extra fields", () => {
+  const { bridge, contents, deliver } = preload();
+  const listener = vi.fn();
+  bridge.onNavigate(listener);
+  showDestination(vi.fn(), contents, { to: "today", item: "conflict:entitlements:121" });
+  expect(listener).toHaveBeenCalledExactlyOnceWith({
+    to: "today",
+    item: "conflict:entitlements:121",
+  });
+  for (const item of [
+    "",
+    "/tmp/file",
+    "../file",
+    "C:\\file",
+    "https://example.com",
+    " ",
+    "private/file",
+    "C:/file",
+    "file:private",
+    "data:payload",
+    "javascript:alert(1)",
+    null,
+    3,
+  ])
+    deliver({ to: "today", item });
+  deliver({ to: "today", item: "valid", url: "https://example.com" });
+  deliver({ to: "today" });
+  expect(listener).toHaveBeenCalledOnce();
+  for (const item of ["access:owner/repository#12", "security:code:unsafe workflow"])
+    deliver({ to: "today", item });
+  expect(listener).toHaveBeenCalledTimes(3);
+});
+
 it("rejects destinations outside the closed set before the renderer sees them", () => {
   const { bridge, deliver } = preload();
   const listener = vi.fn();

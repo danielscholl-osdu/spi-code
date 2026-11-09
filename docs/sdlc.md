@@ -66,6 +66,15 @@ Expiry publishes `null`; subscription replay also clears expired deadlines and
 keeps snapshot, progress, status order. The field is optional in the contract
 for existing fixtures, so protocol version 3 and the desktop preload stay unchanged.
 Consumers treat an absent or past deadline as no cooldown.
+Desktop Interrupt notifications consume committed snapshot tiers and `seen.since`,
+coalescing new item/rung pairs into one native banner per sweep. Dedupe lives only
+in memory for the app run; a focused BrowserWindow suppresses delivery, not a merely
+visible one. The first snapshot after relaunch summarizes unacknowledged Interrupts;
+the first-ever sweep keeps its existing "Today is ready" hand-over. Acknowledgements
+on the outgoing host channel close covered native handles without changing the
+snapshot or Today count. Clicks open Today with the item selected through the
+validated preload/renderer route. Banners use bounded, single-line item titles,
+redact credential and path shapes, and never read diagnostic fields.
 Readiness shows Copilot, git, gh and glab in that order, with no action on ready
 rows. Settings → Sweep holds the GitHub API budget; Readiness keeps a one-line
 link to it. Sign-in codes and GitLab tokens stay in their own
