@@ -175,6 +175,9 @@ The screenshot phase precedes host startup, so these schema-valid `sweep.progres
 fixtures use the same smoke-only preload channel as `view.snapshot` and `setup.state`,
 not the real host progress feed. The later persisted-snapshot and supervision proof
 starts only after removing fixtures.
+The hidden smoke window disables background throttling during captures, then restores
+its original setting before the host proof. This keeps animation-frame and hand-over
+waits on their real cadence on Windows, within the unchanged three-minute deadline.
 Missing shots, images smaller than 640 x 400 or 1024 PNG bytes, or images
 with 99.5% of pixels in one 4-bit-per-channel RGB bucket fail the smoke.
 Every shot must carry the title-bar sweep line (first-sweep captures carry its

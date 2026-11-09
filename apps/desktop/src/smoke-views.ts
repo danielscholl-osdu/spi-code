@@ -251,10 +251,12 @@ export async function captureSmokeViews(
     }
   };
   const shots: SmokeShot[] = [];
+  const backgroundThrottling = window.webContents.getBackgroundThrottling();
   let clockScript: string | undefined;
   window.webContents.debugger.attach("1.3");
   ipcMain.on("smoke:request", request);
   try {
+    window.webContents.setBackgroundThrottling(false);
     await window.webContents.debugger.sendCommand("Page.enable");
     await window.webContents.debugger.sendCommand("Emulation.setTimezoneOverride", {
       timezoneId: "America/Chicago",
@@ -589,6 +591,7 @@ export async function captureSmokeViews(
     }
     assertSmokeViews(shots);
   } finally {
+    window.webContents.setBackgroundThrottling(backgroundThrottling);
     ipcMain.removeListener("smoke:request", request);
     if (clockScript)
       await window.webContents.debugger.sendCommand("Page.removeScriptToEvaluateOnNewDocument", {
