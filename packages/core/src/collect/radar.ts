@@ -105,7 +105,7 @@ export function azureModule(text: string): string | undefined {
     if (/^\S/.test(line)) break;
     block.push(line);
   }
-  const modules = [...block.join("\n").matchAll(/<module>\s*([^<\s]+)\s*<\/module>/g)].map((m) => m[1] as string);
+  const modules = [...block.join("\n").replace(/<!--[\s\S]*?-->/g, "").matchAll(/<module>\s*([^<\s]+)\s*<\/module>/g)].map((m) => m[1] as string);
   return modules.find((m) => m === tree) ?? modules.find((m) => m.startsWith(`${tree}/`)) ?? tree;
 }
 

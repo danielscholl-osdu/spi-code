@@ -578,6 +578,21 @@ test("each recorded fork's Azure pom lives in the module its injected azure prof
   });
 });
 
+test("a commented-out module never chooses the Azure pom", () => {
+  const filters = (sweep as { radar: { data: { filters: Record<string, { text: string }> } } })
+    .radar.data.filters;
+  const unit = filters.unit?.text ?? "";
+  const nested = "<module>provider/unit-azure/unit-aks</module>";
+  expect(unit).toContain(nested);
+  const parent = unit.replace(nested, `<!-- <module>provider/unit-azure</module> -->${nested}`);
+  expect(azureModule(parent)).toBe("provider/unit-azure/unit-aks");
+  const obsolete = unit.replace(
+    nested,
+    `<!--\n      <module>provider/unit-azure/unit-old</module>\n    -->${nested}`,
+  );
+  expect(azureModule(obsolete)).toBe("provider/unit-azure/unit-aks");
+});
+
 test("a nested Azure reactor reads its pin from the nested module, not a missing tree pom", async () => {
   const unit = { id: "unit", repo: "Azure/osdu-spi-unit", upstream: "osdu/unit-service" };
   const context = createContext({ fleet: fleetOf([unit]), clock: { now: () => FIXTURE_NOW } });
