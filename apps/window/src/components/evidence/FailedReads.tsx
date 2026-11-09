@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: MIT
 
 import type { ReadRecord, SweepReasonCode } from "@spi-code/contracts";
-import { sourceName } from "./words.js";
+import { AREA_NAMES, sourceName } from "./words.js";
 
 type FailureCode = SweepReasonCode | "not-found" | "denied";
 
 const FAILURE_WORDS: Readonly<Record<FailureCode, string>> = {
   signin: "signed out",
-  budget: "waits for GitHub budget",
+  budget: "waits for {forge} budget",
   throttled: "{forge} asked to slow down",
   cadence: "not due this sweep",
   limit: "read limit reached",
@@ -34,9 +34,10 @@ function failureCode(failure: string): FailureCode {
     return "timeout";
   if (status === "401" || /\b(signed out|not signed in|unauthenticated)\b/i.test(failure))
     return "signin";
+  if (status === "429" || (status === "403" && /secondary rate limit/i.test(failure)))
+    return "throttled";
   if (status === "403" || /\b(forbidden|access denied)\b/i.test(failure)) return "denied";
   if (status === "404" || /\bnot[ _-]found\b/i.test(failure)) return "not-found";
-  if (status === "429") return "throttled";
   if (status?.startsWith("5")) return "unavailable";
   return "other";
 }
@@ -45,17 +46,24 @@ function forgeName(source: string): string {
   if (["gitlab", "upstream", "radar"].includes(source) || source.split("/").length > 2)
     return "GitLab";
   if (source === "github" || source.includes("/")) return "GitHub";
-  return "Source";
+  return sourceName(source);
+}
+
+function windowSource(source: string): string {
+  if (Object.hasOwn(AREA_NAMES, source) || source === "releases") return source;
+  // Repo-backed records do not carry an area; use their forge's window source.
+  return forgeName(source) === "GitLab" ? "upstream" : "github";
 }
 
 function serviceName(record: ReadRecord): string {
   const name = record.source.includes("/") ? record.source : record.object;
-  return (
+  const service = (
     name
       .split("/")
       .at(-1)
       ?.replace(/^osdu-spi-/, "") ?? name
-  );
+  ).replace(/-service$/, "");
+  return service === "ingestion-workflow" ? "workflow" : service;
 }
 
 export function FailedReads({ reads }: { reads: readonly ReadRecord[] }) {
@@ -66,37 +74,40 @@ export function FailedReads({ reads }: { reads: readonly ReadRecord[] }) {
   for (const record of reads) {
     if (record.failure === undefined) continue;
     const code = failureCode(record.failure);
-    const key = JSON.stringify([record.source, code]);
+    const source = windowSource(record.source);
+    const key = JSON.stringify([source, code]);
     let group = groups.get(key);
     if (!group) {
-      group = { source: record.source, code, services: new Set(), details: new Set() };
+      group = { source, code, services: new Set(), details: new Set() };
       groups.set(key, group);
     }
     group.services.add(serviceName(record));
-    group.details.add(`${record.object}: ${record.failure}`);
+    group.details.add(`${record.source} · ${record.object}: ${record.failure}`);
   }
   return (
     <div className="sweep-sources evidence-failures">
       <ul className="sweep-rows" aria-label="Failed reads">
-        {[...groups].map(([key, { source, code, services, details }]) => (
-          <li
-            key={key}
-            className="evidence-failure"
-            data-source={source}
-            data-failure={code}
-            data-tone="bad"
-            title={[...details].join("\n")}
-          >
-            <span className="sweep-mark" aria-hidden="true">
-              ✕
-            </span>
-            <span className="sweep-name">{sourceName(source)}</span>
-            <span className="sweep-outcome">
-              {FAILURE_WORDS[code].replace("{forge}", forgeName(source))} ·{" "}
-              {[...services].join(", ")}
-            </span>
-          </li>
-        ))}
+        {[...groups].map(([key, { source, code, services, details }]) => {
+          const forge = source === "upstream" || source === "radar" ? "GitLab" : "GitHub";
+          const subject = code === "budget" || code === "throttled" ? forge : forgeName(source);
+          const outcome = `${FAILURE_WORDS[code].replace("{forge}", subject)} · ${[...services].join(", ")}`;
+          return (
+            <li
+              key={key}
+              className="evidence-failure"
+              data-source={source}
+              data-failure={code}
+              data-tone="bad"
+              aria-label={`${sourceName(source)} · ${outcome}`}
+            >
+              <span className="sweep-mark" aria-hidden="true" title={[...details].join("\n")}>
+                ✕
+              </span>
+              <span className="sweep-name">{sourceName(source)}</span>
+              <span className="sweep-outcome">{outcome}</span>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

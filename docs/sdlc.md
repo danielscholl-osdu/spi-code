@@ -172,10 +172,12 @@ the retained list in Evidence after hand-over, and a refresh over the older brie
 Each joins the same width/appearance matrix and runs the window edge, page scroll
 and visible pane header rules. First-sweep state copy is recorded in the qualifiers;
 Open Settings, resume and retry times, the cut count and the refresh count are required.
-Evidence groups failed reads by source and cause, naming the affected services in
-the Sources list's two-column row form. Causes use window words; core's diagnostic
-text is available on hover, never inline. The retained Evidence capture scrolls
-Failed reads into view.
+Evidence groups failed reads by window source and cause, naming the affected
+fleet ids in the Sources list's two-column row form. Causes use window words;
+core's diagnostic text is available on an aria-hidden mark's hover, never inline
+or as the row's accessible name.
+Repo-backed records without an area use the forge's window source.
+The retained Evidence capture scrolls Failed reads into view.
 The screenshot phase precedes host startup, so these schema-valid `sweep.progress`
 fixtures use the same smoke-only preload channel as `view.snapshot` and `setup.state`,
 not the real host progress feed. The later persisted-snapshot and supervision proof

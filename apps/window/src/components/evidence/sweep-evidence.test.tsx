@@ -12,6 +12,7 @@ import {
   SweepProgressSchema,
   SweepReasonCodeSchema,
   type SweepStatus,
+  ViewSnapshotSchema,
 } from "@spi-code/contracts";
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
@@ -394,9 +395,11 @@ it("lists every source of the sweep once in plain words with state, age and comp
     expect(row("details")?.slice(1)).toEqual(["wait", "not read yet"]);
     expect(row("fleet")?.slice(1)).toEqual(["ok", "fresh, last read 2 min ago, complete"]);
     expect(failedRows(view.container).map((row) => row.textContent)).toEqual([
-      "✕gitlabGitLab unavailable · partition",
+      "✕Upstream GitLabGitLab unavailable · partition",
     ]);
-    expect(failedRows(view.container)[0]?.title).toContain("http_502");
+    expect(
+      failedRows(view.container)[0]?.querySelector("[title]")?.getAttribute("title"),
+    ).toContain("http_502");
     expect(sweepView?.textContent).not.toContain("http 502");
     expect(sweepView?.querySelector("[data-budget]")?.textContent).toBe(
       "1,234 GitHub requests left, resets in 40 min; reads pause at 500 to keep a reserve.",
@@ -502,7 +505,9 @@ it.each([
       const article = view.container.querySelector('[data-evidence="sweep"]') as HTMLElement;
       const rows = sourceRows(article);
       expect(rows.map(([name]) => name).sort()).toEqual([...NAMES].sort());
-      for (const name of NAMES) expect(article.textContent?.split(name).length, name).toBe(2);
+      const sourceSection = article.querySelector('section[aria-label="Sources"]');
+      for (const name of NAMES)
+        expect(sourceSection?.textContent?.split(name).length, name).toBe(2);
       for (const [name, , outcome] of rows)
         expect(outcome, name ?? "").toMatch(/last read \d+ min ago/);
       expect(article.textContent).not.toMatch(/GitLab omitted|Job log character limit|hunks/);
@@ -616,6 +621,84 @@ const failedRead = (object: string, failure = gatewayFailure, source = "github")
   failure,
 });
 
+it("groups repo-backed pom failures under a window source name with the three fleet ids", async () => {
+  const fixture = ViewSnapshotSchema.parse(
+    JSON.parse(readFileSync("fixtures/watch/snapshot-1106.json", "utf8")),
+  );
+  const view = await render(
+    <SweepEvidence
+      snapshot={{ ...snapshot(areas()), reads: fixture.reads.filter((record) => record.failure) }}
+      sweep={null}
+      now={now}
+    />,
+  );
+  try {
+    const rows = failedRows(view.container);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.querySelector(".sweep-name")?.textContent).toBe("GitHub issues and PRs");
+    expect(rows[0]?.querySelector(".sweep-outcome")?.textContent).toBe(
+      "read failed · unit, crs-catalog, crs-conversion",
+    );
+    expect(rows[0]?.textContent).not.toContain("Azure/");
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("names GitLab repo-backed failures by fleet id rather than upstream project name", async () => {
+  const view = await render(
+    <SweepEvidence
+      snapshot={{
+        ...snapshot(areas()),
+        reads: [
+          "osdu/platform/system/indexer-service",
+          "osdu/platform/system/search-service",
+          "osdu/platform/data-flow/ingestion/ingestion-workflow",
+          "osdu/platform/system/reference/crs-catalog-service",
+        ].map((source) => failedRead("master", "timeout", source)),
+      }}
+      sweep={null}
+      now={now}
+    />,
+  );
+  try {
+    const rows = failedRows(view.container);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.querySelector(".sweep-name")?.textContent).toBe("Upstream GitLab");
+    expect(rows[0]?.querySelector(".sweep-outcome")?.textContent).toBe(
+      "GitLab timed out · indexer, search, workflow, crs-catalog",
+    );
+    expect(rows[0]?.textContent).not.toMatch(/osdu\/|indexer-service|crs-catalog-service/);
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("keeps core diagnostics out of the row's accessible name and description", async () => {
+  const view = await render(
+    <SweepEvidence
+      snapshot={{ ...snapshot(areas()), reads: [failedRead("Azure/osdu-spi-storage")] }}
+      sweep={null}
+      now={now}
+    />,
+  );
+  try {
+    const row = failedRows(view.container)[0];
+    expect(row?.getAttribute("aria-label")).toBe(
+      "GitHub issues and PRs · GitHub timed out · storage",
+    );
+    expect(row?.hasAttribute("title")).toBe(false);
+    expect(row?.hasAttribute("aria-description")).toBe(false);
+    const diagnostics = [...(row?.querySelectorAll("[title]") ?? [])];
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]?.getAttribute("title")).toContain(gatewayFailure);
+    for (const diagnostic of diagnostics)
+      expect(diagnostic.closest('[aria-hidden="true"]')).not.toBeNull();
+  } finally {
+    await view.cleanup();
+  }
+});
+
 it("groups five gateway failures by source and cause, naming services once without core text inline", async () => {
   const services = ["storage", "indexer", "search", "workflow", "indexer-queue"];
   const reads = services.map((service, index) =>
@@ -648,7 +731,7 @@ it("groups five gateway failures by source and cause, naming services once witho
       `GitHub timed out · ${services.join(", ")}`,
     );
     expect(rows[0]?.getAttribute("data-tone")).toBe("bad");
-    expect(rows[0]?.title).toContain(gatewayFailure);
+    expect(rows[0]?.querySelector("[title]")?.getAttribute("title")).toContain(gatewayFailure);
     expect(view.container.textContent).not.toMatch(
       /gh api graphql|HTTP 504|bytes of HTML|gateway error/,
     );
@@ -677,6 +760,7 @@ it.each([
   ["NOT_FOUND", "not found"],
   ["http_401", "signed out"],
   ["http_403", "access denied"],
+  ["gh: HTTP 403: You have exceeded a secondary rate limit.", "GitHub asked to slow down"],
   ["http_404", "not found"],
   ["http_429", "GitHub asked to slow down"],
   ["http_503", "GitHub unavailable"],
@@ -685,6 +769,30 @@ it.each([
   const view = await render(
     <SweepEvidence
       snapshot={{ ...snapshot(areas()), reads: [failedRead("Azure/osdu-spi-storage", failure)] }}
+      sweep={null}
+      now={now}
+    />,
+  );
+  try {
+    expect(failedRows(view.container)[0]?.querySelector(".sweep-outcome")?.textContent).toBe(
+      `${words} · storage`,
+    );
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it.each([
+  ["security", "unavailable", "Security alerts unavailable"],
+  ["runs", "timeout", "Workflow runs timed out"],
+  ["gitlab", "budget", "waits for GitLab budget"],
+])("uses window wording for %s failure %s", async (source, failure, words) => {
+  const view = await render(
+    <SweepEvidence
+      snapshot={{
+        ...snapshot(areas()),
+        reads: [failedRead("Azure/osdu-spi-storage", failure, source)],
+      }}
       sweep={null}
       now={now}
     />,

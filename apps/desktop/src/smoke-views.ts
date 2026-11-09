@@ -549,7 +549,10 @@ export async function captureSmokeViews(
               `(() => {
                 const failed = document.querySelector(".evidence-failures").getBoundingClientRect();
                 const panel = document.querySelector(".panel-body").getBoundingClientRect();
-                return failed.top >= panel.top && failed.bottom <= panel.bottom;
+                const row = document.querySelector(".evidence-failure");
+                return failed.top >= panel.top && failed.bottom <= panel.bottom &&
+                  row.querySelector(".sweep-name").textContent === "GitHub issues and PRs" &&
+                  row.querySelector(".sweep-outcome").textContent === "read failed · unit, crs-catalog, crs-conversion";
               })()`,
             );
           }
