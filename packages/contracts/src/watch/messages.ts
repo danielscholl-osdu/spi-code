@@ -77,6 +77,7 @@ export const SweepSourceProgressSchema = z
       ...ended,
       state: z.literal("cut"),
       ...mayReason,
+      cutKind: z.enum(["job-log", "diff", "run-list", "read"]).optional(),
       incomplete: z
         .strictObject({ count: z.int().positive(), total: z.int().positive() })
         .refine(({ count, total }) => count <= total, {

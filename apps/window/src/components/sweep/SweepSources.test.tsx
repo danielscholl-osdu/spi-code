@@ -89,7 +89,7 @@ it("draws twelve rows in sweep order in the Evidence names, what each reads and 
     "read · 3 s",
     "read · 9 s",
     "read · 31 s",
-    "read · 52 s · 6 of 13 incomplete",
+    "read · 52 s · 6 run lists cut short; rest read",
     "read · 4 s",
     "read · 12 s",
     "read · 6 s",
@@ -120,6 +120,54 @@ it("draws twelve rows in sweep order in the Evidence names, what each reads and 
   expect(container.querySelector(".sweep-meta")?.textContent).toBe(
     "2 min 10 s so far · 1 source failed",
   );
+});
+
+it.each([
+  {
+    source: "lifecycle",
+    cutKind: "job-log",
+    count: 1,
+    total: 69,
+    reason: "Job log character limit: 64,000 of 92,438 characters read.",
+    outcome: "read · 12 s · 1 job log cut short; rest read",
+    detail: "68 of 69 reads complete. Job log character limit: 64,000 of 92,438 characters read.",
+  },
+  {
+    source: "radar",
+    cutKind: "diff",
+    count: 14,
+    total: 200,
+    reason: "Oversized or collapsed diffs: 1,607 of 1,696 files read.",
+    outcome: "read · 12 s · 14 diffs cut short; rest read",
+    detail: "186 of 200 reads complete. Oversized or collapsed diffs: 1,607 of 1,696 files read.",
+  },
+  {
+    source: "lifecycle",
+    cutKind: "job-log",
+    count: 2,
+    total: 2,
+    reason: "Job log character limit: 128,000 of 184,876 characters read.",
+    outcome: "read · 12 s · 2 job logs cut short",
+    detail: "0 of 2 reads complete. Job log character limit: 128,000 of 184,876 characters read.",
+  },
+] as const)("names the cut reads and what was read for $count $cutKind cuts", async (example) => {
+  const { container } = await render(
+    withSource({
+      source: example.source,
+      state: "cut",
+      startedAt: after(0),
+      endedAt: after(12),
+      code: "limit",
+      reason: example.reason,
+      cutKind: example.cutKind,
+      incomplete: { count: example.count, total: example.total },
+    }),
+  );
+  const outcome = row(container, example.source)?.querySelector(".sweep-outcome");
+  expect(outcome?.textContent).toBe(example.outcome);
+  expect(outcome?.getAttribute("title")).toBe(example.detail);
+  expect(outcome?.getAttribute("aria-description")).toBe(example.detail);
+  expect(container.textContent).not.toContain("incomplete");
 });
 
 it("tones one bar segment per source like its row, with no percentage or countdown", async () => {

@@ -7,6 +7,7 @@ import {
   SweepProgressSchema,
   type SweepReasonCode,
   SweepReasonCodeSchema,
+  type SweepSourceProgress,
 } from "@spi-code/contracts";
 import type { CollectorOptions } from "@spi-code/core";
 import type { SweepTimers } from "./service.js";
@@ -49,6 +50,32 @@ export function safeSweepReason(code: unknown): string {
   return reasons[reasonCode(code)];
 }
 
+function cutDetail(
+  event: Exclude<Extract<CoreProgress, { kind: "source" }>, { state: "reading" }>,
+): Pick<Extract<SweepSourceProgress, { state: "cut" }>, "cutKind" | "reason"> {
+  const completeness = event.completeness;
+  if (completeness?.kind !== "cut") {
+    return { cutKind: "read", reason: safeSweepReason("limit") };
+  }
+  const matches = (reason: string) =>
+    completeness.reason === reason ||
+    (event.incomplete !== undefined &&
+      event.incomplete.count > 1 &&
+      completeness.reason.endsWith(`: ${reason}`));
+  const [cutKind, reason, unit] = matches("Job log character limit")
+    ? (["job-log", "Job log character limit", "characters"] as const)
+    : matches("GitLab omitted oversized or collapsed classification hunks")
+      ? (["diff", "Oversized or collapsed diffs", "files"] as const)
+      : event.source === "runs"
+        ? (["run-list", "Run list page limit or short read", "runs"] as const)
+        : (["read", "Page or size limit", ""] as const);
+  const count = (value: number) => value.toLocaleString("en-US");
+  return {
+    cutKind,
+    reason: `${reason}: ${count(completeness.read)} of ${count(completeness.total)}${unit ? ` ${unit}` : ""} read.`,
+  };
+}
+
 /** Core's completeness is item counts; only its cut outcome supplies incomplete read counts. */
 export function foldSweepProgress(current: SweepProgress, event: CoreProgress): unknown {
   if (event.kind === "failed" || current.outcome !== "running") return current;
@@ -87,7 +114,13 @@ export function foldSweepProgress(current: SweepProgress, event: CoreProgress): 
         source = { ...ended, state: "read" };
         break;
       case "cut":
-        source = { ...ended, state: "cut", code, reason, incomplete: event.incomplete };
+        source = {
+          ...ended,
+          state: "cut",
+          code,
+          ...cutDetail(event),
+          incomplete: event.incomplete,
+        };
         break;
       case "deferred":
         source = {

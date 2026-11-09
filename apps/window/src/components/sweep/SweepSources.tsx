@@ -111,7 +111,11 @@ export function SweepSources({
               </span>
               <span className="sweep-name">{sourceName(source.source)}</span>
               <span className="sweep-what">{sourceReads(source.source) ?? ""}</span>
-              <span className="sweep-outcome">
+              <span
+                className="sweep-outcome"
+                title={outcome.detail}
+                aria-description={outcome.detail}
+              >
                 <Outcome outcome={outcome} now={now} />
                 {stopped && failed && why && ` · ${why}`}
               </span>

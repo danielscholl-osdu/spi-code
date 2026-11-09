@@ -18,7 +18,7 @@ const rect = (x: number, y: number, width: number, height: number) => ({ x, y, w
 const firstSweepQualifiers: Record<string, string[]> = {
   "first-sweep-running": [
     "First sweep · 9 of 12 sources done",
-    "First sweep is reading the program. 6 of 13 incomplete. waits for GitHub budget · after 09:10. glab is not signed in. Open Settings",
+    "First sweep is reading the program. 6 run lists cut short; rest read. waits for GitHub budget · after 09:10. glab is not signed in. Open Settings",
   ],
   "first-sweep-throttled": [
     "First sweep · 9 of 12 sources done",
@@ -38,7 +38,7 @@ const firstSweepQualifiers: Record<string, string[]> = {
   ],
   "first-sweep-evidence": [
     "swept 08:02 · 1 failed",
-    "The sweep Sources 6 of 13 incomplete. waits for GitHub budget · after 09:10. glab is not signed in. Open Settings",
+    "The sweep Sources 6 run lists cut short; rest read. waits for GitHub budget · after 09:10. glab is not signed in. Open Settings",
   ],
   "first-sweep-refresh": ["Swept 08:02 · sweeping, 4 of 12 sources done", "GitLab reads failed."],
 };

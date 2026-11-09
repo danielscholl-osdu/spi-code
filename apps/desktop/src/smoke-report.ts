@@ -290,7 +290,7 @@ function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
   const states: Record<string, RegExp[]> = {
     "first-sweep-running": [
       /First sweep is reading the program/,
-      /6 of 13 incomplete/,
+      /6 run lists cut short; rest read/,
       /waits for GitHub budget.*after 09:10/,
       /glab is not signed in/,
       /Open Settings/,
@@ -314,7 +314,7 @@ function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
     "first-sweep-evidence": [
       /The sweep/,
       /Sources/i,
-      /6 of 13 incomplete/,
+      /6 run lists cut short; rest read/,
       /waits for GitHub budget.*after 09:10/,
       /glab is not signed in/,
     ],

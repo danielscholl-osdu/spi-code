@@ -342,6 +342,15 @@ describe("sweep progress", () => {
     expect(parse({ ...failed, output: "gh: HTTP 502" }).ok).toBe(false);
     expect(parseMessage({ ...messages[13], payload: { force: true } }).ok).toBe(false);
   });
+  it("carries a cut kind without changing older cut messages", () => {
+    const source = { source: "lifecycle", state: "cut", incomplete: { count: 1, total: 69 } };
+    expect(withSource(source).ok).toBe(true);
+    for (const cutKind of ["job-log", "diff", "run-list", "read"]) {
+      expect(withSource({ ...source, cutKind }).ok).toBe(true);
+    }
+    expect(withSource({ ...source, cutKind: "stderr" }).ok).toBe(false);
+    expect(withSource({ source: "lifecycle", state: "read", cutKind: "job-log" }).ok).toBe(false);
+  });
   it("bounds every reason", () => {
     const source = progress.sources[5];
     const bounded = "x".repeat(SWEEP_REASON_MAX_LENGTH);

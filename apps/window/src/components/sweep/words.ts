@@ -63,6 +63,7 @@ export type SourceOutcome = {
   /** The ISO instant the copy follows with " · after HH:MM". */
   after?: string;
   why?: string;
+  detail?: string;
   code?: SweepReasonCode;
 };
 
@@ -85,12 +86,19 @@ export function sourceOutcome(source: SweepSourceProgress, now: number): SourceO
     }
     case "read":
       return { mark: "✓", tone: "ok", text: `read${took(source.startedAt, source.endedAt)}` };
-    case "cut":
+    case "cut": {
+      const { count, total } = source.incomplete;
+      const kind = { "job-log": "job log", diff: "diff", "run-list": "run list", read: "read" }[
+        source.cutKind ?? "read"
+      ];
+      const complete = total - count;
       return {
         mark: "⚠",
         tone: "warn",
-        text: `read${took(source.startedAt, source.endedAt)} · ${source.incomplete.count} of ${source.incomplete.total} incomplete`,
+        text: `read${took(source.startedAt, source.endedAt)} · ${count} ${kind}${count === 1 ? "" : "s"} cut short${complete > 0 ? "; rest read" : ""}`,
+        detail: `${complete} of ${total} reads complete.${source.reason ? ` ${source.reason}` : ""}`,
       };
+    }
     case "deferred": {
       const after = source.resumeAt ? { after: source.resumeAt } : {};
       return source.code === "budget"

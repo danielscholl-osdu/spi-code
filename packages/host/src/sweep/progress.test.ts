@@ -207,6 +207,59 @@ it("limits running updates to four a second and sends terminal states immediatel
   expect(sends.filter(({ at }) => at < epoch + 1000)).toHaveLength(4);
 });
 
+it.each([
+  {
+    source: "lifecycle" as const,
+    reason: "Job log character limit",
+    count: 1,
+    total: 69,
+    read: 64_000,
+    size: 92_438,
+    cutKind: "job-log",
+    safeReason: "Job log character limit: 64,000 of 92,438 characters read.",
+  },
+  {
+    source: "radar" as const,
+    reason: "GitLab omitted oversized or collapsed classification hunks",
+    count: 2,
+    total: 10,
+    read: 75,
+    size: 79,
+    cutKind: "diff",
+    safeReason: "Oversized or collapsed diffs: 150 of 158 files read.",
+  },
+])("carries the kind and safe read limits for $source cuts", (example) => {
+  const feed = new SweepProgressFeed({ timers, now: () => epoch, onError: vi.fn() });
+  feed.begin(true, null);
+  feed.report(
+    sweepReadProgress(
+      example.source,
+      Array.from({ length: example.total }, (_, index) => ({
+        source: sensitive,
+        object: `read-${index}`,
+        observedAt: new Date(epoch).toISOString(),
+        completeness:
+          index < example.count
+            ? {
+                kind: "cut" as const,
+                reason: example.reason,
+                read: example.read,
+                total: example.size,
+              }
+            : { kind: "complete" as const },
+      })),
+      new Date(epoch).toISOString(),
+    ),
+  );
+  expect(feed.latest?.sources.find(({ source }) => source === example.source)).toMatchObject({
+    state: "cut",
+    cutKind: example.cutKind,
+    incomplete: { count: example.count, total: example.total },
+    reason: example.safeReason,
+  });
+  expect(JSON.stringify(feed.latest)).not.toMatch(/ghp_|ABCD-1234|stderr/);
+});
+
 it.each(["failed", "committed", "cancelled"] as const)(
   "sends %s synchronously before a new sweep begins",
   async (outcome) => {
