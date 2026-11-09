@@ -432,22 +432,23 @@ function factsOf(model: Model, now: Date): BriefFact[] {
   return [env, sync, templateFact(model)];
 }
 
-// Counted against osdu-spi main over every fork; adoption of the latest release is the second
-// line. A fork whose position was not read stays in the count and is named as not read yet.
+// Forks verified on osdu-spi main over every fork, the count the strip and the Engineering
+// system place show (PS-18); adoption of the latest release is the second line. A fork whose
+// position was not read stays in the count and is named as not read yet.
 function templateFact(model: Model): BriefFact {
   const { template, rollout } = model;
   const tag = template.latestTag;
-  const onMain = template.current;
+  const verified = template.verified;
   const total = template.rows.length;
   const unread = total - template.read;
-  const all = total > 0 && onMain === total;
+  const all = total > 0 && verified === total;
   const waiting = rollout && rollout.phase !== "done" ? rollout.reaching : 0;
   const release = tag ? `${template.onRelease} of ${total} on ${tag}` : undefined;
   return {
     label: template.head
       ? `Template · main ${short(template.head.sha)}`
       : `Template ${template.headLabel}`,
-    figure: total > 0 && template.read === 0 ? "?" : `${onMain} of ${total}`,
+    figure: total > 0 && template.read === 0 ? "?" : `${verified} of ${total}`,
     sub: [
       "on main",
       unread > 0 ? `${unread} not read yet` : undefined,

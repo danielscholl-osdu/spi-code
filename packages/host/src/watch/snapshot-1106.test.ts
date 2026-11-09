@@ -10,6 +10,8 @@ import {
   recordedSnapshotPath,
   unreadForksInput,
   unreadSnapshotPath,
+  unverifiedForkInput,
+  unverifiedSnapshotPath,
 } from "./snapshot-fixture.js";
 
 process.env.TZ = "UTC";
@@ -76,5 +78,30 @@ describe("the 6 Nov sweep with five forks' GitHub reads failed", () => {
       figure: "0 of 13",
       sub: "on main · 1 change reaches the forks · 13 of 13 on v1.4.0",
     });
+  });
+});
+
+describe("the 6 Nov sweep with partition verified and legal merged but red on main", () => {
+  const unverified: ViewSnapshot = JSON.parse(readFileSync(unverifiedSnapshotPath, "utf8"));
+  const reading = unverified.readings.find(({ anchor }) => anchor.kind === "engineering")?.content;
+
+  it("matches a fresh projection", () => {
+    expect(projectWatch(unverifiedForkInput())).toEqual(unverified);
+  });
+
+  it("puts two forks on 7d269b5 and counts only the verified one (PS-09, PS-18)", () => {
+    expect(reading?.items[0]?.sub).toBe(
+      "2 of 13 merged · 1 main run green · 1 red · 11 forks held",
+    );
+    expect(unverified.briefing.facts[2]).toMatchObject({
+      label: "Template · main 7d269b5",
+      figure: "1 of 13",
+    });
+    expect(reading?.tiles[0]).toEqual({
+      label: "Engineering system",
+      value: "1 of 13",
+      counts: "forks on 7d269b5",
+    });
+    expect(reading?.verifiedTemplate).toMatchObject({ verified: 1, total: 13, unread: 0 });
   });
 });

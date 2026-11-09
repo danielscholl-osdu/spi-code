@@ -17,6 +17,7 @@ import { buildRollout, type RolloutModel } from "./rollout.js";
 import { buildStack, heldText, type StackModel } from "./stack.js";
 import { buildTemplate, type TemplateModel } from "./template.js";
 import { buildUpstream, type UpstreamModel } from "./upstream.js";
+import { verifiedForks } from "./verified.js";
 import { buildWork, type WorkModel } from "./work.js";
 
 export interface Model {
@@ -118,6 +119,7 @@ export function buildModel(
     radar,
     now,
   }, context);
+  if (rollout) template.verified = verifiedForks(lines, rollout, facts.runs.data);
   const upstream = buildUpstream({
     lines,
     radar,

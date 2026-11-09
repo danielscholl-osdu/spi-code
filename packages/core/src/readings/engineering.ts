@@ -3,9 +3,7 @@
 
 import { TEMPLATE_REPO } from "../config.js";
 import type { ReadRecord } from "../evidence/index.js";
-import type { Facts, RunFact } from "../facts.js";
 import type { Model } from "../model/index.js";
-import { classifyPr } from "../model/attribution.js";
 import { templatePrState } from "../model/queue.js";
 import { plural, short } from "../util.js";
 import {
@@ -26,7 +24,6 @@ export interface EngineeringReadingInput<T extends EngineeringItem> {
   model: Model;
   items: readonly T[];
   reads: Partial<Record<"template" | "github" | "runs", readonly ReadRecord[]>>;
-  runs?: Facts["runs"]["data"];
 }
 
 export interface EngineeringReading<T extends EngineeringItem> extends PlaceReading<T> {
@@ -36,35 +33,6 @@ export interface EngineeringReading<T extends EngineeringItem> extends PlaceRead
     unread: number;
     target: string;
   };
-}
-
-function green(run: RunFact | undefined): boolean {
-  return run?.status === "completed" && run.conclusion === "success";
-}
-
-function verifiedForks(model: Model, runs: Facts["runs"]["data"]): number {
-  if (model.rollout) {
-    return model.rollout.forks.filter((fork) => {
-      if (!fork.onTarget) return false;
-      if (fork.mainRun) return green(fork.mainRun);
-      const mergedAt = fork.merged?.at;
-      return mergedAt !== undefined && (runs?.[fork.repo]?.main.some(
-        (run) => green(run) && Date.parse(run.createdAt) >= Date.parse(mergedAt),
-      ) ?? false);
-    }).length;
-  }
-  return model.lines.filter((line) => {
-    const merged = (line.past ?? [])
-      .flatMap((pr) => pr.mergedAt && classifyPr(pr) === "template" ? [Date.parse(pr.mergedAt)] : []);
-    const adoptedAt = Math.max(...merged);
-    return (
-      line.template.behind === 0 &&
-      line.mainRun?.status === "completed" &&
-      line.mainRun.conclusion === "success" &&
-      merged.length > 0 &&
-      Date.parse(line.mainRun.createdAt) >= adoptedAt
-    );
-  }).length;
 }
 
 function qualifierFor(
@@ -123,11 +91,11 @@ function groupsFor<T extends EngineeringItem>(items: readonly T[]): ReadingGroup
 export function engineeringReading<T extends EngineeringItem>(
   input: EngineeringReadingInput<T>,
 ): EngineeringReading<T> {
-  const { model, items, reads, runs } = input;
+  const { model, items, reads } = input;
   const { template, rollout } = model;
   const total = template.rows.length;
   const target = rollout?.target.sha ?? template.head?.sha;
-  const verified = verifiedForks(model, runs);
+  const { verified } = template;
   const unread = template.rows.filter((row) => row.behind === undefined).length;
   const positionsRead = !!target && total > 0 && unread < total;
   const prsUnread = model.lines.filter((line) => !line.repoRead).length;

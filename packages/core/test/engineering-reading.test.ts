@@ -10,6 +10,7 @@ import type { ReadRecord } from "../src/evidence/index.js";
 import { emptyFacts, type Facts } from "../src/facts.js";
 import { factsSchema } from "../src/facts-schema.js";
 import { buildModel } from "../src/model/index.js";
+import { verifiedForks } from "../src/model/verified.js";
 import { type EngineeringItem, engineeringReading } from "../src/readings/engineering.js";
 import { internalNames, NOT_READ, readingText, wordCount } from "../src/readings/index.js";
 import sweep from "./fixtures/upstream-1106.json";
@@ -29,7 +30,42 @@ function fixture(edit?: (facts: Facts) => void) {
   const model = buildModel(f, now, {}, context);
   const briefing = buildBriefing(model, { state: "clear", problems: [] }, now, context);
   const items = [...briefing.focus, ...briefing.rest];
-  return { model, items, reads: {}, runs: f.runs.data };
+  return { model, items, reads: {} };
+}
+
+// Moves a recorded fork onto the template head through a merged template PR, with one main run
+// after the merge.
+function adopt(f: Facts, name: string, status: "in_progress" | "completed", conclusion?: string) {
+  const repo = f.github.data?.repos[name];
+  const template = f.template.data;
+  const target = f.github.data?.repos[TEMPLATE_REPO]?.head;
+  const runs = f.runs.data?.[name];
+  const previous = repo?.marker && template?.compares[repo.marker];
+  const run = runs?.main[0];
+  if (!repo || !template || !target || !runs || !previous || !run)
+    throw new Error("Missing merge fixture");
+  template.compares[target.sha] = {
+    ...previous,
+    marker: target.sha,
+    aheadBy: 0,
+    shas: [],
+    changes: [],
+  };
+  repo.marker = target.sha;
+  repo.prs = repo.prs.filter((pr) => !pr.head.startsWith("template-sync/"));
+  repo.pastPrs = [
+    {
+      number: 999,
+      title: "Template sync",
+      url: `${repo.repo}/pull/999`,
+      head: "template-sync/main",
+      base: "main",
+      createdAt: "2026-11-06T12:00:00Z",
+      mergedAt: "2026-11-06T12:01:00Z",
+    },
+  ];
+  runs.main = [{ ...run, status, conclusion, createdAt: "2026-11-06T12:02:00Z" }];
+  return runs;
 }
 
 describe("Engineering system reading", () => {
@@ -68,37 +104,16 @@ describe("Engineering system reading", () => {
   });
 
   it("does not verify a merged fork until its main run succeeds on the target", () => {
-    const merged = (status: "in_progress" | "completed", conclusion?: string, later = false) =>
+    const merged = (
+      status: "in_progress" | "completed",
+      conclusion?: string,
+      later = false,
+      beforeMerge = false,
+    ) =>
       fixture((f) => {
-        const repo = f.github.data?.repos["Azure/osdu-spi-partition"];
-        const template = f.template.data;
-        const target = f.github.data?.repos[TEMPLATE_REPO]?.head;
-        const runs = f.runs.data?.["Azure/osdu-spi-partition"];
-        const previous = repo?.marker && template?.compares[repo.marker];
-        const run = runs?.main[0];
-        if (!repo || !template || !target || !runs || !previous || !run)
-          throw new Error("Missing merge fixture");
-        template.compares[target.sha] = {
-          ...previous,
-          marker: target.sha,
-          aheadBy: 0,
-          shas: [],
-          changes: [],
-        };
-        repo.marker = target.sha;
-        repo.prs = repo.prs.filter((pr) => !pr.head.startsWith("template-sync/"));
-        repo.pastPrs = [
-          {
-            number: 999,
-            title: "Template sync",
-            url: `${repo.repo}/pull/999`,
-            head: "template-sync/main",
-            base: "main",
-            createdAt: "2026-11-06T12:00:00Z",
-            mergedAt: "2026-11-06T12:01:00Z",
-          },
-        ];
-        runs.main = [{ ...run, status, conclusion, createdAt: "2026-11-06T12:02:00Z" }];
+        const runs = adopt(f, "Azure/osdu-spi-partition", status, conclusion);
+        const run = runs.main[0];
+        if (!run) throw new Error("Missing main run");
         if (later)
           runs.main.unshift({
             ...run,
@@ -107,6 +122,8 @@ describe("Engineering system reading", () => {
             conclusion: "success",
             createdAt: "2026-11-06T13:30:00Z",
           });
+        if (beforeMerge)
+          runs.main = runs.main.map((run) => ({ ...run, createdAt: "2026-11-06T11:50:00Z" }));
       });
     const pending = merged("in_progress");
     expect(pending.model.rollout?.merged).toBe(1);
@@ -126,11 +143,29 @@ describe("Engineering system reading", () => {
     ).toBeUndefined();
     expect(engineeringReading(later).tiles[0].value).toBe("1 of 13");
     expect(engineeringReading(later).verifiedTemplate?.verified).toBe(1);
-    const runs = later.runs?.["Azure/osdu-spi-partition"];
-    if (!runs) throw new Error("Missing partition runs");
-    runs.main = runs.main.map((run) => ({ ...run, createdAt: "2026-11-06T12:00:00Z" }));
-    expect(engineeringReading(later).tiles[0].value).toBe("0 of 13");
-    expect(engineeringReading(later).verifiedTemplate?.verified).toBe(0);
+    const stale = merged("completed", "success", true, true);
+    expect(engineeringReading(stale).tiles[0].value).toBe("0 of 13");
+    expect(engineeringReading(stale).verifiedTemplate?.verified).toBe(0);
+  });
+
+  it("counts a fork on the target revision only once it is verified, on the brief and the place", () => {
+    const input = fixture((f) => {
+      adopt(f, "Azure/osdu-spi-partition", "completed", "success");
+      adopt(f, "Azure/osdu-spi-legal", "completed", "failure");
+    });
+    const { template } = input.model;
+    expect(template.rows.filter((row) => row.behind === 0).map((row) => row.service)).toEqual([
+      "partition",
+      "legal",
+    ]);
+    expect(template.verified).toBe(1);
+    const fact = buildBriefing(input.model, { state: "clear", problems: [] }, now, context)
+      .facts[2];
+    expect(fact).toMatchObject({ label: "Template · main 7d269b5", figure: "1 of 13" });
+    expect(fact?.sub).toMatch(/^on main · /);
+    const reading = engineeringReading(input);
+    expect(reading.tiles[0]).toMatchObject({ value: "1 of 13", counts: "forks on 7d269b5" });
+    expect(reading.verifiedTemplate).toMatchObject({ verified: 1, total: 13, unread: 0 });
   });
 
   it("does not turn unread template positions or PR lists into zero", () => {
@@ -168,7 +203,7 @@ describe("Engineering system reading", () => {
 
   it("keeps checking adoption after the active rollout has left the model", () => {
     const input = fixture();
-    const { rollout: _rollout, ...model } = input.model;
+    const { model } = input;
     const line = model.lines[0];
     if (!line?.mainRun) throw new Error("Missing main run");
     const mainRun = line.mainRun;
@@ -183,25 +218,18 @@ describe("Engineering system reading", () => {
       mergedAt,
     };
     const read = (createdAt: string, past = [merged]) =>
-      engineeringReading({
-        ...input,
-        model: {
-          ...model,
-          lines: [
-            {
-              ...line,
-              template: { ...line.template, behind: 0 },
-              past,
-              mainRun: { ...mainRun, status: "completed", conclusion: "success", createdAt },
-            },
-            ...model.lines.slice(1),
-          ],
+      verifiedForks([
+        {
+          ...line,
+          template: { ...line.template, behind: 0 },
+          past,
+          mainRun: { ...mainRun, status: "completed", conclusion: "success", createdAt },
         },
-      });
-    expect(read("2026-11-06T12:02:00Z").tiles[0].value).toBe("1 of 13");
-    expect(read("2026-11-06T12:02:00Z").verifiedTemplate?.verified).toBe(1);
-    expect(read("2026-11-06T12:00:00Z").tiles[0].value).toBe("0 of 13");
-    expect(read("2026-11-06T12:02:00Z", []).tiles[0].value).toBe("0 of 13");
+        ...model.lines.slice(1),
+      ]);
+    expect(read("2026-11-06T12:02:00Z")).toBe(1);
+    expect(read("2026-11-06T12:00:00Z")).toBe(0);
+    expect(read("2026-11-06T12:02:00Z", [])).toBe(0);
   });
 
   it("uses only failed or cut contributing reads for the qualifier", () => {

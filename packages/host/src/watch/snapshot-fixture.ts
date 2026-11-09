@@ -15,6 +15,7 @@ import {
   type ReadRecord,
   type ReleaseReads,
   type SweepReads,
+  TEMPLATE_REPO,
 } from "@spi-code/core";
 import type { WatchInput } from "./project.js";
 
@@ -202,4 +203,54 @@ export function unreadForksInput(): WatchInput {
       ],
     },
   };
+}
+
+export const unverifiedSnapshotPath = fileURLToPath(
+  new URL("../../../../fixtures/watch/snapshot-1106-unverified.json", import.meta.url),
+);
+
+/**
+ * The 6 Nov sweep with partition and legal merged onto osdu-spi main: partition's main run after
+ * the merge is green, so it is verified; legal's failed, so it is on the revision, not verified.
+ */
+export function unverifiedForkInput(): WatchInput {
+  const input = recordedInput();
+  const { github, template, runs } = input.facts;
+  const target = github.data?.repos[TEMPLATE_REPO]?.head;
+  if (!target || !template.data) throw new Error("Recorded sweep must carry the template head");
+  for (const [service, conclusion] of [
+    ["partition", "success"],
+    ["legal", "failure"],
+  ] as const) {
+    const name = input.context.fleet.forks.find(({ id }) => id === service)?.repo;
+    const repo = name ? github.data?.repos[name] : undefined;
+    const previous = repo?.marker ? template.data.compares[repo.marker] : undefined;
+    const forkRuns = name ? runs.data?.[name] : undefined;
+    const run = forkRuns?.main[0];
+    if (!repo || !previous || !forkRuns || !run) throw new Error(`Recorded sweep lacks ${service}`);
+    template.data.compares[target.sha] = {
+      ...previous,
+      marker: target.sha,
+      aheadBy: 0,
+      shas: [],
+      changes: [],
+    };
+    repo.marker = target.sha;
+    repo.prs = repo.prs.filter((pr) => !pr.head.startsWith("template-sync/"));
+    repo.pastPrs = [
+      {
+        number: 999,
+        title: "Template sync",
+        url: `${repo.repo}/pull/999`,
+        head: "template-sync/main",
+        base: "main",
+        createdAt: "2026-11-06T12:00:00Z",
+        mergedAt: "2026-11-06T12:01:00Z",
+      },
+    ];
+    forkRuns.main = [
+      { ...run, status: "completed", conclusion, createdAt: "2026-11-06T12:02:00Z" },
+    ];
+  }
+  return input;
 }

@@ -7,6 +7,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import november6 from "../../../../fixtures/watch/snapshot-1106.json?raw";
 import unread from "../../../../fixtures/watch/snapshot-1106-unread.json?raw";
+import unverified from "../../../../fixtures/watch/snapshot-1106-unverified.json?raw";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
 import { closeSheet } from "./navigation.js";
@@ -88,4 +89,16 @@ it("reads as before when every fork is read", async () => {
   await unmount?.();
   const place = await mount(november6, "#engineering-system");
   expect(place.tile).toEqual(["0 of 13", "forks on 7d269b5"]);
+});
+
+it("counts only the verified fork on every surface when another is on 7d269b5 but red", async () => {
+  const today = await mount(unverified, "#today");
+  expect(today.strip).toBe("1/13");
+  expect(today.sidebar).toBe("1 of 13");
+  expect(today.engineeringTile).toEqual(["1 of 13", "forks on 7d269b5"]);
+  await unmount?.();
+  const place = await mount(unverified, "#engineering-system");
+  expect(place.strip).toBe("1/13");
+  expect(place.sidebar).toBe("1 of 13");
+  expect(place.tile).toEqual(["1 of 13", "forks on 7d269b5"]);
 });

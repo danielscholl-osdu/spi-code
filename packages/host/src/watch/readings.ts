@@ -71,7 +71,6 @@ export const readingFor: Record<Anchor["kind"], PlaceReader> = {
       model,
       items: [...briefing.focus, ...briefing.rest],
       reads: input.envelopeReads ?? input.reads,
-      runs: input.facts.runs.data,
     }),
   releases: (_anchor, { input, briefing, documents }) =>
     releasesReading({

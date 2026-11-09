@@ -15,6 +15,7 @@ import { type PrVerdict, prReady, prVerdict } from "./checks.js";
 import type { LineModel } from "./lines.js";
 import { nextFire, toCrons } from "./schedule.js";
 import { semverCmp } from "./stack.js";
+import { verifiedForks } from "./verified.js";
 
 export interface TemplateRow {
   service: string;
@@ -91,7 +92,10 @@ export interface TemplateModel {
   // Template main as git names it: the latest tag, or "v1.3.0 +6" past it.
   headLabel: string;
   rows: TemplateRow[];
+  // Forks on the template head, verified or not; no surface counts this as adoption.
   current: number;
+  // Forks verified on the target template revision (PS-18): the count every surface shows.
+  verified: number;
   waiting: number;
   behindNoPr: number;
   unmeasured: number;
@@ -342,6 +346,8 @@ export function buildTemplate(
     headLabel,
     rows,
     current: rows.filter((r) => r.behind === 0).length,
+    // buildModel counts again against the rollout once it is built.
+    verified: verifiedForks(lines),
     waiting: rows.filter((r) => (r.behind ?? 0) > 0 && r.pr).length,
     behindNoPr: rows.filter((r) => (r.behind ?? 0) > 0 && !r.pr).length,
     unmeasured: rows.filter((r) => r.behind === undefined).length,
