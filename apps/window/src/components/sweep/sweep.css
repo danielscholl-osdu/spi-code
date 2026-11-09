@@ -100,6 +100,27 @@
   padding: 2px 10px;
   font-size: 11.5px;
 }
+.sweep-now {
+  font: 13px/1.5 var(--font-sans);
+}
+.sweep-now-status {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.sweep-now p {
+  margin: 4px 0 0;
+}
+.sweep-now-view,
+.sweep-now-readiness {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font: inherit;
+}
+.sweep-now [role="alert"] {
+  color: var(--error-text);
+}
 /* A narrow pane, or the narrow layout, where the middle column drops whatever room the list has. */
 @container sweep-sources (max-width: 592px) {
   .sweep-row {

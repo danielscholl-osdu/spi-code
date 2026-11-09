@@ -3,6 +3,7 @@
 
 import {
   type Envelope,
+  type LastSweep,
   type Message,
   PROTOCOL_VERSION,
   parseMessage,
@@ -17,6 +18,13 @@ import { createStore } from "zustand/vanilla";
 import { createSelectionStore, type SelectionStore, selectionStore } from "../panels/selection.js";
 
 export type Snapshot = { cursor: number; body: ViewSnapshot };
+type SweepRequest = {
+  id: string;
+  sweep: string | null;
+  previousSweep: string | null;
+  afterCursor: number;
+  joined: boolean;
+};
 type WatchState = {
   snapshot: Snapshot | null;
   readonly selection: { readonly id: string } | null;
@@ -29,6 +37,10 @@ type WatchState = {
   completed: SweepProgress | null;
   /** Asks the host for a sweep through its non-forced path. */
   requestSweep(): void | Promise<void>;
+  sweepRequest: SweepRequest | null;
+  sweepRequestError: string | null;
+  /** Requests all sources; follows a joined sweep without queuing a forced follow-up. */
+  requestSweepNow(): void | Promise<void>;
   setup: SetupState | null;
   /** A recheck stays pending through the budget probe, until its correlated state or error. */
   setupCheckRequest: string | null;
@@ -63,6 +75,42 @@ type WatchState = {
 
 const selectionOf = (selected: string | null) => (selected === null ? null : { id: selected });
 
+/** A committed snapshot belongs to this sweep, not an earlier retained brief. */
+export function hasSweepSnapshot(snapshot: Snapshot | null, sweep: LastSweep): boolean {
+  if (!snapshot) return false;
+  const at = Date.parse(snapshot.body.sweptAt);
+  return at >= Date.parse(sweep.startedAt) && at <= Date.parse(sweep.endedAt);
+}
+
+function trackSweepRequest(state: WatchState): SweepRequest | null {
+  let request = state.sweepRequest;
+  if (!request) return null;
+  const progress = state.progress;
+  const last = state.sweep?.lastSweep;
+  if (request.sweep === null) {
+    const sweep =
+      progress && progress.sweep !== request.previousSweep
+        ? progress.sweep
+        : last?.requested && last.sweep !== request.previousSweep
+          ? last.sweep
+          : null;
+    request = { ...request, sweep };
+  }
+  if (
+    last?.requested &&
+    last.sweep === request.sweep &&
+    progress?.sweep === request.sweep &&
+    progress.outcome === last.outcome &&
+    (last.outcome !== "committed" ||
+      (state.snapshot !== null &&
+        (state.snapshot.cursor > request.afterCursor || request.joined) &&
+        hasSweepSnapshot(state.snapshot, last)))
+  ) {
+    return null;
+  }
+  return request;
+}
+
 export function selectAreaEnvelopes(state: Pick<WatchState, "snapshot">): Envelope[] {
   return state.snapshot?.body.areas.map(({ envelope }) => envelope) ?? [];
 }
@@ -94,6 +142,8 @@ export function createWatchStore(
     sweep: null,
     progress: null,
     completed: null,
+    sweepRequest: null,
+    sweepRequestError: null,
     requestSweep() {
       const parsed = parseMessage({
         version: PROTOCOL_VERSION,
@@ -104,6 +154,43 @@ export function createWatchStore(
       });
       if (!parsed.ok) throw new Error("Invalid sweep request");
       return send(parsed.message);
+    },
+    requestSweepNow() {
+      if (get().sweepRequest !== null) return;
+      const state = get();
+      const id = crypto.randomUUID();
+      const parsed = parseMessage({
+        version: PROTOCOL_VERSION,
+        id,
+        kind: "request",
+        type: "sweep.request",
+        payload: { now: true },
+      });
+      if (!parsed.ok) throw new Error("Invalid sweep request");
+      set({
+        sweepRequest: {
+          id,
+          sweep: state.progress?.outcome === "running" ? state.progress.sweep : null,
+          previousSweep: state.progress?.sweep ?? state.sweep?.lastSweep?.sweep ?? null,
+          afterCursor: state.snapshot?.cursor ?? -1,
+          joined: state.progress?.outcome === "running",
+        },
+        sweepRequestError: null,
+      });
+      const failed = (error: unknown): never => {
+        if (get().sweepRequest?.id === id)
+          set({
+            sweepRequest: null,
+            sweepRequestError: "Could not send the sweep request. Try again.",
+          });
+        throw error;
+      };
+      try {
+        const sent = send(parsed.message);
+        if (sent) return sent.catch(failed);
+      } catch (error) {
+        failed(error);
+      }
     },
     setup: null,
     setupCheckRequest: null,
@@ -165,6 +252,10 @@ export function createWatchStore(
       const message = parsed.message;
       if (message.type === "error" && message.payload.code === "host_unavailable") {
         set({
+          sweep: null,
+          progress: null,
+          sweepRequest: null,
+          sweepRequestError: null,
           setupCheckRequest: null,
           setupCheckError: message.payload.message,
           signin: {},
@@ -174,6 +265,11 @@ export function createWatchStore(
         });
         throw new Error(message.payload.message);
       }
+      if (message.type === "error" && message.id === get().sweepRequest?.id)
+        set({
+          sweepRequest: null,
+          sweepRequestError: "Could not request a sweep. Try again.",
+        });
       if (message.type === "error" && message.id === get().setupCheckRequest)
         set({
           setupCheckRequest: null,
@@ -183,14 +279,16 @@ export function createWatchStore(
         const payload = message.payload;
         const last = get().snapshot;
         if (!last || payload.cursor > last.cursor) {
-          set({ snapshot: { cursor: payload.cursor, body: payload } });
+          updateSweep({ snapshot: { cursor: payload.cursor, body: payload } });
         }
         return;
       }
-      if (message.type === "sweep.status") set({ sweep: message.payload });
+      if (message.type === "sweep.status") updateSweep({ sweep: message.payload });
       if (message.type === "sweep.progress") {
         const progress = message.payload;
-        set(progress.outcome === "committed" ? { progress, completed: progress } : { progress });
+        updateSweep(
+          progress.outcome === "committed" ? { progress, completed: progress } : { progress },
+        );
       }
       if (message.type === "setup.state") {
         const checked = message.id === get().setupCheckRequest;
@@ -221,6 +319,10 @@ export function createWatchStore(
       }
       if (message.type === "host.hello") {
         set({
+          sweep: null,
+          progress: null,
+          sweepRequest: null,
+          sweepRequestError: null,
           signin: {},
           signinOutcome: {},
           signinRequest: {},
@@ -240,6 +342,12 @@ export function createWatchStore(
       }
     },
   }));
+  function updateSweep(update: Partial<WatchState>) {
+    store.setState((state) => {
+      const next = { ...state, ...update };
+      return { ...update, sweepRequest: trackSweepRequest(next) };
+    });
+  }
   inspector.subscribe(({ selected }) => {
     if (store.getState().selection?.id !== (selected ?? undefined))
       store.setState({ selection: selectionOf(selected) });

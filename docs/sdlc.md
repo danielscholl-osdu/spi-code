@@ -75,6 +75,15 @@ uncorrelated readiness refresh can update the Checked time without unlocking
 the check; a correlated failure or a host reconnect releases it for retry.
 If the host supervisor gives up, pending checks and sign-ins are cleared before
 the stop message is surfaced, so the Readiness controls do not stay locked.
+The shared `components/sweep/SweepNow` control takes `onViewSweep` and
+`onOpenReadiness` callbacks; its parent closes Settings before opening the
+requested destination. It calls the store's `requestSweepNow` forced path, while
+`requestSweep` remains the non-forced Try again path. Saved feedback waits for
+the requested sweep's terminal progress, status and committed snapshot.
+`forceCooldownUntil` is the host's session-only deadline, not a local guess from
+`lastSweep.requested`; the control expires it and retry promises on its own
+clock even when no further status arrives. Joining a routine sweep follows it
+without a forced follow-up.
 The first not-ready setup state opens Settings on Readiness once over the Watch
 gate. Its banner names only blocking git and gh states; tools that need an update
 remain usable, and Copilot or glab attention does not block Watch. The gate offers

@@ -1,12 +1,56 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type SweepProgress, SweepProgressSchema } from "@spi-code/contracts";
+import {
+  PROTOCOL_VERSION,
+  type SweepProgress,
+  SweepProgressSchema,
+  type SweepStatus,
+} from "@spi-code/contracts";
 
 export const SWEEP_START = Date.parse("2026-11-09T08:00:00Z");
 
 /** An instant `seconds` after the sweep started. */
 export const after = (seconds: number) => new Date(SWEEP_START + seconds * 1000).toISOString();
+
+export const sweepEvent = (type: string, payload: unknown, id = "host") => ({
+  version: PROTOCOL_VERSION,
+  id,
+  kind: "event",
+  type,
+  payload,
+});
+
+export function sweepStatus(overrides: Partial<SweepStatus> = {}): SweepStatus {
+  return {
+    remaining: 4865,
+    resetAt: after(3600),
+    deferredAreas: [],
+    nextSweepAt: after(430),
+    schedule: {
+      sweepMs: 300_000,
+      gitlabMs: 1_800_000,
+      securityMs: 1_800_000,
+      releasesMs: 3_600_000,
+    },
+    lastSweep: null,
+    forceCooldownUntil: null,
+    ...overrides,
+  };
+}
+
+export function savedSweep(): SweepProgress {
+  return midSweep({
+    first: false,
+    outcome: "committed",
+    sources: midSweep().sources.map(({ source }) => ({
+      source,
+      state: "read",
+      startedAt: after(0),
+      endedAt: after(120),
+    })),
+  });
+}
 
 const read = (source: string, from: number, took: number) => ({
   source,
