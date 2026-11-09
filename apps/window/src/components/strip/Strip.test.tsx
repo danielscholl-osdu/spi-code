@@ -541,7 +541,7 @@ it("keeps the sweep time over an older snapshot while a later sweep runs and ope
     "live",
   );
   expect(evidence()?.querySelectorAll(".sweep-row")).toHaveLength(12);
-  expect(evidence()?.querySelector(".evidence-table")).not.toBeNull();
+  expect(evidence()?.querySelector(".sweep-row .evidence-fact")?.textContent).toMatch(/last read/);
   await receive("sweep.progress", {
     ...later,
     outcome: "committed",

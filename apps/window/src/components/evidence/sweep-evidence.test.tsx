@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { readFileSync } from "node:fs";
 import {
   AREAS,
   type AreaEnvelope,
@@ -8,12 +9,15 @@ import {
   type Envelope,
   type InspectResult,
   type ReadRecord,
+  SweepProgressSchema,
   type SweepStatus,
 } from "@spi-code/contracts";
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { clockTime } from "../../time.js";
+import { applyContainerRules } from "../sweep/container-rules.test-helper.js";
+import { after } from "../sweep/test-helper.js";
 import { EnvelopeBadge } from "./EnvelopeBadge.js";
 import { SelectionEvidence, SelectionEvidenceChip, SweepEvidence } from "./EvidenceTab.js";
 import { expectEvidenceMarks, expectNoEvidenceMarks } from "./marks.test-helper.js";
@@ -50,6 +54,17 @@ const snapshot = (list: AreaEnvelope[]): SweepLineSnapshot & { reads: ReadRecord
   briefing: { nextSyncAt },
   reads: [],
 });
+
+const sourceRows = (container: Element) =>
+  [
+    ...container.querySelectorAll(
+      '[aria-label="Sources"] .sweep-row, [aria-label="More sources"] .sweep-row',
+    ),
+  ].map((row) => [
+    row.querySelector(".sweep-name")?.textContent,
+    row.getAttribute("data-tone"),
+    row.querySelector(".sweep-outcome")?.textContent,
+  ]);
 
 async function render(node: ReactNode) {
   const container = document.createElement("div");
@@ -124,7 +139,7 @@ it.each([
 );
 
 it.each([
-  ["fresh", areas(), "", "all areas read", "muted"],
+  ["fresh", areas(), "", "all areas read", "fresh"],
   [
     "failed, incomplete and stale",
     areas({
@@ -136,7 +151,7 @@ it.each([
     "1 failed, 1 incomplete, 1 stale",
     "bad",
   ],
-  ["cut", areas({ security: cut }), " · 1", "1 incomplete", "bad"],
+  ["cut", areas({ security: cut }), " · 1", "1 incomplete", "warn"],
   [
     "two failed reads",
     areas({ github: { state: "failed" }, runs: { state: "failed" } }),
@@ -144,7 +159,7 @@ it.each([
     "2 failed",
     "bad",
   ],
-  ["two cut reads", areas({ github: cut, security: cut }), " · 2", "2 incomplete", "bad"],
+  ["two cut reads", areas({ github: cut, security: cut }), " · 2", "2 incomplete", "warn"],
   [
     "three incomplete reads",
     areas({
@@ -214,7 +229,7 @@ it.each([
     "2 failed, 3 incomplete, 2 stale, 2 not read yet",
     "bad",
   ],
-  ["all inferred", areas({}, { inferred: true }), "", "all areas read · inferred", "muted"],
+  ["all inferred", areas({}, { inferred: true }), "", "all areas read · inferred", "inferred"],
 ] as const)(
   "shows a compact %s freshness field with a matching worst tone and named counts",
   async (_, list, tail, counts, tone) => {
@@ -308,7 +323,7 @@ it("waits in muted words before the first sweep", async () => {
   }
 });
 
-it("lists every area of the sweep in plain words with state, age and completeness", async () => {
+it("lists every source of the sweep once in plain words with state, age and completeness", async () => {
   const sweep: SweepStatus = {
     remaining: 1_234,
     floor: 500,
@@ -346,22 +361,23 @@ it("lists every area of the sweep in plain words with state, age and completenes
     expect(sweepView?.querySelector(".evidence-line")?.textContent).toBe(
       "swept 2 min ago · 1 area failed · 1 incomplete · 1 stale · 1 not read yet · next sync in 3 h",
     );
-    const rows = view.rows("Areas");
+    expect(view.container.querySelector("table[aria-label='Areas']")).toBeNull();
+    const rows = sourceRows(view.container);
     expect(rows.map(([name]) => name)).toEqual(AREAS.map((area) => AREA_NAMES[area]));
     expect(rows.map(([name]) => name)).toContain("GitHub issues and PRs");
     const row = (area: AreaName) => rows[AREAS.indexOf(area)];
     expect(row("github")).toEqual([
       "GitHub issues and PRs",
-      "read failed",
+      "bad",
       "read failed, showing data from 25 min ago",
     ]);
-    expect(row("runs")?.slice(1)).toEqual(["stale", "stale, last read 23 min ago, complete"]);
+    expect(row("runs")?.slice(1)).toEqual(["warn", "stale, last read 23 min ago, complete"]);
     expect(row("security")?.slice(1)).toEqual([
-      "cut",
-      "cut, last read 5 min ago, 48,000 of 71,250 · job log char limit",
+      "warn",
+      "cut, last read 5 min ago, 48,000 of 71,250 read",
     ]);
-    expect(row("details")?.slice(1)).toEqual(["not read yet", "not read yet"]);
-    expect(row("fleet")?.slice(1)).toEqual(["fresh", "fresh, last read 2 min ago, complete"]);
+    expect(row("details")?.slice(1)).toEqual(["wait", "not read yet"]);
+    expect(row("fleet")?.slice(1)).toEqual(["ok", "fresh, last read 2 min ago, complete"]);
     expect(view.rows("Failed reads")).toEqual([
       [
         "gitlab · osdu/platform/system/partition",
@@ -385,6 +401,186 @@ it("lists every area of the sweep in plain words with state, age and completenes
   } finally {
     await empty.cleanup();
   }
+});
+
+const coreCut = (reason: string, read: number, total: number, at: string): Partial<Envelope> => ({
+  state: "incomplete",
+  observedAt: at,
+  completeness: { kind: "cut", reason, read, total },
+});
+const firstSweep = () => ({
+  ...snapshot(
+    areas({
+      lifecycle: coreCut("Job log character limit", 64_000, 92_438, minutes(6)),
+      radar: coreCut(
+        "14 reads cut in entitlements, file, partition: GitLab omitted oversized or collapsed classification hunks",
+        1_607,
+        1_696,
+        minutes(5),
+      ),
+    }),
+  ),
+  provenance: [
+    {
+      path: "/releases/lines/0",
+      areas: ["fleet" as const],
+      envelope: {
+        source: "releases",
+        state: "fresh",
+        observedAt: minutes(3),
+        completeness: { kind: "complete" },
+      } as Envelope,
+    },
+  ],
+  reads: [
+    {
+      source: "gitlab",
+      object: "osdu/platform/system/partition",
+      observedAt: minutes(4),
+      completeness: { kind: "complete" },
+      failure: "http_502",
+    },
+  ] satisfies ReadRecord[],
+});
+const committed = () =>
+  SweepProgressSchema.parse({
+    sweep: "sweep-1",
+    startedAt: after(0),
+    first: true,
+    usualMs: null,
+    outcome: "committed",
+    nextAttemptAt: null,
+    sources: [...AREAS, "releases"].map((source, index) =>
+      source === "lifecycle" || source === "radar"
+        ? {
+            source,
+            state: "cut",
+            startedAt: after(index),
+            endedAt: after(index + 1),
+            code: "limit",
+            reason: "GitLab omitted oversized or collapsed classification hunks",
+            incomplete: { count: 2, total: 9 },
+          }
+        : { source, state: "read", startedAt: after(index), endedAt: after(index + 1) },
+    ),
+  });
+const NAMES = [...AREAS.map((area) => AREA_NAMES[area]), "Release lines"];
+
+it.each([
+  ["after the first sweep", committed()],
+  ["after a relaunch, with no list kept", null],
+] as const)(
+  "shows each source once with its last read in window words %s, then failed reads and the budget",
+  async (_, list) => {
+    const body = firstSweep();
+    const sweep: SweepStatus = { remaining: 4_800, floor: 500, resetAt: null, deferredAreas: [] };
+    const view = await render(
+      <SweepEvidence snapshot={body} sweep={sweep} completed={list} now={now} />,
+    );
+    try {
+      const article = view.container.querySelector('[data-evidence="sweep"]') as HTMLElement;
+      const rows = sourceRows(article);
+      expect(rows.map(([name]) => name).sort()).toEqual([...NAMES].sort());
+      for (const name of NAMES) expect(article.textContent?.split(name).length, name).toBe(2);
+      for (const [name, , outcome] of rows)
+        expect(outcome, name ?? "").toMatch(/last read \d+ min ago/);
+      expect(article.textContent).not.toMatch(/GitLab omitted|Job log character limit|hunks/);
+      expect(article.querySelector("table[aria-label='Areas']")).toBeNull();
+      expect([...article.querySelectorAll("h3")].map((h) => h.textContent)).toEqual([
+        "Sources",
+        "Failed reads",
+        "API budget",
+      ]);
+      expect(view.rows("Failed reads")).toHaveLength(1);
+      expect(article.querySelector("[data-budget]")).not.toBeNull();
+    } finally {
+      await view.cleanup();
+    }
+  },
+);
+
+it("adds no last read to a listed source whose area has not been read yet", async () => {
+  const body = firstSweep();
+  const view = await render(
+    <SweepEvidence
+      snapshot={{ ...body, areas: body.areas.filter(({ area }) => area !== "approvals") }}
+      sweep={null}
+      completed={committed()}
+      now={now}
+    />,
+  );
+  try {
+    const outcome = view.container.querySelector(
+      '.sweep-row[data-source="approvals"] .sweep-outcome',
+    )?.textContent;
+    expect(outcome).toMatch(/^read · \d+ s$/);
+  } finally {
+    await view.cleanup();
+  }
+});
+
+it("keeps every source name on one line in a 360 px panel, two columns and no table", async () => {
+  const style = document.createElement("style");
+  style.textContent = readFileSync("apps/window/src/components/sweep/sweep.css", "utf8");
+  document.head.append(style);
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    let node: HTMLElement | null = this;
+    while (node && !node.style.width) node = node.parentElement;
+    const w = Number.parseFloat(node?.style.width ?? "") || 0;
+    return { x: 0, y: 0, left: 0, top: 0, right: w, bottom: 0, width: w, height: 0 } as DOMRect;
+  });
+  const frame = document.createElement("div");
+  frame.style.cssText = "container-type: inline-size; width: 1440px";
+  const panel = document.createElement("aside");
+  panel.style.width = "360px";
+  frame.append(panel);
+  document.body.append(frame);
+  const root = createRoot(panel);
+  try {
+    for (const list of [committed(), null]) {
+      await act(async () =>
+        root.render(
+          <SweepEvidence snapshot={firstSweep()} sweep={null} completed={list} now={now} />,
+        ),
+      );
+      applyContainerRules(style.sheet as CSSStyleSheet);
+      const rows = [...panel.querySelectorAll<HTMLElement>(".sweep-row")];
+      expect(rows).toHaveLength(NAMES.length);
+      for (const row of rows) {
+        expect(getComputedStyle(row).gridTemplateColumns).toBe("16px minmax(0, 1fr)");
+        expect(getComputedStyle(row.querySelector(".sweep-what") as Element).display).toBe("none");
+      }
+      for (const table of panel.querySelectorAll("table"))
+        for (const name of NAMES) expect(table.textContent).not.toContain(name);
+    }
+  } finally {
+    await act(async () => root.unmount());
+    frame.remove();
+    style.remove();
+    vi.restoreAllMocks();
+  }
+});
+
+it("tones the freshness dot of the first sweep by its worst source: cut is warn, failed is bad, all fresh is green", () => {
+  const glyph = (body: ReturnType<typeof firstSweep>) =>
+    freshnessGlyph({
+      sources: sweepSources(body).map(({ envelope }) => envelope),
+      sweptAt,
+    });
+  const cutOnly = firstSweep();
+  expect(glyph(cutOnly)).toMatchObject({ tail: " · 2", tone: "warn" });
+  const failed = {
+    ...cutOnly,
+    areas: cutOnly.areas.map((entry) =>
+      entry.area === "github"
+        ? (areas({ github: { state: "failed" } }).find(({ area }) => area === "github") ?? entry)
+        : entry,
+    ),
+  };
+  expect(glyph(failed)).toMatchObject({ tail: " · 3", tone: "bad" });
+  expect(glyph({ ...cutOnly, areas: areas() })).toMatchObject({ tail: "", tone: "fresh" });
 });
 
 const inspected = (patch: Partial<InspectResult>): InspectResult => ({

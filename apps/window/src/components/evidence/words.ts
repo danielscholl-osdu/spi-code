@@ -104,13 +104,16 @@ export function chipText(envelope: Envelope, now: number): string {
     : `${stateWord(envelope)} · ${span(now - Date.parse(observedAt))}`;
 }
 
-/** The row sentence: state, age and completeness in words. */
+/**
+ * The row sentence: state, age and completeness in the window's words. A cut gives its read and
+ * total, never core's reason text.
+ */
 export function envelopeSentence(envelope: Envelope, now: number): string {
   if (envelope.state === "unread") return "not read yet";
   const { completeness, observedAt } = envelope;
   const cut =
     completeness.kind === "cut"
-      ? `${count(completeness.read)} of ${count(completeness.total)} · ${plain(completeness.reason)}`
+      ? `${count(completeness.read)} of ${count(completeness.total)} read`
       : "";
   if (envelope.state === "failed") {
     const kept =
@@ -120,6 +123,30 @@ export function envelopeSentence(envelope: Envelope, now: number): string {
   const read = observedAt === undefined ? "" : `, last read ${ago(observedAt, now)}`;
   if (envelope.state === "incomplete") return `cut${read}, ${cut || "not every item read"}`;
   return `${envelope.state}${read}, complete`;
+}
+
+/**
+ * What an area's envelope adds to a sweep source's row, which already says how this sweep read
+ * it: when it was last read, and whether the data is stale or retained from an earlier read. An
+ * unread area adds nothing.
+ */
+export function areaFact(
+  envelope: Envelope,
+  now: number,
+): { text: string; tone?: EvidenceTone } | null {
+  if (envelope.state === "unread") return null;
+  const { observedAt } = envelope;
+  if (envelope.state === "failed")
+    return {
+      text:
+        observedAt === undefined ? "nothing retained" : `showing data from ${ago(observedAt, now)}`,
+      tone: "bad",
+    };
+  if (observedAt === undefined)
+    return envelope.state === "stale" ? { text: "stale", tone: "warn" } : null;
+  return envelope.state === "stale"
+    ? { text: `stale, last read ${ago(observedAt, now)}`, tone: "warn" }
+    : { text: `last read ${ago(observedAt, now)}` };
 }
 
 const RANK: Readonly<Record<Envelope["state"], number>> = {
@@ -273,7 +300,10 @@ export function sweepLine({ sources, sweptAt, nextSyncAt, now }: SweepLineInput)
   return { text: parts.join(" · "), tone: worstTone(sources) };
 }
 
-/** One count per affected source; cut reads are incomplete and keep their red tone. */
+/**
+ * One count per affected source, toned by the worst: failed is bad; cut, incomplete or stale is
+ * warn; only unread areas are muted; all fresh is fresh, or inferred when every source is.
+ */
 export function freshnessGlyph({
   sources,
   sweptAt,
@@ -284,15 +314,12 @@ export function freshnessGlyph({
   tone: EvidenceTone;
 } {
   const counts = { failed: 0, incomplete: 0, stale: 0 };
-  let hasCut = false;
   let unread = 0;
   for (const envelope of sources) {
     if (envelope.state === "failed") counts.failed++;
     else if (envelope.state === "unread") unread++;
-    else if (envelope.completeness.kind === "cut") {
+    else if (envelope.completeness.kind === "cut" || envelope.state === "incomplete")
       counts.incomplete++;
-      hasCut = true;
-    } else if (envelope.state === "incomplete") counts.incomplete++;
     else if (envelope.state === "stale") counts.stale++;
   }
   const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
@@ -301,9 +328,19 @@ export function freshnessGlyph({
     .map(([word, count]) => `${count} ${word}`);
   if (unread > 0) parts.push(`${unread} not read yet`);
   const detail = parts.length > 0 ? parts.join(", ") : "all areas read";
+  const inferred = everyInferred(sources);
   return {
-    text: `Swept ${clockTime(sweptAt, now === undefined ? {} : { now })} · ${detail}${everyInferred(sources) ? " · inferred" : ""}`,
+    text: `Swept ${clockTime(sweptAt, now === undefined ? {} : { now })} · ${detail}${inferred ? " · inferred" : ""}`,
     tail: total > 0 ? ` · ${total}` : "",
-    tone: counts.failed > 0 || hasCut ? "bad" : total > 0 ? "warn" : "muted",
+    tone:
+      counts.failed > 0
+        ? "bad"
+        : total > 0
+          ? "warn"
+          : unread > 0
+            ? "muted"
+            : inferred
+              ? "inferred"
+              : "fresh",
   };
 }

@@ -35,3 +35,5 @@ button.evidence-chip { border-style: solid; cursor: pointer; }
 .evidence-chip[data-tone="warn"] { color: var(--warning-text); background: var(--warning-surface); }
 .evidence-chip[data-tone="bad"] { color: var(--error-text); background: var(--error-surface); }
 .evidence-chip[data-tone="inferred"] { border-style: dashed; }
+.evidence-fact[data-tone="warn"] { color: var(--warning-text); }
+.evidence-fact[data-tone="bad"] { color: var(--error-text); }

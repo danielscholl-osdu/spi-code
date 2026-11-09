@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { SweepProgress, SweepSourceProgress } from "@spi-code/contracts";
+import type { ReactNode } from "react";
 import { sourceName, sourceReads } from "../evidence/words.js";
 import { at, duration, failedCount, type SourceOutcome, sourceOutcome, sweepEnd } from "./words.js";
 import "./sweep.css";
@@ -45,18 +46,21 @@ function Outcome({ outcome, now }: { outcome: SourceOutcome; now: number }) {
 /**
  * One sweep's sources in sweep order: the meta line, a throttle notice, one bar segment per source,
  * and a row each with its mark, name, what it reads and how it went. Today shows it on first
- * launch; Evidence shows the same list for a later sweep.
+ * launch; Evidence shows the same list for a later sweep, with each source's `fact` after its
+ * outcome.
  */
 export function SweepSources({
   progress,
   now,
   meta = true,
   onOpenSettings,
+  fact,
 }: {
   progress: SweepProgress;
   now: number;
   meta?: boolean;
   onOpenSettings: () => void;
+  fact?: ((source: string) => ReactNode) | undefined;
 }) {
   const end = sweepEnd(progress, now);
   const running = progress.outcome === "running";
@@ -94,6 +98,7 @@ export function SweepSources({
         {rows.map(({ source, outcome }) => {
           const failed = outcome.tone === "bad";
           const signin = failed && outcome.code === "signin";
+          const extra = fact?.(source.source);
           const why =
             outcome.why &&
             (running && failed && !signin
@@ -117,6 +122,7 @@ export function SweepSources({
                 aria-description={outcome.detail}
               >
                 <Outcome outcome={outcome} now={now} />
+                {extra && <> · {extra}</>}
                 {stopped && failed && why && ` · ${why}`}
               </span>
               {why && !(stopped && failed) && (

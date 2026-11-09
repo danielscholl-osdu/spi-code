@@ -4,6 +4,7 @@
 import type {
   AreaEnvelope,
   AreaName,
+  Envelope,
   InspectResult,
   ReadRecord,
   SweepProgress,
@@ -11,11 +12,13 @@ import type {
 } from "@spi-code/contracts";
 import { SweepSources } from "../sweep/SweepSources.js";
 import { SweepStopped } from "../sweep/SweepStopped.js";
+import type { SourceTone } from "../sweep/words.js";
 import type { SweepLineSnapshot } from "./SweepLine.js";
 import { useNow } from "./useNow.js";
 import {
   AREA_NAMES,
   ago,
+  areaFact,
   byWorst,
   chipText,
   type EvidenceSource,
@@ -26,12 +29,14 @@ import {
   INFERRED_EVERY_SOURCE,
   plain,
   sourceName,
+  sourceReads,
   span,
   stateWord,
   sweepLine,
   sweepSources,
   worstTone,
 } from "./words.js";
+import "../sweep/sweep.css";
 import "./evidence.css";
 
 type Row = { key: string; name: string; tone: EvidenceTone; word: string; sentence: string };
@@ -128,6 +133,47 @@ function Budget({ sweep, now }: { sweep: SweepStatus | null; now: number }) {
   );
 }
 
+const MARKS: Readonly<Record<Envelope["state"], { mark: string; tone: SourceTone }>> = {
+  fresh: { mark: "✓", tone: "ok" },
+  stale: { mark: "–", tone: "warn" },
+  incomplete: { mark: "⚠", tone: "warn" },
+  failed: { mark: "✕", tone: "bad" },
+  unread: { mark: "○", tone: "wait" },
+};
+
+/** Sources the sweep's list does not carry, from their envelopes, in the list's row form. */
+function EnvelopeRows({
+  label,
+  sources,
+  now,
+}: {
+  label: string;
+  sources: readonly EvidenceSource[];
+  now: number;
+}) {
+  return (
+    <div className="sweep-sources">
+      <ul className="sweep-rows" aria-label={label}>
+        {sources.map(({ key, name, envelope }) => (
+          <li
+            key={key}
+            className="sweep-row"
+            data-source={key}
+            data-tone={MARKS[envelope.state].tone}
+          >
+            <span className="sweep-mark" aria-hidden="true">
+              {MARKS[envelope.state].mark}
+            </span>
+            <span className="sweep-name">{name}</span>
+            <span className="sweep-what">{sourceReads(key) ?? ""}</span>
+            <span className="sweep-outcome">{envelopeSentence(envelope, now)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 const LIST: Readonly<Record<SweepProgress["outcome"], string>> = {
   running: "live",
   committed: "completed",
@@ -135,7 +181,10 @@ const LIST: Readonly<Record<SweepProgress["outcome"], string>> = {
   cancelled: "cancelled",
 };
 
-/** The Evidence tab for the sweep: every area, every failed read, the API budget. */
+/**
+ * The Evidence tab for the sweep: each source once, with how the newest sweep read it and when its
+ * data was last read; then every failed read and the API budget.
+ */
 export function SweepEvidence({
   snapshot,
   sweep,
@@ -177,6 +226,20 @@ export function SweepEvidence({
   });
   const failed = snapshot.reads.filter((record) => record.failure !== undefined);
   const list = progress ?? completed;
+  const envelopes = new Map(sources.map(({ key, envelope }) => [key, envelope]));
+  const listed = new Set(list?.sources.map(({ source }) => source));
+  const unlisted = sources.filter(({ key }) => !listed.has(key));
+  const fact = (source: string) => {
+    const envelope = envelopes.get(source);
+    const words = envelope && areaFact(envelope, at);
+    return (
+      words && (
+        <span className="evidence-fact" data-tone={words.tone}>
+          {words.text}
+        </span>
+      )
+    );
+  };
   return (
     <article className="evidence" data-evidence="sweep">
       <p className="inspector-kicker">what the sweep is drawn from</p>
@@ -184,7 +247,7 @@ export function SweepEvidence({
       <p className="evidence-line" data-tone={line.tone}>
         {line.text}
       </p>
-      {list && (
+      {list ? (
         <section data-sweep-list={LIST[list.outcome]} aria-label="Sources">
           <h3>Sources</h3>
           {list.outcome === "failed" && (
@@ -202,11 +265,16 @@ export function SweepEvidence({
             now={at}
             meta={list === live}
             onOpenSettings={onOpenSettings}
+            fact={fact}
           />
+          {unlisted.length > 0 && <EnvelopeRows label="More sources" sources={unlisted} now={at} />}
+        </section>
+      ) : (
+        <section aria-label="Sources">
+          <h3>Sources</h3>
+          <EnvelopeRows label="Sources" sources={sources} now={at} />
         </section>
       )}
-      <h3>Areas</h3>
-      <EvidenceTable label="Areas" rows={sources.map((source) => sourceRow(source, at))} />
       <h3>Failed reads</h3>
       {failed.length > 0 ? (
         <EvidenceTable label="Failed reads" rows={failed.map((record) => readRow(record, at))} />
