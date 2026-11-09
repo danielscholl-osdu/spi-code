@@ -23,7 +23,7 @@ import { routeSelectionIds } from "../panels/selection-rows.js";
 import { SettingsDialog, type SettingsSection } from "../settings/SettingsDialog.js";
 import { watchStore } from "../store/watch.js";
 import { type Appearance, createAppearance } from "./appearance.js";
-import { openDestination } from "./destination.js";
+import { openDestination, parseDestination } from "./destination.js";
 import { LineSheet } from "./LineSheet.js";
 import { edgePanes, PaneEdges } from "./PaneEdges.js";
 import { PanelControls } from "./PanelControls.js";
@@ -211,6 +211,19 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
     [appearance],
   );
   const [error, setError] = useState("");
+  /** Kept current so the one navigation subscription sees the live sheet. */
+  const routeDestination = useRef<(input: unknown) => void>(() => {});
+  useEffect(() => {
+    routeDestination.current = (input) => {
+      const destination = parseDestination(input);
+      if (!destination) return;
+      // A tray destination lands on top: close what would cover it before opening it.
+      setSettingsOpen(false);
+      setFindOpen(false);
+      if (sheet === "overlay") closeSheet();
+      openDestination(destination);
+    };
+  }, [sheet, closeSheet]);
   useEffect(() => {
     const controller = createAppearance(undefined, undefined, undefined, (theme) => {
       void window.spi.setAppearance?.(theme);
@@ -225,7 +238,7 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
         setError(reason instanceof Error ? reason.message : String(reason));
       }
     });
-    const unroute = window.spi.onNavigate?.(openDestination);
+    const unroute = window.spi.onNavigate?.((input) => routeDestination.current(input));
     return () => {
       controller.dispose();
       unsubscribe();

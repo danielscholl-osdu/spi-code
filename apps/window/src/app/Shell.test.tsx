@@ -957,3 +957,48 @@ it("opens the sweep's Evidence when desktop main routes the tray's View sweep, a
     window.spi = previous;
   }
 });
+
+it("closes Settings before View sweep opens the sweep's Evidence, so nothing covers it", async () => {
+  const previous = window.spi;
+  const previousState = watchStore.getState();
+  let route: ((destination: unknown) => void) | undefined;
+  window.spi = {
+    proof: false,
+    openExternal: vi.fn(),
+    postMessage: vi.fn(),
+    onMessage: () => vi.fn(),
+    onNavigate: (listener) => {
+      route = listener;
+      return vi.fn();
+    },
+  };
+  watchStore.setState({ snapshot: { cursor: 1, body: testSnapshot(briefing, releases) } });
+  selectionStore.setState({ open: false, tab: "detail" });
+  const agent = vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (Macintosh)");
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const settings = () => document.querySelector('[role="dialog"]');
+  try {
+    await act(async () => root.render(<Shell />));
+    await act(async () => {
+      document.body.dispatchEvent(
+        new KeyboardEvent("keydown", { key: ",", metaKey: true, bubbles: true, cancelable: true }),
+      );
+    });
+    expect(settings()).not.toBeNull();
+    await act(async () => route?.({ to: "settings" }));
+    expect(settings()).not.toBeNull();
+    await act(async () => route?.({ to: "evidence" }));
+    expect(settings()).toBeNull();
+    const evidence = container.querySelector('#app-right-panel [data-evidence="sweep"]');
+    expect(evidence).not.toBeNull();
+    expect(evidence?.closest("[inert], [aria-hidden='true']")).toBeNull();
+  } finally {
+    await act(async () => root.unmount());
+    agent.mockRestore();
+    container.remove();
+    watchStore.setState(previousState);
+    window.spi = previous;
+  }
+});

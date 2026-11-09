@@ -67,7 +67,7 @@ function notifyNative(open: () => void) {
 type Snapshot = Extract<Message, { type: "view.snapshot" }>["payload"];
 type Progress = Extract<Message, { type: "sweep.progress" }>["payload"];
 
-/** Sources read through glab; the rest read through gh. */
+/** Sources whose sign-in failure core raises only when glab needs a sign-in. */
 const GLAB_SOURCES = new Set(["upstream", "radar"]);
 
 /** A wall-clock HH:MM in the machine's zone. */
@@ -87,15 +87,38 @@ const settled = ({ sources }: Progress) =>
   sources.filter(({ state }) => state !== "waiting" && state !== "reading" && state !== "throttled")
     .length;
 
-/** Whether a finished sweep failed to read gh for want of a sign-in. */
-const ghSignedOut = (progress: Progress) =>
-  progress.sources.some(
-    (source) =>
-      source.state === "failed" && source.code === "signin" && !GLAB_SOURCES.has(source.source),
-  ) ||
-  (progress.outcome === "failed" &&
-    progress.code === "signin" &&
-    (progress.source === undefined || !GLAB_SOURCES.has(progress.source)));
+/** The sources a finished sweep could not read for want of a sign-in; null where none is named. */
+const signinFailures = (progress: Progress): (string | null)[] => [
+  ...progress.sources.flatMap((source) =>
+    source.state === "failed" && source.code === "signin" ? [source.source] : [],
+  ),
+  ...(progress.outcome === "failed" && progress.code === "signin" ? [progress.source ?? null] : []),
+];
+
+type SigninTool = "gh" | "glab";
+type ToolStates = ReadonlyMap<string, string>;
+
+/**
+ * The tool behind a sweep's sign-in failures, or null when it cannot be told. upstream and radar
+ * fail for sign-in only when glab needs one; any other source (auth checks both tools) is
+ * attributed only through the tool setup reports signed out, gh first.
+ */
+function signedOutTool(failures: readonly (string | null)[], tools: ToolStates) {
+  let found: SigninTool | null = null;
+  for (const source of failures) {
+    const tool: SigninTool | null =
+      source !== null && GLAB_SOURCES.has(source)
+        ? "glab"
+        : tools.get("gh") === "signed-out"
+          ? "gh"
+          : tools.get("glab") === "signed-out"
+            ? "glab"
+            : null;
+    if (tool === "gh") return tool;
+    found ??= tool;
+  }
+  return found;
+}
 
 export interface SweepTrayOptions {
   /** Whether the window is out of sight, so the hand-over is worth a notification. */
@@ -135,7 +158,10 @@ export function createSweepTray(
   /** A later sweep in flight, read for its count while the dot keeps the committed tone. */
   let running: Progress | undefined;
   let sweeping = false;
-  let signedOut = false;
+  /** The latest finished sweep's sign-in failures, attributed to a tool at render time. */
+  let signin: (string | null)[] = [];
+  /** Each tool's state as setup last validated it. */
+  let tools: ToolStates = new Map();
   let watchReady = true;
   let nextSweepAt: string | null = null;
   let shownMenu = "";
@@ -163,9 +189,14 @@ export function createSweepTray(
     if (phase) return [phase.dot ?? dot, phase.text];
     if (!latest) return [dot, text];
     const swept = clockTime(latest.sweptAt);
+    const signedOut = signedOutTool(signin, tools);
+    // A routine sweep keeps the committed tone, signed-out red included.
     if (running)
-      return [dot, `Sweeping ${settled(running)} of ${running.sources.length} · last ${swept}`];
-    if (signedOut) return ["failed", "Can't read: gh signed out"];
+      return [
+        signedOut ? "failed" : dot,
+        `Sweeping ${settled(running)} of ${running.sources.length} · last ${swept}`,
+      ];
+    if (signedOut) return ["failed", `Can't read: ${signedOut} signed out`];
     const count = today();
     if (count > 0) return [dot, `${count} need${count === 1 ? "s" : ""} you · swept ${swept}`];
     return [dot, `${text} · swept ${swept}`];
@@ -262,8 +293,9 @@ export function createSweepTray(
         if (latest) {
           running = progress.outcome === "running" ? progress : undefined;
           if (running) phase = null;
-          if (progress.outcome === "committed") signedOut = ghSignedOut(progress);
-          else if (progress.outcome === "failed" && ghSignedOut(progress)) signedOut = true;
+          const failures = signinFailures(progress);
+          if (progress.outcome === "committed") signin = failures;
+          else if (progress.outcome === "failed" && failures.length) signin = failures;
           render();
           return;
         }
@@ -286,6 +318,7 @@ export function createSweepTray(
         render();
       } else if (message.type === "setup.state") {
         watchReady = message.payload.watchReady;
+        tools = new Map(message.payload.tools.map(({ tool, state }) => [tool, state]));
         if (watchReady) {
           if (halt?.text !== "Host stopped") halt = null;
           render();

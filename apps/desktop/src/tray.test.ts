@@ -441,7 +441,10 @@ function signedOut(source: string, outcome: "committed" | "running" = "committed
   return { ...message, payload: { ...message.payload, sources } } as Message;
 }
 
-function setup(gh: "ready" | "signed-out" | "missing"): Message {
+function setup(
+  gh: "ready" | "signed-out" | "missing",
+  glab: "ready" | "signed-out" = "ready",
+): Message {
   const ready = gh === "ready";
   return {
     version: PROTOCOL_VERSION,
@@ -456,6 +459,7 @@ function setup(gh: "ready" | "signed-out" | "missing"): Message {
           state: gh,
           action: ready ? null : gh === "missing" ? "install" : "signin",
         },
+        { tool: "glab", state: glab, action: glab === "ready" ? null : "signin" },
       ],
       watchReady: ready,
       disabledReason: ready ? null : "GitHub CLI is not ready.",
@@ -487,13 +491,14 @@ it("reads each designed tooltip after the first sweep, keeping the committed dot
   expect(tip()).toBe("SPI Code - 1 needs you · swept 08:07");
 
   tray.observe(signedOut("upstream"));
-  expect(tip()).toBe("SPI Code - 1 needs you · swept 08:07");
-  tray.observe(signedOut("github"));
-  expect(tip()).toBe("SPI Code - Can't read: gh signed out");
+  expect(tip()).toBe("SPI Code - Can't read: glab signed out");
   expect(dot()).not.toEqual(fresh);
   tray.observe(progress("failed", { first: false }));
-  expect(tip()).toBe("SPI Code - Can't read: gh signed out");
+  expect(tip()).toBe("SPI Code - Can't read: glab signed out");
   tray.observe(progress("committed", { first: false, settled: 12 }));
+  expect(tip()).toBe("SPI Code - 1 needs you · swept 08:07");
+  // auth checks both tools, so its sign-in failure names no tool until setup says which.
+  tray.observe(signedOut("auth"));
   expect(tip()).toBe("SPI Code - 1 needs you · swept 08:07");
 
   tray.observe(setup("signed-out"));
@@ -623,4 +628,40 @@ it("sends Sweep now from the tray through the real relay to the host's sweep.req
     for (const port of opened) port.close();
     tray.dispose();
   }
+});
+
+it("names glab, never gh, when only glab is signed out", () => {
+  const tray = createSweepTray(vi.fn(), vi.fn());
+  const tip = () => electron.trays[0]?.setToolTip.mock.calls.at(-1)?.[0];
+  tray.observe(setup("ready", "signed-out"));
+  tray.observe(snapshot(["fresh"]));
+  tray.observe(signedOut("auth"));
+  expect(tip()).toBe("SPI Code - Can't read: glab signed out");
+  tray.observe(signedOut("radar"));
+  expect(tip()).toBe("SPI Code - Can't read: glab signed out");
+  tray.observe(setup("ready", "ready"));
+  expect(tip()).toBe("SPI Code - Can't read: glab signed out");
+  tray.observe(signedOut("auth"));
+  expect(tip()).toBe("SPI Code - All fresh · swept 08:02");
+  expect(electron.trays[0]?.setToolTip.mock.calls.flat()).not.toContain(
+    "SPI Code - Can't read: gh signed out",
+  );
+});
+
+it("keeps the committed signed-out red while a routine sweep runs", () => {
+  const tray = createSweepTray(vi.fn(), vi.fn());
+  const tip = () => electron.trays[0]?.setToolTip.mock.calls.at(-1)?.[0];
+  const dot = () => electron.bitmap.mock.calls.at(-1)?.[0];
+  tray.observe(snapshot(["fresh"]));
+  const fresh = dot();
+  tray.observe(signedOut("upstream"));
+  expect(tip()).toBe("SPI Code - Can't read: glab signed out");
+  const red = dot();
+  expect(red).not.toEqual(fresh);
+  tray.observe(progress("running", { first: false, settled: 4 }));
+  expect(tip()).toBe("SPI Code - Sweeping 4 of 12 · last 08:02");
+  expect(dot()).toEqual(red);
+  tray.observe(progress("committed", { first: false, settled: 12 }));
+  expect(tip()).toBe("SPI Code - All fresh · swept 08:02");
+  expect(dot()).toEqual(fresh);
 });
