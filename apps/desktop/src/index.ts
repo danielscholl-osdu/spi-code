@@ -261,7 +261,7 @@ async function run(): Promise<void> {
   const designPath =
     designFlag >= 0
       ? process.argv[designFlag + 1]
-      : fileURLToPath(new URL("../../../design/spi-code-window-design.html", import.meta.url));
+      : fileURLToPath(new URL("../../../design/spi-code-window-layout.html", import.meta.url));
   assert(
     fixturePath && !fixturePath.startsWith("--"),
     "Smoke views require the Nov 6 fixture path",
@@ -384,6 +384,6 @@ app.on("window-all-closed", () => {});
 if (proof)
   setTimeout(
     () => fail(new Error("Proof exceeded its time limit")),
-    smoke ? 45000 : 120000,
+    smoke ? 180000 : 120000,
   ).unref();
 void run().catch(fail);

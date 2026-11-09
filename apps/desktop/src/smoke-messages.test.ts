@@ -98,6 +98,53 @@ it("observes the outbound start before a turn can fail without streaming text", 
   await failure;
 });
 
+it("intercepts fixture sign-ins only in smoke mode and drops interception on renderer reload", () => {
+  const signin: Message = {
+    version: PROTOCOL_VERSION,
+    id: "fixture-signin",
+    kind: "request",
+    type: "setup.signin",
+    payload: { tool: "glab", token: "fixture-token" },
+  };
+  for (const smoke of [false, true]) {
+    const send = vi.fn();
+    const load = () => {
+      let bridge: { postMessage(message: Message): void } | undefined;
+      let fixture: ((event: unknown, message: unknown) => void) | undefined;
+      runInNewContext(readFileSync(new URL("./preload.cjs", import.meta.url), "utf8"), {
+        require: () => ({
+          contextBridge: {
+            exposeInMainWorld: (_name: string, value: typeof bridge) => {
+              bridge = value;
+            },
+          },
+          ipcRenderer: {
+            on: (name: string, listener: typeof fixture) => {
+              if (name === "smoke:fixture") fixture = listener;
+            },
+            send,
+          },
+        }),
+        process: { argv: smoke ? ["--spi-smoke"] : [] },
+      });
+      if (!bridge) throw new Error("Missing preload bridge");
+      return { bridge, fixture };
+    };
+    const before = load();
+    expect(() => before.bridge.postMessage(signin)).toThrow("Host port is not connected");
+    before.fixture?.({}, {});
+    if (smoke) {
+      expect(() => before.bridge.postMessage(signin)).not.toThrow();
+      expect(send).toHaveBeenCalledExactlyOnceWith("smoke:request", signin);
+    } else {
+      expect(before.fixture).toBeUndefined();
+      expect(send).not.toHaveBeenCalled();
+    }
+    const reloaded = load();
+    expect(() => reloaded.bridge.postMessage(signin)).toThrow("Host port is not connected");
+  }
+});
+
 it("correlates each started turn across reloads without consuming another turn's end", async () => {
   const inbox = smokeMessages();
   const start: Message = {

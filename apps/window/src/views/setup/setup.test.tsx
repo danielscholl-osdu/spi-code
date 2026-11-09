@@ -152,6 +152,12 @@ it("keeps the tool grid in fixed order with a wrapping reason, version and budge
   );
   expect(row("glab")?.querySelector("button")).toBeNull();
   expect(row("GitHub API budget")?.querySelector(".readiness-chip")?.textContent).toBe("Ready");
+  expect(row("GitHub API budget")?.querySelector(".readiness-why")?.textContent).toContain(
+    "4,865 points left",
+  );
+  expect(row("GitHub API budget")?.querySelector(".readiness-why")?.textContent).toContain(
+    "resets ",
+  );
   expect(row("GitHub API budget")?.querySelector("time")?.dateTime).toBe(
     "2026-11-08T15:36:00.000Z",
   );
@@ -168,6 +174,9 @@ it.each(["copilot", "gh"] as const)(
     const row = container.querySelector(`.readiness-row[aria-label="${name}"]`);
     const cancel = () => row?.querySelector<HTMLButtonElement>(".readiness-action");
     expect(cancel()?.textContent).toBe("Cancel");
+    expect(row?.querySelector(".readiness-why")?.textContent).toBe(
+      "Waiting for you to finish in the browser.",
+    );
     expect(row?.querySelector(".readiness-more")?.textContent).toContain("Sign-in waiting");
     const failure = deferredSend();
     send.mockReturnValueOnce(failure.promise);
@@ -1075,7 +1084,7 @@ it.each([0, 9, 10, 11])("flags points only below the reported floor: %s", async 
   await receive("sweep.status", { remaining, floor: 10, resetAt: null, deferredAreas: [] });
   await render();
   const budget = container.querySelector('.readiness-row[aria-label="GitHub API budget"]');
-  expect(budget?.textContent).toContain(`Points left: ${remaining}`);
+  expect(budget?.textContent).toContain(`${remaining} points left`);
   expect(budget?.querySelector('[role="alert"]') !== null).toBe(remaining < 10);
 });
 

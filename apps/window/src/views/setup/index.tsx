@@ -262,7 +262,7 @@ function ToolRow({ tool }: { tool: Tool }) {
           <>
             <p>
               {running
-                ? "Waiting for you to finish signing in."
+                ? "Waiting for you to finish in the browser."
                 : (tool.reason ?? tool.version ?? (tool.action ? reason : null))}
             </p>
             {!!tool.missingScopes?.length && (
@@ -376,15 +376,16 @@ export default function Setup({ inSettings = false }: { inSettings?: boolean }) 
             <p role={low ? "alert" : "status"}>
               {sweep?.remaining == null
                 ? "Points left: unknown"
-                : `Points left: ${sweep.remaining}`}
+                : `${sweep.remaining.toLocaleString("en-US")} points left`}
               {low && ` - below the pacer floor (${sweep.floor})`}
+              {sweep?.resetAt && (
+                <>
+                  {" · resets "}
+                  <Time at={sweep.resetAt} />
+                </>
+              )}
             </p>
             {sweep?.floor === undefined && <p>Pacer floor not reported by the host.</p>}
-            {sweep?.resetAt && (
-              <p>
-                Resets at <Time at={sweep.resetAt} />
-              </p>
-            )}
             {sweep?.deferredAreas.map(({ area, reason }) => (
               <p key={area}>
                 {area}: {reason}

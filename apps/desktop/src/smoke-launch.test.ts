@@ -19,7 +19,7 @@ it.each([false, true])("isolates and cleans Electron user-data even on failure (
     expect(args).toContain("--smoke");
     expect(options).toMatchObject({
       env: { PATH: "fixture" },
-      timeout: 60000,
+      timeout: 180000,
       killSignal: "SIGKILL",
     });
     expect(options?.env).not.toHaveProperty("ELECTRON_RUN_AS_NODE");

@@ -20,7 +20,7 @@ export function launchSmoke(
     execFileSync(executable, [...args, "--smoke", `--user-data-dir=${directory}`], {
       env: inherited,
       stdio: "inherit",
-      timeout: 60000,
+      timeout: 180000,
       killSignal: "SIGKILL",
     });
   } finally {

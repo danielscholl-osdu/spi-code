@@ -4,6 +4,7 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 let port;
+let fixture = false;
 const listeners = new Set();
 contextBridge.exposeInMainWorld("spi", {
   proof: process.argv.includes("--spi-proof"),
@@ -14,6 +15,10 @@ contextBridge.exposeInMainWorld("spi", {
     return ipcRenderer.invoke("window:appearance", theme);
   },
   postMessage(message) {
+    if (fixture) {
+      ipcRenderer.send("smoke:request", message);
+      return;
+    }
     if (!port) throw new Error("Host port is not connected");
     if (
       process.argv.includes("--spi-proof") &&
@@ -40,6 +45,7 @@ ipcRenderer.on("host:port", (event) => {
 });
 if (process.argv.includes("--spi-smoke")) {
   ipcRenderer.on("smoke:fixture", (_event, message) => {
+    fixture = true;
     for (const listener of listeners) listener(message);
   });
   ipcRenderer.on("smoke:malformed", () => {

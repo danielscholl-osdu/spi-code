@@ -3,7 +3,10 @@
 
 import assert from "node:assert/strict";
 import { APPENDIX_A_TOOLS } from "@spi-code/host";
+import { assertSmokeGeometry, type SmokeGeometry } from "./smoke-geometry.js";
 import type { SupervisionReport } from "./smoke-supervision.js";
+
+export const VIEW_WIDTHS = [1440, 900, 740] as const;
 
 export const VIEW_SURFACES = [
   {
@@ -103,20 +106,85 @@ export const VIEW_SURFACES = [
     place: "Today",
     selector:
       "[role=dialog] [data-settings-section=readiness] .readiness-row[aria-label='GitHub API budget']",
-    designSection: "Layout / Settings (Readiness, opened from the sidebar footer); PRD PS-07",
+    designSection: "Layout / Settings (Readiness, opened from the sidebar footer); PRD PS-08",
     qualified: false,
   },
+  {
+    id: "settings-first-launch",
+    name: "Settings / Readiness on first launch",
+    route: "today",
+    place: "Today",
+    selector: "[role=dialog] .settings-readiness-banner[data-readiness=attention]",
+    designSection: "Layout / Settings: first launch over the Watch gate",
+    qualified: false,
+  },
+  {
+    id: "settings-failed",
+    name: "Settings / Failed glab sign-in",
+    route: "today",
+    place: "Today",
+    selector: "[role=dialog] .readiness-row[aria-label=glab] [role=alert]",
+    designSection: "Layout / Settings: a failed sign-in",
+    qualified: false,
+  },
+  {
+    id: "settings-appearance",
+    name: "Settings / Appearance",
+    route: "today",
+    place: "Today",
+    selector: "[role=dialog] [data-settings-section=appearance]",
+    designSection: "Layout / Settings: Appearance",
+    qualified: false,
+  },
+  {
+    id: "detail-related",
+    name: "Detail / Long Related label at 280 px",
+    route: "upstream",
+    place: "Upstream",
+    selector: ".inspector-related",
+    designSection: "Layout / Detail panel; Validation",
+    qualified: true,
+  },
+  {
+    id: "panes",
+    name: "Pinned Line and Detail",
+    route: "upstream",
+    place: "Upstream",
+    selector: ".line-sheet:not([data-presentation=overlay]) .line-grid",
+    designSection: "Layout / Panes and surfaces; Width budget",
+    qualified: true,
+  },
+  {
+    id: "strip-20",
+    name: "Top row / 20 services",
+    route: "today",
+    place: "Today",
+    selector: "[data-strip] [data-service=smoke-service-20]",
+    designSection: "Layout / Top row at 740 px on Windows, 20 services",
+    qualified: true,
+  },
 ] as const;
+
+export function geometryRules(surface: string, width: number): SmokeGeometry["rule"][] {
+  if (surface.startsWith("settings")) return ["settings"];
+  if (surface === "detail-related") return ["related"];
+  if (surface === "panes" && width === 1440) return ["panes", "headers"];
+  if (surface === "strip-20" && width === 740) return ["drag"];
+  return [];
+}
 
 export interface SmokeShot {
   surface: string;
   appearance: "light" | "dark";
+  viewportWidth: number;
   file: string;
   width: number;
   height: number;
   bytes: number;
   dominantFraction: number;
   qualifiers: string[];
+  geometry: SmokeGeometry[];
+  rejectedGeometry?: string;
 }
 
 export function assertSmokeShot(
@@ -159,38 +227,67 @@ function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
 
 export function assertSmokeViews(value: unknown): asserts value is SmokeShot[] {
   assert(Array.isArray(value), "Missing views step");
-  assert.equal(value.length, VIEW_SURFACES.length * 2, "Missing screenshot");
+  assert.equal(value.length, VIEW_SURFACES.length * VIEW_WIDTHS.length * 2, "Missing screenshot");
   for (const { id } of VIEW_SURFACES) {
-    for (const appearance of ["light", "dark"]) {
-      const matches: Record<string, unknown>[] = value.filter(
-        (shot: unknown): shot is Record<string, unknown> =>
-          shot !== null &&
-          typeof shot === "object" &&
-          "surface" in shot &&
-          shot.surface === id &&
-          "appearance" in shot &&
-          shot.appearance === appearance,
-      );
-      assert.equal(matches.length, 1, `Missing or duplicate screenshot: ${id}/${appearance}`);
-      const [shot] = matches;
-      assert(shot);
-      assert.equal(shot.file, `views/${id}-${appearance}.png`);
-      assert(
-        typeof shot.width === "number" &&
-          shot.width >= 640 &&
-          typeof shot.height === "number" &&
-          shot.height >= 400 &&
-          typeof shot.bytes === "number" &&
-          shot.bytes >= 1024,
-        "Screenshot too small",
-      );
-      assert(
-        typeof shot.dominantFraction === "number" &&
-          shot.dominantFraction >= 0 &&
-          shot.dominantFraction < 0.995,
-        "Blank screenshot",
-      );
-      assertSmokeQualifiers(id, shot.qualifiers);
+    for (const viewportWidth of VIEW_WIDTHS) {
+      for (const appearance of ["light", "dark"]) {
+        const matches: Record<string, unknown>[] = value.filter(
+          (shot: unknown): shot is Record<string, unknown> =>
+            shot !== null &&
+            typeof shot === "object" &&
+            "surface" in shot &&
+            shot.surface === id &&
+            "viewportWidth" in shot &&
+            shot.viewportWidth === viewportWidth &&
+            "appearance" in shot &&
+            shot.appearance === appearance,
+        );
+        assert.equal(
+          matches.length,
+          1,
+          `Missing or duplicate screenshot: ${id}/${viewportWidth}/${appearance}`,
+        );
+        const [shot] = matches;
+        assert(shot);
+        assert.equal(shot.file, `views/${id}-${viewportWidth}-${appearance}.png`);
+        assert(
+          typeof shot.width === "number" &&
+            shot.width >= 640 &&
+            typeof shot.height === "number" &&
+            shot.height >= 400 &&
+            typeof shot.bytes === "number" &&
+            shot.bytes >= 1024,
+          "Screenshot too small",
+        );
+        assert(
+          typeof shot.dominantFraction === "number" &&
+            shot.dominantFraction >= 0 &&
+            shot.dominantFraction < 0.995,
+          "Blank screenshot",
+        );
+        assertSmokeQualifiers(id, shot.qualifiers);
+        assert(
+          Array.isArray(shot.geometry),
+          `Missing geometry: ${id}/${viewportWidth}/${appearance}`,
+        );
+        const rules = geometryRules(id, viewportWidth);
+        assert.equal(
+          shot.geometry.length,
+          rules.length,
+          `Missing geometry rules: ${id}/${viewportWidth}/${appearance}`,
+        );
+        for (const [index, geometry] of shot.geometry.entries()) {
+          assertSmokeGeometry(geometry);
+          assert.equal(geometry.rule, rules[index], `Wrong geometry rule: ${id}`);
+        }
+        if (id === "detail-related" && viewportWidth === 1440 && appearance === "light") {
+          assert.equal(
+            shot.rejectedGeometry,
+            "Related value squeezed to 159 px",
+            "Missing packaged broken-rule proof",
+          );
+        }
+      }
     }
   }
 }

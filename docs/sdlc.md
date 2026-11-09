@@ -137,13 +137,28 @@ than a separate directory list. The packaged smoke test runs the app extracted f
 the generated ZIP, including the shipped runtime handshake, rather than the
 builder's app directory.
 Before starting the host proof, it renders `fixtures/watch/snapshot-1106.json`
-at 1280 x 800 content bounds and pins the app's Appearance selector to light
-and dark. `build/package-<mac|win>/views/` holds 22 PNGs, a side-by-side
-`index.html` review report and a copy of the window design. `smoke.json.views`
-lists the shots and their image and DOM qualifier evidence; the existing smoke
-artifact uploads the folder on both platforms. Setup tools are fixture-ready,
-not a live sign-in check. The renderer reloads before the host proof, so the
-fixture cannot affect its persisted-snapshot and supervision checks.
+at 1440, 900 and 740 x 800 content bounds and pins the app's Appearance selector
+to light and dark. `build/package-<mac|win>/views/` holds 102 PNGs, a side-by-side
+`index.html` review report and a copy of the window layout design. `smoke.json.views`
+lists every surface/viewport width/appearance combination, its image and DOM
+qualifier evidence, and its measured geometry. Missing combinations fail.
+Settings includes first-launch Readiness over the Watch gate, failed glab sign-in,
+ready Readiness and Appearance. The smoke pins its renderer clock to Nov 6,
+09:04 America/Chicago, including `checkedAt`, so the Checked time and reset hint
+are the same on both platforms and in both test time zones.
+Sign-in requests are intercepted in the smoke-only preload path: no live token,
+sign-in or tool probe is used. Dedicated probes measure a long Related label
+and values at a 280 px panel, flush panes with 1 px dividers, three aligned 44 px
+pane headers, Settings' 820 x 560 maximum and 24 px edge margins, and a contiguous
+48 px first-row drag span at 740 px with 20 services. Only the Related and
+20-service probes vary the projection; hand-made rect mutations exercise each
+failure rule in unit tests. The existing smoke artifact uploads all evidence on
+both platforms. Once per packaged run the renderer also shrinks a real Related
+value to 159 px, records the expected rejection in `rejectedGeometry`, then
+restores the value before capturing it. Missing rejection evidence fails.
+The fixture clock, pane preferences and sign-in interception
+are removed before the host proof, so they cannot affect its persisted-snapshot
+and supervision checks. The larger matrix has a three-minute smoke deadline.
 Missing shots, images smaller than 640 x 400 or 1024 PNG bytes, or images
 with 99.5% of pixels in one 4-bit-per-channel RGB bucket fail the smoke.
 Every shot must carry the title-bar sweep line; Today, Upstream, the selected

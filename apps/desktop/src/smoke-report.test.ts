@@ -3,13 +3,72 @@
 
 import { expect, it } from "vitest";
 import { APPENDIX_A_TOOLS } from "../../../packages/host/src/tools/tool-names.js";
+import type { SmokeGeometry } from "./smoke-geometry.js";
 import {
   assertSmokeReport,
   assertSmokeShot,
   assertSmokeViews,
+  geometryRules,
   type SmokeReport,
   VIEW_SURFACES,
+  VIEW_WIDTHS,
 } from "./smoke-report.js";
+
+const rect = (x: number, y: number, width: number, height: number) => ({ x, y, width, height });
+function geometry(surface: string, width: number): SmokeGeometry[] {
+  return geometryRules(surface, width).map((rule) => {
+    switch (rule) {
+      case "settings":
+        return {
+          rule,
+          viewport: rect(0, 0, width, 800),
+          dialog: rect(
+            (width - Math.min(820, width - 48)) / 2,
+            120,
+            Math.min(820, width - 48),
+            560,
+          ),
+        };
+      case "related":
+        return {
+          rule,
+          panel: rect(1160, 75, 280, 725),
+          label: rect(1184, 300, 232, 54),
+          labelText: "A deliberately long Related label that wraps over multiple lines at 280 px",
+          values: [rect(1184, 356, 232, 42)],
+        };
+      case "panes":
+        return {
+          rule,
+          panes: [232, 568, 360, 280].map((size, index, sizes) => ({
+            rect: rect(
+              sizes.slice(0, index).reduce((a, b) => a + b, 0),
+              75,
+              size,
+              725,
+            ),
+            borderLeft: index > 1 ? 1 : 0,
+            borderRight: index === 0 ? 1 : 0,
+          })),
+        };
+      case "headers":
+        return {
+          rule,
+          paneTop: 75,
+          headers: [rect(232, 75, 568, 44), rect(800, 75, 360, 44), rect(1160, 75, 280, 44)],
+        };
+      case "drag":
+        return {
+          rule,
+          services: 20,
+          appRegion: "drag",
+          region: rect(84, 0, 648, 44),
+          targets: [rect(84, 0, 500, 44), rect(632, 0, 100, 44)],
+        };
+    }
+    throw new Error(`Unknown geometry rule: ${rule}`);
+  });
+}
 
 const report: SmokeReport = {
   mainPid: 101,
@@ -33,16 +92,23 @@ const report: SmokeReport = {
   })),
   deniedBuiltIn: { name: "builtin:shell", outcome: "refused" },
   views: VIEW_SURFACES.flatMap(({ id }) =>
-    (["light", "dark"] as const).map((appearance) => ({
-      surface: id,
-      appearance,
-      file: `views/${id}-${appearance}.png`,
-      width: 1280,
-      height: 800,
-      bytes: 20000,
-      dominantFraction: 0.6,
-      qualifiers: ["swept 08:02 · 1 failed", "GitLab reads failed; items may be missing."],
-    })),
+    VIEW_WIDTHS.flatMap((viewportWidth) =>
+      (["light", "dark"] as const).map((appearance) => ({
+        surface: id,
+        appearance,
+        viewportWidth,
+        file: `views/${id}-${viewportWidth}-${appearance}.png`,
+        width: viewportWidth,
+        height: 800,
+        bytes: 20000,
+        dominantFraction: 0.6,
+        qualifiers: ["swept 08:02 · 1 failed", "GitLab reads failed; items may be missing."],
+        geometry: geometry(id, viewportWidth),
+        ...(id === "detail-related" && viewportWidth === 1440 && appearance === "light"
+          ? { rejectedGeometry: "Related value squeezed to 159 px" }
+          : {}),
+      })),
+    ),
   ),
   supervision: {
     signal: "SIGKILL",
@@ -139,9 +205,26 @@ it("rejects a missing dark appearance even when the screenshot count is unchange
       ? { ...shot, appearance: "system" }
       : shot,
   );
-  expect(() => assertSmokeViews(mutation)).toThrow("security/dark");
+  expect(() => assertSmokeViews(mutation)).toThrow("security/1440/dark");
 });
 
+it("fails when a single surface/width/appearance combination is dropped or replaced", () => {
+  const missing = report.views.filter(
+    (shot) =>
+      !(
+        shot.surface === "settings-failed" &&
+        shot.viewportWidth === 740 &&
+        shot.appearance === "dark"
+      ),
+  );
+  expect(() => assertSmokeViews(missing)).toThrow("Missing screenshot");
+  const disguised = report.views.map((shot) =>
+    shot.surface === "settings-failed" && shot.viewportWidth === 740 && shot.appearance === "dark"
+      ? { ...shot, viewportWidth: 900 }
+      : shot,
+  );
+  expect(() => assertSmokeViews(disguised)).toThrow(/settings-failed\/900\/dark/);
+});
 it.each([24, 240])("fails uniform and nearly one-colour images (%s)", (background) => {
   for (const inkPixels of [0, 1, 1280]) {
     expect(() =>
@@ -153,6 +236,25 @@ it.each([24, 240])("fails uniform and nearly one-colour images (%s)", (backgroun
   ).not.toThrow();
 });
 
+it("fails missing or broken renderer geometry in the terminal report", () => {
+  for (const geometry of [[], [{ rule: "drag", services: 13 }]]) {
+    expect(() =>
+      assertSmokeViews(
+        report.views.map((shot) =>
+          shot.surface === "strip-20" && shot.viewportWidth === 740 ? { ...shot, geometry } : shot,
+        ),
+      ),
+    ).toThrow();
+  }
+  expect(() =>
+    assertSmokeViews(
+      report.views.map((shot) => ({
+        ...shot,
+        rejectedGeometry: undefined,
+      })),
+    ),
+  ).toThrow("Missing packaged broken-rule proof");
+});
 it("fails undersized or truncated images", () => {
   const image = syntheticImage(24, 20000);
   for (const mutation of [{ width: 639 }, { height: 399 }, { bytes: 1023 }]) {
