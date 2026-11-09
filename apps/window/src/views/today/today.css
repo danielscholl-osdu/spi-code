@@ -33,12 +33,57 @@
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-.today-sweep > div {
-  display: grid;
-  grid-template-columns: 120px minmax(0, 1fr);
-  gap: 12px;
-  margin: 8px 0;
+.today-first-lead {
+  margin: 0 0 4px;
+  color: var(--text-strong);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.35;
 }
-.today-sweep dd {
-  margin: 0;
+.today-first-sub {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+}
+.today-first-actions {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+.today-first-actions button {
+  padding: 3px 12px;
+}
+.today-first-foot {
+  margin: 16px 0 0;
+  color: var(--text-muted);
+}
+.today-leaving {
+  position: absolute;
+  inset: var(--pane-header-height) 0 0 0;
+  box-sizing: border-box;
+  padding: var(--centre-content-padding-block) var(--centre-content-padding-inline);
+  overflow: hidden;
+  background: var(--surface);
+  pointer-events: none;
+  animation: today-out 150ms ease-out forwards;
+}
+.today-handover :is(.place-reading, .today-folded) {
+  animation: today-in 150ms ease-out;
+}
+@keyframes today-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes today-out {
+  to {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .today-leaving {
+    display: none;
+  }
+  .today-handover :is(.place-reading, .today-folded) {
+    animation: none;
+  }
 }

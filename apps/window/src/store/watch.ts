@@ -8,6 +8,7 @@ import {
   parseMessage,
   type SetupSigninProgress,
   type SetupState,
+  type SweepProgress,
   type SweepStatus,
   type ViewSnapshot,
   type WatchMessage,
@@ -22,6 +23,12 @@ type WatchState = {
   select(id: string): void;
   clear(): void;
   sweep: SweepStatus | null;
+  /** The latest sweep.progress, whole; never persisted. */
+  progress: SweepProgress | null;
+  /** The last sweep that committed, kept with each source's final state after hand-over. */
+  completed: SweepProgress | null;
+  /** Asks the host for a sweep through its non-forced path. */
+  requestSweep(): void | Promise<void>;
   setup: SetupState | null;
   /** A recheck stays pending through the budget probe, until its correlated state or error. */
   setupCheckRequest: string | null;
@@ -85,6 +92,19 @@ export function createWatchStore(
       inspector.getState().clear();
     },
     sweep: null,
+    progress: null,
+    completed: null,
+    requestSweep() {
+      const parsed = parseMessage({
+        version: PROTOCOL_VERSION,
+        id: crypto.randomUUID(),
+        kind: "request",
+        type: "sweep.request",
+        payload: {},
+      });
+      if (!parsed.ok) throw new Error("Invalid sweep request");
+      return send(parsed.message);
+    },
     setup: null,
     setupCheckRequest: null,
     setupCheckError: null,
@@ -168,6 +188,10 @@ export function createWatchStore(
         return;
       }
       if (message.type === "sweep.status") set({ sweep: message.payload });
+      if (message.type === "sweep.progress") {
+        const progress = message.payload;
+        set(progress.outcome === "committed" ? { progress, completed: progress } : { progress });
+      }
       if (message.type === "setup.state") {
         const checked = message.id === get().setupCheckRequest;
         set({

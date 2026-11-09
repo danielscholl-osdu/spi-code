@@ -8,6 +8,7 @@ import { expect, it, vi } from "vitest";
 import briefing from "../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import releases from "../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
 import { Shell } from "../app/Shell.js";
+import { midSweep } from "../components/sweep/test-helper.js";
 import { createSelectionStore } from "../panels/selection.js";
 import { testSnapshot as snapshotFromOracles } from "./test-snapshot.js";
 import { createWatchStore, selectAreaEnvelopes, selectEnvelopes, watchStore } from "./watch.js";
@@ -501,4 +502,37 @@ it("keeps the latest cursorless sweep and setup states independently of snapshot
   expect(() => store.getState().receive(event("view.snapshot", { cursor: -1 }))).toThrow(
     "Invalid host",
   );
+});
+
+it("keeps the latest sweep.progress and the last committed list past the hand-over", () => {
+  const store = createWatchStore(vi.fn());
+  const running = midSweep();
+  const committed = midSweep({
+    outcome: "committed",
+    sources: running.sources.map((source) =>
+      source.state === "reading" || source.state === "waiting"
+        ? { source: source.source, state: "read" }
+        : source,
+    ),
+  });
+  store.getState().receive(event("sweep.progress", running));
+  expect(store.getState()).toMatchObject({ progress: running, completed: null });
+  store.getState().receive(event("sweep.progress", committed));
+  store.getState().receive(event("view.snapshot", testSnapshot({ cursor: 9 })));
+  const later = midSweep({ sweep: "sweep-2", first: false });
+  store.getState().receive(event("sweep.progress", later));
+  expect(store.getState()).toMatchObject({ progress: later, completed: committed });
+  expect(() =>
+    store.getState().receive(event("sweep.progress", { ...running, outcome: "done" })),
+  ).toThrow("Invalid host");
+});
+
+it("asks for a sweep with an empty sweep.request", async () => {
+  const send = vi.fn();
+  const store = createWatchStore(send);
+  await store.getState().requestSweep();
+  expect(send).toHaveBeenCalledWith(
+    expect.objectContaining({ kind: "request", type: "sweep.request", payload: {} }),
+  );
+  expect(WatchMessageSchema.safeParse(send.mock.calls[0]?.[0]).success).toBe(true);
 });

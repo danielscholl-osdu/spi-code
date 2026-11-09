@@ -9,6 +9,8 @@ export interface ClockOptions {
   now?: number;
   /** An IANA zone; the window's own zone when absent. */
   timeZone?: string;
+  /** False leaves out the relative hint, for copy that already says when. */
+  hint?: boolean;
 }
 
 const formats = new Map<string, Intl.DateTimeFormat>();
@@ -60,7 +62,7 @@ export function clockTime(at: string | number | Date, options: ClockOptions = {}
   const today = fields(new Date(now), options.timeZone);
   const text = time.day === today.day ? time.clock : `${time.date} ${time.clock}`;
   const ahead = date.getTime() - now;
-  return ahead > 0 ? `${text} (in ${until(ahead)})` : text;
+  return ahead > 0 && options.hint !== false ? `${text} (in ${until(ahead)})` : text;
 }
 
 /** A visible time: {@link clockTime} in a `time` element whose `datetime` keeps the ISO value. */

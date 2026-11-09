@@ -1,0 +1,109 @@
+/* Copyright 2026, Daniel Scholl
+ * SPDX-License-Identifier: MIT */
+
+.sweep-sources {
+  font: 13px/1.5 var(--font-sans);
+}
+.sweep-meta,
+.sweep-throttled {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.sweep-throttled {
+  color: var(--warning-text);
+}
+.sweep-bar {
+  display: flex;
+  gap: 3px;
+  margin: 12px 0;
+}
+.sweep-segment {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+.sweep-segment[data-tone="run"] {
+  background: var(--accent);
+}
+.sweep-segment[data-tone="ok"] {
+  background: var(--success);
+}
+.sweep-segment[data-tone="warn"] {
+  background: var(--warning);
+}
+.sweep-segment[data-tone="bad"] {
+  background: var(--error);
+}
+.sweep-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sweep-row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 11rem) minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 2px 12px;
+  align-items: baseline;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+.sweep-mark {
+  text-align: center;
+}
+.sweep-row[data-tone="wait"] .sweep-mark {
+  color: var(--text-muted);
+}
+.sweep-row[data-tone="run"] .sweep-mark {
+  color: var(--accent-text);
+}
+.sweep-row[data-tone="ok"] .sweep-mark {
+  color: var(--success-text);
+}
+.sweep-row[data-tone="warn"] .sweep-mark {
+  color: var(--warning-text);
+}
+.sweep-row[data-tone="bad"] .sweep-mark {
+  color: var(--error-text);
+}
+.sweep-name {
+  color: var(--text-strong);
+}
+.sweep-what {
+  color: var(--text-muted);
+}
+.sweep-outcome {
+  font-variant-numeric: tabular-nums;
+}
+.sweep-row[data-tone="wait"] .sweep-outcome {
+  color: var(--text-muted);
+}
+.sweep-row[data-tone="bad"] .sweep-outcome {
+  color: var(--error-text);
+}
+.sweep-why {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: baseline;
+  grid-column: 2 / -1;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.sweep-why button {
+  padding: 2px 10px;
+  font-size: 11.5px;
+}
+@container (max-width: 640px) {
+  .sweep-row {
+    grid-template-columns: 16px minmax(0, 1fr);
+  }
+  .sweep-what {
+    display: none;
+  }
+  .sweep-outcome {
+    grid-column: 2;
+  }
+}

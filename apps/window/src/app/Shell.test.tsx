@@ -140,7 +140,9 @@ it("names every navigated place in the centre header and keeps it in the documen
       );
     expect(place()).toBe("Today");
     expect(container.querySelector("main h1")?.textContent).toBe("Today");
-    expect(container.querySelector("main")?.textContent).toContain("First sweep running");
+    expect(container.querySelector("main")?.textContent).toContain(
+      "First sweep is reading the program.",
+    );
     for (const [label, hash, heading = label] of [
       ["Today", "#today"],
       ["Engineering system", "#engineering-system"],

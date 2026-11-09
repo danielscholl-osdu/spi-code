@@ -21,6 +21,28 @@ export const AREA_NAMES: Readonly<Record<AreaName, string>> = {
 
 const SOURCE_NAMES: Readonly<Record<string, string>> = { releases: "Release lines" };
 
+/** What each sweep source reads, in the first-sweep list's fixed second column. */
+export const SOURCE_READS: Readonly<Record<AreaName | "releases", string>> = {
+  auth: "gh and glab",
+  fleet: "forks, stack and rollout",
+  github: "pull requests and checks",
+  runs: "main and cascade on each fork",
+  approvals: "runs waiting for approval",
+  lifecycle: "deploys on the stack repo",
+  template: "template revision per fork",
+  details: "logs of failed checks",
+  upstream: "GitLab master per fork",
+  radar: "open merge requests upstream",
+  security: "code scanning on each fork",
+  releases: "release PRs and tags",
+};
+
+export function sourceReads(source: string): string | undefined {
+  return Object.hasOwn(SOURCE_READS, source)
+    ? SOURCE_READS[source as keyof typeof SOURCE_READS]
+    : undefined;
+}
+
 export function sourceName(source: string): string {
   return (AREAS as readonly string[]).includes(source)
     ? AREA_NAMES[source as AreaName]

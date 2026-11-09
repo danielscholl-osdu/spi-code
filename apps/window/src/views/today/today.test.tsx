@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
+import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
@@ -201,30 +201,4 @@ it("keeps every former Inbox item readable in one click and selectable through i
   const scope = container.querySelector<HTMLButtonElement>('.place-scope[title="Open legal"]');
   await act(async () => scope?.click());
   expect(onNavigate).toHaveBeenLastCalledWith({ kind: "service", id: "legal" });
-});
-
-it("shows only named sweep.status fields before the first snapshot and does not auto-select", async () => {
-  const { container, store, port } = await mount(null);
-  await act(async () =>
-    store.getState().receive({
-      version: PROTOCOL_VERSION,
-      id: "sweep",
-      kind: "event",
-      type: "sweep.status",
-      payload: {
-        remaining: 123,
-        floor: 100,
-        resetAt: null,
-        deferredAreas: [{ area: "radar", reason: "budget" }],
-      },
-    }),
-  );
-  expect(text(container, "dt")).toEqual(["remaining", "floor", "resetAt", "deferredAreas"]);
-  expect(container.textContent).toContain("123 API calls");
-  expect(container.textContent).toContain("radar: budget");
-  expect(container.querySelector(".place-tiles, .place-group, details")).toBeNull();
-  await act(async () => store.setState({ snapshot: { cursor: fixture.cursor, body: fixture } }));
-  expect(container.querySelectorAll(".place-tile")).toHaveLength(3);
-  expect(store.getState().selection).toBeNull();
-  expect(port.postMessage).not.toHaveBeenCalled();
 });
