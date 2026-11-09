@@ -142,6 +142,11 @@ export const SweepProgressSchema = z
       progress.source === undefined ||
       progress.sources.some(({ source }) => source === progress.source),
     { message: "The failed source must be one of the sweep's sources", path: ["source"] },
+  )
+  .refine(
+    (progress) =>
+      progress.outcome !== "failed" || progress.code !== "save" || progress.source === undefined,
+    { message: "A failure while saving names no source", path: ["source"] },
   );
 export const SweepRequestSchema = z.strictObject({});
 export const ViewSubscribeSchema = z.strictObject({ fromCursor: z.int().nonnegative() });

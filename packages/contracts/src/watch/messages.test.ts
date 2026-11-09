@@ -266,6 +266,10 @@ describe("sweep progress", () => {
     }
     expect(parse({ ...failed, source: "packages" }).ok).toBe(false);
   });
+  it("names no source for a failure while saving", () => {
+    expect(parse({ ...failed, code: "save", source: undefined }).ok).toBe(true);
+    expect(parse({ ...failed, code: "save" }).ok).toBe(false);
+  });
   it("rejects unknown outcomes, source states and reason codes", () => {
     for (const outcome of ["done", "skipped", "", null]) {
       expect(parse({ ...progress, outcome }).ok).toBe(false);
