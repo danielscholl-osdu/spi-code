@@ -792,7 +792,7 @@ code{font-family:var(--mono);font-size:.9em}
   </section>
 
   <!-- ================= FIRST SWEEP ================= -->
-  <section>
+  <section id="first-sweep">
     <h2>First sweep</h2>
     <p>Added 2026-11-09. On first launch nothing has been read yet, so Today shows the sweep itself: its twelve sources (the eleven areas and releases) in the order it reads them, named as the Evidence tab names them, each with what it reads and how it went. The rows never reorder. The list comes from the <code>sweep.progress</code> event; only <code>view.snapshot</code> hands over to the brief, in place, with a 150 ms crossfade (none under reduced motion). No raw field name appears. PRD rows PS-03, PS-05, PS-19 and EV-03 carry the behaviour.</p>
 
@@ -944,7 +944,7 @@ code{font-family:var(--mono);font-size:.9em}
         </tbody>
       </table>
     </div>
-    <p class="note">Example values throughout. The rows' names are the Evidence tab's area names, and the second column is fixed copy per source. Progress is never stored: the host sends at most four updates a second and replays the latest to a window that subscribes late; <code>sweep.status</code> is unchanged.</p>
+    <p class="note">Example values throughout. The rows' names are the Evidence tab's area names, and the second column is fixed copy per source. Progress is never stored: the host sends at most four updates a second and replays the latest to a window that subscribes late; <code>sweep.status</code> is unchanged. Every time and count comes from a field, never from prose: a cut source's "6 of 13 incomplete" from <code>incomplete</code> (incomplete reads of the total), a put-off or throttled source's "after 09:10" or "Resumes at 08:04" from <code>resumeAt</code>, and the stopped sweep's "tries again at" from <code>nextAttemptAt</code>, the real retry time, not the budget reset in <code>sweep.status</code>.</p>
   </section>
 
   <!-- ================= NOT IN THIS CHANGE ================= -->

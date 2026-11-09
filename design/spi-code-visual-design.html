@@ -777,7 +777,7 @@ ul.plain li{margin:3px 0}
       </div>
     </div>
     <p class="note">Proposed, light appearance, example data. Entitlements holds two threads: a code thread waiting on the operator with its branch under the title, and an operate thread working; the Inbox's Done thread is in the Settled shelf. The P0 row carries the marker of the thread that owns it. Both cards in Waiting for you came from the code thread and are decided there.</p>
-    <p>Before the first sweep finishes, the Inbox shows what the host's sweep status message carries and nothing more: "first sweep running", the API calls remaining and when the budget resets, and each deferred area with its reason, from the fields <code>remaining</code>, <code>floor</code>, <code>resetAt</code> and <code>deferredAreas</code>.</p>
+    <p>Before the first sweep finishes, Today (which replaces the Inbox) shows the sweep's own sources live from <code>sweep.progress</code>: the eleven areas and releases in sweep order, named as the Evidence tab names them, each with what it reads and its state, under a segmented bar. No raw field name appears, and only <code>view.snapshot</code> hands over to the brief. The <a href="spi-code-window-layout.html#first-sweep">window layout's first-sweep frame</a> draws it at 1440 and 740 px, with a failed source, the whole sweep stopped and the top row during a later sweep, and supersedes this section for the first sweep.</p>
   </section>
 
   <section>
@@ -1291,7 +1291,7 @@ exit 0 · 38 s</div>
 
   <section id="gaps">
     <h2>Contract additions</h2>
-    <p>Five values this layout needs are not in the Watch contract. Each is an addition beside the existing fields, made in its own bead, changing no model output and no oracle. The surfaces that need them do not ship until they land: the additions bead is a hard predecessor of PS-04 for repository lines, PS-05 for the station Detail, Release and Runs sections, and the thread-artifact join. Template version per fork and per-area sweep progress were considered and cut; the fleet counts and the sweep status message suffice.</p>
+    <p>Five values this layout needs are not in the Watch contract. Each is an addition beside the existing fields, made in its own bead, changing no model output and no oracle. The surfaces that need them do not ship until they land: the additions bead is a hard predecessor of PS-04 for repository lines, PS-05 for the station Detail, Release and Runs sections, and the thread-artifact join. Template version per fork was considered and cut; the fleet counts suffice. Per-area sweep progress was cut here too, then restored on 2026-11-09 as its own event, <code>sweep.progress</code>, with <code>sweep.request</code> for Try again; the <a href="spi-code-window-layout.html#first-sweep">window layout's first-sweep frame</a> draws what the window does with it.</p>
     <div class="tblwrap"><table class="tbl compact">
       <thead><tr><th style="width:26%">Addition</th><th style="width:40%">What the window draws with it</th><th>Blocks</th></tr></thead>
       <tbody>
@@ -1479,7 +1479,8 @@ exit 0 · 38 s</div>
         <tr><td>Code thread: Changes and Checks tabs only</td><td>The Thread tab at T3 parity: worktree, editor, branch and PR, git actions as cards, Changes with +/−, Checks, lineage; Detail and Evidence kept</td><td>Short of T3 Code's coding workspace; the anchor's detail vanished in a code thread</td></tr>
         <tr><td>Station, line, release and run Detail promised at M2</td><td>Detail defined per kind; five additions named as a hard predecessor</td><td>The contract has no station inspect ids, no line ids, no run facts and no inspect title</td></tr>
         <tr><td>"Each field once on its owner surface"</td><td>Primary once plus listed mirrors, an exhaustive map, routes counted per entity</td><td>The lens and page duplication was deliberate and the rule contradicted it</td></tr>
-        <tr><td>Runs lens; 1180 px rail; template version per fork; per-area first-sweep progress; ⌘K Actions</td><td>Cut</td><td>Bare ids; unnamed dots; counts suffice; the status message carries no progress; palette cards have no decision place</td></tr>
+        <tr><td>Runs lens; 1180 px rail; template version per fork; ⌘K Actions</td><td>Cut</td><td>Bare ids; unnamed dots; counts suffice; palette cards have no decision place</td></tr>
+        <tr><td>Before the first sweep, the budget fields by name; per-area first-sweep progress cut</td><td>The sweep's sources live from <code>sweep.progress</code>, with Try again when the sweep stops (2026-11-09); the <a href="spi-code-window-layout.html#first-sweep">window layout's first-sweep frame</a></td><td>Raw field names told the operator nothing, and a failed first sweep left "first sweep running" on screen</td></tr>
         <tr><td>Mockup text taken from the live sweep</td><td>Synthetic values throughout</td><td>Some source repositories are private</td></tr>
       </tbody>
     </table></div>
