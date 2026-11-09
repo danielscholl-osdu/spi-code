@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { SweepProgress, ViewSnapshot } from "@spi-code/contracts";
-import { useEffect, useId, useState } from "react";
+import { useId } from "react";
 import { clockTime, Time } from "../../time.js";
 import { settled } from "../sweep/words.js";
 import { useNow } from "./useNow.js";
@@ -13,40 +13,45 @@ export type SweepLineSnapshot = Pick<ViewSnapshot, "areas" | "provenance" | "swe
   briefing: { nextSyncAt?: string | undefined };
 };
 
-/** Below this window width the first sweep's field drops "sweeping ·" and reads "9 of 12". */
-export const SHORT_FRESHNESS_BELOW = 900;
+const running = (progress: SweepProgress | null | undefined) =>
+  progress?.outcome === "running" ? progress : null;
 
-const narrow = () => window.innerWidth < SHORT_FRESHNESS_BELOW;
+const counted = (progress: SweepProgress) => `${settled(progress)} of ${progress.sources.length}`;
 
-function useShort(): boolean {
-  const [short, setShort] = useState(narrow);
-  useEffect(() => {
-    const resize = () => setShort(narrow());
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
-  }, []);
-  return short;
+/**
+ * The first sweep's two display forms, "sweeping · 9 of 12" and the folded "9 of 12", or null when
+ * the field does not carry a first sweep.
+ */
+export function firstSweepForms(
+  snapshot: SweepLineSnapshot | null,
+  progress: SweepProgress | null | undefined,
+): { full: string; short: string } | null {
+  const live = running(progress);
+  if (snapshot !== null || !live) return null;
+  const count = counted(live);
+  return { full: `sweeping · ${count}`, short: count };
 }
 
 /**
  * The title bar's freshness glyph (EV-03); a button that opens the sweep Evidence. While a sweep
- * runs it carries the sweep: "sweeping · 9 of 12" before the first snapshot, the sweep time and
- * "sweeping 4 of 12" over an older one.
+ * runs it carries the sweep: "sweeping · 9 of 12" before the first snapshot ("9 of 12" when the top
+ * row's fold plan shortens it), the sweep time and "sweeping 4 of 12" over an older one.
  */
 export function SweepLine({
   snapshot,
   progress = null,
+  short = false,
   onOpen,
 }: {
   snapshot: SweepLineSnapshot | null;
   progress?: SweepProgress | null | undefined;
+  short?: boolean;
   onOpen(): void;
 }) {
   const labelId = useId();
   const now = useNow();
-  const short = useShort();
-  const running = progress?.outcome === "running" ? progress : null;
-  const count = running && `${settled(running)} of ${running.sources.length}`;
+  const live = running(progress);
+  const count = live && counted(live);
   const glyph =
     snapshot === null
       ? null
@@ -56,7 +61,7 @@ export function SweepLine({
           now,
         });
   const first = snapshot === null && count ? count : null;
-  const later = snapshot !== null && running && !running.first ? count : null;
+  const later = snapshot !== null && live && !live.first ? count : null;
   const text = first
     ? `First sweep · ${first} sources done`
     : later && snapshot

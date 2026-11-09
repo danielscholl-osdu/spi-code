@@ -36,6 +36,8 @@ export const MEASURE = {
   dueFull: "due.full",
   dueCount: "due.count",
   nextSync: "next-sync",
+  freshnessFull: "freshness.full",
+  freshnessShort: "freshness.short",
 } as const;
 
 type Measured = Omit<FoldInput, "change" | "previous">;
@@ -74,8 +76,10 @@ export function measureStrip(root: HTMLElement, pips: number): Measured | undefi
   if (due) fields.due = { full: due[0], count: due[1] };
   const nextSync = form(MEASURE.nextSync);
   if (nextSync !== undefined) fields.nextSync = nextSync;
+  const freshnessForms = pair(MEASURE.freshnessFull, MEASURE.freshnessShort);
   const freshness = widthOf(root.querySelector('[data-field="freshness"]'));
-  if (freshness !== undefined) fields.freshness = freshness;
+  if (freshnessForms) fields.freshness = { full: freshnessForms[0], short: freshnessForms[1] };
+  else if (freshness !== undefined) fields.freshness = freshness;
   return {
     fields,
     width: { first, second: row ? innerWidth(row) : 0 },
@@ -87,13 +91,14 @@ const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringif
 
 /**
  * The top row's fold plan (PS-18), re-planned when the snapshot changes and whenever the row or a
- * field resizes. `undefined` until the row has been measured.
+ * field resizes. `undefined` until the row has been measured. Before the first snapshot it plans the
+ * freshness field alone; the first snapshot plans afresh.
  */
 export function useFoldPlan(
   root: RefObject<HTMLElement | null>,
   snapshot: { sweptAt: string; stations: readonly unknown[] } | undefined,
 ): FoldPlan | undefined {
-  const [plan, setPlan] = useState<FoldPlan>();
+  const [state, setState] = useState<{ plan: FoldPlan; snapshot: boolean }>();
   const last = useRef<{ plan?: FoldPlan; measured?: Measured; sweep?: string; pips: number }>({
     pips: 0,
   });
@@ -120,7 +125,8 @@ export function useFoldPlan(
       });
       last.current.plan = next;
       last.current.measured = measured;
-      setPlan((current) => (current && sameJson(current, next) ? current : next));
+      const planned = { plan: next, snapshot: last.current.sweep !== undefined };
+      setState((current) => (current && sameJson(current, planned) ? current : planned));
     },
     [root],
   );
@@ -154,12 +160,18 @@ export function useFoldPlan(
   });
 
   useLayoutEffect(() => {
-    if (!snapshot) return;
+    if (!snapshot) {
+      if (last.current.sweep === undefined) return;
+      last.current = { pips: 0 };
+      replan();
+      return;
+    }
     last.current.pips = snapshot.stations.length;
+    if (last.current.sweep === undefined) last.current = { pips: last.current.pips };
     const trigger = last.current.sweep === snapshot.sweptAt ? "refresh" : "sweep";
     last.current.sweep = snapshot.sweptAt;
     replan(trigger);
   }, [snapshot, replan]);
 
-  return snapshot ? plan : undefined;
+  return state && state.snapshot === (snapshot !== undefined) ? state.plan : undefined;
 }

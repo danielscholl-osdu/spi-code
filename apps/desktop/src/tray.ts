@@ -74,24 +74,30 @@ export function createSweepTray(
   let deferred = false;
   let armed = false;
   let handedOver = false;
+  /** The first sweep's running, stopped or ready text, kept over budget updates until it moves on. */
+  let phase: { text: string; dot?: Dot } | null = null;
   const paint = (dot: Dot, text: string) => {
     tray.setImage(dotImage(dot));
     tray.setToolTip(`SPI Code - ${text}`);
   };
-  const sweep = () => {
+  const state = (): [Dot, string] => {
     if (latest?.areas.some(({ envelope }) => envelope.state === "failed"))
-      paint("failed", "Read failed");
-    else if (
+      return ["failed", "Read failed"];
+    if (
       deferred ||
       latest?.areas.some(
         ({ envelope }) => envelope.state === "incomplete" || envelope.state === "stale",
       )
     )
-      paint("warning", "Areas cut or stale");
-    else if (!latest || latest.areas.some(({ envelope }) => envelope.state === "unread"))
-      paint("unread", "First sweep running");
-    else if (latest.areas.every(({ envelope }) => envelope.inferred)) paint("unread", "Inferred");
-    else paint("fresh", "All fresh");
+      return ["warning", "Areas cut or stale"];
+    if (!latest || latest.areas.some(({ envelope }) => envelope.state === "unread"))
+      return ["unread", "First sweep running"];
+    if (latest.areas.every(({ envelope }) => envelope.inferred)) return ["unread", "Inferred"];
+    return ["fresh", "All fresh"];
+  };
+  const sweep = () => {
+    const [dot, text] = state();
+    paint(phase?.dot ?? dot, phase?.text ?? text);
   };
   tray.setContextMenu(
     Menu.buildFromTemplate([
@@ -111,11 +117,11 @@ export function createSweepTray(
       const message = parsed.message;
       if (message.type === "view.snapshot") {
         latest = message.payload;
+        phase = armed ? { text: "Today is ready" } : null;
         sweep();
         if (armed) {
           armed = false;
           handedOver = true;
-          tray.setToolTip("SPI Code - Today is ready");
           if (hidden()) {
             const count = interruptions(message.payload.briefing);
             notify(
@@ -130,12 +136,15 @@ export function createSweepTray(
         const progress = message.payload;
         if (latest || !progress.first) return;
         if (!handedOver) armed = true;
-        if (progress.outcome === "failed") paint("failed", "First sweep stopped");
-        else if (progress.outcome === "running") {
+        if (progress.outcome === "failed") {
+          phase = { text: "First sweep stopped", dot: "failed" };
+          sweep();
+        } else if (progress.outcome === "running") {
           const done = progress.sources.filter(
             ({ state }) => state !== "waiting" && state !== "reading" && state !== "throttled",
           ).length;
-          paint("unread", `First sweep running · ${done} of ${progress.sources.length}`);
+          phase = { text: `First sweep running · ${done} of ${progress.sources.length}` };
+          sweep();
         }
       } else if (message.type === "sweep.status") {
         deferred = message.payload.deferredAreas.length > 0;
@@ -143,6 +152,7 @@ export function createSweepTray(
       } else if (message.type === "setup.state" && !message.payload.watchReady) {
         latest = undefined;
         deferred = false;
+        phase = null;
         paint("unread", "Watch is off");
       } else if (message.type === "error" && message.payload.code === "host_unavailable") {
         paint("failed", "Host stopped");
@@ -151,6 +161,7 @@ export function createSweepTray(
     disconnected() {
       latest = undefined;
       deferred = false;
+      phase = null;
       paint("failed", "Host reconnecting");
     },
     present: () => !tray.isDestroyed(),

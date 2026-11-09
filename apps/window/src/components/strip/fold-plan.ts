@@ -38,7 +38,8 @@ export type FieldWidths = {
   template?: number;
   due?: { full: number; count: number };
   nextSync?: number;
-  freshness?: number;
+  /** The live field's width, or both forms while the first sweep runs ("sweeping · 9 of 12", "9 of 12"). */
+  freshness?: number | { full: number; short: number };
 };
 
 /**
@@ -62,8 +63,8 @@ export type FoldInput = {
 };
 
 /**
- * Levels, each keeping every step before it: 0 nothing folded, 1 stopped names fold to a count, 2 the
- * pips shrink, 3 due, next sync and freshness wrap, 4 template wraps too, 5 environment, 6 stopped.
+ * Levels, each keeping every step before it: 0 nothing folded, 1 stopped names fold to a count and the
+ * first sweep's freshness to its short form, 2 the pips shrink, 3 due, next sync and freshness wrap, 4 template wraps too, 5 environment, 6 stopped.
  */
 export type FoldLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 /** How far the second row shortens its fields: 1 environment to its version, 2 due to its count too. */
@@ -76,6 +77,7 @@ export type FoldPlan = {
   stopped: "names" | "count";
   environment: "full" | "version";
   due: "full" | "count";
+  freshness: "full" | "short";
   /** The first row's pips and fields in reading order; the second row continues it. */
   first: ("pips" | StripField)[];
   second: StripField[];
@@ -121,6 +123,11 @@ function fieldWidth(
       return (shorten >= 1 ? fields.environment?.version : fields.environment?.full) ?? 0;
     case "due":
       return (shorten >= 2 ? fields.due?.count : fields.due?.full) ?? 0;
+    case "freshness": {
+      const freshness = fields.freshness;
+      if (typeof freshness !== "object") return freshness ?? 0;
+      return level >= 1 ? freshness.short : freshness.full;
+    }
     default:
       return fields[name] ?? 0;
   }
@@ -165,6 +172,7 @@ export function planFold({ fields, width, gap, change, previous }: FoldInput): F
     stopped: level >= 1 ? "count" : "names",
     environment: shorten >= 1 && second.includes("environment") ? "version" : "full",
     due: shorten >= 2 && second.includes("due") ? "count" : "full",
+    freshness: level >= 1 && typeof fields.freshness === "object" ? "short" : "full",
     first,
     second,
     free: width.first - firstNeeds(level),

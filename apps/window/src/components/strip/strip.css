@@ -12,6 +12,8 @@
 .strip-second:empty { visibility: hidden; height: 0; border: 0; }
 .strip-ruler { position: absolute; top: 0; left: 0; display: flex; flex-direction: column; align-items: flex-start; height: 0; overflow: hidden; visibility: hidden; pointer-events: none; }
 .strip-ruler > span { flex: none; }
+/* Measures the first sweep's freshness forms as the field draws them in the row. */
+.strip-ruler > .sweep-line { padding: 0; border: 0; }
 .strip-pips { display: inline-flex; align-items: center; }
 .strip-pip-target { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 12px; height: 44px; color: var(--text-muted); }
 .strip-pip-target:last-child { width: 9px; }

@@ -251,6 +251,45 @@ it("names one interruption or none in the hand-over notification, and stays quie
   expect(kept).not.toHaveBeenCalled();
 });
 
+function status(deferred: boolean): Message {
+  return {
+    version: PROTOCOL_VERSION,
+    id: "budget",
+    kind: "event",
+    type: "sweep.status",
+    payload: {
+      remaining: deferred ? 0 : 40,
+      resetAt: null,
+      deferredAreas: deferred ? [{ area: "security", reason: "budget" }] : [],
+    },
+  } as Message;
+}
+
+it("keeps the first sweep's stopped and ready text when budget status arrives", () => {
+  const bitmap = () => electron.bitmap.mock.calls.at(-1)?.[0];
+  const stopped = createSweepTray(vi.fn(), vi.fn());
+  stopped.observe(progress("running"));
+  const unread = bitmap();
+  stopped.observe(progress("failed"));
+  const failed = bitmap();
+  stopped.observe(status(false));
+  expect(electron.trays[0]?.setToolTip).toHaveBeenLastCalledWith("SPI Code - First sweep stopped");
+  expect(bitmap()).toEqual(failed);
+  expect(bitmap()).not.toEqual(unread);
+
+  const ready = createSweepTray(vi.fn(), vi.fn());
+  ready.observe(progress("running"));
+  ready.observe(snapshot(["stale", "failed"]));
+  expect(electron.trays[1]?.setToolTip).toHaveBeenLastCalledWith("SPI Code - Today is ready");
+  expect(bitmap()).toEqual(failed);
+  ready.observe(status(true));
+  expect(electron.trays[1]?.setToolTip).toHaveBeenLastCalledWith("SPI Code - Today is ready");
+  expect(bitmap()).toEqual(failed);
+  ready.observe(snapshot(["fresh"]));
+  ready.observe(status(true));
+  expect(electron.trays[1]?.setToolTip).toHaveBeenLastCalledWith("SPI Code - Areas cut or stale");
+});
+
 class Port extends EventEmitter {
   postMessage = vi.fn();
   start = vi.fn();

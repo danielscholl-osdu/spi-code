@@ -311,3 +311,27 @@ it("wraps a later sweep's longer freshness label to the second row like any othe
   );
   expect(topbar()).toBe("75px");
 });
+
+it("lets the fold plan, not the window width, shorten the first sweep's count", async () => {
+  const width = window.innerWidth;
+  try {
+    window.innerWidth = 899;
+    watchStore.setState({ snapshot: null, progress: midSweep() });
+    layout = {
+      ...layout,
+      first: 640,
+      widths: { ...layout.widths, "freshness.full": 121, "freshness.short": 55 },
+    };
+    await mount();
+    const shown = () => field("freshness")?.querySelector("[data-sweep-display]")?.textContent;
+    expect(shown()).toBe("sweeping · 9 of 12");
+    await relayout({ first: 150 });
+    expect(shown()).toBe("9 of 12");
+    expect(field("freshness")?.title).toBe("First sweep · 9 of 12 sources done");
+    expect(strip()?.dataset.rows).toBeUndefined();
+    await relayout({ first: 640 });
+    expect(shown()).toBe("sweeping · 9 of 12");
+  } finally {
+    window.innerWidth = width;
+  }
+});

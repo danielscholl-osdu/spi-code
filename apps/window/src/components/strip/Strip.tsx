@@ -8,7 +8,7 @@ import { ariaShortcut } from "../../app/shortcuts.js";
 import { PIPS, type PipState, selectStrip } from "../../store/strip.js";
 import { watchStore } from "../../store/watch.js";
 import { clockTime, Time } from "../../time.js";
-import { SweepLine } from "../evidence/SweepLine.js";
+import { firstSweepForms, SweepLine } from "../evidence/SweepLine.js";
 import { useNow } from "../evidence/useNow.js";
 import { PinMenu } from "../pin/PinMenu.js";
 import { openFreshness } from "../sweep/reveal.js";
@@ -37,15 +37,30 @@ export function Strip() {
       key="freshness"
       snapshot={snapshot ?? null}
       progress={progress}
+      short={plan?.freshness === "short"}
       onOpen={() => openFreshness(snapshot)}
     />
   );
-  if (!snapshot)
+  if (!snapshot) {
+    const forms = firstSweepForms(null, progress);
     return (
       <div className="strip" data-strip="" ref={root}>
         {freshness}
+        {forms && (
+          <div className="strip-ruler" aria-hidden inert>
+            <span className="sweep-line" data-measure={MEASURE.freshnessFull}>
+              <span className="evidence-dot" />
+              {forms.full}
+            </span>
+            <span className="sweep-line" data-measure={MEASURE.freshnessShort}>
+              <span className="evidence-dot" />
+              {forms.short}
+            </span>
+          </div>
+        )}
       </div>
     );
+  }
   const { pips, stopped, environment, template, due, nextSync } = selectStrip(snapshot);
   const counts = [
     ["stopped", "stopped"],

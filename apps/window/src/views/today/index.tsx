@@ -8,10 +8,11 @@ import { type Navigation, navigate } from "../../app/navigation.js";
 import { scopeRoute, treeServices } from "../../app/queue.js";
 import { sectionSources } from "../../components/evidence/SectionEvidence.js";
 import { useNow } from "../../components/evidence/useNow.js";
-import { byWorst, sourceName } from "../../components/evidence/words.js";
+import { byWorst } from "../../components/evidence/words.js";
 import { Place } from "../../components/place/Place.js";
 import { SweepSources } from "../../components/sweep/SweepSources.js";
-import { about, at, failedCount, settled } from "../../components/sweep/words.js";
+import { SweepStopped } from "../../components/sweep/SweepStopped.js";
+import { about, failedCount, settled } from "../../components/sweep/words.js";
 import { openReadiness } from "../../settings/readiness.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
@@ -72,28 +73,6 @@ function stage(progress: SweepProgress | null): string {
   return `${settled(progress)} of ${progress.sources.length} sources done${failures > 0 ? `, ${failures} failed` : ""}.`;
 }
 
-function Stopped({
-  progress,
-  now,
-}: {
-  progress: Extract<SweepProgress, { outcome: "failed" }>;
-  now: number;
-}) {
-  const reason = progress.failure.replace(/[.!?]$/, "");
-  const where = progress.source ? `while reading ${sourceName(progress.source)}` : "while saving";
-  return (
-    <p className="today-first-sub">
-      It stopped {where}: {reason}.
-      {progress.nextAttemptAt && (
-        <>
-          {" SPI Code tries again at "}
-          <time dateTime={progress.nextAttemptAt}>{at(progress.nextAttemptAt, now)}</time>.
-        </>
-      )}
-    </p>
-  );
-}
-
 function FirstSweepBody({
   progress,
   now,
@@ -111,7 +90,9 @@ function FirstSweepBody({
     return (
       <div className="today-first">
         <h2 className="today-first-lead">The first sweep stopped.</h2>
-        <Stopped progress={progress} now={now} />
+        <p className="today-first-sub">
+          <SweepStopped progress={progress} now={now} />
+        </p>
         <div className="today-first-actions">
           <button type="button" onClick={onRetry}>
             Try again

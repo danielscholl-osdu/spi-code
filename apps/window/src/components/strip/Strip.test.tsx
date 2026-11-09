@@ -495,8 +495,7 @@ const receive = (type: string, payload: unknown) =>
       .receive({ version: PROTOCOL_VERSION, id: "host", kind: "event", type, payload }),
   );
 
-it("carries the first sweep's count, shortens it on a narrow window and scrolls the list into view", async () => {
-  const width = window.innerWidth;
+it("carries the first sweep's count and scrolls the list into view", async () => {
   const scrolled: Element[] = [];
   const scrollIntoView = Element.prototype.scrollIntoView;
   Element.prototype.scrollIntoView = function (this: Element) {
@@ -516,12 +515,6 @@ it("carries the first sweep's count, shortens it on a narrow window and scrolls 
     expect(glyph()?.title).toBe("First sweep · 9 of 12 sources done");
     expect(glyph()?.dataset.tone).toBe("run");
     expect(glyph()?.querySelector(".evidence-dot")?.getAttribute("data-tone")).toBe("run");
-    await act(async () => {
-      window.innerWidth = 740;
-      window.dispatchEvent(new Event("resize"));
-    });
-    expect(display()).toBe("9 of 12");
-    expect(glyphName()).toBe("First sweep · 9 of 12 sources done");
     await act(async () => glyph()?.click());
     await act(() => new Promise((done) => setTimeout(done, 20)));
     expect(window.location.hash).toBe("#today");
@@ -530,7 +523,6 @@ it("carries the first sweep's count, shortens it on a narrow window and scrolls 
     await receive("sweep.progress", { ...midSweep(), outcome: "cancelled" });
     expect(display()).toBe("waiting for the first sweep");
   } finally {
-    window.innerWidth = width;
     Element.prototype.scrollIntoView = scrollIntoView;
   }
 });
@@ -565,6 +557,47 @@ it("keeps the sweep time over an older snapshot while a later sweep runs and ope
   );
   expect(evidence()?.querySelectorAll(".sweep-row")).toHaveLength(12);
   expect(evidence()?.querySelector(".sweep-meta")).toBeNull();
+});
+
+it("shows a newer sweep that stopped over the last completed list, with its reason and retry", async () => {
+  await mount();
+  const done = midSweep({ first: false, sweep: "sweep-2" });
+  await receive("sweep.progress", {
+    ...done,
+    outcome: "committed",
+    sources: done.sources.map((source) =>
+      source.state === "reading" || source.state === "waiting"
+        ? { source: source.source, state: "read", startedAt: after(120), endedAt: after(128) }
+        : source,
+    ),
+  });
+  await act(async () => glyph()?.click());
+  const list = () =>
+    container.querySelector<HTMLElement>(
+      '#app-right-panel [data-evidence="sweep"] [data-sweep-list]',
+    );
+  expect(list()?.dataset.sweepList).toBe("completed");
+  const later = midSweep({ first: false, sweep: "sweep-3" });
+  await receive("sweep.progress", later);
+  expect(list()?.dataset.sweepList).toBe("live");
+  await receive("sweep.progress", {
+    ...later,
+    outcome: "failed",
+    code: "timeout",
+    failure: "GitLab did not answer in time.",
+    source: "radar",
+    nextAttemptAt: "2026-11-09T08:07:00Z",
+  });
+  expect(list()?.dataset.sweepList).toBe("stopped");
+  const outcome = list()?.querySelector('[data-sweep-outcome="failed"]');
+  expect(outcome?.textContent).toMatch(
+    /^This sweep stopped\. It stopped while reading .+: GitLab did not answer in time\. SPI Code tries again at /,
+  );
+  expect(outcome?.querySelector("time")?.getAttribute("dateTime")).toBe("2026-11-09T08:07:00Z");
+  expect(list()?.querySelector<HTMLElement>('.sweep-row[data-source="radar"]')?.dataset.tone).toBe(
+    "bad",
+  );
+  expect(list()?.querySelectorAll(".sweep-row")).toHaveLength(12);
 });
 
 it("opens each place and the Line with one line before the first snapshot, its sidebar row muted", async () => {
