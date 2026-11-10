@@ -165,12 +165,18 @@ export function createOutageNotifications({
   };
 
   const finish = (progress: Progress) => {
-    if (progress.outcome === "running" || progress.outcome === "cancelled") return;
+    if (progress.outcome === "running") return;
     if (finished.has(progress.sweep)) return;
     finished.add(progress.sweep);
     if (finished.size > REMEMBERED_SWEEPS) {
       const [oldest] = finished;
       if (oldest !== undefined) finished.delete(oldest);
+    }
+    // A cancelled sweep ends without committing, but says nothing about what can be read.
+    if (progress.outcome === "cancelled") {
+      waking = false;
+      deliver();
+      return;
     }
     const failures = signinFailures(progress);
     const failing = new Set(failures);

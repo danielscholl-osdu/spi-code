@@ -126,6 +126,18 @@ function sweep(
   });
 }
 
+function cancelled(sources: Record<string, Spec>, id = `sweep-${++sweeps}`) {
+  return event("sweep.progress", {
+    sweep: id,
+    startedAt: stamp,
+    first: false,
+    usualMs: null,
+    sources: Object.entries(sources).map(([name, spec]) => source(name, spec)),
+    outcome: "cancelled",
+    nextAttemptAt: null,
+  });
+}
+
 function outage({ focused = false }: { focused?: boolean } = {}) {
   const power = new EventEmitter();
   const open = vi.fn();
@@ -313,6 +325,57 @@ it("lets the wake sweep's commit clear a stall held back before sleep", () => {
   notifier.observe(sweep(healthy, { code: "timeout", failure: "The read ran out of time." }));
   vi.advanceTimersByTime(STALL_MS - 1);
   expect(shown()).toEqual([]);
+});
+
+it("delivers a stall held back before sleep once at a cancelled sweep after wake", () => {
+  const { notifier, power, state, shown, open } = outage({ focused: true });
+  notifier.observe(status());
+  notifier.observe(snapshot(at(8, 2)));
+  vi.advanceTimersByTime(STALL_MS);
+  power.emit("suspend");
+  state.focused = false;
+  vi.advanceTimersByTime(60 * MINUTE);
+  power.emit("resume");
+  expect(shown()).toEqual([]);
+  const wake = cancelled({});
+  notifier.observe(wake);
+  expect(shown()).toEqual([{ title: TITLE, body: "No sweep has finished since 08:02." }]);
+  notifier.observe(wake);
+  notifier.observe(cancelled({}));
+  vi.advanceTimersByTime(60 * MINUTE);
+  expect(shown()).toHaveLength(1);
+  native.notifications[0]?.emit("click");
+  expect(open).toHaveBeenCalledExactlyOnceWith({ to: "evidence" });
+});
+
+it("neither creates nor clears a sign-in outage, nor restarts the stall, on a cancelled sweep", () => {
+  const { notifier, shown } = outage();
+  notifier.observe(setup("ready"));
+  notifier.observe(snapshot(at(8, 2)));
+  notifier.observe(sweep(healthy));
+  vi.advanceTimersByTime(14 * MINUTE);
+  notifier.observe(cancelled({ ...healthy, github: "signin" }));
+  notifier.observe(setup("signed-out"));
+  expect(shown()).toEqual([]);
+  vi.advanceTimersByTime(MINUTE);
+  expect(shown()).toEqual([{ title: TITLE, body: "No sweep has finished since 08:02." }]);
+
+  native.notifications.length = 0;
+  const lost = outage();
+  lost.notifier.observe(setup("ready"));
+  lost.notifier.observe(snapshot(at(8, 2)));
+  lost.notifier.observe(sweep(healthy));
+  lost.notifier.observe(cancelled({ ...healthy, github: "signin" }));
+  lost.notifier.observe(setup("signed-out"));
+  lost.notifier.observe(sweep({ ...healthy, github: "signin" }));
+  expect(lost.shown()).toEqual([{ title: TITLE, body: "gh is signed out. Today is from 08:02." }]);
+  lost.notifier.observe(cancelled(healthy));
+  expect(native.notifications[0]?.close).not.toHaveBeenCalled();
+  lost.notifier.observe(setup("ready"));
+  expect(native.notifications[0]?.close).toHaveBeenCalledOnce();
+  lost.notifier.observe(setup("signed-out"));
+  lost.notifier.observe(sweep({ ...healthy, github: "signin" }));
+  expect(lost.shown()).toHaveLength(1);
 });
 
 it("counts a snapshot with a higher cursor as a commit even when the clock moved back", () => {
