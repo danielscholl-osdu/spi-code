@@ -156,6 +156,22 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
             560,
           ),
         };
+      case "overlay-drag": {
+        const settings = surface.startsWith("settings-sweep-");
+        const backdrop = settings || width < 1440 ? rect(0, 0, width, 800) : undefined;
+        return {
+          rule,
+          overlay: settings ? "[role=dialog].settings" : ".right-panel-frame",
+          viewport: rect(0, 0, width, 800),
+          regions: [
+            { appRegion: "drag", rect: rect(0, 0, width, 44) },
+            { appRegion: "no-drag", rect: rect(24, 120, width - 48, 560) },
+            ...(backdrop ? [{ appRegion: "no-drag" as const, rect: backdrop }] : []),
+          ],
+          targets: [{ label: "Sweep now", rect: rect(width - 240, 130, 180, 30) }],
+          ...(backdrop ? { backdrop } : {}),
+        };
+      }
       case "related":
         return {
           rule,
@@ -396,6 +412,67 @@ it.each(Object.keys(scheduledQualifiers))(
               report.views.map((shot) => (matches(shot) ? { ...shot, ...mutation } : shot)),
             ),
           ).toThrow();
+        }
+      }
+    }
+  },
+);
+
+it.each(Object.keys(scheduledQualifiers))(
+  "requires overlay drag geometry on every scheduled capture: %s",
+  (surface) => {
+    for (const width of VIEW_WIDTHS) {
+      for (const appearance of ["light", "dark"]) {
+        expect(() =>
+          assertSmokeViews(
+            report.views.map((shot) =>
+              shot.surface === surface &&
+              shot.viewportWidth === width &&
+              shot.appearance === appearance
+                ? {
+                    ...shot,
+                    geometry: shot.geometry.filter(({ rule }) => rule !== "overlay-drag"),
+                  }
+                : shot,
+            ),
+          ),
+        ).toThrow("Missing geometry rules");
+      }
+    }
+  },
+);
+
+it.each(Object.keys(scheduledQualifiers).filter((surface) => surface.startsWith("settings-")))(
+  "rejects a missing or draggable Sweep Settings backdrop: %s",
+  (surface) => {
+    for (const width of VIEW_WIDTHS) {
+      for (const appearance of ["light", "dark"]) {
+        for (const missing of [true, false]) {
+          expect(() =>
+            assertSmokeViews(
+              report.views.map((shot) =>
+                shot.surface === surface &&
+                shot.viewportWidth === width &&
+                shot.appearance === appearance
+                  ? {
+                      ...shot,
+                      geometry: shot.geometry.map((geometry) =>
+                        geometry.rule === "overlay-drag"
+                          ? missing
+                            ? { ...geometry, backdrop: undefined }
+                            : {
+                                ...geometry,
+                                regions: geometry.regions.filter(
+                                  ({ appRegion }) => appRegion === "drag",
+                                ),
+                              }
+                          : geometry,
+                      ),
+                    }
+                  : shot,
+              ),
+            ),
+          ).toThrow(/backdrop/);
         }
       }
     }

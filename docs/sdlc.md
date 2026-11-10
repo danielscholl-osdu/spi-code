@@ -218,7 +218,11 @@ and snapshot fixtures pin future next-sweep and budget-reset times. The named
 header, schedule and control must fit inside the panel and viewport. At 740 px,
 the native picker selects Sweep and every cadence and labelled last-read cell
 sits below its source. Consecutive Sweep states reuse the renderer with increasing
-snapshot cursors rather than reloading it.
+snapshot cursors rather than reloading it. Every new surface also checks its
+interactive targets against Electron's drag shape. Settings requires its full
+backdrop to be clear of drag rectangles; Evidence includes its backdrop when
+presented as a sheet. The separate nine-overlay probe still loads once and
+resizes each open overlay through minimum, launch and wide sizes.
 Seven first-sweep surfaces add a running list with failed sign-in and budget deferral,
 throttling, stops while reading and while saving, a place before its first snapshot,
 the retained list in Evidence after hand-over, and a refresh over the older brief.
@@ -242,10 +246,14 @@ The screenshot phase precedes host startup, so these schema-valid `sweep.progres
 fixtures use the same smoke-only preload channel as `view.snapshot` and `setup.state`,
 not the real host progress feed. The later persisted-snapshot and supervision proof
 starts only after removing fixtures.
-The launcher and in-app deadlines share one six-minute budget: Windows CI's
+The launcher's child-process hard limit and the in-app smoke watchdog both use
+`SMOKE_TIMEOUT_MS` (360,000 ms, previously 240,000 ms): Windows CI's
 180-capture run reached the last 740 px appearance at the former four-minute
-deadline, before the host proof could run. Per-DOM waits and all geometry/image
-gates are unchanged.
+deadline, before the host proof could run. Both limits must allow the expanded
+matrix, overlay checks and host/runtime proof to finish: raising only one leaves
+the other able to terminate a healthy run. The launcher can kill a blocked app;
+the smoke watchdog reports an in-app timeout. The non-smoke proof watchdog stays
+at 120,000 ms. Per-DOM waits and all geometry/image gates are unchanged.
 Missing shots, images smaller than 640 x 400 or 1024 PNG bytes, or images
 with 99.5% of pixels in one 4-bit-per-channel RGB bucket fail the smoke.
 Every shot must carry the title-bar sweep line (first-sweep captures carry its

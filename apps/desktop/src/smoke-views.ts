@@ -785,8 +785,24 @@ export async function captureSmokeViews(
             await rendered(window, "true");
           }
           const geometry = [];
-          for (const rule of geometryRules(surface.id, viewportWidth))
-            geometry.push(await measure(window, rule));
+          for (const rule of geometryRules(surface.id, viewportWidth)) {
+            if (rule === "overlay-drag") {
+              const settings = surface.id.startsWith("settings-sweep-");
+              const backdrop = settings
+                ? ".settings-backdrop"
+                : await window.webContents.executeJavaScript(
+                    'document.querySelector(".detail-backdrop") ? ".detail-backdrop" : ""',
+                  );
+              geometry.push(
+                await measure(
+                  window,
+                  rule,
+                  settings ? "[role=dialog].settings" : ".right-panel-frame",
+                  backdrop,
+                ),
+              );
+            } else geometry.push(await measure(window, rule));
+          }
           const bounds = geometry.find((check) => check.rule === "window");
           assert(bounds?.rule === "window");
           console.log(

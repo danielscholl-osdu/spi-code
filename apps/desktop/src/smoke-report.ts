@@ -248,8 +248,9 @@ export const VIEW_SURFACES = [
 
 export function geometryRules(surface: string, width: number): SmokeGeometry["rule"][] {
   if (surface.startsWith("settings-sweep-"))
-    return ["window", "settings", "sweep-visible", "sweep-reads"];
-  if (surface.startsWith("evidence-header-")) return ["window", "headers", "sweep-visible"];
+    return ["window", "settings", "sweep-visible", "sweep-reads", "overlay-drag"];
+  if (surface.startsWith("evidence-header-"))
+    return ["window", "headers", "sweep-visible", "overlay-drag"];
   if (surface === "first-sweep-evidence") return ["window", "headers", "failed-reads"];
   if (surface.startsWith("first-sweep-")) return ["window", "headers"];
   if (surface.startsWith("settings")) return ["window", "settings"];
@@ -451,6 +452,10 @@ export function assertSmokeViews(value: unknown): asserts value is SmokeShot[] {
         for (const [index, geometry] of shot.geometry.entries()) {
           assertSmokeGeometry(geometry);
           assert.equal(geometry.rule, rules[index], `Wrong geometry rule: ${id}`);
+          if (id.startsWith("settings-sweep-") && geometry.rule === "overlay-drag") {
+            assert.equal(geometry.overlay, "[role=dialog].settings", "Wrong Sweep overlay");
+            assert(geometry.backdrop, "Missing Sweep Settings backdrop");
+          }
           if (id === "panes" && geometry.rule === "headers")
             assert.equal(
               geometry.headers.length,
