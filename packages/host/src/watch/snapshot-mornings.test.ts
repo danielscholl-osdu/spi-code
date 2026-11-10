@@ -52,6 +52,12 @@ describe("Today morning sweep inputs", () => {
     );
     expect(view.stations).toHaveLength(13);
     expect(stopped(view)).toEqual([]);
+    expect(view.briefing.facts.find((fact) => fact.label === "Upstream sync")).toEqual({
+      label: "Upstream sync",
+      figure: "0 of 13",
+      sub: "forks stopped · every sync flowing",
+      tone: "ok",
+    });
     const model = buildModel(input.facts, input.context.clock.now(), {}, input.context);
     expect(model.stack.deployable.state).toBe("yes");
     expect(model.stack.running?.version).toBe(model.stack.latest);
@@ -124,6 +130,12 @@ describe("Today morning sweep inputs", () => {
     ]);
     expect(model.template.rows.filter((r) => r.behind === 0)).toHaveLength(7);
     expect(stopped(view)).toEqual(["storage", "indexer-queue"]);
+    expect(view.briefing.facts.find((fact) => fact.label === "Upstream sync")).toEqual({
+      label: "Upstream sync",
+      figure: "2 of 13",
+      sub: "forks stopped · storage and indexer-queue",
+      tone: "bad",
+    });
     const check = repos["Azure/osdu-spi-indexer-queue"]?.prs.find((p) => p.number === 67)
       ?.checks[0];
     expect(check?.url).toBeDefined();
@@ -144,6 +156,12 @@ describe("Today morning sweep inputs", () => {
     const interrupts = itemsOf(view).filter((i) => i.attention === "interrupt");
     expect(interrupts.map((i) => i.rung)).toEqual([0, 1, 1]);
     expect(stopped(view)).toEqual(["entitlements", "legal", "storage", "indexer-queue"]);
+    expect(view.briefing.facts.find((fact) => fact.label === "Upstream sync")).toEqual({
+      label: "Upstream sync",
+      figure: "4 of 13",
+      sub: "forks stopped · entitlements, legal, storage and indexer-queue",
+      tone: "bad",
+    });
     expect(view.areas.find((a) => a.area === "github")?.envelope).toMatchObject({
       state: "failed",
       observedAt: "2026-11-06T13:52:00Z",
