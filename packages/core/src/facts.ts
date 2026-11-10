@@ -193,7 +193,13 @@ export interface JobDetail {
 }
 
 // The fork workflows the sweep follows per repository.
+export interface RunHistory {
+  from?: string;
+  complete: boolean;
+}
+
 export interface ForkRuns {
+  history?: { sync: RunHistory; template: RunHistory };
   sync: RunFact[];
   template: RunFact[];
   cascade: RunFact[];

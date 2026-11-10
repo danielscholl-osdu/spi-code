@@ -134,9 +134,11 @@ test("fork run failure is isolated, and two interleaved fleets use only their ow
   );
   expect(Object.keys(results[0].data)).toEqual(["test/good"]);
   expect(Object.keys(results[1].data)).toEqual(["test/other"]);
-  expect(Object.values(results[0].data["test/good"] ?? {}).map((r) => r.length)).toEqual([
-    1, 1, 1, 1,
-  ]);
+  expect(
+    Object.values(results[0].data["test/good"] ?? {})
+      .filter(Array.isArray)
+      .map((r) => r.length),
+  ).toEqual([1, 1, 1, 1]);
   expect(results[0].reads).toHaveLength(2);
   expect(results[0].reads[0]?.failure).toBeUndefined();
   expect(results[0].reads[1]?.failure).toContain("offline");
@@ -325,4 +327,25 @@ test("approval runs repeated across pages are counted once", async () => {
   );
   expect(result.data[STACK]?.map((r) => r.id)).toEqual([1, 2]);
   expect(result.reads.find((r) => r.source === STACK)?.completeness.kind).toBe("complete");
+});
+
+test("fork histories report the oldest run per bounded workflow and whether all history was read", async () => {
+  const result = await replay(
+    (gh) => readForkRuns(gh, ctx(["good"])),
+    (path) => {
+      const sync = path.includes("/sync.yml/");
+      const count = sync ? 10 : 5;
+      return {
+        total: sync ? 12 : 5,
+        runs: Array.from({ length: count }, (_, i) => ({
+          ...raw(i),
+          created_at: `2026-10-${String(12 - i).padStart(2, "0")}T18:00:00Z`,
+        })),
+      };
+    },
+  );
+  expect(result.data["test/good"]?.history).toEqual({
+    sync: { from: "2026-10-03T18:00:00Z", complete: false },
+    template: { from: "2026-10-08T18:00:00Z", complete: true },
+  });
 });

@@ -437,6 +437,7 @@ describe("Watch projection", () => {
           workflow: run.name,
           result: run.status === "completed" ? (run.conclusion ?? "completed") : run.status,
           time: run.createdAt,
+          ...(run.status === "completed" ? { completedAt: run.updatedAt } : {}),
           url: run.url,
         })),
       );
@@ -612,6 +613,13 @@ describe("Watch projection", () => {
     const service = snapshot.services?.[i];
     expect(service?.runs?.map((r) => r.id).sort()).toEqual(["run:9001", "run:9002", "run:9004"]);
     expect(service?.runs?.[0]).toMatchObject({ id: "run:9001", result: "in_progress" });
+    for (const projected of service?.runs ?? []) {
+      if (projected.id === "run:9001") expect(projected).not.toHaveProperty("completedAt");
+      else
+        expect(projected.completedAt).toBe(
+          projected.id === "run:9002" ? run.updatedAt : lifecycle.updatedAt,
+        );
+    }
     for (const [k, r] of (service?.runs ?? []).entries()) {
       expect(snapshot.provenance.find((p) => p.path === `/services/${i}/runs/${k}`)?.areas).toEqual(
         [r.id === "run:9001" ? "runs" : r.id === "run:9002" ? "approvals" : "lifecycle"],
@@ -754,10 +762,11 @@ describe("Watch projection", () => {
 
   function withoutAdditions(snapshot: ReturnType<typeof projectWatch>) {
     const { services: _services, ...legacy } = snapshot;
+    const { since: _since, ...briefing } = snapshot.briefing;
     return {
       ...legacy,
       briefing: {
-        ...snapshot.briefing,
+        ...briefing,
         focus: snapshot.briefing.focus.map(
           ({ attention: _a, due: _d, owned: _o, ...item }) => item,
         ),

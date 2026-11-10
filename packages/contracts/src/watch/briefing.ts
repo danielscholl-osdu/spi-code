@@ -112,11 +112,17 @@ export const SinceRowSchema = z.strictObject({
   slots: z.array(SlotSchema),
 });
 /** seen: since the last look; fallback: 24 hours; history-short: from the oldest run read; stale: as of. */
-export const SinceSchema = z.strictObject({
-  basis: z.enum(["seen", "fallback", "history-short", "stale"]),
-  from: ObservedAtSchema,
-  rows: z.array(SinceRowSchema),
-});
+export const SinceSchema = z
+  .strictObject({
+    basis: z.enum(["seen", "fallback", "history-short", "stale"]),
+    from: ObservedAtSchema,
+    rows: z.array(SinceRowSchema),
+    asOf: ObservedAtSchema.optional(),
+  })
+  .refine(({ basis, asOf }) => (basis === "stale") === (asOf !== undefined), {
+    message: "Only stale since rows require an as-of time",
+    path: ["asOf"],
+  });
 const PLACES = ["line", "environment", "engineering", "security"] as const;
 export const PlaceIdSchema = z.enum(PLACES);
 export const LifecycleLaneSchema = z.strictObject({

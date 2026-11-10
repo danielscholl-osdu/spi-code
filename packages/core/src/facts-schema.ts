@@ -196,7 +196,9 @@ const jobDetail = z.object({
 
 const jobsByRun = z.record(z.string(), z.array(jobDetail));
 
+const runHistory = z.object({ from: z.string().optional(), complete: z.boolean() });
 const forkRuns = z.object({
+  history: z.object({ sync: runHistory, template: runHistory }).optional(),
   sync: z.array(runFact),
   template: z.array(runFact),
   cascade: z.array(runFact),
