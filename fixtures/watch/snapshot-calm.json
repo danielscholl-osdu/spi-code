@@ -2221,7 +2221,7 @@
         "month": "2026-11"
       },
       "content": {
-        "headline": "Releases for November 2026 are not fully read yet.",
+        "headline": "3 releases across 3 repositories in November 2026.",
         "tiles": [
           {
             "label": "Notes",
@@ -2249,7 +2249,7 @@
         "month": "2026-10"
       },
       "content": {
-        "headline": "Releases for October 2026 are not fully read yet.",
+        "headline": "13 releases across 13 repositories in October 2026.",
         "tiles": [
           {
             "label": "Notes",
@@ -2285,7 +2285,7 @@
         "open": true,
         "stateText": "In progress, closes Nov 30",
         "notes": "none",
-        "headline": "Releases for November 2026 are not fully read yet.",
+        "headline": "3 releases across 3 repositories in November 2026.",
         "stats": [
           {
             "figure": "13/13",
@@ -2294,9 +2294,9 @@
             "anchor": "components"
           },
           {
-            "figure": "?",
+            "figure": "3",
             "short": "Releases",
-            "label": "releases, 1 repository not read yet",
+            "label": "releases across 3 repositories",
             "anchor": "components"
           },
           {
@@ -2321,7 +2321,7 @@
         "open": false,
         "stateText": "Closed Oct 31",
         "notes": "none",
-        "headline": "Releases for October 2026 are not fully read yet.",
+        "headline": "13 releases across 13 repositories in October 2026.",
         "stats": [
           {
             "figure": "12/13",
@@ -2330,9 +2330,9 @@
             "anchor": "components"
           },
           {
-            "figure": "?",
+            "figure": "13",
             "short": "Releases",
-            "label": "releases, 1 repository not read yet",
+            "label": "releases across 13 repositories",
             "anchor": "components"
           },
           {

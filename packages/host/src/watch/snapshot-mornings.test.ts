@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { readFileSync } from "node:fs";
-import { AREAS, buildModel, STACK_REPO, TEMPLATE_REPO } from "@spi-code/core";
+import { AREAS, buildModel, monthFacts, pinKey, STACK_REPO, TEMPLATE_REPO } from "@spi-code/core";
 import { describe, expect, it } from "vitest";
 import { projectWatch } from "./project.js";
 import {
@@ -44,6 +44,12 @@ describe("Today morning sweep inputs", () => {
     expect(itemsOf(view).filter((i) => i.attention !== "ambient")).toEqual([]);
     expect(view.areas).toHaveLength(AREAS.length);
     expect(view.areas.every((a) => a.envelope.state === "fresh")).toBe(true);
+    expect(
+      monthFacts(input.releases, "2026-11", input.context.clock.now(), input.context).unread,
+    ).toEqual([]);
+    expect(view.releases.lines[0]?.stats.find((s) => s.short === "Releases")?.figure).toMatch(
+      /^\d+$/,
+    );
     expect(view.stations).toHaveLength(13);
     expect(stopped(view)).toEqual([]);
     const model = buildModel(input.facts, input.context.clock.now(), {}, input.context);
@@ -66,6 +72,10 @@ describe("Today morning sweep inputs", () => {
       const alerts = input.facts.security.data?.[fork.repo];
       expect(alerts?.dependabot?.map((a) => a.severity)).toEqual(["high", "critical"]);
       expect(input.releases.releases[fork.repo]).toHaveLength(1);
+      const release = input.releases.releases[fork.repo]?.[0];
+      expect(input.releases.pins[pinKey(fork.repo, release?.tag ?? "")]?.lib).toMatch(
+        /^\d+\.\d+\.\d+$/,
+      );
     }
     const repos = input.facts.github.data?.repos ?? {};
     const releaseRepos = Object.values(repos).filter((r) =>
@@ -75,6 +85,17 @@ describe("Today morning sweep inputs", () => {
     expect(releaseRepos.some((r) => r.repo === TEMPLATE_REPO)).toBe(true);
     expect(input.releaseRecords.every((r) => !r.failure)).toBe(true);
     expect(view.provenance.find((p) => p.path === "/releases")?.envelope?.state).toBe("fresh");
+    const month = monthFacts(input.releases, "2026-11", input.context.clock.now(), input.context);
+    expect(month.unread).toEqual([]);
+    expect(view.releases.lines[0]?.stats.find((s) => s.short === "Releases")?.figure).toMatch(
+      /^\d+$/,
+    );
+    expect(month.libs.map(({ version, services }) => [version, services.length])).toEqual([
+      ["5.0.0", 2],
+      ["4.0.0", 4],
+      ["3.0.1", 6],
+      ["2.5.10", 1],
+    ]);
     const items = itemsOf(view);
     expect(
       items.filter((i) => i.id.startsWith("radar:") && i.attention === "surface"),
@@ -85,16 +106,16 @@ describe("Today morning sweep inputs", () => {
       (line) =>
         model.radar.services[line.fork.id]?.certain
           .filter((v) => v.bucket === "Toolchain" || v.bucket === "Halt")
-          .map((v) => v.value ?? v.entry) ?? [],
+          .map((v) => `${v.bucket}: ${v.value ?? v.entry}`) ?? [],
     );
     expect(themes.sort()).toEqual([
-      "Java 25",
-      "Java 25",
-      "os-core-common 10.0.0",
-      "os-core-common 8.5.0",
-      "os-core-common 8.5.0",
-      "os-core-common 8.5.0",
-      "schemathesis-tests",
+      "Halt: schemathesis-tests",
+      "Toolchain: Java 25",
+      "Toolchain: Java 25",
+      "Toolchain: os-core-common 10.0.0",
+      "Toolchain: os-core-common 8.5.0",
+      "Toolchain: os-core-common 8.5.0",
+      "Toolchain: os-core-common 8.5.0",
     ]);
     expect(model.lines.filter((l) => l.syncPr).map((l) => l.fork.id)).toEqual([
       "indexer",
