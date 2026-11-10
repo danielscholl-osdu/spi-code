@@ -158,13 +158,28 @@ describe("typed station substates", () => {
     expect(substate(facts, "sync")).toBe("ready");
   });
 
-  test("a recorded release review needs a person, including after approval until merge", () => {
+  test("a release PR that only waits for review or merge waits for the release cut", () => {
     const facts = fixtureFacts();
     const pr = release(facts);
     expect(pr.reviewDecision).toBe("REVIEW_REQUIRED");
-    expect(substate(facts, "release")).toBe("waiting-on-person");
+    expect(substate(facts, "release")).toBe("waiting-on-clock");
     pr.reviewDecision = "APPROVED";
+    pr.mergeState = "CLEAN";
+    expect(substate(facts, "release")).toBe("waiting-on-clock");
+    pr.reviewDecision = "CHANGES_REQUESTED";
     expect(substate(facts, "release")).toBe("waiting-on-person");
+    pr.reviewDecision = "REVIEW_REQUIRED";
+    pr.draft = true;
+    expect(substate(facts, "release")).toBe("waiting-on-person");
+  });
+
+  test("a sync PR waiting for review still needs a person", () => {
+    const facts = fixtureFacts();
+    const pr = release(facts);
+    pr.head = "sync/upstream-fixture";
+    pr.base = "fork_upstream";
+    expect(pr.reviewDecision).toBe("REVIEW_REQUIRED");
+    expect(substate(facts, "sync")).toBe("waiting-on-person");
   });
 
   test.each(["release", "sync", "main"] as const)(

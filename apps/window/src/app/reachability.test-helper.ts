@@ -115,6 +115,7 @@ function home(name: string, from: Start, step?: Selector, detail?: InspectResult
 const TODAY = home("Today", STARTS.today);
 const STRIP = home("Strip", STARTS.strip);
 const LINE = home("Line sheet", STARTS.line);
+const LINE_UNFOLDED = home("Line sheet, unfolded", STARTS.line, ".line-fold");
 
 /** The lens-field homes t1k.189 ruled, opened the way lens-retirement.test.tsx opens them. */
 function lensHome(name: string): Home {
@@ -563,14 +564,16 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
   });
 
   for (const [index, flow] of briefing.flow.rows.entries()) {
-    const station = snapshot.stations
-      .find(({ service }) => service === flow.fork)
-      ?.stations.find(({ id }) => id === "upstream");
+    const stations = snapshot.stations.find(({ service }) => service === flow.fork)?.stations;
+    const station = stations?.find(({ id }) => id === "upstream");
     if (!station || !/^\S+ behind/.test(station.text)) continue;
+    const quiet = stations?.every(
+      ({ substate }) => substate !== "stopped" && substate !== "waiting-on-person",
+    );
     add(
       `/briefing/flow/rows/${index}/behind`,
       flow.behind,
-      LINE,
+      quiet ? LINE_UNFOLDED : LINE,
       `tr[data-service=${quote(flow.fork)}] td[data-station="upstream"] button`,
       { read: (element) => /(\S+) behind/.exec(element.textContent ?? "")?.[1] ?? "" },
     );

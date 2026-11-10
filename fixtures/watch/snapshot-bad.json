@@ -3829,7 +3829,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #600",
           "inspect": "station:partition:release"
         },
@@ -3876,7 +3876,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #601",
           "inspect": "station:entitlements:release"
         },
@@ -3923,7 +3923,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #602",
           "inspect": "station:legal:release"
         },
@@ -3970,7 +3970,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #603",
           "inspect": "station:schema:release"
         },
@@ -4017,7 +4017,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #604",
           "inspect": "station:file:release"
         },
@@ -4064,7 +4064,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #605",
           "inspect": "station:storage:release"
         },
@@ -4111,7 +4111,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #606",
           "inspect": "station:indexer:release"
         },
@@ -4158,7 +4158,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #607",
           "inspect": "station:search:release"
         },
