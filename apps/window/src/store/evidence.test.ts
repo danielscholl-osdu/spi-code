@@ -5,7 +5,13 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { type Envelope, ViewSnapshotSchema } from "@spi-code/contracts";
 import { describe, expect, it } from "vitest";
-import { areaEnvelope, envelopesFor, envelopesForAll, isInferred } from "./evidence.js";
+import {
+  areaEnvelope,
+  type Evidence,
+  envelopesFor,
+  envelopesForAll,
+  isInferred,
+} from "./evidence.js";
 
 const mixed = ViewSnapshotSchema.parse(
   JSON.parse(readFileSync(resolve("fixtures/watch/snapshot-mixed-59d6895.json"), "utf8")),
@@ -89,7 +95,21 @@ it("unions the envelopes under several prefixes in area order, without repeats",
     names(["/briefing/flow/tiles/0", "/briefing/flow/tiles/3", "/stations/0/stations/0"]),
   ).toEqual(["github", "runs", "upstream"]);
   expect(names([])).toEqual([]);
-  expect(names(["/releases"])).toEqual(["fleet"]);
+  expect(names(["/releases/lines"])).toEqual(["fleet"]);
+  const beside: Evidence = {
+    ...mixed,
+    provenance: [
+      ...mixed.provenance,
+      { path: "/releases/today/readyLine", areas: ["github", "details"] },
+      { path: "/releases/forming", areas: ["github"] },
+    ],
+  };
+  expect(envelopesForAll(beside, ["/releases/lines"]).map(({ area }) => area)).toEqual(["fleet"]);
+  expect(envelopesFor(beside, "/releases/lines/0").map(({ area }) => area)).toEqual(["fleet"]);
+  expect(envelopesFor(beside, "/releases/today/readyLine").map(({ area }) => area)).toEqual([
+    "github",
+    "details",
+  ]);
 });
 
 it.each<{ envelope: Envelope | undefined; inferred: boolean }>([

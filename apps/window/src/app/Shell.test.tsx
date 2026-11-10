@@ -868,7 +868,7 @@ it.each(["failed", "stale"] as const)(
     const degraded = testSnapshot(briefing, releases, {
       areas,
       provenance: [
-        { path: "/releases", areas: ["fleet"], envelope: releaseEnvelope },
+        { path: "/releases/lines", areas: ["fleet"], envelope: releaseEnvelope },
         { path: "/releases/lines/0", areas: ["fleet"], envelope: releaseEnvelope },
       ],
     });

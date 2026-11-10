@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { AreaEnvelope, Envelope, ValueSource } from "@spi-code/contracts";
+import type { AreaEnvelope, Envelope, ReleasesToday, ValueSource } from "@spi-code/contracts";
 import {
   AREAS,
   type AreaName,
@@ -200,7 +200,11 @@ export function stationProvenance(
   );
 }
 
-/** The section and each line bind the release ledger and fleet, even when no lines exist. */
+/**
+ * The month ledger and each line bind the release ledger and fleet, even when no lines exist.
+ * The ledger binds at /releases/lines, not /releases, so Today and forming values beside it
+ * inherit nothing from it.
+ */
 export function releaseProvenance(
   lines: readonly unknown[],
   records: readonly ReadRecord[],
@@ -213,8 +217,69 @@ export function releaseProvenance(
       areas: ["fleet"],
       envelope,
     })),
-    { path: "/releases", areas: ["fleet"], envelope },
+    { path: "/releases/lines", areas: ["fleet"], envelope },
   ];
+}
+
+/** Which read gave a platform version: the release ledger, or a GitHub release tag where the ledger had none. */
+export type PlatformSource = "ledger" | "github";
+
+/**
+ * Today's release fields, each bound to the reads that built it: versions and core-lib-azure
+ * pins to the release ledger and fleet, proposed versions and release PRs to GitHub, and the
+ * ready line to GitHub and job details. A platform version whose source is not given has no
+ * binding rather than a guessed one.
+ */
+export function releasesTodayProvenance(
+  today: ReleasesToday | undefined,
+  records: readonly ReadRecord[],
+  now: Date,
+  platform: { readonly stack?: PlatformSource; readonly template?: PlatformSource } = {},
+): ValueSource[] {
+  if (!today) return [];
+  type Binding = Omit<ValueSource, "path">;
+  const envelope = readEnvelope("releases", records, RELEASES_EVERY_MS, now);
+  const ledger: Binding = { areas: ["fleet"], envelope };
+  const withGithub: Binding = { areas: ["fleet", "github"], envelope };
+  const github: Binding = { areas: ["github"] };
+  const fromPlatform = (source: PlatformSource | undefined) =>
+    source === "ledger" ? ledger : source === "github" ? withGithub : undefined;
+  const out: ValueSource[] = [];
+  const bind = (path: string, source: Binding | undefined) => {
+    if (source) out.push({ path: `/releases/today${path}`, ...source });
+  };
+  for (const [i, version] of today.versions.entries()) {
+    const at = `/versions/${i}`;
+    bind(`${at}/service`, ledger);
+    bind(`${at}/released`, ledger);
+    if (version.coreLibAzure !== undefined) bind(`${at}/coreLibAzure`, ledger);
+    if (version.proposed !== undefined) bind(`${at}/proposed`, github);
+    if (version.pr) bind(`${at}/pr`, github);
+    bind(`${at}/text`, version.proposed === undefined ? ledger : withGithub);
+  }
+  const { stack, template, coreLibAzure } = today.platform;
+  const stackSource = stack === undefined ? undefined : fromPlatform(platform.stack);
+  const templateSource = template ? fromPlatform(platform.template) : undefined;
+  bind("/platform/stack", stackSource);
+  bind("/platform/template/released", templateSource);
+  if (template?.proposed !== undefined) bind("/platform/template/proposed", github);
+  if (template?.pr) bind("/platform/template/pr", github);
+  bind("/platform/coreLibAzure", ledger);
+  const parts = [
+    ...(stack === undefined ? [] : [stackSource]),
+    ...(template ? [templateSource, ...(template.proposed === undefined ? [] : [github])] : []),
+    ...(coreLibAzure.length > 0 ? [ledger] : []),
+  ];
+  if (parts.length === 0) bind("/platform/text", ledger);
+  else if (parts.every((part) => part !== undefined)) {
+    bind("/platform/text", {
+      areas: AREAS.filter((area) => parts.some((part) => part.areas.includes(area))),
+      ...(parts.some((part) => part.envelope) ? { envelope } : {}),
+    });
+  }
+  if (today.readyLine !== undefined) bind("/readyLine", { areas: ["github", "details"] });
+  if (today.unread) bind("/unread", ledger);
+  return out;
 }
 
 export function readEnvelope(

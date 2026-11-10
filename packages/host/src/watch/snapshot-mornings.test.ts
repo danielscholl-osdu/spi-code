@@ -90,7 +90,9 @@ describe("Today morning sweep inputs", () => {
     expect(releaseRepos).toHaveLength(9);
     expect(releaseRepos.some((r) => r.repo === TEMPLATE_REPO)).toBe(true);
     expect(input.releaseRecords.every((r) => !r.failure)).toBe(true);
-    expect(view.provenance.find((p) => p.path === "/releases")?.envelope?.state).toBe("fresh");
+    expect(view.provenance.find((p) => p.path === "/releases/lines")?.envelope?.state).toBe(
+      "fresh",
+    );
     const month = monthFacts(input.releases, "2026-11", input.context.clock.now(), input.context);
     expect(month.unread).toEqual([]);
     expect(view.releases.lines[0]?.stats.find((s) => s.short === "Releases")?.figure).toMatch(

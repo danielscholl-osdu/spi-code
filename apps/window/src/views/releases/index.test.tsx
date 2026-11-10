@@ -71,13 +71,13 @@ it.each([
     } satisfies Envelope;
     const body = testSnapshot(briefing, releases, {
       releases: { lines: [], reading },
-      provenance: [{ path: "/releases", areas: ["fleet"], envelope }],
+      provenance: [{ path: "/releases/lines", areas: ["fleet"], envelope }],
     });
     watchStore.setState({ snapshot: { cursor: body.cursor, body } });
     document.body.append(container);
     root = createRoot(container);
     await act(async () => root?.render(<Releases />));
-    const line = container.querySelector('[data-section-evidence="/releases"]');
+    const line = container.querySelector('[data-section-evidence="/releases/lines"]');
     expect(line?.getAttribute("data-tone")).toBe(state === "failed" ? "bad" : "warn");
     expect(line?.textContent).toContain(
       `Release lines ${state === "failed" ? "read failed" : "stale"}`,
@@ -104,7 +104,7 @@ it("finds release evidence beyond the first line and retains it when the lines b
   document.body.append(container);
   root = createRoot(container);
   await act(async () => root?.render(<Releases />));
-  const line = () => container.querySelector('[data-section-evidence="/releases"]');
+  const line = () => container.querySelector('[data-section-evidence="/releases/lines"]');
   expect(line()?.textContent).toContain("Release lines read failed");
   const empty = ViewSnapshotSchema.parse({
     ...base,
@@ -146,7 +146,7 @@ it.each([true, false])(
     const drawn = container.querySelectorAll('[data-pointer="/releases/lines/0"]');
     expect(drawn).toHaveLength(1);
     for (const element of drawn) expect(element.querySelector("[data-inferred]")).toBeNull();
-    const line = container.querySelector('[data-section-evidence="/releases"]');
+    const line = container.querySelector('[data-section-evidence="/releases/lines"]');
     if (inferred) {
       expect(line?.hasAttribute("data-inferred")).toBe(true);
       expect(line?.textContent?.trim()).toBe("inferred");
@@ -154,7 +154,7 @@ it.each([true, false])(
   },
 );
 
-it("shows the worst release read under /releases on the section line, not the first", async () => {
+it("shows the worst release read under /releases/lines on the section line, not the first", async () => {
   const observedAt = testSnapshot(briefing, releases).sweptAt;
   const at = (state: Envelope["state"]) =>
     ({
@@ -173,7 +173,7 @@ it("shows the worst release read under /releases on the section line, not the fi
   document.body.append(container);
   root = createRoot(container);
   await act(async () => root?.render(<Releases />));
-  const line = container.querySelector('[data-section-evidence="/releases"]');
+  const line = container.querySelector('[data-section-evidence="/releases/lines"]');
   expect(line?.getAttribute("data-tone")).toBe("bad");
   expect(line?.textContent).toContain("Release lines read failed");
 });

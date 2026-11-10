@@ -979,7 +979,7 @@ describe("Watch projection", () => {
       expect(ViewSnapshotSchema.parse(snapshot)).toEqual(snapshot);
       expect(snapshot.provenance.filter(({ path }) => path.startsWith("/releases"))).toEqual([
         {
-          path: "/releases",
+          path: "/releases/lines",
           areas: ["fleet"],
           envelope: {
             source: "releases",
@@ -1573,15 +1573,14 @@ describe("area envelopes and provenance", () => {
         "/stations",
         "/briefing/flow",
         "/briefing/environment",
-        "/releases/lines",
+        "/releases",
+        "/releases/today",
       ]) {
         expect(paths.has(coarse), coarse).toBe(false);
       }
       const covered = (leaf: string): boolean =>
         [...paths].some(
-          (path) =>
-            (path !== "/releases" || leaf.startsWith("/releases/today/")) &&
-            (leaf === path || leaf.startsWith(`${path}/`)),
+          (path) => path !== "/releases/lines" && (leaf === path || leaf.startsWith(`${path}/`)),
         );
       const missing = renderedLeaves({
         briefing: snapshot.briefing,
