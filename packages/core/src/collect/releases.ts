@@ -324,8 +324,8 @@ export class ReleaseReader {
 
   /**
    * At most BODIES_PER_REPO reads per project repo: the newest release PR, then those never tried
-   * at their head, then the least recently tried, whether that read held or failed. A PR past the cap keeps a read at its head, or is
-   * recorded not read as over-cap. A repo whose PR list was given keeps only what this read found;
+   * at their head, then the least recently tried, whether that read held or failed. A PR past the
+   * cap keeps its last try at its head, read or failed, or is recorded not read as over-cap. A repo whose PR list was given keeps only what this read found;
    * one never listed keeps its entries.
    */
   private async readBodies(open: OpenPrs): Promise<Record<string, ReleaseBody>> {
@@ -339,22 +339,18 @@ export class ReleaseReader {
         state: "not-read", repo, number: pr.number, sha: pr.headSha, at, reason, failure,
       };
     };
-    const lastRead = (repo: string, pr: ReleasePrRef) => {
+    const lastTry = (repo: string, pr: ReleasePrRef) => {
       const entry = before[releaseBodyKey(repo, pr.number, pr.headSha)];
-      return entry?.state === "read" ? entry : undefined;
-    };
-    const lastTried = (repo: string, pr: ReleasePrRef) => {
-      const entry = before[releaseBodyKey(repo, pr.number, pr.headSha)];
-      return entry?.state === "read" || entry?.reason === "failed" ? entry.at : undefined;
+      return entry?.state === "read" || entry?.reason === "failed" ? entry : undefined;
     };
     const reads = repos.flatMap((name) => {
       const [newest, ...rest] = openReleasePrs([name], open);
       if (!newest) return [];
-      const queue = rest.map((r, i) => ({ ...r, i, last: lastTried(r.repo, r.pr) }))
+      const queue = rest.map((r, i) => ({ ...r, i, last: lastTry(r.repo, r.pr)?.at }))
         .sort((a, b) => (a.last === undefined ? -1 : 0) - (b.last === undefined ? -1 : 0)
           || (a.last ?? "").localeCompare(b.last ?? "") || a.i - b.i);
       for (const { repo, pr } of queue.slice(BODIES_PER_REPO - 1)) {
-        const kept = lastRead(repo, pr);
+        const kept = lastTry(repo, pr);
         if (kept) bodies[releaseBodyKey(repo, pr.number, pr.headSha)] = kept;
         else notRead(repo, pr, "over-cap", `over ${BODIES_PER_REPO} release PRs read per repository`);
       }

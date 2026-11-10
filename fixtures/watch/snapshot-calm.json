@@ -2579,6 +2579,20 @@
         "text": "stack v0.35.3 · template v1.4.0"
       },
       "readyLine": "No release PRs open"
+    },
+    "forming": {
+      "state": "read",
+      "prs": [],
+      "kinds": {
+        "breaking": 0,
+        "new": 0,
+        "improved": 0,
+        "fixed": 0,
+        "security": 0,
+        "other": 0
+      },
+      "notable": [],
+      "text": "No release forming: no release PRs open"
     }
   },
   "stations": [
@@ -5900,6 +5914,19 @@
     },
     {
       "path": "/releases",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
+      "path": "/releases/forming",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",

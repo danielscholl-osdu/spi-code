@@ -326,7 +326,8 @@ function kindsText(kinds: Readonly<Record<FormingKind, number>>): string {
 
 /**
  * What the open release PRs of the services and the template carry, from their bodies on the
- * releases read. A PR whose body was not read has no entries and is never counted as zero.
+ * releases read. A PR whose body was not read has no entries and is never counted as zero, and
+ * no release is forming only when the GitHub read listed every one of those repositories.
  */
 export function formingReleases(input: FormingInput): Forming {
   const { context } = input;
@@ -345,32 +346,40 @@ export function formingReleases(input: FormingInput): Forming {
     return service ? { kind: "service", service, ...own } : { kind: "template", ...own };
   });
   const read = prs.filter((p) => p.state === "read").length;
+  const unlisted = repos.filter((repo) => input.open?.[repo] === undefined).length;
   const state =
-    prs.length === 0
-      ? input.open === undefined
-        ? "not-read"
-        : "read"
-      : read === prs.length
+    read === 0
+      ? prs.length === 0 && unlisted === 0
         ? "read"
-        : read === 0
-          ? "not-read"
-          : "partial";
-  const count = plural(prs.length, "open release PR");
+        : "not-read"
+      : read === prs.length && unlisted === 0
+        ? "read"
+        : "partial";
   if (state === "not-read") {
     return {
       state,
       prs,
       notable: [],
-      text: prs.length > 0 ? `Unreleased, in ${count}: not read this sweep` : "Unreleased changes not read this sweep",
+      text:
+        prs.length > 0 && unlisted === 0
+          ? `Unreleased, in ${plural(prs.length, "open release PR")}: not read this sweep`
+          : "Unreleased changes not read this sweep",
     };
   }
   const kinds = Object.fromEntries(FORMING_KINDS.map((k) => [k, 0])) as Record<FormingKind, number>;
   for (const p of prs) for (const e of p.entries) kinds[e.kind]++;
   const unread = prs.length - read;
+  const caveats = [
+    ...(unread > 0 ? [`${unread} not read this sweep`] : []),
+    ...(unlisted > 0
+      ? [`release PRs of ${plural(unlisted, "repository", "repositories")} not listed this sweep`]
+      : []),
+  ];
+  const count = `${unlisted > 0 ? "at least " : ""}${plural(prs.length, "open release PR")}`;
   const text =
     prs.length === 0
       ? "No release forming: no release PRs open"
-      : `Unreleased, in ${count}${unread > 0 ? ` (${unread} not read this sweep)` : ""}: ${kindsText(kinds)}`;
+      : `Unreleased, in ${count}${caveats.length > 0 ? ` (${caveats.join("; ")})` : ""}: ${kindsText(kinds)}`;
   return { state, prs, kinds, notable: notableOf(prs), text };
 }
 
