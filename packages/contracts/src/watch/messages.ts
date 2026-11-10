@@ -15,9 +15,11 @@ import {
 } from "./setup.js";
 import { ViewSnapshotSchema } from "./snapshot.js";
 
-// Host, window and desktop ship together; bump when a message's required shape changes, so a
-// mismatched pair fails on the envelope rather than mid-payload.
-export const PROTOCOL_VERSION = 3;
+// Host, window and desktop ship together. Every Watch schema is strict, so a peer rejects a key it
+// doesn't know, even an optional one: bump on any wire shape change, a new optional key included,
+// so a mismatched pair fails on the envelope rather than mid-payload. Changes that ship in one
+// release share one bump.
+export const PROTOCOL_VERSION = 4;
 /** Reasons are plain text the host chose for display, never command output; the window branches on code. */
 export const SWEEP_REASON_MAX_LENGTH = 200;
 export const SweepReasonSchema = z.string().min(1).max(SWEEP_REASON_MAX_LENGTH);

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { z } from "zod";
-import { IdentifierSchema } from "./evidence.js";
+import { IdentifierSchema, ObservedAtSchema } from "./evidence.js";
 import { WebUrlSchema } from "./inspect.js";
 
 export const ToneSchema = z.enum(["bad", "warn", "ok", "neutral"]);
@@ -174,6 +174,118 @@ export const DocRowSchema = z.strictObject({
   state: z.enum(["released", "unreleased", "unread"]),
   url: z.string().optional(),
 });
+/** A pull request a Today row names: its number, its page, and the Detail id that opens it. */
+export const PrRefSchema = z.strictObject({
+  number: z.int().positive(),
+  url: WebUrlSchema.optional(),
+  inspect: IdentifierSchema.optional(),
+});
+const distinct = (values: readonly string[]) => new Set(values).size === values.length;
+/** Sources a block reads that were not read this sweep, and the oldest last good read among them. */
+export const unreadSchema = <T extends z.ZodType<string>>(area: T) =>
+  z.strictObject({
+    areas: z.array(area).min(1).refine(distinct, { message: "Areas repeat" }),
+    lastGood: ObservedAtSchema.optional(),
+  });
+export const ReleaseVersionSchema = z.strictObject({
+  service: IdentifierSchema,
+  released: IdentifierSchema,
+  proposed: IdentifierSchema.optional(),
+  pr: PrRefSchema.optional(),
+  coreLibAzure: IdentifierSchema.optional(),
+  text: z.string(),
+});
+export const ReleasesTodaySchema = z.strictObject({
+  versions: z.array(ReleaseVersionSchema),
+  platform: z.strictObject({
+    stack: IdentifierSchema.optional(),
+    template: z
+      .strictObject({
+        released: IdentifierSchema,
+        proposed: IdentifierSchema.optional(),
+        pr: PrRefSchema.optional(),
+      })
+      .optional(),
+    coreLibAzure: z.array(z.strictObject({ version: IdentifierSchema, count: z.int().positive() })),
+    text: z.string(),
+  }),
+  readyLine: z.string().optional(),
+  unread: unreadSchema(IdentifierSchema).optional(),
+});
+/** Release-please changelog kinds; other keeps untyped entries so the kinds sum to the total. */
+export const FormingKindSchema = z.enum([
+  "breaking",
+  "new",
+  "improved",
+  "fixed",
+  "security",
+  "other",
+]);
+export const FormingEntrySchema = z.strictObject({ kind: FormingKindSchema, title: z.string() });
+const count = z.int().nonnegative();
+const formingPr = {
+  pr: PrRefSchema,
+  state: z.enum(["read", "not-read"]),
+  entries: z.array(FormingEntrySchema),
+};
+export const FormingPrSchema = z
+  .discriminatedUnion("kind", [
+    z.strictObject({ kind: z.literal("service"), service: IdentifierSchema, ...formingPr }),
+    z.strictObject({ kind: z.literal("template"), ...formingPr }),
+  ])
+  .refine(({ state, entries }) => state === "read" || entries.length === 0, {
+    message: "An unread release PR body has no entries",
+    path: ["entries"],
+  });
+export const FormingSchema = z
+  .strictObject({
+    state: z.enum(["read", "partial", "not-read"]),
+    prs: z.array(FormingPrSchema),
+    kinds: z
+      .strictObject({
+        breaking: count,
+        new: count,
+        improved: count,
+        fixed: count,
+        security: count,
+        other: count,
+      })
+      .optional(),
+    notable: z.array(
+      z.strictObject({
+        title: z.string(),
+        kind: FormingKindSchema,
+        services: z.array(IdentifierSchema),
+        pr: PrRefSchema,
+        text: z.string(),
+      }),
+    ),
+    text: z.string(),
+  })
+  .superRefine(({ state, prs, kinds }, ctx) => {
+    if (state === "not-read") {
+      if (kinds)
+        ctx.addIssue({ code: "custom", message: "Unread kinds are not zero", path: ["kinds"] });
+      return;
+    }
+    if (!kinds) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Read release PRs carry their kinds",
+        path: ["kinds"],
+      });
+      return;
+    }
+    const total = prs.reduce((sum, { entries }) => sum + entries.length, 0);
+    const counted = Object.values(kinds).reduce((sum, count) => sum + count, 0);
+    if (counted !== total) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Kinds sum to ${counted}, not the ${total} entries read`,
+        path: ["kinds"],
+      });
+    }
+  });
 export const ReleaseLineSchema = z.strictObject({
   id: z.string(),
   month: z.string(),
@@ -236,3 +348,10 @@ export type DocChip = z.infer<typeof DocChipSchema>;
 export type DocRow = z.infer<typeof DocRowSchema>;
 export type ReleaseLine = z.infer<typeof ReleaseLineSchema>;
 export type ReleaseDoc = z.infer<typeof ReleaseDocSchema>;
+export type PrRef = z.infer<typeof PrRefSchema>;
+export type ReleaseVersion = z.infer<typeof ReleaseVersionSchema>;
+export type ReleasesToday = z.infer<typeof ReleasesTodaySchema>;
+export type FormingKind = z.infer<typeof FormingKindSchema>;
+export type FormingEntry = z.infer<typeof FormingEntrySchema>;
+export type FormingPr = z.infer<typeof FormingPrSchema>;
+export type Forming = z.infer<typeof FormingSchema>;

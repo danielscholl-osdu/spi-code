@@ -231,6 +231,15 @@ describe("the suite's own guards", () => {
     expect(coverage(fixture(), cases, unused).stale).toEqual(["unused /nowhere"]);
   });
 
+  it("keeps a pending contract field out of stale until core fills it, and exempts it once it does", () => {
+    const later = { patterns: ["/briefing/later"], reason: "test", pending: true as const };
+    const exemptions = { ...EXEMPTIONS, later };
+    expect(coverage(fixture(), cases, exemptions).stale).toEqual([]);
+    const body = fixture();
+    (body.briefing as unknown as Record<string, unknown>).later = "a field core fills later";
+    expect(coverage(body, cases, exemptions).uncovered).toEqual([]);
+  });
+
   it("exempts only the exact leaf patterns it names, never a same-named leaf elsewhere", () => {
     const body = fixture();
     Object.assign(body.briefing.flow, {

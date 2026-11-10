@@ -12,7 +12,7 @@ import {
   resolvePointer,
   ValueSourceSchema,
 } from "./evidence.js";
-import { ReleaseLineSchema } from "./panes.js";
+import { FormingSchema, ReleaseLineSchema, ReleasesTodaySchema } from "./panes.js";
 import { CampaignSchema, ReadingSchema, SeenStateSchema } from "./reading.js";
 import { ServiceReleaseSchema, ServiceRunSchema, StationsSchema } from "./stations.js";
 import { SelectionIdSchema, TreeStatusSchema } from "./tree.js";
@@ -20,6 +20,14 @@ import { SelectionIdSchema, TreeStatusSchema } from "./tree.js";
 export const ReleasesPaneSchema = z.strictObject({
   lines: z.array(ReleaseLineSchema),
   reading: z.boolean(),
+  today: ReleasesTodaySchema.optional(),
+  forming: FormingSchema.optional(),
+});
+/** How far back a workflow's bounded run history reaches; cut when the bound left older runs unread. */
+export const RunHistorySchema = z.strictObject({
+  workflow: IdentifierSchema,
+  reach: ObservedAtSchema,
+  cut: z.boolean(),
 });
 export const ViewSnapshotSchema = z
   .strictObject({
@@ -37,6 +45,12 @@ export const ViewSnapshotSchema = z
           service: IdentifierSchema,
           runs: z.array(ServiceRunSchema),
           releases: z.array(ServiceReleaseSchema),
+          history: z
+            .array(RunHistorySchema)
+            .refine((rows) => new Set(rows.map(({ workflow }) => workflow)).size === rows.length, {
+              message: "Run history repeats a workflow",
+            })
+            .optional(),
         }),
       )
       .optional(),
@@ -113,4 +127,5 @@ export const ViewSnapshotSchema = z
   });
 
 export type ReleasesPane = z.infer<typeof ReleasesPaneSchema>;
+export type RunHistory = z.infer<typeof RunHistorySchema>;
 export type ViewSnapshot = z.infer<typeof ViewSnapshotSchema>;
