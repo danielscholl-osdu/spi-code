@@ -378,7 +378,7 @@ describe("Watch projection", () => {
     expect(frozen.flow.headline).toBe(
       "6 upstream commits wait across 2 forks. 2 forks move their toolchain, so start with one pilot.",
     );
-    const { today: _today, ...ledger } = snapshot.releases;
+    const { today: _today, forming: _forming, ...ledger } = snapshot.releases;
     expect(ledger).toEqual(oracle("releases"));
     const lines = oracle("lines");
     expect({

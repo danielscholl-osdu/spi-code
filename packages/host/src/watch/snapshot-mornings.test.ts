@@ -148,6 +148,15 @@ describe("Today morning sweep inputs", () => {
         .every((r) => r.cells.vulnerabilities.text === "2"),
     ).toBe(true);
     expect(input.releases.releases[STACK_REPO]).toHaveLength(1);
+    const forming = view.releases.forming;
+    expect(forming?.state).toBe("read");
+    expect(forming?.prs).toHaveLength(9);
+    expect(forming?.prs.filter((p) => p.kind === "service")).toHaveLength(8);
+    expect(forming?.prs.every((p) => p.state === "read" && p.entries.length > 0)).toBe(true);
+    const total = forming?.prs.reduce((n, p) => n + p.entries.length, 0);
+    expect(Object.values(forming?.kinds ?? {}).reduce((a, b) => a + b, 0)).toBe(total);
+    expect(forming?.text).toMatch(/^Unreleased, in 9 open release PRs: /);
+    expect(forming?.notable.map((n) => n.kind)).toEqual(["breaking", "security", "new"]);
   });
 
   it("keeps the bad morning's last good GitHub figures with three ordered Interrupts", () => {
