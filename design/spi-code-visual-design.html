@@ -1366,6 +1366,7 @@ exit 0 · 38 s</div>
         <tr><td><code>warning</code></td><td>P1, waiting on you, a pending card, stale or cut evidence</td><td><code>yellow</code></td><td><code>#a07b3a</code></td><td><code>#e2b45c</code></td><td><code>#80622e</code> · same</td></tr>
         <tr><td><code>success</code></td><td>Healthy, applied, settled, fresh evidence</td><td><code>green</code></td><td><code>#3a7633</code></td><td><code>#8fcf86</code></td><td><code>#356c2f</code> · same</td></tr>
         <tr><td><code>agent</code></td><td>Copilot's messages and proposals, a code thread's marker</td><td><code>magenta</code></td><td><code>#8a5cc0</code></td><td><code>#c3a2e8</code></td><td><code>#7e4cba</code> · same</td></tr>
+        <tr><td><code>upstream</code></td><td>The horizon origin mark on Today: the On the horizon block, upstream chips with ⇣, an upstream wait's slot. Never an in-system item.</td><td>magenta family, apart from <code>agent</code></td><td><code>#a33182</code></td><td><code>#fabce0</code></td><td>Same · same</td></tr>
       </tbody>
     </table></div>
     <div class="swatches">
@@ -1379,14 +1380,7 @@ exit 0 · 38 s</div>
       <div class="sw"><div class="c"><i style="background:#8a5cc0"></i><i style="background:#c3a2e8"></i></div><div class="l"><b>agent · Copilot</b><code>#8a5cc0 · #c3a2e8</code></div></div>
       <div class="sw"><div class="c"><i style="background:#a33182"></i><i style="background:#fabce0"></i></div><div class="l"><b>upstream · ⇣</b><code>#a33182 · #fabce0</code></div></div>
     </div>
-    <p>The Today briefing adds one role to the table above:</p>
-    <div class="tblwrap"><table class="tbl compact">
-      <thead><tr><th style="width:17%">Role</th><th style="width:31%">Used for</th><th style="width:13%">Shore key</th><th style="width:13%">Light</th><th style="width:13%">Dark</th><th>Text variant</th></tr></thead>
-      <tbody>
-        <tr><td><code>upstream</code></td><td>The horizon origin mark on Today: the On the horizon block, upstream chips with ⇣, an upstream wait's slot. Never an in-system item.</td><td>magenta family, apart from <code>agent</code></td><td><code>#a33182</code></td><td><code>#fabce0</code></td><td>Same · same</td></tr>
-      </tbody>
-    </table></div>
-    <p>Its badge fill is <code>upstream-surface</code>: <code>#f5deee</code> light, <code>#302032</code> dark.</p>
+    <p>The <code>upstream</code> badge fill is <code>upstream-surface</code>: <code>#f5deee</code> light, <code>#302032</code> dark.</p>
     <p>Each swatch shows light, then dark, from Keelson's <code>SHORE_LIGHT</code> and <code>SHORE_DARK</code>. Shore's light accent, red, yellow, green, magenta and dim fall below 4.5:1 as small text on at least one light surface, so each gets a darker text variant in the light appearance; dark values pass and are used unchanged, except <code>dim</code>, which is lightened. Appendix B has the ratios. CI checks every text pair with Keelson's <code>wcagContrast</code> (NF-07). <code>upstream</code> passes as small text in both appearances, so it needs no variant; the window's palette test also holds it apart from <code>agent</code> and every other role under protan and deutan simulation, because the two share a family. Colour never carries origin alone: the ⇣ glyph and the horizon block's position carry it too.</p>
   </section>
 
