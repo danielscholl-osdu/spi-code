@@ -31,6 +31,7 @@ import {
   releaseDoc,
   releaseLine,
   releaseMonths,
+  releasesToday,
   STACK_REPO,
   type SweepReads,
 } from "@spi-code/core";
@@ -286,6 +287,13 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     ),
   }));
   const campaigns = detectedCampaigns(model, input);
+  releases.today = releasesToday({
+    services,
+    documents,
+    facts: input.facts,
+    context: input.context,
+    provenance: releaseProvenance(releases.lines, input.releaseRecords, now),
+  });
   return ViewSnapshotSchema.parse({
     cursor: input.cursor,
     sweptAt: model.sweptAt ?? now.toISOString(),

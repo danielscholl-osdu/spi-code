@@ -1,6 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+export { releasesToday } from "./releases-today.js";
+
 import {
   AZURE_REMOVAL_DUE,
   HISTORY_DAYS,
