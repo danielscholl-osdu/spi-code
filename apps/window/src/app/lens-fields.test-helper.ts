@@ -232,6 +232,18 @@ export function lensFields({ briefing }: ViewSnapshot): LensField[] {
     "Upstream · Further ahead",
     at("/briefing/horizon/headline"),
   );
+  const { headline: _, ...coming } = briefing.horizon;
+  const walk = (value: unknown, pointer: string): void => {
+    if (Array.isArray(value))
+      for (const [index, entry] of value.entries()) walk(entry, `${pointer}/${index}`);
+    else if (value !== null && typeof value === "object")
+      for (const [key, entry] of Object.entries(value)) walk(entry, `${pointer}/${key}`);
+    else
+      add("Horizon", pointer, String(value), "Today · On the horizon", at(pointer), {
+        exempt: "spicode-f0s.19: pending until it draws On the horizon",
+      });
+  };
+  walk(coming, "/briefing/horizon");
   briefing.themes.forEach((theme, index) => {
     for (const [key, selector] of [
       ["title", ".upstream-theme-title"],

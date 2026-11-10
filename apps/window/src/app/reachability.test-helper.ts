@@ -51,6 +51,8 @@ export type Exemption = {
   patterns: readonly string[];
   reason: string;
   when?: (value: unknown) => boolean;
+  /** A contract field core doesn't fill yet: no fixture leaf has to use it, so it's never stale. */
+  pending?: true;
 };
 
 type Lane = ViewSnapshot["briefing"]["environment"]["lanes"][number];
@@ -761,8 +763,98 @@ function repositoryCases(
   });
 }
 
+const PR = ["pr/number", "pr/url", "pr/inspect"];
+const SLOT = ["service", "state", "origin", "text"];
+const under = (root: string, leaves: readonly string[]) => leaves.map((leaf) => `${root}/${leaf}`);
+const ambient = (run: string) => [
+  ...under(`/briefing/ambient/${run}`, ["items", "text"]),
+  ...under(`/briefing/ambient/${run}/lines/#`, [
+    ...["id", "count", "service", "station", ...PR, "state/text", "state/tone"],
+    ...["followUp", "age", "origin", "text"],
+  ]),
+  `/briefing/ambient/${run}/lines/#/itemIds/#`,
+  `/briefing/ambient/${run}/lines/#/next/#`,
+];
+const pending = (bead: string, what: string, patterns: readonly string[]): Exemption => ({
+  patterns,
+  reason: `${bead}: pending until it draws ${what}`,
+  pending: true,
+});
+
+/** Today briefing fields the contract carries before a window bead draws them; each names its bead. */
+export const PENDING: Readonly<Record<string, Exemption>> = {
+  "pending-frame": pending("spicode-f0s.17", "the verdict and since rows", [
+    ...under("/briefing/verdict", ["text", "mark"]),
+    ...under("/briefing/since", ["basis", "from"]),
+    ...under("/briefing/since/rows/#", ["workflow", "label", "countText"]),
+    ...under("/briefing/since/rows/#/slots/#", SLOT),
+  ]),
+  "pending-band": pending("spicode-f0s.18", "item origin and Decisions waiting", [
+    "/briefing/focus/#/origin",
+    "/briefing/rest/#/origin",
+    ...under("/briefing/decisions", ["items", "text"]),
+    ...under("/briefing/decisions/groups/#", ["id", "theme", "kind", "token", "verb", "text"]),
+    "/briefing/decisions/groups/#/itemIds/#",
+    ...under("/briefing/decisions/groups/#/scope/#", ["service", ...PR]),
+  ]),
+  "pending-places": pending("spicode-f0s.20", "the place cards", [
+    ...under("/briefing/places/#", ["place", "mark", "tone", "figure", "line", "reason", "caveat"]),
+    "/briefing/places/#/areas/#",
+    "/briefing/places/#/unread/areas/#",
+    "/briefing/places/#/unread/lastGood",
+    "/briefing/places/#/fresh/itemIds/#",
+    ...under("/briefing/places/#/visual", ["kind", "greenSince", "target"]),
+    ...under("/briefing/places/#/visual/slots/#", SLOT),
+    "/briefing/places/#/visual/stopped/#",
+    ...under("/briefing/places/#/visual/horizon", ["count", "text"]),
+    ...under("/briefing/places/#/visual/lanes/#", ["lane", "green", "total", "text"]),
+    ...under("/briefing/places/#/visual/columns/#", ["service", "count", "text"]),
+    "/briefing/places/#/visual/columns/#/rules/#",
+    ...under("/briefing/places/#/visual/largest", ["label", "forks", "text"]),
+  ]),
+  "pending-failing": pending("spicode-f0s.18", "the Failing run", ambient("failing")),
+  "pending-motion": pending("spicode-f0s.22", "In motion and Can wait", [
+    ...ambient("inProgress"),
+    ...under("/briefing/canWait/chips/#", ["text", "count", "service"]),
+    ...under("/briefing/canWait/items/#", ["id", "service", "text", "why"]),
+    "/briefing/canWait/items/#/itemIds/#",
+  ]),
+  "pending-releases": pending("spicode-f0s.21", "Today's Releases block", [
+    ...under("/releases/today/versions/#", [
+      "service",
+      "released",
+      "proposed",
+      "coreLibAzure",
+      "text",
+      ...PR,
+    ]),
+    ...under("/releases/today/platform", ["stack", "text"]),
+    ...under("/releases/today/platform/template", ["released", "proposed", ...PR]),
+    ...under("/releases/today/platform/coreLibAzure/#", ["version", "count"]),
+    "/releases/today/readyLine",
+    "/releases/today/unread/areas/#",
+    "/releases/today/unread/lastGood",
+    ...under("/releases/forming", ["state", "text"]),
+    ...under("/releases/forming/kinds", [
+      "breaking",
+      "new",
+      "improved",
+      "fixed",
+      "security",
+      "other",
+    ]),
+    ...under("/releases/forming/notable/#", ["title", "kind", "text", ...PR]),
+    "/releases/forming/notable/#/services/#",
+  ]),
+  "pending-forming": pending("spicode-f0s.27", "the Releases place's forming change lists", [
+    ...under("/releases/forming/prs/#", ["kind", "service", "state", ...PR]),
+    ...under("/releases/forming/prs/#/entries/#", ["kind", "title"]),
+  ]),
+};
+
 /** Leaves the window draws nowhere by design, each with the reason or the bead that owns it. */
 export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
+  ...PENDING,
   transport: {
     patterns: [
       "/briefing/focus/#/id",
@@ -915,8 +1007,10 @@ export function coverage(
   return {
     uncovered,
     stray: [...pointers].filter((pointer) => !values.has(pointer)),
-    stale: Object.entries(exemptions).flatMap(([name, { patterns }]) =>
-      patterns.map((pattern) => `${name} ${pattern}`).filter((entry) => !used.has(entry)),
+    stale: Object.entries(exemptions).flatMap(([name, { patterns, pending }]) =>
+      pending
+        ? []
+        : patterns.map((pattern) => `${name} ${pattern}`).filter((entry) => !used.has(entry)),
     ),
     partial,
   };

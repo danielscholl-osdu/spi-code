@@ -97,7 +97,7 @@ if (process.argv.includes("--spi-smoke")) {
     if (!port) throw new Error("Smoke port is not connected");
     // Current PROTOCOL_VERSION, so the host rejects the probe for its extra field alone.
     port.postMessage({
-      version: 3,
+      version: 4,
       id: "bad",
       kind: "request",
       type: "ping",

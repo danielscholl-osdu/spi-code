@@ -24,6 +24,7 @@ export const ServiceRunSchema = z.strictObject({
   workflow: z.string(),
   result: z.string(),
   time: ObservedAtSchema,
+  completedAt: ObservedAtSchema.optional(),
   url: WebUrlSchema,
 });
 export const ServiceReleaseSchema = DocRowSchema.extend({
