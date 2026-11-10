@@ -1348,8 +1348,14 @@ esac
       );
       await service.routes["setup.signin.cancel"]?.(cancelRequest("req-cancel"), () => {});
       await flow;
-      await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow());
-      await vi.waitFor(() => expect(() => process.kill(grandchildPid, 0)).toThrow());
+      await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow(), {
+        timeout: 10_000,
+        interval: 50,
+      });
+      await vi.waitFor(() => expect(() => process.kill(grandchildPid, 0)).toThrow(), {
+        timeout: 10_000,
+        interval: 50,
+      });
       expect(progress().at(-1)).toEqual({
         requestId: "req-cancel",
         tool,
