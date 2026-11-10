@@ -16,6 +16,7 @@
   --o3:#0e7c7c; --o3-bg:#dcf2f1; --o3-ink:#0a5a5a;   /* services */
   --o4:#5f6f7a; --o4-bg:#eaeef0; --o4-ink:#45535c;   /* releases */
   --ok:#2c7a4e; --ok-bg:#dff0e5; --bad:#a83a2f; --bad-bg:#f5dcd8; --warn:#9a6a12; --warn-bg:#f6ecd4;
+  --up:#a33182; --up-bg:#f5deee; --up-ink:#a33182;   /* from upstream */
   --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
   --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
@@ -29,6 +30,7 @@
     --o3:#45bdbd; --o3-bg:#123636; --o3-ink:#a3e3e3;
     --o4:#93a3ad; --o4-bg:#242d33; --o4-ink:#c4cfd6;
     --ok:#7fd1a0; --ok-bg:#173226; --bad:#f08a7e; --bad-bg:#3d1f1b; --warn:#e3b25a; --warn-bg:#3a2d14;
+    --up:#fabce0; --up-bg:#302032; --up-ink:#fabce0;
   }
 }
 :root[data-theme="dark"]{
@@ -40,6 +42,7 @@
   --o3:#45bdbd; --o3-bg:#123636; --o3-ink:#a3e3e3;
   --o4:#93a3ad; --o4-bg:#242d33; --o4-ink:#c4cfd6;
   --ok:#7fd1a0; --ok-bg:#173226; --bad:#f08a7e; --bad-bg:#3d1f1b; --warn:#e3b25a; --warn-bg:#3a2d14;
+  --up:#fabce0; --up-bg:#302032; --up-ink:#fabce0;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5}
@@ -189,6 +192,101 @@ code{font-family:var(--mono);font-size:.9em}
 @media (max-width:560px){ .picker{grid-template-columns:1fr} .picker .ml{border-right:none;border-bottom:1px solid var(--line)} }
 .appendix{margin-top:56px;padding-top:30px;border-top:3px solid var(--line)}
 .appendix section{margin-top:32px;padding-top:22px}
+/* Today, the daily briefing */
+.bf{display:flex;flex-direction:column;gap:14px;font-size:12.5px;color:var(--ink-2);min-width:0}
+.bf b{color:var(--ink);font-weight:500}
+.bf-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 16px}
+.bf-head .headline{margin:0}
+.bf-h{font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin:0 0 6px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
+.bf-h .n,.bf-h .ch{text-transform:none;letter-spacing:0;font-weight:500}
+.bf-h .end{margin-left:auto}
+.mk{font-family:var(--mono);font-weight:600}
+.mk.x{color:var(--bad)} .mk.w{color:var(--warn)} .mk.p{color:var(--o2-ink)} .mk.o{color:var(--ink-3)}
+.sl{display:inline-block;position:relative;flex:none;width:9px;height:9px;border-radius:50%;border:1.4px solid var(--ink-3);vertical-align:-1px}
+.sl.occ{background:var(--ink-2);border-color:var(--ink-2)}
+.sl.done{background:var(--o3);border-color:var(--o3)}
+.sl.done::after{content:"";position:absolute;left:2px;top:.4px;width:2px;height:4px;border:solid var(--surface);border-width:0 1.3px 1.3px 0;transform:rotate(45deg)}
+.sl.wait{border:0;border-radius:0;background:var(--warn);clip-path:polygon(50% 0,100% 100%,0 100%)}
+.sl.wait.up{background:var(--up)}
+.sl.brk{border:0;border-radius:0;width:7px;height:7px;margin:0 1px;background:var(--bad);transform:rotate(45deg)}
+.sl.unk::after{content:"";position:absolute;left:2.1px;top:2.1px;width:2.2px;height:2.2px;border-radius:50%;background:var(--ink-3)}
+.slots{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px}
+.pipr{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
+.pipr .lbl{font-weight:600;color:var(--ink)}
+.slegend{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:11px;color:var(--ink-3)}
+.slegend span{display:inline-flex;align-items:center;gap:4px}
+.ch{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;padding:0 6px;border-radius:4px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);white-space:nowrap}
+.ch.svc{font-weight:600;color:var(--ink)}
+.ch .pr{font-family:var(--mono);font-weight:400;color:var(--ink-3)}
+.ch.bad{background:var(--bad-bg);color:var(--bad);border-color:transparent}
+.ch.warn{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.ch.up{background:var(--up-bg);color:var(--up-ink);border-color:transparent}
+.ch.mute{background:transparent;color:var(--ink-3)}
+.tok{font-family:var(--mono);font-size:11.5px;padding:0 5px;border:1px solid var(--line-strong);border-radius:3px;color:var(--ink);white-space:nowrap}
+.verb{margin-left:auto;font-size:11.5px;padding:0 8px;border:1px solid var(--line-strong);border-radius:5px;color:var(--ink);white-space:nowrap}
+.verb.pri{background:var(--o3);border-color:var(--o3);color:var(--surface)}
+.abnd{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px 18px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg)}
+.abnd .top{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:11.5px;color:var(--ink-3)}
+.abnd .top .ch.up{margin-left:auto}
+.ny{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:6px;padding:8px 10px;background:var(--surface)}
+.ny .t{flex:1 1 220px;color:var(--ink);font-weight:500}
+.irow{display:grid;grid-template-columns:92px 46px 34px minmax(0,1fr) 30px;gap:8px;align-items:center;padding:3px 0;border-bottom:1px solid var(--line)}
+.irow:last-of-type{border-bottom:0}
+.irow .svcn{font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.irow .st{display:flex;flex-wrap:wrap;gap:4px}
+.irow .age{color:var(--ink-3);text-align:right;font-variant-numeric:tabular-nums}
+.lg{display:flex;align-items:center;width:100%}
+.lg i{display:inline-block;width:11px;height:2px;background:var(--ink-3)}
+.lg i.rest{width:auto;flex:1;min-width:18px;height:0;background:none;border-top:2px dotted var(--line-strong)}
+.lgleg{font-size:11px;color:var(--ink-3);margin-top:4px}
+.hz{display:flex;flex-direction:column;gap:10px;border:1px solid var(--line);border-left:3px solid var(--up);border-radius:10px;padding:10px 12px}
+.hz>.bf-h{color:var(--up-ink);margin:0}
+.conv{display:grid;grid-template-columns:minmax(0,1fr) 14px minmax(0,1.5fr) 14px minmax(0,1fr);gap:6px}
+.stg{display:flex;flex-direction:column;gap:5px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--bg)}
+.stg .k{font-size:11.5px;color:var(--ink-3)}
+.stg .k b{font-size:15px;font-weight:600;color:var(--ink);margin-right:4px}
+.stg .chs{display:flex;flex-wrap:wrap;gap:4px}
+.stg .wl{font-size:11px;color:var(--ink-3);display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.arr{align-self:center;text-align:center;color:var(--up-ink)}
+.hsub{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px}
+.hcards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.hc{display:flex;flex-wrap:wrap;align-items:center;gap:5px 6px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface)}
+.hc.quiet{border-style:dashed;background:transparent}
+.hc .kg{color:var(--up-ink);font-family:var(--mono)}
+.hc .mk{margin-left:auto}
+.owed{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.segbar{display:flex;flex:1;min-width:140px;gap:2px;height:8px}
+.segbar i{border-radius:2px;background:var(--up);opacity:.35}
+.pcards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.pc{display:flex;flex-direction:column;gap:6px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface)}
+.pc .nm{display:flex;align-items:center;gap:6px;font-weight:600;color:var(--ink)}
+.pc .nm .ch{margin-left:auto;font-weight:400}
+.pc .fig{font-size:12px;color:var(--ink-3)}
+.pc .fig b{font-size:17px;font-weight:600;color:var(--ink);margin-right:3px}
+.pc .fig b.warnink{color:var(--warn)}
+.pc .chs{display:flex;flex-wrap:wrap;gap:4px}
+.lc{display:grid;grid-template-columns:48px minmax(0,1fr) 34px;gap:6px;align-items:center;font-size:11px;color:var(--ink-3)}
+.lc .tr{height:5px;border-radius:3px;overflow:hidden;background:var(--surface-2)}
+.lc .tr i{display:block;height:100%;background:var(--o2)}
+.lc span:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.cols13{display:flex;align-items:flex-end;gap:3px;height:24px;border-bottom:1px solid var(--line-strong)}
+.cols13 i{width:6px;background:var(--warn);opacity:.75}
+.cols13 i.z{height:1px!important;background:var(--line-strong)}
+.lower{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:14px 20px}
+.vers{display:grid;grid-template-rows:repeat(5,auto);grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:2px 14px;font-size:12px;font-variant-numeric:tabular-nums}
+.vers span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vers em{font-style:normal;color:var(--ink-3)}
+.relx{display:flex;flex-direction:column;gap:5px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.stack{display:flex;flex:1;min-width:140px;height:8px;border-radius:3px;overflow:hidden}
+.stack i{display:block;height:100%}
+.relx .row{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}
+.legend2{display:flex;flex-wrap:wrap;gap:2px 10px;font-size:11px;color:var(--ink-3)}
+.legend2 span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:-1px;background:var(--c)}
+.motion{display:flex;flex-direction:column;gap:6px}
+.motion .irow{grid-template-columns:86px 46px 34px minmax(0,1fr)}
+.cwait{display:flex;flex-wrap:wrap;gap:4px}
+@media (max-width:760px){ .abnd,.conv,.hcards,.lower{grid-template-columns:minmax(0,1fr)} .pcards{grid-template-columns:repeat(2,minmax(0,1fr))} .arr{transform:rotate(90deg);height:12px} .vers{grid-template-rows:repeat(7,auto)} }
+@media (max-width:520px){ .pcards{grid-template-columns:minmax(0,1fr)} .irow{grid-template-columns:80px 46px minmax(0,1fr) 28px} .irow>span:nth-child(3){display:none} }
 </style>
 </head>
 <body>
@@ -200,7 +298,7 @@ code{font-family:var(--mono);font-size:.9em}
 
   <div class="problem">
     <p><b>The current window reads like a transcript of the sweep, and the first revision of this page made it a better dashboard.</b> A service page shows about 520 words. The revised Today packed a 13 × 6 grid, three bands and a queue into one view, which is busier than the rib console it replaces. It still asked the operator to visit pages and coordinate the work mentally. Threads were annotations on those pages.</p>
-    <p><b>This revision makes the thread the place work happens.</b> The window has three layers. The strip, the window's top row, always shows the line's state. The centre holds either a short brief (Today), a place such as a service, or a thread. The right panel holds context for whatever the centre shows. Attention has three tiers decided by core, and only a decision that's yours interrupts. Watchers and campaign threads notice problems and draft the exact approval card. The operator decides, in one place per card.</p>
+    <p><b>This revision makes the thread the place work happens.</b> The window has three layers. The strip, the window's top row, always shows the line's state. The centre holds either a short brief (Today), a place such as a service, or a thread. The right panel holds context for whatever the centre shows. Attention has four tiers decided by core, and only a decision that's yours interrupts. Watchers and campaign threads notice problems and draft the exact approval card. The operator decides, in one place per card.</p>
     <p><b>Some things this doesn't change or provide.</b> Every write still needs its own card (AU-03 to AU-10), and no agent approves anything. Lane occupancy, collision attribution, seen-state and due times are new data, marked where they appear. Sequencing across forks must be enforced in the stack's workflows, because the app can't stop jobs GitHub starts on its own.</p>
   </div>
 
@@ -219,7 +317,7 @@ code{font-family:var(--mono);font-size:.9em}
         <thead><tr><th></th><th>First revision</th><th>This revision</th></tr></thead>
         <tbody>
           <tr><td><b>Landing</b></td><td>Today, always: headline, three bands, the 13 × 6 grid, four queue items</td><td>Today when something that interrupts arrived since you last looked. Otherwise your last thread, in the centre.</td></tr>
-          <tr><td><b>Today</b></td><td>A dashboard</td><td>A rib-shaped brief: one headline written as a change since you last looked, three tiles, at most five items grouped by when they bite, and a composer</td></tr>
+          <tr><td><b>Today</b></td><td>A dashboard</td><td>The daily briefing: a verdict headline and since pips, an attention band for in-system work, On the horizon for what is coming from upstream, four place cards, and Releases beside In motion and Can wait. Places are the drill-down.</td></tr>
           <tr><td><b>The grid</b></td><td>The landing view</td><td>The Line sheet, one keystroke away from anywhere, pinnable for a monitoring session</td></tr>
           <tr><td><b>Fleet at a glance</b></td><td>Sidebar pip rows</td><td>One strip on every surface, as the window's top row</td></tr>
           <tr><td><b>Sidebar</b></td><td>Inventory: campaigns, system, services, views</td><td>Work in flight: threads by status, a few fixed places, your pins</td></tr>
@@ -236,56 +334,268 @@ code{font-family:var(--mono);font-size:.9em}
     <p>The window is T3 Code's shell. The sidebar holds work. The centre holds one thing: a brief, a place or a thread. The right panel is closed until the centre has context worth showing. One strip runs across the top on every surface, so the line is never more than a glance away.</p>
     <div class="callout">The mockups on this page draw what each surface says, not how the window is laid out. Their fixed sidebar and right-panel widths, the title bar and strip as two rows, the place name and sweep line in the title bar, and Setup as a sidebar destination are superseded by the <a href="spi-code-window-layout.html">window layout</a>: one top row that ends with the freshness field, flush panes that resize within a width budget, and Setup as the Readiness section of a Settings dialog. For layout, panes, the top row and Settings, the <a href="spi-code-window-layout.html">window layout</a> wins over this page.</div>
 
-    <h3>Today at rest</h3>
-    <div class="screen" role="img" aria-label="Mockup of Today at rest on a calm morning">
-      <div class="bar"><span><b>SPI Code</b> · Today</span><span>swept 08:06 · ⌀ 1 source failed</span></div>
-      <div class="strip"><span class="pipset" title="partition, entitlements, legal, schema, file, storage, indexer, search, workflow, indexer-queue, unit, crs-catalog, crs-conversion"><span class="c-you">!</span><span class="c-stop">✕</span><span class="c-you">!</span><span class="mut">○○</span><span class="c-you">!!</span><span class="mut">○○</span><span class="c-you">!</span><span class="mut">○○○</span></span><span>entitlements stopped</span><span>env <b>v0.35.3</b> deployable</span><span>template <b>0/13</b></span><span class="sp"></span><span class="c-you">2 due before 18:00</span><span>next sync <b>18:00</b></span><span class="btn">Line ⌘L</span></div>
+    <h3>Today: the daily briefing</h3>
+    <p>Today is the operator's daily briefing on the whole program. It reads in the order a briefing is given: what needs you, what is coming from upstream, how the system stands place by place, the forming release, then what is moving and what can wait. Places are the drill-down: every row on Today opens the place, or the item, that owns it, and Today states each fact once. Time isn't Today's spine. There's no "due by", no "before 18:00" group and no clock rail; a time appears only as a fact about an event: "failed 13 h ago", "4 commits at the 18:00 sync", "green since 11-09 22:27".</p>
+    <p>Top to bottom: the verdict headline and since pips; a caveat band when a source failed; the <b>attention band</b>, only when there is in-system work that asks for you; <b>On the horizon</b>, what is coming from upstream GitLab, on every morning; four <b>place cards</b>; then <b>Releases</b>, about two-thirds of the width, beside <b>In motion</b> and <b>Can wait</b>. Today lifts the centre's 960 px content cap and uses the full centre width; the <a href="spi-code-window-layout.html#panes">window layout</a> states the exception.</p>
+    <div class="screen" role="img" aria-label="Mockup of Today on a busy morning: the verdict and since pips, the attention band with Needs you and Failing, On the horizon from upstream GitLab, four place cards, and Releases beside In motion and Can wait">
+      <div class="bar"><span><b>SPI Code</b> · Today</span><span>Tuesday 10 Nov</span></div>
+      <div class="strip"><span class="pipset" title="partition, entitlements, legal, schema, file, storage, indexer, search, workflow, indexer-queue, unit, crs-catalog, crs-conversion"><span class="c-you">!</span><span class="mut">○</span><span class="c-you">!</span><span class="mut">○○</span><span class="c-stop">✕</span><span class="c-you">!!!</span><span class="c-stop">✕</span><span class="c-you">!!!</span></span><span>storage, indexer-queue stopped</span><span>env <b>v0.35.5</b> deployable</span><span>template <b>7/13</b></span><span class="sp"></span><span>next sync <b>18:00</b></span><span class="btn">Line ⌘L</span></div>
       <div class="scr2">
         <div class="side">
           <div class="row">⌘K Find or ask</div>
-          <div class="row on">Today <small>0</small></div>
+          <div class="row on">Today <small class="c-stop">1</small></div>
           <div class="row">Line <small>⌘L</small></div>
           <div class="grp">Places</div>
           <div class="row">Upstream</div>
-          <div class="row">Environment</div>
-          <div class="row">Engineering system</div>
+          <div class="row">Environment <small>v0.35.5</small></div>
+          <div class="row">Engineering system <small>7 of 13</small></div>
           <div class="row">Releases</div>
           <div class="row">Security</div>
-          <div class="grp">Pinned</div>
-          <div class="row">entitlements <small class="c-stop">✕</small></div>
-          <div class="row">legal</div>
-          <div class="grp">Threads</div>
-          <div class="row"><span><span class="st c-move">◐</span>Diagnose entitlements</span></div>
-          <div class="row"><span><span class="st mut">◷</span>Lane watch</span></div>
-          <div class="row mut">Settled 6</div>
         </div>
         <div class="main">
-          <p class="headline" style="margin-bottom:2px">No new interruptions since 17:40. Entitlements stays stopped, owned by Diagnose.</p><p class="mut" style="font-size:12px;margin:0 0 12px">GitLab cut the upstream diffs for 6 services this sweep, so upstream items may be missing.</p>
-          <div class="tiles">
-            <div class="tile"><small>Environment</small><b>v0.35.3</b>deployable · green 11-05 22:20</div>
-            <div class="tile"><small>Upstream sync</small><b>1 of 13</b>forks stopped · entitlements</div>
-            <div class="tile"><small>Engineering system</small><b>0 of 13</b>forks on 7d269b5 · 13 PRs open</div>
+          <div class="bf">
+            <div>
+              <div class="bf-head"><p class="headline"><span class="mk x">✕</span> Storage's upstream sync needs you; 4 upstream changes need you before they land.</p></div>
+              <div class="pipr" style="margin-top:8px"><span class="ch">24 h</span><span class="lbl">Sync Upstream</span><span class="slots" title="Sync Upstream ran on 13 forks and failed on storage"><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl brk"></span><span class="sl occ"></span><span class="sl"></span><span class="sl occ"></span><span class="sl"></span><span class="sl occ"></span><span class="sl occ"></span><span class="sl occ"></span></span><span class="mut">12/13 ran ok</span><span class="lbl">Sync Template</span><span class="slots" title="Sync Template ran on all 13; 7 have merged d3ddff5"><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl occ"></span><span class="sl occ"></span><span class="sl done"></span><span class="sl occ"></span><span class="sl occ"></span><span class="sl done"></span><span class="sl occ"></span><span class="sl occ"></span></span><span class="mut">7/13 merged</span></div>
+              <div class="slegend" style="margin-top:4px"><span><span class="sl"></span>empty</span><span><span class="sl occ"></span>occupied</span><span><span class="sl done"></span>done</span><span><span class="sl brk"></span>broken</span></div>
+            </div>
+            <div class="abnd">
+              <div class="top"><span><span class="mk x">✕</span> Line</span><span><span class="mk p">◐</span> Environment</span><span><span class="mk p">◐</span> Engineering system</span><span><span class="mk o">○</span> Security</span><span class="ch up">⇣ 4 upstream need you first</span></div>
+              <div>
+                <p class="bf-h">Needs you <span class="n">· 1</span></p>
+                <div class="ny"><span class="prio p0">P0</span><span class="ch svc">storage</span><span class="t">Sync Upstream failed with no halt issue open</span><span class="ch mute">13 h</span><span class="verb pri">Investigate ›</span></div>
+              </div>
+              <div>
+                <p class="bf-h">Failing <span class="n">· 3 in 2</span></p>
+                <div class="irow"><span class="svcn">storage</span><span class="lg"><i></i><span class="sl brk"></span><i class="rest"></i></span><span class="mut">#75</span><span class="st"><span class="ch bad">Deploy and Test</span></span><span class="age">13 h</span></div>
+                <div class="irow"><span class="svcn">indexer-queue</span><span class="lg"><i></i><span class="sl brk"></span><i class="rest"></i></span><span class="mut">#67</span><span class="st"><span class="ch bad">Verify</span><span class="ch">⟲ after drain</span></span><span class="age">3 d</span></div>
+                <p class="lgleg"><span class="lg" style="width:46px;display:inline-flex;vertical-align:middle"><i></i><span class="sl"></span><i class="rest"></i></span> sync PR → release/upstream PR → main → release</p>
+              </div>
+            </div>
+            <div class="hz">
+              <p class="bf-h">⇣ On the horizon <span class="n">· from upstream GitLab</span><span class="ch warn">⌀ diffs cut · 8 services</span></p>
+              <div class="conv">
+                <div class="stg"><span class="k"><b>8</b>next sync 18:00</span><span class="chs"><span class="ch svc">partition <span class="pr">2</span></span><span class="ch svc">legal <span class="pr">2</span></span><span class="ch svc">schema <span class="pr">4</span></span></span><span class="wl">won't land <span class="ch svc"><span class="sl brk"></span>storage <span class="pr">5</span></span></span></div>
+                <span class="arr">→</span>
+                <div class="stg"><span class="k"><b>69</b>in 5 open sync PRs</span><span class="chs"><span class="ch svc">indexer <span class="pr">#58</span></span><span class="ch svc">workflow <span class="pr">#60</span></span><span class="ch svc">unit <span class="pr">#50</span></span><span class="ch svc">crs-conversion <span class="pr">#41</span></span><span class="ch svc">crs-catalog <span class="pr">#54</span></span></span></div>
+                <span class="arr">→</span>
+                <div class="stg"><span class="k"><b>4</b>your forks, current</span><span class="chs"><span class="ch">entitlements</span><span class="ch">file</span><span class="ch">search</span><span class="ch">indexer-queue</span></span></div>
+              </div>
+              <div class="hsub"><span><span class="mk w">!</span> <b>4</b> need you before they land</span><span><span class="mk o">○</span> <b>1</b> to watch</span></div>
+              <div class="hcards">
+                <div class="hc"><span class="kg">⇡</span><span class="tok">os-core-common 8.5.0</span><span class="mk w">!</span><span class="ch svc">indexer <span class="pr">#58</span></span><span class="ch svc">workflow <span class="pr">#60</span></span><span class="ch svc">unit <span class="pr">#50</span></span><span class="verb">Absorb ›</span></div>
+                <div class="hc"><span class="kg">⏸</span><span class="tok">schemathesis-tests</span><span class="mk w">!</span><span class="ch svc">legal <span class="pr">18:00</span></span><span class="ch svc">crs-conversion <span class="pr">#41</span></span><span class="verb">Pre-classify ›</span></div>
+                <div class="hc"><span class="kg">⇡</span><span class="tok">Java 25</span><span class="mk w">!</span><span class="ch svc"><span class="sl brk"></span>storage <span class="pr">stopped</span></span><span class="verb">Move pin ›</span></div>
+                <div class="hc"><span class="kg">⇡</span><span class="tok">os-core-common 10.0.0</span><span class="mk w">!</span><span class="ch svc">partition <span class="pr">18:00</span></span><span class="verb">Absorb ›</span></div>
+                <div class="hc quiet"><span class="kg">⇡</span><span class="tok">jackson-3 SNAPSHOT</span><span class="ch svc">workflow <span class="pr">#60</span></span><span class="ch mute">held</span></div>
+              </div>
+              <div class="owed"><b>Ports owed</b><span class="segbar" title="23 upstream provider changes not ported, across 12 forks"><i style="flex:4"></i><i style="flex:3"></i><i style="flex:3"></i><i style="flex:2"></i><i style="flex:2"></i><i style="flex:2"></i><i style="flex:2"></i><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i><i style="flex:1"></i></span><span><b>23</b> · 12 forks</span></div>
+            </div>
+            <div class="pcards">
+              <div class="pc"><span class="nm"><span class="mk x">✕</span>Line</span><span class="fig"><b>2/13</b>stopped</span><span class="slots"><span class="sl wait up"></span><span class="sl"></span><span class="sl wait up"></span><span class="sl"></span><span class="sl"></span><span class="sl brk"></span><span class="sl wait up"></span><span class="sl wait"></span><span class="sl wait up"></span><span class="sl brk"></span><span class="sl wait up"></span><span class="sl wait up"></span><span class="sl wait up"></span></span><span class="chs"><span class="ch bad">lanes: storage, indexer</span><span class="ch up">⇣ 7 on the horizon</span></span></div>
+              <div class="pc"><span class="nm"><span class="mk p">◐</span>Environment</span><span class="fig"><b>v0.35.5</b>deployable</span><span class="lc"><span>refresh</span><span class="tr"><i style="width:88%"></i></span><span>14/16</span></span><span class="lc"><span>upgrade</span><span class="tr"><i style="width:100%"></i></span><span>17/17</span></span><span class="lc"><span>smoke</span><span class="tr"><i style="width:95%"></i></span><span>20/21</span></span><span class="lc"><span>sweeper</span><span class="tr"><i style="width:100%"></i></span><span>21/21</span></span><span class="chs"><span class="ch warn">lane failed</span><span class="ch">green since 11-09 22:27</span></span></div>
+              <div class="pc"><span class="nm"><span class="mk p">◐</span>Engineering system</span><span class="fig"><b>7/13</b>on d3ddff5</span><span class="slots"><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl occ"></span><span class="sl occ"></span><span class="sl done"></span><span class="sl occ"></span><span class="sl occ"></span><span class="sl done"></span><span class="sl occ"></span><span class="sl occ"></span></span><span class="chs"><span class="ch warn">verification pending</span></span></div>
+              <div class="pc"><span class="nm"><span class="mk o">○</span>Security</span><span class="fig"><b class="warnink">28</b>high or critical</span><span class="cols13" title="High or critical findings per fork, in the Line card's order"><i style="height:30%"></i><i style="height:30%"></i><i style="height:45%"></i><i style="height:15%"></i><i style="height:30%"></i><i style="height:45%"></i><i style="height:30%"></i><i style="height:30%"></i><i style="height:45%"></i><i style="height:30%"></i><i style="height:30%"></i><i style="height:30%"></i><i style="height:30%"></i></span><span class="chs"><span class="ch">CSRF · 12 forks</span><span class="ch">none blocking</span></span></div>
+            </div>
+            <div class="lower">
+              <div>
+                <p class="bf-h">Releases <span class="n">· 9 release PRs wait for review, none failing ›</span></p>
+                <div class="vers"><span>partition 1.3.4</span><span>entitlements 1.2.2</span><span>legal 1.2.2</span><span>schema 1.2.1</span><span>file 1.2.1</span><span>storage 1.4.1 <em>→ 1.4.2</em></span><span>indexer 1.4.0 <em>→ 1.4.1</em></span><span>search 1.4.0 <em>→ 1.4.1</em></span><span>workflow 1.3.1 <em>→ 1.3.2</em></span><span>indexer-queue 1.4.0 <em>→ 1.5.0</em></span><span>unit 1.4.0 <em>→ 1.4.1</em></span><span>crs-catalog 1.4.0 <em>→ 1.4.1</em></span><span>crs-conversion 1.4.0 <em>→ 1.4.1</em></span></div>
+                <div class="relx">
+                  <div class="row"><span class="mut">Platform</span><span>stack v0.35.5</span><span>template v1.4.0 <em class="mut">→ 1.5.0</em></span><span>core-lib-azure 5.0.0 ×2 · 4.0.0 ×4 · 3.0.x ×6 · 2.5.10 ×1</span></div>
+                  <div class="row"><span class="mut">Unreleased, 9 PRs</span><span class="stack" title="1 breaking, 9 new, 31 fixed, 4 security, 6 other"><i style="width:2%;background:var(--bad)"></i><i style="width:18%;background:var(--o3)"></i><i style="width:61%;background:var(--o2)"></i><i style="width:8%;background:var(--warn)"></i><i style="width:11%;background:var(--line-strong)"></i></span></div>
+                  <div class="legend2"><span style="--c:var(--bad)">1 breaking</span><span style="--c:var(--o3)">9 new</span><span style="--c:var(--o2)">31 fixed</span><span style="--c:var(--warn)">4 security</span><span style="--c:var(--line-strong)">6 other</span></div>
+                  <div class="row"><span class="mut">Notable</span><span>‹breaking change› on storage; ‹security fix› on search and unit</span></div>
+                </div>
+              </div>
+              <div class="motion">
+                <p class="bf-h" style="margin:0">In motion</p>
+                <div class="owed"><span class="mut">Template rollout · next</span><span class="ch svc">indexer</span><span class="ch svc">crs-catalog</span><span class="ch svc">crs-conversion</span></div>
+                <div class="irow"><span class="svcn">crs-catalog</span><span class="lg"><span class="sl wait up"></span><i class="rest"></i></span><span class="mut">#54</span><span class="st"><span class="ch warn">review</span><span class="ch up">⇣</span></span></div>
+                <div class="irow"><span class="svcn">search</span><span class="lg"><i></i><span class="sl wait"></span><i class="rest"></i></span><span class="mut">#76</span><span class="st"><span class="ch warn">approval</span></span></div>
+                <p class="bf-h" style="margin:6px 0 0">Can wait</p>
+                <div class="cwait"><span class="ch">232 upstream-owned</span><span class="ch">entitlements</span><span class="ch">file</span><span class="mut">›</span></div>
+              </div>
+            </div>
           </div>
-          <div class="grpl">Before 18:00</div>
-          <div class="q"><span class="prio p1">P1</span><span><b>partition</b> will halt at the sync on schemathesis-tests</span><span class="mut">›</span></div>
-          <div class="q"><span class="prio p1">P1</span><span><b>legal</b> sync carries os-core-common 8.4.1-boot4-SNAPSHOT, held</span><span class="mut">›</span></div>
-          <div class="grpl">Owned</div>
-          <div class="q"><span class="prio p0">P0</span><span><b>entitlements</b> cascade blocked · #121 · <span class="c-move">◐ Diagnose, working</span></span><span class="mut">›</span></div>
-          <div class="grpl">New</div>
-          <div class="q"><span class="mut">·</span><span>Detected: <b>os-core-common 8.5.0</b> on 8 forks · Track as campaign</span><span class="mut">›</span></div>
-          <div class="q" style="border:none"><span></span><span class="mut">9 more · 13 release PRs open, 1 failing (#89)</span><span></span></div>
-          <div class="composer"><span>Ask about the line, or start work…</span><span>@ $ /</span></div>
         </div>
       </div>
     </div>
-    <p class="note">About 75 visible words, against the rib's ~110 and the first revision's ~230. Strip pips sit in fixed fleet order, partition first, and each pip is named on hover: ✕ stopped · ! needs a person · ◐ in progress · ○ nothing due. The strip's fields never move. A <b>Waiting for you</b> group leads Today whenever a card raised by a button is pending; at rest there is none, so it isn't drawn. The Owned group and the Diagnose thread are illustrative M3 states. Seen-state ("since 17:40") and due times ("Before 18:00") are new data.</p>
+    <p class="note">The busy morning at 1440 × 900 with Detail closed, drawn smaller. Storage and indexer-queue are stopped, one Interrupt is open, the template is on 7 of 13 forks and nine release PRs wait. The release-change kinds and the Notable titles are illustrative, and so are the Security columns until core sends each fork's count; everything else is example data of the shape core sends. With no seen baseline the since pips take the "24 h" chip and no "new" chip shows. No in-system Surface item is open this morning, so Decisions waiting isn't drawn: every Surface item here comes from upstream and sits on its horizon card. The strip keeps the next sync and has no due count.</p>
+    <ul class="plain">
+      <li><b>The headline</b> is core's verdict, <code>briefing.verdict</code>: one sentence built from the tier counts, the environment's deployability and the stopped forks, naming both origins when both ask for you. The place cards agree with it. The date line carries the date only; freshness stays on the strip.</li>
+      <li><b>The since pips</b>, <code>briefing.since</code>, sit under the headline on every morning: one slot row of the 13 forks per workflow, in fork order. They report run outcomes, state adoption only from the rollout's own figure, and never claim a change core can't prove. The count beside each row counts what the row is about, not slots. With no seen baseline they cover the last 24 hours; when the run history doesn't reach the baseline they say where they start ("Since 02:10, the oldest run read").</li>
+      <li><b>The attention band</b> holds the in-system work that asks for you, and is drawn only when it has some: <b>Needs you</b>, every Interrupt whole and in rung order, never folded; <b>Decisions waiting</b> beside it, the in-system Surface items grouped once per core theme, drawn only with items; then <b>Failing</b>, TEST items and GATE items whose check is red, folded by shared evidence so one lane failure is one line. Its heading row repeats the place marks, so the state shows even when the band pushes the cards below the fold, and a "⇣ n upstream need you first" chip scrolls to the horizon.</li>
+      <li><b>Each group holds one tier, and each item has one home.</b> Interrupt: Needs you, whatever its origin; an upstream Interrupt's horizon card also carries ✕. Surface: its horizon card when it comes from upstream, Decisions waiting when it's in your system. Ambient: Failing in the band, or In progress in In motion. Background: a place card's count, or Can wait. Today never re-tiers an item, and heading counts are item counts ("Failing · 3 in 2").</li>
+      <li><b>A place card describes its place, not its items.</b> Its mark is the place's highest tier in the strip's vocabulary (✕ ! ◐ ○), named in words on hover ("Background: nothing asks you today"). Its figure takes the reading's tone in ink, so Security's 28 shows in warn ink beside ○. When the mark isn't ○, a reason chip says why. ⌀ joins the figure when an area the card reads, from core's <code>briefing.places[].areas</code>, was cut or not read, with core's shortened qualifier as its caveat line. A "new" chip shows when the place has items new since you last looked. Upstream has no card: On the horizon is its summary, and Releases has no card because the Releases block is its summary.</li>
+      <li><b>Releases</b> shows all 13 released versions, filled column-first and never folded. The released version comes from <code>services[].releases[]</code>; an open release PR's proposed version follows an arrow labelled on hover as the open release PR, whose accessible name reads "released 1.4.1, proposed 1.4.2". The platform line shows the stack, the template and core-lib-azure's spread across the 13, because one version would hide that services build on different library versions. The unreleased bar counts what the open release PRs carry, by kind, summing to the total; Notable names the one or two most material changes and the services they reach. A body that wasn't read reads "not read", never 0. Release history stays on Releases.</li>
+      <li><b>In motion</b> is the In progress run, ROLLOUT, GATE, PORT and ENV items in core's order: the rollout's next merges as chips, and each waiting PR as an item row. Work that is moving isn't trouble, so it lives with the state, not in the band. <b>Can wait</b> is chips for the Background items no place card counts and the services with nothing waiting ("entitlements and file: no sync, gate or release waiting"), and opens the Can wait list in Detail with why each can wait.</li>
+    </ul>
+
+    <h3>Calm first</h3>
+    <p>Calm is the goal state, so Today is designed for the calm morning and grows for the bad one. The state frame (the horizon, the place cards, Releases, In motion) is the same on every morning and looks complete when nothing needs you. The band takes the height it needs and pushes the frame down; it never changes the frame's layout, so a calm morning and a bad one differ by one band, not by a different page.</p>
+    <div class="screen" role="img" aria-label="Mockup of Today on a calm morning: the verdict with a hollow mark, all since pips ok, no attention band, On the horizon with nothing that needs you, and four quiet place cards">
+      <div class="bar"><span><b>SPI Code</b> · Today</span><span>Wednesday 11 Nov</span></div>
+      <div class="strip"><span class="pipset" title="partition, entitlements, legal, schema, file, storage, indexer, search, workflow, indexer-queue, unit, crs-catalog, crs-conversion"><span class="mut">○○○○○○○</span><span class="c-you">!</span><span class="mut">○○○○○</span></span><span>env <b>v0.35.5</b> deployable</span><span>template <b>13/13</b></span><span class="sp"></span><span>next sync <b>18:00</b></span><span class="btn">Line ⌘L</span></div>
+      <div class="main">
+        <div class="bf">
+          <div>
+            <div class="bf-head"><p class="headline"><span class="mk o">○</span> Nothing urgent needs you. v0.35.5 is deployable; all 13 forks are flowing.</p></div>
+            <div class="pipr" style="margin-top:8px"><span class="lbl">Sync Upstream</span><span class="slots"><span class="sl"></span><span class="sl"></span><span class="sl occ"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl occ"></span></span><span class="mut">13/13 ran ok</span><span class="lbl">Sync Template</span><span class="slots"><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span></span><span class="mut">13/13 ran ok</span></div>
+            <div class="slegend" style="margin-top:4px"><span><span class="sl"></span>empty</span><span><span class="sl occ"></span>occupied</span></div>
+          </div>
+          <div class="hz">
+            <p class="bf-h">⇣ On the horizon <span class="n">· from upstream GitLab</span></p>
+            <div class="conv">
+              <div class="stg"><span class="k"><b>38</b>next sync 18:00</span><span class="chs"><span class="ch svc">partition <span class="pr">21</span></span><span class="ch svc">legal <span class="pr">17</span></span></span></div>
+              <span class="arr">→</span>
+              <div class="stg"><span class="k"><b>0</b>in open sync PRs</span><span class="wl">nothing held</span></div>
+              <span class="arr">→</span>
+              <div class="stg"><span class="k"><b>11</b>your forks, current</span><span class="wl">schema, file, storage and 8 more</span></div>
+            </div>
+            <div class="hsub"><span><span class="mk o">○</span> Nothing needs you before it lands.</span></div>
+            <div class="hcards"><div class="hc quiet"><span class="kg">⇡</span><span class="tok">os-core-common 10.0.0</span><span class="ch svc">partition</span><span class="ch mute">absorbed · lands 18:00</span></div></div>
+          </div>
+          <div class="pcards">
+            <div class="pc"><span class="nm"><span class="mk w">!</span>Line</span><span class="fig"><b>0/13</b>stopped</span><span class="slots"><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl wait"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span><span class="sl"></span></span><span class="chs"><span class="ch warn">search: approval</span></span></div>
+            <div class="pc"><span class="nm"><span class="mk o">○</span>Environment</span><span class="fig"><b>v0.35.5</b>deployable</span><span class="lc"><span>refresh</span><span class="tr"><i style="width:94%"></i></span><span>15/16</span></span><span class="lc"><span>smoke</span><span class="tr"><i style="width:100%"></i></span><span>21/21</span></span><span class="chs"><span class="ch">green since 11-10 22:05</span></span></div>
+            <div class="pc"><span class="nm"><span class="mk o">○</span>Engineering system</span><span class="fig"><b>13/13</b>on d3ddff5</span><span class="slots"><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span><span class="sl done"></span></span></div>
+            <div class="pc"><span class="nm"><span class="mk o">○</span>Security</span><span class="fig"><b class="warnink">28</b>high or critical</span><span class="chs"><span class="ch">none blocking</span></span></div>
+          </div>
+          <p class="mut" style="margin:0;font-size:12px">Releases, In motion and Can wait follow, as on the busy morning; In motion shows only the runs that have items.</p>
+        </div>
+      </div>
+    </div>
+    <p class="note">A calm morning, drawn smaller and without the sidebar. The headline carries the verdict with ○. There is no band, no empty heading, no "0" count and no empty box. The since pips are all ok, which is the strongest single sign the night went well, and the legend lists only the shapes drawn. The cards are full and quiet: calm ink, not green, because the strip's vocabulary stays. Line's ! is honest: search waits for an approval in your system. Nothing grows to fill space, so a calm Today is shorter, not emptier, and with nothing selected Detail stays closed.</p>
+
+    <h3>On the horizon</h3>
+    <p>Everything on Today belongs to one of two origins, told apart at a glance by position and one mark. <b>In your system</b>: the SPI forks, their PRs, the environment, the template and the releases. <b>From upstream</b>: commits made in upstream GitLab that haven't fully landed in the forks, whether queued for the next sync or held in open sync PRs, and merged upstream provider changes not yet ported. Upstream origin has one owner colour, the visual design's <code>upstream</code> role, and one inbound glyph, ⇣. They mark the horizon block, every upstream chip and an upstream wait's slot, and nothing else; colour is never the only signal.</p>
+    <ul class="plain">
+      <li><b>The block</b> is Upstream's summary on Today, the way the Releases block is Releases'. It sits full width under the band and above the place cards on every morning, because upstream always has a horizon. Its heading opens the Upstream place and takes ⌀ when the radar was cut.</li>
+      <li><b>The conveyor</b> runs in three stages: the next sync, the open sync PRs, then your forks. Each stage shows its count and its fork chips from core's horizon stages; 18:00 is a fact on its stage. A fork whose sync is stopped or halted won't land at the next sync, wherever it appears: it moves to an uncounted "won't land" row under its stage, as a broken chip, so the heading counts exactly the chips above it. At 740 px the conveyor compacts to one line ("8 at 18:00 → 69 in 5 PRs → 4 current") and the stages expand on click.</li>
+      <li><b>What's coming</b> is one card per upstream change core groups by theme: a kind glyph (toolchain ⇡, halt ⏸), the change as a token, the forks it reaches with their stage (a PR badge when a sync PR holds it, the time when it's queued), and the verb. A card that holds a Surface item carries ! and its verb as a button ("Absorb ›", "Pre-classify ›", "Move pin ›"). A change that needs nothing is a quiet card; it says it lands on its own only when core confirms a delivery state, and a held card says "held". The sub-heading counts both: "4 need you before they land · 1 to watch".</li>
+      <li><b>Ports owed</b>, upstream provider changes not yet ported, are a per-fork segmented bar in the upstream tint at low saturation, with the figure carrying the number.</li>
+      <li><b>Upstream marks elsewhere.</b> The band holds only in-system work. A sync PR is in your system as a PR but its content is upstream, so it carries the ⇣ chip in In motion and is counted on the conveyor's PR stage. On the Line card, a slot whose wait is upstream draws in the upstream colour and the card adds a "⇣ n on the horizon" chip, counted from the same join core builds for the cards. Upstream-owned findings are already in the forks, so "232 upstream-owned" carries no ⇣.</li>
+    </ul>
+
+    <h3>Words and visuals</h3>
+    <p>Today is read at a glance, not read through. A word stays only when it carries something nothing else can: a decision, an action (the verb), the title of a change, or a caveat. So the words left are the headline, the Needs you title and verb, a decision's cause and verb, the failing check's name, the Notable titles and the caveats. Counts, states, progress, membership and time become marks, slots, bars and chips from the <a href="spi-code-visual-design.html">visual design's kit</a>. The sentence a visual replaces becomes its hover and accessible name, from the same core field ("Sync Upstream failed on storage at 18:27"), and Detail keeps the full text. Every visual draws from a number or list core sends; the window computes nothing beyond layout.</p>
+    <p><b>Slot grammar: one meaning per slot shape, everywhere.</b> Wherever Today draws a row of slots (the since pips, the Line card's pips, the conveyor's fork chips, the rollout cells), a slot is in one of six states, told apart by shape as well as colour:</p>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>State</th><th>Means</th><th>Drawn as</th></tr></thead>
+        <tbody>
+          <tr><td><span class="sl"></span> <b>empty</b></td><td>Nothing in the queue: the run had nothing to bring, nothing is waiting</td><td>A hollow circle</td></tr>
+          <tr><td><span class="sl occ"></span> <b>occupied</b></td><td>Something in the queue and moving: commits brought, a PR open, a change on its way</td><td>A filled circle</td></tr>
+          <tr><td><span class="sl done"></span> <b>done</b></td><td>It landed: merged, adopted</td><td>A filled accent circle with a check</td></tr>
+          <tr><td><span class="sl wait"></span> <b>waiting</b></td><td>Something in the queue waits on a person</td><td>A filled warn triangle; upstream colour when the wait is upstream-origin</td></tr>
+          <tr><td><span class="sl brk"></span> <b>broken</b></td><td>Something in the queue is broken</td><td>A filled bad diamond</td></tr>
+          <tr><td><span class="sl unk"></span> <b>ran, effect unknown</b></td><td>The run finished but core can't prove what it did</td><td>A hollow circle with a dot</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Core derives each since pip's state from the run and its PR association: Sync Upstream is empty where the run found nothing new, occupied where it brought commits into a sync PR, broken where it failed; Sync Template is done where the fork merged the revision and occupied where its PR is still open. A one-line legend of the shapes drawn on the page sits at the end of the since pips, and hovering any slot gives its fork and its sentence.</p>
+    <p><b>Item rows: one grammar for Failing and In motion.</b> Every PR item is one row with fixed columns, so the eye reads down columns instead of across sentences. The sentence each row replaced is its hover and accessible name.</p>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>Column</th><th>Shows</th><th>From</th></tr></thead>
+        <tbody>
+          <tr><td><b>Fork</b></td><td>The service name</td><td>The item's scope</td></tr>
+          <tr><td><b>Line glyph</b></td><td>The service line: sync PR → release/upstream PR → main → release. Passed stages are a solid segment; only the item's own station is a slot shape (broken when failing, waiting when it waits on a person). A one-line legend shows the first time it appears.</td><td>The item's class and gate</td></tr>
+          <tr><td><b>PR</b></td><td><code>#75</code></td><td>The item's evidence</td></tr>
+          <tr><td><b>State chip</b></td><td>What's wrong, the failing check (<code>Deploy and Test</code>, <code>Verify</code>), in bad tone, or what it waits for (<code>review</code>, <code>approval</code>) in warn tone; a plain second chip for a follow-up (<code>⟲ after drain</code>)</td><td>The item's cause and next step</td></tr>
+          <tr><td><b>Age</b></td><td><code>13 h</code>, <code>3 d</code></td><td>The item's sub line</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Fleet-wide items take a bar in place of the glyph, PR and chip: the template rollout as 13 cells, and ports owed as one bar segmented per fork, sized by count. The rollout's 13 cells live on the Engineering system card (state); In motion keeps only its next-merge chips (action).</p>
+    <p><b>Each place card's micro-visual</b> draws from <code>briefing.places[].visual</code>, which core sends so the window never computes it:</p>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>Card</th><th>Figure</th><th>Visual</th><th>Reason chip, when not ○</th></tr></thead>
+        <tbody>
+          <tr><td><b>Line</b></td><td>2 of 13 stopped</td><td>13 slots in fork order, each the fork's worst station; stopped forks named under their slots; a "⇣ n on the horizon" chip when waits are upstream</td><td><code>lanes: storage, indexer</code></td></tr>
+          <tr><td><b>Environment</b></td><td>v0.35.5 deployable</td><td>The 21-day lifecycle as four small pass-rate bars (refresh, upgrade, smoke, sweeper), and a "green since 11-09 22:27" chip</td><td><code>lane failed</code></td></tr>
+          <tr><td><b>Engineering system</b></td><td>7 of 13 on d3ddff5</td><td>The 13-cell rollout</td><td><code>verification pending</code></td></tr>
+          <tr><td><b>Security</b></td><td>28 high or critical</td><td>13 thin columns in the Line card's fork order, so the two cards line up slot for slot, each that fork's high or critical count in SPI-owned shipped code with a baseline tick for zero; the largest group as a chip in its own unit (<code>CSRF · 12 forks</code>)</td><td><code>none blocking</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>"Healthy" for the environment is core's deployability verdict: deployable, running the latest release, green since when, and the last proof. Fork-lane failures belong to the forks and show on the Line card, not as an environment caveat.</p>
+
+    <h3>One column, and Detail open</h3>
+    <p>At 740 px, and at 1440 with Detail open (a centre of about 850), Today is one column: the headline and since pips, the band if any, On the horizon, the place cards in a two- or three-wide grid, Releases, then In motion and Can wait.</p>
+    <ul class="plain">
+      <li><b>Opening Detail never folds anything.</b> Every group shows in full. When the column count changes, the selected row keeps its place on screen and the page scrolls around it.</li>
+      <li><b>Folds happen only at 740 px.</b> Decisions waiting and each Ambient run show three lines, then an "n more ›" line that counts items like the headings and opens that group's full list in Detail. Folds are decided when the width changes; the selected row is kept among the lines shown, replacing the third, so the fold height stays fixed. Selecting never changes a fold, so Today under a Detail sheet doesn't move. Needs you never folds.</li>
+      <li><b>Releases</b> keeps all 13 versions, in two columns at 740 and three at 850, filled column-first, and keeps its change lines.</li>
+    </ul>
+
+    <h3>The bad morning</h3>
+    <p>Three Interrupts, and GitHub failed to read.</p>
+    <ul class="plain">
+      <li><b>Headline:</b> "3 things need you; 4 forks are stopped. GitHub wasn't read this sweep."</li>
+      <li><b>A caveat band</b>, full width under the headline: "GitHub read failed at 08:15; items from it may be missing. Evidence ›". It adds "Open Settings ›" only when the failure's code is one Readiness fixes, such as <code>signin</code>. The band covers the lists, so items, In motion and Can wait take no ⌀.</li>
+      <li><b>All three Interrupts show whole</b>, in rung order: the P0 first, then the P1s.</li>
+      <li><b>Each place card whose areas went unread</b> takes ⌀ and keeps its last good figure in muted ink, with that area's own last good time ("from 07:52"). Areas fail separately, so two cards can carry different times; a card with several unread areas shows the oldest and its hover lists each.</li>
+      <li><b>The since pips follow the runs area:</b> when runs weren't read this sweep, or the snapshot is older than twice the sweep interval, they read "As of 07:52, in the 24 hours before". Nothing is blanked or zeroed.</li>
+      <li><b>Releases</b> keeps its versions in muted ink with the releases area's last good time, and the change lines read "not read this sweep", never 0.</li>
+      <li>The strip and the freshness field behave as they do on every morning.</li>
+    </ul>
+
+    <h3>Click targets</h3>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>On Today</th><th>Opens</th></tr></thead>
+        <tbody>
+          <tr><td>A place card</td><td>That place, in the centre; the Line card opens the Line sheet</td></tr>
+          <tr><td>The horizon heading</td><td>Upstream, in the centre</td></tr>
+          <tr><td>A fork name on the Line card, in a scope chip or on a conveyor stage</td><td>That service's place</td></tr>
+          <tr><td>An item in Needs you, Decisions waiting, Failing or In motion, or a horizon card</td><td>The item in Detail: cause, effect, next step, evidence</td></tr>
+          <tr><td>A PR number in a chip</td><td>That PR in Detail</td></tr>
+          <tr><td>A version, or a version arrow</td><td>That service's release, or its release PR, in Detail</td></tr>
+          <tr><td>The unreleased bar</td><td>Releases, scrolled to the forming releases' changes</td></tr>
+          <tr><td>The platform line</td><td>Releases, scrolled to the shared components, with each service's core-lib-azure version</td></tr>
+          <tr><td>A notable change</td><td>That change in Detail, with its release PR</td></tr>
+          <tr><td>A ⌀ mark</td><td>That source in Evidence</td></tr>
+          <tr><td>A "new" chip</td><td>The place, with its new items marked</td></tr>
+          <tr><td>The "⇣ n upstream need you first" chip</td><td>Scrolls to On the horizon</td></tr>
+          <tr><td>Can wait</td><td>The Can wait list in Detail</td></tr>
+          <tr><td>"n more ›" (740 px only)</td><td>That group's full list in Detail</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Each place opens on what Today can't show, and keeps its own headline, because Today quotes it:</p>
+    <div class="tblwrap">
+      <table class="tbl compact">
+        <thead><tr><th>Place</th><th>Keeps</th></tr></thead>
+        <tbody>
+          <tr><td><b>Line</b></td><td>The 13 × 6 sheet</td></tr>
+          <tr><td><b>Upstream</b></td><td>The radar, per-fork commits, filters and ports</td></tr>
+          <tr><td><b>Environment</b></td><td>Lanes, runs, holds and the stack repo</td></tr>
+          <tr><td><b>Engineering system</b></td><td>The rollout ladder and the template PRs</td></tr>
+          <tr><td><b>Releases</b></td><td>Months, notes, every release PR, and each forming release's full change list</td></tr>
+          <tr><td><b>Security</b></td><td>Rules, packages, owners and campaigns</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>What goes</h3>
+    <ul class="plain">
+      <li>Today's three tiles, the "more" fold and the 75-word and five-item caps.</li>
+      <li>The deadline groups (Before the next sync) and the New group. New is a chip.</li>
+      <li>Grouping by when an item bites. Each group holds one tier.</li>
+      <li>The strip's "n due before 18:00" field. The strip keeps "next sync 18:00".</li>
+      <li>Release months on Today. Release history stays on Releases.</li>
+    </ul>
+    <p>Each item keeps its P0, P1 or P2 rank as a chip. A pending card raised by a button is an Interrupt and is decided in Needs you (AU-10). A Surface item can still be snoozed until the next sync, and a composer anchored to the program closes the brief.</p>
     <p>Before the first sweep finishes there is no brief yet. Today shows the sweep's own sources live from <code>sweep.progress</code>, in sweep order and in Evidence words, each with what it reads and its state, and hands over to the brief in place when <code>view.snapshot</code> lands. Places open one line saying when they can be read, and the freshness field reads "◐ sweeping · 9 of 12". If the first sweep stops, Today keeps the list and offers Try again and Open Settings. The <a href="spi-code-window-layout.html#first-sweep">window layout's first-sweep frame</a> draws it.</p>
 
     <h3>When something needs you</h3>
     <p>A notification reads "indexer's prove failed while storage held the lane. A retry card is waiting." Clicking it opens the thread that owns the finding, in the centre. It never replaces a thread you're typing in. The strip changes, and Today's count goes to 1.</p>
     <div class="screen" role="img" aria-label="Mockup of the Lane watch thread with a pending retry card">
       <div class="bar"><span><b>SPI Code</b> · Lane watch</span><span>swept 14:15</span></div>
-      <div class="strip"><span class="pipset" title="partition, entitlements, legal, schema, file, storage, indexer, search, workflow, indexer-queue, unit, crs-catalog, crs-conversion"><span class="c-you">!</span><span class="c-stop">✕</span><span class="c-you">!</span><span class="mut">○○</span><span class="c-you">!!</span><span class="mut">○○</span><span class="c-you">!</span><span class="mut">○○○</span></span><span>entitlements stopped · <b class="c-you">1 card waiting</b></span><span>env v0.35.3 · <b>lane: storage restoring</b> <span class="tag new">new</span></span><span>template <b>0/13</b></span><span class="sp"></span><span class="c-you">2 due before 18:00</span><span>next sync <b>18:00</b></span></div>
+      <div class="strip"><span class="pipset" title="partition, entitlements, legal, schema, file, storage, indexer, search, workflow, indexer-queue, unit, crs-catalog, crs-conversion"><span class="c-you">!</span><span class="c-stop">✕</span><span class="c-you">!</span><span class="mut">○○</span><span class="c-you">!!</span><span class="mut">○○</span><span class="c-you">!</span><span class="mut">○○○</span></span><span>entitlements stopped · <b class="c-you">1 card waiting</b></span><span>env v0.35.3 · <b>lane: storage restoring</b> <span class="tag new">new</span></span><span>template <b>0/13</b></span><span class="sp"></span><span>next sync <b>18:00</b></span></div>
       <div class="scr3">
         <div class="side">
           <div class="row">⌘K Find or ask</div>
@@ -339,13 +649,13 @@ code{font-family:var(--mono);font-size:.9em}
     <p class="note">The fleet fact "carries os-core-common 8.5.0" lives on the campaign chip, not in eight cells. Glyphs: ✕ stopped · ! needs a person · ◐ in progress · ◷ scheduled · · nothing to do. Each needs the typed station sub-state. The repeated "#58" is unverified (appendix E).</p>
 
     <h3>Places</h3>
-    <p>A place is any anchor you can open: a service, the environment, the engineering system, a release month, a campaign. Every place has the same three parts. Its <b>reading</b> is a headline, three tiles and at most five items, the rib's shape. Next come <b>its threads</b> with their status. Last is a <b>composer anchored to it</b>, so typing a question starts a thread there. The entitlements page from the first revision becomes the service reading, without "gate 3" (it reads "release review") and without the future "Upstream MRs" line. Its Threads section becomes the place's thread list and composer. <b>Security</b> is a place whose reading is SPI-owned findings across the fleet: tiles for high, total and upstream-origin counts, items grouped by rule, and each rule that spans forks shown as a detected campaign.</p>
+    <p>A place is any anchor you can open: a service, the environment, the engineering system, a release month, a campaign. Places are Today's drill-down: each opens on what Today can't show (Click targets, above). Every place has the same three parts. Its <b>reading</b> is a headline, three tiles and at most five items, the rib's shape. Next come <b>its threads</b> with their status. Last is a <b>composer anchored to it</b>, so typing a question starts a thread there. The entitlements page from the first revision becomes the service reading, without "gate 3" (it reads "release review") and without the future "Upstream MRs" line. Its Threads section becomes the place's thread list and composer. <b>Security</b> is a place whose reading is SPI-owned findings across the fleet: tiles for high, total and upstream-origin counts, items grouped by rule, and each rule that spans forks shown as a detected campaign.</p>
 
     <h3>Upstream</h3>
-    <p>The line has an input, the machinery and an output. Upstream is the input: what GitLab will hand each fork at the next sync. It gathers what was spread across four spots: the strip's next sync, Today's Before next sync group, each service's commits incoming and the Line sheet's Upstream column. Today keeps the part of it that has a deadline. Upstream is where you go to look further ahead, and its toolchain moves are what campaign detection reads.</p>
+    <p>The line has an input, the machinery and an output. Upstream is the input: what GitLab will hand each fork at the next sync. It gathers what was spread across three spots: the strip's next sync, each service's commits incoming and the Line sheet's Upstream column. Today summarizes it as On the horizon. Upstream is where you go for the radar, per-fork commits, filters and ports, and its toolchain moves are what campaign detection reads.</p>
     <div class="screen" role="img" aria-label="Mockup of the Upstream place">
       <div class="bar"><span><b>SPI Code</b> · Upstream</span><span>swept 08:06 · ⌀ 1 source failed</span></div>
-      <div class="strip"><span class="pipset" title="partition, entitlements, legal, schema, file, storage, indexer, search, workflow, indexer-queue, unit, crs-catalog, crs-conversion"><span class="c-you">!</span><span class="c-stop">✕</span><span class="c-you">!</span><span class="mut">○○</span><span class="c-you">!!</span><span class="mut">○○</span><span class="c-you">!</span><span class="mut">○○○</span></span><span>entitlements stopped</span><span>env <b>v0.35.3</b> deployable</span><span>template <b>0/13</b></span><span class="sp"></span><span class="c-you">2 due before 18:00</span><span>next sync <b>18:00</b></span></div>
+      <div class="strip"><span class="pipset" title="partition, entitlements, legal, schema, file, storage, indexer, search, workflow, indexer-queue, unit, crs-catalog, crs-conversion"><span class="c-you">!</span><span class="c-stop">✕</span><span class="c-you">!</span><span class="mut">○○</span><span class="c-you">!!</span><span class="mut">○○</span><span class="c-you">!</span><span class="mut">○○○</span></span><span>entitlements stopped</span><span>env <b>v0.35.3</b> deployable</span><span>template <b>0/13</b></span><span class="sp"></span><span>next sync <b>18:00</b></span></div>
       <div class="scr2">
         <div class="side">
           <div class="row">⌘K Find or ask</div>
@@ -380,7 +690,7 @@ code{font-family:var(--mono);font-size:.9em}
         </div>
       </div>
     </div>
-    <p class="note">Counts, holds and the cut come from the 08:06 sweep's upstream radar: 10 forks with queued commits, 8 of them carrying os-core-common 8.5.0. The cut spans 12 merge-request reads for entitlements, partition, file, schema, storage and search; the radar envelope today records only the first, so the subline reads the per-read provenance. Its Before 18:00 rows and the detection are the same items Today shows, one record in two places, so resolving one clears both. The thread is illustrative. The place's Line view is the Line sheet filtered to the Upstream column. Upstream sits first among the places because it comes first on the line.</p>
+    <p class="note">Counts, holds and the cut come from the 08:06 sweep's upstream radar: 10 forks with queued commits, 8 of them carrying os-core-common 8.5.0. The cut spans 12 merge-request reads for entitlements, partition, file, schema, storage and search; the radar envelope today records only the first, so the subline reads the per-read provenance. Its Before 18:00 rows and the detection are the same items as Today's horizon cards, one record in two places, so resolving one clears both. The thread is illustrative. The place's Line view is the Line sheet filtered to the Upstream column. Upstream sits first among the places because it comes first on the line.</p>
   </section>
 
   <section>
@@ -391,17 +701,18 @@ code{font-family:var(--mono);font-size:.9em}
         <thead><tr><th>Tier</th><th>What qualifies</th><th>How it reaches you</th></tr></thead>
         <tbody>
           <tr><td><b>Interrupt</b></td><td>A card waiting on your decision. A new or worsened P0. An owned item whose thread Failed, stalled or lost coverage. A failed recovery. An unowned item that is due within its lead time (2 hours by default).</td><td>One OS notification per item, the Today count, and the strip. If it arrived since you last acknowledged, the app opens on Today.</td></tr>
-          <tr><td><b>Surface</b></td><td>A new P1, a newly detected theme, a thread Done, an item due before the next sync but outside its lead time</td><td>Today's brief, marked new, and the strip's due count. No notification.</td></tr>
-          <tr><td><b>Ambient</b></td><td>Work moving normally, successful retries, routine sweeps, no-rush items</td><td>The strip and the Line sheet only</td></tr>
+          <tr><td><b>Surface</b></td><td>A new P1, a newly detected theme, a thread Done, an item due before the next sync but outside its lead time</td><td>Its home on Today: its horizon card when it comes from upstream, Decisions waiting when it's in your system, with a "new" chip on its place. No notification.</td></tr>
+          <tr><td><b>Ambient</b></td><td>Work moving normally, successful retries, routine sweeps, no-rush items</td><td>The strip, the Line sheet, and Today's Failing run or In motion</td></tr>
+          <tr><td><b>Background</b></td><td>Work that asks nothing of you today</td><td>A place card's count, or Can wait. No notification.</td></tr>
         </tbody>
       </table>
     </div>
     <ul class="plain">
       <li><b>Since you last looked.</b> Today's headline is a diff against the state you last acknowledged, as T3 Code's background-thread announcer stays quiet on first sight and announces each run's end once. Acknowledging never clears a stopped station; the strip keeps showing it.</li>
-      <li><b>Ownership suppresses duplicates, not escalation.</b> When a thread owns an item (TH-05), it moves to Today's Owned group and its repeat notifications stop. If the owning thread fails, stalls, loses coverage, or the item worsens, the item interrupts again. A P0 stays red on the strip until the line is green; a thread finishing doesn't make the line healthy.</li>
-      <li><b>Due items escalate.</b> An item with a due time sits in Before the next sync, and the strip counts it ("2 due before 18:00"). Inside its lead time, if nobody owns it, it becomes Interrupt. A partition halt can't arrive unannounced because the app restored a thread instead of Today.</li>
+      <li><b>Ownership suppresses duplicates, not escalation.</b> When a thread owns an item (TH-05), it keeps its home on Today with the thread's marker and its repeat notifications stop. If the owning thread fails, stalls, loses coverage, or the item worsens, the item interrupts again. A P0 stays red on the strip until the line is green; a thread finishing doesn't make the line healthy.</li>
+      <li><b>Due items escalate by tier, not by group.</b> Today has no deadline group and the strip no due count. Inside its lead time, if nobody owns it, core makes an item an Interrupt, so it reaches Needs you, the Today count and a notification. A partition halt can't arrive unannounced because the app restored a thread instead of Today.</li>
       <li><b>One count, of distinct items.</b> The Today count is the number of Interrupt items: a pending card counts once, and the thread waiting on that card and the P0 it owns are not counted again. The count falls when an item is resolved, not when it's acknowledged. Acknowledging clears the notification and the open-on-Today trigger.</li>
-      <li><b>Grouped by when it bites.</b> Waiting for you (only when a card raised by a button is pending), Before the next sync, Owned, New, then one folded line for the rest. The P0/P1 rank stays as the chip on each row.</li>
+      <li><b>One home per tier.</b> Interrupt in Needs you, including a pending card raised by a button; Surface on its horizon card or in Decisions waiting; Ambient in Failing or In motion; Background in a place card's count or Can wait. Today never re-tiers an item to fit a group. The P0/P1 rank stays as the chip on each row.</li>
       <li><b>Snooze until the next sync</b> for a Surface item, borrowed from T3 Code's snooze dialog.</li>
     </ul>
   </section>
@@ -436,7 +747,7 @@ code{font-family:var(--mono);font-size:.9em}
       </table>
     </div>
     <ul class="plain">
-      <li><b>Cards are decided in one place.</b> A thread's card is decided in that thread's composer strip. A button's card is decided in Today's Waiting for you, which replaces the Inbox as the one place for those (AU-09, AU-10). Everywhere else shows the card's state and links there.</li>
+      <li><b>Cards are decided in one place.</b> A thread's card is decided in that thread's composer strip. A button's card is decided in Today's Needs you, which replaces the Inbox as the one place for those (AU-09, AU-10). Everywhere else shows the card's state and links there.</li>
       <li><b>Approved is not executed.</b> A card bound to a wait reads <b>approved, waiting</b> until the wait fires. The host then re-reads its bindings (AU-06). If one changed, the card moves to binding failed and names it.</li>
       <li><b>Core admits work to the lane.</b> Waves from every campaign, reruns and ordinary proves enter one admission queue, ordered by core's pacing and ordering guards and capped by lane capacity. These are the bindings Consequential calls already re-read. Lane watch reports on the queue but admits nothing. The stack's workflow guard enforces the same order for jobs the app didn't start.</li>
     </ul>
@@ -447,7 +758,7 @@ code{font-family:var(--mono);font-size:.9em}
     <p>An adopted campaign is a thread anchored to its plan. The centre is the conversation and the wave's card. The right panel pins the Line sheet filtered to the campaign, with its wave column and the lane queue it shares with everything else.</p>
     <div class="screen" role="img" aria-label="Mockup of a campaign thread with the wave 1 card in the composer strip">
       <div class="bar"><span><b>SPI Code</b> · Boot 4 · os-core-common 8.5.0</span><span>swept 09:12</span></div>
-      <div class="strip"><span class="pipset" title="partition, entitlements, legal, schema, file, storage, indexer, search, workflow, indexer-queue, unit, crs-catalog, crs-conversion"><span class="c-you">!</span><span class="c-stop">✕</span><span class="c-you">!</span><span class="mut">○○</span><span class="c-you">!!</span><span class="mut">○○○○○○</span></span><span>entitlements stopped · <b class="c-you">1 card waiting</b></span><span>env v0.35.3 deployable</span><span>template <b>0/13</b></span><span class="sp"></span><span class="c-you">2 due before 18:00</span><span>next sync <b>18:00</b></span></div>
+      <div class="strip"><span class="pipset" title="partition, entitlements, legal, schema, file, storage, indexer, search, workflow, indexer-queue, unit, crs-catalog, crs-conversion"><span class="c-you">!</span><span class="c-stop">✕</span><span class="c-you">!</span><span class="mut">○○</span><span class="c-you">!!</span><span class="mut">○○○○○○</span></span><span>entitlements stopped · <b class="c-you">1 card waiting</b></span><span>env v0.35.3 deployable</span><span>template <b>0/13</b></span><span class="sp"></span><span>next sync <b>18:00</b></span></div>
       <div class="scr3">
         <div class="side">
           <div class="row">⌘K Find or ask</div>
@@ -533,11 +844,11 @@ code{font-family:var(--mono);font-size:.9em}
       <table class="tbl compact">
         <thead><tr><th>Journey</th><th>What happens</th></tr></thead>
         <tbody>
-          <tr><td><b>Morning</b></td><td>The dock badge is 0, so the app restores your last thread. The strip shows one red pip, owned, and "2 due before 18:00". Today, if you open it, says no new interruptions since yesterday and lists the two. If nobody takes the partition halt by 16:00, it notifies. About five seconds. ⌘L if you want everything.</td></tr>
+          <tr><td><b>Morning</b></td><td>The dock badge is 0, so the app restores your last thread. The strip shows one red pip, owned, and next sync 18:00. Today, if you open it, says nothing urgent needs you, and the partition halt waits on its horizon card with Pre-classify ›. If nobody takes it, it becomes an Interrupt inside its lead time and notifies. About five seconds. ⌘L if you want everything.</td></tr>
           <tr><td><b>Collision and retry</b></td><td>Lane watch posts the overlap and a rerun card, and one notification arrives. Approve in the thread. The wait holds until storage restores and admission allows it. The watcher reports the result once. The Cascade cell shows dashed until the next sweep confirms it. A second failure or an unknown restore comes back to you.</td></tr>
           <tr><td><b>Owner fails</b></td><td>Diagnose fails at 11:20 while the cascade is still blocked. The item interrupts again: one notification, Today goes to 1, the strip keeps entitlements red, and the notification opens Diagnose's thread at its failure with the next decision: retry Diagnose or start a code thread.</td></tr>
           <tr><td><b>Steward</b></td><td>⌘K "legal", ⌘↩ opens and pins it. Its place reads 17 commits incoming, a SNAPSHOT hold, 1 SPI-owned CodeQL finding and Release #48 ready. Ask "which of the 17 touch the Azure provider?" in its composer, and that starts a legal thread.</td></tr>
-          <tr><td><b>Java 25 + Boot 4</b></td><td>Ask for it in Today's composer, or Today and Upstream show "Detected: os-core-common 8.5.0 on 8 forks · Track" once. Either starts a campaign thread, which drafts pilot indexer-queue, waves and lane cap 1 as a plan for you to edit. Each wave is one Consequential <code>start_upstream</code> card with the wave's name typed. Core admits its forks through the shared lane queue. Forks failing on their own code get child code threads at M5. From then on it's one row under Working, with a meter.</td></tr>
+          <tr><td><b>Java 25 + Boot 4</b></td><td>Ask for it in Today's composer, or Today's horizon card and Upstream show "Detected: os-core-common 8.5.0 on 8 forks · Track" once. Either starts a campaign thread, which drafts pilot indexer-queue, waves and lane cap 1 as a plan for you to edit. Each wave is one Consequential <code>start_upstream</code> card with the wave's name typed. Core admits its forks through the shared lane queue. Forks failing on their own code get child code threads at M5. From then on it's one row under Working, with a meter.</td></tr>
           <tr><td><b>Template rollout</b></td><td>The same mechanics as a campaign of kind engineering. Each wave is one Consequential <code>roll_out</code> card, and a lone template PR is a <code>merge_pr</code> card (AU-07). The strip's template count is forks verified on the target revision, not PRs merged, so it moves 0/13 → 13/13 only as adoption is confirmed.</td></tr>
           <tr><td><b>Code change</b></td><td>The entitlements Cascade item is owned, so Detail's single action opens the Diagnose thread (TH-05). Diagnose proposes "Fix in code thread", which starts a child code thread. It opens in the centre with the branch and head shown. A changed file opens its diff over the timeline (CT-14), with Detail one tab away. The push is a card. The PR shows dashed in the Cascade cell until a sweep reads it.</td></tr>
         </tbody>
@@ -615,28 +926,28 @@ code{font-family:var(--mono);font-size:.9em}
       <h3>A · Requirement changes by ID</h3>
       <div class="tblwrap"><table class="tbl compact"><thead><tr><th>ID</th><th>Change</th></tr></thead><tbody>
         <tr><td><b>PS-02, PS-10</b></td><td>Retire word-for-word parity and "lenses in full". Every Briefing and Releases field is reachable within one click of its place, with no conflicting duplicates. The core and oracle regression checks stay.</td></tr>
-        <tr><td><b>PS-03</b></td><td>Today is the brief: a headline as a change since last acknowledged, qualified when a source failed; three tiles from <code>briefing.facts</code>; at most five items grouped Waiting for you (only when cards are pending) / Before next sync / Owned / New; one folded line; a composer. Before the first sweep finishes, Today lists the sweep's sources live from <code>sweep.progress</code> and hands over on <code>view.snapshot</code>; the <a href="spi-code-window-layout.html#first-sweep">window layout's first-sweep frame</a> draws it.</td></tr>
+        <tr><td><b>PS-03</b></td><td>Today is the daily briefing: a verdict headline and since pips; a caveat band when a source failed; an attention band, only with in-system work, holding Needs you, Decisions waiting and Failing; On the horizon from upstream GitLab; four place cards; Releases beside In motion and Can wait. No tiles, caps, deadline or New groups; time is a fact, not the spine. Before the first sweep finishes, Today lists the sweep's sources live from <code>sweep.progress</code> and hands over on <code>view.snapshot</code>; the <a href="spi-code-window-layout.html#first-sweep">window layout's first-sweep frame</a> draws it.</td></tr>
         <tr><td><b>PS-04</b></td><td>Station Detail leads with that station's own reading. Related renders as a label and value table. One action per item, which opens or starts the owning thread or raises its card.</td></tr>
-        <tr><td><b>PS-05, PS-09</b></td><td>Every place has the same three parts: reading, its threads, an anchored composer. No always-present empty sections.</td></tr>
+        <tr><td><b>PS-05, PS-09</b></td><td>Every place has the same three parts: reading, its threads, an anchored composer. No always-present empty sections. Places are Today's drill-down and each opens on what Today can't show.</td></tr>
         <tr><td><b>PS-08</b></td><td>Sidebar: Find or ask, Today, Line, the places (Upstream, Environment, Engineering system, Releases, Security), Pinned, threads by status, Settled once threads ship, and a Settings footer row with a readiness dot. No per-service or per-theme rows.</td></tr>
         <tr><td><b>PS-11</b></td><td>The right panel is context for the centre and closed when empty. Threads occupy the centre. The top row carries the panel toggles, and pane widths, resizing and narrow-window folding (PS-13) follow the <a href="spi-code-window-layout.html">window layout</a>.</td></tr>
         <tr><td><b>EV-03</b></td><td>Freshness appears once, as the last field of the top row. Per-cell marking waits for provenance that maps a failed source to values. While a sweep runs the field carries its progress: "◐ sweeping · 9 of 12" on the first sweep, "08:02 · sweeping 4 of 12" on later ones.</td></tr>
         <tr><td><b>TH-01</b></td><td>Add campaign, environment-lane and upstream anchors. The upstream anchor's reading (TH-02) is the Upstream place's reading: next sync, commits incoming, toolchain moves, holds and the radar's completeness.</td></tr>
         <tr><td><b>TH-03</b></td><td>Every place carries a composer anchored to it.</td></tr>
         <tr><td><b>TH-07</b></td><td>Open on Today when an Interrupt item arrived since last acknowledgement, otherwise restore the last thread in the centre.</td></tr>
-        <tr><td><b>AU-09</b></td><td>Pending button cards wait in Today's Waiting for you, which replaces the Inbox. The Today count is the number of distinct Interrupt items: a card counts once, its waiting thread and the P0 it owns are not counted again, and the count falls on resolution. Add the card state <b>approved, waiting</b> for a card bound to a wait.</td></tr>
-        <tr><td><b>AU-10</b></td><td>Replace "the Inbox's Waiting for you" with "Today's Waiting for you". A thread's card is drawn and decided in its composer strip only.</td></tr>
+        <tr><td><b>AU-09</b></td><td>Pending button cards are Interrupts and wait in Today's Needs you, which replaces the Inbox. The Today count is the number of distinct Interrupt items: a card counts once, its waiting thread and the P0 it owns are not counted again, and the count falls on resolution. Add the card state <b>approved, waiting</b> for a card bound to a wait.</td></tr>
+        <tr><td><b>AU-10</b></td><td>Replace "the Inbox's Waiting for you" with "Today's Needs you". A thread's card is drawn and decided in its composer strip only.</td></tr>
         <tr><td><b>AU-04</b></td><td>A Consequential card with several targets is confirmed by typing its campaign and wave name ("Boot 4 wave 1"), never a bare "wave 1", and the field starts empty.</td></tr>
         <tr><td><b>AU-06</b></td><td>For a card bound to a wait, the binding re-read happens when the wait fires.</td></tr>
         <tr><td><b>TH-08, CP-09</b></td><td>The picker is T3 Code's without the provider rail: Auto first, starred models with ⌘1 to ⌘4, the premium-request multiplier per row, the reasoning column only for models that support it, models not enabled for the account greyed with a pointer, and a footer with account and usage. ⌘N starts a program-anchored thread; @ adds places as context attachments, never as a second anchor.</td></tr>
         <tr><td><b>New: Upstream place</b></td><td>A place whose reading is the next sync: commits incoming, toolchain moves, holds and halts, qualified when the radar read was cut. M2.</td></tr>
         <tr><td><b>New: pins</b></td><td>Pin from a place header, a strip pip, a Line sheet row, or ⌘↩ in ⌘K. M2.</td></tr>
-        <tr><td><b>New: strip</b></td><td>The ambient strip with fixed fields, as the window's top row: service pips in fleet order by worst typed sub-state, named on hover; stopped services; environment; template forks verified on target; due count; next sync; freshness field. The <a href="spi-code-window-layout.html">window layout</a> draws how it folds and wraps. M2.</td></tr>
-        <tr><td><b>New: attention</b></td><td>Three tiers assigned in core; a seen-state baseline; ownership suppresses duplicates but not escalation; due items escalate inside a lead time; one notification per distinct item. M2 seen-state and due, M3 notifications.</td></tr>
+        <tr><td><b>New: strip</b></td><td>The ambient strip with fixed fields, as the window's top row: service pips in fleet order by worst typed sub-state, named on hover; stopped services; environment; template forks verified on target; next sync; freshness field. No due count. The <a href="spi-code-window-layout.html">window layout</a> draws how it folds and wraps. M2.</td></tr>
+        <tr><td><b>New: attention</b></td><td>Four tiers assigned in core, each with one home on Today, and an origin, in your system or from upstream; a seen-state baseline; ownership suppresses duplicates but not escalation; due items escalate inside a lead time; one notification per distinct item. M2 seen-state and due, M3 notifications.</td></tr>
         <tr><td><b>New: lane queue</b></td><td>One admission queue for waves, reruns and proves, ordered by core's pacing guards and capped by lane capacity, mirrored by the stack's workflow guard. M4.</td></tr>
         <tr><td><b>New: watchers</b></td><td>A standing operate thread with a scope, coverage state, Pause and Stop. Host-owned waits and deduplication. M3.</td></tr>
         <tr><td><b>New: lane events</b></td><td>Borrow, prove and restore per fork, with run id, job and result. Overlaps flagged, failures attributed. Contract at M3.</td></tr>
-        <tr><td><b>New: campaigns</b></td><td>Detected at M2 as a Today item and Line filter. Adopted at M3 as a thread with a plan record. Waves at M4. Children at M5.</td></tr>
+        <tr><td><b>New: campaigns</b></td><td>Detected at M2 as a horizon card on Today and a Line filter. Adopted at M3 as a thread with a plan record. Waves at M4. Children at M5.</td></tr>
         <tr><td><b>New: capability rule</b></td><td>Every M3 to M6 capability declares its anchor and reading, attention rule, lane use and fleet scope in its bead's acceptance.</td></tr>
       </tbody></table></div>
     </section>
@@ -655,7 +966,7 @@ code{font-family:var(--mono);font-size:.9em}
       <div class="tblwrap"><table class="tbl compact"><thead><tr><th>Question</th><th>Positions</th><th>This page</th></tr></thead><tbody>
         <tr><td><b>Landing</b></td><td>Opus: Today as a brief. Sol and Wonder: restore the last thread.</td><td>Today when an Interrupt arrived since last look, otherwise the last thread.</td></tr>
         <tr><td><b>Morning digest</b></td><td>Wonder: an agent writes a digest thread each sweep. Sol: no model needs to narrate sweeps.</td><td>Deterministic brief. The model is called on events that need diagnosis.</td></tr>
-        <tr><td><b>Owned items</b></td><td>Opus and Wonder: owned work drops to ambient. Sol: ownership isn't health.</td><td>Owned items stop notifying but stay on the strip and in Today's Owned group.</td></tr>
+        <tr><td><b>Owned items</b></td><td>Opus and Wonder: owned work drops to ambient. Sol: ownership isn't health.</td><td>Owned items stop notifying but stay on the strip and keep their home on Today, with the thread's marker.</td></tr>
         <tr><td><b>Freshness per cell</b></td><td>Opus: hatch affected cells. Sol: the mapping doesn't exist yet.</td><td>The top row's freshness field only until provenance maps sources to values.</td></tr>
         <tr><td><b>Standing orders</b></td><td>Opus: offer bounded standing orders at M4. Sol: per-call authority everywhere.</td><td>Listed as a decision for you. The page assumes per-call cards.</td></tr>
         <tr><td><b>Campaign children</b></td><td>Wonder: fan out a child per fork. Sol: create them only when useful.</td><td>Children only for forks that fail on their own code.</td></tr>

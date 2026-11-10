@@ -120,6 +120,7 @@ ul.plain li{margin:3px 0}
   --a-yellow:#a07b3a;--a-yel-ink:#80622e;--a-yel-bg:#f3e8cf;
   --a-red:#bb4a2b;--a-red-ink:#ac4428;--a-red-bg:#f4dfd6;
   --a-mag:#8a5cc0;--a-mag-ink:#7e4cba;--a-on-fill:#fff;
+  --a-up:#a33182;--a-up-ink:#a33182;--a-up-bg:#f5deee;
   --term:#14201d;--term-ink:#dfe8e4;--term-dim:#a5b9af;
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   position:relative;min-width:1040px;display:grid;grid-template-columns:232px 1fr 300px;grid-template-rows:40px 1fr;height:640px;background:var(--a-bg);color:var(--a-fg);font:12.5px/1.45 var(--sans);overflow:hidden}
@@ -130,7 +131,7 @@ ul.plain li{margin:3px 0}
   --a-green:#8fcf86;--a-grn-ink:#8fcf86;--a-grn-bg:#1b3321;
   --a-yellow:#e2b45c;--a-yel-ink:#e2b45c;--a-yel-bg:#33291a;
   --a-red:#ec8a6e;--a-red-ink:#ec8a6e;--a-red-bg:#3a211b;
-  --a-mag:#c3a2e8;--a-mag-ink:#c3a2e8;--a-on-fill:#0f1a1b;--term:#0c1311}
+  --a-mag:#c3a2e8;--a-mag-ink:#c3a2e8;--a-on-fill:#0f1a1b;--a-up:#fabce0;--a-up-ink:#fabce0;--a-up-bg:#302032;--term:#0c1311}
 .app.tall{height:800px}
 .app button,.app a{font:inherit;color:inherit;background:none;border:0;padding:0;text-align:left;text-decoration:none}
 .app .scope a,.app .lines a,.app .ins a{color:var(--a-acc-ink)}
@@ -433,6 +434,25 @@ ul.plain li{margin:3px 0}
 .app .tier.change{color:var(--a-yel-ink);border-color:var(--a-yellow)}
 .app .tier.cons{color:var(--a-red-ink);border-color:var(--a-red)}
 .app .tier.never{color:var(--a-muted);border-style:dashed}
+.app .slt{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--a-muted)}
+.app .sl{display:inline-block;position:relative;flex:none;width:10px;height:10px;border-radius:50%;border:1.5px solid var(--a-dim)}
+.app .sl.occ{background:var(--a-fg);border-color:var(--a-fg)}
+.app .sl.done{background:var(--a-accent);border-color:var(--a-accent)}
+.app .sl.done::after{content:"";position:absolute;left:2.3px;top:.6px;width:2px;height:4.4px;border:solid var(--a-on-fill);border-width:0 1.4px 1.4px 0;transform:rotate(45deg)}
+.app .sl.wait{border:0;border-radius:0;background:var(--a-yellow);clip-path:polygon(50% 0,100% 100%,0 100%)}
+.app .sl.wait.up{background:var(--a-up)}
+.app .sl.brk{border:0;border-radius:0;width:8px;height:8px;margin:0 1px;background:var(--a-red);transform:rotate(45deg)}
+.app .sl.unk::after{content:"";position:absolute;left:2.5px;top:2.5px;width:2.2px;height:2.2px;border-radius:50%;background:var(--a-dim)}
+.app .lgx{display:inline-flex;align-items:center;width:52px}
+.app .lgx i{display:inline-block;width:12px;height:2px;background:var(--a-dim)}
+.app .lgx i.rest{flex:1;height:0;background:none;border-top:2px dotted var(--a-border)}
+.app .irow{display:grid;grid-template-columns:100px 52px 36px minmax(0,1fr) 32px;gap:8px;align-items:center;max-width:520px;padding:4px 0;font-size:12px}
+.app .irow b{font-weight:600;color:var(--a-strong)}
+.app .irow .age{text-align:right;color:var(--a-muted)}
+.app .chp{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:0 6px;border-radius:4px;border:1px solid var(--a-border);color:var(--a-muted);white-space:nowrap}
+.app .chp.bad{background:var(--a-red-bg);color:var(--a-red-ink);border-color:transparent}
+.app .chp.up{background:var(--a-up-bg);color:var(--a-up-ink);border-color:transparent}
+.app .uphead{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:var(--a-up-ink);border-left:3px solid var(--a-up);padding-left:8px}
 .cardset{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-top:8px}
 .app .card{max-width:none}
 .app .card.bad{border-left-color:var(--a-red)} .app .card.bad .stt{color:var(--a-red-ink)}
@@ -1329,7 +1349,7 @@ exit 0 · 38 s</div>
 
   <section>
     <h2>Shore in semantic roles</h2>
-    <p>One palette, Shore, in a light and a dark appearance, following the system unless Settings pins one. Components name a role, after T3 Code's <code>themePalettes.ts</code>, cut to the roles this app uses plus success and agent. This revision adds no role: chips, thread rows, the Thread tab and the toggles draw from the roles below.</p>
+    <p>One palette, Shore, in a light and a dark appearance, following the system unless Settings pins one. Components name a role, after T3 Code's <code>themePalettes.ts</code>, cut to the roles this app uses plus success, agent and upstream. The Today briefing adds one role, <code>upstream</code>, for what is coming from upstream GitLab: it marks the horizon block, upstream chips and an upstream wait's slot, and nothing else. Chips, thread rows, the Thread tab and the toggles draw from the roles below.</p>
     <div class="tblwrap"><table class="tbl compact">
       <thead><tr><th style="width:17%">Role</th><th style="width:31%">Used for</th><th style="width:13%">Shore key</th><th style="width:13%">Light</th><th style="width:13%">Dark</th><th>Text variant</th></tr></thead>
       <tbody>
@@ -1357,8 +1377,17 @@ exit 0 · 38 s</div>
       <div class="sw"><div class="c"><i style="background:#a07b3a"></i><i style="background:#e2b45c"></i></div><div class="l"><b>warning · P1</b><code>#a07b3a · #e2b45c</code></div></div>
       <div class="sw"><div class="c"><i style="background:#3a7633"></i><i style="background:#8fcf86"></i></div><div class="l"><b>success</b><code>#3a7633 · #8fcf86</code></div></div>
       <div class="sw"><div class="c"><i style="background:#8a5cc0"></i><i style="background:#c3a2e8"></i></div><div class="l"><b>agent · Copilot</b><code>#8a5cc0 · #c3a2e8</code></div></div>
+      <div class="sw"><div class="c"><i style="background:#a33182"></i><i style="background:#fabce0"></i></div><div class="l"><b>upstream · ⇣</b><code>#a33182 · #fabce0</code></div></div>
     </div>
-    <p>Each swatch shows light, then dark, from Keelson's <code>SHORE_LIGHT</code> and <code>SHORE_DARK</code>. Shore's light accent, red, yellow, green, magenta and dim fall below 4.5:1 as small text on at least one light surface, so each gets a darker text variant in the light appearance; dark values pass and are used unchanged, except <code>dim</code>, which is lightened. Appendix B has the ratios. CI checks every text pair with Keelson's <code>wcagContrast</code> (NF-07).</p>
+    <p>The Today briefing adds one role to the table above:</p>
+    <div class="tblwrap"><table class="tbl compact">
+      <thead><tr><th style="width:17%">Role</th><th style="width:31%">Used for</th><th style="width:13%">Shore key</th><th style="width:13%">Light</th><th style="width:13%">Dark</th><th>Text variant</th></tr></thead>
+      <tbody>
+        <tr><td><code>upstream</code></td><td>The horizon origin mark on Today: the On the horizon block, upstream chips with ⇣, an upstream wait's slot. Never an in-system item.</td><td>magenta family, apart from <code>agent</code></td><td><code>#a33182</code></td><td><code>#fabce0</code></td><td>Same · same</td></tr>
+      </tbody>
+    </table></div>
+    <p>Its badge fill is <code>upstream-surface</code>: <code>#f5deee</code> light, <code>#302032</code> dark.</p>
+    <p>Each swatch shows light, then dark, from Keelson's <code>SHORE_LIGHT</code> and <code>SHORE_DARK</code>. Shore's light accent, red, yellow, green, magenta and dim fall below 4.5:1 as small text on at least one light surface, so each gets a darker text variant in the light appearance; dark values pass and are used unchanged, except <code>dim</code>, which is lightened. Appendix B has the ratios. CI checks every text pair with Keelson's <code>wcagContrast</code> (NF-07). <code>upstream</code> passes as small text in both appearances, so it needs no variant; the window's palette test also holds it apart from <code>agent</code> and every other role under protan and deutan simulation, because the two share a family. Colour never carries origin alone: the ⇣ glyph and the horizon block's position carry it too.</p>
   </section>
 
   <section>
@@ -1382,6 +1411,13 @@ exit 0 · 38 s</div>
         <div class="chips"><span class="chipx anc">⚓ entitlements · cascade stopped</span><span class="chipx ctx">▣ Cascade stopped on a merge conflict <i>×</i></span><span class="chipx ctx dim">▣ issue #412 · from an earlier sweep <i>×</i></span><span class="chipx ctx">▣ 3 rows from Flow <i>×</i></span></div>
         <div class="kh">Evidence words</div>
         <div class="chips"><span class="chip fresh">fresh · 2 min</span><span class="chip stale">stale · 23 min</span><span class="chip stale">cut · 40 of 52</span><span class="chip bad">read failed · showing 25 min old data</span><span class="chip">not read yet</span><span class="chip inf">inferred · every source</span></div>
+        <div class="kh">Slots: one meaning per shape</div>
+        <div class="chips" style="gap:6px 16px"><span class="slt"><span class="sl"></span>empty</span><span class="slt"><span class="sl occ"></span>occupied</span><span class="slt"><span class="sl done"></span>done</span><span class="slt"><span class="sl wait"></span>waiting</span><span class="slt"><span class="sl wait up"></span>waiting on upstream</span><span class="slt"><span class="sl brk"></span>broken</span><span class="slt"><span class="sl unk"></span>ran, effect unknown</span></div>
+        <div class="kh">Item row with the line glyph</div>
+        <div class="irow"><b>storage</b><span class="lgx"><i></i><span class="sl brk"></span><i class="rest"></i></span><span>#75</span><span><span class="chp bad">Deploy and Test</span></span><span class="age">13 h</span></div>
+        <div class="irow"><b>crs-catalog</b><span class="lgx"><span class="sl wait up"></span><i class="rest"></i></span><span>#54</span><span><span class="chp">review</span> <span class="chp up">⇣</span></span><span class="age">2 d</span></div>
+        <div class="kh">Upstream origin</div>
+        <div class="chips"><span class="uphead">⇣ On the horizon · from upstream GitLab</span><span class="chp up">⇣ 4 upstream need you first</span><span class="chp up">⇣ 7 on the horizon</span></div>
         <div class="kh">Tier badges</div>
         <div class="chips"><span class="tier read">Read</span><span class="tier local">Local</span><span class="tier cmd">Command</span><span class="tier change">Change</span><span class="tier cons">Consequential</span><span class="tier never">Not offered</span></div>
         <div class="kh">Approval cards</div>
@@ -1416,6 +1452,13 @@ exit 0 · 38 s</div>
         <div class="chips"><span class="chipx anc">⚓ entitlements · cascade stopped</span><span class="chipx ctx">▣ Cascade stopped on a merge conflict <i>×</i></span><span class="chipx ctx dim">▣ issue #412 · from an earlier sweep <i>×</i></span><span class="chipx ctx">▣ 3 rows from Flow <i>×</i></span></div>
         <div class="kh">Evidence words</div>
         <div class="chips"><span class="chip fresh">fresh · 2 min</span><span class="chip stale">stale · 23 min</span><span class="chip stale">cut · 40 of 52</span><span class="chip bad">read failed · showing 25 min old data</span><span class="chip">not read yet</span><span class="chip inf">inferred · every source</span></div>
+        <div class="kh">Slots: one meaning per shape</div>
+        <div class="chips" style="gap:6px 16px"><span class="slt"><span class="sl"></span>empty</span><span class="slt"><span class="sl occ"></span>occupied</span><span class="slt"><span class="sl done"></span>done</span><span class="slt"><span class="sl wait"></span>waiting</span><span class="slt"><span class="sl wait up"></span>waiting on upstream</span><span class="slt"><span class="sl brk"></span>broken</span><span class="slt"><span class="sl unk"></span>ran, effect unknown</span></div>
+        <div class="kh">Item row with the line glyph</div>
+        <div class="irow"><b>storage</b><span class="lgx"><i></i><span class="sl brk"></span><i class="rest"></i></span><span>#75</span><span><span class="chp bad">Deploy and Test</span></span><span class="age">13 h</span></div>
+        <div class="irow"><b>crs-catalog</b><span class="lgx"><span class="sl wait up"></span><i class="rest"></i></span><span>#54</span><span><span class="chp">review</span> <span class="chp up">⇣</span></span><span class="age">2 d</span></div>
+        <div class="kh">Upstream origin</div>
+        <div class="chips"><span class="uphead">⇣ On the horizon · from upstream GitLab</span><span class="chp up">⇣ 4 upstream need you first</span><span class="chp up">⇣ 7 on the horizon</span></div>
         <div class="kh">Tier badges</div>
         <div class="chips"><span class="tier read">Read</span><span class="tier local">Local</span><span class="tier cmd">Command</span><span class="tier change">Change</span><span class="tier cons">Consequential</span><span class="tier never">Not offered</span></div>
         <div class="kh">Approval cards</div>
@@ -1441,6 +1484,11 @@ exit 0 · 38 s</div>
         <tr><td><b>Toolbar</b></td><td>The place's name, a sub line, Detail, Ask, Add to chat, + Thread</td><td>Emulates <code>chat/ChatHeader.tsx</code></td></tr>
         <tr><td><b>Station tile</b></td><td>Label, state word, text; selectable; three per row when narrow</td><td>Emulated; data from the Watch contract</td></tr>
         <tr><td><b>Queue row</b></td><td>Priority written, scope chip, title, class word, sub line with the owning thread's marker, age</td><td>Emulates the rib console's focus rows</td></tr>
+        <tr><td><b>Slot</b></td><td>One fork's state in a row of slots, in six states told apart by shape as well as colour: empty, a hollow circle; occupied, a filled circle; done, a filled <code>accent</code> circle with a check; waiting, a filled <code>warning</code> triangle, drawn in <code>upstream</code> when the wait is upstream-origin; broken, a filled <code>error</code> diamond; ran with an effect core can't prove, a hollow circle with a dot. Its sentence from core is its hover and accessible name.</td><td>Emulated, after the strip's pip marks; the window design's slot grammar</td></tr>
+        <tr><td><b>Slot row</b></td><td>A label, one slot per fork in fork order, and a count of what the row is about ("12/13 ran ok"). Its legend lists only the states drawn on the page.</td><td>Emulated</td></tr>
+        <tr><td><b>Line glyph</b></td><td>An item's place on the service line: sync PR → release/upstream PR → main → release. Passed stages are one solid segment; only the item's own station is a slot shape, so a filled circle never means "passed". A one-line legend shows the first time it appears.</td><td>Emulated</td></tr>
+        <tr><td><b>Mark</b></td><td>The strip's ✕ ! ◐ ○ for a place's highest tier, with the tier named in words on hover</td><td>Emulated</td></tr>
+        <tr><td><b>Upstream chip</b></td><td>⇣ and a count or label in <code>upstream</code> on its badge fill; it scrolls to or opens On the horizon</td><td>Emulated</td></tr>
         <tr><td><b>Thread row</b> (page)</td><td>Status dot and word, title, kind, branch, last activity</td><td>Emulated from <code>SidebarThreadRow.tsx</code></td></tr>
         <tr><td><b>Pending artifact</b></td><td>A dashed line for a PR, run or issue a thread created that no sweep has read yet</td><td>Emulated</td></tr>
         <tr><td><b>Section header</b></td><td>Name, count or state word, one evidence line when a source is not fresh</td><td>Emulated</td></tr>
@@ -1565,11 +1613,12 @@ exit 0 · 38 s</div>
           <tr><td><code>error</code></td><td><code>#bb4a2b</code> · 4.09</td><td><code>#ac4428</code> · 4.67</td><td><code>#ec8a6e</code> · 5.74</td></tr>
           <tr><td><code>success</code></td><td><code>#3a7633</code> · 4.42</td><td><code>#356c2f</code> · 5.05</td><td><code>#8fcf86</code> · 7.80</td></tr>
           <tr><td><code>agent</code></td><td><code>#8a5cc0</code> · 3.86</td><td><code>#7e4cba</code> · 4.65</td><td><code>#c3a2e8</code> · 6.58</td></tr>
+          <tr><td><code>upstream</code></td><td><code>#a33182</code> · 5.08</td><td>Same</td><td><code>#fabce0</code> · 9.09</td></tr>
           <tr><td><code>textMuted</code></td><td><code>#665f4f</code> · 5.09</td><td>Same</td><td><code>#a59d8a</code> · 5.31</td></tr>
           <tr><td><code>text</code></td><td><code>#23211c</code> · 12.92</td><td>Same</td><td><code>#e4dfd1</code> · 10.75</td></tr>
         </tbody>
       </table></div>
-      <p>Filled pairs: white on <code>#1b7366</code> is 5.69, on <code>#ac4428</code> 5.81, on <code>#80622e</code> 5.67. Dark chrome <code>#0f1a1b</code> on <code>#e2b45c</code> is 9.22 and on <code>#ec8a6e</code> 7.12. Tinted badges in the light appearance: <code>#ac4428</code> on <code>#f4dfd6</code> 4.53, <code>#80622e</code> on <code>#f3e8cf</code> 4.66, <code>#1b7366</code> on <code>#d9ece7</code> 4.63, <code>#356c2f</code> on <code>#e1eedc</code> 5.23.</p>
+      <p>Filled pairs: white on <code>#1b7366</code> is 5.69, on <code>#ac4428</code> 5.81, on <code>#80622e</code> 5.67. Dark chrome <code>#0f1a1b</code> on <code>#e2b45c</code> is 9.22 and on <code>#ec8a6e</code> 7.12. Tinted badges in the light appearance: <code>#ac4428</code> on <code>#f4dfd6</code> 4.53, <code>#80622e</code> on <code>#f3e8cf</code> 4.66, <code>#1b7366</code> on <code>#d9ece7</code> 4.63, <code>#356c2f</code> on <code>#e1eedc</code> 5.23, <code>#a33182</code> on <code>#f5deee</code> 4.99. In the dark appearance <code>#fabce0</code> on <code>#302032</code> is 9.67.</p>
     </section>
 
     <section>
