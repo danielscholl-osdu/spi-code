@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { expect, test } from "vitest";
+import { JOB_LOG_LIMIT } from "../../src/collect/lifecycle.js";
 import {
   CORE_LIB_REPO,
   fleetOf,
@@ -941,6 +942,7 @@ test("cut run-job listings are retried until the Java Build is observed", async 
 
 test("a run whose only cut is an over-limit job log settles and is not re-listed", async () => {
   const h = harness();
+  const logSize = JOB_LOG_LIMIT + 6_000;
   let listings = 0;
   h.setRoute((_cmd, args) => {
     const path = args[1] ?? "";
@@ -969,7 +971,7 @@ test("a run whose only cut is an over-limit job log settles and is not re-listed
     }
     const all = args.join(" ");
     if (all.includes("/check-runs/9/annotations")) return { stdout: "", stderr: "", exit: 0 };
-    if (all.includes("/jobs/9/logs")) return { stdout: "x".repeat(70_000), stderr: "", exit: 0 };
+    if (all.includes("/jobs/9/logs")) return { stdout: "x".repeat(logSize), stderr: "", exit: 0 };
   });
   const progress: SweepProgress[] = [];
   const sweeper = createSweeper({ ...h.options, progress: (event) => progress.push(event) });
@@ -985,7 +987,12 @@ test("a run whose only cut is an over-limit job log settles and is not re-listed
     ),
   ).toMatchObject({
     incomplete: { count: 1, total: sweeper.reads.runs?.length },
-    completeness: { kind: "cut", reason: "Job log character limit", read: 64_000, total: 70_000 },
+    completeness: {
+      kind: "cut",
+      reason: "Job log character limit",
+      read: JOB_LOG_LIMIT,
+      total: logSize,
+    },
   });
   const settled = listings;
   await sweeper.sweep();

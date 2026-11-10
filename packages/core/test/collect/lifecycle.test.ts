@@ -243,19 +243,77 @@ test("DetailCache round-trips JSON, never caches active jobs, and rejects corrup
   });
 });
 
+function javaBuildLog(size: number): string {
+  const head = "2026-11-03T13:12:00Z [ERROR] Could not resolve build dependency\n";
+  const line = "2026-11-03T13:12:01Z \u001b[32m[INFO] Building example module\u001b[0m\n";
+  const tail = "\n2026-11-03T13:13:00Z [ERROR] Later build failure\n";
+  return (
+    head +
+    line.repeat(Math.ceil(size / line.length)).slice(0, size - head.length - tail.length) +
+    tail
+  );
+}
+
+test.each([64_000, 92_438, 256_000, JOB_LOG_LIMIT])(
+  "Java Build reads all %i log characters and finds a reason before the old tail limit",
+  async (size) => {
+    const log = javaBuildLog(size);
+    expect(log).toHaveLength(size);
+    const result = await replay(
+      (gh) => readJob(gh, {}, STACK, 1, "Java Build", context()),
+      (path) =>
+        path.includes("/annotations")
+          ? [{ level: "failure", message: "annotation reason" }]
+          : path.endsWith("/logs")
+            ? log
+            : { ...rawJob(), conclusion: "failure" },
+    );
+    expect(result.data?.reason).toBe("Could not resolve build dependency");
+    expect(result.reads.find((r) => r.object.endsWith("/logs"))).toEqual({
+      source: "github",
+      object: `repos/${STACK}/actions/jobs/1/logs`,
+      observedAt: NOW.toISOString(),
+      completeness: { kind: "complete" },
+    });
+    expect(result.cache[`${STACK}#1`]?.reads).toEqual(result.reads);
+  },
+);
+
+test("lifecycle run jobs read the live-sized failed job log with complete evidence", async () => {
+  const result = await replay(
+    (gh) => readRunJobs(gh, {}, STACK, run, context()),
+    (path) =>
+      path.endsWith("/logs")
+        ? javaBuildLog(92_438)
+        : path.includes("/annotations")
+          ? []
+          : path.includes("/jobs?")
+            ? {
+                total: 1,
+                jobs: [{ ...rawJob(1, "Java Build"), conclusion: "failure" }],
+              }
+            : new Error(`Unexpected read ${path}`),
+  );
+  expect(result.data?.[0]?.reason).toBe("Could not resolve build dependency");
+  expect(result.reads.some((r) => r.object.endsWith("/logs"))).toBe(true);
+  expect(result.reads.every((r) => !r.failure && r.completeness.kind === "complete")).toBe(true);
+});
+
 test("Java Build caches a final size-cut log and retries failed explanations", async () => {
+  const log = javaBuildLog(JOB_LOG_LIMIT + 92_438);
   const fixture: Fixture = (path) =>
     path.includes("/annotations")
       ? [{ level: "failure", message: "annotation reason" }]
       : path.endsWith("/logs")
-        ? `${"x".repeat(JOB_LOG_LIMIT)}\n[ERROR] concrete log reason\n`
+        ? log
         : { ...rawJob(), conclusion: "failure" };
   const result = await replay((gh) => readJob(gh, {}, STACK, 1, "Java Build", context()), fixture);
-  expect(result.data?.reason).toBe("concrete log reason");
-  expect(result.reads.find((r) => r.object.endsWith("/logs"))?.completeness).toMatchObject({
+  expect(result.data?.reason).toBe("Later build failure");
+  expect(result.reads.find((r) => r.object.endsWith("/logs"))?.completeness).toEqual({
     kind: "cut",
     read: JOB_LOG_LIMIT,
-    total: JOB_LOG_LIMIT + 29,
+    total: log.length,
+    reason: "Job log character limit",
   });
   expect(result.cache[`${STACK}#1`]?.reads).toEqual(result.reads);
   const cached = await replay(

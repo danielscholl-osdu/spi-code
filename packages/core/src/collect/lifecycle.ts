@@ -150,7 +150,8 @@ function toJob(j: RawJob): JobDetail {
   };
 }
 const FAILED: readonly string[] = Object.freeze(["failure", "timed_out", "startup_failure"]);
-export const JOB_LOG_LIMIT = 64_000;
+// Bound parsing's extra line arrays, not the download: gh.text already holds the whole log.
+export const JOB_LOG_LIMIT = 4 * 1024 * 1024;
 
 async function explain(gh: Gh, repo: string, job: JobDetail, readLog: boolean, ctx: CoreContext) {
   const reads: ReadRecord[] = [];
