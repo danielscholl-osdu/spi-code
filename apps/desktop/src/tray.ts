@@ -88,7 +88,7 @@ const settled = ({ sources }: Progress) =>
     .length;
 
 /** The sources a finished sweep could not read for want of a sign-in; null where none is named. */
-const signinFailures = (progress: Progress): (string | null)[] => [
+export const signinFailures = (progress: Progress): (string | null)[] => [
   ...progress.sources.flatMap((source) =>
     source.state === "failed" && source.code === "signin" ? [source.source] : [],
   ),
@@ -96,14 +96,14 @@ const signinFailures = (progress: Progress): (string | null)[] => [
 ];
 
 type SigninTool = "gh" | "glab";
-type ToolStates = ReadonlyMap<string, string>;
+export type ToolStates = ReadonlyMap<string, string>;
 
 /**
  * The tool behind a sweep's sign-in failures, or null when it cannot be told. upstream and radar
  * fail for sign-in only when glab needs one; any other source (auth checks both tools) is
  * attributed only through the tool setup reports signed out, gh first.
  */
-function signedOutTool(failures: readonly (string | null)[], tools: ToolStates) {
+export function signedOutTool(failures: readonly (string | null)[], tools: ToolStates) {
   let found: SigninTool | null = null;
   for (const source of failures) {
     const tool: SigninTool | null =

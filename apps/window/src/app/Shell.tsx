@@ -218,12 +218,17 @@ export function Shell({ registry = DEFAULT_REGISTRY }: { registry?: Registry }) 
       const destination = parseDestination(input);
       if (!destination) return;
       // A tray destination lands on top: close what would cover it before opening it.
+      // Readiness is a Settings section: the dialog opens over whatever is showing.
+      if (destination.to === "readiness") {
+        openReadiness();
+        return;
+      }
       setSettingsOpen(false);
       setFindOpen(false);
       if (sheet === "overlay") closeSheet();
       openDestination(destination);
     };
-  }, [sheet, closeSheet]);
+  }, [sheet, closeSheet, openReadiness]);
   useEffect(() => {
     const controller = createAppearance(undefined, undefined, undefined, (theme) => {
       void window.spi.setAppearance?.(theme);

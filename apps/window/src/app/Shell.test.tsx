@@ -1021,7 +1021,7 @@ it("opens the sweep's Evidence when desktop main routes the tray's View sweep, a
   }
 });
 
-it("closes Settings before View sweep opens the sweep's Evidence, so nothing covers it", async () => {
+it("closes Settings before View sweep opens the sweep's Evidence, and opens Readiness for a can't-read click", async () => {
   const previous = window.spi;
   const previousState = watchStore.getState();
   let route: ((destination: unknown) => void) | undefined;
@@ -1057,6 +1057,19 @@ it("closes Settings before View sweep opens the sweep's Evidence, so nothing cov
     const evidence = container.querySelector('#app-right-panel [data-evidence="sweep"]');
     expect(evidence).not.toBeNull();
     expect(evidence?.closest("[inert], [aria-hidden='true']")).toBeNull();
+
+    const section = () =>
+      document.querySelector("[data-settings-section]")?.getAttribute("data-settings-section");
+    await act(async () => route?.({ to: "readiness" }));
+    expect(settings()).not.toBeNull();
+    expect(section()).toBe("readiness");
+    const sweepButton = [
+      ...document.querySelectorAll<HTMLButtonElement>(".settings-nav-item"),
+    ].find((button) => button.textContent === "Sweep");
+    await act(async () => sweepButton?.click());
+    expect(section()).toBe("sweep");
+    await act(async () => route?.({ to: "readiness" }));
+    expect(section()).toBe("readiness");
   } finally {
     await act(async () => root.unmount());
     agent.mockRestore();

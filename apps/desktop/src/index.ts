@@ -25,6 +25,7 @@ import { hostLaunch } from "./host-launch.js";
 import { stopHostTree } from "./host-tree.js";
 import { createInterruptNotifications } from "./interrupts.js";
 import { createLifecycle, stopHostAndReleaseLeases, stopWithin } from "./lifecycle.js";
+import { createOutageNotifications } from "./outage.js";
 import { assertNoProcessListeners } from "./smoke-listeners.js";
 import { smokeMessages } from "./smoke-messages.js";
 import { assertSmokeReport, assertSmokeTools, type SmokeReport } from "./smoke-report.js";
@@ -55,6 +56,7 @@ let supervisor: HostSupervisor<UtilityProcess> | undefined;
 let hostPorts: ReturnType<typeof hostPortCallbacks<MessagePortMain>> | undefined;
 let tray: ReturnType<typeof createSweepTray> | undefined;
 let interrupts: ReturnType<typeof createInterruptNotifications> | undefined;
+let outage: ReturnType<typeof createOutageNotifications> | undefined;
 let relay: ReturnType<typeof trayChannel<MessagePortMain>> | undefined;
 let wake: ReturnType<typeof wakeSweep> | undefined;
 let storePath: string | undefined;
@@ -144,6 +146,7 @@ async function run(): Promise<void> {
       wake?.dispose();
       tray?.dispose();
       interrupts?.dispose();
+      outage?.dispose();
     },
     onError: fail,
   });
@@ -184,12 +187,18 @@ async function run(): Promise<void> {
     focused: () => !window.isDestroyed() && window.isFocused(),
     open: (destination) => showDestination(lifecycle.open, window.webContents, destination),
   });
+  outage = createOutageNotifications({
+    focused: () => !window.isDestroyed() && window.isFocused(),
+    open: (destination) => showDestination(lifecycle.open, window.webContents, destination),
+    power: powerMonitor,
+  });
   relay = trayChannel(
     () => new MessageChannelMain(),
     (message) => {
       wake?.observe(message);
       tray?.observe(message);
       interrupts?.observe(message);
+      outage?.observe(message);
     },
     interrupts.outgoing,
   );
@@ -403,6 +412,7 @@ async function run(): Promise<void> {
   wake.dispose();
   tray.dispose();
   interrupts.dispose();
+  outage.dispose();
   saveReport(report);
   console.log(JSON.stringify(report, null, 2));
   window.destroy();

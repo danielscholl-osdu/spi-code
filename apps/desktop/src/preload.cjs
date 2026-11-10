@@ -9,7 +9,7 @@ const listeners = new Set();
 const navigators = new Set();
 let pendingDestination;
 // The closed set of places desktop main may send the window to; anything else is dropped here.
-const DESTINATIONS = new Set(["evidence"]);
+const DESTINATIONS = new Set(["evidence", "readiness"]);
 function windowDestination(input) {
   if (typeof input !== "object" || input === null || Array.isArray(input)) return undefined;
   const keys = Object.keys(input);

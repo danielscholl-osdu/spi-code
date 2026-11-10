@@ -6,6 +6,7 @@ import { parseDestination } from "./destination.js";
 
 it("accepts only the closed set of window destinations", () => {
   expect(parseDestination({ to: "evidence" })).toEqual({ to: "evidence" });
+  expect(parseDestination({ to: "readiness" })).toEqual({ to: "readiness" });
   expect(parseDestination({ to: "today", item: "halt:partition" })).toEqual({
     to: "today",
     item: "halt:partition",
@@ -13,6 +14,7 @@ it("accepts only the closed set of window destinations", () => {
   for (const input of [
     { to: "settings" },
     { to: "evidence", item: "x" },
+    { to: "readiness", section: "sweep" },
     { to: "constructor" },
     { to: ["evidence"] },
     ["evidence"],

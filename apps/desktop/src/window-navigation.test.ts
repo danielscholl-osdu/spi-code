@@ -54,6 +54,14 @@ it("shows the window and routes View sweep through the preload to the renderer",
   expect(listener).toHaveBeenCalledOnce();
 });
 
+it("routes the can't-read banner's Readiness through the preload to the renderer", () => {
+  const { bridge, contents } = preload();
+  const listener = vi.fn();
+  bridge.onNavigate(listener);
+  showDestination(vi.fn(), contents, { to: "readiness" });
+  expect(listener).toHaveBeenCalledExactlyOnceWith({ to: "readiness" });
+});
+
 it("routes Today item identifiers through preload, never paths, URLs or extra fields", () => {
   const { bridge, contents, deliver } = preload();
   const listener = vi.fn();
@@ -127,7 +135,7 @@ it("rejects destinations outside the closed set before the renderer sees them", 
   bridge.onNavigate(listener);
   for (const input of [
     { to: "settings" },
-    { to: "readiness" },
+    { to: "readiness", section: "sweep" },
     { to: "constructor" },
     { to: "evidence", item: "conflict:entitlements:121" },
     { to: ["evidence"] },

@@ -8,7 +8,10 @@ import { watchStore } from "../store/watch.js";
 import { navigate } from "./navigation.js";
 
 /** The closed set of places desktop main can send the window to, as preload.cjs passes them. */
-export type WindowDestination = { to: "evidence" } | { to: "today"; item: string };
+export type WindowDestination =
+  | { to: "evidence" }
+  | { to: "readiness" }
+  | { to: "today"; item: string };
 
 export function parseDestination(input: unknown): WindowDestination | undefined {
   if (typeof input !== "object" || input === null || Array.isArray(input)) return undefined;
@@ -37,10 +40,12 @@ export function parseDestination(input: unknown): WindowDestination | undefined 
     return undefined;
   }
   if (keys.length !== 1 || keys[0] !== "to") return undefined;
-  return (input as { to: unknown }).to === "evidence" ? { to: "evidence" } : undefined;
+  const to = (input as { to: unknown }).to;
+  return to === "evidence" || to === "readiness" ? { to } : undefined;
 }
 
-/** Native tray and notification clicks use the same validated route as the preload. */
+/** Native tray and notification clicks use the same validated route as the preload. Readiness is
+ * Settings, which the shell owns and opens itself. */
 export function openDestination(input: unknown) {
   const destination = parseDestination(input);
   if (destination?.to === "evidence") openFreshness(watchStore.getState().snapshot);

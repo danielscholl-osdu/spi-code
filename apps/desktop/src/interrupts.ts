@@ -5,7 +5,8 @@ import { parseMessage, type WatchItem } from "@spi-code/contracts";
 import { Notification } from "electron";
 import type { WindowDestination } from "./window-navigation.js";
 
-function notificationText(text: string, limit: number) {
+/** One line of display text for a native banner: secrets, paths and command output redacted, bounded. */
+export function notificationText(text: string, limit: number) {
   const safe = (
     text
       .replace(/[\u2028\u2029\u0085]/g, "\n")
