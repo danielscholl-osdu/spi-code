@@ -11,6 +11,7 @@ import type { LifecycleRun } from "../facts.js";
 import type { CoreContext } from "../context.js";
 import type { Model } from "../model/index.js";
 import type { LineModel } from "../model/lines.js";
+import { type SyncSplit, syncSplit } from "../model/upstream.js";
 import { type ItemClass, itemClass, nextText, verbOf } from "../model/next.js";
 import type { QueueItem, Rung } from "../model/queue.js";
 import type { Verdict } from "../model/radar.js";
@@ -538,14 +539,15 @@ function causeOf(item: QueueItem): string {
   return sentence(reason ?? item.text);
 }
 
-// The open sync PR that already holds a radar item's queued commits.
-function heldIn(model: Model, item: QueueItem): number | undefined {
+// How much of a radar item's queued lag its fork's open sync PR already holds.
+function splitOf(model: Model, item: QueueItem): SyncSplit | undefined {
   if (item.kind !== "radar") return undefined;
-  return model.upstream.forks.find((f) => f.service === item.scope)?.syncPr?.number;
+  const fork = model.upstream.forks.find((f) => f.service === item.scope);
+  return fork ? syncSplit(fork) : undefined;
 }
 
 function radarNext(model: Model, item: QueueItem, voice: Voice): string {
-  const pr = heldIn(model, item);
+  const pr = splitOf(model, item)?.pr;
   if (pr === undefined || item.cls !== "TOOLCHAIN") return sentence(nextText(item, [], voice));
   const value = fact(item, "value") ?? "the toolchain move";
   const java = /^Java (\d+)$/.exec(value)?.[1];
@@ -558,7 +560,7 @@ function effectOf(
   item: QueueItem,
   stuck: readonly QueueItem[],
   next: string | undefined,
-  held: number | undefined,
+  split: SyncSplit | undefined,
 ): string {
   if (item.kind === "approvals") {
     const prs = item.effects.map((e) => e.text.split(" ")[0] ?? e.text);
@@ -572,10 +574,13 @@ function effectOf(
         ? stuck.find((s) => s.cls === "TOOLCHAIN" && javaOf(s) === java)
         : undefined;
     const commits = queued ? plural(Number(queued), "commit") : "Queued commits";
+    const at = `at the ${next ?? "next"} sync`;
     return [
-      held !== undefined
-        ? `${commits} wait in sync PR #${held} and reach the fork when it merges.`
-        : `${commits} reach the fork at the ${next ?? "next"} sync.`,
+      split?.pr === undefined
+        ? `${commits} reach the fork ${at}.`
+        : split.next > 0
+          ? `${plural(split.held, "commit")} wait in sync PR #${split.pr}; ${split.next} more reach the fork ${at}.`
+          : `${plural(split.held, "commit")} wait in sync PR #${split.pr} and reach the fork when it merges.`,
       like ? `${cap(whose(like.scope))} sync PR failed on the same move.` : undefined,
     ]
       .filter(Boolean)
@@ -617,26 +622,34 @@ function describe(
         ? stuck.find((s) => s.cls === "TOOLCHAIN" && javaOf(s) === java)
         : undefined;
     const queued = /(\d+) commits? queued/.exec(item.text)?.[1];
-    const held = heldIn(model, item);
-    const carried = item.cls === "TOOLCHAIN" && held !== undefined;
+    const split = splitOf(model, item);
+    const held = split?.pr !== undefined ? split : undefined;
+    const value = fact(item, "value") ?? "a toolchain move";
     const entries = item.halt?.entries ?? ["an entry"];
     const halts = fitHeadline([
       `Next sync halts on ${list(entries)}`,
       `Next sync halts on ${firstAndMore(entries)}`,
     ]);
+    const carrier = !held
+      ? "Next sync carries"
+      : held.next > 0
+        ? `Sync PR #${held.pr} and the next sync carry`
+        : `Sync PR #${held.pr} carries`;
     return {
-      title:
-        item.cls === "TOOLCHAIN"
-          ? `${carried ? `Sync PR #${held}` : "Next sync"} carries ${fact(item, "value") ?? "a toolchain move"}`
-          : halts,
+      title: item.cls === "TOOLCHAIN" ? `${carrier} ${value}` : halts,
       sub: [
         item.cls !== "TOOLCHAIN" && entries.length > 1 && !halts.endsWith(list(entries))
           ? `entries ${list(entries)}`
           : undefined,
-        queued
-          ? `${plural(Number(queued), "commit")} ${held !== undefined ? `in sync PR #${held}` : "queued"}`
-          : undefined,
-        next && !carried ? `syncs at ${next}` : undefined,
+        ...(held
+          ? [
+              `${plural(held.held, "commit")} in sync PR #${held.pr}`,
+              held.next > 0 ? `${held.next} more at the ${next ?? "next"} sync` : undefined,
+            ]
+          : [
+              queued ? `${plural(Number(queued), "commit")} queued` : undefined,
+              next ? `syncs at ${next}` : undefined,
+            ]),
         like ? `expected to fail the way ${whose(like.scope)} did` : undefined,
       ]
         .filter(Boolean)
@@ -725,7 +738,7 @@ function focusOf(
       title,
       sub,
       cause: causeOf(item),
-      effect: effectOf(item, stuck, next, heldIn(model, item)),
+      effect: effectOf(item, stuck, next, splitOf(model, item)),
       next: radarNext(model, item, voice),
       verb: verbOf(item),
       evidence: evidenceOf([item]),
@@ -832,7 +845,7 @@ export function readItem(model: Model, item: QueueItem, now: Date | undefined = 
     title,
     sub,
     cause: causeOf(item),
-    effect: effectOf(item, stuck, next, heldIn(model, item)),
+    effect: effectOf(item, stuck, next, splitOf(model, item)),
     next: radarNext(model, item, context.voice),
     ...(gap ? { gap } : {}),
     related: relatedOf(model, item, themes),

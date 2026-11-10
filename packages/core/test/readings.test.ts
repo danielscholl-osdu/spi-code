@@ -46,6 +46,17 @@ const briefing = buildBriefing(model, { state: "clear", problems: [] }, now, con
 const items: FocusItem[] = [...briefing.focus, ...briefing.rest];
 const radar = sweepReads.radar as unknown as ReadRecord[];
 
+// Storage's open sync PR named for an upstream sha that isn't among its queued commits.
+const unaimed = (() => {
+  const f = structuredClone(facts);
+  const pr = f.github.data?.repos["Azure/osdu-spi-storage"]?.prs.find((p) => p.number === 58);
+  if (!pr) throw new Error("storage sync PR #58 is missing from the sweep");
+  pr.title = "⬆️ Sync with upstream 0badc0de";
+  const m = buildModel(f, now, {}, context);
+  const b = buildBriefing(m, { state: "clear", problems: [] }, now, context);
+  return { model: m, items: [...b.focus, ...b.rest] };
+})();
+
 const upstream = (campaigns: readonly ReadingCampaign[] = []) =>
   upstreamReading({ model, items, radar, fleet: context.fleet, campaigns });
 const service = (id: string) => serviceReading({ model, service: id, items, reads: radar, now });
@@ -58,38 +69,58 @@ function clean(reading: PlaceReading<ReadingItem>): string[] {
 describe("Upstream reading on the recorded 6 Nov sweep", () => {
   it("reads the next sync, commits incoming and forks reached", () => {
     const reading = upstream();
-    expect(reading.headline).toBe("At 18:00, 71 commits reach 8 forks. Two need you first.");
+    expect(reading.headline).toBe("At 18:00, 73 commits reach 9 forks. Two need you first.");
     expect(wordCount(reading.headline)).toBeLessThanOrEqual(12);
     expect(reading.tiles[0]).toEqual({
       label: "Incoming",
       value: "107",
-      counts: "commits · 36 in 2 sync PRs · 71 at 18:00",
+      counts: "commits · 34 in 2 sync PRs · 73 at 18:00",
     });
   });
 
-  it("keeps commits held in open sync PRs out of the next sync's count", () => {
-    const held = (keep: (f: Model["upstream"]["moving"][number]) => boolean) => {
-      const m = structuredClone(model);
+  it("keeps only the commits an open sync PR already holds out of the next sync's count", () => {
+    const held = (keep: (f: Model["upstream"]["moving"][number]) => boolean, from = model) => {
+      const m = structuredClone(from);
       m.upstream.held = [];
       m.upstream.moving = m.upstream.moving.filter(keep);
       return upstreamReading({ model: m, items, radar, fleet: context.fleet, campaigns: [] })
         .headline;
     };
-    expect(held(() => true)).toBe("At 18:00, 71 commits reach 8 forks; 36 wait in sync PRs.");
-    expect(held((f) => !!f.syncPr)).toBe("36 commits wait in 2 open sync PRs.");
+    expect(held(() => true)).toBe("At 18:00, 73 commits reach 9 forks; 34 wait in sync PRs.");
+    expect(held((f) => f.service === "indexer")).toBe(
+      "At 18:00, 2 commits reach 1 fork; 23 in a sync PR.",
+    );
+    expect(held((f) => f.service === "storage")).toBe("11 commits wait in 1 open sync PR.");
+    expect(held((f) => f.service === "schema")).toBe("At 18:00, 16 commits reach 1 fork.");
+    expect(held((f) => f.service === "storage", unaimed.model)).toBe(
+      "At 18:00, 11 commits reach 1 fork.",
+    );
   });
 
-  it("names the open sync PR that already holds a fork's queued commits", () => {
-    const indexer = items.find((item) => item.id === "radar:indexer");
-    expect(indexer).toMatchObject({
-      title: "Sync PR #58 carries os-core-common 8.5.0",
-      sub: "25 commits in sync PR #58",
-      effect: "25 commits wait in sync PR #58 and reach the fork when it merges.",
+  it("names the open sync PR for the commits it holds and the next sync for the rest", () => {
+    const radarItem = (service: string, from = items) =>
+      from.find((item) => item.id === `radar:${service}`);
+    expect(radarItem("indexer")).toMatchObject({
+      title: "Sync PR #58 and the next sync carry os-core-common 8.5.0",
+      sub: "23 commits in sync PR #58 · 2 more at the 18:00 sync",
+      effect: "23 commits wait in sync PR #58; 2 more reach the fork at the 18:00 sync.",
       next: "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
     });
-    expect(items.find((item) => item.id === "radar:schema")).toMatchObject({
+    expect(radarItem("storage")).toMatchObject({
+      title: "Sync PR #58 carries os-core-common 8.5.0",
+      sub: "11 commits in sync PR #58",
+      effect: "11 commits wait in sync PR #58 and reach the fork when it merges.",
+      next: "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
+    });
+    expect(radarItem("schema")).toMatchObject({
       title: "Next sync carries os-core-common 8.5.0",
+      sub: "16 commits queued · syncs at 18:00",
       effect: "16 commits reach the fork at the 18:00 sync.",
+    });
+    expect(radarItem("storage", unaimed.items)).toMatchObject({
+      title: "Next sync carries os-core-common 8.5.0",
+      sub: "11 commits queued · syncs at 18:00",
+      effect: "11 commits reach the fork at the 18:00 sync.",
     });
   });
 

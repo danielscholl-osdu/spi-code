@@ -122,10 +122,10 @@
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "indexer",
-        "title": "Sync PR #58 carries os-core-common 8.5.0",
-        "sub": "25 commits in sync PR #58",
+        "title": "Sync PR #58 and the next sync carry os-core-common 8.5.0",
+        "sub": "23 commits in sync PR #58 · 2 more at the 00:00 sync",
         "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
-        "effect": "25 commits wait in sync PR #58 and reach the fork when it merges.",
+        "effect": "23 commits wait in sync PR #58; 2 more reach the fork at the 00:00 sync.",
         "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
         "verb": "Absorb toolchain",
         "evidence": [
@@ -2122,13 +2122,13 @@
         "kind": "upstream"
       },
       "content": {
-        "headline": "At 00:00, 71 commits reach 8 forks. Two need you first.",
+        "headline": "At 00:00, 73 commits reach 9 forks. Two need you first.",
         "qualifier": "GitLab truncated the upstream diffs for 6 services and the reads failed for 3 services, so a toolchain move could be missing.",
         "tiles": [
           {
             "label": "Incoming",
             "value": "107",
-            "counts": "commits · 36 in 2 sync PRs · 71 at 00:00"
+            "counts": "commits · 34 in 2 sync PRs · 73 at 00:00"
           },
           {
             "label": "Toolchain",
@@ -3035,10 +3035,10 @@
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "indexer",
-            "title": "Sync PR #58 carries os-core-common 8.5.0",
-            "sub": "25 commits in sync PR #58",
+            "title": "Sync PR #58 and the next sync carry os-core-common 8.5.0",
+            "sub": "23 commits in sync PR #58 · 2 more at the 00:00 sync",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
-            "effect": "25 commits wait in sync PR #58 and reach the fork when it merges.",
+            "effect": "23 commits wait in sync PR #58; 2 more reach the fork at the 00:00 sync.",
             "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
             "verb": "Absorb toolchain",
             "evidence": [

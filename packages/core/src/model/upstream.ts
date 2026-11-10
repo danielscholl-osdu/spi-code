@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { githubUrl, REFERENCE_FORK, SYNC_UPSTREAM_CRON } from "../config.js";
-import type { ForkRuns, JobDetail, PastPrFact, RunFact } from "../facts.js";
+import type { ForkRuns, JobDetail, PastPrFact, PrFact, RunFact, UpstreamFact } from "../facts.js";
 import type { OrderRule } from "../rollout.js";
 import { latestChecks, prVerdict } from "./checks.js";
 import { type LaneLoad, laneRoom } from "./lanes.js";
@@ -63,7 +63,8 @@ export interface UpFork {
   role: UpRole;
   // 1-based, for a fork in a wave.
   wave?: number;
-  syncPr?: { number: number; url: string; headSha: string; verdict: string };
+  // holds: queued commits up to the upstream sha the PR names; undefined when it names none of them.
+  syncPr?: { number: number; url: string; headSha: string; verdict: string; holds?: number };
   tracking?: { number: number; url: string; labels: string[] };
   cascadeRun?: RunFact;
   stop?: UpStop;
@@ -310,6 +311,30 @@ function cellsOf(f: UpFork): UpFork["cells"] {
   return { sync, cascade, toMain, main };
 }
 
+// GitLab's compare lists the queued commits oldest first, so the PR's target bounds what it holds.
+function holdsOf(pr: PrFact, upstream: UpstreamFact | undefined): number | undefined {
+  const target = /\bupstream ([0-9a-f]{7,40})\b/i.exec(pr.title)?.[1]?.toLowerCase();
+  if (!target || !upstream) return undefined;
+  const at = upstream.commits.findIndex((c) => c.sha.toLowerCase().startsWith(target));
+  return at < 0 ? undefined : at + 1;
+}
+
+export interface SyncSplit {
+  // Queued commits the fork's open sync PR already holds, and the PR when it holds any.
+  held: number;
+  pr?: number;
+  // Queued commits only the next sync brings.
+  next: number;
+}
+
+export function syncSplit(f: Pick<UpFork, "behind" | "syncPr">): SyncSplit {
+  const behind = f.behind ?? 0;
+  const held = Math.min(f.syncPr?.holds ?? 0, behind);
+  return held > 0 && f.syncPr
+    ? { held, pr: f.syncPr.number, next: behind - held }
+    : { held: 0, next: behind };
+}
+
 function forkOf(
   line: LineModel,
   radar: RadarModel | undefined,
@@ -345,6 +370,7 @@ function forkOf(
         }
       : undefined;
   const sync = line.syncPr?.pr;
+  const holds = sync ? holdsOf(sync, line.upstream) : undefined;
   const toMain = toMainOf(line);
   const mergedPr = lastMerged(line.past, "release/upstream-");
   const merged = mergedPr?.mergedAt
@@ -365,6 +391,7 @@ function forkOf(
             url: sync.url,
             headSha: sync.headSha,
             verdict: prVerdict(sync),
+            ...(holds !== undefined ? { holds } : {}),
           },
         }
       : {}),

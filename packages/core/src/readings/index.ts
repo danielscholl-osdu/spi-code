@@ -5,6 +5,7 @@ import type { Fleet } from "../config.js";
 import type { ReadRecord } from "../evidence/index.js";
 import type { Model } from "../model/index.js";
 import { type LineModel, prRed, type Station } from "../model/lines.js";
+import { syncSplit } from "../model/upstream.js";
 import { fitHeadline, plural, since, wordCount } from "../util.js";
 import { type SecurityReadingItem, serviceSecurityItem } from "./security.js";
 
@@ -255,10 +256,10 @@ export function upstreamReading<T extends ReadingItem>(
   const unread = up.unread;
   const none = total === 0 || unread >= total;
   const commits = moving.reduce((sum, f) => sum + (f.behind ?? 0), 0);
-  // An open sync PR already holds its fork's lag, so the next sync brings only the rest.
-  const arriving = moving.filter((f) => !f.syncPr);
-  const prs = moving.length - arriving.length;
-  const queued = arriving.reduce((sum, f) => sum + (f.behind ?? 0), 0);
+  const splits = moving.map(syncSplit);
+  const arriving = splits.filter((s) => s.next > 0);
+  const prs = splits.filter((s) => s.pr !== undefined).length;
+  const queued = arriving.reduce((sum, s) => sum + s.next, 0);
   const inPrs = commits - queued;
   const held = up.held.map((f) => f.service);
   const radarItem = (service: string) => items.find((i) => i.id === `radar:${service}`);
