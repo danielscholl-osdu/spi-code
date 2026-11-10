@@ -157,7 +157,10 @@ export function inDragShape(regions: readonly SmokeAppRegion[], target: SmokeRec
   return false;
 }
 
-export function assertSmokeGeometry(value: unknown): asserts value is SmokeGeometry {
+export function assertSmokeGeometry(
+  value: unknown,
+  viewportWidth?: number,
+): asserts value is SmokeGeometry {
   record(value);
   switch (value.rule) {
     case "sweep-visible": {
@@ -180,13 +183,14 @@ export function assertSmokeGeometry(value: unknown): asserts value is SmokeGeome
         "Sweep width missing",
       );
       assert(Array.isArray(value.rows) && value.rows.length === 4, "Sweep source rows missing");
-      if (value.width === 740) assert.equal(value.picker, "Sweep", "Sweep picker must read Sweep");
+      const narrow = (viewportWidth ?? value.width) === 740;
+      if (narrow) assert.equal(value.picker, "Sweep", "Sweep picker must read Sweep");
       for (const row of value.rows) {
         record(row);
         rect(row.name);
         rect(row.cadence);
         rect(row.lastRead);
-        if (value.width === 740) {
+        if (narrow) {
           assert.equal(row.label, "last read", "Sweep last-read label missing");
           assert(
             row.cadence.y >= row.name.y + row.name.height &&
@@ -195,6 +199,8 @@ export function assertSmokeGeometry(value: unknown): asserts value is SmokeGeome
           );
         }
       }
+      if (viewportWidth !== undefined)
+        assert.equal(value.width, viewportWidth, "Sweep measured width differs from shot");
       break;
     }
     case "failed-reads": {

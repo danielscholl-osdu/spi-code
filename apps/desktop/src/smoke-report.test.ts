@@ -94,6 +94,53 @@ it("pins scheduled fixtures before their promises and commits exactly one failed
   }
 });
 
+it("stamps every saved sweep read in its area and supplemental provenance", () => {
+  const snapshot = ViewSnapshotSchema.parse(
+    JSON.parse(
+      readFileSync(new URL("../../../fixtures/watch/snapshot-1106.json", import.meta.url), "utf8"),
+    ),
+  );
+  const fixture = smokeScheduledSweep(snapshot, "saved-failure");
+  const envelopes = [
+    ...fixture.snapshot.areas.map(({ envelope }) => envelope),
+    ...fixture.snapshot.provenance.flatMap(({ envelope }) => (envelope ? [envelope] : [])),
+  ];
+  for (const source of fixture.progress.sources) {
+    if (source.state !== "read") continue;
+    const observed = envelopes.filter(({ source: name }) => name === source.source);
+    expect(observed.length, source.source).toBeGreaterThan(0);
+    for (const envelope of observed)
+      expect(envelope, source.source).toMatchObject({
+        state: "fresh",
+        observedAt: source.endedAt,
+        completeness: { kind: "complete" },
+      });
+  }
+});
+
+it("keeps the saved sweep's failed source and its retained area read consistent", () => {
+  const snapshot = ViewSnapshotSchema.parse(
+    JSON.parse(
+      readFileSync(new URL("../../../fixtures/watch/snapshot-1106.json", import.meta.url), "utf8"),
+    ),
+  );
+  const fixture = smokeScheduledSweep(snapshot, "saved-failure");
+  const failed = fixture.progress.sources.filter(({ state }) => state === "failed");
+  expect(failed).toHaveLength(1);
+  expect(
+    fixture.snapshot.areas
+      .filter(({ envelope }) => envelope.state === "failed")
+      .map(({ area }) => area),
+  ).toEqual(failed.map(({ source }) => source));
+  for (const { source } of failed) {
+    const retained = fixture.snapshot.areas.find(({ area }) => area === source)?.envelope;
+    expect(retained).toEqual(snapshot.areas.find(({ area }) => area === source)?.envelope);
+    expect(
+      retained && "observedAt" in retained && Date.parse(retained.observedAt ?? ""),
+    ).toBeLessThan(Date.parse(fixture.progress.startedAt));
+  }
+});
+
 it("keeps the retained first-sweep failure line consistent with the snapshot's failed services", () => {
   const snapshot = ViewSnapshotSchema.parse(
     JSON.parse(
@@ -415,6 +462,88 @@ it.each(Object.keys(scheduledQualifiers))(
         }
       }
     }
+  },
+);
+
+it.each([
+  ["settings-sweep-idle", "Next sweep 08:07", "Next sweep 08:08"],
+  ["settings-sweep-sweeping", "View live sweep →", "View sweep →"],
+  ["settings-sweep-saved-failure", "1 source failed", "0 sources failed"],
+  ["settings-sweep-saved-failure", "Next sweep 09:09", "Next sweep 09:08"],
+  ["settings-sweep-saved-failure", "Sweep now", "Sweep unavailable"],
+  ["settings-sweep-not-ready", "Watch is not ready.", "Watch is ready."],
+  ["evidence-header-idle", "next sweep 08:07", "next sweep 08:08"],
+  ["evidence-header-sweeping", "Sweeping since 08:07", "Sweeping since 08:06"],
+])("requires the scheduled state text in %s: %s", (surface, before, after) => {
+  expect(() =>
+    assertSmokeViews(
+      report.views.map((shot) =>
+        shot.surface === surface
+          ? {
+              ...shot,
+              qualifiers: [shot.qualifiers[0], shot.qualifiers[1]?.replace(before, after)],
+            }
+          : shot,
+      ),
+    ),
+  ).toThrow("Missing state qualifier");
+});
+
+it.each(["Schedule", "Last sweep", "What a sweep reads", "GitHub budget", "Notifications"])(
+  "requires the Sweep section text: %s",
+  (heading) => {
+    expect(() =>
+      assertSmokeViews(
+        report.views.map((shot) =>
+          shot.surface.startsWith("settings-sweep-")
+            ? {
+                ...shot,
+                qualifiers: [shot.qualifiers[0], shot.qualifiers[1]?.replace(heading, "Omitted")],
+              }
+            : shot,
+        ),
+      ),
+    ).toThrow("Missing Sweep section qualifier");
+  },
+);
+
+it.each(["picker", "cadence", "lastRead", "label"] as const)(
+  "uses the shot's 740 px width for Sweep %s checks despite a different measured width",
+  (field) => {
+    expect(() =>
+      assertSmokeViews(
+        report.views.map((shot) =>
+          shot.surface === "settings-sweep-idle" && shot.viewportWidth === 740
+            ? {
+                ...shot,
+                geometry: shot.geometry.map((geometry) =>
+                  geometry.rule === "sweep-reads"
+                    ? {
+                        ...geometry,
+                        width: 900,
+                        picker: field === "picker" ? "Readiness" : geometry.picker,
+                        rows: geometry.rows.map((row) => ({
+                          ...row,
+                          ...(field === "cadence" || field === "lastRead"
+                            ? { [field]: { ...row[field], y: row.name.y } }
+                            : field === "label"
+                              ? { label: "" }
+                              : {}),
+                        })),
+                      }
+                    : geometry,
+                ),
+              }
+            : shot,
+        ),
+      ),
+    ).toThrow(
+      field === "picker"
+        ? "Sweep picker"
+        : field === "label"
+          ? "Sweep last-read label"
+          : "Sweep columns must fold",
+    );
   },
 );
 

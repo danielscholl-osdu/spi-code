@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import {
+  type Envelope,
   type SweepProgress,
   SweepProgressSchema,
   SweepStatusSchema,
@@ -32,14 +33,14 @@ export function smokeScheduledSweep(
         ? index === 4
           ? { source, state: "reading", startedAt }
           : { source, state: "waiting" }
-        : saved && source === "upstream"
+        : saved && source === "radar"
           ? {
               source,
               state: "failed",
               startedAt,
               endedAt,
-              code: "signin",
-              reason: "glab is not signed in to community.opengroup.org.",
+              code: "timeout",
+              reason: "GitLab did not answer in time.",
             }
           : {
               source,
@@ -49,11 +50,34 @@ export function smokeScheduledSweep(
             },
     ),
   });
+  const savedRead = (envelope: Envelope): Envelope =>
+    progress.sources.some(({ source, state }) => source === envelope.source && state === "read")
+      ? {
+          ...envelope,
+          state: "fresh",
+          observedAt: endedAt,
+          completeness: { kind: "complete" },
+        }
+      : envelope;
   return {
     now: Date.parse(
       saved ? endedAt : sweeping ? "2026-11-06T14:08:00.000Z" : "2026-11-06T14:04:00.000Z",
     ),
-    snapshot: ViewSnapshotSchema.parse({ ...snapshot, sweptAt: endedAt }),
+    snapshot: ViewSnapshotSchema.parse({
+      ...snapshot,
+      sweptAt: endedAt,
+      ...(saved
+        ? {
+            areas: snapshot.areas.map((entry) => ({
+              ...entry,
+              envelope: savedRead(entry.envelope),
+            })),
+            provenance: snapshot.provenance.map((entry) =>
+              entry.envelope ? { ...entry, envelope: savedRead(entry.envelope) } : entry,
+            ),
+          }
+        : {}),
+    }),
     progress,
     status: SweepStatusSchema.parse({
       remaining: 4865,

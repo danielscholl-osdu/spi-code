@@ -251,9 +251,10 @@ The launcher's child-process hard limit and the in-app smoke watchdog both use
 180-capture run reached the last 740 px appearance at the former four-minute
 deadline, before the host proof could run. Both limits must allow the expanded
 matrix, overlay checks and host/runtime proof to finish: raising only one leaves
-the other able to terminate a healthy run. The launcher can kill a blocked app;
-the smoke watchdog reports an in-app timeout. The non-smoke proof watchdog stays
-at 120,000 ms. Per-DOM waits and all geometry/image gates are unchanged.
+the other able to terminate a healthy run. The launcher starts its deadline first,
+so it SIGKILLs a stuck app before the later-starting in-app watchdog can report.
+The non-smoke proof watchdog stays at 120,000 ms. Per-DOM waits and all
+geometry/image gates are unchanged.
 Missing shots, images smaller than 640 x 400 or 1024 PNG bytes, or images
 with 99.5% of pixels in one 4-bit-per-channel RGB bucket fail the smoke.
 Every shot must carry the title-bar sweep line (first-sweep captures carry its

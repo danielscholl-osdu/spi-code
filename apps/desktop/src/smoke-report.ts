@@ -450,7 +450,7 @@ export function assertSmokeViews(value: unknown): asserts value is SmokeShot[] {
           `Missing geometry rules: ${id}/${viewportWidth}/${appearance}`,
         );
         for (const [index, geometry] of shot.geometry.entries()) {
-          assertSmokeGeometry(geometry);
+          assertSmokeGeometry(geometry, viewportWidth);
           assert.equal(geometry.rule, rules[index], `Wrong geometry rule: ${id}`);
           if (id.startsWith("settings-sweep-") && geometry.rule === "overlay-drag") {
             assert.equal(geometry.overlay, "[role=dialog].settings", "Wrong Sweep overlay");
