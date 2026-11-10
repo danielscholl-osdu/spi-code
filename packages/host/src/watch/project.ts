@@ -335,6 +335,11 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
       ...briefingProvenance(briefing, model.stack),
       ...stationProvenance(stations),
       ...releaseProvenance(releases.lines, input.releaseRecords, now),
+      {
+        path: "/releases/forming",
+        areas: ["fleet", "github"],
+        envelope: readEnvelope("releases", input.releaseRecords, RELEASES_EVERY_MS, now),
+      },
       ...services.flatMap((service, i) => [
         ...runProvenance(
           `/services/${i}/runs`,

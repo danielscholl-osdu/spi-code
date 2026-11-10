@@ -7,7 +7,6 @@ import {
   type ReleaseFact,
   type ReleaseReads,
 } from "../releases.js";
-import type { Forming, FormingPr } from "@spi-code/contracts";
 import {
   openReleasePrs,
   type ReleaseBody,
@@ -258,6 +257,36 @@ const NOTABLE_RANK: readonly FormingKind[] = Object.freeze([
 ]);
 const NOTABLE_MAX = 3;
 
+export interface FormingPrRef {
+  number: number;
+  url?: string;
+}
+
+interface FormingPrOwn {
+  pr: FormingPrRef;
+  state: "read" | "not-read";
+  entries: FormingEntry[];
+}
+
+export type FormingPr = ({ kind: "service"; service: string } | { kind: "template" }) & FormingPrOwn;
+
+export interface FormingNotable {
+  title: string;
+  kind: FormingKind;
+  services: string[];
+  pr: FormingPrRef;
+  text: string;
+}
+
+/** What the open release PRs carry; kinds are absent when no body was read. */
+export interface Forming {
+  state: "read" | "partial" | "not-read";
+  prs: FormingPr[];
+  kinds?: Record<FormingKind, number>;
+  notable: FormingNotable[];
+  text: string;
+}
+
 export interface FormingInput {
   /** The releases read's bodies, by releaseBodyKey. */
   bodies?: Readonly<Record<string, ReleaseBody>>;
@@ -345,7 +374,7 @@ export function formingReleases(input: FormingInput): Forming {
   return { state, prs, kinds, notable: notableOf(prs), text };
 }
 
-function notableOf(prs: readonly FormingPr[]): Forming["notable"] {
+function notableOf(prs: readonly FormingPr[]): FormingNotable[] {
   const byTitle = new Map<
     string,
     { title: string; kind: FormingKind; services: string[]; template: boolean; pr: FormingPr["pr"]; order: number }
