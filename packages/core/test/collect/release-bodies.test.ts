@@ -464,6 +464,31 @@ test("past the cap no release PR starves: the newest always, then unread, then l
     "read",
     "read",
   ]);
+
+  const f = harness();
+  f.pull(STORAGE, 9, { state: "open", sha: sha("9"), body: CHANGELOG });
+  f.pull(STORAGE, 8, new Error("HTTP 502: Bad Gateway"));
+  f.pull(STORAGE, 7, new Error("HTTP 502: Bad Gateway"));
+  f.pull(STORAGE, 6, { state: "open", sha: sha("6"), body: CHANGELOG });
+  const failing = async () => {
+    f.calls.length = 0;
+    await f.reader.read({ openPrs: open });
+    f.advance(RELEASES_EVERY_MS);
+    return f.calls.map((c) => Number(c.split("/").at(-1))).sort();
+  };
+  const failedAt = f.now();
+  expect(await failing()).toEqual([8, 9]);
+  expect(await failing()).toEqual([7, 9]);
+  expect(f.reader.data.bodies[key(8)]).toMatchObject({
+    state: "not-read",
+    reason: "failed",
+    at: failedAt,
+  });
+  expect(await failing()).toEqual([6, 9]);
+  expect(f.reader.data.bodies[key(6)]).toMatchObject({ state: "read" });
+  expect(await failing()).toEqual([8, 9]);
+  expect(await failing()).toEqual([7, 9]);
+  expect(await failing()).toEqual([6, 9]);
 });
 
 test("a release PR whose body read always fails does not hold the second slot", async () => {

@@ -3837,6 +3837,218 @@
         "text": "stack v0.35.3 · template v1.4.0 → 1.5.0 · core-lib-azure 2.5.10 to 5.0.0 (5.0.0 on 2 of 13)"
       },
       "readyLine": "9 release PRs wait for review, none failing"
+    },
+    "forming": {
+      "state": "read",
+      "prs": [
+        {
+          "kind": "service",
+          "service": "partition",
+          "pr": {
+            "number": 600,
+            "url": "https://github.com/Azure/osdu-spi-partition/pull/600"
+          },
+          "state": "read",
+          "entries": [
+            {
+              "kind": "security",
+              "title": "apply a security patch to the synthetic HTTP client"
+            },
+            {
+              "kind": "other",
+              "title": "bump fixture-library to 1.0.1"
+            }
+          ]
+        },
+        {
+          "kind": "service",
+          "service": "entitlements",
+          "pr": {
+            "number": 601,
+            "url": "https://github.com/Azure/osdu-spi-entitlements/pull/601"
+          },
+          "state": "read",
+          "entries": [
+            {
+              "kind": "improved",
+              "title": "improve the synthetic legal tag lookup"
+            },
+            {
+              "kind": "other",
+              "title": "tidy the synthetic logs"
+            }
+          ]
+        },
+        {
+          "kind": "service",
+          "service": "legal",
+          "pr": {
+            "number": 602,
+            "url": "https://github.com/Azure/osdu-spi-legal/pull/602"
+          },
+          "state": "read",
+          "entries": [
+            {
+              "kind": "fixed",
+              "title": "handle a missing synthetic schema version"
+            }
+          ]
+        },
+        {
+          "kind": "service",
+          "service": "schema",
+          "pr": {
+            "number": 603,
+            "url": "https://github.com/Azure/osdu-spi-schema/pull/603"
+          },
+          "state": "read",
+          "entries": [
+            {
+              "kind": "new",
+              "title": "add a synthetic upload size limit"
+            },
+            {
+              "kind": "security",
+              "title": "apply a security patch to the synthetic HTTP client"
+            }
+          ]
+        },
+        {
+          "kind": "service",
+          "service": "file",
+          "pr": {
+            "number": 604,
+            "url": "https://github.com/Azure/osdu-spi-file/pull/604"
+          },
+          "state": "read",
+          "entries": [
+            {
+              "kind": "breaking",
+              "title": "synthetic batch reads now page their results"
+            },
+            {
+              "kind": "new",
+              "title": "add a synthetic batch read"
+            },
+            {
+              "kind": "fixed",
+              "title": "handle a synthetic record without a kind"
+            }
+          ]
+        },
+        {
+          "kind": "service",
+          "service": "storage",
+          "pr": {
+            "number": 605,
+            "url": "https://github.com/Azure/osdu-spi-storage/pull/605"
+          },
+          "state": "read",
+          "entries": [
+            {
+              "kind": "fixed",
+              "title": "retry a synthetic index write once"
+            },
+            {
+              "kind": "other",
+              "title": "rename a synthetic job"
+            }
+          ]
+        },
+        {
+          "kind": "service",
+          "service": "indexer",
+          "pr": {
+            "number": 606,
+            "url": "https://github.com/Azure/osdu-spi-indexer/pull/606"
+          },
+          "state": "read",
+          "entries": [
+            {
+              "kind": "new",
+              "title": "add a synthetic query timeout"
+            },
+            {
+              "kind": "fixed",
+              "title": "handle a synthetic empty cursor"
+            }
+          ]
+        },
+        {
+          "kind": "service",
+          "service": "search",
+          "pr": {
+            "number": 607,
+            "url": "https://github.com/Azure/osdu-spi-search/pull/607"
+          },
+          "state": "read",
+          "entries": [
+            {
+              "kind": "new",
+              "title": "add a synthetic tenant listing"
+            },
+            {
+              "kind": "fixed",
+              "title": "handle an empty synthetic page"
+            }
+          ]
+        },
+        {
+          "kind": "template",
+          "pr": {
+            "number": 263,
+            "url": "https://github.com/Azure/osdu-spi/pull/263"
+          },
+          "state": "read",
+          "entries": [
+            {
+              "kind": "new",
+              "title": "add a synthetic workflow input"
+            }
+          ]
+        }
+      ],
+      "kinds": {
+        "breaking": 1,
+        "new": 5,
+        "improved": 1,
+        "fixed": 5,
+        "security": 2,
+        "other": 3
+      },
+      "notable": [
+        {
+          "title": "synthetic batch reads now page their results",
+          "kind": "breaking",
+          "services": ["file"],
+          "pr": {
+            "number": 604,
+            "url": "https://github.com/Azure/osdu-spi-file/pull/604"
+          },
+          "text": "synthetic batch reads now page their results on file"
+        },
+        {
+          "title": "apply a security patch to the synthetic HTTP client",
+          "kind": "security",
+          "services": ["partition", "schema"],
+          "pr": {
+            "number": 600,
+            "url": "https://github.com/Azure/osdu-spi-partition/pull/600"
+          },
+          "text": "apply a security patch to the synthetic HTTP client on partition and schema"
+        },
+        {
+          "title": "add a synthetic upload size limit",
+          "kind": "new",
+          "services": ["schema"],
+          "pr": {
+            "number": 603,
+            "url": "https://github.com/Azure/osdu-spi-schema/pull/603"
+          },
+          "text": "add a synthetic upload size limit on schema"
+        }
+      ],
+      "text": "Unreleased, in 9 open release PRs: 1 breaking · 5 new · 1 improved · 5 fixed · 2 security · 3 other"
     }
   },
   "stations": [
@@ -7403,6 +7615,19 @@
     },
     {
       "path": "/releases",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
+      "path": "/releases/forming",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",

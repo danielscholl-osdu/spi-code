@@ -308,16 +308,63 @@ describe("formingReleases", () => {
     expect(out.text).toBe("No release forming: no release PRs open");
   });
 
-  test("without the GitHub read the kept bodies stand, and with neither nothing is read", () => {
+  test("without the GitHub read the kept bodies stand, partial, and with neither nothing is read", () => {
     const out = forming({ bodies: bodiesOf(read(repoOf("storage"), 75, BODY)) });
+    expect(out.state).toBe("partial");
     expect(out.prs).toMatchObject([{ service: "storage", pr: { number: 75 }, state: "read" }]);
     expect(out.prs[0]?.pr).not.toHaveProperty("url");
+    expect(out.text).toBe(
+      "Unreleased, in at least 1 open release PR (release PRs of 10 repositories not listed this sweep): 1 breaking · 1 new · 1 improved · 1 fixed · 1 security · 2 other",
+    );
     expect(forming({})).toEqual({
       state: "not-read",
       prs: [],
       notable: [],
       text: "Unreleased changes not read this sweep",
     });
+  });
+
+  test("a cold GitHub read that listed no repository is not read, never no release forming", () => {
+    for (const open of [{}, { [TEMPLATE_REPO]: { prs: [] } }] as FormingInput["open"][]) {
+      const out = forming({ bodies: {}, open });
+      expect(out).toEqual({
+        state: "not-read",
+        prs: [],
+        notable: [],
+        text: "Unreleased changes not read this sweep",
+      });
+    }
+  });
+
+  test("a repository the GitHub read did not list leaves the rest partial, with the gap named", () => {
+    const { [repoOf("storage")]: _, ...listed } = openOf([repoOf("legal"), 80]) ?? {};
+    const out = forming({
+      bodies: bodiesOf(
+        read(repoOf("storage"), 75, BODY),
+        read(repoOf("legal"), 80, "### Features\n\n* add a synthetic hold\n"),
+      ),
+      open: listed,
+    });
+    expect(out.state).toBe("partial");
+    expect(out.prs).toMatchObject([
+      { service: "legal", pr: { number: 80 }, state: "read" },
+      { service: "storage", pr: { number: 75 }, state: "read" },
+    ]);
+    expect(out.text).toBe(
+      "Unreleased, in at least 2 open release PRs (release PRs of 1 repository not listed this sweep): 1 breaking · 2 new · 1 improved · 1 fixed · 1 security · 2 other",
+    );
+
+    const none = forming({ bodies: {}, open: listed });
+    expect(none).toMatchObject({
+      state: "not-read",
+      prs: [{ service: "legal", state: "not-read" }],
+    });
+    expect(none.text).toBe("Unreleased changes not read this sweep");
+    expect(none).not.toHaveProperty("kinds");
+
+    const quiet = forming({ bodies: {}, open: { ...listed, [repoOf("legal")]: { prs: [] } } });
+    expect(quiet).toMatchObject({ state: "not-read", prs: [] });
+    expect(quiet.text).not.toContain("No release forming");
   });
 
   test("a read body with no entries is read with zero kinds", () => {
