@@ -4,6 +4,7 @@
 import { githubUrl, REFERENCE_FORK, SYNC_UPSTREAM_CRON } from "../config.js";
 import type { ForkRuns, JobDetail, PastPrFact, PrFact, RunFact, UpstreamFact } from "../facts.js";
 import type { OrderRule } from "../rollout.js";
+import { type DetectedCampaign, toolchainCampaigns } from "./campaigns.js";
 import { latestChecks, prVerdict } from "./checks.js";
 import { type LaneLoad, laneRoom } from "./lanes.js";
 import type { LineModel } from "./lines.js";
@@ -102,6 +103,7 @@ export interface UpWave {
 }
 
 export interface UpstreamModel {
+  toolchains?: DetectedCampaign[];
   // planning: nothing has started yet; flight: at least one fork is past its sync PR.
   mode: "planning" | "flight" | "quiet";
   forks: UpFork[];
@@ -676,6 +678,7 @@ export function buildUpstream(input: {
   );
   const inPlan = forks.filter((f) => WAITING.has(f.phase) || STARTED.has(f.phase));
   return {
+    toolchains: radar ? toolchainCampaigns(radar) : [],
     mode: moving.length > 0 ? "flight" : inPlan.length > 0 ? "planning" : "quiet",
     forks,
     behind: behindForks.length,

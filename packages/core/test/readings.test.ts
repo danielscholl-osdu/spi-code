@@ -10,7 +10,7 @@ import { builtInFleet, fleetOf } from "../src/config.js";
 import { createContext } from "../src/context.js";
 import type { ReadRecord } from "../src/evidence/index.js";
 import { emptyFacts, type Facts } from "../src/facts.js";
-import { detectCampaigns } from "../src/model/campaigns.js";
+import { campaignItemText, detectCampaigns } from "../src/model/campaigns.js";
 import { buildModel, type Model } from "../src/model/index.js";
 import {
   internalNames,
@@ -444,18 +444,27 @@ describe("Upstream reading with detected toolchain campaigns", () => {
 
   it("states the recorded 6 Nov campaigns once each and keeps them out of per-fork text", () => {
     const recorded = detectCampaigns(model);
-    expect(recorded.map(({ fact, forks }) => [fact, forks])).toEqual([
+    expect(
+      recorded.map(({ fact, forks, possible }) => [
+        fact,
+        forks.filter((fork) => !possible?.includes(fork)),
+      ]),
+    ).toEqual([
       ["os-core-common 10.0.0", ["indexer", "schema", "unit"]],
-      ["os-core-common 8.5.0", eight],
+      ["os-core-common 8.5.0", [...eight, "legal", "partition"].sort()],
     ]);
     const reading = upstream(recorded);
     const titles = reading.items.map((item) => item.title);
-    for (const { fact, forks } of recorded) {
-      const title = `Detected: ${fact} on ${forks.length} forks`;
+    for (const campaign of recorded) {
+      const title = campaignItemText(campaign);
       expect(titles.filter((t) => t === title)).toHaveLength(1);
       expect(readingText(reading).filter((line) => line.includes(title))).toHaveLength(1);
     }
-    const members = new Set(recorded.flatMap(({ forks }) => forks));
+    const members = new Set(
+      recorded
+        .flatMap(({ forks }) => forks)
+        .filter((fork) => !model.upstream.held.some((held) => held.service === fork)),
+    );
     const perFork = reading.items.filter((item) => !item.id.startsWith("campaign:"));
     for (const item of perFork) expect(members.has(item.scope)).toBe(false);
     const memberText = perFork

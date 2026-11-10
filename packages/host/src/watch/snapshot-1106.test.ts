@@ -36,12 +36,14 @@ describe("the projected 6 Nov recorded sweep", () => {
     expect(legal?.tiles[2]?.counts).toMatch(/^checks pass/);
   });
 
-  it("lists exactly the eight forks moving to os-core-common 8.5.0", () => {
+  it("lists all ten forks predicted to move to os-core-common 8.5.0, including held forks", () => {
     const campaign = snapshot.campaigns.find(({ fact }) => fact === "os-core-common 8.5.0");
     expect(campaign?.forks).toEqual([
       "crs-conversion",
       "file",
       "indexer",
+      "legal",
+      "partition",
       "schema",
       "search",
       "storage",

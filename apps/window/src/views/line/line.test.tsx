@@ -292,16 +292,18 @@ it("filters the recorded log-injection campaign to exactly its three forks, then
   expect(sheet()?.querySelectorAll("td[data-campaign]")).toHaveLength(0);
 });
 
-it("filters the November 6 recorded 8.5.0 campaign to exactly its eight forks with the fact shown once", async () => {
+it("filters the November 6 recorded 8.5.0 campaign to all ten predicted forks with the fact shown once", async () => {
   const body = ViewSnapshotSchema.parse(JSON.parse(november6));
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
   await mount();
   await open();
-  const chip = button("os-core-common 8.5.0 · 8 forks");
+  const chip = button("os-core-common 8.5.0 · 10 forks");
   expect(chip.getAttribute("aria-pressed")).toBe("false");
   await click(chip);
   expect(chip.getAttribute("aria-pressed")).toBe("true");
   expect(services()).toEqual([
+    "partition",
+    "legal",
     "schema",
     "file",
     "storage",
@@ -314,7 +316,7 @@ it("filters the November 6 recorded 8.5.0 campaign to exactly its eight forks wi
   expect([...(sheet()?.querySelectorAll("th") ?? [])].map((cell) => cell.textContent)).toContain(
     "Campaign",
   );
-  expect(sheet()?.querySelectorAll("td[data-campaign]")).toHaveLength(8);
+  expect(sheet()?.querySelectorAll("td[data-campaign]")).toHaveLength(10);
   expect(sheet()?.textContent?.match(/os-core-common 8\.5\.0/g)).toHaveLength(1);
   await click(chip);
   expect(chip.getAttribute("aria-pressed")).toBe("false");
@@ -490,8 +492,10 @@ it("intersects a station filter with a campaign and clears either independently"
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
   await mount();
   await act(async () => openSheet({ column: "upstream" }));
-  await click(button("os-core-common 8.5.0 · 8 forks"));
+  await click(button("os-core-common 8.5.0 · 10 forks"));
   expect(services()).toEqual([
+    "partition",
+    "legal",
     "file",
     "storage",
     "indexer",
@@ -500,13 +504,13 @@ it("intersects a station filter with a campaign and clears either independently"
     "unit",
     "crs-conversion",
   ]);
-  await click(button("os-core-common 8.5.0 · 8 forks"));
+  await click(button("os-core-common 8.5.0 · 10 forks"));
   expect(services()).toEqual(
     body.stations.filter(({ service }) => service !== "schema").map(({ service }) => service),
   );
-  await click(button("os-core-common 8.5.0 · 8 forks"));
+  await click(button("os-core-common 8.5.0 · 10 forks"));
   await click(button("Clear Upstream filter"));
-  const forks = body.campaigns.find(({ forks }) => forks.length === 8)?.forks;
+  const forks = body.campaigns.find(({ fact }) => fact === "os-core-common 8.5.0")?.forks;
   expect(services()).toEqual(
     body.stations.filter(({ service }) => forks?.includes(service)).map(({ service }) => service),
   );
@@ -521,11 +525,11 @@ it("opens a new column or an unfiltered sheet over a pinned sheet without keepin
   await mount();
   await open();
   await click(button("Pin"));
-  await click(button("os-core-common 8.5.0 · 8 forks"));
+  await click(button("os-core-common 8.5.0 · 10 forks"));
   await act(async () => navigate({ kind: "line", column: "upstream" }));
   expect(sheet()?.dataset.presentation).toBe("pinned");
   expect(services()).toEqual(body.stations.slice(1).map(({ service }) => service));
-  expect(button("os-core-common 8.5.0 · 8 forks").getAttribute("aria-pressed")).toBe("false");
+  expect(button("os-core-common 8.5.0 · 10 forks").getAttribute("aria-pressed")).toBe("false");
   await act(async () => openSheet());
   expect(sheet()?.dataset.presentation).toBe("pinned");
   expect(services()).toEqual(NOVEMBER_6_NEEDING);

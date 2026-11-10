@@ -152,7 +152,7 @@ describe("the recorded fixture predicts the next sync from the diffs alone", () 
     });
   });
 
-  test("the Upstream station names the certain verdict after the existing suffix", () => {
+  test("the Upstream station retains fork-specific verdicts after shared toolchain facts move to campaigns", () => {
     expect(station(recorded, "entitlements")).toBe(
       "2 behind · held by the halt · will halt on schemathesis-tests",
     );

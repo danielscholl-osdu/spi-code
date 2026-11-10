@@ -4,6 +4,7 @@
 import { heldRadar } from "../attention.js";
 import type { Fleet } from "../config.js";
 import type { ReadRecord } from "../evidence/index.js";
+import { campaignItemText } from "../model/campaigns.js";
 import type { Model } from "../model/index.js";
 import { type LineModel, prRed, type Station } from "../model/lines.js";
 import { horizonStages } from "../brief/horizon.js";
@@ -192,10 +193,11 @@ export interface ReadingCampaign {
   kind: string;
   fact: string;
   forks: readonly string[];
+  possible?: readonly string[] | undefined;
 }
 
 export function campaignTitle(campaign: ReadingCampaign): string {
-  return `Detected: ${campaign.fact} on ${plural(campaign.forks.length, "fork")}`;
+  return campaignItemText(campaign);
 }
 
 // One item for a campaign, built on its members' radar items so it keeps their shape. It carries
@@ -209,9 +211,11 @@ function campaignItem<T extends ReadingItem>(campaign: ReadingCampaign, members:
     rung: 2,
     scope: plural(campaign.forks.length, "fork"),
     title: campaignTitle(campaign),
-    sub: "",
+    sub: campaign.possible?.length
+      ? `Certain: ${campaign.forks.filter((fork) => !campaign.possible?.includes(fork)).join(", ") || "none"} · Possible: ${campaign.possible.join(", ")}`
+      : "",
   };
-  if ("cause" in item) item.cause = `${plural(campaign.forks.length, "fork")} move to ${campaign.fact}.`;
+  if ("cause" in item) item.cause = `${campaignTitle(campaign)}.`;
   if ("effect" in item) item.effect = "";
   if ("next" in item) item.next = "";
   if ("verb" in item) item.verb = "";
@@ -349,7 +353,7 @@ export function upstreamReading<T extends ReadingItem>(
           ? {
               label: "Toolchain",
               value: plural(lead.forks.length, "fork"),
-              counts: `move to ${lead.fact}${also.length > 0 ? ` · ${plural(also.length, "more move")}` : ""}`,
+              counts: `${lead.possible?.length ? `${lead.fact} · ${lead.forks.length - lead.possible.length} certain, ${lead.possible.length} possible` : `move to ${lead.fact}`}${also.length > 0 ? ` · ${plural(also.length, "more move")}` : ""}`,
             }
           : move
             ? {

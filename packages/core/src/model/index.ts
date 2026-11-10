@@ -132,10 +132,13 @@ export function buildModel(
     held: heldText(stack),
     now,
   });
-  const campaigns = toolchainCampaigns(upstream);
+  const campaigns = toolchainCampaigns(radar);
   for (const line of lines) {
     const shared = new Set(
-      campaigns.filter((campaign) => campaign.forks.includes(line.fork.id)).map((c) => c.fact),
+      campaigns.filter((campaign) =>
+        campaign.forks.length - (campaign.possible?.length ?? 0) >= 2 &&
+        campaign.forks.includes(line.fork.id) && !campaign.possible?.includes(line.fork.id),
+      ).map((c) => c.fact),
     );
     if (shared.size === 0) continue;
     line.stations = line.stations.map((station) =>

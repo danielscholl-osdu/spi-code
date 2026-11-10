@@ -18,6 +18,7 @@ import { type SyncSplit, syncSplit } from "../model/upstream.js";
 import { type ItemClass, itemClass, nextText, verbOf } from "../model/next.js";
 import type { QueueItem, Rung } from "../model/queue.js";
 import type { Verdict } from "../model/radar.js";
+import { toolchainScopes } from "../model/toolchain.js";
 import { nextFire, toCrons } from "../model/schedule.js";
 import {
   type RunView,
@@ -985,7 +986,7 @@ function haltThemes(model: Model, now: Date, next: string | undefined): Theme[] 
   return out;
 }
 
-function javaThemes(model: Model, now: Date, next: string | undefined): Theme[] {
+function toolchainThemes(model: Model, now: Date, next: string | undefined): Theme[] {
   const byValue = new Map<string, Theme & { blockedAt?: string }>();
   const theme = (value: string) => {
     let t = byValue.get(value);
@@ -999,17 +1000,18 @@ function javaThemes(model: Model, now: Date, next: string | undefined): Theme[] 
         possible: [],
         exposed: [],
         tone: "warn",
-        next: `Move one fork's Java pin to ${value.replace(/^Java /, "")} and repeat it for the others before the next sync carries it.`,
+        next: value.startsWith("Java ")
+          ? `Move one fork's Java pin to ${value.replace(/^Java /, "")} and repeat it for the others before the next sync carries it.`
+          : `Absorb ${value} on the forks before the next sync carries it.`,
       };
       byValue.set(value, t);
     }
     return t;
   };
-  for (const [fork, svc] of Object.entries(model.radar.services)) {
-    const line = model.lines.find((l) => l.fork.id === fork);
-    for (const v of svc.certain) {
-      if (v.bucket !== "Toolchain" || !v.value?.startsWith("Java ")) continue;
-      const t = theme(v.value);
+  for (const scope of toolchainScopes(model.radar)) {
+    const t = theme(scope.value);
+    for (const { fork, verdict: v } of scope.certain) {
+      const line = model.lines.find((l) => l.fork.id === fork);
       const red = line?.pill.kind === "blocked" ? line.syncPr : undefined;
       if (red) {
         t.tone = "bad";
@@ -1019,14 +1021,13 @@ function javaThemes(model: Model, now: Date, next: string | undefined): Theme[] 
         fork,
         state: red
           ? `blocked · PR #${red.pr.number}`
-          : `queued${next ? ` · syncs at ${next}` : ""}`,
+          : line?.halt || model.upstream.held.some((held) => held.service === fork) || model.stoppedForks.includes(fork)
+            ? "held · sync cannot carry it"
+            : `queued${next ? ` · syncs at ${next}` : ""}`,
         url: red?.pr.url ?? v.commit?.url,
       });
     }
-    for (const v of svc.possible) {
-      if (v.bucket !== "Toolchain" || !v.value?.startsWith("Java ")) continue;
-      addFork(theme(v.value).possible, mrFork(fork, v));
-    }
+    for (const { fork, verdict } of scope.possible) addFork(t.possible, mrFork(fork, verdict));
   }
   const out: Theme[] = [];
   for (const t of byValue.values()) {
@@ -1034,15 +1035,17 @@ function javaThemes(model: Model, now: Date, next: string | undefined): Theme[] 
     if (t.certain.length === 0 && t.possible.length < 2) continue;
     const blocked = t.certain.filter((f) => f.state.startsWith("blocked")).map((f) => f.fork);
     const queued = t.certain.filter((f) => f.state.startsWith("queued")).map((f) => f.fork);
+    const held = t.certain.filter((f) => f.state.startsWith("held")).map((f) => f.fork);
     t.sub = [
       blocked.length > 0 ? `blocked: ${list(blocked)}` : undefined,
+      held.length > 0 ? `held: ${list(held)}` : undefined,
       queued.length > 0 ? `queued: ${list(queued)}` : undefined,
       t.possible.length > 0 ? `open MRs: ${list(t.possible.map((f) => f.fork))}` : undefined,
     ]
       .filter(Boolean)
       .join(" · ");
-    t.when =
-      queued.length > 0 && next ? `at ${next}` : t.blockedAt ? age(t.blockedAt, now) : undefined;
+    const when = queued.length > 0 && next ? `at ${next}` : t.blockedAt ? age(t.blockedAt, now) : undefined;
+    if (when) t.when = when;
     const { blockedAt: _, ...theme } = t;
     out.push(theme);
   }
@@ -1163,7 +1166,7 @@ function inspectOf(model: Model, t: Theme): string | undefined {
 
 function themesOf(model: Model, now: Date, next: string | undefined): Theme[] {
   const halts = haltThemes(model, now, next);
-  const javas = javaThemes(model, now, next);
+  const javas = toolchainThemes(model, now, next);
   const landed = (t: Theme) => t.certain.length > 0;
   return [
     ...javas.filter(landed),
