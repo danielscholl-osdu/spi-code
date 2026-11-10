@@ -2351,7 +2351,85 @@
         "keyChanges": []
       }
     ],
-    "reading": false
+    "reading": false,
+    "today": {
+      "versions": [
+        {
+          "service": "partition",
+          "released": "v1.3.3",
+          "text": "released v1.3.3"
+        },
+        {
+          "service": "entitlements",
+          "released": "v1.2.1",
+          "text": "released v1.2.1"
+        },
+        {
+          "service": "legal",
+          "released": "v1.2.1",
+          "text": "released v1.2.1"
+        },
+        {
+          "service": "schema",
+          "released": "v1.2.0",
+          "text": "released v1.2.0"
+        },
+        {
+          "service": "file",
+          "released": "v1.2.0",
+          "text": "released v1.2.0"
+        },
+        {
+          "service": "storage",
+          "released": "v1.4.1",
+          "text": "released v1.4.1"
+        },
+        {
+          "service": "indexer",
+          "released": "v1.4.0",
+          "text": "released v1.4.0"
+        },
+        {
+          "service": "search",
+          "released": "v1.4.0",
+          "text": "released v1.4.0"
+        },
+        {
+          "service": "workflow",
+          "released": "v1.3.1",
+          "text": "released v1.3.1"
+        },
+        {
+          "service": "indexer-queue",
+          "released": "v1.4.0",
+          "text": "released v1.4.0"
+        },
+        {
+          "service": "unit",
+          "released": "v1.4.0",
+          "text": "released v1.4.0"
+        },
+        {
+          "service": "crs-catalog",
+          "released": "v1.4.0",
+          "text": "released v1.4.0"
+        },
+        {
+          "service": "crs-conversion",
+          "released": "v1.4.0",
+          "text": "released v1.4.0"
+        }
+      ],
+      "platform": {
+        "stack": "v0.35.3",
+        "template": {
+          "released": "v1.4.0"
+        },
+        "coreLibAzure": [],
+        "text": "stack v0.35.3 · template v1.4.0"
+      },
+      "readyLine": "No release PRs open"
+    }
   },
   "stations": [
     {

@@ -61,6 +61,24 @@ const WAIT_HEAD: Readonly<Record<string, string>> = Object.freeze({
   "wait on checks": "Waiting on checks",
 });
 
+/** The release reading and Today use the same inventory, including the template PR. */
+export function releaseQueue(facts: Pick<Facts, "github" | "details">, context: CoreContext) {
+  const all = releasePrs(withoutNoise(facts.github.data?.repos ?? {}).repos, facts.details.data ?? {}, context);
+  const red = all.filter((r) => r.real.length > 0);
+  const open = all.filter((r) => r.real.length === 0);
+  const groups = byWait(open);
+  const [only] = groups;
+  const waits = groups.length === 1 && only
+    ? `${plural(open.length, "release PR")} ${open.length === 1 ? only.word.replace(/^wait\b/, "waits") : only.word}`
+    : `${plural(open.length, "release PR")} open${groups.length ? `: ${groups.map((g) => `${g.prs.length} ${g.word}`).join(", ")}` : ""}`;
+  const readyLine = !facts.github.data
+    ? `Release PRs ${NOT_READ}`
+    : all.length === 0
+      ? "No release PRs open"
+      : `${open.length > 0 ? `${waits}, ` : ""}${red.length > 0 ? `${plural(red.length, "release PR")} failing` : "none failing"}`;
+  return { all, red, open, readyLine };
+}
+
 function byWait(open: readonly ReleasePr[]): { word: string; prs: ReleasePr[] }[] {
   return WAIT_ORDER.map((word) => ({ word, prs: open.filter((r) => waitsOn(r) === word) })).filter(
     (g) => g.prs.length > 0,
@@ -200,9 +218,7 @@ export function releasesReading<T extends ReadingItem>(input: ReleasesReadingInp
       groups: [],
     });
   }
-  const all = releasePrs(withoutNoise(github.repos).repos, facts.details.data ?? {}, context);
-  const red = all.filter((r) => r.real.length > 0);
-  const open = all.filter((r) => r.real.length === 0);
+  const { red, open } = releaseQueue(facts, context);
   const own = items.filter((i) => i.id.startsWith("release-red:"));
   const extra = foldOf(open, months);
   return placeReading({

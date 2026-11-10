@@ -378,7 +378,8 @@ describe("Watch projection", () => {
     expect(frozen.flow.headline).toBe(
       "6 upstream commits wait across 2 forks. 2 forks move their toolchain, so start with one pilot.",
     );
-    expect(snapshot.releases).toEqual(oracle("releases"));
+    const { today: _today, ...ledger } = snapshot.releases;
+    expect(ledger).toEqual(oracle("releases"));
     const lines = oracle("lines");
     expect({
       columns: ["Sync PR", "Cascade", "Sync to Main", "Main run"],
@@ -1569,7 +1570,9 @@ describe("area envelopes and provenance", () => {
       }
       const covered = (leaf: string): boolean =>
         [...paths].some(
-          (path) => path !== "/releases" && (leaf === path || leaf.startsWith(`${path}/`)),
+          (path) =>
+            (path !== "/releases" || leaf.startsWith("/releases/today/")) &&
+            (leaf === path || leaf.startsWith(`${path}/`)),
         );
       const missing = renderedLeaves({
         briefing: snapshot.briefing,

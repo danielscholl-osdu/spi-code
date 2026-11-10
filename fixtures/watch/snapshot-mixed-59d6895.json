@@ -2526,7 +2526,68 @@
         "keyChanges": []
       }
     ],
-    "reading": false
+    "reading": false,
+    "today": {
+      "versions": [
+        {
+          "service": "partition",
+          "released": "v1.3.3",
+          "coreLibAzure": "4.0.0",
+          "text": "released v1.3.3"
+        },
+        {
+          "service": "entitlements",
+          "released": "v1.2.1",
+          "coreLibAzure": "3.0.3",
+          "text": "released v1.2.1"
+        },
+        {
+          "service": "legal",
+          "released": "v1.2.1",
+          "coreLibAzure": "4.0.0",
+          "text": "released v1.2.1"
+        },
+        {
+          "service": "schema",
+          "released": "v1.2.0",
+          "coreLibAzure": "3.0.1",
+          "text": "released v1.2.0"
+        },
+        {
+          "service": "file",
+          "released": "v1.2.0",
+          "coreLibAzure": "3.0.3",
+          "text": "released v1.2.0"
+        }
+      ],
+      "platform": {
+        "stack": "v0.30.2",
+        "template": {
+          "released": "v1.4.0",
+          "proposed": "1.2.1",
+          "pr": {
+            "number": 248,
+            "url": "https://github.com/Azure/osdu-spi/pull/248"
+          }
+        },
+        "coreLibAzure": [
+          {
+            "version": "4.0.0",
+            "count": 2
+          },
+          {
+            "version": "3.0.3",
+            "count": 2
+          },
+          {
+            "version": "3.0.1",
+            "count": 1
+          }
+        ],
+        "text": "stack v0.30.2 · template v1.4.0 → 1.2.1 · core-lib-azure 3.0.1 to 4.0.0 (4.0.0 on 2 of 5)"
+      },
+      "readyLine": "1 release PR waits for review, none failing"
+    }
   },
   "stations": [
     {
