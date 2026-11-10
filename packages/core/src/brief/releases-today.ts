@@ -6,7 +6,6 @@ import type { CoreContext } from "../context.js";
 import type { Facts } from "../facts.js";
 import { compareVersions } from "../model/releases.js";
 import { releaseQueue } from "../readings/releases.js";
-import { releaseTag } from "../util.js";
 
 interface Pr {
   number: number;
@@ -46,7 +45,7 @@ export interface ReleasesTodayInput {
 }
 
 function proposed(pr: Pr | undefined) {
-  const version = pr && releaseTag(pr.title, "");
+  const version = pr && /\brelease\s+(?:\S+\s+)?v?(\d+(?:\.\d+){1,2}(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)\s*$/i.exec(pr.title)?.[1];
   return pr && version
     ? { proposed: version, pr: { number: pr.number, url: pr.url } }
     : {};
