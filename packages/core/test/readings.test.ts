@@ -242,6 +242,13 @@ describe("Radar items whose commits sit in their fork's open sync PR on the reco
     repo.prs = repo.prs.filter((p) => p.number !== 58);
   });
 
+  // Storage's filter without its top-level pom.xml rule, so the queued commits halt the next sync.
+  const halting = rebuilt((f) => {
+    const filter = f.radar.data?.filters.storage;
+    if (!filter) throw new Error("storage's filter is missing from the sweep");
+    filter.text = filter.text.replace(/^ {2}pom\.xml: keep\n/m, "");
+  });
+
   it("keeps a held item at Surface with no due time while a queued fork's item escalates", () => {
     expect(tier("storage", model, now)).toEqual({ attention: "surface", owned: false });
     expect(tier("storage")).toEqual({ attention: "surface", owned: false });
@@ -256,6 +263,17 @@ describe("Radar items whose commits sit in their fork's open sync PR on the reco
     expect(tier("storage", unaimed.model)).toEqual(escalated);
     expect(tier("storage", disordered)).toEqual(escalated);
     expect(tier("storage", unread)).toEqual(escalated);
+  });
+
+  it("still escalates a held item whose queued commits will halt the next sync", () => {
+    const item = halting.queue.items.find((q) => q.id === "radar:storage");
+    expect(item?.text).toMatch(/^next sync will halt on pom\.xml.* · 11 commits in sync PR #58$/);
+    expect(tier("storage", halting)).toEqual(escalated);
+    const m = structuredClone(halting);
+    m.queue.items = m.queue.items.filter((q) => q.id === "radar:storage");
+    expect(buildBriefing(m, { state: "clear", problems: [] }, now, context).headline).toBe(
+      "Classify pom.xml on storage before the 18:00 sync.",
+    );
   });
 
   it("names the sync PR in a held fork's queue text", () => {

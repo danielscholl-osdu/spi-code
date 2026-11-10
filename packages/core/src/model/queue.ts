@@ -1357,7 +1357,7 @@ export function buildQueue(input: {
   details: Parameters<typeof prFailures>[1];
   approvals: Record<string, WaitingRun[]> | undefined;
   radar?: RadarModel;
-  forks?: readonly UpFork[];
+  forks: readonly UpFork[];
   repositories?: ReposModel;
   dismissed?: readonly DismissEntry[];
   now: Date;
@@ -1366,7 +1366,7 @@ export function buildQueue(input: {
   const items: QueueItem[] = [];
   items.push(...stackItems(stack, lines, now).items);
   for (const line of lines) items.push(...lineItems(line, stack, now));
-  items.push(...radarItems(lines, radar, input.forks ?? []));
+  items.push(...radarItems(lines, radar, input.forks));
   items.push(...portItems(lines, radar, now));
   items.push(...approvalItems(approvals));
   if (input.rollout) items.push(rolloutItem(input.rollout, template));

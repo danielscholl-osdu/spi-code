@@ -70,9 +70,10 @@ export function nextSyncAt(now: Date): string | undefined {
   return at === undefined ? undefined : new Date(at).toISOString();
 }
 
-// A radar item whose fork's open sync PR already holds every queued commit: the next sync brings none.
-function heldRadar(q: QueueItem, model: Model): boolean {
-  if (q.kind !== "radar") return false;
+// A toolchain radar item whose fork's open sync PR already holds every queued commit. A will-halt
+// item never counts: the sync regenerates its branch through the current filter and can halt again.
+export function heldRadar(q: QueueItem, model: Model): boolean {
+  if (q.kind !== "radar" || q.halt !== undefined) return false;
   const fork = model.upstream.forks.find((f) => f.service === q.scope);
   return fork !== undefined && holdingPr(syncSplit(fork)) !== undefined;
 }

@@ -13,7 +13,8 @@ import type { LifecycleRun } from "../facts.js";
 import type { CoreContext } from "../context.js";
 import type { Model } from "../model/index.js";
 import type { LineModel } from "../model/lines.js";
-import { holdingPr, type SyncSplit, syncSplit } from "../model/upstream.js";
+import { heldRadar } from "../attention.js";
+import { type SyncSplit, syncSplit } from "../model/upstream.js";
 import { type ItemClass, itemClass, nextText, verbOf } from "../model/next.js";
 import type { QueueItem, Rung } from "../model/queue.js";
 import type { Verdict } from "../model/radar.js";
@@ -296,7 +297,7 @@ function headlineOf(
       if (model.rollout?.phase === "ready" && at) tail = ` before the ${at} template sync`;
       shortTail = tail;
     } else if (lead.kind === "radar") {
-      if (holdingPr(splitOf(model, lead)) === undefined) {
+      if (!heldRadar(lead, model)) {
         tail = next ? ` before the ${next} sync` : " before the next sync";
       }
       shortTail = tail;
@@ -307,7 +308,7 @@ function headlineOf(
         const scopes = follow.map((f) => f.scope);
         const verb = lead.kind === "halt" ? "halts" : "follows";
         const agree = scopes.length === 1 ? verb : verb.slice(0, -1);
-        const queued = follow.some((f) => holdingPr(splitOf(model, f)) === undefined);
+        const queued = follow.some((f) => !heldRadar(f, model));
         const at = next && queued ? ` at ${next}` : "";
         tail = ` before ${list(scopes)} ${agree}${at}`;
         shortTail = ` before ${firstAndMore(scopes)} ${agree}${at}`;
