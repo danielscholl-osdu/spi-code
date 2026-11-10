@@ -9,7 +9,7 @@ import type { LineModel } from "../model/lines.js";
 
 export interface SinceSlot {
   service: string;
-  state: "empty" | "occupied" | "done" | "broken" | "unknown";
+  state: "empty" | "occupied" | "done" | "waiting" | "broken" | "unknown";
   text: string;
 }
 
@@ -46,7 +46,10 @@ function slotOf(
 ): SinceSlot {
   const slot = (state: SinceSlot["state"], text: string): SinceSlot => ({ service: line.fork.id, state, text });
   const subject = `${label} on ${line.fork.id}`;
-  if (run && ["failure", "timed_out", "startup_failure", "action_required"].includes(run.conclusion ?? "")) {
+  if (run?.conclusion === "action_required") {
+    return slot("waiting", `${subject} is waiting for approval.`);
+  }
+  if (run && ["failure", "timed_out", "startup_failure"].includes(run.conclusion ?? "")) {
     return slot("broken", `${label} failed on ${line.fork.id}.`);
   }
   if (workflow === "template") {
@@ -93,6 +96,7 @@ export function sinceOf(
   for (const line of model.lines) {
     const history = facts.runs.data[line.fork.repo];
     for (const { workflow } of WORKFLOWS) {
+      if (history?.history?.[workflow].complete) continue;
       const oldest = history?.history?.[workflow].from ?? history?.[workflow].map((run) => run.createdAt).sort((a, b) => Date.parse(a) - Date.parse(b))[0];
       if (oldest && Date.parse(oldest) > start && Date.parse(oldest) <= to) {
         start = Date.parse(oldest);
