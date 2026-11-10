@@ -227,6 +227,7 @@ export class ReleaseReader {
         this.record("github-pins", key, errors[key], pins[key] !== undefined);
       }
     });
+    this.settleRecords(repos, releases, errors, new Set(missing.map((r) => pinKey(r.repo, r.tag))));
     const readAny = repos.some((r) => !errors[r]);
     this.reads = {
       ...(readAny ? { at: this.ctx.clock.now().toISOString() } : this.reads.at ? { at: this.reads.at } : {}),
@@ -234,6 +235,41 @@ export class ReleaseReader {
     };
     this.savePending = true;
     await this.save();
+  }
+
+  /**
+   * A tag's pins never change, so a fork's successful listing confirms its cached pins as read
+   * now; without this the first read's time ages the whole releases envelope. Records for tags
+   * no longer listed and repos no longer in the fleet go, since nothing re-reads them.
+   */
+  private settleRecords(
+    repos: readonly string[],
+    releases: Record<string, readonly ReleaseFact[]>,
+    errors: Record<string, string>,
+    readNow: ReadonlySet<string>,
+  ): void {
+    const forks = new Set(this.ctx.fleet.forks.map((f) => f.repo));
+    const listed = new Set(
+      Object.entries(releases).filter(([repo]) => forks.has(repo))
+        .flatMap(([repo, list]) => list.map((r) => pinKey(repo, r.tag))),
+    );
+    const confirmed = new Set(
+      Object.entries(releases).filter(([repo]) => forks.has(repo) && !errors[repo])
+        .flatMap(([repo, list]) => list.map((r) => pinKey(repo, r.tag)))
+        .filter((key) => !readNow.has(key)),
+    );
+    const current = new Set(repos);
+    const now = this.ctx.clock.now().toISOString();
+    this.reads.records = this.reads.records.flatMap((r) => {
+      if (r.source === "github-pins") {
+        if (!listed.has(r.object)) return [];
+        return confirmed.has(r.object) && r.failure === undefined ? [{ ...r, observedAt: now }] : [r];
+      }
+      if (r.source === "github-releases" || r.source === "github-created") {
+        return current.has(r.object) ? [r] : [];
+      }
+      return [r];
+    });
   }
 
   private async save(): Promise<void> {

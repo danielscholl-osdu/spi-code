@@ -1,0 +1,138 @@
+{
+  "recordedFrom": "packages/host/src/sweep/release-freshness.test.ts",
+  "now": "2026-11-10T13:17:00.000Z",
+  "snapshot": {
+    "sweptAt": "2026-11-10T13:17:00.000Z",
+    "provenance": [
+      {
+        "path": "/releases/lines/0",
+        "areas": ["fleet"],
+        "envelope": {
+          "source": "releases",
+          "state": "fresh",
+          "observedAt": "2026-11-10T13:17:00.000Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": false
+        }
+      },
+      {
+        "path": "/releases/lines/1",
+        "areas": ["fleet"],
+        "envelope": {
+          "source": "releases",
+          "state": "fresh",
+          "observedAt": "2026-11-10T13:17:00.000Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": false
+        }
+      },
+      {
+        "path": "/releases",
+        "areas": ["fleet"],
+        "envelope": {
+          "source": "releases",
+          "state": "fresh",
+          "observedAt": "2026-11-10T13:17:00.000Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": false
+        }
+      }
+    ],
+    "reads": [
+      {
+        "source": "github-pins",
+        "object": "test/service@v1.0.0",
+        "observedAt": "2026-11-10T13:17:00.000Z",
+        "completeness": {
+          "kind": "complete"
+        }
+      },
+      {
+        "source": "github-releases",
+        "object": "Azure/osdu-spi",
+        "observedAt": "2026-11-10T13:17:00.000Z",
+        "completeness": {
+          "kind": "complete"
+        }
+      },
+      {
+        "source": "github-releases",
+        "object": "Azure/osdu-spi-stack",
+        "observedAt": "2026-11-10T13:17:00.000Z",
+        "completeness": {
+          "kind": "complete"
+        }
+      },
+      {
+        "source": "github-releases",
+        "object": "Azure/osdu-spi-core-lib-azure",
+        "observedAt": "2026-11-10T13:17:00.000Z",
+        "completeness": {
+          "kind": "complete"
+        }
+      },
+      {
+        "source": "github-releases",
+        "object": "test/service",
+        "observedAt": "2026-11-10T13:17:00.000Z",
+        "completeness": {
+          "kind": "complete"
+        }
+      },
+      {
+        "source": "github-created",
+        "object": "Azure/osdu-spi",
+        "observedAt": "2026-11-10T13:17:00.000Z",
+        "completeness": {
+          "kind": "complete"
+        }
+      },
+      {
+        "source": "github-created",
+        "object": "Azure/osdu-spi-stack",
+        "observedAt": "2026-11-10T13:17:00.000Z",
+        "completeness": {
+          "kind": "complete"
+        }
+      },
+      {
+        "source": "github-created",
+        "object": "Azure/osdu-spi-core-lib-azure",
+        "observedAt": "2026-11-10T13:17:00.000Z",
+        "completeness": {
+          "kind": "complete"
+        }
+      },
+      {
+        "source": "github-created",
+        "object": "test/service",
+        "observedAt": "2026-11-10T13:17:00.000Z",
+        "completeness": {
+          "kind": "complete"
+        }
+      }
+    ]
+  },
+  "progress": {
+    "sweep": "release-reread",
+    "startedAt": "2026-11-10T13:17:00.000Z",
+    "first": false,
+    "usualMs": null,
+    "sources": [
+      {
+        "source": "releases",
+        "startedAt": "2026-11-10T13:17:00.000Z",
+        "endedAt": "2026-11-10T13:17:00.000Z",
+        "state": "read"
+      }
+    ],
+    "outcome": "committed",
+    "nextAttemptAt": null
+  }
+}

@@ -5,6 +5,7 @@ import { expect, test } from "vitest";
 import { javaOf, pinPoms, type ReleasePersist, ReleaseReader } from "../../src/collect/releases.js";
 import { fleetOf, RELEASES_EVERY_MS } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
+import { envelopeOf } from "../../src/evidence/index.js";
 import { RecordingExec, ReplayExec } from "../../src/exec/index.js";
 import { Gh, GraphqlBudget } from "../../src/forge.js";
 import { pinKey } from "../../src/releases.js";
@@ -156,6 +157,53 @@ test("cadence includes the exact boundary, coalesces in-flight reads and caches 
   expect(h.calls.filter((call) => call.includes("git/trees"))).toHaveLength(1);
   expect(h.reader.data.at).toBe(h.ctx.clock.now().toISOString());
   expect(h.reader.busy).toBe(false);
+});
+
+test("a due re-read stamps cached pins with its own time, so Release lines read fresh", async () => {
+  const h = harness();
+  await h.reader.read();
+  h.advance(14 * RELEASES_EVERY_MS);
+  await h.reader.read();
+  const now = h.ctx.clock.now();
+  expect(h.calls.filter((call) => call.includes("git/trees"))).toHaveLength(1);
+  expect(h.reader.records.find((r) => r.object === h.key)).toMatchObject({
+    source: "github-pins",
+    observedAt: now.toISOString(),
+  });
+  expect(
+    envelopeOf(h.reader.records, { intervalMs: RELEASES_EVERY_MS, now: now.getTime() }),
+  ).toMatchObject({ state: "fresh", observedAt: now.toISOString() });
+});
+
+test("Release lines not read for over twice their interval stay stale at their last read", async () => {
+  const h = harness();
+  await h.reader.read();
+  h.advance(RELEASES_EVERY_MS - 1);
+  await h.reader.read();
+  expect(h.reader.records.every((r) => r.observedAt === START)).toBe(true);
+  h.advance(RELEASES_EVERY_MS + 2);
+  expect(
+    envelopeOf(h.reader.records, {
+      intervalMs: RELEASES_EVERY_MS,
+      now: h.ctx.clock.now().getTime(),
+    }),
+  ).toMatchObject({ state: "stale", observedAt: START });
+});
+
+test("a re-read drops records for repos and tags it no longer reads", async () => {
+  const before = harness();
+  await before.reader.read();
+  const after = harness("test/other");
+  after.store(await before.persist.load());
+  after.advance(14 * RELEASES_EVERY_MS);
+  await after.reader.read();
+  const objects = after.reader.records.map((r) => r.object);
+  expect(objects).not.toContain(before.key);
+  expect(objects).not.toContain(before.repo);
+  expect(objects).toContain(after.key);
+  expect(
+    after.reader.records.every((r) => r.observedAt === after.ctx.clock.now().toISOString()),
+  ).toBe(true);
 });
 
 test("state and each source timestamp round-trip without freshening cached data", async () => {
