@@ -216,6 +216,8 @@ function clause(item: QueueItem, cut = false): string {
       return `Unhalt ${item.scope}`;
     case "main":
       return `Fix ${item.scope} main`;
+    case "lane-deploy":
+      return `Investigate the ${fact(item, "fork") ?? "fork"} lane`;
     case "conflict":
       return `Resolve the ${item.scope} conflict`;
     case "cascade":

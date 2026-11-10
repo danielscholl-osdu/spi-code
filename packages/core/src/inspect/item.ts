@@ -18,6 +18,7 @@ export const KIND_TITLE: Readonly<Record<ItemKind, string>> = Object.freeze({
   stack: "environment not deployable",
   maintenance: "maintenance held",
   lanes: "fork lanes failed on the environment",
+  "lane-deploy": "fork lane deploy failed",
   halt: "sync halted",
   "sync-run": "Sync Upstream failed",
   conflict: "cascade conflict",

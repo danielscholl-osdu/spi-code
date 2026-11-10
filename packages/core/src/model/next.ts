@@ -179,6 +179,8 @@ export function nextText(
       return item.note
         ? "Re-run the fork lanes that failed while the stack was down"
         : "Wait for the stack to read deployable, then re-run the lanes it failed";
+    case "lane-deploy":
+      return "Open the fork's deployment history and its workflow run to diagnose the failure";
     case "sync-run":
       return "Open the failed Sync Upstream run; no halt issue says why it stopped";
     case "cascade":

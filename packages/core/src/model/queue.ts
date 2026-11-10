@@ -52,6 +52,7 @@ export type ItemKind =
   | "stack"
   | "maintenance"
   | "lanes"
+  | "lane-deploy"
   | "halt"
   | "sync-run"
   | "conflict"
@@ -352,6 +353,34 @@ function gateText(p: LinePr): string {
 function lineItems(line: LineModel, now: Date): QueueItem[] {
   const items: QueueItem[] = [];
   const svc = line.fork.id;
+  const deployment = line.lane.last;
+  const explained = deployment?.sha && line.prs.some((p) =>
+    p.pr.headSha === deployment.sha && p.failures.some((f) => f.cls === "ENV"),
+  );
+  if (deployment && deployment.state !== "SUCCESS" && !explained) {
+    const url = `${line.url}/deployments`;
+    items.push({
+      id: `lane-deploy:${svc}`,
+      kind: "lane-deploy",
+      rung: 1,
+      scope: "Environment",
+      text: `last lane deploy failed on ${svc}`,
+      since: deployment.statusAt ?? deployment.createdAt,
+      url,
+      effects: [],
+      cause: [
+        { label: "fork", value: svc, url: line.url },
+        { label: "deployment", value: deployment.state ?? "failed", url },
+        ...(deployment.ref ? [{ label: "ref", value: deployment.ref }] : []),
+        ...(deployment.sha ? [{ label: "head", value: short(deployment.sha), url: `${line.url}/commit/${deployment.sha}` }] : []),
+        { label: "reason", value: "The deployment record reports a failure; its cause has not been read" },
+      ],
+      inputs: [deployment.createdAt, deployment.sha ?? "", deployment.ref ?? ""],
+      cls: "UNREAD",
+      incident: true,
+      blocks: 1,
+    });
+  }
   const lag = line.upstream?.lag;
   if (line.halt) {
     const h = line.halt;
