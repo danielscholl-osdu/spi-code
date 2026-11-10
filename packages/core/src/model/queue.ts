@@ -350,14 +350,19 @@ function gateText(p: LinePr): string {
   return ` fails ${failure.check}${tool ? `: ${tool}` : failure.reason ? `: ${failure.reason}` : ""}`;
 }
 
-function lineItems(line: LineModel, now: Date): QueueItem[] {
+function lineItems(line: LineModel, stack: StackModel, now: Date): QueueItem[] {
   const items: QueueItem[] = [];
   const svc = line.fork.id;
   const deployment = line.lane.last;
   const explained = deployment?.sha && line.prs.some((p) =>
-    p.pr.headSha === deployment.sha && p.failures.some((f) => f.cls === "ENV"),
+    p.pr.headSha === deployment.sha && p.failures.some((f) => !f.hidden),
   );
-  if (deployment && deployment.state !== "SUCCESS" && !explained) {
+  if (
+    stack.deployable.state !== "no" &&
+    deployment &&
+    (deployment.state === "FAILURE" || deployment.state === "ERROR") &&
+    !explained
+  ) {
     const url = `${line.url}/deployments`;
     items.push({
       id: `lane-deploy:${svc}`,
@@ -370,7 +375,7 @@ function lineItems(line: LineModel, now: Date): QueueItem[] {
       effects: [],
       cause: [
         { label: "fork", value: svc, url: line.url },
-        { label: "deployment", value: deployment.state ?? "failed", url },
+        { label: "deployment", value: deployment.state, url },
         ...(deployment.ref ? [{ label: "ref", value: deployment.ref }] : []),
         ...(deployment.sha ? [{ label: "head", value: short(deployment.sha), url: `${line.url}/commit/${deployment.sha}` }] : []),
         { label: "reason", value: "The deployment record reports a failure; its cause has not been read" },
@@ -1340,7 +1345,7 @@ export function buildQueue(input: {
   const { stack, lines, template, repos, details, approvals, radar, now } = input;
   const items: QueueItem[] = [];
   items.push(...stackItems(stack, lines, now).items);
-  for (const line of lines) items.push(...lineItems(line, now));
+  for (const line of lines) items.push(...lineItems(line, stack, now));
   items.push(...radarItems(lines, radar));
   items.push(...portItems(lines, radar, now));
   items.push(...approvalItems(approvals));
