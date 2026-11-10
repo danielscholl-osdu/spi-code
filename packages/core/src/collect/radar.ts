@@ -70,6 +70,30 @@ export function emptyRadarState(): RadarState {
 
 const HUNK_FILES = /(^|\/)(pom\.xml|\.fossa\.yml)$/;
 
+function missingHunk(d: RawDiff): boolean {
+  return HUNK_FILES.test(d.new_path) && (d.too_large === true || d.collapsed === true);
+}
+
+interface FullRead {
+  object: string;
+  sha: string;
+}
+
+// GitLab's diffs API collapses files past its size limits; the deprecated changes endpoint with
+// access_raw_diffs reads every file from Gitaly uncollapsed, one request per MR however many collapsed.
+function fullChanges(iid: number, sha: string): FullRead {
+  return { object: `merge_requests/${iid}/changes?access_raw_diffs=true`, sha };
+}
+
+function fillHunks(diffs: readonly RawDiff[], changes: readonly RawDiff[]): RawDiff[] {
+  const full = new Map(changes.map((c) => [`${c.old_path}\0${c.new_path}`, c]));
+  return diffs.map((d) => {
+    if (!missingHunk(d)) return d;
+    const change = full.get(`${d.old_path}\0${d.new_path}`);
+    return change && !missingHunk(change) ? { ...d, diff: change.diff ?? "", too_large: false, collapsed: false } : d;
+  });
+}
+
 export function diffEntry(diffs: readonly RawDiff[]): DiffEntry {
   const paths = new Set<string>();
   const deleted: string[] = [];
@@ -124,6 +148,7 @@ export async function readRadar(
   });
   async function cachedDiff(
     prefix: "mr" | "commit", cache: Record<string, DiffEntry>, key: string, source: string, object: string,
+    full?: FullRead,
   ): Promise<DiffEntry | undefined> {
     const recordKey = `${prefix}:${key}`;
     const known = cache[key];
@@ -135,9 +160,19 @@ export async function readRadar(
       return known;
     }
     try {
-      const diffs = await glab.restAll<RawDiff>(`projects/${encodeProject(source)}/${object}`);
+      let diffs = await glab.restAll<RawDiff>(`projects/${encodeProject(source)}/${object}`);
+      if (full && diffs.some(missingHunk)) {
+        try {
+          const read = await glab.rest<{ sha?: string; changes?: RawDiff[] }>(
+            `projects/${encodeProject(source)}/${full.object}`,
+          );
+          if (read.sha === full.sha) diffs = fillHunks(diffs, read.changes ?? []);
+        } catch {
+          // The read stays cut below and is retried next sweep.
+        }
+      }
       const entry = diffEntry(diffs);
-      const missingHunks = diffs.filter((d) => HUNK_FILES.test(d.new_path) && (d.too_large || d.collapsed));
+      const missingHunks = diffs.filter(missingHunk);
       if (missingHunks.length > 0) {
         out.reads.push({
           ...record(source, object),
@@ -184,7 +219,7 @@ export async function readRadar(
       ...(m.head_pipeline?.status ? { pipeline: m.head_pipeline.status } : {}),
     }, await cachedDiff(
       "mr", state.mrDiffs, mrKey(fork.upstream, m.iid, m.sha),
-      fork.upstream, `merge_requests/${m.iid}/diffs`,
+      fork.upstream, `merge_requests/${m.iid}/diffs`, fullChanges(m.iid, m.sha),
     )));
     const queued = await pool(upstream[fork.id]?.commits ?? [], 3, async (c): Promise<DiffFact> =>
       withDiff({ sha: c.sha, title: c.title, at: c.at, url: c.url }, await cachedDiff(
@@ -194,7 +229,7 @@ export async function readRadar(
     const landed = list ? await pool(list, 3, async (m) => {
       const entry = await cachedDiff(
         "mr", state.mrDiffs, mrKey(fork.upstream, m.iid, m.headSha),
-        fork.upstream, `merge_requests/${m.iid}/diffs`,
+        fork.upstream, `merge_requests/${m.iid}/diffs`, fullChanges(m.iid, m.headSha),
       );
       return entry ? { ...m, paths: entry.paths, deleted: entry.deleted ?? [] } : m;
     }) : undefined;

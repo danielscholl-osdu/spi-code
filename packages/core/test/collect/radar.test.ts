@@ -18,6 +18,7 @@ import { RecordingExec, ReplayExec } from "../../src/exec/recording.js";
 import { Gh, Glab } from "../../src/forge.js";
 import { parseFilter } from "../../src/model/filter.js";
 import { diffVerdicts } from "../../src/model/radar.js";
+import storage1090 from "../fixtures/radar-storage-1090.json";
 import sweep from "../fixtures/upstream-1106.json";
 import { FIXTURE_NOW, fixtureFacts } from "../harness.js";
 
@@ -348,6 +349,189 @@ test.each(["too_large", "collapsed"] as const)(
     ]);
   },
 );
+
+function routed(route: (path: string) => unknown) {
+  const paths: string[] = [];
+  const exec = new RecordingExec(
+    async (cmd, args) => {
+      const path = args.at(-1) ?? "";
+      paths.push(path);
+      const data = route(path);
+      return data === undefined
+        ? { stdout: "", stderr: `${cmd} ${path}: unavailable`, exit: 1 }
+        : { stdout: JSON.stringify(data), stderr: "", exit: 0 };
+    },
+    () => {},
+  );
+  return { exec, paths };
+}
+
+const filterFile = (text: string) => ({
+  sha: "filter-blob",
+  content: Buffer.from(text).toString("base64"),
+});
+const CUT_REASON = "GitLab omitted oversized or collapsed classification hunks";
+const changeOf = (path: string, diff: string) => ({ old_path: path, new_path: path, diff });
+const fossa = [
+  "@@ -1,4 +1,6 @@",
+  " version: 3",
+  "+modules:",
+  "+  - name: core-gcp",
+  "+    type: maven",
+].join("\n");
+const collapsedFilter =
+  "top_level:\n  pom.xml: keep\n  .fossa.yml: keep\n  core: keep\nfossa_modules:\n  core: keep\n";
+const collapsedMrs: Record<
+  number,
+  { file: string; flag: "too_large" | "collapsed"; full: string }
+> = {
+  11: { file: "pom.xml", flag: "too_large", full: pom },
+  12: { file: ".fossa.yml", flag: "collapsed", full: fossa },
+};
+
+function collapsedSweep(full: "ok" | "fails" | "answers for another head" | "still collapses") {
+  return routed((path) => {
+    if (path.endsWith("contents/.github/upstream-filter.yml")) return filterFile(collapsedFilter);
+    if (path.includes("/merge_requests?state=opened")) return [mr(11), mr(12)];
+    const iid = Number(/merge_requests\/(\d+)\//.exec(path)?.[1]);
+    const case_ = collapsedMrs[iid];
+    if (!case_) return undefined;
+    const other = changeOf("core/a.java", "+x");
+    if (path.includes("/diffs?"))
+      return [{ ...changeOf(case_.file, ""), [case_.flag]: true }, other];
+    if (!path.includes("/changes?access_raw_diffs=true") || full === "fails") return undefined;
+    const change =
+      full === "still collapses"
+        ? { ...changeOf(case_.file, ""), [case_.flag]: true }
+        : changeOf(case_.file, case_.full);
+    return {
+      sha: full === "answers for another head" ? "moved" : `head${iid}`,
+      changes: [change, other],
+    };
+  });
+}
+
+test("a too_large pom.xml and a collapsed .fossa.yml are classified from the full change and cached", async () => {
+  const state = emptyRadarState();
+  const sweep = collapsedSweep("ok");
+  const result = await readRadar(new Gh(sweep.exec), new Glab(sweep.exec), {}, state, ctx);
+  const [pomMr, fossaMr] = result.services.partition?.mrs ?? [];
+  const filter = parseFilter(collapsedFilter);
+  expect(pomMr?.hunks).toEqual({
+    "pom.xml": ["-    <java.version>17</java.version>", "+    <java.version>25</java.version>"],
+  });
+  expect(diffVerdicts(filter, pomMr ?? {})).toContainEqual({
+    bucket: "Toolchain",
+    path: "pom.xml",
+    value: "Java 25",
+  });
+  expect(fossaMr?.hunks).toEqual({
+    ".fossa.yml": ["+modules:", "+  - name: core-gcp", "+    type: maven"],
+  });
+  expect(diffVerdicts(filter, fossaMr ?? {})).toContainEqual(
+    expect.objectContaining({ bucket: "Halt", path: ".fossa.yml", entry: "core-gcp" }),
+  );
+  for (const iid of [11, 12]) {
+    expect(result.reads.find((r) => r.object === `merge_requests/${iid}/diffs`)).toMatchObject({
+      completeness: { kind: "complete" },
+    });
+    expect(state.mrDiffs[mrKey(fork.upstream, iid, `head${iid}`)]?.hunks).toBeDefined();
+  }
+  const next = collapsedSweep("ok");
+  const again = await readRadar(new Gh(next.exec), new Glab(next.exec), {}, state, ctx);
+  expect(next.paths.filter((p) => /merge_requests\/\d+\//.test(p))).toEqual([]);
+  expect(again.services.partition?.mrs.map((m) => m.hunks)).toEqual([pomMr?.hunks, fossaMr?.hunks]);
+});
+
+test.each(["fails", "answers for another head", "still collapses"] as const)(
+  "when the full read %s the MR read stays cut with the current reason and is retried",
+  async (full) => {
+    const state = emptyRadarState();
+    const sweep = collapsedSweep(full);
+    const result = await readRadar(new Gh(sweep.exec), new Glab(sweep.exec), {}, state, ctx);
+    for (const iid of [11, 12]) {
+      expect(result.reads.find((r) => r.object === `merge_requests/${iid}/diffs`)).toMatchObject({
+        completeness: { kind: "cut", reason: CUT_REASON, read: 1, total: 2 },
+      });
+    }
+    expect(result.services.partition?.mrs.map((m) => m.hunks)).toEqual([undefined, undefined]);
+    expect(result.services.partition?.mrs[0]?.paths).toEqual(["pom.xml", "core/a.java"]);
+    expect(state.mrDiffs).toEqual({});
+    const retry = collapsedSweep(full);
+    await readRadar(new Gh(retry.exec), new Glab(retry.exec), {}, state, ctx);
+    expect(retry.paths.filter((p) => /merge_requests\/\d+\//.test(p))).toHaveLength(4);
+  },
+);
+
+const storage = { id: "storage", repo: "owner/storage", upstream: storage1090.project };
+const storageFilter =
+  (sweep as { radar: { data: { filters: Record<string, { text: string }> } } }).radar.data.filters
+    .storage?.text ?? "";
+
+function storageSweep() {
+  const project = encodeURIComponent(storage1090.project);
+  return routed((path) => {
+    if (path.endsWith("contents/.github/upstream-filter.yml")) return filterFile(storageFilter);
+    if (path.includes("/merge_requests?state=opened")) {
+      return [{ ...mr(storage1090.iid), sha: storage1090.sha }, mr(1)];
+    }
+    if (path.startsWith(`projects/${project}/merge_requests/1090/diffs?per_page=100&page=`)) {
+      return storage1090.diffs[Number(path.at(-1)) - 1];
+    }
+    if (path === `projects/${project}/merge_requests/1090/changes?access_raw_diffs=true`) {
+      return storage1090.changes;
+    }
+    if (path.includes("/merge_requests/1/diffs?")) {
+      return [{ ...changeOf("pom.xml", ""), collapsed: true }];
+    }
+    if (path.includes("/merge_requests/1/changes?")) {
+      return { sha: "head1", changes: [changeOf("pom.xml", pom)] };
+    }
+    return undefined;
+  });
+}
+
+test("each MR with collapsed classification files costs one extra request, however many collapsed", async () => {
+  const context = createContext({ fleet: fleetOf([storage]), clock: ctx.clock });
+  const collapsed = storage1090.diffs
+    .flat()
+    .filter((d) => /(^|\/)pom\.xml$/.test(d.new_path) && d.collapsed);
+  expect(collapsed).toHaveLength(15);
+  const run = storageSweep();
+  await readRadar(new Gh(run.exec), new Glab(run.exec), {}, emptyRadarState(), context);
+  const mrReads = (iid: number) =>
+    run.paths.filter((p) => p.includes(`/merge_requests/${iid}/`)).map((p) => p.split("/").at(-1));
+  expect(mrReads(1090)).toEqual([
+    "diffs?per_page=100&page=1",
+    "diffs?per_page=100&page=2",
+    "changes?access_raw_diffs=true",
+  ]);
+  expect(mrReads(1)).toEqual(["diffs?per_page=100&page=1", "changes?access_raw_diffs=true"]);
+});
+
+test("storage MR 1090, 125 of 140 read live, is classified from its 15 collapsed poms", async () => {
+  const context = createContext({ fleet: fleetOf([storage]), clock: ctx.clock });
+  const state = emptyRadarState();
+  const run = storageSweep();
+  const result = await readRadar(new Gh(run.exec), new Glab(run.exec), {}, state, context);
+  const read = result.reads.find((r) => r.object === "merge_requests/1090/diffs");
+  expect(read?.completeness).toEqual({ kind: "complete" });
+  const fact = result.services.storage?.mrs[0];
+  expect(fact?.paths).toHaveLength(140);
+  expect(Object.keys(fact?.hunks ?? {})).toHaveLength(15);
+  expect(fact?.hunks?.["pom.xml"]).toEqual([
+    "-    <version>0.28.0-SNAPSHOT</version>",
+    "+    <version>0.28.5</version>",
+    "-      <os-core-common.version>3.3.1</os-core-common.version>",
+    "+      <os-core-common.version>3.6.1</os-core-common.version>",
+  ]);
+  const verdicts = diffVerdicts(parseFilter(storageFilter), fact ?? {});
+  expect(verdicts.filter((v) => v.path === "pom.xml")).toEqual([
+    { bucket: "Shared", entry: "pom.xml", map: "top_level", path: "pom.xml" },
+    { bucket: "Toolchain", path: "pom.xml", value: "os-core-common 3.6.1" },
+  ]);
+  expect(state.mrDiffs[mrKey(storage.upstream, 1090, storage1090.sha)]).toBeDefined();
+});
 
 test.each(["too_large", "collapsed"] as const)(
   "%s pom hunks are cut but all diff paths survive and are retried",
