@@ -7,6 +7,7 @@ import { assertSmokeGeometry, type SmokeGeometry } from "./smoke-geometry.js";
 import type { SupervisionReport } from "./smoke-supervision.js";
 
 export const VIEW_WIDTHS = [1440, 900, 740] as const;
+export const SMOKE_TIMEOUT_MS = 360_000;
 
 export const VIEW_SURFACES = [
   {

@@ -6,6 +6,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { SMOKE_TIMEOUT_MS } from "./smoke-report.js";
 
 export function launchSmoke(
   executable: string,
@@ -20,7 +21,7 @@ export function launchSmoke(
     execFileSync(executable, [...args, "--smoke", `--user-data-dir=${directory}`], {
       env: inherited,
       stdio: "inherit",
-      timeout: 240000,
+      timeout: SMOKE_TIMEOUT_MS,
       killSignal: "SIGKILL",
     });
   } finally {

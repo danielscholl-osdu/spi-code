@@ -362,7 +362,6 @@ export async function captureSmokeViews(
   const snapshot = ViewSnapshotSchema.parse(JSON.parse(readFileSync(fixturePath, "utf8")));
   const progress = smokeSweepProgress();
   const [originalWidth, originalHeight] = window.getContentSize();
-  const backgroundThrottling = window.webContents.getBackgroundThrottling();
   assert(originalWidth && originalHeight, "Missing original smoke viewport");
   assert.equal(snapshot.sweptAt, "2026-11-06T14:02:00.133Z", "Views require the Nov 6 projection");
   const output = join(dirname(reportPath), "views");
@@ -438,7 +437,6 @@ export async function captureSmokeViews(
   window.webContents.debugger.attach("1.3");
   ipcMain.on("smoke:request", request);
   try {
-    window.webContents.setBackgroundThrottling(false);
     await window.webContents.debugger.sendCommand("Page.enable");
     await window.webContents.debugger.sendCommand("Emulation.setTimezoneOverride", {
       timezoneId: "America/Chicago",
@@ -901,7 +899,6 @@ export async function captureSmokeViews(
     const loaded = once(window.webContents, "did-finish-load");
     window.webContents.reload();
     await loaded;
-    window.webContents.setBackgroundThrottling(backgroundThrottling);
   }
   writeFileSync(
     join(output, "index.html"),
@@ -910,7 +907,6 @@ export async function captureSmokeViews(
 <h1>Packaged Watch views</h1><p>Nov 6 projection: ${snapshot.sweptAt}. Content bounds: 1440, 900 and 740 x 800.
 Appearance pinned in the app. Fixture clock: Nov 6, 09:04 America/Chicago, except scheduled
 Sweep surfaces: idle and not-ready at 08:04, sweeping at 08:08, saved-with-failure at 09:04.
-Background frame throttling is disabled during capture and restored before the host proof.
 Setup sign-ins are intercepted fixtures, never live authentication. Related and 20-service probes vary the projection.
 First-sweep surfaces inject schema-valid sweep.progress messages through the same smoke-only preload channel as
 view.snapshot and setup.state. This screenshot phase precedes host startup, so it cannot feed the real host progress path;

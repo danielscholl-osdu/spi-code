@@ -6,6 +6,7 @@ import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, it, vi } from "vitest";
 import { launchSmoke } from "./smoke-launch.js";
+import { SMOKE_TIMEOUT_MS } from "./smoke-report.js";
 
 vi.mock("node:child_process", () => ({ execFileSync: vi.fn() }));
 
@@ -19,7 +20,7 @@ it.each([false, true])("isolates and cleans Electron user-data even on failure (
     expect(args).toContain("--smoke");
     expect(options).toMatchObject({
       env: { PATH: "fixture" },
-      timeout: 240000,
+      timeout: SMOKE_TIMEOUT_MS,
       killSignal: "SIGKILL",
     });
     expect(options?.env).not.toHaveProperty("ELECTRON_RUN_AS_NODE");

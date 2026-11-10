@@ -28,7 +28,12 @@ import { createLifecycle, stopHostAndReleaseLeases, stopWithin } from "./lifecyc
 import { createOutageNotifications } from "./outage.js";
 import { assertNoProcessListeners } from "./smoke-listeners.js";
 import { smokeMessages } from "./smoke-messages.js";
-import { assertSmokeReport, assertSmokeTools, type SmokeReport } from "./smoke-report.js";
+import {
+  assertSmokeReport,
+  assertSmokeTools,
+  SMOKE_TIMEOUT_MS,
+  type SmokeReport,
+} from "./smoke-report.js";
 import { HostSupervisor, hostPortCallbacks } from "./supervisor.js";
 import { createSweepTray, trayChannel } from "./tray.js";
 import { wakeSweep } from "./wake.js";
@@ -423,6 +428,6 @@ app.on("window-all-closed", () => {});
 if (proof)
   setTimeout(
     () => fail(new Error("Proof exceeded its time limit")),
-    smoke ? 240000 : 120000,
+    smoke ? SMOKE_TIMEOUT_MS : 120000,
   ).unref();
 void run().catch(fail);

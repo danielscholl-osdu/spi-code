@@ -186,7 +186,7 @@ the generated ZIP, including the shipped runtime handshake, rather than the
 builder's app directory.
 Before starting the host proof, it renders `fixtures/watch/snapshot-1106.json`
 at 1440, 900 and 740 x 800 content bounds and pins the app's Appearance selector
-to light and dark. `build/package-<mac|win>/views/` holds 144 PNGs, a side-by-side
+to light and dark. `build/package-<mac|win>/views/` holds 180 PNGs, a side-by-side
 `index.html` review report and a copy of the window layout design. `smoke.json.views`
 lists every surface/viewport width/appearance combination, its image and DOM
 qualifier evidence, and its measured geometry. Missing combinations fail.
@@ -211,7 +211,14 @@ value to 159 px, records the expected rejection in `rejectedGeometry`, then
 restores the value before capturing it. Missing rejection evidence fails.
 The fixture clock, pane preferences and sign-in interception
 are removed before the host proof, so they cannot affect its persisted-snapshot
-and supervision checks. The 144-capture matrix has a four-minute smoke deadline.
+and supervision checks. The 180-capture matrix has a six-minute smoke deadline.
+Settings → Sweep adds idle, sweeping, saved-with-a-failure and Watch-not-ready
+surfaces; Evidence adds idle and sweeping headers. Schema-valid status, progress
+and snapshot fixtures pin future next-sweep and budget-reset times. The named
+header, schedule and control must fit inside the panel and viewport. At 740 px,
+the native picker selects Sweep and every cadence and labelled last-read cell
+sits below its source. Consecutive Sweep states reuse the renderer with increasing
+snapshot cursors rather than reloading it.
 Seven first-sweep surfaces add a running list with failed sign-in and budget deferral,
 throttling, stops while reading and while saving, a place before its first snapshot,
 the retained list in Evidence after hand-over, and a refresh over the older brief.
@@ -235,9 +242,10 @@ The screenshot phase precedes host startup, so these schema-valid `sweep.progres
 fixtures use the same smoke-only preload channel as `view.snapshot` and `setup.state`,
 not the real host progress feed. The later persisted-snapshot and supervision proof
 starts only after removing fixtures.
-The launcher and in-app deadlines both allow four minutes: Windows CI's real capture
-timings reached the last 740 px appearance near the former three-minute deadline,
-before the host proof could run. Per-DOM waits and all geometry/image gates are unchanged.
+The launcher and in-app deadlines share one six-minute budget: Windows CI's
+180-capture run reached the last 740 px appearance at the former four-minute
+deadline, before the host proof could run. Per-DOM waits and all geometry/image
+gates are unchanged.
 Missing shots, images smaller than 640 x 400 or 1024 PNG bytes, or images
 with 99.5% of pixels in one 4-bit-per-channel RGB bucket fail the smoke.
 Every shot must carry the title-bar sweep line (first-sweep captures carry its
