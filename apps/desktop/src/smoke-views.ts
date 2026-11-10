@@ -510,19 +510,11 @@ export async function captureSmokeViews(
           window,
           'document.querySelector(".readiness-code") && document.querySelector(".readiness-checked")?.textContent.trim() === "Checked 09:04"',
         );
+        let scheduledCursor = snapshot.cursor + 2;
         for (const surface of surfaces) {
           const scheduled =
             surface.id.startsWith("settings-sweep-") || surface.id.startsWith("evidence-header-");
           if (scheduled) {
-            await window.webContents.executeJavaScript(`{
-              localStorage.removeItem("spi-code.panes");
-              localStorage.removeItem("spi-code.line-sheet.pinned");
-              location.hash = "#today";
-            }`);
-            const loaded = once(window.webContents, "did-finish-load");
-            window.webContents.reload();
-            await loaded;
-            await rendered(window, 'document.querySelector(".shell [data-sidebar-row=settings]")');
             const state = surface.id.endsWith("saved-failure")
               ? "saved-failure"
               : surface.id.endsWith("not-ready")
@@ -535,11 +527,14 @@ export async function captureSmokeViews(
               `void (Date.now = () => ${scheduledSweep.now})`,
             );
             fixture(window, "setup.state", ready);
-            fixture(window, "view.snapshot", scheduledSweep.snapshot);
+            fixture(window, "view.snapshot", {
+              ...scheduledSweep.snapshot,
+              cursor: scheduledCursor++,
+            });
             fixture(window, "sweep.progress", scheduledSweep.progress);
             fixture(window, "sweep.status", scheduledSweep.status);
             await rendered(window, 'document.querySelector(".today .place-reading")');
-            if (surface.id.startsWith("evidence-header-")) {
+            if (surface.id === "evidence-header-idle") {
               await window.webContents.executeJavaScript(
                 'document.querySelector("[data-sweep-line]").click()',
               );
@@ -704,7 +699,8 @@ export async function captureSmokeViews(
             }
           }
           if (surface.id.startsWith("settings") && surface.id !== first.id) {
-            await openSettings(window);
+            if (!surface.id.startsWith("settings-sweep-") || surface.id === "settings-sweep-idle")
+              await openSettings(window);
             await settingsSection(
               window,
               surface.id.startsWith("settings-sweep-")
@@ -843,14 +839,15 @@ export async function captureSmokeViews(
                 state: "completed",
               });
             fixture(window, "setup.state", ready);
-            await closeSettings(window);
+            if (!scheduled || surface.id === "settings-sweep-not-ready")
+              await closeSettings(window);
           }
           if (surface.id === "line" || surface.id === "panes")
             await window.webContents.executeJavaScript(
               "document.querySelector(\"[aria-label='Close Line']\").click()",
             );
           if (
-            surface.id.startsWith("evidence-header-") ||
+            surface.id === "evidence-header-sweeping" ||
             ["detail", "detail-related", "panes", "first-sweep-evidence"].includes(surface.id)
           )
             await window.webContents.executeJavaScript(
