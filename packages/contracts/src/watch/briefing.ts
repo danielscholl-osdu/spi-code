@@ -85,6 +85,8 @@ export const EnvironmentSchema = z.strictObject({
 });
 /** The strip's four marks: stopped or Interrupt, Surface, Ambient, and nothing due or Background. */
 export const MarkSchema = z.enum(["stopped", "needs-person", "in-progress", "nothing-due"]);
+/** How loud an item is; core decides it once and Today never re-tiers it. */
+export const AttentionTierSchema = z.enum(["interrupt", "surface", "ambient", "background"]);
 /** In the system (forks, PRs, environment, template, releases), or coming from upstream GitLab. */
 export const OriginSchema = z.enum(["system", "upstream"]);
 /** One meaning per slot shape; unknown is a run whose effect core cannot prove. */
@@ -176,6 +178,8 @@ export const PlaceRowSchema = z
     caveat: z.string().optional(),
     areas: z.array(AreaNameSchema),
     unread: unreadSchema(AreaNameSchema).optional(),
+    /** Ids of the items the figure counts, of any tier; a Background item counted here has its home. */
+    itemIds: z.array(IdentifierSchema),
     /** Ids of the place's items, of any tier, new since the last look; empty is not fresh. */
     fresh: z.strictObject({ itemIds: z.array(IdentifierSchema) }),
     visual: PlaceVisualSchema.optional(),
@@ -363,7 +367,7 @@ export const BriefingSchema = z.strictObject({
   canWait: CanWaitSchema.optional(),
 });
 export const ItemAttentionSchema = z.strictObject({
-  attention: z.enum(["interrupt", "surface", "ambient"]),
+  attention: AttentionTierSchema,
   due: z.strictObject({ at: ObservedAtSchema, before: IdentifierSchema }).optional(),
   owned: z.boolean(),
   origin: OriginSchema.optional(),
@@ -390,6 +394,7 @@ export type EnvLane = z.infer<typeof EnvLaneSchema>;
 export type Environment = z.infer<typeof EnvironmentSchema>;
 export type Briefing = z.infer<typeof BriefingSchema>;
 export type Mark = z.infer<typeof MarkSchema>;
+export type AttentionTier = z.infer<typeof AttentionTierSchema>;
 export type Origin = z.infer<typeof OriginSchema>;
 export type SlotState = z.infer<typeof SlotStateSchema>;
 export type Slot = z.infer<typeof SlotSchema>;

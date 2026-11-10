@@ -47,6 +47,7 @@ const briefing = {
       line: "Stopped: storage (sync, main), indexer-queue (main).",
       reason: "lanes: storage, indexer",
       areas: ["github", "runs"],
+      itemIds: ["gate1:storage", "stack:lanes"],
       unread: { areas: ["github"], lastGood: "2026-11-10T07:52:00Z" },
       fresh: { itemIds: ["gate1:storage"] },
       visual: {
@@ -67,6 +68,7 @@ const briefing = {
       line: "Deployable again after a fork lane failed.",
       caveat: "Diffs cut on 8 services: a toolchain move could be missing.",
       areas: ["lifecycle"],
+      itemIds: [],
       fresh: { itemIds: [] },
       visual: {
         kind: "lifecycle",
@@ -84,6 +86,7 @@ const briefing = {
       figure: "7 of 13 on d3ddff5",
       line: "Rollout in progress; verification is still pending.",
       areas: ["template"],
+      itemIds: ["rollout:search", "rollout:unit"],
       fresh: { itemIds: [] },
       visual: {
         kind: "rollout",
@@ -98,6 +101,7 @@ const briefing = {
       figure: "28 high or critical",
       line: "In SPI-owned shipped code, none blocking today.",
       areas: ["security"],
+      itemIds: ["security:storage"],
       fresh: { itemIds: [] },
       visual: {
         kind: "forkColumns",
@@ -279,13 +283,27 @@ const releases = {
   },
 };
 if (!base.services?.[0]?.runs[0]) throw new Error("snapshot-1106 must carry service runs");
+const [first] = base.briefing.focus;
+if (!first) throw new Error("snapshot-1106 must carry a focus item");
+const background = (id: string) => ({
+  ...first,
+  id,
+  ids: [],
+  attention: "background",
+  owned: false,
+  origin: "system",
+});
 const full = {
   ...base,
   briefing: {
     ...base.briefing,
     ...briefing,
     focus: base.briefing.focus.map((item) => ({ ...item, origin: "system" })),
-    rest: base.briefing.rest.map((item) => ({ ...item, origin: "upstream" })),
+    rest: [
+      ...base.briefing.rest.map((item) => ({ ...item, origin: "upstream" })),
+      background("security:storage"),
+      background("security:upstream"),
+    ],
   },
   releases: { ...base.releases, ...releases },
   services: base.services.map((service) => ({
@@ -394,6 +412,7 @@ describe("Today's contract", () => {
     ["/briefing/horizon/cards/0/kind", "java"],
     ["/briefing/horizon/cards/0/services/0/stage", "merged"],
     ["/briefing/focus/0/origin", "both"],
+    ["/briefing/focus/0/attention", "quiet"],
     ["/briefing/decisions/groups/0/kind", "release"],
     ["/briefing/ambient/failing/lines/0/station", "lane"],
     ["/briefing/ambient/failing/lines/0/origin", "fork"],
@@ -431,6 +450,18 @@ describe("Today's contract", () => {
     ["a completion time without a zone", "/services/0/runs/0/completedAt", "2026-11-10T08:15"],
   ])("rejects %s", (_name, pointer, value) => {
     expect(ViewSnapshotSchema.safeParse(plant(pointer, value)).success).toBe(false);
+  });
+
+  it("carries Background items untiered to a place row's count or Can wait", () => {
+    const parsed = ViewSnapshotSchema.parse(full).briefing;
+    const quiet = parsed.rest.filter(({ attention }) => attention === "background");
+    expect(quiet.map(({ id }) => id)).toEqual(["security:storage", "security:upstream"]);
+    const counted = new Set(parsed.places?.flatMap(({ itemIds }) => itemIds));
+    const waiting = new Set(parsed.canWait?.items.flatMap(({ itemIds }) => itemIds));
+    expect(quiet.map(({ id }) => [counted.has(id), waiting.has(id)])).toEqual([
+      [true, false],
+      [false, true],
+    ]);
   });
 
   it("reads an unread forming release as not read, never as zero kinds", () => {

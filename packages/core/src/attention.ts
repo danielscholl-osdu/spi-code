@@ -7,7 +7,7 @@ import type { QueueItem } from "./model/queue.js";
 import { nextFire, toCrons } from "./model/schedule.js";
 
 // How loud a state is. Core decides it; the window only renders it.
-export type AttentionTier = "interrupt" | "surface" | "ambient";
+export type AttentionTier = "interrupt" | "surface" | "ambient" | "background";
 
 // The state of the thread that owns an item.
 export type OwnerState = "working" | "waiting" | "done" | "failed" | "stalled" | "lost";

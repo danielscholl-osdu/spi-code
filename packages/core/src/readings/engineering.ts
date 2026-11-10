@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import type { AttentionTier } from "../attention.js";
 import { TEMPLATE_REPO } from "../config.js";
 import type { ReadRecord } from "../evidence/index.js";
 import type { Model } from "../model/index.js";
@@ -16,7 +17,7 @@ import {
 } from "./index.js";
 
 export interface EngineeringItem extends ReadingItem {
-  attention?: "interrupt" | "surface" | "ambient";
+  attention?: AttentionTier;
   owned?: boolean;
 }
 
