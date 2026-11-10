@@ -250,10 +250,6 @@
           }
         ],
         "attention": "surface",
-        "due": {
-          "at": "2026-11-07T00:00:00.000Z",
-          "before": "next sync"
-        },
         "owned": false
       },
       {
@@ -3038,10 +3034,6 @@
               }
             ],
             "attention": "surface",
-            "due": {
-              "at": "2026-11-07T00:00:00.000Z",
-              "before": "next sync"
-            },
             "owned": false,
             "group": "Before 00:00"
           },

@@ -4,6 +4,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
+import { attentionOf, LEAD_TIME_MS } from "../src/attention.js";
 import { buildBriefing, type FocusItem } from "../src/brief/index.js";
 import { builtInFleet, fleetOf } from "../src/config.js";
 import { createContext } from "../src/context.js";
@@ -208,6 +209,81 @@ describe("Upstream reading on the recorded 6 Nov sweep", () => {
     expect(reading.items).toHaveLength(5);
     expect(reading.folded).toContain("5 more forks move to os-core-common 8.5.0");
     expect(clean(reading)).toEqual([]);
+  });
+});
+
+describe("Radar items whose commits sit in their fork's open sync PR on the recorded 6 Nov sweep", () => {
+  const NEXT_SYNC = "2026-11-07T00:00:00.000Z";
+  const inLead = new Date(Date.parse(NEXT_SYNC) - 60 * 60 * 1000);
+  const tier = (service: string, from = model, at = inLead) => {
+    const id = `radar:${service}`;
+    const subject = { id, ids: [id], rung: 1 };
+    const previous = [{ ...subject, attention: "surface" as const, owned: false }];
+    return attentionOf(subject, from, { now: at, leadTimeMs: LEAD_TIME_MS, previous });
+  };
+  const due = { at: NEXT_SYNC, before: "next sync" };
+  const escalated = { attention: "interrupt", owned: false, due };
+  const rebuilt = (edit: (f: Facts) => void) => {
+    const f = structuredClone(facts);
+    edit(f);
+    return buildModel(f, now, {}, context);
+  };
+  // Storage's first queued commit dated after sync PR #58's target, so times don't confirm the order.
+  const disordered = rebuilt((f) => {
+    const commits = f.upstream.data?.storage?.commits;
+    const [first, target] = [commits?.[0], commits?.at(-1)];
+    if (!first || !target) throw new Error("storage's queued commits are missing from the sweep");
+    first.at = new Date(Date.parse(target.at) + 60_000).toISOString();
+  });
+  // Storage's sync PR not among the PRs read.
+  const unread = rebuilt((f) => {
+    const repo = f.github.data?.repos["Azure/osdu-spi-storage"];
+    if (!repo) throw new Error("storage's repo is missing from the sweep");
+    repo.prs = repo.prs.filter((p) => p.number !== 58);
+  });
+
+  it("keeps a held item at Surface with no due time while a queued fork's item escalates", () => {
+    expect(tier("storage", model, now)).toEqual({ attention: "surface", owned: false });
+    expect(tier("storage")).toEqual({ attention: "surface", owned: false });
+    expect(tier("schema", model, now)).toEqual({ attention: "surface", owned: false, due });
+    expect(tier("schema")).toEqual(escalated);
+    expect(tier("indexer")).toEqual(escalated);
+  });
+
+  it("treats the item as queued when core can't prove the sync PR holds its commits", () => {
+    const pr = disordered.upstream.forks.find((f) => f.service === "storage")?.syncPr;
+    expect([pr?.number, pr?.holds]).toEqual([58, undefined]);
+    expect(tier("storage", unaimed.model)).toEqual(escalated);
+    expect(tier("storage", disordered)).toEqual(escalated);
+    expect(tier("storage", unread)).toEqual(escalated);
+  });
+
+  it("names the sync PR in a held fork's queue text", () => {
+    const text = (service: string, from = model) =>
+      from.queue.items.find((q) => q.id === `radar:${service}`)?.text;
+    expect(text("storage")).toBe(
+      "sync PR #58 carries os-core-common 8.5.0 · 11 commits in sync PR #58",
+    );
+    expect(text("indexer")).toBe(
+      "sync PR #58 and the next sync carry os-core-common 8.5.0 · 23 commits in sync PR #58 · 2 more at the next sync",
+    );
+    expect(text("schema")).toBe("next sync carries os-core-common 8.5.0 · 16 commits queued");
+    expect(text("storage", unaimed.model)).toBe(
+      "next sync carries os-core-common 8.5.0 · 11 commits queued",
+    );
+  });
+
+  it("adds no next-sync time to the headline for a held radar lead", () => {
+    const headline = (service: string, from = model) => {
+      const m = structuredClone(from);
+      m.queue.items = m.queue.items.filter((q) => q.id === `radar:${service}`);
+      return buildBriefing(m, { state: "clear", problems: [] }, now, context).headline;
+    };
+    expect(headline("storage")).toBe("Absorb the toolchain move on storage.");
+    expect(headline("indexer")).toBe("Absorb the toolchain move on indexer before the 18:00 sync.");
+    expect(headline("storage", unaimed.model)).toBe(
+      "Absorb the toolchain move on storage before the 18:00 sync.",
+    );
   });
 });
 

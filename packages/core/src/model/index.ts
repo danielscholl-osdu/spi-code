@@ -153,6 +153,7 @@ export function buildModel(
     details,
     approvals: facts.approvals.data,
     radar,
+    forks: upstream.forks,
     repositories,
     dismissed: opts.dismissed ?? [],
     now,

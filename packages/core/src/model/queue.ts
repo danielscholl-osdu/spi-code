@@ -30,6 +30,7 @@ import {
   usualText,
 } from "./stack.js";
 import { predates, type TemplateModel } from "./template.js";
+import { syncSplit, type UpFork } from "./upstream.js";
 
 export type Rung = 0 | 1 | 2;
 
@@ -1118,7 +1119,11 @@ function names(list: readonly string[]): string {
 }
 
 // A queued halt or toolchain move the daily sync has not yet run against.
-function radarItems(lines: readonly LineModel[], radar: RadarModel | undefined): QueueItem[] {
+function radarItems(
+  lines: readonly LineModel[],
+  radar: RadarModel | undefined,
+  forks: readonly UpFork[],
+): QueueItem[] {
   const items: QueueItem[] = [];
   for (const line of lines) {
     const svc = line.fork.id;
@@ -1131,10 +1136,24 @@ function radarItems(lines: readonly LineModel[], radar: RadarModel | undefined):
     const queued = plural(r.queued, "commit");
     const entries = halts.map((v) => v.entry as string);
     const codes = [...new Set(halts.map((v) => v.code))];
+    const fork = forks.find((f) => f.service === svc);
+    const split = fork ? syncSplit(fork) : undefined;
+    const held = split?.pr !== undefined ? split : undefined;
+    const carrier = !held
+      ? "next sync carries"
+      : held.next > 0
+        ? `sync PR #${held.pr} and the next sync carry`
+        : `sync PR #${held.pr} carries`;
+    const count = held
+      ? [
+          `${plural(held.held, "commit")} in sync PR #${held.pr}`,
+          ...(held.next > 0 ? [`${held.next} more at the next sync`] : []),
+        ].join(" · ")
+      : `${queued} queued`;
     const text =
       r.state === "will-halt"
-        ? `next sync will halt on ${names(entries)} (${codes.join(", ")}) · ${queued} queued`
-        : `next sync carries ${lead.value} · ${queued} queued`;
+        ? `next sync will halt on ${names(entries)} (${codes.join(", ")}) · ${count}`
+        : `${carrier} ${lead.value} · ${count}`;
     const filterUrl = githubUrl(line.fork.repo, "/blob/main/.github/upstream-filter.yml");
     const effects: Effect[] =
       r.state === "will-halt"
@@ -1338,6 +1357,7 @@ export function buildQueue(input: {
   details: Parameters<typeof prFailures>[1];
   approvals: Record<string, WaitingRun[]> | undefined;
   radar?: RadarModel;
+  forks?: readonly UpFork[];
   repositories?: ReposModel;
   dismissed?: readonly DismissEntry[];
   now: Date;
@@ -1346,7 +1366,7 @@ export function buildQueue(input: {
   const items: QueueItem[] = [];
   items.push(...stackItems(stack, lines, now).items);
   for (const line of lines) items.push(...lineItems(line, stack, now));
-  items.push(...radarItems(lines, radar));
+  items.push(...radarItems(lines, radar, input.forks ?? []));
   items.push(...portItems(lines, radar, now));
   items.push(...approvalItems(approvals));
   if (input.rollout) items.push(rolloutItem(input.rollout, template));

@@ -213,6 +213,35 @@ describe("other days", () => {
     );
   });
 
+  test("a toolchain incident gives no sync time for a follower its open sync PR holds", () => {
+    const followed = (holds: number) => {
+      const m = withQueue([
+        item({
+          id: "gate1:legal",
+          scope: "legal",
+          cls: "TOOLCHAIN",
+          incident: true,
+          text: "sync PR #31 fails Java Build: upstream requires Java 25, the fork builds on 17",
+        }),
+        item({
+          id: "radar:partition",
+          kind: "radar",
+          scope: "partition",
+          cls: "TOOLCHAIN",
+          text: "sync PR #9 carries Java 25 · 2 commits in sync PR #9",
+          cause: [{ label: "value", value: "Java 25" }],
+        }),
+      ]);
+      const fork = m.upstream.forks.find((f) => f.service === "partition");
+      if (!fork) throw new Error("fixture has partition");
+      fork.behind = 2;
+      fork.syncPr = { number: 9, url: "", headSha: "", verdict: "green", holds };
+      return buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext).headline;
+    };
+    expect(followed(2)).toBe("Move legal to Java 25 before partition follows.");
+    expect(followed(1)).toBe("Move legal to Java 25 before partition follows at 00:00.");
+  });
+
   test("a queued break with no incident still leads the headline", () => {
     const m = withQueue([
       item({

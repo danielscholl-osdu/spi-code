@@ -341,6 +341,11 @@ export function syncSplit(f: Pick<UpFork, "behind" | "syncPr">): SyncSplit {
     : { held: 0, next: behind };
 }
 
+// The open sync PR that holds every queued commit, so the next sync brings the fork none of them.
+export function holdingPr(split: SyncSplit | undefined): number | undefined {
+  return split?.pr !== undefined && split.next === 0 ? split.pr : undefined;
+}
+
 function forkOf(
   line: LineModel,
   radar: RadarModel | undefined,

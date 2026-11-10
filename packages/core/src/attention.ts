@@ -5,6 +5,7 @@ import { SYNC_UPSTREAM_CRON } from "./config.js";
 import type { Model } from "./model/index.js";
 import type { QueueItem } from "./model/queue.js";
 import { nextFire, toCrons } from "./model/schedule.js";
+import { holdingPr, syncSplit } from "./model/upstream.js";
 
 // How loud a state is. Core decides it; the window only renders it.
 export type AttentionTier = "interrupt" | "surface" | "ambient" | "background";
@@ -69,14 +70,21 @@ export function nextSyncAt(now: Date): string | undefined {
   return at === undefined ? undefined : new Date(at).toISOString();
 }
 
-// The next sync brings more upstream commits: what the radar predicts they carry, and a halt
-// they would stop on again, are due before it.
-function dueAtSync(q: QueueItem): boolean {
-  return q.kind === "radar" || q.kind === "halt";
+// A radar item whose fork's open sync PR already holds every queued commit: the next sync brings none.
+function heldRadar(q: QueueItem, model: Model): boolean {
+  if (q.kind !== "radar") return false;
+  const fork = model.upstream.forks.find((f) => f.service === q.scope);
+  return fork !== undefined && holdingPr(syncSplit(fork)) !== undefined;
 }
 
-export function dueOf(items: readonly QueueItem[], now: Date): Due | undefined {
-  if (!items.some(dueAtSync)) return undefined;
+// The next sync brings more upstream commits: what the radar predicts they carry, and a halt
+// they would stop on again, are due before it.
+function dueAtSync(q: QueueItem, model: Model): boolean {
+  return q.kind === "halt" || (q.kind === "radar" && !heldRadar(q, model));
+}
+
+export function dueOf(items: readonly QueueItem[], model: Model, now: Date): Due | undefined {
+  if (!items.some((q) => dueAtSync(q, model))) return undefined;
   const at = nextSyncAt(now);
   return at ? { at, before: BEFORE_NEXT_SYNC } : undefined;
 }
@@ -114,7 +122,8 @@ function priorOf(
 export function attentionOf(item: AttentionSubject, model: Model, opts: AttentionOptions): Attention {
   const ids = idsOf(item);
   const queued = queueItemsOf(item, model);
-  const due = dueOf(queued, opts.now);
+  const due = dueOf(queued, model, opts.now);
+  const held = queued.some((q) => heldRadar(q, model));
   const owner = ownerOf(ids, opts.owners);
   const owned = owner !== undefined;
   const prior = priorOf(item, opts.previous ?? []);
@@ -139,6 +148,7 @@ export function attentionOf(item: AttentionSubject, model: Model, opts: Attentio
   const surface =
     owner === "done" ||
     due !== undefined ||
+    held ||
     newTheme ||
     (!owned && item.rung === 1 && prior === undefined);
 
