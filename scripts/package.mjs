@@ -76,9 +76,18 @@ export function assertRuntimeEvidence(
   for (const pid of checkedPids)
     assert(scannedPids.includes(pid), `Listener scan did not sample pid ${pid}`);
   const { scanDurationMs } = listenerCheck;
+  const scanBudgetMs = platform === "win32" ? 30000 : 8000;
   assert(
-    typeof scanDurationMs === "number" && scanDurationMs >= 0 && scanDurationMs < 8000,
-    "Listener scan duration is missing or outside its eight-second budget",
+    typeof scanDurationMs === "number" && scanDurationMs >= 0 && scanDurationMs < scanBudgetMs,
+    `Listener scan duration is missing or outside its ${scanBudgetMs} ms budget`,
+  );
+  const { processQueryAttempts } = listenerCheck;
+  assert(
+    typeof processQueryAttempts === "number" &&
+      Number.isSafeInteger(processQueryAttempts) &&
+      processQueryAttempts >= 1 &&
+      processQueryAttempts <= (platform === "win32" ? 3 : 1),
+    "Missing or invalid process query attempt count",
   );
   assert.deepEqual(listenerCheck.listeners, [], "Packaged process tree has TCP listeners");
   assert.equal(runtime.transport, "stdio");

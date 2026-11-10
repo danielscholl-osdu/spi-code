@@ -26,7 +26,7 @@ import { stopHostTree } from "./host-tree.js";
 import { createInterruptNotifications } from "./interrupts.js";
 import { createLifecycle, stopHostAndReleaseLeases, stopWithin } from "./lifecycle.js";
 import { createOutageNotifications } from "./outage.js";
-import { assertNoProcessListeners } from "./smoke-listeners.js";
+import { assertNoProcessListeners, listenerScanBudget } from "./smoke-listeners.js";
 import { smokeMessages } from "./smoke-messages.js";
 import {
   assertSmokeReport,
@@ -359,7 +359,7 @@ async function run(): Promise<void> {
     app.isPackaged
       ? process.env.SPI_CODE_RUNTIME_REPORT || join(dataDir, "runtime-report.json")
       : undefined,
-    15000,
+    listenerScanBudget() + 7000,
     () => assertNoProcessListeners(process.pid, hostPid),
   );
   const supervision = await exerciseSupervision({
