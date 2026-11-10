@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { isStoppedFork } from "@spi-code/contracts";
 import { type ServiceDef, TEMPLATE_REPO } from "../config.js";
 import type { CoreContext } from "../context.js";
 import type { Facts } from "../facts.js";
@@ -15,6 +16,7 @@ import { buildRadar, predictAll, type RadarModel } from "./radar.js";
 import { buildRepos, type ReposModel } from "./repos.js";
 import { buildRollout, type RolloutModel } from "./rollout.js";
 import { buildStack, heldText, type StackModel } from "./stack.js";
+import { stationSubstateOf } from "./substate.js";
 import { buildTemplate, type TemplateModel } from "./template.js";
 import { buildUpstream, type UpstreamModel } from "./upstream.js";
 import { verifiedForks } from "./verified.js";
@@ -27,6 +29,7 @@ export interface Model {
   upstreamAt?: string;
   stack: StackModel;
   lines: LineModel[];
+  stoppedForks: string[];
   planned: { service: ServiceDef; exists: boolean }[];
   template: TemplateModel;
   gates: Gates;
@@ -160,6 +163,16 @@ export function buildModel(
     upstreamAt: facts.upstream.at,
     stack,
     lines,
+    stoppedForks: lines
+      .filter((line) =>
+        isStoppedFork(
+          line.stations.map((station) => ({
+            id: station.id,
+            substate: stationSubstateOf(station, line, facts),
+          })),
+        ),
+      )
+      .map((line) => line.fork.id),
     planned: planned.map((service) => ({
       service,
       exists: facts.github.data?.planned[service.id] ?? false,

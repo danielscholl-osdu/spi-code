@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { StationSubstate, ViewSnapshot } from "@spi-code/contracts";
+import { isStoppedFork, type StationSubstate, type ViewSnapshot } from "@spi-code/contracts";
 
 /** The four pip states the strip draws; a scheduled station has nothing due from a person. */
 export type PipState = "stopped" | "needs-person" | "in-progress" | "nothing-due";
@@ -43,6 +43,7 @@ export type StripFields = {
 
 /** A service's worst sub-state over its line stations; the stack lane is not one of them. */
 function worst(stations: ViewSnapshot["stations"][number]["stations"]): StationSubstate {
+  if (isStoppedFork(stations)) return "stopped";
   return stations
     .filter(({ id }) => id !== "lane")
     .reduce<StationSubstate>(

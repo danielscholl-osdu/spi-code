@@ -38,22 +38,30 @@ try {
     filter: (path) =>
       !/^(?:src|test|fixtures|testing)$/.test(basename(path)) && !/\.test\.|\.map$/.test(path),
   });
-  const sharedTime = join(staging, "dist/contracts/time.js");
-  mkdirSync(dirname(sharedTime), { recursive: true });
-  for (const file of ["time.js", "time.d.ts"]) {
-    cpSync(resolve(core, "../contracts/dist", file), join(dirname(sharedTime), file));
+  const sharedContracts = { timeUnit: "time", isStoppedFork: "stopped-forks" };
+  for (const module of Object.values(sharedContracts)) {
+    const target = join(staging, "dist/contracts", module);
+    mkdirSync(dirname(target), { recursive: true });
+    for (const extension of [".js", ".d.ts"]) {
+      cpSync(resolve(core, "../contracts/dist", `${module}${extension}`), `${target}${extension}`);
+    }
   }
-  function linkContractsTime(directory) {
+  function linkContracts(directory) {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
-      if (entry.isDirectory()) linkContractsTime(path);
+      if (entry.isDirectory()) linkContracts(path);
       else {
         const source = readFileSync(path, "utf8");
-        const target = relative(dirname(path), sharedTime).split(sep).join("/");
-        const linked = source.replace(
-          /(?<=import \{ timeUnit \} from ")@spi-code\/contracts(?=";)/g,
-          target.startsWith(".") ? target : `./${target}`,
-        );
+        let linked = source;
+        for (const [name, module] of Object.entries(sharedContracts)) {
+          const target = relative(dirname(path), join(staging, "dist/contracts", `${module}.js`))
+            .split(sep)
+            .join("/");
+          linked = linked.replace(
+            `import { ${name} } from "@spi-code/contracts";`,
+            `import { ${name} } from "${target.startsWith(".") ? target : `./${target}`}";`,
+          );
+        }
         if (linked.includes("@spi-code/contracts")) {
           throw new Error(`Cannot omit contracts dependency: ${path} references it`);
         }
@@ -61,7 +69,7 @@ try {
       }
     }
   }
-  linkContractsTime(join(staging, "dist"));
+  linkContracts(join(staging, "dist"));
   for (const file of ["LICENSE", "README.md"]) {
     cpSync(join(core, file), join(staging, file));
   }

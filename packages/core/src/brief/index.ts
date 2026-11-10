@@ -418,13 +418,13 @@ function factsOf(model: Model, now: Date): BriefFact[] {
     env.sub += ` · declares ${stack.declared}`;
   }
 
-  const stopped = stoppedLines(model);
+  const stopped = model.stoppedForks;
   const sync: BriefFact = {
     label: "Upstream sync",
     figure: `${stopped.length} of ${model.lines.length}`,
     sub:
       stopped.length > 0
-        ? `forks stopped · ${list(stopped.map((l) => l.fork.id))}`
+        ? `forks stopped · ${list(stopped)}`
         : "forks stopped · every sync flowing",
     tone: stopped.length > 0 ? "bad" : "ok",
   };

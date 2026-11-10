@@ -8,6 +8,8 @@ import { DocRowSchema } from "./panes.js";
 import { StationSubstateSchema } from "./reading.js";
 import { SelectionIdSchema } from "./tree.js";
 
+export { isStoppedFork } from "../stopped-forks.js";
+
 export const StationIdSchema = z.enum(["upstream", "sync", "cascade", "main", "release", "lane"]);
 const StationStateSchema = z.enum(["idle", "moving", "waiting", "stopped", "unknown"]);
 export const StationSchema = z.strictObject({

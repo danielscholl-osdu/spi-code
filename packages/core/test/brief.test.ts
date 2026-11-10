@@ -41,6 +41,7 @@ function withQueue(items: QueueItem[]): Model {
     p2: items.filter((i) => i.rung === 2).length,
   };
   for (const l of m.lines) l.pill = { label: "current", kind: "current", tone: "ok" };
+  m.stoppedForks = [];
   return m;
 }
 
