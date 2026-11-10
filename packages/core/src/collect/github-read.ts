@@ -13,7 +13,7 @@ import {
 } from "../config.js";
 import type { CoreContext } from "../context.js";
 import type { ReadCompleteness, ReadRecord } from "../evidence/index.js";
-import type { Gh, GqlError } from "../forge.js";
+import { ForgeError, type Gh, type GqlError } from "../forge.js";
 
 const PULLS = `pullRequests(states: OPEN, first: 40, orderBy: {field: CREATED_AT, direction: DESC}) { totalCount nodes {
   number title url createdAt updatedAt isDraft headRefName baseRefName headRefOid mergeStateStatus reviewDecision
@@ -79,8 +79,18 @@ function repoField(alias: string, repo: string, spread: string): string {
 
 export const FORKS_PER_QUERY = 5;
 
-function query(fields: string[]): string {
-  const body = fields.join("\n  ");
+/** Most queries one sweep may spend splitting cut batches: enough to isolate two heavy
+ * repos in full fork batches. A half past the limit records its own failure for its repos. */
+export const SPLIT_QUERIES_PER_SWEEP = 12;
+
+interface Field {
+  alias: string;
+  repo: string;
+  text: string;
+}
+
+function query(fields: readonly Field[]): string {
+  const body = fields.map((f) => f.text).join("\n  ");
   const used = FRAGMENTS.split(/\n(?=fragment )/)
     .filter((f) => {
       const name = /^\s*fragment (\w+)/.exec(f)?.[1];
@@ -90,20 +100,26 @@ function query(fields: string[]): string {
   return `query {\n  ${body}\n}\n${used}`;
 }
 
-export function buildQueries(ctx: CoreContext, perQuery = FORKS_PER_QUERY): string[] {
+function batches(ctx: CoreContext, perQuery: number): Field[][] {
   if (!Number.isSafeInteger(perQuery) || perQuery < 1)
     throw new RangeError("perQuery must be a positive integer");
-  const forks = ctx.fleet.forks.map((f, i) => repoField(`r_fork${i}`, f.repo, "...Base ...Fork"));
-  const queries = [
-    query([
-      repoField("r_template", TEMPLATE_REPO, "...Base ...Template"),
-      repoField("r_stack", ctx.stackRepo, "...Base ...Stack"),
-      ...ctx.fleet.planned.map((p, i) => repoField(`p_${i}`, plannedRepo(p), "nameWithOwner")),
-    ]),
+  const field = (alias: string, repo: string, spread: string): Field => ({
+    alias, repo, text: repoField(alias, repo, spread),
+  });
+  const forks = ctx.fleet.forks.map((f, i) => field(`r_fork${i}`, f.repo, "...Base ...Fork"));
+  const out = [
+    [
+      field("r_template", TEMPLATE_REPO, "...Base ...Template"),
+      field("r_stack", ctx.stackRepo, "...Base ...Stack"),
+      ...ctx.fleet.planned.map((p, i) => field(`p_${i}`, plannedRepo(p), "nameWithOwner")),
+    ],
   ];
-  for (let i = 0; i < forks.length; i += perQuery)
-    queries.push(query(forks.slice(i, i + perQuery)));
-  return queries;
+  for (let i = 0; i < forks.length; i += perQuery) out.push(forks.slice(i, i + perQuery));
+  return out;
+}
+
+export function buildQueries(ctx: CoreContext, perQuery = FORKS_PER_QUERY): string[] {
+  return batches(ctx, perQuery).map(query);
 }
 
 export function mergeReads(reads: Record<string, unknown>[]): Record<string, unknown> {
@@ -149,41 +165,45 @@ function missingMarker(error: GqlError): boolean {
     ref === "headRef" && target === "target" && file === "file";
 }
 
+interface Read {
+  fields: readonly Field[];
+  data: Record<string, unknown>;
+  errors: GqlError[];
+  observedAt: string;
+}
+
 export async function readGithub<T>(
   gh: Pick<Gh, "graphql">,
   ctx: CoreContext,
   parse: (raw: Record<string, unknown>, ctx: CoreContext) => T,
   perQuery = FORKS_PER_QUERY,
 ): Promise<{ facts: T; records: ReadRecord[] }> {
-  const reads = await Promise.all(
-    buildQueries(ctx, perQuery).map(async (q): Promise<{
-      data: Record<string, unknown>; errors: GqlError[]; observedAt: string;
-    }> => {
-      try {
-        const result = await gh.graphql<Record<string, unknown>>(q);
-        return { ...result, observedAt: ctx.clock.now().toISOString() };
-      } catch (error) {
-        return {
-          data: {},
-          errors: [{ message: error instanceof Error ? error.message : String(error) }],
-          observedAt: ctx.clock.now().toISOString(),
-        };
+  let splits = SPLIT_QUERIES_PER_SWEEP;
+  // A cut batch is split in halves down to one repo, so one repo too heavy to read fails alone.
+  async function read(fields: readonly Field[], split: boolean): Promise<Read[]> {
+    try {
+      const result = await gh.graphql<Record<string, unknown>>(query(fields), 1, { retryCut: !split });
+      return [{ fields, ...result, observedAt: ctx.clock.now().toISOString() }];
+    } catch (error) {
+      if (fields.length > 1 && error instanceof ForgeError && error.kind === "cut" && splits >= 2) {
+        splits -= 2;
+        const half = Math.ceil(fields.length / 2);
+        const halves = await Promise.all([
+          read(fields.slice(0, half), half > 1),
+          read(fields.slice(half), fields.length - half > 1),
+        ]);
+        return halves.flat();
       }
-    }),
-  );
-  const entries = [
-    { alias: "r_template", repo: TEMPLATE_REPO, batch: 0 },
-    { alias: "r_stack", repo: ctx.stackRepo, batch: 0 },
-    ...ctx.fleet.forks.map((f, i) => ({
-      alias: `r_fork${i}`, repo: f.repo, batch: 1 + Math.floor(i / perQuery),
-    })),
-    ...ctx.fleet.planned.map((p, i) => ({
-      alias: `p_${i}`, repo: plannedRepo(p), batch: 0,
-    })),
-  ];
-  const records = entries.map(({ alias, repo, batch }): ReadRecord => {
-    const result = reads[batch];
-    if (!result) throw new Error(`Missing GraphQL batch ${batch}`);
+      return [{
+        fields,
+        data: {},
+        errors: [{ message: error instanceof Error ? error.message : String(error) }],
+        observedAt: ctx.clock.now().toISOString(),
+      }];
+    }
+  }
+  const reads = (await Promise.all(batches(ctx, perQuery).map((b) => read(b, false)))).flat();
+  const records = reads.flatMap((result) => result.fields.map(({ alias, repo }): ReadRecord => {
     const raw = result.data[alias];
     const errors = result.errors.filter(
       (error) => (!error.path?.length || error.path[0] === alias) &&
@@ -201,6 +221,6 @@ export async function readGithub<T>(
       completeness: cutsOf(raw)[0] ?? { kind: "complete" },
       ...(failure === undefined ? {} : { failure }),
     };
-  });
+  }));
   return { facts: parse(mergeReads(reads.map((r) => r.data)), ctx), records };
 }

@@ -3,12 +3,19 @@
 
 import { describe, expect, it } from "vitest";
 import { parseGithub } from "../../src/collect/github-parse.js";
-import { buildQueries, cutsOf, mergeReads, readGithub } from "../../src/collect/github-read.js";
+import {
+  buildQueries,
+  cutsOf,
+  mergeReads,
+  readGithub,
+  SPLIT_QUERIES_PER_SWEEP,
+} from "../../src/collect/github-read.js";
 import { fleetOf, MARKER_PATH, plannedRepo, STACK_REPO, TEMPLATE_REPO } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
 import { envelopeOf } from "../../src/evidence/index.js";
 import { type Exec, RecordingExec, ReplayExec } from "../../src/exec/index.js";
 import { Gh, type GqlError, GraphqlBudget } from "../../src/forge.js";
+import { sweepReadProgress } from "../../src/sweep/sweeper.js";
 
 const now = "2026-11-05T07:00:00.000Z";
 const resetAt = "2026-11-05T08:00:00Z";
@@ -436,4 +443,99 @@ it("uses the supplied batch size for queries and batch numbering", async () => {
   const { records } = await readGithub(gh, context(4), parse, 2);
   expect(seen).toHaveLength(3);
   expect(records.every((r) => !r.failure)).toBe(true);
+});
+
+describe("a batch GitHub cuts short", () => {
+  const services = ["storage", "indexer", "search", "workflow", "queue"];
+  const busy = (heavy: readonly string[]) =>
+    createContext({
+      clock,
+      fleet: fleetOf(
+        services.map((id) => ({
+          id,
+          repo: `example/${heavy.includes(id) ? "heavy-" : ""}${id}`,
+          upstream: `upstream/${id}`,
+        })),
+      ),
+    });
+  // Answers every repo in the query unless it names a heavy one, then cuts the reply.
+  function fixtureGh(cut: string) {
+    const sent: string[][] = [];
+    const exec = new RecordingExec(
+      async (_cmd, args) => {
+        const q = args.find((a) => a.startsWith("query=")) ?? "";
+        const aliases = [...q.matchAll(/(\w+): repository\(owner: "\w+", name: "([^"]+)"/g)];
+        sent.push(aliases.map((m) => m[2] ?? ""));
+        if (aliases.some((m) => m[2]?.startsWith("heavy-")))
+          return { stdout: cut, stderr: "", exit: 1 };
+        const data = Object.fromEntries(
+          aliases.map((m) => [m[1], { nameWithOwner: `example/${m[2]}` }]),
+        );
+        return response(data, 1, 90);
+      },
+      () => {},
+    );
+    return { gh: new Gh(exec, undefined, new GraphqlBudget(clock)), sent };
+  }
+
+  it.each([
+    ["empty", "", "empty response"],
+    ["mid-body", "{".repeat(54881), "54881 bytes that were not JSON"],
+  ])("splits a batch cut %s so only the heavy repo fails", async (_shape, cut, detail) => {
+    const ctx = busy(["search"]);
+    const { gh } = fixtureGh(cut);
+    const { facts, records } = await readGithub(gh, ctx, parse);
+    const failed = records.filter((r) => r.failure);
+    expect(failed).toEqual([
+      expect.objectContaining({
+        object: "example/heavy-search",
+        failure: `gh api graphql: GitHub cut the response short twice (exit 1, ${detail})`,
+      }),
+    ]);
+    for (const id of ["storage", "indexer", "workflow", "queue"])
+      expect(Object.values(facts)).toContainEqual({ nameWithOwner: `example/${id}` });
+    expect(
+      sweepReadProgress("github", records, now, undefined, undefined, ctx.fleet),
+    ).toMatchObject({
+      state: "cut",
+      failed: { count: 1, services: ["search"] },
+    });
+  });
+
+  it("pins the requests for five repos with one heavy", async () => {
+    const { gh, sent } = fixtureGh("");
+    await readGithub(gh, busy(["storage"]), parse);
+    const forkReads = sent.filter((names) => !names.includes("osdu-spi"));
+    expect(forkReads).toEqual([
+      ["heavy-storage", "indexer", "search", "workflow", "queue"],
+      ["heavy-storage", "indexer", "search", "workflow", "queue"],
+      ["heavy-storage", "indexer", "search"],
+      ["workflow", "queue"],
+      ["heavy-storage", "indexer"],
+      ["search"],
+      ["heavy-storage"],
+      ["indexer"],
+      ["heavy-storage"],
+    ]);
+    expect(sent).toHaveLength(10);
+  });
+
+  it("stops splitting at the sweep's limit and fails the rest by their own half", async () => {
+    const ctx = createContext({
+      clock,
+      fleet: fleetOf(
+        Array.from({ length: 15 }, (_, i) => ({
+          id: `svc${i}`,
+          repo: `example/heavy-svc${i}`,
+          upstream: `upstream/svc${i}`,
+        })),
+      ),
+    });
+    const { gh, sent } = fixtureGh("");
+    const { records } = await readGithub(gh, ctx, parse);
+    const forkReads = sent.filter((names) => !names.includes("osdu-spi"));
+    expect(forkReads.length).toBeLessThanOrEqual(3 * 2 + SPLIT_QUERIES_PER_SWEEP * 2);
+    expect(records.filter((r) => r.failure)).toHaveLength(15);
+    expect(records.every((r) => r.object.includes("heavy-") === !!r.failure)).toBe(true);
+  });
 });

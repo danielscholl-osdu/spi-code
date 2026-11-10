@@ -354,7 +354,10 @@ export class Gh {
     return res.data;
   }
 
-  async graphql<T>(query: string, estimate = 1): Promise<{ data: T; errors: GqlError[] }> {
+  /** A cut reply is sent again once unless `retryCut` is false, for callers that split the query instead. */
+  async graphql<T>(
+    query: string, estimate = 1, { retryCut = true }: { retryCut?: boolean } = {},
+  ): Promise<{ data: T; errors: GqlError[] }> {
     const prepared = budgetQuery(query);
     let exitCode: number | null = null;
     let failed: Exclude<GraphqlReply, { kind: "json" }> = { kind: "cut", detail: "empty response" };
@@ -378,6 +381,7 @@ export class Gh {
       });
       if (reply.kind !== "json") {
         failed = reply;
+        if (reply.kind === "cut" && !retryCut) break;
         continue;
       }
       const body = reply.body as { data?: T & Record<string, unknown> | null; errors?: GqlError[] };
@@ -401,7 +405,8 @@ export class Gh {
       );
     }
     throw new ForgeError(
-      `gh api graphql: GitHub cut the response short twice (exit ${exitCode}, ${failed.detail})`, exitCode, "cut",
+      `gh api graphql: GitHub cut the response short${retryCut ? " twice" : ""} (exit ${exitCode}, ${failed.detail})`,
+      exitCode, "cut",
     );
   }
 

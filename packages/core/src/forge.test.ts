@@ -139,6 +139,17 @@ describe("forge replay", () => {
     });
   });
 
+  it("sends a cut query once when the caller will split it instead", async () => {
+    await replay([output("", 1)], async (exec) => {
+      const gh = new Gh(exec);
+      await expect(gh.graphql(query, 1, { retryCut: false })).rejects.toMatchObject({
+        kind: "cut",
+        message: "gh api graphql: GitHub cut the response short (exit 1, empty response)",
+      });
+      expect(gh.budget.snapshot()).toMatchObject({ spent: 1, calls: 1 });
+    });
+  });
+
   it("queues concurrent clients on one budget until reset when the second estimate exceeds remaining", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-11-05T07:59:59Z"));
