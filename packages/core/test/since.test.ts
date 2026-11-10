@@ -68,6 +68,15 @@ describe("since pips", () => {
     });
     expect(row.countText).toBe("4/5 ran ok");
   });
+  it("a run requiring action draws waiting with its sentence", () => {
+    const { history, read, line } = setup();
+    history.sync = [run({ conclusion: "action_required" })];
+    expect(read().rows[0]?.slots[0]).toEqual({
+      service: line.fork.id,
+      state: "waiting",
+      text: `Sync Upstream on ${line.fork.id} is waiting for approval.`,
+    });
+  });
   it.each(["createdAt", "updatedAt"] as const)(
     "a sync PR %s in the run window proves occupied",
     (field) => {
@@ -151,6 +160,25 @@ describe("since pips", () => {
     const { history, read } = setup();
     required(history.history).template.from = "2026-10-12T02:10:00Z";
     expect(read()).toMatchObject({ basis: "history-short", from: "2026-10-12T02:10:00.000Z" });
+  });
+  it("complete recent histories keep the fallback window and another fork's older failure", () => {
+    const { history, facts, model, line, read } = setup();
+    const failedAt = new Date(FIXTURE_NOW.getTime() - 22 * 3_600_000).toISOString();
+    history.sync = [run({ conclusion: "failure", createdAt: failedAt, updatedAt: failedAt })];
+    line.repoRead = true;
+    line.upstream = { ...line.upstream, lag: 0 } as typeof line.upstream;
+    const recent = required(required(facts.runs.data)[required(model.lines[1]).fork.repo]);
+    recent.history = {
+      sync: { from: required(recent.sync[0]).createdAt, complete: true },
+      template: { from: required(recent.template[0]).createdAt, complete: true },
+    };
+    const since = read();
+    expect(since).toMatchObject({ basis: "fallback", from });
+    expect(since.rows[0]?.slots[0]).toEqual({
+      service: line.fork.id,
+      state: "broken",
+      text: `Sync Upstream failed on ${line.fork.id}.`,
+    });
   });
   it("an unread runs area is As of; stale wins when history is short too", () => {
     const { facts, history, read } = setup();
