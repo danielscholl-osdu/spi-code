@@ -256,9 +256,6 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
   if (briefing.nextSyncAt) {
     const time = clockTime(briefing.nextSyncAt);
     add("/briefing/nextSyncAt", time, STRIP, '.window-strip [data-field="next-sync"] b');
-    add("/briefing/nextSyncAt", time, STRIP, '.window-strip [data-field="due"]', {
-      read: (element) => (element.textContent ?? "").split(" due before ")[1] ?? "",
-    });
   }
   add("/briefing/sweptAt", briefing.sweptAt, TODAY, "[data-sweep-line] time", {
     attribute: "dateTime",

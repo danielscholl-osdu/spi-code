@@ -33,8 +33,6 @@ export const MEASURE = {
   environmentFull: "environment.full",
   environmentVersion: "environment.version",
   template: "template",
-  dueFull: "due.full",
-  dueCount: "due.count",
   nextSync: "next-sync",
   freshnessFull: "freshness.full",
   freshnessShort: "freshness.short",
@@ -72,8 +70,6 @@ export function measureStrip(root: HTMLElement, pips: number): Measured | undefi
   if (environment) fields.environment = { full: environment[0], version: environment[1] };
   const template = form(MEASURE.template);
   if (template !== undefined) fields.template = template;
-  const due = pair(MEASURE.dueFull, MEASURE.dueCount);
-  if (due) fields.due = { full: due[0], count: due[1] };
   const nextSync = form(MEASURE.nextSync);
   if (nextSync !== undefined) fields.nextSync = nextSync;
   const freshnessForms = pair(MEASURE.freshnessFull, MEASURE.freshnessShort);

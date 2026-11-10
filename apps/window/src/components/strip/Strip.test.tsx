@@ -198,37 +198,13 @@ it("renders the fields from the November 6 sweep", async () => {
   expect(field("environment")?.textContent).toBe("env v0.35.3 deployable");
   expect(field("template")?.textContent).toBe("template 0/13");
   expect(field("template")?.title).toBe("0 of 13 forks on template 7d269b5");
-  expect(field("due")?.textContent).toBe(`10 due before ${clockTime(nextSync)}`);
+  expect(field("due")).toBeNull();
   expect(field("next-sync")?.textContent).toBe(`next sync ${clockTime(nextSync)}`);
   expect(
     [...(strip()?.querySelectorAll<HTMLElement>("[data-field]") ?? [])].map(
       (node) => node.dataset.field,
     ),
-  ).toEqual(["stopped", "environment", "template", "due", "next-sync", "freshness"]);
-});
-
-it("raises the due count when an item falls due before the next sync, and not after it", async () => {
-  const body = fixture();
-  const nextSync = body.briefing.nextSyncAt as string;
-  const [first] = body.briefing.rest;
-  if (!first) throw new Error("fixture has no rest items");
-  const { due: _due, ...undated } = first;
-  const before = { ...undated, id: "strip:due-before", due: { at: nextSync, before: "next sync" } };
-  const later = {
-    ...undated,
-    id: "strip:due-later",
-    due: { at: new Date(Date.parse(nextSync) + 60_000).toISOString(), before: "next sync" },
-  };
-  await mount();
-  expect(field("due")?.textContent).toBe(`10 due before ${clockTime(nextSync)}`);
-  await act(async () =>
-    show({ ...body, briefing: { ...body.briefing, rest: [...body.briefing.rest, before] } }),
-  );
-  expect(field("due")?.textContent).toBe(`11 due before ${clockTime(nextSync)}`);
-  await act(async () =>
-    show({ ...body, briefing: { ...body.briefing, rest: [...body.briefing.rest, before, later] } }),
-  );
-  expect(field("due")?.textContent).toBe(`11 due before ${clockTime(nextSync)}`);
+  ).toEqual(["stopped", "environment", "template", "next-sync", "freshness"]);
 });
 
 it("gives a field with no data no space", async () => {
@@ -388,7 +364,7 @@ it("keeps typed adoption unchanged when every engineering tile's wording changes
   expect(selectStrip(body).template).toEqual({ verified: 1, total: 13, target: "7d269b5" });
 });
 
-it.each(["stopped", "environment", "template", "due", "next-sync"])(
+it.each(["stopped", "environment", "template", "next-sync"])(
   "opens the Line sheet from the %s field button",
   async (name) => {
     await mount();

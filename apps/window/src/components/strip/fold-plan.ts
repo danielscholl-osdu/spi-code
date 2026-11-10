@@ -6,7 +6,6 @@ export const STRIP_FIELDS = [
   "stopped",
   "environment",
   "template",
-  "due",
   "nextSync",
   "freshness",
 ] as const;
@@ -36,7 +35,6 @@ export type FieldWidths = {
   stopped?: { names: number; count: number };
   environment?: { full: number; version: number };
   template?: number;
-  due?: { full: number; count: number };
   nextSync?: number;
   /** The live field's width, or both forms while the first sweep runs ("sweeping · 9 of 12", "9 of 12"). */
   freshness?: number | { full: number; short: number };
@@ -69,11 +67,11 @@ export type FoldInput = {
 
 /**
  * Levels, each keeping every step before it: 0 nothing folded, 1 stopped names fold to a count and the
- * first sweep's freshness to its short form (already short in the narrow layout), 2 the pips shrink, 3 due, next sync and freshness wrap, 4 template wraps too, 5 environment, 6 stopped.
+ * first sweep's freshness to its short form (already short in the narrow layout), 2 the pips shrink, 3 next sync and freshness wrap, 4 template wraps too, 5 environment, 6 stopped.
  */
 export type FoldLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6;
-/** How far the second row shortens its fields: 1 environment to its version, 2 due to its count too. */
-export type FoldShorten = 0 | 1 | 2;
+/** How far the second row shortens its fields: 1 environment to its version. */
+export type FoldShorten = 0 | 1;
 
 export type FoldPlan = {
   level: FoldLevel;
@@ -81,7 +79,6 @@ export type FoldPlan = {
   pips: "full" | "small";
   stopped: "names" | "count";
   environment: "full" | "version";
-  due: "full" | "count";
   freshness: "full" | "short";
   /** The first row's pips and fields in reading order; the second row continues it. */
   first: ("pips" | StripField)[];
@@ -94,8 +91,8 @@ export type FoldPlan = {
 };
 
 const LEVELS: readonly FoldLevel[] = [0, 1, 2, 3, 4, 5, 6];
-const SHORTENS: readonly FoldShorten[] = [0, 1, 2];
-const WRAP_FROM: Readonly<Record<FoldLevel, number>> = { 0: 6, 1: 6, 2: 6, 3: 3, 4: 2, 5: 1, 6: 0 };
+const SHORTENS: readonly FoldShorten[] = [0, 1];
+const WRAP_FROM: Readonly<Record<FoldLevel, number>> = { 0: 5, 1: 5, 2: 5, 3: 3, 4: 2, 5: 1, 6: 0 };
 
 function present(fields: FieldWidths): StripField[] {
   return STRIP_FIELDS.filter((name) => fields[name] !== undefined);
@@ -127,8 +124,6 @@ function fieldWidth(
       return (level >= 1 ? fields.stopped?.count : fields.stopped?.names) ?? 0;
     case "environment":
       return (shorten >= 1 ? fields.environment?.version : fields.environment?.full) ?? 0;
-    case "due":
-      return (shorten >= 2 ? fields.due?.count : fields.due?.full) ?? 0;
     case "freshness": {
       const freshness = fields.freshness;
       if (typeof freshness !== "object") return freshness ?? 0;
@@ -179,7 +174,7 @@ export function planFold({
   const fitsSecond = (shorten: FoldShorten, slack: number) =>
     width.second - runWidth(fields, second, level, shorten, gap, narrow) >= slack;
   const lowestShorten = (slack: number) =>
-    SHORTENS.find((shorten) => fitsSecond(shorten, slack)) ?? 2;
+    SHORTENS.find((shorten) => fitsSecond(shorten, slack)) ?? 1;
   const shorten = second.length === 0 ? 0 : hold(lowestShorten, previous?.shorten, change);
 
   return {
@@ -188,7 +183,6 @@ export function planFold({
     pips: level >= 2 ? "small" : "full",
     stopped: level >= 1 ? "count" : "names",
     environment: shorten >= 1 && second.includes("environment") ? "version" : "full",
-    due: shorten >= 2 && second.includes("due") ? "count" : "full",
     freshness: (level >= 1 || narrow) && typeof fields.freshness === "object" ? "short" : "full",
     first,
     second,

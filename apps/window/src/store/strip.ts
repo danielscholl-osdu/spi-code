@@ -37,7 +37,6 @@ export type StripFields = {
   stopped: string[];
   environment?: { version: string; state: string };
   template?: { verified: number; total: number; target: string };
-  due?: { count: number; before: string };
   nextSync?: string;
 };
 
@@ -62,7 +61,7 @@ export function selectStrip(snapshot: ViewSnapshot): StripFields {
     pips,
     stopped: pips.filter(({ state }) => state === "stopped").map(({ service }) => service),
   };
-  const { facts, nextSyncAt, focus, rest } = snapshot.briefing;
+  const { facts, nextSyncAt } = snapshot.briefing;
   const env = facts.find(({ label }) => label === "Environment");
   if (env && env.figure !== "?") {
     fields.environment = { version: env.figure, state: env.sub.split(" · ")[0] ?? "" };
@@ -75,16 +74,6 @@ export function selectStrip(snapshot: ViewSnapshot): StripFields {
       total: adoption.total,
       target: adoption.target.slice(0, 7),
     };
-  }
-  const due = new Map<string, number>();
-  for (const item of [...focus, ...rest]) {
-    if (item.due) due.set(item.id, Date.parse(item.due.at));
-  }
-  const before =
-    nextSyncAt ?? (due.size > 0 ? new Date(Math.max(...due.values())).toISOString() : undefined);
-  if (before !== undefined) {
-    const count = [...due.values()].filter((at) => at <= Date.parse(before)).length;
-    if (count > 0) fields.due = { count, before };
   }
   if (nextSyncAt !== undefined) fields.nextSync = nextSyncAt;
   return fields;

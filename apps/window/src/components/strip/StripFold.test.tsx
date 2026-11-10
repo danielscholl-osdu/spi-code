@@ -15,16 +15,14 @@ import { clockTime } from "../../time.js";
 import { midSweep } from "../sweep/test-helper.js";
 
 // Stubbed layout for the November 6 sweep: 13 pips are 153 px full and 102 px small, the gap is
-// 14 px. Unfolded the row needs 1028 px, with stopped as a count 878, with small pips 827; wrapped
-// from due on, the first row needs 469 and the second 344. Every level also keeps 48 px to drag.
+// 14 px. Unfolded the row needs 884 px, with stopped as a count 734, with small pips 683; wrapped
+// from next sync on, the first row needs 469 and the second 200. Every level keeps 48 px to drag.
 const WIDTHS: Record<string, number> = {
   "stopped.names": 216,
   "stopped.count": 66,
   "environment.full": 158,
   "environment.version": 80,
   template: 101,
-  "due.full": 130,
-  "due.count": 37,
   "next-sync": 108,
   freshness: 78,
 };
@@ -117,7 +115,7 @@ beforeEach(() => {
   };
   selectionStore.getState().clear();
   selectionStore.getState().setOpen(false);
-  layout = { first: 900, second: 1000, widths: { ...WIDTHS } };
+  layout = { first: 760, second: 1000, widths: { ...WIDTHS } };
   observers = new Map();
   vi.stubGlobal(
     "ResizeObserver",
@@ -159,6 +157,33 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
+it.each([1440, 740])("keeps next sync without a due field at %i px", async (width) => {
+  const previousWidth = window.innerWidth;
+  try {
+    window.innerWidth = width;
+    layout = { ...layout, first: width - 208, second: width - SECOND_PADDING };
+    const body = fixture();
+    expect([...body.briefing.focus, ...body.briefing.rest].some((item) => item.due)).toBe(true);
+    await mount();
+    expect(field("next-sync")?.textContent).toBe(
+      `next sync ${clockTime(body.briefing.nextSyncAt as string)}`,
+    );
+    expect(field("due")).toBeNull();
+    expect(strip()?.querySelector('[data-measure^="due"]')).toBeNull();
+    expect(strip()?.textContent).not.toMatch(/\d+ due/);
+    expect([...names("first"), ...names("second")]).toEqual([
+      "pips",
+      "stopped",
+      "environment",
+      "template",
+      "next-sync",
+      "freshness",
+    ]);
+  } finally {
+    window.innerWidth = previousWidth;
+  }
+});
+
 it("folds stopped to a count and shrinks the pips before it wraps, keeping one 44 px row", async () => {
   await mount();
   expect(strip()?.dataset.rows).toBe("1");
@@ -177,7 +202,7 @@ it("wraps at once when a field's content overflows the first row", async () => {
   await relayout({ widths: { ...layout.widths, "environment.full": 360 } });
   expect(strip()?.dataset.rows).toBe("2");
   expect(names("first")).toEqual(["pips", "stopped", "environment", "template"]);
-  expect(names("second")).toEqual(["due", "next-sync", "freshness"]);
+  expect(names("second")).toEqual(["next-sync", "freshness"]);
   const second = strip()?.querySelector<HTMLElement>('[data-strip-row="second"]');
   if (!second) throw new Error("Missing second row");
   expect(getComputedStyle(second).height).toBe("31px");
@@ -201,16 +226,15 @@ it("unwraps on a resize only with 24 px to spare beyond the drag area", async ()
   await mount();
   await relayout({ widths: { ...layout.widths, "environment.full": 360 } });
   layout.widths["environment.full"] = WIDTHS["environment.full"] as number;
-  await relayout({ first: 898 });
+  await relayout({ first: 754 });
   expect(strip()?.dataset.rows).toBe("2");
-  await relayout({ first: 899 });
+  await relayout({ first: 755 });
   expect(strip()?.dataset.rows).toBe("1");
   expect(names("first")).toEqual([
     "pips",
     "stopped",
     "environment",
     "template",
-    "due",
     "next-sync",
     "freshness",
   ]);
@@ -218,10 +242,10 @@ it("unwraps on a resize only with 24 px to spare beyond the drag area", async ()
 });
 
 it.each([
-  ["refresh, then resize", 899, "1"],
-  ["resize, then refresh", 899, "1"],
-  ["refresh, then resize", 898, "2"],
-  ["resize, then refresh", 898, "2"],
+  ["refresh, then resize", 755, "1"],
+  ["resize, then refresh", 755, "1"],
+  ["refresh, then resize", 754, "2"],
+  ["resize, then refresh", 754, "2"],
 ])("a %s of the same sweep to %i px leaves %s row(s)", async (order, first, rows) => {
   await mount();
   await relayout({ widths: { ...layout.widths, "environment.full": 360 } });
@@ -251,16 +275,12 @@ it("unwraps on a new sweep with slack", async () => {
 });
 
 it("shortens the second row's fields and keeps their full text on hover", async () => {
-  const body = fixture();
-  const nextSync = body.briefing.nextSyncAt as string;
-  layout = { ...layout, first: 240, second: 520 };
+  layout = { ...layout, first: 240, second: 420 };
   await mount();
   expect(names("first")).toEqual(["pips", "stopped"]);
-  expect(names("second")).toEqual(["environment", "template", "due", "next-sync", "freshness"]);
+  expect(names("second")).toEqual(["environment", "template", "next-sync", "freshness"]);
   expect(field("environment")?.textContent).toBe("env v0.35.3");
   expect(field("environment")?.title).toBe("env v0.35.3 deployable");
-  expect(field("due")?.textContent).toBe("10 due");
-  expect(field("due")?.title).toBe(`10 due before ${clockTime(nextSync)}`);
   expect(field("stopped")?.title).toBe("entitlements stopped");
 });
 
@@ -271,7 +291,6 @@ it("shows every field in full with no titles added when the row has room", async
   expect(field("stopped")?.textContent).toBe("entitlements stopped");
   expect(field("stopped")?.hasAttribute("title")).toBe(false);
   expect(field("environment")?.hasAttribute("title")).toBe(false);
-  expect(field("due")?.hasAttribute("title")).toBe(false);
 });
 
 it("names each folded field with its unfolded text", async () => {
@@ -279,19 +298,15 @@ it("names each folded field with its unfolded text", async () => {
     const node = strip()?.querySelector<HTMLElement>(`[data-field="${field}"]`);
     return node?.getAttribute("aria-label") ?? node?.textContent;
   };
-  const folded = ["stopped", "environment", "due"];
+  const folded = ["stopped", "environment"];
   layout = { ...layout, first: 1200 };
   await mount();
   const unfolded = folded.map(name);
   expect(unfolded.every((text) => text && !field("stopped")?.hasAttribute("aria-label"))).toBe(
     true,
   );
-  await relayout({ first: 240, second: 520 });
-  expect(folded.map((name) => field(name)?.textContent)).toEqual([
-    "1 stopped",
-    "env v0.35.3",
-    "10 due",
-  ]);
+  await relayout({ first: 240, second: 420 });
+  expect(folded.map((name) => field(name)?.textContent)).toEqual(["1 stopped", "env v0.35.3"]);
   expect(folded.map(name)).toEqual(unfolded);
 });
 
@@ -305,7 +320,7 @@ it("wraps a later sweep's longer freshness label to the second row like any othe
   );
   await relayout({ widths: { ...layout.widths, freshness: 190 } });
   expect(strip()?.dataset.rows).toBe("2");
-  expect(names("second")).toEqual(["due", "next-sync", "freshness"]);
+  expect(names("second")).toEqual(["next-sync", "freshness"]);
   expect(field("freshness")?.title).toBe(
     `Swept ${clockTime(body.sweptAt)} · sweeping, 9 of 12 sources done`,
   );

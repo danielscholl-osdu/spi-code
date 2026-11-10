@@ -31,11 +31,10 @@ const fields = (services: number, environment = 158): FieldWidths => ({
   stopped: { names: 216, count: 66 },
   environment: { full: environment, version: 80 },
   template: 101,
-  due: { full: 130, count: 37 },
   nextSync: 108,
   freshness: 78,
 });
-const LONG_ENVIRONMENT = 360;
+const LONG_ENVIRONMENT = 500;
 
 function plan(
   platform: Platform,
@@ -56,24 +55,24 @@ const folds = ({ level, shorten, first, second, height }: FoldPlan) => ({
 });
 
 describe("PS-18 order at every width", () => {
-  const due = ["due", "nextSync", "freshness"];
+  const trailing = ["nextSync", "freshness"];
   const cases: [Platform, number, number, number, string[]][] = [
     ["macOS", 1440, 13, 0, []],
-    ["macOS", 1100, 13, 2, []],
-    ["macOS", 980, 13, 3, due],
-    ["macOS", 740, 13, 3, due],
+    ["macOS", 1100, 13, 1, []],
+    ["macOS", 980, 13, 2, []],
+    ["macOS", 740, 13, 3, trailing],
     ["macOS", 1440, 20, 0, []],
-    ["macOS", 1100, 20, 3, due],
-    ["macOS", 980, 20, 3, due],
-    ["macOS", 740, 20, 4, ["template", ...due]],
+    ["macOS", 1100, 20, 1, []],
+    ["macOS", 980, 20, 3, trailing],
+    ["macOS", 740, 20, 4, ["template", ...trailing]],
     ["Windows", 1440, 13, 0, []],
-    ["Windows", 1100, 13, 3, due],
-    ["Windows", 980, 13, 3, due],
-    ["Windows", 740, 13, 4, ["template", ...due]],
+    ["Windows", 1100, 13, 1, []],
+    ["Windows", 980, 13, 3, trailing],
+    ["Windows", 740, 13, 4, ["template", ...trailing]],
     ["Windows", 1440, 20, 0, []],
-    ["Windows", 1100, 20, 3, due],
-    ["Windows", 980, 20, 3, due],
-    ["Windows", 740, 20, 4, ["template", ...due]],
+    ["Windows", 1100, 20, 2, []],
+    ["Windows", 980, 20, 3, trailing],
+    ["Windows", 740, 20, 4, ["template", ...trailing]],
   ];
 
   it.each(cases)(
@@ -91,12 +90,12 @@ describe("PS-18 order at every width", () => {
   );
 
   it("shrinks stopped names before the pips, and both before anything wraps", () => {
-    expect(plan("macOS", 1100, fields(13))).toMatchObject({
+    expect(plan("macOS", 980, fields(13))).toMatchObject({
       stopped: "count",
       pips: "small",
       second: [],
     });
-    expect(plan("macOS", 1200, fields(13))).toMatchObject({
+    expect(plan("macOS", 1100, fields(13))).toMatchObject({
       stopped: "count",
       pips: "full",
       second: [],
@@ -113,13 +112,13 @@ describe("PS-18 order at every width", () => {
     (platform, services) => {
       const next = plan(platform, 740, fields(services, LONG_ENVIRONMENT));
       expect(next.first).toEqual(["pips", "stopped"]);
-      expect(next.second).toEqual(["environment", "template", "due", "nextSync", "freshness"]);
-      expect(next).toMatchObject({ environment: "version", due: "full", fits: true, height: 75 });
+      expect(next.second).toEqual(["environment", "template", "nextSync", "freshness"]);
+      expect(next).toMatchObject({ environment: "version", fits: true, height: 75 });
       expect(next.free).toBeGreaterThanOrEqual(DRAG_AREA);
     },
   );
 
-  it("never wraps the second row again, dropping due to its count when it is still short", () => {
+  it("never wraps the second row again when shortening the environment", () => {
     const next = planFold({
       fields: fields(20, LONG_ENVIRONMENT),
       width: { first: 220, second: 560 },
@@ -128,14 +127,14 @@ describe("PS-18 order at every width", () => {
     });
     expect(next.first).toEqual(["pips"]);
     expect(next.second).toEqual(STRIP_FIELDS);
-    expect(next).toMatchObject({ environment: "version", due: "count", height: 75, fits: true });
+    expect(next).toMatchObject({ environment: "version", height: 75, fits: true });
   });
 
   it("keeps the PS-18 order when fields are absent", () => {
     const { stopped: _stopped, template: _template, ...content } = fields(13);
     const next = plan("macOS", 740, content);
     expect(next.first).toEqual(["pips", "environment"]);
-    expect(next.second).toEqual(["due", "nextSync", "freshness"]);
+    expect(next.second).toEqual(["nextSync", "freshness"]);
   });
 });
 
@@ -144,22 +143,21 @@ describe("hysteresis", () => {
     ...fields(13),
     stopped: { names: 110, count: 66 },
     environment: { full: 90, version: 80 },
-    due: { full: 120, count: 37 },
     freshness: 44,
   });
 
   it("keeps the previous plan when a content change shrinks the fields", () => {
-    const previous = plan("macOS", 980, fields(13));
-    expect(previous.second).toEqual(["due", "nextSync", "freshness"]);
-    const next = plan("macOS", 980, shrunk(), "content", previous);
+    const previous = plan("macOS", 900, fields(13));
+    expect(previous.second).toEqual(["nextSync", "freshness"]);
+    const next = plan("macOS", 900, shrunk(), "content", previous);
     expect(folds(next)).toEqual(folds(previous));
-    expect(plan("macOS", 980, shrunk()).second).toEqual([]);
+    expect(plan("macOS", 900, shrunk()).second).toEqual([]);
   });
 
   it("folds and wraps at once when a content change grows the fields", () => {
-    const previous = plan("macOS", 1100, fields(13));
+    const previous = plan("macOS", 980, fields(13));
     expect(previous.level).toBe(2);
-    const next = plan("macOS", 1100, fields(13, LONG_ENVIRONMENT), "content", previous);
+    const next = plan("macOS", 980, fields(13, 360), "content", previous);
     expect(next.level).toBe(3);
     expect(next.height).toBe(75);
   });
@@ -167,13 +165,13 @@ describe("hysteresis", () => {
   it("folds at once when the window narrows", () => {
     const previous = plan("macOS", 1440, fields(13));
     expect(previous.level).toBe(0);
-    expect(plan("macOS", 1100, fields(13), "resize", previous).level).toBe(2);
+    expect(plan("macOS", 980, fields(13), "resize", previous).level).toBe(2);
   });
 
   it.each(["resize", "sweep"] as const)("unwraps on a %s with 24 px of slack, not 23", (change) => {
-    const previous = plan("macOS", 980, fields(13));
+    const previous = plan("macOS", 900, fields(13));
     expect(previous.level).toBe(3);
-    const needs = 827 + DRAG_AREA + GEOMETRY.macOS.lead + GEOMETRY.macOS.trail;
+    const needs = 683 + DRAG_AREA + GEOMETRY.macOS.lead + GEOMETRY.macOS.trail;
     expect(plan("macOS", needs, fields(13)).level).toBe(2);
 
     const tight = plan("macOS", needs + 23, fields(13), change, previous);
@@ -188,7 +186,7 @@ describe("hysteresis", () => {
     const content = fields(20, LONG_ENVIRONMENT);
     const at = (second: number, change: FoldChange, previous?: FoldPlan) =>
       planFold({ fields: content, width: { first: 220, second }, gap: GAP, change, previous });
-    const full = LONG_ENVIRONMENT + 66 + 101 + 130 + 108 + 78 + 5 * GAP;
+    const full = LONG_ENVIRONMENT + 66 + 101 + 108 + 78 + 4 * GAP;
     const previous = at(full - 1, "resize");
     expect(previous.environment).toBe("version");
     expect(at(full + 23, "resize", previous).environment).toBe("version");

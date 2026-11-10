@@ -7,9 +7,8 @@ import { openSheet } from "../../app/navigation.js";
 import { ariaShortcut } from "../../app/shortcuts.js";
 import { PIPS, type PipState, selectStrip } from "../../store/strip.js";
 import { watchStore } from "../../store/watch.js";
-import { clockTime, Time } from "../../time.js";
+import { Time } from "../../time.js";
 import { firstSweepForms, SweepLine } from "../evidence/SweepLine.js";
-import { useNow } from "../evidence/useNow.js";
 import { PinMenu } from "../pin/PinMenu.js";
 import { useSidebar } from "../sidebar/ui-sidebar.js";
 import { openFreshness } from "../sweep/reveal.js";
@@ -24,7 +23,7 @@ const SHAPES: Readonly<Record<PipState, string>> = {
   "nothing-due": "hollow",
 };
 
-const RIGHT: readonly StripField[] = ["due", "nextSync", "freshness"];
+const RIGHT: readonly StripField[] = ["nextSync", "freshness"];
 
 /** The top row's pips and fields in PS-18 reading order, folded and wrapped by its fold plan. */
 export function Strip() {
@@ -34,7 +33,6 @@ export function Strip() {
   const root = useRef<HTMLDivElement>(null);
   const { isMobile } = useSidebar();
   const plan = useFoldPlan(root, snapshot, isMobile);
-  const now = useNow();
   const stoppedLabel = useId();
   const firstStopped =
     !snapshot && (progress?.outcome === "failed" || progress?.outcome === "cancelled");
@@ -89,7 +87,7 @@ export function Strip() {
       </div>
     );
   }
-  const { pips, stopped, environment, template, due, nextSync } = selectStrip(snapshot);
+  const { pips, stopped, environment, template, nextSync } = selectStrip(snapshot);
   const counts = [
     ["stopped", "stopped"],
     ["needs-person", "need a person"],
@@ -107,8 +105,6 @@ export function Strip() {
   const environmentFull = environment
     ? `env ${environment.version}${environment.state ? ` ${environment.state}` : ""}`
     : "";
-  // Folded fields keep their unfolded text as their accessible name, read as <Time> reads it.
-  const dueFull = due ? `${due.count} due before ${clockTime(due.before, { now })}` : "";
   const fields: Partial<Record<"pips" | StripField, ReactNode>> = {
     ...(pips.length > 0 && {
       pips: (
@@ -189,29 +185,6 @@ export function Strip() {
         </button>
       ),
     }),
-    ...(due && {
-      due: (
-        <button
-          key="due"
-          type="button"
-          data-field="due"
-          data-tone="warn"
-          {...(plan?.due === "count" && {
-            title: dueFull,
-            "aria-label": dueFull,
-          })}
-          onClick={() => openSheet()}
-        >
-          {plan?.due === "count" ? (
-            `${due.count} due`
-          ) : (
-            <>
-              {due.count} due before <Time at={due.before} />
-            </>
-          )}
-        </button>
-      ),
-    }),
     ...(nextSync && {
       nextSync: (
         <button key="next-sync" type="button" data-field="next-sync" onClick={() => openSheet()}>
@@ -273,14 +246,6 @@ export function Strip() {
               {template.verified}/{template.total}
             </b>
           </span>
-        )}
-        {due && (
-          <>
-            <span data-measure={MEASURE.dueFull}>
-              {due.count} due before <Time at={due.before} />
-            </span>
-            <span data-measure={MEASURE.dueCount}>{due.count} due</span>
-          </>
         )}
         {nextSync && (
           <span data-measure={MEASURE.nextSync}>
