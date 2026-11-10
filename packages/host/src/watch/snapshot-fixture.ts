@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import {
   AREAS,
   builtInFleet,
+  CORE_LIB_REPO,
   createContext,
   emptyFacts,
   type Facts,
@@ -14,6 +15,7 @@ import {
   LEAD_TIME_MS,
   type PrFact,
   parseRollout,
+  pinKey,
   type ReadRecord,
   type ReleaseReads,
   type RepoFact,
@@ -414,8 +416,10 @@ function morningInput(adopted: number): WatchInput {
   }
   const releases: ReleaseReads = {
     at: MORNING_AT,
-    releases: {},
-    created: {},
+    releases: {
+      [CORE_LIB_REPO]: [{ tag: "v5.0.0", at: "2026-11-05T10:00:00Z", body: "" }],
+    },
+    created: { [CORE_LIB_REPO]: "2026-01-01T00:00:00Z" },
     pins: {},
     errors: {},
   };
@@ -565,6 +569,12 @@ export function busyInput(): WatchInput {
     queuedChange(input, service, value);
   for (const [index, fork] of input.context.fleet.forks.entries()) {
     const repo = morningRepo(input, fork.id);
+    const release = input.releases.releases[fork.repo]?.[0];
+    if (!release) throw new Error(`Morning fixture lacks release for ${fork.id}`);
+    input.releases.pins[pinKey(fork.repo, release.tag)] = {
+      lib: index < 2 ? "5.0.0" : index < 6 ? "4.0.0" : index < 12 ? "3.0.1" : "2.5.10",
+      java: "21",
+    };
     if (index < 8)
       repo.prs.push(
         morningPr(repo, 600 + index, "release-please--branches--main", "chore: release 1.5.0"),
