@@ -138,6 +138,7 @@ export function briefingProvenance(briefing: Briefing, stack: StackModel): Value
   add("/briefing/headline", MODEL);
   add("/briefing/summary", MODEL);
   add("/briefing/more", MODEL);
+  if ("since" in briefing && briefing.since) add("/briefing/since", ["runs", "github", "template"]);
   for (const [i, fact] of briefing.facts.entries()) {
     add(`/briefing/facts/${i}/figure`, briefFactAreas(fact.label, stack));
   }

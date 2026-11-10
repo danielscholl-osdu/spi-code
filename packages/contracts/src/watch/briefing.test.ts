@@ -72,3 +72,33 @@ describe("Briefing contract", () => {
     expect(BriefingSchema.safeParse(invalid).success).toBe(false);
   });
 });
+
+describe("since observation time", () => {
+  it("requires asOf for stale rows", () => {
+    expect(
+      BriefingSchema.safeParse({
+        ...briefing,
+        since: { basis: "stale", from: briefing.environment.from, rows: [] },
+      }).success,
+    ).toBe(false);
+    expect(
+      BriefingSchema.safeParse({
+        ...briefing,
+        since: {
+          basis: "stale",
+          from: briefing.environment.from,
+          asOf: briefing.environment.to,
+          rows: [],
+        },
+      }).success,
+    ).toBe(true);
+  });
+  it.each(["seen", "fallback", "history-short"])("forbids asOf for %s rows", (basis) => {
+    const since = { basis, from: briefing.environment.from, rows: [] };
+    expect(BriefingSchema.safeParse({ ...briefing, since }).success).toBe(true);
+    expect(
+      BriefingSchema.safeParse({ ...briefing, since: { ...since, asOf: briefing.environment.to } })
+        .success,
+    ).toBe(false);
+  });
+});

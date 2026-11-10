@@ -35,6 +35,8 @@ import { type UpstreamView, upstreamView } from "./upstream.js";
 import { ago as agoText, deployableWords, streakText } from "./words.js";
 import type { Voice } from "../voice.js";
 
+export { sinceOf } from "./since.js";
+
 export type Tone = "bad" | "warn" | "ok" | "neutral";
 
 export interface Link {

@@ -34,6 +34,7 @@ import {
   releasesToday,
   STACK_REPO,
   type SweepReads,
+  sinceOf,
 } from "@spi-code/core";
 import { type AttentionInput, itemAttention } from "./attention.js";
 import { detectedCampaigns } from "./campaigns.js";
@@ -232,6 +233,14 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
   });
   const briefing = {
     ...coreBriefing,
+    since: sinceOf(
+      model,
+      input.facts,
+      now,
+      input.intervals?.runs ?? input.intervalMs,
+      undefined,
+      input.reads.runs,
+    ),
     focus: coreBriefing.focus.map(projectItem),
     rest: coreBriefing.rest.map(projectItem),
     repositories: repositoryLines(coreBriefing.repositories, model, now),
@@ -264,6 +273,7 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
         workflow: run.name,
         result: run.status === "completed" ? (run.conclusion ?? "completed") : run.status,
         time: run.createdAt,
+        ...(run.status === "completed" ? { completedAt: run.updatedAt } : {}),
         url: run.url,
       })),
     releases: documents.flatMap((doc) =>

@@ -80,7 +80,14 @@ async function runs(gh: Gh, path: string, window?: number) {
     if (window !== undefined || byId.size >= total || result.runs.length === 0) break;
   }
   const data = [...byId.values()];
-  return { data, completeness: cut(data.length, wanted, `${path}: run read cut`) };
+  return {
+    data,
+    history: {
+      from: data.map((run) => run.createdAt).sort((a, b) => Date.parse(a) - Date.parse(b))[0],
+      complete: data.length >= total,
+    },
+    completeness: cut(data.length, wanted, `${path}: run read cut`),
+  };
 }
 
 export async function readTemplateRuns(
@@ -113,7 +120,10 @@ export async function readForkRuns(
         runs(gh, `${base}/workflows/cascade.yml/runs?per_page=5`, 5),
         runs(gh, `${base}/workflows/validate.yml/runs?branch=main&event=push&per_page=5`, 5),
       ]);
-      data[f.repo] = { sync: sync.data, template: template.data, cascade: cascade.data, main: main.data };
+      data[f.repo] = {
+        sync: sync.data, template: template.data, cascade: cascade.data, main: main.data,
+        history: { sync: sync.history, template: template.history },
+      };
       return { ...read, completeness: combine([sync, template, cascade, main].map((r) => r.completeness)) };
     } catch (error) {
       return { ...read, failure: errorText(error) };
