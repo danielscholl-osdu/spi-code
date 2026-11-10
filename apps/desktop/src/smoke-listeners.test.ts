@@ -162,6 +162,7 @@ describe("TCP listener evidence", () => {
         rendererPids: [103, 104],
         scannedPids: [100, 101, 102, 103, 104, 106, 107, 108, 109],
         scanDurationMs: expect.any(Number),
+        processQueryAttempts: 1,
         listeners: [],
       });
       expect(process.kill).not.toHaveBeenCalled();
@@ -183,7 +184,7 @@ describe("TCP listener evidence", () => {
         );
       for (const [, , timeout] of exec.mock.calls) {
         expect(timeout).toBeGreaterThan(0);
-        expect(timeout).toBeLessThanOrEqual(8000);
+        expect(timeout).toBeLessThanOrEqual(platform === "win32" ? 30000 : 8000);
       }
     });
 
@@ -296,7 +297,7 @@ describe("TCP listener evidence", () => {
       });
     });
 
-    it("measures both snapshots and shares an eight-second scan budget", async () => {
+    it("measures both snapshots within the platform's shared scan budget", async () => {
       let now = 100;
       vi.spyOn(performance, "now").mockImplementation(() => now);
       const exec = fixture();
@@ -309,7 +310,9 @@ describe("TCP listener evidence", () => {
       ).resolves.toMatchObject({
         scanDurationMs: 250,
       });
-      expect(exec.mock.calls.map(([, , timeout]) => timeout)).toEqual([8000, 7875]);
+      expect(exec.mock.calls.map(([, , timeout]) => timeout)).toEqual(
+        platform === "win32" ? [30000, 15000] : [8000, 7875],
+      );
     });
 
     it("does not start another command once the scan budget is spent", async () => {
@@ -317,14 +320,131 @@ describe("TCP listener evidence", () => {
       vi.spyOn(performance, "now").mockImplementation(() => now);
       const exec = fixture();
       const timed: Exec = async (...args) => {
-        now = 8000;
+        now = platform === "win32" ? 30000 : 8000;
         return exec(...args);
       };
       await expect(
         assertNoProcessListeners(100, 101, { runtimePath, exec: timed }),
-      ).rejects.toThrow("Listener scan exceeded 8000 ms");
+      ).rejects.toThrow(`Listener scan exceeded ${platform === "win32" ? 30000 : 8000} ms`);
       expect(exec).toHaveBeenCalledTimes(1);
     });
+
+    if (platform === "win32") {
+      const timeoutError = () =>
+        Object.assign(new Error("CIM timed out"), { code: null, killed: true, signal: "SIGTERM" });
+
+      it.each(["exit", "timeout"])(
+        "recovers from one CIM %s failure and reports attempt two",
+        async (failure) => {
+          let now = 0;
+          vi.spyOn(performance, "now").mockImplementation(() => now);
+          const base = fixture();
+          let queries = 0;
+          const exec: Exec = (file, args, timeout) => {
+            if (file === "powershell.exe" && ++queries === 1) {
+              if (failure === "timeout") now += timeout;
+              return failure === "exit"
+                ? Promise.resolve({ status: 1, stdout: "", stderr: "CIM unavailable" })
+                : Promise.reject(timeoutError());
+            }
+            return base(file, args, timeout);
+          };
+          const sleep = vi.fn(async (ms: number) => {
+            now += ms;
+          });
+          await expect(
+            assertNoProcessListeners(100, 101, { runtimePath, exec, sleep }),
+          ).resolves.toMatchObject({
+            processQueryAttempts: 2,
+            scannedPids: [100, 101, 102, 103, 104, 106, 107, 108, 109],
+          });
+          expect(queries).toBe(2);
+          expect(sleep.mock.calls).toEqual([[250]]);
+        },
+      );
+
+      it.each(["exit", "timeout"])(
+        "fails after three CIM %s failures with the attempt count",
+        async (failure) => {
+          const base = fixture();
+          let queries = 0;
+          const exec: Exec = (file, args, timeout) => {
+            if (file !== "powershell.exe") return base(file, args, timeout);
+            queries++;
+            return failure === "exit"
+              ? Promise.resolve({ status: 1, stdout: "", stderr: "CIM unavailable" })
+              : Promise.reject(timeoutError());
+          };
+          const sleep = vi.fn(async () => {});
+          await expect(
+            assertNoProcessListeners(100, 101, { runtimePath, exec, sleep }),
+          ).rejects.toThrow(
+            /Windows process query failed after 3 attempts.*(?:CIM unavailable|SIGTERM)/s,
+          );
+          expect(queries).toBe(3);
+          expect(sleep.mock.calls).toEqual([[250], [250]]);
+        },
+      );
+
+      it("gives a cold CIM query more than eight seconds, within the total budget", async () => {
+        let now = 0;
+        vi.spyOn(performance, "now").mockImplementation(() => now);
+        const base = fixture();
+        const exec: Exec = async (...args) => {
+          if (args[0] === "powershell.exe") now += 10000;
+          return base(...args);
+        };
+        await expect(
+          assertNoProcessListeners(100, 101, { runtimePath, exec }),
+        ).resolves.toMatchObject({
+          scanDurationMs: 10000,
+          processQueryAttempts: 1,
+        });
+      });
+
+      it("stops retrying when timed-out queries consume the scan deadline", async () => {
+        let now = 0;
+        vi.spyOn(performance, "now").mockImplementation(() => now);
+        const base = fixture();
+        let queries = 0;
+        const exec: Exec = async (file, args, timeout) => {
+          if (file !== "powershell.exe") return base(file, args, timeout);
+          queries++;
+          now += timeout;
+          throw timeoutError();
+        };
+        const sleep = vi.fn(async (ms: number) => {
+          now += ms;
+        });
+        await expect(
+          assertNoProcessListeners(100, 101, { runtimePath, exec, sleep }),
+        ).rejects.toThrow(/Windows process query failed after 2 attempts.*SIGTERM/s);
+        expect(queries).toBe(2);
+        expect(now).toBe(30000);
+        expect(sleep.mock.calls).toEqual([[250]]);
+      });
+
+      it.each(["listener", "missing host", "malformed JSON"])(
+        "does not retry invalid %s evidence",
+        async (failure) => {
+          const base = fixture(
+            failure === "listener" ? 102 : undefined,
+            failure === "missing host" ? tree.filter(({ pid }) => pid !== 101) : tree,
+          );
+          const exec = vi.fn<Exec>((file, args, timeout) =>
+            file === "powershell.exe" && failure === "malformed JSON"
+              ? ok("invalid JSON")
+              : base(file, args, timeout),
+          );
+          const sleep = vi.fn(async () => {});
+          await expect(
+            assertNoProcessListeners(100, 101, { runtimePath, exec, sleep }),
+          ).rejects.toThrow();
+          expect(exec).toHaveBeenCalledTimes(2);
+          expect(sleep).not.toHaveBeenCalled();
+        },
+      );
+    }
 
     it("fails closed if the runtime is missing during the packaged handshake", async () => {
       const exec = fixture(

@@ -271,12 +271,21 @@ The listener scan checks the main pid and every app descendant, including the
 Copilot runtime before it stops. Each scan takes one socket snapshot (`lsof` on
 macOS, `netstat -ano` on Windows), followed by one process-table snapshot (`ps`
 or CIM). Start times exclude stale parent links and reused pids; exited
-processes need no liveness probes. Both queries share an eight-second budget.
+processes need no liveness probes. Both queries share an eight-second budget on
+macOS and a 30-second budget on Windows. Windows CIM requests only process ids,
+parent ids, command lines and creation times. Command failures (including timeout
+SIGTERM) retry at most three times with a 250 ms backoff; each query gets at most
+15 seconds within that shared deadline, allowing a cold runner more than the
+former eight seconds. Invalid process rows, missing app processes and listeners
+fail without retry. The runtime-report wait allows the scan budget plus seven
+seconds; the host hello and whole-smoke deadlines are unchanged.
 `smoke.json` records the runtime scan's `scannedPids` and `scanDurationMs` under
-`runtime.listenerCheck`. `scannedPids` lists only the pids the socket snapshot
+`runtime.listenerCheck`, alongside `processQueryAttempts`, the successful process
+query's one-based attempt. Exhaustion reports the attempt count and command
+failures. `scannedPids` lists only the pids the socket snapshot
 sampled, never the scan's own `ps` or PowerShell, and the packaged gate fails
 unless it holds the main, host, runtime and renderer pids and the duration is
-under eight seconds. The scan runs after the handshake, without extending
+under its platform's shared budget. The scan runs after the handshake, without extending
 the host's hello deadline.
 Runtime staging excludes compiled `*.test.*` files and `smoke-launch.*`, including
 their declarations and maps, across the desktop and bundled workspace libraries.

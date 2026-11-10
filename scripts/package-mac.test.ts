@@ -151,6 +151,7 @@ describe("packaged smoke gate", () => {
       rendererPids: [44, 45],
       scannedPids: [41, 42, 43, 44, 45, 46],
       scanDurationMs: 412.5,
+      processQueryAttempts: 1,
       listeners: [],
     },
   };
@@ -169,15 +170,28 @@ describe("packaged smoke gate", () => {
       windowsResources,
       "app.asar.unpacked/node_modules/@github/copilot-sdk-win32-x64/prebuilds/win32-x64/copilot-runtime.exe",
     );
-    const check = (path: string) =>
+    const check = (path: string, listenerCheck = evidence.listenerCheck) =>
       assertRuntimeEvidence(
         { mainPid: 41, hostPid: 42 },
-        { ...evidence, runtimePath: path },
+        { ...evidence, runtimePath: path, listenerCheck },
         windowsResources,
         "win32",
         "x64",
       );
     expect(() => check(runtimePath)).not.toThrow();
+    expect(() =>
+      check(runtimePath, {
+        ...evidence.listenerCheck,
+        scanDurationMs: 12000,
+        processQueryAttempts: 2,
+      }),
+    ).not.toThrow();
+    for (const invalid of [
+      { scanDurationMs: 30000 },
+      { processQueryAttempts: 0 },
+      { processQueryAttempts: 4 },
+    ])
+      expect(() => check(runtimePath, { ...evidence.listenerCheck, ...invalid })).toThrow();
     for (const path of [
       runtimePath.replace("app.asar.unpacked", "app.asar"),
       runtimePath.replaceAll("win32-x64", "darwin-arm64"),
@@ -222,6 +236,11 @@ describe("packaged smoke gate", () => {
     { scanDurationMs: Number.POSITIVE_INFINITY },
     { scanDurationMs: -1 },
     { scanDurationMs: 8000 },
+    { processQueryAttempts: undefined },
+    { processQueryAttempts: 0 },
+    { processQueryAttempts: 2 },
+    { processQueryAttempts: "1" },
+    { processQueryAttempts: 1.5 },
   ])("rejects missing scan coverage or timing: %o", (listenerCheck) => {
     const invalid = withListenerCheck(listenerCheck);
     expect(() =>

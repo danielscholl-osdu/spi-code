@@ -3,6 +3,10 @@
 
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { setTimeout as delay } from "node:timers/promises";
+
+export const listenerScanBudget = (platform = process.platform) =>
+  platform === "win32" ? 30000 : 8000;
 
 export interface ExecResult {
   status: number;
@@ -140,21 +144,71 @@ interface ProcessRow {
 interface ProcessTable {
   rows: ProcessRow[];
   scanPid: number | undefined;
+  processQueryAttempts: number;
 }
 
-async function processTree(exec: Exec, timeout: number): Promise<ProcessTable> {
+async function windowsProcessQuery(
+  exec: Exec,
+  remaining: () => number,
+  sleep: (ms: number) => Promise<unknown>,
+) {
+  const errors: unknown[] = [];
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    let timeout: number;
+    try {
+      timeout = Math.min(15000, remaining());
+    } catch (error) {
+      if (!errors.length) throw error;
+      break;
+    }
+    try {
+      const result = await runResult(
+        exec,
+        "powershell.exe",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          '$ErrorActionPreference = "Stop"; [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId,CommandLine,CreationDate | Select-Object ProcessId,ParentProcessId,CommandLine,@{Name="StartedAt";Expression={if ($_.CreationDate) { ([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds() } else { $null }}} | ConvertTo-Json -Compress',
+        ],
+        timeout,
+      );
+      return { ...result, processQueryAttempts: attempt };
+    } catch (error) {
+      errors.push(error);
+      if (attempt === 3) break;
+      try {
+        if (remaining() <= 250) break;
+      } catch {
+        break;
+      }
+      await sleep(250);
+    }
+  }
+  const details = errors
+    .map((error) => {
+      const signal =
+        error && typeof error === "object" && "signal" in error ? ` (signal ${error.signal})` : "";
+      return `${error instanceof Error ? error.message : String(error)}${signal}`;
+    })
+    .join("; ");
+  throw new AggregateError(
+    errors,
+    `Windows process query failed after ${errors.length} attempts: ${details}`,
+  );
+}
+
+async function processTree(
+  exec: Exec,
+  remaining: () => number,
+  sleep: (ms: number) => Promise<unknown>,
+): Promise<ProcessTable> {
   if (process.platform === "win32") {
-    const { stdout: output, pid: scanPid } = await runResult(
-      exec,
-      "powershell.exe",
-      [
-        "-NoProfile",
-        "-NonInteractive",
-        "-Command",
-        '$ErrorActionPreference = "Stop"; [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine,@{Name="StartedAt";Expression={if ($_.CreationDate) { ([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds() } else { $null }}} | ConvertTo-Json -Compress',
-      ],
-      timeout,
-    );
+    const {
+      stdout: output,
+      pid: scanPid,
+      processQueryAttempts,
+    } = await windowsProcessQuery(exec, remaining, sleep);
     const parsed: unknown = JSON.parse(output);
     const rows = (Array.isArray(parsed) ? parsed : [parsed]).map((row: unknown) => {
       assert(row && typeof row === "object", "Invalid Windows process row");
@@ -174,13 +228,13 @@ async function processTree(exec: Exec, timeout: number): Promise<ProcessTable> {
         startedAt: row.StartedAt === null ? null : Number(row.StartedAt),
       };
     });
-    return { rows, scanPid };
+    return { rows, scanPid, processQueryAttempts };
   }
   const { stdout, pid: scanPid } = await runResult(
     exec,
     "ps",
     ["-axww", "-o", "pid=,ppid=,lstart=,command="],
-    timeout,
+    remaining(),
   );
   const rows = stdout
     .split("\n")
@@ -199,7 +253,7 @@ async function processTree(exec: Exec, timeout: number): Promise<ProcessTable> {
         startedAt,
       };
     });
-  return { rows, scanPid };
+  return { rows, scanPid, processQueryAttempts: 1 };
 }
 
 function descendants(root: number, processes: readonly ProcessRow[]): ProcessRow[] {
@@ -231,19 +285,24 @@ function descendants(root: number, processes: readonly ProcessRow[]): ProcessRow
 export async function assertNoProcessListeners(
   mainPid: number,
   hostPid: number,
-  options: { runtimePath?: string; exec?: Exec } = {},
+  options: { runtimePath?: string; exec?: Exec; sleep?(ms: number): Promise<unknown> } = {},
 ) {
   const started = performance.now();
+  const budget = listenerScanBudget();
   const remaining = () => {
-    const timeout = Math.floor(8000 - (performance.now() - started));
-    assert(timeout > 0, "Listener scan exceeded 8000 ms");
+    const timeout = Math.floor(budget - (performance.now() - started));
+    assert(timeout > 0, `Listener scan exceeded ${budget} ms`);
     return timeout;
   };
-  const { runtimePath, exec = execText } = options;
+  const { runtimePath, exec = execText, sleep = (ms: number) => delay(ms) } = options;
   // Sockets first: exited processes disappear from the tree, and reused pids have a newer birth.
   const socketStartedAt = Date.now();
   const sockets = await socketSnapshot(exec, remaining());
-  const { rows: processes, scanPid } = await processTree(exec, remaining());
+  const {
+    rows: processes,
+    scanPid,
+    processQueryAttempts,
+  } = await processTree(exec, remaining, sleep);
   assert(
     processes.some(({ pid }) => pid === mainPid),
     "App main process is missing",
@@ -279,5 +338,14 @@ export async function assertNoProcessListeners(
   assert.deepEqual(listeners, [], "TCP listener found in the app process tree");
   remaining();
   const scanDurationMs = performance.now() - started;
-  return { mainPid, hostPid, runtimePids, rendererPids, scannedPids, listeners, scanDurationMs };
+  return {
+    mainPid,
+    hostPid,
+    runtimePids,
+    rendererPids,
+    scannedPids,
+    listeners,
+    scanDurationMs,
+    processQueryAttempts,
+  };
 }
