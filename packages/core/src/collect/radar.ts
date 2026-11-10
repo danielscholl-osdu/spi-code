@@ -90,7 +90,8 @@ function fillHunks(diffs: readonly RawDiff[], changes: readonly RawDiff[]): RawD
   return diffs.map((d) => {
     if (!missingHunk(d)) return d;
     const change = full.get(`${d.old_path}\0${d.new_path}`);
-    return change && !missingHunk(change) ? { ...d, diff: change.diff ?? "", too_large: false, collapsed: false } : d;
+    const whole = change && typeof change.diff === "string" && change.too_large !== true && change.collapsed !== true;
+    return whole ? { ...d, diff: change.diff, too_large: false, collapsed: false } : d;
   });
 }
 

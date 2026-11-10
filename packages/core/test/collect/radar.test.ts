@@ -389,7 +389,9 @@ const collapsedMrs: Record<
   12: { file: ".fossa.yml", flag: "collapsed", full: fossa },
 };
 
-function collapsedSweep(full: "ok" | "fails" | "answers for another head" | "still collapses") {
+function collapsedSweep(
+  full: "ok" | "fails" | "answers for another head" | "still collapses" | "omits the diff",
+) {
   return routed((path) => {
     if (path.endsWith("contents/.github/upstream-filter.yml")) return filterFile(collapsedFilter);
     if (path.includes("/merge_requests?state=opened")) return [mr(11), mr(12)];
@@ -403,7 +405,9 @@ function collapsedSweep(full: "ok" | "fails" | "answers for another head" | "sti
     const change =
       full === "still collapses"
         ? { ...changeOf(case_.file, ""), [case_.flag]: true }
-        : changeOf(case_.file, case_.full);
+        : full === "omits the diff"
+          ? { old_path: case_.file, new_path: case_.file }
+          : changeOf(case_.file, case_.full);
     return {
       sha: full === "answers for another head" ? "moved" : `head${iid}`,
       changes: [change, other],
@@ -443,7 +447,7 @@ test("a too_large pom.xml and a collapsed .fossa.yml are classified from the ful
   expect(again.services.partition?.mrs.map((m) => m.hunks)).toEqual([pomMr?.hunks, fossaMr?.hunks]);
 });
 
-test.each(["fails", "answers for another head", "still collapses"] as const)(
+test.each(["fails", "answers for another head", "still collapses", "omits the diff"] as const)(
   "when the full read %s the MR read stays cut with the current reason and is retried",
   async (full) => {
     const state = emptyRadarState();
