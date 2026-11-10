@@ -16,11 +16,22 @@ const OBSERVED = new Set(["sweep.progress", "sweep.status", "view.snapshot", "se
 const TITLE = "SPI Code can't read the program";
 
 type Progress = Extract<Message, { type: "sweep.progress" }>["payload"];
+type SigninTool = NonNullable<ReturnType<typeof signedOutTool>>;
 
-type Outage = { notified: boolean; banner?: Notification } & (
-  | { kind: "signin"; sources: ReadonlySet<string>; failures: (string | null)[] }
-  | { kind: "stalled" }
-);
+interface Signin {
+  sources: ReadonlySet<string>;
+  failures: (string | null)[];
+  tool: SigninTool | null;
+}
+
+/** One outage: a lost sign-in, a stall, or both; it shows one banner, whichever is first told. */
+interface Outage {
+  notified: boolean;
+  banner?: Notification;
+  shown?: "signin" | "stalled";
+  stalled: boolean;
+  signin: Signin | null;
+}
 
 export interface OutageOptions {
   focused(): boolean;
@@ -31,8 +42,9 @@ export interface OutageOptions {
 
 /**
  * One "can't read the program" banner per outage (PS-19): (a) a source that read earlier in this
- * run now fails for sign-in, or (b) no sweep commits for 15 awake minutes. A committed sweep ends the
- * outage. Held in memory for this app run; skipped, and retried later, while the window is focused.
+ * run now fails for sign-in, or (b) no sweep commits for 15 awake minutes. A commit ends a stall; a
+ * lost sign-in ends when its source reads again or setup reports its tool signed back in. Held in
+ * memory for this app run; skipped, and retried later, while the window is focused.
  */
 export function createOutageNotifications({
   focused,
@@ -45,35 +57,39 @@ export function createOutageNotifications({
   const finished = new Set<string>();
   let tools: ToolStates = new Map();
   let sweptAt: string | null = null;
+  let cursor: number | null = null;
   let lastFailure: string | null = null;
   let retryMs = RETRY_MS;
   let outage: Outage | null = null;
   let stall: ReturnType<typeof setTimeout> | undefined;
   let armed = false;
+  /** After a wake, an outage waits for the next sweep to end, so the wake sweep can commit first. */
+  let waking = false;
   let disposed = false;
   let retry: ReturnType<typeof setTimeout> | undefined;
 
-  const body = (current: Outage): string | null => {
-    if (current.kind === "signin") {
-      const tool = signedOutTool(current.failures, tools);
-      if (tool === null) return null;
-      return sweptAt === null
-        ? `${tool} is signed out.`
-        : `${tool} is signed out. Today is from ${clockTime(sweptAt)}.`;
+  const tell = (current: Outage): { shown: "signin" | "stalled"; text: string } | null => {
+    const tool = current.signin?.tool;
+    if (tool) {
+      const text =
+        sweptAt === null
+          ? `${tool} is signed out.`
+          : `${tool} is signed out. Today is from ${clockTime(sweptAt)}.`;
+      return { shown: "signin", text };
     }
-    if (sweptAt === null) return null;
+    if (!current.stalled || sweptAt === null) return null;
     const since = `No sweep has finished since ${clockTime(sweptAt)}.`;
-    if (lastFailure === null) return since;
-    const reason = notificationText(lastFailure, 120);
-    if (!reason) return since;
-    return /[.!?]$/.test(reason) ? `${since} Last: ${reason}` : `${since} Last: ${reason}.`;
+    const reason = lastFailure === null ? "" : notificationText(lastFailure, 120);
+    if (!reason) return { shown: "stalled", text: since };
+    const last = /[.!?]$/.test(reason) ? reason : `${reason}.`;
+    return { shown: "stalled", text: `${since} Last: ${last}` };
   };
 
   const deliver = () => {
     const current = outage;
-    if (current === null || current.notified || !Notification.isSupported()) return;
-    const text = body(current);
-    if (text === null) return;
+    if (current === null || current.notified || waking || !Notification.isSupported()) return;
+    const told = tell(current);
+    if (told === null) return;
     if (focused()) {
       retry ??= setTimeout(() => {
         retry = undefined;
@@ -83,11 +99,12 @@ export function createOutageNotifications({
     }
     clearTimeout(retry);
     retry = undefined;
-    const notification = new Notification({ title: TITLE, body: text });
+    const notification = new Notification({ title: TITLE, body: told.text });
     current.notified = true;
+    current.shown = told.shown;
     current.banner = notification;
     const destination: WindowDestination =
-      current.kind === "signin" ? { to: "readiness" } : { to: "evidence" };
+      told.shown === "signin" ? { to: "readiness" } : { to: "evidence" };
     const forget = () => {
       if (current.banner === notification) delete current.banner;
     };
@@ -110,9 +127,24 @@ export function createOutageNotifications({
     retry = undefined;
   };
 
+  const attribute = () => {
+    const signin = outage?.signin;
+    if (signin) signin.tool = signedOutTool(signin.failures, tools) ?? signin.tool;
+  };
+
+  /** The lost sign-in is back; a stall that outlives it stays the same outage until a commit. */
+  const recovered = () => {
+    if (outage === null) return;
+    if (!outage.stalled) return end();
+    outage.signin = null;
+    if (outage.shown === "signin") outage.banner?.close();
+  };
+
   const stalled = () => {
     stall = undefined;
-    outage ??= { kind: "stalled", notified: false };
+    waking = false;
+    outage ??= { notified: false, stalled: false, signin: null };
+    outage.stalled = true;
     deliver();
   };
 
@@ -126,7 +158,10 @@ export function createOutageNotifications({
   const committed = () => {
     lastFailure = null;
     watchFrom();
-    if (outage?.kind === "stalled") end();
+    if (outage === null) return;
+    if (outage.signin === null) return end();
+    outage.stalled = false;
+    if (outage.shown === "stalled") outage.banner?.close();
   };
 
   const finish = (progress: Progress) => {
@@ -139,23 +174,24 @@ export function createOutageNotifications({
     }
     const failures = signinFailures(progress);
     const failing = new Set(failures);
-    if (progress.outcome === "committed") {
-      committed();
-      if (outage?.kind === "signin" && ![...outage.sources].some((source) => failing.has(source))) {
-        end();
-      }
-    } else if (progress.outcome === "failed") {
-      lastFailure = progress.failure;
+    if (progress.outcome === "committed") committed();
+    else if (progress.outcome === "failed") lastFailure = progress.failure;
+    const signin = outage?.signin;
+    if (signin) {
+      const back = progress.sources.some(
+        ({ source, state }) => signin.sources.has(source) && (state === "read" || state === "cut"),
+      );
+      if (back && ![...signin.sources].some((source) => failing.has(source))) recovered();
+      else if (failures.length > 0) signin.failures = failures;
     }
-    if (outage === null) {
+    if (!outage?.signin) {
       const lost = failures.filter(
         (source): source is string => source !== null && readable.get(source) === true,
       );
       if (lost.length > 0) {
-        outage = { kind: "signin", notified: false, sources: new Set(lost), failures };
+        outage ??= { notified: false, stalled: false, signin: null };
+        outage.signin = { sources: new Set(lost), failures, tool: null };
       }
-    } else if (outage.kind === "signin" && failures.length > 0) {
-      outage.failures = failures;
     }
     for (const source of progress.sources) {
       if (source.state === "read" || source.state === "cut") readable.set(source.source, true);
@@ -164,19 +200,22 @@ export function createOutageNotifications({
     if (progress.outcome === "failed" && progress.source !== undefined) {
       readable.set(progress.source, false);
     }
+    waking = false;
+    attribute();
     deliver();
   };
 
-  const woke = () => {
-    if (!armed) return;
-    if (outage?.kind === "stalled" && !outage.notified) outage = null;
-    watchFrom();
-  };
   const slept = () => {
     clearTimeout(stall);
     stall = undefined;
     clearTimeout(retry);
     retry = undefined;
+  };
+  const woke = () => {
+    waking = true;
+    clearTimeout(retry);
+    retry = undefined;
+    if (armed) watchFrom();
   };
   power.on("resume", woke);
   power.on("unlock-screen", woke);
@@ -195,13 +234,18 @@ export function createOutageNotifications({
       } else if (message.type === "sweep.status") {
         retryMs = message.payload.schedule.sweepMs;
       } else if (message.type === "setup.state") {
+        const before = tools;
         tools = new Map(message.payload.tools.map(({ tool, state }) => [tool, state]));
+        const tool = outage?.signin?.tool;
+        if (tool && before.get(tool) === "signed-out" && tools.get(tool) === "ready") recovered();
+        attribute();
         deliver();
       } else if (message.type === "view.snapshot") {
-        const previous = sweptAt;
+        const previous = cursor;
+        cursor = message.payload.cursor;
         sweptAt = message.payload.sweptAt;
         if (previous === null) watchFrom();
-        else if (Date.parse(sweptAt) > Date.parse(previous)) committed();
+        else if (cursor > previous) committed();
       }
     },
     dispose() {

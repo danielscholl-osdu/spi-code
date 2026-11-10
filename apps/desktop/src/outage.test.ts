@@ -55,7 +55,8 @@ const fixture = ViewSnapshotSchema.parse(
     readFileSync(new URL("../../../fixtures/watch/snapshot-59d6895.json", import.meta.url), "utf8"),
   ),
 );
-const snapshot = (sweptAt: number) => event("view.snapshot", { ...fixture, sweptAt: iso(sweptAt) });
+const snapshot = (sweptAt: number, cursor = 1) =>
+  event("view.snapshot", { ...fixture, cursor, sweptAt: iso(sweptAt) });
 
 function status(sweepMs = 5 * MINUTE) {
   return event("sweep.status", {
@@ -136,7 +137,7 @@ function outage({ focused = false }: { focused?: boolean } = {}) {
 
 const healthy = { auth: "read", github: "read", upstream: "read" } as const;
 
-it("notifies once when gh signs out under a source that read, and a committed sweep clears it", () => {
+it("notifies once when gh signs out under a source that read, and signing back in clears it", () => {
   const { notifier, open, shown } = outage();
   notifier.observe(setup("ready"));
   notifier.observe(snapshot(at(8, 2)));
@@ -154,6 +155,7 @@ it("notifies once when gh signs out under a source that read, and a committed sw
   expect(shown()).toHaveLength(1);
 
   notifier.observe(setup("ready"));
+  expect(native.notifications[0]?.close).toHaveBeenCalledOnce();
   notifier.observe(sweep(healthy));
   expect(native.notifications[0]?.close).toHaveBeenCalledOnce();
   notifier.observe(sweep({ ...healthy, github: "signin" }));
@@ -276,7 +278,28 @@ it("makes no outage of more than 15 minutes asleep, nor at once after resume or 
   expect(shown()).toHaveLength(1);
 });
 
-it("drops a stall the focused window held back once the machine wakes", () => {
+it("keeps a stall the focused window held back across sleep, for the first sweep after wake that does not commit", () => {
+  const { notifier, power, state, shown, open } = outage({ focused: true });
+  notifier.observe(status());
+  notifier.observe(setup("ready"));
+  notifier.observe(snapshot(at(8, 2)));
+  vi.advanceTimersByTime(STALL_MS);
+  power.emit("suspend");
+  state.focused = false;
+  vi.advanceTimersByTime(60 * MINUTE);
+  power.emit("resume");
+  notifier.observe(setup("ready"));
+  vi.advanceTimersByTime(MINUTE);
+  expect(shown()).toEqual([]);
+  notifier.observe(sweep(healthy, { code: "timeout", failure: "The read ran out of time." }));
+  expect(shown()).toEqual([
+    { title: TITLE, body: "No sweep has finished since 08:02. Last: The read ran out of time." },
+  ]);
+  native.notifications[0]?.emit("click");
+  expect(open).toHaveBeenCalledExactlyOnceWith({ to: "evidence" });
+});
+
+it("lets the wake sweep's commit clear a stall held back before sleep", () => {
   const { notifier, power, state, shown } = outage({ focused: true });
   notifier.observe(status());
   notifier.observe(snapshot(at(8, 2)));
@@ -284,9 +307,89 @@ it("drops a stall the focused window held back once the machine wakes", () => {
   power.emit("suspend");
   state.focused = false;
   vi.advanceTimersByTime(60 * MINUTE);
-  power.emit("resume");
+  power.emit("unlock-screen");
+  notifier.observe(sweep(healthy));
+  notifier.observe(snapshot(at(9, 18), 2));
+  notifier.observe(sweep(healthy, { code: "timeout", failure: "The read ran out of time." }));
   vi.advanceTimersByTime(STALL_MS - 1);
   expect(shown()).toEqual([]);
+});
+
+it("counts a snapshot with a higher cursor as a commit even when the clock moved back", () => {
+  const { notifier, shown } = outage();
+  notifier.observe(snapshot(at(8, 2), 1));
+  vi.advanceTimersByTime(14 * MINUTE);
+  notifier.observe(snapshot(at(7, 50), 2));
+  vi.advanceTimersByTime(14 * MINUTE);
+  notifier.observe(snapshot(at(7, 50), 2));
+  vi.advanceTimersByTime(MINUTE - 1);
+  expect(shown()).toEqual([]);
+  vi.advanceTimersByTime(1);
+  expect(shown()).toEqual([{ title: TITLE, body: "No sweep has finished since 07:50." }]);
+});
+
+it("tells an unattributed sign-in loss as a stall after 15 awake minutes, in one banner", () => {
+  const { notifier, open, shown } = outage();
+  notifier.observe(status());
+  notifier.observe(setup("ready"));
+  notifier.observe(snapshot(at(8, 2)));
+  notifier.observe(sweep(healthy));
+  for (let minute = 0; minute < 60; minute += 5) {
+    notifier.observe(setup("ready"));
+    notifier.observe(
+      sweep({ ...healthy, github: "signin" }, { code: "save", failure: "No snapshot was saved." }),
+    );
+    vi.advanceTimersByTime(5 * MINUTE);
+  }
+  expect(shown()).toEqual([
+    { title: TITLE, body: "No sweep has finished since 08:02. Last: No snapshot was saved." },
+  ]);
+  notifier.observe(setup("signed-out"));
+  expect(shown()).toHaveLength(1);
+  native.notifications[0]?.emit("click");
+  expect(open).toHaveBeenCalledExactlyOnceWith({ to: "evidence" });
+
+  native.notifications.length = 0;
+  const told = outage();
+  told.notifier.observe(setup("ready"));
+  told.notifier.observe(snapshot(at(8, 2)));
+  told.notifier.observe(sweep(healthy));
+  told.notifier.observe(
+    sweep({ ...healthy, github: "signin" }, { code: "save", failure: "No snapshot was saved." }),
+  );
+  told.notifier.observe(setup("signed-out"));
+  vi.advanceTimersByTime(60 * MINUTE);
+  expect(told.shown()).toEqual([{ title: TITLE, body: "gh is signed out. Today is from 08:02." }]);
+});
+
+it("notifies once for read → not due → signin", () => {
+  const { notifier, shown } = outage();
+  notifier.observe(setup("ready"));
+  notifier.observe(snapshot(at(8, 2)));
+  notifier.observe(sweep(healthy));
+  notifier.observe(sweep({ ...healthy, upstream: "skipped" }));
+  notifier.observe(sweep({ ...healthy, upstream: "signin" }));
+  notifier.observe(sweep({ ...healthy, upstream: "skipped" }));
+  notifier.observe(sweep({ ...healthy, upstream: "signin" }));
+  expect(shown()).toEqual([{ title: TITLE, body: "glab is signed out. Today is from 08:02." }]);
+});
+
+it("keeps a sign-in outage through commits while its source fails, and ends it when the source reads again", () => {
+  const { notifier, shown } = outage();
+  notifier.observe(setup("ready"));
+  notifier.observe(snapshot(at(8, 2)));
+  notifier.observe(sweep(healthy));
+  notifier.observe(sweep({ ...healthy, upstream: "signin" }));
+  expect(shown()).toHaveLength(1);
+  notifier.observe(sweep({ ...healthy, upstream: "skipped" }));
+  notifier.observe(snapshot(at(8, 7), 2));
+  notifier.observe(sweep({ ...healthy, upstream: "signin" }));
+  notifier.observe(snapshot(at(8, 12), 3));
+  expect(native.notifications[0]?.close).not.toHaveBeenCalled();
+  notifier.observe(sweep(healthy));
+  expect(native.notifications[0]?.close).toHaveBeenCalledOnce();
+  notifier.observe(sweep({ ...healthy, upstream: "signin" }));
+  expect(shown()).toHaveLength(2);
 });
 
 it("holds an outage while the window is focused and delivers it once the operator looks away", () => {
