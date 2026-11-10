@@ -9,7 +9,7 @@ import {
 } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 import inspectFeed from "../../../../../fixtures/watch/inspect-1106.json?raw";
 import november6 from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { closeSheet, navigate } from "../../app/navigation.js";
@@ -21,6 +21,13 @@ import Today from "../today/index.js";
 import { upstreamReading } from "./reading.js";
 
 const fixture = () => ViewSnapshotSchema.parse(JSON.parse(november6));
+// Core writes the fixture in UTC; the window reads its instants in Chicago, where 00:00Z is 18:00.
+const previousZone = process.env.TZ;
+process.env.TZ = "America/Chicago";
+afterAll(() => {
+  if (previousZone === undefined) delete process.env.TZ;
+  else process.env.TZ = previousZone;
+});
 const previousWatch = watchStore.getState();
 const previousSpi = window.spi;
 let container: HTMLDivElement;
@@ -81,6 +88,8 @@ const detailFields = () =>
   );
 
 beforeEach(async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(Date.parse(fixture().sweptAt));
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   closeSheet();
   window.location.hash = "#upstream";
@@ -104,6 +113,7 @@ afterEach(async () => {
   window.spi = previousSpi;
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 it("lists Upstream first among the places and opens it from the sidebar", async () => {
@@ -119,7 +129,7 @@ it("lists Upstream first among the places and opens it from the sidebar", async 
 
 it("renders the Nov 6 upstream reading: headline, qualifier, tiles and groups", () => {
   expect(place().querySelector(".place-headline")?.textContent).toBe(
-    "At 00:00, 73 commits reach 9 forks. Two need you first.",
+    "At 18:00, 73 commits reach 9 forks. Two need you first.",
   );
   expect(place().querySelector(".place-qualifier")?.textContent).toBe(
     "GitLab truncated the upstream diffs for 6 services and the reads failed for 3 services, so a toolchain move could be missing.",
@@ -127,15 +137,34 @@ it("renders the Nov 6 upstream reading: headline, qualifier, tiles and groups", 
   expect(texts(place(), ".place-tile dt")).toEqual(["Incoming", "Toolchain", "Largest"]);
   expect(texts(place(), ".place-tile-value")).toEqual(["107", "8 forks", "25"]);
   expect(texts(place(), ".place-tile-counts")).toEqual([
-    "commits · 34 in 2 sync PRs · 73 at 00:00",
+    "commits · 34 in 2 sync PRs · 73 at 18:00",
     "move to os-core-common 8.5.0 · 1 more move",
     "commits · indexer · then legal 17, schema 16",
   ]);
-  expect(texts(place(), ".place-group > h3")).toEqual(["Before 00:00", "Toolchain"]);
-  expect(itemIds("Before 00:00")).toEqual(["radar:partition", "radar:legal"]);
+  expect(texts(place(), ".place-group > h3")).toEqual(["Before 18:00", "Toolchain"]);
+  expect(itemIds("Before 18:00")).toEqual(["radar:partition", "radar:legal"]);
   expect(place().querySelector(".place-folded")?.textContent).toBe(
     "indexer-queue takes 3 commits with no toolchain move.",
   );
+});
+
+it("states the next sync in the strip's local time, and leaves the due to the group that says it", () => {
+  const body = fixture();
+  const strip = container.querySelector('.window-strip [data-field="next-sync"] b');
+  expect(strip?.textContent).toMatch(/^18:00 \(in /);
+  expect(place().querySelector(".place-headline")?.textContent).toMatch(/^At 18:00, /);
+  const before = group("Before 18:00");
+  expect(before?.querySelector("h3 time")?.getAttribute("datetime")).toBe(body.briefing.nextSyncAt);
+  expect(texts(before ?? place(), ".place-item-sub")).toEqual([
+    "8 commits queued · syncs at 18:00",
+    "17 commits queued · syncs at 18:00",
+  ]);
+  expect(before?.querySelectorAll(".place-item-meta")).toHaveLength(0);
+  expect(texts(group("Toolchain") ?? place(), ".place-item-meta time")).toEqual([
+    "Before next sync",
+    "Before next sync",
+  ]);
+  expect(place().textContent).not.toMatch(/00:00|T\d{2}:\d{2}/);
 });
 
 it("shows the detected campaigns and reads their forks in Detail", async () => {
@@ -195,7 +224,7 @@ it("refreshes a selected campaign's Detail when a sweep changes its forks", asyn
 
 it("lists Before next sync items as the same records Today shows, and selects them as Today does", async () => {
   const body = fixture();
-  const before = itemIds("Before 00:00");
+  const before = itemIds("Before 18:00");
   const briefing = [...body.briefing.focus, ...body.briefing.rest].map(({ id }) => id);
   expect(before.length).toBeGreaterThan(0);
   for (const id of before) expect(briefing).toContain(id);
@@ -247,7 +276,7 @@ it("drops a resolved item from the Upstream place and its selection ids", async 
   expect(routeSelectionIds(body, { kind: "upstream" })).toContain("radar:partition");
   expect(routeSelectionIds(resolved, { kind: "upstream" })).not.toContain("radar:partition");
   await act(async () => load(resolved));
-  expect(itemIds("Before 00:00")).toEqual(["radar:legal"]);
+  expect(itemIds("Before 18:00")).toEqual(["radar:legal"]);
 });
 
 type Located = { field: string; expected: string; locate: () => Promise<string | undefined> };

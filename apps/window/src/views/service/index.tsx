@@ -21,7 +21,7 @@ import { useSelectionList } from "../../panels/useSelectionList.js";
 import { togglePin, usePins } from "../../store/pins.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
-import { Time } from "../../time.js";
+import { Time, TimedText } from "../../time.js";
 import "../releases/panes.css";
 import "./service.css";
 
@@ -350,7 +350,9 @@ function ServiceBody({
                         {plainTitle(item.title)}
                         <span className="service-class">{item.cls}</span>
                       </span>
-                      <span className="service-row-sub">{plainTitle(item.sub)}</span>
+                      <span className="service-row-sub">
+                        <TimedText text={plainTitle(item.sub)} hint={false} />
+                      </span>
                     </span>
                   </>
                 )

@@ -176,9 +176,13 @@ export function wordCount(text: string): number {
   return text.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
 }
 
+// The window draws an ISO instant as a clock time, with its date in front on another day.
+const INSTANT = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/g;
+
 // The first candidate that fits a headline, else the last; candidates run from fullest to shortest.
 export function fitHeadline(candidates: readonly string[]): string {
-  return candidates.find((c) => wordCount(c) <= HEADLINE_WORDS) ?? candidates.at(-1) ?? "";
+  const words = (c: string) => wordCount(c) + (c.match(INSTANT)?.length ?? 0);
+  return candidates.find((c) => words(c) <= HEADLINE_WORDS) ?? candidates.at(-1) ?? "";
 }
 
 // "entitlements'" and "legal's".

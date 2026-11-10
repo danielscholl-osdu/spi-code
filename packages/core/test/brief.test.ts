@@ -206,7 +206,7 @@ describe("other days", () => {
     const b = buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext);
     expect(b.headline).toBe("Move legal to Java 25 before partition follows at 00:00.");
     expect(b.focus[1]?.sub).toBe(
-      "2 commits queued · syncs at 00:00 · expected to fail the way legal's did",
+      `2 commits queued · syncs at ${b.nextSyncAt} · expected to fail the way legal's did`,
     );
     expect(b.focus[1]?.effect).toBe(
       "2 commits reach the fork at the 00:00 sync. Legal's sync PR failed on the same move.",

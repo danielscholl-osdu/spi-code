@@ -15,6 +15,7 @@ import { failedCount, settled } from "../../components/sweep/words.js";
 import { openReadiness } from "../../settings/readiness.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
+import { TimedText } from "../../time.js";
 import { selectTodayItems } from "./selectors.js";
 import "./today.css";
 
@@ -240,7 +241,9 @@ export default function Today({
                   >
                     {plainTitle(item.title)}
                   </button>
-                  <p>{plainTitle(item.sub)}</p>
+                  <p>
+                    <TimedText text={plainTitle(item.sub)} hint={false} />
+                  </p>
                 </li>
               );
             })}

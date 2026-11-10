@@ -6,8 +6,17 @@ import type { ReactNode } from "react";
 import { type Navigation, PLACES, routeLabel } from "../../app/navigation.js";
 import { scopeRoute } from "../../app/queue.js";
 import { plainTitle } from "../../text.js";
-import { TimedText } from "../../time.js";
+import { instantsIn, TimedText, timedText } from "../../time.js";
 import "./place.css";
+
+type Item = NonNullable<Reading["content"]>["items"][number];
+
+/** An item's due, unless its group heading names the same instant and so already says it. */
+function ownDue(item: Item): Item["due"] {
+  return item.due && instantsIn(item.group).includes(Date.parse(item.due.at))
+    ? undefined
+    : item.due;
+}
 
 export type PlaceProps = {
   name: string;
@@ -38,7 +47,7 @@ export function Place({
 }: PlaceProps) {
   const { content } = reading;
   const ItemContent = onSelect ? "button" : "div";
-  const groups = new Map<string, NonNullable<Reading["content"]>["items"]>();
+  const groups = new Map<string, Item[]>();
   for (const item of content?.items.slice(0, 5) ?? []) {
     const group = groups.get(item.group);
     if (group) group.push(item);
@@ -62,7 +71,7 @@ export function Place({
       {content && (
         <section className="place-reading" aria-label={`${name} reading`}>
           <h2 className="place-headline">
-            <TimedText text={content.headline} />
+            <TimedText text={content.headline} hint={false} />
           </h2>
           {content.qualifier && <p className="place-qualifier">{content.qualifier}</p>}
           <dl className="place-tiles">
@@ -71,20 +80,29 @@ export function Place({
               <div className="place-tile" key={index}>
                 <dt>{tile.label}</dt>
                 <dd className="place-tile-value">{tile.value}</dd>
-                <dd className="place-tile-counts">{tile.counts}</dd>
+                <dd className="place-tile-counts">
+                  <TimedText text={tile.counts} hint={false} />
+                </dd>
               </div>
             ))}
           </dl>
           {groups.size > 0 && (
             <div className="place-groups">
               {[...groups].map(([label, items]) => (
-                <section className="place-group" aria-label={label} key={label}>
-                  <h3>{label}</h3>
+                <section
+                  className="place-group"
+                  aria-label={timedText(label, { hint: false })}
+                  key={label}
+                >
+                  <h3>
+                    <TimedText text={label} hint={false} />
+                  </h3>
                   <ul>
                     {items.map((item) => {
                       const route =
                         PLACES.find((place) => routeLabel(place) === item.scope) ??
                         scopeRoute(item.scope, services);
+                      const due = ownDue(item);
                       return (
                         <li
                           className="place-item"
@@ -124,13 +142,13 @@ export function Place({
                             >
                               <span className="place-item-title">{plainTitle(item.title)}</span>
                               {item.sub && (
-                                <span className="place-item-sub">{plainTitle(item.sub)}</span>
+                                <span className="place-item-sub">
+                                  <TimedText text={plainTitle(item.sub)} hint={false} />
+                                </span>
                               )}
-                              {(item.due || item.owned) && (
+                              {(due || item.owned) && (
                                 <span className="place-item-meta">
-                                  {item.due && (
-                                    <time dateTime={item.due.at}>Before {item.due.before}</time>
-                                  )}
+                                  {due && <time dateTime={due.at}>Before {due.before}</time>}
                                   {item.owned && <span className="place-owned">Owned</span>}
                                 </span>
                               )}

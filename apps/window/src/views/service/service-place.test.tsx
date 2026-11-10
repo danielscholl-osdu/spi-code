@@ -14,7 +14,7 @@ import { createSelectionStore } from "../../panels/selection.js";
 import { PINS_STORAGE_KEY, readPins } from "../../store/pins.js";
 import { createWatchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
-import { clockTime } from "../../time.js";
+import { clockTime, timedText } from "../../time.js";
 import ServicePlace from "./index.js";
 
 const cleanups: (() => Promise<void>)[] = [];
@@ -246,7 +246,9 @@ it("keeps every former attention field reachable through its nonempty disclosure
     expect(row?.querySelector(".service-priority")?.textContent).toBe(`P${item.rung}`);
     expect(row?.querySelector(".service-row-title")?.textContent).toContain(item.title);
     expect(row?.querySelector(".service-class")?.textContent).toBe(item.cls);
-    expect(row?.querySelector(".service-row-sub")?.textContent).toBe(item.sub);
+    expect(row?.querySelector(".service-row-sub")?.textContent).toBe(
+      timedText(item.sub, { hint: false }),
+    );
   }
 });
 

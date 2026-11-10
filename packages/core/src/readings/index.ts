@@ -250,7 +250,8 @@ export function upstreamReading<T extends ReadingItem>(
 ): PlaceReading<T> {
   const { model, items, radar, fleet, campaigns } = input;
   const up = model.upstream;
-  const at = clockOf(up.schedule.upstream);
+  // An instant, not a clock time: the window reads it in its own zone.
+  const at = up.schedule.upstream;
   const moving = up.moving;
   const total = up.forks.length;
   const unread = up.unread;

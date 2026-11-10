@@ -45,6 +45,8 @@ const model = buildModel(facts, now, {}, context);
 const briefing = buildBriefing(model, { state: "clear", problems: [] }, now, context);
 const items: FocusItem[] = [...briefing.focus, ...briefing.rest];
 const radar = sweepReads.radar as unknown as ReadRecord[];
+// The next sync as an instant; the window reads it in its own zone (18:00 in Chicago).
+const SYNC = "2026-11-07T00:00:00.000Z";
 
 // Storage's open sync PR named for an upstream sha that isn't among its queued commits.
 const unaimed = (() => {
@@ -81,12 +83,12 @@ function clean(reading: PlaceReading<ReadingItem>): string[] {
 describe("Upstream reading on the recorded 6 Nov sweep", () => {
   it("reads the next sync, commits incoming and forks reached", () => {
     const reading = upstream();
-    expect(reading.headline).toBe("At 18:00, 73 commits reach 9 forks. Two need you first.");
+    expect(reading.headline).toBe(`At ${SYNC}, 73 commits reach 9 forks. Two need you first.`);
     expect(wordCount(reading.headline)).toBeLessThanOrEqual(12);
     expect(reading.tiles[0]).toEqual({
       label: "Incoming",
       value: "107",
-      counts: "commits · 34 in 2 sync PRs · 73 at 18:00",
+      counts: `commits · 34 in 2 sync PRs · 73 at ${SYNC}`,
     });
   });
 
@@ -98,17 +100,15 @@ describe("Upstream reading on the recorded 6 Nov sweep", () => {
       return upstreamReading({ model: m, items, radar, fleet: context.fleet, campaigns: [] })
         .headline;
     };
-    expect(held(() => true)).toBe("At 18:00, 73 commits reach 9 forks; 34 wait in sync PRs.");
-    expect(held((f) => f.service === "indexer")).toBe(
-      "At 18:00, 2 commits reach 1 fork; 23 in a sync PR.",
-    );
+    expect(held(() => true)).toBe(`At ${SYNC}, 73 commits reach 9 forks; 34 in sync PRs.`);
+    expect(held((f) => f.service === "indexer")).toBe(`At ${SYNC}, 2 commits reach 1 fork.`);
     expect(held((f) => f.service === "storage")).toBe("11 commits wait in 1 open sync PR.");
-    expect(held((f) => f.service === "schema")).toBe("At 18:00, 16 commits reach 1 fork.");
+    expect(held((f) => f.service === "schema")).toBe(`At ${SYNC}, 16 commits reach 1 fork.`);
     expect(held((f) => f.service === "storage", unaimed.model)).toBe(
-      "At 18:00, 11 commits reach 1 fork.",
+      `At ${SYNC}, 11 commits reach 1 fork.`,
     );
     expect(held((f) => f.service === "indexer", reordered.model)).toBe(
-      "At 18:00, 25 commits reach 1 fork.",
+      `At ${SYNC}, 25 commits reach 1 fork.`,
     );
     expect(
       upstreamReading({ model: reordered.model, items, radar, fleet: context.fleet, campaigns: [] })
@@ -116,7 +116,7 @@ describe("Upstream reading on the recorded 6 Nov sweep", () => {
     ).toEqual({
       label: "Incoming",
       value: "107",
-      counts: "commits · 11 in 1 sync PR · 96 at 18:00",
+      counts: `commits · 11 in 1 sync PR · 96 at ${SYNC}`,
     });
   });
 
@@ -138,7 +138,7 @@ describe("Upstream reading on the recorded 6 Nov sweep", () => {
       from.find((item) => item.id === `radar:${service}`);
     expect(radarItem("indexer")).toMatchObject({
       title: "Sync PR #58 and the next sync carry os-core-common 8.5.0",
-      sub: "23 commits in sync PR #58 · 2 more at the 18:00 sync",
+      sub: `23 commits in sync PR #58 · 2 more at ${SYNC}`,
       effect: "23 commits wait in sync PR #58; 2 more reach the fork at the 18:00 sync.",
       next: "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
     });
@@ -150,17 +150,17 @@ describe("Upstream reading on the recorded 6 Nov sweep", () => {
     });
     expect(radarItem("schema")).toMatchObject({
       title: "Next sync carries os-core-common 8.5.0",
-      sub: "16 commits queued · syncs at 18:00",
+      sub: `16 commits queued · syncs at ${SYNC}`,
       effect: "16 commits reach the fork at the 18:00 sync.",
     });
     expect(radarItem("storage", unaimed.items)).toMatchObject({
       title: "Next sync carries os-core-common 8.5.0",
-      sub: "11 commits queued · syncs at 18:00",
+      sub: `11 commits queued · syncs at ${SYNC}`,
       effect: "11 commits reach the fork at the 18:00 sync.",
     });
     expect(radarItem("indexer", reordered.items)).toMatchObject({
       title: "Next sync carries os-core-common 8.5.0",
-      sub: "25 commits queued · syncs at 18:00",
+      sub: `25 commits queued · syncs at ${SYNC}`,
       effect: "25 commits reach the fork at the 18:00 sync.",
     });
   });
@@ -177,7 +177,7 @@ describe("Upstream reading on the recorded 6 Nov sweep", () => {
     const [first, second] = upstream().items;
     expect([first?.id, second?.id]).toEqual(["radar:partition", "radar:legal"]);
     for (const item of [first, second]) {
-      expect(item).toMatchObject({ rung: 1, group: "Before 18:00" });
+      expect(item).toMatchObject({ rung: 1, group: `Before ${SYNC}` });
     }
   });
 
@@ -232,8 +232,8 @@ describe("Upstream reading with detected toolchain campaigns", () => {
   it("shows each campaign once, without action, and keeps the holds as their own items", () => {
     const reading = upstream([campaign("os-core-common 8.5.0", eight)]);
     expect(reading.items.map((item) => [item.id, item.group])).toEqual([
-      ["radar:partition", "Before 18:00"],
-      ["radar:legal", "Before 18:00"],
+      ["radar:partition", `Before ${SYNC}`],
+      ["radar:legal", `Before ${SYNC}`],
       ["campaign:toolchain:os-core-common%208.5.0", "Toolchain"],
     ]);
     const detected = reading.items[2];

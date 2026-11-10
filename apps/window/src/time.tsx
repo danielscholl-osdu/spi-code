@@ -73,15 +73,17 @@ export function Time({
   at,
   now,
   className,
+  hint,
 }: {
   at: string;
   now?: number | undefined;
   className?: string | undefined;
+  hint?: boolean | undefined;
 }) {
   const tick = useNow();
   return (
     <time className={className} dateTime={at}>
-      {clockTime(at, { now: now ?? tick })}
+      {clockTime(at, { now: now ?? tick, ...(hint === false ? { hint } : {}) })}
     </time>
   );
 }
@@ -104,14 +106,33 @@ function valid(match: RegExpMatchArray): boolean {
   );
 }
 
+function instants(text: string): RegExpMatchArray[] {
+  return [...text.matchAll(instant)].filter(valid);
+}
+
+/** The standalone ISO instants in composed text, as {@link TimedText} finds them. */
+export function instantsIn(text: string): number[] {
+  return instants(text).map(([iso]) => Date.parse(iso));
+}
+
+/** {@link TimedText} as a plain string, for an accessible name or a title. */
+export function timedText(text: string, options: ClockOptions = {}): string {
+  let out = "";
+  let last = 0;
+  for (const match of instants(text)) {
+    out += text.slice(last, match.index) + clockTime(match[0], options);
+    last = (match.index ?? 0) + match[0].length;
+  }
+  return out + text.slice(last);
+}
+
 /** Text another layer composed, with each standalone ISO instant in it read through {@link Time}. */
-export function TimedText({ text }: { text: string }) {
+export function TimedText({ text, hint }: { text: string; hint?: boolean | undefined }) {
   const parts: React.ReactNode[] = [];
   let last = 0;
-  for (const match of text.matchAll(instant)) {
-    if (!valid(match)) continue;
-    parts.push(text.slice(last, match.index), <Time key={match.index} at={match[0]} />);
-    last = match.index + match[0].length;
+  for (const match of instants(text)) {
+    parts.push(text.slice(last, match.index), <Time key={match.index} at={match[0]} hint={hint} />);
+    last = (match.index ?? 0) + match[0].length;
   }
   if (last === 0) return text;
   parts.push(text.slice(last));

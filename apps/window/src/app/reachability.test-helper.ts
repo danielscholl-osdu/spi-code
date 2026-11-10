@@ -5,7 +5,7 @@ import { type InspectResult, InspectResultSchema, type ViewSnapshot } from "@spi
 import { inScope } from "../components/sidebar/attention.js";
 import { selectionRows } from "../panels/selection-rows.js";
 import { plainTitle } from "../text.js";
-import { clockTime } from "../time.js";
+import { clockTime, instantsIn, timedText } from "../time.js";
 import { runningFactHome } from "../views/environment/running-fact.js";
 import { eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
 import { selectTodayItems } from "../views/today/selectors.js";
@@ -64,6 +64,7 @@ const quote = (value: string) => JSON.stringify(value);
 const firstClause = (value: string) => value.split(" · ")[0] ?? value;
 const lastWord = (value: string) => value.trim().split(/\s+/).pop() ?? "";
 const nextSync = (value: string) => value.replace(/^Next sync /, "");
+const subText = (value: string) => timedText(plainTitle(value), { hint: false });
 const NOTES_STATE: Readonly<Record<string, string>> = {
   Approved: "approved",
   Draft: "draft",
@@ -286,6 +287,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
         name: placeLabel(from),
         from,
         ids: new Set(content.items.map(({ id }) => id)),
+        groups: new Map(content.items.map(({ id, group }) => [id, group])),
       },
     ];
   });
@@ -319,7 +321,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
       add(`${pointer}/title`, title, more, button, { canon: nextSync });
       add(`${pointer}/rung`, `P${item.rung}`, more, part(".place-rank"));
       add(`${pointer}/scope`, item.scope, more, part(".place-scope"));
-      if (item.sub) add(`${pointer}/sub`, plainTitle(item.sub), more, part(":scope > p"));
+      if (item.sub) add(`${pointer}/sub`, subText(item.sub), more, part(":scope > p"));
     }
     for (const reading of readings.filter(({ ids }) => ids.has(item.id))) {
       const where = home(reading.from.name, reading.from);
@@ -327,11 +329,17 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
       add(`${pointer}/title`, title, where, `${li} .place-item-title`, { canon: nextSync });
       add(`${pointer}/rung`, `P${item.rung}`, where, `${li} .place-rank`);
       add(`${pointer}/scope`, item.scope, where, `${li} .place-scope`);
-      if (item.sub) add(`${pointer}/sub`, plainTitle(item.sub), where, `${li} .place-item-sub`);
+      if (item.sub) add(`${pointer}/sub`, subText(item.sub), where, `${li} .place-item-sub`);
       if (item.next) add(`${pointer}/next`, plainTitle(item.next), where, `${li} .place-item-next`);
-      if (item.due) {
-        add(`${pointer}/due/at`, item.due.at, where, `${li} time`, { attribute: "dateTime" });
-        add(`${pointer}/due/before`, `Before ${item.due.before}`, where, `${li} time`);
+      const group = reading.groups.get(item.id) ?? "";
+      if (item.due && instantsIn(group).includes(Date.parse(item.due.at))) {
+        const heading = (root: ParentNode) =>
+          root.querySelector(li)?.closest(".place-group")?.querySelector(":scope > h3 time");
+        add(`${pointer}/due/at`, item.due.at, where, heading, { attribute: "dateTime" });
+      } else if (item.due) {
+        const time = `${li} .place-item-meta time`;
+        add(`${pointer}/due/at`, item.due.at, where, time, { attribute: "dateTime" });
+        add(`${pointer}/due/before`, `Before ${item.due.before}`, where, time);
       }
       if (item.owned) add(`${pointer}/owned`, "Owned", where, `${li} .place-owned`);
     }
@@ -350,7 +358,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
         canon: nextSync,
       });
       add(`${pointer}/cls`, item.cls, where, `${row} .service-class`);
-      if (item.sub) add(`${pointer}/sub`, plainTitle(item.sub), where, `${row} .service-row-sub`);
+      if (item.sub) add(`${pointer}/sub`, subText(item.sub), where, `${row} .service-row-sub`);
     }
     if (item.id === "rollout") {
       const row = '[data-part="rollout"] .inbox-row';

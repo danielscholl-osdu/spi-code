@@ -600,7 +600,7 @@ function describe(
   model: Model,
   item: QueueItem,
   stuck: readonly QueueItem[],
-  next: string | undefined,
+  nextAt: string | undefined,
   now: Date,
 ): { title: string; sub: string } {
   const ago = age(item.since, now);
@@ -646,11 +646,13 @@ function describe(
         ...(held
           ? [
               `${plural(held.held, "commit")} in sync PR #${held.pr}`,
-              held.next > 0 ? `${held.next} more at the ${next ?? "next"} sync` : undefined,
+              held.next > 0
+                ? `${held.next} more ${nextAt ? `at ${nextAt}` : "at the next sync"}`
+                : undefined,
             ]
           : [
               queued ? `${plural(Number(queued), "commit")} queued` : undefined,
-              next ? `syncs at ${next}` : undefined,
+              nextAt ? `syncs at ${nextAt}` : undefined,
             ]),
         like ? `expected to fail the way ${whose(like.scope)} did` : undefined,
       ]
@@ -678,10 +680,11 @@ function describe(
 function focusOf(
   model: Model,
   focusable: readonly QueueItem[],
-  next: string | undefined,
+  nextAt: string | undefined,
   now: Date,
   voice: Voice,
 ): FocusItem[] {
+  const next = clock(nextAt);
   const ordered = [...focusable].sort((a, b) => rank(a) - rank(b));
   const stuck = ordered.filter((i) => i.incident);
   const ports = ordered.filter((i) => i.cls === "PORT");
@@ -730,7 +733,7 @@ function focusOf(
       });
       continue;
     }
-    const { title, sub } = describe(model, item, stuck, next, now);
+    const { title, sub } = describe(model, item, stuck, nextAt, now);
     out.push({
       id: item.id,
       ids: [item.id],
@@ -838,9 +841,10 @@ export function readItem(model: Model, item: QueueItem, now: Date | undefined = 
       related: [],
     };
   }
-  const next = clock(syncAt(now));
+  const nextAt = syncAt(now);
+  const next = clock(nextAt);
   const stuck = model.queue.items.filter((i) => i.incident).sort((a, b) => rank(a) - rank(b));
-  const { title, sub } = describe(model, item, stuck, next, now);
+  const { title, sub } = describe(model, item, stuck, nextAt, now);
   const themes = themesOf(model, now, next);
   const gap = gapOf(item);
   return {
@@ -1460,7 +1464,7 @@ export function buildBriefing(model: Model, doctor: DoctorView, now: Date | unde
   const focusable = model.queue.items.filter((i) => i.rung <= 1);
   const ready = readyOf(model);
   const readyCount = ready.reduce((n, r) => n + r.count, 0);
-  const focus = focusOf(model, focusable, next, now, context.voice);
+  const focus = focusOf(model, focusable, nextIso, now, context.voice);
   const themes = themesOf(model, now, next);
   const facts = factsOf(model, now);
   const headline =
