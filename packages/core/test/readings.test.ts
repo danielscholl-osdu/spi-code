@@ -57,6 +57,18 @@ const unaimed = (() => {
   return { model: m, items: [...b.focus, ...b.rest] };
 })();
 
+// Indexer's two commits newer than sync PR #58's target listed ahead of it.
+const reordered = (() => {
+  const f = structuredClone(facts);
+  const queue = f.upstream.data?.indexer?.commits;
+  if (!queue || queue.length < 2)
+    throw new Error("indexer's queued commits are missing from the sweep");
+  queue.unshift(...queue.splice(-2));
+  const m = buildModel(f, now, {}, context);
+  const b = buildBriefing(m, { state: "clear", problems: [] }, now, context);
+  return { model: m, items: [...b.focus, ...b.rest] };
+})();
+
 const upstream = (campaigns: readonly ReadingCampaign[] = []) =>
   upstreamReading({ model, items, radar, fleet: context.fleet, campaigns });
 const service = (id: string) => serviceReading({ model, service: id, items, reads: radar, now });
@@ -95,6 +107,17 @@ describe("Upstream reading on the recorded 6 Nov sweep", () => {
     expect(held((f) => f.service === "storage", unaimed.model)).toBe(
       "At 18:00, 11 commits reach 1 fork.",
     );
+    expect(held((f) => f.service === "indexer", reordered.model)).toBe(
+      "At 18:00, 25 commits reach 1 fork.",
+    );
+    expect(
+      upstreamReading({ model: reordered.model, items, radar, fleet: context.fleet, campaigns: [] })
+        .tiles[0],
+    ).toEqual({
+      label: "Incoming",
+      value: "107",
+      counts: "commits · 11 in 1 sync PR · 96 at 18:00",
+    });
   });
 
   it("names the open sync PR for the commits it holds and the next sync for the rest", () => {
@@ -121,6 +144,11 @@ describe("Upstream reading on the recorded 6 Nov sweep", () => {
       title: "Next sync carries os-core-common 8.5.0",
       sub: "11 commits queued · syncs at 18:00",
       effect: "11 commits reach the fork at the 18:00 sync.",
+    });
+    expect(radarItem("indexer", reordered.items)).toMatchObject({
+      title: "Next sync carries os-core-common 8.5.0",
+      sub: "25 commits queued · syncs at 18:00",
+      effect: "25 commits reach the fork at the 18:00 sync.",
     });
   });
 

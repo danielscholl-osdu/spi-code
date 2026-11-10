@@ -311,12 +311,17 @@ function cellsOf(f: UpFork): UpFork["cells"] {
   return { sync, cascade, toMain, main };
 }
 
-// GitLab's compare lists the queued commits oldest first, so the PR's target bounds what it holds.
+// The PR holds its target and what precedes it, counted only when commit times confirm that order.
 function holdsOf(pr: PrFact, upstream: UpstreamFact | undefined): number | undefined {
   const target = /\bupstream ([0-9a-f]{7,40})\b/i.exec(pr.title)?.[1]?.toLowerCase();
   if (!target || !upstream) return undefined;
-  const at = upstream.commits.findIndex((c) => c.sha.toLowerCase().startsWith(target));
-  return at < 0 ? undefined : at + 1;
+  const commits = upstream.commits;
+  const at = commits.findIndex((c) => c.sha.toLowerCase().startsWith(target));
+  if (at < 0) return undefined;
+  const times = commits.map((c) => Date.parse(c.at));
+  const t = times[at] ?? Number.NaN;
+  const ordered = times.every((time, i) => (i < at ? time < t : i > at ? time > t : true));
+  return ordered ? at + 1 : undefined;
 }
 
 export interface SyncSplit {
