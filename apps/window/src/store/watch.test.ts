@@ -43,7 +43,7 @@ it("selects supplemental envelopes alongside every area without inventing absent
   } as const;
   const body = testSnapshot({
     provenance: [
-      { path: "/releases", areas: ["fleet"], envelope },
+      { path: "/releases/lines", areas: ["fleet"], envelope },
       { path: "/briefing", areas: ["github"] },
     ],
   });

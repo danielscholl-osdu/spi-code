@@ -89,7 +89,7 @@ export default function Releases() {
         onNavigate={navigate}
       />
       <div className="watch-pane">
-        {evidence && <SectionEvidence evidence={evidence} prefixes={["/releases"]} />}
+        {evidence && <SectionEvidence evidence={evidence} prefixes={["/releases/lines"]} />}
         {!releases?.lines.length || !evidence ? (
           releases?.reading || !reading.content ? (
             <h2 role="status">

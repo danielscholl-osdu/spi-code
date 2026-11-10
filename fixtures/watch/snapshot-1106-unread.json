@@ -14224,7 +14224,7 @@
       }
     },
     {
-      "path": "/releases",
+      "path": "/releases/lines",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",

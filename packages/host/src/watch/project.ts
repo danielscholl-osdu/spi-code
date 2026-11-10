@@ -45,6 +45,7 @@ import {
   briefingProvenance,
   readEnvelope,
   releaseProvenance,
+  releasesTodayProvenance,
   stationProvenance,
 } from "./provenance.js";
 import { placeReadings } from "./readings.js";
@@ -340,6 +341,7 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
         areas: ["fleet"],
         envelope: readEnvelope("releases", input.releaseRecords, RELEASES_EVERY_MS, now),
       },
+      ...releasesTodayProvenance(releases.today, input.releaseRecords, now),
       ...services.flatMap((service, i) => [
         ...runProvenance(
           `/services/${i}/runs`,

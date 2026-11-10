@@ -97,7 +97,7 @@ it("stamps Release lines with the read a later sweep makes, cached pins included
 
   const at = new Date(later).toISOString();
   const releases = view.provenance.filter(({ path }) => path.startsWith("/releases"));
-  expect(releases.find(({ path }) => path === "/releases")?.envelope).toMatchObject({
+  expect(releases.find(({ path }) => path === "/releases/lines")?.envelope).toMatchObject({
     state: "fresh",
     observedAt: at,
   });

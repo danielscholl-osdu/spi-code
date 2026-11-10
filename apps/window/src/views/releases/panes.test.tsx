@@ -149,13 +149,11 @@ it.each(["failed", "stale"] as const)(
   "puts a %s release read on the Releases section line and nowhere on the lines",
   async (state) => {
     const body = mixedSnapshot(mixed);
-    const releaseSources = body.provenance.filter(({ path }) =>
-      path.startsWith("/releases/lines/"),
-    );
-    expect(releaseSources).toHaveLength(body.releases.lines.length);
+    const releaseSources = body.provenance.filter(({ path }) => path.startsWith("/releases/lines"));
+    expect(releaseSources).toHaveLength(body.releases.lines.length + 1);
     for (const source of releaseSources) expect(source).toHaveProperty("envelope");
     body.provenance = body.provenance.map((entry) =>
-      entry.path.startsWith("/releases/")
+      entry.path.startsWith("/releases/lines")
         ? {
             ...entry,
             envelope: {
@@ -173,7 +171,7 @@ it.each(["failed", "stale"] as const)(
     if (!pane) throw new Error("Releases did not render");
     const line = pane.querySelectorAll("[data-section-evidence]");
     expect(line).toHaveLength(1);
-    expect(line[0]?.getAttribute("data-section-evidence")).toBe("/releases");
+    expect(line[0]?.getAttribute("data-section-evidence")).toBe("/releases/lines");
     expect(line[0]?.textContent).toContain(
       `Release lines ${state === "failed" ? "read failed" : "stale"}`,
     );
@@ -226,7 +224,7 @@ it.each([
     await render(<Releases />, body);
     const pane = container.querySelector('[data-view-pane="releases"]');
     if (!pane) throw new Error("Releases did not render");
-    const line = pane.querySelector('[data-section-evidence="/releases"]');
+    const line = pane.querySelector('[data-section-evidence="/releases/lines"]');
     expect(line?.hasAttribute("data-inferred") ?? false).toBe(inferred);
     if (inferred) expect(line?.getAttribute("title")).toContain("Fleet membership");
     for (const [i] of body.releases.lines.entries()) {
@@ -236,6 +234,51 @@ it.each([
     }
   },
 );
+
+it("keeps the month ledger's section line when Today and forming values name other reads", async () => {
+  const base = mixedSnapshot(mixed);
+  const failed = (source: string) =>
+    ({
+      source,
+      state: "failed",
+      observedAt: base.sweptAt,
+      completeness: { kind: "complete" },
+    }) as const;
+  const degraded = {
+    ...base,
+    areas: base.areas.map((entry) =>
+      entry.area === "github" || entry.area === "details"
+        ? { area: entry.area, envelope: failed(entry.area) }
+        : entry,
+    ),
+  };
+  await render(<Releases />, degraded);
+  const pane = () => container.querySelector('[data-view-pane="releases"]');
+  const ledger = () =>
+    [...(pane()?.querySelectorAll("[data-section-evidence]") ?? [])].map((line) => ({
+      prefixes: line.getAttribute("data-section-evidence"),
+      text: line.textContent,
+      tone: line.getAttribute("data-tone"),
+      title: line.getAttribute("title"),
+      inferred: line.hasAttribute("data-inferred"),
+    }));
+  const before = ledger();
+  const withToday = {
+    ...degraded,
+    cursor: degraded.cursor + 1,
+    provenance: [
+      ...degraded.provenance,
+      { path: "/releases/today/readyLine", areas: ["github", "details"] },
+      { path: "/releases/today/versions/0/proposed", areas: ["github"] },
+      { path: "/releases/forming", areas: ["github"], envelope: failed("releases") },
+    ],
+  } satisfies typeof base;
+  await act(async () =>
+    watchStore.setState({ snapshot: { cursor: withToday.cursor, body: withToday } }),
+  );
+  expect(ledger()).toEqual(before);
+  for (const { title } of ledger()) expect(title).not.toMatch(/GitHub|Run details/);
+});
 
 it("draws no envelope or marker on the plain releases fixture", async () => {
   await render(<Releases />);
