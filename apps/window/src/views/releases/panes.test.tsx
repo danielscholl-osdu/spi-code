@@ -149,7 +149,9 @@ it.each(["failed", "stale"] as const)(
   "puts a %s release read on the Releases section line and nowhere on the lines",
   async (state) => {
     const body = mixedSnapshot(mixed);
-    const releaseSources = body.provenance.filter(({ path }) => path.startsWith("/releases/"));
+    const releaseSources = body.provenance.filter(({ path }) =>
+      path.startsWith("/releases/lines/"),
+    );
     expect(releaseSources).toHaveLength(body.releases.lines.length);
     for (const source of releaseSources) expect(source).toHaveProperty("envelope");
     body.provenance = body.provenance.map((entry) =>

@@ -42,6 +42,19 @@
           },
           "inferred": false
         }
+      },
+      {
+        "path": "/releases/forming",
+        "areas": ["fleet"],
+        "envelope": {
+          "source": "releases",
+          "state": "fresh",
+          "observedAt": "2026-11-10T13:17:00.000Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": false
+        }
       }
     ],
     "reads": [

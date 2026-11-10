@@ -337,7 +337,7 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
       ...releaseProvenance(releases.lines, input.releaseRecords, now),
       {
         path: "/releases/forming",
-        areas: ["fleet", "github"],
+        areas: ["fleet"],
         envelope: readEnvelope("releases", input.releaseRecords, RELEASES_EVERY_MS, now),
       },
       ...services.flatMap((service, i) => [
