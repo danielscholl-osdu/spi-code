@@ -30,6 +30,71 @@ describe("Today's release versions", () => {
     }
   });
 
+  it("proposes only proven versions from plain or component release titles", () => {
+    for (const [title, proposed] of [
+      ["chore(main): release storage 1.4.2", "1.4.2"],
+      ["chore: release main", undefined],
+      ["release notes for november", undefined],
+      ["chore: release v1.4.2-rc.1+build.2", "1.4.2-rc.1+build.2"],
+      ["chore: release 1.4.2oops", undefined],
+    ] as const) {
+      const input = busyInput();
+      for (const repo of Object.values(input.facts.github.data?.repos ?? {})) {
+        for (const pr of repo.prs) {
+          if (pr.head.startsWith("release-please--") || pr.labels.includes("autorelease: pending"))
+            pr.title = title;
+        }
+      }
+      const today = projectWatch(input).releases.today;
+      const pairs = [
+        ...(today?.versions.filter((v) => v.service === "storage") ?? []),
+        today?.platform.template,
+      ];
+      expect(pairs).toHaveLength(2);
+      for (const pair of pairs) {
+        expect(pair).toBeDefined();
+        if (proposed) {
+          expect(pair?.proposed).toBe(proposed);
+          expect(pair?.pr).toBeDefined();
+        } else {
+          expect(pair).not.toHaveProperty("proposed");
+          expect(pair).not.toHaveProperty("pr");
+        }
+      }
+      const storage = today?.versions.find((v) => v.service === "storage");
+      expect(storage?.text).toBe(
+        `released ${storage?.released}${proposed ? `, proposed ${proposed}` : ""}`,
+      );
+    }
+  });
+
+  it("agrees in number and names requested changes in the ready line", () => {
+    const input = busyInput();
+    const template = input.facts.github.data?.repos[TEMPLATE_REPO];
+    const pr = template?.prs.find((pr) => pr.number === 263);
+    if (!template || !pr) throw new Error("Busy fixture needs the template release PR");
+    for (const repo of Object.values(input.facts.github.data?.repos ?? {})) repo.prs = [];
+    template.prs = [pr];
+    pr.reviewDecision = "CHANGES_REQUESTED";
+    expect(projectWatch(input).releases.today?.readyLine).toBe(
+      "1 release PR has changes requested, none failing",
+    );
+    const other = { ...pr, number: 264, reviewDecision: "REVIEW_REQUIRED" };
+    template.prs.push(other);
+    expect(projectWatch(input).releases.today?.readyLine).toBe(
+      "2 release PRs open: 1 waits for review, 1 has changes requested, none failing",
+    );
+    other.reviewDecision = "CHANGES_REQUESTED";
+    expect(projectWatch(input).releases.today?.readyLine).toBe(
+      "2 release PRs have changes requested, none failing",
+    );
+    template.prs = [other];
+    other.reviewDecision = "REVIEW_REQUIRED";
+    expect(projectWatch(input).releases.today?.readyLine).toBe(
+      "1 release PR waits for review, none failing",
+    );
+  });
+
   it("counts the template PR in the heading and names its released and proposed versions", () => {
     const input = busyInput();
     const today = projectWatch(input).releases.today;

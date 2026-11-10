@@ -3786,7 +3786,7 @@
         "coreLibAzure": [],
         "text": "stack v0.35.3 · template v1.4.0 → 1.5.0"
       },
-      "readyLine": "13 release PRs open: 1 ready to merge, 12 wait for review, 1 release PR failing",
+      "readyLine": "13 release PRs open: 1 is ready to merge, 12 wait for review, 1 release PR failing",
       "unread": {
         "areas": ["releases"]
       }

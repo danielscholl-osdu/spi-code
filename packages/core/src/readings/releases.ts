@@ -69,14 +69,20 @@ export function releaseQueue(facts: Pick<Facts, "github" | "details">, context: 
   const groups = byWait(open);
   const [only] = groups;
   const waits = groups.length === 1 && only
-    ? `${plural(open.length, "release PR")} ${open.length === 1 ? only.word.replace(/^wait\b/, "waits") : only.word}`
-    : `${plural(open.length, "release PR")} open${groups.length ? `: ${groups.map((g) => `${g.prs.length} ${g.word}`).join(", ")}` : ""}`;
+    ? `${plural(open.length, "release PR")} ${waitPhrase(only.word, open.length)}`
+    : `${plural(open.length, "release PR")} open${groups.length ? `: ${groups.map((g) => `${g.prs.length} ${waitPhrase(g.word, g.prs.length)}`).join(", ")}` : ""}`;
   const readyLine = !facts.github.data
     ? `Release PRs ${NOT_READ}`
     : all.length === 0
       ? "No release PRs open"
       : `${open.length > 0 ? `${waits}, ` : ""}${red.length > 0 ? `${plural(red.length, "release PR")} failing` : "none failing"}`;
   return { all, red, open, readyLine };
+}
+
+function waitPhrase(word: string, count: number): string {
+  if (word === "changes requested") return `${count === 1 ? "has" : "have"} changes requested`;
+  if (word === "ready to merge") return `${count === 1 ? "is" : "are"} ready to merge`;
+  return count === 1 ? word.replace(/^wait\b/, "waits") : word;
 }
 
 function byWait(open: readonly ReleasePr[]): { word: string; prs: ReleasePr[] }[] {
