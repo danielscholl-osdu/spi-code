@@ -27,6 +27,10 @@ interface Pull {
   sha: string;
   body: string | null;
 }
+/** A reply as gh's jq printed it, unchecked. */
+interface RawPull {
+  raw: unknown;
+}
 
 function pr(number: number, headSha: string, head = `release-please--branches--main--${number}`) {
   return { number, head, headSha, labels: [] as string[] };
@@ -48,7 +52,7 @@ function harness() {
       stored = structuredClone(state);
     },
   };
-  const pulls = new Map<string, Pull | Error>();
+  const pulls = new Map<string, Pull | RawPull | Error>();
   const calls: string[] = [];
   const log: string[] = [];
   const exec = new RecordingExec(
@@ -66,6 +70,7 @@ function harness() {
         const pull = pulls.get(path);
         if (pull === undefined || pull instanceof Error)
           return { stdout: "", stderr: pull?.message ?? `unrouted ${path}`, exit: 1 };
+        if ("raw" in pull) return { stdout: JSON.stringify(pull.raw), stderr: "", exit: 0 };
         return {
           stdout: JSON.stringify({ state: pull.state, sha: pull.sha, body: pull.body ?? "" }),
           stderr: "",
@@ -88,7 +93,7 @@ function harness() {
     store: (value: unknown) => {
       stored = value;
     },
-    pull: (repo: string, number: number, value: Pull | Error) => {
+    pull: (repo: string, number: number, value: Pull | RawPull | Error) => {
       pulls.set(`repos/${repo}/pulls/${number}`, value);
     },
     advance: (ms: number) => {
@@ -182,6 +187,7 @@ test("a failed body read records not read for that PR only, and drops its earlie
     number: 76,
     sha: sha("s"),
     at: h.now(),
+    reason: "failed",
     failure: expect.stringContaining("502"),
   });
   expect(failed).not.toHaveProperty("body");
@@ -290,6 +296,7 @@ test("requests per read are bounded: one per release PR, at most BODIES_PER_REPO
     [STORAGE, 5, "not-read"],
   ]);
   expect(h.reader.data.bodies[releaseBodyKey(STORAGE, 3, sha("3"))]).toMatchObject({
+    reason: "over-cap",
     failure: `over ${BODIES_PER_REPO} release PRs read per repository`,
   });
 
@@ -337,13 +344,113 @@ test("a release state file from main loads with no bodies, and its next read add
   expect(Object.keys(h.reader.data.bodies)).toEqual([releaseBodyKey(STORAGE, 75, sha("a"))]);
 });
 
-test("a stored body that is neither read nor not-read fails to load rather than reading as empty", () => {
-  const entry = { repo: STORAGE, number: 75, sha: sha("a"), at: START };
-  const parse = (body: unknown) =>
-    releaseStateSchema.safeParse({ ...MAIN_STATE, bodies: { k: body } }).success;
-  expect(parse({ ...entry, state: "read", body: "" })).toBe(true);
-  expect(parse({ ...entry, state: "not-read", failure: "x" })).toBe(true);
-  expect(parse({ ...entry, state: "read" })).toBe(false);
-  expect(parse({ ...entry, state: "not-read" })).toBe(false);
-  expect(parse({ ...entry, body: "" })).toBe(false);
+const ENTRY = { repo: STORAGE, number: 75, sha: sha("a"), at: START } as const;
+const KEY = releaseBodyKey(STORAGE, 75, sha("a"));
+const GOOD = { ...ENTRY, state: "read", body: CHANGELOG } as const;
+
+test("a malformed stored body drops alone as not read, and the rest of the state loads", async () => {
+  const bad = [
+    { ...ENTRY, state: "read" },
+    { ...ENTRY, state: "not-read", failure: "x" },
+    { ...ENTRY, state: "not-read", reason: "failed" },
+    { ...ENTRY, body: "" },
+    { ...ENTRY, state: "read", sha: null, body: "" },
+    "not an entry",
+  ];
+  const other = releaseBodyKey(SEARCH, 76, sha("s"));
+  const good = { ...GOOD, repo: SEARCH, number: 76, sha: sha("s") };
+  for (const entry of bad) {
+    const state = { ...MAIN_STATE, bodies: { [KEY]: entry, [other]: good } };
+    expect(releaseStateSchema.parse(state)).toEqual({ ...MAIN_STATE, bodies: { [other]: good } });
+    expect(cacheSchema.parse({ ...emptyCache(), releases: state }).releases.bodies).toEqual({
+      [other]: good,
+    });
+  }
+  const notRead = { ...ENTRY, state: "not-read", reason: "over-cap", failure: "x" };
+  expect(releaseStateSchema.parse({ ...MAIN_STATE, bodies: { [KEY]: notRead } }).bodies).toEqual({
+    [KEY]: notRead,
+  });
+
+  const h = harness();
+  h.store({ ...structuredClone(MAIN_STATE), at: START, bodies: { [KEY]: bad[0], [other]: good } });
+  await h.reader.read({ openPrs: {} });
+  expect(h.calls).toEqual([]);
+  expect(h.reader.records.find((r) => r.source === "release-state")).toBeUndefined();
+  expect(h.reader.data.pins).toEqual(MAIN_STATE.pins);
+  expect(h.reader.data.releases).toEqual(MAIN_STATE.releases);
+  expect(h.reader.data.bodies).toEqual({ [other]: good });
+});
+
+test("a stored body filed under a key other than its own repo, number and head drops on load", () => {
+  const parse = (key: string) =>
+    releaseStateSchema.parse({ ...MAIN_STATE, bodies: { [key]: GOOD } }).bodies;
+  expect(parse(KEY)).toEqual({ [KEY]: GOOD });
+  expect(parse(releaseBodyKey(STORAGE, 75, sha("b")))).toEqual({});
+  expect(parse(releaseBodyKey(STORAGE, 76, sha("a")))).toEqual({});
+  expect(parse(releaseBodyKey(SEARCH, 75, sha("a")))).toEqual({});
+  expect(parse("k")).toEqual({});
+});
+
+test("a body reply without a string head, body or state records not read and saves", async () => {
+  const replies = [
+    { state: "open", sha: null, body: CHANGELOG },
+    { state: "open", sha: sha("a"), body: 7 },
+    { sha: sha("a"), body: CHANGELOG },
+    [],
+  ];
+  for (const raw of replies) {
+    const h = harness();
+    h.pull(STORAGE, 75, { raw });
+    await h.reader.read({ force: true, openPrs: { [STORAGE]: { prs: [pr(75, sha("a"))] } } });
+    expect(h.reader.data.bodies).toEqual({
+      [KEY]: {
+        ...ENTRY,
+        state: "not-read",
+        reason: "failed",
+        failure: expect.stringContaining(`${STORAGE}#75`),
+      },
+    });
+    expect(h.stored().bodies).toEqual(h.reader.data.bodies);
+    expect(cacheSchema.parse({ ...emptyCache(), releases: h.stored() }).releases.bodies).toEqual(
+      h.reader.data.bodies,
+    );
+  }
+});
+
+test("a body is keyed by the head its read returned, not the head the PR list gave", async () => {
+  const h = harness();
+  h.pull(STORAGE, 75, { state: "open", sha: sha("b"), body: CHANGELOG });
+  await h.reader.read({ force: true, openPrs: { [STORAGE]: { prs: [pr(75, sha("a"))] } } });
+  expect(h.reader.data.bodies).toEqual({
+    [releaseBodyKey(STORAGE, 75, sha("b"))]: { ...GOOD, sha: sha("b") },
+  });
+  expect(h.reader.data.bodies[KEY]).toBeUndefined();
+});
+
+test("past the cap no release PR starves: the newest always, then unread, then least recently read", async () => {
+  const h = harness();
+  const prs = [9, 8, 7].map((n) => pr(n, sha(String(n))));
+  for (const { number, headSha } of prs)
+    h.pull(STORAGE, number, { state: "open", sha: headSha, body: `${CHANGELOG}#${number}` });
+  const open: OpenPrs = { [STORAGE]: { prs } };
+  const key = (n: number) => releaseBodyKey(STORAGE, n, sha(String(n)));
+  const round = async () => {
+    h.calls.length = 0;
+    await h.reader.read({ openPrs: open });
+    h.advance(RELEASES_EVERY_MS);
+    return h.calls.map((c) => Number(c.split("/").at(-1))).sort();
+  };
+
+  const first = h.now();
+  expect(await round()).toEqual([8, 9]);
+  expect(h.reader.data.bodies[key(7)]).toMatchObject({ state: "not-read", reason: "over-cap" });
+
+  const second = h.now();
+  expect(await round()).toEqual([7, 9]);
+  expect(h.reader.data.bodies[key(8)]).toMatchObject({ state: "read", at: first });
+  expect(h.reader.data.bodies[key(7)]).toMatchObject({ state: "read", at: second });
+
+  expect(await round()).toEqual([8, 9]);
+  expect(await round()).toEqual([7, 9]);
+  expect(Object.values(h.reader.data.bodies).map((b) => b.state)).toEqual(["read", "read", "read"]);
 });
