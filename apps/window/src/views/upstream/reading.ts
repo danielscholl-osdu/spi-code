@@ -31,7 +31,7 @@ export function upstreamItemRows(snapshot: ViewSnapshot): SelectionRow[] {
 }
 
 export const themeRow = (theme: Theme, index: number): SelectionRow => ({
-  id: theme.inspect ?? `theme:${theme.id}`,
+  id: `theme:${theme.id}`,
   title: theme.title,
   kind: "theme",
   prefixes: [`/briefing/themes/${index}`],
@@ -42,5 +42,6 @@ export function upstreamSelectionIds(snapshot: ViewSnapshot): string[] {
   return [
     ...(upstreamReading(snapshot).content?.items.map(({ id }) => id) ?? []),
     ...snapshot.briefing.themes.map((theme, index) => themeRow(theme, index).id),
+    ...snapshot.briefing.themes.flatMap(({ inspect }) => (inspect ? [inspect] : [])),
   ];
 }

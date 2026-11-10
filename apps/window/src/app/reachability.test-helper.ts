@@ -380,7 +380,10 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
             step: `section.place[aria-label=${quote(reading.name)}] [data-selection-id=${id}]`,
           }
         : theme >= 0
-          ? { from: STARTS.upstream, step: themeHead(theme) }
+          ? {
+              from: STARTS.upstream,
+              step: `li.upstream-theme${at(`/briefing/themes/${theme}`)} button.upstream-theme-item`,
+            }
           : undefined;
     if (!opener) continue;
     const detail = home(
@@ -400,26 +403,8 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
         });
   }
 
-  const upstream = home("Upstream", STARTS.upstream);
   briefing.themes.forEach((theme, index) => {
     const pointer = `/briefing/themes/${index}`;
-    if (theme.inspect) {
-      const gap = "spicode-t1k.217: a theme with an inspect id opens its item, not the theme";
-      const forkButton = (fork: string) => (root: ParentNode) =>
-        [...root.querySelectorAll(`li.upstream-theme${at(pointer)} button.upstream-fork`)].find(
-          (button) => button.textContent === fork,
-        );
-      add(`${pointer}/next`, theme.next, upstream, "", { exempt: gap });
-      for (const list of ["certain", "possible"] as const)
-        theme[list].forEach((fork, slot) => {
-          add(`${pointer}/${list}/${slot}/fork`, fork.fork, upstream, forkButton(fork.fork));
-          add(`${pointer}/${list}/${slot}/state`, fork.state, upstream, "", { exempt: gap });
-        });
-      theme.exposed.forEach((fork, slot) => {
-        add(`${pointer}/exposed/${slot}`, fork, upstream, "", { exempt: gap });
-      });
-      return;
-    }
     const where = home(
       `Upstream · Detail theme:${theme.id}`,
       STARTS.upstream,

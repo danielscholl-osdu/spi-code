@@ -93,6 +93,9 @@ export default function Upstream({
           <ul>
             {themes.map((theme, index) => {
               const row = themeRow(theme, index);
+              const item = [...snapshot.briefing.focus, ...snapshot.briefing.rest].find(
+                ({ id }) => id === theme.inspect,
+              );
               return (
                 <li
                   className="upstream-theme"
@@ -115,6 +118,17 @@ export default function Upstream({
                     {theme.when && <span className="upstream-theme-when">{theme.when}</span>}
                   </button>
                   {theme.sub && <ThemeSub theme={theme} />}
+                  {item && (
+                    <button
+                      type="button"
+                      className="upstream-theme-item upstream-fork"
+                      data-selection-id={item.id}
+                      aria-pressed={selected === item.id}
+                      onClick={() => select(item.id)}
+                    >
+                      {item.title}
+                    </button>
+                  )}
                 </li>
               );
             })}
