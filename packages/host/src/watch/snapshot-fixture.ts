@@ -11,9 +11,12 @@ import {
   emptyFacts,
   type Facts,
   fleetOf,
+  LEAD_TIME_MS,
+  type PrFact,
   parseRollout,
   type ReadRecord,
   type ReleaseReads,
+  type RepoFact,
   type SweepReads,
   TEMPLATE_REPO,
 } from "@spi-code/core";
@@ -253,4 +256,406 @@ export function unverifiedForkInput(): WatchInput {
     ];
   }
   return input;
+}
+
+export const calmSnapshotPath = fileURLToPath(
+  new URL("../../../../fixtures/watch/snapshot-calm.json", import.meta.url),
+);
+export const busySnapshotPath = fileURLToPath(
+  new URL("../../../../fixtures/watch/snapshot-busy.json", import.meta.url),
+);
+export const badSnapshotPath = fileURLToPath(
+  new URL("../../../../fixtures/watch/snapshot-bad.json", import.meta.url),
+);
+
+const MORNING_AT = "2026-11-06T14:02:00.133Z";
+const LAST_GOOD_GITHUB = "2026-11-06T13:52:00Z";
+const TARGET = "7d269b5e84cb90daa7e07f41a0fb163e030ccfd4";
+const OLD_MARKER = "5398e9339b7236baecdf7e8b82366041c137c0f7";
+
+function morningRepo(input: WatchInput, service: string): RepoFact {
+  const name = input.context.fleet.forks.find((fork) => fork.id === service)?.repo ?? service;
+  const repo = input.facts.github.data?.repos[name];
+  if (!repo) throw new Error(`Morning fixture lacks ${service}`);
+  return repo;
+}
+
+function morningPr(repo: RepoFact, number: number, head: string, title: string): PrFact {
+  return {
+    repo: repo.repo,
+    number,
+    head,
+    title,
+    url: `${repo.url}/pull/${number}`,
+    createdAt: "2026-11-05T12:00:00Z",
+    updatedAt: "2026-11-06T12:00:00Z",
+    draft: false,
+    base: "main",
+    headSha: `${number}`.padStart(40, "0"),
+    reviewDecision: "REVIEW_REQUIRED",
+    labels: [],
+    checks: [
+      {
+        id: number * 100,
+        name: "Java Build",
+        workflow: "Validation",
+        status: "COMPLETED",
+        conclusion: "SUCCESS",
+      },
+    ],
+  };
+}
+
+/** A fully read synthetic sweep built from the Nov 6 fleet and lifecycle history. */
+function morningInput(adopted: number): WatchInput {
+  const input = recordedInput();
+  const facts = input.facts;
+  for (const area of AREAS) {
+    facts[area].at = MORNING_AT;
+    delete facts[area].error;
+    delete facts[area].errorAt;
+  }
+  facts.approvals.data = {};
+  facts.details.data = {};
+  facts.security.data = {};
+  facts.radar.data = { services: {}, filters: {} };
+  facts.upstream.data = {};
+  facts.template.data = {
+    latestTag: "v1.4.0",
+    mainAhead: 1,
+    compares: {
+      [TARGET]: { marker: TARGET, head: TARGET, label: "main", aheadBy: 0, shas: [], changes: [] },
+      [OLD_MARKER]: {
+        marker: OLD_MARKER,
+        head: TARGET,
+        label: "v1.4.0",
+        aheadBy: 1,
+        shas: [TARGET],
+        changes: [
+          {
+            sha: TARGET,
+            title: "chore: refresh workflow pins",
+            at: "2026-11-05T10:00:00Z",
+            url: `https://github.com/${TEMPLATE_REPO}/commit/${TARGET}`,
+          },
+        ],
+      },
+    },
+    targets: {},
+    synced: { dirs: [".github"], files: [] },
+  };
+  for (const repo of Object.values(facts.github.data?.repos ?? {})) {
+    repo.prs = [];
+    repo.issues = [];
+    delete repo.openPrs;
+    delete repo.openIssues;
+    facts.security.data[repo.repo] = { dependabot: [], code: [] };
+  }
+  const template = morningRepo(input, TEMPLATE_REPO);
+  template.head = { sha: TARGET, at: "2026-11-05T10:00:00Z" };
+  for (const [index, fork] of input.context.fleet.forks.entries()) {
+    const repo = morningRepo(input, fork.id);
+    repo.marker = index < adopted ? TARGET : OLD_MARKER;
+    repo.deployments = [{ createdAt: "2026-11-06T11:00:00Z", state: "SUCCESS" }];
+    if (index >= adopted) {
+      const pr = morningPr(
+        repo,
+        500 + index,
+        "template-sync/morning",
+        "chore: sync template workflow pins",
+      );
+      pr.headMarker = TARGET;
+      repo.prs.push(pr);
+    }
+    const runs = facts.runs.data?.[fork.repo];
+    if (!runs) throw new Error(`Morning fixture lacks runs for ${fork.id}`);
+    for (const workflow of ["sync", "template", "cascade", "main"] as const) {
+      runs[workflow] = runs[workflow].slice(0, 1).map((run) => ({
+        ...run,
+        status: "completed",
+        conclusion: "success",
+        createdAt: "2026-11-06T12:00:00Z",
+        updatedAt: "2026-11-06T12:10:00Z",
+      }));
+    }
+    const main = runs.main[0];
+    runs.mainRunJobs = main
+      ? {
+          [main.id]: [
+            {
+              id: main.id,
+              name: "Java Build",
+              status: "completed",
+              conclusion: "success",
+              url: main.url,
+              steps: [],
+            },
+          ],
+        }
+      : {};
+    runs.cascadeRunJobs = {};
+    facts.security.data[fork.repo] = { dependabot: [], code: [] };
+    facts.upstream.data[fork.id] = { service: fork.id, lag: 0, commits: [] };
+    facts.radar.data.services[fork.id] = {
+      project: fork.upstream,
+      mrs: [],
+      queued: [],
+      merged: [],
+      forkPrs: [],
+      pins: {
+        fork: { osCoreCommon: "8.4.0", coreLibAzure: "4.0.0" },
+        upstream: { osCoreCommon: "8.4.0" },
+      },
+    };
+    facts.radar.data.filters[fork.id] = {
+      sha: TARGET,
+      text: `service: ${fork.id}\ntop_level:\n  pom.xml: keep\n  README.md: keep\ntesting: {}\nprofiles: {}\nfossa_modules: {}\n`,
+    };
+  }
+  const releases: ReleaseReads = {
+    at: MORNING_AT,
+    releases: {},
+    created: {},
+    pins: {},
+    errors: {},
+  };
+  for (const repo of Object.values(facts.github.data?.repos ?? {})) {
+    const release = repo.release;
+    if (release) {
+      releases.releases[repo.repo] = [{ ...release, body: "" }];
+      releases.created[repo.repo] = "2026-01-01T00:00:00Z";
+    }
+  }
+  return {
+    ...input,
+    releases,
+    reads: Object.fromEntries(
+      AREAS.map((area) => [
+        area,
+        [
+          {
+            source: area,
+            object: area,
+            observedAt: MORNING_AT,
+            completeness: { kind: "complete" },
+          },
+        ],
+      ]),
+    ),
+    releaseRecords: [
+      {
+        source: "releases",
+        object: "releases",
+        observedAt: MORNING_AT,
+        completeness: { kind: "complete" },
+      },
+    ],
+  };
+}
+
+function queuedChange(input: WatchInput, service: string, value?: string) {
+  const upstream = input.facts.upstream.data?.[service];
+  const radar = input.facts.radar.data?.services[service];
+  if (!upstream || !radar) throw new Error(`Morning fixture lacks radar for ${service}`);
+  const commit = {
+    sha: (input.context.fleet.forks.findIndex((fork) => fork.id === service) + 1)
+      .toString(16)
+      .padStart(40, "0"),
+    title: value ? `build: adopt ${value}` : "docs: refresh guidance",
+    at: "2026-11-06T13:00:00Z",
+    url: `https://example.com/upstream/${service}/commit/morning`,
+  };
+  upstream.lag = 1;
+  upstream.commits = [commit];
+  radar.queued = [
+    {
+      ...commit,
+      paths:
+        value === "schemathesis-tests"
+          ? ["schemathesis-tests/pom.xml"]
+          : [value ? "pom.xml" : "README.md"],
+      ...(value && value !== "schemathesis-tests"
+        ? {
+            hunks: {
+              "pom.xml": [
+                value.startsWith("Java")
+                  ? "+<java.version>25</java.version>"
+                  : `+<os-core-common.version>${value.split(" ")[1]}</os-core-common.version>`,
+              ],
+            },
+          }
+        : {}),
+    },
+  ];
+}
+
+/** No urgent work; two forks have ordinary commits queued, and the rollout is finishing. */
+export function calmInput(): WatchInput {
+  const input: WatchInput = {
+    ...morningInput(11),
+    attention: {
+      leadTimeMs: LEAD_TIME_MS,
+      previous: [{ id: "rollout", ids: ["rollout"], rung: 1, attention: "ambient", owned: false }],
+    },
+  };
+  const template = morningRepo(input, TEMPLATE_REPO);
+  template.issues.push({
+    repo: template.repo,
+    number: 800,
+    title: "Document the nightly workflow schedule",
+    url: `${template.url}/issues/800`,
+    createdAt: "2026-11-01T12:00:00Z",
+    updatedAt: "2026-11-01T12:00:00Z",
+    labels: ["documentation"],
+    comments: 0,
+  });
+  queuedChange(input, "partition");
+  queuedChange(input, "schema");
+  return input;
+}
+
+function failedPr(input: WatchInput, service: string, number: number, check: string, step: string) {
+  const repo = morningRepo(input, service);
+  const pr = morningPr(repo, number, "release/upstream-morning", "chore: release/upstream morning");
+  const id = number * 100;
+  const url = `${repo.url}/actions/runs/${number}/job/${id}`;
+  pr.checks = [
+    {
+      id,
+      runId: number,
+      name: check,
+      workflow: "Validation",
+      status: "COMPLETED",
+      conclusion: "FAILURE",
+      completedAt: "2026-11-06T03:00:00Z",
+      url,
+    },
+  ];
+  const detail = {
+    id,
+    name: check,
+    status: "completed",
+    conclusion: "failure",
+    url,
+    failedStep: step,
+    reason:
+      check === "Deploy and Test"
+        ? "The shared environment is draining"
+        : "Compilation failed in the synthetic morning build",
+    steps: [],
+  };
+  if (!input.facts.details.data) throw new Error("Morning fixture lacks details");
+  input.facts.details.data[`${repo.repo}#${id}`] = detail;
+  repo.prs.push(pr);
+  return pr;
+}
+
+/** Seven upstream decisions in four themes, releases and alerts across a fully read fleet. */
+export function busyInput(): WatchInput {
+  const input = morningInput(7);
+  for (const [service, value] of [
+    ["indexer", "os-core-common 8.5.0"],
+    ["workflow", "os-core-common 8.5.0"],
+    ["unit", "os-core-common 8.5.0"],
+    ["legal", "schemathesis-tests"],
+    ["storage", "Java 25"],
+    ["crs-conversion", "Java 25"],
+    ["partition", "os-core-common 10.0.0"],
+  ] as const)
+    queuedChange(input, service, value);
+  for (const [index, fork] of input.context.fleet.forks.entries()) {
+    const repo = morningRepo(input, fork.id);
+    if (index < 8)
+      repo.prs.push(
+        morningPr(repo, 600 + index, "release-please--branches--main", "chore: release 1.5.0"),
+      );
+    if (!input.facts.security.data) throw new Error("Morning fixture lacks security");
+    input.facts.security.data[fork.repo] = {
+      dependabot: (["high", "critical"] as const).map((severity, n) => ({
+        number: n + 1,
+        severity,
+        package: "fixture-library",
+        ecosystem: "maven",
+        manifest: `provider/${fork.id}-azure/pom.xml`,
+        advisory: `GHSA-fixture-${n}`,
+        summary: "Synthetic dependency finding",
+        url: `${repo.url}/security/dependabot/${n + 1}`,
+        createdAt: "2026-11-05T12:00:00Z",
+      })),
+      code: [],
+    };
+  }
+  const template = morningRepo(input, TEMPLATE_REPO);
+  template.prs.push(
+    morningPr(template, 263, "release-please--branches--main", "chore: release 1.5.0"),
+  );
+  for (const [index, service] of ["indexer", "workflow", "unit"].entries()) {
+    const repo = morningRepo(input, service);
+    repo.prs.push(
+      morningPr(repo, 58 + index, "sync/upstream-morning", "build: absorb os-core-common 8.5.0"),
+    );
+  }
+  const schema = morningRepo(input, "schema");
+  schema.issues.push({
+    repo: schema.repo,
+    number: 700,
+    title: "Label Configuration Update Required",
+    url: `${schema.url}/issues/700`,
+    createdAt: MORNING_AT,
+    updatedAt: MORNING_AT,
+    labels: [],
+    comments: 0,
+  });
+  const storage = input.facts.runs.data?.[morningRepo(input, "storage").repo]?.sync[0];
+  if (!storage) throw new Error("Morning fixture lacks storage sync");
+  storage.conclusion = "failure";
+  failedPr(input, "indexer-queue", 67, "Deploy and Test", "Verify");
+  return {
+    ...input,
+    attention: {
+      leadTimeMs: LEAD_TIME_MS,
+      previous: ["gate1:indexer", "gate1:workflow", "gate1:unit", "gate2:indexer-queue"].map(
+        (id) => ({ id, ids: [id], rung: 1, attention: "ambient", owned: false }),
+      ),
+    },
+  };
+}
+
+/** Retained GitHub figures with a new failed read; the other areas still read successfully. */
+export function badInput(): WatchInput {
+  const input = busyInput();
+  failedPr(input, "entitlements", 121, "Java Build", "Build");
+  const legalPr = failedPr(input, "legal", 701, "Java Build", "Build");
+  legalPr.head = "sync/upstream-morning";
+  const github = input.facts.github;
+  github.at = LAST_GOOD_GITHUB;
+  github.error = "HTTP 504: Gateway Timeout";
+  github.errorAt = MORNING_AT;
+  return {
+    ...input,
+    reads: {
+      ...input.reads,
+      github: [
+        {
+          source: "github",
+          object: "github",
+          observedAt: LAST_GOOD_GITHUB,
+          completeness: { kind: "complete" },
+        },
+        {
+          source: "github",
+          object: "github",
+          observedAt: MORNING_AT,
+          completeness: { kind: "complete" },
+          failure: github.error,
+        },
+      ],
+    },
+    attention: {
+      ...input.attention,
+      leadTimeMs: LEAD_TIME_MS,
+      previous: input.attention?.previous ?? [],
+      cards: new Set(["gate2:entitlements", "gate1:legal"]),
+    },
+  };
 }
