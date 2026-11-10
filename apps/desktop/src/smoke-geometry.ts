@@ -39,6 +39,7 @@ export type SmokeGeometry =
       viewport: SmokeRect;
       regions: SmokeAppRegion[];
       targets: { label: string; rect: SmokeRect }[];
+      backdrop?: SmokeRect;
     };
 
 export interface SmokeAppRegion {
@@ -298,6 +299,12 @@ export function assertSmokeGeometry(value: unknown): asserts value is SmokeGeome
         const { x, y, width, height } = target.rect;
         if (inDragShape(value.regions, target.rect))
           dragged.push(`${String(target.label)} at ${x},${y} ${width}x${height}`);
+      }
+      if (value.backdrop !== undefined) {
+        rect(value.backdrop);
+        const { x, y, width, height } = value.backdrop;
+        if (inDragShape(value.regions, value.backdrop))
+          dragged.push(`backdrop at ${x},${y} ${width}x${height}`);
       }
       assert(
         dragged.length === 0,

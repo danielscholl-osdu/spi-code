@@ -248,6 +248,27 @@ it("rejects an overlay target the title bar's drag rectangle still covers", () =
   expect(() => assertSmokeGeometry({ ...overlayDrag, targets: [] })).toThrow(/no interactive/);
 });
 
+it("rejects an overlay backdrop whose title band the drag rectangle still covers", () => {
+  const backdrop = rect(0, 0, 740, 560);
+  const shaded = {
+    ...overlayDrag,
+    regions: [titleBar, { appRegion: "no-drag" as const, rect: backdrop }, settingsPopup],
+    backdrop,
+  };
+  expect(() => assertSmokeGeometry(shaded)).not.toThrow();
+  expect(() => assertSmokeGeometry({ ...shaded, regions: [titleBar, settingsPopup] })).toThrow(
+    "[role=dialog].settings backdrop at 0,0 740x560 lies in a drag rectangle",
+  );
+  expect(() =>
+    assertSmokeGeometry({
+      ...shaded,
+      regions: [titleBar, settingsPopup],
+      backdrop: rect(0, 44, 740, 516),
+    }),
+  ).not.toThrow();
+  expect(() => assertSmokeGeometry({ ...shaded, backdrop: rect(0, 0, NaN, 560) })).toThrow();
+});
+
 it("rejects absent, unknown and non-finite geometry rather than passing an empty probe", () => {
   for (const value of [
     undefined,

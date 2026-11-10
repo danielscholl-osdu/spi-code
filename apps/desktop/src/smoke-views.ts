@@ -99,6 +99,7 @@ async function measure(
   window: BrowserWindow,
   rule: SmokeGeometry["rule"],
   overlay = "",
+  backdrop = "",
 ): Promise<SmokeGeometry> {
   const value: unknown = await window.webContents.executeJavaScript(`(() => {
     const element = selector => {
@@ -184,7 +185,13 @@ async function measure(
             const label = item.getAttribute("aria-label") || item.textContent.replace(/\\s+/g, " ").trim().slice(0, 40) || item.tagName.toLowerCase();
             return width > 0 && height > 0 ? [{ label, rect: { x, y, width, height } }] : [];
           });
-        return { rule: "overlay-drag", overlay: ${JSON.stringify(overlay)}, viewport, regions, targets };
+        const result = { rule: "overlay-drag", overlay: ${JSON.stringify(overlay)}, viewport, regions, targets };
+        if (${JSON.stringify(backdrop)}) {
+          const shade = rect(element(${JSON.stringify(backdrop)}));
+          const x = Math.max(0, shade.x), y = Math.max(0, shade.y);
+          result.backdrop = { x, y, width: Math.min(innerWidth, shade.x + shade.width) - x, height: Math.min(innerHeight, shade.y + shade.height) - y };
+        }
+        return result;
       }
     }
   })()`);
@@ -232,71 +239,93 @@ async function overlayDragProbe(
 ): Promise<void> {
   const [minimumWidth] = window.getMinimumSize();
   assert(minimumWidth, "Missing window minimum width");
+  const sizes = OVERLAY_DRAG_SIZES.map(
+    ([size, width, height]) => [size, width || minimumWidth, height] as const,
+  );
   const measured: (SmokeGeometry & { size: string; titleBar: number })[] = [];
   let rejected: string | undefined;
-  const check = async (size: string, overlay: string) => {
-    const titleBar: number = await window.webContents.executeJavaScript(
-      'document.querySelector(".title-bar").getBoundingClientRect().height',
-    );
-    let geometry: SmokeGeometry;
-    try {
-      geometry = await measure(window, "overlay-drag", overlay);
-    } catch (error) {
-      console.log(`Packaged overlay drag ${size}/${overlay}: ${String(error)}`);
-      throw error;
+  let lap = Date.now();
+  // One load serves all nine checks: each overlay stays open while the window resizes in place.
+  const each = async (
+    overlay: string,
+    backdrop: string,
+    order: typeof sizes,
+    after?: (size: string) => Promise<void>,
+  ) => {
+    for (const [size, width, height] of order) {
+      window.setContentSize(width, height);
+      await rendered(
+        window,
+        `Math.abs(innerWidth - ${width}) <= 1 && Math.abs(innerHeight - ${height}) <= 1`,
+      );
+      const titleBar: number = await window.webContents.executeJavaScript(
+        'document.querySelector(".title-bar").getBoundingClientRect().height',
+      );
+      let geometry: SmokeGeometry;
+      try {
+        geometry = await measure(window, "overlay-drag", overlay, backdrop);
+      } catch (error) {
+        console.log(`Packaged overlay drag ${size}/${overlay}: ${String(error)}`);
+        throw error;
+      }
+      measured.push({ ...geometry, size, titleBar });
+      assert(geometry.rule === "overlay-drag");
+      const nearest = geometry.targets.reduce(
+        (top, target) => Math.min(top, target.rect.y),
+        Infinity,
+      );
+      const elapsed = Date.now() - lap;
+      lap = Date.now();
+      console.log(
+        `Packaged overlay drag ${size}/${overlay}: title bar ${titleBar} px, ${geometry.targets.length} targets clear of ${geometry.regions.filter((region) => region.appRegion === "drag").length} drag rects${geometry.backdrop ? " with the backdrop" : ""}, top target y ${nearest}, ${elapsed} ms`,
+      );
+      await after?.(size);
     }
-    measured.push({ ...geometry, size, titleBar });
-    if (geometry.rule !== "overlay-drag") return;
-    const nearest = geometry.targets.reduce(
-      (top, target) => Math.min(top, target.rect.y),
-      Infinity,
-    );
-    console.log(
-      `Packaged overlay drag ${size}/${overlay}: title bar ${titleBar} px, ${geometry.targets.length} targets clear of ${geometry.regions.filter((region) => region.appRegion === "drag").length} drag rects, top target y ${nearest}`,
-    );
   };
-  for (const [size, width, height] of OVERLAY_DRAG_SIZES) {
-    window.setContentSize(width || minimumWidth, height);
-    await load();
-    await window.webContents.executeJavaScript('document.querySelector(".strip-pips").click()');
-    await rendered(window, 'document.querySelector(".line-sheet .line-grid")');
-    await check(size, ".line-sheet");
-    await window.webContents.executeJavaScript(
-      "document.querySelector(\"[aria-label='Close Line']\").click()",
-    );
-    await rendered(window, '!document.querySelector(".line-sheet")');
-    await openSettings(window);
-    await check(size, "[role=dialog].settings");
+  const [first] = sizes;
+  assert(first);
+  window.setContentSize(first[1], first[2]);
+  await load();
+  await window.webContents.executeJavaScript('document.querySelector(".strip-pips").click()');
+  await rendered(window, 'document.querySelector(".line-sheet .line-grid")');
+  await each(".line-sheet", "", sizes);
+  await window.webContents.executeJavaScript(
+    "document.querySelector(\"[aria-label='Close Line']\").click()",
+  );
+  await rendered(window, '!document.querySelector(".line-sheet")');
+  await openSettings(window);
+  await each("[role=dialog].settings", ".settings-backdrop", [...sizes].reverse(), async (size) => {
     writeFileSync(
       join(output, `overlay-drag-settings-${size}.png`),
       (await window.webContents.capturePage()).toPNG(),
     );
-    if (size === "minimum") {
+    if (size !== "minimum") return;
+    const unprotected =
+      '[".settings", ".settings-backdrop"].map((item) => document.querySelector(item).style)';
+    await window.webContents.executeJavaScript(
+      `${unprotected}.forEach((style) => style.setProperty("-webkit-app-region", "unset"))`,
+    );
+    try {
+      await measure(window, "overlay-drag", "[role=dialog].settings", ".settings-backdrop");
+      assert.fail("Settings inside the drag shape passed");
+    } catch (error) {
+      if (
+        !(error instanceof AssertionError) ||
+        !/Close settings at .*; backdrop at .* in a drag rectangle$/.test(error.message)
+      )
+        throw error;
+      rejected = error.message;
+      console.log(`Packaged broken-rule proof rejected: ${error.message}`);
+    } finally {
       await window.webContents.executeJavaScript(
-        'document.querySelector("[role=dialog].settings").style.setProperty("-webkit-app-region", "unset")',
+        `${unprotected}.forEach((style) => style.removeProperty("-webkit-app-region"))`,
       );
-      try {
-        await measure(window, "overlay-drag", "[role=dialog].settings");
-        assert.fail("Settings inside the drag shape passed");
-      } catch (error) {
-        if (
-          !(error instanceof AssertionError) ||
-          !/Close settings at .* in a drag rectangle$/.test(error.message)
-        )
-          throw error;
-        rejected = error.message;
-        console.log(`Packaged broken-rule proof rejected: ${error.message}`);
-      } finally {
-        await window.webContents.executeJavaScript(
-          'document.querySelector("[role=dialog].settings").style.removeProperty("-webkit-app-region")',
-        );
-      }
     }
-    await closeSettings(window);
-    await shortcut(window, "k");
-    await rendered(window, 'document.querySelector("[role=dialog].palette")');
-    await check(size, "[role=dialog].palette");
-  }
+  });
+  await closeSettings(window);
+  await shortcut(window, "k");
+  await rendered(window, 'document.querySelector("[role=dialog].palette")');
+  await each("[role=dialog].palette", ".palette-backdrop", sizes);
   assert(rejected, "Missing packaged overlay drag broken-rule proof");
   writeFileSync(
     join(output, "overlay-drag.json"),
