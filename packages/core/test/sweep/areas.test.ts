@@ -132,6 +132,8 @@ function harness(repo = "owner/partition", remaining = 4000) {
           stderr: "",
           exit: 0,
         };
+      else if (path.includes("/git/matching-refs/tags/"))
+        data = { tag: "v1.0.0", sha: "a".repeat(40) };
       else if (path.includes("/git/trees/")) data = { paths: [], truncated: false };
       else if (path.includes("/git/blobs/"))
         data = {

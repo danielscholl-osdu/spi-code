@@ -286,6 +286,18 @@ const SHAPES: {
     class: "public-content",
     gitlab: ["osdu/platform/system/partition"],
   },
+  {
+    cmd: "gh",
+    args: [
+      "api",
+      "--paginate",
+      "repos/Azure/osdu-spi-partition/git/matching-refs/tags/",
+      "--jq",
+      jqOf("tag refs"),
+    ],
+    class: "public-content",
+    github: ["Azure/osdu-spi-partition"],
+  },
 ];
 
 const sorted = (set: Set<string> | undefined) => [...(set ?? [])].sort();

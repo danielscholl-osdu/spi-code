@@ -17,6 +17,8 @@ export interface ReleasePersist {
 
 export interface ReleaseState extends ReleaseReads {
   records: ReadRecord[];
+  /** The object each cached pin's tag named when it was read; a pin without one is unconfirmed. */
+  shas: Record<string, string>;
 }
 
 const recordSchema = z.object({
@@ -43,10 +45,11 @@ export const releaseStateSchema = z.object({
   pins: z.record(z.string(), z.object({ lib: z.string().nullable(), java: z.string().nullable() })),
   errors: z.record(z.string(), z.string()),
   records: z.array(recordSchema).default([]),
+  shas: z.record(z.string(), z.string()).default({}),
 });
 
 export function emptyReads(): ReleaseState {
-  return { releases: {}, created: {}, pins: {}, errors: {}, records: [] };
+  return { releases: {}, created: {}, pins: {}, errors: {}, records: [], shas: {} };
 }
 
 const JAVA_PROPS = Object.freeze([
@@ -71,6 +74,14 @@ export function pinPoms(paths: readonly string[]): string[] {
 
 interface RawBlob {
   text?: string | null;
+}
+
+export const TAG_REFS_JQ = '.[] | {tag: (.ref | ltrimstr("refs/tags/")), sha: .object.sha}';
+
+/** Every tag ref in one request: matching-refs takes no page size and answers with the lot. */
+async function readTagShas(gh: Gh, repo: string): Promise<Map<string, string>> {
+  const refs = await gh.pages<{ tag: string; sha: string }>(`repos/${repo}/git/matching-refs/tags/`, TAG_REFS_JQ);
+  return new Map(refs.map((r) => [r.tag, r.sha]));
 }
 
 async function readPins(gh: Gh, repo: string, tag: string): Promise<BuildPins> {
@@ -208,61 +219,77 @@ export class ReleaseReader {
       for (const repo of repos) this.record("github-created", repo, errors.created, created[repo] !== undefined);
     }
     const pins = { ...this.reads.pins };
+    const shas = { ...this.reads.shas };
     const recorded = new Set(
       this.reads.records.filter((r) => r.source === "github-pins").map((r) => r.object),
     );
-    const missing = Object.entries(releases).filter(([repo]) => forks.has(repo))
-      .flatMap(([repo, list]) => list.map((r) => ({ repo, tag: r.tag })))
-      .filter((r) => {
-        const key = pinKey(r.repo, r.tag);
-        return refreshPins || !pins[key] || this.reads.errors[key] !== undefined || !recorded.has(key);
-      });
-    await pool(missing, 4, async ({ repo, tag }) => {
-      const key = pinKey(repo, tag);
+    const listed = Object.entries(releases).filter(([repo]) => forks.has(repo))
+      .flatMap(([repo, list]) => list.map((r) => ({ repo, tag: r.tag, key: pinKey(repo, r.tag) })));
+    const looked = new Map<string, Map<string, string>>();
+    const lookups = [...new Set(listed.map((r) => r.repo))].filter((repo) => !errors[repo]);
+    await pool(lookups, 4, async (repo) => {
+      try {
+        looked.set(repo, await readTagShas(this.gh, repo));
+      } catch (err) {
+        errors[`tags:${repo}`] = errorText(err);
+      }
+    });
+    const confirmed = new Set<string>();
+    const gone = new Set<string>();
+    const reread: { repo: string; tag: string; key: string; sha?: string }[] = [];
+    for (const r of listed) {
+      const tags = looked.get(r.repo);
+      const sha = tags?.get(r.tag);
+      if (tags && sha === undefined) {
+        gone.add(r.key);
+        continue;
+      }
+      const unread = refreshPins || !pins[r.key] || this.reads.errors[r.key] !== undefined || !recorded.has(r.key);
+      if (unread || (sha !== undefined && shas[r.key] !== sha)) reread.push({ ...r, ...(sha ? { sha } : {}) });
+      else if (sha !== undefined) confirmed.add(r.key);
+    }
+    for (const key of gone) {
+      delete pins[key];
+      delete shas[key];
+    }
+    await pool(reread, 4, async ({ repo, tag, key, sha }) => {
       try {
         pins[key] = await readPins(this.gh, repo, tag);
+        if (sha) shas[key] = sha;
+        else delete shas[key];
         this.record("github-pins", key);
       } catch (err) {
         errors[key] = errorText(err);
         this.record("github-pins", key, errors[key], pins[key] !== undefined);
       }
     });
-    this.settleRecords(repos, releases, errors, new Set(missing.map((r) => pinKey(r.repo, r.tag))));
+    this.settleRecords(repos, new Set(listed.map((r) => r.key)), gone, confirmed);
     const readAny = repos.some((r) => !errors[r]);
     this.reads = {
       ...(readAny ? { at: this.ctx.clock.now().toISOString() } : this.reads.at ? { at: this.reads.at } : {}),
-      releases, created, pins, errors, records: this.reads.records,
+      releases, created, pins, errors, records: this.reads.records, shas,
     };
     this.savePending = true;
     await this.save();
   }
 
   /**
-   * A tag's pins never change, so a fork's successful listing confirms its cached pins as read
-   * now; without this the first read's time ages the whole releases envelope. Records for tags
-   * no longer listed and repos no longer in the fleet go, since nothing re-reads them.
+   * A cached pin is confirmed when its tag still names the object it was read from, and only
+   * then does it take this read's time; a moved tag was re-read above, and a tag lookup that
+   * failed confirms nothing. Records for tags gone or no longer listed, and for repos no longer
+   * in the fleet, go, since nothing re-reads them.
    */
   private settleRecords(
     repos: readonly string[],
-    releases: Record<string, readonly ReleaseFact[]>,
-    errors: Record<string, string>,
-    readNow: ReadonlySet<string>,
+    listed: ReadonlySet<string>,
+    gone: ReadonlySet<string>,
+    confirmed: ReadonlySet<string>,
   ): void {
-    const forks = new Set(this.ctx.fleet.forks.map((f) => f.repo));
-    const listed = new Set(
-      Object.entries(releases).filter(([repo]) => forks.has(repo))
-        .flatMap(([repo, list]) => list.map((r) => pinKey(repo, r.tag))),
-    );
-    const confirmed = new Set(
-      Object.entries(releases).filter(([repo]) => forks.has(repo) && !errors[repo])
-        .flatMap(([repo, list]) => list.map((r) => pinKey(repo, r.tag)))
-        .filter((key) => !readNow.has(key)),
-    );
     const current = new Set(repos);
     const now = this.ctx.clock.now().toISOString();
     this.reads.records = this.reads.records.flatMap((r) => {
       if (r.source === "github-pins") {
-        if (!listed.has(r.object)) return [];
+        if (!listed.has(r.object) || gone.has(r.object)) return [];
         return confirmed.has(r.object) && r.failure === undefined ? [{ ...r, observedAt: now }] : [r];
       }
       if (r.source === "github-releases" || r.source === "github-created") {

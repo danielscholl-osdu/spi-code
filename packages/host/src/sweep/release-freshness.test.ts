@@ -45,6 +45,9 @@ const exec: Exec = {
   runText: async (_cmd, args) => {
     const path = args.find((arg) => arg.startsWith("repos/")) ?? "";
     if (path.endsWith("/releases?per_page=100")) return { ok: true, data: JSON.stringify(RELEASE) };
+    if (path.endsWith("/git/matching-refs/tags/")) {
+      return { ok: true, data: JSON.stringify({ tag: RELEASE.tag, sha: "a".repeat(40) }) };
+    }
     const query = args.find((arg) => arg.startsWith("query=")) ?? "";
     if (!query) return offline;
     const budget = {

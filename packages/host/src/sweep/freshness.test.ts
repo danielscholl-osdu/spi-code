@@ -229,6 +229,8 @@ function recording() {
         data = { text: "stackVersion: v1.0.0\n" };
       } else if (path.includes("/releases?")) {
         data = { tag: "v1.0.0", at: START, body: "" };
+      } else if (path.includes("/git/matching-refs/tags/")) {
+        data = { tag: "v1.0.0", sha: "a".repeat(40) };
       } else if (path.includes("/git/trees/")) {
         data = { paths: [], truncated: false };
       } else if (path.includes("/git/blobs/")) {

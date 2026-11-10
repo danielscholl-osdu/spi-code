@@ -343,6 +343,13 @@ export const REST_SHAPES: readonly RestShape[] = [
     "{paths: [.tree[].path], truncated: .truncated}",
   ),
   shape(
+    "tag refs",
+    "gh",
+    "pages",
+    `${REPO}git/matching-refs/tags/`,
+    '.[] | {tag: (.ref | ltrimstr("refs/tags/")), sha: .object.sha}',
+  ),
+  shape(
     "releases",
     "gh",
     "pages",

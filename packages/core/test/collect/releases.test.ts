@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: MIT
 
 import { expect, test } from "vitest";
-import { javaOf, pinPoms, type ReleasePersist, ReleaseReader } from "../../src/collect/releases.js";
+import {
+  javaOf,
+  pinPoms,
+  type ReleasePersist,
+  ReleaseReader,
+  TAG_REFS_JQ,
+} from "../../src/collect/releases.js";
 import { fleetOf, RELEASES_EVERY_MS } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
 import { envelopeOf } from "../../src/evidence/index.js";
@@ -12,6 +18,8 @@ import { pinKey } from "../../src/releases.js";
 
 const START = "2026-10-21T15:00:00.000Z";
 const RELEASE = { tag: "v1.0.0", at: "2026-10-01T00:00:00Z", body: "" };
+const SHA_A = "a".repeat(40);
+const SHA_B = "b".repeat(40);
 
 function harness(repo = "test/service") {
   let time = Date.parse(START);
@@ -28,7 +36,10 @@ function harness(repo = "test/service") {
   };
   const log: string[] = [];
   const calls: string[] = [];
-  const faults = { pins: false, releases: false, created: false, truncated: false };
+  const faults = { pins: false, releases: false, created: false, truncated: false, tags: false };
+  const tags = new Map([[RELEASE.tag, SHA_A]]);
+  const listing = [RELEASE];
+  const pom = { java: "25" };
   const exec = new RecordingExec(
     async (_cmd, args) => {
       calls.push(args.join(" "));
@@ -45,7 +56,7 @@ function harness(repo = "test/service") {
             )
           : {
               repository: {
-                p0: { text: "<java.version>25</java.version>" },
+                p0: { text: `<java.version>${pom.java}</java.version>` },
                 p1: { text: "<core-lib-azure.version>3.0.1</core-lib-azure.version>" },
               },
             };
@@ -62,9 +73,18 @@ function harness(repo = "test/service") {
         };
       }
       const path = args.find((arg) => arg.startsWith("repos/")) ?? "";
+      if (path.includes("/git/matching-refs/tags/")) {
+        return {
+          stdout: [...tags].map(([tag, sha]) => JSON.stringify({ tag, sha })).join("\n"),
+          stderr: "tag refs read failed",
+          exit: faults.tags ? 1 : 0,
+        };
+      }
       if (path.includes("/releases")) {
         return {
-          stdout: path.startsWith(`repos/${repo}/`) ? JSON.stringify(RELEASE) : "",
+          stdout: path.startsWith(`repos/${repo}/`)
+            ? listing.map((r) => JSON.stringify(r)).join("\n")
+            : "",
           stderr: "release read failed",
           exit: faults.releases && path.startsWith(`repos/${repo}/`) ? 1 : 0,
         };
@@ -90,6 +110,9 @@ function harness(repo = "test/service") {
     log,
     calls,
     faults,
+    tags,
+    listing,
+    pom,
     budget,
     reader,
     key: pinKey(repo, RELEASE.tag),
@@ -173,6 +196,113 @@ test("a due re-read stamps cached pins with its own time, so Release lines read 
   expect(
     envelopeOf(h.reader.records, { intervalMs: RELEASES_EVERY_MS, now: now.getTime() }),
   ).toMatchObject({ state: "fresh", observedAt: now.toISOString() });
+});
+
+const callsOf = (calls: string[], part: string) =>
+  calls.filter((call) => call.includes(part)).length;
+
+test("an unchanged tag's pin is restamped only after its tag lookup confirms the SHA", async () => {
+  const h = harness();
+  await h.reader.read();
+  h.advance(14 * RELEASES_EVERY_MS);
+  await h.reader.read();
+  expect(callsOf(h.calls, "git/matching-refs/tags/")).toBe(2);
+  expect(callsOf(h.calls, "git/trees")).toBe(1);
+  expect(h.reader.records.find((r) => r.object === h.key)).toMatchObject({
+    observedAt: h.ctx.clock.now().toISOString(),
+  });
+  expect(h.reader.data.shas[h.key]).toBe(SHA_A);
+});
+
+test("a moved tag is re-read, not restamped", async () => {
+  const h = harness();
+  await h.reader.read();
+  h.advance(14 * RELEASES_EVERY_MS);
+  h.tags.set(RELEASE.tag, SHA_B);
+  h.pom.java = "26";
+  await h.reader.read();
+  expect(callsOf(h.calls, "git/trees")).toBe(2);
+  expect(h.reader.data.pins[h.key]).toEqual({ java: "26", lib: "3.0.1" });
+  expect(h.reader.data.shas[h.key]).toBe(SHA_B);
+  expect(h.reader.records.find((r) => r.object === h.key)).toMatchObject({
+    observedAt: h.ctx.clock.now().toISOString(),
+  });
+});
+
+test("a moved tag whose re-read fails keeps its old pin, old time and the failure", async () => {
+  const h = harness();
+  await h.reader.read();
+  h.advance(14 * RELEASES_EVERY_MS);
+  h.tags.set(RELEASE.tag, SHA_B);
+  h.faults.pins = true;
+  await h.reader.read();
+  expect(h.reader.records.find((r) => r.object === h.key)).toMatchObject({
+    retainedFrom: START,
+    failure: expect.stringContaining("Something went wrong"),
+  });
+  expect(h.reader.data.pins[h.key]).toEqual({ java: "25", lib: "3.0.1" });
+  expect(h.reader.data.shas[h.key]).toBe(SHA_A);
+  h.faults.pins = false;
+  h.advance(RELEASES_EVERY_MS);
+  await h.reader.read();
+  expect(h.reader.data.shas[h.key]).toBe(SHA_B);
+  expect(callsOf(h.calls, "git/trees")).toBe(3);
+});
+
+test("a deleted tag is not reported as freshly read", async () => {
+  const h = harness();
+  await h.reader.read();
+  h.advance(14 * RELEASES_EVERY_MS);
+  h.tags.delete(RELEASE.tag);
+  await h.reader.read();
+  expect(callsOf(h.calls, "git/trees")).toBe(1);
+  expect(h.reader.records.some((r) => r.object === h.key)).toBe(false);
+  expect(h.reader.data.pins[h.key]).toBeUndefined();
+  expect(h.reader.data.shas[h.key]).toBeUndefined();
+});
+
+test("a failed tag lookup restamps nothing for its repo and keeps the old times", async () => {
+  const h = harness();
+  await h.reader.read();
+  h.advance(14 * RELEASES_EVERY_MS);
+  h.faults.tags = true;
+  await h.reader.read();
+  expect(callsOf(h.calls, "git/trees")).toBe(1);
+  expect(h.reader.records.find((r) => r.object === h.key)).toMatchObject({ observedAt: START });
+  expect(h.reader.data.errors[`tags:${h.repo}`]).toContain("tag refs read failed");
+  expect(h.reader.data.pins[h.key]).toEqual({ java: "25", lib: "3.0.1" });
+  expect(
+    envelopeOf(h.reader.records, {
+      intervalMs: RELEASES_EVERY_MS,
+      now: h.ctx.clock.now().getTime(),
+    }),
+  ).toMatchObject({ state: "stale", observedAt: START });
+});
+
+test("a due read makes one tag lookup per fork and re-reads only moved tags", async () => {
+  const h = harness();
+  h.listing.push(
+    { tag: "v1.1.0", at: "2026-10-02T00:00:00Z", body: "" },
+    { tag: "v1.2.0", at: "2026-10-03T00:00:00Z", body: "" },
+  );
+  h.tags.set("v1.1.0", SHA_A);
+  h.tags.set("v1.2.0", SHA_A);
+  await h.reader.read();
+  h.advance(14 * RELEASES_EVERY_MS);
+  h.tags.set("v1.1.0", SHA_B);
+  const before = h.calls.length;
+  await h.reader.read();
+  const due = h.calls.slice(before);
+  expect(due.filter((c) => c.includes("/releases?"))).toHaveLength(h.ctx.fleet.releaseRepos.length);
+  expect(due.filter((c) => c.includes("createdAt"))).toHaveLength(1);
+  expect(due.filter((c) => c.includes("git/matching-refs/tags/"))).toEqual([
+    `api --paginate repos/${h.repo}/git/matching-refs/tags/ --jq ${TAG_REFS_JQ}`,
+  ]);
+  expect(due.filter((c) => c.includes("git/trees"))).toEqual([
+    `api repos/${h.repo}/git/trees/v1.1.0?recursive=1 --jq {paths: [.tree[].path], truncated: .truncated}`,
+  ]);
+  expect(due.filter((c) => c.includes("object(expression"))).toHaveLength(1);
+  expect(due).toHaveLength(h.ctx.fleet.releaseRepos.length + 4);
 });
 
 test("Release lines not read for over twice their interval stay stale at their last read", async () => {
