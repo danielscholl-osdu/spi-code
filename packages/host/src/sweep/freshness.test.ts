@@ -368,6 +368,41 @@ it("does not confirm cached template or detail reads from failed GitHub selector
   expect(areas.get("lifecycle")?.state).toBe("fresh");
 });
 
+it("carries template and detail reads forward from the last sweep that confirmed them when GitHub fails", async () => {
+  const fixture = recording();
+  const instance = service(fixture.exec, "carried");
+  await instance.start();
+  const confirmed = Date.parse(START) + 3 * SWEEP_MS;
+  vi.setSystemTime(confirmed);
+  await instance.sweep();
+  const envelopes = () =>
+    ["template", "details"].map(
+      (area) => instance.latest()?.areas.find((entry) => entry.area === area)?.envelope,
+    );
+  const t1 = new Date(confirmed).toISOString();
+  expect(envelopes()).toEqual([
+    expect.objectContaining({ state: "fresh", observedAt: t1 }),
+    expect.objectContaining({ state: "fresh", observedAt: t1 }),
+  ]);
+  fixture.failGithub();
+  for (const [offset, state] of [
+    [SWEEP_MS, "fresh"],
+    [2 * SWEEP_MS, "fresh"],
+    [2 * SWEEP_MS + 60_000, "stale"],
+  ] as const) {
+    vi.setSystemTime(confirmed + offset);
+    await instance.sweep();
+    expect(instance.latest()?.areas.find(({ area }) => area === "github")?.envelope.state).toBe(
+      "failed",
+    );
+    expect(envelopes()).toEqual([
+      expect.objectContaining({ state, observedAt: t1 }),
+      expect.objectContaining({ state, observedAt: t1 }),
+    ]);
+  }
+  expect(fixture.unexpected).toEqual([]);
+});
+
 it("keeps a cut job listing incomplete on subsequent successful area reads", async () => {
   const fixture = recording();
   fixture.cutJobs();

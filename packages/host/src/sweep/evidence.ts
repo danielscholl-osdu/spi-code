@@ -56,22 +56,30 @@ export function sweepEvidence(
   const readIntervals = new Map<ReadRecord, number>();
   const envelopeReads = { ...reads };
   const sourceReads = { ...reads };
+  const github = envelopeOf(reads.github ?? [], { intervalMs, now: now.getTime() }).observedAt;
   for (const area of AREAS) {
     const records = reads[area] ?? [];
     const at = facts[area].at;
-    const confirmed =
-      current(area) && (!(area === "template" || area === "details") || current("github"));
+    // Template and detail keys come from GitHub reads, so they are confirmed no later than those.
+    const confirmedAt =
+      !current(area) || at === undefined
+        ? undefined
+        : !(area === "template" || area === "details") || current("github")
+          ? at
+          : github === undefined
+            ? undefined
+            : new Date(Math.min(Date.parse(at), Date.parse(github))).toISOString();
     envelopeReads[area] = records.map((record) => {
       if (area === "fleet" && record.object === "actions/variables") {
         readIntervals.set(record, GITLAB_EVERY_MS);
       }
-      return confirmed &&
-        at !== undefined &&
+      return confirmedAt !== undefined &&
+        Date.parse(confirmedAt) > Date.parse(record.observedAt) &&
         record.failure === undefined &&
         record.retainedFrom === undefined &&
         record.completeness.kind === "complete" &&
         immutable[area]?.has(key(record))
-        ? { ...record, observedAt: at }
+        ? { ...record, observedAt: confirmedAt }
         : record;
     });
     const deferred = cache.budget.deferred.find((entry) => entry.area === area);
