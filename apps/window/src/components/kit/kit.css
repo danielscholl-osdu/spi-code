@@ -1,0 +1,162 @@
+/* Copyright 2026, Daniel Scholl
+ * SPDX-License-Identifier: MIT */
+
+.kit-slot {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  color: var(--placeholder);
+}
+
+.kit-slot svg {
+  width: 12px;
+  height: 12px;
+  overflow: visible;
+}
+
+.kit-slot--occupied {
+  color: var(--text);
+}
+
+.kit-slot--done {
+  color: var(--accent);
+}
+
+.kit-slot-check {
+  fill: none;
+  stroke: var(--on-fill);
+  stroke-width: 1.6px;
+}
+
+.kit-slot--waiting {
+  color: var(--warning);
+}
+
+.kit-slot--broken {
+  color: var(--error);
+}
+
+.kit-slot--upstream {
+  color: var(--upstream);
+}
+
+.kit-slot-row,
+.kit-slot-row-heading,
+.kit-slots,
+.kit-slot-legend,
+.kit-slot-legend > li {
+  display: flex;
+  align-items: center;
+}
+
+.kit-slot-row {
+  margin: 0;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.kit-slot-row-heading {
+  gap: 8px;
+}
+
+.kit-slot-row-label {
+  font-weight: 600;
+}
+
+.kit-slot-row-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.kit-slots {
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.kit-slot-legend {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.kit-slot-legend > li {
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.kit-mark {
+  display: inline-flex;
+  flex: none;
+  justify-content: center;
+  font: 600 13px var(--font-mono);
+}
+
+.kit-mark--interrupt {
+  color: var(--error-text);
+}
+
+.kit-mark--surface {
+  color: var(--warning-text);
+}
+
+.kit-mark--ambient {
+  color: var(--accent-text);
+}
+
+.kit-mark--background {
+  color: var(--text-muted);
+}
+
+.kit-line {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.kit-line-glyph {
+  display: inline-flex;
+  align-items: center;
+  width: 64px;
+  height: 12px;
+  color: var(--placeholder);
+}
+
+.kit-line-glyph > [data-station] {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+}
+
+.kit-line-connector {
+  flex: 1;
+  height: 1.5px;
+  background: var(--border);
+}
+
+.kit-line-passed {
+  display: inline-block;
+  height: 4px;
+  background: currentColor;
+}
+
+[data-station] > .kit-line-passed {
+  width: 6px;
+}
+
+.kit-line-future {
+  width: 2px;
+  height: 8px;
+  background: currentColor;
+}
+
+.kit-line-legend {
+  color: var(--text-muted);
+  font-size: 11px;
+}

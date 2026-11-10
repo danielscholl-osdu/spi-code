@@ -130,6 +130,11 @@ function deltaE(a: string, b: string, kind?: CvdKind): number {
   return Math.hypot(la[0] - lb[0], la[1] - lb[1], la[2] - lb[2]);
 }
 
+/** Worst CIE76 separation under red/green colour-vision deficiencies. */
+export function minimumCvdDistance(a: string, b: string): number {
+  return Math.min(deltaE(a, b, "protan"), deltaE(a, b, "deutan"));
+}
+
 function pairList(n: number, pairs: PalettePairs): [number, number][] {
   const out: [number, number][] = [];
   for (let i = 0; i < n; i++) {

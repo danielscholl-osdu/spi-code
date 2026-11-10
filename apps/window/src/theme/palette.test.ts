@@ -4,7 +4,12 @@
 
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { type Appearance, validateCategoricalPalette, wcagContrast } from "./palette.js";
+import {
+  type Appearance,
+  minimumCvdDistance,
+  validateCategoricalPalette,
+  wcagContrast,
+} from "./palette.js";
 
 const css = readFileSync("apps/window/src/theme/tokens.css", "utf8");
 const design = readFileSync("design/spi-code-visual-design.html", "utf8");
@@ -19,6 +24,7 @@ const textRoles = [
   "warning-text",
   "success-text",
   "agent-text",
+  "upstream-text",
 ];
 
 function tokens(mode: Appearance): Record<string, string> {
@@ -49,7 +55,7 @@ describe.each(["light", "dark"] as const)("Shore %s", (mode) => {
 
   it("meets AA for every text role on all four surfaces and badge pairs", () => {
     expect(textFailures(theme)).toEqual([]);
-    for (const role of ["accent", "error", "warning"]) {
+    for (const role of ["accent", "error", "warning", "upstream"]) {
       expect(
         wcagContrast(value(theme, "on-fill"), value(theme, `${role}-text`)),
       ).toBeGreaterThanOrEqual(4.5);
@@ -57,6 +63,19 @@ describe.each(["light", "dark"] as const)("Shore %s", (mode) => {
         wcagContrast(value(theme, `${role}-text`), value(theme, `${role}-surface`)),
       ).toBeGreaterThanOrEqual(4.5);
     }
+  });
+
+  it("distinguishes upstream from every other palette role under CVD", () => {
+    for (const [role, color] of Object.entries(theme)) {
+      if (role.startsWith("upstream")) continue;
+      for (const variant of ["upstream", "upstream-text"]) {
+        expect(
+          minimumCvdDistance(value(theme, variant), color),
+          `${variant} versus ${role}`,
+        ).toBeGreaterThanOrEqual(12);
+      }
+    }
+    expect(minimumCvdDistance(value(theme, "upstream"), value(theme, "upstream"))).toBe(0);
   });
 
   it("matches the visual design role table and Appendix B text variants", () => {

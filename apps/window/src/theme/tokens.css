@@ -32,6 +32,9 @@
   --success-text: #8fcf86;
   --agent: #c3a2e8;
   --agent-text: #c3a2e8;
+  --upstream: #fabce0;
+  --upstream-text: #fabce0;
+  --upstream-surface: #302032;
   --on-fill: #0f1a1b;
   --chart-1: #3fb8a5;
   --chart-2: #c9a05a;
@@ -66,6 +69,9 @@
   --success-text: #356c2f;
   --agent: #8a5cc0;
   --agent-text: #7e4cba;
+  --upstream: #a33182;
+  --upstream-text: #a33182;
+  --upstream-surface: #f5deee;
   --on-fill: #ffffff;
   --chart-1: #1d8a7a;
   --chart-2: #a07b3a;
