@@ -531,7 +531,9 @@ export async function captureSmokeViews(
               ...scheduledSweep.snapshot,
               cursor: scheduledCursor++,
             });
-            fixture(window, "sweep.progress", scheduledSweep.progress);
+            fixture(window, "sweep.progress", scheduledSweep.completed);
+            if (scheduledSweep.progress !== scheduledSweep.completed)
+              fixture(window, "sweep.progress", scheduledSweep.progress);
             fixture(window, "sweep.status", scheduledSweep.status);
             await rendered(window, 'document.querySelector(".today .place-reading")');
             if (surface.id === "evidence-header-idle") {

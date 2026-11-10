@@ -82,7 +82,7 @@ it("pins scheduled fixtures before their promises and commits exactly one failed
       expect(Date.parse(fixture.status.nextSweepAt)).toBeGreaterThan(fixture.now);
     expect(fixture.progress.sources).toHaveLength(12);
     expect(fixture.progress.sources.filter(({ state }) => state === "read")).toHaveLength(
-      state === "sweeping" ? 4 : state === "saved-failure" ? 11 : 12,
+      state === "sweeping" ? 4 : state === "saved-failure" ? 11 : 10,
     );
     if (state === "saved-failure") {
       expect(fixture.progress.sources.filter(({ state }) => state === "failed")).toHaveLength(1);
@@ -94,52 +94,91 @@ it("pins scheduled fixtures before their promises and commits exactly one failed
   }
 });
 
-it("stamps every saved sweep read in its area and supplemental provenance", () => {
-  const snapshot = ViewSnapshotSchema.parse(
-    JSON.parse(
-      readFileSync(new URL("../../../fixtures/watch/snapshot-1106.json", import.meta.url), "utf8"),
-    ),
-  );
-  const fixture = smokeScheduledSweep(snapshot, "saved-failure");
-  const envelopes = [
-    ...fixture.snapshot.areas.map(({ envelope }) => envelope),
-    ...fixture.snapshot.provenance.flatMap(({ envelope }) => (envelope ? [envelope] : [])),
-  ];
-  for (const source of fixture.progress.sources) {
-    if (source.state !== "read") continue;
-    const observed = envelopes.filter(({ source: name }) => name === source.source);
-    expect(observed.length, source.source).toBeGreaterThan(0);
-    for (const envelope of observed)
-      expect(envelope, source.source).toMatchObject({
-        state: "fresh",
-        observedAt: source.endedAt,
-        completeness: { kind: "complete" },
-      });
-  }
-});
-
-it("keeps the saved sweep's failed source and its retained area read consistent", () => {
-  const snapshot = ViewSnapshotSchema.parse(
-    JSON.parse(
-      readFileSync(new URL("../../../fixtures/watch/snapshot-1106.json", import.meta.url), "utf8"),
-    ),
-  );
-  const fixture = smokeScheduledSweep(snapshot, "saved-failure");
-  const failed = fixture.progress.sources.filter(({ state }) => state === "failed");
-  expect(failed).toHaveLength(1);
-  expect(
-    fixture.snapshot.areas
-      .filter(({ envelope }) => envelope.state === "failed")
-      .map(({ area }) => area),
-  ).toEqual(failed.map(({ source }) => source));
-  for (const { source } of failed) {
-    const retained = fixture.snapshot.areas.find(({ area }) => area === source)?.envelope;
-    expect(retained).toEqual(snapshot.areas.find(({ area }) => area === source)?.envelope);
+it.each(["idle", "sweeping", "saved-failure", "not-ready"] as const)(
+  "keeps progress, committed areas, read records and provenance consistent in %s",
+  (state) => {
+    const snapshot = ViewSnapshotSchema.parse(
+      JSON.parse(
+        readFileSync(
+          new URL("../../../fixtures/watch/snapshot-1106.json", import.meta.url),
+          "utf8",
+        ),
+      ),
+    );
+    const fixture = smokeScheduledSweep(snapshot, state);
+    const completed =
+      fixture.progress.outcome === "committed" ? fixture.progress : fixture.completed;
+    expect(completed.outcome).toBe("committed");
+    expect(fixture.status.lastSweep).toMatchObject({
+      sweep: completed.sweep,
+      startedAt: completed.startedAt,
+      endedAt: fixture.snapshot.sweptAt,
+    });
+    const envelopes = [
+      ...fixture.snapshot.areas.map(({ envelope }) => envelope),
+      ...fixture.snapshot.provenance.flatMap(({ envelope }) => (envelope ? [envelope] : [])),
+    ];
+    expect([...new Set(envelopes.map(({ source }) => source))].sort()).toEqual(
+      completed.sources.map(({ source }) => source).sort(),
+    );
+    expect(fixture.snapshot.reads).toHaveLength(completed.sources.length);
+    for (const source of completed.sources) {
+      const observed = envelopes.filter(({ source: name }) => name === source.source);
+      expect(observed.length, source.source).toBeGreaterThan(0);
+      const record = fixture.snapshot.reads.find(({ source: name }) => name === source.source);
+      expect(record, source.source).toBeDefined();
+      for (const envelope of observed) {
+        expect(envelope.state, source.source).toBe(source.state === "failed" ? "failed" : "fresh");
+        if (envelope.state === "unread") throw new Error(`Missing read: ${source.source}`);
+        if (source.state === "read") {
+          expect(envelope.observedAt, source.source).toBe(source.endedAt);
+          expect(record?.observedAt).toBe(source.endedAt);
+          expect(record?.failure).toBeUndefined();
+        } else {
+          expect(source.state).toMatch(/failed|skipped/);
+          expect(Date.parse(envelope.observedAt ?? "")).toBeLessThan(
+            Date.parse(completed.startedAt),
+          );
+          if (source.state === "failed") {
+            expect(record?.observedAt).toBe(source.endedAt);
+            expect(record?.failure).toBe(source.reason);
+            expect(record?.retainedFrom).toBe(envelope.observedAt);
+          } else {
+            expect(record?.observedAt).toBe(envelope.observedAt);
+            expect(record?.failure).toBeUndefined();
+          }
+        }
+      }
+    }
+    const failed = completed.sources.filter(({ state }) => state === "failed");
+    expect(failed).toHaveLength(1);
     expect(
-      retained && "observedAt" in retained && Date.parse(retained.observedAt ?? ""),
-    ).toBeLessThan(Date.parse(fixture.progress.startedAt));
-  }
-});
+      fixture.snapshot.areas
+        .filter(({ envelope }) => envelope.state === "failed")
+        .map(({ area }) => area),
+    ).toEqual(failed.map(({ source }) => source));
+    if (state === "sweeping") {
+      expect(fixture.progress.outcome).toBe("running");
+      expect(Date.parse(fixture.snapshot.sweptAt)).toBeLessThan(
+        Date.parse(fixture.progress.startedAt),
+      );
+      for (const source of fixture.progress.sources) {
+        if (source.state !== "read") continue;
+        expect(Date.parse(source.endedAt ?? "")).toBeGreaterThan(
+          Date.parse(fixture.snapshot.sweptAt),
+        );
+        expect(
+          fixture.snapshot.areas.find(({ area }) => area === source.source)?.envelope,
+        ).not.toMatchObject({
+          observedAt: source.endedAt,
+        });
+      }
+    } else {
+      expect(fixture.completed).toEqual(fixture.progress);
+    }
+    expect(snapshot.sweptAt).toBe("2026-11-06T14:02:00.133Z");
+  },
+);
 
 it("keeps the retained first-sweep failure line consistent with the snapshot's failed services", () => {
   const snapshot = ViewSnapshotSchema.parse(
@@ -466,14 +505,21 @@ it.each(Object.keys(scheduledQualifiers))(
 );
 
 it.each([
-  ["settings-sweep-idle", "Next sweep 08:07", "Next sweep 08:08"],
+  ["settings-sweep-idle", "Next sweep 08:07 (in 3 min)", "Next sweep 08:08 (in 3 min)"],
+  ["settings-sweep-idle", "4,865 points left · resets 09:36", "4,864 points left · resets 09:36"],
+  ["settings-sweep-idle", "Sweep now", "Sweep unavailable"],
+  ["settings-sweep-sweeping", "Sweeping · 4 of 12", "Sweeping · 5 of 12"],
   ["settings-sweep-sweeping", "View live sweep →", "View sweep →"],
   ["settings-sweep-saved-failure", "1 source failed", "0 sources failed"],
   ["settings-sweep-saved-failure", "Next sweep 09:09", "Next sweep 09:08"],
   ["settings-sweep-saved-failure", "Sweep now", "Sweep unavailable"],
   ["settings-sweep-not-ready", "Watch is not ready.", "Watch is ready."],
+  ["settings-sweep-not-ready", "Sweep now", "Sweep unavailable"],
   ["evidence-header-idle", "next sweep 08:07", "next sweep 08:08"],
+  ["evidence-header-idle", "Sweep now", "Sweep unavailable"],
   ["evidence-header-sweeping", "Sweeping since 08:07", "Sweeping since 08:06"],
+  ["evidence-header-sweeping", "Sweeping · 4 of 12", "Sweeping · 5 of 12"],
+  ["evidence-header-sweeping", "View live sweep →", "View sweep →"],
 ])("requires the scheduled state text in %s: %s", (surface, before, after) => {
   expect(() =>
     assertSmokeViews(
@@ -546,6 +592,23 @@ it.each(["picker", "cadence", "lastRead", "label"] as const)(
     );
   },
 );
+
+it("rejects a measured Sweep width that differs from its shot with valid picker and folded rows", () => {
+  expect(() =>
+    assertSmokeViews(
+      report.views.map((shot) =>
+        shot.surface === "settings-sweep-idle" && shot.viewportWidth === 740
+          ? {
+              ...shot,
+              geometry: shot.geometry.map((geometry) =>
+                geometry.rule === "sweep-reads" ? { ...geometry, width: 900 } : geometry,
+              ),
+            }
+          : shot,
+      ),
+    ),
+  ).toThrow("Sweep measured width differs from shot");
+});
 
 it.each(Object.keys(scheduledQualifiers))(
   "requires overlay drag geometry on every scheduled capture: %s",

@@ -1,14 +1,23 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import assert from "node:assert/strict";
 import {
-  type Envelope,
   type SweepProgress,
   SweepProgressSchema,
+  type SweepSourceProgress,
   SweepStatusSchema,
   type ViewSnapshot,
   ViewSnapshotSchema,
 } from "@spi-code/contracts";
+
+interface ScheduledSweep {
+  sweep: string;
+  startedAt: string;
+  endedAt: string | null;
+  requested: boolean;
+  sources: (SweepSourceProgress & { retainedAt?: string })[];
+}
 
 export function smokeScheduledSweep(
   snapshot: ViewSnapshot,
@@ -16,49 +25,118 @@ export function smokeScheduledSweep(
 ) {
   const saved = state === "saved-failure";
   const sweeping = state === "sweeping";
-  const endedAt = saved ? "2026-11-06T15:04:00.000Z" : snapshot.sweptAt;
-  const startedAt = sweeping
-    ? "2026-11-06T14:07:00.000Z"
-    : new Date(Date.parse(endedAt) - 72_000).toISOString();
-  const sweep = `smoke-scheduled-${state}`;
-  const progress = SweepProgressSchema.parse({
-    sweep,
-    startedAt,
-    first: false,
-    usualMs: 72_000,
-    outcome: sweeping ? "running" : "committed",
-    nextAttemptAt: null,
-    sources: smokeSweepProgress().running.sources.map(({ source }, index) =>
-      sweeping && index >= 4
-        ? index === 4
-          ? { source, state: "reading", startedAt }
-          : { source, state: "waiting" }
-        : saved && source === "radar"
+  const idleStart = new Date(Date.parse(snapshot.sweptAt) - 72_000).toISOString();
+  const idle: ScheduledSweep = {
+    sweep: "smoke-scheduled-idle",
+    startedAt: idleStart,
+    endedAt: snapshot.sweptAt,
+    requested: false,
+    sources: smokeSweepProgress().running.sources.map(({ source }) =>
+      source === "radar"
+        ? {
+            source,
+            state: "failed",
+            startedAt: idleStart,
+            endedAt: snapshot.sweptAt,
+            code: "timeout",
+            reason: "GitLab did not answer in time.",
+            retainedAt: "2026-11-06T13:31:37.502Z",
+          }
+        : source === "upstream"
           ? {
               source,
-              state: "failed",
-              startedAt,
-              endedAt,
-              code: "timeout",
-              reason: "GitLab did not answer in time.",
+              state: "skipped",
+              endedAt: snapshot.sweptAt,
+              code: "cadence",
+              reason: "Not due this sweep.",
+              retainedAt: "2026-11-06T13:42:00.000Z",
             }
           : {
               source,
               state: "read",
-              startedAt,
-              endedAt: sweeping ? "2026-11-06T14:07:30.000Z" : endedAt,
+              startedAt: idleStart,
+              endedAt: snapshot.sweptAt,
             },
     ),
+  };
+  const savedStart = "2026-11-06T15:02:48.000Z";
+  const savedEnd = "2026-11-06T15:04:00.000Z";
+  const last: ScheduledSweep = saved
+    ? {
+        sweep: "smoke-scheduled-saved-failure",
+        startedAt: savedStart,
+        endedAt: savedEnd,
+        requested: true,
+        sources: idle.sources.map((source) =>
+          source.state === "failed"
+            ? { ...source, startedAt: savedStart, endedAt: savedEnd }
+            : { source: source.source, state: "read", startedAt: savedStart, endedAt: savedEnd },
+        ),
+      }
+    : idle;
+  const liveStart = "2026-11-06T14:07:00.000Z";
+  const settledAt = "2026-11-06T14:07:30.000Z";
+  const current: ScheduledSweep = sweeping
+    ? {
+        sweep: "smoke-scheduled-sweeping",
+        startedAt: liveStart,
+        endedAt: null,
+        requested: false,
+        sources: idle.sources.map(({ source }, index) =>
+          index < 4
+            ? {
+                source,
+                state: "read",
+                startedAt: liveStart,
+                endedAt: settledAt,
+              }
+            : index === 4
+              ? { source, state: "reading", startedAt: settledAt }
+              : { source, state: "waiting" },
+        ),
+      }
+    : last;
+  const asProgress = (sweep: ScheduledSweep) =>
+    SweepProgressSchema.parse({
+      sweep: sweep.sweep,
+      startedAt: sweep.startedAt,
+      first: false,
+      usualMs: 72_000,
+      outcome: sweep.endedAt === null ? "running" : "committed",
+      nextAttemptAt: null,
+      sources: sweep.sources.map(({ retainedAt: _, ...source }) => source),
+    });
+  const completed = asProgress(last);
+  const progress = current === last ? completed : asProgress(current);
+  const endedAt = last.endedAt;
+  assert(endedAt, "The snapshot needs a committed sweep");
+  const envelope = (source: string) => {
+    const read = last.sources.find((entry) => entry.source === source);
+    assert(read, `Missing scheduled source: ${source}`);
+    assert(["read", "failed", "skipped"].includes(read.state), `Unsettled snapshot: ${source}`);
+    const observedAt = read.state === "read" ? read.endedAt : read.retainedAt;
+    assert(observedAt, `Missing scheduled observation: ${source}`);
+    return {
+      source,
+      state: read.state === "failed" ? ("failed" as const) : ("fresh" as const),
+      observedAt,
+      completeness: { kind: "complete" as const },
+      inferred: false,
+    };
+  };
+  const reads = last.sources.map((source) => {
+    const read = envelope(source.source);
+    return {
+      source: source.source,
+      object: source.source,
+      observedAt: source.state === "failed" ? endedAt : read.observedAt,
+      completeness: read.completeness,
+      inferred: false,
+      ...(source.state === "failed"
+        ? { failure: source.reason, retainedFrom: read.observedAt }
+        : {}),
+    };
   });
-  const savedRead = (envelope: Envelope): Envelope =>
-    progress.sources.some(({ source, state }) => source === envelope.source && state === "read")
-      ? {
-          ...envelope,
-          state: "fresh",
-          observedAt: endedAt,
-          completeness: { kind: "complete" },
-        }
-      : envelope;
   return {
     now: Date.parse(
       saved ? endedAt : sweeping ? "2026-11-06T14:08:00.000Z" : "2026-11-06T14:04:00.000Z",
@@ -66,18 +144,18 @@ export function smokeScheduledSweep(
     snapshot: ViewSnapshotSchema.parse({
       ...snapshot,
       sweptAt: endedAt,
-      ...(saved
-        ? {
-            areas: snapshot.areas.map((entry) => ({
+      reads,
+      areas: snapshot.areas.map(({ area }) => ({ area, envelope: envelope(area) })),
+      provenance: snapshot.provenance.map((entry) =>
+        entry.envelope
+          ? {
               ...entry,
-              envelope: savedRead(entry.envelope),
-            })),
-            provenance: snapshot.provenance.map((entry) =>
-              entry.envelope ? { ...entry, envelope: savedRead(entry.envelope) } : entry,
-            ),
-          }
-        : {}),
+              envelope: envelope(entry.envelope.source),
+            }
+          : entry,
+      ),
     }),
+    completed,
     progress,
     status: SweepStatusSchema.parse({
       remaining: 4865,
@@ -96,11 +174,11 @@ export function smokeScheduledSweep(
         releasesMs: 3_600_000,
       },
       lastSweep: {
-        sweep: sweeping ? "smoke-scheduled-idle" : sweep,
-        startedAt: sweeping ? "2026-11-06T14:00:48.133Z" : startedAt,
+        sweep: last.sweep,
+        startedAt: last.startedAt,
         endedAt,
         outcome: "committed",
-        requested: saved,
+        requested: last.requested,
       },
       forceCooldownUntil: null,
     }),

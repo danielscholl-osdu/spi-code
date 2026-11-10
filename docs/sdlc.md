@@ -214,7 +214,12 @@ are removed before the host proof, so they cannot affect its persisted-snapshot
 and supervision checks. The 180-capture matrix has a six-minute smoke deadline.
 Settings → Sweep adds idle, sweeping, saved-with-a-failure and Watch-not-ready
 surfaces; Evidence adds idle and sweeping headers. Schema-valid status, progress
-and snapshot fixtures pin future next-sweep and budget-reset times. The named
+and snapshot fixtures pin future next-sweep and budget-reset times. A single
+description of each sweep supplies its source outcomes, observations, retained
+reads, area envelopes and supplemental provenance. A source not due is skipped
+and keeps its earlier observation. Running captures retain the last committed
+snapshot and completed source list separately from the live sweep's progress;
+in-flight reads do not become saved observations before commit. The named
 header, schedule and control must fit inside the panel and viewport. At 740 px,
 the native picker selects Sweep and every cadence and labelled last-read cell
 sits below its source. Consecutive Sweep states reuse the renderer with increasing
