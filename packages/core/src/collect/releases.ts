@@ -53,8 +53,18 @@ const bodyRef = Object.freeze({
 });
 const bodySchema = z.discriminatedUnion("state", [
   z.object({ state: z.literal("read"), ...bodyRef, body: z.string() }),
-  z.object({ state: z.literal("not-read"), ...bodyRef, failure: z.string() }),
+  z.object({
+    state: z.literal("not-read"), ...bodyRef, reason: z.enum(["failed", "over-cap"]), failure: z.string(),
+  }),
 ]);
+/** A malformed entry, or one filed under another key, drops alone as not read; the rest of the state stands. */
+const bodiesSchema = z.record(z.string(), z.unknown()).transform((entries) =>
+  Object.fromEntries(Object.entries(entries).flatMap(([key, value]) => {
+    const entry = bodySchema.safeParse(value);
+    return entry.success && key === releaseBodyKey(entry.data.repo, entry.data.number, entry.data.sha)
+      ? [[key, entry.data] as const]
+      : [];
+  })));
 export const releaseStateSchema = z.object({
   at: z.iso.datetime({ offset: true }).optional(),
   releases: z.record(z.string(), z.array(z.object({
@@ -65,7 +75,7 @@ export const releaseStateSchema = z.object({
   errors: z.record(z.string(), z.string()),
   records: z.array(recordSchema).default([]),
   shas: z.record(z.string(), z.string()).default({}),
-  bodies: z.record(z.string(), bodySchema).default({}),
+  bodies: bodiesSchema.default({}),
 });
 
 export function emptyReads(): ReleaseState {
@@ -128,11 +138,7 @@ async function readPins(gh: Gh, repo: string, tag: string): Promise<BuildPins> {
   return { lib: lib ?? null, java: javaOf(root) };
 }
 
-interface PullRead {
-  state: string;
-  sha: string;
-  body: string;
-}
+const pullReadSchema = z.object({ state: z.string().min(1), sha: z.string().min(1), body: z.string() });
 
 export const PULL_JQ = '{state, sha: .head.sha, body: (.body // "")}';
 
@@ -314,36 +320,52 @@ export class ReleaseReader {
   }
 
   /**
-   * At most BODIES_PER_REPO reads per project repo; release PRs past that are recorded not read.
-   * A repo whose PR list was given keeps only what this read found; one never listed keeps its entries.
+   * At most BODIES_PER_REPO reads per project repo: the newest release PR, then those with no read
+   * at their head, then the least recently read. A PR past the cap keeps a read at its head, or is
+   * recorded not read as over-cap. A repo whose PR list was given keeps only what this read found;
+   * one never listed keeps its entries.
    */
   private async readBodies(open: OpenPrs): Promise<Record<string, ReleaseBody>> {
     const repos = this.ctx.fleet.projectRepos;
-    const bodies: Record<string, ReleaseBody> = Object.fromEntries(Object.entries(this.reads.bodies)
+    const before = this.reads.bodies;
+    const bodies: Record<string, ReleaseBody> = Object.fromEntries(Object.entries(before)
       .filter(([, b]) => repos.includes(b.repo) && open[b.repo] === undefined));
     const at = this.ctx.clock.now().toISOString();
-    const notRead = (repo: string, pr: ReleasePrRef, failure: string) => {
+    const notRead = (repo: string, pr: ReleasePrRef, reason: "failed" | "over-cap", failure: string) => {
       bodies[releaseBodyKey(repo, pr.number, pr.headSha)] = {
-        state: "not-read", repo, number: pr.number, sha: pr.headSha, at, failure,
+        state: "not-read", repo, number: pr.number, sha: pr.headSha, at, reason, failure,
       };
     };
-    const seen = new Map<string, number>();
-    const reads = openReleasePrs(repos, open).filter(({ repo, pr }) => {
-      const n = (seen.get(repo) ?? 0) + 1;
-      seen.set(repo, n);
-      if (n <= BODIES_PER_REPO) return true;
-      notRead(repo, pr, `over ${BODIES_PER_REPO} release PRs read per repository`);
-      return false;
+    const lastRead = (repo: string, pr: ReleasePrRef) => {
+      const entry = before[releaseBodyKey(repo, pr.number, pr.headSha)];
+      return entry?.state === "read" ? entry : undefined;
+    };
+    const reads = repos.flatMap((name) => {
+      const [newest, ...rest] = openReleasePrs([name], open);
+      if (!newest) return [];
+      const queue = rest.map((r, i) => ({ ...r, i, last: lastRead(r.repo, r.pr)?.at }))
+        .sort((a, b) => (a.last === undefined ? -1 : 0) - (b.last === undefined ? -1 : 0)
+          || (a.last ?? "").localeCompare(b.last ?? "") || a.i - b.i);
+      for (const { repo, pr } of queue.slice(BODIES_PER_REPO - 1)) {
+        const kept = lastRead(repo, pr);
+        if (kept) bodies[releaseBodyKey(repo, pr.number, pr.headSha)] = kept;
+        else notRead(repo, pr, "over-cap", `over ${BODIES_PER_REPO} release PRs read per repository`);
+      }
+      return [newest, ...queue.slice(0, BODIES_PER_REPO - 1)];
     });
     await pool(reads, 4, async ({ repo, pr }) => {
       try {
-        const read = await this.gh.rest<PullRead>(`repos/${repo}/pulls/${pr.number}`, PULL_JQ);
+        const reply = pullReadSchema.safeParse(
+          await this.gh.rest<unknown>(`repos/${repo}/pulls/${pr.number}`, PULL_JQ),
+        );
+        if (!reply.success) throw new Error(`${repo}#${pr.number} read without a state, head and body`);
+        const read = reply.data;
         if (read.state !== "open") return;
         bodies[releaseBodyKey(repo, pr.number, read.sha)] = {
           state: "read", repo, number: pr.number, sha: read.sha, at, body: read.body,
         };
       } catch (err) {
-        notRead(repo, pr, errorText(err));
+        notRead(repo, pr, "failed", errorText(err));
       }
     });
     return bodies;
