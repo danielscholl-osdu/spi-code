@@ -2729,6 +2729,383 @@
     "provenance": []
   },
   {
+    "id": "theme:halt:top_level:schemathesis-tests",
+    "title": "schemathesis-tests",
+    "class": "HALT",
+    "cause": "schemathesis-tests",
+    "effect": "halts at the next sync: partition · 4 other filters lack it · open MRs bring it to legal and crs-conversion",
+    "next": "Add a rule for schemathesis-tests to every fork's .github/upstream-filter.yml.",
+    "why": "at 00:00",
+    "evidence": [],
+    "related": [
+      {
+        "text": "partition",
+        "state": "certain · next sync halts",
+        "url": "https://community.opengroup.org/osdu/platform/system/partition/-/commit/69785fa552c905baf34b9c4f7251f7c1c51488df"
+      },
+      {
+        "text": "legal",
+        "state": "possible · open MR !756",
+        "inspect": "mr:legal:756"
+      },
+      {
+        "text": "crs-conversion",
+        "state": "possible · open MR !563",
+        "inspect": "mr:crs-conversion:563"
+      },
+      {
+        "text": "workflow",
+        "state": "exposed"
+      },
+      {
+        "text": "indexer-queue",
+        "state": "exposed"
+      },
+      {
+        "text": "Next sync halts on schemathesis-tests",
+        "state": "HALT",
+        "inspect": "radar:partition"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "theme:port",
+    "title": "Provider changes to port",
+    "class": "PORT",
+    "cause": "Provider changes to port",
+    "effect": "23 merged MRs · partition 2, entitlements 4, legal 2, schema 1, file 1, storage 1, indexer 3, search 2, workflow 2, unit 3, crs-catalog 1, crs-conversion 1",
+    "next": "Port each MR into its fork-owned tree and cite the MR URL in the PR body.",
+    "why": "52d",
+    "evidence": [],
+    "related": [
+      {
+        "text": "partition",
+        "state": "certain · 2 owed",
+        "url": "https://community.opengroup.org/osdu/platform/system/partition/-/merge_requests/832"
+      },
+      {
+        "text": "entitlements",
+        "state": "certain · 4 owed",
+        "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/merge_requests/968"
+      },
+      {
+        "text": "legal",
+        "state": "certain · 2 owed",
+        "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/merge_requests/787"
+      },
+      {
+        "text": "schema",
+        "state": "certain · 1 owed",
+        "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/merge_requests/871"
+      },
+      {
+        "text": "file",
+        "state": "certain · 1 owed",
+        "url": "https://community.opengroup.org/osdu/platform/system/file/-/merge_requests/754"
+      },
+      {
+        "text": "storage",
+        "state": "certain · 1 owed",
+        "url": "https://community.opengroup.org/osdu/platform/system/storage/-/merge_requests/1229"
+      },
+      {
+        "text": "indexer",
+        "state": "certain · 3 owed",
+        "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/merge_requests/1030"
+      },
+      {
+        "text": "search",
+        "state": "certain · 2 owed",
+        "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/merge_requests/900"
+      },
+      {
+        "text": "workflow",
+        "state": "certain · 2 owed",
+        "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/merge_requests/707"
+      },
+      {
+        "text": "unit",
+        "state": "certain · 3 owed",
+        "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/merge_requests/503"
+      },
+      {
+        "text": "crs-catalog",
+        "state": "certain · 1 owed",
+        "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-catalog-service/-/merge_requests/488"
+      },
+      {
+        "text": "crs-conversion",
+        "state": "certain · 1 owed",
+        "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-conversion-service/-/merge_requests/555"
+      },
+      {
+        "text": "23 upstream provider changes not ported",
+        "state": "PORT",
+        "inspect": "port:entitlements"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
     "id": "theme:deadline:azure-removal",
     "title": "Azure removal upstream",
     "class": "GATE",

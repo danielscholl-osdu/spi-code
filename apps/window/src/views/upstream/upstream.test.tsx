@@ -1,10 +1,16 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
+import {
+  type InspectResult,
+  PROTOCOL_VERSION,
+  type ViewSnapshot,
+  ViewSnapshotSchema,
+} from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import inspectFeed from "../../../../../fixtures/watch/inspect-1106.json?raw";
 import november6 from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { closeSheet, navigate } from "../../app/navigation.js";
 import { Shell } from "../../app/Shell.js";
@@ -294,7 +300,7 @@ it("reaches every former Horizon field within one click of the Upstream place", 
         : []),
       {
         field: `${t.id} Detail`,
-        expected: t.inspect ?? `theme:${t.id}`,
+        expected: `theme:${t.id}`,
         locate: async () => {
           await click(theme(t.id).querySelector(".upstream-theme-head"));
           return selectionStore.getState().selected ?? undefined;
@@ -311,6 +317,49 @@ it("reaches every former Horizon field within one click of the Upstream place", 
     window.location.hash = "#upstream";
     await act(async () => navigate({ kind: "upstream" }));
     expect({ field, value: await locate() }).toEqual({ field, value: expected });
+  }
+});
+
+it("opens every theme's next step, fork states and exposed forks in one click", async () => {
+  const body = fixture();
+  const answers: InspectResult[] = JSON.parse(inspectFeed);
+  for (const entry of body.briefing.themes) {
+    await click(theme(entry.id).querySelector(".upstream-theme-head"));
+    const id = `theme:${entry.id}`;
+    expect(selectionStore.getState().selected).toBe(id);
+    expect(selectionStore.getState().row).toEqual(selectionRows(body).find((row) => row.id === id));
+    expect(routeSelectionIds(body, { kind: "upstream" })).toContain(id);
+    const result = answers.find((answer) => answer.id === id);
+    expect(result, id).toBeDefined();
+    await act(async () =>
+      selectionStore.getState().receive({
+        version: PROTOCOL_VERSION,
+        id: selectionStore.getState().request,
+        kind: "response",
+        type: "inspect.result",
+        payload: result,
+      }),
+    );
+    const detail = container.querySelector(".inspector");
+    if (entry.next)
+      expect(detail?.querySelector('[data-field="next"]')?.textContent).toBe(entry.next);
+    for (const list of ["certain", "possible"] as const)
+      for (const fork of entry[list]) {
+        expect(detail?.textContent).toContain(fork.fork);
+        expect(detail?.textContent).toContain(`${list} · ${fork.state}`);
+      }
+    for (const fork of entry.exposed) expect(detail?.textContent).toContain(fork);
+    if (entry.inspect) {
+      const item = [...body.briefing.focus, ...body.briefing.rest].find(
+        ({ id }) => id === entry.inspect,
+      );
+      expect(item).toBeDefined();
+      const button = [...(detail?.querySelectorAll(".inspector-related button") ?? [])].find(
+        (button) => button.textContent === item?.title,
+      );
+      await click(button);
+      expect(selectionStore.getState().selected).toBe(entry.inspect);
+    }
   }
 });
 

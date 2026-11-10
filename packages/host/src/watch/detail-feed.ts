@@ -36,7 +36,7 @@ export function briefingHolds(briefing: Briefing) {
 export function detailFeedIds(briefing: Briefing): string[] {
   return [
     ...[...briefing.focus, ...briefing.rest].map(({ id }) => id),
-    ...briefing.themes.filter((theme) => !theme.inspect).map((theme) => `theme:${theme.id}`),
+    ...briefing.themes.map((theme) => `theme:${theme.id}`),
     ...briefingHolds(briefing).map(({ id }) => id),
   ];
 }
@@ -107,7 +107,7 @@ export async function recordedDetailAnswers(): Promise<Map<string, InspectResult
     attachHostPort(port, 1, undefined, undefined, routes.routes);
     const ids = [
       ...[...briefing.focus, ...briefing.rest].map(({ id }) => id),
-      ...briefing.themes.map((theme) => theme.inspect ?? `theme:${theme.id}`),
+      ...briefing.themes.map((theme) => `theme:${theme.id}`),
       ...briefingHolds(briefing).map(({ id }) => id),
     ];
     for (const id of new Set(ids))

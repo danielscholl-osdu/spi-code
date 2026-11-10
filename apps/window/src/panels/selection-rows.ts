@@ -167,7 +167,7 @@ export function selectionRows(snapshot: ViewSnapshot): SelectionRow[] {
     ),
     ...briefing.themes.map(
       (theme, index): SelectionRow => ({
-        id: theme.inspect ?? `theme:${theme.id}`,
+        id: `theme:${theme.id}`,
         title: theme.title,
         kind: "theme",
         prefixes: [`/briefing/themes/${index}`],
@@ -256,7 +256,7 @@ export function routeSelectionIds(snapshot: ViewSnapshot, route: Route): string[
               [...theme.certain, ...theme.possible].some(({ fork }) => fork === route.id) ||
               theme.exposed.includes(route.id),
           )
-          .map((theme) => theme.inspect ?? `theme:${theme.id}`),
+          .map((theme) => `theme:${theme.id}`),
         ...(snapshot.stations.find(({ service }) => service === route.id)?.stations ?? []).map(
           (station) => `station:${route.id}:${station.id}`,
         ),

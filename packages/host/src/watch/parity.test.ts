@@ -25,7 +25,6 @@ const queue = [...briefing.focus, ...briefing.rest];
 /** Named gaps: each pointer names its bead, and the test fails once the gap closes. */
 const GAPS: Readonly<Record<string, string>> = {
   "port-group": "spicode-t1k.216: a grouped port item's Detail shows its first fork",
-  "theme-inspect": "spicode-t1k.217: a theme with an inspect id opens the queue item's Detail",
 };
 
 const holds = briefingHolds(briefing);
@@ -74,24 +73,25 @@ describe("Detail answers on the recorded 6 Nov sweep equal its briefing", () => 
   );
 
   it.each(briefing.themes.map((theme) => [theme.id, theme] as const))(
-    "answers Horizon theme %s with its next step and every fork state, or names the gap",
+    "answers Horizon theme %s with its next step, every fork state and its queue item",
     (_id, theme) => {
-      const result = answer(theme.inspect ?? `theme:${theme.id}`);
+      const result = answer(`theme:${theme.id}`);
       const related = result.related.map(({ state, text }) => `${state} | ${text}`);
       const forks = [
         ...theme.certain.map(({ fork, state }) => `certain · ${state} | ${fork}`),
         ...theme.possible.map(({ fork, state }) => `possible · ${state} | ${fork}`),
         ...theme.exposed.map((fork) => `exposed | ${fork}`),
       ];
-      if (theme.inspect) {
-        expect(GAPS["theme-inspect"]).toBeDefined();
-        expect(result.next).not.toBe(theme.next);
-        expect(forks.filter((fork) => related.includes(fork))).toEqual([]);
-        return;
-      }
       expect(result).toMatchObject({ cause: theme.title, effect: theme.sub, next: theme.next });
       expect(result.why).toBe(theme.when ?? "");
-      expect(related).toEqual(forks);
+      const item = queue.find(({ id }) => id === theme.inspect);
+      expect(related).toEqual([...forks, ...(item ? [`${item.cls} | ${item.title}`] : [])]);
+      if (item)
+        expect(result.related.at(-1)).toEqual({
+          text: item.title,
+          state: item.cls,
+          inspect: item.id,
+        });
     },
   );
 

@@ -591,8 +591,13 @@ const THEME_CLASS: Readonly<Record<Theme["kind"], InspectResult["class"]>> = {
   deadline: "GATE",
 };
 
-/** A Horizon theme no queue item carries, told from the persisted briefing. */
-function themeResult(id: string, theme: Theme, areas: readonly AreaEnvelope[]): InspectResult {
+/** A Horizon theme and its queue item, told from the persisted briefing. */
+function themeResult(
+  id: string,
+  theme: Theme,
+  areas: readonly AreaEnvelope[],
+  item: Briefing["focus"][number] | undefined,
+): InspectResult {
   const fork = (state: string) => (f: Theme["certain"][number]) => ({
     text: f.fork,
     state: `${state} · ${f.state}`,
@@ -611,6 +616,7 @@ function themeResult(id: string, theme: Theme, areas: readonly AreaEnvelope[]): 
       ...theme.certain.map(fork("certain")),
       ...theme.possible.map(fork("possible")),
       ...theme.exposed.map((name) => ({ text: name, state: "exposed" })),
+      ...(item ? [{ text: item.title, state: item.cls, inspect: item.id }] : []),
     ],
     approval: null,
     actions: [],
@@ -1200,7 +1206,15 @@ export class WatchRoutes {
       if (hold) result = holdResult(id, hold, latest.view.briefing, latest.view.areas);
     } else if (id.startsWith(THEME_PREFIX)) {
       const theme = latest.view.briefing.themes.find((t) => `${THEME_PREFIX}${t.id}` === id);
-      if (theme) result = themeResult(id, theme, latest.view.areas);
+      if (theme)
+        result = themeResult(
+          id,
+          theme,
+          latest.view.areas,
+          [...latest.view.briefing.focus, ...latest.view.briefing.rest].find(
+            (item) => item.id === theme.inspect,
+          ),
+        );
     } else if (id.startsWith(STATION_PREFIX)) {
       result = stationResult(model, id, now, latest.view.areas);
     } else if (["pr:", "issue:", "alert:"].some((prefix) => id.startsWith(prefix))) {
