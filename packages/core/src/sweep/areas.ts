@@ -329,7 +329,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
       glabNeedsReadiness = false;
       cache.budget.deferred = [];
     },
-    afterAreas: async ({ ctx, exec, cache, force, clock, progress }) => {
+    afterAreas: async ({ ctx, exec, facts, cache, force, clock, progress }) => {
       // Deferred entries belong to this sweep, including collectors without a Facts area.
       const throttled = due(cache.releases.at, RELEASES_EVERY_MS, clock.now(), force) && throttledReason();
       if (throttled) {
@@ -358,7 +358,7 @@ export function createSweeper(options: CollectorOptions): Sweeper<CollectorCache
           readingSource = "releases";
           notify = progress;
           try {
-            await reader.read({ force });
+            await reader.read({ force, ...(facts.github.data ? { openPrs: facts.github.data.repos } : {}) });
           } catch (error) {
             progress?.(sweepFailureProgress("releases", error, reader.records, clock.now().toISOString()));
             throw error;

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { RELEASES_EVERY_MS } from "../config.js";
 import type { CoreContext } from "../context.js";
 import type { ReadRecord } from "../evidence/index.js";
+import type { PrFact } from "../facts.js";
 import type { Gh } from "../forge.js";
 import { type BuildPins, type ReleaseFact, type ReleaseReads, pinKey } from "../releases.js";
 import { errorText, pool } from "../util.js";
@@ -19,7 +20,18 @@ export interface ReleaseState extends ReleaseReads {
   records: ReadRecord[];
   /** The object each cached pin's tag named when it was read; a pin without one is unconfirmed. */
   shas: Record<string, string>;
+  /** Each open release PR's body, by releaseBodyKey; a missing or not-read entry was not read. */
+  bodies: Record<string, ReleaseBody>;
 }
+
+export type ReleaseBody = z.infer<typeof bodySchema>;
+
+export function releaseBodyKey(repo: string, number: number, sha: string): string {
+  return `${repo}#${number}@${sha}`;
+}
+
+export type OpenPrs = Readonly<Record<string, { readonly prs: readonly ReleasePrRef[] }>>;
+type ReleasePrRef = Pick<PrFact, "number" | "head" | "headSha" | "labels">;
 
 const recordSchema = z.object({
   source: z.string(),
@@ -36,6 +48,13 @@ const recordSchema = z.object({
   retainedFrom: z.iso.datetime({ offset: true }).optional(),
   inferred: z.boolean().optional(),
 });
+const bodyRef = Object.freeze({
+  repo: z.string(), number: z.int().positive(), sha: z.string(), at: z.iso.datetime({ offset: true }),
+});
+const bodySchema = z.discriminatedUnion("state", [
+  z.object({ state: z.literal("read"), ...bodyRef, body: z.string() }),
+  z.object({ state: z.literal("not-read"), ...bodyRef, failure: z.string() }),
+]);
 export const releaseStateSchema = z.object({
   at: z.iso.datetime({ offset: true }).optional(),
   releases: z.record(z.string(), z.array(z.object({
@@ -46,10 +65,11 @@ export const releaseStateSchema = z.object({
   errors: z.record(z.string(), z.string()),
   records: z.array(recordSchema).default([]),
   shas: z.record(z.string(), z.string()).default({}),
+  bodies: z.record(z.string(), bodySchema).default({}),
 });
 
 export function emptyReads(): ReleaseState {
-  return { releases: {}, created: {}, pins: {}, errors: {}, records: [], shas: {} };
+  return { releases: {}, created: {}, pins: {}, errors: {}, records: [], shas: {}, bodies: {} };
 }
 
 const JAVA_PROPS = Object.freeze([
@@ -108,6 +128,25 @@ async function readPins(gh: Gh, repo: string, tag: string): Promise<BuildPins> {
   return { lib: lib ?? null, java: javaOf(root) };
 }
 
+interface PullRead {
+  state: string;
+  sha: string;
+  body: string;
+}
+
+export const PULL_JQ = '{state, sha: .head.sha, body: (.body // "")}';
+
+/** Bodies read per repository on one releases read; release-please keeps one PR per branch. */
+export const BODIES_PER_REPO = 2;
+
+/** Every open release PR in the given repos, by the branch and label the Releases reading uses. */
+export function openReleasePrs(repos: readonly string[], open: OpenPrs): { repo: string; pr: ReleasePrRef }[] {
+  return repos.flatMap((repo) =>
+    (open[repo]?.prs ?? [])
+      .filter((p) => p.head.startsWith("release-please--") || p.labels.includes("autorelease: pending"))
+      .map((pr) => ({ repo, pr })));
+}
+
 export class ReleaseReader {
   private reads = emptyReads();
   private reading: Promise<void> | undefined;
@@ -125,9 +164,9 @@ export class ReleaseReader {
   get records(): readonly ReadRecord[] { return this.reads.records; }
   get busy(): boolean { return !!this.reading; }
 
-  read(opts: { force?: boolean; refreshPins?: boolean } = {}): Promise<void> {
+  read(opts: { force?: boolean; refreshPins?: boolean; openPrs?: OpenPrs } = {}): Promise<void> {
     if (this.reading) return this.reading;
-    this.reading = this.readIfDue(opts.force === true, opts.refreshPins === true).finally(() => {
+    this.reading = this.readIfDue(opts.force === true, opts.refreshPins === true, opts.openPrs).finally(() => {
       this.reading = undefined;
     });
     return this.reading;
@@ -151,7 +190,7 @@ export class ReleaseReader {
     this.reads.records = this.reads.records.filter((r) => r.source !== source || r.object !== object);
   }
 
-  private async readIfDue(force: boolean, refreshPins: boolean): Promise<void> {
+  private async readIfDue(force: boolean, refreshPins: boolean, openPrs: OpenPrs | undefined): Promise<void> {
     if (!this.loaded) {
       this.dropRecord("release-state", "load");
       try {
@@ -172,10 +211,10 @@ export class ReleaseReader {
       if (this.savePending) await this.save();
       return;
     }
-    await this.readAll(refreshPins);
+    await this.readAll(refreshPins, openPrs);
   }
 
-  private async readAll(refreshPins: boolean): Promise<void> {
+  private async readAll(refreshPins: boolean, openPrs: OpenPrs | undefined): Promise<void> {
     const repos = [...this.ctx.fleet.releaseRepos];
     const forks = new Set(this.ctx.fleet.forks.map((f) => f.repo));
     const releases = { ...this.reads.releases };
@@ -264,13 +303,50 @@ export class ReleaseReader {
       }
     });
     this.settleRecords(repos, new Set(listed.map((r) => r.key)), gone, confirmed);
+    const bodies = openPrs ? await this.readBodies(openPrs) : { ...this.reads.bodies };
     const readAny = repos.some((r) => !errors[r]);
     this.reads = {
       ...(readAny ? { at: this.ctx.clock.now().toISOString() } : this.reads.at ? { at: this.reads.at } : {}),
-      releases, created, pins, errors, records: this.reads.records, shas,
+      releases, created, pins, errors, records: this.reads.records, shas, bodies,
     };
     this.savePending = true;
     await this.save();
+  }
+
+  /**
+   * At most BODIES_PER_REPO reads per project repo; release PRs past that are recorded not read.
+   * A repo whose PR list was given keeps only what this read found; one never listed keeps its entries.
+   */
+  private async readBodies(open: OpenPrs): Promise<Record<string, ReleaseBody>> {
+    const repos = this.ctx.fleet.projectRepos;
+    const bodies: Record<string, ReleaseBody> = Object.fromEntries(Object.entries(this.reads.bodies)
+      .filter(([, b]) => repos.includes(b.repo) && open[b.repo] === undefined));
+    const at = this.ctx.clock.now().toISOString();
+    const notRead = (repo: string, pr: ReleasePrRef, failure: string) => {
+      bodies[releaseBodyKey(repo, pr.number, pr.headSha)] = {
+        state: "not-read", repo, number: pr.number, sha: pr.headSha, at, failure,
+      };
+    };
+    const seen = new Map<string, number>();
+    const reads = openReleasePrs(repos, open).filter(({ repo, pr }) => {
+      const n = (seen.get(repo) ?? 0) + 1;
+      seen.set(repo, n);
+      if (n <= BODIES_PER_REPO) return true;
+      notRead(repo, pr, `over ${BODIES_PER_REPO} release PRs read per repository`);
+      return false;
+    });
+    await pool(reads, 4, async ({ repo, pr }) => {
+      try {
+        const read = await this.gh.rest<PullRead>(`repos/${repo}/pulls/${pr.number}`, PULL_JQ);
+        if (read.state !== "open") return;
+        bodies[releaseBodyKey(repo, pr.number, read.sha)] = {
+          state: "read", repo, number: pr.number, sha: read.sha, at, body: read.body,
+        };
+      } catch (err) {
+        notRead(repo, pr, errorText(err));
+      }
+    });
+    return bodies;
   }
 
   /**

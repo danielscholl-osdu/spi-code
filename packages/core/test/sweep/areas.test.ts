@@ -3,6 +3,7 @@
 
 import { expect, test } from "vitest";
 import { JOB_LOG_LIMIT } from "../../src/collect/lifecycle.js";
+import { releaseBodyKey } from "../../src/collect/releases.js";
 import {
   CORE_LIB_REPO,
   fleetOf,
@@ -212,6 +213,61 @@ test("multi-area exec replay accounts for ledger, release, pin and retried Graph
   expect(replay.reads).toEqual(sweeper.reads);
   expect(replay.model).toEqual(sweeper.model);
   expect(progress.length).toBeGreaterThan(0);
+});
+
+test("the releases read keeps the body of each open release PR the github area listed", async () => {
+  const h = harness();
+  const head = "c".repeat(40);
+  const reads: string[] = [];
+  h.setRoute((cmd, args) => {
+    const query = args.find((a) => a.startsWith("query=")) ?? "";
+    if (cmd === "gh" && query.includes("r_fork0:")) {
+      const release = {
+        number: 41,
+        title: "chore(main): release 1.1.0",
+        url: "https://github.com/owner/partition/pull/41",
+        createdAt: START,
+        updatedAt: START,
+        isDraft: false,
+        baseRefName: "main",
+        headRefName: "release-please--branches--main",
+        headRefOid: head,
+      };
+      const r_fork0 = {
+        nameWithOwner: "owner/partition",
+        url: "https://github.com/owner/partition",
+        pullRequests: { totalCount: 1, nodes: [release] },
+      };
+      const spicodeBudget = { cost: 2, remaining: 4000, resetAt: "2099-01-01T00:00:00Z" };
+      return { stdout: JSON.stringify({ data: { r_fork0, spicodeBudget } }), stderr: "", exit: 0 };
+    }
+    const path = args.find((a) => a.startsWith("repos/") && a.includes("/pulls/"));
+    if (cmd === "gh" && path) {
+      reads.push(path);
+      return {
+        stdout: JSON.stringify({ state: "open", sha: head, body: "* synthetic\n" }),
+        stderr: "",
+        exit: 0,
+      };
+    }
+    return undefined;
+  });
+  const sweeper = createSweeper(h.options);
+  await sweeper.sweep();
+  expect(sweeper.facts.github.data?.repos["owner/partition"]?.prs.map((p) => p.number)).toEqual([
+    41,
+  ]);
+  expect(reads).toEqual(["repos/owner/partition/pulls/41"]);
+  expect(sweeper.cache.releases.bodies).toEqual({
+    [releaseBodyKey("owner/partition", 41, head)]: {
+      state: "read",
+      repo: "owner/partition",
+      number: 41,
+      sha: head,
+      at: START,
+      body: "* synthetic\n",
+    },
+  });
 });
 
 test.each(["read", "deferred", "throttled"] as const)(
