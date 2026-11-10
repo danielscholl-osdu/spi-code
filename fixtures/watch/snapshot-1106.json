@@ -122,11 +122,11 @@
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "indexer",
-        "title": "Next sync carries os-core-common 8.5.0",
-        "sub": "25 commits queued · syncs at 00:00",
+        "title": "Sync PR #58 carries os-core-common 8.5.0",
+        "sub": "25 commits in sync PR #58",
         "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
-        "effect": "25 commits reach the fork at the 00:00 sync.",
-        "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
+        "effect": "25 commits wait in sync PR #58 and reach the fork when it merges.",
+        "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
         "verb": "Absorb toolchain",
         "evidence": [
           {
@@ -216,11 +216,11 @@
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "storage",
-        "title": "Next sync carries os-core-common 8.5.0",
-        "sub": "11 commits queued · syncs at 00:00",
+        "title": "Sync PR #58 carries os-core-common 8.5.0",
+        "sub": "11 commits in sync PR #58",
         "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-        "effect": "11 commits reach the fork at the 00:00 sync.",
-        "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
+        "effect": "11 commits wait in sync PR #58 and reach the fork when it merges.",
+        "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
         "verb": "Absorb toolchain",
         "evidence": [
           {
@@ -2165,13 +2165,13 @@
         "kind": "upstream"
       },
       "content": {
-        "headline": "At 00:00, 107 commits reach 10 forks. Two need you first.",
+        "headline": "At 00:00, 71 commits reach 8 forks. Two need you first.",
         "qualifier": "GitLab truncated the upstream diffs for 6 services and the reads failed for 3 services, so a toolchain move could be missing.",
         "tiles": [
           {
             "label": "Incoming",
             "value": "107",
-            "counts": "commits · 10 of 13 forks"
+            "counts": "commits · 36 in 2 sync PRs · 71 at 00:00"
           },
           {
             "label": "Toolchain",
@@ -2982,11 +2982,11 @@
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "storage",
-            "title": "Next sync carries os-core-common 8.5.0",
-            "sub": "11 commits queued · syncs at 00:00",
+            "title": "Sync PR #58 carries os-core-common 8.5.0",
+            "sub": "11 commits in sync PR #58",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-            "effect": "11 commits reach the fork at the 00:00 sync.",
-            "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
+            "effect": "11 commits wait in sync PR #58 and reach the fork when it merges.",
+            "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
             "verb": "Absorb toolchain",
             "evidence": [
               {
@@ -3076,11 +3076,11 @@
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "indexer",
-            "title": "Next sync carries os-core-common 8.5.0",
-            "sub": "25 commits queued · syncs at 00:00",
+            "title": "Sync PR #58 carries os-core-common 8.5.0",
+            "sub": "25 commits in sync PR #58",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
-            "effect": "25 commits reach the fork at the 00:00 sync.",
-            "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
+            "effect": "25 commits wait in sync PR #58 and reach the fork when it merges.",
+            "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
             "verb": "Absorb toolchain",
             "evidence": [
               {

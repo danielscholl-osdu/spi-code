@@ -119,7 +119,7 @@ it("lists Upstream first among the places and opens it from the sidebar", async 
 
 it("renders the Nov 6 upstream reading: headline, qualifier, tiles and groups", () => {
   expect(place().querySelector(".place-headline")?.textContent).toBe(
-    "At 00:00, 107 commits reach 10 forks. Two need you first.",
+    "At 00:00, 71 commits reach 8 forks. Two need you first.",
   );
   expect(place().querySelector(".place-qualifier")?.textContent).toBe(
     "GitLab truncated the upstream diffs for 6 services and the reads failed for 3 services, so a toolchain move could be missing.",
@@ -127,7 +127,7 @@ it("renders the Nov 6 upstream reading: headline, qualifier, tiles and groups", 
   expect(texts(place(), ".place-tile dt")).toEqual(["Incoming", "Toolchain", "Largest"]);
   expect(texts(place(), ".place-tile-value")).toEqual(["107", "8 forks", "25"]);
   expect(texts(place(), ".place-tile-counts")).toEqual([
-    "commits · 10 of 13 forks",
+    "commits · 36 in 2 sync PRs · 71 at 00:00",
     "move to os-core-common 8.5.0 · 1 more move",
     "commits · indexer · then legal 17, schema 16",
   ]);

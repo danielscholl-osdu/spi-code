@@ -5,7 +5,7 @@ import type { Fleet } from "../config.js";
 import type { ReadRecord } from "../evidence/index.js";
 import type { Model } from "../model/index.js";
 import { type LineModel, prRed, type Station } from "../model/lines.js";
-import { plural, since, wordCount } from "../util.js";
+import { fitHeadline, plural, since, wordCount } from "../util.js";
 import { type SecurityReadingItem, serviceSecurityItem } from "./security.js";
 
 export const READING_ITEMS = 5;
@@ -255,6 +255,11 @@ export function upstreamReading<T extends ReadingItem>(
   const unread = up.unread;
   const none = total === 0 || unread >= total;
   const commits = moving.reduce((sum, f) => sum + (f.behind ?? 0), 0);
+  // An open sync PR already holds its fork's lag, so the next sync brings only the rest.
+  const arriving = moving.filter((f) => !f.syncPr);
+  const prs = moving.length - arriving.length;
+  const queued = arriving.reduce((sum, f) => sum + (f.behind ?? 0), 0);
+  const inPrs = commits - queued;
   const held = up.held.map((f) => f.service);
   const radarItem = (service: string) => items.find((i) => i.id === `radar:${service}`);
   const before = held.map(radarItem).filter((i): i is T => !!i);
@@ -291,13 +296,25 @@ export function upstreamReading<T extends ReadingItem>(
       ? ` ${NUMBERS[before.length] ?? before.length} ${before.length === 1 ? "needs" : "need"} you first.`
       : "";
   const unreadNote = unread > 0 ? ` · ${unread} ${NOT_READ}` : "";
+  const when = at ? `At ${at}` : "At the next sync";
+  const reach = `${when}, ${plural(queued, "commit")} reach ${plural(arriving.length, "fork")}`;
+  const wait = `${plural(inPrs, "commit")} wait in ${plural(prs, "open sync PR")}`;
+  const inSync = prs === 1 ? "a sync PR" : "sync PRs";
   const headline = none
     ? `Upstream ${NOT_READ}.`
     : commits === 0
       ? unread > 0
         ? `Nothing queued on the forks read; ${unread} ${NOT_READ}.`
         : "Nothing queued upstream for the next sync."
-      : `${at ? `At ${at}` : "At the next sync"}, ${plural(commits, "commit")} reach ${plural(moving.length, "fork")}.${first}`;
+      : prs === 0
+        ? `${reach}.${first}`
+        : queued === 0
+          ? `${wait}.${first}`
+          : fitHeadline([
+              `${reach}; ${inPrs} wait in ${inSync}.${first}`,
+              `${reach}; ${inPrs} in ${inSync}.${first}`,
+              `${reach}.${first}`,
+            ]);
   const qualifier = readQualifier(
     cutServices(radar, fleet).length,
     failedServices(radar, fleet).length,
@@ -320,7 +337,10 @@ export function upstreamReading<T extends ReadingItem>(
         {
           label: "Incoming",
           value: String(commits),
-          counts: `commits · ${moving.length} of ${plural(total, "fork")}${unreadNote}`,
+          counts:
+            prs === 0
+              ? `commits · ${moving.length} of ${plural(total, "fork")}${unreadNote}`
+              : `commits · ${inPrs} in ${plural(prs, "sync PR")} · ${queued} ${at ? `at ${at}` : "at the next sync"}${unreadNote}`,
         },
         lead
           ? {

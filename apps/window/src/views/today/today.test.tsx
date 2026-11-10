@@ -79,7 +79,7 @@ it("groups the five focus items by their typed due and ownership, never by P ran
   expect(
     text(container, '[aria-label="Before next sync"] .place-item').map((value) => value?.trim()),
   ).toEqual([
-    "P1indexercarries os-core-common 8.5.0",
+    "P1indexerSync PR #58 carries os-core-common 8.5.0",
     "P1legalcarries os-core-common 8.4.1-boot4-SNAPSHOT",
   ]);
   expect(text(container, '[aria-label="New"] .place-rank')).toEqual(["P0", "P1", "P1"]);

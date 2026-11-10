@@ -10,7 +10,7 @@ import { createContext } from "../src/context.js";
 import type { ReadRecord } from "../src/evidence/index.js";
 import { emptyFacts, type Facts } from "../src/facts.js";
 import { detectCampaigns } from "../src/model/campaigns.js";
-import { buildModel } from "../src/model/index.js";
+import { buildModel, type Model } from "../src/model/index.js";
 import {
   internalNames,
   NOT_READ,
@@ -58,12 +58,38 @@ function clean(reading: PlaceReading<ReadingItem>): string[] {
 describe("Upstream reading on the recorded 6 Nov sweep", () => {
   it("reads the next sync, commits incoming and forks reached", () => {
     const reading = upstream();
-    expect(reading.headline).toBe("At 18:00, 107 commits reach 10 forks. Two need you first.");
+    expect(reading.headline).toBe("At 18:00, 71 commits reach 8 forks. Two need you first.");
     expect(wordCount(reading.headline)).toBeLessThanOrEqual(12);
     expect(reading.tiles[0]).toEqual({
       label: "Incoming",
       value: "107",
-      counts: "commits · 10 of 13 forks",
+      counts: "commits · 36 in 2 sync PRs · 71 at 18:00",
+    });
+  });
+
+  it("keeps commits held in open sync PRs out of the next sync's count", () => {
+    const held = (keep: (f: Model["upstream"]["moving"][number]) => boolean) => {
+      const m = structuredClone(model);
+      m.upstream.held = [];
+      m.upstream.moving = m.upstream.moving.filter(keep);
+      return upstreamReading({ model: m, items, radar, fleet: context.fleet, campaigns: [] })
+        .headline;
+    };
+    expect(held(() => true)).toBe("At 18:00, 71 commits reach 8 forks; 36 wait in sync PRs.");
+    expect(held((f) => !!f.syncPr)).toBe("36 commits wait in 2 open sync PRs.");
+  });
+
+  it("names the open sync PR that already holds a fork's queued commits", () => {
+    const indexer = items.find((item) => item.id === "radar:indexer");
+    expect(indexer).toMatchObject({
+      title: "Sync PR #58 carries os-core-common 8.5.0",
+      sub: "25 commits in sync PR #58",
+      effect: "25 commits wait in sync PR #58 and reach the fork when it merges.",
+      next: "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
+    });
+    expect(items.find((item) => item.id === "radar:schema")).toMatchObject({
+      title: "Next sync carries os-core-common 8.5.0",
+      effect: "16 commits reach the fork at the 18:00 sync.",
     });
   });
 

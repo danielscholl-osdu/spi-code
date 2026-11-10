@@ -538,7 +538,28 @@ function causeOf(item: QueueItem): string {
   return sentence(reason ?? item.text);
 }
 
-function effectOf(item: QueueItem, stuck: readonly QueueItem[], next: string | undefined): string {
+// The open sync PR that already holds a radar item's queued commits.
+function heldIn(model: Model, item: QueueItem): number | undefined {
+  if (item.kind !== "radar") return undefined;
+  return model.upstream.forks.find((f) => f.service === item.scope)?.syncPr?.number;
+}
+
+function radarNext(model: Model, item: QueueItem, voice: Voice): string {
+  const pr = heldIn(model, item);
+  if (pr === undefined || item.cls !== "TOOLCHAIN") return sentence(nextText(item, [], voice));
+  const value = fact(item, "value") ?? "the toolchain move";
+  const java = /^Java (\d+)$/.exec(value)?.[1];
+  return java
+    ? `Move the fork's Java pin to ${java} before merging sync PR #${pr}.`
+    : `Absorb ${value} on the fork before merging sync PR #${pr}.`;
+}
+
+function effectOf(
+  item: QueueItem,
+  stuck: readonly QueueItem[],
+  next: string | undefined,
+  held: number | undefined,
+): string {
   if (item.kind === "approvals") {
     const prs = item.effects.map((e) => e.text.split(" ")[0] ?? e.text);
     return `${list(prs)} cannot run their checks until a maintainer approves them.`;
@@ -550,8 +571,11 @@ function effectOf(item: QueueItem, stuck: readonly QueueItem[], next: string | u
       item.cls === "TOOLCHAIN"
         ? stuck.find((s) => s.cls === "TOOLCHAIN" && javaOf(s) === java)
         : undefined;
+    const commits = queued ? plural(Number(queued), "commit") : "Queued commits";
     return [
-      `${queued ? plural(Number(queued), "commit") : "Queued commits"} reach the fork at the ${next ?? "next"} sync.`,
+      held !== undefined
+        ? `${commits} wait in sync PR #${held} and reach the fork when it merges.`
+        : `${commits} reach the fork at the ${next ?? "next"} sync.`,
       like ? `${cap(whose(like.scope))} sync PR failed on the same move.` : undefined,
     ]
       .filter(Boolean)
@@ -593,6 +617,8 @@ function describe(
         ? stuck.find((s) => s.cls === "TOOLCHAIN" && javaOf(s) === java)
         : undefined;
     const queued = /(\d+) commits? queued/.exec(item.text)?.[1];
+    const held = heldIn(model, item);
+    const carried = item.cls === "TOOLCHAIN" && held !== undefined;
     const entries = item.halt?.entries ?? ["an entry"];
     const halts = fitHeadline([
       `Next sync halts on ${list(entries)}`,
@@ -601,14 +627,16 @@ function describe(
     return {
       title:
         item.cls === "TOOLCHAIN"
-          ? `Next sync carries ${fact(item, "value") ?? "a toolchain move"}`
+          ? `${carried ? `Sync PR #${held}` : "Next sync"} carries ${fact(item, "value") ?? "a toolchain move"}`
           : halts,
       sub: [
         item.cls !== "TOOLCHAIN" && entries.length > 1 && !halts.endsWith(list(entries))
           ? `entries ${list(entries)}`
           : undefined,
-        queued ? `${plural(Number(queued), "commit")} queued` : undefined,
-        next ? `syncs at ${next}` : undefined,
+        queued
+          ? `${plural(Number(queued), "commit")} ${held !== undefined ? `in sync PR #${held}` : "queued"}`
+          : undefined,
+        next && !carried ? `syncs at ${next}` : undefined,
         like ? `expected to fail the way ${whose(like.scope)} did` : undefined,
       ]
         .filter(Boolean)
@@ -697,8 +725,8 @@ function focusOf(
       title,
       sub,
       cause: causeOf(item),
-      effect: effectOf(item, stuck, next),
-      next: sentence(nextText(item, [], voice)),
+      effect: effectOf(item, stuck, next, heldIn(model, item)),
+      next: radarNext(model, item, voice),
       verb: verbOf(item),
       evidence: evidenceOf([item]),
     });
@@ -804,8 +832,8 @@ export function readItem(model: Model, item: QueueItem, now: Date | undefined = 
     title,
     sub,
     cause: causeOf(item),
-    effect: effectOf(item, stuck, next),
-    next: sentence(nextText(item, [], context.voice)),
+    effect: effectOf(item, stuck, next, heldIn(model, item)),
+    next: radarNext(model, item, context.voice),
     ...(gap ? { gap } : {}),
     related: relatedOf(model, item, themes),
   };

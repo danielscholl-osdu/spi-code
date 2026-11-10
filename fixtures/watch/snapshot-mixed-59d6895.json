@@ -1404,12 +1404,12 @@
         "kind": "upstream"
       },
       "content": {
-        "headline": "At 00:00, 6 commits reach 2 forks.",
+        "headline": "At 00:00, 2 commits reach 1 fork; 4 in a sync PR.",
         "tiles": [
           {
             "label": "Incoming",
             "value": "6",
-            "counts": "commits · 2 of 5 forks"
+            "counts": "commits · 4 in 1 sync PR · 2 at 00:00"
           },
           {
             "label": "Toolchain",
