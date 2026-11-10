@@ -74,10 +74,15 @@ function record(ctx: CoreContext, source: string, object: string): ReadRecord {
   return { source, object, observedAt: ctx.clock.now().toISOString(), completeness: { kind: "complete" } };
 }
 const JOB_LOG_CUT = "Job log character limit";
-/** Failure-free reads that are complete, or cut only because a job log hit its limit: settled for reuse. */
-export const settledJobReads = (reads: readonly ReadRecord[]) =>
+const reusableJobReads = (reads: readonly ReadRecord[]) =>
   reads.every((r) => r.failure === undefined &&
     (r.completeness.kind === "complete" || r.completeness.reason === JOB_LOG_CUT));
+const obsoleteLogCut = (read: ReadRecord) =>
+  read.completeness.kind === "cut" && read.completeness.reason === JOB_LOG_CUT &&
+  read.completeness.read < JOB_LOG_LIMIT && read.completeness.total <= JOB_LOG_LIMIT;
+/** Failure-free complete reads and job-log cuts that a current-limit read cannot complete. */
+export const settledJobReads = (reads: readonly ReadRecord[]) =>
+  reusableJobReads(reads) && !reads.some(obsoleteLogCut);
 
 export function loadDetailCache(state: unknown): { cache: DetailCache; dropped: string[] } {
   const cache: DetailCache = {};
@@ -87,7 +92,7 @@ export function loadDetailCache(state: unknown): { cache: DetailCache; dropped: 
   for (const [key, value] of Object.entries(parsed.data)) {
     const entry = saved(jobSchema).safeParse(value);
     if (entry.success && entry.data.data.status === "completed" &&
-        key.endsWith(`#${entry.data.data.id}`) && settledJobReads(entry.data.reads)) cache[key] = entry.data;
+        key.endsWith(`#${entry.data.data.id}`) && reusableJobReads(entry.data.reads)) cache[key] = entry.data;
     else dropped.push(key);
   }
   return { cache, dropped };
@@ -165,6 +170,11 @@ async function explain(gh: Gh, repo: string, job: JobDetail, readLog: boolean, c
       .map((a) => clip(a.message.trim(), 500)).slice(0, 5);
   }
   if (job.reason && !readLog) return reads;
+  return [...reads, ...await readJobLog(gh, repo, job, ctx)];
+}
+
+async function readJobLog(gh: Gh, repo: string, job: JobDetail, ctx: CoreContext) {
+  const reads: ReadRecord[] = [];
   const logPath = `repos/${repo}/actions/jobs/${job.id}/logs`;
   const log = await observe(ctx, reads, logPath, () => gh.text(logPath));
   if (log !== undefined) {
@@ -180,6 +190,25 @@ async function explain(gh: Gh, repo: string, job: JobDetail, readLog: boolean, c
   return reads;
 }
 
+async function refreshJobLog(
+  gh: Gh, repo: string, known: LifecycleRead<JobDetail>, ctx: CoreContext,
+): Promise<LifecycleRead<JobDetail>> {
+  const path = `repos/${repo}/actions/jobs/${known.data.id}/logs`;
+  const isLog = (r: ReadRecord) => r.source === "github" && r.object === path;
+  const prior = known.reads.find((r) => isLog(r) && obsoleteLogCut(r));
+  if (!prior) return known;
+  const data = { ...known.data };
+  const fresh = await readJobLog(gh, repo, data, ctx);
+  const failed = fresh.some((r) => r.failure !== undefined);
+  return {
+    data: failed ? known.data : data,
+    reads: [
+      ...known.reads.filter((r) => !isLog(r) || (failed && r.failure === undefined)),
+      ...fresh.map((r) => failed ? { ...r, retainedFrom: prior.retainedFrom ?? prior.observedAt } : r),
+    ],
+  };
+}
+
 function put(cache: DetailCache, repo: string, data: JobDetail, reads: ReadRecord[]) {
   if (data.status === "completed" && settledJobReads(reads)) cache[`${repo}#${data.id}`] = { data, reads };
 }
@@ -188,7 +217,11 @@ export async function readJob(
 ) {
   const { cache, reads } = details(state, ctx);
   const known = cache[`${repo}#${id}`];
-  if (known) return { data: known.data, cache, reads: [...reads, ...known.reads] };
+  if (known) {
+    const refreshed = await refreshJobLog(gh, repo, known, ctx);
+    put(cache, repo, refreshed.data, refreshed.reads);
+    return { data: refreshed.data, cache, reads: [...reads, ...refreshed.reads] };
+  }
   const path = `repos/${repo}/actions/jobs/${id}`;
   const raw = await observe(ctx, reads, path, () => gh.rest<RawJob>(path, JOB_JQ));
   if (!raw) return { data: undefined, cache, reads };
@@ -232,13 +265,19 @@ export async function readRunJobs(
   const listing = [...reads];
   const results = await pool([...jobs.values()], 3, async (raw) => {
     const job = toJob(raw);
-    const known = cache[`${repo}#${job.id}`];
+    const annotations = `repos/${repo}/check-runs/${job.id}/annotations`;
+    const log = `repos/${repo}/actions/jobs/${job.id}/logs`;
+    const previousReads = previous?.reads.filter((r) => r.source === "github" &&
+      (r.object.split("?")[0] === annotations || r.object === log)) ?? [];
+    const previousJob = previous?.data.find((j) => j.id === job.id);
+    const known = cache[`${repo}#${job.id}`] ??
+      (previousJob && previousReads.some(obsoleteLogCut)
+        ? { data: previousJob, reads: previousReads } : undefined);
     if (known && known.data.status === job.status && known.data.conclusion === job.conclusion &&
         known.data.attempt === job.attempt && timed(known.data)) {
-      const kept = { ...known.data, ...job, reason: known.data.reason, environment: known.data.environment };
-      const annotations = `repos/${repo}/check-runs/${job.id}/annotations`;
-      const log = `repos/${repo}/actions/jobs/${job.id}/logs`;
-      const explanation = known.reads.filter((r) => r.source === "github" &&
+      const refreshed = await refreshJobLog(gh, repo, known, ctx);
+      const kept = { ...refreshed.data, ...job, reason: refreshed.data.reason, environment: refreshed.data.environment };
+      const explanation = refreshed.reads.filter((r) => r.source === "github" &&
         (r.object.split("?")[0] === annotations || r.object === log));
       put(cache, repo, kept, [...listing.filter((r) => r.source !== "persist"), ...explanation]);
       return { data: kept, reads: explanation };

@@ -3,8 +3,10 @@
 
 import { expect, test } from "vitest";
 import {
+  type DetailCache,
   JOB_LOG_LIMIT,
   jobsKey,
+  type LifecycleState,
   loadDetailCache,
   pollRun,
   readJob,
@@ -13,11 +15,15 @@ import {
 } from "../../src/collect/lifecycle.js";
 import { DECLARATION_PATH, STACK_REPO as STACK } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
+import { envelopeOf } from "../../src/evidence/index.js";
 import { RecordingExec, ReplayExec } from "../../src/exec/recording.js";
-import type { LifecycleRun } from "../../src/facts.js";
+import { emptyFacts, type JobDetail, type LifecycleRun } from "../../src/facts.js";
+import { factsSchema } from "../../src/facts-schema.js";
 import { Gh } from "../../src/forge.js";
 import { inferMaintenance } from "../../src/model/stack.js";
 import { judgeRun } from "../../src/rollout.js";
+import { cacheSchema, emptyCache } from "../../src/sweep/cache.js";
+import { Sweeper, type SweepProgress, type SweepState } from "../../src/sweep/sweeper.js";
 
 const NOW = new Date("2026-11-03T18:00:00Z");
 const context = (now = NOW) => createContext({ clock: { now: () => now } });
@@ -255,7 +261,7 @@ function javaBuildLog(size: number): string {
 }
 
 test.each([64_000, 92_438, 256_000, JOB_LOG_LIMIT])(
-  "Java Build reads all %i log characters and finds a reason before the old tail limit",
+  "Java Build reads all %i log characters and finds the first build failure",
   async (size) => {
     const log = javaBuildLog(size);
     expect(log).toHaveLength(size);
@@ -297,6 +303,350 @@ test("lifecycle run jobs read the live-sized failed job log with complete eviden
   expect(result.data?.[0]?.reason).toBe("Could not resolve build dependency");
   expect(result.reads.some((r) => r.object.endsWith("/logs"))).toBe(true);
   expect(result.reads.every((r) => !r.failure && r.completeness.kind === "complete")).toBe(true);
+});
+
+const EXAMPLE_REPO = "example/fork";
+const logPath = (id = 1) => `repos/${EXAMPLE_REPO}/actions/jobs/${id}/logs`;
+function cutSnapshot(read = 64_000, total = 92_438) {
+  const job: JobDetail = {
+    id: 1,
+    name: "Java Build",
+    status: "completed",
+    conclusion: "failure",
+    url: `https://github.com/${EXAMPLE_REPO}/actions/runs/7/job/1`,
+    steps: [],
+    attempt: 1,
+    reason: "Later build failure",
+  };
+  const detail: DetailCache = {
+    [`${EXAMPLE_REPO}#1`]: {
+      data: job,
+      reads: [
+        {
+          source: "github",
+          object: `repos/${EXAMPLE_REPO}/actions/runs/7/attempts/1/jobs?per_page=100&page=1`,
+          observedAt: NOW.toISOString(),
+          completeness: { kind: "complete" },
+        },
+        {
+          source: "github",
+          object: `repos/${EXAMPLE_REPO}/check-runs/1/annotations?per_page=100`,
+          observedAt: NOW.toISOString(),
+          completeness: { kind: "complete" },
+        },
+        {
+          source: "github",
+          object: logPath(),
+          observedAt: NOW.toISOString(),
+          completeness: { kind: "cut", reason: "Job log character limit", read, total },
+        },
+      ],
+    },
+  };
+  const state: LifecycleState = {
+    runJobs: {
+      "7#1": {
+        data: [job],
+        reads: detail[`${EXAMPLE_REPO}#1`]?.reads ?? [],
+        run: { status: "completed", updatedAt: rawRun().updated_at },
+      },
+    },
+    files: {},
+  };
+  return { detail, state };
+}
+const exampleContext = (now: Date) => createContext({ ...context(now), stackRepo: EXAMPLE_REPO });
+
+test("obsolete DetailCache log cuts round-trip as valid data and refresh only the log once", async () => {
+  const seed = cutSnapshot();
+  const restored = loadDetailCache(JSON.parse(JSON.stringify(seed.detail)));
+  expect(restored.dropped).toEqual([]);
+  expect(restored.cache).toEqual(seed.detail);
+  const later = new Date(NOW.getTime() + 60_000);
+  const refreshed = await replay(
+    (gh) => readJob(gh, restored.cache, EXAMPLE_REPO, 1, "Java Build", context(later)),
+    (path) => {
+      expect(path).toBe(logPath());
+      return javaBuildLog(92_438);
+    },
+  );
+  expect(refreshed.data?.reason).toBe("Could not resolve build dependency");
+  expect(refreshed.reads.filter((r) => r.object !== logPath())).toEqual(
+    seed.detail[`${EXAMPLE_REPO}#1`]?.reads.filter((r) => r.object !== logPath()),
+  );
+  expect(refreshed.reads.find((r) => r.object === logPath())).toEqual({
+    source: "github",
+    object: logPath(),
+    observedAt: later.toISOString(),
+    completeness: { kind: "complete" },
+  });
+  const settled = await replay(
+    (gh) =>
+      readJob(
+        gh,
+        JSON.parse(JSON.stringify(refreshed.cache)),
+        EXAMPLE_REPO,
+        1,
+        "Java Build",
+        context(later),
+      ),
+    () => {
+      throw new Error("Refreshed log must settle");
+    },
+  );
+  expect(settled.reads).toEqual(refreshed.reads);
+});
+
+test.each(["detail", "run-jobs", "both"])(
+  "failed obsolete-log refresh retains the cut and observation in %s caches until retry succeeds",
+  async (caches) => {
+    const seed = cutSnapshot();
+    let detail = caches === "run-jobs" ? {} : seed.detail;
+    let previous = seed.state;
+    for (const minutes of [1, 2]) {
+      const later = new Date(NOW.getTime() + minutes * 60_000);
+      const failed = await replay(
+        async (gh) =>
+          caches === "detail"
+            ? readJob(gh, detail, EXAMPLE_REPO, 1, "Java Build", context(later))
+            : readLifecycle(
+                gh,
+                detail,
+                JSON.parse(JSON.stringify(previous)),
+                exampleContext(later),
+              ),
+        (path) => {
+          if (path === logPath()) return new Error("log unavailable");
+          if (path.includes("/workflows/")) return lifecycle()(path);
+          if (path.includes("/jobs?"))
+            return { total: 1, jobs: [{ ...rawJob(1, "Java Build"), conclusion: "failure" }] };
+          throw new Error(`Unexpected read ${path}`);
+        },
+      );
+      expect(failed.reads.find((r) => r.object === logPath() && !r.failure)).toEqual(
+        seed.detail[`${EXAMPLE_REPO}#1`]?.reads.at(-1),
+      );
+      expect(failed.reads.find((r) => r.failure)).toMatchObject({
+        source: "github",
+        object: logPath(),
+        observedAt: later.toISOString(),
+        retainedFrom: NOW.toISOString(),
+        failure: expect.stringContaining("log unavailable"),
+      });
+      expect(failed.reads.some((r) => r.source === "persist")).toBe(false);
+      if ("state" in failed) {
+        expect(failed.data.upgrade[0]?.jobs?.[0]?.reason).toBe("Later build failure");
+        previous = failed.state;
+      } else expect(failed.data?.reason).toBe("Later build failure");
+      detail = failed.cache;
+    }
+    const recovered = await replay(
+      async (gh) =>
+        caches === "detail"
+          ? readJob(
+              gh,
+              detail,
+              EXAMPLE_REPO,
+              1,
+              "Java Build",
+              context(new Date(NOW.getTime() + 180_000)),
+            )
+          : readLifecycle(gh, detail, previous, exampleContext(new Date(NOW.getTime() + 180_000))),
+      (path) => {
+        if (path === logPath()) return javaBuildLog(92_438);
+        if (path.includes("/jobs?"))
+          return { total: 1, jobs: [{ ...rawJob(1, "Java Build"), conclusion: "failure" }] };
+        if (path.includes("/workflows/")) return lifecycle()(path);
+        throw new Error(`Unexpected read ${path}`);
+      },
+    );
+    expect(recovered.reads.every((r) => !r.failure && r.completeness.kind === "complete")).toBe(
+      true,
+    );
+    expect(recovered.cache[`${EXAMPLE_REPO}#1`]?.data.reason).toBe(
+      "Could not resolve build dependency",
+    );
+  },
+);
+
+test("a sweep clears the live-sized job-log warning from both saved caches and then settles", async () => {
+  const seed = cutSnapshot();
+  const ctx = exampleContext(new Date(NOW.getTime() + 60_000));
+  const cache = { ...emptyCache(), details: seed.detail, lifecycle: seed.state };
+  const facts = emptyFacts();
+  facts.lifecycle = {
+    at: NOW.toISOString(),
+    data: {
+      refresh: [],
+      upgrade: [{ ...run, status: "completed", jobs: seed.state.runJobs["7#1"]?.data }],
+      smoke: [],
+      sweeper: [],
+    },
+  };
+  let stored: SweepState<typeof cache> = {
+    facts,
+    cache,
+    reads: {
+      lifecycle: seed.state.runJobs["7#1"]?.reads,
+    },
+  };
+  expect(
+    envelopeOf(stored.reads.lifecycle ?? [], { intervalMs: 300_000, now: NOW.getTime() }),
+  ).toMatchObject({
+    state: "incomplete",
+    completeness: { kind: "cut", read: 64_000, total: 92_438 },
+  });
+  const progress: SweepProgress[] = [];
+  const requests: string[] = [];
+  const exec = new RecordingExec(
+    async (_cmd, args) => {
+      const path = args[args.includes("--allow-escape-sequences") ? 2 : 1] ?? "";
+      requests.push(path);
+      if (path === logPath()) return { stdout: javaBuildLog(92_438), stderr: "", exit: 0 };
+      const value = path.includes("/jobs?")
+        ? { total: 1, jobs: [{ ...rawJob(1, "Java Build"), conclusion: "failure" }] }
+        : lifecycle()(path);
+      return { stdout: JSON.stringify(value), stderr: "", exit: 0 };
+    },
+    () => {},
+  );
+  const sweeper = new Sweeper({
+    ctx,
+    exec,
+    factsSchema,
+    cacheSchema,
+    emptyCache,
+    persist: {
+      load: async () => JSON.parse(JSON.stringify(stored)),
+      save: async (state) => {
+        stored = JSON.parse(JSON.stringify(state));
+      },
+    },
+    progress: (event) => progress.push(event),
+    areas: [
+      {
+        name: "lifecycle",
+        read: async ({ cache, exec, ctx }) => {
+          const result = await readLifecycle(new Gh(exec), cache.details, cache.lifecycle, ctx);
+          cache.details = result.cache;
+          cache.lifecycle = result.state;
+          return result;
+        },
+      },
+    ],
+  });
+  await sweeper.sweep();
+  expect(progress.at(-1)).toMatchObject({
+    source: "lifecycle",
+    state: "read",
+    completeness: { kind: "complete" },
+  });
+  expect(progress.at(-1)).not.toHaveProperty("incomplete");
+  expect(
+    envelopeOf(stored.reads.lifecycle ?? [], {
+      intervalMs: 300_000,
+      now: ctx.clock.now().getTime(),
+    }).state,
+  ).toBe("fresh");
+  expect(
+    stored.cache.details[`${EXAMPLE_REPO}#1`]?.reads.find((r) => r.object === logPath()),
+  ).toMatchObject({
+    observedAt: ctx.clock.now().toISOString(),
+    completeness: { kind: "complete" },
+  });
+  expect(stored.cache.lifecycle.runJobs["7#1"]?.reads).toEqual(
+    stored.reads.lifecycle?.filter((r) => !r.object.includes("/workflows/")),
+  );
+  expect(requests.filter((path) => !path.includes("/workflows/"))).toEqual([
+    `repos/${EXAMPLE_REPO}/actions/runs/7/attempts/1/jobs?per_page=100&page=1`,
+    logPath(),
+  ]);
+  requests.length = 0;
+  await sweeper.sweep();
+  expect(requests).toHaveLength(4);
+  expect(requests.every((path) => path.includes("/workflows/"))).toBe(true);
+});
+
+test("run-job migration requests only obsolete logs, keeping complete and oversize cuts settled", async () => {
+  const seed = cutSnapshot();
+  const sizes = [
+    { read: 64_000, total: 92_438 },
+    { read: 64_000, total: JOB_LOG_LIMIT },
+    { read: 64_000, total: JOB_LOG_LIMIT + 1 },
+    { read: JOB_LOG_LIMIT, total: JOB_LOG_LIMIT + 1 },
+    { read: 92_438, total: 92_438 },
+  ];
+  const base = seed.detail[`${EXAMPLE_REPO}#1`];
+  if (!base) throw new Error("Expected cached job fixture");
+  seed.detail = Object.fromEntries(
+    sizes.map(({ read, total }, i) => {
+      const id = i + 1;
+      return [
+        `${EXAMPLE_REPO}#${id}`,
+        {
+          data: { ...base.data, id },
+          reads: [
+            {
+              source: "github",
+              object: logPath(id),
+              observedAt: NOW.toISOString(),
+              completeness:
+                read === total
+                  ? { kind: "complete" as const }
+                  : { kind: "cut" as const, read, total, reason: "Job log character limit" },
+            },
+          ],
+        },
+      ];
+    }),
+  );
+  seed.state.runJobs["7#1"] = {
+    data: Object.values(seed.detail).map((entry) => entry.data),
+    reads: Object.values(seed.detail).flatMap((entry) => entry.reads),
+    run: { status: "completed", updatedAt: rawRun().updated_at },
+  };
+  const requests: string[] = [];
+  const migrated = await replay(
+    (gh) =>
+      readLifecycle(
+        gh,
+        JSON.parse(JSON.stringify(seed.detail)),
+        JSON.parse(JSON.stringify(seed.state)),
+        exampleContext(new Date(NOW.getTime() + 60_000)),
+      ),
+    (path) => {
+      if (path.includes("/workflows/")) return lifecycle()(path);
+      requests.push(path);
+      if (path === logPath()) return javaBuildLog(92_438);
+      if (path === logPath(2)) return javaBuildLog(JOB_LOG_LIMIT);
+      if (path.includes("/jobs?"))
+        return {
+          total: sizes.length,
+          jobs: sizes.map((_, i) => ({ ...rawJob(i + 1, "Java Build"), conclusion: "failure" })),
+        };
+      throw new Error(`Unexpected read ${path}`);
+    },
+  );
+  const expected = [
+    `repos/${EXAMPLE_REPO}/actions/runs/7/attempts/1/jobs?per_page=100&page=1`,
+    logPath(),
+    logPath(2),
+  ];
+  expect(requests.sort()).toEqual(expected.sort());
+  for (const id of [3, 4, 5]) {
+    expect(migrated.cache[`${EXAMPLE_REPO}#${id}`]?.reads.at(-1)).toEqual(
+      seed.detail[`${EXAMPLE_REPO}#${id}`]?.reads.at(-1),
+    );
+  }
+  const settled = await replay(
+    (gh) => readLifecycle(gh, migrated.cache, migrated.state, exampleContext(NOW)),
+    (path) => {
+      expect(path).toContain("/workflows/");
+      return lifecycle()(path);
+    },
+  );
+  expect(settled.data).toEqual(migrated.data);
+  expect(settled.reads.filter((r) => r.completeness.kind === "cut")).toHaveLength(2);
 });
 
 test("Java Build caches a final size-cut log and retries failed explanations", async () => {

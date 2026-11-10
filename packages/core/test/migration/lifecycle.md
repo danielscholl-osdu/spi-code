@@ -27,7 +27,8 @@ per-poll clock observations. All tests are in the core Vitest project.
   `readJob`, `readRunJobs`, `readLifecycle` or `pollRun`; retain the returned
   `cache`. Load validation drops bad entries individually with persistence
   failure evidence. Completed jobs are cached when reads succeeded; a deliberate
-  job-log character cut is final and stays in the cached evidence.
+  job-log character cut stays in the cached evidence until a current-limit
+  read can complete it.
 - `LifecycleState` contains attempt-keyed `runJobs`, commit-keyed declaration
   `files`, and the last lifecycle result per workflow. Pass it into
   `readLifecycle` and persist its returned `state`. It is cloned and validated
@@ -53,9 +54,10 @@ per-poll clock observations. All tests are in the core Vitest project.
 - Active run jobs are also kept for failure retention, but only completed,
   timed jobs fetched against the same completed run status and updatedAt settle
   a run's attempt cache. Legacy snapshots without that metadata are refreshed.
-  Other cuts and failures prevent settlement; a deliberate job-log character
-  cut does not. A new attempt cannot inherit jobs from a failed read of the
-  previous attempt.
+  Other cuts and failures prevent settlement. A job-log character cut settles
+  only if its total still exceeds the current parsing bound or it was already
+  read at that bound. A new attempt cannot inherit jobs from a failed read of
+  the previous attempt.
 
 ## Job-log parsing bound (spicode-t1k.302)
 
@@ -74,8 +76,27 @@ limit or a download-memory limit.
 A single Node v22.22.0 measurement on the shared machine parsed 4,194,304 ASCII
 characters (68,761 timestamped, ANSI-colored lines) in 27.3 ms. The reason was
 a final `##[error]` line, exercising all five search passes, rather than an
-early-returning error. This is well below the five-minute sweep interval;
-`reasonFromLog` itself is unchanged, including its precedence and tail behavior.
+early-returning error. This is well below the five-minute sweep interval.
+`reasonFromLog` recognizes JDK-range failures, deployment failures, Maven errors
+and generic error lines, stripping timestamps and ANSI escapes first.
+
+## Cached job-log cuts (spicode-t1k.304)
+
+A saved job-log cut is obsolete when its read count is below `JOB_LOG_LIMIT`
+and its total fits within that limit. Both DetailCache and LifecycleState.runJobs
+refresh those logs once, retaining unrelated cached explanations and their
+original observation times. Obsolete cuts remain valid persisted data, not
+corrupt cache entries. Run-job refreshes read the affected run's job listing;
+only obsolete job logs need another explanation request. Logs whose total still
+exceeds the current bound remain settled, including cuts made at a lower bound.
+
+A failed refresh keeps the old reason and cut at its real observation time.
+The failed attempt carries its current observation and `retainedFrom` pointing
+to the retained cut; the next sweep retries it. A successful refresh replaces
+the log's cut and any failed-attempt evidence, and settles both caches.
+The sweep regression seeds both caches with an impersonal 64,000-of-92,438
+cut, round-trips the saved state through JSON, and verifies that one sweep
+reports the lifecycle area complete with no incomplete-read count.
 
 [workflow-logs]: https://docs.github.com/en/actions/how-tos/monitor-workflows/use-workflow-run-logs
 [actions-limits]: https://docs.github.com/en/actions/reference/limits
