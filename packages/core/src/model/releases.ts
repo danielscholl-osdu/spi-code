@@ -7,8 +7,16 @@ import {
   type ReleaseFact,
   type ReleaseReads,
 } from "../releases.js";
+import type { Forming, FormingPr } from "@spi-code/contracts";
+import {
+  openReleasePrs,
+  type ReleaseBody,
+  type ReleasePrRef,
+  releaseBodyKey,
+} from "../collect/releases.js";
 import { CORE_LIB_REPO, TEMPLATE_REPO } from "../config.js";
 import type { CoreContext } from "../context.js";
+import { names, plural } from "../util.js";
 
 export type ComponentKind = "template" | "stack" | "library" | "service";
 export type ChangeType = "breaking" | "new" | "improved" | "fixed" | "security";
@@ -171,16 +179,22 @@ export interface BodyLine {
   dep: boolean;
 }
 
-// One release-please body into typed lines; sections that do not reach a consumer are dropped.
-export function parseBody(body: string): BodyLine[] {
-  const out: BodyLine[] = [];
-  let type: ChangeType | undefined;
+interface SectionLine {
+  section: ChangeType | undefined;
+  text: string;
+  scope?: string;
+  dep: boolean;
+}
+
+function sectionLines(body: string): SectionLine[] {
+  const out: SectionLine[] = [];
+  let section: ChangeType | undefined;
   let inSection = false;
   for (const raw of body.split("\n")) {
     const heading = /^#{2,4}\s+(.*)$/.exec(raw);
     if (heading) {
       inSection = /^#{3,4}/.test(raw);
-      type = inSection ? sectionType(heading[1] ?? "") : undefined;
+      section = inSection ? sectionType(heading[1] ?? "") : undefined;
       continue;
     }
     if (!inSection) continue;
@@ -190,14 +204,184 @@ export function parseBody(body: string): BodyLine[] {
     const text = plainLine(item[2] ?? "");
     if (!text || NOISE.some((re) => re.test(text))) continue;
     const dep = scope === "deps" || /^bump\b/i.test(text);
-    // Untyped sections (Miscellaneous, Build System) reach a consumer only as dependency bumps.
-    if (!type && !dep) continue;
-    let t: ChangeType = type ?? "fixed";
-    if (SECURITY.test(text) && t !== "breaking") t = "security";
-    else if (t === "new" && IMPROVED.test(text)) t = "improved";
-    out.push({ type: t, text, dep, ...(scope ? { scope } : {}) });
+    out.push({ section, text, dep, ...(scope ? { scope } : {}) });
   }
   return out;
+}
+
+function lineType(section: ChangeType | undefined, text: string): ChangeType | undefined {
+  if (SECURITY.test(text) && section !== "breaking") return "security";
+  if (section === "new" && IMPROVED.test(text)) return "improved";
+  return section;
+}
+
+// One release-please body into typed lines; sections that do not reach a consumer are dropped.
+export function parseBody(body: string): BodyLine[] {
+  return sectionLines(body).flatMap(({ section, text, scope, dep }) => {
+    // Untyped sections (Miscellaneous, Build System) reach a consumer only as dependency bumps.
+    if (!section && !dep) return [];
+    const type = lineType(section ?? "fixed", text) ?? "fixed";
+    return [{ type, text, dep, ...(scope ? { scope } : {}) }];
+  });
+}
+
+export type FormingKind = ChangeType | "other";
+
+export interface FormingEntry {
+  kind: FormingKind;
+  title: string;
+}
+
+/** A release PR's changelog with every entry kept: untyped entries and dependency bumps are other. */
+export function parseFormingBody(body: string): FormingEntry[] {
+  return sectionLines(body).map(({ section, text, dep }) => {
+    const type = lineType(section, text);
+    const kind = type === undefined || (dep && type !== "security" && type !== "breaking") ? "other" : type;
+    return { kind, title: text };
+  });
+}
+
+const FORMING_KINDS: readonly FormingKind[] = Object.freeze([
+  "breaking",
+  "new",
+  "improved",
+  "fixed",
+  "security",
+  "other",
+]);
+const NOTABLE_RANK: readonly FormingKind[] = Object.freeze([
+  "breaking",
+  "security",
+  "new",
+  "improved",
+  "fixed",
+]);
+const NOTABLE_MAX = 3;
+
+export interface FormingInput {
+  /** The releases read's bodies, by releaseBodyKey. */
+  bodies?: Readonly<Record<string, ReleaseBody>>;
+  /** The GitHub read's open PRs; a repo listed here decides which release PRs are open, and at which head. */
+  open?: Readonly<Record<string, { readonly prs: readonly (ReleasePrRef & { url?: string })[] }>>;
+  context: CoreContext;
+}
+
+interface FormingRef {
+  repo: string;
+  number: number;
+  url?: string;
+  body?: ReleaseBody;
+}
+
+// A release PR whose body was read at an older head is not read until the next releases read.
+function formingRefs({ bodies = {}, open }: FormingInput, repo: string): FormingRef[] {
+  if (open?.[repo] !== undefined) {
+    return openReleasePrs([repo], open).map(({ pr }) => {
+      const body = bodies[releaseBodyKey(repo, pr.number, pr.headSha)];
+      return { repo, number: pr.number, ...(pr.url ? { url: pr.url } : {}), ...(body ? { body } : {}) };
+    });
+  }
+  const latest = new Map<number, ReleaseBody>();
+  for (const body of Object.values(bodies)) {
+    if (body.repo !== repo) continue;
+    const kept = latest.get(body.number);
+    if (!kept || kept.at < body.at) latest.set(body.number, body);
+  }
+  return [...latest.values()].sort((a, b) => b.number - a.number).map((body) => ({ repo, number: body.number, body }));
+}
+
+function kindsText(kinds: Readonly<Record<FormingKind, number>>): string {
+  const parts = FORMING_KINDS.filter((k) => kinds[k] > 0).map((k) => `${kinds[k]} ${k}`);
+  return parts.length > 0 ? parts.join(" · ") : "no changes listed";
+}
+
+/**
+ * What the open release PRs of the services and the template carry, from their bodies on the
+ * releases read. A PR whose body was not read has no entries and is never counted as zero.
+ */
+export function formingReleases(input: FormingInput): Forming {
+  const { context } = input;
+  const services = new Map(context.fleet.forks.map((f) => [f.repo, f.id]));
+  const repos = context.fleet.projectRepos.filter((r) => services.has(r) || r === TEMPLATE_REPO);
+  const refs = repos.flatMap((repo) => formingRefs(input, repo));
+  const prs: FormingPr[] = refs.map(({ repo, number, url, body }) => {
+    const pr = { number, ...(url ? { url } : {}) };
+    const read = body?.state === "read";
+    const own = {
+      pr,
+      state: read ? ("read" as const) : ("not-read" as const),
+      entries: read ? parseFormingBody(body.body) : [],
+    };
+    const service = services.get(repo);
+    return service ? { kind: "service", service, ...own } : { kind: "template", ...own };
+  });
+  const read = prs.filter((p) => p.state === "read").length;
+  const state =
+    prs.length === 0
+      ? input.open === undefined
+        ? "not-read"
+        : "read"
+      : read === prs.length
+        ? "read"
+        : read === 0
+          ? "not-read"
+          : "partial";
+  const count = plural(prs.length, "open release PR");
+  if (state === "not-read") {
+    return {
+      state,
+      prs,
+      notable: [],
+      text: prs.length > 0 ? `Unreleased, in ${count}: not read this sweep` : "Unreleased changes not read this sweep",
+    };
+  }
+  const kinds = Object.fromEntries(FORMING_KINDS.map((k) => [k, 0])) as Record<FormingKind, number>;
+  for (const p of prs) for (const e of p.entries) kinds[e.kind]++;
+  const unread = prs.length - read;
+  const text =
+    prs.length === 0
+      ? "No release forming: no release PRs open"
+      : `Unreleased, in ${count}${unread > 0 ? ` (${unread} not read this sweep)` : ""}: ${kindsText(kinds)}`;
+  return { state, prs, kinds, notable: notableOf(prs), text };
+}
+
+function notableOf(prs: readonly FormingPr[]): Forming["notable"] {
+  const byTitle = new Map<
+    string,
+    { title: string; kind: FormingKind; services: string[]; template: boolean; pr: FormingPr["pr"]; order: number }
+  >();
+  for (const p of prs) {
+    for (const e of p.entries) {
+      if (!NOTABLE_RANK.includes(e.kind)) continue;
+      const key = e.title.toLowerCase();
+      const found = byTitle.get(key) ?? {
+        title: e.title,
+        kind: e.kind,
+        services: [],
+        template: false,
+        pr: p.pr,
+        order: byTitle.size,
+      };
+      if (NOTABLE_RANK.indexOf(e.kind) < NOTABLE_RANK.indexOf(found.kind)) found.kind = e.kind;
+      if (p.kind === "template") found.template = true;
+      else if (!found.services.includes(p.service)) found.services.push(p.service);
+      byTitle.set(key, found);
+    }
+  }
+  const reach = (n: { services: string[]; template: boolean }) => n.services.length + (n.template ? 1 : 0);
+  return [...byTitle.values()]
+    .sort(
+      (a, b) =>
+        NOTABLE_RANK.indexOf(a.kind) - NOTABLE_RANK.indexOf(b.kind) || reach(b) - reach(a) || a.order - b.order,
+    )
+    .slice(0, NOTABLE_MAX)
+    .map(({ title, kind, services, template, pr }) => ({
+      title,
+      kind,
+      services,
+      pr,
+      text: `${title} on ${names([...services, ...(template ? ["the template"] : [])])}`,
+    }));
 }
 
 export function upstreamOf(body: string): string | undefined {

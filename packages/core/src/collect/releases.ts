@@ -31,7 +31,7 @@ export function releaseBodyKey(repo: string, number: number, sha: string): strin
 }
 
 export type OpenPrs = Readonly<Record<string, { readonly prs: readonly ReleasePrRef[] }>>;
-type ReleasePrRef = Pick<PrFact, "number" | "head" | "headSha" | "labels">;
+export type ReleasePrRef = Pick<PrFact, "number" | "head" | "headSha" | "labels">;
 
 const recordSchema = z.object({
   source: z.string(),
@@ -75,7 +75,7 @@ export const releaseStateSchema = z.object({
   errors: z.record(z.string(), z.string()),
   records: z.array(recordSchema).default([]),
   shas: z.record(z.string(), z.string()).default({}),
-  bodies: bodiesSchema.default({}),
+  bodies: bodiesSchema.catch({}),
 });
 
 export function emptyReads(): ReleaseState {
@@ -146,7 +146,10 @@ export const PULL_JQ = '{state, sha: .head.sha, body: (.body // "")}';
 export const BODIES_PER_REPO = 2;
 
 /** Every open release PR in the given repos, by the branch and label the Releases reading uses. */
-export function openReleasePrs(repos: readonly string[], open: OpenPrs): { repo: string; pr: ReleasePrRef }[] {
+export function openReleasePrs<P extends ReleasePrRef>(
+  repos: readonly string[],
+  open: Readonly<Record<string, { readonly prs: readonly P[] }>>,
+): { repo: string; pr: P }[] {
   return repos.flatMap((repo) =>
     (open[repo]?.prs ?? [])
       .filter((p) => p.head.startsWith("release-please--") || p.labels.includes("autorelease: pending"))
@@ -320,8 +323,8 @@ export class ReleaseReader {
   }
 
   /**
-   * At most BODIES_PER_REPO reads per project repo: the newest release PR, then those with no read
-   * at their head, then the least recently read. A PR past the cap keeps a read at its head, or is
+   * At most BODIES_PER_REPO reads per project repo: the newest release PR, then those never tried
+   * at their head, then the least recently tried, whether that read held or failed. A PR past the cap keeps a read at its head, or is
    * recorded not read as over-cap. A repo whose PR list was given keeps only what this read found;
    * one never listed keeps its entries.
    */
@@ -340,10 +343,14 @@ export class ReleaseReader {
       const entry = before[releaseBodyKey(repo, pr.number, pr.headSha)];
       return entry?.state === "read" ? entry : undefined;
     };
+    const lastTried = (repo: string, pr: ReleasePrRef) => {
+      const entry = before[releaseBodyKey(repo, pr.number, pr.headSha)];
+      return entry?.state === "read" || entry?.reason === "failed" ? entry.at : undefined;
+    };
     const reads = repos.flatMap((name) => {
       const [newest, ...rest] = openReleasePrs([name], open);
       if (!newest) return [];
-      const queue = rest.map((r, i) => ({ ...r, i, last: lastRead(r.repo, r.pr)?.at }))
+      const queue = rest.map((r, i) => ({ ...r, i, last: lastTried(r.repo, r.pr) }))
         .sort((a, b) => (a.last === undefined ? -1 : 0) - (b.last === undefined ? -1 : 0)
           || (a.last ?? "").localeCompare(b.last ?? "") || a.i - b.i);
       for (const { repo, pr } of queue.slice(BODIES_PER_REPO - 1)) {

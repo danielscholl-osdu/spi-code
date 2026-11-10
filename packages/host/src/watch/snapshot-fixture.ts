@@ -17,8 +17,10 @@ import {
   parseRollout,
   pinKey,
   type ReadRecord,
+  type ReleaseBody,
   type ReleaseReads,
   type RepoFact,
+  releaseBodyKey,
   type SweepReads,
   TEMPLATE_REPO,
 } from "@spi-code/core";
@@ -554,6 +556,42 @@ function failedPr(input: WatchInput, service: string, number: number, check: str
   return pr;
 }
 
+function changelog(version: string, sections: Readonly<Record<string, readonly string[]>>): string {
+  const parts = Object.entries(sections).map(
+    ([heading, items]) => `### ${heading}\n\n${items.map((item) => `* ${item}`).join("\n")}`,
+  );
+  return `:robot: I have created a release *beep* *boop*\n---\n\n\n## [${version}](https://example.com/compare) (2026-11-06)\n\n\n${parts.join("\n\n")}\n\n---\nThis PR was generated with Release Please.\n`;
+}
+
+const MORNING_CHANGELOGS: readonly Readonly<Record<string, readonly string[]>>[] = Object.freeze([
+  { Features: ["add a synthetic tenant listing"], "Bug Fixes": ["handle an empty synthetic page"] },
+  {
+    "Bug Fixes": [
+      "apply a security patch to the synthetic HTTP client",
+      "**deps:** bump fixture-library to 1.0.1",
+    ],
+  },
+  {
+    Features: ["improve the synthetic legal tag lookup"],
+    "Miscellaneous Chores": ["tidy the synthetic logs"],
+  },
+  { "Bug Fixes": ["handle a missing synthetic schema version"] },
+  {
+    Features: ["add a synthetic upload size limit"],
+    "Bug Fixes": ["apply a security patch to the synthetic HTTP client"],
+  },
+  {
+    "⚠ BREAKING CHANGES": ["**api:** synthetic batch reads now page their results"],
+    Features: ["add a synthetic batch read"],
+    "Bug Fixes": ["handle a synthetic record without a kind"],
+  },
+  {
+    "Bug Fixes": ["retry a synthetic index write once"],
+    "Miscellaneous Chores": ["rename a synthetic job"],
+  },
+  { Features: ["add a synthetic query timeout"], "Bug Fixes": ["handle a synthetic empty cursor"] },
+]);
+
 /** Seven upstream decisions in four themes, releases and alerts across a fully read fleet. */
 export function busyInput(): WatchInput {
   const input = morningInput(7);
@@ -599,6 +637,23 @@ export function busyInput(): WatchInput {
   template.prs.push(
     morningPr(template, 263, "release-please--branches--main", "chore: release 1.5.0"),
   );
+  const releasePrs = Object.values(input.facts.github.data?.repos ?? {}).flatMap((repo) =>
+    repo.prs.filter((pr) => pr.head.startsWith("release-please--")),
+  );
+  const bodies = releasePrs.map((pr, index): ReleaseBody => {
+    const sections =
+      pr.repo === TEMPLATE_REPO
+        ? { Features: ["add a synthetic workflow input"] }
+        : (MORNING_CHANGELOGS[index % MORNING_CHANGELOGS.length] ?? {});
+    return {
+      state: "read",
+      repo: pr.repo,
+      number: pr.number,
+      sha: pr.headSha,
+      at: MORNING_AT,
+      body: changelog("1.5.0", sections),
+    };
+  });
   for (const [index, service] of ["indexer", "workflow", "unit"].entries()) {
     const repo = morningRepo(input, service);
     repo.prs.push(
@@ -622,6 +677,12 @@ export function busyInput(): WatchInput {
   failedPr(input, "indexer-queue", 67, "Deploy and Test", "Verify");
   return {
     ...input,
+    releases: {
+      ...input.releases,
+      bodies: Object.fromEntries(
+        bodies.map((body) => [releaseBodyKey(body.repo, body.number, body.sha), body]),
+      ),
+    },
     attention: {
       leadTimeMs: LEAD_TIME_MS,
       previous: ["gate1:indexer", "gate1:workflow", "gate1:unit", "gate2:indexer-queue"].map(

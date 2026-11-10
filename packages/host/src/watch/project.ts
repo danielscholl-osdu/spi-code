@@ -22,11 +22,13 @@ import {
   type DoctorView,
   type Facts,
   type FocusItem,
+  formingReleases,
   isMonth,
   monthFacts,
   parseNotes,
   RELEASES_EVERY_MS,
   type ReadRecord,
+  type ReleaseBody,
   type ReleaseReads,
   releaseDoc,
   releaseLine,
@@ -116,7 +118,7 @@ export function projectReleases(
 
 export interface WatchInput {
   readonly facts: Facts;
-  readonly releases: ReleaseReads;
+  readonly releases: ReleaseReads & { readonly bodies?: Readonly<Record<string, ReleaseBody>> };
   readonly reads: SweepReads;
   readonly releaseRecords: readonly ReadRecord[];
   readonly doctor: DoctorView;
@@ -311,7 +313,14 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     campaigns,
     readings: placeReadings(model, input, briefing, documents, campaigns),
     seen: seenState(model, input, briefing),
-    releases,
+    releases: {
+      ...releases,
+      forming: formingReleases({
+        ...(input.releases.bodies ? { bodies: input.releases.bodies } : {}),
+        ...(input.facts.github.data ? { open: input.facts.github.data.repos } : {}),
+        context: input.context,
+      }),
+    },
     stations,
     services,
     tree: treeOf(input, now),

@@ -396,6 +396,8 @@ test("a body reply without a string head, body or state records not read and sav
     { state: "open", sha: null, body: CHANGELOG },
     { state: "open", sha: sha("a"), body: 7 },
     { sha: sha("a"), body: CHANGELOG },
+    { state: "open", sha: "", body: CHANGELOG },
+    { state: "", sha: sha("a"), body: CHANGELOG },
     [],
   ];
   for (const raw of replies) {
@@ -429,7 +431,7 @@ test("a body is keyed by the head its read returned, not the head the PR list ga
 
 test("past the cap no release PR starves: the newest always, then unread, then least recently read", async () => {
   const h = harness();
-  const prs = [9, 8, 7].map((n) => pr(n, sha(String(n))));
+  const prs = [9, 8, 7, 6].map((n) => pr(n, sha(String(n))));
   for (const { number, headSha } of prs)
     h.pull(STORAGE, number, { state: "open", sha: headSha, body: `${CHANGELOG}#${number}` });
   const open: OpenPrs = { [STORAGE]: { prs } };
@@ -444,13 +446,59 @@ test("past the cap no release PR starves: the newest always, then unread, then l
   const first = h.now();
   expect(await round()).toEqual([8, 9]);
   expect(h.reader.data.bodies[key(7)]).toMatchObject({ state: "not-read", reason: "over-cap" });
+  expect(h.reader.data.bodies[key(6)]).toMatchObject({ state: "not-read", reason: "over-cap" });
 
   const second = h.now();
   expect(await round()).toEqual([7, 9]);
   expect(h.reader.data.bodies[key(8)]).toMatchObject({ state: "read", at: first });
   expect(h.reader.data.bodies[key(7)]).toMatchObject({ state: "read", at: second });
+  expect(h.reader.data.bodies[key(6)]).toMatchObject({ state: "not-read", reason: "over-cap" });
 
+  expect(await round()).toEqual([6, 9]);
   expect(await round()).toEqual([8, 9]);
   expect(await round()).toEqual([7, 9]);
-  expect(Object.values(h.reader.data.bodies).map((b) => b.state)).toEqual(["read", "read", "read"]);
+  expect(await round()).toEqual([6, 9]);
+  expect(Object.values(h.reader.data.bodies).map((b) => b.state)).toEqual([
+    "read",
+    "read",
+    "read",
+    "read",
+  ]);
+});
+
+test("a release PR whose body read always fails does not hold the second slot", async () => {
+  const h = harness();
+  const prs = [9, 8, 7].map((n) => pr(n, sha(String(n))));
+  h.pull(STORAGE, 9, { state: "open", sha: sha("9"), body: CHANGELOG });
+  h.pull(STORAGE, 8, new Error("HTTP 502: Bad Gateway"));
+  h.pull(STORAGE, 7, { state: "open", sha: sha("7"), body: CHANGELOG });
+  const open: OpenPrs = { [STORAGE]: { prs } };
+  const round = async () => {
+    h.calls.length = 0;
+    await h.reader.read({ openPrs: open });
+    h.advance(RELEASES_EVERY_MS);
+    return h.calls.map((c) => Number(c.split("/").at(-1))).sort();
+  };
+  expect(await round()).toEqual([8, 9]);
+  expect(h.reader.data.bodies[releaseBodyKey(STORAGE, 8, sha("8"))]).toMatchObject({
+    state: "not-read",
+    reason: "failed",
+  });
+  expect(await round()).toEqual([7, 9]);
+  expect(h.reader.data.bodies[releaseBodyKey(STORAGE, 7, sha("7"))]).toMatchObject({
+    state: "read",
+  });
+  expect(await round()).toEqual([8, 9]);
+  expect(await round()).toEqual([7, 9]);
+});
+
+test("a bodies field that is not an object loads as no bodies, and the rest of the state stands", () => {
+  for (const bodies of ["x", 7, null, [], true]) {
+    const state = { ...MAIN_STATE, bodies };
+    expect(releaseStateSchema.parse(state)).toEqual({ ...MAIN_STATE, bodies: {} });
+    expect(cacheSchema.parse({ ...emptyCache(), releases: state }).releases).toEqual({
+      ...MAIN_STATE,
+      bodies: {},
+    });
+  }
 });
