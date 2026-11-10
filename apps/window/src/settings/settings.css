@@ -25,6 +25,7 @@
   box-shadow: 0 20px 60px rgb(0 0 0 / 0.24);
   color: var(--text);
   font: 12px/1.5 var(--font-sans);
+  -webkit-app-region: no-drag;
 }
 .settings[data-layout="picker"] { grid-template-columns: minmax(0, 1fr); }
 .settings-nav {

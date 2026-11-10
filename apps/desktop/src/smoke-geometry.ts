@@ -32,7 +32,19 @@ export type SmokeGeometry =
       panel: SmokeRect;
       rows: { source: string; outcome: string }[];
     }
-  | { rule: "drag"; services: number; appRegion: string; region: SmokeRect; targets: SmokeRect[] };
+  | { rule: "drag"; services: number; appRegion: string; region: SmokeRect; targets: SmokeRect[] }
+  | {
+      rule: "overlay-drag";
+      overlay: string;
+      viewport: SmokeRect;
+      regions: SmokeAppRegion[];
+      targets: { label: string; rect: SmokeRect }[];
+    };
+
+export interface SmokeAppRegion {
+  appRegion: "drag" | "no-drag";
+  rect: SmokeRect;
+}
 
 function record(value: unknown): asserts value is Record<string, unknown> {
   assert(value !== null && typeof value === "object", "Missing geometry");
@@ -93,6 +105,39 @@ export function dragSpan(region: SmokeRect, targets: readonly SmokeRect[]): numb
     edge = Math.max(edge, Math.min(region.x + region.width, target.x + target.width));
   }
   return Math.max(span, region.x + region.width - edge);
+}
+
+/**
+ * Electron builds the window's drag shape by walking app regions in order, adding each drag
+ * rect and subtracting each no-drag rect, with no regard for what paints on top. A target is
+ * dragged when any part of it is left in that shape.
+ */
+export function inDragShape(regions: readonly SmokeAppRegion[], target: SmokeRect): boolean {
+  const cuts = (start: number, size: number, edges: number[]) =>
+    [...new Set([start, start + size, ...edges.filter((e) => e > start && e < start + size)])].sort(
+      (a, b) => a - b,
+    );
+  const xs = cuts(
+    target.x,
+    target.width,
+    regions.flatMap(({ rect }) => [rect.x, rect.x + rect.width]),
+  );
+  const ys = cuts(
+    target.y,
+    target.height,
+    regions.flatMap(({ rect }) => [rect.y, rect.y + rect.height]),
+  );
+  const mids = (cuts: number[]) =>
+    cuts.slice(1).map((cut, index) => (cut + (cuts[index] ?? cut)) / 2);
+  for (const x of mids(xs))
+    for (const y of mids(ys)) {
+      let drag = false;
+      for (const { appRegion, rect } of regions)
+        if (x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.height)
+          drag = appRegion === "drag";
+      if (drag) return true;
+    }
+  return false;
 }
 
 export function assertSmokeGeometry(value: unknown): asserts value is SmokeGeometry {
@@ -224,6 +269,40 @@ export function assertSmokeGeometry(value: unknown): asserts value is SmokeGeome
       for (const target of value.targets) rect(target);
       const span = dragSpan(value.region, value.targets);
       assert(span >= 48, `Drag area is ${span} px, below 48`);
+      break;
+    }
+    case "overlay-drag": {
+      assert(typeof value.overlay === "string" && value.overlay, "Overlay name missing");
+      rect(value.viewport);
+      assert(Array.isArray(value.regions), "App regions missing");
+      for (const region of value.regions) {
+        record(region);
+        assert(
+          region.appRegion === "drag" || region.appRegion === "no-drag",
+          `Invalid app region ${String(region.appRegion)}`,
+        );
+        rect(region.rect);
+      }
+      assert(
+        value.regions.some((region) => region.appRegion === "drag"),
+        "Overlay drag probe found no drag region",
+      );
+      assert(
+        Array.isArray(value.targets) && value.targets.length > 0,
+        `${value.overlay} has no interactive targets`,
+      );
+      const dragged: string[] = [];
+      for (const target of value.targets) {
+        record(target);
+        rect(target.rect);
+        const { x, y, width, height } = target.rect;
+        if (inDragShape(value.regions, target.rect))
+          dragged.push(`${String(target.label)} at ${x},${y} ${width}x${height}`);
+      }
+      assert(
+        dragged.length === 0,
+        `${value.overlay} ${dragged.join("; ")} ${dragged.length === 1 ? "lies" : "lie"} in a drag rectangle`,
+      );
       break;
     }
     default:

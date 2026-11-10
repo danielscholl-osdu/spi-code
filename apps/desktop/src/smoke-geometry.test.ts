@@ -62,7 +62,17 @@ const failedReads: SmokeGeometry = {
   ],
 };
 
-it.each([window, related, panes, headers, settings, drag, failedReads])(
+const titleBar = { appRegion: "drag" as const, rect: rect(0, 0, 740, 44) };
+const settingsPopup = { appRegion: "no-drag" as const, rect: rect(24, 24, 692, 512) };
+const overlayDrag: SmokeGeometry = {
+  rule: "overlay-drag",
+  overlay: "[role=dialog].settings",
+  viewport: rect(0, 0, 740, 560),
+  regions: [titleBar, { appRegion: "no-drag", rect: rect(700, 8, 28, 28) }, settingsPopup],
+  targets: [{ label: "Close settings", rect: rect(684, 32, 24, 24) }],
+};
+
+it.each([window, related, panes, headers, settings, drag, failedReads, overlayDrag])(
   "accepts measured $rule geometry",
   (value) => {
     expect(() => assertSmokeGeometry(value)).not.toThrow();
@@ -210,6 +220,32 @@ it("requires a contiguous 48 px drag span, not a sum of smaller gaps or space on
   ).not.toThrow();
   expect(() => assertSmokeGeometry({ ...drag, appRegion: "no-drag" })).toThrow(/Drag/);
   expect(() => assertSmokeGeometry({ ...drag, services: 13 })).toThrow(/20 services/);
+});
+
+it("rejects an overlay target the title bar's drag rectangle still covers", () => {
+  const exposed = { ...overlayDrag, regions: overlayDrag.regions.slice(0, 2) };
+  expect(() => assertSmokeGeometry(exposed)).toThrow(
+    "[role=dialog].settings Close settings at 684,32 24x24 lies in a drag rectangle",
+  );
+  expect(() => assertSmokeGeometry({ ...overlayDrag, regions: [settingsPopup, titleBar] })).toThrow(
+    /lies in a drag rectangle/,
+  );
+  expect(() =>
+    assertSmokeGeometry({
+      ...exposed,
+      targets: [{ label: "Close settings", rect: rect(684, 44, 24, 24) }],
+    }),
+  ).not.toThrow();
+  expect(() =>
+    assertSmokeGeometry({
+      ...exposed,
+      regions: [...exposed.regions, { appRegion: "no-drag", rect: rect(684, 32, 12, 24) }],
+    }),
+  ).toThrow(/lies in a drag rectangle/);
+  expect(() => assertSmokeGeometry({ ...overlayDrag, regions: [settingsPopup] })).toThrow(
+    /no drag region/,
+  );
+  expect(() => assertSmokeGeometry({ ...overlayDrag, targets: [] })).toThrow(/no interactive/);
 });
 
 it("rejects absent, unknown and non-finite geometry rather than passing an empty probe", () => {

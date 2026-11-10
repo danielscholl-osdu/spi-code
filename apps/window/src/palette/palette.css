@@ -24,6 +24,7 @@
   box-shadow: 0 20px 60px rgb(0 0 0 / 0.35);
   color: var(--text);
   font-family: var(--font-sans);
+  -webkit-app-region: no-drag;
 }
 .palette-input {
   flex: none;

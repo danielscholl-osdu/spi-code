@@ -76,11 +76,15 @@ async function settingsSection(
   await rendered(window, `document.querySelector("[data-settings-section=${section}]")`);
 }
 
-async function openSettings(window: BrowserWindow): Promise<void> {
+async function shortcut(window: BrowserWindow, key: string): Promise<void> {
   await window.webContents.executeJavaScript(`{
     const mac = /Mac|iPhone|iPad/.test(navigator.userAgent);
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: ",", metaKey: mac, ctrlKey: !mac, bubbles: true }));
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: ${JSON.stringify(key)}, metaKey: mac, ctrlKey: !mac, bubbles: true }));
   }`);
+}
+
+async function openSettings(window: BrowserWindow): Promise<void> {
+  await shortcut(window, ",");
   await rendered(window, 'document.querySelector("[role=dialog]")');
 }
 
@@ -91,7 +95,11 @@ async function closeSettings(window: BrowserWindow): Promise<void> {
   await rendered(window, '!document.querySelector("[role=dialog]")');
 }
 
-async function measure(window: BrowserWindow, rule: SmokeGeometry["rule"]): Promise<SmokeGeometry> {
+async function measure(
+  window: BrowserWindow,
+  rule: SmokeGeometry["rule"],
+  overlay = "",
+): Promise<SmokeGeometry> {
   const value: unknown = await window.webContents.executeJavaScript(`(() => {
     const element = selector => {
       const item = document.querySelector(selector);
@@ -155,6 +163,29 @@ async function measure(window: BrowserWindow, rule: SmokeGeometry["rule"]): Prom
           targets: [...title.querySelectorAll("button, select, input, textarea, a, label, summary")]
             .filter(item => item.getBoundingClientRect().width > 0 && getComputedStyle(item).visibility !== "hidden").map(rect) };
       }
+      case "overlay-drag": {
+        const root = element(${JSON.stringify(overlay)});
+        const box = rect(root);
+        const left = Math.max(0, box.x), top = Math.max(0, box.y);
+        const right = Math.min(innerWidth, box.x + box.width), bottom = Math.min(innerHeight, box.y + box.height);
+        const regions = [...document.querySelectorAll("*")].flatMap(item => {
+          const appRegion = getComputedStyle(item).getPropertyValue("-webkit-app-region");
+          const bounds = rect(item);
+          return (appRegion === "drag" || appRegion === "no-drag") && bounds.width > 0 && bounds.height > 0
+            ? [{ appRegion, rect: bounds }] : [];
+        });
+        const targets = [...root.querySelectorAll("button, select, input, textarea, a[href], label, summary, [role=button], [role=option], [role=radio], [role=tab]")]
+          .filter(item => getComputedStyle(item).visibility !== "hidden")
+          .flatMap(item => {
+            const bounds = rect(item);
+            const x = Math.max(left, bounds.x), y = Math.max(top, bounds.y);
+            const width = Math.min(right, bounds.x + bounds.width) - x;
+            const height = Math.min(bottom, bounds.y + bounds.height) - y;
+            const label = item.getAttribute("aria-label") || item.textContent.replace(/\\s+/g, " ").trim().slice(0, 40) || item.tagName.toLowerCase();
+            return width > 0 && height > 0 ? [{ label, rect: { x, y, width, height } }] : [];
+          });
+        return { rule: "overlay-drag", overlay: ${JSON.stringify(overlay)}, viewport, regions, targets };
+      }
     }
   })()`);
   if (rule === "failed-reads") console.log(`Packaged failed reads: ${JSON.stringify(value)}`);
@@ -186,6 +217,91 @@ async function brokenRelatedProbe(window: BrowserWindow): Promise<string> {
       'document.querySelector(".inspector-related dd").getBoundingClientRect().width >= 160',
     );
   }
+}
+
+const OVERLAY_DRAG_SIZES = [
+  ["minimum", 0, 560],
+  ["launch", 900, 650],
+  ["wide", 1440, 900],
+] as const;
+
+async function overlayDragProbe(
+  window: BrowserWindow,
+  output: string,
+  load: () => Promise<void>,
+): Promise<void> {
+  const [minimumWidth] = window.getMinimumSize();
+  assert(minimumWidth, "Missing window minimum width");
+  const measured: (SmokeGeometry & { size: string; titleBar: number })[] = [];
+  let rejected: string | undefined;
+  const check = async (size: string, overlay: string) => {
+    const titleBar: number = await window.webContents.executeJavaScript(
+      'document.querySelector(".title-bar").getBoundingClientRect().height',
+    );
+    let geometry: SmokeGeometry;
+    try {
+      geometry = await measure(window, "overlay-drag", overlay);
+    } catch (error) {
+      console.log(`Packaged overlay drag ${size}/${overlay}: ${String(error)}`);
+      throw error;
+    }
+    measured.push({ ...geometry, size, titleBar });
+    if (geometry.rule !== "overlay-drag") return;
+    const nearest = geometry.targets.reduce(
+      (top, target) => Math.min(top, target.rect.y),
+      Infinity,
+    );
+    console.log(
+      `Packaged overlay drag ${size}/${overlay}: title bar ${titleBar} px, ${geometry.targets.length} targets clear of ${geometry.regions.filter((region) => region.appRegion === "drag").length} drag rects, top target y ${nearest}`,
+    );
+  };
+  for (const [size, width, height] of OVERLAY_DRAG_SIZES) {
+    window.setContentSize(width || minimumWidth, height);
+    await load();
+    await window.webContents.executeJavaScript('document.querySelector(".strip-pips").click()');
+    await rendered(window, 'document.querySelector(".line-sheet .line-grid")');
+    await check(size, ".line-sheet");
+    await window.webContents.executeJavaScript(
+      "document.querySelector(\"[aria-label='Close Line']\").click()",
+    );
+    await rendered(window, '!document.querySelector(".line-sheet")');
+    await openSettings(window);
+    await check(size, "[role=dialog].settings");
+    writeFileSync(
+      join(output, `overlay-drag-settings-${size}.png`),
+      (await window.webContents.capturePage()).toPNG(),
+    );
+    if (size === "minimum") {
+      await window.webContents.executeJavaScript(
+        'document.querySelector("[role=dialog].settings").style.setProperty("-webkit-app-region", "unset")',
+      );
+      try {
+        await measure(window, "overlay-drag", "[role=dialog].settings");
+        assert.fail("Settings inside the drag shape passed");
+      } catch (error) {
+        if (
+          !(error instanceof AssertionError) ||
+          !/Close settings at .* in a drag rectangle$/.test(error.message)
+        )
+          throw error;
+        rejected = error.message;
+        console.log(`Packaged broken-rule proof rejected: ${error.message}`);
+      } finally {
+        await window.webContents.executeJavaScript(
+          'document.querySelector("[role=dialog].settings").style.removeProperty("-webkit-app-region")',
+        );
+      }
+    }
+    await closeSettings(window);
+    await shortcut(window, "k");
+    await rendered(window, 'document.querySelector("[role=dialog].palette")');
+    await check(size, "[role=dialog].palette");
+  }
+  assert(rejected, "Missing packaged overlay drag broken-rule proof");
+  writeFileSync(
+    join(output, "overlay-drag.json"),
+    `${JSON.stringify({ measured, rejected }, null, 2)}\n`,
+  );
 }
 
 export async function captureSmokeViews(
@@ -624,6 +740,29 @@ export async function captureSmokeViews(
       }
     }
     assertSmokeViews(shots);
+    await overlayDragProbe(window, output, async () => {
+      await window.webContents.executeJavaScript(`{
+        localStorage.removeItem("spi-code.panes");
+        localStorage.removeItem("spi-code.line-sheet.pinned");
+        location.hash = "#today";
+      }`);
+      const loaded = once(window.webContents, "did-finish-load");
+      window.webContents.reload();
+      await loaded;
+      await rendered(window, 'document.querySelector(".shell [data-sidebar-row=settings]")');
+      fixture(window, "view.snapshot", snapshot);
+      fixture(window, "sweep.status", {
+        remaining: 4865,
+        floor: 100,
+        resetAt: "2026-11-06T15:36:00.000Z",
+        deferredAreas: [],
+        nextSweepAt: null,
+        schedule: sweepSchedule,
+        lastSweep: null,
+      });
+      fixture(window, "setup.state", ready);
+      await rendered(window, 'document.querySelector(".today .place-reading")');
+    });
   } finally {
     ipcMain.removeListener("smoke:request", request);
     if (clockScript)
