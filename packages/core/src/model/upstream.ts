@@ -320,6 +320,7 @@ function holdsOf(pr: PrFact, upstream: UpstreamFact | undefined): number | undef
   if (at < 0) return undefined;
   const times = commits.map((c) => Date.parse(c.at));
   const t = times[at] ?? Number.NaN;
+  if (!Number.isFinite(t)) return undefined;
   const ordered = times.every((time, i) => (i < at ? time < t : i > at ? time > t : true));
   return ordered ? at + 1 : undefined;
 }

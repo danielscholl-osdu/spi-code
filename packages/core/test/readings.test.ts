@@ -120,6 +120,19 @@ describe("Upstream reading on the recorded 6 Nov sweep", () => {
     });
   });
 
+  it("holds nothing when the PR's lone target commit has an unreadable time", () => {
+    const f = structuredClone(facts);
+    const storage = f.upstream.data?.storage;
+    const target = storage?.commits.at(-1);
+    if (!storage || !target) throw new Error("storage's queued commits are missing from the sweep");
+    storage.commits = [{ ...target, at: "not a time" }];
+    const fork = buildModel(f, now, {}, context).upstream.forks.find(
+      (k) => k.service === "storage",
+    );
+    expect(fork?.syncPr?.number).toBe(58);
+    expect(fork?.syncPr?.holds).toBeUndefined();
+  });
+
   it("names the open sync PR for the commits it holds and the next sync for the rest", () => {
     const radarItem = (service: string, from = items) =>
       from.find((item) => item.id === `radar:${service}`);
