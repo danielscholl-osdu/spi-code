@@ -15,6 +15,16 @@ import { PINS_STORAGE_KEY, readPins } from "../../store/pins.js";
 import { watchStore } from "../../store/watch.js";
 
 const recording = () => ViewSnapshotSchema.parse(JSON.parse(recorded));
+const NOVEMBER_6_NEEDING = [
+  "partition",
+  "entitlements",
+  "legal",
+  "storage",
+  "indexer",
+  "indexer-queue",
+];
+const NOVEMBER_6_QUIET =
+  "7 services need nothing: schema, file, search, workflow, unit, crs-catalog, crs-conversion";
 const previousWatch = watchStore.getState();
 const previousSpi = window.spi;
 const PINNED_KEY = "spi-code.line-sheet.pinned";
@@ -235,6 +245,34 @@ it("folds quiet rows into one named line and expands them in fleet order", async
   expect(services()).not.toContain("legal");
 });
 
+it("folds November 6 rows whose release PRs only wait for review, marking those cells scheduled", async () => {
+  const body = ViewSnapshotSchema.parse(JSON.parse(november6));
+  watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+  await mount();
+  await open();
+  expect(services()).toEqual(NOVEMBER_6_NEEDING);
+  const folded = button(NOVEMBER_6_QUIET);
+  expect(folded.getAttribute("aria-expanded")).toBe("false");
+  const release = (service: string) =>
+    sheet()?.querySelector<HTMLElement>(
+      `tr[data-service="${service}"] button[data-station="release"]`,
+    );
+  expect(release("partition")?.textContent).toContain("◷ PR #198");
+  expect(release("partition")?.querySelector('[role="img"]')?.getAttribute("aria-label")).toBe(
+    "Scheduled",
+  );
+  await click(folded);
+  expect(services()).toEqual(body.stations.map(({ service }) => service));
+  const marks = [
+    ...(sheet()?.querySelectorAll('button[data-station="release"] .line-glyph') ?? []),
+  ];
+  expect(marks.map((mark) => mark.textContent)).toEqual([
+    "◷",
+    "✕",
+    ...Array.from({ length: 11 }, () => "◷"),
+  ]);
+});
+
 it("filters the recorded log-injection campaign to exactly its three forks, then clears on a second click", async () => {
   await mount();
   await open();
@@ -399,6 +437,8 @@ it("clears the column chip to restore every November 6 service", async () => {
   await act(async () => openSheet({ column: "upstream" }));
   expect(services()).not.toContain("partition");
   await click(button("Clear Upstream filter"));
+  expect(services()).toEqual(NOVEMBER_6_NEEDING);
+  await click(button(NOVEMBER_6_QUIET));
   expect(services()).toEqual(body.stations.map(({ service }) => service));
   expect(sheet()?.querySelector('[aria-label="Station filter"]')).toBeNull();
 });
@@ -436,7 +476,7 @@ it("reopens unfiltered with Cmd-L after a November 6 column filter", async () =>
   await open();
   expect(sheet()).toBeNull();
   await open();
-  expect(services()).toEqual(body.stations.map(({ service }) => service));
+  expect(services()).toEqual(NOVEMBER_6_NEEDING);
   expect(sheet()?.querySelector('[aria-label="Station filter"]')).toBeNull();
 });
 
@@ -488,6 +528,6 @@ it("opens a new column or an unfiltered sheet over a pinned sheet without keepin
   expect(button("os-core-common 8.5.0 · 8 forks").getAttribute("aria-pressed")).toBe("false");
   await act(async () => openSheet());
   expect(sheet()?.dataset.presentation).toBe("pinned");
-  expect(services()).toEqual(body.stations.map(({ service }) => service));
+  expect(services()).toEqual(NOVEMBER_6_NEEDING);
   expect(sheet()?.querySelector('[aria-label="Station filter"]')).toBeNull();
 });

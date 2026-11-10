@@ -3676,7 +3676,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #198",
           "inspect": "station:partition:release"
         },
@@ -3770,7 +3770,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #48",
           "inspect": "station:legal:release"
         },
@@ -3817,7 +3817,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #40",
           "inspect": "station:schema:release"
         },
@@ -3864,7 +3864,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #55",
           "inspect": "station:file:release"
         },
@@ -3911,7 +3911,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #57",
           "inspect": "station:storage:release"
         },
@@ -3958,7 +3958,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #33",
           "inspect": "station:indexer:release"
         },
@@ -4005,7 +4005,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #29",
           "inspect": "station:search:release"
         },
@@ -4052,7 +4052,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #38",
           "inspect": "station:workflow:release"
         },
@@ -4099,7 +4099,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #45",
           "inspect": "station:indexer-queue:release"
         },
@@ -4146,7 +4146,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #21",
           "inspect": "station:unit:release"
         },
@@ -4193,7 +4193,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #19",
           "inspect": "station:crs-catalog:release"
         },
@@ -4240,7 +4240,7 @@
         {
           "id": "release",
           "state": "waiting",
-          "substate": "waiting-on-person",
+          "substate": "waiting-on-clock",
           "text": "PR #17",
           "inspect": "station:crs-conversion:release"
         },

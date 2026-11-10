@@ -31,27 +31,25 @@ function prStopped(pr: PrFact): boolean {
   );
 }
 
+function prAsksPerson(pr: PrFact, approvals: readonly WaitingRun[]): boolean {
+  return (
+    failedChecks(pr).some((check) => check.conclusion === "ACTION_REQUIRED") ||
+    prNeedsApproval(pr, approvals) ||
+    pr.draft ||
+    pr.reviewDecision === "CHANGES_REQUESTED"
+  );
+}
+
 function prSubstate(
   pr: PrFact,
   approvals: readonly WaitingRun[],
   autoMerge = false,
 ): StationSubstate {
   if (prStopped(pr)) return "stopped";
-  const failed = failedChecks(pr);
-  if (
-    failed.some((check) => check.conclusion === "ACTION_REQUIRED") ||
-    prNeedsApproval(pr, approvals)
-  ) {
+  if (prAsksPerson(pr, approvals) || pr.reviewDecision === "REVIEW_REQUIRED") {
     return "waiting-on-person";
   }
   const verdict = prVerdict(pr);
-  if (
-    pr.draft ||
-    pr.reviewDecision === "REVIEW_REQUIRED" ||
-    pr.reviewDecision === "CHANGES_REQUESTED"
-  ) {
-    return "waiting-on-person";
-  }
   if (verdict === "pending") return "in-progress";
   return autoMerge && verdict === "green" && pr.mergeState === "CLEAN"
     ? "in-progress"
@@ -125,8 +123,14 @@ export function stationSubstateOf(
     case "main":
       if (line.cascadePr) return prSubstate(line.cascadePr.pr, approvals, line.autoMerge);
       return runSubstate(runs?.main, approvals) ?? fallback;
-    case "release":
-      return line.releasePr ? prSubstate(line.releasePr.pr, approvals) : fallback;
+    case "release": {
+      const pr = line.releasePr?.pr;
+      if (!pr) return fallback;
+      if (prStopped(pr)) return "stopped";
+      if (prAsksPerson(pr, approvals)) return "waiting-on-person";
+      // A release PR that only waits for review or merge waits for the release cut.
+      return prVerdict(pr) === "pending" ? "in-progress" : "waiting-on-clock";
+    }
     case "lane": {
       if (station.state === "stopped") return "stopped";
       const validating = line.prs

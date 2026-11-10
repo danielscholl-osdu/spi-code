@@ -272,7 +272,7 @@ describe("Watch projection", () => {
       "waiting-on-clock",
     );
     expect(stations?.find((station) => station.id === "release")?.substate).toBe(
-      "waiting-on-person",
+      "waiting-on-clock",
     );
   });
 

@@ -17,7 +17,7 @@ import { closeSheet } from "../../app/navigation.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { PINS_STORAGE_KEY, readPins } from "../../store/pins.js";
-import { selectStrip } from "../../store/strip.js";
+import { PIPS, type PipState, selectStrip } from "../../store/strip.js";
 import { watchStore } from "../../store/watch.js";
 import { clockTime } from "../../time.js";
 import { after, midSweep, SWEEP_START, sweepStatus } from "../sweep/test-helper.js";
@@ -128,6 +128,15 @@ it("draws one pip per service in fleet order, partition first", async () => {
   const services = pips().map((pip) => pip.dataset.service);
   expect(services).toEqual(FLEET);
   expect(services[0]).toBe("partition");
+});
+
+it("raises ! on November 6 only where a person is needed, not for release PRs waiting for review", async () => {
+  await mount();
+  expect(
+    pips()
+      .map((pip) => PIPS[pip.dataset.pip as PipState].mark)
+      .join(" "),
+  ).toBe("! ✕ ! ○ ○ ! ! ○ ○ ! ○ ○ ○");
 });
 
 it("draws and names the four pip shapes, the worst line station winning", async () => {
@@ -389,7 +398,7 @@ it("aggregates pip states into one Line button without roving tab stops", async 
   await mount();
   const line = strip()?.querySelector<HTMLButtonElement>(".strip-pips");
   expect(line?.getAttribute("aria-label")).toBe(
-    "Line: 1 stopped, 10 need a person, 1 in progress, 1 nothing due",
+    "Line: 1 stopped, 4 need a person, 1 in progress, 7 nothing due",
   );
   expect(line?.getAttribute("aria-keyshortcuts")).toBe("Meta+L");
   expect(pips().map((item) => item.tabIndex)).toEqual(FLEET.map(() => -1));

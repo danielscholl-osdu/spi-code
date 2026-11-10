@@ -67,7 +67,7 @@ function LineContent({
       (campaign ? campaign.forks.includes(service) : stations.some(({ text }) => text.trim())),
   );
   const quiet = rows.filter(({ stations }) =>
-    stations.every(({ substate }) => substate === "ready"),
+    stations.every(({ substate }) => substate !== "stopped" && substate !== "waiting-on-person"),
   );
   const folded = campaign || column ? [] : quiet;
   const visible = rows.filter((row) => expanded || !folded.includes(row));
