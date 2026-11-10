@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type DetectedCampaign, toolchainCampaigns } from "../model/campaigns.js";
+import type { DetectedCampaign } from "../model/campaigns.js";
 import type { CellTone } from "../model/rollout.js";
 import {
   planStep,
@@ -240,7 +240,7 @@ function rowOf(
   };
   return {
     ...row,
-    carries: campaigns.some((campaign) => campaign.fact === row.carries && campaign.forks.includes(f.service))
+    carries: campaigns.some((campaign) => campaign.fact === row.carries && campaign.forks.length - (campaign.possible?.length ?? 0) >= 2 && campaign.forks.includes(f.service) && !campaign.possible?.includes(f.service))
       ? ""
       : row.carries,
     detail: detailOf(f, row),
@@ -563,7 +563,7 @@ export function planOrder(u: UpstreamModel): UpFork[] {
 }
 
 export function upstreamView(u: UpstreamModel, now: Date, voice: Voice = APP_VOICE): UpstreamView {
-  const campaigns = toolchainCampaigns(u);
+  const campaigns = u.toolchains ?? [];
   const step = planStep(u);
   const words = u.mode === "flight" ? flightWords(u) : planningWords(u);
   const also: UpstreamView["also"] = [

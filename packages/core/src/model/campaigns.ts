@@ -3,13 +3,15 @@
 
 import { plural } from "../util.js";
 import type { Model } from "./index.js";
-import type { UpstreamModel } from "./upstream.js";
+import type { RadarModel } from "./radar.js";
+import { toolchainScopes } from "./toolchain.js";
 
 export interface DetectedCampaign {
   id: string;
   kind: "toolchain" | "security";
   fact: string;
   forks: string[];
+  possible?: string[];
 }
 
 function grouped(
@@ -33,24 +35,21 @@ function grouped(
     }));
 }
 
-export function toolchainCampaigns(
-  upstream: Pick<UpstreamModel, "moving" | "held">,
-): DetectedCampaign[] {
-  const held = new Set(upstream.held.map((fork) => fork.service));
-  return grouped(
-    "toolchain",
-    upstream.moving
-      .filter((fork) => !held.has(fork.service))
-      .flatMap((fork) =>
-        (fork.moves ?? [])
-          .filter((fact) => !/SNAPSHOT/i.test(fact))
-          .map((fact) => ({ fact, fork: fork.service })),
-      ),
-  );
+export function toolchainCampaigns(radar: RadarModel): DetectedCampaign[] {
+  return toolchainScopes(radar)
+    .filter((scope) => scope.certain.length + scope.possible.length >= 2)
+    .sort((a, b) => a.value.localeCompare(b.value))
+    .map((scope) => ({
+      id: `campaign:toolchain:${encodeURIComponent(scope.value)}`,
+      kind: "toolchain",
+      fact: scope.value,
+      forks: [...scope.certain, ...scope.possible].map(({ fork }) => fork).sort(),
+      ...(scope.possible.length > 0 ? { possible: scope.possible.map(({ fork }) => fork).sort() } : {}),
+    }));
 }
 
 export function detectCampaigns(
-  model: Pick<Model, "upstream" | "repositories">,
+  model: Pick<Model, "radar" | "repositories">,
 ): DetectedCampaign[] {
   const security = model.repositories.rows
     .filter((row) => row.group === "fork")
@@ -62,9 +61,10 @@ export function detectCampaigns(
         )
         .map((alert) => ({ fact: `${alert.tool}: ${alert.rule}`, fork: row.name })),
     );
-  return [...toolchainCampaigns(model.upstream), ...grouped("security", security)];
+  return [...toolchainCampaigns(model.radar), ...grouped("security", security)];
 }
 
-export function campaignItemText(campaign: DetectedCampaign): string {
-  return `Detected: ${campaign.fact} on ${plural(campaign.forks.length, "fork")}`;
+export function campaignItemText(campaign: { fact: string; forks: readonly string[]; possible?: readonly string[] | undefined }): string {
+  const possible = campaign.possible?.length ?? 0;
+  return `Detected: ${campaign.fact} on ${plural(campaign.forks.length - possible, "fork")}${possible > 0 ? `; possible on ${plural(possible, "fork")}` : ""}`;
 }

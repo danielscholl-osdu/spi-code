@@ -373,7 +373,16 @@ describe("Watch projection", () => {
       rest: legacy.briefing.rest.map(({ origin: _origin, ...item }) => item),
     };
     // Bound time units change typography, not the frozen rib's words.
-    expect(JSON.parse(JSON.stringify(frozenFields).replaceAll("\u00a0", " "))).toEqual({
+    const ribBriefing = {
+      ...frozenFields,
+      themes: legacy.briefing.themes.filter((theme) => !theme.title.startsWith("os-core-common ")),
+    };
+    expect(
+      snapshot.briefing.themes
+        .filter((theme) => theme.title.startsWith("os-core-common "))
+        .map((theme) => theme.title),
+    ).toEqual(["os-core-common 9.2.0", "os-core-common 8.2.0"]);
+    expect(JSON.parse(JSON.stringify(ribBriefing).replaceAll("\u00a0", " "))).toEqual({
       ...frozen,
       flow: {
         ...frozen.flow,

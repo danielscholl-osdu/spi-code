@@ -12,15 +12,25 @@ export const StationSubstateSchema = z.enum([
   "in-progress",
   "ready",
 ]);
-export const CampaignSchema = z.strictObject({
-  id: IdentifierSchema,
-  kind: z.enum(["toolchain", "engineering", "security", "halt", "port", "deadline"]),
-  fact: IdentifierSchema,
-  forks: z
-    .array(IdentifierSchema)
-    .min(2)
-    .refine((forks) => new Set(forks).size === forks.length, "Campaign forks repeat"),
-});
+export const CampaignSchema = z
+  .strictObject({
+    id: IdentifierSchema,
+    kind: z.enum(["toolchain", "engineering", "security", "halt", "port", "deadline"]),
+    fact: IdentifierSchema,
+    forks: z
+      .array(IdentifierSchema)
+      .min(2)
+      .refine((forks) => new Set(forks).size === forks.length, "Campaign forks repeat"),
+    /** Members whose move is predicted only by an open upstream MR; all other forks are certain. */
+    possible: z.array(IdentifierSchema).optional(),
+  })
+  .refine(
+    ({ forks, possible }) =>
+      !possible ||
+      (new Set(possible).size === possible.length &&
+        possible.every((fork) => forks.includes(fork))),
+    { message: "Possible campaign forks must be unique members", path: ["possible"] },
+  );
 export const AnchorSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.enum(["program", "upstream", "environment", "engineering", "releases", "security"]),

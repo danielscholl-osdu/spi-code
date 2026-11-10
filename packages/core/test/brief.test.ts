@@ -145,6 +145,8 @@ describe("the recorded sweep", () => {
   test("themes group one cause across forks, certain apart from possible", () => {
     expect(b.themes.map((t) => t.id)).toEqual([
       "toolchain:Java 25",
+      "toolchain:os-core-common 9.2.0",
+      "toolchain:os-core-common 8.2.0",
       "halt:top_level:schemathesis-tests",
       "port",
       "deadline:azure-removal",
@@ -152,7 +154,7 @@ describe("the recorded sweep", () => {
     const java = b.themes[0]!;
     expect(java.certain.map((f) => f.fork)).toEqual(["legal"]);
     expect(java.possible.map((f) => f.fork).sort()).toEqual(["partition", "schema"]);
-    const halt = b.themes[1]!;
+    const halt = b.themes.find((theme) => theme.kind === "halt")!;
     expect(halt.sub).toBe(
       "halted: entitlements · 4 other filters lack it · open MRs bring it to legal and file",
     );
@@ -164,7 +166,11 @@ describe("the recorded sweep", () => {
   });
 
   test("each theme says its next step in one sentence", () => {
-    expect(Object.fromEntries(b.themes.map((t) => [t.kind, t.next]))).toEqual({
+    expect(
+      Object.fromEntries(
+        b.themes.filter((t) => !t.title.startsWith("os-core-common")).map((t) => [t.kind, t.next]),
+      ),
+    ).toEqual({
       toolchain:
         "Move one fork's Java pin to 25 and repeat it for the others before the next sync carries it.",
       halt: "Add a rule for schemathesis-tests to every fork's .github/upstream-filter.yml, starting with entitlements.",
@@ -177,6 +183,8 @@ describe("the recorded sweep", () => {
   test("a theme opens the queue item that carries its verbs, and only a real one", () => {
     expect(b.themes.map((t) => t.inspect)).toEqual([
       "gate1:legal",
+      "gate1:legal",
+      undefined,
       "halt:entitlements",
       "port:entitlements",
       undefined,

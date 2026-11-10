@@ -271,8 +271,8 @@ describe("Security reading on the recorded sweep", () => {
   it("shows each shared rule once as its detected campaign, not once per fork or path", () => {
     const input = recorded();
     const reading = securityReading(input);
-    expect(input.campaigns).toHaveLength(2);
-    for (const campaign of input.campaigns) {
+    expect(input.campaigns.filter((campaign) => campaign.kind === "security")).toHaveLength(2);
+    for (const campaign of input.campaigns.filter((campaign) => campaign.kind === "security")) {
       expect(reading.items.filter((item) => item.id === campaign.id)).toHaveLength(1);
       const item = reading.items.find((item) => item.id === campaign.id);
       const members = input.model.repositories.rows.flatMap((repo) =>

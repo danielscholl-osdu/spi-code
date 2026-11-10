@@ -215,6 +215,17 @@ describe("window reading contract", () => {
       }),
     ).toContain("Campaign forks repeat");
   });
+  it("retains possible campaign members and rejects certainty lists outside the campaign", () => {
+    const campaign = populated.campaigns[0];
+    if (!campaign) throw new Error("Missing campaign fixture");
+    const withPossible = (possible: unknown) => ({
+      ...populated,
+      campaigns: [{ ...campaign, possible }],
+    });
+    expect(ViewSnapshotSchema.safeParse(withPossible(["legal"])).success).toBe(true);
+    for (const possible of [["other"], ["legal", "legal"], "legal", null])
+      expect(ViewSnapshotSchema.safeParse(withPossible(possible)).success).toBe(false);
+  });
   it.each([
     { kind: "program" },
     { kind: "service", id: "legal" },

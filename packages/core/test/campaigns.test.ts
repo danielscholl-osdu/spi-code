@@ -22,6 +22,8 @@ const releasedForks = [
   "crs-conversion",
   "file",
   "indexer",
+  "legal",
+  "partition",
   "schema",
   "search",
   "storage",
@@ -38,7 +40,29 @@ describe("detected campaigns", () => {
         id: "campaign:toolchain:os-core-common%2010.0.0",
         kind: "toolchain",
         fact: "os-core-common 10.0.0",
-        forks: ["indexer", "schema", "unit"],
+        forks: [
+          "crs-catalog",
+          "crs-conversion",
+          "file",
+          "indexer",
+          "legal",
+          "partition",
+          "schema",
+          "search",
+          "storage",
+          "unit",
+          "workflow",
+        ],
+        possible: [
+          "crs-catalog",
+          "crs-conversion",
+          "file",
+          "legal",
+          "partition",
+          "search",
+          "storage",
+          "workflow",
+        ],
       },
       {
         id: "campaign:toolchain:os-core-common%208.5.0",
@@ -48,18 +72,18 @@ describe("detected campaigns", () => {
       },
     ]);
     expect(campaigns.map(campaignItemText)).toEqual([
-      "Detected: os-core-common 10.0.0 on 3 forks",
-      "Detected: os-core-common 8.5.0 on 8 forks",
+      "Detected: os-core-common 10.0.0 on 3 forks; possible on 8 forks",
+      "Detected: os-core-common 8.5.0 on 10 forks",
     ]);
     for (const campaign of campaigns) {
-      for (const fork of campaign.forks)
+      for (const fork of campaign.forks.filter((fork) => !campaign.possible?.includes(fork)))
         expect(model.radar.services[fork]?.certain.some((v) => v.value === campaign.fact)).toBe(
           true,
         );
     }
   });
 
-  test("excludes held forks, single-fork facts and unmerged MR moves from campaigns", () => {
+  test("excludes single-fork facts and retains unmerged MR moves as possible campaigns", () => {
     const model = modelOf();
     expect(model.upstream.moves.find((move) => move.value.includes("SNAPSHOT"))?.forks).toEqual([
       "legal",
@@ -73,7 +97,9 @@ describe("detected campaigns", () => {
     expect(detectCampaigns(model).some((campaign) => campaign.fact === "Java 25")).toBe(false);
     const facts = recordedFacts();
     for (const service of Object.values(facts.radar.data?.services ?? {})) service.queued = [];
-    expect(detectCampaigns(modelOf(facts))).toEqual([]);
+    const possible = detectCampaigns(modelOf(facts));
+    expect(possible).toHaveLength(1);
+    expect(possible[0]?.possible).toEqual(possible[0]?.forks);
     expect(detectCampaigns(modelOf(emptyFacts()))).toEqual([]);
   });
 
@@ -83,12 +109,12 @@ describe("detected campaigns", () => {
     model.upstream.moving.reverse();
     for (const fork of model.upstream.moving) fork.moves?.reverse();
     expect(detectCampaigns(model)).toEqual(original);
-    const file = model.upstream.moving.find((fork) => fork.service === "file");
-    const schema = model.upstream.moving.find((fork) => fork.service === "schema");
-    if (!file?.moves || !schema?.moves) throw new Error("Missing recorded toolchain targets");
-    file.moves.push("Java 25");
-    schema.moves.push("Java 25");
-    file.moves = file.moves.filter((fact) => fact !== "os-core-common 8.5.0");
+    const file = model.radar.services.file;
+    const schema = model.radar.services.schema;
+    if (!file || !schema) throw new Error("Missing recorded toolchain targets");
+    file.certain.push({ bucket: "Toolchain", value: "Java 25", paths: ["pom.xml"] });
+    schema.certain.push({ bucket: "Toolchain", value: "Java 25", paths: ["pom.xml"] });
+    file.certain = file.certain.filter((verdict) => verdict.value !== "os-core-common 8.5.0");
     for (const previous of original)
       expect(detectCampaigns(model).find((campaign) => campaign.fact === previous.fact)?.id).toBe(
         previous.id,
@@ -105,14 +131,14 @@ describe("detected campaigns", () => {
     expect(campaigns).toHaveLength(2);
     const view = upstreamView(model.upstream, now);
     for (const campaign of campaigns) {
-      for (const fork of campaign.forks) {
+      for (const fork of campaign.forks.filter((fork) => !campaign.possible?.includes(fork))) {
         const line = model.lines.find((line) => line.fork.id === fork);
         const row = view.rows.find((row) => row.fork === fork);
         expect(line?.stations.find((station) => station.id === "upstream")?.text).not.toContain(
           campaign.fact,
         );
         expect(row?.carries).not.toContain(campaign.fact);
-        if (campaign.fact === "os-core-common 8.5.0")
+        if (campaign.fact === "os-core-common 8.5.0" && !["legal", "partition"].includes(fork))
           expect(row?.detail.lines.join(" ")).toContain(campaign.fact);
         expect(model.radar.services[fork]?.certain.some((v) => v.value === campaign.fact)).toBe(
           true,
@@ -137,7 +163,7 @@ describe("detected campaigns", () => {
   test("groups SPI-owned code rules across forks, not paths, alerts or matching descriptions", () => {
     const facts = fixtureFacts();
     const model = buildModel(facts, FIXTURE_NOW, {}, fixtureContext);
-    expect(detectCampaigns(model)).toEqual([
+    expect(detectCampaigns(model).filter((campaign) => campaign.kind === "security")).toEqual([
       {
         id: "campaign:security:CodeQL%3A%20java%2Flog-injection",
         kind: "security",
@@ -176,7 +202,9 @@ describe("detected campaigns", () => {
         ],
       };
     }
-    const synthetic = detectCampaigns(buildModel(facts, FIXTURE_NOW, {}, fixtureContext));
+    const synthetic = detectCampaigns(buildModel(facts, FIXTURE_NOW, {}, fixtureContext)).filter(
+      (campaign) => campaign.kind === "security",
+    );
     expect(synthetic).toEqual([
       {
         id: "campaign:security:CodeQL%3A%20synthetic%2Frule",
