@@ -276,6 +276,9 @@ export async function readRadar(
       fork: { ...pins.root, ...(pins.azure?.coreLibAzure ? { coreLibAzure: pins.azure.coreLibAzure } : {}) },
     };
   }
+  // Every mutable source in the radar envelope follows the radar's read cadence.
+  delete state.pins.latestAt;
+  delete state.pins.removalAt;
   const latest = await readLatest(glab, state.pins, ctx);
   out.latest = latest.pins;
   out.reads.push(...latest.reads);

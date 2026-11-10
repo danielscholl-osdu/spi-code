@@ -10,7 +10,7 @@ import {
   pruneRadar,
   readRadar,
 } from "../../src/collect/radar.js";
-import { fleetOf } from "../../src/config.js";
+import { fleetOf, GITLAB_EVERY_MS } from "../../src/config.js";
 import { createContext } from "../../src/context.js";
 import { envelopeOf } from "../../src/evidence/index.js";
 import type { Exec } from "../../src/exec/index.js";
@@ -57,6 +57,8 @@ function recording(
     excluded?: { path: string; flag: "too_large" | "collapsed" };
     pins?: boolean;
     merged?: boolean;
+    allDiffs?: boolean;
+    headSha?: string;
   } = {},
 ) {
   const paths: string[] = [];
@@ -108,14 +110,14 @@ function recording(
           const page = Number(/[?&]page=(\d+)/.exec(path)?.[1]);
           data = options.many
             ? Array.from({ length: page === 1 ? 100 : 3 }, (_, i) => mr((page - 1) * 100 + i + 1))
-            : [mr(1), mr(2)];
+            : [{ ...mr(1), ...(options.headSha ? { sha: options.headSha } : {}) }, mr(2)];
         }
       } else if (path.includes("/merge_requests/") && path.includes("/diffs?")) {
         if (path.includes("/3/")) {
           data = [
             { old_path: "provider/obsolete", new_path: "provider/obsolete", deleted_file: true },
           ];
-        } else if (!path.includes("/2/"))
+        } else if (options.allDiffs || !path.includes("/2/"))
           data = [
             {
               old_path: "pom.xml",
@@ -240,6 +242,59 @@ test("each diff is cached by immutable head or commit; failed reads are retried"
   expect(diffs(again.paths)).toEqual([
     "projects/osdu%2Fpartition/merge_requests/2/diffs?per_page=100&page=1",
   ]);
+});
+
+test("a radar reread after 40 minutes is fresh when every unchanged diff is cached", async () => {
+  const state = emptyRadarState();
+  const first = recording({ pins: true, allDiffs: true });
+  const before = await readRadar(new Gh(first.exec), new Glab(first.exec), upstream, state, ctx);
+  expect(before.reads.every((r) => !r.failure && r.completeness.kind === "complete")).toBe(true);
+  const now = new Date(FIXTURE_NOW.getTime() + 40 * 60_000);
+  const context = createContext({ fleet: ctx.fleet, clock: { now: () => now } });
+  const second = recording({ pins: true, allDiffs: true });
+  const result = await readRadar(
+    new Gh(second.exec),
+    new Glab(second.exec),
+    upstream,
+    state,
+    context,
+  );
+  expect(second.paths.filter((p) => /\/diffs?\?/.test(p))).toEqual([]);
+  expect(result.services).toEqual(before.services);
+  expect(result.reads.every((r) => !r.failure && r.completeness.kind === "complete")).toBe(true);
+  expect(
+    envelopeOf(result.reads, { now: now.getTime(), intervalMs: GITLAB_EVERY_MS }),
+  ).toMatchObject({
+    state: "fresh",
+    observedAt: now.toISOString(),
+  });
+  expect(second.paths.filter((p) => p.includes("/repository/tags?"))).toHaveLength(2);
+  expect(second.paths.filter((p) => p.includes("/issues?labels="))).toHaveLength(2);
+  expect(
+    envelopeOf(result.reads, {
+      now: now.getTime() + 2 * GITLAB_EVERY_MS,
+      intervalMs: GITLAB_EVERY_MS,
+    }).state,
+  ).toBe("fresh");
+  expect(
+    envelopeOf(result.reads, {
+      now: now.getTime() + 2 * GITLAB_EVERY_MS + 1,
+      intervalMs: GITLAB_EVERY_MS,
+    }),
+  ).toMatchObject({ state: "stale", observedAt: now.toISOString() });
+});
+
+test("a changed MR head rereads its diff while unchanged MR and commit diffs stay cached", async () => {
+  const state = emptyRadarState();
+  const first = recording({ pins: true, allDiffs: true });
+  await readRadar(new Gh(first.exec), new Glab(first.exec), upstream, state, ctx);
+  const second = recording({ pins: true, allDiffs: true, headSha: "changed-head" });
+  const result = await readRadar(new Gh(second.exec), new Glab(second.exec), upstream, state, ctx);
+  expect(second.paths.filter((p) => /\/diffs?\?/.test(p))).toEqual([
+    "projects/osdu%2Fpartition/merge_requests/1/diffs?per_page=100&page=1",
+  ]);
+  expect(result.services.partition?.mrs[0]?.headSha).toBe("changed-head");
+  expect(state.mrDiffs[mrKey(fork.upstream, 1, "changed-head")]).toBeDefined();
 });
 
 test("merged MR caches without deletion information are refreshed", async () => {
@@ -656,7 +711,7 @@ test("Radar composes pin readers on its context clock and retains their actual l
     due: "2026-12-01",
     labels: { "osdu/partition": "established" },
   });
-  const now = new Date(FIXTURE_NOW.getTime() + 60 * 60_000);
+  const now = new Date(FIXTURE_NOW.getTime() + 40 * 60_000);
   const context = createContext({ fleet: ctx.fleet, clock: { now: () => now } });
   const failure = recording();
   const retained = await readRadar(
@@ -674,7 +729,19 @@ test("Radar composes pin readers on its context clock and retains their actual l
     retainedFrom: FIXTURE_NOW.toISOString(),
     failure: expect.any(String),
   });
-  expect(now.getTime() - Date.parse(record?.retainedFrom ?? "")).toBe(60 * 60_000);
+  expect(now.getTime() - Date.parse(record?.retainedFrom ?? "")).toBe(40 * 60_000);
+  expect(retained.reads.filter((r) => r.object === "release tags")).toEqual([
+    expect.objectContaining({
+      observedAt: now.toISOString(),
+      retainedFrom: FIXTURE_NOW.toISOString(),
+      failure: expect.any(String),
+    }),
+    expect.objectContaining({
+      observedAt: now.toISOString(),
+      retainedFrom: FIXTURE_NOW.toISOString(),
+      failure: expect.any(String),
+    }),
+  ]);
 });
 
 test("diff entries retain rename paths and deletions but only classification hunks", () => {
