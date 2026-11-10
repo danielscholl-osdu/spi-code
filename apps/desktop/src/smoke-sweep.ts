@@ -1,7 +1,87 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type SweepProgress, SweepProgressSchema } from "@spi-code/contracts";
+import {
+  type SweepProgress,
+  SweepProgressSchema,
+  SweepStatusSchema,
+  type ViewSnapshot,
+  ViewSnapshotSchema,
+} from "@spi-code/contracts";
+
+export function smokeScheduledSweep(
+  snapshot: ViewSnapshot,
+  state: "idle" | "sweeping" | "saved-failure" | "not-ready",
+) {
+  const saved = state === "saved-failure";
+  const sweeping = state === "sweeping";
+  const endedAt = saved ? "2026-11-06T15:04:00.000Z" : snapshot.sweptAt;
+  const startedAt = sweeping
+    ? "2026-11-06T14:07:00.000Z"
+    : new Date(Date.parse(endedAt) - 72_000).toISOString();
+  const sweep = `smoke-scheduled-${state}`;
+  const progress = SweepProgressSchema.parse({
+    sweep,
+    startedAt,
+    first: false,
+    usualMs: 72_000,
+    outcome: sweeping ? "running" : "committed",
+    nextAttemptAt: null,
+    sources: smokeSweepProgress().running.sources.map(({ source }, index) =>
+      sweeping && index >= 4
+        ? index === 4
+          ? { source, state: "reading", startedAt }
+          : { source, state: "waiting" }
+        : saved && source === "upstream"
+          ? {
+              source,
+              state: "failed",
+              startedAt,
+              endedAt,
+              code: "signin",
+              reason: "glab is not signed in to community.opengroup.org.",
+            }
+          : {
+              source,
+              state: "read",
+              startedAt,
+              endedAt: sweeping ? "2026-11-06T14:07:30.000Z" : endedAt,
+            },
+    ),
+  });
+  return {
+    now: Date.parse(
+      saved ? endedAt : sweeping ? "2026-11-06T14:08:00.000Z" : "2026-11-06T14:04:00.000Z",
+    ),
+    snapshot: ViewSnapshotSchema.parse({ ...snapshot, sweptAt: endedAt }),
+    progress,
+    status: SweepStatusSchema.parse({
+      remaining: 4865,
+      floor: 100,
+      resetAt: "2026-11-06T15:36:00.000Z",
+      deferredAreas: [],
+      nextSweepAt: sweeping
+        ? null
+        : saved
+          ? "2026-11-06T15:09:00.000Z"
+          : "2026-11-06T14:07:00.000Z",
+      schedule: {
+        sweepMs: 300_000,
+        gitlabMs: 1_800_000,
+        securityMs: 1_800_000,
+        releasesMs: 3_600_000,
+      },
+      lastSweep: {
+        sweep: sweeping ? "smoke-scheduled-idle" : sweep,
+        startedAt: sweeping ? "2026-11-06T14:00:48.133Z" : startedAt,
+        endedAt,
+        outcome: "committed",
+        requested: saved,
+      },
+      forceCooldownUntil: null,
+    }),
+  };
+}
 
 export function smokeSweepProgress() {
   const start = Date.parse("2026-11-06T15:02:00.000Z");

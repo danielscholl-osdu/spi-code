@@ -26,6 +26,13 @@ export type SmokeGeometry =
     }
   | { rule: "headers"; paneTop: number; panes: SmokeRect[]; headers: SmokeRect[] }
   | { rule: "settings"; viewport: SmokeRect; dialog: SmokeRect }
+  | { rule: "sweep-visible"; viewport: SmokeRect; panel: SmokeRect; elements: SmokeRect[] }
+  | {
+      rule: "sweep-reads";
+      width: number;
+      picker: string | null;
+      rows: { name: SmokeRect; cadence: SmokeRect; lastRead: SmokeRect; label: string }[];
+    }
   | {
       rule: "failed-reads";
       section: SmokeRect;
@@ -61,6 +68,15 @@ function rect(value: unknown): asserts value is SmokeRect {
 
 function aligned(actual: number, expected: number, message: string): void {
   assert(Math.abs(actual - expected) < 0.02, `${message}: ${actual} != ${expected}`);
+}
+
+function contains(panel: SmokeRect, item: SmokeRect): boolean {
+  return (
+    item.x >= panel.x &&
+    item.y >= panel.y &&
+    item.x + item.width <= panel.x + panel.width &&
+    item.y + item.height <= panel.y + panel.height
+  );
 }
 
 function windowEdges(viewport: unknown, scroll: unknown, panes: SmokeRect[]): void {
@@ -144,6 +160,43 @@ export function inDragShape(regions: readonly SmokeAppRegion[], target: SmokeRec
 export function assertSmokeGeometry(value: unknown): asserts value is SmokeGeometry {
   record(value);
   switch (value.rule) {
+    case "sweep-visible": {
+      rect(value.viewport);
+      rect(value.panel);
+      assert(contains(value.viewport, value.panel), "Sweep panel outside viewport");
+      assert(Array.isArray(value.elements) && value.elements.length >= 3, "Sweep elements missing");
+      for (const element of value.elements) {
+        rect(element);
+        assert(
+          contains(value.panel, element),
+          `Sweep element outside panel: ${JSON.stringify(value)}`,
+        );
+      }
+      break;
+    }
+    case "sweep-reads": {
+      assert(
+        typeof value.width === "number" && Number.isFinite(value.width),
+        "Sweep width missing",
+      );
+      assert(Array.isArray(value.rows) && value.rows.length === 4, "Sweep source rows missing");
+      if (value.width === 740) assert.equal(value.picker, "Sweep", "Sweep picker must read Sweep");
+      for (const row of value.rows) {
+        record(row);
+        rect(row.name);
+        rect(row.cadence);
+        rect(row.lastRead);
+        if (value.width === 740) {
+          assert.equal(row.label, "last read", "Sweep last-read label missing");
+          assert(
+            row.cadence.y >= row.name.y + row.name.height &&
+              row.lastRead.y >= row.name.y + row.name.height,
+            "Sweep columns must fold below source",
+          );
+        }
+      }
+      break;
+    }
     case "failed-reads": {
       rect(value.section);
       rect(value.panel);

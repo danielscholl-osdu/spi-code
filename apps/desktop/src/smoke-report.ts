@@ -225,9 +225,30 @@ export const VIEW_SURFACES = [
     designSection: "Layout / First sweep: later sweep over an older snapshot",
     qualified: true,
   },
+  ...(["idle", "sweeping", "saved-failure", "not-ready"] as const).map((state) => ({
+    id: `settings-sweep-${state}` as const,
+    name: `Settings / Sweep / ${state}`,
+    route: "today",
+    place: "Today",
+    selector: "[role=dialog] [data-settings-section=sweep]",
+    designSection: "Sweep settings / What the operator sees; PRD ST-07",
+    qualified: false,
+  })),
+  ...(["idle", "sweeping"] as const).map((state) => ({
+    id: `evidence-header-${state}` as const,
+    name: `Evidence / Sweep header / ${state}`,
+    route: "today",
+    place: "Today",
+    selector: "[data-evidence=sweep] [data-sweep-header]",
+    designSection: "Sweep settings / Evidence header; PRD EV-03",
+    qualified: false,
+  })),
 ] as const;
 
 export function geometryRules(surface: string, width: number): SmokeGeometry["rule"][] {
+  if (surface.startsWith("settings-sweep-"))
+    return ["window", "settings", "sweep-visible", "sweep-reads"];
+  if (surface.startsWith("evidence-header-")) return ["window", "headers", "sweep-visible"];
   if (surface === "first-sweep-evidence") return ["window", "headers", "failed-reads"];
   if (surface.startsWith("first-sweep-")) return ["window", "headers"];
   if (surface.startsWith("settings")) return ["window", "settings"];
@@ -288,6 +309,24 @@ function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
   );
   const text = qualifiers[1] ?? "";
   const states: Record<string, RegExp[]> = {
+    "settings-sweep-idle": [
+      /Next sweep 08:07 \(in 3 min\)/,
+      /4,865 points left · resets 09:36/,
+      /Sweep now/,
+    ],
+    "settings-sweep-sweeping": [/Sweeping · 4 of 12/, /View live sweep →/],
+    "settings-sweep-saved-failure": [
+      /Sweep saved at 09:04 · 1 source failed\. View sweep →/,
+      /Next sweep 09:09/,
+      /Sweep now/,
+    ],
+    "settings-sweep-not-ready": [/Watch is not ready\. Open Readiness\./, /Sweep now/],
+    "evidence-header-idle": [/Swept 08:02 · next sweep 08:07/, /Sweep now/],
+    "evidence-header-sweeping": [
+      /Sweeping since 08:07 · 4 of 12/,
+      /Sweeping · 4 of 12/,
+      /View live sweep →/,
+    ],
     "first-sweep-running": [
       /First sweep is reading the program/,
       /6 run lists cut short; rest read/,
@@ -321,6 +360,15 @@ function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
       /glab is not signed in/,
     ],
   };
+  if (surfaceId.startsWith("settings-sweep-"))
+    for (const pattern of [
+      /Schedule/i,
+      /Last sweep/,
+      /What a sweep reads/i,
+      /GitHub budget/i,
+      /Notifications/i,
+    ])
+      assert(pattern.test(text), `Missing Sweep section qualifier: ${surfaceId} (${pattern})`);
   for (const pattern of states[surfaceId] ?? [])
     assert(pattern.test(text), `Missing state qualifier: ${surfaceId} (${pattern})`);
   if (["first-sweep-stopped", "first-sweep-stopped-saving"].includes(surfaceId)) {

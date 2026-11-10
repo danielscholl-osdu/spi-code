@@ -61,6 +61,57 @@ const failedReads: SmokeGeometry = {
     { source: "GitHub issues and PRs", outcome: "read failed · unit, crs-catalog, crs-conversion" },
   ],
 };
+const sweepVisible: SmokeGeometry = {
+  rule: "sweep-visible",
+  viewport: rect(0, 0, 740, 800),
+  panel: rect(380, 88, 360, 712),
+  elements: [rect(396, 120, 328, 100), rect(396, 150, 150, 40), rect(560, 120, 140, 30)],
+};
+const sweepReads: SmokeGeometry = {
+  rule: "sweep-reads",
+  width: 740,
+  picker: "Sweep",
+  rows: Array.from({ length: 4 }, (_, index) => ({
+    name: rect(42, 300 + index * 64, 656, 24),
+    cadence: rect(42, 328 + index * 64, 120, 18),
+    lastRead: rect(580, 328 + index * 64, 118, 18),
+    label: "last read",
+  })),
+};
+
+it("rejects a named sweep header or control scrolled out of its panel or viewport", () => {
+  expect(() => assertSmokeGeometry(sweepVisible)).not.toThrow();
+  for (const bounds of [rect(396, 60, 328, 100), rect(396, 750, 328, 100)]) {
+    expect(() =>
+      assertSmokeGeometry({
+        ...sweepVisible,
+        elements: [bounds, ...sweepVisible.elements.slice(1)],
+      }),
+    ).toThrow("Sweep element outside");
+  }
+  expect(() => assertSmokeGeometry({ ...sweepVisible, panel: rect(380, -20, 360, 820) })).toThrow(
+    "Sweep panel outside viewport",
+  );
+  expect(() => assertSmokeGeometry({ ...sweepVisible, elements: [] })).toThrow();
+});
+
+it("requires the Sweep picker and every last-read cell below its source at 740 px", () => {
+  expect(() => assertSmokeGeometry(sweepReads)).not.toThrow();
+  expect(() => assertSmokeGeometry({ ...sweepReads, picker: "Readiness" })).toThrow("Sweep picker");
+  for (const change of [
+    { lastRead: rect(580, 300, 118, 18) },
+    { cadence: rect(42, 300, 120, 18) },
+    { label: "" },
+  ]) {
+    expect(() =>
+      assertSmokeGeometry({
+        ...sweepReads,
+        rows: sweepReads.rows.map((row, index) => (index === 0 ? { ...row, ...change } : row)),
+      }),
+    ).toThrow(/Sweep/);
+  }
+  expect(() => assertSmokeGeometry({ ...sweepReads, rows: sweepReads.rows.slice(1) })).toThrow();
+});
 
 const titleBar = { appRegion: "drag" as const, rect: rect(0, 0, 740, 44) };
 const settingsPopup = { appRegion: "no-drag" as const, rect: rect(24, 24, 692, 512) };

@@ -15,7 +15,7 @@ import {
   VIEW_SURFACES,
   VIEW_WIDTHS,
 } from "./smoke-report.js";
-import { smokeSweepProgress } from "./smoke-sweep.js";
+import { smokeScheduledSweep, smokeSweepProgress } from "./smoke-sweep.js";
 
 const rect = (x: number, y: number, width: number, height: number) => ({ x, y, width, height });
 const firstSweepQualifiers: Record<string, string[]> = {
@@ -45,6 +45,54 @@ const firstSweepQualifiers: Record<string, string[]> = {
   ],
   "first-sweep-refresh": ["Swept 08:02 · sweeping, 4 of 12 sources done", "GitLab reads failed."],
 };
+const scheduledQualifiers: Record<string, string[]> = {
+  "settings-sweep-idle": [
+    "Swept 08:02",
+    "Schedule Last sweep Next sweep 08:07 (in 3 min) What a sweep reads GitHub budget 4,865 points left · resets 09:36 Notifications Sweep now",
+  ],
+  "settings-sweep-sweeping": [
+    "Swept 08:02 · sweeping, 4 of 12 sources done",
+    "Schedule Last sweep What a sweep reads GitHub budget Notifications Sweeping · 4 of 12 View live sweep →",
+  ],
+  "settings-sweep-saved-failure": [
+    "Swept 09:04",
+    "Schedule Last sweep Next sweep 09:09 What a sweep reads GitHub budget Notifications Sweep now Sweep saved at 09:04 · 1 source failed. View sweep →",
+  ],
+  "settings-sweep-not-ready": [
+    "Swept 08:02",
+    "Schedule Last sweep Next sweep 08:07 What a sweep reads GitHub budget Notifications Sweep now Watch is not ready. Open Readiness.",
+  ],
+  "evidence-header-idle": ["Swept 08:02", "Swept 08:02 · next sweep 08:07 Sweep now"],
+  "evidence-header-sweeping": [
+    "Swept 08:02 · sweeping, 4 of 12 sources done",
+    "Sweeping since 08:07 · 4 of 12 Sweeping · 4 of 12 View live sweep →",
+  ],
+};
+
+it("pins scheduled fixtures before their promises and commits exactly one failed source", () => {
+  const snapshot = ViewSnapshotSchema.parse(
+    JSON.parse(
+      readFileSync(new URL("../../../fixtures/watch/snapshot-1106.json", import.meta.url), "utf8"),
+    ),
+  );
+  for (const state of ["idle", "sweeping", "saved-failure", "not-ready"] as const) {
+    const fixture = smokeScheduledSweep(snapshot, state);
+    expect(Date.parse(fixture.status.resetAt ?? "")).toBeGreaterThan(fixture.now);
+    if (fixture.status.nextSweepAt)
+      expect(Date.parse(fixture.status.nextSweepAt)).toBeGreaterThan(fixture.now);
+    expect(fixture.progress.sources).toHaveLength(12);
+    expect(fixture.progress.sources.filter(({ state }) => state === "read")).toHaveLength(
+      state === "sweeping" ? 4 : state === "saved-failure" ? 11 : 12,
+    );
+    if (state === "saved-failure") {
+      expect(fixture.progress.sources.filter(({ state }) => state === "failed")).toHaveLength(1);
+      expect(Date.parse(fixture.snapshot.sweptAt)).toBeGreaterThanOrEqual(
+        Date.parse(fixture.progress.startedAt),
+      );
+      expect(fixture.status.lastSweep?.requested).toBe(true);
+    }
+  }
+});
 
 it("keeps the retained first-sweep failure line consistent with the snapshot's failed services", () => {
   const snapshot = ViewSnapshotSchema.parse(
@@ -71,6 +119,25 @@ it("keeps the retained first-sweep failure line consistent with the snapshot's f
 function geometry(surface: string, width: number): SmokeGeometry[] {
   return geometryRules(surface, width).map((rule) => {
     switch (rule) {
+      case "sweep-visible":
+        return {
+          rule,
+          viewport: rect(0, 0, width, 800),
+          panel: rect(24, 120, width - 48, 560),
+          elements: [rect(42, 130, 300, 44), rect(42, 190, 300, 44), rect(400, 130, 200, 30)],
+        };
+      case "sweep-reads":
+        return {
+          rule,
+          width,
+          picker: width === 740 ? "Sweep" : null,
+          rows: Array.from({ length: 4 }, (_, index) => ({
+            name: rect(42, 300 + index * 64, 300, 24),
+            cadence: rect(42, 328 + index * 64, 120, 18),
+            lastRead: rect(580, 328 + index * 64, 118, 18),
+            label: width === 740 ? "last read" : "",
+          })),
+        };
       case "window":
         return {
           rule,
@@ -177,10 +244,11 @@ const report: SmokeReport = {
         height: 800,
         bytes: 20000,
         dominantFraction: 0.6,
-        qualifiers: firstSweepQualifiers[id] ?? [
-          "swept 08:02 · 1 failed",
-          "GitLab reads failed; items may be missing.",
-        ],
+        qualifiers: scheduledQualifiers[id] ??
+          firstSweepQualifiers[id] ?? [
+            "swept 08:02 · 1 failed",
+            "GitLab reads failed; items may be missing.",
+          ],
         geometry: geometry(id, viewportWidth),
         ...(id === "detail-related" && viewportWidth === 1440 && appearance === "light"
           ? { rejectedGeometry: "Related value squeezed to 159 px" }
@@ -206,6 +274,26 @@ const report: SmokeReport = {
 
 it("accepts the terminal smoke report", () => {
   expect(() => assertSmokeReport(JSON.parse(JSON.stringify(report)))).not.toThrow();
+});
+
+it("accepts Sweep headings transformed to uppercase by the rendered stylesheet", () => {
+  expect(() =>
+    assertSmokeViews(
+      report.views.map((shot) =>
+        shot.surface.startsWith("settings-sweep-")
+          ? {
+              ...shot,
+              qualifiers: shot.qualifiers.map((text) =>
+                text.replace(
+                  /Schedule|What a sweep reads|GitHub budget|Notifications/g,
+                  (heading) => heading.toUpperCase(),
+                ),
+              ),
+            }
+          : shot,
+      ),
+    ),
+  ).not.toThrow();
 });
 
 it.each([
@@ -285,6 +373,34 @@ it("rejects a missing dark appearance even when the screenshot count is unchange
   );
   expect(() => assertSmokeViews(mutation)).toThrow("security/1440/dark");
 });
+
+it.each(Object.keys(scheduledQualifiers))(
+  "requires every scheduled capture and its visible state: %s",
+  (surface) => {
+    for (const width of VIEW_WIDTHS) {
+      for (const appearance of ["light", "dark"]) {
+        const matches = (shot: SmokeReport["views"][number]) =>
+          shot.surface === surface &&
+          shot.viewportWidth === width &&
+          shot.appearance === appearance;
+        expect(report.views.some(matches)).toBe(true);
+        expect(() => assertSmokeViews(report.views.filter((shot) => !matches(shot)))).toThrow(
+          "Missing screenshot",
+        );
+        for (const mutation of [
+          { qualifiers: ["Swept 08:02", ""] },
+          { geometry: geometry(surface, width).filter(({ rule }) => rule !== "sweep-visible") },
+        ]) {
+          expect(() =>
+            assertSmokeViews(
+              report.views.map((shot) => (matches(shot) ? { ...shot, ...mutation } : shot)),
+            ),
+          ).toThrow();
+        }
+      }
+    }
+  },
+);
 
 it("fails when a single surface/width/appearance combination is dropped or replaced", () => {
   const missing = report.views.filter(

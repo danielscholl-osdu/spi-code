@@ -22,7 +22,7 @@ import {
   VIEW_SURFACES,
   VIEW_WIDTHS,
 } from "./smoke-report.js";
-import { smokeSweepProgress } from "./smoke-sweep.js";
+import { smokeScheduledSweep, smokeSweepProgress } from "./smoke-sweep.js";
 
 const sweepSchedule = {
   sweepMs: 300_000,
@@ -60,7 +60,7 @@ function fixture(window: BrowserWindow, type: string, payload: unknown, id = "sm
 
 async function settingsSection(
   window: BrowserWindow,
-  section: "readiness" | "appearance",
+  section: "readiness" | "appearance" | "sweep",
 ): Promise<void> {
   await window.webContents.executeJavaScript(`{
     const picker = document.querySelector(".settings-picker select");
@@ -69,7 +69,7 @@ async function settingsSection(
       picker.dispatchEvent(new Event("change", { bubbles: true }));
     } else {
       [...document.querySelectorAll(".settings-nav button")].find(item =>
-        item.textContent === ${JSON.stringify(section === "appearance" ? "Appearance" : "Readiness")}
+        item.textContent === ${JSON.stringify({ appearance: "Appearance", readiness: "Readiness", sweep: "Sweep" }[section])}
       ).click();
     }
   }`);
@@ -116,6 +116,26 @@ async function measure(
     if (!page) throw new Error("Missing page scroll geometry");
     const scroll = { width: page.scrollWidth, height: page.scrollHeight };
     switch (${JSON.stringify(rule)}) {
+      case "sweep-visible": {
+        const settings = document.querySelector("[data-settings-section=sweep]");
+        const panel = settings ? element("[role=dialog].settings") : element("[data-sweep-header]").closest(".panel-body");
+        const header = element(settings ? ".settings-header" : "[data-sweep-header]");
+        const schedule = element(settings ? ".sweep-summary" : "[data-sweep-schedule]");
+        return { rule: "sweep-visible", viewport, panel: rect(panel),
+          elements: [header, schedule, header.querySelector(".sweep-now > button"),
+            ...[...header.querySelectorAll(".sweep-now-status")].filter(item => item.textContent.trim())].map(rect) };
+      }
+      case "sweep-reads": {
+        const picker = document.querySelector(".settings-picker select");
+        return { rule: "sweep-reads", width: innerWidth,
+          picker: picker && picker.getBoundingClientRect().width > 0 ? picker.selectedOptions[0].textContent : null,
+          rows: [...document.querySelectorAll(".sweep-reads tbody tr")].map(row => {
+            const cells = row.querySelectorAll("td");
+            const label = row.querySelector(".mobile-label");
+            return { name: rect(cells[0]), cadence: rect(cells[1]), lastRead: rect(cells[2]),
+              label: getComputedStyle(label).display === "none" ? "" : label.textContent.trim() };
+          }) };
+      }
       case "failed-reads": {
         const section = element("[data-evidence=sweep] .evidence-failures");
         return { rule: "failed-reads", section: rect(section),
@@ -491,6 +511,40 @@ export async function captureSmokeViews(
           'document.querySelector(".readiness-code") && document.querySelector(".readiness-checked")?.textContent.trim() === "Checked 09:04"',
         );
         for (const surface of surfaces) {
+          const scheduled =
+            surface.id.startsWith("settings-sweep-") || surface.id.startsWith("evidence-header-");
+          if (scheduled) {
+            await window.webContents.executeJavaScript(`{
+              localStorage.removeItem("spi-code.panes");
+              localStorage.removeItem("spi-code.line-sheet.pinned");
+              location.hash = "#today";
+            }`);
+            const loaded = once(window.webContents, "did-finish-load");
+            window.webContents.reload();
+            await loaded;
+            await rendered(window, 'document.querySelector(".shell [data-sidebar-row=settings]")');
+            const state = surface.id.endsWith("saved-failure")
+              ? "saved-failure"
+              : surface.id.endsWith("not-ready")
+                ? "not-ready"
+                : surface.id.endsWith("sweeping")
+                  ? "sweeping"
+                  : "idle";
+            const scheduledSweep = smokeScheduledSweep(snapshot, state);
+            await window.webContents.executeJavaScript(
+              `void (Date.now = () => ${scheduledSweep.now})`,
+            );
+            fixture(window, "setup.state", ready);
+            fixture(window, "view.snapshot", scheduledSweep.snapshot);
+            fixture(window, "sweep.progress", scheduledSweep.progress);
+            fixture(window, "sweep.status", scheduledSweep.status);
+            await rendered(window, 'document.querySelector(".today .place-reading")');
+            if (surface.id.startsWith("evidence-header-")) {
+              await window.webContents.executeJavaScript(
+                'document.querySelector("[data-sweep-line]").click()',
+              );
+            }
+          }
           if (surface.id === "first-sweep-running") {
             await window.webContents.executeJavaScript(`{
               localStorage.removeItem("spi-code.panes");
@@ -653,8 +707,21 @@ export async function captureSmokeViews(
             await openSettings(window);
             await settingsSection(
               window,
-              surface.id === "settings-appearance" ? "appearance" : "readiness",
+              surface.id.startsWith("settings-sweep-")
+                ? "sweep"
+                : surface.id === "settings-appearance"
+                  ? "appearance"
+                  : "readiness",
             );
+            if (surface.id === "settings-sweep-not-ready")
+              fixture(window, "setup.state", {
+                ...ready,
+                watchReady: false,
+                disabledReason: "Watch needs gh.",
+                tools: ready.tools.map((tool) =>
+                  tool.tool === "gh" ? { tool: "gh", state: "signed-out", action: "signin" } : tool,
+                ),
+              });
             if (surface.id === "settings-failed") {
               fixture(window, "setup.state", {
                 ...ready,
@@ -695,6 +762,22 @@ export async function captureSmokeViews(
             );
           }
           await rendered(window, `document.querySelector(${JSON.stringify(surface.selector)})`);
+          if (scheduled) {
+            await window.webContents.executeJavaScript(`{
+              const settings = document.querySelector("[data-settings-section=sweep]");
+              const panel = settings ?? document.querySelector("[data-sweep-header]").closest(".panel-body");
+              panel.scrollTop = 0;
+            }`);
+            await rendered(window, "true");
+            const disabled = await window.webContents.executeJavaScript(
+              'document.querySelector(".sweep-now > button").disabled',
+            );
+            assert.equal(
+              disabled,
+              !surface.id.endsWith("-idle") && !surface.id.endsWith("-saved-failure"),
+              `Wrong Sweep now availability: ${surface.id}`,
+            );
+          }
           if (surface.id === "first-sweep-evidence") {
             await rendered(
               window,
@@ -720,13 +803,18 @@ export async function captureSmokeViews(
           const qualifiers: string[] = await window.webContents.executeJavaScript(`[
             document.getElementById(document.querySelector("[data-sweep-line]")?.getAttribute("aria-labelledby") ?? "")?.textContent ?? "",
             document.querySelector(${JSON.stringify(
-              surface.id === "first-sweep-evidence"
-                ? "[data-evidence=sweep]"
-                : surface.id === "first-sweep-place"
-                  ? ".place-before-sweep"
-                  : surface.id.startsWith("first-sweep-") && surface.id !== "first-sweep-refresh"
-                    ? ".today-first"
-                    : "main .place-qualifier",
+              surface.id.startsWith("settings-sweep-")
+                ? "[role=dialog].settings"
+                : surface.id.startsWith("evidence-header-")
+                  ? "[data-sweep-header]"
+                  : surface.id === "first-sweep-evidence"
+                    ? "[data-evidence=sweep]"
+                    : surface.id === "first-sweep-place"
+                      ? ".place-before-sweep"
+                      : surface.id.startsWith("first-sweep-") &&
+                          surface.id !== "first-sweep-refresh"
+                        ? ".today-first"
+                        : "main .place-qualifier",
             )})?.innerText?.replace(/\\s+/g, " ").trim() ?? ""
           ]`);
           const file = `${surface.id}-${viewportWidth}-${appearance}.png`;
@@ -761,7 +849,10 @@ export async function captureSmokeViews(
             await window.webContents.executeJavaScript(
               "document.querySelector(\"[aria-label='Close Line']\").click()",
             );
-          if (["detail", "detail-related", "panes", "first-sweep-evidence"].includes(surface.id))
+          if (
+            surface.id.startsWith("evidence-header-") ||
+            ["detail", "detail-related", "panes", "first-sweep-evidence"].includes(surface.id)
+          )
             await window.webContents.executeJavaScript(
               "document.querySelector(\"[aria-label='Close detail']\").click()",
             );
@@ -817,12 +908,17 @@ export async function captureSmokeViews(
     `<!doctype html><html lang="en"><meta charset="utf-8"><title>Packaged Watch views</title>
 <style>body{font-family:system-ui;margin:24px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #888;padding:8px;vertical-align:top}img{width:100%}td{width:50%}</style>
 <h1>Packaged Watch views</h1><p>Nov 6 projection: ${snapshot.sweptAt}. Content bounds: 1440, 900 and 740 x 800.
-Appearance pinned in the app. Fixture clock: Nov 6, 09:04 America/Chicago.
+Appearance pinned in the app. Fixture clock: Nov 6, 09:04 America/Chicago, except scheduled
+Sweep surfaces: idle and not-ready at 08:04, sweeping at 08:08, saved-with-failure at 09:04.
 Setup sign-ins are intercepted fixtures, never live authentication. Related and 20-service probes vary the projection.
 First-sweep surfaces inject schema-valid sweep.progress messages through the same smoke-only preload channel as
 view.snapshot and setup.state. This screenshot phase precedes host startup, so it cannot feed the real host progress path;
 the persisted-snapshot and supervision host proof runs separately, after these fixtures are removed.
 Only view.snapshot hands over the first-sweep list; the refresh preserves the older brief.
+Settings / Sweep and the Evidence header use schema-valid sweep.status, sweep.progress and
+view.snapshot fixtures. Each named header, schedule line and Sweep now control must be inside
+its panel and viewport. At 740 px the native picker must select Sweep and every cadence and
+last-read cell must sit below its source, with the last-read label visible.
 These captures support the maintainer's checkpoint; the smoke gives no visual verdict.</p>
 <p><a href="design.html">design/spi-code-window-layout.html</a> is the layout authority.
 Blank gate: 640 x 400 pixels, 1024 PNG bytes, no quantized RGB bucket at 99.5%.</p>
