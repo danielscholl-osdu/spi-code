@@ -6,7 +6,7 @@ import type { WatchBriefing } from "@spi-code/contracts";
 export function selectTodayItems(briefing: Pick<WatchBriefing, "focus" | "rest">) {
   const all = [...briefing.focus, ...briefing.rest];
   const focus = briefing.focus
-    .filter(({ attention, owned }) => attention !== "ambient" || owned)
+    .filter(({ attention, owned }) => attention === "interrupt" || attention === "surface" || owned)
     .slice(0, 5);
   const focusIds = new Set(focus.map(({ id }) => id));
   const folded = all.filter(({ id }) => !focusIds.has(id));

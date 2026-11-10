@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import type { AttentionTier } from "../attention.js";
 import type { FocusItem } from "../brief/index.js";
 import { groupName } from "../brief/repos.js";
 import type { ReadRecord } from "../evidence/index.js";
@@ -17,7 +18,7 @@ import {
 } from "./index.js";
 
 export interface SecurityReadingItem extends FocusItem {
-  attention: "interrupt" | "surface" | "ambient";
+  attention: AttentionTier;
   owned: boolean;
   due?: { at: string; before: string } | undefined;
 }
@@ -90,7 +91,12 @@ export function serviceSecurityItem(
   };
 }
 
-const attentionRank = Object.freeze({ interrupt: 0, surface: 1, ambient: 2 });
+const attentionRank: Readonly<Record<AttentionTier, number>> = Object.freeze({
+  interrupt: 0,
+  surface: 1,
+  ambient: 2,
+  background: 3,
+});
 
 function urgency(
   a: Pick<SecurityReadingItem, "attention" | "due">,

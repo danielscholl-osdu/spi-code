@@ -1,7 +1,12 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { SeenState, WatchBriefing, WatchItem } from "@spi-code/contracts";
+import {
+  AttentionTierSchema,
+  type SeenState,
+  type WatchBriefing,
+  type WatchItem,
+} from "@spi-code/contracts";
 import type { Model } from "@spi-code/core";
 import { z } from "zod";
 import type { WatchInput } from "./project.js";
@@ -20,7 +25,7 @@ const SeenItemsSchema = z.array(
     id: z.string(),
     ids: z.array(z.string()),
     rung: z.union([z.literal(0), z.literal(1), z.literal(2)]),
-    attention: z.enum(["interrupt", "surface", "ambient"]),
+    attention: AttentionTierSchema,
   }),
 );
 

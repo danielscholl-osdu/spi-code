@@ -1,10 +1,12 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { describe, expect, test } from "vitest";
+import type { AttentionTier as WireTier } from "@spi-code/contracts";
+import { describe, expect, expectTypeOf, test } from "vitest";
 import {
   type AttentionOptions,
   type AttentionSubject,
+  type AttentionTier,
   attentionOf,
   interruptCount,
   LEAD_TIME_MS,
@@ -267,4 +269,8 @@ describe("the Today count", () => {
       ]),
     ).toBe(1);
   });
+});
+
+test("core's tiers are the wire's, Background included", () => {
+  expectTypeOf<AttentionTier>().toEqualTypeOf<WireTier>();
 });
