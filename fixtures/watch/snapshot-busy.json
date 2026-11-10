@@ -19,9 +19,9 @@
       },
       {
         "label": "Upstream sync",
-        "figure": "0 of 13",
-        "sub": "forks stopped · every sync flowing",
-        "tone": "ok"
+        "figure": "2 of 13",
+        "sub": "forks stopped · storage and indexer-queue",
+        "tone": "bad"
       },
       {
         "label": "Template · main 7d269b5",
