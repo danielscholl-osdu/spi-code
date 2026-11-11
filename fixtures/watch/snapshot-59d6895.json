@@ -5981,6 +5981,330 @@
       }
     },
     {
+      "path": "/releases/today/versions/0/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/versions/0/released",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/versions/0/coreLibAzure",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/versions/0/text",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/versions/1/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/versions/1/released",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/versions/1/coreLibAzure",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/versions/1/text",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/versions/2/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/versions/2/released",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/versions/2/coreLibAzure",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/versions/2/text",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/versions/3/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/versions/3/released",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/versions/3/coreLibAzure",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/versions/3/text",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/versions/4/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/versions/4/released",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/versions/4/coreLibAzure",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/versions/4/text",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/platform/stack",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/platform/template/released",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/platform/template/proposed",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/platform/template/pr",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/platform/coreLibAzure",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/platform/text",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": true
+      }
+    },
+    {
+      "path": "/releases/today/readyLine",
+      "areas": ["github", "details"]
+    },
+    {
       "path": "/services/0/runs/0",
       "areas": ["runs"]
     },

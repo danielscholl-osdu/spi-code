@@ -135,7 +135,7 @@ describe("Today's release versions", () => {
 
   it("marks the 1106 release area unread without inventing a last good time", () => {
     const snapshot = projectWatch(recordedInput());
-    expect(snapshot.provenance.find((p) => p.path === "/releases")?.envelope).toEqual({
+    expect(snapshot.provenance.find((p) => p.path === "/releases/lines")?.envelope).toEqual({
       source: "releases",
       state: "unread",
     });

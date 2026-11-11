@@ -51,6 +51,33 @@ function proposed(pr: Pr | undefined) {
     : {};
 }
 
+export type PlatformSource = "ledger" | "github";
+
+/** The stack and template released versions, and whether each came from this month's ledger or the GitHub release tag. */
+export function platformReleased(
+  documents: ReleasesTodayInput["documents"],
+  facts: Pick<Facts, "github">,
+  context: CoreContext,
+): {
+  stack?: { version: string; source: PlatformSource };
+  template?: { version: string; source: PlatformSource };
+} {
+  const current = [...documents].sort((a, b) => b.month.localeCompare(a.month))[0];
+  const repos = facts.github.data?.repos;
+  const pick = (id: string, repo: string) => {
+    const row = current?.rows.find((r) => r.id === id && r.state === "released");
+    if (row) {
+      const version = row.to ?? row.version;
+      return version ? { version, source: "ledger" as const } : undefined;
+    }
+    const tag = repos?.[repo]?.release?.tag;
+    return tag ? { version: tag, source: "github" as const } : undefined;
+  };
+  const stack = pick("spi-stack", context.stackRepo);
+  const template = pick("spi-template", TEMPLATE_REPO);
+  return { ...(stack ? { stack } : {}), ...(template ? { template } : {}) };
+}
+
 /** Today's version pairs share the release reading's PR inventory and waiting words. */
 export function releasesToday(input: ReleasesTodayInput) {
   const { services, documents, facts, provenance, context } = input;
@@ -69,13 +96,10 @@ export function releasesToday(input: ReleasesTodayInput) {
       },
     ];
   });
-  const current = [...documents].sort((a, b) => b.month.localeCompare(a.month))[0];
-  const stackRow = current?.rows.find((row) => row.id === "spi-stack" && row.state === "released");
-  const templateRow = current?.rows.find((row) => row.id === "spi-template" && row.state === "released");
+  const sourced = platformReleased(documents, facts, context);
+  const stack = sourced.stack?.version;
+  const templateReleased = sourced.template?.version;
   const queue = releaseQueue(facts, context);
-  const repos = facts.github.data?.repos;
-  const stack = (stackRow && (stackRow.to ?? stackRow.version)) ?? repos?.[context.stackRepo]?.release?.tag;
-  const templateReleased = (templateRow && (templateRow.to ?? templateRow.version)) ?? repos?.[TEMPLATE_REPO]?.release?.tag;
   const template = templateReleased
     ? {
         released: templateReleased,
@@ -95,7 +119,7 @@ export function releasesToday(input: ReleasesTodayInput) {
     newest && oldest
       ? `core-lib-azure ${oldest.version === newest.version ? newest.version : `${oldest.version} to ${newest.version}`} (${newest.version} on ${newest.count} of ${services.length})`
       : undefined;
-  const envelope = provenance.find(({ path }) => path === "/releases")?.envelope;
+  const envelope = provenance.find(({ path }) => path === "/releases/lines")?.envelope;
   const lastGood = envelope && envelope.state !== "unread" ? envelope.observedAt : undefined;
   const unread =
     envelope && envelope.state !== "fresh"

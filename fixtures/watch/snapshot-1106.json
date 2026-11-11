@@ -13870,6 +13870,474 @@
       }
     },
     {
+      "path": "/releases/today/versions/0/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/0/released",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/0/proposed",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/0/pr",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/0/text",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/1/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/1/released",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/1/proposed",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/1/pr",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/1/text",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/2/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/2/released",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/2/proposed",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/2/pr",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/2/text",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/3/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/3/released",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/3/proposed",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/3/pr",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/3/text",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/4/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/4/released",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/4/proposed",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/4/pr",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/4/text",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/5/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/5/released",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/5/proposed",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/5/pr",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/5/text",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/6/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/6/released",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/6/proposed",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/6/pr",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/6/text",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/7/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/7/released",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/7/proposed",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/7/pr",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/7/text",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/8/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/8/released",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/8/proposed",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/8/pr",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/8/text",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/9/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/9/released",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/9/proposed",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/9/pr",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/9/text",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/10/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/10/released",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/10/proposed",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/10/pr",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/10/text",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/11/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/11/released",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/11/proposed",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/11/pr",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/11/text",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/12/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/12/released",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/versions/12/proposed",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/12/pr",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/versions/12/text",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/platform/stack",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/platform/template/released",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/platform/template/proposed",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/platform/template/pr",
+      "areas": ["github"]
+    },
+    {
+      "path": "/releases/today/platform/coreLibAzure",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/platform/text",
+      "areas": ["fleet", "github"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
+      "path": "/releases/today/readyLine",
+      "areas": ["github", "details"]
+    },
+    {
+      "path": "/releases/today/unread",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "unread"
+      }
+    },
+    {
       "path": "/services/0/runs/0",
       "areas": ["runs"]
     },
