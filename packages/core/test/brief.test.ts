@@ -171,8 +171,7 @@ describe("the recorded sweep", () => {
         b.themes.filter((t) => !t.title.startsWith("os-core-common")).map((t) => [t.kind, t.next]),
       ),
     ).toEqual({
-      toolchain:
-        "Move one fork's Java pin to 25 and repeat it for the others before the next sync carries it.",
+      toolchain: "Move one fork's Java pin to 25 and repeat it for the others.",
       halt: "Add a rule for schemathesis-tests to every fork's .github/upstream-filter.yml, starting with entitlements.",
       port: "Port each MR into its fork-owned tree and cite the MR URL in the PR body.",
       deadline:
