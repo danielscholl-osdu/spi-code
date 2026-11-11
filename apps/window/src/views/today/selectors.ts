@@ -3,13 +3,9 @@
 
 import type { WatchBriefing } from "@spi-code/contracts";
 
-export function selectTodayItems(briefing: Pick<WatchBriefing, "focus" | "rest">) {
+/** Distinct Interrupts across focus and rest; items naming the same id count once. */
+export function countInterrupts(briefing: Pick<WatchBriefing, "focus" | "rest">): number {
   const all = [...briefing.focus, ...briefing.rest];
-  const focus = briefing.focus
-    .filter(({ attention, owned }) => attention === "interrupt" || attention === "surface" || owned)
-    .slice(0, 5);
-  const focusIds = new Set(focus.map(({ id }) => id));
-  const folded = all.filter(({ id }) => !focusIds.has(id));
   const identities = new Map<string, Set<string>>();
   for (const item of all) {
     const ids = new Set([item.id, ...item.ids]);
@@ -18,8 +14,7 @@ export function selectTodayItems(briefing: Pick<WatchBriefing, "focus" | "rest">
     }
     for (const id of ids) identities.set(id, ids);
   }
-  const interrupts = new Set(
+  return new Set(
     all.filter(({ attention }) => attention === "interrupt").map(({ id }) => identities.get(id)),
   ).size;
-  return { focus, folded, interrupts };
 }

@@ -68,6 +68,24 @@ export function clockTime(at: string | number | Date, options: ClockOptions = {}
   return ahead > 0 && options.hint !== false ? `${text} (in ${until(ahead)})` : text;
 }
 
+const days = new Map<string, Intl.DateTimeFormat>();
+
+/** A day as a date line reads it, with no clock: `Friday 6 Nov`. */
+export function dayLine(at: string | number | Date, options: Pick<ClockOptions, "timeZone"> = {}) {
+  const key = options.timeZone ?? "";
+  let format = days.get(key);
+  if (!format) {
+    format = new Intl.DateTimeFormat("en-GB", {
+      ...(options.timeZone ? { timeZone: options.timeZone } : {}),
+      weekday: "long",
+      day: "numeric",
+      month: "short",
+    });
+    days.set(key, format);
+  }
+  return format.format(new Date(at));
+}
+
 /** A visible time: {@link clockTime} in a `time` element whose `datetime` keeps the ISO value. */
 export function Time({
   at,

@@ -17,7 +17,6 @@ import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { routeSelectionIds, selectionRows } from "../../panels/selection-rows.js";
 import { watchStore } from "../../store/watch.js";
-import Today from "../today/index.js";
 import { upstreamReading } from "./reading.js";
 
 const fixture = () => ViewSnapshotSchema.parse(JSON.parse(november6));
@@ -224,18 +223,12 @@ it("refreshes a selected campaign's Detail when a sweep changes its forks", asyn
   expect(container.querySelector('aside[aria-label="Detail"]')?.textContent).toContain(title);
 });
 
-it("lists Before next sync items as the same records Today shows, and selects them as Today does", async () => {
+it("lists Before next sync items as briefing records and selects them by their briefing row", async () => {
   const body = fixture();
   const before = itemIds("Before 18:00");
   const briefing = [...body.briefing.focus, ...body.briefing.rest].map(({ id }) => id);
   expect(before.length).toBeGreaterThan(0);
   for (const id of before) expect(briefing).toContain(id);
-
-  const today = await render(<Today />);
-  const todayIds = [
-    ...today.querySelectorAll<HTMLElement>("[data-item-id], [data-selection-id]"),
-  ].map((row) => row.dataset.itemId ?? row.dataset.selectionId);
-  for (const id of before) expect(todayIds).toContain(id);
 
   await click(itemButton("radar:legal"));
   expect(selectionStore.getState().selected).toBe("radar:legal");
@@ -245,9 +238,6 @@ it("lists Before next sync items as the same records Today shows, and selects th
   expect(selectionStore.getState().row?.prefixes).toEqual([
     `/briefing/focus/${body.briefing.focus.findIndex(({ id }) => id === "radar:legal")}`,
   ]);
-  expect(today.querySelector('[data-item-id="radar:legal"]')?.hasAttribute("data-selected")).toBe(
-    true,
-  );
   expect(place().querySelector('[data-item-id="radar:legal"]')?.hasAttribute("data-selected")).toBe(
     true,
   );

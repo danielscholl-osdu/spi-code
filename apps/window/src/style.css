@@ -44,6 +44,8 @@ body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.5
 .middle-frame > * > .place { display: contents; }
 .middle-frame .place-reading,
 .middle-frame > * > :not(.place, .place-header) { max-width: var(--centre-content-max-width); }
+/* Today lifts the content cap; the places keep it. */
+.middle-frame .today-frame { max-width: none; }
 .pane-header { display: flex; align-items: center; flex: none; box-sizing: border-box; height: var(--pane-header-height); border-bottom: 1px solid var(--border); }
 .middle-frame .place-header { position: absolute; top: 0; left: 0; right: 0; z-index: 1; margin: 0; padding: 0 var(--centre-content-padding-inline); background: var(--surface); }
 .right-panel-frame { grid-column: 4; grid-row: 2; display: grid; min-width: 0; min-height: 0; }

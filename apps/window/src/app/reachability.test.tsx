@@ -15,7 +15,6 @@ import {
   coverage,
   detailFeed,
   EXEMPTIONS,
-  FACT_TAIL_GAP,
   HOLD_GAP,
   type Home,
   type Reach,
@@ -155,10 +154,7 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
       uncovered: [],
       stray: [],
       stale: [],
-      partial: [
-        { pointer: "/briefing/facts/0/sub", tail: "green at 04:20", reason: FACT_TAIL_GAP },
-        { pointer: "/briefing/facts/1/sub", tail: "entitlements", reason: FACT_TAIL_GAP },
-      ],
+      partial: [],
     });
   });
 
@@ -287,33 +283,6 @@ describe("the suite's own guards", () => {
 });
 
 describe("named gaps the suite tracks until their beads close", () => {
-  it("spicode-t1k.225: Today still names the rollout's scope differently from Engineering system", async () => {
-    const pointer = cases.find(
-      ({ pointer, exempt }) => exempt?.startsWith("spicode-t1k.225") && pointer.endsWith("/scope"),
-    )?.pointer;
-    const engineering = drawn.find(
-      (row) => row.pointer === pointer && row.home.name === "Engineering system · Details",
-    );
-    expect(engineering).toBeDefined();
-    if (!engineering) return;
-    await openHome({ name: "Today", start: STARTS.today });
-    const today = container.querySelector(
-      'section.place[aria-label="Today"] li.place-item[data-item-id="rollout"] .place-scope',
-    )?.textContent;
-    expect(today).toBeTruthy();
-    expect(today).not.toBe(engineering.value);
-  });
-
-  it("spicode-t1k.222: Today and the strip draw only the first clause of a fact's subline", async () => {
-    const rows = cases.filter(({ partial }) => partial?.reason === FACT_TAIL_GAP);
-    expect(new Set(rows.map(({ home }) => home.name))).toEqual(new Set(["Today", "Strip"]));
-    for (const row of rows) {
-      await openHome(row.home);
-      assertReach(row);
-      expect(raw(row, shown(row)), row.pointer).not.toContain(row.partial?.tail);
-    }
-  });
-
   it("spicode-t1k.226: a hold's Detail draws the host's answer two clicks from Environment, not one", async () => {
     const rows = cases.filter(({ exempt }) => exempt === HOLD_GAP);
     const hold = rows[0]?.home;

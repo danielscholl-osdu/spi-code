@@ -1,257 +1,288 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
+import {
+  type SweepProgress,
+  SweepProgressSchema,
+  SweepReasonCodeSchema,
+  type ViewSnapshot,
+  ViewSnapshotSchema,
+} from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, expect, it, vi } from "vitest";
-import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import november6 from "../../../../../fixtures/watch/snapshot-1106.json?raw";
+import bad from "../../../../../fixtures/watch/snapshot-bad.json?raw";
+import busy from "../../../../../fixtures/watch/snapshot-busy.json?raw";
+import calm from "../../../../../fixtures/watch/snapshot-calm.json?raw";
+import { SLOT_STATES } from "../../components/kit/Slot.js";
 import { createSelectionStore } from "../../panels/selection.js";
 import { createWatchStore } from "../../store/watch.js";
-import { clockTime } from "../../time.js";
+import { clockTime, dayLine } from "../../time.js";
 import Today from "./index.js";
 
-const fixture = ViewSnapshotSchema.parse(JSON.parse(recorded));
+const MORNINGS = {
+  calm: ViewSnapshotSchema.parse(JSON.parse(calm)),
+  busy: ViewSnapshotSchema.parse(JSON.parse(busy)),
+  "snapshot-1106": ViewSnapshotSchema.parse(JSON.parse(november6)),
+  bad: ViewSnapshotSchema.parse(JSON.parse(bad)),
+} as const;
+type Morning = keyof typeof MORNINGS;
+const morning = (name: Morning) => structuredClone(MORNINGS[name]);
+const NAMES = Object.keys(MORNINGS) as Morning[];
 const cleanups: (() => Promise<void>)[] = [];
 
-async function mount(body: ViewSnapshot | null = fixture) {
+async function mount(body: ViewSnapshot, completed: SweepProgress | null = null) {
   const port = { postMessage: vi.fn() };
   const store = createWatchStore(vi.fn(), createSelectionStore(port));
-  if (body) store.setState({ snapshot: { cursor: body.cursor, body } });
+  store.setState({ snapshot: { cursor: body.cursor, body }, completed });
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
-  const onNavigate = vi.fn();
-  await act(async () => root.render(<Today store={store} onNavigate={onNavigate} />));
+  const onOpenSettings = vi.fn();
+  const onOpenEvidence = vi.fn();
+  await act(async () =>
+    root.render(
+      <Today store={store} onOpenSettings={onOpenSettings} onOpenEvidence={onOpenEvidence} />,
+    ),
+  );
   cleanups.push(async () => {
     await act(async () => root.unmount());
     container.remove();
   });
-  return { container, store, port, onNavigate };
+  return { container, onOpenSettings, onOpenEvidence };
 }
 
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0)) await cleanup();
 });
 
-const text = (container: Element, selector: string) =>
+const texts = (container: Element, selector: string) =>
   [...container.querySelectorAll(selector)].map((element) => element.textContent);
+const clock = (at: string) => clockTime(at, { hint: false });
 
-function visibleText(container: Element): string {
-  const copy = container.cloneNode(true) as Element;
-  for (const details of copy.querySelectorAll("details:not([open])")) {
-    for (const child of [...details.children]) {
-      if (child.tagName !== "SUMMARY") child.remove();
-    }
-  }
-  const walker = document.createTreeWalker(copy, NodeFilter.SHOW_TEXT);
-  const parts: string[] = [];
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    parts.push(node.textContent ?? "");
-  }
-  return parts.join(" ");
-}
+const GLYPH = { stopped: "✕", "needs-person": "!", "in-progress": "◐", "nothing-due": "○" };
 
-it("keeps the recorded brief near 75 visible words, with three named measures and no future parts", async () => {
-  const { container } = await mount();
-  const words = visibleText(container).trim().split(/\s+/);
-  expect(words.length).toBeGreaterThanOrEqual(60);
-  expect(words.length).toBeLessThanOrEqual(95);
-  expect(text(container, ".place-tile-value")).toEqual(["v0.35.3", "1 of 13", "0 of 13"]);
-  expect(text(container, ".place-tile-counts")).toEqual([
-    "deployable",
-    "forks stopped",
-    "forks on 7d269b5",
-  ]);
-  expect(text(container, ".place-tile dt")).toEqual([
-    "Environment",
-    "Upstream sync",
-    "Engineering system",
-  ]);
-  expect(container.querySelector("textarea, [contenteditable], [data-slot='composer']")).toBeNull();
-  expect(container.textContent).not.toMatch(/Waiting for you|Owned|not available|gate 3|📊/u);
-});
-
-it("groups the five focus items by their typed due and ownership, never by P rank", async () => {
-  const { container } = await mount();
-  expect(container.querySelectorAll(".place-item")).toHaveLength(5);
-  expect(text(container, ".place-group h3")).toEqual(["Before next sync", "New"]);
-  expect(
-    text(container, '[aria-label="Before next sync"] .place-item').map((value) => value?.trim()),
-  ).toEqual([
-    "P1indexerSync PR #58 and the next sync carry os-core-common 8.5.0",
-    "P1legalcarries os-core-common 8.4.1-boot4-SNAPSHOT",
-  ]);
-  expect(text(container, '[aria-label="New"] .place-rank')).toEqual(["P0", "P1", "P1"]);
-  expect(text(container, "summary")).toEqual(["12 more · 13 release PRs open, 1 failing"]);
-  const owned = structuredClone(fixture);
-  const item = owned.briefing.focus[3];
-  if (!item) throw new Error("Recorded due item missing");
-  item.owned = true;
-  const next = await mount(owned);
-  expect(text(next.container, ".place-group h3")).toEqual(["Before next sync", "Owned", "New"]);
-  expect(
-    next.container
-      .querySelector('[aria-label="Owned"] [data-item-id]')
-      ?.getAttribute("data-item-id"),
-  ).toBe(item.id);
-});
-
-it("caps focus at five, folds ambient items and leaves empty groups out", async () => {
-  const body = structuredClone(fixture);
-  const first = body.briefing.focus[0];
-  if (!first) throw new Error("Recorded focus missing");
-  body.briefing.focus.push(
-    { ...first, id: "sixth", title: "Sixth item" },
-    { ...first, id: "seventh", title: "Seventh item" },
-  );
-  first.attention = "ambient";
-  const { container } = await mount(body);
-  expect(container.querySelectorAll(".place-item")).toHaveLength(5);
-  expect(container.querySelector(`.place-item[data-item-id="${first.id}"]`)).toBeNull();
-  expect(container.querySelector(`details [data-selection-id="${first.id}"]`)).not.toBeNull();
-  const empty = await mount({
-    ...fixture,
-    briefing: { ...fixture.briefing, focus: [], rest: [], ready: [], more: 0 },
-  });
-  expect(empty.container.querySelector(".place-group, details")).toBeNull();
-});
-
-it("writes the headline from the acknowledged baseline and counts only newly arrived Interrupts", async () => {
-  const at = "2026-11-06T17:40:00Z";
-  const since = clockTime(at);
-  for (const ids of [[], ["conflict:entitlements:121"], ["a", "b"]]) {
-    const body = { ...fixture, seen: { cursor: 1, at, since: ids } };
+describe.each(NAMES)("on the %s morning", (name) => {
+  it("draws core's verdict with its mark, and since rows with a legend of drawn states only", async () => {
+    const body = morning(name);
+    const { verdict, since } = body.briefing;
+    if (!verdict || !since) throw new Error(`${name} carries no verdict or since rows`);
     const { container } = await mount(body);
-    expect(container.querySelector(".place-headline")?.textContent).toBe(
-      ids.length === 0
-        ? `Nothing new since ${since} · 1 interruption still needs you.`
-        : `${ids.length} new interruption${ids.length === 1 ? "" : "s"} since ${since}.`,
+    const head = container.querySelector(".today-verdict");
+    expect(head?.querySelector(".today-headline")?.textContent).toBe(verdict.text);
+    expect(head?.getAttribute("data-mark")).toBe(verdict.mark);
+    expect(head?.querySelectorAll(".kit-mark")).toHaveLength(1);
+    expect(head?.querySelector(".kit-mark")?.textContent).toBe(GLYPH[verdict.mark]);
+
+    const rows = [...container.querySelectorAll(".today-since-row")];
+    expect(rows.map((row) => row.getAttribute("data-workflow"))).toEqual(
+      since.rows.map(({ workflow }) => workflow),
     );
+    expect(texts(container, ".today-since .kit-slot-row-label")).toEqual(
+      since.rows.map(({ label }) => label),
+    );
+    expect(texts(container, ".today-since .kit-slot-row-count")).toEqual(
+      since.rows.map(({ countText }) => countText),
+    );
+    rows.forEach((row, index) => {
+      expect(
+        [...row.querySelectorAll(".kit-slot")].map((slot) => slot.getAttribute("aria-label")),
+      ).toEqual(since.rows[index]?.slots.map(({ text }) => text));
+    });
+    const drawn = new Set(since.rows.flatMap(({ slots }) => slots.map(({ state }) => state)));
+    expect(container.querySelectorAll(".today-since .kit-slot-legend")).toHaveLength(1);
     expect(
-      [...(container.querySelectorAll(".place-headline time") ?? [])].map((time) =>
-        time.getAttribute("datetime"),
+      [...container.querySelectorAll(".today-since .kit-slot-legend [data-state]")].map((entry) =>
+        entry.getAttribute("data-state"),
       ),
-    ).toEqual([at]);
-    expect(
-      container.querySelector(".place-headline")?.textContent?.split(/\s+/).length,
-    ).toBeLessThanOrEqual(12);
-  }
-  const first = await mount();
-  expect(first.container.querySelector(".place-headline")?.textContent).toBe(
-    "First look: 1 interruption needs you.",
-  );
+    ).toEqual(SLOT_STATES.filter((state) => drawn.has(state)));
+  });
+
+  it("dates the page by its sweep only and keeps the frame in briefing order", async () => {
+    const body = morning(name);
+    const { container } = await mount(body);
+    const date = container.querySelector(".place-header .today-date");
+    expect(date?.getAttribute("dateTime")).toBe(body.sweptAt);
+    expect(date?.textContent).toBe(dayLine(body.sweptAt));
+    expect(date?.textContent).toMatch(/^[A-Z][a-z]+day \d{1,2} [A-Z][a-z]{2}$/);
+    const frame = container.querySelector(".today .place-reading.today-frame");
+    expect(frame).not.toBeNull();
+    expect(frame?.firstElementChild?.className).toBe("today-head");
+    expect(frame?.querySelectorAll(".today-slot")).toHaveLength(0);
+  });
 });
 
-it("after the first look is acknowledged, names the Interrupts still open instead of claiming none", async () => {
-  const at = "2026-11-06T17:40:00Z";
-  const since = clockTime(at);
-  const acknowledged = { ...fixture, seen: { cursor: fixture.cursor, at, since: [] } };
-  const open = await mount(acknowledged);
-  const headline = open.container.querySelector(".place-headline")?.textContent ?? "";
-  expect(headline).not.toMatch(/No new interruptions/);
-  expect(headline).toBe(`Nothing new since ${since} · 1 interruption still needs you.`);
-  expect(headline.split(/\s+/).length).toBeLessThanOrEqual(12);
-
-  const two = structuredClone(acknowledged);
-  const other = two.briefing.focus.find(({ attention }) => attention !== "interrupt");
-  if (!other) throw new Error("Recorded non-interrupt item missing");
-  other.attention = "interrupt";
-  const several = await mount(two);
-  expect(several.container.querySelector(".place-headline")?.textContent).toBe(
-    `Nothing new since ${since} · 2 interruptions still need you.`,
+describe("the caveat band", () => {
+  it.each([
+    ["calm", []],
+    ["busy", []],
+    ["snapshot-1106", ["radar"]],
+    ["bad", ["github"]],
+  ] as const)(
+    "on %s shows exactly the areas that failed or were cut this sweep",
+    async (name, areas) => {
+      const body = morning(name);
+      const { container } = await mount(body);
+      const band = container.querySelector(".today-caveat");
+      if (areas.length === 0) {
+        expect(band).toBeNull();
+        return;
+      }
+      expect(band?.getAttribute("role")).toBe("note");
+      expect([...(band?.querySelectorAll("li") ?? [])].map((li) => li.dataset.area)).toEqual(areas);
+      expect(texts(container, ".today-caveat-actions button")).toEqual(["Evidence ›"]);
+    },
   );
 
-  const calm = structuredClone(acknowledged);
-  for (const item of [...calm.briefing.focus, ...calm.briefing.rest]) {
-    if (item.attention === "interrupt") item.attention = "surface";
-  }
-  const none = await mount(calm);
-  expect(none.container.querySelector(".place-headline")?.textContent).toBe(
-    `No new interruptions since ${since}.`,
-  );
-});
-
-it("writes one more affected source in the singular and the fold line's none in lower case", async () => {
-  const body = structuredClone(fixture);
-  const lifecycle = body.areas.find(({ area }) => area === "lifecycle");
-  if (!lifecycle) throw new Error("Recorded lifecycle source missing");
-  lifecycle.envelope = {
-    source: lifecycle.envelope.source,
-    state: "incomplete",
-    observedAt: fixture.sweptAt,
-    completeness: { kind: "cut", read: 6, total: 13, reason: "budget" },
-  };
-  const failing = body.readings
-    .find(({ anchor }) => anchor.kind === "releases")
-    ?.content?.tiles.find(({ label }) => label === "Failing");
-  if (!failing) throw new Error("Recorded Failing tile missing");
-  failing.value = "None";
-  const { container } = await mount(body);
-  expect(container.querySelector(".place-qualifier")?.textContent).toBe(
-    "Upstream radar read failed, 1 more source affected; items may be missing.",
-  );
-  expect(text(container, "summary")).toEqual(["12 more · 13 release PRs open, none failing"]);
-});
-
-it("qualifies a failed or incomplete feeding source without claiming the reading is complete", async () => {
-  const { container } = await mount();
-  expect(container.querySelector(".place-qualifier")?.textContent).toBe(
-    "Upstream radar read failed; items may be missing.",
-  );
-  const incomplete = structuredClone(fixture);
-  const radar = incomplete.areas.find(({ area }) => area === "radar");
-  if (!radar) throw new Error("Recorded radar source missing");
-  radar.envelope = {
-    source: radar.envelope.source,
-    state: "incomplete",
-    observedAt: fixture.sweptAt,
-    completeness: { kind: "cut", read: 6, total: 13, reason: "budget" },
-  };
-  const cut = await mount(incomplete);
-  expect(cut.container.querySelector(".place-qualifier")?.textContent).toBe(
-    "Upstream radar incomplete; items may be missing.",
-  );
-  radar.envelope = {
-    source: radar.envelope.source,
-    state: "fresh",
-    observedAt: fixture.sweptAt,
-    completeness: { kind: "complete" },
-  };
-  const fresh = await mount(incomplete);
-  expect(fresh.container.querySelector(".place-qualifier")).toBeNull();
-});
-
-it("keeps every former Inbox item readable in one click and selectable through inspect.request", async () => {
-  const { container, store, port, onNavigate } = await mount();
-  const details = container.querySelector("details");
-  const summary = details?.querySelector("summary");
-  if (!details || !summary) throw new Error("Missing folded queue");
-  expect(details.open).toBe(false);
-  const all = [...fixture.briefing.focus, ...fixture.briefing.rest];
-  const initial = visibleText(container);
-  await act(async () => summary.click());
-  expect(details.open).toBe(true);
-  for (const item of all) {
-    const button = container.querySelector<HTMLButtonElement>(`[data-selection-id="${item.id}"]`);
-    if (!button) throw new Error(`Missing former Inbox item ${item.id}`);
-    expect(button.closest("details")?.open ?? true).toBe(true);
-    expect(visibleText(container)).toContain(button.textContent);
-    if (!initial.includes(button.textContent ?? ""))
-      expect(button.closest("details")).toBe(details);
-    await act(async () => button.click());
-    expect(store.getState().selection?.id).toBe(item.id);
-    expect(port.postMessage).toHaveBeenLastCalledWith(
-      expect.objectContaining({ type: "inspect.request", payload: { id: item.id } }),
+  it("names the area, the sweep's time and what may be missing, and opens Evidence", async () => {
+    const body = morning("bad");
+    const { container, onOpenEvidence } = await mount(body);
+    expect(container.querySelector(".today-caveat li")?.textContent).toBe(
+      `GitHub issues and PRs read failed at ${clock(body.sweptAt)}; items from it may be missing.`,
     );
-  }
-  for (const ready of fixture.briefing.ready) {
-    const button = container.querySelector<HTMLButtonElement>(`[data-selection-id="${ready.id}"]`);
-    expect(button).not.toBeNull();
-    await act(async () => button?.click());
-    expect(store.getState().selection?.id).toBe(ready.id);
-  }
-  const scope = container.querySelector<HTMLButtonElement>('.place-scope[title="Open legal"]');
-  await act(async () => scope?.click());
-  expect(onNavigate).toHaveBeenLastCalledWith({ kind: "service", id: "legal" });
+    expect(container.querySelector(".today-caveat li time")?.getAttribute("dateTime")).toBe(
+      body.sweptAt,
+    );
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>(".today-caveat-actions button")?.click(),
+    );
+    expect(onOpenEvidence).toHaveBeenCalledOnce();
+  });
+
+  it("says a cut read was read only in part, and leaves an area that was only not read this sweep out", async () => {
+    const body = morning("busy");
+    const radar = body.areas.find(({ area }) => area === "radar");
+    const security = body.areas.find(({ area }) => area === "security");
+    if (!radar || !security) throw new Error("busy carries no radar or security area");
+    radar.envelope = {
+      source: "radar",
+      state: "incomplete",
+      observedAt: body.sweptAt,
+      completeness: { kind: "cut", read: 6, total: 13, reason: "budget" },
+    };
+    security.envelope = { source: "security", state: "unread" };
+    const { container } = await mount(body);
+    expect(texts(container, ".today-caveat li")).toEqual([
+      `Upstream radar was read only in part at ${clock(body.sweptAt)}; items from it may be missing.`,
+    ]);
+    radar.envelope = {
+      source: "radar",
+      state: "fresh",
+      observedAt: body.sweptAt,
+      completeness: { kind: "complete" },
+    };
+    const unreadOnly = await mount(body);
+    expect(unreadOnly.container.querySelector(".today-caveat")).toBeNull();
+  });
+
+  it.each(SweepReasonCodeSchema.options)(
+    "offers Open Settings only for a Readiness-fixable code: %s",
+    async (code) => {
+      const body = morning("bad");
+      const completed = SweepProgressSchema.parse({
+        sweep: "sweep-9",
+        first: false,
+        outcome: "committed",
+        startedAt: "2026-11-06T14:00:00Z",
+        usualMs: 120_000,
+        nextAttemptAt: null,
+        sources: [
+          {
+            source: "github",
+            state: "failed",
+            startedAt: "2026-11-06T14:00:10Z",
+            endedAt: "2026-11-06T14:00:20Z",
+            code,
+            reason: "GitHub could not be read.",
+          },
+        ],
+      });
+      const { container, onOpenSettings } = await mount(body, completed);
+      const actions = texts(container, ".today-caveat-actions button");
+      expect(actions).toEqual(
+        code === "signin" ? ["Evidence ›", "Open Settings ›"] : ["Evidence ›"],
+      );
+      if (code !== "signin") return;
+      await act(async () =>
+        container.querySelectorAll<HTMLButtonElement>(".today-caveat-actions button")[1]?.click(),
+      );
+      expect(onOpenSettings).toHaveBeenCalledOnce();
+    },
+  );
 });
+
+it("marks since pips held from a kept read with the oldest last good time, and opens Evidence", async () => {
+  const body = morning("bad");
+  const github = body.areas.find(({ area }) => area === "github")?.envelope;
+  if (github?.state !== "failed" || !github.observedAt) throw new Error("bad keeps no github read");
+  const { container, onOpenEvidence } = await mount(body);
+  const held = container.querySelector<HTMLButtonElement>(".today-since .today-held");
+  expect(held?.textContent).toBe(`⌀ from ${clock(github.observedAt)}`);
+  expect(held?.querySelector("time")?.getAttribute("dateTime")).toBe(github.observedAt);
+  expect(held?.title).toContain("GitHub issues and PRs · read failed");
+  await act(async () => held?.click());
+  expect(onOpenEvidence).toHaveBeenCalledOnce();
+
+  for (const name of ["calm", "busy", "snapshot-1106"] as const) {
+    const fresh = await mount(morning(name));
+    expect(fresh.container.querySelector(".today-held")).toBeNull();
+  }
+  const unread = morning("calm");
+  const runs = unread.areas.find(({ area }) => area === "runs");
+  if (!runs) throw new Error("calm carries no runs area");
+  runs.envelope = { source: "runs", state: "unread" };
+  const notRead = await mount(unread);
+  expect(notRead.container.querySelector(".today-held")?.textContent).toBe("⌀ not read");
+});
+
+it("labels the since window from core's basis, with 24 h only for the fallback", async () => {
+  const body = morning("snapshot-1106");
+  const since = body.briefing.since;
+  if (!since) throw new Error("1106 carries no since rows");
+  const chip = (container: Element) => container.querySelector(".today-since-basis time");
+  const cases = [
+    [{ ...since, basis: "fallback" as const }, "24 h", since.from],
+    [{ ...since, basis: "seen" as const }, `since ${clock(since.from)}`, since.from],
+    [{ ...since, basis: "history-short" as const }, `since ${clock(since.from)}`, since.from],
+    [
+      { ...since, basis: "stale" as const, asOf: body.sweptAt },
+      `as of ${clock(body.sweptAt)}`,
+      body.sweptAt,
+    ],
+  ] as const;
+  for (const [basis, label, time] of cases) {
+    const { container } = await mount({ ...body, briefing: { ...body.briefing, since: basis } });
+    expect(container.querySelector(".today-since")?.getAttribute("data-basis")).toBe(basis.basis);
+    expect(chip(container)?.textContent).toBe(label);
+    expect(chip(container)?.getAttribute("dateTime")).toBe(time);
+  }
+});
+
+it("draws no mark and no since rows when core sends neither, never a calm mark", async () => {
+  const body = morning("busy");
+  delete body.briefing.verdict;
+  delete body.briefing.since;
+  const { container } = await mount(body);
+  expect(container.querySelector(".today-verdict, .kit-mark, .today-since")).toBeNull();
+  expect(container.querySelector(".today-frame")).not.toBeNull();
+});
+
+it.each(NAMES)(
+  "draws no tile, fold, deadline group or capped item list on the %s morning",
+  async (name) => {
+    const body = morning(name);
+    const { container } = await mount(body);
+    const today = container.querySelector(".today");
+    expect(
+      today?.querySelector(
+        ".place-tiles, .place-tile, details, summary, .today-folded, .place-group, .place-item",
+      ),
+    ).toBeNull();
+    expect(today?.textContent).not.toMatch(
+      /Before next sync|\bOwned\b|\bNew\b|\d+ more\b|release PRs open|osdu-spi/,
+    );
+    for (const item of [...body.briefing.focus, ...body.briefing.rest])
+      expect(today?.querySelector(`[data-item-id="${item.id}"]`)).toBeNull();
+  },
+);

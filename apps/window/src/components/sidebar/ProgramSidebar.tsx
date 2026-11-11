@@ -30,7 +30,7 @@ import { READINESS_LIGHT_LABEL, readinessLight } from "../../settings/readiness.
 import { usePins } from "../../store/pins.js";
 import { PIPS, selectStrip } from "../../store/strip.js";
 import type { createWatchStore } from "../../store/watch.js";
-import { selectTodayItems } from "../../views/today/selectors.js";
+import { countInterrupts } from "../../views/today/selectors.js";
 import { AttentionDot } from "../AttentionDot.js";
 import { useSidebarAttention } from "./attention.js";
 import { type SidebarGroupId, useGroupCollapse } from "./collapse.js";
@@ -89,7 +89,7 @@ export function ProgramSidebar({
   const light = readinessLight(useStore(store, (state) => state.setup));
   const { tree, briefing } = body ?? {};
   const attention = useSidebarAttention(body);
-  const interrupts = briefing ? selectTodayItems(briefing).interrupts : 0;
+  const interrupts = briefing ? countInterrupts(briefing) : 0;
   const { isMobile, setOpenMobile } = useSidebar();
   const { collapsed, toggle } = useGroupCollapse();
   const ids = { places: useId(), pinned: useId() };

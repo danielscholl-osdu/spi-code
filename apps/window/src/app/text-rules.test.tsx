@@ -40,7 +40,7 @@ const machineTime = /\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}|\bUTC\b/;
 const placeholder = /not available yet|No settled threads yet|ships in M[3-9]/i;
 const headlines = '.place-headline, [data-pointer$="/headline"], .release-months td:nth-child(3)';
 const titles =
-  ".place-item-title, .place-item-sub, .place-item-next, .template-line-text, .template-line-sub, .env-repo-line-text, .env-repo-line small, .env-muted, .template-repo-title, .service-row-title, .service-section-count, .service-row-sub, .detail-title, [data-field], .inspector-related dd, .palette-label, .inbox-row-title, .inbox-sub, .today-folded li button[data-selection-id], .today-folded li p";
+  ".place-item-title, .place-item-sub, .place-item-next, .template-line-text, .template-line-sub, .env-repo-line-text, .env-repo-line small, .env-muted, .template-repo-title, .service-row-title, .service-section-count, .service-row-sub, .detail-title, [data-field], .inspector-related dd, .palette-label, .inbox-row-title, .inbox-sub";
 
 function violations(scope: ParentNode): string[] {
   const failures: string[] = [];
@@ -401,19 +401,6 @@ it("omits a Related entry whose text is only emoji, and Related when none is lef
   assertRules("Related with only emoji entries");
 });
 
-it("strips injected emoji from a folded Today item subline", async () => {
-  const body = structuredClone(snapshots[0]?.body);
-  const item = body?.briefing.rest[0];
-  if (!body || !item) throw new Error("Missing folded item");
-  item.sub = "🚨 Review the queued change";
-  await open(body);
-  expect(
-    container.querySelector(`.today-folded button[data-selection-id="${item.id}"] + p`)
-      ?.textContent,
-  ).toBe("Review the queued change");
-  assertRules("Today item subline with emoji");
-});
-
 it("strips injected emoji from the template queue row", async () => {
   const body = structuredClone(snapshots[0]?.body);
   const item =
@@ -457,7 +444,7 @@ it.each([
   ["empty", "<section><h3></h3><dl></dl></section>"],
   ["emoji", '<span class="template-line-text">🐛 Fix the issue</span>'],
   ["emoji", '<dd data-field="cause">📊 Code Coverage failed</dd>'],
-  ["emoji", '<details class="today-folded"><ul><li><p>🚨 Check the build</p></li></ul></details>'],
+  ["emoji", '<p class="place-item-sub">🚨 Check the build</p>'],
   ["action", "<button>Open in inspector · Investigate, then Dispatch cascade</button>"],
   ["time", "<p>swept 2026-11-06T14:02:00Z</p>"],
   ["time", "<p>at 2026-10-12 21:58 UTC</p>"],

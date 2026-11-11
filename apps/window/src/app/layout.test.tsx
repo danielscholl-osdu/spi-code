@@ -187,6 +187,30 @@ it.each(["overlay", "pinned"] as const)(
   },
 );
 
+it("lifts the 960 px content cap for Today only, while every place keeps it", async () => {
+  const view = await mount();
+  try {
+    const frame = element(view.container, "main .today .today-frame");
+    expect(getComputedStyle(frame).maxWidth).toBe("none");
+    for (let parent = frame.parentElement; parent; parent = parent.parentElement) {
+      if (parent.tagName === "MAIN") break;
+      expect(["none", ""]).toContain(getComputedStyle(parent).maxWidth);
+    }
+    for (const route of [
+      { kind: "environment" },
+      { kind: "engineering-system" },
+      { kind: "service", id: "indexer" },
+    ] satisfies Route[]) {
+      await act(async () => navigate(route));
+      expect(getComputedStyle(element(view.container, "main .place-reading")).maxWidth).toBe(
+        "960px",
+      );
+    }
+  } finally {
+    await view.cleanup();
+  }
+});
+
 it("keeps the shell error banner inset with the centre's content", async () => {
   const view = await mount();
   try {
