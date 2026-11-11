@@ -57,6 +57,19 @@ function directDirectoryApis(source: string, extension = ".tsx"): string[] {
           record((specifier.propertyName ?? specifier.name).text);
       }
     }
+    if (
+      ts.isExportDeclaration(node) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier) &&
+      fsModules.has(node.moduleSpecifier.text)
+    ) {
+      if (node.exportClause && ts.isNamedExports(node.exportClause)) {
+        for (const specifier of node.exportClause.elements)
+          record((specifier.propertyName ?? specifier.name).text);
+      } else {
+        found.add("*");
+      }
+    }
     // Check references too: assigning a method to an alias must not hide a later call.
     if (ts.isPropertyAccessExpression(node)) record(node.name.text);
     if (ts.isElementAccessExpression(node) && ts.isStringLiteralLikeNode(node.argumentExpression)) {
@@ -83,18 +96,72 @@ function directDirectoryApis(source: string, extension = ".tsx"): string[] {
   }
 }
 
+function directoryViolations(files: string[], readSource: (file: string) => string): string[] {
+  return files
+    .filter((file) => /\.[cm]?[jt]sx?$/.test(file) && file !== "test-utils/directory-paths.test.ts")
+    .flatMap((file) =>
+      directDirectoryApis(readSource(file), file.endsWith("x") ? ".tsx" : ".ts").map(
+        (api) => `${file}: ${api}`,
+      ),
+    );
+}
+
 it("keeps window directory enumeration in the portable directoryPaths helper", () => {
   const root = "apps/window/src";
-  const violations = directoryPaths(root)
-    .filter((file) => /\.tsx?$/.test(file) && file !== "test-utils/directory-paths.test.ts")
-    .flatMap((file) =>
-      directDirectoryApis(
-        readFileSync(`${root}/${file}`, "utf8"),
-        file.endsWith(".tsx") ? ".tsx" : ".ts",
-      ).map((api) => `${file}: ${api}`),
-    );
-  expect(violations).toEqual([]);
+  expect(
+    directoryViolations(directoryPaths(root), (file) => readFileSync(`${root}/${file}`, "utf8")),
+  ).toEqual([]);
 });
+
+it.each<[string, Record<string, string>, string[]]>([
+  [
+    "renamed re-export used for a recursive walk",
+    {
+      "walk.ts": 'export { readdirSync as list } from "node:fs";',
+      "scan.test.ts": 'import { list as scan } from "./walk.js"; scan(src, { recursive: true });',
+    },
+    ["walk.ts: readdirSync"],
+  ],
+  [
+    "export star imported for a recursive walk",
+    {
+      "walk.ts": 'export * from "node:fs";',
+      "scan.test.ts":
+        'import { readdirSync as walk } from "./walk.js"; walk(src, { recursive: true });',
+    },
+    ["walk.ts: *"],
+  ],
+  [
+    ".mjs walker imported by a window test",
+    {
+      "walk.mjs":
+        'import { readdirSync as list } from "node:fs"; export const walk = (src) => list(src, { recursive: true });',
+      "scan.test.ts": 'import { walk } from "./walk.mjs"; walk(src);',
+    },
+    ["walk.mjs: readdirSync"],
+  ],
+])("rejects %s", (_shape, sources, violations) => {
+  expect(directoryViolations(Object.keys(sources), (file) => sources[file] ?? "")).toEqual(
+    violations,
+  );
+});
+
+it.each([...fsModules])("rejects directory re-exports from %s", (module) => {
+  expect(directDirectoryApis(`export { readdirSync as list } from "${module}";`)).toEqual([
+    "readdirSync",
+  ]);
+  expect(directDirectoryApis(`export * from "${module}";`)).toEqual(["*"]);
+  expect(directDirectoryApis(`export * as fs from "${module}";`)).toEqual(["*"]);
+});
+
+it.each(["js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts"])(
+  "scans .%s directory walkers",
+  (extension) => {
+    expect(
+      directoryViolations([`walk.${extension}`], () => 'import { globSync as scan } from "fs";'),
+    ).toEqual([`walk.${extension}: globSync`]);
+  },
+);
 
 it.each([
   [
@@ -170,6 +237,7 @@ it.each([
   'import { directoryPaths } from "./directory-paths.test.js"; directoryPaths(src);',
   "import { directoryPaths as scan } from './directory-paths.test.js'; scan(src);",
   'import fs from "node:fs"; fs.readFileSync(path, "utf8");',
+  'export { readFileSync as read } from "node:fs";',
   `// fs.globSync("**/*"); readdirSync(src, { recursive: true });
    const example = 'fs.opendirSync(src)';`,
 ])("allows helper use, file reads and examples: %s", (source) => {
