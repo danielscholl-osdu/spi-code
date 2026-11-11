@@ -72,6 +72,7 @@ export function serviceSecurityItem(
           .filter(Boolean)
           .join(" · ");
   return {
+    origin: "system",
     id: `repo:${service}`,
     ids: repo ? ours.map((alert) => alertId({ repo, alert })) : [],
     rung: 2,
@@ -174,6 +175,7 @@ function ruleItem(
   return {
     rank: { ...alert, count, ...(severity ? { severity } : {}) },
     item: {
+      origin: "system",
       id: campaign?.id ?? alertId(first),
       ids: [...new Set([...ids, ...projected.flatMap((item) => item.ids)])],
       rung: source?.rung ?? 2,

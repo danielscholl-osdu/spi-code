@@ -34,6 +34,7 @@
       {
         "id": "stack:38181620856",
         "ids": ["stack:38181620856"],
+        "origin": "system",
         "rung": 0,
         "cls": "ENV",
         "scope": "Environment",
@@ -67,6 +68,7 @@
       {
         "id": "halt:entitlements",
         "ids": ["halt:entitlements"],
+        "origin": "upstream",
         "rung": 0,
         "cls": "HALT",
         "scope": "entitlements",
@@ -96,6 +98,7 @@
       {
         "id": "rollout",
         "ids": ["rollout"],
+        "origin": "system",
         "rung": 1,
         "cls": "ROLLOUT",
         "scope": "fleet",
@@ -135,6 +138,7 @@
       {
         "id": "gate1:legal",
         "ids": ["gate1:legal"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "legal",
@@ -160,6 +164,7 @@
       {
         "id": "approvals:Azure/osdu-spi-stack",
         "ids": ["approvals:Azure/osdu-spi-stack"],
+        "origin": "system",
         "rung": 1,
         "cls": "GATE",
         "scope": "osdu-spi-stack",
@@ -179,6 +184,7 @@
       {
         "id": "port:entitlements",
         "ids": ["port:entitlements", "port:legal"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "PORT",
         "scope": "2 forks",
@@ -337,7 +343,57 @@
       }
     ],
     "horizon": {
-      "headline": "One filter entry would stop 4 future halts."
+      "headline": "One filter entry would stop 4 future halts.",
+      "stages": {
+        "upstream": {
+          "count": 6,
+          "text": "6 commits behind upstream"
+        },
+        "nextSync": {
+          "at": "2026-10-22T00:00:00.000Z",
+          "count": 0,
+          "services": [],
+          "text": "0 commits at the next sync · 0 forks"
+        },
+        "held": {
+          "count": 0,
+          "prs": [],
+          "services": [],
+          "text": "0 commits in 0 open sync PRs · 0 forks"
+        },
+        "forks": {
+          "services": ["partition", "schema", "file"],
+          "text": "3 forks with nothing queued upstream"
+        },
+        "wontLand": [
+          {
+            "service": "entitlements",
+            "reason": "halted",
+            "count": 2,
+            "text": "entitlements won't land: sync halted"
+          },
+          {
+            "service": "legal",
+            "reason": "stopped",
+            "count": 4,
+            "text": "legal won't land: sync stopped"
+          }
+        ]
+      },
+      "owed": {
+        "count": 3,
+        "services": [
+          {
+            "service": "entitlements",
+            "count": 2
+          },
+          {
+            "service": "legal",
+            "count": 1
+          }
+        ],
+        "text": "3 upstream changes not ported · 2 forks"
+      }
     },
     "flow": {
       "mode": "planning",
@@ -1475,12 +1531,12 @@
         "kind": "upstream"
       },
       "content": {
-        "headline": "At 2026-10-22T00:00:00.000Z, 2 commits reach 1 fork.",
+        "headline": "At 2026-10-22T00:00:00.000Z, 0 commits reach 0 forks.",
         "tiles": [
           {
             "label": "Incoming",
             "value": "6",
-            "counts": "commits · 4 in 1 sync PR · 2 at 2026-10-22T00:00:00.000Z"
+            "counts": "commits behind upstream · 0 in 0 sync PRs · 0 at 2026-10-22T00:00:00.000Z · 6 won't land"
           },
           {
             "label": "Toolchain",
@@ -1524,6 +1580,7 @@
           {
             "id": "stack:38181620856",
             "ids": ["stack:38181620856"],
+            "origin": "system",
             "rung": 0,
             "cls": "ENV",
             "scope": "Environment",
@@ -1558,6 +1615,7 @@
           {
             "id": "approvals:Azure/osdu-spi-stack",
             "ids": ["approvals:Azure/osdu-spi-stack"],
+            "origin": "system",
             "rung": 1,
             "cls": "GATE",
             "scope": "osdu-spi-stack",
@@ -1603,6 +1661,7 @@
           {
             "id": "rollout",
             "ids": ["rollout"],
+            "origin": "system",
             "rung": 1,
             "cls": "ROLLOUT",
             "scope": "fleet",
@@ -1710,6 +1769,7 @@
               "alert:Azure/osdu-spi-schema:code:CodeQL:java/spring-disabled-csrf-protection:provider/schema-azure",
               "alert:Azure/osdu-spi-file:code:CodeQL:java/spring-disabled-csrf-protection:provider/file-azure"
             ],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "5 forks",
@@ -1748,6 +1808,7 @@
           {
             "id": "alert:Azure/osdu-spi-stack:dep:uv.lock:virtualenv",
             "ids": ["alert:Azure/osdu-spi-stack:dep:uv.lock:virtualenv"],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "osdu-spi-stack",
@@ -1770,6 +1831,7 @@
           {
             "id": "alert:Azure/osdu-spi:code:Scorecard:BranchProtectionID:",
             "ids": ["alert:Azure/osdu-spi:code:Scorecard:BranchProtectionID:"],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "osdu-spi",
@@ -1792,6 +1854,7 @@
           {
             "id": "alert:Azure/osdu-spi:code:Scorecard:CodeReviewID:",
             "ids": ["alert:Azure/osdu-spi:code:Scorecard:CodeReviewID:"],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "osdu-spi",
@@ -1818,6 +1881,7 @@
               "alert:Azure/osdu-spi-schema:code:CodeQL:java/log-injection:provider/schema-azure",
               "alert:Azure/osdu-spi-file:code:CodeQL:java/log-injection:provider/file-azure"
             ],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "3 forks",
@@ -1880,6 +1944,7 @@
               "alert:Azure/osdu-spi-partition:code:CodeQL:java/spring-disabled-csrf-protection:provider/partition-azure",
               "alert:Azure/osdu-spi-partition:code:CodeQL:java/log-injection:provider/partition-azure"
             ],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "partition",
@@ -1935,6 +2000,7 @@
           {
             "id": "halt:entitlements",
             "ids": ["halt:entitlements"],
+            "origin": "upstream",
             "rung": 0,
             "cls": "HALT",
             "scope": "entitlements",
@@ -1967,6 +2033,7 @@
             "ids": [
               "alert:Azure/osdu-spi-entitlements:code:CodeQL:java/spring-disabled-csrf-protection:provider/entitlements-v2-azure"
             ],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "entitlements",
@@ -2018,6 +2085,7 @@
           {
             "id": "gate1:legal",
             "ids": ["gate1:legal"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "legal",
@@ -2046,6 +2114,7 @@
             "ids": [
               "alert:Azure/osdu-spi-legal:code:CodeQL:java/spring-disabled-csrf-protection:provider/legal-azure"
             ],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "legal",
@@ -2101,6 +2170,7 @@
               "alert:Azure/osdu-spi-schema:code:CodeQL:java/log-injection:provider/schema-azure",
               "alert:Azure/osdu-spi-schema:dep:testing/schema-test-azure/pom.xml:org.springframework.retry:spring-retry"
             ],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "schema",
@@ -2163,6 +2233,7 @@
               "alert:Azure/osdu-spi-file:code:CodeQL:java/spring-disabled-csrf-protection:provider/file-azure",
               "alert:Azure/osdu-spi-file:code:CodeQL:java/log-injection:provider/file-azure"
             ],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "file",
@@ -5467,6 +5538,30 @@
         "template",
         "security"
       ]
+    },
+    {
+      "path": "/briefing/horizon/stages/upstream",
+      "areas": ["upstream"]
+    },
+    {
+      "path": "/briefing/horizon/stages/nextSync",
+      "areas": ["github", "runs", "upstream", "radar"]
+    },
+    {
+      "path": "/briefing/horizon/stages/held",
+      "areas": ["github", "runs", "upstream", "radar"]
+    },
+    {
+      "path": "/briefing/horizon/stages/forks",
+      "areas": ["upstream"]
+    },
+    {
+      "path": "/briefing/horizon/stages/wontLand",
+      "areas": ["github", "runs", "upstream", "radar"]
+    },
+    {
+      "path": "/briefing/horizon/owed",
+      "areas": ["github", "radar"]
     },
     {
       "path": "/briefing/flow/mode",

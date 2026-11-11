@@ -29,6 +29,7 @@ import {
   viewRun,
 } from "../model/stack.js";
 import { age, clip, firstAndMore, fitHeadline, plural, short, span, stamp, whose } from "../util.js";
+import { type Horizon, type Origin, itemOrigin, upstreamHorizon } from "./horizon.js";
 import { type Repositories, repositoriesOf } from "./repos.js";
 import { rolloutWords } from "./rollout.js";
 import { type UpstreamView, upstreamView } from "./upstream.js";
@@ -53,6 +54,7 @@ export interface BriefFact {
 }
 
 export interface FocusItem {
+  origin?: Origin | undefined;
   // A queue item id, so inspect resolves it; ids lists every item folded into this row.
   id: string;
   ids: string[];
@@ -151,7 +153,7 @@ export interface Briefing {
   rest: FocusItem[];
   ready: ReadyLine[];
   themes: Theme[];
-  horizon: { headline: string };
+  horizon: Horizon;
   flow: UpstreamView;
   environment: Environment;
   repositories: Repositories;
@@ -703,6 +705,7 @@ function focusOf(
       if (item !== ports[0]) continue;
       const owed = ports.reduce((n, p) => n + p.effects.length, 0);
       out.push({
+        origin: itemOrigin(item),
         id: item.id,
         ids: ports.map((p) => p.id),
         rung: item.rung,
@@ -722,6 +725,7 @@ function focusOf(
     if (item.kind === "rollout" && model.rollout) {
       const w = rolloutWords(model.rollout, now);
       out.push({
+        origin: itemOrigin(item),
         id: item.id,
         ids: [item.id],
         rung: item.rung,
@@ -744,6 +748,7 @@ function focusOf(
     }
     const { title, sub } = describe(model, item, stuck, nextAt, now);
     out.push({
+      origin: itemOrigin(item),
       id: item.id,
       ids: [item.id],
       rung: item.rung,
@@ -1466,7 +1471,7 @@ export function buildBriefing(model: Model, doctor: DoctorView, now: Date | unde
       rest: [],
       ready: [],
       themes: [],
-      horizon: { headline },
+      horizon: upstreamHorizon(model, headline),
       flow: upstreamView(model.upstream, now, context.voice),
       environment: {
         headline,
@@ -1498,7 +1503,7 @@ export function buildBriefing(model: Model, doctor: DoctorView, now: Date | unde
     rest: focus.slice(FOCUS_MAX),
     ready,
     themes,
-    horizon: { headline: horizonOf(themes, next) },
+    horizon: upstreamHorizon(model, horizonOf(themes, next)),
     flow: upstreamView(model.upstream, now, context.voice),
     environment: environmentOf(model, facts[0], now),
     repositories: repositoriesOf(model, now),

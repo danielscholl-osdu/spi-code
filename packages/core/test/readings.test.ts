@@ -84,12 +84,12 @@ function clean(reading: PlaceReading<ReadingItem>): string[] {
 describe("Upstream reading on the recorded 6 Nov sweep", () => {
   it("reads the next sync, commits incoming and forks reached", () => {
     const reading = upstream();
-    expect(reading.headline).toBe(`At ${SYNC}, 73 commits reach 9 forks. Two need you first.`);
+    expect(reading.headline).toBe(`At ${SYNC}, 65 commits reach 8 forks. Two need you first.`);
     expect(wordCount(reading.headline)).toBeLessThanOrEqual(12);
     expect(reading.tiles[0]).toEqual({
       label: "Incoming",
-      value: "107",
-      counts: `commits · 34 in 2 sync PRs · 73 at ${SYNC}`,
+      value: "110",
+      counts: `commits behind upstream · 37 in 3 sync PRs · 65 at ${SYNC} · 8 won't land`,
     });
   });
 
@@ -97,11 +97,11 @@ describe("Upstream reading on the recorded 6 Nov sweep", () => {
     const held = (keep: (f: Model["upstream"]["moving"][number]) => boolean, from = model) => {
       const m = structuredClone(from);
       m.upstream.held = [];
-      m.upstream.moving = m.upstream.moving.filter(keep);
+      m.upstream.forks = m.upstream.forks.filter(keep);
       return upstreamReading({ model: m, items, radar, fleet: context.fleet, campaigns: [] })
         .headline;
     };
-    expect(held(() => true)).toBe(`At ${SYNC}, 73 commits reach 9 forks; 34 in sync PRs.`);
+    expect(held(() => true)).toBe(`At ${SYNC}, 65 commits reach 8 forks; 37 in sync PRs.`);
     expect(held((f) => f.service === "indexer")).toBe(`At ${SYNC}, 2 commits reach 1 fork.`);
     expect(held((f) => f.service === "storage")).toBe("11 commits wait in 1 open sync PR.");
     expect(held((f) => f.service === "schema")).toBe(`At ${SYNC}, 16 commits reach 1 fork.`);
@@ -116,8 +116,8 @@ describe("Upstream reading on the recorded 6 Nov sweep", () => {
         .tiles[0],
     ).toEqual({
       label: "Incoming",
-      value: "107",
-      counts: `commits · 11 in 1 sync PR · 96 at ${SYNC}`,
+      value: "110",
+      counts: `commits behind upstream · 14 in 2 sync PRs · 88 at ${SYNC} · 8 won't land`,
     });
   });
 
@@ -473,7 +473,9 @@ describe("Upstream reading before anything was read", () => {
   it("names the forks not read beside a zero from the forks read", () => {
     const reading = read({ ...zero, upstream: { ...zero.upstream, unread: 3 } });
     expect(reading.headline).toBe("Nothing queued on the forks read; 3 not read yet.");
-    expect(reading.tiles[0]?.counts).toBe("commits · 0 of 13 forks · 3 not read yet");
+    expect(reading.tiles[0]?.counts).toBe(
+      `commits behind upstream · 0 in 0 sync PRs · 0 at ${SYNC} · 3 not read yet`,
+    );
   });
 
   it("reads an unread service as not read yet", () => {

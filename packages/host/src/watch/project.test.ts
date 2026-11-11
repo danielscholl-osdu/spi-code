@@ -366,8 +366,14 @@ describe("Watch projection", () => {
     const legacy = withoutAdditions(snapshot);
     // The rib's 17-word flow headline breaks the 12-word rule; its pilot sentence leads sub instead.
     const frozen = settingsReach(oracle("briefing")) as { flow: { headline: string; sub: string } };
+    const frozenFields = {
+      ...legacy.briefing,
+      horizon: { headline: legacy.briefing.horizon.headline },
+      focus: legacy.briefing.focus.map(({ origin: _origin, ...item }) => item),
+      rest: legacy.briefing.rest.map(({ origin: _origin, ...item }) => item),
+    };
     // Bound time units change typography, not the frozen rib's words.
-    expect(JSON.parse(JSON.stringify(legacy.briefing).replaceAll("\u00a0", " "))).toEqual({
+    expect(JSON.parse(JSON.stringify(frozenFields).replaceAll("\u00a0", " "))).toEqual({
       ...frozen,
       flow: {
         ...frozen.flow,
@@ -1616,6 +1622,14 @@ describe("area envelopes and provenance", () => {
     for (const input of [fixtureInput(), mixedFixtureInput()]) {
       const snapshot = projectWatch(input);
       const areas = (path: string) => snapshot.provenance.find((p) => p.path === path)?.areas;
+      expect(areas("/briefing/horizon/stages/upstream")).toEqual(["upstream"]);
+      expect(areas("/briefing/horizon/stages/held")).toEqual([
+        "github",
+        "runs",
+        "upstream",
+        "radar",
+      ]);
+      expect(areas("/briefing/horizon/owed")).toEqual(["github", "radar"]);
       const { briefing } = snapshot;
       const seen = [
         ...briefing.facts.map((f, i) => [`facts:${f.label}`, `/briefing/facts/${i}/figure`]),

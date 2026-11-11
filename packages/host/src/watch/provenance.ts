@@ -147,6 +147,14 @@ export function briefingProvenance(briefing: Briefing, stack: StackModel): Value
   each(briefing.ready, "/briefing/ready", MODEL);
   each(briefing.themes, "/briefing/themes", MODEL);
   add("/briefing/horizon/headline", MODEL);
+  if (briefing.horizon.stages) {
+    add("/briefing/horizon/stages/upstream", ["upstream"]);
+    add("/briefing/horizon/stages/nextSync", PHASE);
+    add("/briefing/horizon/stages/held", PHASE);
+    add("/briefing/horizon/stages/forks", ["upstream"]);
+    add("/briefing/horizon/stages/wontLand", PHASE);
+  }
+  if (briefing.horizon.owed) add("/briefing/horizon/owed", ["github", "radar"]);
 
   const { flow } = briefing;
   add("/briefing/flow/mode", PHASE);

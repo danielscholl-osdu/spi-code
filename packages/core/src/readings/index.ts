@@ -6,7 +6,7 @@ import type { Fleet } from "../config.js";
 import type { ReadRecord } from "../evidence/index.js";
 import type { Model } from "../model/index.js";
 import { type LineModel, prRed, type Station } from "../model/lines.js";
-import { syncSplit } from "../model/upstream.js";
+import { horizonStages } from "../brief/horizon.js";
 import { fitHeadline, plural, since, wordCount } from "../util.js";
 import { type SecurityReadingItem, serviceSecurityItem } from "./security.js";
 
@@ -257,12 +257,13 @@ export function upstreamReading<T extends ReadingItem>(
   const total = up.forks.length;
   const unread = up.unread;
   const none = total === 0 || unread >= total;
-  const commits = moving.reduce((sum, f) => sum + (f.behind ?? 0), 0);
-  const splits = moving.map(syncSplit);
-  const arriving = splits.filter((s) => s.next > 0);
-  const prs = splits.filter((s) => s.pr !== undefined).length;
-  const queued = arriving.reduce((sum, s) => sum + s.next, 0);
-  const inPrs = commits - queued;
+  const stages = horizonStages(model);
+  const commits = stages.upstream.count;
+  const arriving = stages.nextSync.services;
+  const prs = stages.held.prs.length;
+  const queued = stages.nextSync.count;
+  const inPrs = stages.held.count;
+  const wontLand = stages.wontLand.reduce((sum, f) => sum + f.count, 0);
   const held = up.held.map((f) => f.service);
   const radarItem = (service: string) => items.find((i) => i.id === `radar:${service}`);
   const before = held.map(radarItem).filter((i): i is T => !!i);
@@ -340,10 +341,7 @@ export function upstreamReading<T extends ReadingItem>(
         {
           label: "Incoming",
           value: String(commits),
-          counts:
-            prs === 0
-              ? `commits · ${moving.length} of ${plural(total, "fork")}${unreadNote}`
-              : `commits · ${inPrs} in ${plural(prs, "sync PR")} · ${queued} ${at ? `at ${at}` : "at the next sync"}${unreadNote}`,
+          counts: `commits behind upstream · ${inPrs} in ${plural(prs, "sync PR")} · ${queued} ${at ? `at ${at}` : "at the next sync"}${wontLand ? ` · ${wontLand} won't land` : ""}${unreadNote}`,
         },
         lead
           ? {
