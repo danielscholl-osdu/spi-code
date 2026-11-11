@@ -1074,11 +1074,19 @@ function rolloutTheme(model: Model, now: Date): Theme | undefined {
   const green = rows.filter((r) => r.verdict === "green").length;
   const approved = rows.filter((r) => r.ready).length;
   const set = model.queue.items.find((i) => i.kind === "template-set");
+  const total = template.rows.length;
+  const unread = total - template.read;
   return {
     id: "rollout",
     kind: "rollout",
     title: `Template ${tag ?? template.headLabel}`,
-    sub: `${plural(rows.length, "sync PR")}${green === rows.length ? " green" : ""}, ${approved > 0 ? `${approved} approved` : "review required"} · ${template.onRelease} of ${template.read} adopted`,
+    sub: [
+      `${plural(rows.length, "sync PR")}${green === rows.length ? " green" : ""}, ${approved > 0 ? `${approved} approved` : "review required"}`,
+      `${template.onRelease} of ${total} adopted`,
+      unread > 0 ? `${unread} not read yet` : undefined,
+    ]
+      .filter(Boolean)
+      .join(" · "),
     certain: rows.map((r) => ({
       fork: r.service,
       state: `PR #${r.pr?.number} ${r.verdict ?? ""}${r.ready ? " · approved" : ""}`.trim(),

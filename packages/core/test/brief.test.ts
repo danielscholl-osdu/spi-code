@@ -91,6 +91,27 @@ describe("the recorded sweep", () => {
     });
   });
 
+  test("the template sync-PR row counts adoption over every fork and names forks not read", () => {
+    const m = fixtureModel();
+    const tag = m.template.latestTag;
+    for (const row of m.template.rows) row.target = tag;
+    const rollout = (model: Model) =>
+      buildBriefing(model, CLEAR, FIXTURE_NOW, fixtureContext).themes.find(
+        (t) => t.kind === "rollout",
+      );
+    expect(rollout(m)?.sub).toBe("5 sync PRs, review required · 5 of 5 adopted");
+
+    for (const row of m.template.rows.slice(0, 2)) row.label = undefined;
+    m.template.read = 3;
+    m.template.onRelease = 3;
+    expect(rollout(m)?.sub).toBe("5 sync PRs, review required · 3 of 5 adopted · 2 not read yet");
+
+    for (const row of m.template.rows) row.label = undefined;
+    m.template.read = 0;
+    m.template.onRelease = 0;
+    expect(rollout(m)?.sub).toBe("5 sync PRs, review required · 0 of 5 adopted · 5 not read yet");
+  });
+
   test("focus puts incidents first and folds owed ports into one row", () => {
     expect(b.focus.map((f) => f.id)).toEqual([
       "stack:38181620856",
