@@ -4,6 +4,7 @@
 export { ambientOf, canWaitOf } from "./ambient.js";
 
 export { placesOf } from "./places.js";
+export { briefingVerdict, type VerdictInput } from "./verdict.js";
 
 export { type PlatformSource, platformReleased, releasesToday } from "./releases-today.js";
 

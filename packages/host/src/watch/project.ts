@@ -18,6 +18,7 @@ import {
   type AreaName,
   ambientOf,
   briefingDecisions,
+  briefingVerdict,
   buildBriefing,
   buildModel,
   type CoreContext,
@@ -338,6 +339,16 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     now,
   );
   const places = placesOf({ readings, items: [...briefing.focus, ...briefing.rest], areas });
+  const verdict = briefingVerdict({
+    items: [...briefing.focus, ...briefing.rest],
+    horizon: briefing.horizon,
+    stoppedForks: model.stoppedForks,
+    forks: model.lines.length,
+    deployable: model.stack.deployable,
+    version: model.stack.running?.version,
+    places,
+    areas,
+  });
   Object.assign(briefing, {
     places,
     ambient: ambientOf({ model, items: [...focus, ...rest], cards: horizon.cards, now }),
@@ -348,6 +359,7 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
       cards: horizon.cards,
       reads: input.envelopeReads ?? input.reads,
     }),
+    verdict,
   });
   return ViewSnapshotSchema.parse({
     cursor: input.cursor,
