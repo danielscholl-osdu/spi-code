@@ -801,7 +801,9 @@ describe("Watch projection", () => {
       verdict: _verdict,
       ...briefing
     } = snapshot.briefing;
-    const { cards: _cards, counts: _counts, ...horizon } = snapshot.briefing.horizon;
+    const { cards: _cards, counts: _counts, owed, ...restHorizon } = snapshot.briefing.horizon;
+    const { itemIds: _owedItems, ...owedFacts } = owed ?? {};
+    const horizon = { ...restHorizon, ...(owed ? { owed: owedFacts } : {}) };
     return {
       ...legacy,
       briefing: {

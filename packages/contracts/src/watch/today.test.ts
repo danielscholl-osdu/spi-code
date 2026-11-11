@@ -343,6 +343,13 @@ const valueAt = (pointer: string) => {
 const extra = (pointer: string) => plant(pointer, { ...valueAt(pointer), extra: true });
 
 describe("Today's contract", () => {
+  it("accepts the additive sync card kind and owed item membership", () => {
+    const sync = plant("/briefing/horizon/cards/0/kind", "sync");
+    expect(ViewSnapshotSchema.safeParse(sync).success).toBe(true);
+    const owed = { ...briefing.horizon.owed, itemIds: ["port:storage"] };
+    expect(ViewSnapshotSchema.safeParse(plant("/briefing/horizon/owed", owed)).success).toBe(true);
+  });
+
   it("accepts a full example of every new shape and keeps every field", () => {
     expect(ViewSnapshotSchema.safeParse(full).error?.issues).toBeUndefined();
     expect(ViewSnapshotSchema.parse(full)).toEqual(full);

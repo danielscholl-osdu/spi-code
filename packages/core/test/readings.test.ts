@@ -451,6 +451,20 @@ describe("Upstream reading with detected toolchain campaigns", () => {
     expect(reading.tiles[1]?.counts).toBe("move to os-core-common 8.5.0 · 1 more move");
   });
 
+  it("assigns each overlapping radar record once, independent of campaign input order", () => {
+    const campaigns = detectCampaigns(model);
+    const reading = upstream(campaigns);
+    const reversed = upstream([...campaigns].reverse());
+    const homes = (value: typeof reading) => value.items.map((i) => [i.id, i.ids]);
+    expect(homes(reading)).toEqual(homes(reversed));
+    const ids = reading.items.flatMap((item) => item.ids);
+    expect(ids.filter((id) => id === "radar:indexer")).toHaveLength(1);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(reading.items.find((i) => i.ids.includes("radar:indexer"))?.id).toBe(
+      "campaign:toolchain:os-core-common%208.5.0",
+    );
+  });
+
   it("states the recorded 6 Nov campaigns once each and keeps them out of per-fork text", () => {
     const recorded = detectCampaigns(model);
     expect(

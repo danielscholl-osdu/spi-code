@@ -5,7 +5,7 @@ import type { AttentionTier } from "../attention.js";
 import type { Model } from "../model/index.js";
 import type { QueueItem } from "../model/queue.js";
 import { names, plural } from "../util.js";
-import { type HorizonStages, horizonStages, itemOrigin, type Origin } from "./horizon.js";
+import { type HorizonStages, horizonStages, itemOrigin, type Origin, upstreamHorizon } from "./horizon.js";
 import type { Theme, ThemeKind } from "./index.js";
 
 export type HorizonStage = "upstream" | "queued" | "held" | "wont-land" | "landed" | "unknown";
@@ -26,7 +26,7 @@ export interface HorizonCardService {
 
 export interface HorizonCard {
   id: string;
-  kind: ThemeKind;
+  kind: ThemeKind | "sync";
   token: string;
   services: HorizonCardService[];
   needsYou: boolean;
@@ -115,8 +115,8 @@ function stageOf(stages: HorizonStages, model: Model, service: string): HorizonC
   return { service, stage: "unknown" };
 }
 
-function verbOf(kind: ThemeKind, token: string): string {
-  return kind === "halt" ? "Pre-classify" : token.startsWith("Java ") ? "Move pin" : "Absorb";
+function verbOf(kind: HorizonCard["kind"], token: string): string {
+  return kind === "sync" ? "Review" : kind === "halt" ? "Pre-classify" : token.startsWith("Java ") ? "Move pin" : "Absorb";
 }
 
 const STAGE_WORDS: Readonly<Record<HorizonStage, string>> = Object.freeze({
@@ -129,7 +129,7 @@ const STAGE_WORDS: Readonly<Record<HorizonStage, string>> = Object.freeze({
 });
 
 function cardText(
-  card: { kind: ThemeKind; token: string; map?: string | undefined },
+  card: { kind: HorizonCard["kind"]; token: string; map?: string | undefined },
   services: readonly HorizonCardService[],
   needsYou: boolean,
   missing: readonly string[],
@@ -142,7 +142,9 @@ function cardText(
   const unread = missing.length > 0 ? ` Not fully read on ${names(missing)}.` : "";
   if (!needsYou) return `${where}${unread}`;
   const act =
-    card.kind === "halt"
+    card.kind === "sync"
+      ? `Review${services[0]?.pr ? ` PR #${services[0].pr.number}` : " the sync PR"}.`
+      : card.kind === "halt"
       ? `Add it to ${card.map ?? "the filter"} first.`
       : card.token.startsWith("Java ")
         ? "Move the pin."
@@ -152,10 +154,11 @@ function cardText(
   return `${where} ${act}${unread}`;
 }
 
-/** Upstream changes as horizon cards, one per core theme, from items whose tier the host has set. */
+/** Upstream change cards and unjoined PRs, from items whose tier the host has set. */
 export function horizonCards(input: HorizonCardsInput): {
   cards: HorizonCard[];
   counts: HorizonCounts;
+  owed: ReturnType<typeof upstreamHorizon>["owed"] & { itemIds: string[] };
 } {
   const { model, items, themes } = input;
   const stages = horizonStages(model);
@@ -210,18 +213,38 @@ export function horizonCards(input: HorizonCardsInput): {
   }
   // A sync PR proven to hold a change joins one card, preferably the one with its fork's own item.
   const scopeOf = new Map(upstream.map((q) => [q.id, q.scope]));
-  for (const held of stages.held.prs) {
-    const id = held.pr.inspect;
-    if (!id || !tierOf.has(id) || placed.has(id)) continue;
+  for (const fork of model.upstream.forks) {
+    if (!fork.syncPr || !fork.behind || fork.syncPr.holds !== fork.behind) continue;
+    const gate = model.queue.items.find((q) =>
+      q.kind === "gate1" && q.scope === fork.service && q.url === fork.syncPr?.url);
+    if (!gate || !tierOf.has(gate.id) || placed.has(gate.id)) continue;
     const holding = built.filter(({ card }) =>
-      card.services.some((s) => s.service === held.service && s.stage === "held" && s.pr?.inspect === id),
-    );
+      card.services.some((s) => s.service === fork.service && (s.stage === "held" || s.stage === "wont-land")));
     const home =
-      holding.find(({ card }) => card.itemIds.some((m) => scopeOf.get(m) === held.service)) ??
+      holding.find(({ card }) => card.itemIds.some((m) => scopeOf.get(m) === fork.service)) ??
       holding[0];
     if (!home) continue;
-    home.card.itemIds.push(id);
-    placed.add(id);
+    home.card.itemIds.push(gate.id);
+    const service = home.card.services.find((s) => s.service === fork.service);
+    if (service) service.pr = {
+      number: fork.syncPr.number, url: fork.syncPr.url, inspect: gate.id,
+    };
+    placed.add(gate.id);
+  }
+  for (const q of model.queue.items) {
+    const tier = tierOf.get(q.id);
+    if (q.kind !== "gate1" || placed.has(q.id) || (tier !== "surface" && tier !== "interrupt")) continue;
+    const pr = prOf(q.url, q.id);
+    built.push({
+      card: {
+        id: `sync:${q.id}`,
+        kind: "sync",
+        token: "Sync upstream",
+        services: [{ service: q.scope, stage: "unknown", ...(pr ? { pr } : {}) }],
+        itemIds: [q.id],
+      },
+    });
+    placed.add(q.id);
   }
   const unread = new Set([
     ...(input.unread ?? []),
@@ -266,6 +289,11 @@ export function horizonCards(input: HorizonCardsInput): {
   return {
     cards: ordered,
     counts: { needYouCards: needYou, toWatchCards: toWatch, surfaceItems, text },
+    owed: {
+      ...upstreamHorizon(model).owed,
+      itemIds: items.filter((item) => model.queue.items.some((q) =>
+        q.kind === "port" && (q.id === item.id || item.ids.includes(q.id)))).map((item) => item.id),
+    },
   };
 }
 

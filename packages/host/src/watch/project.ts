@@ -361,12 +361,17 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
   });
   Object.assign(briefing, {
     places,
-    ambient: ambientOf({ model, items: [...focus, ...rest], cards: horizon.cards, now }),
+    ambient: ambientOf({
+      model,
+      items: [...focus, ...rest],
+      cards: [...horizon.cards, horizon.owed],
+      now,
+    }),
     canWait: canWaitOf({
       model,
       items: [...focus, ...rest],
       places,
-      cards: horizon.cards,
+      cards: [...horizon.cards, horizon.owed],
       reads: input.envelopeReads ?? input.reads,
     }),
     verdict,

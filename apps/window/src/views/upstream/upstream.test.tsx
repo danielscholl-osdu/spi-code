@@ -128,7 +128,7 @@ it("lists Upstream first among the places and opens it from the sidebar", async 
 
 it("renders the Nov 6 upstream reading: headline, qualifier, tiles and groups", () => {
   expect(place().querySelector(".place-headline")?.textContent).toBe(
-    "At 18:00, 65 commits reach 8 forks. 11 need you first.",
+    "At 18:00, 65 commits reach 8 forks. 13 need you first.",
   );
   expect(place().querySelector(".place-qualifier")?.textContent).toBe(
     "GitLab truncated the upstream diffs for 6 services and the reads failed for 3 services, so a toolchain move could be missing.",
@@ -141,9 +141,14 @@ it("renders the Nov 6 upstream reading: headline, qualifier, tiles and groups", 
     "commits · indexer · then legal 17, schema 16",
   ]);
   expect(texts(place(), ".place-group > h3")).toEqual(["Before 18:00", "Toolchain"]);
-  expect(itemIds("Before 18:00")).toEqual(["radar:partition", "radar:legal"]);
+  expect(itemIds("Before 18:00")).toEqual([
+    "radar:partition",
+    "radar:legal",
+    "gate1:indexer",
+    "gate1:indexer-queue",
+  ]);
   expect(place().querySelector(".place-folded")?.textContent).toBe(
-    "indexer-queue takes 3 commits with no toolchain move.",
+    "1 more item: 11 forks detected: os-core-common 10.0.0 on 3 forks; possible on 8 forks. indexer-queue takes 3 commits with no toolchain move.",
   );
 });
 
@@ -157,24 +162,27 @@ it("states the next sync in the strip's local time, and leaves the due to the gr
   expect(texts(before ?? place(), ".place-item-sub")).toEqual([
     "8 commits queued · syncs at 18:00",
     "17 commits queued · syncs at 18:00",
+    "25 commits held · 1d 13h",
+    "3 commits held · 1d 13h",
   ]);
   expect(before?.querySelectorAll(".place-item-meta")).toHaveLength(0);
   expect(texts(group("Toolchain") ?? place(), ".place-item-meta time")).toEqual([
-    "Before next sync",
     "Before next sync",
   ]);
   expect(place().textContent).not.toMatch(/00:00|T\d{2}:\d{2}/);
 });
 
-it("shows the detected campaigns and reads their forks in Detail", async () => {
+it("shows the leading campaign, folds the next, and reads their forks in Detail", async () => {
   const body = fixture();
   expect(itemIds("Toolchain")).toEqual(
-    ["os-core-common%208.5.0", "os-core-common%2010.0.0"].map((f) => `campaign:toolchain:${f}`),
+    ["os-core-common%208.5.0"].map((f) => `campaign:toolchain:${f}`),
   );
   expect(texts(group("Toolchain") ?? place(), ".place-item-title")).toEqual([
     "Detected: os-core-common 8.5.0 on 10 forks",
-    "Detected: os-core-common 10.0.0 on 3 forks; possible on 8 forks",
   ]);
+  expect(place().querySelector(".place-folded")?.textContent).toContain("os-core-common 10.0.0");
+  const recordIds = (upstreamReading(body).content?.items ?? []).flatMap((item) => item.ids);
+  expect(new Set(recordIds).size).toBe(recordIds.length);
   const id = "campaign:toolchain:os-core-common%208.5.0";
   await click(itemButton(id));
   expect(selectionStore.getState().selected).toBe(id);
@@ -268,7 +276,7 @@ it("drops a resolved item from the Upstream place and its selection ids", async 
   expect(routeSelectionIds(body, { kind: "upstream" })).toContain("radar:partition");
   expect(routeSelectionIds(resolved, { kind: "upstream" })).not.toContain("radar:partition");
   await act(async () => load(resolved));
-  expect(itemIds("Before 18:00")).toEqual(["radar:legal"]);
+  expect(itemIds("Before 18:00")).toEqual(["radar:legal", "gate1:indexer", "gate1:indexer-queue"]);
 });
 
 type Located = { field: string; expected: string; locate: () => Promise<string | undefined> };

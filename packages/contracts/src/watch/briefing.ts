@@ -216,7 +216,7 @@ export const HorizonStageSchema = z.enum([
 ]);
 export const HorizonCardSchema = z.strictObject({
   id: IdentifierSchema,
-  kind: ThemeKindSchema,
+  kind: ThemeKindSchema.or(z.literal("sync")),
   token: IdentifierSchema,
   services: z.array(
     z.strictObject({
@@ -273,6 +273,7 @@ export const HorizonSchema = z.strictObject({
     .optional(),
   owed: z
     .strictObject({
+      itemIds: z.array(IdentifierSchema).optional(),
       count: z.int().nonnegative(),
       services: z.array(forkCount),
       text: z.string(),

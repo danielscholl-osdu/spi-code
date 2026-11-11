@@ -72,21 +72,6 @@ function tiered(input: WatchInput) {
   }));
 }
 
-// Upstream Surface items no horizon card holds yet (spicode-f0s.42): a sync PR no held change
-// joins, and ports. Each entry leaves as that bead gives it a home.
-const NO_CARD_YET: Readonly<Record<string, readonly string[]>> = {
-  "6 Nov": ["gate1:indexer", "gate1:indexer-queue", "port:entitlements"],
-  "6 Nov, fresh": ["gate1:indexer", "gate1:indexer-queue", "port:entitlements"],
-  "59d6895": ["gate1:legal", "port:entitlements"],
-  "59d6895, fresh": ["gate1:legal", "port:entitlements"],
-  "mixed 59d6895": ["gate1:legal", "port:entitlements"],
-  "mixed 59d6895, fresh": ["gate1:legal", "port:entitlements"],
-  "6 Nov unread": ["gate1:indexer", "port:entitlements"],
-  "6 Nov unread, fresh": ["gate1:indexer", "port:entitlements"],
-  "6 Nov unverified": ["gate1:indexer", "gate1:indexer-queue", "port:entitlements"],
-  "6 Nov unverified, fresh": ["gate1:indexer", "gate1:indexer-queue", "port:entitlements"],
-};
-
 describe("horizon cards on snapshot-busy", () => {
   const view = projectWatch(busyInput());
 
@@ -199,7 +184,7 @@ describe("horizon cards on snapshot-busy", () => {
     expect(stages?.held.count).toBe(0);
     expect(view.briefing.horizon.counts?.surfaceItems).toBe(7);
     expect(upstreamReading(view).headline).toMatch(
-      /^Nothing lands at the next sync; \d+ commits won't land\. Seven need you first\.$/,
+      /^Nothing lands; \d+ commits won't land\. Seven need you first\.$/,
     );
   });
 });
@@ -228,6 +213,9 @@ describe("ruling R1 across Today", () => {
             if (tiersById.get(id) !== "interrupt") home(id, c.id);
           }
         }
+        for (const id of view.briefing.horizon.owed?.itemIds ?? []) {
+          if (tiersById.get(id) !== "interrupt") home(id, "owed");
+        }
         for (const g of view.briefing.decisions?.groups ?? []) {
           for (const id of g.itemIds) home(id, g.id);
         }
@@ -247,7 +235,10 @@ describe("ruling R1 across Today", () => {
         }
         // Place figures can share membership; their union is the Background home.
         const counted = new Set(view.briefing.places?.flatMap((place) => place.itemIds));
-        const onCards = new Set(cardsOf(view).flatMap((card) => card.itemIds));
+        const onCards = new Set([
+          ...cardsOf(view).flatMap((card) => card.itemIds),
+          ...(view.briefing.horizon.owed?.itemIds ?? []),
+        ]);
         for (const item of expected) {
           if (item.attention === "background" && counted.has(item.id) && !onCards.has(item.id)) {
             home(item.id, "places");
@@ -261,14 +252,8 @@ describe("ruling R1 across Today", () => {
           }
         }
         const surface = expected.filter((i) => i.attention === "surface");
-        const allowed = NO_CARD_YET[name] ?? [];
-        const homeless = expected.filter((i) => !homes.has(i.id));
-        expect(homeless.map((i) => i.id).sort()).toEqual([...allowed].sort());
-        for (const item of homeless) {
-          expect(item.origin, item.id).toBe("upstream");
-          expect(/^(gate1|port):/.test(item.id), item.id).toBe(true);
-        }
-        for (const item of expected.filter((i) => !allowed.includes(i.id))) {
+        expect(expected.filter((i) => !homes.has(i.id))).toEqual([]);
+        for (const item of expected) {
           expect(homes.get(item.id), item.id).toHaveLength(1);
           if (item.attention === "surface") {
             const where = homes.get(item.id)?.[0] ?? "";
@@ -367,7 +352,9 @@ describe("one grouping for Today's horizon and the Upstream place", () => {
       const horizon = cardsOf(view)
         .flatMap((c) => c.itemIds)
         .sort();
-      const place = [...new Set(upstreamReading(view).items.flatMap((i) => i.ids))].sort();
+      const place = upstreamReading(view)
+        .items.flatMap((i) => i.ids)
+        .sort();
       expect(place).toEqual(horizon);
     });
 
@@ -473,4 +460,135 @@ describe("the horizon headline agrees with the stages", () => {
     const view = projectWatch(input);
     expect(view.briefing.horizon.headline).toBe("Nothing queued upstream for the next sync.");
   });
+});
+
+describe("R3 homes for upstream work", () => {
+  it("gives each unjoined Surface sync PR an unknown Review card, never a guessed change", () => {
+    const view = projectWatch(recordedInput());
+    for (const service of ["indexer", "indexer-queue"]) {
+      const id = `gate1:${service}`;
+      const homes = cardsOf(view).filter((c) => c.itemIds.includes(id));
+      expect(homes).toHaveLength(1);
+      expect(homes[0]).toMatchObject({
+        id: `sync:${id}`,
+        kind: "sync",
+        token: "Sync upstream",
+        services: [{ service, stage: "unknown", pr: { inspect: id } }],
+        itemIds: [id],
+        needsYou: true,
+        verb: "Review",
+      });
+      expect(homes[0]?.services[0]?.pr?.number).toBeGreaterThan(0);
+      expect(homes[0]?.text).toContain("Review");
+    }
+    expect(card(view, "os-core-common 8.5.0").itemIds).not.toContain("gate1:indexer");
+  });
+
+  it("joins legal's proven PR to its halt card and carries the Interrupt mark", () => {
+    const input = badInput();
+    const pr = input.facts.github.data?.repos["Azure/osdu-spi-legal"]?.prs.find(
+      (p) => p.number === 701,
+    );
+    const target = input.facts.upstream.data?.legal?.commits.at(-1)?.sha;
+    if (!pr || !target) throw new Error("No legal sync target");
+    pr.title = `Sync upstream ${target}`;
+    const view = projectWatch(input);
+    const homes = cardsOf(view).filter((c) => c.itemIds.includes("gate1:legal"));
+    expect(homes).toHaveLength(1);
+    expect(homes[0]).toMatchObject({
+      kind: "halt",
+      token: "schemathesis-tests",
+      needsYou: true,
+      mark: "stopped",
+      services: [{ service: "legal", stage: "wont-land", pr: { inspect: "gate1:legal" } }],
+    });
+    expect(itemsOf(view).find((i) => i.id === "gate1:legal")?.attention).toBe("interrupt");
+    expect(upstreamReading(view).items.flatMap((i) => i.ids)).toContain("gate1:legal");
+  });
+
+  it.each(["partial", "unread", "different PR"] as const)(
+    "does not join legal's PR when its held change is %s",
+    (proof) => {
+      const input = badInput();
+      const now = input.context.clock.now();
+      const model = buildModel(input.facts, now, {}, input.context);
+      const fork = model.upstream.forks.find((f) => f.service === "legal");
+      if (!fork?.syncPr || !fork.behind) throw new Error("No legal sync PR");
+      fork.syncPr.holds = fork.behind;
+      if (proof === "partial") fork.syncPr.holds = fork.behind - 1;
+      if (proof === "unread") delete fork.syncPr.holds;
+      if (proof === "different PR") fork.syncPr.url += "?different";
+      const briefing = buildBriefing(model, input.doctor, now, input.context);
+      const items = tiered(input);
+      const { cards } = horizonCards({ model, items, themes: briefing.themes });
+      expect(cards.find((c) => c.kind === "halt")?.itemIds).not.toContain("gate1:legal");
+      expect(cards.filter((c) => c.itemIds.includes("gate1:legal"))).toMatchObject([
+        { kind: "sync", mark: "stopped", services: [{ stage: "unknown" }] },
+      ]);
+    },
+  );
+
+  it("does not attach a PR to a change named only in a possible upstream MR", () => {
+    const input = badInput();
+    const model = buildModel(input.facts, input.context.clock.now(), {}, input.context);
+    const fork = model.upstream.forks.find((f) => f.service === "legal");
+    if (!fork?.syncPr || !fork.behind) throw new Error("No legal sync PR");
+    fork.syncPr.holds = fork.behind;
+    model.queue.items = model.queue.items.filter((q) => q.id === "gate1:legal");
+    const { cards } = horizonCards({
+      model,
+      items: tiered(input).filter((i) => i.id === "gate1:legal"),
+      themes: [
+        {
+          id: "toolchain:future",
+          kind: "toolchain",
+          title: "Future toolchain",
+          certain: [],
+          possible: [{ fork: "legal", state: "open" }],
+          sub: "An open upstream MR may change legal.",
+          exposed: [],
+          tone: "neutral",
+          next: "",
+        },
+      ],
+    });
+    expect(cards.find((c) => c.id === "toolchain:future")?.itemIds).toEqual([]);
+    expect(cards.filter((c) => c.itemIds.includes("gate1:legal"))).toMatchObject([
+      { kind: "sync", services: [{ stage: "unknown" }] },
+    ]);
+  });
+
+  for (const [name, make] of MORNINGS) {
+    it(`gives ports only the owed home and counts every card once on ${name}`, () => {
+      const input = make();
+      const view = projectWatch(input);
+      const expected = tiered(input);
+      const ports = expected.filter((item) => item.ids.some((id) => id.startsWith("port:")));
+      const owed = view.briefing.horizon.owed;
+      expect(owed?.itemIds).toEqual(ports.map((item) => item.id));
+      const otherHomes = [
+        ...cardsOf(view).flatMap((c) => c.itemIds),
+        ...(view.briefing.ambient?.inProgress.lines.flatMap((line) => line.itemIds) ?? []),
+        ...(view.briefing.ambient?.failing.lines.flatMap((line) => line.itemIds) ?? []),
+        ...(view.briefing.canWait?.items.flatMap((entry) => entry.itemIds) ?? []),
+      ];
+      for (const item of ports) expect(otherHomes).not.toContain(item.id);
+      expect(owed?.count).toBe(owed?.services.reduce((sum, f) => sum + f.count, 0));
+      const upstreamSurface = expected.filter(
+        (i) => i.origin === "upstream" && i.attention === "surface",
+      );
+      const onCards = new Set(cardsOf(view).flatMap((c) => c.itemIds));
+      const changes =
+        (view.briefing.horizon.counts?.needYouCards ?? 0) +
+        upstreamSurface.filter((i) => !onCards.has(i.id)).length;
+      if (
+        !expected.some((i) => i.origin === "upstream" && i.attention === "interrupt") &&
+        changes > 0
+      ) {
+        expect(view.briefing.verdict?.text).toContain(`${changes} upstream change`);
+      }
+      const ids = upstreamReading(view).items.flatMap((item) => item.ids);
+      expect(new Set(ids).size).toBe(ids.length);
+    });
+  }
 });

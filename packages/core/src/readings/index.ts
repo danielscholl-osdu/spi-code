@@ -286,6 +286,7 @@ export function upstreamReading<T extends ReadingItem>(
 
   // A fleet fact shows once, on its campaign; a move only one fork carries stays that fork's item.
   const covered = new Set<string>();
+  const claimed = new Set(before.flatMap((item) => item.ids));
   const detected: T[] = [];
   const certainCount = (campaign: ReadingCampaign) =>
     campaign.forks.length - (campaign.possible?.length ?? 0);
@@ -295,14 +296,17 @@ export function upstreamReading<T extends ReadingItem>(
       (a, b) =>
         certainCount(b) - certainCount(a) ||
         b.forks.length - a.forks.length ||
-        a.fact.localeCompare(b.fact),
+        a.fact.localeCompare(b.fact) || a.id.localeCompare(b.id),
     );
   for (const campaign of toolchains) {
     const forks = campaign.forks.filter((s) => !held.includes(s));
     const members = forks.map(radarItem).filter((i): i is T => !!i);
     if (members.length === 0) continue;
     for (const s of forks) covered.add(s);
-    detected.push(campaignItem(campaign, members));
+    const row = campaignItem(campaign, members);
+    const ids = row.ids.filter((id) => !claimed.has(id));
+    for (const id of ids) claimed.add(id);
+    detected.push({ ...row, ids });
   }
   const move = up.moves.find((m) => !/SNAPSHOT/i.test(m.value));
   const moveForks = move ? move.forks.filter((s) => !held.includes(s) && !covered.has(s)) : [];
@@ -315,15 +319,18 @@ export function upstreamReading<T extends ReadingItem>(
       !covered.has(i.id.slice("radar:".length)),
   );
   const onCards = new Set(cards?.flatMap((c) => c.itemIds) ?? []);
-  const joined = stages.held.prs.flatMap(({ service, pr }) =>
-    pr.inspect && onCards.has(pr.inspect) ? [{ fork: `radar:${service}`, id: pr.inspect }] : [],
-  );
   const shown = new Set([...before, ...detected, ...toolchain, ...others].flatMap((i) => i.ids));
+  const joined = model.queue.items.filter((q) => q.kind === "gate1" && onCards.has(q.id)).map((q) => ({
+    id: q.id,
+    fork: cards?.find((c) => c.itemIds.includes(q.id))?.itemIds.find((id) =>
+      (id.startsWith("radar:") || id.startsWith("halt:")) && model.queue.items.some((member) =>
+        member.id === id && member.scope === q.scope)),
+  }));
   const alone = joined
-    .filter((j) => !shown.has(j.fork))
+    .filter((j) => !j.fork || !shown.has(j.fork))
     .flatMap((j) => items.filter((i) => i.id === j.id));
   const withPr = (item: T): T => {
-    const prs = joined.filter((j) => item.ids.includes(j.fork) && !item.ids.includes(j.id));
+    const prs = joined.filter((j) => j.fork && item.ids.includes(j.fork) && !item.ids.includes(j.id));
     return prs.length > 0 ? { ...item, ids: [...item.ids, ...prs.map((j) => j.id)] } : item;
   };
   const still = up.forks.filter(
@@ -347,7 +354,10 @@ export function upstreamReading<T extends ReadingItem>(
         : `Nothing queued upstream for the next sync.${first}`
       : prs === 0
         ? queued === 0 && wontLand > 0
-          ? `Nothing lands at the next sync; ${plural(wontLand, "commit")} won't land.${first}`
+          ? fitHeadline([
+              `Nothing lands at the next sync; ${plural(wontLand, "commit")} won't land.${first}`,
+              `Nothing lands; ${plural(wontLand, "commit")} won't land.${first}`,
+            ])
           : `${reach}.${first}`
         : queued === 0
           ? `${wait}.${first}`
