@@ -214,6 +214,15 @@ describe.each(snapshots)("window text rules on $name", ({ body }) => {
         "station",
         ...((body.services ?? []).some((service) => service.runs.length > 0) ? ["run"] : []),
         ...(body.briefing.canWait?.chips.length ? ["can-wait"] : []),
+        ...(body.releases.today?.versions.some(({ state }) => state === "released")
+          ? ["release-version"]
+          : []),
+        ...(body.releases.today?.versions.some(
+          (version) => version.state === "released" && version.pr,
+        )
+          ? ["release-pr"]
+          : []),
+        ...(body.releases.forming?.notable.length ? ["release-notable"] : []),
       ].sort(),
     );
   });

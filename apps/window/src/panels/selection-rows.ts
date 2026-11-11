@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { CanWait, RepoLine, ViewSnapshot } from "@spi-code/contracts";
+import type { CanWait, Forming, ReleaseVersion, RepoLine, ViewSnapshot } from "@spi-code/contracts";
 import type { Route } from "../app/routes.js";
 import { clockTime } from "../time.js";
 import { inspectId } from "../views/environment/timeline.js";
@@ -19,7 +19,10 @@ export type SelectionKind =
   | "environment"
   | "release"
   | "station"
-  | "can-wait";
+  | "can-wait"
+  | "release-version"
+  | "release-pr"
+  | "release-notable";
 
 /**
  * Lists pass a row to select(id, row), or use useSelectionList in displayed order.
@@ -91,6 +94,91 @@ export function canWaitRow(canWait: CanWait): SelectionRow {
     prefixes: ["/briefing/canWait"],
     fields: canWait.items.map(({ service, text, why }) => ({ label: service ?? text, value: why })),
   };
+}
+
+type Released = Extract<ReleaseVersion, { state: "released" }>;
+type Notable = Forming["notable"][number];
+const prField = (pr: { number: number; url?: string | undefined }) => ({
+  label: "Release PR",
+  value: `#${pr.number}`,
+  ...(pr.url ? { href: pr.url } : {}),
+});
+
+/** A service's released version on Today, with its open release PR when there is one. */
+export function releaseVersionRow(version: Released, index: number): SelectionRow {
+  return {
+    id: `release:${version.service}`,
+    title: `${version.service} ${version.released}`,
+    kind: "release-version",
+    inspectId: null,
+    prefixes: [`/releases/today/versions/${index}`],
+    fields: [
+      { label: "Released", value: version.released },
+      ...(version.proposed ? [{ label: "Proposed", value: version.proposed }] : []),
+      ...(version.pr ? [prField(version.pr)] : []),
+      ...(version.coreLibAzure ? [{ label: "core-lib-azure", value: version.coreLibAzure }] : []),
+    ],
+  };
+}
+
+/** A service's open release PR on Today: the version it proposes and what its body carries. */
+export function releasePrRow(
+  version: Released & { pr: NonNullable<Released["pr"]> },
+  index: number,
+  forming: Forming | undefined,
+): SelectionRow {
+  const body = forming?.prs.find(
+    (release) => release.kind === "service" && release.service === version.service,
+  );
+  return {
+    id: `release-pr:${version.service}`,
+    title: `${version.service} release PR #${version.pr.number}`,
+    kind: "release-pr",
+    inspectId: version.pr.inspect ?? null,
+    prefixes: [`/releases/today/versions/${index}`, "/releases/forming"],
+    fields: [
+      ...(version.proposed ? [{ label: "Proposes", value: version.proposed }] : []),
+      { label: "Released", value: version.released },
+      ...(version.pr.url ? [{ label: "Link", value: version.pr.url, href: version.pr.url }] : []),
+      ...(body?.state === "read"
+        ? body.entries.map(({ kind, title }) => ({ label: kind, value: title }))
+        : body
+          ? [{ label: "Changes", value: "not read" }]
+          : []),
+    ],
+  };
+}
+
+/** One of the forming releases' notable changes, with the release PR that carries it. */
+export function notableRow(notable: Notable, index: number): SelectionRow {
+  return {
+    id: `release-notable:${index}`,
+    title: notable.title,
+    kind: "release-notable",
+    inspectId: notable.pr.inspect ?? null,
+    prefixes: [`/releases/forming/notable/${index}`],
+    fields: [
+      { label: "Kind", value: notable.kind },
+      { label: "Reaches", value: notable.text },
+      prField(notable.pr),
+    ],
+  };
+}
+
+/** Today's Releases block rows: each released version, each open release PR, each notable change. */
+export function releaseRows({ releases }: Pick<ViewSnapshot, "releases">): SelectionRow[] {
+  const versions = releases.today?.versions ?? [];
+  return [
+    ...versions.flatMap((version, index) =>
+      version.state === "released" ? [releaseVersionRow(version, index)] : [],
+    ),
+    ...versions.flatMap((version, index) =>
+      version.state === "released" && version.pr
+        ? [releasePrRow({ ...version, pr: version.pr }, index, releases.forming)]
+        : [],
+    ),
+    ...(releases.forming?.notable ?? []).map(notableRow),
+  ];
 }
 
 type ServiceRun = NonNullable<ViewSnapshot["services"]>[number]["runs"][number];
@@ -228,6 +316,7 @@ export function selectionRows(snapshot: ViewSnapshot): SelectionRow[] {
     ),
   ];
   if (briefing.canWait?.chips.length) rows.push(canWaitRow(briefing.canWait));
+  rows.push(...releaseRows(snapshot));
   // An Upstream item the briefing already lists keeps that row; only its own items are added.
   const ids = new Set(rows.map(({ id }) => id));
   return [...rows, ...upstreamItemRows(snapshot).filter(({ id }) => !ids.has(id))];
@@ -264,6 +353,7 @@ export function routeSelectionIds(snapshot: ViewSnapshot, route: Route): string[
         ...queue.map(({ id }) => id),
         ...briefing.ready.map(({ id }) => id),
         ...(briefing.canWait?.chips.length ? [CAN_WAIT_ID] : []),
+        ...releaseRows(snapshot).map(({ id }) => id),
       ];
     case "service":
       return [

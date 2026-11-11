@@ -46,6 +46,9 @@ const KIND_LABEL: Readonly<Record<SelectionKind, string>> = {
   release: "release month",
   station: "station",
   "can-wait": "today",
+  "release-version": "release",
+  "release-pr": "release PR",
+  "release-notable": "notable change",
 };
 
 function Field({ label, value }: { label: string; value: string }) {

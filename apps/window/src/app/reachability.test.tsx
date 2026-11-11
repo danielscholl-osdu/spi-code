@@ -13,6 +13,11 @@ import calmRaw from "../../../../fixtures/watch/snapshot-calm.json?raw";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
 import { moving } from "../views/today/in-motion.test-helper.js";
+import {
+  RELEASES_QUIET,
+  TODAY_RELEASES,
+  todayReleasesCases,
+} from "../views/today/releases.test-helper.js";
 import { closeSheet, navigate, relaunch, routeHash } from "./navigation.js";
 import { placeReachCases } from "./place-reachability.test-helper.js";
 import { treeServices } from "./queue.js";
@@ -429,6 +434,39 @@ describe("every focus and rest item's scope and origin, at its home on Today", (
       `${legal}/scope`,
     ]);
   });
+});
+
+describe("Today's Releases block, on every morning", () => {
+  const MORNINGS = {
+    "6 Nov": fixture,
+    calm: () => ViewSnapshotSchema.parse(JSON.parse(calmRaw)),
+    busy: () => ViewSnapshotSchema.parse(JSON.parse(busyRaw)),
+    bad: () => ViewSnapshotSchema.parse(JSON.parse(badRaw)),
+  };
+  it.each(Object.entries(MORNINGS))(
+    "has a case for every leaf it draws on the %s morning, and each opener lands where it says",
+    async (_name, morning) => {
+      const body = morning();
+      const rows = todayReleasesCases(body, { name: "Today", start: STARTS.today });
+      const mine = coverage(body, rows, RELEASES_QUIET).uncovered.filter((pointer) =>
+        TODAY_RELEASES.test(pointer),
+      );
+      expect(mine).toEqual([]);
+      await openHome(rows[0]?.home ?? { name: "Today", start: STARTS.today }, body);
+      for (const row of rows) assertReach(row);
+      const scrolled = vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => {});
+      for (const row of rows.filter(({ opens }) => opens)) {
+        scrolled.mockClear();
+        await assertOpens(row, body);
+        const place = row.opens && "place" in row.opens ? row.opens.place : undefined;
+        if (place?.kind !== "releases" || !place.section) continue;
+        const section = container.querySelector(`#${place.section}`);
+        expect(section, row.pointer).not.toBeNull();
+        expect(scrolled.mock.contexts, row.pointer).toContain(section);
+      }
+      scrolled.mockRestore();
+    },
+  );
 });
 
 describe("the suite's own guards", () => {

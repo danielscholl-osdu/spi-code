@@ -118,6 +118,9 @@ it.each(
     release: ["release", "release month"],
     station: ["station", "station"],
     "can-wait": ["can-wait", "today"],
+    "release-version": ["release-version", "release"],
+    "release-pr": ["release-pr", "release PR"],
+    "release-notable": ["release-notable", "notable change"],
   } satisfies { [Kind in SelectionKind]: [Kind, string] }),
 )("names %s in plain words", async (kind, words) => {
   const port = fakePort();

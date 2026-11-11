@@ -17,6 +17,7 @@ import { TodayFrame } from "./Frame.js";
 import { Horizon } from "./Horizon.js";
 import { motionSlot } from "./InMotion.js";
 import { Places } from "./Places.js";
+import { releasesSlot } from "./Releases.js";
 import { Since } from "./Since.js";
 import { Verdict } from "./Verdict.js";
 import "./today.css";
@@ -139,7 +140,7 @@ export default function Today({
           band: bandHolds(body) ? <AttentionBand snapshot={body} /> : null,
           horizon: <Horizon snapshot={body} store={store} onOpenEvidence={openEvidence} />,
           places: <Places snapshot={body} onNavigate={onNavigate} />,
-          releases: null,
+          releases: releasesSlot(body),
           motion: motionSlot(body),
         }}
       />

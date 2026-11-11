@@ -292,7 +292,8 @@ it.each(NAMES)(
         ".place-tiles, .place-tile, details, summary, .today-folded, .place-group, .place-item",
       ),
     ).toBeNull();
-    expect(today?.textContent).not.toMatch(
+    const releases = today?.querySelector(".today-releases")?.textContent ?? "";
+    expect(today?.textContent?.replace(releases, "")).not.toMatch(
       /Before next sync|\bOwned\b|\bNew\b|\d+ more\b|release PRs open|osdu-spi/,
     );
     for (const item of [...body.briefing.focus, ...body.briefing.rest])

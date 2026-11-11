@@ -218,8 +218,5 @@ it("registers every drawn section field in reachability and clears only the plac
     ).toBe(row.value);
   }
   expect(PENDING).not.toHaveProperty("pending-forming");
-  expect(PENDING["pending-releases"]?.patterns).toContain("/releases/today/platform/text");
-  expect(PENDING["pending-releases"]?.patterns).not.toContain(
-    "/releases/today/versions/#/coreLibAzure",
-  );
+  expect(PENDING).not.toHaveProperty("pending-releases");
 });

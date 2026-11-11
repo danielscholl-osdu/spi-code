@@ -9,6 +9,7 @@ import { clockTime, instantsIn, timedText } from "../time.js";
 import { runningFactHome } from "../views/environment/running-fact.js";
 import { eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
 import { releaseSectionCases } from "../views/releases/reachability.test-helper.js";
+import { todayReleasesCases } from "../views/today/releases.test-helper.js";
 import { lensFields } from "./lens-fields.test-helper.js";
 import type { Destination, Registry, Route } from "./navigation.js";
 import { placeReachCases } from "./place-reachability.test-helper.js";
@@ -286,7 +287,11 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
     });
   }
 
-  cases.push(...bandCases(snapshot), ...horizonCases(snapshot));
+  cases.push(
+    ...bandCases(snapshot),
+    ...horizonCases(snapshot),
+    ...todayReleasesCases(snapshot, TODAY),
+  );
 
   const readings = snapshot.readings.flatMap(({ anchor, content }) => {
     const place = PLACE_STARTS[anchor.kind];
@@ -1114,12 +1119,6 @@ const ambient = (run: string) => [
   `/briefing/ambient/${run}/lines/#/itemIds/#`,
   `/briefing/ambient/${run}/lines/#/next/#`,
 ];
-const pending = (bead: string, what: string, patterns: readonly string[]): Exemption => ({
-  patterns,
-  reason: `${bead}: pending until it draws ${what}`,
-  pending: true,
-});
-
 /** The focus or rest item a leaf belongs to. */
 function itemAt(pointer: string, { briefing }: Leaves) {
   const [, list, index] = pointer.match(/^\/briefing\/(focus|rest)\/(\d+)\//) ?? [];
@@ -1127,26 +1126,7 @@ function itemAt(pointer: string, { briefing }: Leaves) {
 }
 
 /** Today briefing fields the contract carries before a window bead draws them; each names its bead. */
-export const PENDING: Readonly<Record<string, Exemption>> = {
-  "pending-releases": pending("spicode-f0s.21", "Today's Releases block", [
-    ...under("/releases/today/versions/#", ["state", "released", "proposed", "text", ...PR]),
-    ...under("/releases/today/platform", ["text"]),
-    ...under("/releases/today/platform/coreLibAzure/#", ["version", "count"]),
-    "/releases/today/readyLine",
-    "/releases/today/unread/areas/#",
-    "/releases/today/unread/lastGood",
-    ...under("/releases/forming/kinds", [
-      "breaking",
-      "new",
-      "improved",
-      "fixed",
-      "security",
-      "other",
-    ]),
-    ...under("/releases/forming/notable/#", ["title", "kind", "text", ...PR]),
-    "/releases/forming/notable/#/services/#",
-  ]),
-};
+export const PENDING: Readonly<Record<string, Exemption>> = {};
 
 /** Item leaves Today draws at the item's place rather than on Today itself, each with its reason. */
 export const AT_PLACE: Readonly<Record<string, Exemption>> = {
