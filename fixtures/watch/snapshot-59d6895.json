@@ -1672,6 +1672,7 @@
           {
             "id": "halt:entitlements",
             "ids": ["halt:entitlements"],
+            "origin": "upstream",
             "rung": 0,
             "cls": "HALT",
             "scope": "entitlements",
@@ -1702,6 +1703,7 @@
           {
             "id": "gate1:legal",
             "ids": ["gate1:legal"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "legal",

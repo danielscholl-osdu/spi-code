@@ -2717,6 +2717,7 @@
           {
             "id": "conflict:entitlements:121",
             "ids": ["conflict:entitlements:121"],
+            "origin": "system",
             "rung": 0,
             "cls": "CONFLICT",
             "scope": "entitlements",
@@ -2739,6 +2740,7 @@
           {
             "id": "release-red:Azure/osdu-spi-entitlements#89",
             "ids": ["release-red:Azure/osdu-spi-entitlements#89"],
+            "origin": "system",
             "rung": 1,
             "cls": "BUILD",
             "scope": "entitlements",
@@ -2765,6 +2767,7 @@
           {
             "id": "gate1:indexer",
             "ids": ["gate1:indexer"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "GATE",
             "scope": "indexer",
@@ -2787,6 +2790,7 @@
           {
             "id": "gate1:storage",
             "ids": ["gate1:storage"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "GATE",
             "scope": "storage",
