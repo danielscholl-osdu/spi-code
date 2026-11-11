@@ -454,14 +454,33 @@
     ],
     "themes": [
       {
+        "id": "toolchain:os-core-common 10.0.0",
+        "kind": "toolchain",
+        "title": "os-core-common 10.0.0",
+        "sub": "queued: partition",
+        "certain": [
+          {
+            "fork": "partition",
+            "state": "queued · syncs at 00:00",
+            "url": "https://example.com/upstream/partition/commit/morning"
+          }
+        ],
+        "possible": [],
+        "exposed": [],
+        "when": "at 00:00",
+        "tone": "warn",
+        "next": "Absorb os-core-common 10.0.0 on the forks before the next sync carries it.",
+        "inspect": "radar:partition"
+      },
+      {
         "id": "toolchain:Java 25",
         "kind": "toolchain",
         "title": "Java 25",
-        "sub": "queued: storage and crs-conversion",
+        "sub": "held: storage · queued: crs-conversion",
         "certain": [
           {
             "fork": "storage",
-            "state": "queued · syncs at 00:00",
+            "state": "held · sync cannot carry it",
             "url": "https://example.com/upstream/storage/commit/morning"
           },
           {
@@ -476,6 +495,35 @@
         "tone": "warn",
         "next": "Move one fork's Java pin to 25 and repeat it for the others before the next sync carries it.",
         "inspect": "radar:storage"
+      },
+      {
+        "id": "toolchain:os-core-common 8.5.0",
+        "kind": "toolchain",
+        "title": "os-core-common 8.5.0",
+        "sub": "queued: indexer, workflow and unit",
+        "certain": [
+          {
+            "fork": "indexer",
+            "state": "queued · syncs at 00:00",
+            "url": "https://example.com/upstream/indexer/commit/morning"
+          },
+          {
+            "fork": "workflow",
+            "state": "queued · syncs at 00:00",
+            "url": "https://example.com/upstream/workflow/commit/morning"
+          },
+          {
+            "fork": "unit",
+            "state": "queued · syncs at 00:00",
+            "url": "https://example.com/upstream/unit/commit/morning"
+          }
+        ],
+        "possible": [],
+        "exposed": [],
+        "when": "at 00:00",
+        "tone": "warn",
+        "next": "Absorb os-core-common 8.5.0 on the forks before the next sync carries it.",
+        "inspect": "radar:indexer"
       },
       {
         "id": "halt:top_level:schemathesis-tests",
@@ -523,7 +571,7 @@
       }
     ],
     "horizon": {
-      "headline": "Java 25 reaches storage and crs-conversion at 00:00.",
+      "headline": "os-core-common 10.0.0 reaches partition at 00:00.",
       "stages": {
         "upstream": {
           "count": 7,
@@ -2396,7 +2444,7 @@
             "scope": "3 forks",
             "title": "Detected: os-core-common 8.5.0 on 3 forks",
             "sub": "",
-            "cause": "3 forks move to os-core-common 8.5.0.",
+            "cause": "Detected: os-core-common 8.5.0 on 3 forks.",
             "effect": "",
             "next": "",
             "verb": "",
@@ -2431,7 +2479,7 @@
             "scope": "2 forks",
             "title": "Detected: Java 25 on 2 forks",
             "sub": "",
-            "cause": "2 forks move to Java 25.",
+            "cause": "Detected: Java 25 on 2 forks.",
             "effect": "",
             "next": "",
             "verb": "",
@@ -7024,6 +7072,34 @@
     },
     {
       "path": "/briefing/themes/2",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/themes/3",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/themes/4",
       "areas": [
         "github",
         "runs",

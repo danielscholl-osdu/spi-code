@@ -2729,6 +2729,856 @@
     "provenance": []
   },
   {
+    "id": "theme:toolchain:os-core-common 8.5.0",
+    "title": "os-core-common 8.5.0",
+    "class": "TOOLCHAIN",
+    "cause": "os-core-common 8.5.0",
+    "effect": "held: partition and legal · queued: schema, file, storage, indexer, search, workflow, unit and crs-conversion",
+    "next": "Absorb os-core-common 8.5.0 on the forks before the next sync carries it.",
+    "why": "at 00:00",
+    "evidence": [],
+    "related": [
+      {
+        "text": "partition",
+        "state": "certain · held · sync cannot carry it",
+        "url": "https://community.opengroup.org/osdu/platform/system/partition/-/commit/d771049a1c333a9111ec1e5a35b6cdb674c0c29d"
+      },
+      {
+        "text": "legal",
+        "state": "certain · held · sync cannot carry it",
+        "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/commit/79cbd07824030a0b993939763a8e869721ba698a"
+      },
+      {
+        "text": "schema",
+        "state": "certain · queued · syncs at 00:00",
+        "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/commit/28d5a93096f69a90ee3df7727103d2394e09c789"
+      },
+      {
+        "text": "file",
+        "state": "certain · queued · syncs at 00:00",
+        "url": "https://community.opengroup.org/osdu/platform/system/file/-/commit/4d0ff1f4ff24edbeda28d2c161a144a4e3e02db2"
+      },
+      {
+        "text": "storage",
+        "state": "certain · queued · syncs at 00:00",
+        "url": "https://community.opengroup.org/osdu/platform/system/storage/-/commit/9acda5e50312d03e4e8b891c6923d01ec90dfd7d"
+      },
+      {
+        "text": "indexer",
+        "state": "certain · queued · syncs at 00:00",
+        "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/commit/7749dc4b7b5865f3030b6b089068f8de80729918"
+      },
+      {
+        "text": "search",
+        "state": "certain · queued · syncs at 00:00",
+        "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/commit/aded8a3f3eb04154f291d4af4e33116514e40599"
+      },
+      {
+        "text": "workflow",
+        "state": "certain · queued · syncs at 00:00",
+        "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/d6847cea52b94f697ab67ef471f1bfeff33b6d93"
+      },
+      {
+        "text": "unit",
+        "state": "certain · queued · syncs at 00:00",
+        "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/3a69766c25b03b450d95b55ef21c013c63ef407f"
+      },
+      {
+        "text": "crs-conversion",
+        "state": "certain · queued · syncs at 00:00",
+        "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-conversion-service/-/commit/80e3497b7e5c8cba61810c2fb51c9e9fb9e5ea17"
+      },
+      {
+        "text": "Next sync carries os-core-common 8.4.1-boot4-SNAPSHOT",
+        "state": "TOOLCHAIN",
+        "inspect": "radar:legal"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "theme:toolchain:os-core-common 9.4.0",
+    "title": "os-core-common 9.4.0",
+    "class": "TOOLCHAIN",
+    "cause": "os-core-common 9.4.0",
+    "effect": "held: partition",
+    "next": "Absorb os-core-common 9.4.0 on the forks.",
+    "why": "",
+    "evidence": [],
+    "related": [
+      {
+        "text": "partition",
+        "state": "certain · held · sync cannot carry it",
+        "url": "https://community.opengroup.org/osdu/platform/system/partition/-/commit/69785fa552c905baf34b9c4f7251f7c1c51488df"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "theme:toolchain:os-core-common 10.0.0",
+    "title": "os-core-common 10.0.0",
+    "class": "TOOLCHAIN",
+    "cause": "os-core-common 10.0.0",
+    "effect": "queued: schema, indexer and unit · open MRs: partition, legal, file, storage, search, workflow, crs-catalog and crs-conversion",
+    "next": "Absorb os-core-common 10.0.0 on the forks before the next sync carries it.",
+    "why": "at 00:00",
+    "evidence": [],
+    "related": [
+      {
+        "text": "schema",
+        "state": "certain · queued · syncs at 00:00",
+        "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/commit/d708bac1910407e175278e721a86fe20249e18bf"
+      },
+      {
+        "text": "indexer",
+        "state": "certain · queued · syncs at 00:00",
+        "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/commit/f9643b164cf5eb0994df18a6d30ddcd37738d245"
+      },
+      {
+        "text": "unit",
+        "state": "certain · queued · syncs at 00:00",
+        "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/d4b65bdf42503bf50bdbed11249c06bd9c0c4fe0"
+      },
+      {
+        "text": "partition",
+        "state": "possible · open MR !840",
+        "inspect": "mr:partition:840"
+      },
+      {
+        "text": "legal",
+        "state": "possible · open MR !794",
+        "inspect": "mr:legal:794"
+      },
+      {
+        "text": "file",
+        "state": "possible · open MR !766",
+        "inspect": "mr:file:766"
+      },
+      {
+        "text": "storage",
+        "state": "possible · open MR !1242",
+        "inspect": "mr:storage:1242"
+      },
+      {
+        "text": "search",
+        "state": "possible · open MR !909",
+        "inspect": "mr:search:909"
+      },
+      {
+        "text": "workflow",
+        "state": "possible · open MR !711",
+        "inspect": "mr:workflow:711"
+      },
+      {
+        "text": "crs-catalog",
+        "state": "possible · open MR !497",
+        "inspect": "mr:crs-catalog:497"
+      },
+      {
+        "text": "crs-conversion",
+        "state": "possible · open MR !566",
+        "inspect": "mr:crs-conversion:566"
+      },
+      {
+        "text": "Next sync carries os-core-common 8.5.0",
+        "state": "TOOLCHAIN",
+        "inspect": "radar:schema"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "theme:toolchain:os-core-common 8.4.1-boot4-SNAPSHOT",
+    "title": "os-core-common 8.4.1-boot4-SNAPSHOT",
+    "class": "TOOLCHAIN",
+    "cause": "os-core-common 8.4.1-boot4-SNAPSHOT",
+    "effect": "held: legal",
+    "next": "Absorb os-core-common 8.4.1-boot4-SNAPSHOT on the forks.",
+    "why": "",
+    "evidence": [],
+    "related": [
+      {
+        "text": "legal",
+        "state": "certain · held · sync cannot carry it",
+        "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/commit/0cab109017b316cfd6a037c6c603ad4ee293f3c1"
+      },
+      {
+        "text": "Next sync carries os-core-common 8.4.1-boot4-SNAPSHOT",
+        "state": "TOOLCHAIN",
+        "inspect": "radar:legal"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
+    "id": "theme:toolchain:os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT",
+    "title": "os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT",
+    "class": "TOOLCHAIN",
+    "cause": "os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT",
+    "effect": "held: legal",
+    "next": "Absorb os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT on the forks.",
+    "why": "",
+    "evidence": [],
+    "related": [
+      {
+        "text": "legal",
+        "state": "certain · held · sync cannot carry it",
+        "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/commit/85453c2ed2bbbb6b3d65384c112443fb5774f00b"
+      },
+      {
+        "text": "Next sync carries os-core-common 8.4.1-boot4-SNAPSHOT",
+        "state": "TOOLCHAIN",
+        "inspect": "radar:legal"
+      }
+    ],
+    "approval": null,
+    "actions": [],
+    "areas": [
+      {
+        "area": "fleet",
+        "envelope": {
+          "source": "fleet",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:03.561Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "github",
+        "envelope": {
+          "source": "github",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:10.929Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "runs",
+        "envelope": {
+          "source": "runs",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:14.914Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "approvals",
+        "envelope": {
+          "source": "approvals",
+          "state": "unread"
+        }
+      },
+      {
+        "area": "lifecycle",
+        "envelope": {
+          "source": "lifecycle",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.056Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "details",
+        "envelope": {
+          "source": "details",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.115Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "upstream",
+        "envelope": {
+          "source": "upstream",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:22.923Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "radar",
+        "envelope": {
+          "source": "radar",
+          "state": "failed",
+          "observedAt": "2026-11-06T13:31:37.502Z",
+          "completeness": {
+            "kind": "cut",
+            "reason": "12 reads cut in entitlements, file, partition, schema-service, search-service, storage: GitLab omitted oversized or collapsed classification hunks",
+            "read": 1353,
+            "total": 1433
+          },
+          "inferred": false
+        }
+      },
+      {
+        "area": "template",
+        "envelope": {
+          "source": "template",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:21.084Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "auth",
+        "envelope": {
+          "source": "auth",
+          "state": "fresh",
+          "observedAt": "2026-11-06T14:02:01.332Z",
+          "completeness": {
+            "kind": "complete"
+          },
+          "inferred": true
+        }
+      },
+      {
+        "area": "security",
+        "envelope": {
+          "source": "security",
+          "state": "unread"
+        }
+      }
+    ],
+    "provenance": []
+  },
+  {
     "id": "theme:halt:top_level:schemathesis-tests",
     "title": "schemathesis-tests",
     "class": "HALT",

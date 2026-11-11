@@ -521,6 +521,201 @@
     ],
     "themes": [
       {
+        "id": "toolchain:os-core-common 8.5.0",
+        "kind": "toolchain",
+        "title": "os-core-common 8.5.0",
+        "sub": "held: partition and legal · queued: schema, file, storage, indexer, search, workflow, unit and crs-conversion",
+        "certain": [
+          {
+            "fork": "partition",
+            "state": "held · sync cannot carry it",
+            "url": "https://community.opengroup.org/osdu/platform/system/partition/-/commit/d771049a1c333a9111ec1e5a35b6cdb674c0c29d"
+          },
+          {
+            "fork": "legal",
+            "state": "held · sync cannot carry it",
+            "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/commit/79cbd07824030a0b993939763a8e869721ba698a"
+          },
+          {
+            "fork": "schema",
+            "state": "queued · syncs at 00:00",
+            "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/commit/28d5a93096f69a90ee3df7727103d2394e09c789"
+          },
+          {
+            "fork": "file",
+            "state": "queued · syncs at 00:00",
+            "url": "https://community.opengroup.org/osdu/platform/system/file/-/commit/4d0ff1f4ff24edbeda28d2c161a144a4e3e02db2"
+          },
+          {
+            "fork": "storage",
+            "state": "queued · syncs at 00:00",
+            "url": "https://community.opengroup.org/osdu/platform/system/storage/-/commit/9acda5e50312d03e4e8b891c6923d01ec90dfd7d"
+          },
+          {
+            "fork": "indexer",
+            "state": "queued · syncs at 00:00",
+            "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/commit/7749dc4b7b5865f3030b6b089068f8de80729918"
+          },
+          {
+            "fork": "search",
+            "state": "queued · syncs at 00:00",
+            "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/commit/aded8a3f3eb04154f291d4af4e33116514e40599"
+          },
+          {
+            "fork": "workflow",
+            "state": "queued · syncs at 00:00",
+            "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/d6847cea52b94f697ab67ef471f1bfeff33b6d93"
+          },
+          {
+            "fork": "unit",
+            "state": "queued · syncs at 00:00",
+            "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/3a69766c25b03b450d95b55ef21c013c63ef407f"
+          },
+          {
+            "fork": "crs-conversion",
+            "state": "queued · syncs at 00:00",
+            "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-conversion-service/-/commit/80e3497b7e5c8cba61810c2fb51c9e9fb9e5ea17"
+          }
+        ],
+        "possible": [],
+        "exposed": [],
+        "when": "at 00:00",
+        "tone": "warn",
+        "next": "Absorb os-core-common 8.5.0 on the forks before the next sync carries it.",
+        "inspect": "radar:legal"
+      },
+      {
+        "id": "toolchain:os-core-common 9.4.0",
+        "kind": "toolchain",
+        "title": "os-core-common 9.4.0",
+        "sub": "held: partition",
+        "certain": [
+          {
+            "fork": "partition",
+            "state": "held · sync cannot carry it",
+            "url": "https://community.opengroup.org/osdu/platform/system/partition/-/commit/69785fa552c905baf34b9c4f7251f7c1c51488df"
+          }
+        ],
+        "possible": [],
+        "exposed": [],
+        "tone": "warn",
+        "next": "Absorb os-core-common 9.4.0 on the forks."
+      },
+      {
+        "id": "toolchain:os-core-common 10.0.0",
+        "kind": "toolchain",
+        "title": "os-core-common 10.0.0",
+        "sub": "queued: schema, indexer and unit · open MRs: partition, legal, file, storage, search, workflow, crs-catalog and crs-conversion",
+        "certain": [
+          {
+            "fork": "schema",
+            "state": "queued · syncs at 00:00",
+            "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/commit/d708bac1910407e175278e721a86fe20249e18bf"
+          },
+          {
+            "fork": "indexer",
+            "state": "queued · syncs at 00:00",
+            "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/commit/f9643b164cf5eb0994df18a6d30ddcd37738d245"
+          },
+          {
+            "fork": "unit",
+            "state": "queued · syncs at 00:00",
+            "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/d4b65bdf42503bf50bdbed11249c06bd9c0c4fe0"
+          }
+        ],
+        "possible": [
+          {
+            "fork": "partition",
+            "state": "open MR !840",
+            "url": "https://community.opengroup.org/osdu/platform/system/partition/-/merge_requests/840",
+            "inspect": "mr:partition:840"
+          },
+          {
+            "fork": "legal",
+            "state": "open MR !794",
+            "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/merge_requests/794",
+            "inspect": "mr:legal:794"
+          },
+          {
+            "fork": "file",
+            "state": "open MR !766",
+            "url": "https://community.opengroup.org/osdu/platform/system/file/-/merge_requests/766",
+            "inspect": "mr:file:766"
+          },
+          {
+            "fork": "storage",
+            "state": "open MR !1242",
+            "url": "https://community.opengroup.org/osdu/platform/system/storage/-/merge_requests/1242",
+            "inspect": "mr:storage:1242"
+          },
+          {
+            "fork": "search",
+            "state": "open MR !909",
+            "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/merge_requests/909",
+            "inspect": "mr:search:909"
+          },
+          {
+            "fork": "workflow",
+            "state": "open MR !711",
+            "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/merge_requests/711",
+            "inspect": "mr:workflow:711"
+          },
+          {
+            "fork": "crs-catalog",
+            "state": "open MR !497",
+            "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-catalog-service/-/merge_requests/497",
+            "inspect": "mr:crs-catalog:497"
+          },
+          {
+            "fork": "crs-conversion",
+            "state": "open MR !566",
+            "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-conversion-service/-/merge_requests/566",
+            "inspect": "mr:crs-conversion:566"
+          }
+        ],
+        "exposed": [],
+        "when": "at 00:00",
+        "tone": "warn",
+        "next": "Absorb os-core-common 10.0.0 on the forks before the next sync carries it.",
+        "inspect": "radar:schema"
+      },
+      {
+        "id": "toolchain:os-core-common 8.4.1-boot4-SNAPSHOT",
+        "kind": "toolchain",
+        "title": "os-core-common 8.4.1-boot4-SNAPSHOT",
+        "sub": "held: legal",
+        "certain": [
+          {
+            "fork": "legal",
+            "state": "held · sync cannot carry it",
+            "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/commit/0cab109017b316cfd6a037c6c603ad4ee293f3c1"
+          }
+        ],
+        "possible": [],
+        "exposed": [],
+        "tone": "warn",
+        "next": "Absorb os-core-common 8.4.1-boot4-SNAPSHOT on the forks.",
+        "inspect": "radar:legal"
+      },
+      {
+        "id": "toolchain:os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT",
+        "kind": "toolchain",
+        "title": "os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT",
+        "sub": "held: legal",
+        "certain": [
+          {
+            "fork": "legal",
+            "state": "held · sync cannot carry it",
+            "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/commit/85453c2ed2bbbb6b3d65384c112443fb5774f00b"
+          }
+        ],
+        "possible": [],
+        "exposed": [],
+        "tone": "warn",
+        "next": "Absorb os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT on the forks.",
+        "inspect": "radar:legal"
+      },
+      {
         "id": "halt:top_level:schemathesis-tests",
         "kind": "halt",
         "title": "schemathesis-tests",
@@ -693,7 +888,7 @@
       }
     ],
     "horizon": {
-      "headline": "One filter entry would stop 4 future halts.",
+      "headline": "os-core-common 8.5.0 reaches schema and 7 more at 00:00.",
       "stages": {
         "upstream": {
           "count": 110,
@@ -2416,7 +2611,29 @@
       "id": "campaign:toolchain:os-core-common%2010.0.0",
       "kind": "toolchain",
       "fact": "os-core-common 10.0.0",
-      "forks": ["indexer", "schema", "unit"]
+      "forks": [
+        "crs-catalog",
+        "crs-conversion",
+        "file",
+        "indexer",
+        "legal",
+        "partition",
+        "schema",
+        "search",
+        "storage",
+        "unit",
+        "workflow"
+      ],
+      "possible": [
+        "crs-catalog",
+        "crs-conversion",
+        "file",
+        "legal",
+        "partition",
+        "search",
+        "storage",
+        "workflow"
+      ]
     },
     {
       "id": "campaign:toolchain:os-core-common%208.5.0",
@@ -2426,6 +2643,8 @@
         "crs-conversion",
         "file",
         "indexer",
+        "legal",
+        "partition",
         "schema",
         "search",
         "storage",
@@ -2456,7 +2675,7 @@
           },
           {
             "label": "Toolchain",
-            "value": "8 forks",
+            "value": "10 forks",
             "counts": "move to os-core-common 8.5.0 · 1 more move"
           },
           {
@@ -2543,10 +2762,10 @@
             "origin": "upstream",
             "rung": 2,
             "cls": "TOOLCHAIN",
-            "scope": "8 forks",
-            "title": "Detected: os-core-common 8.5.0 on 8 forks",
+            "scope": "10 forks",
+            "title": "Detected: os-core-common 8.5.0 on 10 forks",
             "sub": "",
-            "cause": "8 forks move to os-core-common 8.5.0.",
+            "cause": "Detected: os-core-common 8.5.0 on 10 forks.",
             "effect": "",
             "next": "",
             "verb": "",
@@ -2606,18 +2825,35 @@
           },
           {
             "id": "campaign:toolchain:os-core-common%2010.0.0",
-            "ids": ["radar:indexer", "radar:schema", "radar:unit"],
+            "ids": [
+              "radar:crs-conversion",
+              "radar:file",
+              "radar:indexer",
+              "radar:schema",
+              "radar:search",
+              "radar:storage",
+              "radar:unit",
+              "radar:workflow"
+            ],
             "origin": "upstream",
             "rung": 2,
             "cls": "TOOLCHAIN",
-            "scope": "3 forks",
-            "title": "Detected: os-core-common 10.0.0 on 3 forks",
-            "sub": "",
-            "cause": "3 forks move to os-core-common 10.0.0.",
+            "scope": "11 forks",
+            "title": "Detected: os-core-common 10.0.0 on 3 forks; possible on 8 forks",
+            "sub": "Certain: indexer, schema, unit · Possible: crs-catalog, crs-conversion, file, legal, partition, search, storage, workflow",
+            "cause": "Detected: os-core-common 10.0.0 on 3 forks; possible on 8 forks.",
             "effect": "",
             "next": "",
             "verb": "",
             "evidence": [
+              {
+                "label": "commit 80e3497b",
+                "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-conversion-service/-/commit/80e3497b7e5c8cba61810c2fb51c9e9fb9e5ea17"
+              },
+              {
+                "label": "commit 4d0ff1f4",
+                "url": "https://community.opengroup.org/osdu/platform/system/file/-/commit/4d0ff1f4ff24edbeda28d2c161a144a4e3e02db2"
+              },
               {
                 "label": "commit 7749dc4b",
                 "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/commit/7749dc4b7b5865f3030b6b089068f8de80729918"
@@ -2635,12 +2871,24 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/commit/d708bac1910407e175278e721a86fe20249e18bf"
               },
               {
+                "label": "commit aded8a3f",
+                "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/commit/aded8a3f3eb04154f291d4af4e33116514e40599"
+              },
+              {
+                "label": "commit 9acda5e5",
+                "url": "https://community.opengroup.org/osdu/platform/system/storage/-/commit/9acda5e50312d03e4e8b891c6923d01ec90dfd7d"
+              },
+              {
                 "label": "commit 3a69766c",
                 "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/3a69766c25b03b450d95b55ef21c013c63ef407f"
               },
               {
                 "label": "run",
                 "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/d4b65bdf42503bf50bdbed11249c06bd9c0c4fe0"
+              },
+              {
+                "label": "commit d6847cea",
+                "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/d6847cea52b94f697ab67ef471f1bfeff33b6d93"
               }
             ],
             "attention": "surface",
@@ -13156,6 +13404,76 @@
     },
     {
       "path": "/briefing/themes/2",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/themes/3",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/themes/4",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/themes/5",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/themes/6",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/themes/7",
       "areas": [
         "github",
         "runs",
