@@ -48,6 +48,22 @@ const q = (container: ParentNode, selector: string) => {
 };
 const click = (element: HTMLElement) => act(async () => element.click());
 
+/** Muted by its own sources, or by any wrapper around it. */
+const unread = (element: Element | null) => element?.closest("[data-unread]") != null;
+const all = (container: ParentNode, selector: string) => [
+  ...container.querySelectorAll<HTMLElement>(selector),
+];
+
+/** The morning with the releases read's own envelope as 6 Nov carries it: not read this sweep. */
+function releasesUnread(body: ViewSnapshot) {
+  body.provenance = body.provenance.map((entry) =>
+    entry.envelope?.source === "releases"
+      ? { ...entry, envelope: { source: "releases", state: "unread" as const } }
+      : entry,
+  );
+  return ViewSnapshotSchema.parse(body);
+}
+
 /** The morning with one area's envelope replaced. */
 function withArea(
   body: ViewSnapshot,
@@ -182,7 +198,7 @@ it("draws calm's forming line in core's words, with no empty bar or 0", async ()
   expect(container.querySelector("[data-unread]")).toBeNull();
 });
 
-it("on 6 Nov's unread releases: ⌀, muted versions and 'not read this sweep', never 0", async () => {
+it("on 6 Nov's unread releases: ⌀, muted platform and 'not read this sweep', never 0", async () => {
   const body = morning("1106");
   expect(body.releases.today?.unread).toBeDefined();
   expect(body.releases.forming?.state).toBe("not-read");
@@ -191,8 +207,15 @@ it("on 6 Nov's unread releases: ⌀, muted versions and 'not read this sweep', n
   expect(held.textContent).toBe("⌀not read");
   expect(held.dataset.areas).toBe("releases");
   expect(held.title).toContain("Release lines: not read");
-  expect(container.querySelector(".today-releases-grid")?.hasAttribute("data-unread")).toBe(true);
   expect(container.querySelectorAll(".today-release")).toHaveLength(13);
+  expect(all(container, ".today-release-none").map((none) => none.textContent)).toEqual(
+    body.releases.today?.versions.map(({ text }) => text),
+  );
+  const platform = q(container, ".today-release-platform");
+  expect(all(platform, "b").map((b) => [b.textContent, unread(b)])).toEqual([
+    [body.releases.today?.platform.stack, true],
+    [body.releases.today?.platform.template?.released, true],
+  ]);
   expect(q(container, ".today-release-changes .today-release-unread").textContent).toBe(
     "not read this sweep",
   );
@@ -211,7 +234,7 @@ it("shows the releases area's last good time beside ⌀ when core has one", asyn
   expect(held.textContent).toBe(`⌀from ${clockTime(lastGood, { hint: false })}`);
 });
 
-it("on bad, takes ⌀ and muting from the failed GitHub read the block's provenance names", async () => {
+it("on bad, takes ⌀ from failed GitHub and mutes only what GitHub feeds", async () => {
   const body = morning("bad");
   expect(body.releases.today?.unread).toBeUndefined();
   const github = body.areas.find(({ area }) => area === "github")?.envelope;
@@ -222,7 +245,16 @@ it("on bad, takes ⌀ and muting from the failed GitHub read the block's provena
   expect(held.querySelector("time")?.getAttribute("dateTime")).toBe(
     github?.state === "failed" ? github.observedAt : undefined,
   );
-  expect(container.querySelector(".today-releases-grid")?.hasAttribute("data-unread")).toBe(true);
+  const released = all(container, ".today-release-released");
+  expect(released).toHaveLength(13);
+  for (const version of released) expect(unread(version), version.textContent ?? "").toBe(false);
+  const arrows = all(container, ".today-release-arrow");
+  expect(arrows).toHaveLength(8);
+  for (const arrow of arrows) expect(unread(arrow), arrow.title).toBe(true);
+  const platform = q(container, ".today-release-platform");
+  expect(all(platform, "b").map(unread)).toEqual([false, false]);
+  expect(unread(q(platform, ".today-release-library"))).toBe(false);
+  expect(unread(q(platform, ".today-release-template-proposed"))).toBe(true);
   expect(q(container, ".today-release-changes .today-release-unread").textContent).toBe(
     "not read this sweep",
   );
@@ -239,6 +271,34 @@ it("on bad with GitHub read, draws no ⌀ and no muting: nothing it reads is unr
   expect(container.querySelector(".today-release-changes .kit-stacked-bar")).not.toBeNull();
 });
 
+it("mutes released versions, never GitHub's proposed ones, when the releases read is unread", async () => {
+  const { container } = await mount(releasesUnread(morning("busy")));
+  expect(q(container, ".today-releases-held").title).toContain("Release lines: not read");
+  const released = all(container, ".today-release-released");
+  expect(released).toHaveLength(13);
+  for (const version of released) expect(unread(version), version.textContent ?? "").toBe(true);
+  const arrows = all(container, ".today-release-arrow");
+  expect(arrows.length).toBeGreaterThan(0);
+  for (const arrow of arrows) expect(unread(arrow), arrow.title).toBe(false);
+  const platform = q(container, ".today-release-platform");
+  expect(all(platform, "b").map(unread)).toEqual([true, true]);
+  expect(unread(q(platform, ".today-release-library"))).toBe(true);
+  expect(unread(q(platform, ".today-release-template-proposed"))).toBe(false);
+  expect(q(container, ".today-release-changes .today-release-unread").textContent).toBe(
+    "not read this sweep",
+  );
+});
+
+it("mutes released versions when core says the releases area went unread", async () => {
+  const body = morning("busy");
+  if (body.releases.today) body.releases.today.unread = { areas: ["releases"] };
+  const { container } = await mount(ViewSnapshotSchema.parse(body));
+  for (const version of all(container, ".today-release-released"))
+    expect(unread(version), version.textContent ?? "").toBe(true);
+  for (const arrow of all(container, ".today-release-arrow"))
+    expect(unread(arrow), arrow.title).toBe(false);
+});
+
 it("takes ⌀ from a cut read it draws from, and ignores a cut read it doesn't", async () => {
   const cut = (source: string) => ({
     source,
@@ -252,9 +312,8 @@ it("takes ⌀ from a cut read it draws from, and ignores a cut read it doesn't",
   expect(q(fleet.container, ".today-releases-held").title).toContain(
     "Fleet membership: read only in part",
   );
-  expect(fleet.container.querySelector(".today-releases-grid")?.hasAttribute("data-unread")).toBe(
-    true,
-  );
+  for (const version of all(fleet.container, ".today-release-released"))
+    expect(unread(version), version.textContent ?? "").toBe(true);
   expect(fleet.container.querySelector(".today-release-changes .kit-stacked-bar")).not.toBeNull();
 });
 

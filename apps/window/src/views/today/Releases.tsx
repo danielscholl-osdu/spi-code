@@ -111,14 +111,19 @@ function Held({
   );
 }
 
+/** `data-unread` when a field's own sources were not read this sweep, or read only in part. */
+const unreadIf = (isHeld: boolean) => (isHeld ? "" : undefined);
+
 function Versions({
   today,
   forming,
+  isHeld,
   selected,
   select,
 }: {
   today: ReleasesToday;
   forming: Forming | undefined;
+  isHeld: (pointers: readonly string[]) => boolean;
   selected: string | null;
   select: (row: SelectionRow) => void;
 }) {
@@ -159,6 +164,7 @@ function Versions({
               <button
                 type="button"
                 className="today-release-released"
+                data-unread={unreadIf(Boolean(today.unread) || isHeld([`${pointer}/released`]))}
                 aria-pressed={selected === row.id}
                 onClick={() => select(row)}
               >
@@ -168,6 +174,7 @@ function Versions({
                 <button
                   type="button"
                   className="today-release-arrow"
+                  data-unread={unreadIf(isHeld([`${pointer}/proposed`, `${pointer}/pr`]))}
                   title={`release PR #${pr.number}`}
                   aria-label={`release PR #${pr.number}`}
                   aria-pressed={selected === prRow.id}
@@ -192,14 +199,20 @@ function Versions({
 
 function Platform({
   platform,
+  released,
+  isHeld,
   onNavigate,
 }: {
   platform: ReleasesToday["platform"];
+  released: boolean;
+  isHeld: (pointers: readonly string[]) => boolean;
   onNavigate: Navigation["navigate"];
 }) {
   const { stack, template, coreLibAzure } = platform;
+  const at = `${TODAY}/platform`;
+  const fromReleases = (field: string) => unreadIf(!released || isHeld([`${at}/${field}`]));
   return (
-    <div className="today-release-line today-release-platform" data-pointer={`${TODAY}/platform`}>
+    <div className="today-release-line today-release-platform" data-pointer={at}>
       <button
         type="button"
         className="today-release-open"
@@ -212,7 +225,7 @@ function Platform({
       <span className="today-release-value">
         {stack && (
           <span>
-            stack <b>{stack}</b>
+            stack <b data-unread={fromReleases("stack")}>{stack}</b>
           </span>
         )}
         {template && (
@@ -220,14 +233,20 @@ function Platform({
             className="today-release-template"
             title={template.pr ? `release PR #${template.pr.number}` : undefined}
           >
-            template <b>{template.released}</b>
+            template <b data-unread={fromReleases("template/released")}>{template.released}</b>
             {template.proposed && (
-              <span className="today-release-template-proposed"> → {template.proposed}</span>
+              <span
+                className="today-release-template-proposed"
+                data-unread={unreadIf(isHeld([`${at}/template/proposed`, `${at}/template/pr`]))}
+              >
+                {" "}
+                → {template.proposed}
+              </span>
             )}
           </span>
         )}
         {coreLibAzure.length > 0 && (
-          <span className="today-release-library">
+          <span className="today-release-library" data-unread={fromReleases("coreLibAzure")}>
             core-lib-azure
             <SegmentedBar
               figure={coreLibAzure.map(({ version, count }) => `${version} ×${count}`).join(" · ")}
@@ -335,7 +354,8 @@ export function releasesSlot(snapshot: ViewSnapshot) {
 
 /**
  * Releases on Today: every released version with the proposed one beside it, the platform line,
- * and what the forming releases carry. ⌀ and muting follow the provenance of what it draws.
+ * and what the forming releases carry. ⌀ names every source the block draws from; each field is
+ * muted by its own sources.
  */
 export function Releases({
   snapshot,
@@ -350,8 +370,7 @@ export function Releases({
   const { today, forming } = snapshot.releases;
   const select = (row: SelectionRow) => selection.getState().select(row.id, row);
   const sources = held(snapshot, [TODAY, FORMING]);
-  const versionsHeld = Boolean(today?.unread) || held(snapshot, [`${TODAY}/versions`]).length > 0;
-  const platformHeld = held(snapshot, [`${TODAY}/platform`]).length > 0;
+  const isHeld = (pointers: readonly string[]) => held(snapshot, pointers).length > 0;
   const formingUnread = notRead(held(snapshot, [FORMING]));
   return (
     <section
@@ -375,14 +394,21 @@ export function Releases({
         )}
       </header>
       {today && (
-        <div className="today-releases-grid" data-unread={versionsHeld ? "" : undefined}>
-          <Versions today={today} forming={forming} selected={selected} select={select} />
-        </div>
+        <Versions
+          today={today}
+          forming={forming}
+          isHeld={isHeld}
+          selected={selected}
+          select={select}
+        />
       )}
       {today && (
-        <div data-unread={platformHeld ? "" : undefined}>
-          <Platform platform={today.platform} onNavigate={onNavigate} />
-        </div>
+        <Platform
+          platform={today.platform}
+          released={!today.unread}
+          isHeld={isHeld}
+          onNavigate={onNavigate}
+        />
       )}
       {forming && (
         <Changes

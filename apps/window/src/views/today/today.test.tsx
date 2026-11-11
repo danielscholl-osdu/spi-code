@@ -293,7 +293,8 @@ it.each(NAMES)(
       ),
     ).toBeNull();
     const releases = today?.querySelector(".today-releases")?.textContent ?? "";
-    expect(today?.textContent?.replace(releases, "")).not.toMatch(
+    const text = today?.textContent?.replace(releases, releases.replaceAll("release PRs open", ""));
+    expect(text).not.toMatch(
       /Before next sync|\bOwned\b|\bNew\b|\d+ more\b|release PRs open|osdu-spi/,
     );
     for (const item of [...body.briefing.focus, ...body.briefing.rest])
