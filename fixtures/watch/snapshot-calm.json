@@ -1652,6 +1652,77 @@
         "itemIds": [],
         "fresh": {
           "itemIds": []
+        },
+        "visual": {
+          "kind": "pips",
+          "slots": [
+            {
+              "service": "partition",
+              "state": "occupied",
+              "text": "partition: upstream: 1 behind"
+            },
+            {
+              "service": "entitlements",
+              "state": "empty",
+              "text": "entitlements: upstream: 0 behind; sync: clean; cascade: idle; main: idle; release: v1.2.1; lane: last run ok"
+            },
+            {
+              "service": "legal",
+              "state": "empty",
+              "text": "legal: upstream: 0 behind; sync: clean; cascade: idle; main: idle; release: v1.2.1; lane: last run ok"
+            },
+            {
+              "service": "schema",
+              "state": "occupied",
+              "text": "schema: upstream: 1 behind"
+            },
+            {
+              "service": "file",
+              "state": "empty",
+              "text": "file: upstream: 0 behind; sync: clean; cascade: idle; main: idle; release: v1.2.0; lane: last run ok"
+            },
+            {
+              "service": "storage",
+              "state": "empty",
+              "text": "storage: upstream: 0 behind; sync: clean; cascade: idle; main: idle; release: v1.4.1; lane: last run ok"
+            },
+            {
+              "service": "indexer",
+              "state": "empty",
+              "text": "indexer: upstream: 0 behind; sync: clean; cascade: idle; main: idle; release: v1.4.0; lane: last run ok"
+            },
+            {
+              "service": "search",
+              "state": "empty",
+              "text": "search: upstream: 0 behind; sync: clean; cascade: idle; main: idle; release: v1.4.0; lane: last run ok"
+            },
+            {
+              "service": "workflow",
+              "state": "empty",
+              "text": "workflow: upstream: 0 behind; sync: clean; cascade: idle; main: idle; release: v1.3.1; lane: last run ok"
+            },
+            {
+              "service": "indexer-queue",
+              "state": "empty",
+              "text": "indexer-queue: upstream: 0 behind; sync: clean; cascade: idle; main: idle; release: v1.4.0; lane: last run ok"
+            },
+            {
+              "service": "unit",
+              "state": "empty",
+              "text": "unit: upstream: 0 behind; sync: clean; cascade: idle; main: idle; release: v1.4.0; lane: last run ok"
+            },
+            {
+              "service": "crs-catalog",
+              "state": "empty",
+              "text": "crs-catalog: upstream: 0 behind; sync: clean; cascade: idle; main: idle; release: v1.4.0; lane: last run ok"
+            },
+            {
+              "service": "crs-conversion",
+              "state": "empty",
+              "text": "crs-conversion: upstream: 0 behind; sync: clean; cascade: idle; main: idle; release: v1.4.0; lane: last run ok"
+            }
+          ],
+          "stopped": []
         }
       },
       {
@@ -1664,6 +1735,40 @@
         "itemIds": [],
         "fresh": {
           "itemIds": []
+        },
+        "visual": {
+          "kind": "lifecycle",
+          "lanes": [
+            {
+              "lane": "refresh",
+              "state": "read",
+              "green": 16,
+              "total": 19,
+              "text": "refresh: 16 of 19 green in 21 days"
+            },
+            {
+              "lane": "upgrade",
+              "state": "read",
+              "green": 18,
+              "total": 19,
+              "text": "upgrade: 18 of 19 green in 21 days"
+            },
+            {
+              "lane": "smoke",
+              "state": "read",
+              "green": 21,
+              "total": 21,
+              "text": "smoke: 21 of 21 green in 21 days"
+            },
+            {
+              "lane": "sweeper",
+              "state": "read",
+              "green": 21,
+              "total": 21,
+              "text": "sweeper: 21 of 21 green in 21 days"
+            }
+          ],
+          "greenSince": "2026-11-06T04:20:36Z"
         }
       },
       {
@@ -1677,6 +1782,77 @@
         "itemIds": ["rollout"],
         "fresh": {
           "itemIds": []
+        },
+        "visual": {
+          "kind": "rollout",
+          "target": "7d269b5e84cb90daa7e07f41a0fb163e030ccfd4",
+          "slots": [
+            {
+              "service": "partition",
+              "state": "done",
+              "text": "partition: verified on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "entitlements",
+              "state": "done",
+              "text": "entitlements: verified on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "legal",
+              "state": "done",
+              "text": "legal: verified on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "schema",
+              "state": "done",
+              "text": "schema: verified on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "file",
+              "state": "done",
+              "text": "file: verified on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "storage",
+              "state": "done",
+              "text": "storage: verified on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "indexer",
+              "state": "done",
+              "text": "indexer: verified on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "search",
+              "state": "done",
+              "text": "search: verified on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "workflow",
+              "state": "done",
+              "text": "workflow: verified on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "indexer-queue",
+              "state": "done",
+              "text": "indexer-queue: verified on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "unit",
+              "state": "done",
+              "text": "unit: verified on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "crs-catalog",
+              "state": "waiting",
+              "text": "crs-catalog: template PR waits for review on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "crs-conversion",
+              "state": "waiting",
+              "text": "crs-conversion: template PR waits for review on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            }
+          ]
         }
       },
       {
@@ -1689,6 +1865,89 @@
         "itemIds": [],
         "fresh": {
           "itemIds": []
+        },
+        "visual": {
+          "kind": "forkColumns",
+          "columns": [
+            {
+              "service": "partition",
+              "count": 0,
+              "rules": [],
+              "text": "partition: 0 high or critical"
+            },
+            {
+              "service": "entitlements",
+              "count": 0,
+              "rules": [],
+              "text": "entitlements: 0 high or critical"
+            },
+            {
+              "service": "legal",
+              "count": 0,
+              "rules": [],
+              "text": "legal: 0 high or critical"
+            },
+            {
+              "service": "schema",
+              "count": 0,
+              "rules": [],
+              "text": "schema: 0 high or critical"
+            },
+            {
+              "service": "file",
+              "count": 0,
+              "rules": [],
+              "text": "file: 0 high or critical"
+            },
+            {
+              "service": "storage",
+              "count": 0,
+              "rules": [],
+              "text": "storage: 0 high or critical"
+            },
+            {
+              "service": "indexer",
+              "count": 0,
+              "rules": [],
+              "text": "indexer: 0 high or critical"
+            },
+            {
+              "service": "search",
+              "count": 0,
+              "rules": [],
+              "text": "search: 0 high or critical"
+            },
+            {
+              "service": "workflow",
+              "count": 0,
+              "rules": [],
+              "text": "workflow: 0 high or critical"
+            },
+            {
+              "service": "indexer-queue",
+              "count": 0,
+              "rules": [],
+              "text": "indexer-queue: 0 high or critical"
+            },
+            {
+              "service": "unit",
+              "count": 0,
+              "rules": [],
+              "text": "unit: 0 high or critical"
+            },
+            {
+              "service": "crs-catalog",
+              "count": 0,
+              "rules": [],
+              "text": "crs-catalog: 0 high or critical"
+            },
+            {
+              "service": "crs-conversion",
+              "count": 0,
+              "rules": [],
+              "text": "crs-conversion: 0 high or critical"
+            }
+          ]
         }
       }
     ],

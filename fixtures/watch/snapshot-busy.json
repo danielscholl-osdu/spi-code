@@ -2516,6 +2516,85 @@
         ],
         "fresh": {
           "itemIds": []
+        },
+        "visual": {
+          "kind": "pips",
+          "slots": [
+            {
+              "service": "partition",
+              "state": "occupied",
+              "text": "partition: upstream: 1 behind · os-core-common 10.0.0 queued; release: #600 waiting on review"
+            },
+            {
+              "service": "entitlements",
+              "state": "occupied",
+              "text": "entitlements: release: #601 waiting on review"
+            },
+            {
+              "service": "legal",
+              "state": "waiting",
+              "origin": "upstream",
+              "text": "legal: upstream: 1 behind · will halt on schemathesis-tests"
+            },
+            {
+              "service": "schema",
+              "state": "occupied",
+              "text": "schema: release: #603 waiting on review"
+            },
+            {
+              "service": "file",
+              "state": "occupied",
+              "text": "file: release: #604 waiting on review"
+            },
+            {
+              "service": "storage",
+              "state": "broken",
+              "text": "storage: sync: Sync Upstream failed"
+            },
+            {
+              "service": "indexer",
+              "state": "waiting",
+              "origin": "upstream",
+              "text": "indexer: sync: PR #58"
+            },
+            {
+              "service": "search",
+              "state": "occupied",
+              "text": "search: release: #607 waiting on review"
+            },
+            {
+              "service": "workflow",
+              "state": "waiting",
+              "origin": "upstream",
+              "text": "workflow: sync: PR #59"
+            },
+            {
+              "service": "indexer-queue",
+              "state": "broken",
+              "text": "indexer-queue: main: PR #67 red"
+            },
+            {
+              "service": "unit",
+              "state": "waiting",
+              "origin": "upstream",
+              "text": "unit: sync: PR #60"
+            },
+            {
+              "service": "crs-catalog",
+              "state": "empty",
+              "text": "crs-catalog: upstream: 0 behind; sync: clean; cascade: idle; main: idle; release: v1.4.0; lane: last run ok"
+            },
+            {
+              "service": "crs-conversion",
+              "state": "occupied",
+              "text": "crs-conversion: upstream: 1 behind"
+            }
+          ],
+          "stopped": ["storage", "indexer-queue"],
+          "horizon": {
+            "count": 7,
+            "text": "⇣ 7 on the horizon"
+          }
         }
       },
       {
@@ -2528,6 +2607,40 @@
         "itemIds": [],
         "fresh": {
           "itemIds": []
+        },
+        "visual": {
+          "kind": "lifecycle",
+          "lanes": [
+            {
+              "lane": "refresh",
+              "state": "read",
+              "green": 16,
+              "total": 19,
+              "text": "refresh: 16 of 19 green in 21 days"
+            },
+            {
+              "lane": "upgrade",
+              "state": "read",
+              "green": 18,
+              "total": 19,
+              "text": "upgrade: 18 of 19 green in 21 days"
+            },
+            {
+              "lane": "smoke",
+              "state": "read",
+              "green": 21,
+              "total": 21,
+              "text": "smoke: 21 of 21 green in 21 days"
+            },
+            {
+              "lane": "sweeper",
+              "state": "read",
+              "green": 21,
+              "total": 21,
+              "text": "sweeper: 21 of 21 green in 21 days"
+            }
+          ],
+          "greenSince": "2026-11-06T04:20:36Z"
         }
       },
       {
@@ -2541,6 +2654,77 @@
         "itemIds": ["rollout"],
         "fresh": {
           "itemIds": []
+        },
+        "visual": {
+          "kind": "rollout",
+          "target": "7d269b5e84cb90daa7e07f41a0fb163e030ccfd4",
+          "slots": [
+            {
+              "service": "partition",
+              "state": "done",
+              "text": "partition: verified on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "entitlements",
+              "state": "done",
+              "text": "entitlements: verified on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "legal",
+              "state": "done",
+              "text": "legal: verified on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "schema",
+              "state": "done",
+              "text": "schema: verified on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "file",
+              "state": "done",
+              "text": "file: verified on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "storage",
+              "state": "done",
+              "text": "storage: verified on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "indexer",
+              "state": "done",
+              "text": "indexer: verified on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "search",
+              "state": "waiting",
+              "text": "search: template PR waits for review on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "workflow",
+              "state": "waiting",
+              "text": "workflow: template PR waits for review on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "indexer-queue",
+              "state": "waiting",
+              "text": "indexer-queue: template PR waits for review on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "unit",
+              "state": "waiting",
+              "text": "unit: template PR waits for review on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "crs-catalog",
+              "state": "waiting",
+              "text": "crs-catalog: template PR waits for review on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            },
+            {
+              "service": "crs-conversion",
+              "state": "waiting",
+              "text": "crs-conversion: template PR waits for review on 7d269b5e84cb90daa7e07f41a0fb163e030ccfd4"
+            }
+          ]
         }
       },
       {
@@ -2554,6 +2738,94 @@
         "itemIds": ["security:dependabot:fixture-library"],
         "fresh": {
           "itemIds": []
+        },
+        "visual": {
+          "kind": "forkColumns",
+          "columns": [
+            {
+              "service": "partition",
+              "count": 2,
+              "rules": ["fixture-library"],
+              "text": "partition: 2 high or critical · fixture-library"
+            },
+            {
+              "service": "entitlements",
+              "count": 2,
+              "rules": ["fixture-library"],
+              "text": "entitlements: 2 high or critical · fixture-library"
+            },
+            {
+              "service": "legal",
+              "count": 2,
+              "rules": ["fixture-library"],
+              "text": "legal: 2 high or critical · fixture-library"
+            },
+            {
+              "service": "schema",
+              "count": 2,
+              "rules": ["fixture-library"],
+              "text": "schema: 2 high or critical · fixture-library"
+            },
+            {
+              "service": "file",
+              "count": 2,
+              "rules": ["fixture-library"],
+              "text": "file: 2 high or critical · fixture-library"
+            },
+            {
+              "service": "storage",
+              "count": 2,
+              "rules": ["fixture-library"],
+              "text": "storage: 2 high or critical · fixture-library"
+            },
+            {
+              "service": "indexer",
+              "count": 2,
+              "rules": ["fixture-library"],
+              "text": "indexer: 2 high or critical · fixture-library"
+            },
+            {
+              "service": "search",
+              "count": 2,
+              "rules": ["fixture-library"],
+              "text": "search: 2 high or critical · fixture-library"
+            },
+            {
+              "service": "workflow",
+              "count": 2,
+              "rules": ["fixture-library"],
+              "text": "workflow: 2 high or critical · fixture-library"
+            },
+            {
+              "service": "indexer-queue",
+              "count": 2,
+              "rules": ["fixture-library"],
+              "text": "indexer-queue: 2 high or critical · fixture-library"
+            },
+            {
+              "service": "unit",
+              "count": 2,
+              "rules": ["fixture-library"],
+              "text": "unit: 2 high or critical · fixture-library"
+            },
+            {
+              "service": "crs-catalog",
+              "count": 2,
+              "rules": ["fixture-library"],
+              "text": "crs-catalog: 2 high or critical · fixture-library"
+            },
+            {
+              "service": "crs-conversion",
+              "count": 2,
+              "rules": ["fixture-library"],
+              "text": "crs-conversion: 2 high or critical · fixture-library"
+            }
+          ],
+          "largest": {
+            "label": "fixture-library",
+            "forks": 13,
+            "text": "fixture-library · 13 forks"
+          }
         }
       }
     ],

@@ -4,6 +4,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { LifecycleLaneSchema } from "./briefing.js";
 import { InspectResultSchema } from "./inspect.js";
 import { ViewSnapshotSchema } from "./snapshot.js";
 
@@ -490,4 +491,16 @@ describe("existing Watch fixtures", () => {
     const schema = name.startsWith("inspect-") ? z.array(InspectResultSchema) : ViewSnapshotSchema;
     expect(schema.safeParse(read(name)).error).toBeUndefined();
   });
+});
+
+it("carries an explicit unknown lifecycle pass rate without claiming 0 of 0", () => {
+  const lane = {
+    lane: "refresh",
+    green: 0,
+    total: 0,
+    state: "unknown",
+    text: "refresh: 21-day pass rate not read yet",
+  };
+  expect(LifecycleLaneSchema.parse(lane)).toEqual(lane);
+  expect(LifecycleLaneSchema.safeParse({ ...lane, state: "green" }).success).toBe(false);
 });

@@ -801,7 +801,7 @@ export const PENDING: Readonly<Record<string, Exemption>> = {
     ...under("/briefing/places/#/visual/slots/#", SLOT),
     "/briefing/places/#/visual/stopped/#",
     ...under("/briefing/places/#/visual/horizon", ["count", "text"]),
-    ...under("/briefing/places/#/visual/lanes/#", ["lane", "green", "total", "text"]),
+    ...under("/briefing/places/#/visual/lanes/#", ["lane", "green", "total", "state", "text"]),
     ...under("/briefing/places/#/visual/columns/#", ["service", "count", "text"]),
     "/briefing/places/#/visual/columns/#/rules/#",
     ...under("/briefing/places/#/visual/largest", ["label", "forks", "text"]),

@@ -37,7 +37,7 @@ describe("Today place rows (PS-03, PS-19)", () => {
           expect(row.figure).toBe(reading?.headline.replace(/\.$/, ""));
         else expect(row.figure.startsWith(reading?.tiles[0].value ?? "missing")).toBe(true);
         expect(row.fresh).toEqual({ itemIds: [] });
-        expect(row.visual).toBeUndefined();
+        expect(row.visual).toBeDefined();
         const refs = new Set(reading?.itemIds);
         for (const id of row.itemIds) {
           const source = [...snapshot.briefing.focus, ...snapshot.briefing.rest].find(

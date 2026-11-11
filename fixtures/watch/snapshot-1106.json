@@ -2848,6 +2848,86 @@
         ],
         "fresh": {
           "itemIds": []
+        },
+        "visual": {
+          "kind": "pips",
+          "slots": [
+            {
+              "service": "partition",
+              "state": "waiting",
+              "origin": "upstream",
+              "text": "partition: upstream: 8 behind · will halt on schemathesis-tests"
+            },
+            {
+              "service": "entitlements",
+              "state": "broken",
+              "text": "entitlements: cascade: conflict; release: PR #89"
+            },
+            {
+              "service": "legal",
+              "state": "waiting",
+              "origin": "upstream",
+              "text": "legal: upstream: 17 behind · os-core-common 8.4.1-boot4-SNAPSHOT queued"
+            },
+            {
+              "service": "schema",
+              "state": "occupied",
+              "text": "schema: upstream: 16 behind · port owed; release: #40 waiting on review"
+            },
+            {
+              "service": "file",
+              "state": "occupied",
+              "text": "file: upstream: 5 behind · port owed; release: PR #55"
+            },
+            {
+              "service": "storage",
+              "state": "waiting",
+              "origin": "upstream",
+              "text": "storage: sync: PR #58"
+            },
+            {
+              "service": "indexer",
+              "state": "waiting",
+              "origin": "upstream",
+              "text": "indexer: sync: PR #58"
+            },
+            {
+              "service": "search",
+              "state": "occupied",
+              "text": "search: upstream: 6 behind · port owed; release: #29 waiting on review"
+            },
+            {
+              "service": "workflow",
+              "state": "occupied",
+              "text": "workflow: upstream: 7 behind · port owed; release: #38 waiting on review"
+            },
+            {
+              "service": "indexer-queue",
+              "state": "waiting",
+              "origin": "upstream",
+              "text": "indexer-queue: sync: PR #58"
+            },
+            {
+              "service": "unit",
+              "state": "occupied",
+              "text": "unit: upstream: 7 behind · port owed; release: #21 waiting on review"
+            },
+            {
+              "service": "crs-catalog",
+              "state": "occupied",
+              "text": "crs-catalog: release: #19 waiting on review"
+            },
+            {
+              "service": "crs-conversion",
+              "state": "occupied",
+              "text": "crs-conversion: upstream: 5 behind · port owed; release: #17 waiting on review"
+            }
+          ],
+          "stopped": ["entitlements"],
+          "horizon": {
+            "count": 10,
+            "text": "⇣ 10 on the horizon"
+          }
         }
       },
       {
@@ -2860,6 +2940,40 @@
         "itemIds": [],
         "fresh": {
           "itemIds": []
+        },
+        "visual": {
+          "kind": "lifecycle",
+          "lanes": [
+            {
+              "lane": "refresh",
+              "state": "read",
+              "green": 16,
+              "total": 19,
+              "text": "refresh: 16 of 19 green in 21 days"
+            },
+            {
+              "lane": "upgrade",
+              "state": "read",
+              "green": 18,
+              "total": 19,
+              "text": "upgrade: 18 of 19 green in 21 days"
+            },
+            {
+              "lane": "smoke",
+              "state": "read",
+              "green": 21,
+              "total": 21,
+              "text": "smoke: 21 of 21 green in 21 days"
+            },
+            {
+              "lane": "sweeper",
+              "state": "read",
+              "green": 21,
+              "total": 21,
+              "text": "sweeper: 21 of 21 green in 21 days"
+            }
+          ],
+          "greenSince": "2026-11-06T04:20:36Z"
         }
       },
       {
@@ -2873,6 +2987,77 @@
         "itemIds": ["rollout"],
         "fresh": {
           "itemIds": []
+        },
+        "visual": {
+          "kind": "rollout",
+          "target": "7d269b57e9b114711a7de9d0052b5ae4fd261e97",
+          "slots": [
+            {
+              "service": "partition",
+              "state": "occupied",
+              "text": "partition: template verification pending on 7d269b57e9b114711a7de9d0052b5ae4fd261e97"
+            },
+            {
+              "service": "entitlements",
+              "state": "occupied",
+              "text": "entitlements: template verification pending on 7d269b57e9b114711a7de9d0052b5ae4fd261e97"
+            },
+            {
+              "service": "legal",
+              "state": "occupied",
+              "text": "legal: template verification pending on 7d269b57e9b114711a7de9d0052b5ae4fd261e97"
+            },
+            {
+              "service": "schema",
+              "state": "occupied",
+              "text": "schema: template verification pending on 7d269b57e9b114711a7de9d0052b5ae4fd261e97"
+            },
+            {
+              "service": "file",
+              "state": "occupied",
+              "text": "file: template verification pending on 7d269b57e9b114711a7de9d0052b5ae4fd261e97"
+            },
+            {
+              "service": "storage",
+              "state": "occupied",
+              "text": "storage: template verification pending on 7d269b57e9b114711a7de9d0052b5ae4fd261e97"
+            },
+            {
+              "service": "indexer",
+              "state": "occupied",
+              "text": "indexer: template verification pending on 7d269b57e9b114711a7de9d0052b5ae4fd261e97"
+            },
+            {
+              "service": "search",
+              "state": "occupied",
+              "text": "search: template verification pending on 7d269b57e9b114711a7de9d0052b5ae4fd261e97"
+            },
+            {
+              "service": "workflow",
+              "state": "occupied",
+              "text": "workflow: template verification pending on 7d269b57e9b114711a7de9d0052b5ae4fd261e97"
+            },
+            {
+              "service": "indexer-queue",
+              "state": "occupied",
+              "text": "indexer-queue: template verification pending on 7d269b57e9b114711a7de9d0052b5ae4fd261e97"
+            },
+            {
+              "service": "unit",
+              "state": "occupied",
+              "text": "unit: template verification pending on 7d269b57e9b114711a7de9d0052b5ae4fd261e97"
+            },
+            {
+              "service": "crs-catalog",
+              "state": "occupied",
+              "text": "crs-catalog: template verification pending on 7d269b57e9b114711a7de9d0052b5ae4fd261e97"
+            },
+            {
+              "service": "crs-conversion",
+              "state": "occupied",
+              "text": "crs-conversion: template verification pending on 7d269b57e9b114711a7de9d0052b5ae4fd261e97"
+            }
+          ]
         }
       },
       {
@@ -2890,6 +3075,89 @@
         "itemIds": [],
         "fresh": {
           "itemIds": []
+        },
+        "visual": {
+          "kind": "forkColumns",
+          "columns": [
+            {
+              "service": "partition",
+              "count": null,
+              "rules": [],
+              "text": "partition: Security not fully read yet"
+            },
+            {
+              "service": "entitlements",
+              "count": null,
+              "rules": [],
+              "text": "entitlements: Security not fully read yet"
+            },
+            {
+              "service": "legal",
+              "count": null,
+              "rules": [],
+              "text": "legal: Security not fully read yet"
+            },
+            {
+              "service": "schema",
+              "count": null,
+              "rules": [],
+              "text": "schema: Security not fully read yet"
+            },
+            {
+              "service": "file",
+              "count": null,
+              "rules": [],
+              "text": "file: Security not fully read yet"
+            },
+            {
+              "service": "storage",
+              "count": null,
+              "rules": [],
+              "text": "storage: Security not fully read yet"
+            },
+            {
+              "service": "indexer",
+              "count": null,
+              "rules": [],
+              "text": "indexer: Security not fully read yet"
+            },
+            {
+              "service": "search",
+              "count": null,
+              "rules": [],
+              "text": "search: Security not fully read yet"
+            },
+            {
+              "service": "workflow",
+              "count": null,
+              "rules": [],
+              "text": "workflow: Security not fully read yet"
+            },
+            {
+              "service": "indexer-queue",
+              "count": null,
+              "rules": [],
+              "text": "indexer-queue: Security not fully read yet"
+            },
+            {
+              "service": "unit",
+              "count": null,
+              "rules": [],
+              "text": "unit: Security not fully read yet"
+            },
+            {
+              "service": "crs-catalog",
+              "count": null,
+              "rules": [],
+              "text": "crs-catalog: Security not fully read yet"
+            },
+            {
+              "service": "crs-conversion",
+              "count": null,
+              "rules": [],
+              "text": "crs-conversion: Security not fully read yet"
+            }
+          ]
         }
       }
     ],
