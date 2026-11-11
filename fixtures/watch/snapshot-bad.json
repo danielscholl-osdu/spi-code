@@ -773,15 +773,37 @@
           "verb": "Pre-classify",
           "itemIds": ["radar:legal"],
           "text": "schemathesis-tests: won't land on legal. Add it to top_level first."
+        },
+        {
+          "id": "sync:gate1:legal",
+          "kind": "sync",
+          "token": "Sync upstream",
+          "services": [
+            {
+              "service": "legal",
+              "stage": "unknown",
+              "pr": {
+                "number": 701,
+                "url": "https://github.com/Azure/osdu-spi-legal/pull/701",
+                "inspect": "gate1:legal"
+              }
+            }
+          ],
+          "needsYou": true,
+          "mark": "stopped",
+          "verb": "Review",
+          "itemIds": ["gate1:legal"],
+          "text": "Sync upstream: stage not proven on legal. Review PR #701. Not fully read on legal."
         }
       ],
       "counts": {
-        "needYouCards": 4,
+        "needYouCards": 5,
         "toWatchCards": 0,
         "surfaceItems": 7,
-        "text": "4 need you before they land"
+        "text": "5 need you before they land"
       },
       "owed": {
+        "itemIds": [],
         "count": 0,
         "services": [],
         "text": "0 upstream changes not ported · 0 forks"
@@ -3251,6 +3273,33 @@
               "at": "2026-11-07T00:00:00.000Z",
               "before": "next sync"
             },
+            "owned": false,
+            "group": "Before 2026-11-07T00:00:00.000Z"
+          },
+          {
+            "id": "gate1:legal",
+            "ids": ["gate1:legal"],
+            "origin": "upstream",
+            "rung": 1,
+            "cls": "BUILD",
+            "scope": "legal",
+            "title": "Sync PR #701 fails Java Build",
+            "sub": "Compilation failed in the synthetic morning build · 1 commit held · 1d 2h",
+            "cause": "Compilation failed in the synthetic morning build.",
+            "effect": "1 upstream commit wait on this PR.",
+            "next": "Open the failed job (Java Build › Build); the reason is in the cause above.",
+            "verb": "Investigate",
+            "evidence": [
+              {
+                "label": "PR #701",
+                "url": "https://github.com/Azure/osdu-spi-legal/pull/701"
+              },
+              {
+                "label": "check Java Build › Build",
+                "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/701/job/70100"
+              }
+            ],
+            "attention": "interrupt",
             "owned": false,
             "group": "Before 2026-11-07T00:00:00.000Z"
           },

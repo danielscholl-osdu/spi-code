@@ -1092,6 +1092,48 @@
           "text": "schemathesis-tests: won't land on partition; in open upstream MRs for legal and crs-conversion. Add it to top_level first. Not fully read on partition and crs-conversion."
         },
         {
+          "id": "sync:gate1:indexer",
+          "kind": "sync",
+          "token": "Sync upstream",
+          "services": [
+            {
+              "service": "indexer",
+              "stage": "unknown",
+              "pr": {
+                "number": 58,
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/58",
+                "inspect": "gate1:indexer"
+              }
+            }
+          ],
+          "needsYou": true,
+          "mark": "needs-person",
+          "verb": "Review",
+          "itemIds": ["gate1:indexer"],
+          "text": "Sync upstream: stage not proven on indexer. Review PR #58. Not fully read on indexer."
+        },
+        {
+          "id": "sync:gate1:indexer-queue",
+          "kind": "sync",
+          "token": "Sync upstream",
+          "services": [
+            {
+              "service": "indexer-queue",
+              "stage": "unknown",
+              "pr": {
+                "number": 58,
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/58",
+                "inspect": "gate1:indexer-queue"
+              }
+            }
+          ],
+          "needsYou": true,
+          "mark": "needs-person",
+          "verb": "Review",
+          "itemIds": ["gate1:indexer-queue"],
+          "text": "Sync upstream: stage not proven on indexer-queue. Review PR #58. Not fully read on indexer-queue."
+        },
+        {
           "id": "toolchain:os-core-common 9.4.0",
           "kind": "toolchain",
           "token": "os-core-common 9.4.0",
@@ -1178,12 +1220,13 @@
         }
       ],
       "counts": {
-        "needYouCards": 3,
+        "needYouCards": 5,
         "toWatchCards": 3,
-        "surfaceItems": 11,
-        "text": "3 need you before they land · 3 to watch"
+        "surfaceItems": 13,
+        "text": "5 need you before they land · 3 to watch"
       },
       "owed": {
+        "itemIds": ["port:entitlements"],
         "count": 23,
         "services": [
           {
@@ -2947,8 +2990,8 @@
           ],
           "stopped": ["entitlements", "legal"],
           "horizon": {
-            "count": 10,
-            "text": "⇣ 10 on the horizon"
+            "count": 11,
+            "text": "⇣ 11 on the horizon"
           }
         }
       },
@@ -3436,7 +3479,7 @@
         "kind": "upstream"
       },
       "content": {
-        "headline": "At 2026-11-07T00:00:00.000Z, 65 commits reach 8 forks. 11 need you first.",
+        "headline": "At 2026-11-07T00:00:00.000Z, 65 commits reach 8 forks. 13 need you first.",
         "qualifier": "GitLab truncated the upstream diffs for 6 services and the reads failed for 3 services, so a toolchain move could be missing.",
         "tiles": [
           {
@@ -3519,6 +3562,52 @@
             "group": "Before 2026-11-07T00:00:00.000Z"
           },
           {
+            "id": "gate1:indexer",
+            "ids": ["gate1:indexer"],
+            "origin": "upstream",
+            "rung": 1,
+            "cls": "GATE",
+            "scope": "indexer",
+            "title": "Sync PR #58 waits for review",
+            "sub": "25 commits held · 1d 13h",
+            "cause": "Sync PR #58 waits for review.",
+            "effect": "25 upstream commits wait on this PR.",
+            "next": "Review the sync PR on GitHub and merge it.",
+            "verb": "Review on GitHub",
+            "evidence": [
+              {
+                "label": "PR #58",
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/58"
+              }
+            ],
+            "attention": "surface",
+            "owned": false,
+            "group": "Before 2026-11-07T00:00:00.000Z"
+          },
+          {
+            "id": "gate1:indexer-queue",
+            "ids": ["gate1:indexer-queue"],
+            "origin": "upstream",
+            "rung": 1,
+            "cls": "GATE",
+            "scope": "indexer-queue",
+            "title": "Sync PR #58 waits for review",
+            "sub": "3 commits held · 1d 13h",
+            "cause": "Sync PR #58 waits for review.",
+            "effect": "3 upstream commits wait on this PR.",
+            "next": "Review the sync PR on GitHub and merge it.",
+            "verb": "Review on GitHub",
+            "evidence": [
+              {
+                "label": "PR #58",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/58"
+              }
+            ],
+            "attention": "surface",
+            "owned": false,
+            "group": "Before 2026-11-07T00:00:00.000Z"
+          },
+          {
             "id": "campaign:toolchain:os-core-common%208.5.0",
             "ids": [
               "radar:crs-conversion",
@@ -3594,86 +3683,9 @@
             },
             "owned": false,
             "group": "Toolchain"
-          },
-          {
-            "id": "campaign:toolchain:os-core-common%2010.0.0",
-            "ids": [
-              "radar:crs-conversion",
-              "radar:file",
-              "radar:indexer",
-              "radar:schema",
-              "radar:search",
-              "radar:storage",
-              "radar:unit",
-              "radar:workflow",
-              "gate1:storage"
-            ],
-            "origin": "upstream",
-            "rung": 2,
-            "cls": "TOOLCHAIN",
-            "scope": "11 forks",
-            "title": "Detected: os-core-common 10.0.0 on 3 forks; possible on 8 forks",
-            "sub": "Certain: indexer, schema, unit · Possible: crs-catalog, crs-conversion, file, legal, partition, search, storage, workflow",
-            "cause": "Detected: os-core-common 10.0.0 on 3 forks; possible on 8 forks.",
-            "effect": "",
-            "next": "",
-            "verb": "",
-            "evidence": [
-              {
-                "label": "commit 80e3497b",
-                "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-conversion-service/-/commit/80e3497b7e5c8cba61810c2fb51c9e9fb9e5ea17"
-              },
-              {
-                "label": "commit 4d0ff1f4",
-                "url": "https://community.opengroup.org/osdu/platform/system/file/-/commit/4d0ff1f4ff24edbeda28d2c161a144a4e3e02db2"
-              },
-              {
-                "label": "commit 7749dc4b",
-                "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/commit/7749dc4b7b5865f3030b6b089068f8de80729918"
-              },
-              {
-                "label": "run",
-                "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/commit/f9643b164cf5eb0994df18a6d30ddcd37738d245"
-              },
-              {
-                "label": "commit 28d5a930",
-                "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/commit/28d5a93096f69a90ee3df7727103d2394e09c789"
-              },
-              {
-                "label": "run",
-                "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/commit/d708bac1910407e175278e721a86fe20249e18bf"
-              },
-              {
-                "label": "commit aded8a3f",
-                "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/commit/aded8a3f3eb04154f291d4af4e33116514e40599"
-              },
-              {
-                "label": "commit 9acda5e5",
-                "url": "https://community.opengroup.org/osdu/platform/system/storage/-/commit/9acda5e50312d03e4e8b891c6923d01ec90dfd7d"
-              },
-              {
-                "label": "commit 3a69766c",
-                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/3a69766c25b03b450d95b55ef21c013c63ef407f"
-              },
-              {
-                "label": "run",
-                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/d4b65bdf42503bf50bdbed11249c06bd9c0c4fe0"
-              },
-              {
-                "label": "commit d6847cea",
-                "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/d6847cea52b94f697ab67ef471f1bfeff33b6d93"
-              }
-            ],
-            "attention": "surface",
-            "due": {
-              "at": "2026-11-07T00:00:00.000Z",
-              "before": "next sync"
-            },
-            "owned": false,
-            "group": "Toolchain"
           }
         ],
-        "folded": "indexer-queue takes 3 commits with no toolchain move."
+        "folded": "1 more item: 11 forks detected: os-core-common 10.0.0 on 3 forks; possible on 8 forks. indexer-queue takes 3 commits with no toolchain move."
       }
     },
     {

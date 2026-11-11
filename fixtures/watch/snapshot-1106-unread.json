@@ -1041,6 +1041,27 @@
           "text": "schemathesis-tests: won't land on partition; in open upstream MRs for legal and crs-conversion. Add it to top_level first. Not fully read on partition and crs-conversion."
         },
         {
+          "id": "sync:gate1:indexer",
+          "kind": "sync",
+          "token": "Sync upstream",
+          "services": [
+            {
+              "service": "indexer",
+              "stage": "unknown",
+              "pr": {
+                "number": 58,
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/58",
+                "inspect": "gate1:indexer"
+              }
+            }
+          ],
+          "needsYou": true,
+          "mark": "needs-person",
+          "verb": "Review",
+          "itemIds": ["gate1:indexer"],
+          "text": "Sync upstream: stage not proven on indexer. Review PR #58. Not fully read on indexer."
+        },
+        {
           "id": "toolchain:os-core-common 9.4.0",
           "kind": "toolchain",
           "token": "os-core-common 9.4.0",
@@ -1127,12 +1148,13 @@
         }
       ],
       "counts": {
-        "needYouCards": 3,
+        "needYouCards": 4,
         "toWatchCards": 3,
-        "surfaceItems": 11,
-        "text": "3 need you before they land · 3 to watch"
+        "surfaceItems": 12,
+        "text": "4 need you before they land · 3 to watch"
       },
       "owed": {
+        "itemIds": ["port:entitlements"],
         "count": 23,
         "services": [
           {
@@ -3356,7 +3378,7 @@
         "kind": "upstream"
       },
       "content": {
-        "headline": "At 2026-11-07T00:00:00.000Z, 68 commits reach 9 forks. 11 need you first.",
+        "headline": "At 2026-11-07T00:00:00.000Z, 68 commits reach 9 forks. 12 need you first.",
         "qualifier": "GitLab truncated the upstream diffs for 6 services and the reads failed for 3 services, so a toolchain move could be missing.",
         "tiles": [
           {
@@ -3439,6 +3461,29 @@
             "group": "Before 2026-11-07T00:00:00.000Z"
           },
           {
+            "id": "gate1:indexer",
+            "ids": ["gate1:indexer"],
+            "origin": "upstream",
+            "rung": 1,
+            "cls": "GATE",
+            "scope": "indexer",
+            "title": "Sync PR #58 waits for review",
+            "sub": "25 commits held · 1d 13h",
+            "cause": "Sync PR #58 waits for review.",
+            "effect": "25 upstream commits wait on this PR.",
+            "next": "Review the sync PR on GitHub and merge it.",
+            "verb": "Review on GitHub",
+            "evidence": [
+              {
+                "label": "PR #58",
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/58"
+              }
+            ],
+            "attention": "surface",
+            "owned": false,
+            "group": "Before 2026-11-07T00:00:00.000Z"
+          },
+          {
             "id": "campaign:toolchain:os-core-common%208.5.0",
             "ids": [
               "radar:crs-conversion",
@@ -3517,17 +3562,7 @@
           },
           {
             "id": "campaign:toolchain:os-core-common%2010.0.0",
-            "ids": [
-              "radar:crs-conversion",
-              "radar:file",
-              "radar:indexer",
-              "radar:schema",
-              "radar:search",
-              "radar:storage",
-              "radar:unit",
-              "radar:workflow",
-              "gate1:storage"
-            ],
+            "ids": [],
             "origin": "upstream",
             "rung": 2,
             "cls": "TOOLCHAIN",

@@ -431,6 +431,35 @@
       },
       "cards": [
         {
+          "id": "toolchain:Java 25",
+          "kind": "toolchain",
+          "token": "Java 25",
+          "services": [
+            {
+              "service": "legal",
+              "stage": "wont-land",
+              "pr": {
+                "number": 31,
+                "url": "https://github.com/Azure/osdu-spi-legal/pull/31",
+                "inspect": "gate1:legal"
+              }
+            },
+            {
+              "service": "partition",
+              "stage": "upstream"
+            },
+            {
+              "service": "schema",
+              "stage": "upstream"
+            }
+          ],
+          "needsYou": true,
+          "mark": "needs-person",
+          "verb": "Move pin",
+          "itemIds": ["gate1:legal"],
+          "text": "Java 25: won't land on legal; in open upstream MRs for partition and schema. Move the pin."
+        },
+        {
           "id": "halt:top_level:schemathesis-tests",
           "kind": "halt",
           "token": "schemathesis-tests",
@@ -453,28 +482,6 @@
           "verb": "Pre-classify",
           "itemIds": ["halt:entitlements"],
           "text": "schemathesis-tests: won't land on entitlements; in open upstream MRs for legal and file. Add it to top_level first."
-        },
-        {
-          "id": "toolchain:Java 25",
-          "kind": "toolchain",
-          "token": "Java 25",
-          "services": [
-            {
-              "service": "legal",
-              "stage": "wont-land"
-            },
-            {
-              "service": "partition",
-              "stage": "upstream"
-            },
-            {
-              "service": "schema",
-              "stage": "upstream"
-            }
-          ],
-          "needsYou": false,
-          "itemIds": [],
-          "text": "Java 25: won't land on legal; in open upstream MRs for partition and schema."
         },
         {
           "id": "toolchain:os-core-common 9.2.0",
@@ -514,12 +521,13 @@
         }
       ],
       "counts": {
-        "needYouCards": 1,
-        "toWatchCards": 3,
-        "surfaceItems": 0,
-        "text": "1 needs you before it lands · 3 to watch"
+        "needYouCards": 2,
+        "toWatchCards": 2,
+        "surfaceItems": 1,
+        "text": "2 need you before they land · 2 to watch"
       },
       "owed": {
+        "itemIds": ["port:entitlements"],
         "count": 3,
         "services": [
           {
@@ -1700,8 +1708,8 @@
           ],
           "stopped": ["partition", "entitlements", "legal", "schema", "file"],
           "horizon": {
-            "count": 1,
-            "text": "⇣ 1 on the horizon"
+            "count": 2,
+            "text": "⇣ 2 on the horizon"
           }
         }
       },
@@ -2013,7 +2021,7 @@
         "kind": "upstream"
       },
       "content": {
-        "headline": "Nothing lands at the next sync; 6 commits won't land.",
+        "headline": "Nothing lands; 6 commits won't land. One needs you first.",
         "tiles": [
           {
             "label": "Incoming",
@@ -2060,6 +2068,33 @@
               "at": "2026-10-22T00:00:00.000Z",
               "before": "next sync"
             },
+            "owned": false,
+            "group": "Before 2026-10-22T00:00:00.000Z"
+          },
+          {
+            "id": "gate1:legal",
+            "ids": ["gate1:legal"],
+            "origin": "upstream",
+            "rung": 1,
+            "cls": "TOOLCHAIN",
+            "scope": "legal",
+            "title": "Sync PR #31 fails Java Build",
+            "sub": "upstream requires Java 25, the fork builds on 17 · 4 commits held · 13d",
+            "cause": "Upstream requires Java 25; the fork builds on 17.",
+            "effect": "4 upstream commits wait on this PR.",
+            "next": "Move the fork's Java pin to 25, the version upstream now requires.",
+            "verb": "Absorb toolchain",
+            "evidence": [
+              {
+                "label": "PR #31",
+                "url": "https://github.com/Azure/osdu-spi-legal/pull/31"
+              },
+              {
+                "label": "check Java Build › Run Java Build",
+                "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37706140110/job/113081034815"
+              }
+            ],
+            "attention": "surface",
             "owned": false,
             "group": "Before 2026-10-22T00:00:00.000Z"
           }
