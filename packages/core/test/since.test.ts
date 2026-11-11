@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { sinceOf } from "../src/brief/since.js";
 import type { ReadRecord } from "../src/evidence/index.js";
-import type { ForkRuns, PrFact, RunFact } from "../src/facts.js";
+import type { ForkRuns, PastPrFact, PrFact, RunFact } from "../src/facts.js";
 import { buildModel } from "../src/model/index.js";
 import type { LineModel } from "../src/model/lines.js";
 import type { RolloutModel } from "../src/model/rollout.js";
@@ -333,6 +333,35 @@ describe("since pips", () => {
       expect(slot()?.state).toBe("unknown");
       line.past = undefined;
       expect(slot()?.state).toBe("unknown");
+    });
+    const page = (updatedAt: (index: number) => string | undefined): PastPrFact[] =>
+      Array.from({ length: 100 }, (_, index) => ({
+        number: 1000 - index,
+        title: "Bump",
+        url: "u",
+        head: `feature-${index}`,
+        base: "main",
+        createdAt: "2026-09-01T00:00:00Z",
+        closedAt: "2026-09-02T00:00:00Z",
+        ...(updatedAt(index) ? { updatedAt: updatedAt(index) } : {}),
+      }));
+    it("stays unknown when a full page of past PRs does not reach back to the run's start", () => {
+      const { line, slot } = calm();
+      line.past = page(() => "2026-10-12T19:00:00Z");
+      expect(slot()?.state).toBe("unknown");
+      line.past = page(() => "2026-10-12T18:00:00Z");
+      expect(slot()?.state).toBe("unknown");
+      line.past = page(() => undefined);
+      expect(slot()?.state).toBe("unknown");
+      line.past = page((index) => (index === 99 ? undefined : "2026-10-01T00:00:00Z"));
+      expect(slot()?.state).toBe("unknown");
+    });
+    it("draws empty when a full page of past PRs reaches back past the run's start", () => {
+      const { line, slot } = calm();
+      line.past = page((index) => (index < 99 ? "2026-10-12T19:00:00Z" : "2026-10-12T17:59:59Z"));
+      expect(slot()?.state).toBe("empty");
+      line.past = page(() => "2026-10-12T19:00:00Z").slice(0, 99);
+      expect(slot()?.state).toBe("empty");
     });
   });
 });

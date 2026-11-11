@@ -532,8 +532,8 @@ export const GRAPHQL_BLOCKS: readonly BlockTemplate[] = [
  * sends it. Any other fragment text is unrecognized. */
 export const FRAGMENT_HASHES: Readonly<Record<string, string>> = {
   Base: "e49ae8c28e12b69f20c6dc66090abbb06bd351d64ed96c42c28cd1c3067b38c3",
-  Template: "2d7b47a33820effd3c22f17bce66c9d51d013968e7ffd79e63f6fdec223e6a4c",
-  Fork: "937f5c673aee2ea622156e6ea76b450e4be9231df63ea5fcfa99005fb45abd92",
+  Template: "051eb0040285b270a2419bbbeb6fb0df3a873b999d12f6cefe69e96a36070875",
+  Fork: "c6ff93e4fe5b8003dc347330a1c884b8032431ed5fa7dd4f00bca2f1f26b86ea",
   Stack: "7e9be32536546dd43de851827f6041a4c3c6184591934481e552906e49f6068f",
 };
 

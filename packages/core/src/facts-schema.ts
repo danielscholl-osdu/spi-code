@@ -80,6 +80,7 @@ const pastPrFact = z.object({
   head: z.string(),
   base: z.string(),
   createdAt: z.string(),
+  updatedAt: z.string().optional(),
   mergedAt: z.string().optional(),
   closedAt: z.string().optional(),
   author: z.string().optional(),

@@ -92,6 +92,7 @@ interface RawRepo {
       title: string;
       url: string;
       createdAt: string;
+      updatedAt?: string | null;
       mergedAt?: string | null;
       closedAt?: string | null;
       headRefName: string;
@@ -239,6 +240,7 @@ function parsePastPrs(raw: RawRepo["pastPrs"]): PastPrFact[] | undefined {
     head: p.headRefName,
     base: p.baseRefName,
     createdAt: p.createdAt,
+    ...(p.updatedAt ? { updatedAt: p.updatedAt } : {}),
     mergedAt: p.mergedAt ?? undefined,
     closedAt: p.closedAt ?? undefined,
     ...(p.author?.login ? { author: p.author.login } : {}),

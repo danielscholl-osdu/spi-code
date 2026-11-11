@@ -68,6 +68,7 @@ export interface PastPrFact {
   head: string;
   base: string;
   createdAt: string;
+  updatedAt?: string;
   mergedAt?: string;
   closedAt?: string;
   author?: string;
