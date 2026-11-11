@@ -3604,10 +3604,6 @@
               }
             ],
             "age": "1d 13h",
-            "blocks": {
-              "count": 1,
-              "text": "blocks 1"
-            },
             "attention": "surface",
             "owned": false,
             "group": "Before 2026-11-07T00:00:00.000Z"
@@ -3632,10 +3628,6 @@
               }
             ],
             "age": "1d 13h",
-            "blocks": {
-              "count": 1,
-              "text": "blocks 1"
-            },
             "attention": "surface",
             "owned": false,
             "group": "Before 2026-11-07T00:00:00.000Z"

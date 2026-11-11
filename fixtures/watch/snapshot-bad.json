@@ -3322,10 +3322,6 @@
               }
             ],
             "age": "1d 2h",
-            "blocks": {
-              "count": 1,
-              "text": "blocks 1"
-            },
             "attention": "interrupt",
             "owned": false,
             "group": "Before 2026-11-07T00:00:00.000Z"
