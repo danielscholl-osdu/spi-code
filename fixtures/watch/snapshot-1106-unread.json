@@ -997,7 +997,7 @@
             "radar:crs-conversion",
             "gate1:storage"
           ],
-          "text": "os-core-common 8.5.0: in sync PRs on storage; at the next sync on legal, schema, file, search, workflow, unit and crs-conversion; won't land on partition; stage not proven on indexer. Absorb it on the fork first. Not fully read on partition, schema, file, storage, indexer, search, unit and crs-conversion."
+          "text": "os-core-common 8.5.0: in sync PRs on storage; at the next sync on legal, schema, file, search, workflow, unit and crs-conversion; won't land on partition; stage not proven on indexer. Absorb it on the fork first. Not fully read on partition, schema, file, storage, search, unit and crs-conversion."
         },
         {
           "id": "toolchain:os-core-common 8.4.1-boot4-SNAPSHOT",
@@ -1059,7 +1059,7 @@
           "mark": "needs-person",
           "verb": "Review",
           "itemIds": ["gate1:indexer"],
-          "text": "Sync upstream: stage not proven on indexer. Review PR #58. Not fully read on indexer."
+          "text": "Sync upstream: stage not proven on indexer. Review PR #58."
         },
         {
           "id": "toolchain:os-core-common 9.4.0",
@@ -1129,7 +1129,7 @@
           ],
           "needsYou": false,
           "itemIds": [],
-          "text": "os-core-common 10.0.0: at the next sync on schema and unit; in open upstream MRs for partition, legal, file, storage, search, workflow, crs-catalog and crs-conversion; stage not proven on indexer. Not fully read on schema, indexer, unit, partition, file, storage, search, crs-catalog and crs-conversion."
+          "text": "os-core-common 10.0.0: at the next sync on schema and unit; in open upstream MRs for partition, legal, file, storage, search, workflow, crs-catalog and crs-conversion; stage not proven on indexer. Not fully read on schema, unit, partition, file, storage, search, crs-catalog and crs-conversion."
         },
         {
           "id": "toolchain:os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT",
@@ -2635,7 +2635,7 @@
       "first": "repo:osdu-spi"
     },
     "verdict": {
-      "text": "1 thing needs you; 1 fork is stopped; 5 upstream changes need you before they land. GitHub, run approvals, the upstream radar and security alerts weren't read this sweep.",
+      "text": "1 thing needs you; 1 fork is stopped; 4 upstream changes need you before they land. GitHub, run approvals, the upstream radar and security alerts weren't read this sweep.",
       "mark": "stopped"
     },
     "since": {
@@ -3389,7 +3389,7 @@
           {
             "label": "Toolchain",
             "value": "10 forks",
-            "counts": "move to os-core-common 8.5.0 · 1 more move"
+            "counts": "move to os-core-common 8.5.0"
           },
           {
             "label": "Largest",
@@ -3503,73 +3503,6 @@
             "title": "Detected: os-core-common 8.5.0 on 10 forks",
             "sub": "",
             "cause": "Detected: os-core-common 8.5.0 on 10 forks.",
-            "effect": "",
-            "next": "",
-            "verb": "",
-            "evidence": [
-              {
-                "label": "commit 80e3497b",
-                "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-conversion-service/-/commit/80e3497b7e5c8cba61810c2fb51c9e9fb9e5ea17"
-              },
-              {
-                "label": "commit 4d0ff1f4",
-                "url": "https://community.opengroup.org/osdu/platform/system/file/-/commit/4d0ff1f4ff24edbeda28d2c161a144a4e3e02db2"
-              },
-              {
-                "label": "commit 7749dc4b",
-                "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/commit/7749dc4b7b5865f3030b6b089068f8de80729918"
-              },
-              {
-                "label": "run",
-                "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/commit/f9643b164cf5eb0994df18a6d30ddcd37738d245"
-              },
-              {
-                "label": "commit 28d5a930",
-                "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/commit/28d5a93096f69a90ee3df7727103d2394e09c789"
-              },
-              {
-                "label": "run",
-                "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/commit/d708bac1910407e175278e721a86fe20249e18bf"
-              },
-              {
-                "label": "commit aded8a3f",
-                "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/commit/aded8a3f3eb04154f291d4af4e33116514e40599"
-              },
-              {
-                "label": "commit 9acda5e5",
-                "url": "https://community.opengroup.org/osdu/platform/system/storage/-/commit/9acda5e50312d03e4e8b891c6923d01ec90dfd7d"
-              },
-              {
-                "label": "commit 3a69766c",
-                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/3a69766c25b03b450d95b55ef21c013c63ef407f"
-              },
-              {
-                "label": "run",
-                "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/d4b65bdf42503bf50bdbed11249c06bd9c0c4fe0"
-              },
-              {
-                "label": "commit d6847cea",
-                "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/d6847cea52b94f697ab67ef471f1bfeff33b6d93"
-              }
-            ],
-            "attention": "surface",
-            "due": {
-              "at": "2026-11-07T00:00:00.000Z",
-              "before": "next sync"
-            },
-            "owned": false,
-            "group": "Toolchain"
-          },
-          {
-            "id": "campaign:toolchain:os-core-common%2010.0.0",
-            "ids": [],
-            "origin": "upstream",
-            "rung": 2,
-            "cls": "TOOLCHAIN",
-            "scope": "11 forks",
-            "title": "Detected: os-core-common 10.0.0 on 3 forks; possible on 8 forks",
-            "sub": "Certain: indexer, schema, unit · Possible: crs-catalog, crs-conversion, file, legal, partition, search, storage, workflow",
-            "cause": "Detected: os-core-common 10.0.0 on 3 forks; possible on 8 forks.",
             "effect": "",
             "next": "",
             "verb": "",

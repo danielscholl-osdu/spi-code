@@ -46,7 +46,7 @@ describe("Today's verdict (decision.md: Headline, Calm and bad mornings)", () =>
 
   it("a recorded morning with unread areas never takes the calm mark", () => {
     expect(verdictOf(recordedInput())).toEqual({
-      text: "1 thing needs you; 1 fork is stopped; 6 upstream changes need you before they land. Run approvals, the upstream radar and security alerts weren't read this sweep.",
+      text: "1 thing needs you; 1 fork is stopped; 5 upstream changes need you before they land. Run approvals, the upstream radar and security alerts weren't read this sweep.",
       mark: "stopped",
     });
   });

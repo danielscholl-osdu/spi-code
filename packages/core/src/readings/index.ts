@@ -305,6 +305,7 @@ export function upstreamReading<T extends ReadingItem>(
     for (const s of forks) covered.add(s);
     const row = campaignItem(campaign, members);
     const ids = row.ids.filter((id) => !claimed.has(id));
+    if (ids.length === 0) continue;
     for (const id of ids) claimed.add(id);
     detected.push({ ...row, ids });
   }

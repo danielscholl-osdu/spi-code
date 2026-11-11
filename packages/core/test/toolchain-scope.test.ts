@@ -134,7 +134,7 @@ test("unmerged moves remain possible even when none is certain", () => {
   );
 });
 
-test("certain toolchain moves lead the tile and group ahead of larger MR-only moves", () => {
+test("certain toolchain moves lead the tile and claim records before larger MR-only moves", () => {
   const facts = predictedMove();
   for (const service of Object.values(facts.radar.data?.services ?? {})) {
     for (const mr of service.mrs)
@@ -155,10 +155,10 @@ test("certain toolchain moves lead the tile and group ahead of larger MR-only mo
   expect(reading.tiles[1]).toEqual({
     label: "Toolchain",
     value: "2 forks",
-    counts: "move to os-core-common 8.5.0 · 1 more move",
+    counts: "move to os-core-common 8.5.0",
   });
   expect(reading.items.filter((item) => item.group === "Toolchain").map((item) => item.id)).toEqual(
-    ["campaign:toolchain:os-core-common%208.5.0", "campaign:toolchain:os-core-common%2010.0.0"],
+    ["campaign:toolchain:os-core-common%208.5.0"],
   );
 });
 

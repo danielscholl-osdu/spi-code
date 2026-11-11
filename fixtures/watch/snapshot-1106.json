@@ -1026,7 +1026,7 @@
             "radar:crs-conversion",
             "gate1:storage"
           ],
-          "text": "os-core-common 8.5.0: in sync PRs on storage; at the next sync on legal, schema, file, search, workflow, unit and crs-conversion; won't land on partition; stage not proven on indexer. Absorb it on the fork first. Not fully read on partition, schema, file, storage, indexer, search, unit and crs-conversion."
+          "text": "os-core-common 8.5.0: in sync PRs on storage; at the next sync on legal, schema, file, search, workflow, unit and crs-conversion; won't land on partition; stage not proven on indexer. Absorb it on the fork first. Not fully read on partition, schema, file, storage, search, unit and crs-conversion."
         },
         {
           "id": "toolchain:os-core-common 8.4.1-boot4-SNAPSHOT",
@@ -1088,7 +1088,7 @@
           "mark": "needs-person",
           "verb": "Review",
           "itemIds": ["gate1:indexer"],
-          "text": "Sync upstream: stage not proven on indexer. Review PR #58. Not fully read on indexer."
+          "text": "Sync upstream: stage not proven on indexer. Review PR #58."
         },
         {
           "id": "sync:gate1:indexer-queue",
@@ -1109,7 +1109,7 @@
           "mark": "needs-person",
           "verb": "Review",
           "itemIds": ["gate1:indexer-queue"],
-          "text": "Sync upstream: stage not proven on indexer-queue. Review PR #58. Not fully read on indexer-queue."
+          "text": "Sync upstream: stage not proven on indexer-queue. Review PR #58."
         },
         {
           "id": "toolchain:os-core-common 9.4.0",
@@ -1179,7 +1179,7 @@
           ],
           "needsYou": false,
           "itemIds": [],
-          "text": "os-core-common 10.0.0: at the next sync on schema and unit; in open upstream MRs for partition, legal, file, storage, search, workflow, crs-catalog and crs-conversion; stage not proven on indexer. Not fully read on schema, indexer, unit, partition, file, storage, search, crs-catalog and crs-conversion."
+          "text": "os-core-common 10.0.0: at the next sync on schema and unit; in open upstream MRs for partition, legal, file, storage, search, workflow, crs-catalog and crs-conversion; stage not proven on indexer. Not fully read on schema, unit, partition, file, storage, search, crs-catalog and crs-conversion."
         },
         {
           "id": "toolchain:os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT",
@@ -2707,7 +2707,7 @@
       "first": "repo:osdu-spi"
     },
     "verdict": {
-      "text": "1 thing needs you; 1 fork is stopped; 6 upstream changes need you before they land. Run approvals, the upstream radar and security alerts weren't read this sweep.",
+      "text": "1 thing needs you; 1 fork is stopped; 5 upstream changes need you before they land. Run approvals, the upstream radar and security alerts weren't read this sweep.",
       "mark": "stopped"
     },
     "since": {
@@ -3475,7 +3475,7 @@
           {
             "label": "Toolchain",
             "value": "10 forks",
-            "counts": "move to os-core-common 8.5.0 · 1 more move"
+            "counts": "move to os-core-common 8.5.0"
           },
           {
             "label": "Largest",
@@ -3670,7 +3670,7 @@
             "group": "Toolchain"
           }
         ],
-        "folded": "1 more item: 11 forks detected: os-core-common 10.0.0 on 3 forks; possible on 8 forks. indexer-queue takes 3 commits with no toolchain move."
+        "folded": "indexer-queue takes 3 commits with no toolchain move."
       }
     },
     {

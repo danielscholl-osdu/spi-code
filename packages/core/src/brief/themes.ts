@@ -262,7 +262,7 @@ export function horizonCards(input: HorizonCardsInput): {
     const interrupt = tiers.includes("interrupt");
     const needsYou = interrupt || surface > 0;
     const missing = card.services
-      .filter((s) => s.stage === "unknown" || unread.has(s.service))
+      .filter((s) => unread.has(s.service))
       .map((s) => s.service);
     if (missing.length > 0) partial = true;
     return {

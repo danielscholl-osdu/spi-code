@@ -137,7 +137,7 @@ it("renders the Nov 6 upstream reading: headline, qualifier, tiles and groups", 
   expect(texts(place(), ".place-tile-value")).toEqual(["110", "10 forks", "25"]);
   expect(texts(place(), ".place-tile-counts")).toEqual([
     "commits behind upstream · 37 in 3 sync PRs · 65 at 18:00 · 8 won't land",
-    "move to os-core-common 8.5.0 · 1 more move",
+    "move to os-core-common 8.5.0",
     "commits · indexer · then legal 17, schema 16",
   ]);
   expect(texts(place(), ".place-group > h3")).toEqual(["Before 18:00", "Toolchain"]);
@@ -148,7 +148,7 @@ it("renders the Nov 6 upstream reading: headline, qualifier, tiles and groups", 
     "gate1:indexer-queue",
   ]);
   expect(place().querySelector(".place-folded")?.textContent).toBe(
-    "1 more item: 11 forks detected: os-core-common 10.0.0 on 3 forks; possible on 8 forks. indexer-queue takes 3 commits with no toolchain move.",
+    "indexer-queue takes 3 commits with no toolchain move.",
   );
 });
 
@@ -172,7 +172,7 @@ it("states the next sync in the strip's local time, and leaves the due to the gr
   expect(place().textContent).not.toMatch(/00:00|T\d{2}:\d{2}/);
 });
 
-it("shows the leading campaign, folds the next, and reads their forks in Detail", async () => {
+it("shows the leading campaign without an empty overlapping row and reads its forks in Detail", async () => {
   const body = fixture();
   expect(itemIds("Toolchain")).toEqual(
     ["os-core-common%208.5.0"].map((f) => `campaign:toolchain:${f}`),
@@ -180,7 +180,9 @@ it("shows the leading campaign, folds the next, and reads their forks in Detail"
   expect(texts(group("Toolchain") ?? place(), ".place-item-title")).toEqual([
     "Detected: os-core-common 8.5.0 on 10 forks",
   ]);
-  expect(place().querySelector(".place-folded")?.textContent).toContain("os-core-common 10.0.0");
+  expect(place().querySelector(".place-folded")?.textContent).not.toContain(
+    "os-core-common 10.0.0",
+  );
   const recordIds = (upstreamReading(body).content?.items ?? []).flatMap((item) => item.ids);
   expect(new Set(recordIds).size).toBe(recordIds.length);
   const id = "campaign:toolchain:os-core-common%208.5.0";

@@ -484,6 +484,22 @@ describe("R3 homes for upstream work", () => {
     expect(card(view, "os-core-common 8.5.0").itemIds).not.toContain("gate1:indexer");
   });
 
+  it("keeps an unproven sync stage distinct from an unread fork", () => {
+    const input = recordedInput();
+    const now = input.context.clock.now();
+    const model = buildModel(input.facts, now, {}, input.context);
+    const briefing = buildBriefing(model, input.doctor, now, input.context);
+    const build = (unread: string[]) =>
+      horizonCards({ model, items: tiered(input), themes: briefing.themes, unread }).cards.find(
+        (card) => card.id === "sync:gate1:indexer",
+      );
+    const read = build([]);
+    expect(read?.services).toMatchObject([{ service: "indexer", stage: "unknown" }]);
+    expect(read?.text).toContain("stage not proven on indexer");
+    expect(read?.text).not.toContain("Not fully read");
+    expect(build(["indexer"])?.text).toMatch(/Not fully read on indexer\.$/);
+  });
+
   it("joins legal's proven PR to its halt card and carries the Interrupt mark", () => {
     const input = badInput();
     const pr = input.facts.github.data?.repos["Azure/osdu-spi-legal"]?.prs.find(
@@ -558,7 +574,7 @@ describe("R3 homes for upstream work", () => {
     ]);
   });
 
-  for (const [name, make] of MORNINGS) {
+  for (const [name, make] of RECORDED) {
     it(`gives ports only the owed home and counts every card once on ${name}`, () => {
       const input = make();
       const view = projectWatch(input);
@@ -574,18 +590,13 @@ describe("R3 homes for upstream work", () => {
       ];
       for (const item of ports) expect(otherHomes).not.toContain(item.id);
       expect(owed?.count).toBe(owed?.services.reduce((sum, f) => sum + f.count, 0));
-      const upstreamSurface = expected.filter(
-        (i) => i.origin === "upstream" && i.attention === "surface",
-      );
-      const onCards = new Set(cardsOf(view).flatMap((c) => c.itemIds));
-      const changes =
-        (view.briefing.horizon.counts?.needYouCards ?? 0) +
-        upstreamSurface.filter((i) => !onCards.has(i.id)).length;
+      const clause = view.briefing.verdict?.text.match(/(\d+) upstream changes? need/);
       if (
         !expected.some((i) => i.origin === "upstream" && i.attention === "interrupt") &&
-        changes > 0
+        (view.briefing.horizon.counts?.needYouCards ?? 0) > 0
       ) {
-        expect(view.briefing.verdict?.text).toContain(`${changes} upstream change`);
+        expect(clause).not.toBeNull();
+        expect(Number(clause?.[1])).toBe(view.briefing.horizon.counts?.needYouCards);
       }
       const ids = upstreamReading(view).items.flatMap((item) => item.ids);
       expect(new Set(ids).size).toBe(ids.length);

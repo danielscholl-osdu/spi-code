@@ -465,7 +465,20 @@ describe("Upstream reading with detected toolchain campaigns", () => {
     );
   });
 
-  it("states the recorded 6 Nov campaigns once each and keeps them out of per-fork text", () => {
+  it("drops a campaign row when an earlier campaign claims every record", () => {
+    const campaigns = [
+      campaign("os-core-common 8.5.0", eight),
+      campaign("os-core-common 10.0.0", ["indexer", "unit"]),
+    ];
+    for (const order of [campaigns, [...campaigns].reverse()]) {
+      const rows = upstream(order).items.filter((item) => item.id.startsWith("campaign:"));
+      expect(rows.map((row) => row.id)).toEqual([campaigns[0]?.id]);
+      expect(rows[0]?.ids).toEqual(expect.arrayContaining(eight.map((s) => `radar:${s}`)));
+      expect(rows[0]?.scope).toBe("8 forks");
+    }
+  });
+
+  it("states only campaigns with records and keeps them out of per-fork text", () => {
     const recorded = detectCampaigns(model);
     expect(
       recorded.map(({ fact, forks, possible }) => [
@@ -478,7 +491,8 @@ describe("Upstream reading with detected toolchain campaigns", () => {
     ]);
     const reading = upstream(recorded);
     const titles = reading.items.map((item) => item.title);
-    for (const campaign of recorded) {
+    expect(titles).not.toContain(campaignItemText(recorded[0] as ReadingCampaign));
+    for (const campaign of recorded.filter((c) => c.fact === "os-core-common 8.5.0")) {
       const title = campaignItemText(campaign);
       expect(titles.filter((t) => t === title)).toHaveLength(1);
       expect(readingText(reading).filter((line) => line.includes(title))).toHaveLength(1);

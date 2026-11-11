@@ -19,6 +19,7 @@ export interface VerdictInput {
   horizon: {
     cards?: readonly { itemIds: readonly string[] }[] | undefined;
     counts?: { needYouCards: number } | undefined;
+    owed?: { itemIds?: readonly string[] | undefined } | undefined;
   };
   /** The strip's stopped forks, model.stoppedForks. */
   stoppedForks: readonly string[];
@@ -55,11 +56,14 @@ function notRead(areas: readonly AreaName[], how: string): string | undefined {
 
 /**
  * Today's one sentence: each origin at its loudest tier, the strip's stopped forks, and what
- * wasn't read. An upstream change is one horizon card, or one upstream item no card holds.
+ * wasn't read. An upstream change is one horizon card, or one upstream item with no home.
  */
 export function briefingVerdict(input: VerdictInput): { text: string; mark: Mark } {
-  const onCard = new Set((input.horizon.cards ?? []).flatMap((card) => card.itemIds));
-  const upstream = (item: VerdictItem) => item.origin === "upstream" || onCard.has(item.id);
+  const housed = new Set([
+    ...(input.horizon.cards ?? []).flatMap((card) => card.itemIds),
+    ...(input.horizon.owed?.itemIds ?? []),
+  ]);
+  const upstream = (item: VerdictItem) => item.origin === "upstream" || housed.has(item.id);
   const interrupts = input.items.filter((item) => item.attention === "interrupt");
   const surface = input.items.filter((item) => item.attention === "surface");
   const systemSurface = surface.filter((item) => !upstream(item)).length;
@@ -70,7 +74,7 @@ export function briefingVerdict(input: VerdictInput): { text: string; mark: Mark
       card.itemIds.some((id) => tierOf.get(id) === "surface" || tierOf.get(id) === "interrupt"),
     ).length;
   const upstreamSurface =
-    cardChanges + surface.filter((item) => !onCard.has(item.id) && item.origin === "upstream").length;
+    cardChanges + surface.filter((item) => !housed.has(item.id) && item.origin === "upstream").length;
   const stopped = input.stoppedForks.length;
 
   const clauses: string[] = [];

@@ -793,7 +793,7 @@
           "mark": "stopped",
           "verb": "Review",
           "itemIds": ["gate1:legal"],
-          "text": "Sync upstream: stage not proven on legal. Review PR #701. Not fully read on legal."
+          "text": "Sync upstream: stage not proven on legal. Review PR #701."
         }
       ],
       "counts": {
