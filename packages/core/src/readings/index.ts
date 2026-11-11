@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { heldRadar } from "../attention.js";
 import type { Fleet } from "../config.js";
 import type { ReadRecord } from "../evidence/index.js";
 import type { Model } from "../model/index.js";
@@ -556,8 +557,12 @@ export function serviceReading<T extends ReadingItem>(
   if (!line) return null;
   const next = model.upstream.schedule.upstream;
   type Item = T | SecurityReadingItem;
-  const bite = (i: Item): string | undefined =>
-    i.due?.at ?? (i.id.startsWith("radar:") ? next : undefined);
+  const queued = (i: Item): boolean => {
+    if (!i.id.startsWith("radar:")) return false;
+    const q = model.queue.items.find((q) => q.id === i.id);
+    return q === undefined || !heldRadar(q, model);
+  };
+  const bite = (i: Item): string | undefined => i.due?.at ?? (queued(i) ? next : undefined);
   const groupOf = (i: Item): string => {
     if (i.rung === 0) return "Stopped";
     const at = bite(i);

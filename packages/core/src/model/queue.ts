@@ -1185,9 +1185,9 @@ function radarItems(
         value: `.github/upstream-filter.yml on main${r.state === "will-halt" ? ` · no rule for ${names(entries)}` : ""}`,
         url: filterUrl,
       },
-      { label: "queued", value: `${queued} wait for the next Sync Upstream at 00:00Z` },
     ];
-    items.push({
+    const waiting = { label: "queued", value: `${queued} wait for the next Sync Upstream at 00:00Z` };
+    const item: QueueItem = {
       id: `radar:${svc}`,
       kind: "radar",
       rung: 1,
@@ -1196,7 +1196,7 @@ function radarItems(
       ...(oldest ? { since: oldest } : {}),
       url: filterUrl,
       effects,
-      cause,
+      cause: [...cause, waiting],
       cls: r.state === "will-halt" ? "HALT" : "TOOLCHAIN",
       ...(r.state === "will-halt"
         ? { halt: { fork: svc, code: codes[0] as string, entries } }
@@ -1214,7 +1214,19 @@ function radarItems(
       ],
       incident: false,
       blocks: r.queued,
-    });
+    };
+    // A sync PR taking the commits quiets the item, so it must not resurface a dismissal.
+    item.fingerprint = fingerprintOf(item);
+    if (held) {
+      const wait = (n: number) => (n === 1 ? "waits" : "wait");
+      const inPr = `${plural(held.held, "commit")} ${wait(held.held)} in sync PR #${held.pr}`;
+      const rest =
+        held.next > 0
+          ? `; ${held.next} more ${wait(held.next)} for the next Sync Upstream at 00:00Z`
+          : "";
+      item.cause = [...cause, { label: "queued", value: `${inPr}${rest}` }];
+    }
+    items.push(item);
   }
   return items;
 }
@@ -1389,7 +1401,7 @@ export function buildQueue(input: {
   const dismissed: Queue["dismissed"] = [];
   const live: QueueItem[] = [];
   for (const item of items) {
-    item.fingerprint = fingerprintOf(item);
+    item.fingerprint ??= fingerprintOf(item);
     const entry = quieted(item, input.dismissed ?? [], now);
     if (entry) dismissed.push({ item, entry });
     else live.push(item);

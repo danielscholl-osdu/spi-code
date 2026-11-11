@@ -547,11 +547,14 @@ function causeOf(item: QueueItem): string {
   return sentence(reason ?? item.text);
 }
 
-// How much of a radar item's queued lag its fork's open sync PR already holds.
+// How much of a radar item's queued lag its fork's open sync PR already holds. A will-halt item's
+// commits all meet the next sync, which rebuilds that PR and can halt again.
 function splitOf(model: Model, item: QueueItem): SyncSplit | undefined {
   if (item.kind !== "radar") return undefined;
   const fork = model.upstream.forks.find((f) => f.service === item.scope);
-  return fork ? syncSplit(fork) : undefined;
+  if (!fork) return undefined;
+  const split = syncSplit(fork);
+  return split.next > 0 || heldRadar(item, model) ? split : { held: 0, next: split.held };
 }
 
 function radarNext(model: Model, item: QueueItem, voice: Voice): string {
@@ -575,13 +578,13 @@ function effectOf(
     return `${list(prs)} cannot run their checks until a maintainer approves them.`;
   }
   if (item.kind === "radar") {
-    const queued = /(\d+) commits? queued/.exec(item.text)?.[1];
+    const queued = Number(/(\d+) commits? queued/.exec(item.text)?.[1] ?? split?.next);
     const java = javaOf(item);
     const like =
       item.cls === "TOOLCHAIN"
         ? stuck.find((s) => s.cls === "TOOLCHAIN" && javaOf(s) === java)
         : undefined;
-    const commits = queued ? plural(Number(queued), "commit") : "Queued commits";
+    const commits = queued > 0 ? plural(queued, "commit") : "Queued commits";
     const at = `at the ${next ?? "next"} sync`;
     return [
       split?.pr === undefined
@@ -629,8 +632,8 @@ function describe(
       item.cls === "TOOLCHAIN"
         ? stuck.find((s) => s.cls === "TOOLCHAIN" && javaOf(s) === java)
         : undefined;
-    const queued = /(\d+) commits? queued/.exec(item.text)?.[1];
     const split = splitOf(model, item);
+    const queued = Number(/(\d+) commits? queued/.exec(item.text)?.[1] ?? split?.next);
     const held = split?.pr !== undefined ? split : undefined;
     const value = fact(item, "value") ?? "a toolchain move";
     const entries = item.halt?.entries ?? ["an entry"];
@@ -657,7 +660,7 @@ function describe(
                 : undefined,
             ]
           : [
-              queued ? `${plural(Number(queued), "commit")} queued` : undefined,
+              queued > 0 ? `${plural(queued, "commit")} queued` : undefined,
               nextAt ? `syncs at ${nextAt}` : undefined,
             ]),
         like ? `expected to fail the way ${whose(like.scope)} did` : undefined,

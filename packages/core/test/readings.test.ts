@@ -291,6 +291,48 @@ describe("Radar items whose commits sit in their fork's open sync PR on the reco
     );
   });
 
+  it("keeps the next sync's time for a held will-halt item's effect and sub", () => {
+    const b = buildBriefing(halting, { state: "clear", problems: [] }, now, context);
+    const item = [...b.focus, ...b.rest].find((i) => i.id === "radar:storage");
+    expect(item?.effect).toBe("11 commits reach the fork at the 18:00 sync.");
+    expect(item?.sub).toBe(`11 commits queued · syncs at ${NEXT_SYNC}`);
+  });
+
+  it("groups a held item as a decision in its service reading, not before the next sync", () => {
+    const group = (service: string, from: { model: Model; items: FocusItem[] }) =>
+      serviceReading({ ...from, service, reads: radar, now })?.items.find(
+        (i) => i.id === `radar:${service}`,
+      )?.group;
+    expect(group("storage", { model, items })).toBe("Needs a decision");
+    expect(group("indexer", { model, items })).toBe("Before 18:00");
+    expect(group("schema", { model, items })).toBe("Before 18:00");
+    expect(group("storage", unaimed)).toBe("Before 18:00");
+  });
+
+  it("names the sync PR in a held fork's queued cause", () => {
+    const waits = (service: string, from = model) =>
+      from.queue.items
+        .find((q) => q.id === `radar:${service}`)
+        ?.cause.find((f) => f.label === "queued")?.value;
+    expect(waits("storage")).toBe("11 commits wait in sync PR #58");
+    expect(waits("indexer")).toBe(
+      "23 commits wait in sync PR #58; 2 more wait for the next Sync Upstream at 00:00Z",
+    );
+    expect(waits("schema")).toBe("16 commits wait for the next Sync Upstream at 00:00Z");
+    expect(waits("storage", unaimed.model)).toBe(
+      "11 commits wait for the next Sync Upstream at 00:00Z",
+    );
+  });
+
+  it("keeps a dismissed item dismissed when its fork's sync PR comes to hold its commits", () => {
+    const queued = unaimed.model.queue.items.find((q) => q.id === "radar:storage");
+    if (!queued?.fingerprint) throw new Error("storage's radar item is missing");
+    const entry = { id: queued.id, fingerprint: queued.fingerprint };
+    const held = buildModel(facts, now, { dismissed: [entry] }, context);
+    expect(held.queue.dismissed.map((d) => d.item.id)).toEqual(["radar:storage"]);
+    expect(held.queue.items.some((q) => q.id === "radar:storage")).toBe(false);
+  });
+
   it("adds no next-sync time to the headline for a held radar lead", () => {
     const headline = (service: string, from = model) => {
       const m = structuredClone(from);

@@ -263,6 +263,30 @@ describe("other days", () => {
     expect(followed(1)).toBe("Move legal to Java 25 before partition follows at 00:00.");
   });
 
+  test("a halt keeps the sync time for a will-halt follower its open sync PR holds", () => {
+    const halt = { fork: "a", code: "UNKNOWN_TOP_LEVEL", entries: ["x"] };
+    const m = withQueue([
+      item({ id: "halt:a", kind: "halt", rung: 0, scope: "a", incident: true, halt }),
+      item({
+        id: "radar:partition",
+        kind: "radar",
+        scope: "partition",
+        cls: "HALT",
+        text: "next sync will halt on x (UNKNOWN_TOP_LEVEL) · 2 commits in sync PR #9",
+        halt: { ...halt, fork: "partition" },
+      }),
+    ]);
+    const fork = m.upstream.forks.find((f) => f.service === "partition");
+    if (!fork) throw new Error("fixture has partition");
+    fork.behind = 2;
+    fork.syncPr = { number: 9, url: "", headSha: "", verdict: "green", holds: 2 };
+    const b = buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext);
+    expect(b.headline).toBe("Unhalt a before partition halts at 00:00.");
+    const radar = [...b.focus, ...b.rest].find((i) => i.id === "radar:partition");
+    expect(radar?.sub).toBe("2 commits queued · syncs at 2026-10-13T00:00:00.000Z");
+    expect(radar?.effect).toBe("2 commits reach the fork at the 00:00 sync.");
+  });
+
   test("a queued break with no incident still leads the headline", () => {
     const m = withQueue([
       item({
