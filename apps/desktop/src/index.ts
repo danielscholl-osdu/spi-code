@@ -287,11 +287,13 @@ async function run(): Promise<void> {
     { exerciseSupervision, smokeClock },
     { scanAfterRuntimeReport },
     { captureSmokeViews },
+    { MORNINGS, MORNING_FIXTURES },
   ] = await Promise.all([
     import("./smoke-snapshot.js"),
     import("./smoke-supervision.js"),
     import("./smoke-runtime-report.js"),
     import("./smoke-views.js"),
+    import("./smoke-mornings.js"),
   ]);
   const fixtureFlag = process.argv.indexOf("--smoke-views-fixture");
   const designFlag = process.argv.indexOf("--smoke-views-design");
@@ -308,7 +310,20 @@ async function run(): Promise<void> {
     "Smoke views require the Nov 6 fixture path",
   );
   assert(designPath && !designPath.startsWith("--"), "Smoke views require the window design path");
-  const views = await captureSmokeViews(window, reportPath, fixturePath, designPath);
+  const morningPaths = Object.fromEntries(
+    MORNINGS.map((morning) => {
+      const flag = process.argv.indexOf(`--smoke-views-${morning}-fixture`);
+      const path =
+        flag >= 0
+          ? process.argv[flag + 1]
+          : fileURLToPath(
+              new URL(`../../../fixtures/watch/${MORNING_FIXTURES[morning]}`, import.meta.url),
+            );
+      assert(path && !path.startsWith("--"), `Smoke views require the ${morning} morning path`);
+      return [morning, path];
+    }),
+  ) as Record<(typeof MORNINGS)[number], string>;
+  const views = await captureSmokeViews(window, reportPath, fixturePath, designPath, morningPaths);
   const rowId = randomUUID();
   const probePath = join(dataDir, "probe.json");
   const firstCursor = writeSmokeSnapshot(hostStorePath, initialSmoke);

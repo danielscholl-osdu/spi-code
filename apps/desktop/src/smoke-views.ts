@@ -14,6 +14,7 @@ import {
 } from "@spi-code/contracts";
 import { type BrowserWindow, ipcMain, nativeImage } from "electron";
 import { assertSmokeGeometry, type SmokeGeometry } from "./smoke-geometry.js";
+import { MORNING_SURFACES, type Morning } from "./smoke-mornings.js";
 import {
   assertSmokeShot,
   assertSmokeViews,
@@ -23,6 +24,7 @@ import {
   VIEW_WIDTHS,
 } from "./smoke-report.js";
 import { smokeScheduledSweep, smokeSweepProgress } from "./smoke-sweep.js";
+import { captureMornings, loadMornings } from "./smoke-today.js";
 
 const sweepSchedule = {
   sweepMs: 300_000,
@@ -358,8 +360,10 @@ export async function captureSmokeViews(
   reportPath: string,
   fixturePath: string,
   designPath: string,
+  morningPaths: Readonly<Record<Morning, string>>,
 ): Promise<SmokeShot[]> {
   const snapshot = ViewSnapshotSchema.parse(JSON.parse(readFileSync(fixturePath, "utf8")));
+  const mornings = loadMornings(morningPaths);
   const progress = smokeSweepProgress();
   const [originalWidth, originalHeight] = window.getContentSize();
   assert(originalWidth && originalHeight, "Missing original smoke viewport");
@@ -874,6 +878,28 @@ export async function captureSmokeViews(
         }
       }
     }
+    shots.push(
+      ...(await captureMornings(
+        {
+          window,
+          output,
+          rendered: (condition) => rendered(window, condition),
+          fixture: (type, payload) => fixture(window, type, payload),
+          measure: (rule) => measure(window, rule),
+          sweepStatus: {
+            remaining: 4865,
+            floor: 100,
+            resetAt: "2026-11-06T15:36:00.000Z",
+            deferredAreas: [],
+            nextSweepAt: null,
+            schedule: sweepSchedule,
+            lastSweep: null,
+          },
+          setupState: ready,
+        },
+        mornings,
+      )),
+    );
     assertSmokeViews(shots);
     await overlayDragProbe(window, output, async () => {
       await window.webContents.executeJavaScript(`{
@@ -955,7 +981,47 @@ ${VIEW_WIDTHS.map(
       .join("")}</tr></table>`,
 ).join("")}</section>`,
 ).join("\n")}
+<h1>Today on three mornings</h1><p>Each morning is a schema-valid snapshot shown through the same smoke-only
+preload channel, at the Nov 6 fixture clock: ${MORNING_SURFACES.filter(({ detail }) => !detail)
+      .map(({ morning }) => `${morning} from ${mornings[morning].fixture}`)
+      .join(", ")}.
+Each image is the whole Today frame: the window is 800 px tall, and the capture extends the viewport to
+the frame's full height so blocks below the fold (Releases, In motion) are in the image. The blocks line
+under each image is the DOM evidence: each block's top and height in the image, in CSS pixels.
+Detail open selects the first released version, which opens from the snapshot alone.
+Design: decision.md, draft 7 (approved 2026-11-10), and its aligned mock. Record match or mismatch per
+surface against the sections named under it.</p>
+${MORNING_SURFACES.map(
+  (
+    surface,
+  ) => `<section><h2>Today, ${surface.morning} morning${surface.detail ? ", Detail open" : ""}</h2>
+${surface.widths
+  .map((width) => {
+    const row = ["light", "dark"].map((appearance) =>
+      shots.find(
+        (shot) =>
+          shot.surface === surface.id &&
+          shot.viewportWidth === width &&
+          shot.appearance === appearance,
+      ),
+    );
+    const evidence = row[0]?.morning;
+    return `<h3>${width} px</h3><p>decision.md: ${evidence?.sections.join("; ") ?? ""}</p>
+<p>Headline: ${escapeHtml(evidence?.headline ?? "")}${row[0]?.qualifiers[1] ? `<br>Caveat band: ${escapeHtml(row[0].qualifiers[1])}` : ""}${evidence?.detailTitle ? `<br>Detail: ${escapeHtml(evidence.detailTitle)}` : ""}</p>
+<table><tr><th>Light</th><th>Dark</th></tr><tr>${row
+      .map((shot) => {
+        const file = shot?.file.slice("views/".length) ?? "";
+        return `<td><a href="${file}"><img alt="Today, ${surface.morning}, ${width} px, ${shot?.appearance}" src="${file}"></a><p>Page ${shot?.morning?.pageHeight} px of a ${shot?.morning?.viewportHeight} px window. Blocks: ${shot?.morning?.blocks.map(({ name, top, height }) => `${name} ${Math.round(top)}+${Math.round(height)}`).join(", ")}</p></td>`;
+      })
+      .join("")}</tr></table>`;
+  })
+  .join("")}</section>`,
+).join("\n")}
 </html>\n`,
   );
   return shots;
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/[&<>"]/g, (char) => `&#${char.charCodeAt(0)};`);
 }
