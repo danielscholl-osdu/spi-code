@@ -124,7 +124,7 @@ function slotOf(
   return slot("unknown", `${subject}: no completed run read in this window; effect unknown.`);
 }
 
-/** from is a seen baseline when supplied; one unparseable or after the runs observation is ignored for the preceding 24 hours. */
+/** from is a seen baseline when supplied; one unparseable or not before the runs observation is ignored for the preceding 24 hours. */
 export function sinceOf(
   model: Model, facts: Facts, now: Date, intervalMs: number, from?: string, reads: AreaReads = {},
 ): Since | undefined {
@@ -137,7 +137,7 @@ export function sinceOf(
   const stale = Date.parse(observed) < Date.parse(sweptAt) || !!facts.runs.error || now.getTime() - Date.parse(sweptAt) > 2 * intervalMs;
   const to = Date.parse(observed);
   const seenAt = from === undefined ? Number.NaN : Date.parse(from);
-  const seen = Number.isFinite(seenAt) && seenAt <= to;
+  const seen = Number.isFinite(seenAt) && seenAt < to;
   let start = stale || !seen ? to - DAY_MS : seenAt;
   let basis: Since["basis"] = stale ? "stale" : seen ? "seen" : "fallback";
   for (const line of model.lines) {

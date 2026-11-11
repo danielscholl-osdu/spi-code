@@ -1112,10 +1112,9 @@ describe("view.subscribe from the last look", () => {
           focus: next.briefing.focus.map((entry) =>
             entry.id === "halt:entitlements"
               ? { ...entry, ids: [...entry.ids, "halt:partition"] }
-              : entry,
-          ),
-          rest: next.briefing.rest.map((entry) =>
-            entry.id === "rollout" ? { ...entry, attention: "ambient" } : entry,
+              : entry.id === "rollout"
+                ? { ...entry, attention: "ambient" }
+                : entry,
           ),
         },
       };
