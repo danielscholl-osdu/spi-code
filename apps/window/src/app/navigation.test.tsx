@@ -369,8 +369,9 @@ describe("landing", () => {
     await launch("#upstream");
     await arrive(4, { cursor: 3, since: ["halt:legal"] });
     expect(shown()).toBe("#today");
-    expect(acknowledged()).toEqual([{ cursor: 4 }]);
+    expect(acknowledged()).toEqual([]);
     await go({ kind: "upstream" });
+    expect(acknowledged()).toEqual([{ cursor: 4 }]);
 
     await restart();
     await launch();
@@ -389,13 +390,14 @@ describe("landing", () => {
     await launch();
     await arrive(5, { cursor: 4, since: ["halt:legal"] });
     expect(shown()).toBe("#today");
-    expect(acknowledged()).toEqual([{ cursor: 5 }]);
     await go({ kind: "environment" });
+    expect(acknowledged()).toEqual([{ cursor: 5 }]);
 
     await restart();
     await launch();
     await arrive(6, { cursor: 5, since: ["stack:38181620856"] });
     expect(shown()).toBe("#today");
+    await act(async () => window.dispatchEvent(new FocusEvent("blur")));
     expect(acknowledged()).toEqual([{ cursor: 5 }, { cursor: 6 }]);
   });
 
@@ -408,28 +410,64 @@ describe("landing", () => {
     expect(acknowledged()).toEqual([]);
   });
 
-  it("acknowledges only while Today is in the foreground, and each cursor once", async () => {
+  it("acknowledges only what Today showed in the foreground, and each cursor once", async () => {
     await launch();
     await go({ kind: "today" });
     await go(LINE);
     await arrive(4, { cursor: 3, since: ["halt:legal"] });
     expect(lineSheet()).not.toBeNull();
+    await act(async () => window.dispatchEvent(new FocusEvent("blur")));
     expect(acknowledged()).toEqual([]);
     await act(async () => closeSheet());
+    await go({ kind: "environment" });
     expect(acknowledged()).toEqual([{ cursor: 4 }]);
 
     vi.mocked(document.hasFocus).mockReturnValue(false);
-    await go({ kind: "environment" });
     await arrive(5, { cursor: 4, since: [] });
     await go({ kind: "today" });
+    await go({ kind: "environment" });
     expect(acknowledged()).toEqual([{ cursor: 4 }]);
+    await go({ kind: "today" });
     vi.mocked(document.hasFocus).mockReturnValue(true);
     await act(async () => window.dispatchEvent(new FocusEvent("focus")));
+    expect(acknowledged()).toEqual([{ cursor: 4 }]);
+    await go({ kind: "environment" });
     expect(acknowledged()).toEqual([{ cursor: 4 }, { cursor: 5 }]);
 
-    await act(async () => window.dispatchEvent(new FocusEvent("focus")));
-    await go({ kind: "environment" });
     await go({ kind: "today" });
+    await act(async () => window.dispatchEvent(new FocusEvent("blur")));
+    await go({ kind: "environment" });
+    expect(acknowledged()).toEqual([{ cursor: 4 }, { cursor: 5 }]);
+  });
+
+  it("holds the baseline while Today stays focused across sweeps", async () => {
+    await launch();
+    await go({ kind: "today" });
+    await arrive(4, { cursor: 3, since: ["halt:legal"] });
+    await arrive(5, { cursor: 3, since: ["halt:legal"] });
+    await arrive(6, { cursor: 3, since: ["halt:legal"] });
+    expect(acknowledged()).toEqual([]);
+    await go({ kind: "security" });
+    expect(acknowledged()).toEqual([{ cursor: 6 }]);
+  });
+
+  it("acknowledges when the window is hidden, and holds again once it is back", async () => {
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const visible = (state: DocumentVisibilityState) =>
+      act(async () => {
+        visibility.mockReturnValue(state);
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+    await launch();
+    await go({ kind: "today" });
+    await arrive(4, { cursor: 3, since: ["halt:legal"] });
+    expect(acknowledged()).toEqual([]);
+    await visible("hidden");
+    expect(acknowledged()).toEqual([{ cursor: 4 }]);
+    await visible("visible");
+    await arrive(5, { cursor: 4, since: [] });
+    expect(acknowledged()).toEqual([{ cursor: 4 }]);
+    await act(async () => window.dispatchEvent(new FocusEvent("blur")));
     expect(acknowledged()).toEqual([{ cursor: 4 }, { cursor: 5 }]);
   });
 
@@ -447,7 +485,12 @@ describe("landing", () => {
     expect(shown()).toBe("#today");
     expect(acknowledged()).toEqual([]);
 
+    await go({ kind: "security" });
+    expect(acknowledged()).toEqual([]);
+
+    await go({ kind: "today" });
     await setup(true);
+    await go({ kind: "security" });
     expect(acknowledged()).toEqual([{ cursor: 4 }]);
   });
 });

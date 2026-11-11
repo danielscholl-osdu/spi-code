@@ -102,6 +102,9 @@ const migrations = [
       at INTEGER NOT NULL
     ) STRICT;
   `,
+  `
+    ALTER TABLE seen_baselines ADD COLUMN observed_at INTEGER;
+  `,
 ];
 
 export function migrate(db: DatabaseSync): void {

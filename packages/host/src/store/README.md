@@ -48,3 +48,7 @@ an upsert that only replaces a row when the cursor is newer, so a late or repeat
 acknowledgement never moves the baseline back. Items are JSON the caller shapes;
 `watch/seen.ts` writes and parses them. `snapshotAt(fleet, cursor)` reads one stored
 snapshot for that acknowledgement.
+
+Migration 4 adds `observed_at` to `seen_baselines`: when the acknowledged snapshot's
+runs were read, passed as `acknowledge`'s optional fifth argument. A row stored
+before it, or one whose snapshot could not tell, reads back `observedAt: null`.

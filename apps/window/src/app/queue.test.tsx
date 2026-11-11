@@ -66,7 +66,7 @@ it("groups the queue by rung into Now, Next and Later in briefing order", () => 
   expect(queueGroups({ focus: [env, halt] }).map(({ label }) => label)).toEqual(["Now"]);
 });
 
-it("keeps Today's distinct Interrupt count after foreground acknowledgement, until resolution", async () => {
+it("keeps Today's distinct Interrupt count after acknowledgement, until resolution", async () => {
   const fixture = ViewSnapshotSchema.parse(JSON.parse(current));
   const interrupt = fixture.briefing.focus[0];
   if (!interrupt) throw new Error("Recorded Interrupt missing");
@@ -94,6 +94,8 @@ it("keeps Today's distinct Interrupt count after foreground acknowledgement, unt
 
   vi.mocked(document.hasFocus).mockReturnValue(true);
   await act(async () => window.dispatchEvent(new FocusEvent("focus")));
+  expect(acknowledgements()).toEqual([]);
+  await act(async () => window.dispatchEvent(new FocusEvent("blur")));
   expect(acknowledgements()).toEqual([{ cursor: fixture.cursor }]);
   expect(pip()?.textContent).toBe("1");
 

@@ -1021,13 +1021,16 @@ describe("view.subscribe from the last look", () => {
     clock = new Date("2026-10-12T21:00:00Z");
   });
 
-  function write(edit: (view: StoredView) => StoredView = (view) => view): number {
+  function write(
+    edit: (view: StoredView) => StoredView = (view) => view,
+    reads = input.reads,
+  ): number {
     fence ??= createLeaseStore(db).acquire(fleet, "sweeper", 60_000, now);
     if (fence === undefined) throw new Error("lease not acquired");
     const { cursor: _, ...view } = projected;
     return createSnapshotStore(db).writeSnapshot(
       { fleet, owner: "sweeper", fence },
-      { facts: input.facts, cache: emptyCache(), reads: input.reads },
+      { facts: input.facts, cache: emptyCache(), reads },
       edit(view),
       now,
     );
@@ -1177,6 +1180,48 @@ describe("view.subscribe from the last look", () => {
     ]);
     expect(sync?.slots.find((slot) => slot.service === "legal")?.text).not.toContain(" ran,");
     expect(view.sweptAt).toBe(sweptAt);
+  });
+
+  it("starts since at the acknowledged snapshot's runs read when that predates the acknowledgement", async () => {
+    const overnight = "2026-10-12T00:10:00.000Z";
+    const evening = {
+      ...input.reads,
+      runs: (input.reads.runs ?? []).map((read) => ({ ...read, observedAt: overnight })),
+    };
+    const routes = watch();
+    write();
+    clock = new Date("2026-10-11T23:00:00Z");
+    await subscribe(routes);
+    const old = write(undefined, evening);
+    clock = new Date("2026-10-12T21:00:00Z");
+    const morning = await subscribe(routes);
+    await morning.acknowledge(old);
+    expect(seenStore().baseline(fleet)).toMatchObject({
+      cursor: old,
+      at: Date.parse("2026-10-12T21:00:00Z"),
+      observedAt: Date.parse(overnight),
+    });
+
+    write();
+    const { view } = await subscribe(routes);
+    expect(view.seen.at).toBe("2026-10-12T21:00:00.000Z");
+    expect(view.briefing.since).toMatchObject({ basis: "seen", from: overnight });
+    expect(view.briefing.since?.rows[0]?.countText).toBe("2/5 ran ok");
+  });
+
+  it("starts since at seen.at for a baseline stored without a runs read", async () => {
+    const routes = watch();
+    const first = write();
+    seenStore().acknowledge(
+      fleet,
+      first,
+      baselineOf(projected.briefing),
+      Date.parse("2026-10-12T00:20:00Z"),
+    );
+    expect(seenStore().baseline(fleet)?.observedAt).toBeNull();
+    write();
+    const { view } = await subscribe(routes);
+    expect(view.briefing.since).toMatchObject({ basis: "seen", from: "2026-10-12T00:20:00.000Z" });
   });
 
   it("keeps the 24-hour since for a baseline time after the runs read or out of range, and never throws", async () => {

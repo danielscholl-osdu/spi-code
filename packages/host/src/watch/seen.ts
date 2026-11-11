@@ -16,6 +16,8 @@ export interface SeenBaseline {
   readonly cursor: number;
   /** When it was acknowledged; carried into `seen.at`. */
   readonly at?: string;
+  /** When the acknowledged snapshot's runs were read; absent when unknown. */
+  readonly observedAt?: string;
   readonly items: readonly SeenItem[];
 }
 export type SeenItem = Pick<WatchItem, "id" | "ids" | "rung" | "attention">;
@@ -101,6 +103,19 @@ export function freshIds(
     const prior = priorOf(item, baseline.items);
     return prior === undefined || idsOf(item).some((ref) => !idsOf(prior).includes(ref));
   });
+}
+
+/**
+ * Where the since pips start: the earlier of the acknowledgement and its snapshot's runs read, so
+ * runs that finished before the operator looked but after that read are not dropped. Without a
+ * known observation it is the acknowledgement alone.
+ */
+export function sinceStart(baseline: SeenBaseline | undefined): string | undefined {
+  if (baseline?.at === undefined) return undefined;
+  const at = Date.parse(baseline.at);
+  const observed = baseline.observedAt === undefined ? Number.NaN : Date.parse(baseline.observedAt);
+  if (Number.isNaN(at) || Number.isNaN(observed) || observed >= at) return baseline.at;
+  return baseline.observedAt;
 }
 
 export function seenState(_model: Model, input: WatchInput, briefing: WatchBriefing): SeenState {

@@ -58,6 +58,7 @@ import {
   type RepoInspection,
   type RunFact,
   releaseDoc,
+  runsObservedAt,
   STEP_PREFIX,
   SWEEP_MS,
   sinceOf,
@@ -81,6 +82,7 @@ import {
   parseSeenItems,
   type SeenBaseline,
   seenSince,
+  sinceStart,
 } from "../watch/seen.js";
 import type { HostRoutes, HostSend } from "./port.js";
 
@@ -1076,22 +1078,48 @@ export class WatchRoutes {
     const items = record ? parseSeenItems(record.items) : undefined;
     if (!record || !items) return undefined;
     const at = new Date(record.at);
+    const observed = record.observedAt === null ? undefined : new Date(record.observedAt);
     return {
       cursor: record.cursor,
       ...(Number.isNaN(at.getTime()) ? {} : { at: at.toISOString() }),
+      ...(observed === undefined || Number.isNaN(observed.getTime())
+        ? {}
+        : { observedAt: observed.toISOString() }),
       items,
     };
+  }
+
+  /** When the snapshot's runs were read, from its persisted sweep; null when it cannot tell. */
+  private runsObserved(snapshot: Persisted): number | null {
+    const state = sweepStateSchema(factsSchema, cacheSchema).safeParse(snapshot.state);
+    if (!state.success) return null;
+    try {
+      const { reads } = sweepEvidence(state.data, SWEEP_MS, new Date(snapshot.view.sweptAt));
+      const at = runsObservedAt(state.data.facts, reads);
+      const time = at === undefined ? Number.NaN : Date.parse(at);
+      return Number.isSafeInteger(time) ? time : null;
+    } catch (error) {
+      this.options.onError(error);
+      return null;
+    }
   }
 
   /**
    * Seeds the baseline for a first push: first sight is quiet, and only what arrives after it
    * counts as arrived.
    */
-  private seed(view: ViewSnapshot): SeenBaseline {
+  private seed(latest: Persisted): SeenBaseline {
+    const { view } = latest;
     const now = this.options.ctx.clock.now().getTime();
     const items = baselineItems(view.briefing);
-    this.seen().acknowledge(this.options.fleet, view.cursor, items, now);
-    return { cursor: view.cursor, at: new Date(now).toISOString(), items };
+    const observed = this.runsObserved(latest);
+    this.seen().acknowledge(this.options.fleet, view.cursor, items, now, observed);
+    return {
+      cursor: view.cursor,
+      at: new Date(now).toISOString(),
+      ...(observed === null ? {} : { observedAt: new Date(observed).toISOString() }),
+      items,
+    };
   }
 
   /**
@@ -1103,22 +1131,24 @@ export class WatchRoutes {
     this.store ??= createSnapshotStore(this.options.db());
     const record = this.store.snapshotAt(this.options.fleet, cursor);
     if (!record) return;
-    const items = baselineItems(persisted(record).view.briefing);
+    const snapshot = persisted(record);
     this.seen().acknowledge(
       this.options.fleet,
       cursor,
-      items,
+      baselineItems(snapshot.view.briefing),
       this.options.ctx.clock.now().getTime(),
+      this.runsObserved(snapshot),
     );
   }
 
   /**
    * The briefing as of the operator's last look: each place's fresh items, and the since pips
-   * from the baseline's time. Without a prior baseline nothing is fresh and since stays at 24 hours.
+   * from the baseline's start. Without a prior baseline nothing is fresh and since stays at 24 hours.
    */
   private seenBriefing(latest: Persisted, prior: SeenBaseline | undefined): WatchBriefing {
     const { briefing } = latest.view;
-    const since = prior?.at === undefined ? undefined : this.sinceFrom(latest, prior.at);
+    const start = sinceStart(prior);
+    const since = start === undefined ? undefined : this.sinceFrom(latest, start);
     return {
       ...briefing,
       ...(briefing.places
@@ -1158,7 +1188,7 @@ export class WatchRoutes {
     if (!latest || latest.view.cursor <= subscriber.cursor) return false;
     const cursor = latest.view.cursor;
     const prior = this.baseline();
-    const baseline = prior ?? this.seed(latest.view);
+    const baseline = prior ?? this.seed(latest);
     subscriber.send({
       version: PROTOCOL_VERSION,
       id: `snapshot-${cursor}`,
