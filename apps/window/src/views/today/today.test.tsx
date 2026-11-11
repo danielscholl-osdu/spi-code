@@ -109,7 +109,14 @@ describe.each(NAMES)("on the %s morning", (name) => {
     const frame = container.querySelector(".today .place-reading.today-frame");
     expect(frame).not.toBeNull();
     expect(frame?.firstElementChild?.className).toBe("today-head");
-    expect(frame?.querySelectorAll(".today-slot")).toHaveLength(0);
+    const order = ["band", "horizon", "places", "releases", "motion"];
+    const slots = [...(frame?.querySelectorAll(".today-slot") ?? [])].map((slot) =>
+      order.indexOf(slot.getAttribute("data-today-slot") ?? ""),
+    );
+    expect(
+      slots.every((at, index) => at >= 0 && (index === 0 || at > (slots[index - 1] ?? 0))),
+    ).toBe(true);
+    expect(frame?.querySelectorAll(".today-slot:empty")).toHaveLength(0);
   });
 });
 

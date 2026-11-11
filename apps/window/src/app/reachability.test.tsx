@@ -7,8 +7,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import feed from "../../../../fixtures/watch/inspect-1106.json?raw";
 import recorded from "../../../../fixtures/watch/snapshot-1106.json?raw";
+import busyRaw from "../../../../fixtures/watch/snapshot-busy.json?raw";
+import calmRaw from "../../../../fixtures/watch/snapshot-calm.json?raw";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
+import { moving } from "../views/today/in-motion.test-helper.js";
 import { closeSheet, navigate, relaunch } from "./navigation.js";
 import { treeServices } from "./queue.js";
 import {
@@ -17,6 +20,8 @@ import {
   EXEMPTIONS,
   HOLD_GAP,
   type Home,
+  leaves,
+  motionCases,
   type Reach,
   reachCases,
   type Selector,
@@ -213,6 +218,31 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
       }
     }
   });
+});
+
+describe("In motion and Can wait, on mornings that carry them", () => {
+  const MORNINGS = {
+    calm: () => ViewSnapshotSchema.parse(JSON.parse(calmRaw)),
+    "busy with motion": () => moving(ViewSnapshotSchema.parse(JSON.parse(busyRaw))),
+  };
+  it.each(Object.entries(MORNINGS))(
+    "has a case for every In progress and Can wait leaf on the %s morning, each within one click",
+    async (_name, morning) => {
+      const body = morning();
+      const motion = motionCases(body);
+      const pointers = new Set(motion.map(({ pointer }) => pointer));
+      const mine = leaves(body)
+        .map(({ pointer }) => pointer)
+        .filter((pointer) => /^\/briefing\/(ambient\/inProgress|canWait)\//.test(pointer));
+      expect(mine.length).toBeGreaterThan(0);
+      expect(mine.filter((pointer) => !pointers.has(pointer))).toEqual([]);
+      const reached = [...new Map(motion.map(({ home }) => [home.name, home])).values()];
+      for (const home of reached) {
+        await openHome(home, body);
+        for (const row of motion.filter((row) => row.home.name === home.name)) assertReach(row);
+      }
+    },
+  );
 });
 
 describe("the suite's own guards", () => {

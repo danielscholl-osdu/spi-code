@@ -117,6 +117,7 @@ it.each(
     environment: ["environment", "lane event"],
     release: ["release", "release month"],
     station: ["station", "station"],
+    "can-wait": ["can-wait", "today"],
   } satisfies { [Kind in SelectionKind]: [Kind, string] }),
 )("names %s in plain words", async (kind, words) => {
   const port = fakePort();

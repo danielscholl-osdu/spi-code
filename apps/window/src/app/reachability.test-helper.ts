@@ -605,6 +605,113 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
     });
   });
 
+  cases.push(...motionCases(snapshot));
+  return cases;
+}
+
+/** Today's In motion rows and Can wait chips, and the Can wait list each chip opens in Detail. */
+export function motionCases(snapshot: ViewSnapshot): Reach[] {
+  const { briefing } = snapshot;
+  const cases: Reach[] = [];
+  const add = (
+    pointer: string,
+    value: unknown,
+    where: Home,
+    selector: Selector,
+    extra: Partial<Reach> = {},
+  ) => {
+    cases.push({ pointer, value: String(value), home: where, selector, ...extra });
+  };
+  const run = briefing.ambient?.inProgress;
+  if (run && run.lines.length > 0) {
+    const base = "/briefing/ambient/inProgress";
+    add(`${base}/items`, run.items, TODAY, ".today-motion-run", { attribute: "data-items" });
+    add(`${base}/text`, run.text, TODAY, ".today-motion-figure", {
+      read: (element) => (element.textContent ?? "").replace(/^·\s*/, ""),
+    });
+    const items = [
+      ...briefing.focus.map((item, index) => [`/briefing/focus/${index}`, item] as const),
+      ...briefing.rest.map((item, index) => [`/briefing/rest/${index}`, item] as const),
+    ];
+    run.lines.forEach((line, index) => {
+      const pointer = `${base}/lines/${index}`;
+      const li = `.today-motion-line[data-line-id=${quote(line.id)}]`;
+      const attribute = (leaf: string, value: unknown, name: string) =>
+        add(`${pointer}/${leaf}`, value, TODAY, li, { attribute: name });
+      attribute("id", line.id, "data-line-id");
+      attribute("count", line.count, "data-count");
+      attribute("origin", line.origin, "data-origin");
+      attribute("text", line.text, "title");
+      for (const [at, id] of line.itemIds.entries())
+        add(`${pointer}/itemIds/${at}`, id, TODAY, li, {
+          attribute: "data-item-ids",
+          contains: true,
+        });
+      for (const [at, service] of (line.next ?? []).entries())
+        add(
+          `${pointer}/next/${at}`,
+          service,
+          TODAY,
+          `${li} .today-motion-next .kit-chip--service:nth-child(${at + 1})`,
+        );
+      if (line.station) attribute("station", line.station, "data-station");
+      if (line.pr) {
+        add(`${pointer}/pr/number`, `#${line.pr.number}`, TODAY, `${li} .kit-pr`);
+        if (line.pr.url) attribute("pr/url", line.pr.url, "data-pr-url");
+        if (line.pr.inspect) attribute("pr/inspect", line.pr.inspect, "data-pr-inspect");
+      }
+      if (line.age) add(`${pointer}/age`, line.age, TODAY, `${li} .kit-chip--age`);
+      const chip = (at: number) => `${li} .today-motion-state > .kit-chip:nth-child(${at})`;
+      if (line.state) {
+        add(`${pointer}/state/text`, line.state.text, TODAY, chip(1));
+        add(`${pointer}/state/tone`, line.state.tone, TODAY, chip(1), {
+          read: (element) =>
+            [...element.classList]
+              .find((name) => name.startsWith("kit-chip--"))
+              ?.slice("kit-chip--".length) ?? "",
+        });
+      }
+      if (line.followUp) add(`${pointer}/followUp`, line.followUp, TODAY, chip(line.state ? 2 : 1));
+      if (!line.service) return;
+      const service = `${li} .today-motion-service .kit-chip--service`;
+      add(`${pointer}/service`, line.service, TODAY, service);
+      for (const [item, entry] of items)
+        if (line.itemIds.includes(entry.id) && entry.scope === line.service)
+          add(`${item}/scope`, entry.scope, TODAY, service);
+    });
+  }
+  const canWait = briefing.canWait;
+  if (canWait && canWait.chips.length > 0) {
+    const block = ".today-canwait";
+    canWait.chips.forEach((chip, index) => {
+      const pointer = `/briefing/canWait/chips/${index}`;
+      const button = `${block} button.today-canwait-chip:nth-of-type(${index + 1})`;
+      add(`${pointer}/text`, chip.text, TODAY, button, { read: ownText });
+      if (chip.count !== undefined)
+        add(`${pointer}/count`, chip.count, TODAY, button, { attribute: "data-count" });
+      if (chip.service)
+        add(`${pointer}/service`, chip.service, TODAY, button, { attribute: "data-service" });
+    });
+    const list = home("Today · Can wait", STARTS.today, `${block} button.today-canwait-chip`);
+    canWait.items.forEach((item, index) => {
+      const pointer = `/briefing/canWait/items/${index}`;
+      const field = `.detail-row-fields > div:nth-child(${index + 1})`;
+      add(`${pointer}/id`, item.id, TODAY, block, { attribute: "data-ids", contains: true });
+      for (const [at, id] of item.itemIds.entries())
+        add(`${pointer}/itemIds/${at}`, id, TODAY, block, {
+          attribute: "data-ids",
+          contains: true,
+        });
+      add(`${pointer}/why`, item.why, list, `${field} > dd`);
+      if (item.service) {
+        add(`${pointer}/service`, item.service, list, `${field} > dt`);
+        add(`${pointer}/text`, item.text, list, field, {
+          read: (element) =>
+            `${element.querySelector("dt")?.textContent}: ${element.querySelector("dd")?.textContent}`,
+        });
+      } else add(`${pointer}/text`, item.text, list, `${field} > dt`);
+    });
+  }
   return cases;
 }
 
@@ -755,7 +862,7 @@ const pending = (bead: string, what: string, patterns: readonly string[]): Exemp
 /** Today briefing fields the contract carries before a window bead draws them; each names its bead. */
 export const PENDING: Readonly<Record<string, Exemption>> = {
   "pending-item-homes": pending(
-    "spicode-f0s.18, spicode-f0s.19 and spicode-f0s.22",
+    "spicode-f0s.18 and spicode-f0s.19",
     "each item in its tier's home on Today (ruling R1)",
     ["/briefing/focus/#/scope", "/briefing/rest/#/scope"],
   ),
@@ -786,12 +893,6 @@ export const PENDING: Readonly<Record<string, Exemption>> = {
     ...under("/briefing/places/#/visual/largest", ["label", "forks", "text"]),
   ]),
   "pending-failing": pending("spicode-f0s.18", "the Failing run", ambient("failing")),
-  "pending-motion": pending("spicode-f0s.22", "In motion and Can wait", [
-    ...ambient("inProgress"),
-    ...under("/briefing/canWait/chips/#", ["text", "count", "service"]),
-    ...under("/briefing/canWait/items/#", ["id", "service", "text", "why"]),
-    "/briefing/canWait/items/#/itemIds/#",
-  ]),
   "pending-releases": pending("spicode-f0s.21", "Today's Releases block", [
     ...under("/releases/today/versions/#", [
       "service",
@@ -882,6 +983,11 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
       "/releases/lines/#/open",
     ],
     reason: "Styling and grouping metadata, drawn as tone, order or a data attribute",
+  },
+  "empty-run": {
+    patterns: ["/briefing/ambient/inProgress/items", "/briefing/ambient/inProgress/text"],
+    reason: "An empty In progress run draws no heading and no 0 count (today-design 'Calm first')",
+    when: (value) => value === 0 || value === "0 in 0",
   },
   "retired-today": {
     patterns: [

@@ -204,6 +204,7 @@ describe.each(snapshots)("window text rules on $name", ({ body }) => {
         "release",
         "station",
         ...((body.services ?? []).some((service) => service.runs.length > 0) ? ["run"] : []),
+        ...(body.briefing.canWait?.chips.length ? ["can-wait"] : []),
       ].sort(),
     );
   });

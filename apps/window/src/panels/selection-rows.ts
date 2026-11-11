@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { RepoLine, ViewSnapshot } from "@spi-code/contracts";
+import type { CanWait, RepoLine, ViewSnapshot } from "@spi-code/contracts";
 import type { Route } from "../app/routes.js";
 import { clockTime } from "../time.js";
 import { inspectId } from "../views/environment/timeline.js";
@@ -18,7 +18,8 @@ export type SelectionKind =
   | "theme"
   | "environment"
   | "release"
-  | "station";
+  | "station"
+  | "can-wait";
 
 /**
  * Lists pass a row to select(id, row), or use useSelectionList in displayed order.
@@ -75,6 +76,20 @@ export function repositoryLineRow(
       { label: "Id", value: line.id },
       ...(line.url ? [{ label: "Link", value: line.url, href: line.url }] : []),
     ],
+  };
+}
+
+export const CAN_WAIT_ID = "can-wait";
+
+/** Today's Can wait list: each item core says can wait, with why; the host has nothing to add. */
+export function canWaitRow(canWait: CanWait): SelectionRow {
+  return {
+    id: CAN_WAIT_ID,
+    title: "Can wait",
+    kind: "can-wait",
+    inspectId: null,
+    prefixes: ["/briefing/canWait"],
+    fields: canWait.items.map(({ service, text, why }) => ({ label: service ?? text, value: why })),
   };
 }
 
@@ -212,6 +227,7 @@ export function selectionRows(snapshot: ViewSnapshot): SelectionRow[] {
       ),
     ),
   ];
+  if (briefing.canWait?.chips.length) rows.push(canWaitRow(briefing.canWait));
   // An Upstream item the briefing already lists keeps that row; only its own items are added.
   const ids = new Set(rows.map(({ id }) => id));
   return [...rows, ...upstreamItemRows(snapshot).filter(({ id }) => !ids.has(id))];
@@ -244,7 +260,11 @@ export function routeSelectionIds(snapshot: ViewSnapshot, route: Route): string[
   const repos = briefing.repositories.rows;
   switch (route.kind) {
     case "today":
-      return [...queue.map(({ id }) => id), ...briefing.ready.map(({ id }) => id)];
+      return [
+        ...queue.map(({ id }) => id),
+        ...briefing.ready.map(({ id }) => id),
+        ...(briefing.canWait?.chips.length ? [CAN_WAIT_ID] : []),
+      ];
     case "service":
       return [
         ...queue.filter(({ scope }) => scope === route.id).map(({ id }) => id),

@@ -1,0 +1,117 @@
+/* Copyright 2026, Daniel Scholl
+ * SPDX-License-Identifier: MIT */
+
+.today-motion-head {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.today-motion-figure {
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.today-motion-lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.today-motion-line {
+  position: relative;
+  display: grid;
+  grid-template-columns: 104px 64px 36px minmax(0, 1fr) auto 12px;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 6px 0;
+  border-top: 1px solid var(--border-soft);
+}
+.today-motion-line:first-child {
+  border-top: 0;
+}
+.today-motion-rollout {
+  grid-template-columns: 104px minmax(0, 1fr) auto 12px;
+}
+.today-motion-line[data-selected] {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.today-motion-line > :not(.today-motion-open) {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+.today-motion-label {
+  color: var(--text-strong);
+  font-size: 12px;
+}
+.today-motion-next,
+.today-motion-state {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+.today-motion-quiet {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.today-motion-count,
+.today-canwait-count {
+  margin-left: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.today-motion-age {
+  text-align: right;
+}
+.today-motion-open {
+  justify-self: end;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.today-motion-open::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.today-motion-line:hover {
+  background: var(--surface-raised);
+}
+.today-motion-run .kit-line-legend {
+  display: block;
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.today-canwait {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.today-motion-run + .today-canwait {
+  margin-top: 14px;
+}
+.today-motion > .today-canwait:first-child {
+  margin-top: 0;
+}
+.today-canwait .today-motion-head {
+  margin: 0 4px 0 0;
+}
+.today-canwait[data-selected] {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.today-canwait-chip {
+  cursor: pointer;
+}

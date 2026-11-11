@@ -13,6 +13,7 @@ import { openReadiness } from "../../settings/readiness.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import { CaveatBand } from "./CaveatBand.js";
 import { TodayFrame } from "./Frame.js";
+import { motionSlot } from "./InMotion.js";
 import { Since } from "./Since.js";
 import { Verdict } from "./Verdict.js";
 import "./today.css";
@@ -135,7 +136,7 @@ export default function Today({
           horizon: null,
           places: null,
           releases: null,
-          motion: null,
+          motion: motionSlot(body),
         }}
       />
       {leaving && (

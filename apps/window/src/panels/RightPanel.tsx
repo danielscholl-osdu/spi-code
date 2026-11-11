@@ -45,6 +45,7 @@ const KIND_LABEL: Readonly<Record<SelectionKind, string>> = {
   environment: "lane event",
   release: "release month",
   station: "station",
+  "can-wait": "today",
 };
 
 function Field({ label, value }: { label: string; value: string }) {
