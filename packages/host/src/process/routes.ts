@@ -12,11 +12,13 @@ import {
   PROTOCOL_VERSION,
   type ReadRecord,
   ReadRecordSchema,
+  type Since,
   type SweepProgress,
   type SweepStatus,
   SweepStatusSchema,
   type ViewSnapshot,
   ViewSnapshotSchema,
+  type WatchBriefing,
   WebUrlSchema,
 } from "@spi-code/contracts";
 import {
@@ -31,6 +33,7 @@ import {
   emptyFacts,
   entryAcrossForks,
   type Facts,
+  factsSchema,
   Gh,
   Glab,
   type InspectOptions,
@@ -56,7 +59,10 @@ import {
   type RunFact,
   releaseDoc,
   STEP_PREFIX,
+  SWEEP_MS,
+  sinceOf,
   stepTitle,
+  sweepStateSchema,
   UPSTREAM_ITEM,
   UPSTREAM_PREFIX,
   type UpstreamBoard,
@@ -65,10 +71,17 @@ import {
 import { z } from "zod";
 import { createSeenStore } from "../store/seen.js";
 import { createSnapshotStore, type SnapshotRecord } from "../store/snapshots.js";
+import { sweepEvidence } from "../sweep/evidence.js";
 import { emptySweepStatus, SWEEP_SCHEDULE, type SweepSchedulerStatus } from "../sweep/status.js";
 import { appActions, readNotes } from "../watch/project.js";
 import { type RunHit, recordedRuns } from "../watch/recorded-runs.js";
-import { baselineItems, parseSeenItems, type SeenBaseline, seenSince } from "../watch/seen.js";
+import {
+  baselineItems,
+  freshIds,
+  parseSeenItems,
+  type SeenBaseline,
+  seenSince,
+} from "../watch/seen.js";
 import type { HostRoutes, HostSend } from "./port.js";
 
 export interface WatchRoutesOptions {
@@ -113,6 +126,8 @@ interface Persisted {
   status: SweepBudget;
   facts: Facts | undefined;
   releases: unknown;
+  /** The sweep state the view was projected from, unparsed. */
+  state: unknown;
 }
 
 function persisted(record: SnapshotRecord): Persisted {
@@ -135,6 +150,7 @@ function persisted(record: SnapshotRecord): Persisted {
     status,
     facts: state.success ? { ...emptyFacts(), ...state.data.facts } : undefined,
     releases: state.success ? state.data.cache?.releases : undefined,
+    state: record.facts,
   };
 }
 
@@ -1058,18 +1074,20 @@ export class WatchRoutes {
   private baseline(): SeenBaseline | undefined {
     const record = this.seen().baseline(this.options.fleet);
     const items = record ? parseSeenItems(record.items) : undefined;
-    return record && items
-      ? { cursor: record.cursor, at: new Date(record.at).toISOString(), items }
-      : undefined;
+    if (!record || !items) return undefined;
+    const at = new Date(record.at);
+    return {
+      cursor: record.cursor,
+      ...(Number.isNaN(at.getTime()) ? {} : { at: at.toISOString() }),
+      items,
+    };
   }
 
   /**
-   * The baseline for a push. With none stored, the first snapshot pushed becomes it: first
-   * sight is quiet, and only what arrives after it counts as arrived.
+   * Seeds the baseline for a first push: first sight is quiet, and only what arrives after it
+   * counts as arrived.
    */
-  private baselineFor(view: ViewSnapshot): SeenBaseline {
-    const stored = this.baseline();
-    if (stored) return stored;
+  private seed(view: ViewSnapshot): SeenBaseline {
     const now = this.options.ctx.clock.now().getTime();
     const items = baselineItems(view.briefing);
     this.seen().acknowledge(this.options.fleet, view.cursor, items, now);
@@ -1094,6 +1112,44 @@ export class WatchRoutes {
     );
   }
 
+  /**
+   * The briefing as of the operator's last look: each place's fresh items, and the since pips
+   * from the baseline's time. Without a prior baseline nothing is fresh and since stays at 24 hours.
+   */
+  private seenBriefing(latest: Persisted, prior: SeenBaseline | undefined): WatchBriefing {
+    const { briefing } = latest.view;
+    const since = prior?.at === undefined ? undefined : this.sinceFrom(latest, prior.at);
+    return {
+      ...briefing,
+      ...(briefing.places
+        ? {
+            places: briefing.places.map((row) => ({
+              ...row,
+              fresh: { itemIds: freshIds(prior, row.itemIds, briefing) },
+            })),
+          }
+        : {}),
+      ...(since ? { since } : {}),
+    };
+  }
+
+  /** The since pips rebuilt from the persisted sweep from `at`; undefined keeps the stored ones. */
+  private sinceFrom(latest: Persisted, at: string): Since | undefined {
+    const stored = latest.view.briefing.since;
+    if (!stored || stored.basis === "stale") return undefined;
+    const state = sweepStateSchema(factsSchema, cacheSchema).safeParse(latest.state);
+    if (!state.success) return undefined;
+    try {
+      const now = new Date(latest.view.sweptAt);
+      const { reads } = sweepEvidence(state.data, SWEEP_MS, now);
+      const model = buildModel(state.data.facts, now, {}, this.options.ctx);
+      return sinceOf(model, state.data.facts, now, SWEEP_MS, at, reads);
+    } catch (error) {
+      this.options.onError(error);
+      return undefined;
+    }
+  }
+
   /** True when it sent a snapshot and its sweep.status. */
   private flush(beforeStatus?: () => void): boolean {
     const subscriber = this.subscriber;
@@ -1101,6 +1157,8 @@ export class WatchRoutes {
     const latest = this.latest();
     if (!latest || latest.view.cursor <= subscriber.cursor) return false;
     const cursor = latest.view.cursor;
+    const prior = this.baseline();
+    const baseline = prior ?? this.seed(latest.view);
     subscriber.send({
       version: PROTOCOL_VERSION,
       id: `snapshot-${cursor}`,
@@ -1108,7 +1166,8 @@ export class WatchRoutes {
       type: "view.snapshot",
       payload: {
         ...latest.view,
-        seen: seenSince(this.baselineFor(latest.view), latest.view.briefing),
+        briefing: this.seenBriefing(latest, prior),
+        seen: seenSince(baseline, latest.view.briefing),
       },
     });
     beforeStatus?.();

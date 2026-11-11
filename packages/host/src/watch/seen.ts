@@ -84,6 +84,25 @@ export function seenSince(
   };
 }
 
+/**
+ * The ids in `itemIds` whose items arrived since the baseline, of any tier: absent from it, or
+ * reaching an id the acknowledged item did not. Without a baseline nothing can be told new.
+ */
+export function freshIds(
+  baseline: SeenBaseline | undefined,
+  itemIds: readonly string[],
+  briefing: Pick<WatchBriefing, "focus" | "rest">,
+): string[] {
+  if (!baseline) return [];
+  const items = baselineItems(briefing);
+  return itemIds.filter((id) => {
+    const item = items.find((entry) => entry.id === id);
+    if (!item) return false;
+    const prior = priorOf(item, baseline.items);
+    return prior === undefined || idsOf(item).some((ref) => !idsOf(prior).includes(ref));
+  });
+}
+
 export function seenState(_model: Model, input: WatchInput, briefing: WatchBriefing): SeenState {
   return seenSince(input.baseline, briefing);
 }
