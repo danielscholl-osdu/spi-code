@@ -365,7 +365,10 @@ describe("Watch projection", () => {
     const snapshot = projectWatch(fixtureInput());
     const legacy = withoutAdditions(snapshot);
     // The rib's 17-word flow headline breaks the 12-word rule; its pilot sentence leads sub instead.
-    const frozen = settingsReach(oracle("briefing")) as { flow: { headline: string; sub: string } };
+    const frozen = settingsReach(oracle("briefing")) as {
+      flow: { headline: string; sub: string };
+      themes: { id: string; next: string }[];
+    };
     const frozenFields = {
       ...legacy.briefing,
       horizon: { headline: legacy.briefing.horizon.headline },
@@ -384,6 +387,11 @@ describe("Watch projection", () => {
     ).toEqual(["os-core-common 9.2.0", "os-core-common 8.2.0"]);
     expect(JSON.parse(JSON.stringify(ribBriefing).replaceAll("\u00a0", " "))).toEqual({
       ...frozen,
+      themes: frozen.themes.map((theme) =>
+        theme.id === "toolchain:Java 25"
+          ? { ...theme, next: "Move one fork's Java pin to 25 and repeat it for the others." }
+          : theme,
+      ),
       flow: {
         ...frozen.flow,
         headline: "6 upstream commits wait across 2 forks.",
