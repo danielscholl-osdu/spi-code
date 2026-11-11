@@ -1,12 +1,12 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type ReleasesToday, ViewSnapshotSchema } from "@spi-code/contracts";
+import { type ReleasesToday, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import type { ReadRecord } from "@spi-code/core";
 import { describe, expect, it } from "vitest";
 import { projectWatch } from "./project.js";
 import { releaseProvenance, releasesTodayProvenance } from "./provenance.js";
-import { fixtureInput } from "./snapshot-fixture.js";
+import { fixtureInput, recordedInput } from "./snapshot-fixture.js";
 
 const today: ReleasesToday = {
   versions: [
@@ -33,6 +33,11 @@ const today: ReleasesToday = {
   readyLine: "1 release PR waits for review, none failing",
   unread: { areas: ["releases"], lastGood: "2026-11-06T12:00:00Z" },
 };
+
+const leaves = (value: unknown, at: string): string[] =>
+  value !== null && typeof value === "object"
+    ? Object.entries(value).flatMap(([key, child]) => leaves(child, `${at}/${key}`))
+    : [at];
 
 const record: ReadRecord = {
   source: "github-releases",
@@ -111,16 +116,39 @@ describe("Today release provenance", () => {
 
   it("binds nothing when Today has no release fields", () => {
     expect(releasesTodayProvenance(undefined, [record], now)).toEqual([]);
-    expect(
-      projectWatch(fixtureInput()).provenance.filter(({ path }) =>
-        path.startsWith("/releases/today"),
-      ),
-    ).toEqual([]);
+  });
+
+  it("binds each projected platform version to the read that supplied it", () => {
+    const at = (snapshot: ViewSnapshot, path: string) =>
+      snapshot.provenance.find((source) => source.path === `/releases/today${path}`);
+    const ledgerFed = projectWatch(fixtureInput());
+    for (const path of ["/platform/stack", "/platform/template/released"]) {
+      expect(at(ledgerFed, path), path).toMatchObject({ areas: ["fleet"] });
+    }
+    const tagFed = projectWatch(recordedInput());
+    expect(tagFed.releases.today?.platform).toMatchObject({
+      stack: "v0.35.3",
+      template: { released: "v1.4.0" },
+    });
+    for (const path of ["/platform/stack", "/platform/template/released"]) {
+      expect(at(tagFed, path), path).toMatchObject({
+        areas: ["fleet", "github"],
+        envelope: { source: "releases", state: "unread" },
+      });
+    }
+    for (const snapshot of [ledgerFed, tagFed]) {
+      const bound = snapshot.provenance.map(({ path }) => path);
+      expect(
+        leaves(snapshot.releases.today, "/releases/today").filter(
+          (leaf) => !bound.some((path) => leaf === path || leaf.startsWith(`${path}/`)),
+        ),
+      ).toEqual([]);
+    }
   });
 
   it("adds Today bindings to a valid snapshot without changing the month ledger's", () => {
     const projected = projectWatch(fixtureInput());
-    const ledger = projected.provenance.filter(({ path }) => path.startsWith("/releases"));
+    const ledger = projected.provenance.filter(({ path }) => path.startsWith("/releases/lines"));
     expect(ledger.map(({ path }) => path)).toEqual([
       ...projected.releases.lines.map((_, i) => `/releases/lines/${i}`),
       "/releases/lines",
@@ -137,17 +165,16 @@ describe("Today release provenance", () => {
     const snapshot = {
       ...projected,
       releases: { ...projected.releases, today },
-      provenance: [...projected.provenance, ...added],
+      provenance: [
+        ...projected.provenance.filter(({ path }) => !path.startsWith("/releases/today/")),
+        ...added,
+      ],
     };
     expect(ViewSnapshotSchema.parse(snapshot)).toEqual(snapshot);
     expect(snapshot.provenance.filter(({ path }) => path.startsWith("/releases/lines"))).toEqual(
       ledger,
     );
     expect(snapshot.provenance.some(({ path }) => path === "/releases")).toBe(false);
-    const leaves = (value: unknown, at: string): string[] =>
-      value !== null && typeof value === "object"
-        ? Object.entries(value).flatMap(([key, child]) => leaves(child, `${at}/${key}`))
-        : [at];
     const bound = added.map(({ path }) => path);
     expect(
       leaves(today, "/releases/today").filter(

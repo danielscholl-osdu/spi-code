@@ -7,6 +7,7 @@ import {
   type AreaName,
   type Briefing,
   envelopeOf,
+  type PlatformSource,
   RELEASES_EVERY_MS,
   type ReadRecord,
   type StackModel,
@@ -229,9 +230,6 @@ export function releaseProvenance(
   ];
 }
 
-/** Which read gave a platform version: the release ledger, or a GitHub release tag where the ledger had none. */
-export type PlatformSource = "ledger" | "github";
-
 /**
  * Today's release fields, each bound to the reads that built it: versions and core-lib-azure
  * pins to the release ledger and fleet, proposed versions and release PRs to GitHub, and the
@@ -242,7 +240,10 @@ export function releasesTodayProvenance(
   today: ReleasesToday | undefined,
   records: readonly ReadRecord[],
   now: Date,
-  platform: { readonly stack?: PlatformSource; readonly template?: PlatformSource } = {},
+  platform: {
+    readonly stack?: PlatformSource | undefined;
+    readonly template?: PlatformSource | undefined;
+  } = {},
 ): ValueSource[] {
   if (!today) return [];
   type Binding = Omit<ValueSource, "path">;

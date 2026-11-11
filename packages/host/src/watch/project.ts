@@ -26,6 +26,7 @@ import {
   isMonth,
   monthFacts,
   parseNotes,
+  platformReleased,
   RELEASES_EVERY_MS,
   type ReadRecord,
   type ReleaseBody,
@@ -307,6 +308,7 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     context: input.context,
     provenance: releaseProvenance(releases.lines, input.releaseRecords, now),
   });
+  const platform = platformReleased(documents, input.facts, input.context);
   return ViewSnapshotSchema.parse({
     cursor: input.cursor,
     sweptAt: model.sweptAt ?? now.toISOString(),
@@ -341,7 +343,10 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
         areas: ["fleet"],
         envelope: readEnvelope("releases", input.releaseRecords, RELEASES_EVERY_MS, now),
       },
-      ...releasesTodayProvenance(releases.today, input.releaseRecords, now),
+      ...releasesTodayProvenance(releases.today, input.releaseRecords, now, {
+        stack: platform.stack?.source,
+        template: platform.template?.source,
+      }),
       ...services.flatMap((service, i) => [
         ...runProvenance(
           `/services/${i}/runs`,

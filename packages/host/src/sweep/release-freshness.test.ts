@@ -96,7 +96,9 @@ it("stamps Release lines with the read a later sweep makes, cached pins included
   if (!view) throw new Error("The second sweep saved no snapshot");
 
   const at = new Date(later).toISOString();
-  const releases = view.provenance.filter(({ path }) => path.startsWith("/releases"));
+  const releases = view.provenance.filter(
+    ({ path }) => path.startsWith("/releases/lines") || path === "/releases/forming",
+  );
   expect(releases.find(({ path }) => path === "/releases/lines")?.envelope).toMatchObject({
     state: "fresh",
     observedAt: at,

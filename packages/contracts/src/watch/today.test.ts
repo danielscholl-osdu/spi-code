@@ -306,6 +306,7 @@ const full = {
     ],
   },
   releases: { ...base.releases, ...releases },
+  provenance: base.provenance.filter(({ path }) => !path.startsWith("/releases/today/")),
   services: base.services.map((service) => ({
     ...service,
     runs: service.runs.map((run) => ({ ...run, completedAt: at })),
