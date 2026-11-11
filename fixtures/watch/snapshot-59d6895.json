@@ -392,7 +392,7 @@
       }
     ],
     "horizon": {
-      "headline": "One filter entry would stop 4 future halts.",
+      "headline": "Nothing lands at the next sync; 6 commits won't land.",
       "stages": {
         "upstream": {
           "count": 6,
@@ -428,6 +428,96 @@
             "text": "legal won't land: sync stopped"
           }
         ]
+      },
+      "cards": [
+        {
+          "id": "halt:top_level:schemathesis-tests",
+          "kind": "halt",
+          "token": "schemathesis-tests",
+          "services": [
+            {
+              "service": "entitlements",
+              "stage": "wont-land"
+            },
+            {
+              "service": "legal",
+              "stage": "upstream"
+            },
+            {
+              "service": "file",
+              "stage": "upstream"
+            }
+          ],
+          "needsYou": true,
+          "mark": "stopped",
+          "verb": "Pre-classify",
+          "itemIds": ["halt:entitlements"],
+          "text": "schemathesis-tests: won't land on entitlements; in open upstream MRs for legal and file. Add it to top_level first."
+        },
+        {
+          "id": "toolchain:Java 25",
+          "kind": "toolchain",
+          "token": "Java 25",
+          "services": [
+            {
+              "service": "legal",
+              "stage": "wont-land"
+            },
+            {
+              "service": "partition",
+              "stage": "upstream"
+            },
+            {
+              "service": "schema",
+              "stage": "upstream"
+            }
+          ],
+          "needsYou": false,
+          "itemIds": [],
+          "text": "Java 25: won't land on legal; in open upstream MRs for partition and schema."
+        },
+        {
+          "id": "toolchain:os-core-common 9.2.0",
+          "kind": "toolchain",
+          "token": "os-core-common 9.2.0",
+          "services": [
+            {
+              "service": "legal",
+              "stage": "wont-land"
+            },
+            {
+              "service": "partition",
+              "stage": "upstream"
+            },
+            {
+              "service": "schema",
+              "stage": "upstream"
+            }
+          ],
+          "needsYou": false,
+          "itemIds": [],
+          "text": "os-core-common 9.2.0: won't land on legal; in open upstream MRs for partition and schema."
+        },
+        {
+          "id": "toolchain:os-core-common 8.2.0",
+          "kind": "toolchain",
+          "token": "os-core-common 8.2.0",
+          "services": [
+            {
+              "service": "entitlements",
+              "stage": "wont-land"
+            }
+          ],
+          "needsYou": false,
+          "itemIds": [],
+          "text": "os-core-common 8.2.0: won't land on entitlements."
+        }
+      ],
+      "counts": {
+        "needYouCards": 1,
+        "toWatchCards": 3,
+        "surfaceItems": 0,
+        "text": "1 needs you before it lands · 3 to watch"
       },
       "owed": {
         "count": 3,
@@ -1614,7 +1704,29 @@
           "itemIds": []
         }
       }
-    ]
+    ],
+    "decisions": {
+      "items": 2,
+      "text": "2 in 2 themes",
+      "groups": [
+        {
+          "id": "decision:rollout",
+          "theme": "rollout",
+          "scope": [],
+          "itemIds": ["rollout"],
+          "verb": "Wait for the environment",
+          "text": "Rollout to template bb49a03"
+        },
+        {
+          "id": "decision:approvals:Azure/osdu-spi-stack",
+          "theme": "approvals:Azure/osdu-spi-stack",
+          "scope": [],
+          "itemIds": ["approvals:Azure/osdu-spi-stack"],
+          "verb": "Approve runs",
+          "text": "1 outside PR waits for workflow approval"
+        }
+      ]
+    }
   },
   "campaigns": [
     {
@@ -1755,7 +1867,39 @@
             "counts": "commits · legal · then entitlements 2"
           }
         ],
-        "items": [],
+        "items": [
+          {
+            "id": "halt:entitlements",
+            "ids": ["halt:entitlements"],
+            "origin": "upstream",
+            "rung": 0,
+            "cls": "HALT",
+            "scope": "entitlements",
+            "title": "Sync halted on schemathesis-tests",
+            "sub": "2 commits held · 13d · the same entry is missing from 4 other filters",
+            "cause": "Upstream adds schemathesis-tests, a top-level entry the fork's filter has no rule for, so Sync Upstream stops with UNKNOWN_TOP_LEVEL.",
+            "effect": "4 daily Sync Upstream runs failed since the halt. 2 upstream commits wait behind the halt.",
+            "next": "Add a rule for schemathesis-tests to .github/upstream-filter.yml, then dispatch sync.",
+            "verb": "Classify entry",
+            "evidence": [
+              {
+                "label": "issue #47",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/issues/47"
+              },
+              {
+                "label": "run",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38187922977"
+              }
+            ],
+            "attention": "interrupt",
+            "due": {
+              "at": "2026-10-22T00:00:00.000Z",
+              "before": "next sync"
+            },
+            "owned": false,
+            "group": "Before 2026-10-22T00:00:00.000Z"
+          }
+        ],
         "folded": null
       }
     },
@@ -5833,6 +5977,48 @@
     {
       "path": "/briefing/horizon/owed",
       "areas": ["github", "radar"]
+    },
+    {
+      "path": "/briefing/horizon/cards",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/horizon/counts",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/decisions",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
     },
     {
       "path": "/briefing/flow/mode",

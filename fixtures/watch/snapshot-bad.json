@@ -251,11 +251,11 @@
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "indexer",
-        "title": "Next sync carries os-core-common 8.5.0",
-        "sub": "1 commit queued · syncs at 2026-11-07T00:00:00.000Z",
+        "title": "Sync PR #58 carries os-core-common 8.5.0",
+        "sub": "1 commit in sync PR #58",
         "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-        "effect": "1 commit reach the fork at the 00:00 sync.",
-        "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
+        "effect": "1 commit wait in sync PR #58 and reach the fork when it merges.",
+        "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
         "verb": "Absorb toolchain",
         "evidence": [
           {
@@ -264,10 +264,6 @@
           }
         ],
         "attention": "surface",
-        "due": {
-          "at": "2026-11-07T00:00:00.000Z",
-          "before": "next sync"
-        },
         "owned": false
       },
       {
@@ -277,11 +273,11 @@
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "workflow",
-        "title": "Next sync carries os-core-common 8.5.0",
-        "sub": "1 commit queued · syncs at 2026-11-07T00:00:00.000Z",
+        "title": "Sync PR #59 carries os-core-common 8.5.0",
+        "sub": "1 commit in sync PR #59",
         "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-        "effect": "1 commit reach the fork at the 00:00 sync.",
-        "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
+        "effect": "1 commit wait in sync PR #59 and reach the fork when it merges.",
+        "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #59.",
         "verb": "Absorb toolchain",
         "evidence": [
           {
@@ -290,10 +286,6 @@
           }
         ],
         "attention": "surface",
-        "due": {
-          "at": "2026-11-07T00:00:00.000Z",
-          "before": "next sync"
-        },
         "owned": false
       },
       {
@@ -303,11 +295,11 @@
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "unit",
-        "title": "Next sync carries os-core-common 8.5.0",
-        "sub": "1 commit queued · syncs at 2026-11-07T00:00:00.000Z",
+        "title": "Sync PR #60 carries os-core-common 8.5.0",
+        "sub": "1 commit in sync PR #60",
         "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-        "effect": "1 commit reach the fork at the 00:00 sync.",
-        "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
+        "effect": "1 commit wait in sync PR #60 and reach the fork when it merges.",
+        "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #60.",
         "verb": "Absorb toolchain",
         "evidence": [
           {
@@ -316,10 +308,6 @@
           }
         ],
         "attention": "surface",
-        "due": {
-          "at": "2026-11-07T00:00:00.000Z",
-          "before": "next sync"
-        },
         "owned": false
       },
       {
@@ -623,7 +611,7 @@
       }
     ],
     "horizon": {
-      "headline": "os-core-common 10.0.0 reaches partition at 00:00.",
+      "headline": "2 commits reach 2 forks at the next sync.",
       "stages": {
         "upstream": {
           "count": 7,
@@ -631,15 +619,40 @@
         },
         "nextSync": {
           "at": "2026-11-07T00:00:00.000Z",
-          "count": 5,
-          "services": ["partition", "indexer", "workflow", "unit", "crs-conversion"],
-          "text": "5 commits at the next sync · 5 forks"
+          "count": 2,
+          "services": ["partition", "crs-conversion"],
+          "text": "2 commits at the next sync · 2 forks"
         },
         "held": {
-          "count": 0,
-          "prs": [],
-          "services": [],
-          "text": "0 commits in 0 open sync PRs · 0 forks"
+          "count": 3,
+          "prs": [
+            {
+              "service": "indexer",
+              "pr": {
+                "number": 58,
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/58",
+                "inspect": "gate1:indexer"
+              }
+            },
+            {
+              "service": "workflow",
+              "pr": {
+                "number": 59,
+                "url": "https://github.com/Azure/osdu-spi-workflow/pull/59",
+                "inspect": "gate1:workflow"
+              }
+            },
+            {
+              "service": "unit",
+              "pr": {
+                "number": 60,
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/60",
+                "inspect": "gate1:unit"
+              }
+            }
+          ],
+          "services": ["indexer", "workflow", "unit"],
+          "text": "3 commits in 3 open sync PRs · 3 forks"
         },
         "forks": {
           "services": ["entitlements", "schema", "file", "search", "indexer-queue", "crs-catalog"],
@@ -659,6 +672,114 @@
             "text": "storage won't land: sync stopped"
           }
         ]
+      },
+      "cards": [
+        {
+          "id": "toolchain:os-core-common 10.0.0",
+          "kind": "toolchain",
+          "token": "os-core-common 10.0.0",
+          "services": [
+            {
+              "service": "partition",
+              "stage": "queued",
+              "at": "2026-11-07T00:00:00.000Z"
+            }
+          ],
+          "needsYou": true,
+          "mark": "needs-person",
+          "verb": "Absorb",
+          "itemIds": ["radar:partition"],
+          "text": "os-core-common 10.0.0: at the next sync on partition. Absorb it on the fork first."
+        },
+        {
+          "id": "toolchain:Java 25",
+          "kind": "toolchain",
+          "token": "Java 25",
+          "services": [
+            {
+              "service": "storage",
+              "stage": "wont-land"
+            },
+            {
+              "service": "crs-conversion",
+              "stage": "queued",
+              "at": "2026-11-07T00:00:00.000Z"
+            }
+          ],
+          "needsYou": true,
+          "mark": "needs-person",
+          "verb": "Move pin",
+          "itemIds": ["radar:storage", "radar:crs-conversion"],
+          "text": "Java 25: at the next sync on crs-conversion; won't land on storage. Move the pin."
+        },
+        {
+          "id": "toolchain:os-core-common 8.5.0",
+          "kind": "toolchain",
+          "token": "os-core-common 8.5.0",
+          "services": [
+            {
+              "service": "indexer",
+              "stage": "held",
+              "pr": {
+                "number": 58,
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/58",
+                "inspect": "gate1:indexer"
+              }
+            },
+            {
+              "service": "workflow",
+              "stage": "held",
+              "pr": {
+                "number": 59,
+                "url": "https://github.com/Azure/osdu-spi-workflow/pull/59",
+                "inspect": "gate1:workflow"
+              }
+            },
+            {
+              "service": "unit",
+              "stage": "held",
+              "pr": {
+                "number": 60,
+                "url": "https://github.com/Azure/osdu-spi-unit/pull/60",
+                "inspect": "gate1:unit"
+              }
+            }
+          ],
+          "needsYou": true,
+          "mark": "needs-person",
+          "verb": "Absorb",
+          "itemIds": [
+            "radar:indexer",
+            "radar:workflow",
+            "radar:unit",
+            "gate1:indexer",
+            "gate1:workflow",
+            "gate1:unit"
+          ],
+          "text": "os-core-common 8.5.0: in sync PRs on indexer, workflow and unit. Absorb it before merging."
+        },
+        {
+          "id": "halt:top_level:schemathesis-tests",
+          "kind": "halt",
+          "token": "schemathesis-tests",
+          "services": [
+            {
+              "service": "legal",
+              "stage": "wont-land"
+            }
+          ],
+          "needsYou": true,
+          "mark": "needs-person",
+          "verb": "Pre-classify",
+          "itemIds": ["radar:legal"],
+          "text": "schemathesis-tests: won't land on legal. Add it to top_level first."
+        }
+      ],
+      "counts": {
+        "needYouCards": 4,
+        "toWatchCards": 0,
+        "surfaceItems": 7,
+        "text": "4 need you before they land"
       },
       "owed": {
         "count": 0,
@@ -2505,7 +2626,89 @@
           "itemIds": []
         }
       }
-    ]
+    ],
+    "decisions": {
+      "items": 4,
+      "text": "4 in 4 themes",
+      "groups": [
+        {
+          "id": "decision:rollout",
+          "theme": "rollout",
+          "scope": [],
+          "itemIds": ["rollout"],
+          "verb": "Review on GitHub",
+          "text": "Rollout to template 7d269b5"
+        },
+        {
+          "id": "decision:stack:lanes",
+          "theme": "stack:lanes",
+          "scope": [],
+          "itemIds": ["stack:lanes"],
+          "verb": "Re-run lanes",
+          "text": "Deployable again"
+        },
+        {
+          "id": "decision:labels:schema",
+          "theme": "labels:schema",
+          "scope": [
+            {
+              "service": "schema"
+            }
+          ],
+          "itemIds": ["labels:schema"],
+          "verb": "Review on GitHub",
+          "text": "Label configuration changed in the template"
+        },
+        {
+          "id": "decision:security:dependabot:fixture-library",
+          "theme": "security:dependabot:fixture-library",
+          "scope": [
+            {
+              "service": "partition"
+            },
+            {
+              "service": "entitlements"
+            },
+            {
+              "service": "legal"
+            },
+            {
+              "service": "schema"
+            },
+            {
+              "service": "file"
+            },
+            {
+              "service": "storage"
+            },
+            {
+              "service": "indexer"
+            },
+            {
+              "service": "search"
+            },
+            {
+              "service": "workflow"
+            },
+            {
+              "service": "indexer-queue"
+            },
+            {
+              "service": "unit"
+            },
+            {
+              "service": "crs-catalog"
+            },
+            {
+              "service": "crs-conversion"
+            }
+          ],
+          "itemIds": ["security:dependabot:fixture-library"],
+          "verb": "Review alerts",
+          "text": "Critical vulnerability in fixture-library"
+        }
+      ]
+    }
   },
   "campaigns": [
     {
@@ -2689,12 +2892,12 @@
         "kind": "upstream"
       },
       "content": {
-        "headline": "At 2026-11-07T00:00:00.000Z, 5 commits reach 5 forks. One needs you first.",
+        "headline": "At 2026-11-07T00:00:00.000Z, 2 commits reach 2 forks. Seven need you first.",
         "tiles": [
           {
             "label": "Incoming",
             "value": "7",
-            "counts": "commits behind upstream · 5 at 2026-11-07T00:00:00.000Z · 2 won't land"
+            "counts": "commits behind upstream · 3 in 3 sync PRs · 2 at 2026-11-07T00:00:00.000Z · 2 won't land"
           },
           {
             "label": "Toolchain",
@@ -2737,7 +2940,14 @@
           },
           {
             "id": "campaign:toolchain:os-core-common%208.5.0",
-            "ids": ["radar:indexer", "radar:unit", "radar:workflow"],
+            "ids": [
+              "radar:indexer",
+              "radar:unit",
+              "radar:workflow",
+              "gate1:indexer",
+              "gate1:workflow",
+              "gate1:unit"
+            ],
             "origin": "upstream",
             "rung": 2,
             "cls": "TOOLCHAIN",
@@ -2763,10 +2973,6 @@
               }
             ],
             "attention": "surface",
-            "due": {
-              "at": "2026-11-07T00:00:00.000Z",
-              "before": "next sync"
-            },
             "owned": false,
             "group": "Toolchain"
           },
@@ -3648,11 +3854,11 @@
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "indexer",
-            "title": "Next sync carries os-core-common 8.5.0",
-            "sub": "1 commit queued · syncs at 2026-11-07T00:00:00.000Z",
+            "title": "Sync PR #58 carries os-core-common 8.5.0",
+            "sub": "1 commit in sync PR #58",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-            "effect": "1 commit reach the fork at the 00:00 sync.",
-            "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
+            "effect": "1 commit wait in sync PR #58 and reach the fork when it merges.",
+            "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
             "verb": "Absorb toolchain",
             "evidence": [
               {
@@ -3661,12 +3867,8 @@
               }
             ],
             "attention": "surface",
-            "due": {
-              "at": "2026-11-07T00:00:00.000Z",
-              "before": "next sync"
-            },
             "owned": false,
-            "group": "Before 00:00"
+            "group": "Needs a decision"
           },
           {
             "id": "gate1:indexer",
@@ -3806,11 +4008,11 @@
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "workflow",
-            "title": "Next sync carries os-core-common 8.5.0",
-            "sub": "1 commit queued · syncs at 2026-11-07T00:00:00.000Z",
+            "title": "Sync PR #59 carries os-core-common 8.5.0",
+            "sub": "1 commit in sync PR #59",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-            "effect": "1 commit reach the fork at the 00:00 sync.",
-            "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
+            "effect": "1 commit wait in sync PR #59 and reach the fork when it merges.",
+            "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #59.",
             "verb": "Absorb toolchain",
             "evidence": [
               {
@@ -3819,12 +4021,8 @@
               }
             ],
             "attention": "surface",
-            "due": {
-              "at": "2026-11-07T00:00:00.000Z",
-              "before": "next sync"
-            },
             "owned": false,
-            "group": "Before 00:00"
+            "group": "Needs a decision"
           },
           {
             "id": "gate1:workflow",
@@ -3991,11 +4189,11 @@
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "unit",
-            "title": "Next sync carries os-core-common 8.5.0",
-            "sub": "1 commit queued · syncs at 2026-11-07T00:00:00.000Z",
+            "title": "Sync PR #60 carries os-core-common 8.5.0",
+            "sub": "1 commit in sync PR #60",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-            "effect": "1 commit reach the fork at the 00:00 sync.",
-            "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
+            "effect": "1 commit wait in sync PR #60 and reach the fork when it merges.",
+            "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #60.",
             "verb": "Absorb toolchain",
             "evidence": [
               {
@@ -4004,12 +4202,8 @@
               }
             ],
             "attention": "surface",
-            "due": {
-              "at": "2026-11-07T00:00:00.000Z",
-              "before": "next sync"
-            },
             "owned": false,
-            "group": "Before 00:00"
+            "group": "Needs a decision"
           },
           {
             "id": "gate1:unit",
@@ -7669,6 +7863,48 @@
     {
       "path": "/briefing/horizon/owed",
       "areas": ["github", "radar"]
+    },
+    {
+      "path": "/briefing/horizon/cards",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/horizon/counts",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/decisions",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
     },
     {
       "path": "/briefing/flow/mode",

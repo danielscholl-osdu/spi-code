@@ -888,7 +888,7 @@
       }
     ],
     "horizon": {
-      "headline": "os-core-common 8.5.0 reaches schema and 7 more at 00:00.",
+      "headline": "65 commits reach 8 forks at the next sync.",
       "stages": {
         "upstream": {
           "count": 110,
@@ -952,6 +952,214 @@
             "text": "partition won't land: sync will halt"
           }
         ]
+      },
+      "cards": [
+        {
+          "id": "toolchain:os-core-common 8.5.0",
+          "kind": "toolchain",
+          "token": "os-core-common 8.5.0",
+          "services": [
+            {
+              "service": "partition",
+              "stage": "wont-land"
+            },
+            {
+              "service": "legal",
+              "stage": "queued",
+              "at": "2026-11-07T00:00:00.000Z"
+            },
+            {
+              "service": "schema",
+              "stage": "queued",
+              "at": "2026-11-07T00:00:00.000Z"
+            },
+            {
+              "service": "file",
+              "stage": "queued",
+              "at": "2026-11-07T00:00:00.000Z"
+            },
+            {
+              "service": "storage",
+              "stage": "held",
+              "pr": {
+                "number": 58,
+                "url": "https://github.com/Azure/osdu-spi-storage/pull/58",
+                "inspect": "gate1:storage"
+              }
+            },
+            {
+              "service": "indexer",
+              "stage": "unknown"
+            },
+            {
+              "service": "search",
+              "stage": "queued",
+              "at": "2026-11-07T00:00:00.000Z"
+            },
+            {
+              "service": "workflow",
+              "stage": "queued",
+              "at": "2026-11-07T00:00:00.000Z"
+            },
+            {
+              "service": "unit",
+              "stage": "queued",
+              "at": "2026-11-07T00:00:00.000Z"
+            },
+            {
+              "service": "crs-conversion",
+              "stage": "queued",
+              "at": "2026-11-07T00:00:00.000Z"
+            }
+          ],
+          "needsYou": true,
+          "mark": "needs-person",
+          "verb": "Absorb",
+          "itemIds": [
+            "radar:indexer",
+            "radar:schema",
+            "radar:storage",
+            "radar:unit",
+            "radar:workflow",
+            "radar:search",
+            "radar:file",
+            "radar:crs-conversion",
+            "gate1:storage"
+          ],
+          "text": "os-core-common 8.5.0: in sync PRs on storage; at the next sync on legal, schema, file, search, workflow, unit and crs-conversion; won't land on partition; stage not proven on indexer. Absorb it on the fork first. Not fully read on partition, schema, file, storage, indexer, search, unit and crs-conversion."
+        },
+        {
+          "id": "toolchain:os-core-common 8.4.1-boot4-SNAPSHOT",
+          "kind": "toolchain",
+          "token": "os-core-common 8.4.1-boot4-SNAPSHOT",
+          "services": [
+            {
+              "service": "legal",
+              "stage": "queued",
+              "at": "2026-11-07T00:00:00.000Z"
+            }
+          ],
+          "needsYou": true,
+          "mark": "needs-person",
+          "verb": "Absorb",
+          "itemIds": ["radar:legal"],
+          "text": "os-core-common 8.4.1-boot4-SNAPSHOT: at the next sync on legal. Absorb it on the fork first."
+        },
+        {
+          "id": "halt:top_level:schemathesis-tests",
+          "kind": "halt",
+          "token": "schemathesis-tests",
+          "services": [
+            {
+              "service": "partition",
+              "stage": "wont-land"
+            },
+            {
+              "service": "legal",
+              "stage": "upstream"
+            },
+            {
+              "service": "crs-conversion",
+              "stage": "upstream"
+            }
+          ],
+          "needsYou": true,
+          "mark": "needs-person",
+          "verb": "Pre-classify",
+          "itemIds": ["radar:partition"],
+          "text": "schemathesis-tests: won't land on partition; in open upstream MRs for legal and crs-conversion. Add it to top_level first. Not fully read on partition and crs-conversion."
+        },
+        {
+          "id": "toolchain:os-core-common 9.4.0",
+          "kind": "toolchain",
+          "token": "os-core-common 9.4.0",
+          "services": [
+            {
+              "service": "partition",
+              "stage": "wont-land"
+            }
+          ],
+          "needsYou": false,
+          "itemIds": [],
+          "text": "os-core-common 9.4.0: won't land on partition. Not fully read on partition."
+        },
+        {
+          "id": "toolchain:os-core-common 10.0.0",
+          "kind": "toolchain",
+          "token": "os-core-common 10.0.0",
+          "services": [
+            {
+              "service": "schema",
+              "stage": "queued",
+              "at": "2026-11-07T00:00:00.000Z"
+            },
+            {
+              "service": "indexer",
+              "stage": "unknown"
+            },
+            {
+              "service": "unit",
+              "stage": "queued",
+              "at": "2026-11-07T00:00:00.000Z"
+            },
+            {
+              "service": "partition",
+              "stage": "upstream"
+            },
+            {
+              "service": "legal",
+              "stage": "upstream"
+            },
+            {
+              "service": "file",
+              "stage": "upstream"
+            },
+            {
+              "service": "storage",
+              "stage": "upstream"
+            },
+            {
+              "service": "search",
+              "stage": "upstream"
+            },
+            {
+              "service": "workflow",
+              "stage": "upstream"
+            },
+            {
+              "service": "crs-catalog",
+              "stage": "upstream"
+            },
+            {
+              "service": "crs-conversion",
+              "stage": "upstream"
+            }
+          ],
+          "needsYou": false,
+          "itemIds": [],
+          "text": "os-core-common 10.0.0: at the next sync on schema and unit; in open upstream MRs for partition, legal, file, storage, search, workflow, crs-catalog and crs-conversion; stage not proven on indexer. Not fully read on schema, indexer, unit, partition, file, storage, search, crs-catalog and crs-conversion."
+        },
+        {
+          "id": "toolchain:os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT",
+          "kind": "toolchain",
+          "token": "os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT",
+          "services": [
+            {
+              "service": "legal",
+              "stage": "queued",
+              "at": "2026-11-07T00:00:00.000Z"
+            }
+          ],
+          "needsYou": false,
+          "itemIds": [],
+          "text": "os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT: at the next sync on legal."
+        }
+      ],
+      "counts": {
+        "needYouCards": 3,
+        "toWatchCards": 3,
+        "surfaceItems": 11,
+        "text": "3 need you before they land · 3 to watch"
       },
       "owed": {
         "count": 23,
@@ -2680,7 +2888,38 @@
           "itemIds": []
         }
       }
-    ]
+    ],
+    "decisions": {
+      "items": 2,
+      "text": "2 in 2 themes",
+      "groups": [
+        {
+          "id": "decision:rollout",
+          "theme": "rollout",
+          "scope": [],
+          "itemIds": ["rollout"],
+          "verb": "Merge",
+          "text": "Rollout to template 7d269b5"
+        },
+        {
+          "id": "decision:release-red:Azure/osdu-spi-entitlements#89",
+          "theme": "release-red:Azure/osdu-spi-entitlements#89",
+          "scope": [
+            {
+              "service": "entitlements",
+              "pr": {
+                "number": 89,
+                "url": "https://github.com/Azure/osdu-spi-entitlements/pull/89",
+                "inspect": "release-red:Azure/osdu-spi-entitlements#89"
+              }
+            }
+          ],
+          "itemIds": ["release-red:Azure/osdu-spi-entitlements#89"],
+          "verb": "Investigate",
+          "text": "Release PR #89 fails 📊 Code Coverage"
+        }
+      ]
+    }
   },
   "campaigns": [
     {
@@ -2889,7 +3128,7 @@
         "kind": "upstream"
       },
       "content": {
-        "headline": "At 2026-11-07T00:00:00.000Z, 65 commits reach 8 forks. Two need you first.",
+        "headline": "At 2026-11-07T00:00:00.000Z, 65 commits reach 8 forks. 11 need you first.",
         "qualifier": "GitLab truncated the upstream diffs for 6 services and the reads failed for 3 services, so a toolchain move could be missing.",
         "tiles": [
           {
@@ -2981,7 +3220,8 @@
               "radar:search",
               "radar:storage",
               "radar:unit",
-              "radar:workflow"
+              "radar:workflow",
+              "gate1:storage"
             ],
             "origin": "upstream",
             "rung": 2,
@@ -3057,7 +3297,8 @@
               "radar:search",
               "radar:storage",
               "radar:unit",
-              "radar:workflow"
+              "radar:workflow",
+              "gate1:storage"
             ],
             "origin": "upstream",
             "rung": 2,
@@ -13685,6 +13926,48 @@
     {
       "path": "/briefing/horizon/owed",
       "areas": ["github", "radar"]
+    },
+    {
+      "path": "/briefing/horizon/cards",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/horizon/counts",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/decisions",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
     },
     {
       "path": "/briefing/flow/mode",

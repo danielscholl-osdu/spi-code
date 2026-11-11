@@ -657,8 +657,10 @@ export function busyInput(): WatchInput {
   });
   for (const [index, service] of ["indexer", "workflow", "unit"].entries()) {
     const repo = morningRepo(input, service);
+    const sha = input.facts.upstream.data?.[service]?.commits[0]?.sha;
+    if (!sha) throw new Error(`Morning fixture lacks the queued commit for ${service}`);
     repo.prs.push({
-      ...morningPr(repo, 58 + index, "sync/upstream-morning", "build: absorb os-core-common 8.5.0"),
+      ...morningPr(repo, 58 + index, "sync/upstream-morning", `chore: sync upstream ${sha}`),
       headAt: "2026-11-06T12:05:00Z",
     });
   }

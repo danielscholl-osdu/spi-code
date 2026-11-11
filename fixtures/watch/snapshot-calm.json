@@ -86,7 +86,7 @@
       }
     ],
     "horizon": {
-      "headline": "Nothing new reaches the forks at the next sync.",
+      "headline": "2 commits reach 2 forks at the next sync.",
       "stages": {
         "upstream": {
           "count": 2,
@@ -121,6 +121,13 @@
           "text": "11 forks with nothing queued upstream"
         },
         "wontLand": []
+      },
+      "cards": [],
+      "counts": {
+        "needYouCards": 0,
+        "toWatchCards": 0,
+        "surfaceItems": 0,
+        "text": "Nothing needs you before it lands"
       },
       "owed": {
         "count": 0,
@@ -1680,7 +1687,12 @@
           "itemIds": []
         }
       }
-    ]
+    ],
+    "decisions": {
+      "items": 0,
+      "text": "Nothing in the system waits on a decision.",
+      "groups": []
+    }
   },
   "campaigns": [],
   "readings": [
@@ -5498,6 +5510,48 @@
     {
       "path": "/briefing/horizon/owed",
       "areas": ["github", "radar"]
+    },
+    {
+      "path": "/briefing/horizon/cards",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/horizon/counts",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/decisions",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
     },
     {
       "path": "/briefing/flow/mode",

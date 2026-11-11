@@ -16,13 +16,17 @@ import {
   type ActionItem,
   AREAS,
   type AreaName,
+  briefingDecisions,
   buildBriefing,
   buildModel,
   type CoreContext,
+  cutServices,
   type DoctorView,
   type Facts,
   type FocusItem,
+  failedServices,
   formingReleases,
+  horizonCards,
   isMonth,
   monthFacts,
   parseNotes,
@@ -236,8 +240,22 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     ...item,
     ...itemAttention(item, model, input, input.attention),
   });
+  const focus = coreBriefing.focus.map(projectItem);
+  const rest = coreBriefing.rest.map(projectItem);
+  const radarReads = (input.envelopeReads ?? input.reads).radar ?? [];
+  const horizon = horizonCards({
+    model,
+    items: [...focus, ...rest],
+    themes: coreBriefing.themes,
+    unread: [
+      ...cutServices(radarReads, input.context.fleet),
+      ...failedServices(radarReads, input.context.fleet),
+    ],
+  });
   const briefing = {
     ...coreBriefing,
+    horizon: { ...coreBriefing.horizon, ...horizon },
+    decisions: briefingDecisions(model, [...focus, ...rest], coreBriefing.themes),
     since: sinceOf(
       model,
       input.facts,
@@ -246,8 +264,8 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
       undefined,
       input.reads,
     ),
-    focus: coreBriefing.focus.map(projectItem),
-    rest: coreBriefing.rest.map(projectItem),
+    focus,
+    rest,
     repositories: repositoryLines(coreBriefing.repositories, model, now),
   };
   const { pane: releases, documents } = projectReleases(

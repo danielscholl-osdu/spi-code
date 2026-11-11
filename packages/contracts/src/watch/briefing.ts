@@ -196,8 +196,15 @@ export const PlaceRowSchema = z
     message: "The visual is not this place's",
     path: ["visual", "kind"],
   });
-/** Where a fork stands with an upstream change: queued for the next sync, held in its sync PR, and so on. */
-export const HorizonStageSchema = z.enum(["upstream", "queued", "held", "wont-land", "landed"]);
+/** Where a fork stands with an upstream change; unknown when core cannot prove which stage holds it. */
+export const HorizonStageSchema = z.enum([
+  "upstream",
+  "queued",
+  "held",
+  "wont-land",
+  "landed",
+  "unknown",
+]);
 export const HorizonCardSchema = z.strictObject({
   id: IdentifierSchema,
   kind: ThemeKindSchema,

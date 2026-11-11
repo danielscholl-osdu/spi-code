@@ -50,6 +50,8 @@ export const readingFor: Record<Anchor["kind"], PlaceReader> = {
       radar: (input.envelopeReads ?? input.reads).radar ?? [],
       fleet: input.context.fleet,
       campaigns,
+      ...(briefing.horizon.counts ? { surfaceItems: briefing.horizon.counts.surfaceItems } : {}),
+      ...(briefing.horizon.cards ? { cards: briefing.horizon.cards } : {}),
     }),
   service: (anchor, { model, input, briefing }) =>
     anchor.kind === "service"

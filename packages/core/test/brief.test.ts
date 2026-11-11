@@ -161,8 +161,10 @@ describe("the recorded sweep", () => {
     expect(halt.exposed).not.toContain("legal");
   });
 
-  test("the horizon names how many future halts one filter entry would stop", () => {
-    expect(b.horizon.headline).toBe("One filter entry would stop 4 future halts.");
+  test("the horizon headline counts the stages, and the halt theme the filters it would fix", () => {
+    expect(b.horizon.headline).toBe("Nothing lands at the next sync; 6 commits won't land.");
+    const halt = b.themes.find((theme) => theme.kind === "halt");
+    expect((halt?.exposed.length ?? 0) + (halt?.possible.length ?? 0)).toBe(4);
   });
 
   test("each theme says its next step in one sentence", () => {
@@ -417,11 +419,11 @@ describe("the horizon", () => {
     cause: [{ label: "value", value: "Java 25" }],
   });
 
-  test("a quiet sweep says nothing new reaches the forks", () => {
+  test("a sweep with no upstream theme still counts the commits its stages hold", () => {
     const m = withQueue([]);
     m.radar.services = {};
     const b = buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext);
-    expect(b.horizon.headline).toBe("Nothing new reaches the forks at the next sync.");
+    expect(b.horizon.headline).toBe("Nothing lands at the next sync; 6 commits won't land.");
     expect(b.themes.every((t) => t.kind === "deadline")).toBe(true);
   });
 
@@ -439,19 +441,23 @@ describe("the horizon", () => {
     expect(b.themes.find((t) => t.kind === "port")?.inspect).toBeUndefined();
   });
 
-  test("a queued Java move leads the horizon with every queued fork and the sync time", () => {
+  test("a queued Java move leads the themes with every queued fork and the sync time", () => {
     const m = withQueue([RADAR_PARTITION]);
     const svc = m.radar.services.partition!;
     const java = m.radar.services.legal!.certain.find((v) => v.bucket === "Toolchain")!;
     svc.certain = [...svc.certain, java];
     svc.possible = svc.possible.filter((v) => v.bucket !== "Toolchain");
     const b = buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext);
-    expect(b.horizon.headline).toBe("Java 25 reaches partition and legal at 00:00.");
+    expect(b.themes[0]?.title).toBe("Java 25");
+    expect(b.themes[0]?.certain.map((f) => `${f.fork} ${f.state}`)).toEqual([
+      "partition queued · syncs at 00:00",
+      "legal queued · syncs at 00:00",
+    ]);
     expect(b.themes.find((t) => t.kind === "halt")?.exposed.length).toBeGreaterThan(0);
     expect(b.themes[0]?.inspect).toBe("radar:partition");
   });
 
-  test("a Java move queued on many forks names the first and counts the rest", () => {
+  test("a Java move queued on many forks keeps every fork on its theme", () => {
     const m = withQueue([RADAR_PARTITION]);
     const legal = m.radar.services.legal;
     const java = legal?.certain.find((v) => v.bucket === "Toolchain");
@@ -464,7 +470,9 @@ describe("the horizon", () => {
       svc.possible = svc.possible.filter((v) => v.bucket !== "Toolchain");
     }
     const b = buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext);
-    expect(b.horizon.headline).toMatch(/^Java 25 reaches \S+ and \d+ more at 00:00\.$/);
+    expect(b.themes[0]?.certain.map((f) => f.fork).sort()).toEqual(
+      Object.keys(m.radar.services).sort(),
+    );
   });
 });
 

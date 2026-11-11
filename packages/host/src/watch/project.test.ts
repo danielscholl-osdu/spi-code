@@ -393,11 +393,16 @@ describe("Watch projection", () => {
           ? { ...theme, next: "Move one fork's Java pin to 25 and repeat it for the others." }
           : theme,
       ),
+      horizon: { headline: "Nothing lands at the next sync; 6 commits won't land." },
       flow: {
         ...frozen.flow,
         headline: "6 upstream commits wait across 2 forks.",
         sub: "2 forks move their toolchain, so start with one pilot. 1 sync PR is prepared. Nothing syncs until you merge one.",
       },
+    });
+    // The rib's horizon sentence names one theme; the stage sentence replaces it.
+    expect(frozen).toMatchObject({
+      horizon: { headline: "One filter entry would stop 4 future halts." },
     });
     expect(frozen.flow.headline).toBe(
       "6 upstream commits wait across 2 forks. 2 forks move their toolchain, so start with one pilot.",
@@ -787,11 +792,18 @@ describe("Watch projection", () => {
 
   function withoutAdditions(snapshot: ReturnType<typeof projectWatch>) {
     const { services: _services, ...legacy } = snapshot;
-    const { since: _since, places: _places, ...briefing } = snapshot.briefing;
+    const {
+      since: _since,
+      places: _places,
+      decisions: _decisions,
+      ...briefing
+    } = snapshot.briefing;
+    const { cards: _cards, counts: _counts, ...horizon } = snapshot.briefing.horizon;
     return {
       ...legacy,
       briefing: {
         ...briefing,
+        horizon,
         focus: snapshot.briefing.focus.map(
           ({ attention: _a, due: _d, owned: _o, ...item }) => item,
         ),
