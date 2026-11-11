@@ -10,6 +10,7 @@ import { runningFactHome } from "../views/environment/running-fact.js";
 import { eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
 import { lensFields } from "./lens-fields.test-helper.js";
 import type { Destination, Registry } from "./navigation.js";
+import { placeReachCases } from "./place-reachability.test-helper.js";
 import { treeServices } from "./queue.js";
 
 export type Selector = string | ((root: ParentNode) => Element | null | undefined);
@@ -179,7 +180,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
       throw new Error(`No host Detail answer for ${id} in fixtures/watch/inspect-1106.json`);
     return result;
   };
-  const cases: Reach[] = [];
+  const cases: Reach[] = placeReachCases(snapshot);
   const add = (
     pointer: string,
     value: unknown,
@@ -842,7 +843,6 @@ function repositoryCases(
 }
 
 const PR = ["pr/number", "pr/url", "pr/inspect"];
-const SLOT = ["service", "state", "origin", "text"];
 const under = (root: string, leaves: readonly string[]) => leaves.map((leaf) => `${root}/${leaf}`);
 const ambient = (run: string) => [
   ...under(`/briefing/ambient/${run}`, ["items", "text"]),
@@ -873,24 +873,6 @@ export const PENDING: Readonly<Record<string, Exemption>> = {
     ...under("/briefing/decisions/groups/#", ["id", "theme", "kind", "token", "verb", "text"]),
     "/briefing/decisions/groups/#/itemIds/#",
     ...under("/briefing/decisions/groups/#/scope/#", ["service", ...PR]),
-  ]),
-  "pending-places": pending("spicode-f0s.20", "the place cards", [
-    ...under("/briefing/places/#", ["place", "mark", "tone", "figure", "line", "reason", "caveat"]),
-    "/briefing/places/#/areas/#",
-    "/briefing/places/#/unread/areas/#",
-    "/briefing/places/#/unread/lastGood",
-    "/briefing/places/#/itemIds/#",
-    "/briefing/places/#/fresh/itemIds/#",
-    ...under("/briefing/places/#/visual", ["kind", "greenSince", "target"]),
-    ...under("/briefing/places/#/visual/slots/#", SLOT),
-    "/briefing/places/#/visual/stopped/#",
-    ...under("/briefing/places/#/visual/horizon", ["count", "text"]),
-    ...under("/briefing/places/#/visual/lanes/#", ["lane", "green", "total", "state", "text"]),
-    ...under("/briefing/places/#/visual/columns/#", ["service", "count", "text"]),
-    "/briefing/places/#/visual/columns/#/rules/#",
-    ...under("/briefing/places/#/visual/program", ["count", "text"]),
-    "/briefing/places/#/visual/program/rules/#",
-    ...under("/briefing/places/#/visual/largest", ["label", "forks", "text"]),
   ]),
   "pending-failing": pending("spicode-f0s.18", "the Failing run", ambient("failing")),
   "pending-releases": pending("spicode-f0s.21", "Today's Releases block", [

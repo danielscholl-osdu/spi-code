@@ -1,0 +1,69 @@
+/* Copyright 2026, Daniel Scholl
+ * SPDX-License-Identifier: MIT */
+
+.today-places {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.today-place {
+  position: relative;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+.today-place h3 { margin: 0 0 6px; font-size: 12px; }
+.today-place button { cursor: pointer; }
+.today-place-open {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-strong);
+  font: inherit;
+}
+.today-place-open::after { position: absolute; inset: 0; content: ""; border-radius: 8px; }
+.today-place-open:focus-visible::after { outline: 2px solid var(--accent); outline-offset: 2px; }
+.today-place button:not(.today-place-open) { position: relative; z-index: 1; }
+.today-place-figure { font-size: 15px; font-weight: 600; line-height: 1.4; margin-bottom: 8px; }
+.today-place-figure[data-tone="bad"] { color: var(--error-text); }
+.today-place-figure[data-tone="warn"] { color: var(--warning-text); }
+.today-place-figure[data-tone="ok"] { color: var(--success-text); }
+.today-place[data-unread] .today-place-figure { color: var(--text-muted); }
+.today-place[data-unread] [data-visual] { opacity: .6; }
+.today-place-chips { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; margin-bottom: 10px; }
+.today-place-reason { min-width: 0; }
+.today-place-reason .kit-chip { white-space: normal; }
+.today-place-caveat { margin: 0 0 10px; color: var(--text-muted); font-size: 11px; }
+.today-place-columns { display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 2px; align-items: end; }
+.today-place-slot, .today-place-column {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+}
+.today-place-slot .kit-slot, .today-place-slot .kit-slot svg { width: 10px; height: 10px; }
+.today-place-slot .kit-cell { width: 100%; max-width: 12px; }
+.today-place-stopped { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+.today-place-stopped .kit-chip { white-space: normal; }
+.today-place-security { height: 44px; }
+.today-place-column { height: 44px; align-items: end; }
+.today-place-column .kit-segment { flex: none; width: 7px; min-width: 0; }
+.today-place-program, .today-place-largest { margin-top: 6px; }
+.today-place-program .kit-chip, .today-place-largest .kit-chip { white-space: normal; }
+.today-place-lifecycle { display: grid; gap: 3px; margin-bottom: 6px; font-size: 10px; }
+.today-place-lifecycle > div { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 6px; }
+.today-place-lifecycle meter { width: 100%; height: 8px; border: 0; background: var(--border); }
+.today-place-lifecycle meter::-webkit-meter-bar { background: var(--border); border: 0; border-radius: 2px; }
+.today-place-lifecycle meter::-webkit-meter-optimum-value { background: var(--accent); }
+.today-place-lifecycle [data-state="unknown"] meter { opacity: .3; }
+.today-place-green { white-space: normal; }

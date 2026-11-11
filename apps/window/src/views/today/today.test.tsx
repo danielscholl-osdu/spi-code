@@ -117,6 +117,7 @@ describe.each(NAMES)("on the %s morning", (name) => {
       slots.every((at, index) => at >= 0 && (index === 0 || at > (slots[index - 1] ?? 0))),
     ).toBe(true);
     expect(frame?.querySelectorAll(".today-slot:empty")).toHaveLength(0);
+    expect(frame?.querySelector('[data-today-slot="places"]')).not.toBeNull();
   });
 });
 
@@ -271,7 +272,11 @@ it("draws no mark and no since rows when core sends neither, never a calm mark",
   delete body.briefing.verdict;
   delete body.briefing.since;
   const { container } = await mount(body);
-  expect(container.querySelector(".today-verdict, .kit-mark, .today-since")).toBeNull();
+  expect(
+    container.querySelector(
+      ".today-head .today-verdict, .today-head .kit-mark, .today-head .today-since",
+    ),
+  ).toBeNull();
   expect(container.querySelector(".today-frame")).not.toBeNull();
 });
 

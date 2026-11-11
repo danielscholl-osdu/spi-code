@@ -14,6 +14,7 @@ import { type createWatchStore, watchStore } from "../../store/watch.js";
 import { CaveatBand } from "./CaveatBand.js";
 import { TodayFrame } from "./Frame.js";
 import { motionSlot } from "./InMotion.js";
+import { Places } from "./Places.js";
 import { Since } from "./Since.js";
 import { Verdict } from "./Verdict.js";
 import "./today.css";
@@ -87,6 +88,7 @@ function useHandOver(brief: boolean, progress: SweepProgress | null) {
 
 export default function Today({
   store = watchStore,
+  onNavigate,
   onOpenSettings = openReadiness,
   onOpenEvidence,
 }: {
@@ -134,7 +136,7 @@ export default function Today({
         slots={{
           band: null,
           horizon: null,
-          places: null,
+          places: <Places snapshot={body} onNavigate={onNavigate} />,
           releases: null,
           motion: motionSlot(body),
         }}
