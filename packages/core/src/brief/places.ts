@@ -4,6 +4,7 @@
 import type { AttentionTier } from "../attention.js";
 import type { ReadingTile } from "../readings/index.js";
 import type { Tone } from "./index.js";
+import { type PlaceVisual, placeVisuals, type VisualSource } from "./place-visuals.js";
 
 type PlaceId = "line" | "environment" | "engineering" | "security";
 type Mark = "stopped" | "needs-person" | "in-progress" | "nothing-due";
@@ -19,6 +20,7 @@ interface PlaceRow {
   unread?: { areas: AreaName[]; lastGood?: string };
   itemIds: string[];
   fresh: { itemIds: string[] };
+  visual?: PlaceVisual;
 }
 interface PlaceReading {
   anchor: { kind: string };
@@ -71,7 +73,9 @@ export function placesOf(input: {
   readings: readonly PlaceReading[];
   items: readonly PlaceItem[];
   areas: readonly AreaEnvelope[];
+  source?: VisualSource;
 }): PlaceRow[] {
+  const visuals = input.source ? placeVisuals(input.source, input.items) : undefined;
   return (["line", "environment", "engineering", "security"] as const).map((place) => {
     const kind = place === "line" ? "program" : place;
     const reading = input.readings.find(({ anchor }) => anchor.kind === kind)?.content;
@@ -121,6 +125,7 @@ export function placesOf(input: {
       ...(unread.length ? { unread: { areas: unread, ...(lastGood ? { lastGood } : {}) } } : {}),
       itemIds,
       fresh: { itemIds: [] },
+      ...(visuals?.[place] ? { visual: visuals[place] } : {}),
     };
   });
 }

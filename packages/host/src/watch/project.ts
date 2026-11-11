@@ -338,7 +338,17 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
       input.readIntervals?.get(record) ?? input.intervals?.[area] ?? input.intervalMs,
     now,
   );
-  const places = placesOf({ readings, items: [...briefing.focus, ...briefing.rest], areas });
+  const places = placesOf({
+    readings,
+    items: [...briefing.focus, ...briefing.rest],
+    areas,
+    source: {
+      model,
+      facts: input.facts,
+      reads: input.envelopeReads ?? input.reads,
+      cards: horizon.cards,
+    },
+  });
   const verdict = briefingVerdict({
     items: [...briefing.focus, ...briefing.rest],
     horizon: briefing.horizon,

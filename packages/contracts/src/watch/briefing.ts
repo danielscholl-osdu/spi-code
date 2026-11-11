@@ -129,6 +129,8 @@ const PLACES = ["line", "environment", "engineering", "security"] as const;
 export const PlaceIdSchema = z.enum(PLACES);
 export const LifecycleLaneSchema = z.strictObject({
   lane: z.enum(["refresh", "upgrade", "smoke", "sweeper"]),
+  /** Unknown when no completed run in the 21-day window proves a pass rate. */
+  state: z.enum(["read", "unknown"]).optional(),
   green: z.int().nonnegative(),
   total: z.int().nonnegative(),
   text: z.string(),

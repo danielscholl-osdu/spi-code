@@ -1668,6 +1668,37 @@
         "itemIds": ["halt:entitlements", "gate1:legal"],
         "fresh": {
           "itemIds": []
+        },
+        "visual": {
+          "kind": "pips",
+          "slots": [
+            {
+              "service": "partition",
+              "state": "broken",
+              "text": "partition: lane: blocked by the stack"
+            },
+            {
+              "service": "entitlements",
+              "state": "broken",
+              "text": "entitlements: upstream: 2 behind · held by the halt · will halt on schemathesis-tests; sync: halted: UNKNOWN_TOP_LEVEL; lane: blocked by the stack"
+            },
+            {
+              "service": "legal",
+              "state": "broken",
+              "text": "legal: sync: PR #31 red; lane: blocked by the stack"
+            },
+            {
+              "service": "schema",
+              "state": "broken",
+              "text": "schema: lane: blocked by the stack"
+            },
+            {
+              "service": "file",
+              "state": "broken",
+              "text": "file: lane: blocked by the stack"
+            }
+          ],
+          "stopped": ["partition", "entitlements", "legal", "schema", "file"]
         }
       },
       {
@@ -1681,6 +1712,39 @@
         "itemIds": ["stack:38181620856", "approvals:Azure/osdu-spi-stack"],
         "fresh": {
           "itemIds": []
+        },
+        "visual": {
+          "kind": "lifecycle",
+          "lanes": [
+            {
+              "lane": "refresh",
+              "state": "read",
+              "green": 6,
+              "total": 9,
+              "text": "refresh: 6 of 9 green in 21 days"
+            },
+            {
+              "lane": "upgrade",
+              "state": "read",
+              "green": 5,
+              "total": 8,
+              "text": "upgrade: 5 of 8 green in 21 days"
+            },
+            {
+              "lane": "smoke",
+              "state": "read",
+              "green": 7,
+              "total": 12,
+              "text": "smoke: 7 of 12 green in 21 days"
+            },
+            {
+              "lane": "sweeper",
+              "state": "read",
+              "green": 12,
+              "total": 12,
+              "text": "sweeper: 12 of 12 green in 21 days"
+            }
+          ]
         }
       },
       {
@@ -1694,6 +1758,37 @@
         "itemIds": ["rollout"],
         "fresh": {
           "itemIds": []
+        },
+        "visual": {
+          "kind": "rollout",
+          "target": "bb49a034a3dcdaa922a1905e708ec66bde930888",
+          "slots": [
+            {
+              "service": "partition",
+              "state": "broken",
+              "text": "partition: template validation failed for bb49a034a3dcdaa922a1905e708ec66bde930888"
+            },
+            {
+              "service": "entitlements",
+              "state": "broken",
+              "text": "entitlements: template validation failed for bb49a034a3dcdaa922a1905e708ec66bde930888"
+            },
+            {
+              "service": "legal",
+              "state": "broken",
+              "text": "legal: template validation failed for bb49a034a3dcdaa922a1905e708ec66bde930888"
+            },
+            {
+              "service": "schema",
+              "state": "broken",
+              "text": "schema: template validation failed for bb49a034a3dcdaa922a1905e708ec66bde930888"
+            },
+            {
+              "service": "file",
+              "state": "broken",
+              "text": "file: template validation failed for bb49a034a3dcdaa922a1905e708ec66bde930888"
+            }
+          ]
         }
       },
       {
@@ -1706,6 +1801,46 @@
         "itemIds": [],
         "fresh": {
           "itemIds": []
+        },
+        "visual": {
+          "kind": "forkColumns",
+          "columns": [
+            {
+              "service": "partition",
+              "count": 2,
+              "rules": ["Disabled Spring CSRF protection"],
+              "text": "partition: 2 high or critical · Disabled Spring CSRF protection"
+            },
+            {
+              "service": "entitlements",
+              "count": 2,
+              "rules": ["Disabled Spring CSRF protection"],
+              "text": "entitlements: 2 high or critical · Disabled Spring CSRF protection"
+            },
+            {
+              "service": "legal",
+              "count": 2,
+              "rules": ["Disabled Spring CSRF protection"],
+              "text": "legal: 2 high or critical · Disabled Spring CSRF protection"
+            },
+            {
+              "service": "schema",
+              "count": 3,
+              "rules": ["Disabled Spring CSRF protection"],
+              "text": "schema: 3 high or critical · Disabled Spring CSRF protection"
+            },
+            {
+              "service": "file",
+              "count": 2,
+              "rules": ["Disabled Spring CSRF protection"],
+              "text": "file: 2 high or critical · Disabled Spring CSRF protection"
+            }
+          ],
+          "largest": {
+            "label": "Disabled Spring CSRF protection",
+            "forks": 5,
+            "text": "Disabled Spring CSRF protection · 5 forks"
+          }
         }
       }
     ],

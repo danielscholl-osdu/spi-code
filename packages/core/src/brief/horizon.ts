@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: MIT
 
 import { heldRadar } from "../attention.js";
+import type { AttentionTier } from "../attention.js";
 import type { Model } from "../model/index.js";
 import type { QueueItem } from "../model/queue.js";
 import { syncSplit } from "../model/upstream.js";
+import { stationSubstateOf } from "../model/substate.js";
+import type { Facts } from "../facts.js";
 import { fitHeadline, plural } from "../util.js";
 
 export type Origin = "system" | "upstream";
@@ -41,6 +44,23 @@ export function itemOrigin(item: QueueItem): Origin {
   return item.kind === "radar" || item.kind === "halt" || item.kind === "port" || item.kind === "gate1"
     ? "upstream"
     : "system";
+}
+
+/** The horizon's item join, counted once per fork even when a change also has a sync PR. */
+export function horizonWaitServices(model: Model, facts: Facts, items: readonly {
+  id: string; ids: readonly string[]; attention: AttentionTier;
+}[], cards?: readonly { itemIds: readonly string[]; services: readonly { service: string }[] }[]): Set<string> {
+  return new Set(model.queue.items.filter((q) => {
+    if (itemOrigin(q) !== "upstream") return false;
+    if (cards && !cards.some((card) => card.itemIds.includes(q.id) && card.services.some((service) => service.service === q.scope))) return false;
+    const member = items.find((item) => item.id === q.id || item.ids.includes(q.id));
+    if (!member) return false;
+    if (member.attention === "surface") return true;
+    const line = model.lines.find((line) => line.fork.id === q.scope);
+    const sync = line?.stations.find((station) => station.id === "sync");
+    return q.kind === "gate1" && line !== undefined && sync !== undefined &&
+      stationSubstateOf(sync, line, facts) === "waiting-on-person";
+  }).map((q) => q.scope));
 }
 
 export function horizonStages(model: Model): HorizonStages {
