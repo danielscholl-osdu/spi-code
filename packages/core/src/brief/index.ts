@@ -40,6 +40,14 @@ import { ago as agoText, deployableWords, streakText } from "./words.js";
 import type { Voice } from "../voice.js";
 
 export { sinceOf } from "./since.js";
+export {
+  briefingDecisions,
+  type Decisions,
+  type HorizonCard,
+  type HorizonCounts,
+  horizonCards,
+  type TieredItem,
+} from "./themes.js";
 
 export type Tone = "bad" | "warn" | "ok" | "neutral";
 
@@ -1188,33 +1196,6 @@ function themesOf(model: Model, now: Date, next: string | undefined): Theme[] {
     });
 }
 
-function horizonOf(themes: readonly Theme[], next: string | undefined): string {
-  const at = next ? `at ${next}` : "at the next sync";
-  let toolFull: string | undefined;
-  let toolShort: string | undefined;
-  for (const t of themes) {
-    if (t.kind !== "toolchain") continue;
-    const queued = t.certain.filter((f) => f.state.startsWith("queued")).map((f) => f.fork);
-    if (queued.length === 0) continue;
-    toolFull = `${t.title} reaches ${list(queued)} ${at}.`;
-    toolShort = `${t.title} reaches ${firstAndMore(queued)} ${at}.`;
-    break;
-  }
-  const exposed = themes.find((t) => t.kind === "halt" && t.exposed.length + t.possible.length >= 2);
-  const halt = exposed
-    ? `One filter entry would stop ${exposed.exposed.length + exposed.possible.length} future halts.`
-    : undefined;
-  // The halt theme stays on its own row when the move needs the whole headline.
-  const candidates = [
-    [toolFull, halt],
-    [toolShort, halt],
-    [toolFull],
-    [toolShort],
-  ].map((parts) => parts.filter((p): p is string => !!p).join(" "));
-  const fit = fitHeadline(candidates.filter((c) => c.length > 0));
-  return fit || "Nothing new reaches the forks at the next sync.";
-}
-
 const ENV_LANES: ReadonlyArray<[EnvLane["id"] & LifecycleKind, string]> = Object.freeze([
   ["upgrade", "Upgrade"],
   ["refresh", "Refresh"],
@@ -1510,7 +1491,7 @@ export function buildBriefing(model: Model, doctor: DoctorView, now: Date | unde
     rest: focus.slice(FOCUS_MAX),
     ready,
     themes,
-    horizon: upstreamHorizon(model, horizonOf(themes, next)),
+    horizon: upstreamHorizon(model),
     flow: upstreamView(model.upstream, now, context.voice),
     environment: environmentOf(model, facts[0], now),
     repositories: repositoriesOf(model, now),

@@ -129,7 +129,7 @@ it("lists Upstream first among the places and opens it from the sidebar", async 
 
 it("renders the Nov 6 upstream reading: headline, qualifier, tiles and groups", () => {
   expect(place().querySelector(".place-headline")?.textContent).toBe(
-    "At 18:00, 65 commits reach 8 forks. Two need you first.",
+    "At 18:00, 65 commits reach 8 forks. 11 need you first.",
   );
   expect(place().querySelector(".place-qualifier")?.textContent).toBe(
     "GitLab truncated the upstream diffs for 6 services and the reads failed for 3 services, so a toolchain move could be missing.",

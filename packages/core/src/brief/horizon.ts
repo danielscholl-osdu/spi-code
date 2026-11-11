@@ -5,7 +5,7 @@ import { heldRadar } from "../attention.js";
 import type { Model } from "../model/index.js";
 import type { QueueItem } from "../model/queue.js";
 import { syncSplit } from "../model/upstream.js";
-import { plural } from "../util.js";
+import { fitHeadline, plural } from "../util.js";
 
 export type Origin = "system" | "upstream";
 
@@ -116,16 +116,57 @@ export function horizonStages(model: Model): HorizonStages {
   return stages;
 }
 
-export function upstreamHorizon(model: Model, headline: string): Horizon {
+// What the stages hold, in one sentence: it counts every queued commit, not only a theme's.
+export function horizonHeadline(stages: HorizonStages, unread: number, total: number): string {
+  if (unread >= total) return "Upstream not read yet.";
+  const wontLand = stages.wontLand.reduce((sum, f) => sum + f.count, 0);
+  const parts = [
+    stages.nextSync.count > 0
+      ? `${plural(stages.nextSync.count, "commit")} reach ${plural(stages.nextSync.services.length, "fork")} at the next sync`
+      : undefined,
+    stages.held.count > 0
+      ? `${stages.nextSync.count > 0 ? stages.held.count : plural(stages.held.count, "commit")} wait in ${plural(stages.held.prs.length, "open sync PR")}`
+      : undefined,
+    wontLand > 0
+      ? `${stages.nextSync.count + stages.held.count > 0 ? wontLand : plural(wontLand, "commit")} won't land`
+      : undefined,
+  ].filter((part): part is string => part !== undefined);
+  const notRead = unread > 0 ? `${plural(unread, "fork")} not read yet` : undefined;
+  if (parts.length === 0) {
+    return notRead
+      ? `Nothing queued on the forks read; ${notRead}.`
+      : "Nothing queued upstream for the next sync.";
+  }
+  if (stages.nextSync.count === 0 && stages.held.count === 0) parts.unshift("Nothing lands at the next sync");
+  const sentence = (list: readonly string[]) => {
+    const text = list.join("; ");
+    return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
+  };
+  const caveat = notRead ? [notRead] : [];
+  const landsNone = stages.nextSync.count === 0 && stages.held.count === 0;
+  return fitHeadline([
+    sentence([...parts, ...caveat]),
+    ...(landsNone ? [sentence([`${plural(wontLand, "commit")} won't land`, ...caveat])] : []),
+    ...parts.map((_, i) => sentence([...parts.slice(0, parts.length - i), ...caveat])),
+    sentence(parts.slice(0, 1)),
+  ]);
+}
+
+export function upstreamHorizon(model: Model, headline?: string): Horizon {
   const services = model.upstream.forks.flatMap((f) => {
     const count = model.radar.services[f.service]?.ports?.owed.length ?? 0;
     return count > 0 ? [{ service: f.service, count }] : [];
   });
   const count = services.reduce((sum, f) => sum + f.count, 0);
   const read = Object.values(model.radar.services).some((service) => service.ports !== undefined);
+  const stages = horizonStages(model);
   return {
-    headline,
-    stages: horizonStages(model),
+    headline: headline ?? horizonHeadline(
+      stages,
+      model.upstream.forks.filter((f) => f.behind === undefined).length,
+      model.upstream.forks.length,
+    ),
+    stages,
     owed: {
       count,
       services,

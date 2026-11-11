@@ -156,6 +156,11 @@ export function briefingProvenance(briefing: Briefing, stack: StackModel): Value
     add("/briefing/horizon/stages/wontLand", PHASE);
   }
   if (briefing.horizon.owed) add("/briefing/horizon/owed", ["github", "radar"]);
+  if ("cards" in briefing.horizon) {
+    add("/briefing/horizon/cards", MODEL);
+    add("/briefing/horizon/counts", MODEL);
+  }
+  if ("decisions" in briefing && briefing.decisions) add("/briefing/decisions", MODEL);
 
   const { flow } = briefing;
   add("/briefing/flow/mode", PHASE);

@@ -253,12 +253,16 @@ export interface UpstreamReadingInput<T extends ReadingItem> {
   radar: readonly ReadRecord[];
   fleet: Fleet;
   campaigns: readonly ReadingCampaign[];
+  /** The Surface items on the horizon cards, once the host has set tiers. */
+  surfaceItems?: number;
+  /** The horizon cards' members, so a sync PR on a card shows with its fork here too. */
+  cards?: readonly { itemIds: readonly string[] }[];
 }
 
 export function upstreamReading<T extends ReadingItem>(
   input: UpstreamReadingInput<T>,
 ): PlaceReading<T> {
-  const { model, items, radar, fleet, campaigns } = input;
+  const { model, items, radar, fleet, campaigns, surfaceItems, cards } = input;
   const up = model.upstream;
   // An instant, not a clock time: the window reads it in its own zone.
   const at = up.schedule.upstream;
@@ -275,7 +279,10 @@ export function upstreamReading<T extends ReadingItem>(
   const wontLand = stages.wontLand.reduce((sum, f) => sum + f.count, 0);
   const held = up.held.map((f) => f.service);
   const radarItem = (service: string) => items.find((i) => i.id === `radar:${service}`);
-  const before = held.map(radarItem).filter((i): i is T => !!i);
+  const before = [
+    ...items.filter((i) => i.id.startsWith("halt:")),
+    ...held.map(radarItem).filter((i): i is T => !!i),
+  ];
 
   // A fleet fact shows once, on its campaign; a move only one fork carries stays that fork's item.
   const covered = new Set<string>();
@@ -307,13 +314,25 @@ export function upstreamReading<T extends ReadingItem>(
       !toolchain.includes(i) &&
       !covered.has(i.id.slice("radar:".length)),
   );
+  const onCards = new Set(cards?.flatMap((c) => c.itemIds) ?? []);
+  const joined = stages.held.prs.flatMap(({ service, pr }) =>
+    pr.inspect && onCards.has(pr.inspect) ? [{ fork: `radar:${service}`, id: pr.inspect }] : [],
+  );
+  const shown = new Set([...before, ...detected, ...toolchain, ...others].flatMap((i) => i.ids));
+  const alone = joined
+    .filter((j) => !shown.has(j.fork))
+    .flatMap((j) => items.filter((i) => i.id === j.id));
+  const withPr = (item: T): T => {
+    const prs = joined.filter((j) => item.ids.includes(j.fork) && !item.ids.includes(j.id));
+    return prs.length > 0 ? { ...item, ids: [...item.ids, ...prs.map((j) => j.id)] } : item;
+  };
   const still = up.forks.filter(
     (f) => (f.behind ?? 0) > 0 && !moving.some((m) => m.service === f.service),
   );
 
   const first =
-    before.length > 0
-      ? ` ${NUMBERS[before.length] ?? before.length} ${before.length === 1 ? "needs" : "need"} you first.`
+    surfaceItems !== undefined && surfaceItems > 0
+      ? ` ${NUMBERS[surfaceItems] ?? surfaceItems} ${surfaceItems === 1 ? "needs" : "need"} you first.`
       : "";
   const unreadNote = unread > 0 ? ` · ${unread} ${NOT_READ}` : "";
   const when = at ? `At ${at}` : "At the next sync";
@@ -321,14 +340,14 @@ export function upstreamReading<T extends ReadingItem>(
   const wait = `${plural(inPrs, "commit")} wait in ${plural(prs, "open sync PR")}`;
   const inSync = prs === 1 ? "a sync PR" : "sync PRs";
   const headline = none
-    ? `Upstream ${NOT_READ}.`
+    ? `Upstream ${NOT_READ}.${first}`
     : commits === 0
       ? unread > 0
-        ? `Nothing queued on the forks read; ${unread} ${NOT_READ}.`
-        : "Nothing queued upstream for the next sync."
+        ? `Nothing queued on the forks read; ${unread} ${NOT_READ}.${first}`
+        : `Nothing queued upstream for the next sync.${first}`
       : prs === 0
         ? queued === 0 && wontLand > 0
-          ? `Nothing lands at the next sync; ${plural(wontLand, "commit")} won't land.`
+          ? `Nothing lands at the next sync; ${plural(wontLand, "commit")} won't land.${first}`
           : `${reach}.${first}`
         : queued === 0
           ? `${wait}.${first}`
@@ -399,8 +418,8 @@ export function upstreamReading<T extends ReadingItem>(
     ...(qualifier ? { qualifier } : {}),
     tiles,
     groups: [
-      { group: at ? `Before ${at}` : "Before the next sync", items: before },
-      { group: "Toolchain", items: [...detected, ...toolchain, ...others] },
+      { group: at ? `Before ${at}` : "Before the next sync", items: [...before, ...alone].map(withPr) },
+      { group: "Toolchain", items: [...detected, ...toolchain, ...others].map(withPr) },
     ],
     fold: (rest) => {
       const moved = rest.filter((i) => moveForks.includes(i.scope));

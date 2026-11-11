@@ -84,8 +84,17 @@ function clean(reading: PlaceReading<ReadingItem>): string[] {
 describe("Upstream reading on the recorded 6 Nov sweep", () => {
   it("reads the next sync, commits incoming and forks reached", () => {
     const reading = upstream();
-    expect(reading.headline).toBe(`At ${SYNC}, 65 commits reach 8 forks. Two need you first.`);
-    expect(wordCount(reading.headline)).toBeLessThanOrEqual(12);
+    expect(reading.headline).toBe(`At ${SYNC}, 65 commits reach 8 forks; 37 in sync PRs.`);
+    const tiered = upstreamReading({
+      model,
+      items,
+      radar,
+      fleet: context.fleet,
+      campaigns: [],
+      surfaceItems: 2,
+    });
+    expect(tiered.headline).toBe(`At ${SYNC}, 65 commits reach 8 forks. Two need you first.`);
+    expect(wordCount(tiered.headline)).toBeLessThanOrEqual(12);
     expect(reading.tiles[0]).toEqual({
       label: "Incoming",
       value: "110",
