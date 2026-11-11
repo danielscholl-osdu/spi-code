@@ -20,8 +20,13 @@ describe("Briefing contract", () => {
   it("round-trips the frozen rib Briefing without dropping fields", () => {
     expect(briefing).toEqual(oracle);
   });
+  it("keeps an additive origin on base briefing items", () => {
+    const withOrigin = { ...briefing, focus: [{ ...focus, origin: "upstream" }] };
+    expect(BriefingSchema.parse(withOrigin)).toEqual(withOrigin);
+  });
   it.each([
     { ...focus, rung: 3 },
+    { ...focus, origin: "gitlab" },
     { ...focus, cls: "OTHER" },
     { ...focus, cause: undefined },
     { ...focus, evidence: [{ label: "run", url: 42 }] },

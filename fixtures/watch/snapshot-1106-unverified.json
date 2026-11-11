@@ -34,6 +34,7 @@
       {
         "id": "rollout",
         "ids": ["rollout"],
+        "origin": "system",
         "rung": 0,
         "cls": "ROLLOUT",
         "scope": "fleet",
@@ -73,6 +74,7 @@
       {
         "id": "conflict:entitlements:121",
         "ids": ["conflict:entitlements:121"],
+        "origin": "system",
         "rung": 0,
         "cls": "CONFLICT",
         "scope": "entitlements",
@@ -94,6 +96,7 @@
       {
         "id": "main:legal",
         "ids": ["main:legal"],
+        "origin": "system",
         "rung": 0,
         "cls": "UNREAD",
         "scope": "legal",
@@ -115,6 +118,7 @@
       {
         "id": "release-red:Azure/osdu-spi-entitlements#89",
         "ids": ["release-red:Azure/osdu-spi-entitlements#89"],
+        "origin": "system",
         "rung": 1,
         "cls": "BUILD",
         "scope": "entitlements",
@@ -140,6 +144,7 @@
       {
         "id": "radar:indexer",
         "ids": ["radar:indexer"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "indexer",
@@ -172,6 +177,7 @@
       {
         "id": "radar:legal",
         "ids": ["radar:legal"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "legal",
@@ -205,6 +211,7 @@
       {
         "id": "radar:schema",
         "ids": ["radar:schema"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "schema",
@@ -234,6 +241,7 @@
       {
         "id": "radar:storage",
         "ids": ["radar:storage"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "storage",
@@ -255,6 +263,7 @@
       {
         "id": "radar:partition",
         "ids": ["radar:partition"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "HALT",
         "scope": "partition",
@@ -280,6 +289,7 @@
       {
         "id": "radar:unit",
         "ids": ["radar:unit"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "unit",
@@ -309,6 +319,7 @@
       {
         "id": "radar:workflow",
         "ids": ["radar:workflow"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "workflow",
@@ -334,6 +345,7 @@
       {
         "id": "radar:search",
         "ids": ["radar:search"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "search",
@@ -359,6 +371,7 @@
       {
         "id": "radar:file",
         "ids": ["radar:file"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "file",
@@ -384,6 +397,7 @@
       {
         "id": "radar:crs-conversion",
         "ids": ["radar:crs-conversion"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "crs-conversion",
@@ -409,6 +423,7 @@
       {
         "id": "gate1:indexer",
         "ids": ["gate1:indexer"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "GATE",
         "scope": "indexer",
@@ -430,6 +445,7 @@
       {
         "id": "gate1:storage",
         "ids": ["gate1:storage"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "GATE",
         "scope": "storage",
@@ -451,6 +467,7 @@
       {
         "id": "gate1:indexer-queue",
         "ids": ["gate1:indexer-queue"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "GATE",
         "scope": "indexer-queue",
@@ -485,6 +502,7 @@
           "port:crs-catalog",
           "port:storage"
         ],
+        "origin": "upstream",
         "rung": 1,
         "cls": "PORT",
         "scope": "12 forks",
@@ -697,7 +715,125 @@
       }
     ],
     "horizon": {
-      "headline": "One filter entry would stop 4 future halts."
+      "headline": "One filter entry would stop 4 future halts.",
+      "stages": {
+        "upstream": {
+          "count": 110,
+          "text": "110 commits behind upstream"
+        },
+        "nextSync": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "count": 65,
+          "services": [
+            "legal",
+            "schema",
+            "file",
+            "indexer",
+            "search",
+            "workflow",
+            "unit",
+            "crs-conversion"
+          ],
+          "text": "65 commits at the next sync · 8 forks"
+        },
+        "held": {
+          "count": 37,
+          "prs": [
+            {
+              "service": "storage",
+              "pr": {
+                "number": 58,
+                "url": "https://github.com/Azure/osdu-spi-storage/pull/58",
+                "inspect": "gate1:storage"
+              }
+            },
+            {
+              "service": "indexer",
+              "pr": {
+                "number": 58,
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/58",
+                "inspect": "gate1:indexer"
+              }
+            },
+            {
+              "service": "indexer-queue",
+              "pr": {
+                "number": 58,
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/58",
+                "inspect": "gate1:indexer-queue"
+              }
+            }
+          ],
+          "services": ["storage", "indexer", "indexer-queue"],
+          "text": "37 commits in 3 open sync PRs · 3 forks"
+        },
+        "forks": {
+          "services": ["entitlements", "crs-catalog"],
+          "text": "2 forks with nothing queued upstream"
+        },
+        "wontLand": [
+          {
+            "service": "partition",
+            "reason": "halted",
+            "count": 8,
+            "text": "partition won't land: sync halted"
+          }
+        ]
+      },
+      "owed": {
+        "count": 23,
+        "services": [
+          {
+            "service": "partition",
+            "count": 2
+          },
+          {
+            "service": "entitlements",
+            "count": 4
+          },
+          {
+            "service": "legal",
+            "count": 2
+          },
+          {
+            "service": "schema",
+            "count": 1
+          },
+          {
+            "service": "file",
+            "count": 1
+          },
+          {
+            "service": "storage",
+            "count": 1
+          },
+          {
+            "service": "indexer",
+            "count": 3
+          },
+          {
+            "service": "search",
+            "count": 2
+          },
+          {
+            "service": "workflow",
+            "count": 2
+          },
+          {
+            "service": "unit",
+            "count": 3
+          },
+          {
+            "service": "crs-catalog",
+            "count": 1
+          },
+          {
+            "service": "crs-conversion",
+            "count": 1
+          }
+        ],
+        "text": "23 upstream changes not ported · 12 forks"
+      }
     },
     "flow": {
       "mode": "flight",
@@ -2332,13 +2468,13 @@
         "kind": "upstream"
       },
       "content": {
-        "headline": "At 2026-11-07T00:00:00.000Z, 73 commits reach 9 forks. Two need you first.",
+        "headline": "At 2026-11-07T00:00:00.000Z, 65 commits reach 8 forks. Two need you first.",
         "qualifier": "GitLab truncated the upstream diffs for 6 services and the reads failed for 3 services, so a toolchain move could be missing.",
         "tiles": [
           {
             "label": "Incoming",
-            "value": "107",
-            "counts": "commits · 34 in 2 sync PRs · 73 at 2026-11-07T00:00:00.000Z"
+            "value": "110",
+            "counts": "commits behind upstream · 37 in 3 sync PRs · 65 at 2026-11-07T00:00:00.000Z · 8 won't land"
           },
           {
             "label": "Toolchain",
@@ -2355,6 +2491,7 @@
           {
             "id": "radar:partition",
             "ids": ["radar:partition"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "HALT",
             "scope": "partition",
@@ -2381,6 +2518,7 @@
           {
             "id": "radar:legal",
             "ids": ["radar:legal"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "legal",
@@ -2424,6 +2562,7 @@
               "radar:unit",
               "radar:workflow"
             ],
+            "origin": "upstream",
             "rung": 2,
             "cls": "TOOLCHAIN",
             "scope": "8 forks",
@@ -2490,6 +2629,7 @@
           {
             "id": "campaign:toolchain:os-core-common%2010.0.0",
             "ids": ["radar:indexer", "radar:schema", "radar:unit"],
+            "origin": "upstream",
             "rung": 2,
             "cls": "TOOLCHAIN",
             "scope": "3 forks",
@@ -2591,6 +2731,7 @@
           {
             "id": "rollout",
             "ids": ["rollout"],
+            "origin": "system",
             "rung": 0,
             "cls": "ROLLOUT",
             "scope": "fleet",
@@ -2665,6 +2806,7 @@
           {
             "id": "release-red:Azure/osdu-spi-entitlements#89",
             "ids": ["release-red:Azure/osdu-spi-entitlements#89"],
+            "origin": "system",
             "rung": 1,
             "cls": "BUILD",
             "scope": "entitlements",
@@ -2748,6 +2890,7 @@
           {
             "id": "radar:partition",
             "ids": ["radar:partition"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "HALT",
             "scope": "partition",
@@ -2774,6 +2917,7 @@
           {
             "id": "repo:partition",
             "ids": [],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "partition",
@@ -2821,6 +2965,7 @@
           {
             "id": "conflict:entitlements:121",
             "ids": ["conflict:entitlements:121"],
+            "origin": "system",
             "rung": 0,
             "cls": "CONFLICT",
             "scope": "entitlements",
@@ -2843,6 +2988,7 @@
           {
             "id": "release-red:Azure/osdu-spi-entitlements#89",
             "ids": ["release-red:Azure/osdu-spi-entitlements#89"],
+            "origin": "system",
             "rung": 1,
             "cls": "BUILD",
             "scope": "entitlements",
@@ -2869,6 +3015,7 @@
           {
             "id": "repo:entitlements",
             "ids": [],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "entitlements",
@@ -2915,6 +3062,7 @@
           {
             "id": "main:legal",
             "ids": ["main:legal"],
+            "origin": "system",
             "rung": 0,
             "cls": "UNREAD",
             "scope": "legal",
@@ -2937,6 +3085,7 @@
           {
             "id": "radar:legal",
             "ids": ["radar:legal"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "legal",
@@ -2971,6 +3120,7 @@
           {
             "id": "repo:legal",
             "ids": [],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "legal",
@@ -3018,6 +3168,7 @@
           {
             "id": "radar:schema",
             "ids": ["radar:schema"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "schema",
@@ -3048,6 +3199,7 @@
           {
             "id": "repo:schema",
             "ids": [],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "schema",
@@ -3095,6 +3247,7 @@
           {
             "id": "radar:file",
             "ids": ["radar:file"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "file",
@@ -3121,6 +3274,7 @@
           {
             "id": "repo:file",
             "ids": [],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "file",
@@ -3168,6 +3322,7 @@
           {
             "id": "radar:storage",
             "ids": ["radar:storage"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "storage",
@@ -3190,6 +3345,7 @@
           {
             "id": "gate1:storage",
             "ids": ["gate1:storage"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "GATE",
             "scope": "storage",
@@ -3212,6 +3368,7 @@
           {
             "id": "repo:storage",
             "ids": [],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "storage",
@@ -3258,6 +3415,7 @@
           {
             "id": "radar:indexer",
             "ids": ["radar:indexer"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "indexer",
@@ -3288,6 +3446,7 @@
           {
             "id": "gate1:indexer",
             "ids": ["gate1:indexer"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "GATE",
             "scope": "indexer",
@@ -3310,6 +3469,7 @@
           {
             "id": "repo:indexer",
             "ids": [],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "indexer",
@@ -3357,6 +3517,7 @@
           {
             "id": "radar:search",
             "ids": ["radar:search"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "search",
@@ -3383,6 +3544,7 @@
           {
             "id": "repo:search",
             "ids": [],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "search",
@@ -3429,6 +3591,7 @@
           {
             "id": "radar:workflow",
             "ids": ["radar:workflow"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "workflow",
@@ -3455,6 +3618,7 @@
           {
             "id": "repo:workflow",
             "ids": [],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "workflow",
@@ -3501,6 +3665,7 @@
           {
             "id": "gate1:indexer-queue",
             "ids": ["gate1:indexer-queue"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "GATE",
             "scope": "indexer-queue",
@@ -3523,6 +3688,7 @@
           {
             "id": "repo:indexer-queue",
             "ids": [],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "indexer-queue",
@@ -3570,6 +3736,7 @@
           {
             "id": "radar:unit",
             "ids": ["radar:unit"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "unit",
@@ -3600,6 +3767,7 @@
           {
             "id": "repo:unit",
             "ids": [],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "unit",
@@ -3647,6 +3815,7 @@
           {
             "id": "repo:crs-catalog",
             "ids": [],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "crs-catalog",
@@ -3694,6 +3863,7 @@
           {
             "id": "radar:crs-conversion",
             "ids": ["radar:crs-conversion"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "crs-conversion",
@@ -3720,6 +3890,7 @@
           {
             "id": "repo:crs-conversion",
             "ids": [],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "crs-conversion",
@@ -12827,6 +12998,30 @@
         "template",
         "security"
       ]
+    },
+    {
+      "path": "/briefing/horizon/stages/upstream",
+      "areas": ["upstream"]
+    },
+    {
+      "path": "/briefing/horizon/stages/nextSync",
+      "areas": ["github", "runs", "upstream", "radar"]
+    },
+    {
+      "path": "/briefing/horizon/stages/held",
+      "areas": ["github", "runs", "upstream", "radar"]
+    },
+    {
+      "path": "/briefing/horizon/stages/forks",
+      "areas": ["upstream"]
+    },
+    {
+      "path": "/briefing/horizon/stages/wontLand",
+      "areas": ["github", "runs", "upstream", "radar"]
+    },
+    {
+      "path": "/briefing/horizon/owed",
+      "areas": ["github", "radar"]
     },
     {
       "path": "/briefing/flow/mode",

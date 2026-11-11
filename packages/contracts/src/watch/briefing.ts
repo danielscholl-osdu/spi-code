@@ -15,10 +15,14 @@ import {
 
 export { type BriefFact, BriefFactSchema, type Tone, ToneSchema } from "./panes.js";
 
+/** In the system (forks, PRs, environment, template, releases), or coming from upstream GitLab. */
+export const OriginSchema = z.enum(["system", "upstream"]);
+
 export const LinkSchema = z.strictObject({ label: z.string(), url: z.string() });
 export const FocusItemSchema = z.strictObject({
   id: z.string(),
   ids: z.array(z.string()),
+  origin: OriginSchema.optional(),
   rung: z.union([z.literal(0), z.literal(1), z.literal(2)]),
   cls: ItemClassSchema,
   scope: z.string(),
@@ -87,8 +91,6 @@ export const EnvironmentSchema = z.strictObject({
 export const MarkSchema = z.enum(["stopped", "needs-person", "in-progress", "nothing-due"]);
 /** How loud an item is; core decides it once and Today never re-tiers it. */
 export const AttentionTierSchema = z.enum(["interrupt", "surface", "ambient", "background"]);
-/** In the system (forks, PRs, environment, template, releases), or coming from upstream GitLab. */
-export const OriginSchema = z.enum(["system", "upstream"]);
 /** One meaning per slot shape; unknown is a run whose effect core cannot prove. */
 export const SlotStateSchema = z.enum([
   "empty",

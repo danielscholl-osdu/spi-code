@@ -34,6 +34,7 @@
       {
         "id": "sync-run:storage",
         "ids": ["sync-run:storage"],
+        "origin": "system",
         "rung": 0,
         "cls": "INCIDENT",
         "scope": "storage",
@@ -55,6 +56,7 @@
       {
         "id": "rollout",
         "ids": ["rollout"],
+        "origin": "system",
         "rung": 1,
         "cls": "ROLLOUT",
         "scope": "fleet",
@@ -90,6 +92,7 @@
       {
         "id": "stack:lanes",
         "ids": ["stack:lanes"],
+        "origin": "system",
         "rung": 1,
         "cls": "ENV",
         "scope": "Environment",
@@ -111,6 +114,7 @@
       {
         "id": "radar:partition",
         "ids": ["radar:partition"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "partition",
@@ -136,6 +140,7 @@
       {
         "id": "radar:legal",
         "ids": ["radar:legal"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "HALT",
         "scope": "legal",
@@ -164,6 +169,7 @@
       {
         "id": "radar:storage",
         "ids": ["radar:storage"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "storage",
@@ -189,6 +195,7 @@
       {
         "id": "radar:indexer",
         "ids": ["radar:indexer"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "indexer",
@@ -214,6 +221,7 @@
       {
         "id": "radar:workflow",
         "ids": ["radar:workflow"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "workflow",
@@ -239,6 +247,7 @@
       {
         "id": "radar:unit",
         "ids": ["radar:unit"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "unit",
@@ -264,6 +273,7 @@
       {
         "id": "radar:crs-conversion",
         "ids": ["radar:crs-conversion"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "TOOLCHAIN",
         "scope": "crs-conversion",
@@ -289,6 +299,7 @@
       {
         "id": "gate1:indexer",
         "ids": ["gate1:indexer"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "GATE",
         "scope": "indexer",
@@ -310,6 +321,7 @@
       {
         "id": "gate1:workflow",
         "ids": ["gate1:workflow"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "GATE",
         "scope": "workflow",
@@ -331,6 +343,7 @@
       {
         "id": "gate2:indexer-queue",
         "ids": ["gate2:indexer-queue"],
+        "origin": "system",
         "rung": 1,
         "cls": "GATE",
         "scope": "indexer-queue",
@@ -356,6 +369,7 @@
       {
         "id": "gate1:unit",
         "ids": ["gate1:unit"],
+        "origin": "upstream",
         "rung": 1,
         "cls": "GATE",
         "scope": "unit",
@@ -377,6 +391,7 @@
       {
         "id": "labels:schema",
         "ids": ["labels:schema"],
+        "origin": "system",
         "rung": 1,
         "cls": "GATE",
         "scope": "schema",
@@ -398,6 +413,7 @@
       {
         "id": "security:dependabot:fixture-library",
         "ids": ["security:dependabot:fixture-library"],
+        "origin": "system",
         "rung": 1,
         "cls": "SECURITY",
         "scope": "partition, entitlements, legal, schema, file, storage, indexer, search, workflow, indexer-queue, unit, crs-catalog, crs-conversion",
@@ -507,7 +523,48 @@
       }
     ],
     "horizon": {
-      "headline": "Java 25 reaches storage and crs-conversion at 00:00."
+      "headline": "Java 25 reaches storage and crs-conversion at 00:00.",
+      "stages": {
+        "upstream": {
+          "count": 7,
+          "text": "7 commits behind upstream"
+        },
+        "nextSync": {
+          "at": "2026-11-07T00:00:00.000Z",
+          "count": 5,
+          "services": ["partition", "indexer", "workflow", "unit", "crs-conversion"],
+          "text": "5 commits at the next sync · 5 forks"
+        },
+        "held": {
+          "count": 0,
+          "prs": [],
+          "services": [],
+          "text": "0 commits in 0 open sync PRs · 0 forks"
+        },
+        "forks": {
+          "services": ["entitlements", "schema", "file", "search", "indexer-queue", "crs-catalog"],
+          "text": "6 forks with nothing queued upstream"
+        },
+        "wontLand": [
+          {
+            "service": "legal",
+            "reason": "halted",
+            "count": 1,
+            "text": "legal won't land: sync halted"
+          },
+          {
+            "service": "storage",
+            "reason": "stopped",
+            "count": 1,
+            "text": "storage won't land: sync stopped"
+          }
+        ]
+      },
+      "owed": {
+        "count": 0,
+        "services": [],
+        "text": "0 upstream changes not ported · 0 forks"
+      }
     },
     "flow": {
       "mode": "flight",
@@ -2284,12 +2341,12 @@
         "kind": "upstream"
       },
       "content": {
-        "headline": "At 2026-11-07T00:00:00.000Z, 6 commits reach 6 forks. One needs you first.",
+        "headline": "At 2026-11-07T00:00:00.000Z, 5 commits reach 5 forks. One needs you first.",
         "tiles": [
           {
             "label": "Incoming",
-            "value": "6",
-            "counts": "commits · 6 of 13 forks"
+            "value": "7",
+            "counts": "commits behind upstream · 0 in 0 sync PRs · 5 at 2026-11-07T00:00:00.000Z · 2 won't land"
           },
           {
             "label": "Toolchain",
@@ -2306,6 +2363,7 @@
           {
             "id": "radar:legal",
             "ids": ["radar:legal"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "HALT",
             "scope": "legal",
@@ -2332,6 +2390,7 @@
           {
             "id": "campaign:toolchain:os-core-common%208.5.0",
             "ids": ["radar:indexer", "radar:unit", "radar:workflow"],
+            "origin": "upstream",
             "rung": 2,
             "cls": "TOOLCHAIN",
             "scope": "3 forks",
@@ -2366,6 +2425,7 @@
           {
             "id": "campaign:toolchain:Java%2025",
             "ids": ["radar:crs-conversion", "radar:storage"],
+            "origin": "upstream",
             "rung": 2,
             "cls": "TOOLCHAIN",
             "scope": "2 forks",
@@ -2396,6 +2456,7 @@
           {
             "id": "radar:partition",
             "ids": ["radar:partition"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "partition",
@@ -2450,6 +2511,7 @@
           {
             "id": "stack:lanes",
             "ids": ["stack:lanes"],
+            "origin": "system",
             "rung": 1,
             "cls": "ENV",
             "scope": "Environment",
@@ -2500,6 +2562,7 @@
           {
             "id": "rollout",
             "ids": ["rollout"],
+            "origin": "system",
             "rung": 1,
             "cls": "ROLLOUT",
             "scope": "fleet",
@@ -2612,6 +2675,7 @@
               "alert:Azure/osdu-spi-crs-conversion:dep:provider/crs-conversion-azure/pom.xml:fixture-library",
               "security:dependabot:fixture-library"
             ],
+            "origin": "system",
             "rung": 1,
             "cls": "SECURITY",
             "scope": "13 repositories",
@@ -2711,6 +2775,7 @@
           {
             "id": "radar:partition",
             "ids": ["radar:partition"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "partition",
@@ -2739,6 +2804,7 @@
             "ids": [
               "alert:Azure/osdu-spi-partition:dep:provider/partition-azure/pom.xml:fixture-library"
             ],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "partition",
@@ -2792,6 +2858,7 @@
             "ids": [
               "alert:Azure/osdu-spi-entitlements:dep:provider/entitlements-azure/pom.xml:fixture-library"
             ],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "entitlements",
@@ -2843,6 +2910,7 @@
           {
             "id": "radar:legal",
             "ids": ["radar:legal"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "HALT",
             "scope": "legal",
@@ -2869,6 +2937,7 @@
           {
             "id": "repo:legal",
             "ids": ["alert:Azure/osdu-spi-legal:dep:provider/legal-azure/pom.xml:fixture-library"],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "legal",
@@ -2920,6 +2989,7 @@
           {
             "id": "labels:schema",
             "ids": ["labels:schema"],
+            "origin": "system",
             "rung": 1,
             "cls": "GATE",
             "scope": "schema",
@@ -2944,6 +3014,7 @@
             "ids": [
               "alert:Azure/osdu-spi-schema:dep:provider/schema-azure/pom.xml:fixture-library"
             ],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "schema",
@@ -2995,6 +3066,7 @@
           {
             "id": "repo:file",
             "ids": ["alert:Azure/osdu-spi-file:dep:provider/file-azure/pom.xml:fixture-library"],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "file",
@@ -3046,6 +3118,7 @@
           {
             "id": "sync-run:storage",
             "ids": ["sync-run:storage"],
+            "origin": "system",
             "rung": 0,
             "cls": "INCIDENT",
             "scope": "storage",
@@ -3068,6 +3141,7 @@
           {
             "id": "radar:storage",
             "ids": ["radar:storage"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "storage",
@@ -3096,6 +3170,7 @@
             "ids": [
               "alert:Azure/osdu-spi-storage:dep:provider/storage-azure/pom.xml:fixture-library"
             ],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "storage",
@@ -3147,6 +3222,7 @@
           {
             "id": "radar:indexer",
             "ids": ["radar:indexer"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "indexer",
@@ -3173,6 +3249,7 @@
           {
             "id": "gate1:indexer",
             "ids": ["gate1:indexer"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "GATE",
             "scope": "indexer",
@@ -3197,6 +3274,7 @@
             "ids": [
               "alert:Azure/osdu-spi-indexer:dep:provider/indexer-azure/pom.xml:fixture-library"
             ],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "indexer",
@@ -3250,6 +3328,7 @@
             "ids": [
               "alert:Azure/osdu-spi-search:dep:provider/search-azure/pom.xml:fixture-library"
             ],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "search",
@@ -3301,6 +3380,7 @@
           {
             "id": "radar:workflow",
             "ids": ["radar:workflow"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "workflow",
@@ -3327,6 +3407,7 @@
           {
             "id": "gate1:workflow",
             "ids": ["gate1:workflow"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "GATE",
             "scope": "workflow",
@@ -3351,6 +3432,7 @@
             "ids": [
               "alert:Azure/osdu-spi-workflow:dep:provider/workflow-azure/pom.xml:fixture-library"
             ],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "workflow",
@@ -3402,6 +3484,7 @@
           {
             "id": "gate2:indexer-queue",
             "ids": ["gate2:indexer-queue"],
+            "origin": "system",
             "rung": 1,
             "cls": "GATE",
             "scope": "indexer-queue",
@@ -3430,6 +3513,7 @@
             "ids": [
               "alert:Azure/osdu-spi-indexer-queue:dep:provider/indexer-queue-azure/pom.xml:fixture-library"
             ],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "indexer-queue",
@@ -3481,6 +3565,7 @@
           {
             "id": "radar:unit",
             "ids": ["radar:unit"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "unit",
@@ -3507,6 +3592,7 @@
           {
             "id": "gate1:unit",
             "ids": ["gate1:unit"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "GATE",
             "scope": "unit",
@@ -3529,6 +3615,7 @@
           {
             "id": "repo:unit",
             "ids": ["alert:Azure/osdu-spi-unit:dep:provider/unit-azure/pom.xml:fixture-library"],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "unit",
@@ -3582,6 +3669,7 @@
             "ids": [
               "alert:Azure/osdu-spi-crs-catalog:dep:provider/crs-catalog-azure/pom.xml:fixture-library"
             ],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "crs-catalog",
@@ -3633,6 +3721,7 @@
           {
             "id": "radar:crs-conversion",
             "ids": ["radar:crs-conversion"],
+            "origin": "upstream",
             "rung": 1,
             "cls": "TOOLCHAIN",
             "scope": "crs-conversion",
@@ -3661,6 +3750,7 @@
             "ids": [
               "alert:Azure/osdu-spi-crs-conversion:dep:provider/crs-conversion-azure/pom.xml:fixture-library"
             ],
+            "origin": "system",
             "rung": 2,
             "cls": "SECURITY",
             "scope": "crs-conversion",
@@ -6747,6 +6837,30 @@
         "template",
         "security"
       ]
+    },
+    {
+      "path": "/briefing/horizon/stages/upstream",
+      "areas": ["upstream"]
+    },
+    {
+      "path": "/briefing/horizon/stages/nextSync",
+      "areas": ["github", "runs", "upstream", "radar"]
+    },
+    {
+      "path": "/briefing/horizon/stages/held",
+      "areas": ["github", "runs", "upstream", "radar"]
+    },
+    {
+      "path": "/briefing/horizon/stages/forks",
+      "areas": ["upstream"]
+    },
+    {
+      "path": "/briefing/horizon/stages/wontLand",
+      "areas": ["github", "runs", "upstream", "radar"]
+    },
+    {
+      "path": "/briefing/horizon/owed",
+      "areas": ["github", "radar"]
     },
     {
       "path": "/briefing/flow/mode",
