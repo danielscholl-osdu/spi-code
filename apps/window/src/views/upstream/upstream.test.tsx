@@ -135,10 +135,10 @@ it("renders the Nov 6 upstream reading: headline, qualifier, tiles and groups", 
     "GitLab truncated the upstream diffs for 6 services and the reads failed for 3 services, so a toolchain move could be missing.",
   );
   expect(texts(place(), ".place-tile dt")).toEqual(["Incoming", "Toolchain", "Largest"]);
-  expect(texts(place(), ".place-tile-value")).toEqual(["110", "11 forks", "25"]);
+  expect(texts(place(), ".place-tile-value")).toEqual(["110", "10 forks", "25"]);
   expect(texts(place(), ".place-tile-counts")).toEqual([
     "commits behind upstream · 37 in 3 sync PRs · 65 at 18:00 · 8 won't land",
-    "os-core-common 10.0.0 · 3 certain, 8 possible · 1 more move",
+    "move to os-core-common 8.5.0 · 1 more move",
     "commits · indexer · then legal 17, schema 16",
   ]);
   expect(texts(place(), ".place-group > h3")).toEqual(["Before 18:00", "Toolchain"]);
@@ -170,11 +170,11 @@ it("states the next sync in the strip's local time, and leaves the due to the gr
 it("shows the detected campaigns and reads their forks in Detail", async () => {
   const body = fixture();
   expect(itemIds("Toolchain")).toEqual(
-    ["os-core-common%2010.0.0", "os-core-common%208.5.0"].map((f) => `campaign:toolchain:${f}`),
+    ["os-core-common%208.5.0", "os-core-common%2010.0.0"].map((f) => `campaign:toolchain:${f}`),
   );
   expect(texts(group("Toolchain") ?? place(), ".place-item-title")).toEqual([
-    "Detected: os-core-common 10.0.0 on 3 forks; possible on 8 forks",
     "Detected: os-core-common 8.5.0 on 10 forks",
+    "Detected: os-core-common 10.0.0 on 3 forks; possible on 8 forks",
   ]);
   const id = "campaign:toolchain:os-core-common%208.5.0";
   await click(itemButton(id));

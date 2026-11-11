@@ -275,9 +275,16 @@ export function upstreamReading<T extends ReadingItem>(
   // A fleet fact shows once, on its campaign; a move only one fork carries stays that fork's item.
   const covered = new Set<string>();
   const detected: T[] = [];
+  const certainCount = (campaign: ReadingCampaign) =>
+    campaign.forks.length - (campaign.possible?.length ?? 0);
   const toolchains = campaigns
     .filter((c) => c.kind === "toolchain")
-    .sort((a, b) => b.forks.length - a.forks.length || a.fact.localeCompare(b.fact));
+    .sort(
+      (a, b) =>
+        certainCount(b) - certainCount(a) ||
+        b.forks.length - a.forks.length ||
+        a.fact.localeCompare(b.fact),
+    );
   for (const campaign of toolchains) {
     const forks = campaign.forks.filter((s) => !held.includes(s));
     const members = forks.map(radarItem).filter((i): i is T => !!i);
@@ -352,7 +359,7 @@ export function upstreamReading<T extends ReadingItem>(
         lead
           ? {
               label: "Toolchain",
-              value: plural(lead.forks.length, "fork"),
+              value: plural(certainCount(lead), "fork"),
               counts: `${lead.possible?.length ? `${lead.fact} · ${lead.forks.length - lead.possible.length} certain, ${lead.possible.length} possible` : `move to ${lead.fact}`}${also.length > 0 ? ` · ${plural(also.length, "more move")}` : ""}`,
             }
           : move

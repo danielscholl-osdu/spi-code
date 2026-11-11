@@ -66,5 +66,8 @@ export function detectCampaigns(
 
 export function campaignItemText(campaign: { fact: string; forks: readonly string[]; possible?: readonly string[] | undefined }): string {
   const possible = campaign.possible?.length ?? 0;
-  return `Detected: ${campaign.fact} on ${plural(campaign.forks.length - possible, "fork")}${possible > 0 ? `; possible on ${plural(possible, "fork")}` : ""}`;
+  const certain = campaign.forks.length - possible;
+  if (certain === 0 && possible > 0)
+    return `Detected: ${campaign.fact} possible on ${plural(possible, "fork")}`;
+  return `Detected: ${campaign.fact} on ${plural(certain, "fork")}${possible > 0 ? `; possible on ${plural(possible, "fork")}` : ""}`;
 }

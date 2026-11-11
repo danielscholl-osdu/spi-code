@@ -1000,9 +1000,7 @@ function toolchainThemes(model: Model, now: Date, next: string | undefined): The
         possible: [],
         exposed: [],
         tone: "warn",
-        next: value.startsWith("Java ")
-          ? `Move one fork's Java pin to ${value.replace(/^Java /, "")} and repeat it for the others before the next sync carries it.`
-          : `Absorb ${value} on the forks before the next sync carries it.`,
+        next: "",
       };
       byValue.set(value, t);
     }
@@ -1036,6 +1034,10 @@ function toolchainThemes(model: Model, now: Date, next: string | undefined): The
     const blocked = t.certain.filter((f) => f.state.startsWith("blocked")).map((f) => f.fork);
     const queued = t.certain.filter((f) => f.state.startsWith("queued")).map((f) => f.fork);
     const held = t.certain.filter((f) => f.state.startsWith("held")).map((f) => f.fork);
+    const action = t.title.startsWith("Java ")
+      ? `Move one fork's Java pin to ${t.title.replace(/^Java /, "")} and repeat it for the others`
+      : `Absorb ${t.title} on the forks`;
+    t.next = `${action}${queued.length > 0 ? " before the next sync carries it" : ""}.`;
     t.sub = [
       blocked.length > 0 ? `blocked: ${list(blocked)}` : undefined,
       held.length > 0 ? `held: ${list(held)}` : undefined,
