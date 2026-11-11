@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { spawn } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import { once } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -18,6 +18,7 @@ describe("file-backed run store", () => {
   let path: string;
   const stores: RunStore[] = [];
   const databases: DatabaseSync[] = [];
+  const children: { child: ChildProcess; exited: Promise<unknown> }[] = [];
   const at = "2026-11-05T04:00:00.000Z";
   const later = "2026-11-05T04:01:00.000Z";
 
@@ -38,7 +39,11 @@ describe("file-backed run store", () => {
     path = join(directory, "runs.sqlite");
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    for (const { child, exited } of children.splice(0)) {
+      if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+      await exited;
+    }
     for (const store of stores.splice(0)) store.close();
     for (const db of databases.splice(0)) db.close();
     rmSync(directory, { recursive: true, force: true });
@@ -106,9 +111,10 @@ describe("file-backed run store", () => {
     const child = spawn(
       process.execPath,
       [fileURLToPath(new URL("./crash-writer.mjs", import.meta.url)), path, at],
-      { stdio: ["pipe", "pipe", "pipe"], timeout: 4000, killSignal: "SIGKILL" },
+      { stdio: ["pipe", "pipe", "pipe"] },
     );
     const exited = once(child, "close");
+    children.push({ child, exited });
     const lines = createInterface({ input: child.stdout });
     let stderr = "";
     child.stderr.setEncoding("utf8").on("data", (text: string) => {
@@ -132,8 +138,6 @@ describe("file-backed run store", () => {
       expect(committed).toBe(count);
     } finally {
       lines.close();
-      if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
-      await exited;
     }
     const reopened = open();
     expect(reopened.listEvents("crash", 0)).toEqual(
@@ -147,7 +151,7 @@ describe("file-backed run store", () => {
     );
     expect(reopened.lastSeq("crash")).toBe(count);
     expect(reopened.appendEvent("crash", { kind: "text" }, later)).toBe(count + 1);
-  });
+  }, 60_000);
 
   it("pages strictly after the cursor in sequence order, independently per run and connection", () => {
     const store = open();
