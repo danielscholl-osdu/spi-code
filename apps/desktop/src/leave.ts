@@ -9,8 +9,9 @@ export const WINDOW_LEAVE_CHANNEL = "window:leave";
 export const WINDOW_LEAVE_ID = "window-leave";
 
 /**
- * Asks the window to acknowledge what Today showed. The window answers with a ping on the host
- * port after its acknowledgement, so the host's pong means the acknowledgement was handled.
+ * Asks the window to acknowledge what Today showed, then waits for the pong to the ping it sends
+ * next. The pong follows the write: each port message is its own task, and the acknowledge route
+ * writes synchronously in the microtask its message queued.
  */
 export function windowLeave(signal: () => boolean) {
   const waiting = new Set<() => void>();
@@ -28,5 +29,20 @@ export function windowLeave(signal: () => boolean) {
       for (const resolve of waiting) resolve();
       waiting.clear();
     },
+  };
+}
+
+export interface LeavingWindow {
+  isDestroyed(): boolean;
+  readonly webContents: { isLoadingMainFrame(): boolean; send(channel: string): void };
+}
+
+/** Signals the window to leave only when it is alive, loaded and the host relay is connected. */
+export function windowLeaveSignal(window: LeavingWindow, connected: () => boolean) {
+  return () => {
+    if (window.isDestroyed() || window.webContents.isLoadingMainFrame() || !connected())
+      return false;
+    window.webContents.send(WINDOW_LEAVE_CHANNEL);
+    return true;
   };
 }

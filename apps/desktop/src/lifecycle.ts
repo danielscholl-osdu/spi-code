@@ -92,7 +92,9 @@ export function createLifecycle(
     try {
       await Promise.race([
         // Best effort: an unacknowledged view shows more as new next launch.
-        left().catch((error) => console.warn("Window did not acknowledge before quit", error)),
+        Promise.resolve()
+          .then(left)
+          .catch((error) => console.warn("Window did not acknowledge before quit", error)),
         bound.elapsed,
       ]);
     } finally {

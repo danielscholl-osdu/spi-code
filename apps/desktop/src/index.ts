@@ -24,7 +24,7 @@ import { externalLinkHandlers } from "./external-links.js";
 import { hostLaunch } from "./host-launch.js";
 import { stopHostTree } from "./host-tree.js";
 import { createInterruptNotifications } from "./interrupts.js";
-import { WINDOW_LEAVE_CHANNEL, windowLeave } from "./leave.js";
+import { windowLeave, windowLeaveSignal } from "./leave.js";
 import { createLifecycle, stopHostAndReleaseLeases, stopWithin } from "./lifecycle.js";
 import { createOutageNotifications } from "./outage.js";
 import { assertNoProcessListeners, listenerScanBudget } from "./smoke-listeners.js";
@@ -183,12 +183,7 @@ async function run(): Promise<void> {
     },
   });
   lifecycle.setWindow(window);
-  leaving = windowLeave(() => {
-    if (window.isDestroyed() || window.webContents.isLoadingMainFrame() || !relay?.connected())
-      return false;
-    window.webContents.send(WINDOW_LEAVE_CHANNEL);
-    return true;
-  });
+  leaving = windowLeave(windowLeaveSignal(window, () => relay?.connected() ?? false));
   tray = createSweepTray(lifecycle.open, () => void lifecycle.quit().catch(fail), {
     hidden: () => window.isDestroyed() || !window.isVisible() || window.isMinimized(),
     request: (message) => relay?.request(message) ?? false,

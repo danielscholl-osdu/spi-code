@@ -116,10 +116,11 @@ it("waits for shutdown once before quitting, including repeated OS quit events",
 function leaving(leave: () => Promise<void>, stop = vi.fn(async () => {})) {
   const app = new FakeApp();
   const timers: { ms: number; fire: () => void; cancel: ReturnType<typeof vi.fn> }[] = [];
+  const onError = vi.fn();
   const lifecycle = createLifecycle(app, {
     stopHost: stop,
     dispose: vi.fn(),
-    onError: vi.fn(),
+    onError,
     leave,
     schedule: (ms, fire) => {
       const cancel = vi.fn();
@@ -128,7 +129,7 @@ function leaving(leave: () => Promise<void>, stop = vi.fn(async () => {})) {
     },
   });
   lifecycle?.setWindow(new FakeWindow());
-  return { app, stop, timers };
+  return { app, stop, timers, onError };
 }
 
 it("lets the window acknowledge what Today showed before the host stops", async () => {
@@ -183,6 +184,25 @@ it("bounds the wait for a window that never answers", async () => {
   timers[0]?.fire();
   await vi.waitFor(() => expect(app.exited).toBe(true));
   expect(stop).toHaveBeenCalledOnce();
+});
+
+it("still stops the host and exits normally when the leave throws synchronously", async () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  try {
+    const error = new Error("relay gone");
+    const { app, stop, timers, onError } = leaving(() => {
+      throw error;
+    });
+    app.quit();
+    await vi.waitFor(() => expect(app.exited).toBe(true));
+    expect(stop).toHaveBeenCalledOnce();
+    expect(onError).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledWith("Window did not acknowledge before quit", error);
+    expect(timers[0]?.cancel).toHaveBeenCalledOnce();
+  } finally {
+    warn.mockRestore();
+  }
 });
 
 it("reports shutdown failure instead of exiting successfully", async () => {
