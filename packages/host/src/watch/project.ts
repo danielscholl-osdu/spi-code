@@ -403,7 +403,7 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
       ...releaseProvenance(releases.lines, input.releaseRecords, now),
       {
         path: "/releases/forming",
-        areas: ["fleet"],
+        areas: ["fleet", "github"],
         envelope: readEnvelope("releases", input.releaseRecords, RELEASES_EVERY_MS, now),
       },
       ...releasesTodayProvenance(releases.today, input.releaseRecords, now, {
