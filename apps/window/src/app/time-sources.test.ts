@@ -1,9 +1,10 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { expect, it } from "vitest";
+import { sourceFiles } from "../test-utils/source-files.test-helper.js";
 
 const source = resolve("apps/window/src");
 const formatting =
@@ -12,19 +13,18 @@ const formatting =
 const allowed = new Set(["time.tsx", "store/strip.ts:toISOString"]);
 
 it("formats visible times only through time.tsx", () => {
-  const files = readdirSync(source, { recursive: true, encoding: "utf8" }).filter(
+  const files = sourceFiles(source).filter(
     (file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$|test-helper\.ts$/.test(file),
   );
   expect(files).toContain("time.tsx");
   const found = files.flatMap((file) => {
-    const name = file.split("\\").join("/");
-    if (allowed.has(name)) return [];
+    if (allowed.has(file)) return [];
     return readFileSync(join(source, file), "utf8")
       .split("\n")
       .flatMap((line, index) => {
         const match = formatting.exec(line);
-        return match && !allowed.has(`${name}:${match[0]}`)
-          ? [`${name}:${index + 1}: ${line.trim()}`]
+        return match && !allowed.has(`${file}:${match[0]}`)
+          ? [`${file}:${index + 1}: ${line.trim()}`]
           : [];
       });
   });

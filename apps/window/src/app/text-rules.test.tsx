@@ -188,8 +188,14 @@ describe.each(snapshots)("window text rules on $name", ({ body }) => {
         });
       });
       expect(container.querySelector(".detail-title"), row.id).not.toBeNull();
+      const label = `Detail ${row.kind}: ${row.id}`;
+      // Selecting only marks rows outside Detail, so the whole page is rescanned once per kind.
+      if (kinds.has(row.kind)) {
+        const panel = container.querySelector("#app-right-panel");
+        expect(panel, label).not.toBeNull();
+        expect(violations(panel as Element), label).toEqual([]);
+      } else assertRules(label);
       kinds.add(row.kind);
-      assertRules(`Detail ${row.kind}: ${row.id}`);
     }
     expect([...kinds].sort()).toEqual(
       [
