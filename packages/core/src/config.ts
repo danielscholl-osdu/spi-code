@@ -163,6 +163,8 @@ export const LIFECYCLE_WORKFLOWS = Object.freeze({
 export type LifecycleKind = keyof typeof LIFECYCLE_WORKFLOWS;
 
 export const HISTORY_DAYS = 21;
+/** Rows in each repo's merged-or-closed PR read, newest update first. */
+export const PAST_PR_PAGE = 100;
 
 export interface Fleet {
   readonly services: readonly ServiceDef[];

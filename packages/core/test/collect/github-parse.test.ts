@@ -256,4 +256,26 @@ describe("open work", () => {
     expect(read("a".repeat(40))?.headAt).toBe("2026-10-08T00:05:00Z");
     expect(read("b".repeat(40))).not.toHaveProperty("headAt");
   });
+  test("a past pull request carries its update time when the read returned one", () => {
+    const past = (updatedAt?: string) =>
+      parseRepo({
+        nameWithOwner: STACK_REPO,
+        url: "u",
+        pastPrs: {
+          nodes: [
+            {
+              number: 8,
+              title: "Sync",
+              url: "u",
+              createdAt: "2026-10-08T00:00:00Z",
+              ...(updatedAt ? { updatedAt } : {}),
+              headRefName: "sync/upstream-20261008-000000",
+              baseRefName: "fork_upstream",
+            },
+          ],
+        },
+      }).pastPrs?.[0];
+    expect(past("2026-10-09T00:00:00Z")?.updatedAt).toBe("2026-10-09T00:00:00Z");
+    expect(past()).not.toHaveProperty("updatedAt");
+  });
 });

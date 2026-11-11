@@ -7,6 +7,7 @@ import {
   LIFECYCLE_WORKFLOWS,
   type LifecycleKind,
   MARKER_PATH,
+  PAST_PR_PAGE,
   plannedRepo,
   SYNC_TEMPLATE_WORKFLOW,
   TEMPLATE_REPO,
@@ -31,8 +32,8 @@ const ISSUES = `issues(states: OPEN, first: 50, orderBy: {field: CREATED_AT, dir
   labels(first: 15) { totalCount nodes { name } } comments { totalCount } body
 } }`;
 
-const PAST_PULLS = `pastPrs: pullRequests(states: [MERGED, CLOSED], first: 100, orderBy: {field: UPDATED_AT, direction: DESC}) { nodes {
-  number title url createdAt mergedAt closedAt headRefName baseRefName author { login }
+const PAST_PULLS = `pastPrs: pullRequests(states: [MERGED, CLOSED], first: ${PAST_PR_PAGE}, orderBy: {field: UPDATED_AT, direction: DESC}) { nodes {
+  number title url createdAt updatedAt mergedAt closedAt headRefName baseRefName author { login }
 } }`;
 
 const HALT_LABELS = Object.freeze(["sync-failed", "conflict", "cascade-blocked", "cascade-failed"]);

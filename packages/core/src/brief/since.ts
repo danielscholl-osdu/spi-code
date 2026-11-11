@@ -1,8 +1,9 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { PAST_PR_PAGE } from "../config.js";
 import type { ReadRecord } from "../evidence/index.js";
-import type { Facts, ForkRuns, RunFact } from "../facts.js";
+import type { Facts, ForkRuns, PastPrFact, RunFact } from "../facts.js";
 import { classifyPr } from "../model/attribution.js";
 import type { Model } from "../model/index.js";
 import type { LineModel } from "../model/lines.js";
@@ -54,6 +55,13 @@ function oldestRead(records: readonly ReadRecord[] | undefined, match: (read: Re
   return Math.min(...(times as number[]));
 }
 
+/** A full page of past PRs proves nothing older was left out only when its least recently updated row predates start. */
+function pastCovers(past: readonly PastPrFact[], start: number): boolean {
+  if (past.length < PAST_PR_PAGE) return true;
+  const times = past.map((pr) => (pr.updatedAt === undefined ? Number.NaN : Date.parse(pr.updatedAt)));
+  return !times.some(Number.isNaN) && Math.min(...times) < start;
+}
+
 /** A successful sync run brought nothing only when reads after it show no sync PR it could have touched and lag 0. */
 function broughtNothing(line: LineModel, run: RunFact, facts: Facts, reads: AreaReads): boolean {
   const end = Date.parse(run.updatedAt);
@@ -65,6 +73,7 @@ function broughtNothing(line: LineModel, run: RunFact, facts: Facts, reads: Area
   if ((repo.openPrs ?? Number.POSITIVE_INFINITY) > repo.prs.length) return false;
   if (repo.prs.some((pr) => classifyPr(pr) === "sync")) return false;
   const start = Date.parse(run.createdAt);
+  if (!pastCovers(line.past, start)) return false;
   const touched = (time: string | undefined) => time !== undefined && Date.parse(time) >= start;
   if (line.past.some((pr) => classifyPr(pr) === "sync" && (touched(pr.createdAt) || touched(pr.mergedAt) || touched(pr.closedAt)))) {
     return false;
