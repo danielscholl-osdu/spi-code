@@ -161,6 +161,8 @@ export function briefingProvenance(briefing: Briefing, stack: StackModel): Value
     add("/briefing/horizon/counts", MODEL);
   }
   if ("decisions" in briefing && briefing.decisions) add("/briefing/decisions", MODEL);
+  if ("ambient" in briefing && briefing.ambient) add("/briefing/ambient", MODEL);
+  if ("canWait" in briefing && briefing.canWait) add("/briefing/canWait", MODEL);
 
   const { flow } = briefing;
   add("/briefing/flow/mode", PHASE);

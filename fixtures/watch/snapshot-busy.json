@@ -2634,6 +2634,42 @@
           "text": "Critical vulnerability in fixture-library"
         }
       ]
+    },
+    "ambient": {
+      "failing": {
+        "items": 1,
+        "text": "1 in 1",
+        "lines": [
+          {
+            "id": "ambient:gate2:indexer-queue",
+            "itemIds": ["gate2:indexer-queue"],
+            "count": 1,
+            "service": "indexer-queue",
+            "station": "cascade",
+            "pr": {
+              "number": 67,
+              "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/67",
+              "inspect": "gate2:indexer-queue"
+            },
+            "state": {
+              "text": "Verify",
+              "tone": "bad"
+            },
+            "age": "11h",
+            "origin": "system",
+            "text": "indexer-queue release/upstream PR #67: Verify failed 11h ago."
+          }
+        ]
+      },
+      "inProgress": {
+        "items": 0,
+        "text": "0 in 0",
+        "lines": []
+      }
+    },
+    "canWait": {
+      "chips": [],
+      "items": []
     }
   },
   "campaigns": [
@@ -7885,6 +7921,34 @@
     },
     {
       "path": "/briefing/decisions",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/ambient",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/canWait",
       "areas": [
         "github",
         "runs",

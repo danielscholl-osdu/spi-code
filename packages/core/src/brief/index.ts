@@ -1,6 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+export { ambientOf, canWaitOf } from "./ambient.js";
+
 export { placesOf } from "./places.js";
 
 export { type PlatformSource, platformReleased, releasesToday } from "./releases-today.js";

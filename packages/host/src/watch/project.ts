@@ -16,10 +16,12 @@ import {
   type ActionItem,
   AREAS,
   type AreaName,
+  ambientOf,
   briefingDecisions,
   buildBriefing,
   buildModel,
   type CoreContext,
+  canWaitOf,
   cutServices,
   type DoctorView,
   type Facts,
@@ -336,7 +338,17 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     now,
   );
   const places = placesOf({ readings, items: [...briefing.focus, ...briefing.rest], areas });
-  Object.assign(briefing, { places });
+  Object.assign(briefing, {
+    places,
+    ambient: ambientOf({ model, items: [...focus, ...rest], cards: horizon.cards, now }),
+    canWait: canWaitOf({
+      model,
+      items: [...focus, ...rest],
+      places,
+      cards: horizon.cards,
+      reads: input.envelopeReads ?? input.reads,
+    }),
+  });
   return ViewSnapshotSchema.parse({
     cursor: input.cursor,
     sweptAt: model.sweptAt ?? now.toISOString(),
