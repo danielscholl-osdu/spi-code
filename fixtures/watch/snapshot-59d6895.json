@@ -6808,7 +6808,7 @@
     },
     {
       "path": "/releases/forming",
-      "areas": ["fleet"],
+      "areas": ["fleet", "github"],
       "envelope": {
         "source": "releases",
         "state": "fresh",
