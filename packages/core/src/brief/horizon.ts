@@ -55,7 +55,7 @@ export function horizonWaitServices(model: Model, facts: Facts, items: readonly 
     if (cards && !cards.some((card) => card.itemIds.includes(q.id) && card.services.some((service) => service.service === q.scope))) return false;
     const member = items.find((item) => item.id === q.id || item.ids.includes(q.id));
     if (!member) return false;
-    if (member.attention === "surface") return true;
+    if (member.attention === "surface" || member.attention === "interrupt") return true;
     const line = model.lines.find((line) => line.fork.id === q.scope);
     const sync = line?.stations.find((station) => station.id === "sync");
     return q.kind === "gate1" && line !== undefined && sync !== undefined &&

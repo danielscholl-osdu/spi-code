@@ -110,6 +110,7 @@ const briefing = {
           { service: "storage", count: 3, rules: ["CSRF"], text: "storage: 3 · CSRF" },
           { service: "unit", count: null, rules: [], text: "unit: not read" },
         ],
+        program: { count: 3, rules: ["CSRF"], text: "program: 3 high or critical · CSRF" },
         largest: { label: "CSRF", forks: 12, text: "CSRF · 12 forks" },
       },
     },

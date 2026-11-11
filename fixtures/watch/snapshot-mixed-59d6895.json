@@ -1698,7 +1698,11 @@
               "text": "file: lane: blocked by the stack"
             }
           ],
-          "stopped": ["partition", "entitlements", "legal", "schema", "file"]
+          "stopped": ["partition", "entitlements", "legal", "schema", "file"],
+          "horizon": {
+            "count": 1,
+            "text": "⇣ 1 on the horizon"
+          }
         }
       },
       {
@@ -1836,6 +1840,11 @@
               "text": "file: 2 high or critical · Disabled Spring CSRF protection"
             }
           ],
+          "program": {
+            "count": 3,
+            "rules": ["virtualenv"],
+            "text": "program: 3 high or critical · virtualenv"
+          },
           "largest": {
             "label": "Disabled Spring CSRF protection",
             "forks": 5,

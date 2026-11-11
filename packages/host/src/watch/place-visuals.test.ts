@@ -4,9 +4,19 @@
 import type { PlaceId, PlaceVisual } from "@spi-code/contracts";
 import { buildModel, stationSubstateOf } from "@spi-code/core";
 import { describe, expect, it } from "vitest";
+import { horizonWaitServices } from "../../../core/src/brief/horizon.js";
 import { placesOf } from "../../../core/src/brief/places.js";
 import { projectWatch, type WatchInput } from "./project.js";
-import { busyInput, calmInput, recordedInput, unreadForksInput } from "./snapshot-fixture.js";
+import {
+  badInput,
+  busyInput,
+  calmInput,
+  fixtureInput,
+  mixedFixtureInput,
+  recordedInput,
+  unreadForksInput,
+  unverifiedForkInput,
+} from "./snapshot-fixture.js";
 
 function visual<K extends PlaceVisual["kind"]>(input: WatchInput, place: PlaceId, kind: K) {
   const value = projectWatch(input).briefing.places?.find((row) => row.place === place)?.visual;
@@ -47,6 +57,84 @@ describe("Today place micro-visuals (PS-03, PS-09)", () => {
       .map((slot) => slot.service);
     expect(pips.stopped).toEqual(stopped);
     expect(projectWatch(input).briefing.places?.[0]?.figure).toContain(`${stopped.length} of 13`);
+  });
+
+  it("keeps a read stopped station visible when the fork repository is unread", () => {
+    const input = busyInput();
+    const fork = input.context.fleet.forks.find((fork) => fork.id === "storage");
+    if (!fork || !input.facts.github.data) throw new Error("No storage fixture");
+    delete input.facts.github.data.repos[fork.repo];
+    const pips = visual(input, "line", "pips");
+    expect(pips.slots.find((slot) => slot.service === "storage")).toMatchObject({
+      state: "broken",
+    });
+    expect(pips.stopped).toEqual(["storage", "indexer-queue"]);
+    expect(projectWatch(input).briefing.places?.[0]?.figure).toContain("At least 2 of 13 stopped");
+  });
+
+  it("ranks a stopped station ahead of a station waiting for a person", () => {
+    const input = busyInput();
+    const snapshot = projectWatch(input);
+    const model = modelOf(input);
+    const line = model.lines[0];
+    if (!line) throw new Error("No Line fixture");
+    delete input.facts.runs.data?.[line.fork.repo];
+    line.cascadeStop = false;
+    line.stations = [
+      { id: "upstream", state: "stopped", text: "Upstream stopped" },
+      { id: "cascade", state: "waiting", text: "Waiting for approval" },
+    ];
+    expect(line.stations.map((station) => stationSubstateOf(station, line, input.facts))).toEqual([
+      "stopped",
+      "waiting-on-person",
+    ]);
+    const pips = placesOf({
+      readings: snapshot.readings,
+      areas: snapshot.areas,
+      source: { model, facts: input.facts, reads: input.reads },
+      items: [],
+    })[0]?.visual;
+    expect(pips?.kind === "pips" && pips.slots[0]?.state).toBe("broken");
+  });
+
+  it("matches the need-you horizon cards' item forks on every morning, including Interrupt halts", () => {
+    for (const input of [
+      calmInput(),
+      busyInput(),
+      badInput(),
+      recordedInput(),
+      unreadForksInput(),
+      unverifiedForkInput(),
+      fixtureInput(),
+      mixedFixtureInput(),
+    ]) {
+      const snapshot = projectWatch(input);
+      const model = modelOf(input);
+      const ids = new Set(
+        snapshot.briefing.horizon.cards
+          ?.filter((card) => card.needsYou)
+          .flatMap((card) => card.itemIds),
+      );
+      const forks = new Set(
+        model.queue.items.filter((item) => ids.has(item.id)).map((item) => item.scope),
+      );
+      expect(
+        horizonWaitServices(
+          model,
+          input.facts,
+          [...snapshot.briefing.focus, ...snapshot.briefing.rest],
+          snapshot.briefing.horizon.cards,
+        ),
+      ).toEqual(forks);
+      const pips = visual(input, "line", "pips");
+      expect(pips.horizon?.count ?? 0).toBe(forks.size);
+      expect(
+        pips.slots
+          .filter((slot) => forks.has(slot.service))
+          .map((slot) => slot.service)
+          .sort(),
+      ).toEqual([...forks].sort());
+    }
   });
 
   it("counts upstream person waits from the horizon's own item membership, once per fork", () => {
@@ -148,9 +236,11 @@ describe("Today place micro-visuals (PS-03, PS-09)", () => {
     const snapshot = projectWatch(input);
     const high = snapshot.readings.find((reading) => reading.anchor.kind === "security")?.content
       ?.tiles[0].value;
-    expect(columns.columns.reduce((sum, column) => sum + (column.count ?? 0), 0)).toBe(
-      Number(high),
-    );
+    expect(columns.program).toEqual({ count: 0, rules: [], text: "program: 0 high or critical" });
+    expect(
+      columns.columns.reduce((sum, column) => sum + (column.count ?? 0), 0) +
+        (columns.program?.count ?? 0),
+    ).toBe(Number(high));
     expect(columns.columns.map((column) => column.service)).toEqual(
       input.context.fleet.forks.map((fork) => fork.id),
     );
@@ -162,6 +252,38 @@ describe("Today place micro-visuals (PS-03, PS-09)", () => {
     });
   });
 
+  it("reconciles 59d6895's severe findings as 11 in forks plus 3 in program repositories", () => {
+    const input = fixtureInput();
+    const columns = visual(input, "security", "forkColumns");
+    expect(columns.columns.map((column) => column.count)).toEqual([2, 2, 2, 3, 2]);
+    expect(columns.program).toMatchObject({ count: 3 });
+    expect(columns.program?.rules.length).toBeGreaterThan(0);
+    expect(columns.program?.text).toContain("program: 3 high or critical");
+    const high = projectWatch(input).readings.find((reading) => reading.anchor.kind === "security")
+      ?.content?.tiles[0].value;
+    expect(columns.columns.reduce((sum, column) => sum + (column.count ?? 0), 0)).toBe(11);
+    expect(11 + (columns.program?.count ?? 0)).toBe(Number(high));
+  });
+
+  it("marks the program aggregate unknown if either alert list of any program repository is unread", () => {
+    const repos = modelOf(fixtureInput()).repositories.rows.filter(
+      (row) => row.group === "program",
+    );
+    expect(repos.length).toBeGreaterThan(1);
+    for (const { repo } of repos) {
+      for (const list of ["dependabot", "code"] as const) {
+        const input = fixtureInput();
+        const alerts = input.facts.security.data?.[repo];
+        if (!alerts) throw new Error("No program security fixture");
+        delete alerts[list];
+        expect(visual(input, "security", "forkColumns").program).toMatchObject({
+          count: null,
+          text: "program: Security not fully read yet",
+        });
+      }
+    }
+  });
+
   it("snapshot-1106: unread Security columns are unknown instead of zero", () => {
     const columns = visual(recordedInput(), "security", "forkColumns");
     expect(columns.columns).toHaveLength(13);
@@ -169,6 +291,7 @@ describe("Today place micro-visuals (PS-03, PS-09)", () => {
       columns.columns.every((column) => column.count === null && /not.*read/.test(column.text)),
     ).toBe(true);
     expect(columns.largest).toBeUndefined();
+    expect(columns.program).toMatchObject({ count: null });
   });
 
   it("marks a partially unread fork's Security column unknown", () => {

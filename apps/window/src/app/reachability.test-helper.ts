@@ -804,6 +804,8 @@ export const PENDING: Readonly<Record<string, Exemption>> = {
     ...under("/briefing/places/#/visual/lanes/#", ["lane", "green", "total", "state", "text"]),
     ...under("/briefing/places/#/visual/columns/#", ["service", "count", "text"]),
     "/briefing/places/#/visual/columns/#/rules/#",
+    ...under("/briefing/places/#/visual/program", ["count", "text"]),
+    "/briefing/places/#/visual/program/rules/#",
     ...under("/briefing/places/#/visual/largest", ["label", "forks", "text"]),
   ]),
   "pending-failing": pending("spicode-f0s.18", "the Failing run", ambient("failing")),
