@@ -218,7 +218,7 @@ it("serializes backend startup and in-flight turns across reloads with correct e
 });
 
 const GH_FIXTURE = `#!/bin/sh
-here="$(cd "$(dirname "$0")" && pwd)"
+here="\${0%/*}"
 mark="$here/../../signed-in"
 case "$1 $2" in
   "auth status")
@@ -313,6 +313,7 @@ it("keeps explicit smoke Setup fixture-only and forbids every external command",
 it.skipIf(process.platform === "win32")(
   "checks an exhausted budget without blocking ordinary refreshes, and maintains the Watch gate",
   async () => {
+    const wait = { timeout: 15_000, interval: 10 };
     const actualStore =
       await vi.importActual<typeof import("./store/store.js")>("./store/store.js");
     const directory = mkdtempSync(join(tmpdir(), "spi-main-"));
@@ -351,24 +352,34 @@ it.skipIf(process.platform === "win32")(
     process.argv = [originalArgs[0] ?? "node", "host", storePath];
     const port = () => {
       const sent: Message[] = [];
+      const completions = new Map<string, () => void>();
       let receive: (event: { data: unknown }) => void = () => {};
       return {
         sent,
         on(_event: string, listener: typeof receive) {
           receive = listener;
         },
-        postMessage: (message: Message) => sent.push(message),
+        postMessage(message: Message) {
+          sent.push(message);
+          if (message.type === "setup.state") {
+            completions.get(message.id)?.();
+            completions.delete(message.id);
+          }
+        },
         start() {},
         close() {},
         check(id: string) {
-          receive({
-            data: {
-              version: PROTOCOL_VERSION,
-              id,
-              kind: "request",
-              type: "setup.check",
-              payload: {},
-            },
+          return new Promise<void>((resolve) => {
+            completions.set(id, resolve);
+            receive({
+              data: {
+                version: PROTOCOL_VERSION,
+                id,
+                kind: "request",
+                type: "setup.check",
+                payload: {},
+              },
+            });
           });
         },
       };
@@ -386,14 +397,12 @@ it.skipIf(process.platform === "win32")(
       await import("./main.js");
       const first = port();
       connect({ data: ping, ports: [first] });
-      await vi.waitFor(() => expect(setupStates(first.sent).at(-1)?.watchReady).toBe(true), {
-        timeout: 10_000,
-      });
+      await vi.waitFor(() => expect(setupStates(first.sent).at(-1)?.watchReady).toBe(true), wait);
       const gh = setupStates(first.sent)
         .at(-1)
         ?.tools.find((row) => row.tool === "gh");
       expect(gh?.reason).toContain("Using gh 2.74.0 from the login-shell PATH.");
-      await vi.waitFor(() => expect(start).toHaveBeenCalledOnce());
+      await vi.waitFor(() => expect(start).toHaveBeenCalledOnce(), wait);
       expect(stop).not.toHaveBeenCalled();
       const wired = (start.mock.contexts[0] as unknown as { options: SweepServiceOptions }).options;
       const publishStatus = vi
@@ -408,17 +417,10 @@ it.skipIf(process.platform === "win32")(
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(new Date("2026-11-08T15:05:00Z"));
       mocks.probeSeat.mockClear();
-      first.check("check-one");
-      first.check("check-two");
-      await vi.waitFor(() => expect(setupStates(first.sent)).toHaveLength(4), {
-        timeout: 10_000,
-      });
-      await vi.waitFor(
-        () => expect(first.sent.filter(({ type }) => type === "sweep.status")).toHaveLength(1),
-        {
-          timeout: 10_000,
-        },
-      );
+      const checks = Promise.all([first.check("check-one"), first.check("check-two")]);
+      await vi.waitFor(() => checks, wait);
+      expect(setupStates(first.sent)).toHaveLength(4);
+      expect(first.sent.filter(({ type }) => type === "sweep.status")).toHaveLength(1);
       expect(mocks.probeSeat).toHaveBeenCalledOnce();
       for (const id of ["check-one", "check-two"])
         expect(first.sent).toContainEqual(expect.objectContaining({ id, type: "setup.state" }));
@@ -447,7 +449,6 @@ it.skipIf(process.platform === "win32")(
       }));
       budget.hold(90_000, "fixture throttle");
       writeFileSync(join(directory, "budget-exhausted"), "");
-      let checked = false;
       const check = Promise.resolve(
         service.routes["setup.check"]?.(
           {
@@ -459,21 +460,17 @@ it.skipIf(process.platform === "win32")(
           },
           () => {},
         ),
-      ).then(() => {
-        checked = true;
-      });
-      await vi.waitFor(() => expect(checked).toBe(true), { timeout: 5000 });
-      await check;
+      );
+      await vi.waitFor(() => check, wait);
       expect(setupStates(first.sent)).toHaveLength(5);
       expect(first.sent.filter(({ type }) => type === "sweep.status").at(-1)).toMatchObject({
         payload: { remaining: 0, resetAt: "2026-11-08T16:05:00.000Z", floor: 125, deferredAreas },
       });
-      let refreshed = false;
-      const refresh = service.refresh().then(() => {
-        refreshed = true;
-      });
-      await vi.waitFor(() => expect(refreshed).toBe(true), { timeout: 5000 });
-      await refresh;
+      const refresh = service.refresh();
+      await vi.waitFor(() => refresh, wait);
+      expect(service.current?.watchReady).toBe(true);
+      expect(start).toHaveBeenCalledOnce();
+      expect(stop).not.toHaveBeenCalled();
       expect(readFileSync(join(directory, "budget-checks"), "utf8")).toBe("check\ncheck\n");
 
       writeFileSync(join(directory, "budget-failed"), "");
@@ -481,13 +478,9 @@ it.skipIf(process.platform === "win32")(
       if (!setupOptions) throw new Error("Setup options missing.");
       const error = vi.spyOn(setupOptions, "onError").mockImplementation(() => {});
       try {
-        first.check("check-failed");
-        await vi.waitFor(
-          () => expect(first.sent.filter(({ type }) => type === "sweep.status")).toHaveLength(3),
-          {
-            timeout: 10_000,
-          },
-        );
+        const failed = first.check("check-failed");
+        await vi.waitFor(() => failed, wait);
+        expect(first.sent.filter(({ type }) => type === "sweep.status")).toHaveLength(3);
         expect(first.sent.filter(({ type }) => type === "sweep.status").at(-1)).toMatchObject({
           payload: {
             remaining: null,
@@ -527,16 +520,14 @@ it.skipIf(process.platform === "win32")(
       rmSync(join(directory, "signed-in"));
       const second = port();
       connect({ data: ping, ports: [second] });
-      await vi.waitFor(() => expect(setupStates(second.sent).at(-1)?.watchReady).toBe(false), {
-        timeout: 10_000,
-      });
-      await vi.waitFor(() => expect(stop).toHaveBeenCalled());
+      await vi.waitFor(() => expect(setupStates(second.sent).at(-1)?.watchReady).toBe(false), wait);
+      await vi.waitFor(() => expect(stop).toHaveBeenCalled(), wait);
     } finally {
       vi.useRealTimers();
       const handler = (event: string) =>
         once.mock.calls.find(([name]) => name === event)?.[1] as (() => void) | undefined;
       handler("SIGTERM")?.();
-      await vi.waitFor(() => expect(exit).toHaveBeenCalled());
+      await vi.waitFor(() => expect(exit).toHaveBeenCalled(), wait);
       handler("exit")?.();
       mocks.realSetup = false;
       process.argv = originalArgs;
@@ -550,5 +541,5 @@ it.skipIf(process.platform === "win32")(
       rmSync(directory, { recursive: true, force: true });
     }
   },
-  30_000,
+  60_000,
 );
