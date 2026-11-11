@@ -1,20 +1,24 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION, ViewSnapshotSchema } from "@spi-code/contracts";
+import { PROTOCOL_VERSION, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import feed from "../../../../fixtures/watch/inspect-1106.json?raw";
 import recorded from "../../../../fixtures/watch/snapshot-1106.json?raw";
+import badRaw from "../../../../fixtures/watch/snapshot-bad.json?raw";
 import busyRaw from "../../../../fixtures/watch/snapshot-busy.json?raw";
 import calmRaw from "../../../../fixtures/watch/snapshot-calm.json?raw";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
 import { moving } from "../views/today/in-motion.test-helper.js";
-import { closeSheet, navigate, relaunch } from "./navigation.js";
+import { closeSheet, navigate, relaunch, routeHash } from "./navigation.js";
+import { placeReachCases } from "./place-reachability.test-helper.js";
 import { treeServices } from "./queue.js";
 import {
+  AT_PLACE,
+  bandCases,
   coverage,
   detailFeed,
   EXEMPTIONS,
@@ -241,6 +245,54 @@ describe("In motion and Can wait, on mornings that carry them", () => {
         await openHome(home, body);
         for (const row of motion.filter((row) => row.home.name === home.name)) assertReach(row);
       }
+    },
+  );
+});
+
+const ITEM_HOME = /^\/briefing\/(focus|rest)\/\d+\/(scope|origin)$/;
+const itemHomeCases = (body: ViewSnapshot) =>
+  [...bandCases(body), ...motionCases(body), ...placeReachCases(body)].filter(({ pointer }) =>
+    ITEM_HOME.test(pointer),
+  );
+
+/** One click on the case's opener, then the Detail id or the place it opened. */
+async function assertOpens(row: Reach, body: ViewSnapshot) {
+  const where = `${row.pointer} at ${row.home.name}`;
+  expect(row.opens, where).toBeDefined();
+  if (!row.opens) return;
+  await openHome(row.home, body);
+  assertReach(row);
+  expect(await click(row.opens.click, where)).toBe(1);
+  if ("detail" in row.opens) {
+    const { row: selected, selected: id } = selectionStore.getState();
+    expect(selected?.inspectId ?? id, where).toBe(row.opens.detail);
+  } else expect(window.location.hash, where).toBe(routeHash(row.opens.place));
+}
+
+describe("every focus and rest item's scope and origin, at its home on Today", () => {
+  const MORNINGS = {
+    "6 Nov": fixture,
+    busy: () => ViewSnapshotSchema.parse(JSON.parse(busyRaw)),
+    bad: () => ViewSnapshotSchema.parse(JSON.parse(badRaw)),
+    "busy with motion": () => moving(ViewSnapshotSchema.parse(JSON.parse(busyRaw))),
+  };
+  it.each(Object.entries(MORNINGS))(
+    "has a case for each on the %s morning, and each one's click opens its Detail or place",
+    async (_name, morning) => {
+      const body = morning();
+      const rows = itemHomeCases(body);
+      const { uncovered } = coverage(body, rows, { ...EXEMPTIONS, ...AT_PLACE });
+      expect(uncovered.filter((pointer) => ITEM_HOME.test(pointer))).toEqual([]);
+      const patterns = (pointers: Iterable<string>) =>
+        new Set([...pointers].map((pointer) => pointer.replace(/\/\d+\//, "/#/")));
+      expect(patterns(rows.map(({ pointer }) => pointer))).toEqual(
+        patterns(
+          leaves(body)
+            .map(({ pointer }) => pointer)
+            .filter((pointer) => ITEM_HOME.test(pointer)),
+        ),
+      );
+      for (const row of rows) await assertOpens(row, body);
     },
   );
 });

@@ -9,7 +9,7 @@ import { clockTime, instantsIn, timedText } from "../time.js";
 import { runningFactHome } from "../views/environment/running-fact.js";
 import { eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
 import { lensFields } from "./lens-fields.test-helper.js";
-import type { Destination, Registry } from "./navigation.js";
+import type { Destination, Registry, Route } from "./navigation.js";
 import { placeReachCases } from "./place-reachability.test-helper.js";
 import { treeServices } from "./queue.js";
 
@@ -29,6 +29,9 @@ export type Home = {
   detail?: InspectResult;
 };
 
+/** What a click on the drawn field opens: the item's Detail, or a place. */
+export type Opens = { click: Selector } & ({ detail: string } | { place: Route });
+
 export type Reach = {
   pointer: string;
   value: string;
@@ -44,17 +47,19 @@ export type Reach = {
   exempt?: string;
   /** The surface draws only `value`, a prefix of the leaf; `tail` renders nowhere, named by `reason`. */
   partial?: { tail: string; reason: string };
+  opens?: Opens;
 };
 
 /** Exact index-free leaf patterns, so a new leaf elsewhere never inherits the exemption. */
 export type Exemption = {
   patterns: readonly string[];
   reason: string;
-  when?: (value: unknown) => boolean;
+  when?: (value: unknown, leaf: { pointer: string; snapshot: Leaves }) => boolean;
   /** A contract field core doesn't fill yet: no fixture leaf has to use it, so it's never stale. */
   pending?: true;
 };
 
+type Leaves = Pick<ViewSnapshot, "briefing" | "releases">;
 type Lane = ViewSnapshot["briefing"]["environment"]["lanes"][number];
 type Event = Lane["events"][number];
 type Repo = ViewSnapshot["briefing"]["repositories"]["rows"][number];
@@ -280,7 +285,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
     });
   }
 
-  bandCases(briefing, add);
+  cases.push(...bandCases(snapshot));
 
   const readings = snapshot.readings.flatMap(({ anchor, content }) => {
     const place = PLACE_STARTS[anchor.kind];
@@ -632,10 +637,7 @@ export function motionCases(snapshot: ViewSnapshot): Reach[] {
     add(`${base}/text`, run.text, TODAY, ".today-motion-figure", {
       read: (element) => (element.textContent ?? "").replace(/^·\s*/, ""),
     });
-    const items = [
-      ...briefing.focus.map((item, index) => [`/briefing/focus/${index}`, item] as const),
-      ...briefing.rest.map((item, index) => [`/briefing/rest/${index}`, item] as const),
-    ];
+    const items = briefingItems(briefing);
     run.lines.forEach((line, index) => {
       const pointer = `${base}/lines/${index}`;
       const li = `.today-motion-line[data-line-id=${quote(line.id)}]`;
@@ -675,12 +677,21 @@ export function motionCases(snapshot: ViewSnapshot): Reach[] {
         });
       }
       if (line.followUp) add(`${pointer}/followUp`, line.followUp, TODAY, chip(line.state ? 2 : 1));
+      const [first = line.id] = line.itemIds;
+      const detail = { click: `${li} .today-motion-open`, detail: first };
+      for (const [item, entry] of items)
+        if (line.itemIds.includes(entry.id) && entry.origin === line.origin)
+          add(`${item}/origin`, entry.origin, TODAY, li, {
+            attribute: "data-origin",
+            opens: detail,
+          });
       if (!line.service) return;
       const service = `${li} .today-motion-service .kit-chip--service`;
       add(`${pointer}/service`, line.service, TODAY, service);
+      const place: Route = { kind: "service", id: line.service };
       for (const [item, entry] of items)
         if (line.itemIds.includes(entry.id) && entry.scope === line.service)
-          add(`${item}/scope`, entry.scope, TODAY, service);
+          add(`${item}/scope`, entry.scope, TODAY, service, { opens: { click: service, place } });
     });
   }
   const canWait = briefing.canWait;
@@ -856,22 +867,48 @@ const verbOf = (element: Element) => (element.textContent ?? "").replace(/ ›$/
 const nth = (selector: string, index: number) => (root: ParentNode) =>
   root.querySelectorAll(selector)[index];
 
-/** Today's attention band: each Interrupt's card, the in-system decisions and the Failing run. */
-function bandCases(briefing: ViewSnapshot["briefing"], add: Add) {
-  const band = ".today-band";
-  const items = [
+/** Each focus and rest item, with its pointer. */
+export function briefingItems(briefing: ViewSnapshot["briefing"]) {
+  return [
     ...briefing.focus.map((item, index) => [`/briefing/focus/${index}`, item] as const),
     ...briefing.rest.map((item, index) => [`/briefing/rest/${index}`, item] as const),
   ];
+}
+
+/** In-system items carry no upstream chip (today-design 'Two origins, one mark'). */
+const chipOrigin = (element: Element) =>
+  element.querySelector(".kit-chip--upstream") ? "upstream" : "system";
+
+/** Today's attention band: each Interrupt's card, the in-system decisions and the Failing run. */
+export function bandCases(snapshot: ViewSnapshot): Reach[] {
+  const { briefing } = snapshot;
+  const cases: Reach[] = [];
+  const add: Add = (pointer, value, where, selector, extra = {}) => {
+    cases.push({ pointer, value: String(value), home: where, selector, ...extra });
+  };
+  const band = ".today-band";
+  const items = briefingItems(briefing);
+  const known = new Set(treeServices(snapshot.tree));
+  const themes = new Set(briefing.themes.map(({ id }) => id));
+  const place = (service: string): Route => ({ kind: "service", id: service });
   for (const [pointer, item] of items) {
     if (item.attention !== "interrupt") continue;
     const card = `${band} li.today-need[data-item-id=${quote(item.id)}]`;
-    add(`${pointer}/title`, item.title, TODAY, `${card} .today-need-title`);
-    add(`${pointer}/scope`, item.scope, TODAY, `${card} .today-need-scope`);
+    const title = `${card} .today-need-title`;
+    const detail = { click: title, detail: item.id };
+    add(`${pointer}/title`, item.title, TODAY, title);
+    add(`${pointer}/scope`, item.scope, TODAY, `${card} .today-need-scope`, {
+      opens: known.has(item.scope)
+        ? { click: `${card} .today-need-scope`, place: place(item.scope) }
+        : detail,
+    });
     add(`${pointer}/rung`, `P${item.rung}`, TODAY, `${card} > .kit-chip`);
     add(`${pointer}/verb`, item.verb, TODAY, `${card} .today-verb`, { read: verbOf });
     if (item.origin)
-      add(`${pointer}/origin`, item.origin, TODAY, card, { attribute: "data-origin" });
+      add(`${pointer}/origin`, item.origin, TODAY, card, {
+        attribute: "data-origin",
+        opens: detail,
+      });
     if (item.age) add(`${pointer}/age`, item.age, TODAY, `${card} .kit-chip--age`);
     if (item.blocks) {
       const chip = `${card} .today-need-blocks .kit-chip`;
@@ -919,6 +956,27 @@ function bandCases(briefing: ViewSnapshot["briefing"], add: Add) {
         if (pr.inspect)
           add(`${base}/pr/inspect`, pr.inspect, TODAY, fork, { attribute: "data-inspect" });
       });
+      const [first = ""] = group.itemIds;
+      const target =
+        group.itemIds.length > 1 && themes.has(group.theme) ? `theme:${group.theme}` : first;
+      const detail = { click: `${row} .today-decision-cause`, detail: target };
+      const forks = group.scope.map(({ service }) => service);
+      const [fork] = forks;
+      for (const [item, entry] of items) {
+        if (!group.itemIds.includes(entry.id)) continue;
+        if (entry.origin)
+          add(`${item}/origin`, entry.origin, TODAY, row, { read: chipOrigin, opens: detail });
+        if (!fork || entry.scope !== forks.join(", ")) continue;
+        add(`${item}/scope`, entry.scope, TODAY, row, {
+          read: (element) =>
+            [...element.querySelectorAll(".today-decision-fork")]
+              .map((span) => span.getAttribute("data-service"))
+              .join(", "),
+          opens: known.has(fork)
+            ? { click: `${row} .today-decision-fork .kit-chip--service`, place: place(fork) }
+            : detail,
+        });
+      }
     });
   }
 
@@ -964,8 +1022,25 @@ function bandCases(briefing: ViewSnapshot["briefing"], add: Add) {
       if (line.followUp)
         add(`${pointer}/followUp`, line.followUp, TODAY, `${row} .kit-chip--plain`);
       if (line.age) add(`${pointer}/age`, line.age, TODAY, `${row} .kit-chip--age`);
+      const [first = ""] = line.itemIds;
+      const detail = { click: `${row} .today-item-open`, detail: first };
+      for (const [item, entry] of items) {
+        if (!line.itemIds.includes(entry.id)) continue;
+        if (entry.origin === line.origin)
+          add(`${item}/origin`, entry.origin, TODAY, row, {
+            attribute: "data-origin",
+            opens: detail,
+          });
+        if (line.service && entry.scope === line.service)
+          add(`${item}/scope`, entry.scope, TODAY, `${row} .today-item-service`, {
+            opens: known.has(line.service)
+              ? { click: `${row} button.today-item-service`, place: place(line.service) }
+              : detail,
+          });
+      }
     });
   }
+  return cases;
 }
 
 const PR = ["pr/number", "pr/url", "pr/inspect"];
@@ -985,18 +1060,38 @@ const pending = (bead: string, what: string, patterns: readonly string[]): Exemp
   pending: true,
 });
 
+/** The focus or rest item a leaf belongs to. */
+function itemAt(pointer: string, { briefing }: Leaves) {
+  const [, list, index] = pointer.match(/^\/briefing\/(focus|rest)\/(\d+)\//) ?? [];
+  return list === "focus" || list === "rest" ? briefing[list][Number(index)] : undefined;
+}
+
+/** A horizon card or the owed row holds the leaf's item. */
+function horizonHolds(pointer: string, snapshot: Leaves) {
+  const item = itemAt(pointer, snapshot);
+  if (!item) return false;
+  const { cards = [], owed } = snapshot.briefing.horizon;
+  return (
+    cards.some(({ itemIds }) => itemIds.includes(item.id)) ||
+    (owed?.itemIds ?? []).includes(item.id)
+  );
+}
+
 /** Today briefing fields the contract carries before a window bead draws them; each names its bead. */
 export const PENDING: Readonly<Record<string, Exemption>> = {
-  "pending-item-homes": pending(
-    "spicode-f0s.19",
-    "each Surface and Ambient item in its tier's home on Today (ruling R1)",
-    [
-      "/briefing/focus/#/scope",
-      "/briefing/rest/#/scope",
-      "/briefing/focus/#/origin",
-      "/briefing/rest/#/origin",
-    ],
-  ),
+  "pending-horizon-items": {
+    ...pending(
+      "spicode-f0s.50",
+      "the scope and origin of an item whose only Today home is its horizon card or the owed row (ruling R1)",
+      [
+        "/briefing/focus/#/scope",
+        "/briefing/rest/#/scope",
+        "/briefing/focus/#/origin",
+        "/briefing/rest/#/origin",
+      ],
+    ),
+    when: (_value, { pointer, snapshot }) => horizonHolds(pointer, snapshot),
+  },
   "pending-releases": pending("spicode-f0s.21", "Today's Releases block", [
     ...under("/releases/today/versions/#", [
       "service",
@@ -1029,6 +1124,22 @@ export const PENDING: Readonly<Record<string, Exemption>> = {
     ...under("/releases/forming/prs/#", ["kind", "service", "state", ...PR]),
     ...under("/releases/forming/prs/#/entries/#", ["kind", "title"]),
   ]),
+};
+
+/** Item leaves Today draws at the item's place rather than on Today itself, each with its reason. */
+export const AT_PLACE: Readonly<Record<string, Exemption>> = {
+  "forkless-decision": {
+    patterns: ["/briefing/focus/#/scope", "/briefing/rest/#/scope"],
+    reason:
+      "A decision core gives no forks (the template rollout, the stack's lanes) draws no scope chip (today-design 'Decisions waiting'); its scope shows at its place",
+    when: (_value, { pointer, snapshot }) => {
+      const item = itemAt(pointer, snapshot);
+      return (snapshot.briefing.decisions?.groups ?? []).some(
+        ({ itemIds, scope }) =>
+          item !== undefined && itemIds.includes(item.id) && scope.length === 0,
+      );
+    },
+  },
 };
 
 /** Leaves the window draws nowhere by design, each with the reason or the bead that owns it. */
@@ -1182,7 +1293,8 @@ export function coverage(
       if (pointers.has(pointer)) return false;
       const name = Object.entries(exemptions).find(
         ([, exemption]) =>
-          exemption.patterns.includes(pattern) && (exemption.when?.(value) ?? true),
+          exemption.patterns.includes(pattern) &&
+          (exemption.when?.(value, { pointer, snapshot }) ?? true),
       )?.[0];
       if (name) used.add(`${name} ${pattern}`);
       return !name;

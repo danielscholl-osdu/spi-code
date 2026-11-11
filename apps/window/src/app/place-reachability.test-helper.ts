@@ -11,6 +11,11 @@ export function placeReachCases(snapshot: ViewSnapshot): Reach[] {
     name: "Today",
     start: { name: "Today", surface: "today", route: { kind: "today" as const } },
   };
+  const { focus, rest } = snapshot.briefing;
+  const items = [
+    ...focus.map((item, index) => [`/briefing/focus/${index}`, item] as const),
+    ...rest.map((item, index) => [`/briefing/rest/${index}`, item] as const),
+  ];
   snapshot.briefing.places?.forEach((row, index) => {
     const card = `.today-place[data-place="${row.place}"]`;
     const base = `/briefing/places/${index}`;
@@ -92,6 +97,25 @@ export function placeReachCases(snapshot: ViewSnapshot): Reach[] {
         attr(`visual/slots/${at}/state`, slot.state, button, "data-state");
         attr(`visual/slots/${at}/text`, slot.text, button, "aria-label");
         if (slot.origin) attr(`visual/slots/${at}/origin`, slot.origin, button, "data-origin");
+        const selector = `${card} ${button}`;
+        const opens = { click: selector, place: { kind: "service" as const, id: slot.service } };
+        for (const [pointer, item] of items) {
+          if (!row.itemIds.includes(item.id) || item.scope !== slot.service) continue;
+          const field = { home, selector, opens };
+          cases.push({
+            pointer: `${pointer}/scope`,
+            value: item.scope,
+            ...field,
+            attribute: "data-service",
+          });
+          if (slot.origin && item.origin === slot.origin)
+            cases.push({
+              pointer: `${pointer}/origin`,
+              value: item.origin,
+              ...field,
+              attribute: "data-origin",
+            });
+        }
       });
       if (visual.kind === "rollout")
         attr("visual/target", visual.target, "[data-visual]", "data-target");
