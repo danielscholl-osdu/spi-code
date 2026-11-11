@@ -4215,6 +4215,7 @@
       "versions": [
         {
           "service": "partition",
+          "state": "released",
           "released": "v1.3.3",
           "proposed": "1.5.0",
           "pr": {
@@ -4226,6 +4227,7 @@
         },
         {
           "service": "entitlements",
+          "state": "released",
           "released": "v1.2.1",
           "proposed": "1.5.0",
           "pr": {
@@ -4237,6 +4239,7 @@
         },
         {
           "service": "legal",
+          "state": "released",
           "released": "v1.2.1",
           "proposed": "1.5.0",
           "pr": {
@@ -4248,6 +4251,7 @@
         },
         {
           "service": "schema",
+          "state": "released",
           "released": "v1.2.0",
           "proposed": "1.5.0",
           "pr": {
@@ -4259,6 +4263,7 @@
         },
         {
           "service": "file",
+          "state": "released",
           "released": "v1.2.0",
           "proposed": "1.5.0",
           "pr": {
@@ -4270,6 +4275,7 @@
         },
         {
           "service": "storage",
+          "state": "released",
           "released": "v1.4.1",
           "proposed": "1.5.0",
           "pr": {
@@ -4281,6 +4287,7 @@
         },
         {
           "service": "indexer",
+          "state": "released",
           "released": "v1.4.0",
           "proposed": "1.5.0",
           "pr": {
@@ -4292,6 +4299,7 @@
         },
         {
           "service": "search",
+          "state": "released",
           "released": "v1.4.0",
           "proposed": "1.5.0",
           "pr": {
@@ -4303,30 +4311,35 @@
         },
         {
           "service": "workflow",
+          "state": "released",
           "released": "v1.3.1",
           "coreLibAzure": "3.0.1",
           "text": "released v1.3.1"
         },
         {
           "service": "indexer-queue",
+          "state": "released",
           "released": "v1.4.0",
           "coreLibAzure": "3.0.1",
           "text": "released v1.4.0"
         },
         {
           "service": "unit",
+          "state": "released",
           "released": "v1.4.0",
           "coreLibAzure": "3.0.1",
           "text": "released v1.4.0"
         },
         {
           "service": "crs-catalog",
+          "state": "released",
           "released": "v1.4.0",
           "coreLibAzure": "3.0.1",
           "text": "released v1.4.0"
         },
         {
           "service": "crs-conversion",
+          "state": "released",
           "released": "v1.4.0",
           "coreLibAzure": "2.5.10",
           "text": "released v1.4.0"
@@ -8571,6 +8584,19 @@
       }
     },
     {
+      "path": "/releases/today/versions/0/state",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
       "path": "/releases/today/versions/0/released",
       "areas": ["fleet"],
       "envelope": {
@@ -8619,6 +8645,19 @@
     },
     {
       "path": "/releases/today/versions/1/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
+      "path": "/releases/today/versions/1/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -8691,6 +8730,19 @@
       }
     },
     {
+      "path": "/releases/today/versions/2/state",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
       "path": "/releases/today/versions/2/released",
       "areas": ["fleet"],
       "envelope": {
@@ -8739,6 +8791,19 @@
     },
     {
       "path": "/releases/today/versions/3/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
+      "path": "/releases/today/versions/3/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -8811,6 +8876,19 @@
       }
     },
     {
+      "path": "/releases/today/versions/4/state",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
       "path": "/releases/today/versions/4/released",
       "areas": ["fleet"],
       "envelope": {
@@ -8859,6 +8937,19 @@
     },
     {
       "path": "/releases/today/versions/5/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
+      "path": "/releases/today/versions/5/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -8931,6 +9022,19 @@
       }
     },
     {
+      "path": "/releases/today/versions/6/state",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
       "path": "/releases/today/versions/6/released",
       "areas": ["fleet"],
       "envelope": {
@@ -8979,6 +9083,19 @@
     },
     {
       "path": "/releases/today/versions/7/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
+      "path": "/releases/today/versions/7/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -9051,6 +9168,19 @@
       }
     },
     {
+      "path": "/releases/today/versions/8/state",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
       "path": "/releases/today/versions/8/released",
       "areas": ["fleet"],
       "envelope": {
@@ -9091,6 +9221,19 @@
     },
     {
       "path": "/releases/today/versions/9/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
+      "path": "/releases/today/versions/9/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -9155,6 +9298,19 @@
       }
     },
     {
+      "path": "/releases/today/versions/10/state",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
       "path": "/releases/today/versions/10/released",
       "areas": ["fleet"],
       "envelope": {
@@ -9207,6 +9363,19 @@
       }
     },
     {
+      "path": "/releases/today/versions/11/state",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
       "path": "/releases/today/versions/11/released",
       "areas": ["fleet"],
       "envelope": {
@@ -9247,6 +9416,19 @@
     },
     {
       "path": "/releases/today/versions/12/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-11-06T14:02:00.133Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
+      "path": "/releases/today/versions/12/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",

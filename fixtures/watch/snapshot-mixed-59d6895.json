@@ -2916,30 +2916,35 @@
       "versions": [
         {
           "service": "partition",
+          "state": "released",
           "released": "v1.3.3",
           "coreLibAzure": "4.0.0",
           "text": "released v1.3.3"
         },
         {
           "service": "entitlements",
+          "state": "released",
           "released": "v1.2.1",
           "coreLibAzure": "3.0.3",
           "text": "released v1.2.1"
         },
         {
           "service": "legal",
+          "state": "released",
           "released": "v1.2.1",
           "coreLibAzure": "4.0.0",
           "text": "released v1.2.1"
         },
         {
           "service": "schema",
+          "state": "released",
           "released": "v1.2.0",
           "coreLibAzure": "3.0.1",
           "text": "released v1.2.0"
         },
         {
           "service": "file",
+          "state": "released",
           "released": "v1.2.0",
           "coreLibAzure": "3.0.3",
           "text": "released v1.2.0"
@@ -2948,12 +2953,7 @@
       "platform": {
         "stack": "v0.30.2",
         "template": {
-          "released": "v1.4.0",
-          "proposed": "1.2.1",
-          "pr": {
-            "number": 248,
-            "url": "https://github.com/Azure/osdu-spi/pull/248"
-          }
+          "released": "v1.4.0"
         },
         "coreLibAzure": [
           {
@@ -2969,7 +2969,7 @@
             "count": 1
           }
         ],
-        "text": "stack v0.30.2 · template v1.4.0 → 1.2.1 · core-lib-azure 3.0.1 to 4.0.0 (4.0.0 on 2 of 5)"
+        "text": "stack v0.30.2 · template v1.4.0 · core-lib-azure 3.0.1 to 4.0.0 (4.0.0 on 2 of 5)"
       },
       "readyLine": "1 release PR waits for review, none failing"
     },
@@ -6397,6 +6397,19 @@
       }
     },
     {
+      "path": "/releases/today/versions/0/state",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
       "path": "/releases/today/versions/0/released",
       "areas": ["fleet"],
       "envelope": {
@@ -6437,6 +6450,19 @@
     },
     {
       "path": "/releases/today/versions/1/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
+      "path": "/releases/today/versions/1/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -6501,6 +6527,19 @@
       }
     },
     {
+      "path": "/releases/today/versions/2/state",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
       "path": "/releases/today/versions/2/released",
       "areas": ["fleet"],
       "envelope": {
@@ -6553,6 +6592,19 @@
       }
     },
     {
+      "path": "/releases/today/versions/3/state",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
       "path": "/releases/today/versions/3/released",
       "areas": ["fleet"],
       "envelope": {
@@ -6593,6 +6645,19 @@
     },
     {
       "path": "/releases/today/versions/4/service",
+      "areas": ["fleet"],
+      "envelope": {
+        "source": "releases",
+        "state": "fresh",
+        "observedAt": "2026-10-21T15:10:40.718Z",
+        "completeness": {
+          "kind": "complete"
+        },
+        "inferred": false
+      }
+    },
+    {
+      "path": "/releases/today/versions/4/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -6670,14 +6735,6 @@
       }
     },
     {
-      "path": "/releases/today/platform/template/proposed",
-      "areas": ["github"]
-    },
-    {
-      "path": "/releases/today/platform/template/pr",
-      "areas": ["github"]
-    },
-    {
       "path": "/releases/today/platform/coreLibAzure",
       "areas": ["fleet"],
       "envelope": {
@@ -6692,7 +6749,7 @@
     },
     {
       "path": "/releases/today/platform/text",
-      "areas": ["fleet", "github"],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "fresh",

@@ -21,14 +21,15 @@ interface ReleasedRow {
   lib?: string | null | undefined;
 }
 
-interface ReleaseVersion {
+type ReleaseVersion = {
   service: string;
-  released: string;
-  proposed?: string;
-  pr?: { number: number; url: string };
   coreLibAzure?: string;
   text: string;
-}
+} & (
+  | { state: "released"; released: string; proposed?: string; pr?: { number: number; url: string } }
+  | { state: "unread"; released?: never; proposed?: never; pr?: never }
+  | { state: "none"; released?: never; proposed?: never; pr?: never }
+);
 
 export interface ReleasesTodayInput {
   services: readonly {
@@ -44,9 +45,9 @@ export interface ReleasesTodayInput {
   context: CoreContext;
 }
 
-function proposed(pr: Pr | undefined) {
+function proposed(pr: Pr | undefined, released: string | undefined) {
   const version = pr && /\brelease\s+(?:\S+\s+)?v?(\d+(?:\.\d+){1,2}(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)\s*$/i.exec(pr.title)?.[1];
-  return pr && version
+  return pr && version && released && compareVersions(version, released) > 0
     ? { proposed: version, pr: { number: pr.number, url: pr.url } }
     : {};
 }
@@ -81,17 +82,22 @@ export function platformReleased(
 /** Today's version pairs share the release reading's PR inventory and waiting words. */
 export function releasesToday(input: ReleasesTodayInput) {
   const { services, documents, facts, provenance, context } = input;
-  const versions: ReleaseVersion[] = services.flatMap(({ service, releases }) => {
+  const versions: ReleaseVersion[] = services.flatMap<ReleaseVersion>(({ service, releases }) => {
     const row = [...releases].sort((a, b) => b.month.localeCompare(a.month))[0];
     if (!row) return [];
+    const own = { service, ...(row.lib ? { coreLibAzure: row.lib } : {}) };
+    if (row.state !== "released") {
+      const state = row.state === "unreleased" ? "none" : "unread";
+      return [{ ...own, state, text: state === "none" ? "no release yet" : "release not read" }];
+    }
     const released = row.to ?? row.version;
-    const next = proposed(row.releasePr);
+    const next = proposed(row.releasePr, released);
     return [
       {
-        service,
+        ...own,
+        state: "released",
         released,
         ...next,
-        ...(row.lib ? { coreLibAzure: row.lib } : {}),
         text: `released ${released}${next.proposed ? `, proposed ${next.proposed}` : ""}`,
       },
     ];
@@ -103,7 +109,7 @@ export function releasesToday(input: ReleasesTodayInput) {
   const template = templateReleased
     ? {
         released: templateReleased,
-        ...proposed(queue.all.find(({ repo }) => repo === TEMPLATE_REPO)?.pr),
+        ...proposed(queue.all.find(({ repo }) => repo === TEMPLATE_REPO)?.pr, templateReleased),
       }
     : undefined;
   const spread = new Map<string, number>();

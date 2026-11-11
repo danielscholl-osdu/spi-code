@@ -233,13 +233,20 @@ const releases = {
     versions: [
       {
         service: "storage",
+        state: "released",
         released: "1.4.1",
         proposed: "1.4.2",
         pr: { number: 75 },
         coreLibAzure: "5.0.0",
         text: "released 1.4.1, proposed 1.4.2",
       },
-      { service: "legal", released: "1.2.2", coreLibAzure: "2.5.10", text: "released 1.2.2" },
+      {
+        service: "legal",
+        state: "released",
+        released: "1.2.2",
+        coreLibAzure: "2.5.10",
+        text: "released 1.2.2",
+      },
     ],
     platform: {
       stack: "v0.35.5",

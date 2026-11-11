@@ -187,14 +187,36 @@ export const unreadSchema = <T extends z.ZodType<string>>(area: T) =>
     areas: z.array(area).min(1).refine(distinct, { message: "Areas repeat" }),
     lastGood: ObservedAtSchema.optional(),
   });
-export const ReleaseVersionSchema = z.strictObject({
+const releaseVersion = {
   service: IdentifierSchema,
-  released: IdentifierSchema,
-  proposed: IdentifierSchema.optional(),
-  pr: PrRefSchema.optional(),
   coreLibAzure: IdentifierSchema.optional(),
   text: z.string(),
-});
+};
+export const ReleaseVersionSchema = z.discriminatedUnion("state", [
+  z.strictObject({
+    service: IdentifierSchema,
+    state: z.literal("released"),
+    released: IdentifierSchema,
+    proposed: IdentifierSchema.optional(),
+    pr: PrRefSchema.optional(),
+    coreLibAzure: IdentifierSchema.optional(),
+    text: z.string(),
+  }),
+  z.strictObject({
+    ...releaseVersion,
+    state: z.literal("unread"),
+    released: z.never().optional(),
+    proposed: z.never().optional(),
+    pr: z.never().optional(),
+  }),
+  z.strictObject({
+    ...releaseVersion,
+    state: z.literal("none"),
+    released: z.never().optional(),
+    proposed: z.never().optional(),
+    pr: z.never().optional(),
+  }),
+]);
 export const ReleasesTodaySchema = z.strictObject({
   versions: z.array(ReleaseVersionSchema),
   platform: z.strictObject({

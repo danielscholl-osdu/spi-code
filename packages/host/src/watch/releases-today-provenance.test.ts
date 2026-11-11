@@ -12,13 +12,14 @@ const today: ReleasesToday = {
   versions: [
     {
       service: "partition",
+      state: "released",
       released: "1.4.1",
       proposed: "1.4.2",
       pr: { number: 41, url: "https://github.com/example/partition/pull/41" },
       coreLibAzure: "5.0.0",
       text: "released 1.4.1, proposed 1.4.2",
     },
-    { service: "legal", released: "2.0.0", text: "released 2.0.0" },
+    { service: "legal", state: "released", released: "2.0.0", text: "released 2.0.0" },
   ],
   platform: {
     stack: "v0.35.3",
@@ -63,12 +64,14 @@ describe("Today release provenance", () => {
       ),
     ).toEqual({
       "/versions/0/service": ["fleet", "+releases"],
+      "/versions/0/state": ["fleet", "+releases"],
       "/versions/0/released": ["fleet", "+releases"],
       "/versions/0/coreLibAzure": ["fleet", "+releases"],
       "/versions/0/proposed": ["github"],
       "/versions/0/pr": ["github"],
       "/versions/0/text": ["fleet", "github", "+releases"],
       "/versions/1/service": ["fleet", "+releases"],
+      "/versions/1/state": ["fleet", "+releases"],
       "/versions/1/released": ["fleet", "+releases"],
       "/versions/1/text": ["fleet", "+releases"],
       "/platform/stack": ["fleet", "+releases"],

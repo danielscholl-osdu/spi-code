@@ -140,7 +140,14 @@ describe("Today's release versions", () => {
       state: "unread",
     });
     expect(snapshot.releases.today?.unread).toEqual({ areas: ["releases"] });
-    expect(snapshot.releases.today?.versions.every((v) => v.released === "?")).toBe(true);
+    expect(snapshot.releases.today?.versions).toHaveLength(13);
+    for (const version of snapshot.releases.today?.versions ?? []) {
+      expect(version.text).not.toContain("released ?");
+      expect(version).toMatchObject({ state: "unread", text: "release not read" });
+      expect(version).not.toHaveProperty("released");
+      expect(version).not.toHaveProperty("proposed");
+      expect(version).not.toHaveProperty("pr");
+    }
     expect(snapshot.releases.today?.platform.template).toMatchObject({
       released: "v1.4.0",
       proposed: "1.5.0",

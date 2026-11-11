@@ -816,6 +816,7 @@ export const PENDING: Readonly<Record<string, Exemption>> = {
   "pending-releases": pending("spicode-f0s.21", "Today's Releases block", [
     ...under("/releases/today/versions/#", [
       "service",
+      "state",
       "released",
       "proposed",
       "coreLibAzure",

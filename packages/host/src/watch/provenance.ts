@@ -260,7 +260,8 @@ export function releasesTodayProvenance(
   for (const [i, version] of today.versions.entries()) {
     const at = `/versions/${i}`;
     bind(`${at}/service`, ledger);
-    bind(`${at}/released`, ledger);
+    bind(`${at}/state`, ledger);
+    if (version.state === "released") bind(`${at}/released`, ledger);
     if (version.coreLibAzure !== undefined) bind(`${at}/coreLibAzure`, ledger);
     if (version.proposed !== undefined) bind(`${at}/proposed`, github);
     if (version.pr) bind(`${at}/pr`, github);

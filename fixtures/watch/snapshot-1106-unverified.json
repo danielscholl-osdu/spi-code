@@ -4477,133 +4477,68 @@
       "versions": [
         {
           "service": "partition",
-          "released": "?",
-          "proposed": "1.3.4",
-          "pr": {
-            "number": 198,
-            "url": "https://github.com/Azure/osdu-spi-partition/pull/198"
-          },
-          "text": "released ?, proposed 1.3.4"
+          "text": "release not read",
+          "state": "unread"
         },
         {
           "service": "entitlements",
-          "released": "?",
-          "proposed": "1.2.2",
-          "pr": {
-            "number": 89,
-            "url": "https://github.com/Azure/osdu-spi-entitlements/pull/89"
-          },
-          "text": "released ?, proposed 1.2.2"
+          "text": "release not read",
+          "state": "unread"
         },
         {
           "service": "legal",
-          "released": "?",
-          "proposed": "1.2.2",
-          "pr": {
-            "number": 48,
-            "url": "https://github.com/Azure/osdu-spi-legal/pull/48"
-          },
-          "text": "released ?, proposed 1.2.2"
+          "text": "release not read",
+          "state": "unread"
         },
         {
           "service": "schema",
-          "released": "?",
-          "proposed": "1.2.1",
-          "pr": {
-            "number": 40,
-            "url": "https://github.com/Azure/osdu-spi-schema/pull/40"
-          },
-          "text": "released ?, proposed 1.2.1"
+          "text": "release not read",
+          "state": "unread"
         },
         {
           "service": "file",
-          "released": "?",
-          "proposed": "1.2.1",
-          "pr": {
-            "number": 55,
-            "url": "https://github.com/Azure/osdu-spi-file/pull/55"
-          },
-          "text": "released ?, proposed 1.2.1"
+          "text": "release not read",
+          "state": "unread"
         },
         {
           "service": "storage",
-          "released": "?",
-          "proposed": "1.4.2",
-          "pr": {
-            "number": 57,
-            "url": "https://github.com/Azure/osdu-spi-storage/pull/57"
-          },
-          "text": "released ?, proposed 1.4.2"
+          "text": "release not read",
+          "state": "unread"
         },
         {
           "service": "indexer",
-          "released": "?",
-          "proposed": "1.4.1",
-          "pr": {
-            "number": 33,
-            "url": "https://github.com/Azure/osdu-spi-indexer/pull/33"
-          },
-          "text": "released ?, proposed 1.4.1"
+          "text": "release not read",
+          "state": "unread"
         },
         {
           "service": "search",
-          "released": "?",
-          "proposed": "1.4.1",
-          "pr": {
-            "number": 29,
-            "url": "https://github.com/Azure/osdu-spi-search/pull/29"
-          },
-          "text": "released ?, proposed 1.4.1"
+          "text": "release not read",
+          "state": "unread"
         },
         {
           "service": "workflow",
-          "released": "?",
-          "proposed": "1.3.2",
-          "pr": {
-            "number": 38,
-            "url": "https://github.com/Azure/osdu-spi-workflow/pull/38"
-          },
-          "text": "released ?, proposed 1.3.2"
+          "text": "release not read",
+          "state": "unread"
         },
         {
           "service": "indexer-queue",
-          "released": "?",
-          "proposed": "1.5.0",
-          "pr": {
-            "number": 45,
-            "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/45"
-          },
-          "text": "released ?, proposed 1.5.0"
+          "text": "release not read",
+          "state": "unread"
         },
         {
           "service": "unit",
-          "released": "?",
-          "proposed": "1.4.1",
-          "pr": {
-            "number": 21,
-            "url": "https://github.com/Azure/osdu-spi-unit/pull/21"
-          },
-          "text": "released ?, proposed 1.4.1"
+          "text": "release not read",
+          "state": "unread"
         },
         {
           "service": "crs-catalog",
-          "released": "?",
-          "proposed": "1.4.1",
-          "pr": {
-            "number": 19,
-            "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/19"
-          },
-          "text": "released ?, proposed 1.4.1"
+          "text": "release not read",
+          "state": "unread"
         },
         {
           "service": "crs-conversion",
-          "released": "?",
-          "proposed": "1.4.1",
-          "pr": {
-            "number": 17,
-            "url": "https://github.com/Azure/osdu-spi-crs-conversion/pull/17"
-          },
-          "text": "released ?, proposed 1.4.1"
+          "text": "release not read",
+          "state": "unread"
         }
       ],
       "platform": {
@@ -14606,7 +14541,7 @@
       }
     },
     {
-      "path": "/releases/today/versions/0/released",
+      "path": "/releases/today/versions/0/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -14614,16 +14549,8 @@
       }
     },
     {
-      "path": "/releases/today/versions/0/proposed",
-      "areas": ["github"]
-    },
-    {
-      "path": "/releases/today/versions/0/pr",
-      "areas": ["github"]
-    },
-    {
       "path": "/releases/today/versions/0/text",
-      "areas": ["fleet", "github"],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -14638,7 +14565,7 @@
       }
     },
     {
-      "path": "/releases/today/versions/1/released",
+      "path": "/releases/today/versions/1/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -14646,16 +14573,8 @@
       }
     },
     {
-      "path": "/releases/today/versions/1/proposed",
-      "areas": ["github"]
-    },
-    {
-      "path": "/releases/today/versions/1/pr",
-      "areas": ["github"]
-    },
-    {
       "path": "/releases/today/versions/1/text",
-      "areas": ["fleet", "github"],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -14670,7 +14589,7 @@
       }
     },
     {
-      "path": "/releases/today/versions/2/released",
+      "path": "/releases/today/versions/2/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -14678,16 +14597,8 @@
       }
     },
     {
-      "path": "/releases/today/versions/2/proposed",
-      "areas": ["github"]
-    },
-    {
-      "path": "/releases/today/versions/2/pr",
-      "areas": ["github"]
-    },
-    {
       "path": "/releases/today/versions/2/text",
-      "areas": ["fleet", "github"],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -14702,7 +14613,7 @@
       }
     },
     {
-      "path": "/releases/today/versions/3/released",
+      "path": "/releases/today/versions/3/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -14710,16 +14621,8 @@
       }
     },
     {
-      "path": "/releases/today/versions/3/proposed",
-      "areas": ["github"]
-    },
-    {
-      "path": "/releases/today/versions/3/pr",
-      "areas": ["github"]
-    },
-    {
       "path": "/releases/today/versions/3/text",
-      "areas": ["fleet", "github"],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -14734,7 +14637,7 @@
       }
     },
     {
-      "path": "/releases/today/versions/4/released",
+      "path": "/releases/today/versions/4/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -14742,16 +14645,8 @@
       }
     },
     {
-      "path": "/releases/today/versions/4/proposed",
-      "areas": ["github"]
-    },
-    {
-      "path": "/releases/today/versions/4/pr",
-      "areas": ["github"]
-    },
-    {
       "path": "/releases/today/versions/4/text",
-      "areas": ["fleet", "github"],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -14766,7 +14661,7 @@
       }
     },
     {
-      "path": "/releases/today/versions/5/released",
+      "path": "/releases/today/versions/5/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -14774,16 +14669,8 @@
       }
     },
     {
-      "path": "/releases/today/versions/5/proposed",
-      "areas": ["github"]
-    },
-    {
-      "path": "/releases/today/versions/5/pr",
-      "areas": ["github"]
-    },
-    {
       "path": "/releases/today/versions/5/text",
-      "areas": ["fleet", "github"],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -14798,7 +14685,7 @@
       }
     },
     {
-      "path": "/releases/today/versions/6/released",
+      "path": "/releases/today/versions/6/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -14806,16 +14693,8 @@
       }
     },
     {
-      "path": "/releases/today/versions/6/proposed",
-      "areas": ["github"]
-    },
-    {
-      "path": "/releases/today/versions/6/pr",
-      "areas": ["github"]
-    },
-    {
       "path": "/releases/today/versions/6/text",
-      "areas": ["fleet", "github"],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -14830,7 +14709,7 @@
       }
     },
     {
-      "path": "/releases/today/versions/7/released",
+      "path": "/releases/today/versions/7/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -14838,16 +14717,8 @@
       }
     },
     {
-      "path": "/releases/today/versions/7/proposed",
-      "areas": ["github"]
-    },
-    {
-      "path": "/releases/today/versions/7/pr",
-      "areas": ["github"]
-    },
-    {
       "path": "/releases/today/versions/7/text",
-      "areas": ["fleet", "github"],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -14862,7 +14733,7 @@
       }
     },
     {
-      "path": "/releases/today/versions/8/released",
+      "path": "/releases/today/versions/8/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -14870,16 +14741,8 @@
       }
     },
     {
-      "path": "/releases/today/versions/8/proposed",
-      "areas": ["github"]
-    },
-    {
-      "path": "/releases/today/versions/8/pr",
-      "areas": ["github"]
-    },
-    {
       "path": "/releases/today/versions/8/text",
-      "areas": ["fleet", "github"],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -14894,7 +14757,7 @@
       }
     },
     {
-      "path": "/releases/today/versions/9/released",
+      "path": "/releases/today/versions/9/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -14902,16 +14765,8 @@
       }
     },
     {
-      "path": "/releases/today/versions/9/proposed",
-      "areas": ["github"]
-    },
-    {
-      "path": "/releases/today/versions/9/pr",
-      "areas": ["github"]
-    },
-    {
       "path": "/releases/today/versions/9/text",
-      "areas": ["fleet", "github"],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -14926,7 +14781,7 @@
       }
     },
     {
-      "path": "/releases/today/versions/10/released",
+      "path": "/releases/today/versions/10/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -14934,16 +14789,8 @@
       }
     },
     {
-      "path": "/releases/today/versions/10/proposed",
-      "areas": ["github"]
-    },
-    {
-      "path": "/releases/today/versions/10/pr",
-      "areas": ["github"]
-    },
-    {
       "path": "/releases/today/versions/10/text",
-      "areas": ["fleet", "github"],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -14958,7 +14805,7 @@
       }
     },
     {
-      "path": "/releases/today/versions/11/released",
+      "path": "/releases/today/versions/11/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -14966,16 +14813,8 @@
       }
     },
     {
-      "path": "/releases/today/versions/11/proposed",
-      "areas": ["github"]
-    },
-    {
-      "path": "/releases/today/versions/11/pr",
-      "areas": ["github"]
-    },
-    {
       "path": "/releases/today/versions/11/text",
-      "areas": ["fleet", "github"],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
@@ -14990,7 +14829,7 @@
       }
     },
     {
-      "path": "/releases/today/versions/12/released",
+      "path": "/releases/today/versions/12/state",
       "areas": ["fleet"],
       "envelope": {
         "source": "releases",
@@ -14998,16 +14837,8 @@
       }
     },
     {
-      "path": "/releases/today/versions/12/proposed",
-      "areas": ["github"]
-    },
-    {
-      "path": "/releases/today/versions/12/pr",
-      "areas": ["github"]
-    },
-    {
       "path": "/releases/today/versions/12/text",
-      "areas": ["fleet", "github"],
+      "areas": ["fleet"],
       "envelope": {
         "source": "releases",
         "state": "unread"
