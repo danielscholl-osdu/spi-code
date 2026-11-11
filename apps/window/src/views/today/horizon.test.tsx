@@ -36,6 +36,7 @@ async function mount(body: ViewSnapshot) {
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0)) await cleanup();
   window.location.hash = "";
+  vi.useRealTimers();
 });
 async function click(container: Element, selector: string) {
   const button = container.querySelector<HTMLButtonElement>(selector);
@@ -105,6 +106,7 @@ it("uses core's words even when card counts and items cannot prove calm", async 
   delete body.briefing.horizon.stages;
   const unknown = await mount(body);
   expect(unknown.container.querySelector(".horizon-counts, .horizon-conveyor")).toBeNull();
+  expect(unknown.container.textContent).not.toContain("Nothing needs you");
 });
 
 it("opens the heading, every card and verb, fork chip and PR badge at their own destinations", async () => {
@@ -146,6 +148,36 @@ it("opens the heading, every card and verb, fork chip and PR badge at their own 
   }
 });
 
+it("opens an unthemed upstream card's item from its token and verb", async () => {
+  const body = morning("busy");
+  const card = body.briefing.horizon.cards?.[0];
+  if (!card?.itemIds[0]) throw new Error("missing upstream card item");
+  card.id = `toolchain:${card.token}:partition`;
+  expect(body.briefing.themes.some(({ id }) => id === card.id)).toBe(false);
+  const { container, inspector } = await mount(body);
+  for (const opener of [".horizon-token", ".horizon-verb"]) {
+    await click(container, `.horizon-card:first-child ${opener}`);
+    expect(inspector.getState().selected).toBe(card.itemIds[0]);
+  }
+});
+
+it("names each owed Detail button for its own item", async () => {
+  const body = morning("owed");
+  const owed = body.briefing.horizon.owed;
+  const items = [...body.briefing.focus, ...body.briefing.rest].slice(0, 2);
+  if (!owed || items.length !== 2) throw new Error("missing owed items");
+  owed.itemIds = items.map(({ id }) => id);
+  const { container, inspector } = await mount(body);
+  const buttons = container.querySelectorAll<HTMLButtonElement>(".horizon-owed-open");
+  expect([...buttons].map((button) => button.getAttribute("aria-label"))).toEqual(
+    items.map(({ title }) => `Open Detail for ${title}`),
+  );
+  for (const [index, button] of [...buttons].entries()) {
+    await act(async () => button.click());
+    expect(inspector.getState().selected).toBe(items[index]?.id);
+  }
+});
+
 it("opens the owed item, and leaves an unproven sync destination quiet", async () => {
   const body = morning("owed");
   const { container, inspector } = await mount(body);
@@ -175,6 +207,10 @@ it("shows only a provenance-backed cut-radar caveat, with an Evidence opener", a
 
 it("has a compact 740 conveyor that expands and collapses, with the strip's exact sync instant", async () => {
   const body = morning("busy");
+  if (!body.briefing.nextSyncAt) throw new Error("missing next sync");
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(Date.parse(body.briefing.nextSyncAt) - 60 * 60 * 1000);
+  expect(clockTime(body.briefing.nextSyncAt)).toContain("(in ");
   const { container } = await mount(body);
   const toggle = container.querySelector<HTMLButtonElement>(".horizon-compact");
   expect(toggle?.getAttribute("aria-expanded")).toBe("false");

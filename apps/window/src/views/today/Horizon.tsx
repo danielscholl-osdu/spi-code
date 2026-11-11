@@ -62,8 +62,17 @@ function Fork({
   );
 }
 
-function Card({ card, pointer, select }: { card: HorizonCard; pointer: string; select: Select }) {
-  const target = card.kind === "sync" ? card.itemIds[0] : `theme:${card.id}`;
+function Card({
+  card,
+  pointer,
+  target,
+  select,
+}: {
+  card: HorizonCard;
+  pointer: string;
+  target: string | undefined;
+  select: Select;
+}) {
   return (
     <article
       className="horizon-card"
@@ -307,7 +316,17 @@ export function Horizon({
       {cards && cards.length > 0 && (
         <div className="horizon-cards">
           {cards.map((card, index) => (
-            <Card key={card.id} card={card} pointer={`${ROOT}/cards/${index}`} select={select} />
+            <Card
+              key={card.id}
+              card={card}
+              pointer={`${ROOT}/cards/${index}`}
+              target={
+                card.kind !== "sync" && snapshot.briefing.themes.some(({ id }) => id === card.id)
+                  ? `theme:${card.id}`
+                  : card.itemIds[0]
+              }
+              select={select}
+            />
           ))}
         </div>
       )}
@@ -328,7 +347,11 @@ export function Horizon({
               type="button"
               className="horizon-owed-open"
               key={id}
-              aria-label={owed.text}
+              aria-label={`Open Detail for ${
+                [...snapshot.briefing.focus, ...snapshot.briefing.rest].find(
+                  (item) => item.id === id,
+                )?.title ?? id
+              }`}
               onClick={() => select(id)}
             >
               Detail ›

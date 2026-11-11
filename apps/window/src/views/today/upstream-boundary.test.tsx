@@ -8,7 +8,12 @@ const src = "apps/window/src";
 function leaks(file: string, source: string): boolean {
   if (file === "theme/tokens.css") return false;
   if (file === "views/today/Horizon.tsx" || file === "components/kit/Chip.tsx") return false;
-  if (/\.tsx?$/.test(file)) return /⇣|INBOUND_GLYPH|var\(--upstream/.test(source);
+  if (/\.tsx?$/.test(file)) {
+    if (file === "views/today/Places.tsx") source = source.replace('.replace(/^⇣\\s*/, "")', "");
+    return /⇣|INBOUND_GLYPH|var\(--upstream|tint\s*=\s*["']upstream["']|tone\s*:\s*["']upstream["']|kit-(?:segmented|segment)--upstream/.test(
+      source,
+    );
+  }
   const rules = source.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g);
   for (const [, selector = "", body = ""] of rules) {
     if (!/var\(--upstream/.test(body)) continue;
@@ -33,8 +38,18 @@ it("reserves upstream tokens and ⇣ for the horizon, upstream chips and upstrea
   expect(leaks("views/security/security.css", ".security { color: var(--upstream); }")).toBe(true);
   expect(leaks("views/security/index.tsx", "<span>⇣ upstream-owned</span>")).toBe(true);
   expect(leaks("views/line/index.tsx", "<span>{INBOUND_GLYPH}</span>")).toBe(true);
+  expect(leaks("views/today/Places.tsx", "<span>⇣ upstream-owned</span>")).toBe(true);
   const kit = readFileSync(`${src}/components/kit/Slot.tsx`, "utf8");
   expect(kit).toContain('state === "waiting" && origin === "upstream"');
+});
+
+it.each([
+  '<SegmentedBar tint="upstream" />',
+  '<StackedBar segments={[{ tone: "upstream" }]} />',
+  '<div className="kit-segmented--upstream" />',
+  '<div className="kit-segment--upstream" />',
+])("rejects upstream kit use outside its allowed places: %s", (source) => {
+  expect(leaks("views/security/index.tsx", source)).toBe(true);
 });
 
 it("limits conveyor compaction to 740 and reveals the stages from the expanded state", () => {
