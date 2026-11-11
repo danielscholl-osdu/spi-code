@@ -1114,12 +1114,7 @@ export class WatchRoutes {
     const items = baselineItems(view.briefing);
     const observed = this.runsObserved(latest);
     this.seen().acknowledge(this.options.fleet, view.cursor, items, now, observed);
-    return {
-      cursor: view.cursor,
-      at: new Date(now).toISOString(),
-      ...(observed === null ? {} : { observedAt: new Date(observed).toISOString() }),
-      items,
-    };
+    return { cursor: view.cursor, at: new Date(now).toISOString(), items };
   }
 
   /**

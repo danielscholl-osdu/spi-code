@@ -7,6 +7,7 @@ let port;
 let fixture = false;
 const listeners = new Set();
 const navigators = new Set();
+const leavers = new Set();
 let pendingDestination;
 // The closed set of places desktop main may send the window to; anything else is dropped here.
 const DESTINATIONS = new Set(["evidence", "readiness"]);
@@ -70,6 +71,14 @@ contextBridge.exposeInMainWorld("spi", {
     }
     return () => navigators.delete(listener);
   },
+  onLeave(listener) {
+    leavers.add(listener);
+    return () => leavers.delete(listener);
+  },
+});
+// leave.ts in desktop main holds the same channel name.
+ipcRenderer.on("window:leave", () => {
+  for (const listener of leavers) listener();
 });
 ipcRenderer.on("window:navigate", (_event, input) => {
   const destination = windowDestination(input);

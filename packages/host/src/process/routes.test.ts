@@ -1142,7 +1142,10 @@ describe("view.subscribe from the last look", () => {
     const first = write(arriving([[item("drift:file", "background"), ["engineering"]]]));
     expect(seenStore().baseline(fleet)).toBeUndefined();
     const sight = await subscribe(routes);
-    expect(seenStore().baseline(fleet)?.cursor).toBe(first);
+    expect(seenStore().baseline(fleet)).toMatchObject({
+      cursor: first,
+      observedAt: Date.parse(observed),
+    });
     expect(fresh(sight.view)).toEqual(nothingFresh);
     expect(sight.view.briefing.since).toMatchObject({
       basis: "fallback",

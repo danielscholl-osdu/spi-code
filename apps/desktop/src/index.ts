@@ -24,6 +24,7 @@ import { externalLinkHandlers } from "./external-links.js";
 import { hostLaunch } from "./host-launch.js";
 import { stopHostTree } from "./host-tree.js";
 import { createInterruptNotifications } from "./interrupts.js";
+import { WINDOW_LEAVE_CHANNEL, windowLeave } from "./leave.js";
 import { createLifecycle, stopHostAndReleaseLeases, stopWithin } from "./lifecycle.js";
 import { createOutageNotifications } from "./outage.js";
 import { assertNoProcessListeners, listenerScanBudget } from "./smoke-listeners.js";
@@ -65,6 +66,7 @@ let outage: ReturnType<typeof createOutageNotifications> | undefined;
 let relay: ReturnType<typeof trayChannel<MessagePortMain>> | undefined;
 let wake: ReturnType<typeof wakeSweep> | undefined;
 let storePath: string | undefined;
+let leaving: ReturnType<typeof windowLeave> | undefined;
 let failing = false;
 
 function saveReport(report: unknown): void {
@@ -154,6 +156,7 @@ async function run(): Promise<void> {
       outage?.dispose();
     },
     onError: fail,
+    leave: () => leaving?.leave() ?? Promise.resolve(),
   });
   if (!lifecycle) return;
   await app.whenReady();
@@ -180,6 +183,12 @@ async function run(): Promise<void> {
     },
   });
   lifecycle.setWindow(window);
+  leaving = windowLeave(() => {
+    if (window.isDestroyed() || window.webContents.isLoadingMainFrame() || !relay?.connected())
+      return false;
+    window.webContents.send(WINDOW_LEAVE_CHANNEL);
+    return true;
+  });
   tray = createSweepTray(lifecycle.open, () => void lifecycle.quit().catch(fail), {
     hidden: () => window.isDestroyed() || !window.isVisible() || window.isMinimized(),
     request: (message) => relay?.request(message) ?? false,
@@ -200,6 +209,7 @@ async function run(): Promise<void> {
   relay = trayChannel(
     () => new MessageChannelMain(),
     (message) => {
+      leaving?.observe(message);
       wake?.observe(message);
       tray?.observe(message);
       interrupts?.observe(message);

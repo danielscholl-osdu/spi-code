@@ -17,6 +17,7 @@ declare global {
       postMessage(message: Message): void;
       onMessage(listener: (message: unknown) => void): () => void;
       onNavigate?(listener: (destination: unknown) => void): () => void;
+      onLeave?(listener: () => void): () => void;
     };
   }
 }

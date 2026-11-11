@@ -356,11 +356,28 @@ function acknowledgeShown() {
   sendAcknowledge(shown);
 }
 
+/** The ping id that tells desktop main the acknowledgement is through; its leave.ts holds the same. */
+const LEAVE_ID = "window-leave";
+
+/** The app is going away: acknowledge what Today showed, then ping so the host's pong confirms it. */
+function leave() {
+  acknowledgeShown();
+  const parsed = parseMessage({
+    version: PROTOCOL_VERSION,
+    id: LEAVE_ID,
+    kind: "request",
+    type: "ping",
+    payload: {},
+  });
+  if (!parsed.ok) throw new Error("Invalid leave ping");
+  window.spi?.postMessage(parsed.message);
+}
+
 /**
  * Opens on Today when an Interrupt item arrived since the last acknowledgement, otherwise
  * on the last place. The baseline holds while Today stays in the foreground: the newest
- * snapshot it showed is acknowledged when the operator leaves Today or the window goes to
- * the background.
+ * snapshot it showed is acknowledged when the operator leaves Today, the window goes to the
+ * background or reloads, or the app quits.
  */
 function useLanding(route: Route, sheet: SheetPresentation, registry: Registry) {
   const snapshot = useStore(watchStore, (state) => state.snapshot);
@@ -395,6 +412,8 @@ function useLanding(route: Route, sheet: SheetPresentation, registry: Registry) 
     };
   }, [snapshot, watchShown, route, sheet]);
 
+  useEffect(() => window.spi?.onLeave?.(leave), []);
+
   const onToday = route.kind === "today";
   useEffect(() => {
     if (!onToday) return;
@@ -402,9 +421,11 @@ function useLanding(route: Route, sheet: SheetPresentation, registry: Registry) 
       if (document.visibilityState !== "visible") acknowledgeShown();
     };
     window.addEventListener("blur", acknowledgeShown);
+    window.addEventListener("pagehide", acknowledgeShown);
     document.addEventListener("visibilitychange", hidden);
     return () => {
       window.removeEventListener("blur", acknowledgeShown);
+      window.removeEventListener("pagehide", acknowledgeShown);
       document.removeEventListener("visibilitychange", hidden);
       acknowledgeShown();
     };
