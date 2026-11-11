@@ -430,10 +430,6 @@
           }
         ],
         "age": "1d 13h",
-        "blocks": {
-          "count": 1,
-          "text": "blocks 1"
-        },
         "attention": "surface",
         "owned": false
       },
@@ -457,10 +453,6 @@
           }
         ],
         "age": "1d 13h",
-        "blocks": {
-          "count": 1,
-          "text": "blocks 1"
-        },
         "attention": "surface",
         "owned": false
       },
@@ -484,10 +476,6 @@
           }
         ],
         "age": "1d 13h",
-        "blocks": {
-          "count": 1,
-          "text": "blocks 1"
-        },
         "attention": "surface",
         "owned": false
       },
@@ -3428,10 +3416,6 @@
               }
             ],
             "age": "1d 13h",
-            "blocks": {
-              "count": 1,
-              "text": "blocks 1"
-            },
             "attention": "surface",
             "owned": false,
             "group": "On the line"
@@ -3456,10 +3440,6 @@
               }
             ],
             "age": "1d 13h",
-            "blocks": {
-              "count": 1,
-              "text": "blocks 1"
-            },
             "attention": "surface",
             "owned": false,
             "group": "On the line"
@@ -3484,10 +3464,6 @@
               }
             ],
             "age": "1d 13h",
-            "blocks": {
-              "count": 1,
-              "text": "blocks 1"
-            },
             "attention": "surface",
             "owned": false,
             "group": "On the line"
@@ -4403,10 +4379,6 @@
               }
             ],
             "age": "1d 13h",
-            "blocks": {
-              "count": 1,
-              "text": "blocks 1"
-            },
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
@@ -4510,10 +4482,6 @@
               }
             ],
             "age": "1d 13h",
-            "blocks": {
-              "count": 1,
-              "text": "blocks 1"
-            },
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
@@ -4736,10 +4704,6 @@
               }
             ],
             "age": "1d 13h",
-            "blocks": {
-              "count": 1,
-              "text": "blocks 1"
-            },
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"

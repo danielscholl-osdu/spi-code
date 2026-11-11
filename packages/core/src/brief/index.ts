@@ -593,9 +593,9 @@ function waitingOn(item: QueueItem): string[] {
   return texts.length === 0 && held ? [held] : texts;
 }
 
+// Only the stack names open work waiting on it now; past attempts and other effects prove no wait.
 function blocksOf(item: QueueItem): FocusItem["blocks"] {
-  if (item.kind === "approvals" || item.kind === "radar") return undefined;
-  const count = waitingOn(item).length;
+  const count = item.kind === "stack" ? item.blocks : 0;
   return count > 0 ? { count, text: `blocks ${count}` } : undefined;
 }
 

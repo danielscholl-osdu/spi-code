@@ -1106,14 +1106,9 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
       "Today's tiles and its n-more fold are gone (today-design 'What goes'); the place cards and the Releases block draw from briefing.places and releases.today",
   },
   "item-chips": {
-    patterns: [
-      "/briefing/focus/#/age",
-      "/briefing/rest/#/age",
-      "/briefing/rest/#/blocks/count",
-      "/briefing/rest/#/blocks/text",
-    ],
+    patterns: ["/briefing/focus/#/age", "/briefing/rest/#/age"],
     reason:
-      "Only a Needs you card draws an item's own age and blocks chips; a decision, a horizon card and an Ambient line carry their own figures (today-design 'Words and visuals')",
+      "Only a Needs you card draws an item's own age chip; a decision, a horizon card and an Ambient line carry their own figures (today-design 'Words and visuals')",
   },
   "empty-failing-run": {
     patterns: ["/briefing/ambient/failing/items", "/briefing/ambient/failing/text"],

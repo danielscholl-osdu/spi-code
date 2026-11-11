@@ -141,10 +141,6 @@
           }
         ],
         "age": "1d 2h",
-        "blocks": {
-          "count": 1,
-          "text": "blocks 1"
-        },
         "attention": "interrupt",
         "owned": false
       },
@@ -168,10 +164,6 @@
           }
         ],
         "age": "11h",
-        "blocks": {
-          "count": 1,
-          "text": "blocks 1"
-        },
         "attention": "surface",
         "owned": false
       }
@@ -375,10 +367,6 @@
           }
         ],
         "age": "1d 2h",
-        "blocks": {
-          "count": 1,
-          "text": "blocks 1"
-        },
         "attention": "ambient",
         "owned": false
       },
@@ -402,10 +390,6 @@
           }
         ],
         "age": "1d 2h",
-        "blocks": {
-          "count": 1,
-          "text": "blocks 1"
-        },
         "attention": "ambient",
         "owned": false
       },
@@ -456,10 +440,6 @@
           }
         ],
         "age": "1d 2h",
-        "blocks": {
-          "count": 1,
-          "text": "blocks 1"
-        },
         "attention": "ambient",
         "owned": false
       },
@@ -517,10 +497,6 @@
             "url": "https://github.com/Azure/osdu-spi-schema/security/dependabot/1"
           }
         ],
-        "blocks": {
-          "count": 13,
-          "text": "blocks 13"
-        },
         "attention": "surface",
         "owned": false
       }
@@ -3203,10 +3179,6 @@
               }
             ],
             "age": "1d 2h",
-            "blocks": {
-              "count": 1,
-              "text": "blocks 1"
-            },
             "attention": "interrupt",
             "owned": false,
             "group": "On the line"
@@ -3231,10 +3203,6 @@
               }
             ],
             "age": "11h",
-            "blocks": {
-              "count": 1,
-              "text": "blocks 1"
-            },
             "attention": "surface",
             "owned": false,
             "group": "On the line"
@@ -3259,10 +3227,6 @@
               }
             ],
             "age": "1d 2h",
-            "blocks": {
-              "count": 1,
-              "text": "blocks 1"
-            },
             "attention": "ambient",
             "owned": false,
             "group": "On the line"
@@ -3513,10 +3477,6 @@
               }
             ],
             "age": "11h",
-            "blocks": {
-              "count": 1,
-              "text": "blocks 1"
-            },
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
@@ -3998,10 +3958,6 @@
               }
             ],
             "age": "1d 2h",
-            "blocks": {
-              "count": 1,
-              "text": "blocks 1"
-            },
             "attention": "interrupt",
             "owned": false,
             "group": "Needs a decision"
@@ -4338,10 +4294,6 @@
               }
             ],
             "age": "1d 2h",
-            "blocks": {
-              "count": 1,
-              "text": "blocks 1"
-            },
             "attention": "ambient",
             "owned": false,
             "group": "Needs a decision"
@@ -4498,10 +4450,6 @@
               }
             ],
             "age": "1d 2h",
-            "blocks": {
-              "count": 1,
-              "text": "blocks 1"
-            },
             "attention": "ambient",
             "owned": false,
             "group": "Needs a decision"
@@ -4686,10 +4634,6 @@
               }
             ],
             "age": "1d 2h",
-            "blocks": {
-              "count": 1,
-              "text": "blocks 1"
-            },
             "attention": "ambient",
             "owned": false,
             "group": "Needs a decision"

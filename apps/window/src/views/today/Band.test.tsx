@@ -5,6 +5,7 @@ import { type ViewSnapshot, ViewSnapshotSchema, type WatchItem } from "@spi-code
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import recorded from "../../../../../fixtures/watch/snapshot-59d6895.json?raw";
 import november6 from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import bad from "../../../../../fixtures/watch/snapshot-bad.json?raw";
 import busy from "../../../../../fixtures/watch/snapshot-busy.json?raw";
@@ -21,6 +22,7 @@ const MORNINGS = {
   busy: ViewSnapshotSchema.parse(JSON.parse(busy)),
   "snapshot-1106": ViewSnapshotSchema.parse(JSON.parse(november6)),
   bad: ViewSnapshotSchema.parse(JSON.parse(bad)),
+  recorded: ViewSnapshotSchema.parse(JSON.parse(recorded)),
 } as const;
 const morning = (name: keyof typeof MORNINGS) => structuredClone(MORNINGS[name]);
 const cleanups: (() => Promise<void>)[] = [];
@@ -202,17 +204,31 @@ describe("the attention band", () => {
       [...interrupts(body)].sort((a, b) => a.rung - b.rung).map(({ id }) => id),
     );
     const upstream = interrupts(body).find(({ origin }) => origin === "upstream");
-    if (!upstream?.blocks) throw new Error("bad carries no upstream Interrupt that blocks");
+    if (!upstream) throw new Error("bad carries no upstream Interrupt");
     const card = container.querySelector(`li.today-need[data-item-id="${upstream.id}"]`);
     expect(card?.getAttribute("data-origin")).toBe("upstream");
     expect(card?.querySelector(".kit-chip--upstream")).not.toBeNull();
-    const blocks = card?.querySelector(".today-need-blocks .kit-chip");
-    expect(blocks?.textContent).toBe(upstream.blocks.text);
-    expect(blocks?.getAttribute("title")).toBe(upstream.effect);
     for (const other of cards.filter((c) => c !== card)) {
       expect(other.getAttribute("data-origin")).toBe("system");
-      expect(other.querySelector(".kit-chip--upstream, .today-need-blocks")).toBeNull();
+      expect(other.querySelector(".kit-chip--upstream")).toBeNull();
     }
+    expect(interrupts(body).some(({ blocks }) => blocks)).toBe(false);
+    expect(container.querySelector(".today-need-blocks")).toBeNull();
+  });
+
+  it("draws a blocks chip only on the Interrupt core says open work waits on", async () => {
+    const body = morning("recorded");
+    const { container } = await band(body);
+    const stack = interrupts(body).find(({ blocks }) => blocks);
+    const rest = interrupts(body).filter((item) => item !== stack);
+    if (!stack?.blocks) throw new Error("the recorded sweep carries no Interrupt that blocks");
+    const chips = [...container.querySelectorAll(".today-need-blocks .kit-chip")];
+    expect(chips).toHaveLength(1);
+    expect(chips[0]?.closest("li.today-need")?.getAttribute("data-item-id")).toBe(stack.id);
+    expect(chips[0]?.textContent).toBe(stack.blocks.text);
+    expect(chips[0]?.getAttribute("title")).toBe(stack.effect);
+    expect(rest.length).toBeGreaterThan(0);
+    expect(rest.every(({ blocks }) => !blocks)).toBe(true);
   });
 
   it("never folds Needs you, and leaves out a chip core cannot prove", async () => {

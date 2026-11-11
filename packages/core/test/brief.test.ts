@@ -6,7 +6,7 @@ import { type BriefFact, buildBriefing, type DoctorView, readItem } from "../src
 import { ago, deployableWords, streakText } from "../src/brief/words";
 import type { Facts, LifecycleRun } from "../src/facts";
 import { buildModel, type Model } from "../src/model/index";
-import type { QueueItem } from "../src/model/queue";
+import { buildQueue, type QueueItem } from "../src/model/queue";
 import { fixtureContext } from "./briefing-setup";
 import { FIXTURE_NOW, fixtureFacts } from "./harness";
 
@@ -272,7 +272,7 @@ describe("other days", () => {
     expect(followed(1)).toBe("Move legal to Java 25 before partition follows at 00:00.");
   });
 
-  test("an item carries its age and a blocks chip only when something waits on it", () => {
+  test("an item carries its age and a blocks chip only when open work provably waits on it", () => {
     const hour = 60 * 60 * 1000;
     const since = new Date(FIXTURE_NOW.getTime() - 2 * hour).toISOString();
     const m = withQueue([
@@ -301,12 +301,59 @@ describe("other days", () => {
     ]);
     const b = buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext);
     const of = (id: string) => [...b.focus, ...b.rest].find((i) => i.id === id);
-    expect(of("gate2:a")).toMatchObject({ age: "2h", blocks: { count: 2, text: "blocks 2" } });
-    expect(of("gate1:b")).toMatchObject({ age: "2h", blocks: { count: 1, text: "blocks 1" } });
+    expect(of("gate2:a")?.age).toBe("2h");
+    expect(of("gate2:a")?.blocks).toBeUndefined();
+    expect(of("gate1:b")?.blocks).toBeUndefined();
     expect(of("gate1:c")?.age).toBeUndefined();
     expect(of("gate1:c")?.blocks).toBeUndefined();
     expect(of("gate1:c")?.effect).toBe("Nothing else waits on it.");
     expect(of("radar:d")?.blocks).toBeUndefined();
+  });
+
+  test("the stack's blocks chip counts the PRs failing on it now, never its past attempts", () => {
+    const facts = fixtureFacts();
+    const stackOf = (m: Model) => m.queue.items.find((q) => q.kind === "stack");
+    const chipOf = (m: Model) => {
+      const id = stackOf(m)?.id;
+      const b = buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext);
+      return [...b.focus, ...b.rest].find((i) => i.id === id)?.blocks;
+    };
+    const rebuilt = (m: Model): Model => {
+      m.queue = buildQueue(
+        {
+          stack: m.stack,
+          lines: m.lines,
+          template: m.template,
+          rollout: m.rollout,
+          repos: facts.github.data?.repos ?? {},
+          details: facts.details.data ?? {},
+          approvals: facts.approvals.data,
+          radar: m.radar,
+          forks: m.upstream.forks,
+          repositories: m.repositories,
+          now: FIXTURE_NOW,
+        },
+        fixtureContext,
+      );
+      return m;
+    };
+
+    const mixed = fixtureModel();
+    const stack = stackOf(mixed);
+    const past = stack?.effects.filter((e) => !e.url?.includes("/job/")) ?? [];
+    expect(past.length).toBeGreaterThan(0);
+    expect(stack?.effects.length).toBeGreaterThan(stack?.blocks ?? 0);
+    expect(stack?.blocks).toBe(5);
+    expect(chipOf(mixed)).toEqual({ count: 5, text: "blocks 5" });
+
+    const quiet = fixtureModel();
+    for (const line of quiet.lines) {
+      for (const pr of line.prs) pr.failures = pr.failures.filter((f) => f.cls !== "ENV");
+    }
+    const alone = stackOf(rebuilt(quiet));
+    expect(alone?.effects.length).toBe(past.length);
+    expect(alone?.blocks).toBe(0);
+    expect(chipOf(quiet)).toBeUndefined();
   });
 
   test("a halt keeps the sync time for a will-halt follower its open sync PR holds", () => {
