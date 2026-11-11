@@ -252,14 +252,22 @@ fixtures use the same smoke-only preload channel as `view.snapshot` and `setup.s
 not the real host progress feed. The later persisted-snapshot and supervision proof
 starts only after removing fixtures.
 The launcher's child-process hard limit and the in-app smoke watchdog both use
-`SMOKE_TIMEOUT_MS` (360,000 ms, previously 240,000 ms): Windows CI's
-180-capture run reached the last 740 px appearance at the former four-minute
-deadline, before the host proof could run. Both limits must allow the expanded
+`SMOKE_TIMEOUT_MS` (480,000 ms, previously 360,000 ms and before that 240,000 ms):
+Windows CI's 180-capture run reached the last 740 px appearance at the four-minute
+deadline, before the host proof could run, and used about 290 s of the six-minute
+one before the Today mornings added 18 full-height captures. Both limits must allow the expanded
 matrix, overlay checks and host/runtime proof to finish: raising only one leaves
 the other able to terminate a healthy run. The launcher starts its deadline first,
 so it SIGKILLs a stuck app before the later-starting in-app watchdog can report.
 The non-smoke proof watchdog stays at 120,000 ms. Per-DOM waits and all
 geometry/image gates are unchanged.
+Today is also captured on the calm, busy and bad mornings (`snapshot-calm.json`,
+`snapshot-busy.json`, `snapshot-bad.json`, each passed by its own
+`--smoke-views-<morning>-fixture` flag) at 1440 and 740 px in both appearances, and
+with Detail open at 1440 px. Each image holds Today's whole pane: the pane is captured
+strip by strip as it scrolls and joined, and each shot records its blocks' positions
+in the image, the decision.md sections it answers to, and, on the bad morning, the
+caveat band's text.
 Missing shots, images smaller than 640 x 400 or 1024 PNG bytes, or images
 with 99.5% of pixels in one 4-bit-per-channel RGB bucket fail the smoke.
 Every shot must carry the title-bar sweep line (first-sweep captures carry its

@@ -985,8 +985,9 @@ ${VIEW_WIDTHS.map(
 preload channel, at the Nov 6 fixture clock: ${MORNING_SURFACES.filter(({ detail }) => !detail)
       .map(({ morning }) => `${morning} from ${mornings[morning].fixture}`)
       .join(", ")}.
-Each image is the whole Today frame: the window is 800 px tall, and the capture extends the viewport to
-the frame's full height so blocks below the fold (Releases, In motion) are in the image. The blocks line
+Each image is the whole Today frame: the window is 800 px tall, and Today's pane is captured strip by
+strip as it scrolls and joined, so blocks below the fold (Releases, In motion) are in the image. Beside the
+pane, the sidebar and Detail continue their last row below the window's height. The blocks line
 under each image is the DOM evidence: each block's top and height in the image, in CSS pixels.
 Detail open selects the first released version, which opens from the snapshot alone.
 Design: decision.md, draft 7 (approved 2026-11-10), and its aligned mock. Record match or mismatch per

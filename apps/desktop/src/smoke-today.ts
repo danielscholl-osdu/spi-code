@@ -28,7 +28,7 @@ export interface TodayCaptureContext {
   setupState: unknown;
 }
 
-const SCROLLER = 'document.querySelector(".today-frame")?.closest(".middle-frame > *")';
+const SCROLLER = 'document.querySelector(".today-frame").closest(".middle-frame > *")';
 
 const blocksScript = `(() => {
   const frame = document.querySelector(".today-frame");
@@ -54,37 +54,83 @@ export function loadMornings(paths: Readonly<Record<Morning, string>>) {
   ) as Record<Morning, { snapshot: ViewSnapshot; fixture: string }>;
 }
 
+type Pixels = { width: number; height: number; bitmap: Buffer };
+
+async function grab(window: BrowserWindow): Promise<Pixels> {
+  const image = nativeImage.createFromBuffer((await window.webContents.capturePage()).toPNG());
+  const { width, height } = image.getSize();
+  const bitmap = image.toBitmap();
+  assert.equal(bitmap.length, width * height * 4, "Invalid capture bitmap");
+  return { width, height, bitmap };
+}
+
+/**
+ * The window at rest with Today's pane drawn to its full height: the pane is captured strip by
+ * strip as it scrolls, and the columns beside it continue their last row below the window.
+ */
 async function fullPage(context: TodayCaptureContext, path: string) {
   const { window, rendered } = context;
-  const page: { width: number; height: number; scrollHeight: number; clientHeight: number } =
-    await window.webContents.executeJavaScript(`(() => {
-      const scroller = ${SCROLLER};
-      scroller.scrollTop = 0;
-      return { width: innerWidth, height: innerHeight, scrollHeight: scroller.scrollHeight, clientHeight: scroller.clientHeight };
-    })()`);
-  const pageHeight = page.height + Math.max(0, page.scrollHeight - page.clientHeight);
-  const debug = window.webContents.debugger;
-  await debug.sendCommand("Emulation.setDeviceMetricsOverride", {
-    width: page.width,
-    height: pageHeight,
-    deviceScaleFactor: 0,
-    mobile: false,
-  });
-  try {
-    await rendered(
-      `innerHeight === ${pageHeight} && ${SCROLLER}.scrollHeight <= ${SCROLLER}.clientHeight + 1`,
-    );
-    const blocks: MorningEvidence["blocks"] =
-      await window.webContents.executeJavaScript(blocksScript);
-    const shot: { data: string } = await debug.sendCommand("Page.captureScreenshot", {
-      format: "png",
-    });
-    writeFileSync(path, Buffer.from(shot.data, "base64"));
-    return { ...page, pageHeight, blocks };
-  } finally {
-    await debug.sendCommand("Emulation.clearDeviceMetricsOverride");
-    await rendered(`innerHeight === ${page.height}`);
+  const page: {
+    width: number;
+    height: number;
+    left: number;
+    top: number;
+    clientWidth: number;
+    clientHeight: number;
+    scrollHeight: number;
+  } = await window.webContents.executeJavaScript(`(() => {
+    const scroller = ${SCROLLER};
+    scroller.scrollTop = 0;
+    if (scroller.offsetWidth - scroller.clientWidth - 2 * scroller.clientLeft === 0)
+      scroller.style.scrollbarWidth = "none";
+    const { left, top } = scroller.getBoundingClientRect();
+    return { width: innerWidth, height: innerHeight, left: left + scroller.clientLeft, top: top + scroller.clientTop,
+      clientWidth: scroller.clientWidth, clientHeight: scroller.clientHeight, scrollHeight: scroller.scrollHeight };
+  })()`);
+  await rendered(`${SCROLLER}.scrollTop === 0`);
+  const blocks: MorningEvidence["blocks"] =
+    await window.webContents.executeJavaScript(blocksScript);
+  const first = await grab(window);
+  const scale = first.width / page.width;
+  const extra = Math.max(0, page.scrollHeight - page.clientHeight);
+  const pageHeight = page.height + extra;
+  const px = (css: number) => Math.round(css * scale);
+  const row = first.width * 4;
+  const out = Buffer.alloc(row * px(pageHeight));
+  const paneBottom = px(page.top + page.clientHeight);
+  const extraRows = px(pageHeight) - first.height;
+  first.bitmap.copy(out, 0, 0, paneBottom * row);
+  first.bitmap.copy(out, (paneBottom + extraRows) * row, paneBottom * row);
+  const last = first.bitmap.subarray((paneBottom - 1) * row, paneBottom * row);
+  for (let y = paneBottom; y < paneBottom + extraRows; y++) last.copy(out, y * row);
+  const [left, right] = [px(page.left), px(page.left + page.clientWidth)];
+  const paneEnd = out.length / row - (first.height - paneBottom);
+  let covered = page.clientHeight;
+  while (covered < page.scrollHeight - 1) {
+    const target = Math.min(covered, extra);
+    await window.webContents.executeJavaScript(`void (${SCROLLER}.scrollTop = ${target})`);
+    await rendered(`Math.abs(${SCROLLER}.scrollTop - ${target}) < 1`);
+    const scrolled: number = await window.webContents.executeJavaScript(`${SCROLLER}.scrollTop`);
+    const strip = await grab(window);
+    assert.equal(strip.width, first.width, "Capture width changed while scrolling");
+    const end = Math.min(page.scrollHeight, scrolled + page.clientHeight);
+    const stop = end >= page.scrollHeight - 1 ? paneEnd : px(page.top + end);
+    for (let y = px(page.top + covered); y < stop; y++) {
+      const from = Math.min(y - px(scrolled), strip.height - 1);
+      if (from < 0) continue;
+      strip.bitmap.copy(out, y * row + left * 4, from * row + left * 4, from * row + right * 4);
+    }
+    assert(end > covered, "Today's pane did not scroll");
+    covered = end;
   }
+  await window.webContents.executeJavaScript(
+    `{ const scroller = ${SCROLLER}; scroller.scrollTop = 0; scroller.style.scrollbarWidth = ""; }`,
+  );
+  writeFileSync(
+    path,
+    nativeImage.createFromBitmap(out, { width: first.width, height: out.length / row }).toPNG(),
+  );
+  return { ...page, pageHeight, blocks };
 }
 
 /**
@@ -169,7 +215,7 @@ export async function captureMornings(
         };
         assertMorningEvidence(surface, shot);
         console.log(
-          `Packaged Today ${surface.id}/${viewportWidth}/${appearance}: page ${page.pageHeight} of window ${page.height}, blocks ${page.blocks.map(({ name, top, height }) => `${name}@${Math.round(top)}+${Math.round(height)}`).join(" ")}${qualifiers[1] ? `; caveat "${qualifiers[1]}"` : ""}`,
+          `Packaged Today ${surface.id}/${viewportWidth}/${appearance}: page ${page.pageHeight} of window ${page.height} (pane ${Math.round(page.top)}+${page.clientHeight}), blocks ${page.blocks.map(({ name, top, height }) => `${name}@${Math.round(top)}+${Math.round(height)}`).join(" ")}${qualifiers[1] ? `; caveat "${qualifiers[1]}"` : ""}`,
         );
         shots.push(shot);
       }
