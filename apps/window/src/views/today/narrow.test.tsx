@@ -53,7 +53,7 @@ const resize = async (width: number) => {
   vi.stubGlobal("innerWidth", width);
   await act(async () => window.dispatchEvent(new Event("resize")));
 };
-function populated(): ViewSnapshot {
+function populated(ids = [0, 1, 2, 3, 4]): ViewSnapshot {
   const body = ViewSnapshotSchema.parse(JSON.parse(raw));
   const seed = body.briefing.focus[0];
   if (!seed) throw new Error("Missing item");
@@ -63,7 +63,7 @@ function populated(): ViewSnapshot {
     ids: [`need:${at}`],
     attention: "interrupt",
   }));
-  const lines = Array.from({ length: 5 }, (_, at) => ({
+  const lines = ids.map((at) => ({
     id: `line:${at}`,
     itemIds: [`item:${at}:a`, `item:${at}:b`],
     count: 2,
@@ -88,8 +88,7 @@ function populated(): ViewSnapshot {
   }));
   return body;
 }
-async function mount(body = populated()) {
-  const store = createWatchStore(vi.fn(), selectionStore);
+async function mount(body = populated(), store = createWatchStore(vi.fn(), selectionStore)) {
   store.setState({ snapshot: { cursor: body.cursor, body } });
   const container = document.createElement("div");
   container.className = "middle-frame";
@@ -140,12 +139,13 @@ it.each([740, 850, 1440])(
         node.getAttribute("data-today-slot"),
       ),
     ).toEqual(["releases", "motion"]);
-    expect(css).toMatch(/@container today\s*\(max-width: 1000px\)/);
-    expect(css).toMatch(/\.today-lower\s*\{\s*grid-template-columns: minmax\(0, 1fr\)/);
+    expect(css).toMatch(
+      /@container today\s*\(max-width: 1000px\)\s*\{\s*\.today-lower\s*\{\s*grid-template-columns: minmax\(0, 1fr\)/,
+    );
   },
 );
 
-it("at 740 keeps all four Interrupts, folds the other groups by items, and freezes rows until width changes", async () => {
+it("at 740 keeps all four Interrupts, folds the other groups by items, and freezes rows on selection", async () => {
   const root = await mount();
   await act(async () => selectionStore.getState().select("item:4:b"));
   await resize(740);
@@ -172,6 +172,90 @@ it("at 740 keeps all four Interrupts, folds the other groups by items, and freez
   expect(rows(root, ".today-decision")).toHaveLength(5);
   expect(root.querySelector(".today-more")).toBeNull();
 });
+
+const foldedGroups = [
+  ["decisions", ".today-decision"],
+  ["failing", ".today-item-row"],
+  ["horizon", ".horizon-card"],
+  ["motion", ".today-motion-line"],
+] as const;
+
+it.each([
+  {
+    name: "refills after the shown rows leave",
+    initial: [0, 1, 2, 3, 4],
+    next: [3, 4, 5, 6, 7],
+    kept: [3, 4, 7],
+    selected: 7,
+  },
+  {
+    name: "keeps surviving shown rows ahead of new arrivals",
+    initial: [0, 1, 2, 3, 4],
+    next: [8, 9, 0, 1, 3],
+    kept: [8, 0, 1],
+    selected: null,
+  },
+  {
+    name: "replaces the third visible row after a new leading row arrives",
+    initial: [0, 1, 2, 3, 4],
+    next: [8, 0, 1, 3, 4],
+    kept: [8, 0, 4],
+    selected: 4,
+  },
+  {
+    name: "unfolds when shrinking to three rows",
+    initial: [0, 1, 2, 3, 4],
+    next: [2, 3, 4],
+    kept: [2, 3, 4],
+    selected: null,
+  },
+  {
+    name: "unfolds when shrinking below three rows",
+    initial: [0, 1, 2, 3, 4],
+    next: [3, 4],
+    kept: [3, 4],
+    selected: null,
+  },
+  {
+    name: "folds when growing past three rows",
+    initial: [0, 1, 2],
+    next: [0, 1, 2, 3, 4],
+    kept: [0, 1, 4],
+    selected: 4,
+  },
+])(
+  "at 740 $name and selection never changes the refreshed fold",
+  async ({ initial, next, kept, selected }) => {
+    await resize(740);
+    const store = createWatchStore(vi.fn(), selectionStore);
+    const root = await mount(populated(initial), store);
+    if (selected !== null) {
+      await act(async () => selectionStore.getState().select(`item:${selected}:b`));
+    }
+    const body = populated(next);
+    await act(async () => store.setState({ snapshot: { cursor: body.cursor, body } }));
+    const expected = kept.map((id) => `item:${id}:a item:${id}:b`);
+    for (const [group, selector] of foldedGroups) {
+      expect(
+        rows(root, selector).map((node) => node.getAttribute("data-item-ids")),
+        group,
+      ).toEqual(expected);
+      expect(
+        root.querySelector(`.today-more[data-group="${group}"]`)?.textContent ?? null,
+        group,
+      ).toBe(next.length > 3 ? "4 more ›" : null);
+    }
+    await act(async () => selectionStore.getState().select(`item:${next[3] ?? next[0]}:a`));
+    const copy = structuredClone(body);
+    await act(async () => store.setState({ snapshot: { cursor: copy.cursor, body: copy } }));
+    for (const [group, selector] of foldedGroups) {
+      expect(
+        rows(root, selector).map((node) => node.getAttribute("data-item-ids")),
+        group,
+      ).toEqual(expected);
+    }
+  },
+);
 
 it("each n-more opener shows the group's full list in Detail without a host request", async () => {
   await resize(740);

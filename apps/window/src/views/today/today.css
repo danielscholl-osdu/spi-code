@@ -132,8 +132,6 @@
 @container today (max-width: 1000px) {
   .today-lower { grid-template-columns: minmax(0, 1fr); }
   .today-places { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-@container today (max-width: 1000px) {
   .today-place:is([data-mark="in-progress"], [data-mark="nothing-due"]) :is(.today-place-figure, .today-place-reason .kit-chip) {
     display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
