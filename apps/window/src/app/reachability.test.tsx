@@ -42,7 +42,11 @@ import {
 import { DEFAULT_REGISTRY } from "./routes.js";
 import { Shell } from "./Shell.js";
 
-const fixture = () => ViewSnapshotSchema.parse(JSON.parse(recorded));
+const recordedSnapshot = ViewSnapshotSchema.parse(JSON.parse(recorded));
+const calmSnapshot = ViewSnapshotSchema.parse(JSON.parse(calmRaw));
+const busySnapshot = ViewSnapshotSchema.parse(JSON.parse(busyRaw));
+const badSnapshot = ViewSnapshotSchema.parse(JSON.parse(badRaw));
+const fixture = () => structuredClone(recordedSnapshot);
 const cases = reachCases(fixture(), detailFeed(feed));
 const drawn = cases.filter(({ exempt }) => !exempt);
 const homes = [...new Map(drawn.map(({ home }) => [home.name, home])).values()];
@@ -194,19 +198,28 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
     expect(uncoveredRoutes(DEFAULT_REGISTRY, cases)).toEqual([]);
   });
 
-  it("shows the same value wherever two surfaces draw one field", async () => {
-    const groups = new Map<string, Reach[]>();
-    for (const row of drawn) groups.set(row.pointer, [...(groups.get(row.pointer) ?? []), row]);
-    const shared = [...groups.values()].filter(
-      (group) => new Set(group.map(({ home }) => home.start.surface)).size > 1 || group.length > 1,
-    );
-    expect(shared.length).toBeGreaterThan(0);
+  const groups = new Map<string, Reach[]>();
+  for (const row of drawn) groups.set(row.pointer, [...(groups.get(row.pointer) ?? []), row]);
+  const shared = [...groups.values()].filter((group) => group.length > 1);
+  const pairs = new Map<string, { first: Reach; row: Reach; group: Reach[] }[]>();
+  for (const group of shared) {
+    const [first, ...rest] = group;
+    if (!first) continue;
+    for (const row of rest) {
+      const name = `${first.home.name} and ${row.home.name}`;
+      pairs.set(name, [...(pairs.get(name) ?? []), { first, row, group }]);
+    }
+  }
+  it("has shared fields to compare", () => {
+    expect(pairs.size).toBeGreaterThan(0);
+  });
+  it.each([...pairs])("shows the same shared values at %s", async (_name, pairs) => {
     const readings = new Map<Reach, string>();
-    for (const home of homes) {
-      const rows = shared.flat().filter((row) => row.home.name === home.name);
-      if (rows.length === 0) continue;
+    const rows = [...new Set(pairs.flatMap(({ first, row }) => [first, row]))];
+    const reached = [...new Map(rows.map(({ home }) => [home.name, home])).values()];
+    for (const home of reached) {
       await openHome(home);
-      for (const row of rows) {
+      for (const row of rows.filter((row) => row.home.name === home.name)) {
         const value = raw(row, shown(row));
         readings.set(
           row,
@@ -214,27 +227,23 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
         );
       }
     }
-    for (const group of shared) {
+    for (const { first, row, group } of pairs) {
       const canon = (value: string) =>
         group.reduce((folded, { canon }) => (canon ? canon(folded) : folded), value);
-      const [first, ...rest] = group;
-      if (!first) continue;
-      for (const row of rest) {
-        const a = canon(readings.get(first) ?? "");
-        const b = canon(readings.get(row) ?? "");
-        expect(
-          b,
-          `${first.pointer}: ${first.home.name} shows ${a} but ${row.home.name} shows ${b}`,
-        ).toBe(a);
-      }
+      const a = canon(readings.get(first) ?? "");
+      const b = canon(readings.get(row) ?? "");
+      expect(
+        b,
+        `${first.pointer}: ${first.home.name} shows ${a} but ${row.home.name} shows ${b}`,
+      ).toBe(a);
     }
   });
 });
 
 describe("In motion and Can wait, on mornings that carry them", () => {
   const MORNINGS = {
-    calm: () => ViewSnapshotSchema.parse(JSON.parse(calmRaw)),
-    "busy with motion": () => moving(ViewSnapshotSchema.parse(JSON.parse(busyRaw))),
+    calm: () => structuredClone(calmSnapshot),
+    "busy with motion": () => moving(structuredClone(busySnapshot)),
   };
   it.each(Object.entries(MORNINGS))(
     "has a case for every In progress and Can wait leaf on the %s morning, each within one click",
@@ -317,7 +326,7 @@ function missingHomes(body: ViewSnapshot, rows: readonly Reach[]) {
  * Ambient briefing items that no horizon card, owed row, decision or Failing line holds.
  */
 function inMotion() {
-  const body = ViewSnapshotSchema.parse(JSON.parse(busyRaw));
+  const body = structuredClone(busySnapshot);
   const { briefing } = body;
   const find = (id: string) => {
     const found = briefingItems(briefing).find(([, item]) => item.id === id)?.[1];
@@ -344,13 +353,28 @@ function inMotion() {
   return moving(body);
 }
 
-/** One click on the case's opener, then the Detail id or the place it opened. */
-async function assertOpens(row: Reach, body: ViewSnapshot) {
+function openerCases(rows: readonly Reach[]) {
+  const groups = new Map<string, Reach[]>();
+  for (const row of rows) {
+    const key = JSON.stringify([row.home.name, row.opens]);
+    groups.set(key, [...(groups.get(key) ?? []), row]);
+  }
+  return [...groups.values()].map((rows) => ({
+    name: `${rows[0]?.pointer} via ${String(rows[0]?.opens?.click)}`,
+    rows,
+  }));
+}
+
+/** One click on a shared opener, after checking every field it draws. */
+async function assertOpens(rows: readonly Reach[], body: ViewSnapshot) {
+  const row = rows[0];
+  expect(row).toBeDefined();
+  if (!row) return;
   const where = `${row.pointer} at ${row.home.name}`;
   expect(row.opens, where).toBeDefined();
   if (!row.opens) return;
   await openHome(row.home, body);
-  assertReach(row);
+  for (const row of rows) assertReach(row);
   expect(await click(row.opens.click, where)).toBe(1);
   if ("detail" in row.opens) {
     const { row: selected, selected: id } = selectionStore.getState();
@@ -361,25 +385,29 @@ async function assertOpens(row: Reach, body: ViewSnapshot) {
 }
 
 describe("every focus and rest item's scope and origin, at its home on Today", () => {
-  const bad = () => ViewSnapshotSchema.parse(JSON.parse(badRaw));
+  const bad = () => structuredClone(badSnapshot);
   const MORNINGS = {
     "6 Nov": fixture,
-    calm: () => ViewSnapshotSchema.parse(JSON.parse(calmRaw)),
-    busy: () => ViewSnapshotSchema.parse(JSON.parse(busyRaw)),
+    calm: () => structuredClone(calmSnapshot),
+    busy: () => structuredClone(busySnapshot),
     bad,
     "busy with motion": inMotion,
   };
-  it.each(Object.entries(MORNINGS))(
-    "has a case at each home on the %s morning, and each one's click opens its Detail or place",
-    async (_name, morning) => {
-      const body = morning();
-      const rows = itemHomeCases(body);
+  describe.each(Object.entries(MORNINGS))("%s morning", (_name, morning) => {
+    const body = morning();
+    const rows = itemHomeCases(body);
+    it("has a scope and origin case at every item home", () => {
       const { uncovered } = coverage(body, rows, { ...EXEMPTIONS, ...AT_PLACE });
       expect(uncovered.filter((pointer) => ITEM_HOME.test(pointer))).toEqual([]);
       expect(missingHomes(body, rows)).toEqual([]);
-      for (const row of rows) await assertOpens(row, body);
-    },
-  );
+    });
+    it.each(openerCases(rows).map(({ name, rows }) => [name, rows] as const))(
+      "opens %s within one click",
+      async (_name, rows) => {
+        await assertOpens(rows, body);
+      },
+    );
+  });
 
   it("registers each of the four scope and origin patterns on these mornings", () => {
     const pointers = Object.values(MORNINGS).flatMap((morning) =>
@@ -441,34 +469,38 @@ describe("every focus and rest item's scope and origin, at its home on Today", (
 describe("Today's Releases block, on every morning", () => {
   const MORNINGS = {
     "6 Nov": fixture,
-    calm: () => ViewSnapshotSchema.parse(JSON.parse(calmRaw)),
-    busy: () => ViewSnapshotSchema.parse(JSON.parse(busyRaw)),
-    bad: () => ViewSnapshotSchema.parse(JSON.parse(badRaw)),
+    calm: () => structuredClone(calmSnapshot),
+    busy: () => structuredClone(busySnapshot),
+    bad: () => structuredClone(badSnapshot),
   };
-  it.each(Object.entries(MORNINGS))(
-    "has a case for every leaf it draws on the %s morning, and each opener lands where it says",
-    async (_name, morning) => {
-      const body = morning();
-      const rows = todayReleasesCases(body, { name: "Today", start: STARTS.today });
+  describe.each(Object.entries(MORNINGS))("%s morning", (_name, morning) => {
+    const body = morning();
+    const rows = todayReleasesCases(body, { name: "Today", start: STARTS.today });
+    it("has a reachable case for every leaf it draws", async () => {
       const mine = coverage(body, rows, RELEASES_QUIET).uncovered.filter((pointer) =>
         TODAY_RELEASES.test(pointer),
       );
       expect(mine).toEqual([]);
       await openHome(rows[0]?.home ?? { name: "Today", start: STARTS.today }, body);
       for (const row of rows) assertReach(row);
+    });
+    it.each(
+      openerCases(rows.filter(({ opens }) => opens)).map(({ name, rows }) => [name, rows] as const),
+    )("opens %s and lands where it says", async (_name, rows) => {
       const scrolled = vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => {});
-      for (const row of rows.filter(({ opens }) => opens)) {
-        scrolled.mockClear();
-        await assertOpens(row, body);
-        const place = row.opens && "place" in row.opens ? row.opens.place : undefined;
-        if (place?.kind !== "releases" || !place.section) continue;
+      try {
+        await assertOpens(rows, body);
+        const row = rows[0];
+        const place = row?.opens && "place" in row.opens ? row.opens.place : undefined;
+        if (place?.kind !== "releases" || !place.section) return;
         const section = container.querySelector(`#${place.section}`);
-        expect(section, row.pointer).not.toBeNull();
-        expect(scrolled.mock.contexts, row.pointer).toContain(section);
+        expect(section, row?.pointer).not.toBeNull();
+        expect(scrolled.mock.contexts, row?.pointer).toContain(section);
+      } finally {
+        scrolled.mockRestore();
       }
-      scrolled.mockRestore();
-    },
-  );
+    });
+  });
 });
 
 describe("the suite's own guards", () => {

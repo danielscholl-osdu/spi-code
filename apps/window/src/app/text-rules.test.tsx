@@ -8,7 +8,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { selectionStore } from "../panels/selection.js";
-import { runRow, type SelectionKind, selectionRows } from "../panels/selection-rows.js";
+import { runRow, type SelectionRow, selectionRows } from "../panels/selection-rows.js";
 import { watchStore } from "../store/watch.js";
 import { directoryPaths } from "../test-utils/directory-paths.test.js";
 import { plainTitle } from "../text.js";
@@ -138,26 +138,31 @@ async function open(body: ViewSnapshot, route: Route = { kind: "today" }) {
   });
 }
 
-function assertRules(label: string) {
-  expect(violations(document.body), label).toEqual([]);
+function assertRules(label: string, scope: ParentNode = document.body) {
+  expect(violations(scope), label).toEqual([]);
 }
 
 describe.each(snapshots)("window text rules on $name", ({ body }) => {
-  it("renders Today, strip, sidebar, Line, every place, service and release month", async () => {
-    const routes: Route[] = [
-      { kind: "today" },
-      { kind: "upstream" },
-      { kind: "environment" },
-      { kind: "engineering-system" },
-      { kind: "releases" },
-      { kind: "security" },
-      ...body.stations.map(({ service }): Route => ({ kind: "service", id: service })),
-      ...body.releases.lines.map(({ month }): Route => ({ kind: "release", month })),
-    ];
-    for (const route of routes) {
+  const routes: Route[] = [
+    { kind: "today" },
+    { kind: "upstream" },
+    { kind: "environment" },
+    { kind: "engineering-system" },
+    { kind: "releases" },
+    { kind: "security" },
+    ...body.stations.map(({ service }): Route => ({ kind: "service", id: service })),
+    ...body.releases.lines.map(({ month }): Route => ({ kind: "release", month })),
+  ];
+  it.each(routes.map((route) => [JSON.stringify(route), route] as const))(
+    "renders Today, strip, sidebar and place %s",
+    async (_name, route) => {
       await open(body, route);
-      expect.soft(violations(document.body), JSON.stringify(route)).toEqual([]);
-    }
+      assertRules(JSON.stringify(route));
+    },
+  );
+
+  it("renders the Line sheet and command palette", async () => {
+    await open(body, routes.at(-1));
     await act(async () => navigate({ kind: "line" }));
     expect(container.querySelector('[aria-label="Line"]')).not.toBeNull();
     assertRules("Line sheet");
@@ -166,47 +171,16 @@ describe.each(snapshots)("window text rules on $name", ({ body }) => {
     assertRules("Cmd-K");
   });
 
-  it("renders Detail for every selection kind, omitting absent fields", async () => {
-    await open(body);
-    const rows = [
-      ...selectionRows(body),
-      ...(body.services ?? []).flatMap((service, index) =>
-        service.runs.map((run) => runRow(run, index)),
-      ),
-      { id: "step:recorded", title: "Template revision", kind: "template-step" as const },
-    ];
-    const kinds = new Set<SelectionKind>();
-    for (const row of rows) {
-      const result = inspections.find(({ id }) => id === (row.inspectId ?? row.id));
-      await act(async () => {
-        selectionStore.getState().select(row.id, row);
-        selectionStore.setState({
-          result: result ?? {
-            id: row.inspectId ?? row.id,
-            class: "READY",
-            cause: "",
-            effect: "",
-            next: "",
-            why: "",
-            evidence: [],
-            related: [],
-            approval: null,
-            actions: [],
-          },
-          request: null,
-        });
-      });
-      expect(container.querySelector(".detail-title"), row.id).not.toBeNull();
-      const label = `Detail ${row.kind}: ${row.id}`;
-      // Selecting only marks rows outside Detail, so the whole page is rescanned once per kind.
-      if (kinds.has(row.kind)) {
-        const panel = container.querySelector("#app-right-panel");
-        expect(panel, label).not.toBeNull();
-        expect(violations(panel as Element), label).toEqual([]);
-      } else assertRules(label);
-      kinds.add(row.kind);
-    }
-    expect([...kinds].sort()).toEqual(
+  const rows: SelectionRow[] = [
+    ...selectionRows(body),
+    ...(body.services ?? []).flatMap((service, index) =>
+      service.runs.map((run) => runRow(run, index)),
+    ),
+    { id: "step:recorded", title: "Template revision", kind: "template-step" as const },
+  ];
+  const kinds = [...new Set(rows.map(({ kind }) => kind))].sort();
+  it("covers every selection kind", () => {
+    expect(kinds).toEqual(
       [
         "queue",
         "flow",
@@ -232,6 +206,42 @@ describe.each(snapshots)("window text rules on $name", ({ body }) => {
         ...(body.releases.forming?.notable.length ? ["release-notable"] : []),
       ].sort(),
     );
+  });
+
+  it.each(kinds)("renders Detail for every %s selection, omitting absent fields", async (kind) => {
+    await open(body);
+    let first = true;
+    for (const row of rows.filter((row) => row.kind === kind)) {
+      const result = inspections.find(({ id }) => id === (row.inspectId ?? row.id));
+      await act(async () => {
+        selectionStore.getState().select(row.id, row);
+        selectionStore.setState({
+          result: result ?? {
+            id: row.inspectId ?? row.id,
+            class: "READY",
+            cause: "",
+            effect: "",
+            next: "",
+            why: "",
+            evidence: [],
+            related: [],
+            approval: null,
+            actions: [],
+          },
+          request: null,
+        });
+      });
+      expect(container.querySelector(".detail-title"), row.id).not.toBeNull();
+      const label = `Detail ${row.kind}: ${row.id}`;
+      if (first) {
+        assertRules(label);
+        first = false;
+      } else {
+        const panel = container.querySelector("#app-right-panel");
+        expect(panel, label).not.toBeNull();
+        if (panel) assertRules(label, panel);
+      }
+    }
   });
 });
 
@@ -293,7 +303,9 @@ it.each(inspections)("renders the recorded Detail and Evidence for $id", async (
   });
   assertRules(`Recorded Detail ${result.id}`);
   await act(async () => selectionStore.getState().setTab("evidence"));
-  assertRules(`Recorded Evidence ${result.id}`);
+  const panel = container.querySelector(".right-panel");
+  expect(panel, result.id).not.toBeNull();
+  if (panel) assertRules(`Recorded Evidence ${result.id}`, panel);
 });
 
 it("reads the Sweep budget reset and the sweep line as local clock times with ISO attributes", async () => {
