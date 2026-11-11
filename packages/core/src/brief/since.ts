@@ -124,14 +124,20 @@ function slotOf(
   return slot("unknown", `${subject}: no completed run read in this window; effect unknown.`);
 }
 
+/** When the runs a sweep holds were read: the oldest good runs observation, undefined when it holds no runs. */
+export function runsObservedAt(facts: Facts, reads: AreaReads = {}): string | undefined {
+  if (!facts.runs.data) return undefined;
+  const observations = reads.runs?.filter((read) => read.object === "fork-runs" || read.source === "runs")
+    .map((read) => read.retainedFrom ?? (read.failure ? undefined : read.observedAt))
+    .filter((time): time is string => time !== undefined);
+  return observations?.length ? observations.sort((a, b) => Date.parse(a) - Date.parse(b))[0] : facts.runs.at;
+}
+
 /** from is a seen baseline when supplied; one unparseable or not before the runs observation is ignored for the preceding 24 hours. */
 export function sinceOf(
   model: Model, facts: Facts, now: Date, intervalMs: number, from?: string, reads: AreaReads = {},
 ): Since | undefined {
-  const observations = reads.runs?.filter((read) => read.object === "fork-runs" || read.source === "runs")
-    .map((read) => read.retainedFrom ?? (read.failure ? undefined : read.observedAt))
-    .filter((time): time is string => time !== undefined);
-  const observed = observations?.length ? observations.sort((a, b) => Date.parse(a) - Date.parse(b))[0] : facts.runs.at;
+  const observed = runsObservedAt(facts, reads);
   if (!observed || !facts.runs.data) return undefined;
   const sweptAt = model.sweptAt ?? observed;
   const stale = Date.parse(observed) < Date.parse(sweptAt) || !!facts.runs.error || now.getTime() - Date.parse(sweptAt) > 2 * intervalMs;

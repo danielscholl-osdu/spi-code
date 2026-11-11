@@ -304,11 +304,14 @@ const LAST_PLACE_KEY = "spi-code.last-place";
 let launch: { hash: string; decided: boolean } | null = null;
 /** The newest cursor this window acknowledged, so one cursor is sent once. */
 let acknowledged = 0;
+/** The newest cursor Today showed in the foreground, acknowledged when the operator looks away. */
+let shown = 0;
 
 /** A new launch: the next mount restores the last place and decides the landing again. */
 export function relaunch() {
   launch = null;
   acknowledged = 0;
+  shown = 0;
 }
 
 /** A launch with no hash opens on the last place; a reload keeps its hash. */
@@ -347,9 +350,17 @@ function sendAcknowledge(cursor: number) {
   window.spi?.postMessage(parsed.message);
 }
 
+function acknowledgeShown() {
+  if (shown <= acknowledged) return;
+  acknowledged = shown;
+  sendAcknowledge(shown);
+}
+
 /**
  * Opens on Today when an Interrupt item arrived since the last acknowledgement, otherwise
- * on the last place, and acknowledges each snapshot Today shows in the foreground.
+ * on the last place. The baseline holds while Today stays in the foreground: the newest
+ * snapshot it showed is acknowledged when the operator leaves Today or the window goes to
+ * the background.
  */
 function useLanding(route: Route, sheet: SheetPresentation, registry: Registry) {
   const snapshot = useStore(watchStore, (state) => state.snapshot);
@@ -370,20 +381,34 @@ function useLanding(route: Route, sheet: SheetPresentation, registry: Registry) 
   useEffect(() => {
     if (!snapshot || !watchShown || route.kind !== "today" || sheet === "overlay") return;
     const { cursor } = snapshot;
-    const check = () => {
+    const mark = () => {
       if (document.visibilityState !== "visible" || !document.hasFocus()) return;
-      if (cursor <= (snapshot.body.seen.cursor ?? 0) || cursor <= acknowledged) return;
-      acknowledged = cursor;
-      sendAcknowledge(cursor);
+      if (cursor <= (snapshot.body.seen.cursor ?? 0)) return;
+      shown = Math.max(shown, cursor);
     };
-    check();
-    window.addEventListener("focus", check);
-    document.addEventListener("visibilitychange", check);
+    mark();
+    window.addEventListener("focus", mark);
+    document.addEventListener("visibilitychange", mark);
     return () => {
-      window.removeEventListener("focus", check);
-      document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("focus", mark);
+      document.removeEventListener("visibilitychange", mark);
     };
   }, [snapshot, watchShown, route, sheet]);
+
+  const onToday = route.kind === "today";
+  useEffect(() => {
+    if (!onToday) return;
+    const hidden = () => {
+      if (document.visibilityState !== "visible") acknowledgeShown();
+    };
+    window.addEventListener("blur", acknowledgeShown);
+    document.addEventListener("visibilitychange", hidden);
+    return () => {
+      window.removeEventListener("blur", acknowledgeShown);
+      document.removeEventListener("visibilitychange", hidden);
+      acknowledgeShown();
+    };
+  }, [onToday]);
 }
 
 /** The current route, kept in the location hash so a reload returns to the same place. */

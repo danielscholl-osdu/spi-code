@@ -4,6 +4,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
 import { migrate } from "./migrations.js";
+import { createSeenStore } from "./seen.js";
 
 const v1 = `
   CREATE TABLE schema_version (version INTEGER PRIMARY KEY) STRICT;
@@ -83,9 +84,34 @@ describe("store migrations", () => {
         { version: 1 },
         { version: 2 },
         { version: 3 },
+        { version: 4 },
       ]);
     },
   );
+
+  it("keeps a v3 seen baseline readable, with no runs observation", () => {
+    const db = open();
+    migrate(db);
+    db.exec("ALTER TABLE seen_baselines DROP COLUMN observed_at");
+    db.exec("DELETE FROM schema_version WHERE version = 4");
+    db.prepare("INSERT INTO seen_baselines (fleet, cursor, items, at) VALUES (?, ?, ?, ?)").run(
+      "osdu",
+      7,
+      "[]",
+      1_760_000_000_000,
+    );
+    migrate(db);
+    const seen = createSeenStore(db);
+    expect(seen.baseline("osdu")).toEqual({
+      fleet: "osdu",
+      cursor: 7,
+      items: [],
+      at: 1_760_000_000_000,
+      observedAt: null,
+    });
+    expect(seen.acknowledge("osdu", 8, [], 1_760_000_100_000, 1_759_999_000_000)).toBe(true);
+    expect(seen.baseline("osdu")?.observedAt).toBe(1_759_999_000_000);
+  });
 
   it("rolls back v2 and v3 without changing v1 data or its migration ledger", () => {
     const db = open();
@@ -102,6 +128,6 @@ describe("store migrations", () => {
     expect(db.prepare("SELECT * FROM run_events").all()).toEqual(events);
     db.exec("DROP TABLE facts_snapshots");
     migrate(db);
-    expect(db.prepare("SELECT MAX(version) AS version FROM schema_version").get()?.version).toBe(3);
+    expect(db.prepare("SELECT MAX(version) AS version FROM schema_version").get()?.version).toBe(4);
   });
 });

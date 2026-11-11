@@ -42,7 +42,7 @@ import { type UpstreamView, upstreamView } from "./upstream.js";
 import { ago as agoText, deployableWords, streakText } from "./words.js";
 import type { Voice } from "../voice.js";
 
-export { sinceOf } from "./since.js";
+export { runsObservedAt, sinceOf } from "./since.js";
 export {
   briefingDecisions,
   type Decisions,
