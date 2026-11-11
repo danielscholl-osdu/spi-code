@@ -204,13 +204,13 @@ describe("horizon cards on snapshot-busy", () => {
   });
 });
 
-describe("ruling R1 on the horizon and Decisions waiting", () => {
+describe("ruling R1 across Today", () => {
   for (const [morning, make] of RECORDED) {
     for (const [name, input] of [
       [morning, make()],
       [`${morning}, fresh`, fresh(make())],
     ] as const) {
-      it(`gives every Surface item on the ${name} morning exactly one home`, () => {
+      it(`gives every item on the ${name} morning exactly one home`, () => {
         const expected = tiered(input);
         const view = projectWatch(input);
         const tiers = (items: readonly { id: string; attention: string }[]) =>
@@ -219,22 +219,61 @@ describe("ruling R1 on the horizon and Decisions waiting", () => {
         const homes = new Map<string, string[]>();
         const home = (id: string, where: string) =>
           homes.set(id, [...(homes.get(id) ?? []), where]);
-        for (const c of cardsOf(view)) for (const id of c.itemIds) home(id, c.id);
+        const tiersById = new Map(expected.map((item) => [item.id, item.attention]));
+        for (const item of expected) {
+          if (item.attention === "interrupt") home(item.id, "needs-you");
+        }
+        for (const c of cardsOf(view)) {
+          for (const id of c.itemIds) {
+            if (tiersById.get(id) !== "interrupt") home(id, c.id);
+          }
+        }
         for (const g of view.briefing.decisions?.groups ?? []) {
           for (const id of g.itemIds) home(id, g.id);
         }
+        expect(view.briefing.ambient).toBeDefined();
+        expect(view.briefing.canWait).toBeDefined();
+        for (const [run, label] of [
+          [view.briefing.ambient?.failing, "failing"],
+          [view.briefing.ambient?.inProgress, "in-progress"],
+        ] as const) {
+          for (const line of run?.lines ?? []) {
+            expect(line.count).toBe(line.itemIds.length);
+            for (const id of line.itemIds) {
+              expect(tiersById.get(id), id).toBe("ambient");
+              home(id, label);
+            }
+          }
+        }
+        // Place figures can share membership; their union is the Background home.
+        const counted = new Set(view.briefing.places?.flatMap((place) => place.itemIds));
+        const onCards = new Set(cardsOf(view).flatMap((card) => card.itemIds));
+        for (const item of expected) {
+          if (item.attention === "background" && counted.has(item.id) && !onCards.has(item.id)) {
+            home(item.id, "places");
+          }
+        }
+        for (const entry of view.briefing.canWait?.items ?? []) {
+          for (const id of entry.itemIds) {
+            expect(tiersById.get(id), id).toBe("background");
+            expect(counted.has(id), id).toBe(false);
+            home(id, "can-wait");
+          }
+        }
         const surface = expected.filter((i) => i.attention === "surface");
         const allowed = NO_CARD_YET[name] ?? [];
-        const homeless = surface.filter((i) => !homes.has(i.id));
+        const homeless = expected.filter((i) => !homes.has(i.id));
         expect(homeless.map((i) => i.id).sort()).toEqual([...allowed].sort());
         for (const item of homeless) {
           expect(item.origin, item.id).toBe("upstream");
           expect(/^(gate1|port):/.test(item.id), item.id).toBe(true);
         }
-        for (const item of surface.filter((i) => !allowed.includes(i.id))) {
+        for (const item of expected.filter((i) => !allowed.includes(i.id))) {
           expect(homes.get(item.id), item.id).toHaveLength(1);
-          const where = homes.get(item.id)?.[0] ?? "";
-          expect(where.startsWith("decision:"), item.id).toBe(item.origin === "system");
+          if (item.attention === "surface") {
+            const where = homes.get(item.id)?.[0] ?? "";
+            expect(where.startsWith("decision:"), item.id).toBe(item.origin === "system");
+          }
         }
         expect(view.briefing.decisions?.items).toBe(
           surface.filter((i) => i.origin === "system").length,
@@ -242,6 +281,18 @@ describe("ruling R1 on the horizon and Decisions waiting", () => {
       });
     }
   }
+
+  it("keeps snapshot-1106's rollout and release-red Surface items in Decisions waiting", () => {
+    const view = projectWatch(recordedInput());
+    const decisions = view.briefing.decisions?.groups.flatMap((group) => group.itemIds);
+    for (const id of ["rollout", "release-red:Azure/osdu-spi-entitlements#89"]) {
+      expect(itemsOf(view).find((item) => item.id === id)?.attention).toBe("surface");
+      expect(decisions).toContain(id);
+      expect(view.briefing.ambient?.inProgress.lines.flatMap((line) => line.itemIds)).not.toContain(
+        id,
+      );
+    }
+  });
 
   it("keeps an upstream item that escalates to Interrupt in Needs you, with ✕ on its card", () => {
     const input = busyInput();

@@ -1692,6 +1692,133 @@
       "items": 0,
       "text": "Nothing in the system waits on a decision.",
       "groups": []
+    },
+    "ambient": {
+      "failing": {
+        "items": 0,
+        "text": "0 in 0",
+        "lines": []
+      },
+      "inProgress": {
+        "items": 1,
+        "text": "1 in 1",
+        "lines": [
+          {
+            "id": "ambient:rollout",
+            "itemIds": ["rollout"],
+            "count": 1,
+            "age": "1d 2h",
+            "next": [],
+            "origin": "system",
+            "text": "Template rollout: no merges ready."
+          }
+        ]
+      }
+    },
+    "canWait": {
+      "chips": [
+        {
+          "text": "entitlements",
+          "service": "entitlements"
+        },
+        {
+          "text": "legal",
+          "service": "legal"
+        },
+        {
+          "text": "file",
+          "service": "file"
+        },
+        {
+          "text": "storage",
+          "service": "storage"
+        },
+        {
+          "text": "indexer",
+          "service": "indexer"
+        },
+        {
+          "text": "search",
+          "service": "search"
+        },
+        {
+          "text": "workflow",
+          "service": "workflow"
+        },
+        {
+          "text": "indexer-queue",
+          "service": "indexer-queue"
+        },
+        {
+          "text": "unit",
+          "service": "unit"
+        }
+      ],
+      "items": [
+        {
+          "id": "can-wait:entitlements",
+          "itemIds": [],
+          "service": "entitlements",
+          "text": "entitlements: no sync, gate or release waiting",
+          "why": "no sync, gate or release waiting"
+        },
+        {
+          "id": "can-wait:legal",
+          "itemIds": [],
+          "service": "legal",
+          "text": "legal: no sync, gate or release waiting",
+          "why": "no sync, gate or release waiting"
+        },
+        {
+          "id": "can-wait:file",
+          "itemIds": [],
+          "service": "file",
+          "text": "file: no sync, gate or release waiting",
+          "why": "no sync, gate or release waiting"
+        },
+        {
+          "id": "can-wait:storage",
+          "itemIds": [],
+          "service": "storage",
+          "text": "storage: no sync, gate or release waiting",
+          "why": "no sync, gate or release waiting"
+        },
+        {
+          "id": "can-wait:indexer",
+          "itemIds": [],
+          "service": "indexer",
+          "text": "indexer: no sync, gate or release waiting",
+          "why": "no sync, gate or release waiting"
+        },
+        {
+          "id": "can-wait:search",
+          "itemIds": [],
+          "service": "search",
+          "text": "search: no sync, gate or release waiting",
+          "why": "no sync, gate or release waiting"
+        },
+        {
+          "id": "can-wait:workflow",
+          "itemIds": [],
+          "service": "workflow",
+          "text": "workflow: no sync, gate or release waiting",
+          "why": "no sync, gate or release waiting"
+        },
+        {
+          "id": "can-wait:indexer-queue",
+          "itemIds": [],
+          "service": "indexer-queue",
+          "text": "indexer-queue: no sync, gate or release waiting",
+          "why": "no sync, gate or release waiting"
+        },
+        {
+          "id": "can-wait:unit",
+          "itemIds": [],
+          "service": "unit",
+          "text": "unit: no sync, gate or release waiting",
+          "why": "no sync, gate or release waiting"
+        }
+      ]
     }
   },
   "campaigns": [],
@@ -5541,6 +5668,34 @@
     },
     {
       "path": "/briefing/decisions",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/ambient",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/canWait",
       "areas": [
         "github",
         "runs",

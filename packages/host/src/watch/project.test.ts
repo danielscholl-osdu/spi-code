@@ -796,6 +796,8 @@ describe("Watch projection", () => {
       since: _since,
       places: _places,
       decisions: _decisions,
+      ambient: _ambient,
+      canWait: _canWait,
       ...briefing
     } = snapshot.briefing;
     const { cards: _cards, counts: _counts, ...horizon } = snapshot.briefing.horizon;

@@ -1726,6 +1726,22 @@
           "text": "1 outside PR waits for workflow approval"
         }
       ]
+    },
+    "ambient": {
+      "failing": {
+        "items": 0,
+        "text": "0 in 0",
+        "lines": []
+      },
+      "inProgress": {
+        "items": 0,
+        "text": "0 in 0",
+        "lines": []
+      }
+    },
+    "canWait": {
+      "chips": [],
+      "items": []
     }
   },
   "campaigns": [
@@ -6020,6 +6036,34 @@
     },
     {
       "path": "/briefing/decisions",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/ambient",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/canWait",
       "areas": [
         "github",
         "runs",
