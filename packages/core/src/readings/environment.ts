@@ -211,7 +211,7 @@ export function environmentReading<T extends ReadingItem>(
           : "Ready to move";
   const time = (i: T): number => (tier(i) === 1 ? Date.parse(bite(i) as string) : 0);
   const own = items
-    .filter((i) => scopes.has(i.scope) && i.id !== "stack:lanes" && !i.id.startsWith("lane-deploy:"))
+    .filter((i) => scopes.has(i.scope))
     .map((item, index) => ({ item, index }))
     .sort((a, b) => tier(a.item) - tier(b.item) || time(a.item) - time(b.item) || a.index - b.index)
     .map(({ item }) => item);

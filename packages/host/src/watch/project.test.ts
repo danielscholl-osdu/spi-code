@@ -126,6 +126,7 @@ describe("Watch projection", () => {
     ]);
     for (const { anchor, content } of snapshot.readings) {
       if (
+        anchor.kind === "program" ||
         anchor.kind === "upstream" ||
         anchor.kind === "environment" ||
         anchor.kind === "service" ||
@@ -786,7 +787,7 @@ describe("Watch projection", () => {
 
   function withoutAdditions(snapshot: ReturnType<typeof projectWatch>) {
     const { services: _services, ...legacy } = snapshot;
-    const { since: _since, ...briefing } = snapshot.briefing;
+    const { since: _since, places: _places, ...briefing } = snapshot.briefing;
     return {
       ...legacy,
       briefing: {

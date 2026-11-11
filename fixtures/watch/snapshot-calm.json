@@ -1620,7 +1620,67 @@
           ]
         }
       ]
-    }
+    },
+    "places": [
+      {
+        "place": "line",
+        "mark": "nothing-due",
+        "tone": "neutral",
+        "figure": "0 of 13 stopped",
+        "line": "No fork stations are stopped.",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template"
+        ],
+        "itemIds": [],
+        "fresh": {
+          "itemIds": []
+        }
+      },
+      {
+        "place": "environment",
+        "mark": "nothing-due",
+        "tone": "neutral",
+        "figure": "v0.35.3 is deployable, green since 04:20",
+        "line": "v0.35.3 is deployable, green since 04:20.",
+        "areas": ["github", "lifecycle"],
+        "itemIds": [],
+        "fresh": {
+          "itemIds": []
+        }
+      },
+      {
+        "place": "engineering",
+        "mark": "in-progress",
+        "tone": "warn",
+        "figure": "11 of 13 forks on 7d269b5",
+        "line": "Template rollout is in progress; verification is still pending.",
+        "reason": "Template rollout is in progress; verification is still pending.",
+        "areas": ["github", "runs", "template"],
+        "itemIds": ["rollout"],
+        "fresh": {
+          "itemIds": []
+        }
+      },
+      {
+        "place": "security",
+        "mark": "nothing-due",
+        "tone": "warn",
+        "figure": "0 high or critical",
+        "line": "In SPI-owned shipped code, none blocking today.",
+        "areas": ["radar", "template", "security"],
+        "itemIds": [],
+        "fresh": {
+          "itemIds": []
+        }
+      }
+    ]
   },
   "campaigns": [],
   "readings": [
@@ -1628,7 +1688,29 @@
       "anchor": {
         "kind": "program"
       },
-      "content": null
+      "content": {
+        "headline": "No fork stations are stopped.",
+        "tiles": [
+          {
+            "label": "Line",
+            "value": "0 of 13",
+            "counts": "forks stopped"
+          },
+          {
+            "label": "Lanes",
+            "value": "0",
+            "counts": "failed fork lanes"
+          },
+          {
+            "label": "Read",
+            "value": "13 of 13",
+            "counts": "fork repositories read"
+          }
+        ],
+        "items": [],
+        "folded": null,
+        "itemIds": []
+      }
     },
     {
       "anchor": {
@@ -1681,7 +1763,8 @@
           }
         ],
         "items": [],
-        "folded": null
+        "folded": null,
+        "itemIds": []
       }
     },
     {
@@ -1747,6 +1830,7 @@
           }
         ],
         "folded": null,
+        "itemIds": ["rollout"],
         "verifiedTemplate": {
           "verified": 11,
           "total": 13,
@@ -1806,7 +1890,8 @@
           }
         ],
         "items": [],
-        "folded": null
+        "folded": null,
+        "itemIds": []
       }
     },
     {
@@ -5911,6 +5996,31 @@
     },
     {
       "path": "/briefing/repositories/rows/14/cells/codeScanning",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/places/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template"
+      ]
+    },
+    {
+      "path": "/briefing/places/1",
+      "areas": ["github", "lifecycle"]
+    },
+    {
+      "path": "/briefing/places/2",
+      "areas": ["github", "runs", "template"]
+    },
+    {
+      "path": "/briefing/places/3",
       "areas": ["radar", "template", "security"]
     },
     {

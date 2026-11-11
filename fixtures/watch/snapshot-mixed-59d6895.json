@@ -1552,7 +1552,69 @@
         }
       ],
       "asOf": "2026-10-12T21:58:24.978Z"
-    }
+    },
+    "places": [
+      {
+        "place": "line",
+        "mark": "stopped",
+        "tone": "bad",
+        "figure": "5 of 5 stopped",
+        "line": "Stopped: entitlements (upstream, sync), legal (sync).",
+        "reason": "Stopped: entitlements (upstream, sync), legal (sync).",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template"
+        ],
+        "itemIds": ["halt:entitlements", "gate1:legal"],
+        "fresh": {
+          "itemIds": []
+        }
+      },
+      {
+        "place": "environment",
+        "mark": "stopped",
+        "tone": "warn",
+        "figure": "v0.28.0 is not deployable while an upgrade to v0.28.2 runs",
+        "line": "v0.28.0 is not deployable while an upgrade to v0.28.2 runs.",
+        "reason": "v0.28.0 is not deployable while an upgrade to v0.28.2 runs.",
+        "areas": ["github", "lifecycle"],
+        "itemIds": ["stack:38181620856", "approvals:Azure/osdu-spi-stack"],
+        "fresh": {
+          "itemIds": []
+        }
+      },
+      {
+        "place": "engineering",
+        "mark": "needs-person",
+        "tone": "warn",
+        "figure": "0 of 5 forks on bb49a03",
+        "line": "Template rollout is in progress; verification is still pending.",
+        "reason": "Template rollout is in progress; verification is still pending.",
+        "areas": ["github", "runs", "template"],
+        "itemIds": ["rollout"],
+        "fresh": {
+          "itemIds": []
+        }
+      },
+      {
+        "place": "security",
+        "mark": "nothing-due",
+        "tone": "warn",
+        "figure": "14 high or critical",
+        "line": "In SPI-owned shipped code, none blocking today.",
+        "areas": ["radar", "template", "security"],
+        "itemIds": [],
+        "fresh": {
+          "itemIds": []
+        }
+      }
+    ]
   },
   "campaigns": [
     {
@@ -1587,7 +1649,86 @@
       "anchor": {
         "kind": "program"
       },
-      "content": null
+      "content": {
+        "headline": "Stopped: entitlements (upstream, sync), legal (sync).",
+        "tiles": [
+          {
+            "label": "Line",
+            "value": "5 of 5",
+            "counts": "forks stopped"
+          },
+          {
+            "label": "Lanes",
+            "value": "0",
+            "counts": "failed fork lanes"
+          },
+          {
+            "label": "Read",
+            "value": "5 of 5",
+            "counts": "fork repositories read"
+          }
+        ],
+        "items": [
+          {
+            "id": "halt:entitlements",
+            "ids": ["halt:entitlements"],
+            "rung": 0,
+            "cls": "HALT",
+            "scope": "entitlements",
+            "title": "Sync halted on schemathesis-tests",
+            "sub": "2 commits held · 13d · the same entry is missing from 4 other filters",
+            "cause": "Upstream adds schemathesis-tests, a top-level entry the fork's filter has no rule for, so Sync Upstream stops with UNKNOWN_TOP_LEVEL.",
+            "effect": "4 daily Sync Upstream runs failed since the halt. 2 upstream commits wait behind the halt.",
+            "next": "Add a rule for schemathesis-tests to .github/upstream-filter.yml, then dispatch sync.",
+            "verb": "Classify entry",
+            "evidence": [
+              {
+                "label": "issue #47",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/issues/47"
+              },
+              {
+                "label": "run",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38187922977"
+              }
+            ],
+            "attention": "interrupt",
+            "due": {
+              "at": "2026-10-22T00:00:00.000Z",
+              "before": "next sync"
+            },
+            "owned": false,
+            "group": "On the line"
+          },
+          {
+            "id": "gate1:legal",
+            "ids": ["gate1:legal"],
+            "rung": 1,
+            "cls": "TOOLCHAIN",
+            "scope": "legal",
+            "title": "Sync PR #31 fails Java Build",
+            "sub": "upstream requires Java 25, the fork builds on 17 · 4 commits held · 13d",
+            "cause": "Upstream requires Java 25; the fork builds on 17.",
+            "effect": "4 upstream commits wait on this PR.",
+            "next": "Move the fork's Java pin to 25, the version upstream now requires.",
+            "verb": "Absorb toolchain",
+            "evidence": [
+              {
+                "label": "PR #31",
+                "url": "https://github.com/Azure/osdu-spi-legal/pull/31"
+              },
+              {
+                "label": "check Java Build › Run Java Build",
+                "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37706140110/job/113081034815"
+              }
+            ],
+            "attention": "surface",
+            "owned": false,
+            "group": "On the line"
+          }
+        ],
+        "folded": null,
+        "itemIds": ["halt:entitlements", "gate1:legal"]
+      }
     },
     {
       "anchor": {
@@ -1694,7 +1835,8 @@
             "group": "Needs a decision"
           }
         ],
-        "folded": "Open in osdu-spi-stack: feat: add RAFS service #327, and 5 more."
+        "folded": "Open in osdu-spi-stack: feat: add RAFS service #327, and 5 more.",
+        "itemIds": ["stack:38181620856", "approvals:Azure/osdu-spi-stack"]
       }
     },
     {
@@ -1764,6 +1906,7 @@
           }
         ],
         "folded": "On osdu-spi: PR #248 chore: release 1.2.1 · review required.",
+        "itemIds": ["rollout"],
         "verifiedTemplate": {
           "verified": 0,
           "total": 5,
@@ -1973,7 +2116,28 @@
             "group": "In the background"
           }
         ],
-        "folded": "6 more rules or packages with SPI-owned findings."
+        "folded": "6 more rules or packages with SPI-owned findings.",
+        "itemIds": [
+          "campaign:security:CodeQL%3A%20java%2Fspring-disabled-csrf-protection",
+          "alert:Azure/osdu-spi-partition:code:CodeQL:java/spring-disabled-csrf-protection:provider/partition-azure",
+          "alert:Azure/osdu-spi-entitlements:code:CodeQL:java/spring-disabled-csrf-protection:provider/entitlements-v2-azure",
+          "alert:Azure/osdu-spi-legal:code:CodeQL:java/spring-disabled-csrf-protection:provider/legal-azure",
+          "alert:Azure/osdu-spi-schema:code:CodeQL:java/spring-disabled-csrf-protection:provider/schema-azure",
+          "alert:Azure/osdu-spi-file:code:CodeQL:java/spring-disabled-csrf-protection:provider/file-azure",
+          "alert:Azure/osdu-spi-stack:dep:uv.lock:virtualenv",
+          "alert:Azure/osdu-spi:code:Scorecard:BranchProtectionID:",
+          "alert:Azure/osdu-spi:code:Scorecard:CodeReviewID:",
+          "campaign:security:CodeQL%3A%20java%2Flog-injection",
+          "alert:Azure/osdu-spi-partition:code:CodeQL:java/log-injection:provider/partition-azure",
+          "alert:Azure/osdu-spi-schema:code:CodeQL:java/log-injection:provider/schema-azure",
+          "alert:Azure/osdu-spi-file:code:CodeQL:java/log-injection:provider/file-azure",
+          "alert:Azure/osdu-spi:code:Scorecard:FuzzingID:",
+          "alert:Azure/osdu-spi:code:Scorecard:PinnedDependenciesID:build",
+          "alert:Azure/osdu-spi:code:Scorecard:CIIBestPracticesID:",
+          "alert:Azure/osdu-spi:code:Scorecard:TokenPermissionsID:.github",
+          "alert:Azure/osdu-spi:code:CodeQL:actions/untrusted-checkout/medium:.github",
+          "alert:Azure/osdu-spi-schema:dep:testing/schema-test-azure/pom.xml:org.springframework.retry:spring-retry"
+        ]
       }
     },
     {
@@ -5966,6 +6130,31 @@
     },
     {
       "path": "/briefing/repositories/rows/6/cells/codeScanning",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/places/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template"
+      ]
+    },
+    {
+      "path": "/briefing/places/1",
+      "areas": ["github", "lifecycle"]
+    },
+    {
+      "path": "/briefing/places/2",
+      "areas": ["github", "runs", "template"]
+    },
+    {
+      "path": "/briefing/places/3",
       "areas": ["radar", "template", "security"]
     },
     {

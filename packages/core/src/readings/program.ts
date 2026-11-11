@@ -45,7 +45,7 @@ export function programReading<T extends ReadingItem>(input: ProgramReadingInput
     headline,
     ...(unread ? { qualifier: `${unread} forks' repository stations not read yet.` } : {}),
     tiles: [
-      { label: "Line", value: `${stoppedForks} of ${model.lines.length}`, counts: "forks stopped" },
+      { label: "Line", value: unread === model.lines.length ? "not read yet" : `${unread > 0 ? "At least " : ""}${stoppedForks} of ${model.lines.length}`, counts: "forks stopped" },
       { label: "Lanes", value: String(lanes.length), counts: "failed fork lanes" },
       { label: "Read", value: `${model.lines.length - unread} of ${model.lines.length}`, counts: "fork repositories read" },
     ],

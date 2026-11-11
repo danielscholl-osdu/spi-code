@@ -2417,7 +2417,95 @@
           ]
         }
       ]
-    }
+    },
+    "places": [
+      {
+        "place": "line",
+        "mark": "stopped",
+        "tone": "bad",
+        "figure": "4 of 13 stopped",
+        "line": "Stopped: entitlements (main), legal (sync), storage (sync), indexer-queue (main).",
+        "reason": "Stopped: entitlements (main), legal (sync), storage (sync), indexer-queue (main).",
+        "caveat": "github not fully read; the figure covers only the evidence read.",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template"
+        ],
+        "unread": {
+          "areas": ["github"],
+          "lastGood": "2026-11-06T13:52:00Z"
+        },
+        "itemIds": [
+          "sync-run:storage",
+          "gate2:entitlements",
+          "gate1:legal",
+          "stack:lanes",
+          "gate1:indexer",
+          "gate1:workflow",
+          "gate2:indexer-queue",
+          "gate1:unit",
+          "labels:schema"
+        ],
+        "fresh": {
+          "itemIds": []
+        }
+      },
+      {
+        "place": "environment",
+        "mark": "in-progress",
+        "tone": "warn",
+        "figure": "v0.35.3 is deployable, green since 04:20",
+        "line": "Place reading is incomplete.",
+        "reason": "Place reading is incomplete.",
+        "caveat": "github not fully read; the figure covers only the evidence read.",
+        "areas": ["github", "lifecycle"],
+        "unread": {
+          "areas": ["github"],
+          "lastGood": "2026-11-06T13:52:00Z"
+        },
+        "itemIds": [],
+        "fresh": {
+          "itemIds": []
+        }
+      },
+      {
+        "place": "engineering",
+        "mark": "needs-person",
+        "tone": "warn",
+        "figure": "7 of 13 forks on 7d269b5",
+        "line": "Template rollout is in progress; verification is still pending.",
+        "reason": "Template rollout is in progress; verification is still pending.",
+        "caveat": "GitHub repository reads failed: adoption or template changes could be missing.",
+        "areas": ["github", "runs", "template"],
+        "unread": {
+          "areas": ["github"],
+          "lastGood": "2026-11-06T13:52:00Z"
+        },
+        "itemIds": ["rollout"],
+        "fresh": {
+          "itemIds": []
+        }
+      },
+      {
+        "place": "security",
+        "mark": "needs-person",
+        "tone": "warn",
+        "figure": "26 high or critical",
+        "line": "26 high or critical findings need SPI fixes.",
+        "reason": "26 high or critical findings need SPI fixes.",
+        "areas": ["radar", "template", "security"],
+        "itemIds": ["security:dependabot:fixture-library"],
+        "fresh": {
+          "itemIds": []
+        }
+      }
+    ]
   },
   "campaigns": [
     {
@@ -2438,7 +2526,158 @@
       "anchor": {
         "kind": "program"
       },
-      "content": null
+      "content": {
+        "headline": "Stopped: entitlements (main), legal (sync), storage (sync), indexer-queue (main).",
+        "tiles": [
+          {
+            "label": "Line",
+            "value": "4 of 13",
+            "counts": "forks stopped"
+          },
+          {
+            "label": "Lanes",
+            "value": "0",
+            "counts": "failed fork lanes"
+          },
+          {
+            "label": "Read",
+            "value": "13 of 13",
+            "counts": "fork repositories read"
+          }
+        ],
+        "items": [
+          {
+            "id": "sync-run:storage",
+            "ids": ["sync-run:storage"],
+            "rung": 0,
+            "cls": "INCIDENT",
+            "scope": "storage",
+            "title": "Sync Upstream failed with no halt issue open",
+            "sub": "2h",
+            "cause": "Sync Upstream failed with no halt issue open.",
+            "effect": "Nothing else waits on it.",
+            "next": "Open the failed Sync Upstream run; no halt issue says why it stopped.",
+            "verb": "Investigate",
+            "evidence": [
+              {
+                "label": "run Sync Upstream 12:00",
+                "url": "https://github.com/Azure/osdu-spi-storage/actions/runs/42137178477"
+              }
+            ],
+            "attention": "interrupt",
+            "owned": false,
+            "group": "On the line"
+          },
+          {
+            "id": "gate2:entitlements",
+            "ids": ["gate2:entitlements"],
+            "rung": 1,
+            "cls": "BUILD",
+            "scope": "entitlements",
+            "title": "Release/upstream PR #121 fails Java Build",
+            "sub": "Compilation failed in the synthetic morning build · 1d 2h",
+            "cause": "Compilation failed in the synthetic morning build.",
+            "effect": "Nothing else waits on it.",
+            "next": "Open the failed job (Java Build › Build); the reason is in the cause above.",
+            "verb": "Investigate",
+            "evidence": [
+              {
+                "label": "PR #121",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/pull/121"
+              },
+              {
+                "label": "check Java Build › Build",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/121/job/12100"
+              }
+            ],
+            "attention": "interrupt",
+            "owned": false,
+            "group": "On the line"
+          },
+          {
+            "id": "gate1:legal",
+            "ids": ["gate1:legal"],
+            "rung": 1,
+            "cls": "BUILD",
+            "scope": "legal",
+            "title": "Sync PR #701 fails Java Build",
+            "sub": "Compilation failed in the synthetic morning build · 1 commit held · 1d 2h",
+            "cause": "Compilation failed in the synthetic morning build.",
+            "effect": "1 upstream commit wait on this PR.",
+            "next": "Open the failed job (Java Build › Build); the reason is in the cause above.",
+            "verb": "Investigate",
+            "evidence": [
+              {
+                "label": "PR #701",
+                "url": "https://github.com/Azure/osdu-spi-legal/pull/701"
+              },
+              {
+                "label": "check Java Build › Build",
+                "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/701/job/70100"
+              }
+            ],
+            "attention": "interrupt",
+            "owned": false,
+            "group": "On the line"
+          },
+          {
+            "id": "stack:lanes",
+            "ids": ["stack:lanes"],
+            "rung": 1,
+            "cls": "ENV",
+            "scope": "Environment",
+            "title": "Deployable again",
+            "sub": "1 fork lane failed before it recovered · re-run now · 11h",
+            "cause": "Deployable again; 1 fork lane failed before it recovered.",
+            "effect": "Indexer-queue release/upstream PR #67 · Verify · The shared environment is draining · 03:00.",
+            "next": "Re-run the fork lanes that failed while the stack was down.",
+            "verb": "Re-run lanes",
+            "evidence": [
+              {
+                "label": "first failure indexer-queue release/upstream PR #67",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/actions/runs/67/job/6700"
+              }
+            ],
+            "attention": "surface",
+            "owned": false,
+            "group": "On the line"
+          },
+          {
+            "id": "gate1:indexer",
+            "ids": ["gate1:indexer"],
+            "rung": 1,
+            "cls": "GATE",
+            "scope": "indexer",
+            "title": "Sync PR #58 waits for review",
+            "sub": "1 commit held · 1d 2h",
+            "cause": "Sync PR #58 waits for review.",
+            "effect": "1 upstream commit wait on this PR.",
+            "next": "Review the sync PR on GitHub and merge it.",
+            "verb": "Review on GitHub",
+            "evidence": [
+              {
+                "label": "PR #58",
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/58"
+              }
+            ],
+            "attention": "ambient",
+            "owned": false,
+            "group": "On the line"
+          }
+        ],
+        "folded": "4 more items: workflow sync PR #59 waits for review, indexer-queue release/upstream PR #67 is red, unit sync PR #60 waits for review, schema label configuration changed in the template.",
+        "itemIds": [
+          "sync-run:storage",
+          "gate2:entitlements",
+          "gate1:legal",
+          "stack:lanes",
+          "gate1:indexer",
+          "gate1:workflow",
+          "gate2:indexer-queue",
+          "gate1:unit",
+          "labels:schema"
+        ]
+      }
     },
     {
       "anchor": {
@@ -2636,7 +2875,8 @@
             "group": "Needs a decision"
           }
         ],
-        "folded": null
+        "folded": null,
+        "itemIds": ["stack:lanes"]
       }
     },
     {
@@ -2703,6 +2943,7 @@
           }
         ],
         "folded": "On osdu-spi: PR #263 chore: release 1.5.0 · review required.",
+        "itemIds": ["rollout"],
         "verifiedTemplate": {
           "verified": 7,
           "total": 13,
@@ -2850,7 +3091,23 @@
             "group": "Needs attention"
           }
         ],
-        "folded": null
+        "folded": null,
+        "itemIds": [
+          "alert:Azure/osdu-spi-partition:dep:provider/partition-azure/pom.xml:fixture-library",
+          "alert:Azure/osdu-spi-entitlements:dep:provider/entitlements-azure/pom.xml:fixture-library",
+          "alert:Azure/osdu-spi-legal:dep:provider/legal-azure/pom.xml:fixture-library",
+          "alert:Azure/osdu-spi-schema:dep:provider/schema-azure/pom.xml:fixture-library",
+          "alert:Azure/osdu-spi-file:dep:provider/file-azure/pom.xml:fixture-library",
+          "alert:Azure/osdu-spi-storage:dep:provider/storage-azure/pom.xml:fixture-library",
+          "alert:Azure/osdu-spi-indexer:dep:provider/indexer-azure/pom.xml:fixture-library",
+          "alert:Azure/osdu-spi-search:dep:provider/search-azure/pom.xml:fixture-library",
+          "alert:Azure/osdu-spi-workflow:dep:provider/workflow-azure/pom.xml:fixture-library",
+          "alert:Azure/osdu-spi-indexer-queue:dep:provider/indexer-queue-azure/pom.xml:fixture-library",
+          "alert:Azure/osdu-spi-unit:dep:provider/unit-azure/pom.xml:fixture-library",
+          "alert:Azure/osdu-spi-crs-catalog:dep:provider/crs-catalog-azure/pom.xml:fixture-library",
+          "alert:Azure/osdu-spi-crs-conversion:dep:provider/crs-conversion-azure/pom.xml:fixture-library",
+          "security:dependabot:fixture-library"
+        ]
       }
     },
     {
@@ -7917,6 +8174,31 @@
     },
     {
       "path": "/briefing/repositories/rows/14/cells/codeScanning",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/places/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template"
+      ]
+    },
+    {
+      "path": "/briefing/places/1",
+      "areas": ["github", "lifecycle"]
+    },
+    {
+      "path": "/briefing/places/2",
+      "areas": ["github", "runs", "template"]
+    },
+    {
+      "path": "/briefing/places/3",
       "areas": ["radar", "template", "security"]
     },
     {

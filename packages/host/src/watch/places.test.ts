@@ -96,6 +96,9 @@ describe("Today place rows (PS-03, PS-19)", () => {
   it("counts Engineering over the whole fleet, including unread forks", () => {
     const snapshot = projectWatch(unreadForksInput());
     const row = snapshot.briefing.places?.find(({ place }) => place === "engineering");
+    expect(snapshot.briefing.places?.find(({ place }) => place === "line")?.figure).toMatch(
+      /^At least \d+ of 13 stopped$/,
+    );
     expect(row?.figure).toContain("0 of 13");
     expect(row?.figure).toContain("5 not read yet");
     expect(readingOf(snapshot, "engineering")?.verifiedTemplate).toMatchObject({
@@ -189,7 +192,21 @@ describe("Today place rows (PS-03, PS-19)", () => {
     const folded = items.find((item) => !visible.has(item.id) && refs.has(item.id));
     expect(folded).toBeDefined();
     const rows = placesOf({
-      readings: snapshot.readings,
+      readings: snapshot.readings.map((entry) =>
+        entry.anchor.kind === "program" && entry.content
+          ? {
+              ...entry,
+              content: {
+                ...entry.content,
+                tiles: [
+                  { ...entry.content.tiles[0], value: "0 of 13" },
+                  entry.content.tiles[1],
+                  entry.content.tiles[2],
+                ],
+              },
+            }
+          : entry,
+      ),
       areas: snapshot.areas,
       items: items.map((item) => ({
         ...item,

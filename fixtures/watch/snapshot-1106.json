@@ -2604,7 +2604,83 @@
           ]
         }
       ]
-    }
+    },
+    "places": [
+      {
+        "place": "line",
+        "mark": "stopped",
+        "tone": "bad",
+        "figure": "1 of 13 stopped",
+        "line": "Stopped: entitlements (cascade, release).",
+        "reason": "Stopped: entitlements (cascade, release).",
+        "caveat": "approvals, radar not fully read; the figure covers only the evidence read.",
+        "areas": [
+          "github",
+          "runs",
+          "approvals",
+          "lifecycle",
+          "details",
+          "upstream",
+          "radar",
+          "template"
+        ],
+        "unread": {
+          "areas": ["approvals", "radar"]
+        },
+        "itemIds": [
+          "conflict:entitlements:121",
+          "release-red:Azure/osdu-spi-entitlements#89",
+          "gate1:indexer",
+          "gate1:storage",
+          "gate1:indexer-queue"
+        ],
+        "fresh": {
+          "itemIds": []
+        }
+      },
+      {
+        "place": "environment",
+        "mark": "nothing-due",
+        "tone": "neutral",
+        "figure": "v0.35.3 is deployable, green since 04:20",
+        "line": "v0.35.3 is deployable, green since 04:20.",
+        "areas": ["github", "lifecycle"],
+        "itemIds": [],
+        "fresh": {
+          "itemIds": []
+        }
+      },
+      {
+        "place": "engineering",
+        "mark": "needs-person",
+        "tone": "warn",
+        "figure": "0 of 13 forks on 7d269b5",
+        "line": "Template rollout is in progress; verification is still pending.",
+        "reason": "Template rollout is in progress; verification is still pending.",
+        "areas": ["github", "runs", "template"],
+        "itemIds": ["rollout"],
+        "fresh": {
+          "itemIds": []
+        }
+      },
+      {
+        "place": "security",
+        "mark": "in-progress",
+        "tone": "warn",
+        "figure": "not read yet",
+        "line": "Place reading is incomplete.",
+        "reason": "Place reading is incomplete.",
+        "caveat": "radar, security not fully read; the figure covers only the evidence read.",
+        "areas": ["radar", "template", "security"],
+        "unread": {
+          "areas": ["radar", "security"]
+        },
+        "itemIds": [],
+        "fresh": {
+          "itemIds": []
+        }
+      }
+    ]
   },
   "campaigns": [
     {
@@ -2658,7 +2734,150 @@
       "anchor": {
         "kind": "program"
       },
-      "content": null
+      "content": {
+        "headline": "Stopped: entitlements (cascade, release).",
+        "tiles": [
+          {
+            "label": "Line",
+            "value": "1 of 13",
+            "counts": "forks stopped"
+          },
+          {
+            "label": "Lanes",
+            "value": "0",
+            "counts": "failed fork lanes"
+          },
+          {
+            "label": "Read",
+            "value": "13 of 13",
+            "counts": "fork repositories read"
+          }
+        ],
+        "items": [
+          {
+            "id": "conflict:entitlements:121",
+            "ids": ["conflict:entitlements:121"],
+            "rung": 0,
+            "cls": "CONFLICT",
+            "scope": "entitlements",
+            "title": "Cascade blocked",
+            "sub": "Integration Validation Failed: Build/Test Errors - 2026-11-05 · 21h",
+            "cause": "Cascade blocked: 🚨 Integration Validation Failed: Build/Test Errors - 2026-11-05.",
+            "effect": "Nothing else waits on it.",
+            "next": "Resolve the conflict named in the issue on the fork, then dispatch the cascade.",
+            "verb": "Investigate, then Dispatch cascade",
+            "evidence": [
+              {
+                "label": "issue #121",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/issues/121"
+              }
+            ],
+            "attention": "interrupt",
+            "owned": false,
+            "group": "On the line"
+          },
+          {
+            "id": "release-red:Azure/osdu-spi-entitlements#89",
+            "ids": ["release-red:Azure/osdu-spi-entitlements#89"],
+            "rung": 1,
+            "cls": "BUILD",
+            "scope": "entitlements",
+            "title": "Release PR #89 fails Code Coverage",
+            "sub": "16d",
+            "cause": "Release PR #89 fails 📊 Code Coverage.",
+            "effect": "Nothing else waits on it.",
+            "next": "Open the failed job (📊 Code Coverage › Setup Maven); the reason is in the cause above.",
+            "verb": "Investigate",
+            "evidence": [
+              {
+                "label": "PR #89",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/pull/89"
+              },
+              {
+                "label": "check 📊 Code Coverage › Setup Maven",
+                "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/42109055691/job/127532471691"
+              }
+            ],
+            "attention": "surface",
+            "owned": false,
+            "group": "On the line"
+          },
+          {
+            "id": "gate1:indexer",
+            "ids": ["gate1:indexer"],
+            "rung": 1,
+            "cls": "GATE",
+            "scope": "indexer",
+            "title": "Sync PR #58 waits for review",
+            "sub": "25 commits held · 1d 13h",
+            "cause": "Sync PR #58 waits for review.",
+            "effect": "25 upstream commits wait on this PR.",
+            "next": "Review the sync PR on GitHub and merge it.",
+            "verb": "Review on GitHub",
+            "evidence": [
+              {
+                "label": "PR #58",
+                "url": "https://github.com/Azure/osdu-spi-indexer/pull/58"
+              }
+            ],
+            "attention": "surface",
+            "owned": false,
+            "group": "On the line"
+          },
+          {
+            "id": "gate1:storage",
+            "ids": ["gate1:storage"],
+            "rung": 1,
+            "cls": "GATE",
+            "scope": "storage",
+            "title": "Sync PR #58 waits for review",
+            "sub": "11 commits held · 1d 13h",
+            "cause": "Sync PR #58 waits for review.",
+            "effect": "11 upstream commits wait on this PR.",
+            "next": "Review the sync PR on GitHub and merge it.",
+            "verb": "Review on GitHub",
+            "evidence": [
+              {
+                "label": "PR #58",
+                "url": "https://github.com/Azure/osdu-spi-storage/pull/58"
+              }
+            ],
+            "attention": "surface",
+            "owned": false,
+            "group": "On the line"
+          },
+          {
+            "id": "gate1:indexer-queue",
+            "ids": ["gate1:indexer-queue"],
+            "rung": 1,
+            "cls": "GATE",
+            "scope": "indexer-queue",
+            "title": "Sync PR #58 waits for review",
+            "sub": "3 commits held · 1d 13h",
+            "cause": "Sync PR #58 waits for review.",
+            "effect": "3 upstream commits wait on this PR.",
+            "next": "Review the sync PR on GitHub and merge it.",
+            "verb": "Review on GitHub",
+            "evidence": [
+              {
+                "label": "PR #58",
+                "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/58"
+              }
+            ],
+            "attention": "surface",
+            "owned": false,
+            "group": "On the line"
+          }
+        ],
+        "folded": null,
+        "itemIds": [
+          "conflict:entitlements:121",
+          "release-red:Azure/osdu-spi-entitlements#89",
+          "gate1:indexer",
+          "gate1:storage",
+          "gate1:indexer-queue"
+        ]
+      }
     },
     {
       "anchor": {
@@ -2927,7 +3146,8 @@
           }
         ],
         "items": [],
-        "folded": "Open in osdu-spi-stack: [bug] spi build fails on Dockerfiles with FROM --platform: ACR dependency scan rejects it #463, and 1 more."
+        "folded": "Open in osdu-spi-stack: [bug] spi build fails on Dockerfiles with FROM --platform: ACR dependency scan rejects it #463, and 1 more.",
+        "itemIds": []
       }
     },
     {
@@ -2997,6 +3217,7 @@
           }
         ],
         "folded": "On osdu-spi: PR #263 chore: release 1.5.0 · review required.",
+        "itemIds": ["rollout"],
         "verifiedTemplate": {
           "verified": 0,
           "total": 13,
@@ -3084,7 +3305,8 @@
           }
         ],
         "items": [],
-        "folded": null
+        "folded": null,
+        "itemIds": []
       }
     },
     {
@@ -14042,6 +14264,31 @@
     },
     {
       "path": "/briefing/repositories/rows/14/cells/codeScanning",
+      "areas": ["radar", "template", "security"]
+    },
+    {
+      "path": "/briefing/places/0",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template"
+      ]
+    },
+    {
+      "path": "/briefing/places/1",
+      "areas": ["github", "lifecycle"]
+    },
+    {
+      "path": "/briefing/places/2",
+      "areas": ["github", "runs", "template"]
+    },
+    {
+      "path": "/briefing/places/3",
       "areas": ["radar", "template", "security"]
     },
     {

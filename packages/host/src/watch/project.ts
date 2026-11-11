@@ -318,10 +318,11 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     now,
   );
   const places = placesOf({ readings, items: [...briefing.focus, ...briefing.rest], areas });
+  Object.assign(briefing, { places });
   return ViewSnapshotSchema.parse({
     cursor: input.cursor,
     sweptAt: model.sweptAt ?? now.toISOString(),
-    briefing: { ...briefing, places },
+    briefing,
     campaigns,
     readings,
     seen: seenState(model, input, briefing),
