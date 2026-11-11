@@ -1096,6 +1096,17 @@ it("fails a capture that stops at window height or leaves a block outside the im
   expect(() => assertSmokeViews(reordered)).toThrow("Blocks out of order: today-busy/1440");
 });
 
+it.each(["calm", "busy", "bad"] as const)("fails the %s morning without its horizon", (morning) => {
+  const noHorizon = withMorning(
+    (shot) => shot.surface === `today-${morning}` && shot.viewportWidth === 740,
+    (shot) =>
+      evidence(shot, {
+        blocks: morningBlocks[morning].filter(({ name }) => name !== "horizon"),
+      }),
+  );
+  expect(() => assertSmokeViews(noHorizon)).toThrow(`Missing block horizon: today-${morning}/740`);
+});
+
 it("fails a morning without its fixture, decision sections, headline, Detail or geometry", () => {
   const cases: [string, (shot: SmokeReport["views"][number]) => object, string][] = [
     ["today-calm", () => ({ morning: undefined }), "Missing morning evidence"],
