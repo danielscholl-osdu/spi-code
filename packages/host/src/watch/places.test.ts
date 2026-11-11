@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { PlaceId, ViewSnapshot } from "@spi-code/contracts";
-import { placesOf } from "@spi-code/core";
+import { buildModel, placesOf, programReading } from "@spi-code/core";
 import { describe, expect, it } from "vitest";
 import { projectWatch } from "./project.js";
 import {
@@ -57,7 +57,9 @@ describe("Today place rows (PS-03, PS-19)", () => {
     const stopped = snapshot.stations.filter((line) =>
       line.stations.some((station) => station.substate === "stopped"),
     );
-    expect(row?.figure).toBe(`${stopped.length} of ${snapshot.stations.length} stopped`);
+    expect(row?.figure).toMatch(
+      new RegExp(`^(?:At least )?${stopped.length} of ${snapshot.stations.length} stopped$`),
+    );
     for (const line of snapshot.stations) {
       const stations = line.stations.filter(
         (station) => station.id !== "lane" && station.substate === "stopped",
@@ -81,16 +83,130 @@ describe("Today place rows (PS-03, PS-19)", () => {
     const snapshot = projectWatch(input);
     const line = snapshot.briefing.places?.find(({ place }) => place === "line");
     expect(line?.line).toContain("Failed lanes: storage.");
+    expect(line?.line.split("Failed lanes:")[0]).not.toMatch(/\blane\b/);
     expect(
       snapshot.stations
         .find(({ service }) => service === "storage")
         ?.stations.find(({ id }) => id === "lane")?.substate,
     ).toBe("stopped");
     const environment = snapshot.briefing.places?.find(({ place }) => place === "environment");
+    expect(environment).toMatchObject({ mark: "nothing-due", tone: "neutral" });
     expect(environment?.figure).toContain("deployable");
     expect(environment?.line).not.toContain("lane");
     expect(environment?.itemIds).not.toContain("lane-deploy:storage");
     expect(line?.itemIds).toContain("lane-deploy:storage");
+  });
+
+  it("leads with the fork work owed when a calm Line has a Surface item", () => {
+    const input = calmInput();
+    const repoName = input.context.fleet.forks.find(({ id }) => id === "schema")?.repo;
+    const repo = repoName ? input.facts.github.data?.repos[repoName] : undefined;
+    if (!repo) throw new Error("Fixture lacks schema");
+    repo.issues.push({
+      repo: repo.repo,
+      number: 700,
+      title: "Label Configuration Update Required",
+      url: `${repo.url}/issues/700`,
+      createdAt: "2026-11-06T14:00:00Z",
+      updatedAt: "2026-11-06T14:00:00Z",
+      labels: [],
+      comments: 0,
+    });
+    const snapshot = projectWatch(input);
+    const line = snapshot.briefing.places?.find(({ place }) => place === "line");
+    expect(line).toMatchObject({ mark: "needs-person", reason: "Waiting on you: schema." });
+    expect(readingOf(snapshot, "line")?.headline).toBe(line?.reason);
+  });
+
+  it("names an owed lane re-run even after its stations have recovered", () => {
+    const input = calmInput();
+    const snapshot = projectWatch(input);
+    const source = [...snapshot.briefing.focus, ...snapshot.briefing.rest][0];
+    if (!source) throw new Error("Fixture lacks items");
+    const item = {
+      ...source,
+      id: "stack:lanes",
+      ids: ["stack:lanes"],
+      attention: "surface" as const,
+    };
+    const reading = programReading({
+      model: buildModel(input.facts, input.context.clock.now(), {}, input.context),
+      facts: input.facts,
+      items: [item],
+      reads: input.reads,
+    });
+    const row = placesOf({
+      readings: [{ anchor: { kind: "program" }, content: reading }],
+      areas: snapshot.areas,
+      items: [item],
+    })[0];
+    expect(row).toMatchObject({ mark: "needs-person", reason: "A fork lane re-run is owed." });
+    expect(reading.headline).toBe(row?.reason);
+  });
+
+  for (const area of [
+    "github",
+    "runs",
+    "approvals",
+    "lifecycle",
+    "details",
+    "upstream",
+    "radar",
+    "template",
+  ] as const) {
+    it(`qualifies the Line count when ${area} is unread`, () => {
+      const input = busyInput();
+      input.facts[area] = {};
+      const snapshot = projectWatch({ ...input, reads: { ...input.reads, [area]: [] } });
+      const row = snapshot.briefing.places?.find(({ place }) => place === "line");
+      if (area === "github") expect(row?.figure).toBe("not read yet");
+      else {
+        expect(row?.figure).toMatch(/^At least \d+ of 13 stopped$/);
+        expect(readingOf(snapshot, "line")?.tiles[0].value).toMatch(/^At least /);
+      }
+    });
+  }
+
+  for (const state of ["unread", "failed", "incomplete"] as const) {
+    it(`qualifies retained Line facts when runs provenance is ${state}`, () => {
+      const input = busyInput();
+      const record = input.reads.runs?.[0];
+      if (!record) throw new Error("Fixture lacks runs provenance");
+      const runs =
+        state === "unread"
+          ? []
+          : [
+              {
+                ...record,
+                ...(state === "failed"
+                  ? { failure: "Read failed" }
+                  : {
+                      completeness: {
+                        kind: "cut" as const,
+                        reason: "Read limit",
+                        read: 1,
+                        total: 2,
+                      },
+                    }),
+              },
+            ];
+      const snapshot = projectWatch({ ...input, envelopeReads: { ...input.reads, runs } });
+      expect(snapshot.briefing.places?.find(({ place }) => place === "line")?.figure).toMatch(
+        /^At least \d+ of 13 stopped$/,
+      );
+    });
+  }
+
+  it("uses the strip's area labels in fallback caveats", () => {
+    const snapshot = projectWatch(calmInput());
+    const row = placesOf({
+      readings: snapshot.readings,
+      items: [],
+      areas: snapshot.areas.filter(({ area }) => area !== "approvals" && area !== "radar"),
+    })[0];
+    expect(row?.caveat).toBe(
+      "Run approvals, Upstream radar not fully read; the figure covers only the evidence read.",
+    );
   });
 
   it("counts Engineering over the whole fleet, including unread forks", () => {
@@ -213,21 +329,46 @@ describe("Today place rows (PS-03, PS-19)", () => {
         attention: item.id === folded?.id ? ("interrupt" as const) : ("background" as const),
       })),
     });
-    expect(rows[0]?.mark).toBe("stopped");
+    expect(rows[0]).toMatchObject({ mark: "stopped", tone: "bad" });
     expect(rows[0]?.itemIds).toContain(folded?.id);
   });
 
-  it("gives Background items one home without changing their tiers", () => {
-    const snapshot = projectWatch(calmInput());
+  it("keeps full membership on overlapping places without changing tiers", () => {
+    const snapshot = projectWatch(recordedInput());
     const items = [...snapshot.briefing.focus, ...snapshot.briefing.rest];
-    const ids = snapshot.briefing.places?.flatMap((row) => row.itemIds) ?? [];
-    expect(new Set(ids).size).toBe(ids.length);
     for (const row of snapshot.briefing.places ?? []) {
       const reading = readingOf(snapshot, row.place);
+      const refs = new Set(reading?.itemIds);
+      const expected = items.filter(
+        (item) =>
+          (refs.has(item.id) || item.ids.some((id) => refs.has(id))) &&
+          !(
+            row.place === "environment" &&
+            (item.id === "stack:lanes" || item.id.startsWith("lane-deploy:"))
+          ),
+      );
+      expect(row.itemIds).toEqual(expected.map((item) => item.id));
       for (const item of reading?.items ?? []) {
         const source = items.find(({ id }) => id === item.id);
         if (source) expect(item.attention).toBe(source.attention);
       }
     }
+    const shared = snapshot.briefing.places?.find(({ place }) => place === "engineering")
+      ?.itemIds[0];
+    if (!shared) throw new Error("Recorded fixture lacks Engineering work");
+    const rows = placesOf({
+      readings: snapshot.readings.map((entry) =>
+        entry.anchor.kind === "program" && entry.content
+          ? {
+              ...entry,
+              content: { ...entry.content, itemIds: [...(entry.content.itemIds ?? []), shared] },
+            }
+          : entry,
+      ),
+      areas: snapshot.areas,
+      items,
+    });
+    expect(rows.find(({ place }) => place === "line")?.itemIds).toContain(shared);
+    expect(rows.find(({ place }) => place === "engineering")?.itemIds).toContain(shared);
   });
 });

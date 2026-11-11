@@ -2632,10 +2632,10 @@
         "place": "line",
         "mark": "stopped",
         "tone": "bad",
-        "figure": "2 of 13 stopped",
+        "figure": "At least 2 of 13 stopped",
         "line": "Stopped: entitlements (cascade, release), legal (main).",
         "reason": "Stopped: entitlements (cascade, release), legal (main).",
-        "caveat": "approvals, radar not fully read; the figure covers only the evidence read.",
+        "caveat": "Run approvals, Upstream radar not fully read; the figure covers only the evidence read.",
         "areas": [
           "github",
           "runs",
@@ -2676,7 +2676,7 @@
       {
         "place": "engineering",
         "mark": "stopped",
-        "tone": "warn",
+        "tone": "bad",
         "figure": "1 of 13 forks on 7d269b5",
         "line": "Template rollout stopped; a fork's main validation failed.",
         "reason": "Template rollout stopped; a fork's main validation failed.",
@@ -2693,7 +2693,7 @@
         "figure": "not read yet",
         "line": "Place reading is incomplete.",
         "reason": "Place reading is incomplete.",
-        "caveat": "radar, security not fully read; the figure covers only the evidence read.",
+        "caveat": "Upstream radar, Security alerts not fully read; the figure covers only the evidence read.",
         "areas": ["radar", "template", "security"],
         "unread": {
           "areas": ["radar", "security"]
@@ -2762,7 +2762,7 @@
         "tiles": [
           {
             "label": "Line",
-            "value": "2 of 13",
+            "value": "At least 2 of 13",
             "counts": "forks stopped"
           },
           {

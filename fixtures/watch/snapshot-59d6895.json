@@ -1579,7 +1579,7 @@
       {
         "place": "environment",
         "mark": "stopped",
-        "tone": "warn",
+        "tone": "bad",
         "figure": "v0.28.0 is not deployable while an upgrade to v0.28.2 runs",
         "line": "v0.28.0 is not deployable while an upgrade to v0.28.2 runs.",
         "reason": "v0.28.0 is not deployable while an upgrade to v0.28.2 runs.",

@@ -2610,10 +2610,10 @@
         "place": "line",
         "mark": "stopped",
         "tone": "bad",
-        "figure": "1 of 13 stopped",
+        "figure": "At least 1 of 13 stopped",
         "line": "Stopped: entitlements (cascade, release).",
         "reason": "Stopped: entitlements (cascade, release).",
-        "caveat": "approvals, radar not fully read; the figure covers only the evidence read.",
+        "caveat": "Run approvals, Upstream radar not fully read; the figure covers only the evidence read.",
         "areas": [
           "github",
           "runs",
@@ -2670,7 +2670,7 @@
         "figure": "not read yet",
         "line": "Place reading is incomplete.",
         "reason": "Place reading is incomplete.",
-        "caveat": "radar, security not fully read; the figure covers only the evidence read.",
+        "caveat": "Upstream radar, Security alerts not fully read; the figure covers only the evidence read.",
         "areas": ["radar", "template", "security"],
         "unread": {
           "areas": ["radar", "security"]
@@ -2739,7 +2739,7 @@
         "tiles": [
           {
             "label": "Line",
-            "value": "1 of 13",
+            "value": "At least 1 of 13",
             "counts": "forks stopped"
           },
           {

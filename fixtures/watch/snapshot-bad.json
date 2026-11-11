@@ -2423,10 +2423,10 @@
         "place": "line",
         "mark": "stopped",
         "tone": "bad",
-        "figure": "4 of 13 stopped",
+        "figure": "At least 4 of 13 stopped",
         "line": "Stopped: entitlements (main), legal (sync), storage (sync), indexer-queue (main).",
         "reason": "Stopped: entitlements (main), legal (sync), storage (sync), indexer-queue (main).",
-        "caveat": "github not fully read; the figure covers only the evidence read.",
+        "caveat": "GitHub issues and PRs not fully read; the figure covers only the evidence read.",
         "areas": [
           "github",
           "runs",
@@ -2463,7 +2463,7 @@
         "figure": "v0.35.3 is deployable, green since 04:20",
         "line": "Place reading is incomplete.",
         "reason": "Place reading is incomplete.",
-        "caveat": "github not fully read; the figure covers only the evidence read.",
+        "caveat": "GitHub issues and PRs not fully read; the figure covers only the evidence read.",
         "areas": ["github", "lifecycle"],
         "unread": {
           "areas": ["github"],
@@ -2531,7 +2531,7 @@
         "tiles": [
           {
             "label": "Line",
-            "value": "4 of 13",
+            "value": "At least 4 of 13",
             "counts": "forks stopped"
           },
           {

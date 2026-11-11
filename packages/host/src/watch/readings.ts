@@ -37,7 +37,12 @@ function releasesRead(input: WatchInput): boolean {
 
 export const readingFor: Record<Anchor["kind"], PlaceReader> = {
   program: (_anchor, { model, input, briefing }) =>
-    programReading({ model, facts: input.facts, items: [...briefing.focus, ...briefing.rest] }),
+    programReading({
+      model,
+      facts: input.facts,
+      items: [...briefing.focus, ...briefing.rest],
+      reads: input.envelopeReads ?? input.reads,
+    }),
   upstream: (_anchor, { model, input, briefing, campaigns }) =>
     upstreamReading({
       model,

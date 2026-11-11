@@ -2593,7 +2593,7 @@
         "figure": "v0.35.3 is deployable, green since 04:20",
         "line": "Place reading is incomplete.",
         "reason": "Place reading is incomplete.",
-        "caveat": "github not fully read; the figure covers only the evidence read.",
+        "caveat": "GitHub issues and PRs not fully read; the figure covers only the evidence read.",
         "areas": ["github", "lifecycle"],
         "unread": {
           "areas": ["github"],
@@ -2629,7 +2629,7 @@
         "figure": "not read yet",
         "line": "Place reading is incomplete.",
         "reason": "Place reading is incomplete.",
-        "caveat": "radar, security not fully read; the figure covers only the evidence read.",
+        "caveat": "Upstream radar, Security alerts not fully read; the figure covers only the evidence read.",
         "areas": ["radar", "template", "security"],
         "unread": {
           "areas": ["radar", "security"]

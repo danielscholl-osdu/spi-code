@@ -46,6 +46,19 @@ const AREAS: Readonly<Record<PlaceId, readonly AreaName[]>> = Object.freeze({
   engineering: ["github", "runs", "template"],
   security: ["radar", "template", "security"],
 });
+const AREA_NAMES: Readonly<Record<AreaName, string>> = Object.freeze({
+  fleet: "Fleet membership",
+  github: "GitHub issues and PRs",
+  runs: "Workflow runs",
+  approvals: "Run approvals",
+  lifecycle: "Stack lifecycle runs",
+  details: "Run details",
+  upstream: "Upstream GitLab",
+  radar: "Upstream radar",
+  template: "Template",
+  auth: "Sign-in",
+  security: "Security alerts",
+});
 const MARK = Object.freeze({
   interrupt: "stopped",
   surface: "needs-person",
@@ -59,7 +72,6 @@ export function placesOf(input: {
   items: readonly PlaceItem[];
   areas: readonly AreaEnvelope[];
 }): PlaceRow[] {
-  const homed = new Set<string>();
   return (["line", "environment", "engineering", "security"] as const).map((place) => {
     const kind = place === "line" ? "program" : place;
     const reading = input.readings.find(({ anchor }) => anchor.kind === kind)?.content;
@@ -68,8 +80,7 @@ export function placesOf(input: {
       (members.has(item.id) || item.ids.some((id) => members.has(id))) &&
       !(place === "environment" && (item.id === "stack:lanes" || item.id.startsWith("lane-deploy:"))),
     );
-    const itemIds = items.filter((item) => !homed.has(item.id)).map((item) => item.id);
-    for (const id of itemIds) homed.add(id);
+    const itemIds = items.map((item) => item.id);
     const tier = items.reduce<AttentionTier>((worst, item) =>
       RANK[item.attention] < RANK[worst] ? item.attention : worst, "background");
     const areas = [...AREAS[place]];
@@ -98,11 +109,11 @@ export function placesOf(input: {
       ? "In SPI-owned shipped code, none blocking today."
       : reason;
     const caveat = reading?.qualifier?.replace(/, so /, ": ") ??
-      (unread.length ? `${unread.join(", ")} not fully read; the figure covers only the evidence read.` : undefined);
+      (unread.length ? `${unread.map((area) => AREA_NAMES[area]).join(", ")} not fully read; the figure covers only the evidence read.` : undefined);
     return {
       place, mark,
       tone: place === "security" ? "warn"
-        : stopped ? "bad" : mark === "nothing-due" ? "neutral" : "warn",
+        : mark === "stopped" ? "bad" : mark === "nothing-due" ? "neutral" : "warn",
       figure, line,
       ...(mark !== "nothing-due" ? { reason: line } : {}),
       ...(caveat ? { caveat } : {}),
