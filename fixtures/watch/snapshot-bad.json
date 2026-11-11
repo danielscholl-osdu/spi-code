@@ -2389,6 +2389,10 @@
       ],
       "first": "repo:partition"
     },
+    "verdict": {
+      "text": "3 things need you; 4 forks are stopped. GitHub wasn't read this sweep.",
+      "mark": "stopped"
+    },
     "since": {
       "basis": "history-short",
       "from": "2026-11-06T12:00:00.000Z",
@@ -7958,6 +7962,20 @@
     },
     {
       "path": "/briefing/canWait",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/verdict",
       "areas": [
         "fleet",
         "github",

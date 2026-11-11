@@ -1572,6 +1572,10 @@
       ],
       "first": "repo:osdu-spi-stack"
     },
+    "verdict": {
+      "text": "2 things need you; 2 forks are stopped. Nothing was read this sweep.",
+      "mark": "stopped"
+    },
     "since": {
       "basis": "stale",
       "from": "2026-10-11T21:58:24.978Z",
@@ -6064,6 +6068,20 @@
     },
     {
       "path": "/briefing/canWait",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/verdict",
       "areas": [
         "fleet",
         "github",

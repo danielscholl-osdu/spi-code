@@ -1478,6 +1478,10 @@
       ],
       "first": "repo:osdu-spi"
     },
+    "verdict": {
+      "text": "Nothing urgent needs you. v0.35.3 is deployable; all 13 forks are flowing.",
+      "mark": "nothing-due"
+    },
     "since": {
       "basis": "history-short",
       "from": "2026-11-06T12:00:00.000Z",
@@ -5696,6 +5700,20 @@
     },
     {
       "path": "/briefing/canWait",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/verdict",
       "areas": [
         "fleet",
         "github",

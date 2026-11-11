@@ -2333,6 +2333,10 @@
       ],
       "first": "repo:partition"
     },
+    "verdict": {
+      "text": "1 thing needs you; 2 forks are stopped; 4 upstream changes need you before they land.",
+      "mark": "stopped"
+    },
     "since": {
       "basis": "history-short",
       "from": "2026-11-06T12:00:00.000Z",
@@ -7950,6 +7954,21 @@
     {
       "path": "/briefing/canWait",
       "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/verdict",
+      "areas": [
+        "fleet",
         "github",
         "runs",
         "approvals",

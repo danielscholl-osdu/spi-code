@@ -2663,6 +2663,10 @@
       ],
       "first": "repo:osdu-spi"
     },
+    "verdict": {
+      "text": "1 thing needs you; 1 fork is stopped; 6 upstream changes need you before they land. Run approvals, the upstream radar and security alerts weren't read this sweep.",
+      "mark": "stopped"
+    },
     "since": {
       "basis": "fallback",
       "from": "2026-11-05T14:02:14.914Z",
@@ -14002,6 +14006,21 @@
     {
       "path": "/briefing/canWait",
       "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/verdict",
+      "areas": [
+        "fleet",
         "github",
         "runs",
         "approvals",
