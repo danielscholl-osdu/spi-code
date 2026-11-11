@@ -1531,12 +1531,12 @@
         "kind": "upstream"
       },
       "content": {
-        "headline": "At 2026-10-22T00:00:00.000Z, 0 commits reach 0 forks.",
+        "headline": "Nothing lands at the next sync; 6 commits won't land.",
         "tiles": [
           {
             "label": "Incoming",
             "value": "6",
-            "counts": "commits behind upstream · 0 in 0 sync PRs · 0 at 2026-10-22T00:00:00.000Z · 6 won't land"
+            "counts": "commits behind upstream · 0 at 2026-10-22T00:00:00.000Z · 6 won't land"
           },
           {
             "label": "Toolchain",

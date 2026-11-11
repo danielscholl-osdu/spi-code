@@ -311,7 +311,9 @@ export function upstreamReading<T extends ReadingItem>(
         ? `Nothing queued on the forks read; ${unread} ${NOT_READ}.`
         : "Nothing queued upstream for the next sync."
       : prs === 0
-        ? `${reach}.${first}`
+        ? queued === 0 && wontLand > 0
+          ? `Nothing lands at the next sync; ${plural(wontLand, "commit")} won't land.`
+          : `${reach}.${first}`
         : queued === 0
           ? `${wait}.${first}`
           : fitHeadline([
@@ -341,7 +343,7 @@ export function upstreamReading<T extends ReadingItem>(
         {
           label: "Incoming",
           value: String(commits),
-          counts: `commits behind upstream · ${inPrs} in ${plural(prs, "sync PR")} · ${queued} ${at ? `at ${at}` : "at the next sync"}${wontLand ? ` · ${wontLand} won't land` : ""}${unreadNote}`,
+          counts: `commits behind upstream${prs ? ` · ${inPrs} in ${plural(prs, "sync PR")}` : ""} · ${queued} ${at ? `at ${at}` : "at the next sync"}${wontLand ? ` · ${wontLand} won't land` : ""}${unreadNote}`,
         },
         lead
           ? {

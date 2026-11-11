@@ -776,7 +776,7 @@
             "service": "partition",
             "reason": "halted",
             "count": 8,
-            "text": "partition won't land: sync halted"
+            "text": "partition won't land: sync will halt"
           }
         ]
       },

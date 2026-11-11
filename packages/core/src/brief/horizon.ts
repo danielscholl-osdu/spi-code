@@ -75,7 +75,7 @@ export function horizonStages(model: Model): HorizonStages {
         service: fork.service,
         reason,
         count: fork.behind,
-        text: `${fork.service} won't land: sync ${reason}`,
+        text: `${fork.service} won't land: sync ${reason === "halted" && !fork.halt?.open ? "will halt" : reason}`,
       });
       continue;
     }

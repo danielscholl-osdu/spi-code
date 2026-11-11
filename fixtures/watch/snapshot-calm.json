@@ -1640,7 +1640,7 @@
           {
             "label": "Incoming",
             "value": "2",
-            "counts": "commits behind upstream · 0 in 0 sync PRs · 2 at 2026-11-07T00:00:00.000Z"
+            "counts": "commits behind upstream · 2 at 2026-11-07T00:00:00.000Z"
           },
           {
             "label": "Toolchain",

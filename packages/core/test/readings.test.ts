@@ -121,6 +121,34 @@ describe("Upstream reading on the recorded 6 Nov sweep", () => {
     });
   });
 
+  it("says nothing lands when every behind fork is in wontLand", () => {
+    const m = structuredClone(model);
+    m.upstream.forks = m.upstream.forks.filter((fork) => fork.service === "partition");
+    const reading = upstreamReading({
+      model: m,
+      items: [],
+      radar,
+      fleet: context.fleet,
+      campaigns: [],
+    });
+    expect(reading.tiles[0]?.value).toBe("8");
+    expect(reading.headline).toBe("Nothing lands at the next sync; 8 commits won't land.");
+    expect(wordCount(reading.headline)).toBeLessThanOrEqual(12);
+  });
+
+  it("omits the Incoming held clause when no sync PR holds commits", () => {
+    const m = structuredClone(model);
+    m.upstream.forks = m.upstream.forks.filter((fork) => fork.service === "schema");
+    const reading = upstreamReading({
+      model: m,
+      items: [],
+      radar,
+      fleet: context.fleet,
+      campaigns: [],
+    });
+    expect(reading.tiles[0]?.counts).toBe(`commits behind upstream · 16 at ${SYNC}`);
+  });
+
   it("holds nothing when the PR's lone target commit has an unreadable time", () => {
     const f = structuredClone(facts);
     const storage = f.upstream.data?.storage;
@@ -474,7 +502,7 @@ describe("Upstream reading before anything was read", () => {
     const reading = read({ ...zero, upstream: { ...zero.upstream, unread: 3 } });
     expect(reading.headline).toBe("Nothing queued on the forks read; 3 not read yet.");
     expect(reading.tiles[0]?.counts).toBe(
-      `commits behind upstream · 0 in 0 sync PRs · 0 at ${SYNC} · 3 not read yet`,
+      `commits behind upstream · 0 at ${SYNC} · 3 not read yet`,
     );
   });
 
