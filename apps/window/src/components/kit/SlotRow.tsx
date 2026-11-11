@@ -24,8 +24,25 @@ const LEGEND: Record<SlotState, string> = {
   unknown: "ran, effect unknown",
 };
 
+/** One legend for the slot states actually drawn, in the kit's fixed order. */
+export function SlotLegend({ states }: { states: Iterable<SlotState> }) {
+  const drawn = new Set(states);
+  if (drawn.size === 0) return null;
+  return (
+    <ul className="kit-slot-legend" aria-label="Slot states">
+      {SLOT_STATES.filter((state) => drawn.has(state)).map((state) => (
+        <li key={state} data-state={state}>
+          <span aria-hidden="true">
+            <Slot state={state} text={LEGEND[state]} />
+          </span>
+          {LEGEND[state]}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function SlotRow({ label, count, text, entries, showLegend = true }: SlotRowProps) {
-  const drawn = new Set(entries.map((entry) => entry.state));
   return (
     <figure className="kit-slot-row" aria-label={text} title={text}>
       <figcaption className="kit-slot-row-heading">
@@ -37,18 +54,7 @@ export function SlotRow({ label, count, text, entries, showLegend = true }: Slot
           <Slot key={id} {...props} />
         ))}
       </span>
-      {showLegend && entries.length > 0 && (
-        <ul className="kit-slot-legend" aria-label="Slot states">
-          {SLOT_STATES.filter((state) => drawn.has(state)).map((state) => (
-            <li key={state} data-state={state}>
-              <span aria-hidden="true">
-                <Slot state={state} text={LEGEND[state]} />
-              </span>
-              {LEGEND[state]}
-            </li>
-          ))}
-        </ul>
-      )}
+      {showLegend && <SlotLegend states={entries.map((entry) => entry.state)} />}
     </figure>
   );
 }

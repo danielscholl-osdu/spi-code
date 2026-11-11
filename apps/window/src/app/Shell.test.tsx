@@ -1,12 +1,18 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { InspectResultSchema, PROTOCOL_VERSION, type ReadRecord } from "@spi-code/contracts";
+import {
+  InspectResultSchema,
+  PROTOCOL_VERSION,
+  type ReadRecord,
+  ViewSnapshotSchema,
+} from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { beforeEach, expect, it, vi } from "vitest";
 import briefing from "../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import releases from "../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
+import november6 from "../../../../fixtures/watch/snapshot-1106.json?raw";
 import { after, midSweep, SWEEP_START, sweepStatus } from "../components/sweep/test-helper.js";
 import { selectionStore } from "../panels/selection.js";
 import { PINS_STORAGE_KEY } from "../store/pins.js";
@@ -304,14 +310,11 @@ it.each([740, 900, 980, 1100, 1280])(
   async (width) => {
     viewport(width);
     const previous = watchStore.getState();
-    const body = testSnapshot(briefing, releases);
-    body.briefing.focus = body.briefing.focus.map((item) => ({
-      ...item,
-      attention: item.rung === 0 ? "interrupt" : "surface",
-    }));
+    const body = ViewSnapshotSchema.parse(JSON.parse(november6));
     watchStore.setState({ snapshot: { cursor: body.cursor, body } });
     const shell = await mountShell();
     const { container } = shell;
+    await act(async () => navigate({ kind: "upstream" }));
     const row = container.querySelector<HTMLButtonElement>("main .place-item-content");
     const trigger = container.querySelector<HTMLButtonElement>(
       'header button[aria-controls="app-right-panel"]',

@@ -8,7 +8,6 @@ import { plainTitle } from "../text.js";
 import { clockTime, instantsIn, timedText } from "../time.js";
 import { runningFactHome } from "../views/environment/running-fact.js";
 import { eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
-import { selectTodayItems } from "../views/today/selectors.js";
 import { lensFields } from "./lens-fields.test-helper.js";
 import type { Destination, Registry } from "./navigation.js";
 import { treeServices } from "./queue.js";
@@ -166,8 +165,6 @@ function overlaps(hold: Event, e: Event) {
 
 /** The hold Detail sits behind Stack runs and its bar: two clicks from Environment. */
 export const HOLD_GAP = "spicode-t1k.226: a hold's Detail is two clicks from Environment";
-/** Fact sublines whose tail no surface draws. */
-export const FACT_TAIL_GAP = "spicode-t1k.222: the fact's tail renders on no surface";
 
 const detailField = (field: string) => `.inspector dd[data-field="${field}"]`;
 const related = (index: number, part: "dt" | "dd") =>
@@ -200,34 +197,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
     cases.push({ ...field, home: lensHome(name) });
   }
 
-  const today = 'section.place[aria-label="Today"]';
   const facts = briefing.facts;
-  const firstClausePart = (sub: string): Partial<Reach> => {
-    const shown = firstClause(sub);
-    return shown === sub
-      ? {}
-      : { partial: { tail: sub.slice(shown.length + " · ".length), reason: FACT_TAIL_GAP } };
-  };
-  facts.slice(0, 3).forEach((fact, index) => {
-    const pointer = `/briefing/facts/${index}`;
-    const tile = `${today} .place-tile:nth-child(${index + 1})`;
-    const revision = index === 2 ? /^Template · main (\S+)$/.exec(fact.label)?.[1] : undefined;
-    add(`${pointer}/figure`, fact.figure, TODAY, `${tile} .place-tile-value`);
-    if (revision) {
-      add(`${pointer}/label`, `forks on ${revision}`, TODAY, `${tile} .place-tile-counts`, {
-        canon: lastWord,
-      });
-    } else {
-      add(`${pointer}/label`, fact.label, TODAY, `${tile} dt`);
-      add(
-        `${pointer}/sub`,
-        firstClause(fact.sub),
-        TODAY,
-        `${tile} .place-tile-counts`,
-        firstClausePart(fact.sub),
-      );
-    }
-  });
   const engineeringDetails = lensHome("Engineering system · Details");
   const fact2 = at("/briefing/facts/2");
   if (facts[2])
@@ -251,7 +221,6 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
       '.window-strip [data-field="environment"]',
       {
         read: (element) => (element.textContent ?? "").replace(`env ${envFact.figure}`, "").trim(),
-        ...firstClausePart(envFact.sub),
       },
     );
   }
@@ -263,19 +232,52 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
     attribute: "dateTime",
   });
 
-  const { focus: todayFocus, folded } = selectTodayItems(briefing);
-  const focusIds = new Set(todayFocus.map(({ id }) => id));
-  const foldedIds = new Set(folded.map(({ id }) => id));
-  const more = home("Today · More", STARTS.today, "details.today-folded > summary");
-  const summary = "details.today-folded > summary";
-  if (folded.length > 0)
-    add("/briefing/more", `${briefing.more} more`, TODAY, summary, {
-      contains: true,
+  const verdict = briefing.verdict;
+  if (verdict) {
+    add("/briefing/verdict/text", verdict.text, TODAY, ".today-verdict .today-headline");
+    add("/briefing/verdict/mark", verdict.mark, TODAY, ".today-verdict", {
+      attribute: "data-mark",
     });
-  briefing.ready.forEach((entry, index) => {
-    add(`/briefing/ready/${index}/text`, entry.text, TODAY, summary, { contains: true });
-    add(`/briefing/ready/${index}/count`, entry.count, TODAY, summary, { contains: true });
-  });
+  }
+  const since = briefing.since;
+  if (since) {
+    add("/briefing/since/basis", since.basis, TODAY, ".today-since", { attribute: "data-basis" });
+    const basis = ".today-since-basis";
+    if (since.asOf) {
+      add("/briefing/since/asOf", since.asOf, TODAY, `${basis} time`, { attribute: "dateTime" });
+      add("/briefing/since/from", clockTime(since.from, { hint: false }), TODAY, basis, {
+        attribute: "title",
+        contains: true,
+      });
+    } else
+      add("/briefing/since/from", since.from, TODAY, `${basis} time`, { attribute: "dateTime" });
+    since.rows.forEach((row, index) => {
+      const pointer = `/briefing/since/rows/${index}`;
+      const div = `.today-since-row:nth-of-type(${index + 1})`;
+      add(`${pointer}/workflow`, row.workflow, TODAY, div, { attribute: "data-workflow" });
+      add(`${pointer}/label`, row.label, TODAY, `${div} .kit-slot-row-label`);
+      add(`${pointer}/countText`, row.countText, TODAY, `${div} .kit-slot-row-count`);
+      row.slots.forEach((slot, at) => {
+        const pip = `${div} .kit-slot:nth-child(${at + 1})`;
+        add(`${pointer}/slots/${at}/text`, slot.text, TODAY, pip, { attribute: "aria-label" });
+        add(`${pointer}/slots/${at}/service`, slot.service, TODAY, pip, {
+          attribute: "aria-label",
+          contains: true,
+        });
+        add(`${pointer}/slots/${at}/state`, slot.state, TODAY, pip, {
+          read: (element) =>
+            [...element.classList]
+              .find((name) => name.startsWith("kit-slot--") && name !== "kit-slot--upstream")
+              ?.slice("kit-slot--".length) ?? "",
+        });
+        if (slot.origin)
+          add(`${pointer}/slots/${at}/origin`, slot.origin, TODAY, pip, {
+            read: (element) =>
+              element.classList.contains("kit-slot--upstream") ? "upstream" : "system",
+          });
+      });
+    });
+  }
 
   const readings = snapshot.readings.flatMap(({ anchor, content }) => {
     const place = PLACE_STARTS[anchor.kind];
@@ -301,28 +303,6 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
   for (const [pointer, item] of items) {
     const title = plainTitle(item.title);
     const id = quote(item.id);
-    if (focusIds.has(item.id)) {
-      const li = `${today} li.place-item[data-item-id=${id}]`;
-      add(`${pointer}/title`, nextSync(title), TODAY, `${li} .place-item-title`, {
-        canon: nextSync,
-      });
-      add(`${pointer}/rung`, `P${item.rung}`, TODAY, `${li} .place-rank`);
-      add(`${pointer}/scope`, item.scope, TODAY, `${li} .place-scope`, {
-        ...(item.id === "rollout"
-          ? { exempt: "spicode-t1k.225: Today names the rollout's scope osdu-spi, not its own" }
-          : {}),
-      });
-    }
-    if (foldedIds.has(item.id)) {
-      const button = (root: ParentNode) =>
-        root.querySelector(`details.today-folded button[data-selection-id=${id}]`);
-      const part = (selector: string) => (root: ParentNode) =>
-        button(root)?.closest("li")?.querySelector(selector);
-      add(`${pointer}/title`, title, more, button, { canon: nextSync });
-      add(`${pointer}/rung`, `P${item.rung}`, more, part(".place-rank"));
-      add(`${pointer}/scope`, item.scope, more, part(".place-scope"));
-      if (item.sub) add(`${pointer}/sub`, subText(item.sub), more, part(":scope > p"));
-    }
     for (const reading of readings.filter(({ ids }) => ids.has(item.id))) {
       const where = home(reading.from.name, reading.from);
       const li = `section.place[aria-label=${quote(reading.name)}] li.place-item[data-item-id=${id}]`;
@@ -381,19 +361,17 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
       ({ kind, ids }) => SELECTABLE_PLACES.has(kind) && ids.has(item.id),
     );
     const theme = briefing.themes.findIndex(({ inspect }) => inspect === item.id);
-    const opener = focusIds.has(item.id)
-      ? { from: STARTS.today, step: `${today} [data-selection-id=${id}]` }
-      : reading
+    const opener = reading
+      ? {
+          from: reading.from,
+          step: `section.place[aria-label=${quote(reading.name)}] [data-selection-id=${id}]`,
+        }
+      : theme >= 0
         ? {
-            from: reading.from,
-            step: `section.place[aria-label=${quote(reading.name)}] [data-selection-id=${id}]`,
+            from: STARTS.upstream,
+            step: `li.upstream-theme${at(`/briefing/themes/${theme}`)} button.upstream-theme-item`,
           }
-        : theme >= 0
-          ? {
-              from: STARTS.upstream,
-              step: `li.upstream-theme${at(`/briefing/themes/${theme}`)} button.upstream-theme-item`,
-            }
-          : undefined;
+        : undefined;
     if (!opener) continue;
     const detail = home(
       `${opener.from.name} · Detail ${item.id}`,
@@ -776,12 +754,11 @@ const pending = (bead: string, what: string, patterns: readonly string[]): Exemp
 
 /** Today briefing fields the contract carries before a window bead draws them; each names its bead. */
 export const PENDING: Readonly<Record<string, Exemption>> = {
-  "pending-frame": pending("spicode-f0s.17", "the verdict and since rows", [
-    ...under("/briefing/verdict", ["text", "mark"]),
-    ...under("/briefing/since", ["basis", "from"]),
-    ...under("/briefing/since/rows/#", ["workflow", "label", "countText"]),
-    ...under("/briefing/since/rows/#/slots/#", SLOT),
-  ]),
+  "pending-item-homes": pending(
+    "spicode-f0s.18, spicode-f0s.19 and spicode-f0s.22",
+    "each item in its tier's home on Today (ruling R1)",
+    ["/briefing/focus/#/scope", "/briefing/rest/#/scope"],
+  ),
   "pending-band": pending("spicode-f0s.18", "item origin and Decisions waiting", [
     "/briefing/focus/#/origin",
     "/briefing/rest/#/origin",
@@ -905,6 +882,18 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
       "/releases/lines/#/open",
     ],
     reason: "Styling and grouping metadata, drawn as tone, order or a data attribute",
+  },
+  "retired-today": {
+    patterns: [
+      "/briefing/facts/#/label",
+      "/briefing/facts/#/figure",
+      "/briefing/facts/#/sub",
+      "/briefing/more",
+      "/briefing/ready/#/text",
+      "/briefing/ready/#/count",
+    ],
+    reason:
+      "Today's tiles and its n-more fold are gone (today-design 'What goes'); the place cards and the Releases block draw from briefing.places and releases.today",
   },
   "releases-reading": {
     patterns: ["/releases/reading"],

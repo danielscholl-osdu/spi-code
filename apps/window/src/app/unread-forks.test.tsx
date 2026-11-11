@@ -37,10 +37,6 @@ async function mount(raw: string, hash: string) {
       text("section.place .place-tile:first-child .place-tile-value"),
       text("section.place .place-tile:first-child .place-tile-counts"),
     ],
-    engineeringTile: [
-      text("section.place .place-tile:nth-child(3) .place-tile-value"),
-      text("section.place .place-tile:nth-child(3) .place-tile-counts"),
-    ],
   };
 }
 
@@ -67,11 +63,10 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-it("counts all 13 forks on the strip, the sidebar and Today when 5 forks were not read", async () => {
+it("counts all 13 forks on the strip and the sidebar when 5 forks were not read", async () => {
   const today = await mount(unread, "#today");
   expect(today.strip).toBe("0/13");
   expect(today.sidebar).toBe("0 of 13");
-  expect(today.engineeringTile).toEqual(["0 of 13", "forks on 7d269b5 · 5 not read yet"]);
 });
 
 it("names the 5 forks not read in the Engineering system place", async () => {
@@ -85,7 +80,6 @@ it("reads as before when every fork is read", async () => {
   const today = await mount(november6, "#today");
   expect(today.strip).toBe("0/13");
   expect(today.sidebar).toBe("0 of 13");
-  expect(today.engineeringTile).toEqual(["0 of 13", "forks on 7d269b5"]);
   await unmount?.();
   const place = await mount(november6, "#engineering-system");
   expect(place.tile).toEqual(["0 of 13", "forks on 7d269b5"]);
@@ -95,7 +89,6 @@ it("counts only the verified fork on every surface when another is on 7d269b5 bu
   const today = await mount(unverified, "#today");
   expect(today.strip).toBe("1/13");
   expect(today.sidebar).toBe("1 of 13");
-  expect(today.engineeringTile).toEqual(["1 of 13", "forks on 7d269b5"]);
   await unmount?.();
   const place = await mount(unverified, "#engineering-system");
   expect(place.strip).toBe("1/13");
