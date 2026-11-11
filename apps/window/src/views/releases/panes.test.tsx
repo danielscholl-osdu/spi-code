@@ -169,7 +169,7 @@ it.each(["failed", "stale"] as const)(
     await render(<Releases />, body);
     const pane = container.querySelector('[data-view-pane="releases"]');
     if (!pane) throw new Error("Releases did not render");
-    const line = pane.querySelectorAll("[data-section-evidence]");
+    const line = pane.querySelectorAll('[data-section-evidence="/releases/lines"]');
     expect(line).toHaveLength(1);
     expect(line[0]?.getAttribute("data-section-evidence")).toBe("/releases/lines");
     expect(line[0]?.textContent).toContain(
@@ -255,13 +255,15 @@ it("keeps the month ledger's section line when Today and forming values name oth
   await render(<Releases />, degraded);
   const pane = () => container.querySelector('[data-view-pane="releases"]');
   const ledger = () =>
-    [...(pane()?.querySelectorAll("[data-section-evidence]") ?? [])].map((line) => ({
-      prefixes: line.getAttribute("data-section-evidence"),
-      text: line.textContent,
-      tone: line.getAttribute("data-tone"),
-      title: line.getAttribute("title"),
-      inferred: line.hasAttribute("data-inferred"),
-    }));
+    [...(pane()?.querySelectorAll('[data-section-evidence="/releases/lines"]') ?? [])].map(
+      (line) => ({
+        prefixes: line.getAttribute("data-section-evidence"),
+        text: line.textContent,
+        tone: line.getAttribute("data-tone"),
+        title: line.getAttribute("title"),
+        inferred: line.hasAttribute("data-inferred"),
+      }),
+    );
   const before = ledger();
   const withToday = {
     ...degraded,

@@ -8,7 +8,7 @@ import {
   parseMessage,
   type ReleaseLine,
 } from "@spi-code/contracts";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import { navigate } from "../../app/navigation.js";
 import { treeServices } from "../../app/queue.js";
@@ -17,6 +17,11 @@ import { Place } from "../../components/place/Place.js";
 import type { SelectionRow } from "../../panels/selection-rows.js";
 import { useSelectionList } from "../../panels/useSelectionList.js";
 import { watchStore } from "../../store/watch.js";
+import type { ReleasesSection } from "./anchors.js";
+import { ReleaseSections } from "./Sections.js";
+
+export { FORMING_RELEASES_ANCHOR, SHARED_COMPONENTS_ANCHOR } from "./anchors.js";
+
 import "./panes.css";
 import "./releases.css";
 
@@ -53,7 +58,11 @@ function keyedStats(stats: ReleaseLine["stats"]) {
   });
 }
 
-export default function Releases() {
+export default function Releases({ section }: { section?: ReleasesSection | undefined } = {}) {
+  const pane = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (section) pane.current?.querySelector(`#${section}`)?.scrollIntoView?.({ block: "start" });
+  }, [section]);
   const evidence = useStore(watchStore, (state) => state.snapshot?.body);
   const reading = evidence?.readings.find(({ anchor }) => anchor.kind === "releases") ?? {
     anchor: { kind: "releases" },
@@ -81,7 +90,7 @@ export default function Releases() {
     open,
   );
   return (
-    <div className="releases" data-view-pane="releases">
+    <div className="releases" data-view-pane="releases" ref={pane}>
       <Place
         name="Releases"
         reading={reading}
@@ -89,6 +98,7 @@ export default function Releases() {
         onNavigate={navigate}
       />
       <div className="watch-pane">
+        {evidence && <ReleaseSections snapshot={evidence} />}
         {evidence && <SectionEvidence evidence={evidence} prefixes={["/releases/lines"]} />}
         {!releases?.lines.length || !evidence ? (
           releases?.reading || !reading.content ? (

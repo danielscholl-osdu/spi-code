@@ -8,6 +8,7 @@ import { plainTitle } from "../text.js";
 import { clockTime, instantsIn, timedText } from "../time.js";
 import { runningFactHome } from "../views/environment/running-fact.js";
 import { eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
+import { releaseSectionCases } from "../views/releases/reachability.test-helper.js";
 import { lensFields } from "./lens-fields.test-helper.js";
 import type { Destination, Registry, Route } from "./navigation.js";
 import { placeReachCases } from "./place-reachability.test-helper.js";
@@ -613,6 +614,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
     });
   });
 
+  cases.push(...releaseSectionCases(snapshot, releasesPlace));
   cases.push(...motionCases(snapshot));
   return cases;
 }
@@ -1127,22 +1129,12 @@ function itemAt(pointer: string, { briefing }: Leaves) {
 /** Today briefing fields the contract carries before a window bead draws them; each names its bead. */
 export const PENDING: Readonly<Record<string, Exemption>> = {
   "pending-releases": pending("spicode-f0s.21", "Today's Releases block", [
-    ...under("/releases/today/versions/#", [
-      "service",
-      "state",
-      "released",
-      "proposed",
-      "coreLibAzure",
-      "text",
-      ...PR,
-    ]),
-    ...under("/releases/today/platform", ["stack", "text"]),
-    ...under("/releases/today/platform/template", ["released", "proposed", ...PR]),
+    ...under("/releases/today/versions/#", ["state", "released", "proposed", "text", ...PR]),
+    ...under("/releases/today/platform", ["text"]),
     ...under("/releases/today/platform/coreLibAzure/#", ["version", "count"]),
     "/releases/today/readyLine",
     "/releases/today/unread/areas/#",
     "/releases/today/unread/lastGood",
-    ...under("/releases/forming", ["state", "text"]),
     ...under("/releases/forming/kinds", [
       "breaking",
       "new",
@@ -1153,10 +1145,6 @@ export const PENDING: Readonly<Record<string, Exemption>> = {
     ]),
     ...under("/releases/forming/notable/#", ["title", "kind", "text", ...PR]),
     "/releases/forming/notable/#/services/#",
-  ]),
-  "pending-forming": pending("spicode-f0s.27", "the Releases place's forming change lists", [
-    ...under("/releases/forming/prs/#", ["kind", "service", "state", ...PR]),
-    ...under("/releases/forming/prs/#/entries/#", ["kind", "title"]),
   ]),
 };
 

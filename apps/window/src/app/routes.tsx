@@ -39,7 +39,7 @@ export const DEFAULT_REGISTRY: Registry = {
     upstream: (route) => gated(route, <Upstream />),
     environment: (route) => gated(route, <Environment />),
     "engineering-system": (route) => gated(route, <Template />),
-    releases: (route) => gated(route, <Releases />),
+    releases: (route) => gated(route, <Releases section={route.section} />),
     security: (route) => gated(route, <Security />),
     service: (route) => gated(route, <ServicePage id={route.id} />),
     release: (route) => gated(route, <ReleaseMonth month={route.month} />),

@@ -13,6 +13,11 @@ import {
 } from "react";
 import { useStore } from "zustand";
 import { watchStore } from "../store/watch.js";
+import {
+  FORMING_RELEASES_ANCHOR,
+  type ReleasesSection,
+  SHARED_COMPONENTS_ANCHOR,
+} from "../views/releases/anchors.js";
 
 /** Places in the order the sidebar and Find list them; a service and a release month are reached from elsewhere. */
 export const PLACES = [
@@ -27,7 +32,7 @@ export type PlaceRoute =
   | { kind: "upstream" }
   | { kind: "environment" }
   | { kind: "engineering-system" }
-  | { kind: "releases" }
+  | { kind: "releases"; section?: ReleasesSection }
   | { kind: "security" }
   | { kind: "service"; id: string }
   | { kind: "release"; month: string };
@@ -89,6 +94,11 @@ export function parseRoute(hash: string): Route | undefined {
   const head = slash < 0 ? path : path.slice(0, slash);
   const rest = slash < 0 ? undefined : decode(path.slice(slash + 1));
   if (Object.hasOwn(ALIASES, head)) return rest === undefined ? ALIASES[head] : undefined;
+  if (
+    head === "releases" &&
+    (rest === FORMING_RELEASES_ANCHOR || rest === SHARED_COMPONENTS_ANCHOR)
+  )
+    return { kind: "releases", section: rest };
   if (PLAIN.has(head)) return rest === undefined ? ({ kind: head } as Route) : undefined;
   switch (head) {
     case "service":
@@ -108,6 +118,8 @@ export function routeHash(route: Route): string {
       return `#service/${encodeURIComponent(route.id)}`;
     case "release":
       return `#release/${route.month}`;
+    case "releases":
+      return route.section ? `#releases/${route.section}` : "#releases";
     default:
       return `#${route.kind}`;
   }
