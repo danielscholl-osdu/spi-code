@@ -1,9 +1,10 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readdirSync, readFileSync } from "node:fs";
-import { join, resolve, sep } from "node:path";
+import { readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { expect, it } from "vitest";
+import { directoryPaths } from "../test-utils/directory-paths.test.js";
 
 const source = resolve("apps/window/src");
 const formatting =
@@ -12,9 +13,9 @@ const formatting =
 const allowed = new Set(["time.tsx", "store/strip.ts:toISOString"]);
 
 it("formats visible times only through time.tsx", () => {
-  const files = readdirSync(source, { recursive: true, encoding: "utf8" })
-    .map((file) => file.split(sep).join("/"))
-    .filter((file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$|test-helper\.ts$/.test(file));
+  const files = directoryPaths(source).filter(
+    (file) => /\.tsx?$/.test(file) && !/\.test\.tsx?$|test-helper\.ts$/.test(file),
+  );
   expect(files).toContain("time.tsx");
   const found = files.flatMap((file) => {
     if (allowed.has(file)) return [];

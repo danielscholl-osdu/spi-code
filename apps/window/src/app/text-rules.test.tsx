@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { InspectResultSchema, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { selectionStore } from "../panels/selection.js";
 import { runRow, type SelectionKind, selectionRows } from "../panels/selection-rows.js";
 import { watchStore } from "../store/watch.js";
+import { directoryPaths } from "../test-utils/directory-paths.test.js";
 import { plainTitle } from "../text.js";
 import { clockTime } from "../time.js";
 import { closeSheet, navigate, type Route, relaunch } from "./navigation.js";
@@ -23,7 +24,9 @@ const sweepSchedule = {
 };
 
 const directory = `${resolve("fixtures/watch")}/`;
-const files = readdirSync(directory).filter((file) => file.endsWith(".json"));
+const files = directoryPaths(directory).filter(
+  (file) => !file.includes("/") && file.endsWith(".json"),
+);
 const snapshots = files
   .filter((file) => file.startsWith("snapshot-"))
   .map((name) => ({

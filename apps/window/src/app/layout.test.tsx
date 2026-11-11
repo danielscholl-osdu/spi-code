@@ -1,8 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readdirSync, readFileSync } from "node:fs";
-import { sep } from "node:path";
+import { readFileSync } from "node:fs";
 import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -10,11 +9,11 @@ import { afterEach, expect, it, vi } from "vitest";
 import recorded from "../../../../fixtures/watch/snapshot-1106.json?raw";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
+import { directoryPaths } from "../test-utils/directory-paths.test.js";
 import { navigate, openSheet, pinSheet, type Registry, type Route } from "./routes.js";
 import { Shell } from "./Shell.js";
 
-const styles = readdirSync("apps/window/src", { recursive: true, encoding: "utf8" })
-  .map((file) => file.split(sep).join("/"))
+const styles = directoryPaths("apps/window/src")
   .filter((file) => file.endsWith(".css"))
   .map((file) => ({
     file,

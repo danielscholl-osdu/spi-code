@@ -1,9 +1,9 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readdirSync, readFileSync } from "node:fs";
-import { sep } from "node:path";
+import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
+import { directoryPaths } from "../../test-utils/directory-paths.test.js";
 
 const src = "apps/window/src";
 function leaks(file: string, source: string): boolean {
@@ -32,9 +32,9 @@ function leaks(file: string, source: string): boolean {
   return false;
 }
 it("reserves upstream tokens and ⇣ for the horizon, upstream chips and upstream-origin waiting slots (O5-1)", () => {
-  const files = readdirSync(src, { recursive: true, encoding: "utf8" })
-    .map((file) => file.split(sep).join("/"))
-    .filter((file) => /\.(tsx?|css)$/.test(file) && !file.includes(".test"));
+  const files = directoryPaths(src).filter(
+    (file) => /\.(tsx?|css)$/.test(file) && !file.includes(".test"),
+  );
   expect(files.filter((file) => leaks(file, readFileSync(`${src}/${file}`, "utf8")))).toEqual([]);
   expect(leaks("views/security/security.css", ".security { color: var(--upstream); }")).toBe(true);
   expect(leaks("views/security/index.tsx", "<span>⇣ upstream-owned</span>")).toBe(true);
