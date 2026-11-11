@@ -26,6 +26,7 @@ import { LineGlyph, LineGlyphLegend, type LineStation } from "../../components/k
 import { Mark, type MarkTier } from "../../components/kit/Mark.js";
 import { type SelectionStore, selectionStore } from "../../panels/selection.js";
 import { selectionRows } from "../../panels/selection-rows.js";
+import { plainTitle } from "../../text.js";
 import { interruptsOf } from "./selectors.js";
 import "./band.css";
 
@@ -143,6 +144,7 @@ function Decision({
   const target =
     group.itemIds.length > 1 && themes.has(group.theme) ? `theme:${group.theme}` : first;
   const kind = group.kind ? KIND[group.kind] : undefined;
+  const text = plainTitle(group.text);
   const openGroup = () => target && open.select(target);
   return (
     <li
@@ -151,7 +153,7 @@ function Decision({
       data-theme={group.theme}
       data-item-ids={group.itemIds.join(" ")}
       data-kind={group.kind}
-      title={group.text}
+      title={text}
       aria-current={(target !== undefined && open.selected === target) || undefined}
     >
       {kind && (
@@ -194,10 +196,10 @@ function Decision({
       <button
         type="button"
         className={group.token ? "today-decision-cause kit-chip" : "today-decision-cause"}
-        aria-label={group.text}
+        aria-label={text}
         onClick={openGroup}
       >
-        {group.token ?? group.text}
+        {plainTitle(group.token ?? text)}
       </button>
       {group.verb && (
         <button type="button" className="today-verb" onClick={openGroup}>

@@ -934,9 +934,10 @@ export function bandCases(snapshot: ViewSnapshot): Reach[] {
       const row = `${band} li.today-decision[data-decision-id=${quote(group.id)}]`;
       add(`${pointer}/id`, group.id, TODAY, row, { attribute: "data-decision-id" });
       add(`${pointer}/theme`, group.theme, TODAY, row, { attribute: "data-theme" });
-      add(`${pointer}/text`, group.text, TODAY, row, { attribute: "title" });
+      add(`${pointer}/text`, plainTitle(group.text), TODAY, row, { attribute: "title" });
       if (group.kind) add(`${pointer}/kind`, group.kind, TODAY, row, { attribute: "data-kind" });
-      if (group.token) add(`${pointer}/token`, group.token, TODAY, `${row} .today-decision-cause`);
+      if (group.token)
+        add(`${pointer}/token`, plainTitle(group.token), TODAY, `${row} .today-decision-cause`);
       if (group.verb)
         add(`${pointer}/verb`, group.verb, TODAY, `${row} .today-verb`, { read: verbOf });
       group.itemIds.forEach((id, at) => {

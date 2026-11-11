@@ -42,8 +42,14 @@ const internal = /\bfork_upstream\b|\bgate\s+\d+\b|\bpresses\b|\bcut\b/i;
 const machineTime = /\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}|\bUTC\b/;
 const placeholder = /not available yet|No settled threads yet|ships in M[3-9]/i;
 const headlines = '.place-headline, [data-pointer$="/headline"], .release-months td:nth-child(3)';
-const titles =
-  ".place-item-title, .place-item-sub, .place-item-next, .template-line-text, .template-line-sub, .env-repo-line-text, .env-repo-line small, .env-muted, .template-repo-title, .service-row-title, .service-section-count, .service-row-sub, .detail-title, [data-field], .inspector-related dd, .palette-label, .inbox-row-title, .inbox-sub";
+const titles = [
+  ".place-item-title, .place-item-sub, .place-item-next, .template-line-text, .template-line-sub, .env-repo-line-text, .env-repo-line small, .env-muted, .template-repo-title, .service-row-title, .service-section-count, .service-row-sub, .detail-title, [data-field], .inspector-related dd, .palette-label, .inbox-row-title, .inbox-sub",
+  ".today-headline, .today-need-title, .today-decision-cause, .today-verb, .today-item-state",
+  ".horizon-heading, .horizon-token, .horizon-verb",
+  ".today-place-open, .today-place-figure, .today-place-reason, .today-place-caveat",
+  ".today-releases-heading, .today-releases-ready, .today-release-service, .today-release-none, .today-release-value, .today-release-notable button",
+  ".today-motion-head, .today-motion-text, .today-motion-quiet, .today-motion-state, .today-canwait-chip",
+].join(", ");
 
 function violations(scope: ParentNode): string[] {
   const failures: string[] = [];
@@ -420,6 +426,26 @@ it("omits a Related entry whose text is only emoji, and Related when none is lef
   assertRules("Related with only emoji entries");
 });
 
+it.each([false, true])("cleans Today decision text with a token: %s", async (withToken) => {
+  const body = structuredClone(snapshots.find(({ name }) => name === "snapshot-1106.json")?.body);
+  const group = body?.briefing.decisions?.groups.find(({ text }) =>
+    text.includes("Release PR #89"),
+  );
+  if (!body || !group) throw new Error("Missing recorded release decision");
+  group.text += " › ⇣ ✕ ! ◐ ○ ⌀";
+  group.token = withToken ? "📊 Code Coverage" : undefined;
+  await open(body);
+  const row = [...container.querySelectorAll(".today-decision")].find(
+    (element) => element.getAttribute("data-decision-id") === group.id,
+  );
+  const cause = row?.querySelector(".today-decision-cause");
+  const text = "Release PR #89 fails Code Coverage › ⇣ ✕ ! ◐ ○ ⌀";
+  expect(row?.getAttribute("title")).toBe(text);
+  expect(cause?.getAttribute("aria-label")).toBe(text);
+  expect(cause?.textContent).toBe(withToken ? "Code Coverage" : text);
+  assertRules("Today decision with recorded job emoji");
+});
+
 it("strips injected emoji from the template queue row", async () => {
   const body = structuredClone(snapshots[0]?.body);
   const item =
@@ -464,6 +490,12 @@ it.each([
   ["emoji", '<span class="template-line-text">🐛 Fix the issue</span>'],
   ["emoji", '<dd data-field="cause">📊 Code Coverage failed</dd>'],
   ["emoji", '<p class="place-item-sub">🚨 Check the build</p>'],
+  ["emoji", '<button class="today-need-title">📊 Code Coverage failed</button>'],
+  ["emoji", '<button class="today-decision-cause">📊 Code Coverage failed</button>'],
+  ["emoji", '<button class="horizon-token">🔧 Fix the build</button>'],
+  ["emoji", '<span class="today-place-reason">🚨 Release blocked</span>'],
+  ["emoji", '<li class="today-release-notable"><button>🔧 Fix the build</button></li>'],
+  ["emoji", '<span class="today-motion-text">🔧 Fix the build</span>'],
   ["action", "<button>Open in inspector · Investigate, then Dispatch cascade</button>"],
   ["time", "<p>swept 2026-11-06T14:02:00Z</p>"],
   ["time", "<p>at 2026-10-12 21:58 UTC</p>"],
@@ -515,7 +547,7 @@ it("keeps text-style pictographs without U+FE0F and strips them as emoji with it
 });
 
 it("preserves ordinary symbols and the strip and command glyphs", () => {
-  const text = "© ™ ✔ ✕ ! ◐ ○ ⌘";
+  const text = "© ™ ✔ › ⇣ ✕ ! ◐ ○ ⌀ ⌘";
   expect(plainTitle(text)).toBe(text);
   container.innerHTML = `<dd data-field="cause">${text}</dd>`;
   expect(violations(container)).toEqual([]);
