@@ -6,6 +6,7 @@ import {
   engineeringReading,
   environmentReading,
   type Model,
+  programReading,
   releaseMonthReading,
   releasesReading,
   securityReading,
@@ -35,7 +36,8 @@ function releasesRead(input: WatchInput): boolean {
 }
 
 export const readingFor: Record<Anchor["kind"], PlaceReader> = {
-  program: (_anchor, _context) => null,
+  program: (_anchor, { model, input, briefing }) =>
+    programReading({ model, facts: input.facts, items: [...briefing.focus, ...briefing.rest] }),
   upstream: (_anchor, { model, input, briefing, campaigns }) =>
     upstreamReading({
       model,

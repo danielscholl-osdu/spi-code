@@ -1,6 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+export { placesOf } from "./places.js";
+
 export { type PlatformSource, platformReleased, releasesToday } from "./releases-today.js";
 
 import {

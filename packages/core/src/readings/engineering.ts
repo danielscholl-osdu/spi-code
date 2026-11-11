@@ -137,6 +137,7 @@ export function engineeringReading<T extends EngineeringItem>(
       ).join("; ")}.`
     : undefined;
   const reading = placeReading({
+    membership: true,
     headline,
     ...(qualifier ? { qualifier } : {}),
     tiles: [

@@ -26,6 +26,7 @@ import {
   isMonth,
   monthFacts,
   parseNotes,
+  placesOf,
   platformReleased,
   RELEASES_EVERY_MS,
   type ReadRecord,
@@ -309,12 +310,20 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     provenance: releaseProvenance(releases.lines, input.releaseRecords, now),
   });
   const platform = platformReleased(documents, input.facts, input.context);
+  const readings = placeReadings(model, input, briefing, documents, campaigns);
+  const areas = areaEnvelopes(
+    input.envelopeReads ?? input.reads,
+    (area, record) =>
+      input.readIntervals?.get(record) ?? input.intervals?.[area] ?? input.intervalMs,
+    now,
+  );
+  const places = placesOf({ readings, items: [...briefing.focus, ...briefing.rest], areas });
   return ViewSnapshotSchema.parse({
     cursor: input.cursor,
     sweptAt: model.sweptAt ?? now.toISOString(),
-    briefing,
+    briefing: { ...briefing, places },
     campaigns,
-    readings: placeReadings(model, input, briefing, documents, campaigns),
+    readings,
     seen: seenState(model, input, briefing),
     releases: {
       ...releases,
@@ -328,14 +337,10 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
     services,
     tree: treeOf(input, now),
     reads: [...Object.values(input.reads).flat(), ...input.releaseRecords],
-    areas: areaEnvelopes(
-      input.envelopeReads ?? input.reads,
-      (area, record) =>
-        input.readIntervals?.get(record) ?? input.intervals?.[area] ?? input.intervalMs,
-      now,
-    ),
+    areas,
     provenance: [
       ...briefingProvenance(briefing, model.stack),
+      ...places.map((row, i) => ({ path: `/briefing/places/${i}`, areas: row.areas })),
       ...stationProvenance(stations),
       ...releaseProvenance(releases.lines, input.releaseRecords, now),
       {

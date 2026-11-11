@@ -264,6 +264,7 @@ export function securityReading(input: SecurityReadingInput): PlaceReading<Secur
   }
   const qualifier = qualifierOf(input.reads);
   return placeReading({
+    membership: true,
     headline:
       listsRead === 0
         ? `Security ${NOT_READ}.`

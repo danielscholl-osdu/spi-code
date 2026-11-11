@@ -11,6 +11,8 @@ import { horizonStages } from "../brief/horizon.js";
 import { fitHeadline, plural, since, wordCount } from "../util.js";
 import { type SecurityReadingItem, serviceSecurityItem } from "./security.js";
 
+export { programReading } from "./program.js";
+
 export const READING_ITEMS = 5;
 
 export interface ReadingTile {
@@ -38,6 +40,7 @@ export interface PlaceReading<T extends ReadingItem> {
   tiles: [ReadingTile, ReadingTile, ReadingTile];
   items: (T & { group: string })[];
   folded: string | null;
+  itemIds?: string[];
 }
 
 export interface ReadingGroup<T extends ReadingItem> {
@@ -54,6 +57,7 @@ export interface ReadingParts<T extends ReadingItem> {
   fold?: (rest: readonly T[]) => string;
   // A line folded in whether or not items overflow.
   extra?: string;
+  membership?: boolean;
 }
 
 // Raw issue and check titles carry emoji; a reading shows their words alone.
@@ -94,6 +98,7 @@ export function placeReading<T extends ReadingItem>(parts: ReadingParts<T>): Pla
     ...(qualifier ? { qualifier } : {}),
     tiles: [plainTile(a), plainTile(b), plainTile(c)],
     items: all.slice(0, READING_ITEMS),
+    ...(parts.membership ? { itemIds: [...new Set(all.flatMap((item) => [item.id, ...item.ids]))] } : {}),
     folded: plainText([fold, parts.extra].filter(Boolean).join(" ")) || null,
   };
 }
