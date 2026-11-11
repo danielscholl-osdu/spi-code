@@ -118,6 +118,7 @@ export default function Environment({
     <Place
       name="Environment"
       reading={reading}
+      snapshot={body}
       services={treeServices(body?.tree)}
       onNavigate={navigate}
       onSelect={(id) => {

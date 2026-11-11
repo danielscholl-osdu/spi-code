@@ -355,6 +355,8 @@ async function assertOpens(row: Reach, body: ViewSnapshot) {
   if ("detail" in row.opens) {
     const { row: selected, selected: id } = selectionStore.getState();
     expect(selected?.inspectId ?? id, where).toBe(row.opens.detail);
+  } else if (row.opens.place.kind === "line") {
+    expect(container.querySelector(".line-sheet"), where).not.toBeNull();
   } else expect(window.location.hash, where).toBe(routeHash(row.opens.place));
 }
 

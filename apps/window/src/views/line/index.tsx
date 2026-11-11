@@ -14,6 +14,7 @@ import {
   useLineSheetRequest,
 } from "../../app/navigation.js";
 import { PinMenu } from "../../components/pin/PinMenu.js";
+import { FreshItems } from "../../components/place/FreshItems.js";
 import { selectionStore } from "../../panels/selection.js";
 import { selectionRows } from "../../panels/selection-rows.js";
 import { watchStore } from "../../store/watch.js";
@@ -121,6 +122,7 @@ function LineContent({
             ))}
           </fieldset>
         )}
+        <FreshItems snapshot={snapshot} place="line" />
         {rows.length > 0 && (
           <div className="line-grid-scroll">
             <table className="line-grid" aria-label="Service stations">

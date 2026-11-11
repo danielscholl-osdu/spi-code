@@ -32,7 +32,7 @@ export type Home = {
 };
 
 /** What a click on the drawn field opens: the item's Detail, or a place. */
-export type Opens = { click: Selector } & ({ detail: string } | { place: Route });
+export type Opens = { click: Selector } & ({ detail: string } | { place: Destination });
 
 export type Reach = {
   pointer: string;

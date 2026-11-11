@@ -140,6 +140,7 @@ export default function Template({
       <Place
         name="Engineering system"
         reading={reading}
+        snapshot={snapshot}
         services={treeServices(snapshot?.tree)}
         onNavigate={navigate}
         onSelect={(id) => {

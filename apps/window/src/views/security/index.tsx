@@ -17,6 +17,7 @@ export default function Security() {
     <Place
       name="Security"
       reading={reading}
+      snapshot={snapshot}
       services={treeServices(snapshot?.tree)}
       onNavigate={navigate}
     />

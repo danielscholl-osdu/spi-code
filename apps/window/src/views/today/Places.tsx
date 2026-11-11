@@ -271,11 +271,12 @@ export function Places({
                   />
                 </span>
               )}
-              {row.fresh.itemIds.length > 0 && (
+              {(row.fresh?.itemIds.length ?? 0) > 0 && (
                 <button
                   type="button"
                   className="kit-chip kit-chip--accent today-place-new"
-                  data-items={row.fresh.itemIds.join(" ")}
+                  data-items={row.fresh?.itemIds.join(" ")}
+                  aria-label={`Open ${label}, new items marked`}
                   onClick={() => onNavigate(route)}
                 >
                   new

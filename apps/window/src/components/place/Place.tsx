@@ -1,12 +1,13 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { Reading } from "@spi-code/contracts";
+import type { PlaceRow, Reading, ViewSnapshot } from "@spi-code/contracts";
 import type { ReactNode } from "react";
 import { type Navigation, PLACES, routeLabel } from "../../app/navigation.js";
 import { scopeRoute } from "../../app/queue.js";
 import { plainTitle } from "../../text.js";
 import { instantsIn, TimedText, timedText } from "../../time.js";
+import { FreshChip, FreshItems, freshItemIds } from "./FreshItems.js";
 import "./place.css";
 
 type Item = NonNullable<Reading["content"]>["items"][number];
@@ -21,6 +22,7 @@ function ownDue(item: Item): Item["due"] {
 export type PlaceProps = {
   name: string;
   reading: Reading;
+  snapshot?: ViewSnapshot | undefined;
   services?: readonly string[];
   onNavigate: Navigation["navigate"];
   /** Without onSelect, item content stays static and scope chips still navigate. */
@@ -37,6 +39,7 @@ export type PlaceProps = {
 export function Place({
   name,
   reading,
+  snapshot,
   services = [],
   onNavigate,
   onSelect,
@@ -46,6 +49,15 @@ export function Place({
   pinned = false,
 }: PlaceProps) {
   const { content } = reading;
+  const place = (
+    {
+      program: "line",
+      environment: "environment",
+      engineering: "engineering",
+      security: "security",
+    } as Partial<Record<Reading["anchor"]["kind"], PlaceRow["place"]>>
+  )[reading.anchor.kind];
+  const fresh = place ? freshItemIds(snapshot, place) : [];
   const ItemContent = onSelect ? "button" : "div";
   const groups = new Map<string, Item[]>();
   for (const item of content?.items.slice(0, 5) ?? []) {
@@ -156,6 +168,7 @@ export function Place({
                                 <span className="place-item-next">{plainTitle(item.next)}</span>
                               )}
                             </ItemContent>
+                            {fresh.includes(item.id) && <FreshChip id={item.id} />}
                           </div>
                         </li>
                       );
@@ -167,6 +180,14 @@ export function Place({
           )}
           {content.folded && <p className="place-folded">{content.folded}</p>}
         </section>
+      )}
+      {place && (
+        <FreshItems
+          snapshot={snapshot}
+          place={place}
+          shown={content?.items.map(({ id }) => id)}
+          onSelect={onSelect}
+        />
       )}
     </section>
   );

@@ -208,3 +208,9 @@
 .repository-counts [data-tone="bad"] { color: var(--error-text); }
 .repository-counts [data-tone="warn"] { color: var(--warning-text); }
 .repository-counts [data-tone="ok"] { color: var(--success-text); }
+
+.place-fresh-items {
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}

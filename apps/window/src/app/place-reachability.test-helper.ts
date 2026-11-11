@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { ViewSnapshot } from "@spi-code/contracts";
+import type { Destination } from "./navigation.js";
 import type { Reach } from "./reachability.test-helper.js";
 
 /** Place-card fields, with the card's own opener and each visual's core-supplied names. */
@@ -78,7 +79,12 @@ export function placeReachCases(snapshot: ViewSnapshot): Reach[] {
       });
     });
     row.fresh.itemIds.forEach((id, at) => {
-      attr(`fresh/itemIds/${at}`, id, ".today-place-new", "data-items", true);
+      const click = `${card} .today-place-new`;
+      add(`fresh/itemIds/${at}`, id, ".today-place-new", {
+        attribute: "data-items",
+        contains: true,
+        opens: { click, place: freshDestination(row.place) },
+      });
     });
     if (row.unread) {
       row.unread.areas.forEach((area, at) => {
@@ -165,5 +171,38 @@ export function placeReachCases(snapshot: ViewSnapshot): Reach[] {
           });
     }
   });
-  return cases;
+  return [...cases, ...placeFreshCases(snapshot)];
+}
+
+const freshDestination = (place: string): Destination => {
+  switch (place) {
+    case "line":
+      return { kind: "line" };
+    case "environment":
+      return { kind: "environment" };
+    case "engineering":
+      return { kind: "engineering-system" };
+    default:
+      return { kind: "security" };
+  }
+};
+
+/** Fresh ids have a visible chip at their place as well as the opener on Today. */
+export function placeFreshCases(snapshot: ViewSnapshot): Reach[] {
+  return (snapshot.briefing.places ?? []).flatMap((row, index) =>
+    (row.fresh?.itemIds ?? []).map((id, at) => ({
+      pointer: `/briefing/places/${index}/fresh/itemIds/${at}`,
+      value: id,
+      home: {
+        name: `Fresh items · ${row.place}`,
+        start: {
+          name: row.place,
+          surface: row.place === "line" ? "sheet" : freshDestination(row.place).kind,
+          route: freshDestination(row.place),
+        },
+      },
+      selector: `[data-fresh-item=${JSON.stringify(id)}]`,
+      attribute: "data-fresh-item",
+    })),
+  );
 }
