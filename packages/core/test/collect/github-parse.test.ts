@@ -238,4 +238,22 @@ describe("open work", () => {
     expect(fact.openIssues).toBe(1);
     expect(buildWork({ [STACK_REPO]: fact }, context).stack.unreadPrs).toBe(40);
   });
+  test("a pull request carries its head commit's time only when the last commit read is the head", () => {
+    const pr = (oid: string) => ({
+      number: 7,
+      title: "Sync",
+      url: "u",
+      createdAt: "2026-10-08T00:00:00Z",
+      updatedAt: "2026-10-09T00:00:00Z",
+      isDraft: false,
+      headRefName: "sync/upstream-20261008-000000",
+      baseRefName: "fork_upstream",
+      headRefOid: "a".repeat(40),
+      commits: { nodes: [{ commit: { oid, committedDate: "2026-10-08T00:05:00Z" } }] },
+    });
+    const read = (oid: string) =>
+      parseRepo({ nameWithOwner: STACK_REPO, url: "u", pullRequests: { nodes: [pr(oid)] } }).prs[0];
+    expect(read("a".repeat(40))?.headAt).toBe("2026-10-08T00:05:00Z");
+    expect(read("b".repeat(40))).not.toHaveProperty("headAt");
+  });
 });

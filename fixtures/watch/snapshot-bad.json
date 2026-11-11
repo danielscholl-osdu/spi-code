@@ -2182,8 +2182,8 @@
             },
             {
               "service": "legal",
-              "state": "occupied",
-              "text": "Sync Upstream on legal brought changes to PR #701."
+              "state": "unknown",
+              "text": "Sync Upstream on legal ran, effect unknown."
             },
             {
               "service": "schema",
@@ -6330,8 +6330,104 @@
       }
     },
     {
-      "source": "upstream",
-      "object": "upstream",
+      "source": "osdu/platform/system/partition",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/system/indexer-queue",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-catalog-service",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "repository/branches/master",
       "observedAt": "2026-11-06T14:02:00.133Z",
       "completeness": {
         "kind": "complete"

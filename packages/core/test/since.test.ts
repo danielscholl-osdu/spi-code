@@ -3,8 +3,10 @@
 
 import { describe, expect, it } from "vitest";
 import { sinceOf } from "../src/brief/since.js";
-import type { ForkRuns, RunFact } from "../src/facts.js";
+import type { ReadRecord } from "../src/evidence/index.js";
+import type { ForkRuns, PrFact, RunFact } from "../src/facts.js";
 import { buildModel } from "../src/model/index.js";
+import type { LineModel } from "../src/model/lines.js";
 import type { RolloutModel } from "../src/model/rollout.js";
 import { fixtureContext } from "./briefing-setup.js";
 import { FIXTURE_NOW, fixtureFacts } from "./harness.js";
@@ -77,28 +79,29 @@ describe("since pips", () => {
       text: `Sync Upstream on ${line.fork.id} is waiting for approval.`,
     });
   });
-  it.each(["createdAt", "updatedAt"] as const)(
-    "a sync PR %s in the run window proves occupied",
+  const syncPr = (line: LineModel, over: Partial<PrFact> = {}): PrFact => ({
+    repo: line.fork.repo,
+    number: 42,
+    title: "Sync",
+    url: "https://example.com/pr/42",
+    head: "sync/upstream-20261010-000000",
+    base: "fork_upstream",
+    headSha: "abc",
+    draft: false,
+    labels: [],
+    checks: [],
+    createdAt: "2026-10-10T00:00:00Z",
+    updatedAt: "2026-10-12T20:00:00Z",
+    ...over,
+  });
+  it.each(["createdAt", "headAt"] as const)(
+    "a sync PR whose %s falls in the run window proves occupied",
     (field) => {
       const { line, read } = setup();
       line.syncPr = {
         prClass: "sync",
         failures: [],
-        pr: {
-          repo: line.fork.repo,
-          number: 42,
-          title: "Sync",
-          url: "https://example.com/pr/42",
-          head: "sync/upstream",
-          base: "main",
-          headSha: "abc",
-          draft: false,
-          labels: [],
-          checks: [],
-          createdAt: "2026-10-10T00:00:00Z",
-          updatedAt: "2026-10-12T20:00:00Z",
-          [field]: "2026-10-12T18:10:00Z",
-        },
+        pr: syncPr(line, { [field]: "2026-10-12T18:10:00Z" }),
       };
       expect(read().rows[0]?.slots[0]).toMatchObject({
         state: "occupied",
@@ -106,6 +109,18 @@ describe("since pips", () => {
       });
     },
   );
+  it("an existing sync PR changed in the run only by a comment or label stays unknown", () => {
+    const { line, read } = setup();
+    line.syncPr = {
+      prClass: "sync",
+      failures: [],
+      pr: syncPr(line, { updatedAt: "2026-10-12T18:10:00Z", headAt: "2026-10-10T00:05:00Z" }),
+    };
+    expect(read().rows[0]?.slots[0]).toMatchObject({
+      state: "unknown",
+      text: expect.stringContaining("ran, effect unknown"),
+    });
+  });
   it("a successful run with no provable effect draws unknown, not empty", () => {
     const { read } = setup();
     expect(read().rows[0]?.slots[0]).toMatchObject({
@@ -203,22 +218,24 @@ describe("since pips", () => {
   it("uses retained fork-run observations rather than newer failed attempts or job reads", () => {
     const { facts, model } = setup();
     const observed = "2026-10-12T20:00:00Z";
-    const since = sinceOf(model, facts, FIXTURE_NOW, 300_000, undefined, [
-      {
-        source: "test/fork",
-        object: "fork-runs",
-        observedAt: facts.runs.at ?? "",
-        retainedFrom: observed,
-        failure: "offline",
-        completeness: { kind: "complete" },
-      },
-      {
-        source: "test/fork",
-        object: "old-job",
-        observedAt: "2026-10-01T00:00:00Z",
-        completeness: { kind: "complete" },
-      },
-    ]);
+    const since = sinceOf(model, facts, FIXTURE_NOW, 300_000, undefined, {
+      runs: [
+        {
+          source: "test/fork",
+          object: "fork-runs",
+          observedAt: facts.runs.at ?? "",
+          retainedFrom: observed,
+          failure: "offline",
+          completeness: { kind: "complete" },
+        },
+        {
+          source: "test/fork",
+          object: "old-job",
+          observedAt: "2026-10-01T00:00:00Z",
+          completeness: { kind: "complete" },
+        },
+      ],
+    });
     expect(since).toMatchObject({ basis: "stale", asOf: observed, from });
   });
   it("keeps missing coverage unknown and uses empty only with proof no run finished", () => {
@@ -231,5 +248,91 @@ describe("since pips", () => {
     expect(read().rows[0]?.slots[0]?.state).toBe("unknown");
     facts.runs = {};
     expect(sinceOf(setup().model, facts, FIXTURE_NOW, 300_000)).toBeUndefined();
+  });
+  describe("a successful sync run that found nothing", () => {
+    const after = "2026-10-12T21:50:00Z";
+    const record = (source: string, object: string, observedAt = after): ReadRecord => ({
+      source,
+      object,
+      observedAt,
+      completeness: { kind: "complete" },
+    });
+    function calm() {
+      const base = setup();
+      const { line, facts, model } = base;
+      line.repoRead = true;
+      line.upstream = { ...line.upstream, lag: 0 } as typeof line.upstream;
+      const repo = required(facts.github.data?.repos[line.fork.repo]);
+      repo.prs = [];
+      repo.openPrs = 0;
+      const reads = {
+        github: [record("github", line.fork.repo)],
+        upstream: [record(line.fork.upstream, "repository/branches/master")],
+      };
+      const slot = () =>
+        required(sinceOf(model, facts, FIXTURE_NOW, 300_000, undefined, reads)).rows[0]?.slots[0];
+      return { ...base, repo, reads, slot };
+    }
+    it("draws empty when reads after the run show no sync PR and lag 0", () => {
+      const { line, slot } = calm();
+      expect(slot()).toEqual({
+        service: line.fork.id,
+        state: "empty",
+        text: `Sync Upstream on ${line.fork.id} ran and found nothing new upstream.`,
+      });
+    });
+    it("stays unknown when a read predates the run's end, failed, or is missing", () => {
+      const { line, reads, slot } = calm();
+      reads.upstream = [
+        record(line.fork.upstream, "repository/branches/master", "2026-10-12T18:20:00Z"),
+      ];
+      expect(slot()?.state).toBe("unknown");
+      reads.upstream = [
+        { ...record(line.fork.upstream, "repository/branches/master"), failure: "offline" },
+      ];
+      expect(slot()?.state).toBe("unknown");
+      reads.upstream = [record(line.fork.upstream, "repository/branches/master")];
+      reads.github = [];
+      expect(slot()?.state).toBe("unknown");
+      reads.github = [
+        {
+          ...record("github", line.fork.repo),
+          failure: "offline",
+          retainedFrom: "2026-10-12T18:20:00Z",
+        },
+      ];
+      expect(slot()?.state).toBe("unknown");
+      reads.github = [
+        { ...record("github", line.fork.repo), failure: "offline", retainedFrom: after },
+      ];
+      expect(slot()?.state).toBe("empty");
+    });
+    it("stays unknown with lag, an open sync PR, a cut PR list or a sync PR touched since the run began", () => {
+      const { line, repo, slot } = calm();
+      line.upstream = { ...line.upstream, lag: 3 } as typeof line.upstream;
+      expect(slot()?.state).toBe("unknown");
+      line.upstream = { ...line.upstream, lag: 0 } as typeof line.upstream;
+      repo.prs = [syncPr(line)];
+      repo.openPrs = 1;
+      expect(slot()?.state).toBe("unknown");
+      repo.prs = [];
+      repo.openPrs = 41;
+      expect(slot()?.state).toBe("unknown");
+      repo.openPrs = 0;
+      line.past = [
+        {
+          number: 7,
+          title: "Sync",
+          url: "u",
+          head: "sync/upstream-1",
+          base: "fork_upstream",
+          createdAt: "2026-10-10T00:00:00Z",
+          mergedAt: "2026-10-12T18:30:00Z",
+        },
+      ];
+      expect(slot()?.state).toBe("unknown");
+      line.past = undefined;
+      expect(slot()?.state).toBe("unknown");
+    });
   });
 });

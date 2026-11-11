@@ -283,6 +283,7 @@ function morningRepo(input: WatchInput, service: string): RepoFact {
 }
 
 function morningPr(repo: RepoFact, number: number, head: string, title: string): PrFact {
+  repo.openPrs = (repo.openPrs ?? 0) + 1;
   return {
     repo: repo.repo,
     number,
@@ -349,7 +350,7 @@ function morningInput(adopted: number): WatchInput {
   for (const repo of Object.values(facts.github.data?.repos ?? {})) {
     repo.prs = [];
     repo.issues = [];
-    delete repo.openPrs;
+    repo.openPrs = 0;
     delete repo.openIssues;
     facts.security.data[repo.repo] = { dependabot: [], code: [] };
   }
@@ -430,22 +431,22 @@ function morningInput(adopted: number): WatchInput {
       releases.created[repo.repo] = "2026-01-01T00:00:00Z";
     }
   }
+  const read = (source: string, object: string): ReadRecord => ({
+    source,
+    object,
+    observedAt: MORNING_AT,
+    completeness: { kind: "complete" },
+  });
   return {
     ...input,
     releases,
-    reads: Object.fromEntries(
-      AREAS.map((area) => [
-        area,
-        [
-          {
-            source: area,
-            object: area,
-            observedAt: MORNING_AT,
-            completeness: { kind: "complete" },
-          },
-        ],
-      ]),
-    ),
+    reads: {
+      ...Object.fromEntries(AREAS.map((area) => [area, [read(area, area)]])),
+      github: Object.keys(facts.github.data?.repos ?? {}).map((repo) => read("github", repo)),
+      upstream: input.context.fleet.forks.map((fork) =>
+        read(fork.upstream, "repository/branches/master"),
+      ),
+    },
     releaseRecords: [
       {
         source: "releases",
@@ -601,9 +602,10 @@ export function busyInput(): WatchInput {
   );
   for (const [index, service] of ["indexer", "workflow", "unit"].entries()) {
     const repo = morningRepo(input, service);
-    repo.prs.push(
-      morningPr(repo, 58 + index, "sync/upstream-morning", "build: absorb os-core-common 8.5.0"),
-    );
+    repo.prs.push({
+      ...morningPr(repo, 58 + index, "sync/upstream-morning", "build: absorb os-core-common 8.5.0"),
+      headAt: "2026-11-06T12:05:00Z",
+    });
   }
   const schema = morningRepo(input, "schema");
   schema.issues.push({

@@ -29,6 +29,8 @@ export interface PrFact {
   head: string;
   base: string;
   headSha: string;
+  // The head commit's committer date; undefined unless the last commit read is the head.
+  headAt?: string;
   // The template marker at the PR head: where a template-sync PR takes the fork.
   headMarker?: string;
   mergeState?: string;

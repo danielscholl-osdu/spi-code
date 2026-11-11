@@ -40,9 +40,41 @@ function completed(runs: readonly RunFact[], from: number, to: number): RunFact 
     .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt) || b.id - a.id)[0];
 }
 
+type AreaReads = Partial<Record<"runs" | "github" | "upstream", readonly ReadRecord[]>>;
+
+function goodAt(read: ReadRecord): number | undefined {
+  const at = read.retainedFrom ?? (read.failure ? undefined : read.observedAt);
+  return at === undefined ? undefined : Date.parse(at);
+}
+
+/** The oldest good observation among the reads that match; undefined when none matched or one failed unretained. */
+function oldestRead(records: readonly ReadRecord[] | undefined, match: (read: ReadRecord) => boolean): number | undefined {
+  const times = (records ?? []).filter(match).map(goodAt);
+  if (!times.length || times.some((time) => time === undefined)) return undefined;
+  return Math.min(...(times as number[]));
+}
+
+/** A successful sync run brought nothing only when reads after it show no sync PR it could have touched and lag 0. */
+function broughtNothing(line: LineModel, run: RunFact, facts: Facts, reads: AreaReads): boolean {
+  const end = Date.parse(run.updatedAt);
+  const repo = facts.github.data?.repos[line.fork.repo];
+  const githubAt = oldestRead(reads.github, (read) => read.object === line.fork.repo);
+  const upstreamAt = oldestRead(reads.upstream, (read) => read.source === line.fork.upstream);
+  if (!repo || !line.past || githubAt === undefined || upstreamAt === undefined) return false;
+  if (githubAt < end || upstreamAt < end) return false;
+  if ((repo.openPrs ?? Number.POSITIVE_INFINITY) > repo.prs.length) return false;
+  if (repo.prs.some((pr) => classifyPr(pr) === "sync")) return false;
+  const start = Date.parse(run.createdAt);
+  const touched = (time: string | undefined) => time !== undefined && Date.parse(time) >= start;
+  if (line.past.some((pr) => classifyPr(pr) === "sync" && (touched(pr.createdAt) || touched(pr.mergedAt) || touched(pr.closedAt)))) {
+    return false;
+  }
+  return line.upstream?.lag === 0;
+}
+
 function slotOf(
   line: LineModel, workflow: Workflow, label: string, run: RunFact | undefined,
-  history: ForkRuns | undefined, model: Model, from: number,
+  history: ForkRuns | undefined, model: Model, from: number, facts: Facts, reads: AreaReads,
 ): SinceSlot {
   const slot = (state: SinceSlot["state"], text: string): SinceSlot => ({ service: line.fork.id, state, text });
   const subject = `${label} on ${line.fork.id}`;
@@ -58,13 +90,17 @@ function slotOf(
     if (rollout?.carries && rollout.pr) return slot("occupied", `${subject} has PR #${rollout.pr.number} open for ${model.rollout?.target.label}.`);
   }
   if (run?.conclusion === "success") {
+    const start = Date.parse(run.createdAt);
+    const end = Date.parse(run.updatedAt);
+    const inRun = (time: string | undefined) => time !== undefined && Date.parse(time) >= start && Date.parse(time) <= end;
     const pr = workflow === "sync" ? line.syncPr?.pr : line.templatePr?.pr;
-    const inRun = (time: string) => Date.parse(time) >= Date.parse(run.createdAt) && Date.parse(time) <= Date.parse(run.updatedAt);
-    const past = line.past?.find((p) => classifyPr(p) === workflow && inRun(p.createdAt));
-    if (pr && (inRun(pr.createdAt) || inRun(pr.updatedAt))) {
-      return slot("occupied", `${subject} brought changes to PR #${pr.number}.`);
+    const open = [...(pr ? [pr] : []), ...(facts.github.data?.repos[line.fork.repo]?.prs ?? []).filter((p) => classifyPr(p) === workflow)];
+    const brought = open.find((p) => inRun(p.createdAt) || inRun(p.headAt))
+      ?? line.past?.find((p) => classifyPr(p) === workflow && inRun(p.createdAt));
+    if (brought) return slot("occupied", `${subject} brought changes to PR #${brought.number}.`);
+    if (workflow === "sync" && broughtNothing(line, run, facts, reads)) {
+      return slot("empty", `${subject} ran and found nothing new upstream.`);
     }
-    if (past) return slot("occupied", `${subject} brought changes to PR #${past.number}.`);
     return slot("unknown", `${subject} ran, effect unknown.`);
   }
   if (run) return slot("unknown", `${subject} finished ${run.conclusion ?? "with no result"}; effect unknown.`);
@@ -81,9 +117,9 @@ function slotOf(
 
 /** from is a seen baseline when supplied; otherwise the window covers the preceding 24 hours. */
 export function sinceOf(
-  model: Model, facts: Facts, now: Date, intervalMs: number, from?: string, reads?: readonly ReadRecord[],
+  model: Model, facts: Facts, now: Date, intervalMs: number, from?: string, reads: AreaReads = {},
 ): Since | undefined {
-  const observations = reads?.filter((read) => read.object === "fork-runs" || read.source === "runs")
+  const observations = reads.runs?.filter((read) => read.object === "fork-runs" || read.source === "runs")
     .map((read) => read.retainedFrom ?? (read.failure ? undefined : read.observedAt))
     .filter((time): time is string => time !== undefined);
   const observed = observations?.length ? observations.sort((a, b) => Date.parse(a) - Date.parse(b))[0] : facts.runs.at;
@@ -112,7 +148,7 @@ export function sinceOf(
       countText: workflow === "template" && model.rollout
         ? `${model.rollout.merged}/${model.rollout.total} merged`
         : `${ok}/${model.lines.length} ran ok`,
-      slots: model.lines.map((line, index) => slotOf(line, workflow, label, runs[index], facts.runs.data?.[line.fork.repo], model, start)),
+      slots: model.lines.map((line, index) => slotOf(line, workflow, label, runs[index], facts.runs.data?.[line.fork.repo], model, start, facts, reads)),
     };
   });
   return { basis, from: new Date(start).toISOString(), ...(stale ? { asOf: observed } : {}), rows };

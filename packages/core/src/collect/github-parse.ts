@@ -47,7 +47,7 @@ interface RawPr {
   headRef?: { target?: { file?: { object?: { text?: string } | null } | null } } | null;
   labels?: { nodes?: { name: string }[] };
   commits?: {
-    nodes?: { commit?: { statusCheckRollup?: { contexts?: { nodes?: RawCheck[] } } | null } }[];
+    nodes?: { commit?: { oid?: string; committedDate?: string | null; statusCheckRollup?: { contexts?: { nodes?: RawCheck[] } } | null } }[];
   };
 }
 
@@ -135,6 +135,8 @@ function parseChecks(nodes: RawCheck[] | undefined): CheckFact[] {
 }
 
 function parsePr(repo: string, p: RawPr): PrFact {
+  const last = p.commits?.nodes?.[0]?.commit;
+  const headAt = last?.oid === p.headRefOid ? last.committedDate ?? undefined : undefined;
   return {
     repo,
     number: p.number,
@@ -146,6 +148,7 @@ function parsePr(repo: string, p: RawPr): PrFact {
     head: p.headRefName,
     base: p.baseRefName,
     headSha: p.headRefOid,
+    ...(headAt ? { headAt } : {}),
     headMarker: p.headRef?.target?.file?.object?.text?.trim() || undefined,
     mergeState: p.mergeStateStatus ?? undefined,
     reviewDecision: p.reviewDecision ?? undefined,
@@ -153,7 +156,7 @@ function parsePr(repo: string, p: RawPr): PrFact {
     ...(p.author?.__typename ? { authorApp: p.author.__typename === "Bot" } : {}),
     association: p.authorAssociation ?? undefined,
     labels: (p.labels?.nodes ?? []).map((l) => l.name),
-    checks: parseChecks(p.commits?.nodes?.[0]?.commit?.statusCheckRollup?.contexts?.nodes),
+    checks: parseChecks(last?.statusCheckRollup?.contexts?.nodes),
   };
 }
 

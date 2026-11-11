@@ -531,7 +531,7 @@ export const GRAPHQL_BLOCKS: readonly BlockTemplate[] = [
 /** The sha-256 of each fragment's canonical text, as packages/core/src/collect/github-read.ts
  * sends it. Any other fragment text is unrecognized. */
 export const FRAGMENT_HASHES: Readonly<Record<string, string>> = {
-  Base: "e3b5be226498b330cb95d3845c1d4000e2e5f29f507c8b19c65d17b22eec9157",
+  Base: "e49ae8c28e12b69f20c6dc66090abbb06bd351d64ed96c42c28cd1c3067b38c3",
   Template: "2d7b47a33820effd3c22f17bce66c9d51d013968e7ffd79e63f6fdec223e6a4c",
   Fork: "937f5c673aee2ea622156e6ea76b450e4be9231df63ea5fcfa99005fb45abd92",
   Stack: "7e9be32536546dd43de851827f6041a4c3c6184591934481e552906e49f6068f",
