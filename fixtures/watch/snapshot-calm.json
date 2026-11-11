@@ -1429,6 +1429,156 @@
         }
       ],
       "first": "repo:osdu-spi"
+    },
+    "since": {
+      "basis": "history-short",
+      "from": "2026-11-06T12:00:00.000Z",
+      "rows": [
+        {
+          "workflow": "sync",
+          "label": "Sync Upstream",
+          "countText": "13/13 ran ok",
+          "slots": [
+            {
+              "service": "partition",
+              "state": "unknown",
+              "text": "Sync Upstream on partition ran, effect unknown."
+            },
+            {
+              "service": "entitlements",
+              "state": "unknown",
+              "text": "Sync Upstream on entitlements ran, effect unknown."
+            },
+            {
+              "service": "legal",
+              "state": "unknown",
+              "text": "Sync Upstream on legal ran, effect unknown."
+            },
+            {
+              "service": "schema",
+              "state": "unknown",
+              "text": "Sync Upstream on schema ran, effect unknown."
+            },
+            {
+              "service": "file",
+              "state": "unknown",
+              "text": "Sync Upstream on file ran, effect unknown."
+            },
+            {
+              "service": "storage",
+              "state": "unknown",
+              "text": "Sync Upstream on storage ran, effect unknown."
+            },
+            {
+              "service": "indexer",
+              "state": "unknown",
+              "text": "Sync Upstream on indexer ran, effect unknown."
+            },
+            {
+              "service": "search",
+              "state": "unknown",
+              "text": "Sync Upstream on search ran, effect unknown."
+            },
+            {
+              "service": "workflow",
+              "state": "unknown",
+              "text": "Sync Upstream on workflow ran, effect unknown."
+            },
+            {
+              "service": "indexer-queue",
+              "state": "unknown",
+              "text": "Sync Upstream on indexer-queue ran, effect unknown."
+            },
+            {
+              "service": "unit",
+              "state": "unknown",
+              "text": "Sync Upstream on unit ran, effect unknown."
+            },
+            {
+              "service": "crs-catalog",
+              "state": "unknown",
+              "text": "Sync Upstream on crs-catalog ran, effect unknown."
+            },
+            {
+              "service": "crs-conversion",
+              "state": "unknown",
+              "text": "Sync Upstream on crs-conversion ran, effect unknown."
+            }
+          ]
+        },
+        {
+          "workflow": "template",
+          "label": "Sync Template",
+          "countText": "11/13 merged",
+          "slots": [
+            {
+              "service": "partition",
+              "state": "done",
+              "text": "partition has merged v1.4.0 +1."
+            },
+            {
+              "service": "entitlements",
+              "state": "done",
+              "text": "entitlements has merged v1.4.0 +1."
+            },
+            {
+              "service": "legal",
+              "state": "done",
+              "text": "legal has merged v1.4.0 +1."
+            },
+            {
+              "service": "schema",
+              "state": "done",
+              "text": "schema has merged v1.4.0 +1."
+            },
+            {
+              "service": "file",
+              "state": "done",
+              "text": "file has merged v1.4.0 +1."
+            },
+            {
+              "service": "storage",
+              "state": "done",
+              "text": "storage has merged v1.4.0 +1."
+            },
+            {
+              "service": "indexer",
+              "state": "done",
+              "text": "indexer has merged v1.4.0 +1."
+            },
+            {
+              "service": "search",
+              "state": "done",
+              "text": "search has merged v1.4.0 +1."
+            },
+            {
+              "service": "workflow",
+              "state": "done",
+              "text": "workflow has merged v1.4.0 +1."
+            },
+            {
+              "service": "indexer-queue",
+              "state": "done",
+              "text": "indexer-queue has merged v1.4.0 +1."
+            },
+            {
+              "service": "unit",
+              "state": "done",
+              "text": "unit has merged v1.4.0 +1."
+            },
+            {
+              "service": "crs-catalog",
+              "state": "occupied",
+              "text": "Sync Template on crs-catalog has PR #511 open for v1.4.0 +1."
+            },
+            {
+              "service": "crs-conversion",
+              "state": "occupied",
+              "text": "Sync Template on crs-conversion has PR #512 open for v1.4.0 +1."
+            }
+          ]
+        }
+      ]
     }
   },
   "campaigns": [],
@@ -2975,6 +3125,7 @@
           "workflow": "Sync Template",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/42184964452"
         },
         {
@@ -2982,6 +3133,7 @@
           "workflow": "Sync Upstream",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/42136133251"
         },
         {
@@ -2989,6 +3141,7 @@
           "workflow": "Validation",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/42046459911"
         },
         {
@@ -2996,6 +3149,7 @@
           "workflow": "Cascade Integration",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-partition/actions/runs/41126405964"
         }
       ],
@@ -3039,6 +3193,7 @@
           "workflow": "Sync Template",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/42185857922"
         },
         {
@@ -3046,6 +3201,7 @@
           "workflow": "Sync Upstream",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/42135267201"
         },
         {
@@ -3053,6 +3209,7 @@
           "workflow": "Validation",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/42108898213"
         },
         {
@@ -3060,6 +3217,7 @@
           "workflow": "Cascade Integration",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/42080158911"
         }
       ],
@@ -3103,6 +3261,7 @@
           "workflow": "Sync Template",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/42185849473"
         },
         {
@@ -3110,6 +3269,7 @@
           "workflow": "Sync Upstream",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/42134144237"
         },
         {
@@ -3117,6 +3277,7 @@
           "workflow": "Validation",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/42040438267"
         },
         {
@@ -3124,6 +3285,7 @@
           "workflow": "Cascade Integration",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/41127289622"
         }
       ],
@@ -3167,6 +3329,7 @@
           "workflow": "Sync Template",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/42186161387"
         },
         {
@@ -3174,6 +3337,7 @@
           "workflow": "Sync Upstream",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/42134142336"
         },
         {
@@ -3181,6 +3345,7 @@
           "workflow": "Validation",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/42040438466"
         },
         {
@@ -3188,6 +3353,7 @@
           "workflow": "Cascade Integration",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-schema/actions/runs/41127457563"
         }
       ],
@@ -3231,6 +3397,7 @@
           "workflow": "Sync Template",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-file/actions/runs/42185762691"
         },
         {
@@ -3238,6 +3405,7 @@
           "workflow": "Sync Upstream",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-file/actions/runs/42135231150"
         },
         {
@@ -3245,6 +3413,7 @@
           "workflow": "Validation",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-file/actions/runs/42040439765"
         },
         {
@@ -3252,6 +3421,7 @@
           "workflow": "Cascade Integration",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-file/actions/runs/41764470455"
         }
       ],
@@ -3295,6 +3465,7 @@
           "workflow": "Sync Template",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-storage/actions/runs/42185535481"
         },
         {
@@ -3302,6 +3473,7 @@
           "workflow": "Sync Upstream",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-storage/actions/runs/42137178477"
         },
         {
@@ -3309,6 +3481,7 @@
           "workflow": "Validation",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-storage/actions/runs/42040440805"
         },
         {
@@ -3316,6 +3489,7 @@
           "workflow": "Cascade Integration",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-storage/actions/runs/41550244983"
         }
       ],
@@ -3356,6 +3530,7 @@
           "workflow": "Sync Template",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-indexer/actions/runs/42185355040"
         },
         {
@@ -3363,6 +3538,7 @@
           "workflow": "Sync Upstream",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-indexer/actions/runs/42137503211"
         },
         {
@@ -3370,6 +3546,7 @@
           "workflow": "Validation",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-indexer/actions/runs/42046459564"
         },
         {
@@ -3377,6 +3554,7 @@
           "workflow": "Cascade Integration",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-indexer/actions/runs/41155622221"
         }
       ],
@@ -3420,6 +3598,7 @@
           "workflow": "Sync Template",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-search/actions/runs/42186579613"
         },
         {
@@ -3427,6 +3606,7 @@
           "workflow": "Sync Upstream",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-search/actions/runs/42134424526"
         },
         {
@@ -3434,6 +3614,7 @@
           "workflow": "Validation",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-search/actions/runs/42054455486"
         },
         {
@@ -3441,6 +3622,7 @@
           "workflow": "Cascade Integration",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-search/actions/runs/41749183267"
         }
       ],
@@ -3484,6 +3666,7 @@
           "workflow": "Sync Template",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-workflow/actions/runs/42186363885"
         },
         {
@@ -3491,6 +3674,7 @@
           "workflow": "Sync Upstream",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-workflow/actions/runs/42134734223"
         },
         {
@@ -3498,6 +3682,7 @@
           "workflow": "Validation",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-workflow/actions/runs/42046461497"
         },
         {
@@ -3505,6 +3690,7 @@
           "workflow": "Cascade Integration",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-workflow/actions/runs/41160895903"
         }
       ],
@@ -3548,6 +3734,7 @@
           "workflow": "Sync Template",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-indexer-queue/actions/runs/42185099060"
         },
         {
@@ -3555,6 +3742,7 @@
           "workflow": "Sync Upstream",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-indexer-queue/actions/runs/42136069330"
         },
         {
@@ -3562,6 +3750,7 @@
           "workflow": "Validation",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-indexer-queue/actions/runs/42046460313"
         }
       ],
@@ -3605,6 +3794,7 @@
           "workflow": "Sync Template",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-unit/actions/runs/42185920352"
         },
         {
@@ -3612,6 +3802,7 @@
           "workflow": "Sync Upstream",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-unit/actions/runs/42136739090"
         },
         {
@@ -3619,6 +3810,7 @@
           "workflow": "Validation",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-unit/actions/runs/42049552479"
         },
         {
@@ -3626,6 +3818,7 @@
           "workflow": "Cascade Integration",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-unit/actions/runs/41904406145"
         }
       ],
@@ -3669,6 +3862,7 @@
           "workflow": "Sync Template",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-crs-catalog/actions/runs/42185955882"
         },
         {
@@ -3676,6 +3870,7 @@
           "workflow": "Sync Upstream",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-crs-catalog/actions/runs/42137388898"
         },
         {
@@ -3683,6 +3878,7 @@
           "workflow": "Validation",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-crs-catalog/actions/runs/42060844561"
         },
         {
@@ -3690,6 +3886,7 @@
           "workflow": "Cascade Integration",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-crs-catalog/actions/runs/42058238761"
         }
       ],
@@ -3733,6 +3930,7 @@
           "workflow": "Sync Template",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-crs-conversion/actions/runs/42186140142"
         },
         {
@@ -3740,6 +3938,7 @@
           "workflow": "Sync Upstream",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-crs-conversion/actions/runs/42134640759"
         },
         {
@@ -3747,6 +3946,7 @@
           "workflow": "Validation",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-crs-conversion/actions/runs/42050961299"
         },
         {
@@ -3754,6 +3954,7 @@
           "workflow": "Cascade Integration",
           "result": "success",
           "time": "2026-11-06T12:00:00Z",
+          "completedAt": "2026-11-06T12:10:00Z",
           "url": "https://github.com/Azure/osdu-spi-crs-conversion/actions/runs/41205276339"
         }
       ],
@@ -4710,6 +4911,10 @@
         "template",
         "security"
       ]
+    },
+    {
+      "path": "/briefing/since",
+      "areas": ["github", "runs", "template"]
     },
     {
       "path": "/briefing/facts/0/figure",
