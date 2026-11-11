@@ -4138,7 +4138,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-clock",
-          "text": "PR #198",
+          "text": "#198 waiting on review",
           "inspect": "station:partition:release"
         },
         {
@@ -4232,7 +4232,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-clock",
-          "text": "PR #48",
+          "text": "#48 waiting on review",
           "inspect": "station:legal:release"
         },
         {
@@ -4279,7 +4279,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-clock",
-          "text": "PR #40",
+          "text": "#40 waiting on review",
           "inspect": "station:schema:release"
         },
         {
@@ -4373,7 +4373,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-clock",
-          "text": "PR #57",
+          "text": "#57 waiting on review",
           "inspect": "station:storage:release"
         },
         {
@@ -4420,7 +4420,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-clock",
-          "text": "PR #33",
+          "text": "#33 waiting on review",
           "inspect": "station:indexer:release"
         },
         {
@@ -4467,7 +4467,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-clock",
-          "text": "PR #29",
+          "text": "#29 waiting on review",
           "inspect": "station:search:release"
         },
         {
@@ -4936,7 +4936,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "PR #198"
+            "text": "#198 waiting on review"
           }
         }
       ]
@@ -5386,7 +5386,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "PR #48"
+            "text": "#48 waiting on review"
           }
         }
       ]
@@ -5611,7 +5611,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "PR #40"
+            "text": "#40 waiting on review"
           }
         }
       ]
@@ -6061,7 +6061,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "PR #57"
+            "text": "#57 waiting on review"
           }
         }
       ]
@@ -6286,7 +6286,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "PR #33"
+            "text": "#33 waiting on review"
           }
         }
       ]
@@ -6511,7 +6511,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "PR #29"
+            "text": "#29 waiting on review"
           }
         }
       ]
