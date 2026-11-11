@@ -233,3 +233,91 @@ it("opens the horizon chip at the horizon block", async () => {
   expect(horizon.scrollIntoView).toHaveBeenCalledWith({ block: "start" });
   horizon.remove();
 });
+
+it.each(["unknown", "broken", "waiting"] as const)(
+  "draws a kit %s mark for an unverified Engineering rollout slot",
+  async (state) => {
+    const body = snapshot("busy");
+    const visual = body.briefing.places?.find(({ place }) => place === "engineering")?.visual;
+    if (visual?.kind !== "rollout" || !visual.slots[0]) throw new Error("Missing rollout slots");
+    const slot = visual.slots[0];
+    slot.state = state;
+    slot.text = `${slot.service}: ${state}`;
+    const { container } = await mount(body);
+    const button = container.querySelector('[data-place="engineering"] .today-place-slot');
+    const mark = button?.querySelector(`.kit-slot--${state}`);
+    expect(mark).not.toBeNull();
+    expect(mark?.getAttribute("aria-label")).toBe(slot.text);
+    expect(mark?.getAttribute("data-shape")).toBe(
+      state === "unknown" ? "dotted-circle" : state === "broken" ? "diamond" : "triangle",
+    );
+    expect(button?.querySelector(".kit-cell--outlined")).toBeNull();
+  },
+);
+
+it("uses Evidence's cut wording in the held-read hover", async () => {
+  const body = snapshot("bad");
+  const line = body.briefing.places?.find(({ place }) => place === "line");
+  const runs = body.areas.find(({ area }) => area === "runs");
+  if (!line || !runs) throw new Error("Missing Line or runs");
+  const at = "2026-11-06T12:32:00Z";
+  runs.envelope = {
+    source: "runs",
+    state: "incomplete",
+    observedAt: at,
+    completeness: { kind: "cut", reason: "page_limit", read: 2, total: 13 },
+  };
+  line.unread = { areas: ["runs"], lastGood: at };
+  const { container } = await mount(body);
+  const held = container.querySelector('[data-place="line"] .today-place-held');
+  expect(held?.getAttribute("title")).toBe(
+    `Workflow runs: cut, last good ${clockTime(at, { hint: false })}`,
+  );
+});
+
+it("opens the oldest affected read even when a newer area is listed first", async () => {
+  const body = snapshot("bad");
+  const line = body.briefing.places?.find(({ place }) => place === "line");
+  const runs = body.areas.find(({ area }) => area === "runs");
+  const github = body.areas.find(({ area }) => area === "github");
+  if (!line || !runs || !github) throw new Error("Missing affected areas");
+  const lastGood = "2026-11-06T12:32:00Z";
+  runs.envelope = {
+    source: "runs",
+    state: "failed",
+    observedAt: lastGood,
+    completeness: { kind: "complete" },
+  };
+  github.envelope = {
+    source: "github",
+    state: "failed",
+    observedAt: "2026-11-06T13:52:00Z",
+    completeness: { kind: "complete" },
+  };
+  line.unread = { areas: ["github", "runs"], lastGood };
+  const { container } = await mount(body);
+  const evidence = document.createElement("div");
+  evidence.dataset.evidence = "sweep";
+  evidence.innerHTML = '<div data-source="github"></div><div data-source="runs"></div>';
+  document.body.append(evidence);
+  cleanups.push(async () => evidence.remove());
+  const newest = evidence.children[0] as HTMLElement;
+  const oldest = evidence.children[1] as HTMLElement;
+  newest.scrollIntoView = vi.fn();
+  oldest.scrollIntoView = vi.fn();
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    callback(0);
+    return 1;
+  });
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>('[data-place="line"] .today-place-held')?.click(),
+  );
+  expect(selectionStore.getState()).toMatchObject({
+    open: true,
+    tab: "evidence",
+    evidenceScope: "sweep",
+  });
+  expect(oldest.scrollIntoView).toHaveBeenCalledWith({ block: "center" });
+  expect(newest.scrollIntoView).not.toHaveBeenCalled();
+  expect(document.activeElement).toBe(oldest);
+});

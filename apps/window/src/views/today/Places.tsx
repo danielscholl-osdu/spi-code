@@ -9,7 +9,7 @@ import type {
   ViewSnapshot,
 } from "@spi-code/contracts";
 import { type Destination, type Navigation, navigate } from "../../app/navigation.js";
-import { AREA_NAMES } from "../../components/evidence/words.js";
+import { AREA_NAMES, stateWord } from "../../components/evidence/words.js";
 import { Chip, UpstreamChip } from "../../components/kit/Chip.js";
 import { Mark, type MarkTier } from "../../components/kit/Mark.js";
 import { Slot } from "../../components/kit/Slot.js";
@@ -49,21 +49,20 @@ function openArea(area: AreaName) {
 function Held({ row, snapshot }: { row: PlaceRow; snapshot: ViewSnapshot }) {
   const unread = row.unread;
   if (!unread) return null;
-  const title = unread.areas
-    .map((area) => {
-      const envelope = areaEnvelope(snapshot, area);
-      const state =
-        envelope.state === "incomplete"
-          ? "read cut"
-          : envelope.state === "failed"
-            ? "read failed"
-            : envelope.state === "unread"
-              ? "not read yet"
-              : envelope.state;
-      return `${AREA_NAMES[area]}: ${state}${envelope.state !== "unread" && envelope.observedAt ? `, last good ${clockTime(envelope.observedAt, { hint: false })}` : ""}`;
-    })
+  const reads = unread.areas.map((area) => ({ area, envelope: areaEnvelope(snapshot, area) }));
+  const title = reads
+    .map(
+      ({ area, envelope }) =>
+        `${AREA_NAMES[area]}: ${stateWord(envelope)}${envelope.state !== "unread" && envelope.observedAt ? `, last good ${clockTime(envelope.observedAt, { hint: false })}` : ""}`,
+    )
     .join("; ");
-  const area = unread.areas[0];
+  const area =
+    reads.find(
+      ({ envelope }) =>
+        unread.lastGood !== undefined &&
+        envelope.state !== "unread" &&
+        envelope.observedAt === unread.lastGood,
+    )?.area ?? unread.areas[0];
   return (
     <button
       type="button"
@@ -114,13 +113,10 @@ function Visual({
               aria-label={text}
               onClick={() => service(id)}
             >
-              {visual.kind === "pips" ? (
+              {visual.kind === "pips" || state !== "done" ? (
                 <Slot state={state} text={text} {...(origin ? { origin } : {})} />
               ) : (
-                <span
-                  className={`kit-cell kit-cell--${state === "done" ? "filled" : "outlined"}`}
-                  aria-hidden="true"
-                />
+                <span className="kit-cell kit-cell--filled" aria-hidden="true" />
               )}
             </button>
           ))}
