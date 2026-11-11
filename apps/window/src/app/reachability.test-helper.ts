@@ -3,7 +3,7 @@
 
 import { type InspectResult, InspectResultSchema, type ViewSnapshot } from "@spi-code/contracts";
 import { inScope } from "../components/sidebar/attention.js";
-import { selectionRows } from "../panels/selection-rows.js";
+import { selectionRows, TODAY_GROUPS, todayGroupRow } from "../panels/selection-rows.js";
 import { plainTitle } from "../text.js";
 import { clockTime, instantsIn, timedText } from "../time.js";
 import { runningFactHome } from "../views/environment/running-fact.js";
@@ -1049,6 +1049,24 @@ export function bandCases(snapshot: ViewSnapshot): Reach[] {
     });
   }
   return cases;
+}
+
+/** The 740-only group opener reaches every core line in that group's full Detail list. */
+export function moreCases(snapshot: ViewSnapshot): Reach[] {
+  return TODAY_GROUPS.flatMap((group) => {
+    const row = todayGroupRow(snapshot, group);
+    const entries = row.entries ?? [];
+    if (entries.length <= 3) return [];
+    const prefix = row.prefixes?.[0];
+    const list =
+      group === "horizon" ? prefix : `${prefix}/${group === "decisions" ? "groups" : "lines"}`;
+    return entries.map((entry, index) => ({
+      pointer: `${list}/${index}/text`,
+      value: plainTitle(entry.title),
+      home: home(`${row.title} full list`, STARTS.today, `.today-more[data-group="${group}"]`),
+      selector: `.detail-group-list > li:nth-child(${index + 1})`,
+    }));
+  });
 }
 
 /** Upstream items on a horizon card or the owed row: the section's inbound mark is their origin. */

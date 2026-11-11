@@ -3,6 +3,7 @@
 
 import type { ReactNode } from "react";
 import { dayLine } from "../../time.js";
+import { useTodayAnchor } from "./anchor.js";
 
 /** Where each later part of Today mounts; an empty slot draws nothing, never an empty box. */
 export type TodaySlots = {
@@ -36,6 +37,7 @@ export function TodayFrame({
   caveat: ReactNode;
   slots: TodaySlots;
 }) {
+  const frame = useTodayAnchor();
   const lower = Boolean(slots.releases || slots.motion);
   return (
     <section className="place" aria-label="Today">
@@ -45,7 +47,7 @@ export function TodayFrame({
           {dayLine(sweptAt)}
         </time>
       </header>
-      <section className="place-reading today-frame" aria-label="Today reading">
+      <section ref={frame} className="place-reading today-frame" aria-label="Today reading">
         <div className="today-head">{head}</div>
         {caveat}
         <Slot name="band">{slots.band}</Slot>

@@ -22,3 +22,8 @@
 .detail-row-fields dt { color: var(--text-muted); font-size: 10.5px; font-weight: 600; text-transform: uppercase; }
 .detail-row-fields dd { margin: 0 0 8px; overflow-wrap: anywhere; }
 .detail-action { margin-top: 16px; }
+
+.detail-group-list { padding-left: 18px; }
+.detail-group-list li { margin-bottom: 12px; }
+.detail-group-list button { padding: 0; border: 0; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.detail-group-list button:hover { text-decoration: underline; }

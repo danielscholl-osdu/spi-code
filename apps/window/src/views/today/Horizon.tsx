@@ -3,14 +3,18 @@
 
 import type { HorizonCard, ViewSnapshot } from "@spi-code/contracts";
 import { useId, useState } from "react";
+import { useStore } from "zustand";
 import { navigate } from "../../app/navigation.js";
 import { INBOUND_GLYPH, ServiceChip } from "../../components/kit/Chip.js";
 import { Mark } from "../../components/kit/Mark.js";
 import { SegmentedBar } from "../../components/kit/SegmentedBar.js";
 import { Slot, type SlotState } from "../../components/kit/Slot.js";
+import { type SelectionStore, selectionStore } from "../../panels/selection.js";
+import { todayGroupRow } from "../../panels/selection-rows.js";
 import { areaEnvelope } from "../../store/evidence.js";
 import type { createWatchStore } from "../../store/watch.js";
 import { Time } from "../../time.js";
+import { More, useFold } from "./folding.js";
 import "./horizon.css";
 
 const ROOT = "/briefing/horizon";
@@ -81,6 +85,8 @@ function Card({
       data-mark={card.mark}
       data-needs-you={card.needsYou}
       data-card-id={card.id}
+      data-theme={card.id}
+      data-item-ids={card.itemIds.join(" ")}
       title={card.text}
     >
       <div className="horizon-card-head">
@@ -126,8 +132,10 @@ export function Horizon({
   snapshot,
   store,
   onOpenEvidence,
+  inspector = selectionStore,
 }: {
   snapshot: ViewSnapshot;
+  inspector?: SelectionStore;
   store: ReturnType<typeof createWatchStore>;
   onOpenEvidence: () => void;
 }) {
@@ -135,6 +143,11 @@ export function Horizon({
   const stagesId = useId();
   const horizon = snapshot.briefing.horizon;
   const { stages, cards, counts, owed } = horizon;
+  const selected = useStore(inspector, (state) => state.selected);
+  const fold = useFold(cards ?? [], selected, (row) => [
+    `theme:${row.id}`,
+    ...row.services.flatMap(({ pr }) => (pr?.inspect ? [pr.inspect] : [])),
+  ]);
   const select = store.getState().select;
   const radarFeedsHorizon = snapshot.provenance.some(
     ({ path, areas }) => (path === ROOT || path.startsWith(`${ROOT}/`)) && areas.includes("radar"),
@@ -315,11 +328,11 @@ export function Horizon({
       )}
       {cards && cards.length > 0 && (
         <div className="horizon-cards">
-          {cards.map((card, index) => (
+          {fold.visible.map((card) => (
             <Card
               key={card.id}
               card={card}
-              pointer={`${ROOT}/cards/${index}`}
+              pointer={`${ROOT}/cards/${cards.indexOf(card)}`}
               target={
                 card.kind !== "sync" && snapshot.briefing.themes.some(({ id }) => id === card.id)
                   ? `theme:${card.id}`
@@ -330,6 +343,13 @@ export function Horizon({
           ))}
         </div>
       )}
+      <More
+        group="horizon"
+        count={fold.more}
+        hasMore={fold.hidden}
+        row={todayGroupRow(snapshot, "horizon")}
+        select={(row) => inspector.getState().select(row.id, row)}
+      />
       {owed && owed.count > 0 && (
         <div className="horizon-owed" data-pointer={`${ROOT}/owed`}>
           <SegmentedBar

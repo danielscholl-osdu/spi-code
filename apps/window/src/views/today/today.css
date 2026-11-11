@@ -126,3 +126,28 @@
     animation: none;
   }
 }
+
+.today { container-name: today; container-type: inline-size; overflow-anchor: none; }
+.today-more { border: 0; padding: 6px 0; background: transparent; color: var(--accent-text); font: inherit; font-size: 12px; cursor: pointer; }
+@container today (max-width: 1000px) {
+  .today-lower { grid-template-columns: minmax(0, 1fr); }
+  .today-places { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container today (max-width: 1000px) {
+  .today-place:is([data-mark="in-progress"], [data-mark="nothing-due"]) :is(.today-place-figure, .today-place-reason .kit-chip) {
+    display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .today-place:is([data-mark="stopped"], [data-mark="needs-person"]) :is(.today-place-figure, .today-place-reason .kit-chip) { white-space: normal; overflow-wrap: anywhere; }
+  .horizon-card:is([data-mark="in-progress"], [data-mark="nothing-due"], :not([data-mark])) .horizon-token { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+@container today (max-width: 760px) {
+  .today-places { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 740px) {
+  .today-release-versions { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(var(--release-narrow-rows), auto); }
+  .today-caveat { flex-wrap: wrap; }
+  .today-caveat-actions { flex-wrap: wrap; }
+  .horizon-cards { grid-template-columns: minmax(0, 1fr); }
+  .today-item-row { grid-template-columns: minmax(70px, 1fr) 64px 40px minmax(0, 2fr) auto 16px; gap: 6px; }
+  .today-decision-cause.kit-chip, .today-item-state .kit-chip { white-space: normal; overflow-wrap: anywhere; }
+}

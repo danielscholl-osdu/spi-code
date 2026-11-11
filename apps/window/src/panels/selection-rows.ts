@@ -20,6 +20,7 @@ export type SelectionKind =
   | "release"
   | "station"
   | "can-wait"
+  | "today-more"
   | "release-version"
   | "release-pr"
   | "release-notable";
@@ -44,6 +45,7 @@ export type SelectionRow = {
   kind: SelectionKind;
   inspectId?: string | null;
   fields?: readonly SelectionField[];
+  entries?: readonly { title: string; itemIds: readonly string[] }[];
   /** Snapshot JSON pointers feeding this row, for the selection's evidence chip/tab. */
   prefixes?: readonly string[];
 };
@@ -93,6 +95,45 @@ export function canWaitRow(canWait: CanWait): SelectionRow {
     inspectId: null,
     prefixes: ["/briefing/canWait"],
     fields: canWait.items.map(({ service, text, why }) => ({ label: service ?? text, value: why })),
+  };
+}
+
+export const TODAY_GROUPS = ["decisions", "failing", "horizon", "motion"] as const;
+export type TodayGroup = (typeof TODAY_GROUPS)[number];
+
+/** Full lists use core's membership and wording, including lines joining several items. */
+export function todayGroupRow(snapshot: ViewSnapshot, group: TodayGroup): SelectionRow {
+  const { briefing } = snapshot;
+  const lists = {
+    decisions: {
+      title: "Decisions waiting",
+      rows: briefing.decisions?.groups ?? [],
+      prefix: "/briefing/decisions",
+    },
+    failing: {
+      title: "Failing",
+      rows: briefing.ambient?.failing.lines ?? [],
+      prefix: "/briefing/ambient/failing",
+    },
+    horizon: {
+      title: "On the horizon",
+      rows: briefing.horizon.cards ?? [],
+      prefix: "/briefing/horizon/cards",
+    },
+    motion: {
+      title: "In motion",
+      rows: briefing.ambient?.inProgress.lines ?? [],
+      prefix: "/briefing/ambient/inProgress",
+    },
+  };
+  const list = lists[group];
+  return {
+    id: `today-more:${group}`,
+    title: list.title,
+    kind: "today-more",
+    inspectId: null,
+    prefixes: [list.prefix],
+    entries: list.rows.map(({ text, itemIds }) => ({ title: text, itemIds })),
   };
 }
 
@@ -316,7 +357,12 @@ export function selectionRows(snapshot: ViewSnapshot): SelectionRow[] {
     ),
   ];
   if (briefing.canWait?.chips.length) rows.push(canWaitRow(briefing.canWait));
-  rows.push(...releaseRows(snapshot));
+  rows.push(
+    ...releaseRows(snapshot),
+    ...TODAY_GROUPS.map((group) => todayGroupRow(snapshot, group)).filter(
+      (row) => row.entries?.length,
+    ),
+  );
   // An Upstream item the briefing already lists keeps that row; only its own items are added.
   const ids = new Set(rows.map(({ id }) => id));
   return [...rows, ...upstreamItemRows(snapshot).filter(({ id }) => !ids.has(id))];
@@ -351,6 +397,7 @@ export function routeSelectionIds(snapshot: ViewSnapshot, route: Route): string[
     case "today":
       return [
         ...queue.map(({ id }) => id),
+        ...TODAY_GROUPS.map((group) => todayGroupRow(snapshot, group).id),
         ...briefing.ready.map(({ id }) => id),
         ...(briefing.canWait?.chips.length ? [CAN_WAIT_ID] : []),
         ...releaseRows(snapshot).map(({ id }) => id),

@@ -25,8 +25,9 @@ import {
 import { LineGlyph, LineGlyphLegend, type LineStation } from "../../components/kit/LineGlyph.js";
 import { Mark, type MarkTier } from "../../components/kit/Mark.js";
 import { type SelectionStore, selectionStore } from "../../panels/selection.js";
-import { selectionRows } from "../../panels/selection-rows.js";
+import { selectionRows, todayGroupRow } from "../../panels/selection-rows.js";
 import { plainTitle } from "../../text.js";
+import { More, useFold } from "./folding.js";
 import { interruptsOf } from "./selectors.js";
 import "./band.css";
 
@@ -212,6 +213,10 @@ function Decision({
 
 function DecisionsWaiting({ snapshot, open }: { snapshot: ViewSnapshot; open: Open }) {
   const decisions = snapshot.briefing.decisions;
+  const fold = useFold(decisions?.groups ?? [], open.selected, (row) => [
+    `theme:${row.theme}`,
+    ...row.scope.flatMap(({ pr }) => (pr?.inspect ? [pr.inspect] : [])),
+  ]);
   if (!decisions || decisions.groups.length === 0) return null;
   const themes = new Set(snapshot.briefing.themes.map(({ id }) => id));
   return (
@@ -220,10 +225,17 @@ function DecisionsWaiting({ snapshot, open }: { snapshot: ViewSnapshot; open: Op
         Decisions waiting <span className="today-band-count">· {decisions.text}</span>
       </h3>
       <ul className="today-band-list">
-        {decisions.groups.map((group) => (
+        {fold.visible.map((group) => (
           <Decision key={group.id} group={group} open={open} themes={themes} />
         ))}
       </ul>
+      <More
+        group="decisions"
+        count={fold.more}
+        hasMore={fold.hidden}
+        row={todayGroupRow(snapshot, "decisions")}
+        select={(row) => open.select(row.id)}
+      />
     </div>
   );
 }
@@ -279,6 +291,9 @@ function FailingRow({ line, open }: { line: AmbientLine; open: Open }) {
 
 function Failing({ snapshot, open }: { snapshot: ViewSnapshot; open: Open }) {
   const failing = snapshot.briefing.ambient?.failing;
+  const fold = useFold(failing?.lines ?? [], open.selected, (row) =>
+    row.pr?.inspect ? [row.pr.inspect] : [],
+  );
   if (!failing || failing.lines.length === 0) return null;
   return (
     <div className="today-band-group today-failing" data-group="failing">
@@ -286,10 +301,17 @@ function Failing({ snapshot, open }: { snapshot: ViewSnapshot; open: Open }) {
         Failing <span className="today-band-count">· {failing.text}</span>
       </h3>
       <ul className="today-band-list">
-        {failing.lines.map((line) => (
+        {fold.visible.map((line) => (
           <FailingRow key={line.id} line={line} open={open} />
         ))}
       </ul>
+      <More
+        group="failing"
+        count={fold.more}
+        hasMore={fold.hidden}
+        row={todayGroupRow(snapshot, "failing")}
+        select={(row) => open.select(row.id)}
+      />
       {failing.lines.some(({ station }) => station) && <LineGlyphLegend />}
     </div>
   );
