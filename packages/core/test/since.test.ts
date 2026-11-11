@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, it } from "vitest";
-import { sinceOf } from "../src/brief/since.js";
+import { runsObservedAt, sinceOf } from "../src/brief/since.js";
 import type { ReadRecord } from "../src/evidence/index.js";
 import type { ForkRuns, PastPrFact, PrFact, RunFact } from "../src/facts.js";
 import { buildModel } from "../src/model/index.js";
@@ -248,6 +248,27 @@ describe("since pips", () => {
       ],
     });
     expect(since).toMatchObject({ basis: "stale", asOf: observed, from });
+  });
+  it("takes the oldest of several fork-run reads as the runs observation", () => {
+    const { facts, model } = setup();
+    const older = "2026-10-12T19:00:00Z";
+    const newer = "2026-10-12T21:00:00Z";
+    const forkRuns = (source: string, observedAt: string): ReadRecord => ({
+      source,
+      object: "fork-runs",
+      observedAt,
+      completeness: { kind: "complete" },
+    });
+    for (const runs of [
+      [forkRuns("test/a", newer), forkRuns("test/b", older)],
+      [forkRuns("test/b", older), forkRuns("test/a", newer)],
+    ]) {
+      expect(runsObservedAt(facts, { runs })).toBe(older);
+      expect(sinceOf(model, facts, FIXTURE_NOW, 300_000, undefined, { runs })).toMatchObject({
+        basis: "stale",
+        asOf: older,
+      });
+    }
   });
   it("keeps missing coverage unknown and uses empty only with proof no run finished", () => {
     const { history, read, facts, line } = setup();
