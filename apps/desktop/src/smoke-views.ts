@@ -828,7 +828,7 @@ export async function captureSmokeViews(
                       : surface.id.startsWith("first-sweep-") &&
                           surface.id !== "first-sweep-refresh"
                         ? ".today-first"
-                        : "main .place-qualifier",
+                        : "main :is(.place-qualifier, .today-caveat)",
             )})?.innerText?.replace(/\\s+/g, " ").trim() ?? ""
           ]`);
           const file = `${surface.id}-${viewportWidth}-${appearance}.png`;
