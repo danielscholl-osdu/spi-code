@@ -98,6 +98,7 @@ test("one toolchain prediction set preserves two certain forks and one possible 
   expect(reading.items.find((item) => item.id === campaign.id)?.sub).toBe(
     "Certain: indexer, unit · Possible: workflow",
   );
+  expect(reading.tiles[1].value).toBe("2 forks");
   expect(reading.tiles[1].counts).toBe("os-core-common 8.5.0 · 2 certain, 1 possible");
 });
 
@@ -129,6 +130,65 @@ test("unmerged moves remain possible even when none is certain", () => {
   expect(theme?.possible.map(({ fork }) => fork).sort()).toEqual(["indexer", "unit", "workflow"]);
   expect(campaign?.possible).toEqual(campaign?.forks);
   expect(campaign && campaignItemText(campaign)).toBe(
-    "Detected: os-core-common 8.5.0 on 0 forks; possible on 3 forks",
+    "Detected: os-core-common 8.5.0 possible on 3 forks",
   );
 });
+
+test("certain toolchain moves lead the tile and group ahead of larger MR-only moves", () => {
+  const facts = predictedMove();
+  for (const service of Object.values(facts.radar.data?.services ?? {})) {
+    for (const mr of service.mrs)
+      mr.hunks = { "pom.xml": ["+<os-core-common.version>10.0.0</os-core-common.version>"] };
+  }
+  const model = buildModel(facts, now, {}, context);
+  model.upstream.unread = 0;
+  const briefing = buildBriefing(model, { state: "clear", problems: [] }, now, context);
+  const campaigns = detectCampaigns(model);
+  expect(campaigns.find((c) => c.fact === "os-core-common 10.0.0")?.possible).toHaveLength(3);
+  const reading = upstreamReading({
+    model,
+    items: [...briefing.focus, ...briefing.rest],
+    radar: [],
+    fleet: context.fleet,
+    campaigns,
+  });
+  expect(reading.tiles[1]).toEqual({
+    label: "Toolchain",
+    value: "2 forks",
+    counts: "move to os-core-common 8.5.0 · 1 more move",
+  });
+  expect(reading.items.filter((item) => item.group === "Toolchain").map((item) => item.id)).toEqual(
+    ["campaign:toolchain:os-core-common%208.5.0", "campaign:toolchain:os-core-common%2010.0.0"],
+  );
+});
+
+test.each(["8.5.0", "8.5.0-SNAPSHOT"])(
+  "toolchain advice makes no next-sync claim for held or possible-only %s moves",
+  (version) => {
+    for (const delivery of ["held", "possible"] as const) {
+      const facts = predictedMove();
+      for (const service of Object.values(facts.radar.data?.services ?? {})) {
+        for (const prediction of [...service.queued, ...service.mrs])
+          prediction.hunks = {
+            "pom.xml": [`+<os-core-common.version>${version}</os-core-common.version>`],
+          };
+        if (delivery === "possible") service.queued = [];
+      }
+      const model = buildModel(facts, now, {}, context);
+      model.stoppedForks = context.fleet.forks.map((fork) => fork.id);
+      const theme = buildBriefing(
+        model,
+        { state: "clear", problems: [] },
+        now,
+        context,
+      ).themes.find((theme) => theme.title === `os-core-common ${version}`);
+      expect(theme).toBeDefined();
+      expect(theme?.certain).toHaveLength(delivery === "held" ? 2 : 0);
+      expect(theme?.possible).toHaveLength(delivery === "held" ? 1 : 3);
+      if (delivery === "held")
+        expect(theme?.certain.every((fork) => fork.state.startsWith("held"))).toBe(true);
+      expect(theme?.next).toBe(`Absorb os-core-common ${version} on the forks.`);
+      expect(theme?.when).toBeUndefined();
+    }
+  },
+);
