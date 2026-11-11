@@ -66,7 +66,7 @@ describe("upstream horizon", () => {
         service: "partition",
         reason: "halted",
         count: 8,
-        text: "partition won't land: sync halted",
+        text: "partition won't land: sync will halt",
       },
       {
         service: "storage",
@@ -78,6 +78,19 @@ describe("upstream horizon", () => {
     expect(stages.nextSync.services).not.toContain("storage");
     expect(stages.nextSync.services).not.toContain("partition");
     expect(stages.held.services).not.toContain("storage");
+  });
+
+  it.each([false, true])("distinguishes predicted and open halts (open=%s)", (open) => {
+    const m = model();
+    const partition = fork(m, "partition");
+    if (!partition.halt) throw new Error("No partition halt");
+    partition.halt.open = open;
+    expect(horizonStages(m).wontLand.find((fork) => fork.service === "partition")).toEqual({
+      service: "partition",
+      reason: "halted",
+      count: 8,
+      text: `partition won't land: sync ${open ? "halted" : "will halt"}`,
+    });
   });
 
   it.each(["unread", "disordered"])("counts an unprovable %s split under next sync", (state) => {

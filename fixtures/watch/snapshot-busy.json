@@ -550,7 +550,7 @@
             "service": "legal",
             "reason": "halted",
             "count": 1,
-            "text": "legal won't land: sync halted"
+            "text": "legal won't land: sync will halt"
           },
           {
             "service": "storage",
@@ -2346,7 +2346,7 @@
           {
             "label": "Incoming",
             "value": "7",
-            "counts": "commits behind upstream · 0 in 0 sync PRs · 5 at 2026-11-07T00:00:00.000Z · 2 won't land"
+            "counts": "commits behind upstream · 5 at 2026-11-07T00:00:00.000Z · 2 won't land"
           },
           {
             "label": "Toolchain",
