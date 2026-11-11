@@ -243,7 +243,7 @@ export function projectWatch(input: WatchInput): ViewSnapshot {
       now,
       input.intervals?.runs ?? input.intervalMs,
       undefined,
-      input.reads.runs,
+      input.reads,
     ),
     focus: coreBriefing.focus.map(projectItem),
     rest: coreBriefing.rest.map(projectItem),

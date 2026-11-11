@@ -47,6 +47,7 @@ const prFact = z.object({
   head: z.string(),
   base: z.string(),
   headSha: z.string(),
+  headAt: z.string().optional(),
   headMarker: z.string().optional(),
   mergeState: z.string().optional(),
   reviewDecision: z.string().optional(),

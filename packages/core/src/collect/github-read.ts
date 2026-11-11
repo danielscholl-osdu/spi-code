@@ -20,7 +20,7 @@ const PULLS = `pullRequests(states: OPEN, first: 40, orderBy: {field: CREATED_AT
   author { __typename login } authorAssociation
   headRef { target { ... on Commit { file(path: "${MARKER_PATH}") { object { ... on Blob { text } } } } } }
   labels(first: 15) { totalCount nodes { name } }
-  commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 80) { totalCount nodes {
+  commits(last: 1) { nodes { commit { oid committedDate statusCheckRollup { contexts(first: 80) { totalCount nodes {
     __typename
     ... on CheckRun { databaseId name status conclusion startedAt completedAt detailsUrl checkSuite { workflowRun { databaseId workflow { name } } } }
   } } } } } }

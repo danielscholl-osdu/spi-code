@@ -1487,13 +1487,13 @@
             },
             {
               "service": "entitlements",
-              "state": "unknown",
-              "text": "Sync Upstream on entitlements ran, effect unknown."
+              "state": "empty",
+              "text": "Sync Upstream on entitlements ran and found nothing new upstream."
             },
             {
               "service": "legal",
-              "state": "unknown",
-              "text": "Sync Upstream on legal ran, effect unknown."
+              "state": "empty",
+              "text": "Sync Upstream on legal ran and found nothing new upstream."
             },
             {
               "service": "schema",
@@ -1502,48 +1502,48 @@
             },
             {
               "service": "file",
-              "state": "unknown",
-              "text": "Sync Upstream on file ran, effect unknown."
+              "state": "empty",
+              "text": "Sync Upstream on file ran and found nothing new upstream."
             },
             {
               "service": "storage",
-              "state": "unknown",
-              "text": "Sync Upstream on storage ran, effect unknown."
+              "state": "empty",
+              "text": "Sync Upstream on storage ran and found nothing new upstream."
             },
             {
               "service": "indexer",
-              "state": "unknown",
-              "text": "Sync Upstream on indexer ran, effect unknown."
+              "state": "empty",
+              "text": "Sync Upstream on indexer ran and found nothing new upstream."
             },
             {
               "service": "search",
-              "state": "unknown",
-              "text": "Sync Upstream on search ran, effect unknown."
+              "state": "empty",
+              "text": "Sync Upstream on search ran and found nothing new upstream."
             },
             {
               "service": "workflow",
-              "state": "unknown",
-              "text": "Sync Upstream on workflow ran, effect unknown."
+              "state": "empty",
+              "text": "Sync Upstream on workflow ran and found nothing new upstream."
             },
             {
               "service": "indexer-queue",
-              "state": "unknown",
-              "text": "Sync Upstream on indexer-queue ran, effect unknown."
+              "state": "empty",
+              "text": "Sync Upstream on indexer-queue ran and found nothing new upstream."
             },
             {
               "service": "unit",
-              "state": "unknown",
-              "text": "Sync Upstream on unit ran, effect unknown."
+              "state": "empty",
+              "text": "Sync Upstream on unit ran and found nothing new upstream."
             },
             {
               "service": "crs-catalog",
-              "state": "unknown",
-              "text": "Sync Upstream on crs-catalog ran, effect unknown."
+              "state": "empty",
+              "text": "Sync Upstream on crs-catalog ran and found nothing new upstream."
             },
             {
               "service": "crs-conversion",
-              "state": "unknown",
-              "text": "Sync Upstream on crs-conversion ran, effect unknown."
+              "state": "empty",
+              "text": "Sync Upstream on crs-conversion ran and found nothing new upstream."
             }
           ]
         },
@@ -3311,7 +3311,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-partition/releases/tag/v1.3.3",
           "month": "2026-11",
-          "readTimes": {},
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          },
           "gate": {
             "state": "idle",
             "text": "v1.3.3"
@@ -3328,7 +3330,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-partition/releases/tag/v1.3.3",
           "month": "2026-10",
-          "readTimes": {}
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          }
         }
       ]
     },
@@ -3379,7 +3383,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-entitlements/releases/tag/v1.2.1",
           "month": "2026-11",
-          "readTimes": {},
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          },
           "gate": {
             "state": "idle",
             "text": "v1.2.1"
@@ -3396,7 +3402,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-entitlements/releases/tag/v1.2.1",
           "month": "2026-10",
-          "readTimes": {}
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          }
         }
       ]
     },
@@ -3447,7 +3455,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-legal/releases/tag/v1.2.1",
           "month": "2026-11",
-          "readTimes": {},
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          },
           "gate": {
             "state": "idle",
             "text": "v1.2.1"
@@ -3464,7 +3474,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-legal/releases/tag/v1.2.1",
           "month": "2026-10",
-          "readTimes": {}
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          }
         }
       ]
     },
@@ -3515,7 +3527,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-schema/releases/tag/v1.2.0",
           "month": "2026-11",
-          "readTimes": {},
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          },
           "gate": {
             "state": "idle",
             "text": "v1.2.0"
@@ -3532,7 +3546,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-schema/releases/tag/v1.2.0",
           "month": "2026-10",
-          "readTimes": {}
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          }
         }
       ]
     },
@@ -3583,7 +3599,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-file/releases/tag/v1.2.0",
           "month": "2026-11",
-          "readTimes": {},
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          },
           "gate": {
             "state": "idle",
             "text": "v1.2.0"
@@ -3600,7 +3618,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-file/releases/tag/v1.2.0",
           "month": "2026-10",
-          "readTimes": {}
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          }
         }
       ]
     },
@@ -3652,7 +3672,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-storage/releases/tag/v1.4.1",
           "month": "2026-11",
-          "readTimes": {},
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          },
           "gate": {
             "state": "idle",
             "text": "v1.4.1"
@@ -3665,7 +3687,9 @@
           "releases": 0,
           "state": "unreleased",
           "month": "2026-10",
-          "readTimes": {}
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          }
         }
       ]
     },
@@ -3716,7 +3740,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-indexer/releases/tag/v1.4.0",
           "month": "2026-11",
-          "readTimes": {},
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          },
           "gate": {
             "state": "idle",
             "text": "v1.4.0"
@@ -3733,7 +3759,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-indexer/releases/tag/v1.4.0",
           "month": "2026-10",
-          "readTimes": {}
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          }
         }
       ]
     },
@@ -3784,7 +3812,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-search/releases/tag/v1.4.0",
           "month": "2026-11",
-          "readTimes": {},
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          },
           "gate": {
             "state": "idle",
             "text": "v1.4.0"
@@ -3801,7 +3831,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-search/releases/tag/v1.4.0",
           "month": "2026-10",
-          "readTimes": {}
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          }
         }
       ]
     },
@@ -3852,7 +3884,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-workflow/releases/tag/v1.3.1",
           "month": "2026-11",
-          "readTimes": {},
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          },
           "gate": {
             "state": "idle",
             "text": "v1.3.1"
@@ -3869,7 +3903,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-workflow/releases/tag/v1.3.1",
           "month": "2026-10",
-          "readTimes": {}
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          }
         }
       ]
     },
@@ -3912,7 +3948,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-indexer-queue/releases/tag/v1.4.0",
           "month": "2026-11",
-          "readTimes": {},
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          },
           "gate": {
             "state": "idle",
             "text": "v1.4.0"
@@ -3929,7 +3967,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-indexer-queue/releases/tag/v1.4.0",
           "month": "2026-10",
-          "readTimes": {}
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          }
         }
       ]
     },
@@ -3980,7 +4020,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-unit/releases/tag/v1.4.0",
           "month": "2026-11",
-          "readTimes": {},
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          },
           "gate": {
             "state": "idle",
             "text": "v1.4.0"
@@ -3997,7 +4039,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-unit/releases/tag/v1.4.0",
           "month": "2026-10",
-          "readTimes": {}
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          }
         }
       ]
     },
@@ -4048,7 +4092,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-crs-catalog/releases/tag/v1.4.0",
           "month": "2026-11",
-          "readTimes": {},
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          },
           "gate": {
             "state": "idle",
             "text": "v1.4.0"
@@ -4065,7 +4111,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-crs-catalog/releases/tag/v1.4.0",
           "month": "2026-10",
-          "readTimes": {}
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          }
         }
       ]
     },
@@ -4116,7 +4164,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-crs-conversion/releases/tag/v1.4.0",
           "month": "2026-11",
-          "readTimes": {},
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          },
           "gate": {
             "state": "idle",
             "text": "v1.4.0"
@@ -4133,7 +4183,9 @@
           "state": "released",
           "url": "https://github.com/Azure/osdu-spi-crs-conversion/releases/tag/v1.4.0",
           "month": "2026-10",
-          "readTimes": {}
+          "readTimes": {
+            "github": "2026-11-06T14:02:00.133Z"
+          }
         }
       ]
     }
@@ -4181,55 +4233,55 @@
     },
     {
       "id": "service:partition",
-      "status": "unread"
+      "status": "fresh"
     },
     {
       "id": "service:entitlements",
-      "status": "unread"
+      "status": "fresh"
     },
     {
       "id": "service:legal",
-      "status": "unread"
+      "status": "fresh"
     },
     {
       "id": "service:schema",
-      "status": "unread"
+      "status": "fresh"
     },
     {
       "id": "service:file",
-      "status": "unread"
+      "status": "fresh"
     },
     {
       "id": "service:storage",
-      "status": "unread"
+      "status": "fresh"
     },
     {
       "id": "service:indexer",
-      "status": "unread"
+      "status": "fresh"
     },
     {
       "id": "service:search",
-      "status": "unread"
+      "status": "fresh"
     },
     {
       "id": "service:workflow",
-      "status": "unread"
+      "status": "fresh"
     },
     {
       "id": "service:indexer-queue",
-      "status": "unread"
+      "status": "fresh"
     },
     {
       "id": "service:unit",
-      "status": "unread"
+      "status": "fresh"
     },
     {
       "id": "service:crs-catalog",
-      "status": "unread"
+      "status": "fresh"
     },
     {
       "id": "service:crs-conversion",
-      "status": "unread"
+      "status": "fresh"
     },
     {
       "id": "threads",
@@ -4795,7 +4847,119 @@
     },
     {
       "source": "github",
-      "object": "github",
+      "object": "Azure/osdu-spi",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "github",
+      "object": "Azure/osdu-spi-stack",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "github",
+      "object": "Azure/osdu-spi-partition",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "github",
+      "object": "Azure/osdu-spi-entitlements",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "github",
+      "object": "Azure/osdu-spi-legal",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "github",
+      "object": "Azure/osdu-spi-schema",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "github",
+      "object": "Azure/osdu-spi-file",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "github",
+      "object": "Azure/osdu-spi-storage",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "github",
+      "object": "Azure/osdu-spi-indexer",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "github",
+      "object": "Azure/osdu-spi-search",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "github",
+      "object": "Azure/osdu-spi-workflow",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "github",
+      "object": "Azure/osdu-spi-indexer-queue",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "github",
+      "object": "Azure/osdu-spi-unit",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "github",
+      "object": "Azure/osdu-spi-crs-catalog",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "github",
+      "object": "Azure/osdu-spi-crs-conversion",
       "observedAt": "2026-11-06T14:02:00.133Z",
       "completeness": {
         "kind": "complete"
@@ -4834,8 +4998,104 @@
       }
     },
     {
-      "source": "upstream",
-      "object": "upstream",
+      "source": "osdu/platform/system/partition",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/entitlements",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/security-and-compliance/legal",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/system/schema-service",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/system/file",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/system/storage",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/system/indexer-service",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/system/search-service",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/data-flow/ingestion/ingestion-workflow",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/system/indexer-queue",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/system/reference/unit-service",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-catalog-service",
+      "object": "repository/branches/master",
+      "observedAt": "2026-11-06T14:02:00.133Z",
+      "completeness": {
+        "kind": "complete"
+      }
+    },
+    {
+      "source": "osdu/platform/system/reference/crs-conversion-service",
+      "object": "repository/branches/master",
       "observedAt": "2026-11-06T14:02:00.133Z",
       "completeness": {
         "kind": "complete"
