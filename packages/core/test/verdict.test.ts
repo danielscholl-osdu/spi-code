@@ -20,7 +20,7 @@ const PLACE_AREAS = [
 function calm(over: Partial<VerdictInput> = {}): VerdictInput {
   return {
     items: [],
-    horizon: { cards: [], counts: { surfaceItems: 0 } },
+    horizon: { cards: [], counts: { needYouCards: 0 } },
     stoppedForks: [],
     forks: 13,
     deployable: { state: "yes" },
@@ -54,7 +54,7 @@ describe("briefingVerdict", () => {
             { id: "c", attention: "interrupt", origin: "upstream" },
             { id: "d", attention: "surface", origin: "upstream" },
           ],
-          horizon: { cards: [{ itemIds: ["c", "d"] }], counts: { surfaceItems: 1 } },
+          horizon: { cards: [{ itemIds: ["c", "d"] }], counts: { needYouCards: 1 } },
           stoppedForks: ["entitlements", "legal", "storage", "indexer-queue"],
           areas: withState({ github: "failed" }),
         }),
@@ -65,7 +65,7 @@ describe("briefingVerdict", () => {
     });
   });
 
-  test("names each origin at its loudest tier and counts upstream Surface from the horizon", () => {
+  test("names each origin at its loudest tier and counts upstream changes as horizon cards", () => {
     expect(
       briefingVerdict(
         calm({
@@ -75,17 +75,39 @@ describe("briefingVerdict", () => {
             { id: "radar:indexer", attention: "surface", origin: "upstream" },
             { id: "radar:unit", attention: "surface", origin: "upstream" },
             { id: "gate1:unit", attention: "surface", origin: "upstream" },
+            { id: "radar:legal", attention: "surface", origin: "upstream" },
           ],
           horizon: {
-            cards: [{ itemIds: ["radar:indexer", "radar:unit", "gate1:unit"] }],
-            counts: { surfaceItems: 3 },
+            cards: [
+              { itemIds: ["radar:indexer", "radar:unit", "gate1:unit"] },
+              { itemIds: ["radar:legal"] },
+            ],
+            counts: { needYouCards: 2 },
           },
         }),
       ),
     ).toEqual({
-      text: "1 thing needs you; 3 upstream changes need you before they land.",
+      text: "1 thing needs you; 2 upstream changes need you before they land.",
       mark: "stopped",
     });
+  });
+
+  test("one change across two forks is one upstream change", () => {
+    const input = calm({
+      items: [
+        { id: "radar:indexer", attention: "surface", origin: "upstream" },
+        { id: "radar:storage", attention: "surface", origin: "upstream" },
+      ],
+      horizon: {
+        cards: [{ itemIds: ["radar:indexer", "radar:storage"] }],
+        counts: { needYouCards: 1 },
+      },
+    });
+    const expected = { text: "1 upstream change needs you before it lands.", mark: "needs-person" };
+    expect(briefingVerdict(input)).toEqual(expected);
+    expect(briefingVerdict({ ...input, horizon: { cards: input.horizon.cards } })).toEqual(
+      expected,
+    );
   });
 
   test("an in-system decision shows when nothing in the system interrupts", () => {
@@ -96,7 +118,7 @@ describe("briefingVerdict", () => {
             { id: "halt:legal", attention: "interrupt", origin: "upstream" },
             { id: "gate2:file", attention: "surface", origin: "system" },
           ],
-          horizon: { cards: [{ itemIds: ["halt:legal"] }], counts: { surfaceItems: 0 } },
+          horizon: { cards: [{ itemIds: ["halt:legal"] }], counts: { needYouCards: 1 } },
         }),
       ),
     ).toEqual({ text: "1 thing needs you; 1 decision waits on you.", mark: "stopped" });
@@ -110,7 +132,7 @@ describe("briefingVerdict", () => {
             { id: "radar:indexer", attention: "surface", origin: "upstream" },
             { id: "port:entitlements", attention: "surface", origin: "upstream" },
           ],
-          horizon: { cards: [{ itemIds: ["radar:indexer"] }], counts: { surfaceItems: 1 } },
+          horizon: { cards: [{ itemIds: ["radar:indexer"] }], counts: { needYouCards: 1 } },
         }),
       ),
     ).toEqual({
@@ -178,6 +200,13 @@ describe("briefingVerdict", () => {
       });
     });
 
+    test("an unread fleet withholds calm: the fork count rests on it", () => {
+      expect(briefingVerdict(calm({ areas: withState({ fleet: "failed" }) }))).toEqual({
+        text: "Nothing read needs you. Fleet membership wasn't read this sweep.",
+        mark: "in-progress",
+      });
+    });
+
     test("no forks read is not calm", () => {
       expect(briefingVerdict(calm({ forks: 0 }))).toEqual({
         text: "Nothing urgent needs you. No forks were read.",
@@ -187,7 +216,7 @@ describe("briefingVerdict", () => {
 
     test("no declared or reported areas is not calm", () => {
       expect(briefingVerdict(calm({ places: [], areas: [] }))).toEqual({
-        text: "Nothing read needs you.",
+        text: "Nothing read needs you. Fleet membership wasn't read this sweep.",
         mark: "in-progress",
       });
     });

@@ -163,7 +163,8 @@ export function briefingProvenance(briefing: Briefing, stack: StackModel): Value
   if ("decisions" in briefing && briefing.decisions) add("/briefing/decisions", MODEL);
   if ("ambient" in briefing && briefing.ambient) add("/briefing/ambient", MODEL);
   if ("canWait" in briefing && briefing.canWait) add("/briefing/canWait", MODEL);
-  if ("verdict" in briefing && briefing.verdict) add("/briefing/verdict", MODEL);
+  // The verdict's fork count and calm claim rest on fleet membership.
+  if ("verdict" in briefing && briefing.verdict) add("/briefing/verdict", [...MODEL, "fleet"]);
 
   const { flow } = briefing;
   add("/briefing/flow/mode", PHASE);

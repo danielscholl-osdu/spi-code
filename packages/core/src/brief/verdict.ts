@@ -18,7 +18,7 @@ export interface VerdictInput {
   items: readonly VerdictItem[];
   horizon: {
     cards?: readonly { itemIds: readonly string[] }[] | undefined;
-    counts?: { surfaceItems: number } | undefined;
+    counts?: { needYouCards: number } | undefined;
   };
   /** The strip's stopped forks, model.stoppedForks. */
   stoppedForks: readonly string[];
@@ -53,17 +53,24 @@ function notRead(areas: readonly AreaName[], how: string): string | undefined {
   return `${cap(names(areas.map((area) => LABELS[area][0])))} ${many ? "weren't" : "wasn't"} ${how} this sweep.`;
 }
 
-/** Today's one sentence: each origin at its loudest tier, the strip's stopped forks, and what wasn't read. */
+/**
+ * Today's one sentence: each origin at its loudest tier, the strip's stopped forks, and what
+ * wasn't read. An upstream change is one horizon card, or one upstream item no card holds.
+ */
 export function briefingVerdict(input: VerdictInput): { text: string; mark: Mark } {
   const onCard = new Set((input.horizon.cards ?? []).flatMap((card) => card.itemIds));
   const upstream = (item: VerdictItem) => item.origin === "upstream" || onCard.has(item.id);
   const interrupts = input.items.filter((item) => item.attention === "interrupt");
   const surface = input.items.filter((item) => item.attention === "surface");
   const systemSurface = surface.filter((item) => !upstream(item)).length;
-  const cardSurface = input.horizon.counts?.surfaceItems ??
-    surface.filter((item) => onCard.has(item.id)).length;
+  const tierOf = new Map(input.items.map((item) => [item.id, item.attention]));
+  const cardChanges =
+    input.horizon.counts?.needYouCards ??
+    (input.horizon.cards ?? []).filter((card) =>
+      card.itemIds.some((id) => tierOf.get(id) === "surface" || tierOf.get(id) === "interrupt"),
+    ).length;
   const upstreamSurface =
-    cardSurface + surface.filter((item) => !onCard.has(item.id) && item.origin === "upstream").length;
+    cardChanges + surface.filter((item) => !onCard.has(item.id) && item.origin === "upstream").length;
   const stopped = input.stoppedForks.length;
 
   const clauses: string[] = [];
@@ -78,8 +85,10 @@ export function briefingVerdict(input: VerdictInput): { text: string; mark: Mark
     );
 
   const declared = [...new Set(input.places.flatMap((place) => place.areas))];
-  const depends = AREAS.filter((area) =>
-    declared.length > 0 ? declared.includes(area) : input.areas.some((entry) => entry.area === area),
+  const depends = AREAS.filter(
+    (area) =>
+      area === "fleet" ||
+      (declared.length > 0 ? declared.includes(area) : input.areas.some((entry) => entry.area === area)),
   );
   const stateOf = (area: AreaName) =>
     input.areas.find((entry) => entry.area === area)?.envelope.state ?? "unread";
@@ -96,7 +105,6 @@ export function briefingVerdict(input: VerdictInput): { text: string; mark: Mark
   const calm =
     clauses.length === 0 &&
     surface.length === 0 &&
-    depends.length > 0 &&
     caveats.length === 0 &&
     deployable &&
     input.forks > 0;
@@ -112,7 +120,7 @@ export function briefingVerdict(input: VerdictInput): { text: string; mark: Mark
     clauses.length > 0
       ? [`${cap(clauses.join("; "))}.`]
       : [
-          caveats.length > 0 || depends.length === 0 ? "Nothing read needs you." : "Nothing urgent needs you.",
+          caveats.length > 0 ? "Nothing read needs you." : "Nothing urgent needs you.",
           ...(input.deployable.state === "no"
             ? ["The environment isn't deployable."]
             : !deployable

@@ -6053,6 +6053,7 @@
     {
       "path": "/briefing/canWait",
       "areas": [
+        "fleet",
         "github",
         "runs",
         "approvals",
