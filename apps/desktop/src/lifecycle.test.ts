@@ -6,6 +6,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { PROTOCOL_VERSION } from "@spi-code/contracts";
 import { afterEach, expect, it, vi } from "vitest";
 import {
   cacheSchema,
@@ -17,10 +18,12 @@ import {
 import { openRunStore } from "../../../packages/host/src/store/store.js";
 import { SweepService } from "../../../packages/host/src/sweep/service.js";
 import { type ProcessIdentity, QUIT_BUDGET_MS, reapProcesses, stopHostTree } from "./host-tree.js";
+import { WINDOW_LEAVE_ID, windowLeave } from "./leave.js";
 import {
   createLifecycle,
   HOST_KILL_WAIT_MS,
   HOST_STOP_GRACE_MS,
+  LEAVE_WAIT_MS,
   stopHostAndReleaseLeases,
   stopWithin,
 } from "./lifecycle.js";
@@ -108,6 +111,78 @@ it("waits for shutdown once before quitting, including repeated OS quit events",
   await stopped;
   expect(dispose).toHaveBeenCalledOnce();
   expect(app.exited).toBe(true);
+});
+
+function leaving(leave: () => Promise<void>, stop = vi.fn(async () => {})) {
+  const app = new FakeApp();
+  const timers: { ms: number; fire: () => void; cancel: ReturnType<typeof vi.fn> }[] = [];
+  const lifecycle = createLifecycle(app, {
+    stopHost: stop,
+    dispose: vi.fn(),
+    onError: vi.fn(),
+    leave,
+    schedule: (ms, fire) => {
+      const cancel = vi.fn();
+      timers.push({ ms, fire, cancel });
+      return cancel;
+    },
+  });
+  lifecycle?.setWindow(new FakeWindow());
+  return { app, stop, timers };
+}
+
+it("lets the window acknowledge what Today showed before the host stops", async () => {
+  const handled: string[] = [];
+  // Handles the window's requests in order and answers its ping, as the host port does.
+  const host = (message: { type: "view.acknowledge"; cursor: number } | { type: "ping" }) =>
+    setTimeout(() => {
+      if (message.type === "view.acknowledge") handled.push(`acknowledge ${message.cursor}`);
+      else
+        windowRelay.observe({
+          version: PROTOCOL_VERSION,
+          id: WINDOW_LEAVE_ID,
+          kind: "response",
+          type: "pong",
+          payload: {},
+        });
+    }, 5);
+  const windowRelay = windowLeave(() => {
+    host({ type: "view.acknowledge", cursor: 6 });
+    host({ type: "ping" });
+    return true;
+  });
+  const { app, timers } = leaving(
+    () => windowRelay.leave(),
+    vi.fn(async () => {
+      handled.push("stop host");
+    }),
+  );
+  app.quit();
+  await vi.waitFor(() => expect(app.exited).toBe(true));
+  expect(handled).toEqual(["acknowledge 6", "stop host"]);
+  expect(timers.map(({ ms }) => ms)).toEqual([LEAVE_WAIT_MS]);
+  expect(timers[0]?.cancel).toHaveBeenCalledOnce();
+});
+
+it("stops the host without waiting when the window has nothing to acknowledge", async () => {
+  const signal = vi.fn(() => false);
+  const { app, stop, timers } = leaving(() => windowLeave(signal).leave());
+  app.quit();
+  await vi.waitFor(() => expect(app.exited).toBe(true));
+  expect(signal).toHaveBeenCalledOnce();
+  expect(stop).toHaveBeenCalledOnce();
+  expect(timers[0]?.cancel).toHaveBeenCalledOnce();
+});
+
+it("bounds the wait for a window that never answers", async () => {
+  const { app, stop, timers } = leaving(() => new Promise<void>(() => {}));
+  app.quit();
+  await vi.waitFor(() => expect(timers).toHaveLength(1));
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  expect(stop).not.toHaveBeenCalled();
+  timers[0]?.fire();
+  await vi.waitFor(() => expect(app.exited).toBe(true));
+  expect(stop).toHaveBeenCalledOnce();
 });
 
 it("reports shutdown failure instead of exiting successfully", async () => {

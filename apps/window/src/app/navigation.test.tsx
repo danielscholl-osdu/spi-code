@@ -471,6 +471,39 @@ describe("landing", () => {
     expect(acknowledged()).toEqual([{ cursor: 4 }, { cursor: 5 }]);
   });
 
+  it("acknowledges what Today showed, then pings, when the app quits", async () => {
+    let leave: (() => void) | undefined;
+    window.spi.onLeave = (listener) => {
+      leave = listener;
+      return () => {};
+    };
+    const sent = () =>
+      vi
+        .mocked(window.spi.postMessage)
+        .mock.calls.map(([message]) => message)
+        .filter((message) => message.type === "view.acknowledge" || message.type === "ping")
+        .map((message) =>
+          message.type === "ping" ? { ping: message.id } : { cursor: message.payload.cursor },
+        );
+    await launch();
+    await go({ kind: "today" });
+    await arrive(4, { cursor: 3, since: ["halt:legal"] });
+    expect(sent()).toEqual([]);
+    await act(async () => leave?.());
+    expect(sent()).toEqual([{ cursor: 4 }, { ping: "window-leave" }]);
+    await act(async () => leave?.());
+    expect(sent()).toEqual([{ cursor: 4 }, { ping: "window-leave" }, { ping: "window-leave" }]);
+  });
+
+  it("acknowledges what Today showed when the window reloads", async () => {
+    await launch();
+    await go({ kind: "today" });
+    await arrive(4, { cursor: 3, since: ["halt:legal"] });
+    expect(acknowledged()).toEqual([]);
+    await act(async () => window.dispatchEvent(new Event("pagehide")));
+    expect(acknowledged()).toEqual([{ cursor: 4 }]);
+  });
+
   it("does not acknowledge while the Watch gate holds Today's items", async () => {
     const setup = (watchReady: boolean) =>
       act(async () =>

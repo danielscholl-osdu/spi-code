@@ -403,6 +403,8 @@ export function trayChannel<P extends Port<P>>(
       host.postMessage(parsed.message, []);
       return true;
     },
+    /** Whether a host is up on the relay to take the window's requests. */
+    connected: () => host !== undefined,
     dispose: () => dispose(),
   };
 }

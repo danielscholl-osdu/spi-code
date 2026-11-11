@@ -46,9 +46,20 @@ interface DesktopWindow {
   on(event: "query-session-end" | "session-end", listener: () => void): unknown;
 }
 
+/** How long quit waits for the window to acknowledge what Today showed before the host stops. */
+export const LEAVE_WAIT_MS = 500;
+
 export function createLifecycle(
   app: DesktopApp,
-  options: { stopHost(): Promise<void>; dispose(): void; onError(error: unknown): void },
+  options: {
+    stopHost(): Promise<void>;
+    dispose(): void;
+    onError(error: unknown): void;
+    /** Settles once the window's acknowledgement has reached the host. */
+    leave?(): Promise<void>;
+    leaveWaitMs?: number;
+    schedule?(ms: number, callback: () => void): () => void;
+  },
 ) {
   if (!app.requestSingleInstanceLock()) {
     app.quit();
@@ -69,10 +80,31 @@ export function createLifecycle(
     window.show();
     window.focus();
   };
+  const leave = async (left: () => Promise<void>) => {
+    const bound = wait(
+      options.leaveWaitMs ?? LEAVE_WAIT_MS,
+      options.schedule ??
+        ((ms, callback) => {
+          const timer = setTimeout(callback, ms);
+          return () => clearTimeout(timer);
+        }),
+    );
+    try {
+      await Promise.race([
+        // Best effort: an unacknowledged view shows more as new next launch.
+        left().catch((error) => console.warn("Window did not acknowledge before quit", error)),
+        bound.elapsed,
+      ]);
+    } finally {
+      bound.cancel();
+    }
+  };
   const quit = () => {
     quitting = true;
     shutdown ??= Promise.resolve()
-      .then(() => options.stopHost())
+      .then(() =>
+        options.leave ? leave(options.leave).then(() => options.stopHost()) : options.stopHost(),
+      )
       .then(() => {
         options.dispose();
         stopped = true;
