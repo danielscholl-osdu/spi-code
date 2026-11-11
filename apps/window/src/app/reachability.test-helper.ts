@@ -285,7 +285,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
     });
   }
 
-  cases.push(...bandCases(snapshot));
+  cases.push(...bandCases(snapshot), ...horizonCases(snapshot));
 
   const readings = snapshot.readings.flatMap(({ anchor, content }) => {
     const place = PLACE_STARTS[anchor.kind];
@@ -1043,6 +1043,64 @@ export function bandCases(snapshot: ViewSnapshot): Reach[] {
   return cases;
 }
 
+/** Upstream items on a horizon card or the owed row: the section's inbound mark is their origin. */
+const inbound = (element: Element) =>
+  element.closest(".today-horizon")?.querySelector(".horizon-inbound") ? "upstream" : "system";
+
+/** Each item a horizon card or the owed row holds: its fork chip opens the place, its card the Detail. */
+export function horizonCases(snapshot: ViewSnapshot): Reach[] {
+  const { briefing } = snapshot;
+  const cases: Reach[] = [];
+  const add: Add = (pointer, value, where, selector, extra = {}) => {
+    cases.push({ pointer, value: String(value), home: where, selector, ...extra });
+  };
+  const items = briefingItems(briefing);
+  const themes = new Set(briefing.themes.map(({ id }) => id));
+  const { cards = [], owed } = briefing.horizon;
+  cards.forEach((card, index) => {
+    const root = `.today-horizon .horizon-card[data-card-id=${quote(card.id)}]`;
+    const [first = ""] = card.itemIds;
+    const target = card.kind !== "sync" && themes.has(card.id) ? `theme:${card.id}` : first;
+    const detail = { click: `${root} button.horizon-token`, detail: target };
+    for (const [item, entry] of items) {
+      if (!card.itemIds.includes(entry.id)) continue;
+      if (entry.origin)
+        add(`${item}/origin`, entry.origin, TODAY, root, { read: inbound, opens: detail });
+      const at = card.services.findIndex(({ service }) => service === entry.scope);
+      if (at < 0) continue;
+      const chip = `${root} .horizon-fork[data-pointer="/briefing/horizon/cards/${index}/services/${at}"] .kit-chip--service`;
+      add(`${item}/scope`, entry.scope, TODAY, chip, {
+        opens: { click: chip, place: { kind: "service", id: entry.scope } },
+      });
+    }
+  });
+  if (owed && owed.count > 0)
+    (owed.itemIds ?? []).forEach((id, at) => {
+      const open = nth(".today-horizon .horizon-owed .horizon-owed-open", at);
+      const opens = { click: open, detail: id };
+      for (const [item, entry] of items) {
+        if (entry.id !== id) continue;
+        if (entry.origin)
+          add(
+            `${item}/origin`,
+            entry.origin,
+            TODAY,
+            ".today-horizon .horizon-owed .kit-segmented",
+            {
+              read: (element) =>
+                element.classList.contains("kit-segmented--upstream") ? "upstream" : "system",
+              opens,
+            },
+          );
+        add(`${item}/scope`, entry.scope, TODAY, ".today-horizon .horizon-owed .kit-bar-figure", {
+          contains: true,
+          opens,
+        });
+      }
+    });
+  return cases;
+}
+
 const PR = ["pr/number", "pr/url", "pr/inspect"];
 const under = (root: string, leaves: readonly string[]) => leaves.map((leaf) => `${root}/${leaf}`);
 const ambient = (run: string) => [
@@ -1066,32 +1124,8 @@ function itemAt(pointer: string, { briefing }: Leaves) {
   return list === "focus" || list === "rest" ? briefing[list][Number(index)] : undefined;
 }
 
-/** A horizon card or the owed row holds the leaf's item. */
-function horizonHolds(pointer: string, snapshot: Leaves) {
-  const item = itemAt(pointer, snapshot);
-  if (!item) return false;
-  const { cards = [], owed } = snapshot.briefing.horizon;
-  return (
-    cards.some(({ itemIds }) => itemIds.includes(item.id)) ||
-    (owed?.itemIds ?? []).includes(item.id)
-  );
-}
-
 /** Today briefing fields the contract carries before a window bead draws them; each names its bead. */
 export const PENDING: Readonly<Record<string, Exemption>> = {
-  "pending-horizon-items": {
-    ...pending(
-      "spicode-f0s.50",
-      "the scope and origin of an item whose only Today home is its horizon card or the owed row (ruling R1)",
-      [
-        "/briefing/focus/#/scope",
-        "/briefing/rest/#/scope",
-        "/briefing/focus/#/origin",
-        "/briefing/rest/#/origin",
-      ],
-    ),
-    when: (_value, { pointer, snapshot }) => horizonHolds(pointer, snapshot),
-  },
   "pending-releases": pending("spicode-f0s.21", "Today's Releases block", [
     ...under("/releases/today/versions/#", [
       "service",
@@ -1137,6 +1171,18 @@ export const AT_PLACE: Readonly<Record<string, Exemption>> = {
       return (snapshot.briefing.decisions?.groups ?? []).some(
         ({ itemIds, scope }) =>
           item !== undefined && itemIds.includes(item.id) && scope.length === 0,
+      );
+    },
+  },
+  "fleet-wide-line": {
+    patterns: ["/briefing/focus/#/scope", "/briefing/rest/#/scope"],
+    reason:
+      "An Ambient line core gives no service (the template rollout) draws its next merges, not its scope (today-design 'Words and visuals', ruling 69); its scope shows at its place",
+    when: (_value, { pointer, snapshot }) => {
+      const item = itemAt(pointer, snapshot);
+      const { failing, inProgress } = snapshot.briefing.ambient ?? {};
+      return [...(failing?.lines ?? []), ...(inProgress?.lines ?? [])].some(
+        ({ itemIds, service }) => item !== undefined && itemIds.includes(item.id) && !service,
       );
     },
   },

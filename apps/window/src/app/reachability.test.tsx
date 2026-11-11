@@ -19,11 +19,13 @@ import { treeServices } from "./queue.js";
 import {
   AT_PLACE,
   bandCases,
+  briefingItems,
   coverage,
   detailFeed,
   EXEMPTIONS,
   HOLD_GAP,
   type Home,
+  horizonCases,
   leaves,
   motionCases,
   type Reach,
@@ -251,9 +253,91 @@ describe("In motion and Can wait, on mornings that carry them", () => {
 
 const ITEM_HOME = /^\/briefing\/(focus|rest)\/\d+\/(scope|origin)$/;
 const itemHomeCases = (body: ViewSnapshot) =>
-  [...bandCases(body), ...motionCases(body), ...placeReachCases(body)].filter(({ pointer }) =>
-    ITEM_HOME.test(pointer),
+  [
+    ...bandCases(body),
+    ...motionCases(body),
+    ...horizonCases(body),
+    ...placeReachCases(body),
+  ].filter(({ pointer }) => ITEM_HOME.test(pointer));
+
+/** Each Today home that holds an item (ruling R1), as [item id, the home's container]. */
+function itemHomes({ briefing }: ViewSnapshot): [string, string][] {
+  const q = JSON.stringify;
+  const held = (itemIds: readonly string[], container: string) =>
+    itemIds.map((id) => [id, container] as [string, string]);
+  return [
+    ...briefingItems(briefing)
+      .filter(([, item]) => item.attention === "interrupt")
+      .map(
+        ([, { id }]) =>
+          [id, `.today-band li.today-need[data-item-id=${q(id)}]`] as [string, string],
+      ),
+    ...(briefing.decisions?.groups ?? []).flatMap(({ id, itemIds }) =>
+      held(itemIds, `.today-band li.today-decision[data-decision-id=${q(id)}]`),
+    ),
+    ...(briefing.ambient?.failing?.lines ?? []).flatMap(({ id, itemIds }) =>
+      held(itemIds, `.today-band li.today-item-row[data-line-id=${q(id)}]`),
+    ),
+    ...(briefing.ambient?.inProgress?.lines ?? []).flatMap(({ id, itemIds }) =>
+      held(itemIds, `.today-motion-line[data-line-id=${q(id)}]`),
+    ),
+    ...(briefing.horizon.cards ?? []).flatMap(({ id, itemIds }) =>
+      held(itemIds, `.today-horizon .horizon-card[data-card-id=${q(id)}]`),
+    ),
+    ...held(briefing.horizon.owed?.itemIds ?? [], ".today-horizon .horizon-owed"),
+  ];
+}
+
+const inside = (row: Reach, container: string) =>
+  [row.selector, row.opens?.click].some(
+    (selector) => typeof selector === "string" && selector.startsWith(container),
   );
+
+/** Homes that hold an item yet register none of its scope or origin cases. */
+function missingHomes(body: ViewSnapshot, rows: readonly Reach[]) {
+  const ids = new Map<string, string>(
+    briefingItems(body.briefing).map(([pointer, { id }]) => [pointer, id]),
+  );
+  const itemOf = (pointer: string) => ids.get(pointer.replace(/\/(scope|origin)$/, ""));
+  return itemHomes(body)
+    .filter(
+      ([id, container]) =>
+        !rows.some((row) => itemOf(row.pointer) === id && inside(row, container)),
+    )
+    .map(([id, container]) => `${id} at ${container}`);
+}
+
+/**
+ * Busy with an In progress run core could send (core/brief/ambient.ts): each line's items are
+ * Ambient briefing items that no horizon card, owed row, decision or Failing line holds.
+ */
+function inMotion() {
+  const body = ViewSnapshotSchema.parse(JSON.parse(busyRaw));
+  const { briefing } = body;
+  const find = (id: string) => {
+    const found = briefingItems(briefing).find(([, item]) => item.id === id)?.[1];
+    if (!found) throw new Error(`busy carries no ${id}`);
+    return found;
+  };
+  find("rollout").attention = "ambient";
+  const decisions = briefing.decisions;
+  if (decisions) {
+    decisions.groups = decisions.groups.filter(({ itemIds }) => !itemIds.includes("rollout"));
+    decisions.items = decisions.groups.length;
+  }
+  for (const card of briefing.horizon.cards ?? [])
+    card.itemIds = card.itemIds.filter((id) => id !== "gate1:workflow");
+  const queue = find("gate2:indexer-queue");
+  briefing.rest.push({
+    ...queue,
+    id: "gate2:search",
+    ids: ["gate2:search"],
+    scope: "search",
+    title: "Release/upstream PR #76 waits for approval",
+    evidence: [{ label: "PR #76", url: "https://github.com/Azure/osdu-spi-search/pull/76" }],
+  });
+  return moving(body);
+}
 
 /** One click on the case's opener, then the Detail id or the place it opened. */
 async function assertOpens(row: Reach, body: ViewSnapshot) {
@@ -270,31 +354,81 @@ async function assertOpens(row: Reach, body: ViewSnapshot) {
 }
 
 describe("every focus and rest item's scope and origin, at its home on Today", () => {
+  const bad = () => ViewSnapshotSchema.parse(JSON.parse(badRaw));
   const MORNINGS = {
     "6 Nov": fixture,
+    calm: () => ViewSnapshotSchema.parse(JSON.parse(calmRaw)),
     busy: () => ViewSnapshotSchema.parse(JSON.parse(busyRaw)),
-    bad: () => ViewSnapshotSchema.parse(JSON.parse(badRaw)),
-    "busy with motion": () => moving(ViewSnapshotSchema.parse(JSON.parse(busyRaw))),
+    bad,
+    "busy with motion": inMotion,
   };
   it.each(Object.entries(MORNINGS))(
-    "has a case for each on the %s morning, and each one's click opens its Detail or place",
+    "has a case at each home on the %s morning, and each one's click opens its Detail or place",
     async (_name, morning) => {
       const body = morning();
       const rows = itemHomeCases(body);
       const { uncovered } = coverage(body, rows, { ...EXEMPTIONS, ...AT_PLACE });
       expect(uncovered.filter((pointer) => ITEM_HOME.test(pointer))).toEqual([]);
-      const patterns = (pointers: Iterable<string>) =>
-        new Set([...pointers].map((pointer) => pointer.replace(/\/\d+\//, "/#/")));
-      expect(patterns(rows.map(({ pointer }) => pointer))).toEqual(
-        patterns(
-          leaves(body)
-            .map(({ pointer }) => pointer)
-            .filter((pointer) => ITEM_HOME.test(pointer)),
-        ),
-      );
+      expect(missingHomes(body, rows)).toEqual([]);
       for (const row of rows) await assertOpens(row, body);
     },
   );
+
+  it("registers each of the four scope and origin patterns on these mornings", () => {
+    const pointers = Object.values(MORNINGS).flatMap((morning) =>
+      itemHomeCases(morning()).map(({ pointer }) => pointer.replace(/\/\d+\//, "/#/")),
+    );
+    expect(new Set(pointers)).toEqual(
+      new Set(
+        ["focus", "rest"].flatMap((list) => [
+          `/briefing/${list}/#/scope`,
+          `/briefing/${list}/#/origin`,
+        ]),
+      ),
+    );
+  });
+
+  it("builds its In motion morning the way core would", () => {
+    const { briefing } = inMotion();
+    const items = new Map(briefingItems(briefing).map(([, item]) => [item.id, item]));
+    const elsewhere = new Set([
+      ...(briefing.horizon.cards ?? []).flatMap(({ itemIds }) => itemIds),
+      ...(briefing.horizon.owed?.itemIds ?? []),
+      ...(briefing.decisions?.groups ?? []).flatMap(({ itemIds }) => itemIds),
+      ...(briefing.ambient?.failing?.lines ?? []).flatMap(({ itemIds }) => itemIds),
+    ]);
+    const lines = briefing.ambient?.inProgress?.lines ?? [];
+    expect(lines.length).toBeGreaterThan(0);
+    for (const id of lines.flatMap(({ itemIds }) => itemIds)) {
+      expect(items.get(id)?.attention, id).toBe("ambient");
+      expect(elsewhere.has(id), id).toBe(false);
+    }
+  });
+
+  it("fails when an item drawn in two homes loses either home's cases, or all of them", () => {
+    const body = bad();
+    const [legal] = briefingItems(body.briefing).find(([, { id }]) => id === "gate1:legal") ?? [];
+    expect(legal).toBeDefined();
+    const card = '.today-band li.today-need[data-item-id="gate1:legal"]';
+    const sync = '.today-horizon .horizon-card[data-card-id="sync:gate1:legal"]';
+    const rows = itemHomeCases(body);
+    const mine = (row: Reach) => row.pointer.startsWith(`${legal}/`);
+    const without = (container: string) =>
+      rows.filter((row) => !(mine(row) && inside(row, container)));
+    expect(rows.filter((row) => mine(row) && inside(row, card)).length).toBeGreaterThan(0);
+    expect(rows.filter((row) => mine(row) && inside(row, sync)).length).toBeGreaterThan(0);
+    expect(missingHomes(body, without(card))).toEqual([`gate1:legal at ${card}`]);
+    expect(missingHomes(body, without(sync))).toEqual([`gate1:legal at ${sync}`]);
+    const { uncovered } = coverage(
+      body,
+      rows.filter((row) => !mine(row)),
+      { ...EXEMPTIONS, ...AT_PLACE },
+    );
+    expect(uncovered.filter((pointer) => ITEM_HOME.test(pointer)).sort()).toEqual([
+      `${legal}/origin`,
+      `${legal}/scope`,
+    ]);
+  });
 });
 
 describe("the suite's own guards", () => {
