@@ -249,8 +249,57 @@
         "exposed": [],
         "when": "13d",
         "tone": "bad",
-        "next": "Move one fork's Java pin to 25 and repeat it for the others before the next sync carries it.",
+        "next": "Move one fork's Java pin to 25 and repeat it for the others.",
         "inspect": "gate1:legal"
+      },
+      {
+        "id": "toolchain:os-core-common 9.2.0",
+        "kind": "toolchain",
+        "title": "os-core-common 9.2.0",
+        "sub": "blocked: legal · open MRs: partition and schema",
+        "certain": [
+          {
+            "fork": "legal",
+            "state": "blocked · PR #31",
+            "url": "https://github.com/Azure/osdu-spi-legal/pull/31"
+          }
+        ],
+        "possible": [
+          {
+            "fork": "partition",
+            "state": "open MR !830",
+            "url": "https://community.opengroup.org/osdu/platform/system/partition/-/merge_requests/830",
+            "inspect": "mr:partition:830"
+          },
+          {
+            "fork": "schema",
+            "state": "open MR !867",
+            "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/merge_requests/867",
+            "inspect": "mr:schema:867"
+          }
+        ],
+        "exposed": [],
+        "when": "13d",
+        "tone": "bad",
+        "next": "Absorb os-core-common 9.2.0 on the forks.",
+        "inspect": "gate1:legal"
+      },
+      {
+        "id": "toolchain:os-core-common 8.2.0",
+        "kind": "toolchain",
+        "title": "os-core-common 8.2.0",
+        "sub": "held: entitlements",
+        "certain": [
+          {
+            "fork": "entitlements",
+            "state": "held · sync cannot carry it",
+            "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/entitlements/-/commit/485e45387f9aeac387bf44d7d3000e67159ac547"
+          }
+        ],
+        "possible": [],
+        "exposed": [],
+        "tone": "warn",
+        "next": "Absorb os-core-common 8.2.0 on the forks."
       },
       {
         "id": "halt:top_level:schemathesis-tests",
@@ -1507,6 +1556,20 @@
   },
   "campaigns": [
     {
+      "id": "campaign:toolchain:Java%2025",
+      "kind": "toolchain",
+      "fact": "Java 25",
+      "forks": ["legal", "partition", "schema"],
+      "possible": ["partition", "schema"]
+    },
+    {
+      "id": "campaign:toolchain:os-core-common%209.2.0",
+      "kind": "toolchain",
+      "fact": "os-core-common 9.2.0",
+      "forks": ["legal", "partition", "schema"],
+      "possible": ["partition", "schema"]
+    },
+    {
       "id": "campaign:security:CodeQL%3A%20java%2Flog-injection",
       "kind": "security",
       "fact": "CodeQL: java/log-injection",
@@ -2428,6 +2491,20 @@
         "items": [],
         "folded": null
       }
+    },
+    {
+      "anchor": {
+        "kind": "campaign",
+        "id": "campaign:toolchain:Java%2025"
+      },
+      "content": null
+    },
+    {
+      "anchor": {
+        "kind": "campaign",
+        "id": "campaign:toolchain:os-core-common%209.2.0"
+      },
+      "content": null
     },
     {
       "anchor": {
@@ -5525,6 +5602,34 @@
     },
     {
       "path": "/briefing/themes/3",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/themes/4",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
+      "path": "/briefing/themes/5",
       "areas": [
         "github",
         "runs",
