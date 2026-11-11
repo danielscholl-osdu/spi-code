@@ -45,11 +45,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { mrBoard } from "../../../core/src/inspect/mr.js";
 import { createLeaseStore } from "../store/leases.js";
+import { createSeenStore } from "../store/seen.js";
 import { createSnapshotStore } from "../store/snapshots.js";
 import { openRunStore } from "../store/store.js";
 import { SweepService } from "../sweep/service.js";
 import { emptySweepStatus, SWEEP_SCHEDULE } from "../sweep/status.js";
 import { projectReleases, projectWatch } from "../watch/project.js";
+import { baselineItems as baselineOf } from "../watch/seen.js";
 import { fixtureInput, oracle } from "../watch/snapshot-fixture.js";
 import { attachHostPort, type HostPort } from "./port.js";
 import {
@@ -1001,6 +1003,210 @@ describe("view.acknowledge", () => {
     expect(after.view.stations).toEqual(before.view.stations);
     expect(after.view.briefing).toEqual(before.view.briefing);
     expect(interruptCount(items(after.view.briefing))).toBe(count);
+  });
+});
+
+describe("view.subscribe from the last look", () => {
+  const sweptAt = "2026-10-12T21:58:14.428Z";
+  const observed = "2026-10-12T21:58:24.978Z";
+  const projected = projectWatch({
+    ...input,
+    context: { ...ctx, clock: { now: () => new Date("2026-10-12T22:00:00Z") } },
+  });
+  let clock: Date;
+  const live = { ...ctx, clock: { now: () => clock } };
+  const seenStore = () => createSeenStore(db);
+
+  beforeEach(() => {
+    clock = new Date("2026-10-12T21:00:00Z");
+  });
+
+  function write(edit: (view: StoredView) => StoredView = (view) => view): number {
+    fence ??= createLeaseStore(db).acquire(fleet, "sweeper", 60_000, now);
+    if (fence === undefined) throw new Error("lease not acquired");
+    const { cursor: _, ...view } = projected;
+    return createSnapshotStore(db).writeSnapshot(
+      { fleet, owner: "sweeper", fence },
+      { facts: input.facts, cache: emptyCache(), reads: input.reads },
+      edit(view),
+      now,
+    );
+  }
+
+  const watch = () =>
+    new WatchRoutes({
+      db: () => db,
+      fleet,
+      ctx: live,
+      appData: input.appData,
+      exec: failing,
+      onError: (error) => {
+        throw error;
+      },
+    });
+
+  async function subscribe(routes = watch()) {
+    const port = host(routes);
+    port.request("view.subscribe", { fromCursor: 0 });
+    await settle();
+    const last = port.sent.filter((m) => m.type === "view.snapshot").at(-1);
+    if (last?.type !== "view.snapshot") throw new Error("no snapshot pushed");
+    return {
+      view: last.payload,
+      acknowledge: async (cursor: number) => {
+        port.request("view.acknowledge", { cursor }, `ack-${cursor}`);
+        await settle();
+      },
+    };
+  }
+
+  const fresh = (view: ViewSnapshot) =>
+    Object.fromEntries((view.briefing.places ?? []).map((row) => [row.place, row.fresh.itemIds]));
+  const nothingFresh = { line: [], environment: [], engineering: [], security: [] };
+
+  const template = (() => {
+    const item = projected.briefing.rest.find((entry) => entry.attention === "surface");
+    if (!item) throw new Error("fixture must have a Surface item");
+    return item;
+  })();
+  const item = (id: string, attention: WatchItem["attention"]): WatchItem => ({
+    ...template,
+    id,
+    ids: [id],
+    rung: 2,
+    attention,
+  });
+  /** Adds items to the briefing and to the places that count them. */
+  const arriving =
+    (added: Array<[WatchItem, Array<"line" | "environment" | "engineering" | "security">]>) =>
+    (view: StoredView): StoredView => ({
+      ...view,
+      briefing: {
+        ...view.briefing,
+        rest: [...view.briefing.rest, ...added.map(([entry]) => entry)],
+        places: view.briefing.places?.map((row) => ({
+          ...row,
+          itemIds: [
+            ...row.itemIds,
+            ...added.filter(([, places]) => places.includes(row.place)).map(([entry]) => entry.id),
+          ],
+        })),
+      },
+    });
+
+  it("lists an item of any tier new since the baseline in each place that counts it, until acknowledged", async () => {
+    const routes = watch();
+    write();
+    await subscribe(routes);
+    const background = item("drift:file", "background");
+    const ambient = item("run:legal-ci", "ambient");
+    const edit = (view: StoredView): StoredView => {
+      const next = arriving([
+        [background, ["engineering"]],
+        [ambient, ["line", "security"]],
+      ])(view);
+      return {
+        ...next,
+        briefing: {
+          ...next.briefing,
+          focus: next.briefing.focus.map((entry) =>
+            entry.id === "halt:entitlements"
+              ? { ...entry, ids: [...entry.ids, "halt:partition"] }
+              : entry,
+          ),
+          rest: next.briefing.rest.map((entry) =>
+            entry.id === "rollout" ? { ...entry, attention: "ambient" } : entry,
+          ),
+        },
+      };
+    };
+    const second = write(edit);
+    const arrived = await subscribe(routes);
+    expect(fresh(arrived.view)).toEqual({
+      line: ["halt:entitlements", "run:legal-ci"],
+      environment: [],
+      engineering: ["drift:file"],
+      security: ["run:legal-ci"],
+    });
+    expect(arrived.view.seen.since).toEqual(["halt:entitlements"]);
+
+    await arrived.acknowledge(second);
+    write(edit);
+    expect(fresh((await subscribe(routes)).view)).toEqual(nothingFresh);
+  });
+
+  it("seeds a baseline on the first push with nothing fresh and the 24-hour since", async () => {
+    const routes = watch();
+    const first = write(arriving([[item("drift:file", "background"), ["engineering"]]]));
+    expect(seenStore().baseline(fleet)).toBeUndefined();
+    const sight = await subscribe(routes);
+    expect(seenStore().baseline(fleet)?.cursor).toBe(first);
+    expect(fresh(sight.view)).toEqual(nothingFresh);
+    expect(sight.view.briefing.since).toMatchObject({
+      basis: "fallback",
+      from: "2026-10-11T21:58:24.978Z",
+    });
+
+    write(
+      arriving([
+        [item("drift:file", "background"), ["engineering"]],
+        [item("drift:legal", "background"), ["engineering"]],
+      ]),
+    );
+    const next = await subscribe(routes);
+    expect(fresh(next.view)).toEqual({ ...nothingFresh, engineering: ["drift:legal"] });
+    expect(next.view.briefing.since).toMatchObject({ basis: "seen", from: clock.toISOString() });
+  });
+
+  it("counts only the runs that finished after the baseline's time", async () => {
+    const routes = watch();
+    write();
+    clock = new Date("2026-10-12T00:20:00Z");
+    const sight = await subscribe(routes);
+    expect(sight.view.briefing.since?.rows[0]?.countText).toBe("4/5 ran ok");
+    write();
+    const { view } = await subscribe(routes);
+    const sync = view.briefing.since?.rows.find((row) => row.workflow === "sync");
+    expect(view.briefing.since).toMatchObject({ basis: "seen", from: "2026-10-12T00:20:00.000Z" });
+    expect(sync?.countText).toBe("2/5 ran ok");
+    expect(sync?.slots.map((slot) => [slot.service, slot.state])).toEqual([
+      ["partition", "unknown"],
+      ["entitlements", "broken"],
+      ["legal", "unknown"],
+      ["schema", "unknown"],
+      ["file", "unknown"],
+    ]);
+    expect(sync?.slots.find((slot) => slot.service === "legal")?.text).not.toContain(" ran,");
+    expect(view.sweptAt).toBe(sweptAt);
+  });
+
+  it("keeps the 24-hour since for a baseline time after the runs read or out of range, and never throws", async () => {
+    const routes = watch();
+    const first = write();
+    const items = baselineOf(projected.briefing);
+    clock = new Date(Date.parse(observed) + 1);
+    await subscribe(routes);
+    write(arriving([[item("drift:legal", "background"), ["engineering"]]]));
+    const late = await subscribe(routes);
+    expect(late.view.briefing.since).toMatchObject({ basis: "fallback" });
+    expect(fresh(late.view)).toEqual({ ...nothingFresh, engineering: ["drift:legal"] });
+
+    seenStore().acknowledge(fleet, first + 10, items, 8_700_000_000_000_000);
+    const third = write(arriving([[item("drift:legal", "background"), ["engineering"]]]));
+    expect(third).toBeLessThan(first + 10);
+    const unreadable = await subscribe(routes);
+    expect(unreadable.view.seen).toEqual({ cursor: first + 10, since: [] });
+    expect(unreadable.view.briefing.since).toMatchObject({ basis: "fallback" });
+    expect(fresh(unreadable.view)).toEqual({ ...nothingFresh, engineering: ["drift:legal"] });
+  });
+
+  it("marks nothing new when the stored baseline cannot be read", async () => {
+    write();
+    seenStore().acknowledge(fleet, 1, [{ id: "not a seen item" }], Date.parse(sweptAt));
+    write(arriving([[item("drift:legal", "background"), ["engineering"]]]));
+    const { view } = await subscribe();
+    expect(fresh(view)).toEqual(nothingFresh);
+    expect(view.briefing.since).toMatchObject({ basis: "fallback" });
   });
 });
 

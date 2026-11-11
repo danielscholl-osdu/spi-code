@@ -105,6 +105,15 @@ restart. When no baseline is stored, the first snapshot pushed becomes it: first
 is quiet, and only Interrupt items that arrive after it open the window on Today. Acknowledging writes only the baseline: stations, the
 Interrupt count and stored snapshots are unchanged.
 
+The push also reads the baseline that existed before it into the briefing. Each
+`briefing.places[].fresh.itemIds` lists the row's `itemIds`, of any tier, that are new
+since the baseline (`freshIds`: absent from it, or reaching an id it did not); an item
+two places count is fresh in both. `briefing.since` is rebuilt from the persisted sweep
+state with the baseline's time as `from`; core falls back to 24 hours when that time is
+unparseable or after the runs observation, and a stale since is kept as projected.
+Without a baseline before the push, including the push that seeds one, nothing is
+fresh and since keeps its 24-hour window.
+
 The tree uses evidence states, not service health: a stopped service can have
 fresh evidence. Service dots use records naming that service, its repository or upstream;
 whole-area failures use the sweeper's exact `source: area, object: area` shape

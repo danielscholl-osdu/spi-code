@@ -171,6 +171,16 @@ describe("since pips", () => {
     history.sync = [run({ status: "in_progress" })];
     expect(read().rows[0]?.slots[0]?.state).toBe("unknown");
   });
+  it("falls back to 24 hours for a seen time it cannot parse or one after the runs observation", () => {
+    const { read } = setup();
+    const fallback = { basis: "fallback", from };
+    expect(read("not a time")).toMatchObject(fallback);
+    expect(read("2026-10-12T21:58:31Z")).toMatchObject(fallback);
+    expect(read("2026-10-12T21:58:30Z")).toMatchObject({
+      basis: "seen",
+      from: FIXTURE_NOW.toISOString(),
+    });
+  });
   it("reports history-short from the latest coverage boundary across forks and workflows", () => {
     const { history, read } = setup();
     required(history.history).template.from = "2026-10-12T02:10:00Z";
