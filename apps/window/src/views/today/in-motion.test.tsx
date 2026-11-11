@@ -15,6 +15,7 @@ import { InMotion } from "./InMotion.js";
 import { CASCADE, moving as movingFrom, ROLLOUT, SYNC_PR } from "./in-motion.test-helper.js";
 import Today from "./index.js";
 
+const CORE_AMBIENT = "../../../../../packages/core/src/brief/ambient.ts";
 const calm = () => ViewSnapshotSchema.parse(JSON.parse(calmRaw));
 const busy = () => ViewSnapshotSchema.parse(JSON.parse(busyRaw));
 const moving = () => movingFrom(busy());
@@ -123,10 +124,48 @@ describe("In motion and Can wait draw core's fields only", () => {
         li.getAttribute("title"),
       ),
     ).toEqual([ROLLOUT.text, SYNC_PR.text, CASCADE.text]);
-    expect(texts(root ?? container, ".today-canwait-chip")).toEqual([
-      "232 upstream-owned232",
-      "file",
-    ]);
+    expect(texts(root ?? container, ".today-canwait-chip")).toEqual(["232 upstream-owned", "file"]);
+    expect(root?.querySelector(".today-canwait-chip")?.getAttribute("data-count")).toBe("232");
+  });
+
+  it("draws core's words on an In progress line that carries no station, PR or state", async () => {
+    const body = calm();
+    const ambient = body.briefing.ambient;
+    if (!ambient) throw new Error("calm carries no Ambient split");
+    const { ambientOf } = (await import(/* @vite-ignore */ CORE_AMBIENT)) as {
+      ambientOf: (input: {
+        model: unknown;
+        items: readonly object[];
+        cards: readonly object[];
+        now: Date;
+      }) => NonNullable<ViewSnapshot["briefing"]["ambient"]>;
+    };
+    ambient.inProgress = ambientOf({
+      model: { queue: { items: [] }, lines: [] },
+      items: [
+        {
+          id: "stack:42",
+          ids: ["stack:42"],
+          cls: "ENV",
+          scope: "Environment",
+          title: "Environment upgrade in progress",
+          sub: "",
+          next: "Wait for the lifecycle run.",
+          attention: "ambient",
+          origin: "system",
+        },
+      ],
+      cards: [],
+      now: new Date(body.sweptAt),
+    }).inProgress;
+    const valid = ViewSnapshotSchema.parse(body);
+    const [line] = valid.briefing.ambient?.inProgress.lines ?? [];
+    expect(line).toMatchObject({ id: "ambient:stack:42" });
+    expect(line?.station ?? line?.pr ?? line?.state).toBeUndefined();
+    const { container } = await mount(valid);
+    const row = motion(container)?.querySelector('[data-line-id="ambient:stack:42"]');
+    expect(row?.querySelector(".today-motion-text")?.textContent).toBe(line?.text);
+    expect(row?.textContent).toContain("Environment upgrade in progress");
   });
 
   it("draws a waiting PR as fork, line glyph, PR badge, state chip and age, with ⇣ only on upstream origin", async () => {

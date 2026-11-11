@@ -115,9 +115,10 @@ function Line({
       </li>
     );
   const prRow = line.pr && itemRow(rows, line.pr.inspect ?? first, line.text);
+  const plain = !line.station && !line.pr && !line.state;
   return (
     <li
-      className="today-motion-line"
+      className={plain ? "today-motion-line today-motion-plain" : "today-motion-line"}
       {...shared}
       {...(line.station ? { "data-station": line.station } : {})}
       {...(line.pr?.url ? { "data-pr-url": line.pr.url } : {})}
@@ -132,25 +133,31 @@ function Line({
           />
         )}
       </span>
-      <span className="today-motion-glyph">
-        {line.station && (
-          <LineGlyph
-            station={GLYPH_STATION[line.station]}
-            state={slotState(line)}
-            origin={line.origin}
-            text={line.text}
-          />
-        )}
-      </span>
-      <span className="today-motion-pr">
-        {line.pr && prRow && (
-          <PrBadge
-            number={line.pr.number}
-            text={`PR #${line.pr.number}`}
-            onOpen={() => select(prRow)}
-          />
-        )}
-      </span>
+      {plain ? (
+        <span className="today-motion-text">{line.text}</span>
+      ) : (
+        <>
+          <span className="today-motion-glyph">
+            {line.station && (
+              <LineGlyph
+                station={GLYPH_STATION[line.station]}
+                state={slotState(line)}
+                origin={line.origin}
+                text={line.text}
+              />
+            )}
+          </span>
+          <span className="today-motion-pr">
+            {line.pr && prRow && (
+              <PrBadge
+                number={line.pr.number}
+                text={`PR #${line.pr.number}`}
+                onOpen={() => select(prRow)}
+              />
+            )}
+          </span>
+        </>
+      )}
       <span className="today-motion-state">
         {line.state && <Chip label={line.state.text} text={line.text} tone={line.state.tone} />}
         {line.followUp && <Chip label={line.followUp} text={line.followUp} tone="plain" />}
@@ -193,9 +200,6 @@ function CanWaitChips({
           onClick={() => select(row)}
         >
           {chip.text}
-          {chip.count !== undefined && chip.count > 1 && (
-            <span className="today-canwait-count">{chip.count}</span>
-          )}
         </button>
       ))}
     </div>
