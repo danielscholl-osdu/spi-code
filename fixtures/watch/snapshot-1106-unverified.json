@@ -90,6 +90,7 @@
             "url": "https://github.com/Azure/osdu-spi-entitlements/issues/121"
           }
         ],
+        "age": "21h",
         "attention": "interrupt",
         "owned": false
       },
@@ -112,6 +113,7 @@
             "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/42040438267"
           }
         ],
+        "age": "2h",
         "attention": "interrupt",
         "owned": false
       },
@@ -138,6 +140,7 @@
             "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/42109055691/job/127532471691"
           }
         ],
+        "age": "16d",
         "attention": "surface",
         "owned": false
       },
@@ -164,6 +167,7 @@
             "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/commit/f9643b164cf5eb0994df18a6d30ddcd37738d245"
           }
         ],
+        "age": "51d",
         "attention": "surface",
         "due": {
           "at": "2026-11-07T00:00:00.000Z",
@@ -201,6 +205,7 @@
             "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/commit/79cbd07824030a0b993939763a8e869721ba698a"
           }
         ],
+        "age": "69d",
         "attention": "surface",
         "due": {
           "at": "2026-11-07T00:00:00.000Z",
@@ -231,6 +236,7 @@
             "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/commit/d708bac1910407e175278e721a86fe20249e18bf"
           }
         ],
+        "age": "50d",
         "attention": "surface",
         "due": {
           "at": "2026-11-07T00:00:00.000Z",
@@ -257,6 +263,7 @@
             "url": "https://community.opengroup.org/osdu/platform/system/storage/-/commit/9acda5e50312d03e4e8b891c6923d01ec90dfd7d"
           }
         ],
+        "age": "41d",
         "attention": "surface",
         "owned": false
       },
@@ -279,6 +286,7 @@
             "url": "https://community.opengroup.org/osdu/platform/system/partition/-/commit/69785fa552c905baf34b9c4f7251f7c1c51488df"
           }
         ],
+        "age": "51d",
         "attention": "surface",
         "due": {
           "at": "2026-11-07T00:00:00.000Z",
@@ -309,6 +317,7 @@
             "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/d4b65bdf42503bf50bdbed11249c06bd9c0c4fe0"
           }
         ],
+        "age": "49d",
         "attention": "surface",
         "due": {
           "at": "2026-11-07T00:00:00.000Z",
@@ -335,6 +344,7 @@
             "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/d6847cea52b94f697ab67ef471f1bfeff33b6d93"
           }
         ],
+        "age": "43d",
         "attention": "surface",
         "due": {
           "at": "2026-11-07T00:00:00.000Z",
@@ -361,6 +371,7 @@
             "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/commit/aded8a3f3eb04154f291d4af4e33116514e40599"
           }
         ],
+        "age": "51d",
         "attention": "surface",
         "due": {
           "at": "2026-11-07T00:00:00.000Z",
@@ -387,6 +398,7 @@
             "url": "https://community.opengroup.org/osdu/platform/system/file/-/commit/4d0ff1f4ff24edbeda28d2c161a144a4e3e02db2"
           }
         ],
+        "age": "56d",
         "attention": "surface",
         "due": {
           "at": "2026-11-07T00:00:00.000Z",
@@ -413,6 +425,7 @@
             "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-conversion-service/-/commit/80e3497b7e5c8cba61810c2fb51c9e9fb9e5ea17"
           }
         ],
+        "age": "49d",
         "attention": "surface",
         "due": {
           "at": "2026-11-07T00:00:00.000Z",
@@ -439,6 +452,11 @@
             "url": "https://github.com/Azure/osdu-spi-indexer/pull/58"
           }
         ],
+        "age": "1d 13h",
+        "blocks": {
+          "count": 1,
+          "text": "blocks 1"
+        },
         "attention": "surface",
         "owned": false
       },
@@ -461,6 +479,11 @@
             "url": "https://github.com/Azure/osdu-spi-storage/pull/58"
           }
         ],
+        "age": "1d 13h",
+        "blocks": {
+          "count": 1,
+          "text": "blocks 1"
+        },
         "attention": "surface",
         "owned": false
       },
@@ -483,6 +506,11 @@
             "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/58"
           }
         ],
+        "age": "1d 13h",
+        "blocks": {
+          "count": 1,
+          "text": "blocks 1"
+        },
         "attention": "surface",
         "owned": false
       },
@@ -3362,6 +3390,7 @@
                 "url": "https://github.com/Azure/osdu-spi-entitlements/issues/121"
               }
             ],
+            "age": "21h",
             "attention": "interrupt",
             "owned": false,
             "group": "On the line"
@@ -3385,6 +3414,7 @@
                 "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/42040438267"
               }
             ],
+            "age": "2h",
             "attention": "interrupt",
             "owned": false,
             "group": "On the line"
@@ -3412,6 +3442,7 @@
                 "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/42109055691/job/127532471691"
               }
             ],
+            "age": "16d",
             "attention": "surface",
             "owned": false,
             "group": "On the line"
@@ -3435,6 +3466,11 @@
                 "url": "https://github.com/Azure/osdu-spi-indexer/pull/58"
               }
             ],
+            "age": "1d 13h",
+            "blocks": {
+              "count": 1,
+              "text": "blocks 1"
+            },
             "attention": "surface",
             "owned": false,
             "group": "On the line"
@@ -3458,6 +3494,11 @@
                 "url": "https://github.com/Azure/osdu-spi-storage/pull/58"
               }
             ],
+            "age": "1d 13h",
+            "blocks": {
+              "count": 1,
+              "text": "blocks 1"
+            },
             "attention": "surface",
             "owned": false,
             "group": "On the line"
@@ -3518,6 +3559,7 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/partition/-/commit/69785fa552c905baf34b9c4f7251f7c1c51488df"
               }
             ],
+            "age": "51d",
             "attention": "surface",
             "due": {
               "at": "2026-11-07T00:00:00.000Z",
@@ -3553,6 +3595,7 @@
                 "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/commit/79cbd07824030a0b993939763a8e869721ba698a"
               }
             ],
+            "age": "69d",
             "attention": "surface",
             "due": {
               "at": "2026-11-07T00:00:00.000Z",
@@ -3580,6 +3623,11 @@
                 "url": "https://github.com/Azure/osdu-spi-indexer/pull/58"
               }
             ],
+            "age": "1d 13h",
+            "blocks": {
+              "count": 1,
+              "text": "blocks 1"
+            },
             "attention": "surface",
             "owned": false,
             "group": "Before 2026-11-07T00:00:00.000Z"
@@ -3603,6 +3651,11 @@
                 "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/58"
               }
             ],
+            "age": "1d 13h",
+            "blocks": {
+              "count": 1,
+              "text": "blocks 1"
+            },
             "attention": "surface",
             "owned": false,
             "group": "Before 2026-11-07T00:00:00.000Z"
@@ -3676,6 +3729,7 @@
                 "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/d6847cea52b94f697ab67ef471f1bfeff33b6d93"
               }
             ],
+            "age": "49d",
             "attention": "surface",
             "due": {
               "at": "2026-11-07T00:00:00.000Z",
@@ -3839,6 +3893,7 @@
                 "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/42109055691/job/127532471691"
               }
             ],
+            "age": "16d",
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
@@ -3920,6 +3975,7 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/partition/-/commit/69785fa552c905baf34b9c4f7251f7c1c51488df"
               }
             ],
+            "age": "51d",
             "attention": "surface",
             "due": {
               "at": "2026-11-07T00:00:00.000Z",
@@ -3995,6 +4051,7 @@
                 "url": "https://github.com/Azure/osdu-spi-entitlements/issues/121"
               }
             ],
+            "age": "21h",
             "attention": "interrupt",
             "owned": false,
             "group": "Stopped"
@@ -4022,6 +4079,7 @@
                 "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/42109055691/job/127532471691"
               }
             ],
+            "age": "16d",
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
@@ -4092,6 +4150,7 @@
                 "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/42040438267"
               }
             ],
+            "age": "2h",
             "attention": "interrupt",
             "owned": false,
             "group": "Stopped"
@@ -4123,6 +4182,7 @@
                 "url": "https://community.opengroup.org/osdu/platform/security-and-compliance/legal/-/commit/79cbd07824030a0b993939763a8e869721ba698a"
               }
             ],
+            "age": "69d",
             "attention": "surface",
             "due": {
               "at": "2026-11-07T00:00:00.000Z",
@@ -4202,6 +4262,7 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/commit/d708bac1910407e175278e721a86fe20249e18bf"
               }
             ],
+            "age": "50d",
             "attention": "surface",
             "due": {
               "at": "2026-11-07T00:00:00.000Z",
@@ -4277,6 +4338,7 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/file/-/commit/4d0ff1f4ff24edbeda28d2c161a144a4e3e02db2"
               }
             ],
+            "age": "56d",
             "attention": "surface",
             "due": {
               "at": "2026-11-07T00:00:00.000Z",
@@ -4352,6 +4414,7 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/storage/-/commit/9acda5e50312d03e4e8b891c6923d01ec90dfd7d"
               }
             ],
+            "age": "41d",
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
@@ -4375,6 +4438,11 @@
                 "url": "https://github.com/Azure/osdu-spi-storage/pull/58"
               }
             ],
+            "age": "1d 13h",
+            "blocks": {
+              "count": 1,
+              "text": "blocks 1"
+            },
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
@@ -4449,6 +4517,7 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/commit/f9643b164cf5eb0994df18a6d30ddcd37738d245"
               }
             ],
+            "age": "51d",
             "attention": "surface",
             "due": {
               "at": "2026-11-07T00:00:00.000Z",
@@ -4476,6 +4545,11 @@
                 "url": "https://github.com/Azure/osdu-spi-indexer/pull/58"
               }
             ],
+            "age": "1d 13h",
+            "blocks": {
+              "count": 1,
+              "text": "blocks 1"
+            },
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
@@ -4547,6 +4621,7 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/commit/aded8a3f3eb04154f291d4af4e33116514e40599"
               }
             ],
+            "age": "51d",
             "attention": "surface",
             "due": {
               "at": "2026-11-07T00:00:00.000Z",
@@ -4621,6 +4696,7 @@
                 "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/d6847cea52b94f697ab67ef471f1bfeff33b6d93"
               }
             ],
+            "age": "43d",
             "attention": "surface",
             "due": {
               "at": "2026-11-07T00:00:00.000Z",
@@ -4695,6 +4771,11 @@
                 "url": "https://github.com/Azure/osdu-spi-indexer-queue/pull/58"
               }
             ],
+            "age": "1d 13h",
+            "blocks": {
+              "count": 1,
+              "text": "blocks 1"
+            },
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
@@ -4770,6 +4851,7 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/d4b65bdf42503bf50bdbed11249c06bd9c0c4fe0"
               }
             ],
+            "age": "49d",
             "attention": "surface",
             "due": {
               "at": "2026-11-07T00:00:00.000Z",
@@ -4893,6 +4975,7 @@
                 "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-conversion-service/-/commit/80e3497b7e5c8cba61810c2fb51c9e9fb9e5ea17"
               }
             ],
+            "age": "49d",
             "attention": "surface",
             "due": {
               "at": "2026-11-07T00:00:00.000Z",

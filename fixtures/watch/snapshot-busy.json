@@ -50,6 +50,7 @@
             "url": "https://github.com/Azure/osdu-spi-storage/actions/runs/42137178477"
           }
         ],
+        "age": "2h",
         "attention": "interrupt",
         "owned": false
       },
@@ -108,6 +109,11 @@
             "url": "https://github.com/Azure/osdu-spi-indexer-queue/actions/runs/67/job/6700"
           }
         ],
+        "age": "11h",
+        "blocks": {
+          "count": 1,
+          "text": "blocks 1"
+        },
         "attention": "surface",
         "owned": false
       },
@@ -130,6 +136,7 @@
             "url": "https://example.com/upstream/partition/commit/morning"
           }
         ],
+        "age": "1h",
         "attention": "surface",
         "due": {
           "at": "2026-11-07T00:00:00.000Z",
@@ -156,6 +163,7 @@
             "url": "https://example.com/upstream/legal/commit/morning"
           }
         ],
+        "age": "1h",
         "attention": "surface",
         "due": {
           "at": "2026-11-07T00:00:00.000Z",
@@ -185,6 +193,7 @@
             "url": "https://example.com/upstream/storage/commit/morning"
           }
         ],
+        "age": "1h",
         "attention": "surface",
         "due": {
           "at": "2026-11-07T00:00:00.000Z",
@@ -211,6 +220,7 @@
             "url": "https://example.com/upstream/indexer/commit/morning"
           }
         ],
+        "age": "1h",
         "attention": "surface",
         "owned": false
       },
@@ -233,6 +243,7 @@
             "url": "https://example.com/upstream/workflow/commit/morning"
           }
         ],
+        "age": "1h",
         "attention": "surface",
         "owned": false
       },
@@ -255,6 +266,7 @@
             "url": "https://example.com/upstream/unit/commit/morning"
           }
         ],
+        "age": "1h",
         "attention": "surface",
         "owned": false
       },
@@ -277,6 +289,7 @@
             "url": "https://example.com/upstream/crs-conversion/commit/morning"
           }
         ],
+        "age": "1h",
         "attention": "surface",
         "due": {
           "at": "2026-11-07T00:00:00.000Z",
@@ -303,6 +316,11 @@
             "url": "https://github.com/Azure/osdu-spi-indexer/pull/58"
           }
         ],
+        "age": "1d 2h",
+        "blocks": {
+          "count": 1,
+          "text": "blocks 1"
+        },
         "attention": "ambient",
         "owned": false
       },
@@ -325,6 +343,11 @@
             "url": "https://github.com/Azure/osdu-spi-workflow/pull/59"
           }
         ],
+        "age": "1d 2h",
+        "blocks": {
+          "count": 1,
+          "text": "blocks 1"
+        },
         "attention": "ambient",
         "owned": false
       },
@@ -351,6 +374,7 @@
             "url": "https://github.com/Azure/osdu-spi-indexer-queue/actions/runs/67/job/6700"
           }
         ],
+        "age": "1d 2h",
         "attention": "ambient",
         "owned": false
       },
@@ -373,6 +397,11 @@
             "url": "https://github.com/Azure/osdu-spi-unit/pull/60"
           }
         ],
+        "age": "1d 2h",
+        "blocks": {
+          "count": 1,
+          "text": "blocks 1"
+        },
         "attention": "ambient",
         "owned": false
       },
@@ -395,6 +424,7 @@
             "url": "https://github.com/Azure/osdu-spi-schema/issues/700"
           }
         ],
+        "age": "0s",
         "attention": "surface",
         "owned": false
       },
@@ -429,6 +459,10 @@
             "url": "https://github.com/Azure/osdu-spi-schema/security/dependabot/1"
           }
         ],
+        "blocks": {
+          "count": 13,
+          "text": "blocks 13"
+        },
         "attention": "surface",
         "owned": false
       }
@@ -3012,6 +3046,7 @@
                 "url": "https://github.com/Azure/osdu-spi-storage/actions/runs/42137178477"
               }
             ],
+            "age": "2h",
             "attention": "interrupt",
             "owned": false,
             "group": "On the line"
@@ -3035,6 +3070,11 @@
                 "url": "https://github.com/Azure/osdu-spi-indexer-queue/actions/runs/67/job/6700"
               }
             ],
+            "age": "11h",
+            "blocks": {
+              "count": 1,
+              "text": "blocks 1"
+            },
             "attention": "surface",
             "owned": false,
             "group": "On the line"
@@ -3058,6 +3098,11 @@
                 "url": "https://github.com/Azure/osdu-spi-indexer/pull/58"
               }
             ],
+            "age": "1d 2h",
+            "blocks": {
+              "count": 1,
+              "text": "blocks 1"
+            },
             "attention": "ambient",
             "owned": false,
             "group": "On the line"
@@ -3081,6 +3126,11 @@
                 "url": "https://github.com/Azure/osdu-spi-workflow/pull/59"
               }
             ],
+            "age": "1d 2h",
+            "blocks": {
+              "count": 1,
+              "text": "blocks 1"
+            },
             "attention": "ambient",
             "owned": false,
             "group": "On the line"
@@ -3108,6 +3158,7 @@
                 "url": "https://github.com/Azure/osdu-spi-indexer-queue/actions/runs/67/job/6700"
               }
             ],
+            "age": "1d 2h",
             "attention": "ambient",
             "owned": false,
             "group": "On the line"
@@ -3168,6 +3219,7 @@
                 "url": "https://example.com/upstream/legal/commit/morning"
               }
             ],
+            "age": "1h",
             "attention": "surface",
             "due": {
               "at": "2026-11-07T00:00:00.000Z",
@@ -3210,6 +3262,7 @@
                 "url": "https://example.com/upstream/workflow/commit/morning"
               }
             ],
+            "age": "1h",
             "attention": "surface",
             "owned": false,
             "group": "Toolchain"
@@ -3237,6 +3290,7 @@
                 "url": "https://example.com/upstream/storage/commit/morning"
               }
             ],
+            "age": "1h",
             "attention": "surface",
             "due": {
               "at": "2026-11-07T00:00:00.000Z",
@@ -3264,6 +3318,7 @@
                 "url": "https://example.com/upstream/partition/commit/morning"
               }
             ],
+            "age": "1h",
             "attention": "surface",
             "due": {
               "at": "2026-11-07T00:00:00.000Z",
@@ -3319,6 +3374,11 @@
                 "url": "https://github.com/Azure/osdu-spi-indexer-queue/actions/runs/67/job/6700"
               }
             ],
+            "age": "11h",
+            "blocks": {
+              "count": 1,
+              "text": "blocks 1"
+            },
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
@@ -3601,6 +3661,7 @@
                 "url": "https://example.com/upstream/partition/commit/morning"
               }
             ],
+            "age": "1h",
             "attention": "surface",
             "due": {
               "at": "2026-11-07T00:00:00.000Z",
@@ -3736,6 +3797,7 @@
                 "url": "https://example.com/upstream/legal/commit/morning"
               }
             ],
+            "age": "1h",
             "attention": "surface",
             "due": {
               "at": "2026-11-07T00:00:00.000Z",
@@ -3815,6 +3877,7 @@
                 "url": "https://github.com/Azure/osdu-spi-schema/issues/700"
               }
             ],
+            "age": "0s",
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
@@ -3944,6 +4007,7 @@
                 "url": "https://github.com/Azure/osdu-spi-storage/actions/runs/42137178477"
               }
             ],
+            "age": "2h",
             "attention": "interrupt",
             "owned": false,
             "group": "Stopped"
@@ -3967,6 +4031,7 @@
                 "url": "https://example.com/upstream/storage/commit/morning"
               }
             ],
+            "age": "1h",
             "attention": "surface",
             "due": {
               "at": "2026-11-07T00:00:00.000Z",
@@ -4048,6 +4113,7 @@
                 "url": "https://example.com/upstream/indexer/commit/morning"
               }
             ],
+            "age": "1h",
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
@@ -4071,6 +4137,11 @@
                 "url": "https://github.com/Azure/osdu-spi-indexer/pull/58"
               }
             ],
+            "age": "1d 2h",
+            "blocks": {
+              "count": 1,
+              "text": "blocks 1"
+            },
             "attention": "ambient",
             "owned": false,
             "group": "Needs a decision"
@@ -4202,6 +4273,7 @@
                 "url": "https://example.com/upstream/workflow/commit/morning"
               }
             ],
+            "age": "1h",
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
@@ -4225,6 +4297,11 @@
                 "url": "https://github.com/Azure/osdu-spi-workflow/pull/59"
               }
             ],
+            "age": "1d 2h",
+            "blocks": {
+              "count": 1,
+              "text": "blocks 1"
+            },
             "attention": "ambient",
             "owned": false,
             "group": "Needs a decision"
@@ -4306,6 +4383,7 @@
                 "url": "https://github.com/Azure/osdu-spi-indexer-queue/actions/runs/67/job/6700"
               }
             ],
+            "age": "1d 2h",
             "attention": "ambient",
             "owned": false,
             "group": "Needs a decision"
@@ -4383,6 +4461,7 @@
                 "url": "https://example.com/upstream/unit/commit/morning"
               }
             ],
+            "age": "1h",
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
@@ -4406,6 +4485,11 @@
                 "url": "https://github.com/Azure/osdu-spi-unit/pull/60"
               }
             ],
+            "age": "1d 2h",
+            "blocks": {
+              "count": 1,
+              "text": "blocks 1"
+            },
             "attention": "ambient",
             "owned": false,
             "group": "Needs a decision"
@@ -4535,6 +4619,7 @@
                 "url": "https://example.com/upstream/crs-conversion/commit/morning"
               }
             ],
+            "age": "1h",
             "attention": "surface",
             "due": {
               "at": "2026-11-07T00:00:00.000Z",

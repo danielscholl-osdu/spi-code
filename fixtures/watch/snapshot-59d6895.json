@@ -62,6 +62,11 @@
             "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38303533757"
           }
         ],
+        "age": "9d",
+        "blocks": {
+          "count": 8,
+          "text": "blocks 8"
+        },
         "attention": "interrupt",
         "owned": false
       },
@@ -88,6 +93,11 @@
             "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38187922977"
           }
         ],
+        "age": "13d",
+        "blocks": {
+          "count": 2,
+          "text": "blocks 2"
+        },
         "attention": "interrupt",
         "due": {
           "at": "2026-10-22T00:00:00.000Z",
@@ -158,6 +168,11 @@
             "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37706140110/job/113081034815"
           }
         ],
+        "age": "13d",
+        "blocks": {
+          "count": 1,
+          "text": "blocks 1"
+        },
         "attention": "surface",
         "owned": false
       },
@@ -175,6 +190,7 @@
         "next": "Read each outside PR's diff, then approve its runs below.",
         "verb": "Approve runs",
         "evidence": [],
+        "age": "10d",
         "attention": "surface",
         "owned": false
       }
@@ -1976,6 +1992,11 @@
                 "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38187922977"
               }
             ],
+            "age": "13d",
+            "blocks": {
+              "count": 2,
+              "text": "blocks 2"
+            },
             "attention": "interrupt",
             "due": {
               "at": "2026-10-22T00:00:00.000Z",
@@ -2007,6 +2028,11 @@
                 "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37706140110/job/113081034815"
               }
             ],
+            "age": "13d",
+            "blocks": {
+              "count": 1,
+              "text": "blocks 1"
+            },
             "attention": "surface",
             "owned": false,
             "group": "On the line"
@@ -2063,6 +2089,11 @@
                 "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38187922977"
               }
             ],
+            "age": "13d",
+            "blocks": {
+              "count": 2,
+              "text": "blocks 2"
+            },
             "attention": "interrupt",
             "due": {
               "at": "2026-10-22T00:00:00.000Z",
@@ -2094,6 +2125,11 @@
                 "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37706140110/job/113081034815"
               }
             ],
+            "age": "13d",
+            "blocks": {
+              "count": 1,
+              "text": "blocks 1"
+            },
             "attention": "surface",
             "owned": false,
             "group": "Before 2026-10-22T00:00:00.000Z"
@@ -2157,6 +2193,11 @@
                 "url": "https://github.com/Azure/osdu-spi-stack/actions/runs/38303533757"
               }
             ],
+            "age": "9d",
+            "blocks": {
+              "count": 8,
+              "text": "blocks 8"
+            },
             "attention": "interrupt",
             "owned": false,
             "group": "Stopped"
@@ -2175,6 +2216,7 @@
             "next": "Read each outside PR's diff, then approve its runs below.",
             "verb": "Approve runs",
             "evidence": [],
+            "age": "10d",
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"
@@ -2592,6 +2634,11 @@
                 "url": "https://github.com/Azure/osdu-spi-entitlements/actions/runs/38187922977"
               }
             ],
+            "age": "13d",
+            "blocks": {
+              "count": 2,
+              "text": "blocks 2"
+            },
             "attention": "interrupt",
             "due": {
               "at": "2026-10-22T00:00:00.000Z",
@@ -2677,6 +2724,11 @@
                 "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37706140110/job/113081034815"
               }
             ],
+            "age": "13d",
+            "blocks": {
+              "count": 1,
+              "text": "blocks 1"
+            },
             "attention": "surface",
             "owned": false,
             "group": "Needs a decision"

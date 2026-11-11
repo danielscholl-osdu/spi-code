@@ -34,6 +34,10 @@ export const FocusItemSchema = z.strictObject({
   verb: z.string(),
   evidence: z.array(LinkSchema),
   more: z.array(z.strictObject({ label: z.string(), text: z.string() })).optional(),
+  /** How long the item has stood, as core words it ("2h"); absent when core cannot date it. */
+  age: z.string().optional(),
+  /** What waits on the item, as a chip ("blocks 3"); absent when nothing does or core cannot tell. */
+  blocks: z.strictObject({ count: z.int().positive(), text: z.string() }).optional(),
 });
 export const ReadyLineSchema = z.strictObject({
   id: z.string(),

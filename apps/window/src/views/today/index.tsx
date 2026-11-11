@@ -11,6 +11,7 @@ import { openFreshness } from "../../components/sweep/reveal.js";
 import { failedCount, settled } from "../../components/sweep/words.js";
 import { openReadiness } from "../../settings/readiness.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
+import { AttentionBand, bandHolds } from "./Band.js";
 import { CaveatBand } from "./CaveatBand.js";
 import { TodayFrame } from "./Frame.js";
 import { motionSlot } from "./InMotion.js";
@@ -134,7 +135,7 @@ export default function Today({
           />
         }
         slots={{
-          band: null,
+          band: bandHolds(body) ? <AttentionBand snapshot={body} /> : null,
           horizon: null,
           places: <Places snapshot={body} onNavigate={onNavigate} />,
           releases: null,

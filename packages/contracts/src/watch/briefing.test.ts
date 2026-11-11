@@ -24,7 +24,17 @@ describe("Briefing contract", () => {
     const withOrigin = { ...briefing, focus: [{ ...focus, origin: "upstream" }] };
     expect(BriefingSchema.parse(withOrigin)).toEqual(withOrigin);
   });
+  it("keeps an additive age and blocks chip on base briefing items", () => {
+    const withChips = {
+      ...briefing,
+      focus: [{ ...focus, age: "2h", blocks: { count: 3, text: "blocks 3" } }],
+    };
+    expect(BriefingSchema.parse(withChips)).toEqual(withChips);
+  });
   it.each([
+    { ...focus, blocks: { count: 0, text: "blocks 0" } },
+    { ...focus, blocks: { count: 2 } },
+    { ...focus, age: 2 },
     { ...focus, rung: 3 },
     { ...focus, origin: "gitlab" },
     { ...focus, cls: "OTHER" },

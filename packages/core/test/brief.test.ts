@@ -272,6 +272,43 @@ describe("other days", () => {
     expect(followed(1)).toBe("Move legal to Java 25 before partition follows at 00:00.");
   });
 
+  test("an item carries its age and a blocks chip only when something waits on it", () => {
+    const hour = 60 * 60 * 1000;
+    const since = new Date(FIXTURE_NOW.getTime() - 2 * hour).toISOString();
+    const m = withQueue([
+      item({
+        id: "gate2:a",
+        rung: 0,
+        scope: "a",
+        incident: true,
+        since,
+        effects: [{ text: "partition #175" }, { text: "legal #36" }],
+      }),
+      item({
+        id: "gate1:b",
+        scope: "b",
+        since,
+        cause: [{ label: "held", value: "1 upstream commit wait on this PR" }],
+      }),
+      item({ id: "gate1:c", scope: "c" }),
+      item({
+        id: "radar:d",
+        kind: "radar",
+        scope: "d",
+        text: "next sync carries Java 25 · 2 commits queued",
+        effects: [{ text: "!12" }],
+      }),
+    ]);
+    const b = buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext);
+    const of = (id: string) => [...b.focus, ...b.rest].find((i) => i.id === id);
+    expect(of("gate2:a")).toMatchObject({ age: "2h", blocks: { count: 2, text: "blocks 2" } });
+    expect(of("gate1:b")).toMatchObject({ age: "2h", blocks: { count: 1, text: "blocks 1" } });
+    expect(of("gate1:c")?.age).toBeUndefined();
+    expect(of("gate1:c")?.blocks).toBeUndefined();
+    expect(of("gate1:c")?.effect).toBe("Nothing else waits on it.");
+    expect(of("radar:d")?.blocks).toBeUndefined();
+  });
+
   test("a halt keeps the sync time for a will-halt follower its open sync PR holds", () => {
     const halt = { fork: "a", code: "UNKNOWN_TOP_LEVEL", entries: ["x"] };
     const m = withQueue([

@@ -84,6 +84,10 @@ export interface FocusItem {
   evidence: Link[];
   // Further labelled lines a cause needs, such as a rollout's plan.
   more?: { label: string; text: string }[];
+  // How long the item has stood ("2h"); absent when core cannot date it.
+  age?: string | undefined;
+  // What waits on the item; absent when nothing does or core cannot tell.
+  blocks?: { count: number; text: string } | undefined;
 }
 
 export interface ReadyLine {
@@ -583,6 +587,18 @@ function radarNext(model: Model, item: QueueItem, voice: Voice): string {
     : `Absorb ${value} on the fork before merging sync PR #${pr}.`;
 }
 
+function waitingOn(item: QueueItem): string[] {
+  const texts = item.effects.map((e) => e.text);
+  const held = fact(item, "held");
+  return texts.length === 0 && held ? [held] : texts;
+}
+
+function blocksOf(item: QueueItem): FocusItem["blocks"] {
+  if (item.kind === "approvals" || item.kind === "radar") return undefined;
+  const count = waitingOn(item).length;
+  return count > 0 ? { count, text: `blocks ${count}` } : undefined;
+}
+
 function effectOf(
   item: QueueItem,
   stuck: readonly QueueItem[],
@@ -613,11 +629,7 @@ function effectOf(
       .filter(Boolean)
       .join(" ");
   }
-  const texts = item.effects.map((e) => e.text);
-  if (texts.length === 0) {
-    const held = fact(item, "held");
-    if (held) texts.push(held);
-  }
+  const texts = waitingOn(item);
   return texts.length > 0 ? texts.slice(0, 3).map(sentence).join(" ") : "Nothing else waits on it.";
 }
 
@@ -761,6 +773,8 @@ function focusOf(
       continue;
     }
     const { title, sub } = describe(model, item, stuck, nextAt, now);
+    const ago = age(item.since, now);
+    const blocks = blocksOf(item);
     out.push({
       origin: itemOrigin(item),
       id: item.id,
@@ -775,6 +789,8 @@ function focusOf(
       next: radarNext(model, item, voice),
       verb: verbOf(item),
       evidence: evidenceOf([item]),
+      ...(ago ? { age: ago } : {}),
+      ...(blocks ? { blocks } : {}),
     });
   }
   return out;

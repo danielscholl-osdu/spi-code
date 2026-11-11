@@ -280,6 +280,8 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
     });
   }
 
+  bandCases(briefing, add);
+
   const readings = snapshot.readings.flatMap(({ anchor, content }) => {
     const place = PLACE_STARTS[anchor.kind];
     if (!content || !place) return [];
@@ -842,6 +844,130 @@ function repositoryCases(
   });
 }
 
+type Add = (
+  pointer: string,
+  value: unknown,
+  where: Home,
+  selector: Selector,
+  extra?: Partial<Reach>,
+) => void;
+
+const verbOf = (element: Element) => (element.textContent ?? "").replace(/ ›$/, "");
+const nth = (selector: string, index: number) => (root: ParentNode) =>
+  root.querySelectorAll(selector)[index];
+
+/** Today's attention band: each Interrupt's card, the in-system decisions and the Failing run. */
+function bandCases(briefing: ViewSnapshot["briefing"], add: Add) {
+  const band = ".today-band";
+  const items = [
+    ...briefing.focus.map((item, index) => [`/briefing/focus/${index}`, item] as const),
+    ...briefing.rest.map((item, index) => [`/briefing/rest/${index}`, item] as const),
+  ];
+  for (const [pointer, item] of items) {
+    if (item.attention !== "interrupt") continue;
+    const card = `${band} li.today-need[data-item-id=${quote(item.id)}]`;
+    add(`${pointer}/title`, item.title, TODAY, `${card} .today-need-title`);
+    add(`${pointer}/scope`, item.scope, TODAY, `${card} .today-need-scope`);
+    add(`${pointer}/rung`, `P${item.rung}`, TODAY, `${card} > .kit-chip`);
+    add(`${pointer}/verb`, item.verb, TODAY, `${card} .today-verb`, { read: verbOf });
+    if (item.origin)
+      add(`${pointer}/origin`, item.origin, TODAY, card, { attribute: "data-origin" });
+    if (item.age) add(`${pointer}/age`, item.age, TODAY, `${card} .kit-chip--age`);
+    if (item.blocks) {
+      const chip = `${card} .today-need-blocks .kit-chip`;
+      add(`${pointer}/blocks/text`, item.blocks.text, TODAY, chip);
+      add(`${pointer}/blocks/count`, item.blocks.count, TODAY, chip, { contains: true });
+    }
+  }
+
+  const decisions = briefing.decisions;
+  if (decisions && decisions.groups.length > 0) {
+    const heading = `${band} .today-decisions .today-band-heading`;
+    add("/briefing/decisions/text", decisions.text, TODAY, heading, { contains: true });
+    add("/briefing/decisions/items", decisions.items, TODAY, heading, { contains: true });
+    decisions.groups.forEach((group, index) => {
+      const pointer = `/briefing/decisions/groups/${index}`;
+      const row = `${band} li.today-decision[data-decision-id=${quote(group.id)}]`;
+      add(`${pointer}/id`, group.id, TODAY, row, { attribute: "data-decision-id" });
+      add(`${pointer}/theme`, group.theme, TODAY, row, { attribute: "data-theme" });
+      add(`${pointer}/text`, group.text, TODAY, row, { attribute: "title" });
+      if (group.kind) add(`${pointer}/kind`, group.kind, TODAY, row, { attribute: "data-kind" });
+      if (group.token) add(`${pointer}/token`, group.token, TODAY, `${row} .today-decision-cause`);
+      if (group.verb)
+        add(`${pointer}/verb`, group.verb, TODAY, `${row} .today-verb`, { read: verbOf });
+      group.itemIds.forEach((id, at) => {
+        add(`${pointer}/itemIds/${at}`, id, TODAY, row, {
+          attribute: "data-item-ids",
+          contains: true,
+        });
+      });
+      group.scope.forEach(({ service, pr }, at) => {
+        const fork = nth(`${row} .today-decision-fork`, at);
+        const base = `${pointer}/scope/${at}`;
+        add(`${base}/service`, service, TODAY, fork, { attribute: "data-service" });
+        if (!pr) return;
+        add(
+          `${base}/pr/number`,
+          `#${pr.number}`,
+          TODAY,
+          (root) => fork(root)?.querySelector(".kit-pr"),
+          {
+            canon: (value) => value.replace(/^#/, ""),
+          },
+        );
+        if (pr.url) add(`${base}/pr/url`, pr.url, TODAY, fork, { attribute: "data-pr-url" });
+        if (pr.inspect)
+          add(`${base}/pr/inspect`, pr.inspect, TODAY, fork, { attribute: "data-inspect" });
+      });
+    });
+  }
+
+  const failing = briefing.ambient?.failing;
+  if (failing && failing.lines.length > 0) {
+    const heading = `${band} .today-failing .today-band-heading`;
+    add("/briefing/ambient/failing/text", failing.text, TODAY, heading, { contains: true });
+    add("/briefing/ambient/failing/items", failing.items, TODAY, heading, { contains: true });
+    failing.lines.forEach((line, index) => {
+      const pointer = `/briefing/ambient/failing/lines/${index}`;
+      const row = `${band} li.today-item-row[data-line-id=${quote(line.id)}]`;
+      add(`${pointer}/id`, line.id, TODAY, row, { attribute: "data-line-id" });
+      add(`${pointer}/count`, line.count, TODAY, row, { attribute: "data-count" });
+      add(`${pointer}/origin`, line.origin, TODAY, row, { attribute: "data-origin" });
+      add(`${pointer}/text`, line.text, TODAY, row, { attribute: "title" });
+      line.itemIds.forEach((id, at) => {
+        add(`${pointer}/itemIds/${at}`, id, TODAY, row, {
+          attribute: "data-item-ids",
+          contains: true,
+        });
+      });
+      if (line.service)
+        add(`${pointer}/service`, line.service, TODAY, `${row} .today-item-service`);
+      if (line.station)
+        add(`${pointer}/station`, line.station, TODAY, `${row} .today-item-glyph`, {
+          attribute: "data-station",
+        });
+      if (line.pr) {
+        const pr = `${row} .today-item-pr`;
+        add(`${pointer}/pr/number`, `#${line.pr.number}`, TODAY, `${pr} .kit-pr`, {
+          canon: (value) => value.replace(/^#/, ""),
+        });
+        if (line.pr.url)
+          add(`${pointer}/pr/url`, line.pr.url, TODAY, pr, { attribute: "data-pr-url" });
+        if (line.pr.inspect)
+          add(`${pointer}/pr/inspect`, line.pr.inspect, TODAY, pr, { attribute: "data-inspect" });
+      }
+      if (line.state) {
+        const state = `${row} .today-item-state`;
+        add(`${pointer}/state/text`, line.state.text, TODAY, `${state} > .kit-chip`);
+        add(`${pointer}/state/tone`, line.state.tone, TODAY, state, { attribute: "data-tone" });
+      }
+      if (line.followUp)
+        add(`${pointer}/followUp`, line.followUp, TODAY, `${row} .kit-chip--plain`);
+      if (line.age) add(`${pointer}/age`, line.age, TODAY, `${row} .kit-chip--age`);
+    });
+  }
+}
+
 const PR = ["pr/number", "pr/url", "pr/inspect"];
 const under = (root: string, leaves: readonly string[]) => leaves.map((leaf) => `${root}/${leaf}`);
 const ambient = (run: string) => [
@@ -862,19 +988,15 @@ const pending = (bead: string, what: string, patterns: readonly string[]): Exemp
 /** Today briefing fields the contract carries before a window bead draws them; each names its bead. */
 export const PENDING: Readonly<Record<string, Exemption>> = {
   "pending-item-homes": pending(
-    "spicode-f0s.18 and spicode-f0s.19",
-    "each item in its tier's home on Today (ruling R1)",
-    ["/briefing/focus/#/scope", "/briefing/rest/#/scope"],
+    "spicode-f0s.19",
+    "each Surface and Ambient item in its tier's home on Today (ruling R1)",
+    [
+      "/briefing/focus/#/scope",
+      "/briefing/rest/#/scope",
+      "/briefing/focus/#/origin",
+      "/briefing/rest/#/origin",
+    ],
   ),
-  "pending-band": pending("spicode-f0s.18", "item origin and Decisions waiting", [
-    "/briefing/focus/#/origin",
-    "/briefing/rest/#/origin",
-    ...under("/briefing/decisions", ["items", "text"]),
-    ...under("/briefing/decisions/groups/#", ["id", "theme", "kind", "token", "verb", "text"]),
-    "/briefing/decisions/groups/#/itemIds/#",
-    ...under("/briefing/decisions/groups/#/scope/#", ["service", ...PR]),
-  ]),
-  "pending-failing": pending("spicode-f0s.18", "the Failing run", ambient("failing")),
   "pending-releases": pending("spicode-f0s.21", "Today's Releases block", [
     ...under("/releases/today/versions/#", [
       "service",
@@ -982,6 +1104,20 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
     ],
     reason:
       "Today's tiles and its n-more fold are gone (today-design 'What goes'); the place cards and the Releases block draw from briefing.places and releases.today",
+  },
+  "item-chips": {
+    patterns: [
+      "/briefing/focus/#/age",
+      "/briefing/rest/#/age",
+      "/briefing/rest/#/blocks/count",
+      "/briefing/rest/#/blocks/text",
+    ],
+    reason:
+      "Only a Needs you card draws an item's own age and blocks chips; a decision, a horizon card and an Ambient line carry their own figures (today-design 'Words and visuals')",
+  },
+  "empty-failing-run": {
+    patterns: ["/briefing/ambient/failing/items", "/briefing/ambient/failing/text"],
+    reason: "A run with no lines draws nothing, never an empty heading (today-design 'Calm first')",
   },
   "releases-reading": {
     patterns: ["/releases/reading"],

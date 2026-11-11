@@ -1,10 +1,10 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { WatchBriefing } from "@spi-code/contracts";
+import type { WatchBriefing, WatchItem } from "@spi-code/contracts";
 
-/** Distinct Interrupts across focus and rest; items naming the same id count once. */
-export function countInterrupts(briefing: Pick<WatchBriefing, "focus" | "rest">): number {
+/** Distinct Interrupts across focus and rest, first occurrence kept; items naming the same id count once. */
+export function interruptsOf(briefing: Pick<WatchBriefing, "focus" | "rest">): WatchItem[] {
   const all = [...briefing.focus, ...briefing.rest];
   const identities = new Map<string, Set<string>>();
   for (const item of all) {
@@ -14,7 +14,16 @@ export function countInterrupts(briefing: Pick<WatchBriefing, "focus" | "rest">)
     }
     for (const id of ids) identities.set(id, ids);
   }
-  return new Set(
-    all.filter(({ attention }) => attention === "interrupt").map(({ id }) => identities.get(id)),
-  ).size;
+  const seen = new Set<Set<string> | undefined>();
+  return all.filter(({ id, attention }) => {
+    if (attention !== "interrupt") return false;
+    const identity = identities.get(id);
+    if (seen.has(identity)) return false;
+    seen.add(identity);
+    return true;
+  });
+}
+
+export function countInterrupts(briefing: Pick<WatchBriefing, "focus" | "rest">): number {
+  return interruptsOf(briefing).length;
 }

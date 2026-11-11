@@ -295,6 +295,8 @@ it.each(NAMES)(
       /Before next sync|\bOwned\b|\bNew\b|\d+ more\b|release PRs open|osdu-spi/,
     );
     for (const item of [...body.briefing.focus, ...body.briefing.rest])
-      expect(today?.querySelector(`[data-item-id="${item.id}"]`)).toBeNull();
+      expect(today?.querySelectorAll(`[data-item-id="${item.id}"]`)).toHaveLength(
+        item.attention === "interrupt" ? 1 : 0,
+      );
   },
 );

@@ -373,8 +373,8 @@ describe("Watch projection", () => {
     const frozenFields = {
       ...legacy.briefing,
       horizon: { headline: legacy.briefing.horizon.headline },
-      focus: legacy.briefing.focus.map(({ origin: _origin, ...item }) => item),
-      rest: legacy.briefing.rest.map(({ origin: _origin, ...item }) => item),
+      focus: legacy.briefing.focus.map(({ origin: _o, age: _a, blocks: _b, ...item }) => item),
+      rest: legacy.briefing.rest.map(({ origin: _o, age: _a, blocks: _b, ...item }) => item),
     };
     // Bound time units change typography, not the frozen rib's words.
     const ribBriefing = {
