@@ -7,6 +7,13 @@ import { expect, it } from "vitest";
 import { APPENDIX_A_TOOLS } from "../../../packages/host/src/tools/tool-names.js";
 import type { SmokeGeometry } from "./smoke-geometry.js";
 import {
+  MORNING_FIXTURES,
+  MORNING_SURFACES,
+  type MorningEvidence,
+  type MorningSurface,
+  morningSections,
+} from "./smoke-mornings.js";
+import {
   assertSmokeReport,
   assertSmokeShot,
   assertSmokeViews,
@@ -314,6 +321,73 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
   });
 }
 
+const morningBlocks: Record<MorningSurface["morning"], MorningEvidence["blocks"]> = {
+  calm: [
+    { name: "head", top: 108, height: 77 },
+    { name: "horizon", top: 201, height: 247 },
+    { name: "places", top: 470, height: 221 },
+    { name: "releases", top: 712, height: 196 },
+    { name: "motion", top: 712, height: 122 },
+  ],
+  busy: [
+    { name: "head", top: 108, height: 77 },
+    { name: "band", top: 201, height: 369 },
+    { name: "horizon", top: 592, height: 374 },
+    { name: "places", top: 988, height: 221 },
+    { name: "releases", top: 1230, height: 271 },
+  ],
+  bad: [
+    { name: "head", top: 108, height: 77 },
+    { name: "caveat", top: 201, height: 35 },
+    { name: "band", top: 254, height: 396 },
+    { name: "horizon", top: 672, height: 478 },
+    { name: "places", top: 1171, height: 293 },
+    { name: "releases", top: 1486, height: 196 },
+  ],
+};
+
+function morningShot(
+  surface: MorningSurface,
+  viewportWidth: number,
+  appearance: "light" | "dark",
+): SmokeReport["views"][number] {
+  const pageHeight = 1702;
+  return {
+    surface: surface.id,
+    appearance,
+    viewportWidth,
+    file: `views/${surface.id}-${viewportWidth}-${appearance}.png`,
+    width: viewportWidth * 2,
+    height: pageHeight * 2,
+    bytes: 200000,
+    dominantFraction: 0.6,
+    qualifiers: [
+      "Swept 08:02",
+      surface.morning === "bad"
+        ? "GitHub issues and PRs read failed at 08:02; items from it may be missing. Evidence ›"
+        : "",
+    ],
+    geometry: geometry("today", viewportWidth),
+    morning: {
+      morning: surface.morning,
+      fixture: MORNING_FIXTURES[surface.morning],
+      detail: surface.detail,
+      sections: morningSections(surface.morning, surface.detail, viewportWidth),
+      headline: {
+        calm: "Nothing urgent needs you. v0.35.3 is deployable; all 13 forks are flowing.",
+        busy: "1 thing needs you; 2 forks are stopped; 4 upstream changes need you before they land.",
+        bad: "3 things need you; 4 forks are stopped. GitHub wasn't read this sweep.",
+      }[surface.morning],
+      viewportHeight: 800,
+      scrollHeight: 1594,
+      clientHeight: 692,
+      pageHeight,
+      blocks: morningBlocks[surface.morning],
+      ...(surface.detail ? { detailTitle: "partition v1.3.3" } : {}),
+    },
+  };
+}
+
 const report: SmokeReport = {
   mainPid: 101,
   hostPid: 102,
@@ -335,29 +409,38 @@ const report: SmokeReport = {
     outcome: tier === "Read" ? "completed" : "refused",
   })),
   deniedBuiltIn: { name: "builtin:shell", outcome: "refused" },
-  views: VIEW_SURFACES.flatMap(({ id }) =>
-    VIEW_WIDTHS.flatMap((viewportWidth) =>
-      (["light", "dark"] as const).map((appearance) => ({
-        surface: id,
-        appearance,
-        viewportWidth,
-        file: `views/${id}-${viewportWidth}-${appearance}.png`,
-        width: viewportWidth,
-        height: 800,
-        bytes: 20000,
-        dominantFraction: 0.6,
-        qualifiers: scheduledQualifiers[id] ??
-          firstSweepQualifiers[id] ?? [
-            "swept 08:02 · 1 failed",
-            "GitLab reads failed; items may be missing.",
-          ],
-        geometry: geometry(id, viewportWidth),
-        ...(id === "detail-related" && viewportWidth === 1440 && appearance === "light"
-          ? { rejectedGeometry: "Related value squeezed to 159 px" }
-          : {}),
-      })),
+  views: [
+    ...VIEW_SURFACES.flatMap(({ id }) =>
+      VIEW_WIDTHS.flatMap((viewportWidth) =>
+        (["light", "dark"] as const).map((appearance) => ({
+          surface: id,
+          appearance,
+          viewportWidth,
+          file: `views/${id}-${viewportWidth}-${appearance}.png`,
+          width: viewportWidth,
+          height: 800,
+          bytes: 20000,
+          dominantFraction: 0.6,
+          qualifiers: scheduledQualifiers[id] ??
+            firstSweepQualifiers[id] ?? [
+              "swept 08:02 · 1 failed",
+              "GitLab reads failed; items may be missing.",
+            ],
+          geometry: geometry(id, viewportWidth),
+          ...(id === "detail-related" && viewportWidth === 1440 && appearance === "light"
+            ? { rejectedGeometry: "Related value squeezed to 159 px" }
+            : {}),
+        })),
+      ),
     ),
-  ),
+    ...MORNING_SURFACES.flatMap((surface) =>
+      surface.widths.flatMap((viewportWidth) =>
+        (["light", "dark"] as const).map((appearance) =>
+          morningShot(surface, viewportWidth, appearance),
+        ),
+      ),
+    ),
+  ],
   supervision: {
     signal: "SIGKILL",
     hostPids: [102, 103, 104, 105, 106, 107, 108, 109],
@@ -881,4 +964,183 @@ it.each([
   expect(() =>
     assertSmokeReport({ ...report, supervision: { ...report.supervision, ...failure } }),
   ).toThrow();
+});
+
+const mornings = report.views.filter((shot) => shot.morning);
+const withMorning = (
+  match: (shot: SmokeReport["views"][number]) => boolean,
+  change: (shot: SmokeReport["views"][number]) => Partial<SmokeReport["views"][number]>,
+) =>
+  JSON.parse(
+    JSON.stringify(report.views.map((shot) => (match(shot) ? { ...shot, ...change(shot) } : shot))),
+  );
+const evidence = (
+  shot: SmokeReport["views"][number],
+  change: { [K in keyof MorningEvidence]?: MorningEvidence[K] | undefined },
+) => ({ morning: { ...shot.morning, ...change } as MorningEvidence });
+
+it("lists Today on calm, busy and bad at 1440 and 740 in both appearances, and Detail open at 1440", () => {
+  expect(
+    mornings.map(
+      ({ surface, viewportWidth, appearance }) => `${surface}/${viewportWidth}/${appearance}`,
+    ),
+  ).toHaveLength(18);
+  for (const morning of ["calm", "busy", "bad"])
+    for (const id of [`today-${morning}`, `today-${morning}-detail`])
+      for (const appearance of ["light", "dark"]) {
+        const widths = id.endsWith("-detail") ? [1440] : [1440, 740];
+        for (const viewportWidth of widths) {
+          const matches = (shot: SmokeReport["views"][number]) =>
+            shot.surface === id &&
+            shot.viewportWidth === viewportWidth &&
+            shot.appearance === appearance;
+          expect(report.views.filter(matches)).toHaveLength(1);
+          expect(() => assertSmokeViews(report.views.filter((shot) => !matches(shot)))).toThrow(
+            "Missing screenshot",
+          );
+          expect(() =>
+            assertSmokeViews(
+              report.views.map((shot) =>
+                matches(shot)
+                  ? { ...shot, appearance: appearance === "light" ? "dark" : "light" }
+                  : shot,
+              ),
+            ),
+          ).toThrow(`Missing or duplicate screenshot: ${id}/${viewportWidth}/`);
+        }
+      }
+});
+
+it("fails the bad morning without its caveat band, and a calm or busy one with a caveat", () => {
+  expect(() =>
+    assertSmokeViews(
+      withMorning(
+        (shot) => shot.surface === "today-bad" && shot.viewportWidth === 740,
+        () => ({ qualifiers: ["Swept 08:02", ""] }),
+      ),
+    ),
+  ).toThrow("Missing caveat band qualifier: today-bad/740");
+  expect(() =>
+    assertSmokeViews(
+      withMorning(
+        (shot) => shot.surface === "today-bad-detail",
+        () => ({ qualifiers: ["Swept 08:02", "GitLab reads failed; items may be missing."] }),
+      ),
+    ),
+  ).toThrow("Missing caveat band qualifier: today-bad-detail/1440");
+  expect(() =>
+    assertSmokeViews(
+      withMorning(
+        (shot) => shot.surface === "today-bad" && shot.appearance === "dark",
+        (shot) => evidence(shot, { blocks: morningBlocks.busy }),
+      ),
+    ),
+  ).toThrow("Missing block caveat: today-bad/1440");
+  for (const surface of ["today-calm", "today-busy-detail"])
+    expect(() =>
+      assertSmokeViews(
+        withMorning(
+          (shot) => shot.surface === surface,
+          () => ({
+            qualifiers: [
+              "Swept 08:02",
+              "GitHub issues and PRs read failed at 08:02; items from it may be missing. Evidence ›",
+            ],
+          }),
+        ),
+      ),
+    ).toThrow(`Unexpected caveat band: ${surface}/`);
+});
+
+it("fails a capture that stops at window height or leaves a block outside the image", () => {
+  const atWindow = withMorning(
+    (shot) => shot.surface === "today-busy" && shot.viewportWidth === 1440,
+    (shot) => ({ height: 1600, ...evidence(shot, { pageHeight: 800 }) }),
+  );
+  expect(() => assertSmokeViews(atWindow)).toThrow("Capture stops above the fold: today-busy/1440");
+  const cropped = withMorning(
+    (shot) => shot.surface === "today-calm" && shot.viewportWidth === 740,
+    () => ({ height: 1000 * 2 }),
+  );
+  expect(() => assertSmokeViews(cropped)).toThrow("Image is not the full page: today-calm/740");
+  const below = withMorning(
+    (shot) => shot.surface === "today-bad-detail",
+    (shot) =>
+      evidence(shot, {
+        blocks: morningBlocks.bad.map((block) =>
+          block.name === "releases" ? { ...block, top: 1600 } : block,
+        ),
+      }),
+  );
+  expect(() => assertSmokeViews(below)).toThrow(
+    "Block releases outside the capture: today-bad-detail/1440",
+  );
+  const noReleases = withMorning(
+    (shot) => shot.surface === "today-calm",
+    (shot) =>
+      evidence(shot, {
+        blocks: morningBlocks.calm.filter(({ name }) => name !== "releases"),
+      }),
+  );
+  expect(() => assertSmokeViews(noReleases)).toThrow("Missing block releases: today-calm/1440");
+  const noMotion = withMorning(
+    (shot) => shot.surface === "today-calm-detail",
+    (shot) =>
+      evidence(shot, { blocks: morningBlocks.calm.filter(({ name }) => name !== "motion") }),
+  );
+  expect(() => assertSmokeViews(noMotion)).toThrow("Missing block motion: today-calm-detail/1440");
+  const reordered = withMorning(
+    (shot) => shot.surface === "today-busy",
+    (shot) => evidence(shot, { blocks: [...morningBlocks.busy].reverse() }),
+  );
+  expect(() => assertSmokeViews(reordered)).toThrow("Blocks out of order: today-busy/1440");
+});
+
+it("fails a morning without its fixture, decision sections, headline, Detail or geometry", () => {
+  const cases: [string, (shot: SmokeReport["views"][number]) => object, string][] = [
+    ["today-calm", () => ({ morning: undefined }), "Missing morning evidence"],
+    ["today-busy", (shot) => evidence(shot, { fixture: "snapshot-1106.json" }), "Wrong fixture"],
+    [
+      "today-bad",
+      (shot) => evidence(shot, { sections: morningSections("bad", false, 1440) }),
+      "Wrong decision sections: today-bad/740",
+    ],
+    ["today-calm", (shot) => evidence(shot, { headline: "" }), "Wrong headline"],
+    ["today-busy-detail", (shot) => evidence(shot, { detailTitle: undefined }), "Missing Detail"],
+    [
+      "today-busy",
+      (shot) => evidence(shot, { detailTitle: "partition v1.3.3" }),
+      "Unexpected Detail",
+    ],
+    ["today-bad", () => ({ geometry: [] }), "Missing geometry"],
+  ];
+  for (const [surface, change, message] of cases)
+    expect(() =>
+      assertSmokeViews(
+        withMorning(
+          (shot) =>
+            shot.surface === surface && (surface !== "today-bad" || shot.viewportWidth === 740),
+          change,
+        ),
+      ),
+    ).toThrow(message);
+});
+
+it("names decision.md's sections per morning, width and Detail state", () => {
+  expect(morningSections("calm", false, 1440)).toEqual([
+    "Calm and bad mornings: Calm",
+    "Calm first (draft 7)",
+    "On the horizon: what's coming from GitLab (draft 7)",
+    "Words and visuals (draft 7)",
+  ]);
+  expect(morningSections("bad", false, 740)).toContain(
+    "One column: 740 px, and 1440 with Detail open (centre about 850)",
+  );
+  expect(morningSections("busy", true, 1440)).toEqual(
+    expect.arrayContaining([
+      "Today at 1440 × 900 (sidebar 232, centre 1208, Detail closed), this morning's data",
+      "One column: 740 px, and 1440 with Detail open (centre about 850)",
+      "Click targets: a version opens that service's release in Detail",
+    ]),
+  );
 });

@@ -351,6 +351,10 @@ export async function packageDesktop(platform = process.platform) {
         reportPath,
         "--smoke-views-fixture",
         join(root, "fixtures/watch/snapshot-1106.json"),
+        ...["calm", "busy", "bad"].flatMap((morning) => [
+          `--smoke-views-${morning}-fixture`,
+          join(root, `fixtures/watch/snapshot-${morning}.json`),
+        ]),
         "--smoke-views-design",
         join(root, "design/spi-code-window-layout.html"),
       ],

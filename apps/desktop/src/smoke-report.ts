@@ -4,6 +4,7 @@
 import assert from "node:assert/strict";
 import { APPENDIX_A_TOOLS } from "@spi-code/host";
 import { assertSmokeGeometry, type SmokeGeometry } from "./smoke-geometry.js";
+import { assertMorningEvidence, MORNING_SURFACES, type MorningEvidence } from "./smoke-mornings.js";
 import type { SupervisionReport } from "./smoke-supervision.js";
 
 export const VIEW_WIDTHS = [1440, 900, 740] as const;
@@ -272,6 +273,7 @@ export interface SmokeShot {
   qualifiers: string[];
   geometry: SmokeGeometry[];
   rejectedGeometry?: string;
+  morning?: MorningEvidence;
 }
 
 export function assertSmokeShot(
@@ -279,6 +281,15 @@ export function assertSmokeShot(
   image: { width: number; height: number; bitmap: Uint8Array; bytes: number } | undefined,
   qualifiers: readonly string[],
 ): Pick<SmokeShot, "width" | "height" | "bytes" | "dominantFraction" | "qualifiers"> {
+  const checked = assertSmokeImage(surfaceId, image);
+  assertSmokeQualifiers(surfaceId, qualifiers);
+  return { ...checked, qualifiers: [...qualifiers] };
+}
+
+export function assertSmokeImage(
+  surfaceId: string,
+  image: { width: number; height: number; bitmap: Uint8Array; bytes: number } | undefined,
+): Pick<SmokeShot, "width" | "height" | "bytes" | "dominantFraction"> {
   assert(image, `Missing screenshot: ${surfaceId}`);
   const { width, height, bitmap, bytes } = image;
   assert(width >= 640 && height >= 400 && bytes >= 1024, `Screenshot too small: ${surfaceId}`);
@@ -296,8 +307,7 @@ export function assertSmokeShot(
   }
   const dominantFraction = dominant / (width * height);
   assert(dominantFraction < 0.995, `Blank screenshot: ${surfaceId}`);
-  assertSmokeQualifiers(surfaceId, qualifiers);
-  return { width, height, bytes, dominantFraction, qualifiers: [...qualifiers] };
+  return { width, height, bytes, dominantFraction };
 }
 
 function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
@@ -400,44 +410,17 @@ function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
 
 export function assertSmokeViews(value: unknown): asserts value is SmokeShot[] {
   assert(Array.isArray(value), "Missing views step");
-  assert.equal(value.length, VIEW_SURFACES.length * VIEW_WIDTHS.length * 2, "Missing screenshot");
+  assert.equal(
+    value.length,
+    VIEW_SURFACES.length * VIEW_WIDTHS.length * 2 +
+      MORNING_SURFACES.reduce((count, { widths }) => count + widths.length * 2, 0),
+    "Missing screenshot",
+  );
   for (const { id } of VIEW_SURFACES) {
     for (const viewportWidth of VIEW_WIDTHS) {
       for (const appearance of ["light", "dark"]) {
-        const matches: Record<string, unknown>[] = value.filter(
-          (shot: unknown): shot is Record<string, unknown> =>
-            shot !== null &&
-            typeof shot === "object" &&
-            "surface" in shot &&
-            shot.surface === id &&
-            "viewportWidth" in shot &&
-            shot.viewportWidth === viewportWidth &&
-            "appearance" in shot &&
-            shot.appearance === appearance,
-        );
-        assert.equal(
-          matches.length,
-          1,
-          `Missing or duplicate screenshot: ${id}/${viewportWidth}/${appearance}`,
-        );
-        const [shot] = matches;
-        assert(shot);
-        assert.equal(shot.file, `views/${id}-${viewportWidth}-${appearance}.png`);
-        assert(
-          typeof shot.width === "number" &&
-            shot.width >= 640 &&
-            typeof shot.height === "number" &&
-            shot.height >= 400 &&
-            typeof shot.bytes === "number" &&
-            shot.bytes >= 1024,
-          "Screenshot too small",
-        );
-        assert(
-          typeof shot.dominantFraction === "number" &&
-            shot.dominantFraction >= 0 &&
-            shot.dominantFraction < 0.995,
-          "Blank screenshot",
-        );
+        const shot = onlyShot(value, id, viewportWidth, appearance);
+        assertShotImage(shot, id, viewportWidth, appearance);
         assertSmokeQualifiers(id, shot.qualifiers);
         assert(
           Array.isArray(shot.geometry),
@@ -473,6 +456,73 @@ export function assertSmokeViews(value: unknown): asserts value is SmokeShot[] {
       }
     }
   }
+  for (const surface of MORNING_SURFACES) {
+    for (const viewportWidth of surface.widths) {
+      for (const appearance of ["light", "dark"]) {
+        const shot = onlyShot(value, surface.id, viewportWidth, appearance);
+        assertShotImage(shot, surface.id, viewportWidth, appearance);
+        assertMorningEvidence(surface, shot as Parameters<typeof assertMorningEvidence>[1]);
+        assert(
+          Array.isArray(shot.geometry) && shot.geometry.length === 1,
+          `Missing geometry: ${surface.id}/${viewportWidth}/${appearance}`,
+        );
+        const [geometry] = shot.geometry;
+        assertSmokeGeometry(geometry, viewportWidth);
+        assert.equal(geometry.rule, "window", `Wrong geometry rule: ${surface.id}`);
+      }
+    }
+  }
+}
+
+function onlyShot(
+  value: unknown[],
+  id: string,
+  viewportWidth: number,
+  appearance: string,
+): Record<string, unknown> {
+  const matches: Record<string, unknown>[] = value.filter(
+    (shot: unknown): shot is Record<string, unknown> =>
+      shot !== null &&
+      typeof shot === "object" &&
+      "surface" in shot &&
+      shot.surface === id &&
+      "viewportWidth" in shot &&
+      shot.viewportWidth === viewportWidth &&
+      "appearance" in shot &&
+      shot.appearance === appearance,
+  );
+  assert.equal(
+    matches.length,
+    1,
+    `Missing or duplicate screenshot: ${id}/${viewportWidth}/${appearance}`,
+  );
+  const [shot] = matches;
+  assert(shot);
+  return shot;
+}
+
+function assertShotImage(
+  shot: Record<string, unknown>,
+  id: string,
+  viewportWidth: number,
+  appearance: string,
+): void {
+  assert.equal(shot.file, `views/${id}-${viewportWidth}-${appearance}.png`);
+  assert(
+    typeof shot.width === "number" &&
+      shot.width >= 640 &&
+      typeof shot.height === "number" &&
+      shot.height >= 400 &&
+      typeof shot.bytes === "number" &&
+      shot.bytes >= 1024,
+    "Screenshot too small",
+  );
+  assert(
+    typeof shot.dominantFraction === "number" &&
+      shot.dominantFraction >= 0 &&
+      shot.dominantFraction < 0.995,
+    "Blank screenshot",
+  );
 }
 
 export interface SmokeReport {
