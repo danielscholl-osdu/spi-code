@@ -4,6 +4,7 @@
 import type { AttentionTier } from "../attention.js";
 import type { Facts } from "../facts.js";
 import type { Model } from "../model/index.js";
+import type { AlertGroup } from "../model/repos.js";
 import { stationSubstateOf } from "../model/substate.js";
 import { verifiedForks } from "../model/verified.js";
 import type { SweepReads } from "../sweep/sweeper.js";
@@ -35,6 +36,7 @@ export type PlaceVisual =
   | {
       kind: "forkColumns";
       columns: { service: string; count: number | null; rules: string[]; text: string }[];
+      program?: { count: number | null; rules: string[]; text: string };
       largest?: { label: string; forks: number; text: string };
     };
 
@@ -69,12 +71,17 @@ function lineVisual({ model, facts, cards }: VisualSource, items: readonly Tiere
   const waiting = horizonWaitServices(model, facts, items);
   const onHorizon = cards ? horizonWaitServices(model, facts, items, cards) : waiting;
   const slots = model.lines.map((line): Slot => {
-    if (!line.repoRead)
+    if (!line.repoRead) {
+      const stopped = line.stations.filter((station) =>
+        stationSubstateOf(station, line, facts) === "stopped");
       return {
         service: line.fork.id,
-        state: "unknown",
-        text: `${line.fork.id}: repository stations not read yet`,
+        state: stopped.length ? "broken" : "unknown",
+        text: `${line.fork.id}: ${stopped.length
+          ? stopped.map((station) => `${station.id}: ${station.text}`).join("; ")
+          : "repository stations not read yet"}`,
       };
+    }
     const stations = line.stations
       .map((station) => ({
         station,
@@ -188,6 +195,11 @@ function rolloutVisual({ model, facts }: VisualSource): PlaceVisual | undefined 
   return { kind: "rollout", target, slots };
 }
 
+function severeShipped(alert: AlertGroup): boolean {
+  return alert.owner !== "upstream" && alert.reach === "shipped" &&
+    (alert.counts.high ?? 0) + (alert.counts.critical ?? 0) > 0;
+}
+
 function securityVisual({ model }: VisualSource): PlaceVisual {
   const groups = new Map<string, { label: string; forks: Set<string> }>();
   const columns = model.lines.map((line) => {
@@ -199,12 +211,7 @@ function securityVisual({ model }: VisualSource): PlaceVisual {
     const rules = [
       ...new Set(
         (row?.alerts ?? [])
-          .filter(
-            (alert) =>
-              alert.owner !== "upstream" &&
-              alert.reach === "shipped" &&
-              (alert.counts.high ?? 0) + (alert.counts.critical ?? 0) > 0,
-          )
+          .filter(severeShipped)
           .map((alert) => {
             const label = groupName(alert);
             const key =
@@ -228,12 +235,24 @@ function securityVisual({ model }: VisualSource): PlaceVisual {
           : `${line.fork.id}: ${count} high or critical${rules.length ? ` · ${rules.join(", ")}` : ""}`,
     };
   });
+  const programRows = model.repositories.rows.filter((row) =>
+    !model.lines.some((line) => line.fork.repo === row.repo));
+  const count = programRows.some((row) => !row.vulnerabilities || !row.codeScanning)
+    ? null
+    : programRows.reduce((sum, row) => sum + (row.vulnerabilities?.ours ?? 0) + (row.codeScanning?.ours ?? 0), 0);
+  const rules = [...new Set(programRows.flatMap((row) => row.alerts.filter(severeShipped).map(groupName)))];
+  const program = {
+    count, rules,
+    text: count === null ? "program: Security not fully read yet"
+      : `program: ${count} high or critical${rules.length ? ` · ${rules.join(", ")}` : ""}`,
+  };
   const largest = [...groups.values()].sort(
     (a, b) => b.forks.size - a.forks.size || a.label.localeCompare(b.label),
   )[0];
   return {
     kind: "forkColumns",
     columns,
+    program,
     ...(largest
       ? {
           largest: {

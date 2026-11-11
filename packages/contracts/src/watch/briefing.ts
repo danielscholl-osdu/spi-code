@@ -166,6 +166,13 @@ export const PlaceVisualSchema = z.discriminatedUnion("kind", [
         text: z.string(),
       }),
     ),
+    program: z
+      .strictObject({
+        count: z.int().nonnegative().nullable(),
+        rules: z.array(z.string()),
+        text: z.string(),
+      })
+      .optional(),
     largest: z
       .strictObject({ label: z.string(), forks: z.int().positive(), text: z.string() })
       .optional(),
