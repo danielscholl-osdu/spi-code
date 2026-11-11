@@ -576,7 +576,7 @@ describe("Watch projection", () => {
     const rows = service?.releases;
     expect(rows?.find((r) => r.month === "2026-10")).toMatchObject({
       releasePr: { number: 700, title: releasePr.title, url: releasePr.url },
-      gate: { state: "waiting", text: "PR #700" },
+      gate: { state: "waiting", text: "#700 waiting on review" },
     });
     expect(rows?.filter((r) => r.month !== "2026-10").every((r) => !r.gate && !r.releasePr)).toBe(
       true,

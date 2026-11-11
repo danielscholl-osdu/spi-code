@@ -342,9 +342,25 @@ export function buildLine(input: {
   else if (!proof) stations.push({ id: "main", state: "unknown", text: "unproven" });
   else stations.push({ id: "main", state: "idle", text: "idle" });
   // release
-  if (releasePr)
-    stations.push({ id: "release", state: "waiting", text: `PR #${releasePr.pr.number}` });
-  else stations.push({ id: "release", state: "idle", text: repo?.release?.tag ?? "no release" });
+  if (releasePr) {
+    const pr = releasePr.pr;
+    const review =
+      pr.reviewDecision === "CHANGES_REQUESTED"
+        ? "changes requested"
+        : pr.reviewDecision === "REVIEW_REQUIRED"
+          ? "waiting on review"
+          : pr.reviewDecision === "APPROVED" &&
+              !pr.draft &&
+              pr.mergeState === "CLEAN" &&
+              prVerdict(pr) === "green"
+            ? "ready"
+            : undefined;
+    stations.push({
+      id: "release",
+      state: "waiting",
+      text: review ? `#${pr.number} ${review}` : `PR #${pr.number}`,
+    });
+  } else stations.push({ id: "release", state: "idle", text: repo?.release?.tag ?? "no release" });
   // stack lane
   const lane = laneStats(repo?.deployments ?? [], now);
   if (stack.deployable.state === "no")

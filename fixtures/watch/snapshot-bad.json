@@ -4133,7 +4133,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-clock",
-          "text": "PR #600",
+          "text": "#600 waiting on review",
           "inspect": "station:partition:release"
         },
         {
@@ -4180,7 +4180,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-clock",
-          "text": "PR #601",
+          "text": "#601 waiting on review",
           "inspect": "station:entitlements:release"
         },
         {
@@ -4227,7 +4227,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-clock",
-          "text": "PR #602",
+          "text": "#602 waiting on review",
           "inspect": "station:legal:release"
         },
         {
@@ -4274,7 +4274,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-clock",
-          "text": "PR #603",
+          "text": "#603 waiting on review",
           "inspect": "station:schema:release"
         },
         {
@@ -4321,7 +4321,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-clock",
-          "text": "PR #604",
+          "text": "#604 waiting on review",
           "inspect": "station:file:release"
         },
         {
@@ -4368,7 +4368,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-clock",
-          "text": "PR #605",
+          "text": "#605 waiting on review",
           "inspect": "station:storage:release"
         },
         {
@@ -4415,7 +4415,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-clock",
-          "text": "PR #606",
+          "text": "#606 waiting on review",
           "inspect": "station:indexer:release"
         },
         {
@@ -4462,7 +4462,7 @@
           "id": "release",
           "state": "waiting",
           "substate": "waiting-on-clock",
-          "text": "PR #607",
+          "text": "#607 waiting on review",
           "inspect": "station:search:release"
         },
         {
@@ -4766,7 +4766,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "PR #600"
+            "text": "#600 waiting on review"
           }
         },
         {
@@ -4839,7 +4839,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "PR #601"
+            "text": "#601 waiting on review"
           }
         },
         {
@@ -4912,7 +4912,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "PR #602"
+            "text": "#602 waiting on review"
           }
         },
         {
@@ -4985,7 +4985,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "PR #603"
+            "text": "#603 waiting on review"
           }
         },
         {
@@ -5058,7 +5058,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "PR #604"
+            "text": "#604 waiting on review"
           }
         },
         {
@@ -5132,7 +5132,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "PR #605"
+            "text": "#605 waiting on review"
           }
         },
         {
@@ -5201,7 +5201,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "PR #606"
+            "text": "#606 waiting on review"
           }
         },
         {
@@ -5274,7 +5274,7 @@
           },
           "gate": {
             "state": "waiting",
-            "text": "PR #607"
+            "text": "#607 waiting on review"
           }
         },
         {

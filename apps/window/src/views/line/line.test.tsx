@@ -257,7 +257,7 @@ it("folds November 6 rows whose release PRs only wait for review, marking those 
     sheet()?.querySelector<HTMLElement>(
       `tr[data-service="${service}"] button[data-station="release"]`,
     );
-  expect(release("partition")?.textContent).toContain("◷ PR #198");
+  expect(release("partition")?.textContent).toContain("◷ #198 waiting on review");
   expect(release("partition")?.querySelector('[role="img"]')?.getAttribute("aria-label")).toBe(
     "Scheduled",
   );

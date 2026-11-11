@@ -304,7 +304,7 @@ it("keeps former release month, version, state, review and PR link one click awa
   expect(row?.querySelector(".service-class")?.textContent).toBe(release.state);
   expect(row?.querySelector("[data-gate]")?.textContent).toContain(release.gate.state);
   expect(row?.querySelector("[data-gate]")?.textContent).toContain(
-    "release review waiting · PR #48",
+    "release review waiting · #48 waiting on review",
   );
   expect(row?.querySelector("a")?.getAttribute("href")).toBe(release.releasePr.url);
   expect(row?.querySelector("a")?.textContent).toBe(
