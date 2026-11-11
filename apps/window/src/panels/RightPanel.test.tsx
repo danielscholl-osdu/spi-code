@@ -118,6 +118,7 @@ it.each(
     release: ["release", "release month"],
     station: ["station", "station"],
     "can-wait": ["can-wait", "today"],
+    "today-more": ["today-more", "today"],
     "release-version": ["release-version", "release"],
     "release-pr": ["release-pr", "release PR"],
     "release-notable": ["release-notable", "notable change"],

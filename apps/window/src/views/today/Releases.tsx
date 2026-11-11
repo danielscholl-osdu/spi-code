@@ -131,7 +131,12 @@ function Versions({
   return (
     <ul
       className="today-release-versions"
-      style={{ "--release-rows": Math.ceil(versions.length / 3) } as CSSProperties}
+      style={
+        {
+          "--release-rows": Math.ceil(versions.length / 3),
+          "--release-narrow-rows": Math.ceil(versions.length / 2),
+        } as CSSProperties
+      }
     >
       {versions.map((version, index) => {
         const pointer = `${TODAY}/versions/${index}`;
@@ -165,6 +170,7 @@ function Versions({
                 type="button"
                 className="today-release-released"
                 data-unread={unreadIf(Boolean(today.unread) || isHeld([`${pointer}/released`]))}
+                data-selection-id={row.id}
                 aria-pressed={selected === row.id}
                 onClick={() => select(row)}
               >
@@ -177,6 +183,7 @@ function Versions({
                   data-unread={unreadIf(isHeld([`${pointer}/proposed`, `${pointer}/pr`]))}
                   title={`release PR #${pr.number}`}
                   aria-label={`release PR #${pr.number}`}
+                  data-selection-id={prRow.id}
                   aria-pressed={selected === prRow.id}
                   data-pr-number={pr.number}
                   data-pr-url={pr.url}
@@ -332,6 +339,7 @@ function Changes({
               >
                 <button
                   type="button"
+                  data-selection-id={row.id}
                   aria-pressed={selected === row.id}
                   onClick={() => select(row)}
                 >

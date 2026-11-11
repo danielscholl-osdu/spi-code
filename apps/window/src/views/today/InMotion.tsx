@@ -17,7 +17,9 @@ import {
   canWaitRow,
   type SelectionRow,
   selectionRows,
+  todayGroupRow,
 } from "../../panels/selection-rows.js";
+import { More, useFold } from "./folding.js";
 import "./in-motion.css";
 
 const GLYPH_STATION: Readonly<Record<LineStation, GlyphStation>> = {
@@ -226,6 +228,7 @@ export function InMotion({
   const { ambient, canWait } = snapshot.briefing;
   const run = ambient?.inProgress;
   const lines = run?.lines ?? [];
+  const fold = useFold(lines, selected, (row) => (row.pr?.inspect ? [row.pr.inspect] : []));
   const chips = canWait && canWait.chips.length > 0 ? canWait : undefined;
   if (lines.length === 0 && !chips) return null;
   const rows = selectionRows(snapshot);
@@ -240,10 +243,17 @@ export function InMotion({
             In motion <span className="today-motion-figure">· {run.text}</span>
           </h3>
           <ul className="today-motion-lines">
-            {lines.map((line) => (
+            {fold.visible.map((line) => (
               <Line key={line.id} line={line} rows={rows} selected={selected} select={select} />
             ))}
           </ul>
+          <More
+            group="motion"
+            count={fold.more}
+            hasMore={fold.hidden}
+            row={todayGroupRow(snapshot, "motion")}
+            select={select}
+          />
           {legend && <LineGlyphLegend />}
         </div>
       )}

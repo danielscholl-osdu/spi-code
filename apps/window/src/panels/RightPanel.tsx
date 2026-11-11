@@ -46,6 +46,7 @@ const KIND_LABEL: Readonly<Record<SelectionKind, string>> = {
   release: "release month",
   station: "station",
   "can-wait": "today",
+  "today-more": "today",
   "release-version": "release",
   "release-pr": "release PR",
   "release-notable": "notable change",
@@ -320,6 +321,36 @@ export function RightPanel({
                   </div>
                 ))}
               </dl>
+            )}
+            {row?.entries && row.entries.length > 0 && (
+              <ul className="detail-group-list" aria-label={row.title}>
+                {row.entries.map(({ title, itemIds }) => {
+                  const id = itemIds[0];
+                  return (
+                    <li key={`${itemIds.join("|")}:${title}`}>
+                      {id ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            store
+                              .getState()
+                              .select(
+                                id,
+                                snapshot
+                                  ? selectionRows(snapshot).find((candidate) => candidate.id === id)
+                                  : undefined,
+                              )
+                          }
+                        >
+                          {plainTitle(title)}
+                        </button>
+                      ) : (
+                        plainTitle(title)
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
             )}
             {leads && reading}
             {action && (
