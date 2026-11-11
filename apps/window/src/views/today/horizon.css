@@ -1,0 +1,58 @@
+/* Copyright 2026, Daniel Scholl
+ * SPDX-License-Identifier: MIT */
+
+.today-horizon {
+  border-left: 3px solid var(--upstream);
+  padding: 14px 16px;
+  min-width: 0;
+}
+.horizon-header, .horizon-card-head, .horizon-fork, .horizon-stage-forks, .horizon-forks, .horizon-owed {
+  display: flex;
+  align-items: center;
+  gap: 6px 8px;
+}
+.horizon-header h2 { margin: 0; font-size: 13px; }
+.horizon-heading, .horizon-token, .horizon-verb, .horizon-owed-open {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--text-strong);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.horizon-heading > span:last-child { color: var(--text-muted); font-weight: 400; }
+.horizon-inbound { color: var(--upstream-text); }
+.horizon-conveyor { margin-top: 12px; }
+.horizon-stages { display: grid; grid-template-columns: minmax(70px, .55fr) repeat(3, minmax(0, 1fr)); gap: 12px; }
+.horizon-stage { min-width: 0; border-left: 1px solid var(--border); padding-left: 12px; }
+.horizon-stage:first-child { border-left: 0; padding-left: 0; }
+.horizon-stage h3 { color: var(--text-muted); font-size: 11px; font-weight: 400; margin: 0 0 4px; }
+.horizon-stage strong { font: 600 19px var(--font-mono); }
+.horizon-stage-forks, .horizon-forks { flex-wrap: wrap; margin-top: 7px; }
+.horizon-wont-land { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 6px; display: grid; gap: 5px; color: var(--text-muted); font-size: 11px; }
+.horizon-wont-count { font-variant-numeric: tabular-nums; }
+.horizon-counts { margin: 14px 0 8px; color: var(--text-muted); font-size: 12px; }
+.horizon-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 8px; }
+.horizon-card { background: var(--surface-raised); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; min-width: 0; }
+.horizon-kind { color: var(--text-muted); }
+.horizon-token { font-family: var(--font-mono); font-size: 12px; overflow-wrap: anywhere; }
+.horizon-fork { flex-wrap: wrap; font-size: 11px; }
+.horizon-stage-label, .horizon-fork time { color: var(--text-muted); }
+.horizon-verb { margin-top: 9px; color: var(--accent-text); font-size: 12px; }
+.horizon-owed { margin-top: 12px; flex-wrap: wrap; }
+.horizon-owed .kit-segmented { flex: 1; min-width: min(280px, 100%); }
+.horizon-owed .kit-bar-figure { white-space: normal; }
+.horizon-owed-open { flex: none; color: var(--accent-text); font-size: 11px; }
+.horizon-compact { display: none; }
+@media (max-width: 740px) {
+  .today-horizon { padding: 10px 12px; }
+  .horizon-heading { font-size: 12px; }
+  .horizon-compact { display: flex; align-items: center; gap: 6px; width: 100%; border: 0; background: transparent; padding: 0; color: var(--text-muted); text-align: left; font: 11px var(--font-sans); white-space: nowrap; cursor: pointer; }
+  .horizon-compact > span:nth-last-child(2) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .horizon-compact > span:last-child { margin-left: auto; }
+  .horizon-conveyor[data-expanded="false"] .horizon-stages { display: none; }
+  .horizon-conveyor[data-expanded="true"] .horizon-stages { margin-top: 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.horizon-stage:not(:first-child) h3::before { content: "→ "; }
+.horizon-fork-figure { color: var(--text-muted); font-size: 11px; }

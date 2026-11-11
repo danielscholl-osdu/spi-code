@@ -55,6 +55,7 @@ async function openHome(home: string, body = fixture()) {
   await act(async () => {
     watchStore.setState({ snapshot: { cursor: body.cursor, body }, setup: null });
     if (place?.startsWith("Service ")) navigate({ kind: "service", id: place.slice(8) });
+    else if (place === "Today") navigate({ kind: "today" });
     else if (place === "Environment") navigate({ kind: "environment" });
     else if (place === "Engineering system") navigate({ kind: "engineering-system" });
     else navigate({ kind: "upstream" });

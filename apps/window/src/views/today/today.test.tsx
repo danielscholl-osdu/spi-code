@@ -118,6 +118,7 @@ describe.each(NAMES)("on the %s morning", (name) => {
     ).toBe(true);
     expect(frame?.querySelectorAll(".today-slot:empty")).toHaveLength(0);
     expect(frame?.querySelector('[data-today-slot="places"]')).not.toBeNull();
+    expect(frame?.querySelectorAll("[data-today-slot=horizon]")).toHaveLength(1);
   });
 });
 

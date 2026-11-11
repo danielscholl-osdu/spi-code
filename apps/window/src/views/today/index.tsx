@@ -14,6 +14,7 @@ import { type createWatchStore, watchStore } from "../../store/watch.js";
 import { AttentionBand, bandHolds } from "./Band.js";
 import { CaveatBand } from "./CaveatBand.js";
 import { TodayFrame } from "./Frame.js";
+import { Horizon } from "./Horizon.js";
 import { motionSlot } from "./InMotion.js";
 import { Places } from "./Places.js";
 import { Since } from "./Since.js";
@@ -136,7 +137,7 @@ export default function Today({
         }
         slots={{
           band: bandHolds(body) ? <AttentionBand snapshot={body} /> : null,
-          horizon: null,
+          horizon: <Horizon snapshot={body} store={store} onOpenEvidence={openEvidence} />,
           places: <Places snapshot={body} onNavigate={onNavigate} />,
           releases: null,
           motion: motionSlot(body),
