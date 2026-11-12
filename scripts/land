@@ -104,7 +104,10 @@ ci_gate() {
       mine=$(jq -c --arg b "land/$id" '[.[] | select(.headBranch == $b)]' <<<"$runs")
       if [[ $mine == "[]" ]]; then
         if [[ -z $published ]]; then
-          git -C "$root" push --quiet --force origin "$head:refs/heads/land/$id" || die "cannot push $head to land/$id"
+          # Whatever an earlier landing left there, remove it first: only a branch being
+          # created is certain to start a run.
+          git -C "$root" push --quiet origin --delete "land/$id" 2>/dev/null || true
+          git -C "$root" push --quiet origin "$head:refs/heads/land/$id" || die "cannot push $head to land/$id"
           published=1
           land_branch=1
           echo "land: waiting for CI on land/$id ($head)"
