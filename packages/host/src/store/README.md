@@ -1,11 +1,36 @@
-# Run store (M0)
+# Store connections and factories
 
-Import `openRunStore` from `./store.js` and pass a database file path whose parent
-directory exists. The store owns the connection; call `close()` before shutdown.
-It requires Node 22.16 or newer for `node:sqlite`'s transaction-state check. It
+The host calls `openStore(path)` from `./open.js` once, passing a database file
+path whose parent directory exists. It returns the migrated `DatabaseSync`;
+the host owns it and closes it after its services stop. `createRunStore`,
+`createSnapshotStore`, `createLeaseStore` and `createSeenStore` borrow that
+connection. Factories do not migrate, close or configure durability: callers
+must supply a connection opened by `openStore`.
+
+`openRunStore(path)` from `./store.js` remains the owning convenience wrapper for
+other processes, including desktop smoke and crash tests. It combines `openStore`
+with `createRunStore` and an idempotent `close()`; borrowed run stores have no
+`close()` method. The connection requires Node 22.16 or newer for `node:sqlite`'s
+transaction-state check. It
 uses WAL and `synchronous=FULL`, with foreign keys enabled and a five-second
 writer-lock timeout. Opening fails if WAL cannot be enabled, including for
 in-memory databases. Open and write failures propagate.
+
+`createSnapshotStore(db).pruneSnapshots(now)` is the only retention implementation.
+It deletes rows strictly older than seven days, retaining each fleet's latest
+cursor even if that row is older. SweepService calls it at startup, including
+when contending for a lease, and daily on its injected clock. A daily prune failure
+reaches `onError` without undoing a previously committed snapshot. Pruning is a
+separate statement, outside the snapshot-write transaction.
+
+The shared connection preserves WAL, `synchronous=FULL`, foreign keys and the
+five-second writer wait for host writes. Snapshot writes still check the lease
+owner, fence and expiry under `BEGIN IMMEDIATE`. A separate desktop lease-release
+connection can still use the file concurrently through SQLite's writer locking.
+These guarantees retain the existing store's kill durability; they do not protect
+against a second host process, manual database changes or failures beyond the M0
+store's threat model. A store read error propagates; it never proves an empty
+record, successful read or lease ownership.
 
 Migration 1 creates `runs`, append-only `run_events` and a `schema_version` ledger.
 Pending migrations and their ledger entries commit together; reopening does not

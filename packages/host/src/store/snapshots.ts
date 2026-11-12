@@ -41,7 +41,19 @@ export function createSnapshotStore(db: DatabaseSync) {
   );
   const since = db.prepare("SELECT * FROM facts_snapshots WHERE cursor > ? ORDER BY cursor");
   const at = db.prepare("SELECT * FROM facts_snapshots WHERE fleet = ? AND cursor = ?");
+  const prune = db.prepare(
+    `DELETE FROM facts_snapshots WHERE at < ?
+     AND cursor NOT IN (SELECT MAX(cursor) FROM facts_snapshots GROUP BY fleet)`,
+  );
   return {
+    /** Retains seven days and each fleet's latest cursor, even if it is older. */
+    pruneSnapshots(now: number): void {
+      const cutoff = now - 7 * 24 * 60 * 60 * 1000;
+      if (!Number.isSafeInteger(now) || !Number.isSafeInteger(cutoff)) {
+        throw new RangeError("Snapshot pruning clock must be safe integer epoch milliseconds");
+      }
+      prune.run(cutoff);
+    },
     writeSnapshot(
       lease: LeaseIdentity,
       facts: unknown,

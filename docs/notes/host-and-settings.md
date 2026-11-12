@@ -2,6 +2,10 @@
 
 What builders recorded about the host's setup and sweep messages, notifications, Readiness and the shared Sweep control. The code and its tests are the authority; these notes say what is not obvious from them.
 
+The host's stores borrow one `openStore` connection; only `openRunStore` owns an
+extra connection for external callers. Snapshot pruning stays outside the write
+transaction, so a daily retention failure reports an error without undoing a sweep.
+
 The host's `setup.check` request rechecks every readiness row, bypasses the Copilot
 seat cache, and publishes `setup.state` with the check time in `checkedAt`, even
 when readiness is unchanged. Ordinary refreshes retain the last check time.

@@ -23,7 +23,13 @@ const mocks = vi.hoisted(() => ({
   setupServices: [] as SetupService[],
   probeSeat: vi.fn().mockResolvedValue({ kind: "seat-ok", models: ["auto"] }),
 }));
-vi.mock("./store/store.js", () => ({ openRunStore: () => ({ close: mocks.close }) }));
+vi.mock("./store/open.js", async (original) => {
+  const actual = await original<typeof import("./store/open.js")>();
+  return {
+    openStore: (path: string) =>
+      path === "/tmp/unused.sqlite" ? { close: mocks.close } : actual.openStore(path),
+  };
+});
 // The stub records what main.ts wires; the real-wiring test swaps in the real SetupService.
 vi.mock("./setup/service.js", async (original) => {
   const actual = await original<typeof import("./setup/service.js")>();

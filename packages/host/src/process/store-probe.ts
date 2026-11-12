@@ -6,7 +6,12 @@ import { writeFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import type { RunStore } from "../store/store.js";
 
-export function probeStore(store: RunStore, phase: string, id: string, reportPath: string): void {
+export function probeStore(
+  store: Omit<RunStore, "close">,
+  phase: string,
+  id: string,
+  reportPath: string,
+): void {
   assert(phase === "write" || phase === "read", "Unknown smoke phase");
   const db = new DatabaseSync(":memory:");
   const sqliteIsTransaction = typeof db.isTransaction === "boolean";

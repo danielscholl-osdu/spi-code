@@ -4,7 +4,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
+import type { DatabaseSync } from "node:sqlite";
 import {
   type InspectResult,
   InspectResultSchema,
@@ -17,8 +17,8 @@ import { type Exec, emptyCache } from "@spi-code/core";
 import { attachHostPort, type HostPort } from "../process/port.js";
 import { WatchRoutes, watchFleet } from "../process/routes.js";
 import { createLeaseStore } from "../store/leases.js";
+import { openStore } from "../store/open.js";
 import { createSnapshotStore } from "../store/snapshots.js";
-import { openRunStore } from "../store/store.js";
 import { projectWatch } from "./project.js";
 import { detailFeedPath, recordedInput } from "./snapshot-fixture.js";
 
@@ -61,8 +61,7 @@ export async function recordedDetailAnswers(): Promise<Map<string, InspectResult
   const path = join(directory, "store.sqlite");
   let db: DatabaseSync | undefined;
   try {
-    openRunStore(path).close();
-    db = new DatabaseSync(path);
+    db = openStore(path);
     const fence = createLeaseStore(db).acquire(fleet, "sweeper", 60_000, now);
     if (fence === undefined) throw new Error("lease not acquired");
     createSnapshotStore(db).writeSnapshot(
@@ -76,7 +75,8 @@ export async function recordedDetailAnswers(): Promise<Map<string, InspectResult
       now,
     );
     db.close();
-    const served = new DatabaseSync(path);
+    db = undefined;
+    const served = openStore(path);
     db = served;
 
     const sent: Message[] = [];
