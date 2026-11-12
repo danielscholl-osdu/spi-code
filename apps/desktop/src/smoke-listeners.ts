@@ -2,48 +2,13 @@
 // SPDX-License-Identifier: MIT
 
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
+import { type Exec, execText } from "./host-tree.js";
+
+export { type Exec, type ExecResult, execText } from "./host-tree.js";
 
 export const listenerScanBudget = (platform = process.platform) =>
   platform === "win32" ? 30000 : 8000;
-
-export interface ExecResult {
-  status: number;
-  stdout: string;
-  stderr: string;
-  pid?: number | undefined;
-}
-
-export type Exec = (file: string, args: readonly string[], timeout: number) => Promise<ExecResult>;
-
-function commandEnvironment(): NodeJS.ProcessEnv {
-  const { LC_ALL: _, ...env } = process.env;
-  // English lstart day and month names, with command text kept as UTF-8 rather than vis-encoded.
-  return { ...env, LC_CTYPE: "UTF-8", LC_TIME: "C" };
-}
-
-export const execText: Exec = (file, args, timeout) =>
-  new Promise((resolve, reject) => {
-    const child = execFile(
-      file,
-      [...args],
-      {
-        encoding: "utf8",
-        timeout,
-        windowsHide: true,
-        maxBuffer: 32 * 1024 * 1024,
-        env: commandEnvironment(),
-      },
-      (error, stdout, stderr) => {
-        if (!error) resolve({ status: 0, stdout, stderr, pid: child.pid });
-        else if (typeof error.code === "number" && !error.killed && !error.signal)
-          resolve({ status: error.code, stdout, stderr, pid: child.pid });
-        else reject(error);
-      },
-    );
-    child.stdin?.end();
-  });
 
 async function runResult(exec: Exec, file: string, args: readonly string[], timeout: number) {
   const result = await exec(file, args, timeout);

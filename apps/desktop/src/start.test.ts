@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { EventEmitter } from "node:events";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runInNewContext } from "node:vm";
@@ -18,9 +18,9 @@ vi.mock("./interrupts.js", () => ({
   createInterruptNotifications: () => ({ dispose: vi.fn() }),
 }));
 vi.mock("./outage.js", () => ({ createOutageNotifications: () => ({ dispose: vi.fn() }) }));
-vi.mock("./host-tree.js", () => ({
-  stopHostTree: (_pid: number, stop: () => Promise<void>) => stop(),
-}));
+const smokeModules = readdirSync(new URL(".", import.meta.url))
+  .filter((name) => /^smoke-.*\.ts$/.test(name) && !name.endsWith(".test.ts"))
+  .map((name) => `./${name.replace(/\.ts$/, ".js")}`);
 
 function harness() {
   const directory = mkdtempSync(join(tmpdir(), "spi-start-"));
@@ -77,14 +77,16 @@ beforeEach(() => {
   const current = harness();
   electron.current = current;
   vi.doMock("electron", () => current);
+  vi.doMock("./host-tree.js", () => ({
+    stopHostTree: (_pid: number, stop: () => Promise<void>) => stop(),
+  }));
   process.argv = ["electron", "."];
 });
 afterEach(() => {
   process.argv = originalArgv;
   vi.useRealTimers();
   vi.restoreAllMocks();
-  for (const module of ["./smoke-run.js", "./smoke-messages.js", "./smoke-report.js"])
-    vi.doUnmock(module);
+  for (const module of smokeModules) vi.doUnmock(module);
   rmSync(electron.current?.directory ?? "", { recursive: true, force: true });
 });
 
@@ -135,8 +137,9 @@ it("starts production wiring without loading smoke or registering proof:message"
   const loadSmoke = vi.fn(() => {
     throw new Error("Production loaded smoke");
   });
-  for (const module of ["./smoke-run.js", "./smoke-messages.js", "./smoke-report.js"])
-    vi.doMock(module, loadSmoke);
+  expect(smokeModules).toEqual(expect.arrayContaining(["./smoke-run.js", "./smoke-listeners.js"]));
+  for (const module of smokeModules) vi.doMock(module, loadSmoke);
+  vi.doUnmock("./host-tree.js");
   await import("./index.js");
   await vi.waitFor(() => expect(electron.current?.utilityProcess.fork).toHaveBeenCalledOnce());
   expect(electron.current?.ipcMain.listenerCount("proof:message")).toBe(0);

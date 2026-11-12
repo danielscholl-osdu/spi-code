@@ -1,13 +1,50 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { execFile } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
-import { type Exec, execText } from "./smoke-listeners.js";
 
 export const DESCENDANT_CAPTURE_MS = 1000;
 export const DESCENDANT_REAP_MS = 500;
 /** Capture, the host's 2 s grace and 1 s kill wait, then the reap's own wait; the reap never extends it. */
 export const QUIT_BUDGET_MS = 4500;
+
+export interface ExecResult {
+  status: number;
+  stdout: string;
+  stderr: string;
+  pid?: number | undefined;
+}
+
+export type Exec = (file: string, args: readonly string[], timeout: number) => Promise<ExecResult>;
+
+function commandEnvironment(): NodeJS.ProcessEnv {
+  const { LC_ALL: _, ...env } = process.env;
+  // English lstart day and month names, with command text kept as UTF-8 rather than vis-encoded.
+  return { ...env, LC_CTYPE: "UTF-8", LC_TIME: "C" };
+}
+
+export const execText: Exec = (file, args, timeout) =>
+  new Promise((resolve, reject) => {
+    const child = execFile(
+      file,
+      [...args],
+      {
+        encoding: "utf8",
+        timeout,
+        windowsHide: true,
+        maxBuffer: 32 * 1024 * 1024,
+        env: commandEnvironment(),
+      },
+      (error, stdout, stderr) => {
+        if (!error) resolve({ status: 0, stdout, stderr, pid: child.pid });
+        else if (typeof error.code === "number" && !error.killed && !error.signal)
+          resolve({ status: error.code, stdout, stderr, pid: child.pid });
+        else reject(error);
+      },
+    );
+    child.stdin?.end();
+  });
 
 /** A pid with its start time, so a pid reused by an unrelated process never matches. */
 export interface ProcessIdentity {
