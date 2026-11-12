@@ -144,12 +144,12 @@ describe("horizon cards on snapshot-busy", () => {
       "gate1:unit",
     ]);
     expect(surfaced.briefing.horizon.counts).toEqual({
-      needYouCards: 4,
+      needYouCards: 5,
       toWatchCards: 0,
-      surfaceItems: 10,
-      text: "4 need you before they land",
+      surfaceItems: 11,
+      text: "5 need you before they land",
     });
-    expect(upstreamReading(surfaced).headline).toMatch(/ 10 need you first\.$/);
+    expect(upstreamReading(surfaced).headline).toMatch(/ 11 need you first\.$/);
   });
 
   it("marks a held card that only its sync PR surfaces", () => {

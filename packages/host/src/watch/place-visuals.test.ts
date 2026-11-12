@@ -178,11 +178,18 @@ describe("Today place micro-visuals (PS-03, PS-09)", () => {
       count: services.size,
       text: `⇣ ${services.size} on the horizon`,
     });
+    const upstreamServices = new Set([
+      ...services,
+      ...(snapshot.briefing.ambient?.inProgress.lines
+        .filter((line) => line.origin === "upstream")
+        .flatMap((line) => (line.service ? [line.service] : [])) ?? []),
+    ]);
+    expect(upstreamServices.has("crs-catalog")).toBe(true);
     for (const slot of pips.slots.filter((slot) => slot.origin === "upstream")) {
-      expect(services.has(slot.service)).toBe(true);
+      expect(upstreamServices.has(slot.service)).toBe(true);
     }
     for (const slot of pips.slots.filter((slot) => slot.state === "waiting")) {
-      expect(slot.origin).toBe(services.has(slot.service) ? "upstream" : "system");
+      expect(slot.origin).toBe(upstreamServices.has(slot.service) ? "upstream" : "system");
     }
   });
 
@@ -204,7 +211,7 @@ describe("Today place micro-visuals (PS-03, PS-09)", () => {
       state: "waiting",
       origin: "upstream",
     });
-    expect(pips.horizon?.count).toBe(3);
+    expect(pips.horizon?.count).toBe(4);
   });
 
   it("keeps an in-system person-wait in system colour even with an upstream decision on that fork", () => {

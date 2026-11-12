@@ -99,14 +99,31 @@ describe("In motion and Can wait draw core's fields only", () => {
     );
   });
 
-  it("draws nothing on the busy morning, whose In progress run and Can wait are empty", async () => {
+  it("draws nothing when In progress and Can wait are explicitly empty", async () => {
     const body = busy();
+    if (!body.briefing.ambient) throw new Error("busy carries no Ambient split");
+    body.briefing.ambient.inProgress = { items: 0, text: "0 in 0", lines: [] };
+    body.briefing.canWait = { items: [], chips: [] };
     expect(body.briefing.ambient?.inProgress.lines).toEqual([]);
     expect(body.briefing.canWait?.chips).toEqual([]);
     const { container } = await mount(body);
     expect(container.querySelector('[data-today-slot="motion"]')).toBeNull();
     expect(container.querySelector(".today-motion")).toBeNull();
     expect(container.textContent).not.toMatch(/In motion|Can wait/);
+  });
+
+  it("draws busy's one In progress line beside its full band, without Can wait", async () => {
+    const body = busy();
+    const lines = body.briefing.ambient?.inProgress.lines;
+    expect(lines).toHaveLength(1);
+    const { container } = await mount(body);
+    expect(container.querySelector('[data-today-slot="band"]')).not.toBeNull();
+    const slot = container.querySelector('[data-today-slot="motion"]');
+    expect(slot?.querySelectorAll(".today-motion-line")).toHaveLength(1);
+    expect(slot?.querySelector(".today-motion-line")?.getAttribute("data-line-id")).toBe(
+      lines?.[0]?.id,
+    );
+    expect(slot?.querySelector(".today-canwait")).toBeNull();
   });
 
   it("draws busy's lines exactly as core words them, without re-filtering or recounting", async () => {
