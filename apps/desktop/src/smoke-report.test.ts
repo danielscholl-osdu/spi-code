@@ -367,7 +367,10 @@ function morningShot(
         ? "GitHub issues and PRs read failed at 08:02; items from it may be missing. Evidence ›"
         : "",
     ],
-    geometry: geometry("today", viewportWidth),
+    geometry: [
+      ...geometry("today", viewportWidth),
+      { rule: "release-platform", platform: rect(24, 1000, 676, 40), versions: 0, library: null },
+    ],
     morning: {
       morning: surface.morning,
       fixture: MORNING_FIXTURES[surface.morning],
@@ -1124,6 +1127,11 @@ it("fails a morning without its fixture, decision sections, headline, Detail or 
       "Unexpected Detail",
     ],
     ["today-bad", () => ({ geometry: [] }), "Missing geometry"],
+    [
+      "today-busy",
+      (shot) => ({ geometry: shot.geometry.filter(({ rule }) => rule !== "release-platform") }),
+      "Missing geometry",
+    ],
   ];
   for (const [surface, change, message] of cases)
     expect(() =>

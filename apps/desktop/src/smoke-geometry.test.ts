@@ -11,6 +11,62 @@ const rect = (x: number, y: number, width: number, height: number) => ({
   height,
 });
 
+const releasePlatform: SmokeGeometry = {
+  rule: "release-platform",
+  platform: rect(24, 1000, 676, 80),
+  versions: 2,
+  library: {
+    bounds: rect(120, 1020, 400, 50),
+    bar: rect(210, 1020, 170, 10),
+    segments: [rect(210, 1020, 80, 10), rect(292, 1020, 88, 10)],
+    counts: rect(210, 1034, 200, 32),
+    text: [rect(210, 1034, 190, 14), rect(210, 1050, 100, 14)],
+  },
+};
+
+it("accepts library counts beside the bar or wrapped below it, and an absent distribution", () => {
+  expect(() => assertSmokeGeometry(releasePlatform)).not.toThrow();
+  expect(() =>
+    assertSmokeGeometry({
+      ...releasePlatform,
+      library: {
+        ...releasePlatform.library,
+        counts: rect(388, 1020, 120, 16),
+        text: [rect(388, 1020, 120, 14)],
+      },
+    }),
+  ).not.toThrow();
+  expect(() =>
+    assertSmokeGeometry({ ...releasePlatform, versions: 0, library: null }),
+  ).not.toThrow();
+});
+
+it("rejects overlapping library counts, overflowing segments and clipped count text", () => {
+  for (const change of [
+    { counts: rect(370, 1020, 120, 16), text: [rect(370, 1020, 120, 14)] },
+    { segments: [rect(210, 1020, 80, 10), rect(292, 1020, 100, 10)] },
+    { bounds: rect(120, 1020, 250, 50) },
+    { text: [rect(210, 1034, 201, 14)] },
+    { bounds: rect(120, 1020, 600, 50) },
+    { counts: rect(210, 1000, 120, 16), text: [rect(210, 1000, 120, 14)] },
+  ])
+    expect(() =>
+      assertSmokeGeometry({
+        ...releasePlatform,
+        library: { ...releasePlatform.library, ...change },
+      }),
+    ).toThrow(/Library/);
+});
+
+it("rejects missing library geometry when the fixture carries a distribution", () => {
+  for (const library of [
+    null,
+    { ...releasePlatform.library, segments: [] },
+    { ...releasePlatform.library, text: [] },
+  ])
+    expect(() => assertSmokeGeometry({ ...releasePlatform, library })).toThrow();
+});
+
 const related: SmokeGeometry = {
   rule: "related",
   panel: rect(1160, 75, 280, 725),

@@ -147,18 +147,24 @@
   background: var(--text-muted);
 }
 .today-release-library {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
   flex: 1 1 260px;
   align-items: center;
   gap: 6px;
   min-width: 0;
 }
 .today-release-library .kit-segmented {
-  flex: 1;
-  min-width: 0;
+  flex-wrap: wrap;
+  gap: 4px 8px;
 }
 .today-release-library .kit-bar {
+  flex: 1 0 100px;
   max-width: 170px;
+}
+.today-release-library .kit-bar-figure {
+  flex: 0 1 auto;
+  white-space: normal;
 }
 .today-release-library .kit-segment {
   background: var(--accent);

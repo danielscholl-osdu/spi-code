@@ -17,6 +17,18 @@ export type SmokeGeometry =
       scroll: { width: number; height: number };
       panes: SmokeRect[];
     }
+  | {
+      rule: "release-platform";
+      platform: SmokeRect;
+      versions: number;
+      library: {
+        bounds: SmokeRect;
+        bar: SmokeRect;
+        segments: SmokeRect[];
+        counts: SmokeRect;
+        text: SmokeRect[];
+      } | null;
+    }
   | { rule: "related"; panel: SmokeRect; label: SmokeRect; labelText: string; values: SmokeRect[] }
   | {
       rule: "panes";
@@ -163,6 +175,44 @@ export function assertSmokeGeometry(
 ): asserts value is SmokeGeometry {
   record(value);
   switch (value.rule) {
+    case "release-platform": {
+      rect(value.platform);
+      assert(
+        Number.isInteger(value.versions) && Number(value.versions) >= 0,
+        "Library versions missing",
+      );
+      if (value.versions === 0) {
+        assert.equal(value.library, null, "Unexpected library distribution");
+        break;
+      }
+      record(value.library);
+      const { bounds, bar, segments, counts, text } = value.library;
+      rect(bounds);
+      rect(bar);
+      rect(counts);
+      const evidence = JSON.stringify(value);
+      assert(contains(value.platform, bounds), `Library outside Platform row: ${evidence}`);
+      assert(contains(bounds, bar) && contains(bounds, counts), `Library clipped: ${evidence}`);
+      assert(
+        Array.isArray(segments) && segments.length === value.versions,
+        "Library segments missing",
+      );
+      for (const segment of segments) {
+        rect(segment);
+        assert(contains(bar, segment), `Library segment outside bar: ${evidence}`);
+      }
+      assert(Array.isArray(text) && text.length > 0, "Library counts missing");
+      for (const fragment of text) {
+        rect(fragment);
+        assert(contains(counts, fragment), `Library counts clipped: ${evidence}`);
+      }
+      assert(
+        counts.y >= bar.y + bar.height ||
+          (counts.x >= bar.x + bar.width && counts.y + counts.height > bar.y),
+        `Library counts must sit beside or below bar: ${evidence}`,
+      );
+      break;
+    }
     case "sweep-visible": {
       rect(value.viewport);
       rect(value.panel);

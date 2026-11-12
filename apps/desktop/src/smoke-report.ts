@@ -463,12 +463,14 @@ export function assertSmokeViews(value: unknown): asserts value is SmokeShot[] {
         assertShotImage(shot, surface.id, viewportWidth, appearance);
         assertMorningEvidence(surface, shot as Parameters<typeof assertMorningEvidence>[1]);
         assert(
-          Array.isArray(shot.geometry) && shot.geometry.length === 1,
+          Array.isArray(shot.geometry) && shot.geometry.length === 2,
           `Missing geometry: ${surface.id}/${viewportWidth}/${appearance}`,
         );
-        const [geometry] = shot.geometry;
-        assertSmokeGeometry(geometry, viewportWidth);
-        assert.equal(geometry.rule, "window", `Wrong geometry rule: ${surface.id}`);
+        for (const [index, rule] of ["window", "release-platform"].entries()) {
+          const geometry: unknown = shot.geometry[index];
+          assertSmokeGeometry(geometry, viewportWidth);
+          assert.equal(geometry.rule, rule, `Wrong geometry rule: ${surface.id}`);
+        }
       }
     }
   }

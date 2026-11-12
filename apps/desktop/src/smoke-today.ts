@@ -140,7 +140,28 @@ export async function captureMornings(
             'document.querySelector("aside[aria-label=Detail] .detail-title").textContent.trim()',
           );
         }
-        const geometry = [await context.measure("window")];
+        const platformGeometry: SmokeGeometry = await window.webContents.executeJavaScript(`(() => {
+          const bounds = element => {
+            const { x, y, width, height } = element.getBoundingClientRect();
+            return { x, y, width, height };
+          };
+          const platform = document.querySelector(".today-release-platform");
+          const library = platform.querySelector(".today-release-library");
+          const counts = library?.querySelector(".kit-bar-figure");
+          const range = document.createRange();
+          if (counts) range.selectNodeContents(counts);
+          return {
+            rule: "release-platform", platform: bounds(platform),
+            versions: ${snapshot.releases.today?.platform.coreLibAzure.filter(({ count }) => count > 0).length ?? 0},
+            library: library ? {
+              bounds: bounds(library), bar: bounds(library.querySelector(".kit-bar")),
+              segments: [...library.querySelectorAll(".kit-segment")].map(bounds),
+              counts: bounds(counts),
+              text: [...range.getClientRects()].map(({ x, y, width, height }) => ({ x, y, width, height })),
+            } : null,
+          };
+        })()`);
+        const geometry = [await context.measure("window"), platformGeometry];
         const [headline, ...qualifiers]: string[] = await window.webContents.executeJavaScript(`[
           document.querySelector(".today-headline")?.textContent.trim() ?? "",
           document.getElementById(document.querySelector("[data-sweep-line]")?.getAttribute("aria-labelledby") ?? "")?.textContent ?? "",
