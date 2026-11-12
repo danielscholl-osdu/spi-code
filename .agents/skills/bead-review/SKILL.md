@@ -32,7 +32,7 @@ In T3 Code, start the reviewer with `delegate_task` (`role: "review"`) on a mode
 The reviewer records a pass only when no `blocker` or `should` finding remains open. Run this in the bead's worktree, against the exact diff that was reviewed:
 
 ```bash
-patch=$(git diff main...HEAD | git patch-id --verbatim | awk '{print $1}')
+patch=$(scripts/review-patch-id)
 bd update <id> --set-metadata review.verdict=pass \
                --set-metadata review.patch_id=$patch \
                --set-metadata review.provider=<anthropic|openai|google|panel> \
@@ -42,4 +42,4 @@ bd comment <id> "Review pass, <model>, round <n>: <one-line summary; follow-ups 
 
 Without a pass, record the findings as a comment and leave the metadata alone.
 
-A clean rebase onto `main` keeps the patch-id and so keeps the review valid. Any change to the diff voids it, and `scripts/land` will ask for a new round.
+`scripts/review-patch-id` covers the lines the bead adds and removes, without the context around them, and leaves out the watch fixtures that `scripts/watch-snapshot.ts` writes. A rebase, a neighbour's edit beside the bead's lines, and a fixture regeneration all keep the review valid; `scripts/check` proves the fixtures at landing. Any change to the bead's own lines voids it, and `scripts/land` will ask for a new round.

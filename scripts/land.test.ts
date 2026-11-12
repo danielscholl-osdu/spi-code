@@ -31,6 +31,7 @@ const assignee = "fixture-builder";
 // Set this to a mutated copy of scripts/land to confirm a focused case notices the mutation.
 const landSource =
   process.env.LAND_FIXTURE_SCRIPT ?? fileURLToPath(new URL("./land", import.meta.url));
+const patchIdSource = fileURLToPath(new URL("./review-patch-id", import.meta.url));
 const directories: string[] = [];
 let template = "";
 let base = "";
@@ -161,6 +162,7 @@ function buildTemplate() {
   git(root, "init", "--quiet", "--template=", "-b", "main");
   mkdirSync(join(root, "scripts"));
   copyFileSync(landSource, join(root, "scripts/land"));
+  copyFileSync(patchIdSource, join(root, "scripts/review-patch-id"));
   writeFileSync(
     join(root, "scripts/check"),
     '#!/bin/sh\necho ran >> "$LAND_FIXTURE_STATE/checks.log"\n',
@@ -264,11 +266,6 @@ function fixture({ origin = false } = {}) {
     base,
     branch,
     originUrl,
-    commit(message: string) {
-      writeFileSync(join(worktree, "change.md"), `Change ${++changes}\n`);
-      git(worktree, "commit", "--quiet", "--all", "-m", `${message}\nBead: ${id}`);
-      return git(worktree, "rev-parse", "HEAD");
-    },
     main: () => git(root, "rev-parse", "main"),
     originMain: () => git(directory, "--git-dir", remote, "rev-parse", "main"),
     landedCommits: () => Number(git(root, "rev-list", "--count", `${base}..main`)),
@@ -278,10 +275,34 @@ function fixture({ origin = false } = {}) {
       const bead = readBead();
       writeBead({ ...bead, labels: [], metadata: { ...bead.metadata, ...metadata } });
     },
-    patchId() {
+    commit(message: string) {
+      writeFileSync(join(worktree, "change.md"), `Change ${++changes}\n`);
+      git(worktree, "commit", "--quiet", "--all", "-m", `${message}\nBead: ${id}`);
+      return git(worktree, "rev-parse", "HEAD");
+    },
+    // Commits one file on the bead branch, or on main when the neighbour is another landing.
+    write(where: "bead" | "main", path: string, contents: string) {
+      const cwd = where === "bead" ? worktree : root;
+      mkdirSync(join(cwd, path, ".."), { recursive: true });
+      writeFileSync(join(cwd, path), contents);
+      git(cwd, "add", path);
+      git(cwd, "commit", "--quiet", "-m", `docs: write ${path}\nBead: ${id}`);
+      return git(cwd, "rev-parse", "HEAD");
+    },
+    rebase: () => git(worktree, "rebase", "--quiet", "main"),
+    // The id bead-review records, from the bead's worktree.
+    patchId: () =>
+      execFileSync("bash", ["scripts/review-patch-id"], {
+        cwd: worktree,
+        encoding: "utf8",
+        env: hermeticEnv(directory),
+      }).trim(),
+    // The id reviews carried before scripts/review-patch-id: the whole diff, context included.
+    wholePatchId() {
       const env = hermeticEnv(directory);
       const head = git(worktree, "rev-parse", "HEAD");
-      const diff = execFileSync("git", ["-C", root, "diff", base, head], { env });
+      const from = git(worktree, "merge-base", "main", head);
+      const diff = execFileSync("git", ["-C", root, "diff", from, head], { env });
       const [patch = ""] = execFileSync("git", ["-C", root, "patch-id", "--verbatim"], {
         input: diff,
         encoding: "utf8",
@@ -617,6 +638,92 @@ describe("landing gates", () => {
         repo.land(),
         `the diff changed since review (${current} vs ${reviewed}); review again`,
       );
+    },
+    testTimeout,
+  );
+
+  const lines = (changed: Record<number, string> = {}) =>
+    Array.from({ length: 9 }, (_, index) => `${changed[index + 1] ?? `line ${index + 1}`}\n`).join(
+      "",
+    );
+  const passed = (patch: string) => ({
+    ...anthropicBuild,
+    "review.verdict": "pass",
+    "review.provider": "openai",
+    "review.patch_id": patch,
+  });
+
+  it(
+    "keeps a review when main gains an edit beside the bead's lines",
+    () => {
+      const repo = fixture();
+      repo.write("main", "notes.md", lines());
+      repo.rebase();
+      repo.write("bead", "notes.md", lines({ 5: "the bead's line" }));
+      const reviewedWhole = repo.wholePatchId();
+      repo.review(passed(repo.patchId()));
+      repo.write("main", "notes.md", lines({ 3: "a neighbour's line" }));
+
+      const result = repo.land();
+
+      expect(result.status, result.stdout + result.stderr).toBe(0);
+      expect(repo.bead().status).toBe("closed");
+      expect(repo.wholePatchId()).not.toBe(reviewedWhole);
+    },
+    testTimeout,
+  );
+
+  it(
+    "keeps a review when only a generated watch fixture changes, and still runs the checks",
+    () => {
+      const repo = fixture();
+      repo.commit("docs: update fixture");
+      repo.review(passed(repo.patchId()));
+      const head = repo.write("bead", "fixtures/watch/snapshot-calm.json", "{}\n");
+
+      expectLanded(repo, repo.land(), head);
+      expect(repo.checkRuns()).toBe(1);
+    },
+    testTimeout,
+  );
+
+  it(
+    "refuses a review after a fixture no test regenerates changes",
+    () => {
+      const repo = fixture();
+      repo.commit("docs: update fixture");
+      const reviewed = repo.patchId();
+      repo.review(passed(reviewed));
+      repo.write("bead", "fixtures/watch/inspect-stations-legal-59d6895.json", "{}\n");
+
+      expectRefused(repo, repo.land(), `vs ${reviewed}); review again`);
+    },
+    testTimeout,
+  );
+
+  it(
+    "lands a pass recorded against the whole diff, as reviews were before review-patch-id",
+    () => {
+      const repo = fixture();
+      repo.write("main", "notes.md", lines());
+      repo.rebase();
+      const head = repo.write("bead", "notes.md", lines({ 5: "the bead's line" }));
+      expect(repo.wholePatchId()).not.toBe(repo.patchId());
+      repo.review(passed(repo.wholePatchId()));
+
+      expectLanded(repo, repo.land(), head);
+    },
+    testTimeout,
+  );
+
+  it(
+    "refuses a pass recorded with no id",
+    () => {
+      const repo = fixture();
+      repo.commit("docs: update fixture");
+      repo.review(passed(""));
+
+      expectRefused(repo, repo.land(), "review again");
     },
     testTimeout,
   );
