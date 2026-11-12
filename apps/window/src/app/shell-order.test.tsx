@@ -1,32 +1,29 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { ViewSnapshotSchema } from "@spi-code/contracts";
+import { readFileSync } from "node:fs";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { expect, it, vi } from "vitest";
-import recorded from "../../../../fixtures/watch/snapshot-1106.json?raw";
+import { expect, it } from "vitest";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
+import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import { Shell } from "./Shell.js";
 
+const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
+
 it("opens a tray destination the preload held from before the renderer subscribed", async () => {
-  const previous = window.spi;
   const previousWatch = watchStore.getState();
   const previousSelection = selectionStore.getState();
-  const body = ViewSnapshotSchema.parse(JSON.parse(recorded));
+  const body = loadFixture("snapshot-1106.json");
   watchStore.setState({ snapshot: { cursor: body.cursor, body }, setup: null });
   selectionStore.setState({ selected: null, open: false, tab: "detail" });
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
-    postMessage: vi.fn(),
-    onMessage: () => () => {},
+  const harness = installSpi({
     onNavigate: (listener) => {
       listener({ to: "evidence" });
       return () => {};
     },
-  };
+  });
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -43,6 +40,6 @@ it("opens a tray destination the preload held from before the renderer subscribe
     container.remove();
     watchStore.setState(previousWatch, true);
     selectionStore.setState(previousSelection, true);
-    window.spi = previous;
+    harness.restore();
   }
 });
