@@ -26,13 +26,13 @@ export type TodayBlock = (typeof TODAY_BLOCKS)[number];
 
 const required: Readonly<Record<Morning, readonly TodayBlock[]>> = {
   calm: ["head", "horizon", "places", "releases", "motion"],
-  busy: ["head", "band", "horizon", "places", "releases"],
+  busy: ["head", "band", "horizon", "places", "releases", "motion"],
   bad: ["head", "caveat", "band", "horizon", "places", "releases"],
 };
 const absent: Readonly<Record<Morning, readonly TodayBlock[]>> = {
   calm: ["caveat", "band"],
   busy: ["caveat"],
-  bad: [],
+  bad: ["motion"],
 };
 const headlines: Readonly<Record<Morning, RegExp>> = {
   calm: /^Nothing urgent needs you\./,

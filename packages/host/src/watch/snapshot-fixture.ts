@@ -616,7 +616,7 @@ const MORNING_CHANGELOGS: readonly Readonly<Record<string, readonly string[]>>[]
 ]);
 
 /** Seven upstream decisions in four themes, releases and alerts across a fully read fleet. */
-export function busyInput(): WatchInput {
+function busyBaseInput(): WatchInput {
   const input = morningInput(7);
   for (const [service, value] of [
     ["indexer", "os-core-common 8.5.0"],
@@ -718,9 +718,33 @@ export function busyInput(): WatchInput {
   };
 }
 
+/** The full band beside an ordinary sync PR waiting for review. */
+export function busyInput(): WatchInput {
+  const input = busyBaseInput();
+  const repo = morningRepo(input, "crs-catalog");
+  repo.prs.push(morningPr(repo, 54, "sync/upstream-morning", "chore: sync upstream guidance"));
+  return {
+    ...input,
+    attention: {
+      ...input.attention,
+      leadTimeMs: LEAD_TIME_MS,
+      previous: [
+        ...(input.attention?.previous ?? []),
+        {
+          id: "gate1:crs-catalog",
+          ids: ["gate1:crs-catalog"],
+          rung: 1,
+          attention: "ambient",
+          owned: false,
+        },
+      ],
+    },
+  };
+}
+
 /** Retained GitHub figures with a new failed read; the other areas still read successfully. */
 export function badInput(): WatchInput {
-  const input = busyInput();
+  const input = busyBaseInput();
   failedPr(input, "entitlements", 121, "Java Build", "Build");
   const legalPr = failedPr(input, "legal", 701, "Java Build", "Build");
   legalPr.head = "sync/upstream-morning";

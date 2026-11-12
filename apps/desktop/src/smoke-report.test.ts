@@ -5,6 +5,8 @@ import { readFileSync } from "node:fs";
 import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { expect, it } from "vitest";
 import { APPENDIX_A_TOOLS } from "../../../packages/host/src/tools/tool-names.js";
+import { projectWatch } from "../../../packages/host/src/watch/project.js";
+import { busyInput } from "../../../packages/host/src/watch/snapshot-fixture.js";
 import type { SmokeGeometry } from "./smoke-geometry.js";
 import {
   MORNING_FIXTURES,
@@ -343,6 +345,7 @@ const morningBlocks: Record<MorningSurface["morning"], MorningEvidence["blocks"]
     { name: "horizon", top: 592, height: 374 },
     { name: "places", top: 988, height: 221 },
     { name: "releases", top: 1230, height: 271 },
+    { name: "motion", top: 1230, height: 122 },
   ],
   bad: [
     { name: "head", top: 108, height: 77 },
@@ -1153,6 +1156,38 @@ it("fails a capture that stops at window height or leaves a block outside the im
     (shot) => evidence(shot, { blocks: [...morningBlocks.busy].reverse() }),
   );
   expect(() => assertSmokeViews(reordered)).toThrow("Blocks out of order: today-busy/1440");
+});
+
+it("accepts busy's projected In motion beside its full band", () => {
+  const snapshot = projectWatch(busyInput());
+  const inMotion =
+    (snapshot.briefing.ambient?.inProgress.lines.length ?? 0) > 0 ||
+    (snapshot.briefing.canWait?.chips.length ?? 0) > 0;
+  const projected = withMorning(
+    (shot) => shot.surface === "today-busy" || shot.surface === "today-busy-detail",
+    (shot) =>
+      evidence(shot, {
+        blocks: morningBlocks.busy.filter(({ name }) => name !== "motion" || inMotion),
+      }),
+  );
+  expect(() => assertSmokeViews(projected)).not.toThrow();
+});
+
+it("requires In motion on busy and rejects it on bad", () => {
+  const noMotion = withMorning(
+    (shot) => shot.surface === "today-busy",
+    (shot) =>
+      evidence(shot, { blocks: morningBlocks.busy.filter(({ name }) => name !== "motion") }),
+  );
+  expect(() => assertSmokeViews(noMotion)).toThrow("Missing block motion: today-busy/1440");
+  const badMotion = withMorning(
+    (shot) => shot.surface === "today-bad",
+    (shot) =>
+      evidence(shot, {
+        blocks: [...morningBlocks.bad, { name: "motion", top: 1486, height: 122 }],
+      }),
+  );
+  expect(() => assertSmokeViews(badMotion)).toThrow("Unexpected block motion: today-bad/1440");
 });
 
 it.each(["calm", "busy", "bad"] as const)("fails the %s morning without its horizon", (morning) => {

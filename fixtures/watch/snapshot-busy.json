@@ -168,7 +168,7 @@
         "owned": false
       }
     ],
-    "more": 11,
+    "more": 12,
     "rest": [
       {
         "id": "radar:storage",
@@ -383,6 +383,29 @@
           {
             "label": "PR #60",
             "url": "https://github.com/Azure/osdu-spi-unit/pull/60"
+          }
+        ],
+        "age": "1d 2h",
+        "attention": "ambient",
+        "owned": false
+      },
+      {
+        "id": "gate1:crs-catalog",
+        "ids": ["gate1:crs-catalog"],
+        "origin": "upstream",
+        "rung": 1,
+        "cls": "GATE",
+        "scope": "crs-catalog",
+        "title": "Sync PR #54 waits for review",
+        "sub": "1d 2h",
+        "cause": "Sync PR #54 waits for review.",
+        "effect": "Nothing else waits on it.",
+        "next": "Review the sync PR on GitHub and merge it.",
+        "verb": "Review on GitHub",
+        "evidence": [
+          {
+            "label": "PR #54",
+            "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/54"
           }
         ],
         "age": "1d 2h",
@@ -753,7 +776,7 @@
     "flow": {
       "mode": "flight",
       "headline": "1 gate waits on you: review indexer-queue.",
-      "sub": "3 sync PRs are prepared and wait.",
+      "sub": "4 sync PRs are prepared and wait.",
       "tiles": [
         {
           "label": "On main",
@@ -1032,24 +1055,24 @@
           },
           "line": [
             {
-              "text": "merged",
-              "tone": "ok"
+              "text": "prepared",
+              "tone": "neutral"
             },
             {
-              "text": "green",
-              "tone": "ok"
+              "text": "·",
+              "tone": "neutral"
             },
             {
-              "text": "merged",
-              "tone": "ok"
+              "text": "·",
+              "tone": "neutral"
             },
             {
-              "text": "waiting",
+              "text": "·",
               "tone": "neutral"
             }
           ],
           "next": {
-            "text": "main run · lane",
+            "text": "no tracking issue read for its sync PR",
             "tone": "neutral",
             "strong": false
           },
@@ -1057,7 +1080,8 @@
             "title": "crs-catalog · pilot",
             "lines": [
               "fork_upstream carries every upstream commit.",
-              "Line: Sync PR merged · Cascade green · Sync to Main merged · Main run waiting."
+              "Line: Sync PR prepared · Cascade · · Sync to Main · · Main run ·.",
+              "Waits: no tracking issue read for its sync PR."
             ]
           }
         },
@@ -1396,7 +1420,7 @@
         "lines": [
           {
             "label": "Pilot",
-            "text": "partition, entitlements, file, search, indexer-queue, crs-catalog"
+            "text": "partition, crs-catalog, entitlements, file, search, indexer-queue"
           },
           {
             "label": "Wave 1",
@@ -1412,7 +1436,7 @@
       },
       "schedule": {
         "title": "At 11-07 00:00 if you do nothing",
-        "text": "Sync Upstream opens 3 sync PRs and a sync-failed issue on legal. They wait for you; SPI Code adopts them into the plan. 3 prepared PRs update in place."
+        "text": "Sync Upstream opens 3 sync PRs and a sync-failed issue on legal. They wait for you; SPI Code adopts them into the plan. 4 prepared PRs update in place."
       },
       "next": {
         "title": "Prepare the pilot: open sync PRs on partition",
@@ -2288,7 +2312,7 @@
               "weight": "quiet"
             }
           ],
-          "note": "Not shown here: 1 pipeline PR, on Flow. The inspector lists every item."
+          "note": "Not shown here: 2 pipeline PRs, on Flow. The inspector lists every item."
         },
         {
           "id": "repo:crs-conversion",
@@ -2418,8 +2442,8 @@
             },
             {
               "service": "crs-catalog",
-              "state": "empty",
-              "text": "Sync Upstream on crs-catalog ran and found nothing new upstream."
+              "state": "unknown",
+              "text": "Sync Upstream on crs-catalog ran, effect unknown."
             },
             {
               "service": "crs-conversion",
@@ -2527,6 +2551,7 @@
           "gate1:workflow",
           "gate2:indexer-queue",
           "gate1:unit",
+          "gate1:crs-catalog",
           "labels:schema"
         ],
         "fresh": {
@@ -2596,8 +2621,9 @@
             },
             {
               "service": "crs-catalog",
-              "state": "empty",
-              "text": "crs-catalog: upstream: 0 behind; sync: clean; cascade: idle; main: idle; release: v1.4.0; lane: last run ok"
+              "state": "waiting",
+              "origin": "upstream",
+              "text": "crs-catalog: sync: PR #54"
             },
             {
               "service": "crs-conversion",
@@ -2958,9 +2984,29 @@
         ]
       },
       "inProgress": {
-        "items": 0,
-        "text": "0 in 0",
-        "lines": []
+        "items": 1,
+        "text": "1 in 1",
+        "lines": [
+          {
+            "id": "ambient:gate1:crs-catalog",
+            "itemIds": ["gate1:crs-catalog"],
+            "count": 1,
+            "service": "crs-catalog",
+            "station": "sync",
+            "pr": {
+              "number": 54,
+              "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/54",
+              "inspect": "gate1:crs-catalog"
+            },
+            "state": {
+              "text": "review",
+              "tone": "warn"
+            },
+            "age": "1d 2h",
+            "origin": "upstream",
+            "text": "Sync PR #54 waits for review. 1d 2h. Review the sync PR on GitHub and merge it."
+          }
+        ]
       }
     },
     "canWait": {
@@ -3132,7 +3178,7 @@
             "group": "On the line"
           }
         ],
-        "folded": "2 more items: unit sync PR #60 waits for review, schema label configuration changed in the template.",
+        "folded": "3 more items: unit sync PR #60 waits for review, crs-catalog sync PR #54 waits for review, schema label configuration changed in the template.",
         "itemIds": [
           "sync-run:storage",
           "stack:lanes",
@@ -3140,6 +3186,7 @@
           "gate1:workflow",
           "gate2:indexer-queue",
           "gate1:unit",
+          "gate1:crs-catalog",
           "labels:schema"
         ]
       }
@@ -4479,7 +4526,7 @@
         "id": "crs-catalog"
       },
       "content": {
-        "headline": "Template update PR #511 is open.",
+        "headline": "Sync PR #54 waits for review.",
         "tiles": [
           {
             "label": "Upstream",
@@ -4488,8 +4535,8 @@
           },
           {
             "label": "Line",
-            "value": "Clear",
-            "counts": "sync PR, cascade and sync to main idle"
+            "value": "Waiting",
+            "counts": "sync PR · PR #54 waits for review"
           },
           {
             "label": "Release",
@@ -4498,6 +4545,30 @@
           }
         ],
         "items": [
+          {
+            "id": "gate1:crs-catalog",
+            "ids": ["gate1:crs-catalog"],
+            "origin": "upstream",
+            "rung": 1,
+            "cls": "GATE",
+            "scope": "crs-catalog",
+            "title": "Sync PR #54 waits for review",
+            "sub": "1d 2h",
+            "cause": "Sync PR #54 waits for review.",
+            "effect": "Nothing else waits on it.",
+            "next": "Review the sync PR on GitHub and merge it.",
+            "verb": "Review on GitHub",
+            "evidence": [
+              {
+                "label": "PR #54",
+                "url": "https://github.com/Azure/osdu-spi-crs-catalog/pull/54"
+              }
+            ],
+            "age": "1d 2h",
+            "attention": "ambient",
+            "owned": false,
+            "group": "Needs a decision"
+          },
           {
             "id": "repo:crs-catalog",
             "ids": [
@@ -5669,9 +5740,9 @@
         },
         {
           "id": "sync",
-          "state": "idle",
-          "substate": "ready",
-          "text": "clean",
+          "state": "waiting",
+          "substate": "waiting-on-person",
+          "text": "PR #54",
           "inspect": "station:crs-catalog:sync"
         },
         {
@@ -8089,6 +8160,20 @@
       ]
     },
     {
+      "path": "/briefing/rest/11",
+      "areas": [
+        "github",
+        "runs",
+        "approvals",
+        "lifecycle",
+        "details",
+        "upstream",
+        "radar",
+        "template",
+        "security"
+      ]
+    },
+    {
       "path": "/briefing/ready/0",
       "areas": [
         "github",
@@ -9110,7 +9195,7 @@
     },
     {
       "path": "/stations/11/stations/1",
-      "areas": ["github", "runs"]
+      "areas": ["github"]
     },
     {
       "path": "/stations/11/stations/2",

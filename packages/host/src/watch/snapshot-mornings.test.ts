@@ -129,6 +129,7 @@ describe("Today morning sweep inputs", () => {
       "indexer",
       "workflow",
       "unit",
+      "crs-catalog",
     ]);
     expect(model.template.rows.filter((r) => r.behind === 0)).toHaveLength(7);
     expect(stopped(view)).toEqual(["storage", "indexer-queue"]);
@@ -159,6 +160,24 @@ describe("Today morning sweep inputs", () => {
     expect(Object.values(forming?.kinds ?? {}).reduce((a, b) => a + b, 0)).toBe(total);
     expect(forming?.text).toMatch(/^Unreleased, in 9 open release PRs: /);
     expect(forming?.notable.map((n) => n.kind)).toEqual(["breaking", "security", "new"]);
+  });
+
+  it("gives only busy one In progress line and keeps Can wait empty on busy and bad", () => {
+    const busy = projectWatch(busyInput());
+    expect(busy.briefing.ambient?.inProgress.lines).toHaveLength(1);
+    expect(busy.briefing.ambient?.inProgress.lines[0]).toMatchObject({
+      itemIds: ["gate1:crs-catalog"],
+      service: "crs-catalog",
+      station: "sync",
+      pr: { number: 54 },
+      state: { text: "review" },
+    });
+    const bad = projectWatch(badInput());
+    expect(bad.briefing.ambient?.inProgress.lines).toEqual([]);
+    for (const view of [busy, bad]) {
+      expect(view.briefing.canWait?.items).toEqual([]);
+      expect(view.briefing.canWait?.chips).toEqual([]);
+    }
   });
 
   it("keeps the bad morning's last good GitHub figures with three ordered Interrupts", () => {
