@@ -93,7 +93,7 @@ Skill: `bead-land`. `scripts/land <id>`:
 
 A checkout with no remote runs the full check locally in place of steps 3 and 5.
 
-History stays linear, and `main` always equals a commit that passed every check on both platforms.
+History stays linear, and `main` always equals a commit that passed every check on both platforms, except a landing made with no remote or under `SPI_LAND_LOCAL=1`, which passed them on this machine only.
 
 ## 7. Stop the line
 

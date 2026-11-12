@@ -88,7 +88,7 @@ trap leave EXIT
 # from the bead's own branch counts; otherwise the commit goes to land/<id> to get one.
 ci_gate() {
   command -v gh >/dev/null || die "gh is required to land through CI; SPI_LAND_LOCAL=1 checks on this machine instead"
-  local limit=${SPI_LAND_CI_TIMEOUT:-2700} runs mine attempt reran=
+  local limit=${SPI_LAND_CI_TIMEOUT:-2700} runs mine attempt reran= published=
   local deadline=$((SECONDS + limit))
   # A landing that was interrupted leaves its branch; this one adopts and removes it.
   if git -C "$root" ls-remote --exit-code origin "refs/heads/land/$id" >/dev/null 2>&1; then
@@ -104,8 +104,9 @@ ci_gate() {
     if jq -e 'all(.[]; .status == "completed")' <<<"$runs" >/dev/null; then
       mine=$(jq -c --arg b "land/$id" '[.[] | select(.headBranch == $b)]' <<<"$runs")
       if [[ $mine == "[]" ]]; then
-        if [[ -z $land_branch ]]; then
+        if [[ -z $published ]]; then
           git -C "$root" push --quiet --force origin "$head:refs/heads/land/$id" || die "cannot push $head to land/$id"
+          published=1
           land_branch=1
           echo "land: waiting for CI on land/$id ($head)"
         fi
