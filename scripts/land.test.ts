@@ -1208,6 +1208,21 @@ describe("landing through CI", () => {
   );
 
   it(
+    "replaces a leftover land branch that points at an older commit",
+    () => {
+      const { repo, head } = withOrigin();
+      repo.git("push", "--quiet", "origin", `${repo.base}:${landRef}`);
+      repo.ci([], 1);
+      repo.ci([run("completed", "success")]);
+
+      expectLanded(repo, repo.land(), head);
+      expect(repo.pushed()).toContain(`${landRef} ${head}`);
+      expect(repo.originRefs()).not.toContain(landRef);
+    },
+    testTimeout,
+  );
+
+  it(
     "refuses a run that does not finish by the deadline",
     () => {
       const { repo, head } = withOrigin();
