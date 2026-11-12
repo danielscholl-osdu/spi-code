@@ -20,7 +20,14 @@ the sweep id in the payload remains stable for the sweep.
 
 `projectWatch` accepts Facts, release reads, area-grouped `SweepReads`, release
 ReadRecords, the doctor summary, an explicit fleet context and the app data path.
-It reads the context clock once and returns a `ViewSnapshotSchema`-parsed value.
+It takes the projection time from the context clock once; item attention and
+the environment and service readings read the clock themselves, and
+`project.test.ts` pins that order. It returns a `ViewSnapshotSchema`-parsed value.
+It runs named steps that live beside it, each a function of the input and earlier
+steps' results with its own test file: `projectBriefing` and `settleBriefing`
+(`briefing.ts`), `projectReleases` (`releases.ts`), `projectStations` and
+`projectServices` (`services.ts`), `placeReadings`, `treeOf` (`tree.ts`) and
+`snapshotProvenance` (`snapshot-provenance.ts`).
 It does not post messages, execute actions or register routes.
 Before the first sweep, the required top-level `sweptAt` is the projection time,
 not evidence of a completed sweep. `briefing.sweptAt` remains absent/undefined;
@@ -33,7 +40,7 @@ The strict Watch snapshot adds `substate` on every station, `attention`, optiona
 `readings` and `seen`. The legacy `BriefingSchema` stays oracle-compatible;
 `WatchBriefingSchema` requires the item additions at the snapshot boundary.
 `substate.ts`, `attention.ts`, `campaigns.ts`, `readings.ts` and `seen.ts` own
-typed hooks, wired once in `project.ts`, for later feature computations.
+typed hooks, wired once in `projectWatch`'s steps, for later feature computations.
 `WatchInput.attention` supplies `AttentionInput` (lead time in milliseconds,
 previous projected items and theme ids, and later owners and cards) to
 `itemAttention`, which returns core's `attentionOf` tier for the item; its
