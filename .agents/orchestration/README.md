@@ -6,7 +6,7 @@ One orchestrator dispatches builders and reviewers, rules on disputes, and lands
 
 A fresh orchestrator recovers everything from `bd`. Keep no private log of what is in flight.
 
-Every bead in flight carries exactly one stage label. You swap it at the moment you act, so there is never a gap:
+Every bead in flight carries exactly one stage label. You swap it in a single write at the moment you act, so there is never a gap and never two:
 
 | Label | Means | You set it when |
 |---|---|---|
@@ -16,7 +16,7 @@ Every bead in flight carries exactly one stage label. You swap it at the moment 
 | `stage:ready` | Passed, waiting to land | the pass is recorded |
 
 ```bash
-bd label add <id> stage:review && bd label remove <id> stage:build
+bd update <id> --add-label stage:review --remove-label stage:build   # one write, so never two stages
 bd list --status in_progress --label stage:fix    # one stage
 bd list --status in_progress                      # everything in flight
 ```
