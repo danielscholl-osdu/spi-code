@@ -9,6 +9,7 @@ import {
   badInput,
   busyInput,
   calmInput,
+  fixtureInput,
   recordedInput,
   unreadForksInput,
 } from "./snapshot-fixture.js";
@@ -120,6 +121,22 @@ describe("Today place rows (PS-03, PS-19)", () => {
       mark: "stopped",
       reason: "lanes: storage, indexer",
     });
+  });
+
+  it("keeps Lanes at 0 and gives stations as Line's reason when the stack blocks every lane", () => {
+    const input = fixtureInput();
+    expect(sourceOf(input).model.stack.deployable.state).toBe("no");
+    const snapshot = projectWatch(input);
+    const lanes = snapshot.stations.map(
+      ({ stations }) => stations.find(({ id }) => id === "lane") ?? {},
+    );
+    expect(lanes.length).toBeGreaterThan(0);
+    for (const lane of lanes)
+      expect(lane).toMatchObject({ text: "blocked by the stack", substate: "stopped" });
+    expect(readingOf(snapshot, "line")?.tiles[1]).toMatchObject({ label: "Lanes", value: "0" });
+    const line = snapshot.briefing.places?.find(({ place }) => place === "line");
+    expect(line?.mark).toBe("stopped");
+    expect(line?.reason).toMatch(/^stations: /);
   });
 
   it("leads with the fork work owed when a calm Line has a Surface item", () => {

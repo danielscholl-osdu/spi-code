@@ -5,6 +5,7 @@ import type { AreaName, Envelope, Since as SinceField, ViewSnapshot } from "@spi
 import { AREA_NAMES } from "../../components/evidence/words.js";
 import { SlotLegend, SlotRow } from "../../components/kit/SlotRow.js";
 import { areaEnvelope } from "../../store/evidence.js";
+import { plainTitle } from "../../text.js";
 import { clockTime, Time } from "../../time.js";
 
 const SINCE = "/briefing/since";
@@ -114,11 +115,11 @@ export function Since({
           <SlotRow
             label={row.label}
             count={row.countText}
-            text={`${row.label}: ${row.countText}`}
+            text={plainTitle(`${row.label}: ${row.countText}`)}
             entries={row.slots.map((slot) => ({
               id: slot.service,
               state: slot.state,
-              text: slot.text,
+              text: plainTitle(slot.text),
               ...(slot.origin ? { origin: slot.origin } : {}),
             }))}
             showLegend={false}

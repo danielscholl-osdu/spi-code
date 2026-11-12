@@ -33,6 +33,7 @@ import {
   horizonCases,
   leaves,
   motionCases,
+  openerCases,
   type Reach,
   reachCases,
   type Selector,
@@ -173,6 +174,7 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
     expect(coverage(fixture(), cases)).toEqual({
       uncovered: [],
       stray: [],
+      drawn: [],
       stale: [],
       partial: [],
     });
@@ -353,18 +355,6 @@ function inMotion() {
   return moving(body);
 }
 
-function openerCases(rows: readonly Reach[]) {
-  const groups = new Map<string, Reach[]>();
-  for (const row of rows) {
-    const key = JSON.stringify([row.home.name, row.opens]);
-    groups.set(key, [...(groups.get(key) ?? []), row]);
-  }
-  return [...groups.values()].map((rows) => ({
-    name: `${rows[0]?.pointer} via ${String(rows[0]?.opens?.click)}`,
-    rows,
-  }));
-}
-
 /** One click on a shared opener, after checking every field it draws. */
 async function assertOpens(rows: readonly Reach[], body: ViewSnapshot) {
   const row = rows[0];
@@ -522,6 +512,34 @@ describe("the suite's own guards", () => {
     const body = fixture();
     (body.briefing as unknown as Record<string, unknown>).later = "a field core fills later";
     expect(coverage(body, cases, exemptions).uncovered).toEqual([]);
+  });
+
+  it("reports a pending or never-drawn exemption on a leaf a case draws", () => {
+    const leaf = "/releases/today/platform/stack";
+    expect(drawn.some(({ pointer }) => pointer === leaf)).toBe(true);
+    const reasons = { reason: "test", patterns: [leaf] };
+    for (const exemption of [{ ...reasons, pending: true as const }, reasons])
+      expect(coverage(fixture(), cases, { ...EXEMPTIONS, later: exemption }).drawn).toEqual([
+        `later ${leaf}`,
+      ]);
+  });
+
+  it("groups openers by the click itself, so two function selectors to one target both click", () => {
+    const [row] = drawn;
+    expect(row).toBeDefined();
+    if (!row) return;
+    const target = { detail: "same-target" };
+    const first = (root: ParentNode) => root.querySelector(".first");
+    const second = (root: ParentNode) => root.querySelector(".second");
+    const groups = openerCases([
+      { ...row, pointer: "/a", opens: { click: first, ...target } },
+      { ...row, pointer: "/b", opens: { click: second, ...target } },
+      { ...row, pointer: "/c", opens: { click: first, ...target } },
+    ]);
+    expect(groups.map(({ rows }) => rows.map(({ pointer }) => pointer))).toEqual([
+      ["/a", "/c"],
+      ["/b"],
+    ]);
   });
 
   it("exempts only the exact leaf patterns it names, never a same-named leaf elsewhere", () => {
