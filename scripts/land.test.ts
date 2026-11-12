@@ -1223,6 +1223,26 @@ describe("landing through CI", () => {
   );
 
   it(
+    "recreates a leftover land branch that already points at this commit but has no run",
+    () => {
+      const { repo, head } = withOrigin();
+      repo.git("push", "--quiet", "origin", `${head}:${landRef}`);
+      repo.ci([], 1);
+      repo.ci([run("completed", "success")]);
+
+      expectLanded(repo, repo.land(), head);
+      expect(repo.pushed()).toEqual([
+        `${landRef} ${head}`,
+        `${landRef} ${gone}`,
+        `${landRef} ${head}`,
+        `refs/heads/main ${head}`,
+        `${landRef} ${gone}`,
+      ]);
+    },
+    testTimeout,
+  );
+
+  it(
     "refuses a run that does not finish by the deadline",
     () => {
       const { repo, head } = withOrigin();
