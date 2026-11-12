@@ -8,11 +8,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { selectionStore } from "../panels/selection.js";
 import { runRow, type SelectionRow, selectionRows } from "../panels/selection-rows.js";
 import { watchStore } from "../store/watch.js";
-import { watchInspections, watchSnapshot } from "../test-utils/watch-fixtures.test-helper.js";
+import {
+  type Read,
+  watchInspections,
+  watchSnapshot,
+} from "../test-utils/watch-fixtures.test-helper.js";
 import { closeSheet, navigate, type Route, relaunch } from "./navigation.js";
 import { Shell } from "./Shell.js";
 
-export const inspections = watchInspections();
 const internal = /\bfork_upstream\b|\bgate\s+\d+\b|\bpresses\b|\bcut\b/i;
 const machineTime = /\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}|\bUTC\b/;
 const placeholder = /not available yet|No settled threads yet|ships in M[3-9]/i;
@@ -124,9 +127,10 @@ export function assertRules(label: string, scope: ParentNode = document.body) {
 }
 
 /** The text rules on every route, the Line sheet, Cmd-K and every Detail of one listed snapshot. */
-export function textRulesOn(name: string) {
+export function textRulesOn(name: string, read: Read) {
   shellHooks();
-  describe.each([watchSnapshot(name)])("window text rules on $name", ({ body }) => {
+  const inspections = watchInspections(read);
+  describe.each([watchSnapshot(name, read)])("window text rules on $name", ({ body }) => {
     const routes: Route[] = [
       { kind: "today" },
       { kind: "upstream" },

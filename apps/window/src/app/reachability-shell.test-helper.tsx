@@ -5,13 +5,9 @@ import { PROTOCOL_VERSION, type ViewSnapshot, ViewSnapshotSchema } from "@spi-co
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import feed from "../../../../fixtures/watch/inspect-1106.json?raw";
-import recorded from "../../../../fixtures/watch/snapshot-1106.json?raw";
-import badRaw from "../../../../fixtures/watch/snapshot-bad.json?raw";
-import busyRaw from "../../../../fixtures/watch/snapshot-busy.json?raw";
-import calmRaw from "../../../../fixtures/watch/snapshot-calm.json?raw";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
+import type { Read } from "../test-utils/watch-fixtures.test-helper.js";
 import { moving } from "../views/today/in-motion.test-helper.js";
 import { closeSheet, navigate, relaunch, routeHash } from "./navigation.js";
 import { placeReachCases } from "./place-reachability.test-helper.js";
@@ -32,20 +28,51 @@ import {
 } from "./reachability.test-helper.js";
 import { Shell } from "./Shell.js";
 
-const recordedSnapshot = ViewSnapshotSchema.parse(JSON.parse(recorded));
-export const calmSnapshot = ViewSnapshotSchema.parse(JSON.parse(calmRaw));
-export const busySnapshot = ViewSnapshotSchema.parse(JSON.parse(busyRaw));
-export const badSnapshot = ViewSnapshotSchema.parse(JSON.parse(badRaw));
+let recordedSnapshot: ViewSnapshot;
+export let calmSnapshot: ViewSnapshot;
+export let busySnapshot: ViewSnapshot;
+export let badSnapshot: ViewSnapshot;
 export const fixture = () => structuredClone(recordedSnapshot);
-export const cases = reachCases(fixture(), detailFeed(feed));
-export const drawn = cases.filter(({ exempt }) => !exempt);
-const homes = [...new Map(drawn.map(({ home }) => [home.name, home])).values()];
+export let cases: Reach[];
+export let drawn: Reach[];
+let homes: Home[];
+export const pairs = new Map<string, { first: Reach; row: Reach; group: Reach[] }[]>();
+
+/** The recorded mornings and their cases, read through the calling test file's reader. */
+function load(read: Read) {
+  const watch = (name: string) => read(`fixtures/watch/${name}`);
+  const recorded = watch("snapshot-1106.json");
+  const feed = watch("inspect-1106.json");
+  const calmRaw = watch("snapshot-calm.json");
+  const busyRaw = watch("snapshot-busy.json");
+  const badRaw = watch("snapshot-bad.json");
+  recordedSnapshot = ViewSnapshotSchema.parse(JSON.parse(recorded));
+  calmSnapshot = ViewSnapshotSchema.parse(JSON.parse(calmRaw));
+  busySnapshot = ViewSnapshotSchema.parse(JSON.parse(busyRaw));
+  badSnapshot = ViewSnapshotSchema.parse(JSON.parse(badRaw));
+  cases = reachCases(fixture(), detailFeed(feed));
+  drawn = cases.filter(({ exempt }) => !exempt);
+  homes = [...new Map(drawn.map(({ home }) => [home.name, home])).values()];
+  const groups = new Map<string, Reach[]>();
+  for (const row of drawn) groups.set(row.pointer, [...(groups.get(row.pointer) ?? []), row]);
+  const shared = [...groups.values()].filter((group) => group.length > 1);
+  for (const group of shared) {
+    const [first, ...rest] = group;
+    if (!first) continue;
+    for (const row of rest) {
+      const name = `${first.home.name} and ${row.home.name}`;
+      pairs.set(name, [...(pairs.get(name) ?? []), { first, row, group }]);
+    }
+  }
+}
+
 const previous = watchStore.getState();
 const previousSpi = window.spi;
 export let container: HTMLDivElement;
 let root: Root;
 
-export function shellHooks() {
+export function shellHooks(read: Read) {
+  load(read);
   beforeEach(() => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     closeSheet();
@@ -150,19 +177,6 @@ export function assertReach(row: Reach) {
   const where = `${row.pointer} at ${row.home.name}`;
   if (row.contains) expect(value, where).toContain(row.value);
   else expect(value, where).toBe(row.blank ? "" : row.value);
-}
-
-const groups = new Map<string, Reach[]>();
-for (const row of drawn) groups.set(row.pointer, [...(groups.get(row.pointer) ?? []), row]);
-const shared = [...groups.values()].filter((group) => group.length > 1);
-export const pairs = new Map<string, { first: Reach; row: Reach; group: Reach[] }[]>();
-for (const group of shared) {
-  const [first, ...rest] = group;
-  if (!first) continue;
-  for (const row of rest) {
-    const name = `${first.home.name} and ${row.home.name}`;
-    pairs.set(name, [...(pairs.get(name) ?? []), { first, row, group }]);
-  }
 }
 
 export const ITEM_HOME = /^\/briefing\/(focus|rest)\/\d+\/(scope|origin)$/;
@@ -278,8 +292,8 @@ export const dealt =
   <T,>(items: readonly T[]) =>
     items.filter((_, index) => index % of === part);
 
-export function sweepFields(deal: ReturnType<typeof dealt>) {
-  shellHooks();
+export function sweepFields(deal: ReturnType<typeof dealt>, read: Read) {
+  shellHooks(read);
   describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
     it.each(deal(homes).map((home) => [home.name, home] as const))(
       "is reachable at %s within one click",
@@ -326,8 +340,8 @@ export const ITEM_MORNINGS = {
   "busy with motion": inMotion,
 };
 
-export function itemHomesOn(deal: ReturnType<typeof dealt>) {
-  shellHooks();
+export function itemHomesOn(deal: ReturnType<typeof dealt>, read: Read) {
+  shellHooks(read);
   describe("every focus and rest item's scope and origin, at its home on Today", () => {
     describe.each(deal(Object.entries(ITEM_MORNINGS)))("%s morning", (_name, morning) => {
       const body = morning();
