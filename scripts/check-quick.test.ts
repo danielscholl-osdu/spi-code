@@ -224,3 +224,19 @@ it("refuses a second option, before running anything", () => {
   expect(result.stderr).toContain("unexpected option --typo");
   expect(repo.calls()).toEqual([]);
 });
+
+it("--static lints, typechecks and checks headers, and runs no test", () => {
+  const repo = fixture();
+  repo.write("scripts/tool.ts");
+  repo.commit();
+
+  const result = repo.check("--static");
+
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  expect(repo.calls()).toEqual([
+    { args: ["lint"], shifted: "" },
+    { args: ["typecheck"], shifted: "" },
+    { args: ["check:headers"], shifted: "" },
+  ]);
+  expect(result.stdout).toContain("no test ran");
+}, 90_000);

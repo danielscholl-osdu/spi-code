@@ -4,21 +4,24 @@
 #
 # The checks a bead must pass. CI runs all of them and scripts/land waits for it; see docs/sdlc.md.
 #   scripts/check           everything: lint, typecheck, every test twice, headers, licenses
+#   scripts/check --static  before a landing waits on CI: lint, typecheck and headers, no test
 #   scripts/check --quick   while building or reviewing: lint, typecheck, headers, and once,
 #                           the tests the diff against main reaches and the packages that
 #                           depend on what it changes
 set -euo pipefail
 
 quick=
+static=
 if (($# > 1)); then
-  echo "check: unexpected option $2 (usage: scripts/check [--quick])" >&2
+  echo "check: unexpected option $2 (usage: scripts/check [--quick | --static])" >&2
   exit 2
 fi
 case ${1:-} in
   "") ;;
   --quick) quick=1 ;;
+  --static) static=1 ;;
   *)
-    echo "check: unknown option $1 (usage: scripts/check [--quick])" >&2
+    echo "check: unknown option $1 (usage: scripts/check [--quick | --static])" >&2
     exit 2
     ;;
 esac
@@ -28,6 +31,13 @@ cd "$(git rev-parse --show-toplevel)"
 if [[ -f package.json ]]; then
   if [[ ! -d node_modules ]]; then
     pnpm install --frozen-lockfile
+  fi
+  if [[ -n $static ]]; then
+    pnpm run lint
+    pnpm run typecheck
+    pnpm run check:headers
+    echo "check: static pass only; no test ran"
+    exit 0
   fi
   if [[ -n $quick ]]; then
     base=$(git merge-base HEAD main)

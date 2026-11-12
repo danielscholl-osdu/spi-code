@@ -84,9 +84,9 @@ A fix brief lists the findings that stand, each with its file and line and the s
 
 ## Landing
 
-`scripts/land --wait <id>` once the bead is `stage:ready`. It queues on the merge slot, runs the quick check here, and waits for CI on the exact commit, so several can wait at once without loading this machine. Run it the way your harness keeps a long command alive: in the foreground with a long timeout, or as a tracked background command you wait on, never one you walk away from. Each takes 10 to 15 minutes of CI once it holds the slot; land beads that are ready together in dependency order. After each landing, read `bd ready --parent <epic>`.
+`scripts/land --wait <id>` once the bead is `stage:ready`. It queues on the merge slot, runs lint and typecheck here, and waits for CI on the exact commit, so several can wait at once without loading this machine. Run it the way your harness keeps a long command alive: in the foreground with a long timeout, or as a tracked background command you wait on, never one you walk away from. Each takes 10 to 15 minutes of CI once it holds the slot; land beads that are ready together in dependency order. After each landing, read `bd ready --parent <epic>`.
 
-If a landing refuses because a watch fixture test fails after the rebase, a neighbour's landing changed what the fixture is generated from. You run the regeneration command from `rules.md` in the bead's worktree and commit the result with the bead trailer; it is generated output, not authored code, and the review stands.
+If a landing refuses because CI failed on a watch fixture test, a neighbour's landing changed what the fixture is generated from. You run the regeneration command from `rules.md` in the bead's worktree and commit the result with the bead trailer; it is generated output, not authored code, and the review stands.
 
 A harness worktree outlives its task. When a bead has landed, remove its worktree and branch yourself, after the ignored-files check in `rules.md`.
 

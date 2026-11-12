@@ -1131,7 +1131,7 @@ describe("landing through CI", () => {
       expect(deleted).toBe(`${created?.split(" ")[0]} ${gone}`);
       expect(rest).toEqual([]);
       expect(repo.originRefs()).not.toContain("/land/");
-      expect(repo.checks()).toEqual(["ran --quick"]);
+      expect(repo.checks()).toEqual(["ran --static"]);
       expect(repo.ghCalls("run list")).toHaveLength(4);
       expect(repo.ghCalls("run list")[0]).toContain(`--commit ${head}`);
       expect(repo.ghCalls("run rerun")).toEqual([]);

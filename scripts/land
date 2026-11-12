@@ -209,7 +209,9 @@ if [[ -f "$worktree/package.json" ]]; then
 fi
 if has_remote && [[ -z ${SPI_LAND_LOCAL:-} ]]; then
   ci_gated=1
-  (cd "$worktree" && scripts/check --quick) || die "scripts/check --quick failed on $branch"
+  # CI runs every test on this exact commit; running them here too would let a busy
+  # machine refuse a landing.
+  (cd "$worktree" && scripts/check --static) || die "scripts/check --static failed on $branch"
 else
   ci_gated=
   if has_remote; then
