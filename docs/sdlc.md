@@ -46,7 +46,7 @@ A reviewer from another provider checks the breakdown. The maintainer then appro
 
 The builder claims the bead atomically with `bd update --claim`, under a worker name of its own (`--actor`), because bd treats a repeat claim by the same actor as success.
 
-The bead's stage is a label, set by the orchestrator at each handoff: `stage:build`, `stage:review`, `stage:fix`, `stage:ready`. A fresh orchestrator finds everything in flight with `bd list --status in_progress`.
+Every bead in flight carries one stage label, swapped by the orchestrator as it acts: `stage:build`, `stage:review`, `stage:fix`, `stage:ready`. A fresh orchestrator finds everything in flight with `bd list --status in_progress`.
 
 ## 4. Build
 

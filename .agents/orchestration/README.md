@@ -6,18 +6,22 @@ One orchestrator dispatches builders and reviewers, rules on disputes, and lands
 
 A fresh orchestrator recovers everything from `bd`. Keep no private log of what is in flight.
 
-| Label | Meaning | Set when | Cleared when |
-|---|---|---|---|
-| `stage:build` | A builder has it | you dispatch the builder | the builder reports |
-| `stage:review` | Built, with a reviewer | you dispatch the review or recheck | the verdict arrives |
-| `stage:fix` | Review returned findings | you dispatch the fix round | the builder reports |
-| `stage:ready` | Passed, waiting to land | the pass is recorded | `scripts/land` closes the bead |
+Every bead in flight carries exactly one stage label. You swap it at the moment you act, so there is never a gap:
+
+| Label | Means | You set it when |
+|---|---|---|
+| `stage:build` | A builder has it, or has reported and no reviewer is on it yet | you dispatch the builder |
+| `stage:review` | A reviewer or recheck is running | you dispatch the review or recheck |
+| `stage:fix` | Findings stand and the fix is not back in review | a verdict with findings arrives |
+| `stage:ready` | Passed, waiting to land | the pass is recorded |
 
 ```bash
 bd label add <id> stage:review && bd label remove <id> stage:build
-bd list --label stage:review          # one stage
-bd list --status in_progress          # everything in flight
+bd list --status in_progress --label stage:fix    # one stage
+bd list --status in_progress                      # everything in flight
 ```
+
+`scripts/land` closes the bead and leaves the label; on a closed bead it means nothing, which is why the queries above ask for `in_progress`. A bead in `stage:build` or `stage:fix` with no agent running is waiting for you: its latest note says whether to send a reviewer or a builder.
 
 Put the worktree path, the head and the CI run id in a bead note at each handoff. Record every ruling you make as a comment on the bead it settles. Rules that should outlive the thread go in this folder or a skill, through a bead, not into a handoff file.
 
