@@ -1226,6 +1226,23 @@ describe("landing through CI", () => {
   );
 
   it(
+    "refuses at once when origin already has the branch name it chose, since no run would start",
+    () => {
+      const { repo, head } = withOrigin();
+      const taken = `land/${id}--${head.slice(0, 12)}-taken`;
+      repo.git("push", "--quiet", "origin", `${head}:refs/heads/${taken}`);
+      repo.ci([]);
+
+      const result = repo.land({ SPI_LAND_RUN: "taken" });
+
+      expectRefused(repo, result, `origin already has ${taken}, so no run was started`);
+      expect(repo.ghCalls("run list")).toHaveLength(1);
+      expect(repo.originRefs()).not.toContain("/land/");
+    },
+    testTimeout,
+  );
+
+  it(
     "removes an interrupted landing's branch even when it lands on the bead branch's run",
     () => {
       const { repo, head } = withOrigin();
