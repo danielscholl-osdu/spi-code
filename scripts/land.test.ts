@@ -309,6 +309,7 @@ function fixture({ origin = false } = {}) {
       git(cwd, "commit", "--quiet", "-m", `chore: point ${path}\nBead: ${id}`);
       return git(cwd, "rev-parse", "HEAD");
     },
+    git: (...args: string[]) => git(root, ...args),
     refs: (pattern: string) => git(root, "for-each-ref", "--format=%(refname)", pattern),
     // The id reviews carried before scripts/review-head: the whole diff, context included.
     patchId() {
@@ -829,6 +830,28 @@ describe("landing gates", () => {
       const reviewed = repo.reviewHead();
       repo.review(passedAt(reviewed));
       repo.gitlink("bead", "vendored", reviewed);
+
+      const result = repo.land();
+
+      expect(result.status, result.stdout + result.stderr).toBe(1);
+      expect(result.stderr).toContain(`differs from the reviewed commit ${reviewed}`);
+    },
+    testTimeout,
+  );
+
+  it(
+    "refuses a later commit even when a replacement object stands in for the reviewed tree",
+    () => {
+      const repo = fixture();
+      repo.commit("docs: update fixture");
+      const reviewed = repo.reviewHead();
+      repo.review(passedAt(reviewed));
+      const head = repo.commit("docs: change after review");
+      repo.git(
+        "replace",
+        repo.git("rev-parse", `${reviewed}^{tree}`),
+        repo.git("rev-parse", `${head}^{tree}`),
+      );
 
       const result = repo.land();
 
