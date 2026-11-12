@@ -8,6 +8,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { projectWatch } from "../packages/host/src/watch/project.js";
 import {
+  acknowledgedInput,
+  acknowledgedSnapshotPath,
   badInput,
   badSnapshotPath,
   busyInput,
@@ -35,6 +37,7 @@ for (const [path, input] of [
   [snapshotPath, fixtureInput()],
   [mixedSnapshotPath, mixedFixtureInput()],
   [recordedSnapshotPath, recordedInput()],
+  [acknowledgedSnapshotPath, acknowledgedInput()],
   [unreadSnapshotPath, unreadForksInput()],
   [unverifiedSnapshotPath, unverifiedForkInput()],
 ] as const) {
