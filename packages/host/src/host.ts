@@ -167,7 +167,7 @@ export function startHost(options: HostOptions) {
   let stopped = false;
   let closed = false;
   let stopping: Promise<void> | undefined;
-  const ports = new Set<() => void>();
+  const ports = new Map<HostPort, () => void>();
   let observeTurn: Parameters<typeof createConversationBackend>[2] | undefined;
   const requestQueue: HostRequestQueue = { pending: Promise.resolve() };
   function sendToWindow(message: Message): void {
@@ -183,7 +183,7 @@ export function startHost(options: HostOptions) {
         stub,
         (event) => {
           if (!observeTurn) {
-            console.error("Tool event has no active turn");
+            console.error("Tool event has no active turn", event.name, event.outcome);
             return;
           }
           observeTurn(event);
@@ -192,6 +192,7 @@ export function startHost(options: HostOptions) {
       );
       handler = conversationHandler(activeBackend, sendToWindow);
     }
+    if (stopped) throw new Error("Host is stopped");
     if (message.type === "turn.start") {
       observeTurn = (event) =>
         sendToWindow({
@@ -236,12 +237,16 @@ export function startHost(options: HostOptions) {
   function stop(): Promise<void> {
     if (stopping) return stopping;
     stopped = true;
-    for (const stopPort of ports) stopPort();
+    for (const stopPort of ports.values()) stopPort();
     stopping = setup
       .stop()
       .catch(console.error)
-      .then(() => requestQueue.pending)
-      .then(() => activeBackend?.stop())
+      .then(async () => {
+        const backend = activeBackend;
+        await backend?.stop();
+        await requestQueue.pending;
+        if (activeBackend !== backend) await activeBackend?.stop();
+      })
       .finally(closeStore);
     return stopping;
   }
@@ -263,7 +268,14 @@ export function startHost(options: HostOptions) {
         return;
       }
       connectedPort = port;
-      ports.add(attachHostPort(port, pid, routes, requestQueue));
+      (port as typeof port & { on(event: "close", listener: () => void): unknown }).on(
+        "close",
+        () => {
+          ports.get(port)?.();
+          ports.delete(port);
+        },
+      );
+      ports.set(port, attachHostPort(port, pid, routes, requestQueue));
       if (smoke) {
         sendToWindow({
           version: PROTOCOL_VERSION,

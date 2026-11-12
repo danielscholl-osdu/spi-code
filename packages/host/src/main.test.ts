@@ -873,7 +873,7 @@ it("tags detached tool callbacks with their active turn and logs callbacks with 
       expect(host.sent).toContainEqual(expect.objectContaining({ id: "owner", type: "turn.end" })),
     );
     observe({ callId: "late", name: "spi_brief", outcome: "completed" });
-    expect(log).toHaveBeenCalledWith("Tool event has no active turn");
+    expect(log).toHaveBeenCalledWith("Tool event has no active turn", "spi_brief", "completed");
     expect(host.sent.filter(({ type }) => type === "tool.call")).toHaveLength(1);
     await host.stop();
     observe({ callId: "stopped", name: "spi_brief", outcome: "completed" });
@@ -952,6 +952,93 @@ it("stop waits for an already-started backend and never starts a queued turn", a
         type: "error",
         payload: { code: "host_failed", message: "Host request failed" },
       }),
+    );
+  } finally {
+    finishStartup(backend);
+    await host.stop();
+  }
+});
+
+it("SIGTERM aborts a live turn before waiting for the request queue", async () => {
+  const host = await composedHost();
+  let abort = () => {};
+  const aborted = new Promise<void>((_resolve, reject) => {
+    abort = () => reject(new Error("backend stopped"));
+  });
+  const turn = vi.fn(() => aborted);
+  const backendStop = vi.fn(async () => {
+    abort();
+  });
+  mocks.createBackend.mockResolvedValue({
+    mode: "stub",
+    generation: 1,
+    models: async () => [{ id: "stub", name: "Stub" }],
+    turn,
+    endSession() {},
+    stop: backendStop,
+  });
+  try {
+    host.attach();
+    host.request("live-turn", "turn.start");
+    await vi.waitFor(() => expect(turn).toHaveBeenCalledOnce());
+    const signal = host.lifecycle.once.mock.calls.find(
+      ([event]) => event === "SIGTERM",
+    )?.[1] as () => void;
+    signal();
+    await vi.waitFor(() => expect(host.lifecycle.exit).toHaveBeenCalledWith(0));
+    expect(backendStop).toHaveBeenCalledOnce();
+    expect(host.sent).toContainEqual(
+      expect.objectContaining({
+        id: "live-turn",
+        type: "turn.end",
+        payload: { reason: "error" },
+      }),
+    );
+  } finally {
+    abort();
+    await host.stop();
+  }
+});
+
+it("stop prevents an in-flight turn startup from calling models or turn", async () => {
+  const host = await composedHost();
+  let finishStartup: (backend: ConversationBackend) => void = () => {};
+  const startup = new Promise<ConversationBackend>((resolve) => {
+    finishStartup = resolve;
+  });
+  const models = vi.fn(async () => [{ id: "stub", name: "Stub" }]);
+  const turn = vi.fn(async () => {});
+  const backendStop = vi.fn(async () => {});
+  const backend: ConversationBackend = {
+    mode: "stub",
+    generation: 1,
+    models,
+    turn,
+    endSession() {},
+    stop: backendStop,
+  };
+  mocks.createBackend.mockReturnValue(startup);
+  try {
+    host.attach();
+    host.request("starting-turn", "turn.start");
+    await vi.waitFor(() => expect(mocks.createBackend).toHaveBeenCalledOnce());
+    const stopped = host.stop();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(backendStop).not.toHaveBeenCalled();
+    finishStartup(backend);
+    await stopped;
+    expect(models).not.toHaveBeenCalled();
+    expect(turn).not.toHaveBeenCalled();
+    expect(backendStop).toHaveBeenCalledOnce();
+    expect(host.sent).toContainEqual(
+      expect.objectContaining({
+        id: "starting-turn",
+        type: "error",
+        payload: { code: "host_failed", message: "Host request failed" },
+      }),
+    );
+    expect(host.sent).not.toContainEqual(
+      expect.objectContaining({ id: "starting-turn", type: "models.result" }),
     );
   } finally {
     finishStartup(backend);
