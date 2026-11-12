@@ -17,8 +17,8 @@ Run it from the bead's worktree or from the main checkout, and stay with it: it 
 2. takes the merge slot, so landings happen one at a time; with `--wait` it queues for the slot instead of refusing;
 3. syncs `main` from the remote, rebases `bead/<id>` onto `main`, and runs `scripts/check --quick`;
 4. checks the review: a pass from a provider other than the author's, for a commit that, merged onto `main`, equals what is landing (or `review:exempt` for qualifying docs);
-5. waits for the Packaged smoke workflow to pass on the exact commit: it uses a green run from the bead's branch when the rebase changed nothing, and otherwise pushes the commit to `land/<id>`, waits for that run, and reruns failed jobs once;
-6. checks again that `main` isn't broken, fast-forwards `main` to that commit, pushes it, deletes `land/<id>`, and closes the bead with "Landed <sha>";
+5. waits for the Packaged smoke workflow to pass on the exact commit: it uses a green run from the bead's branch when the rebase changed nothing, and otherwise pushes the commit to a new `land/<id>--…` branch, waits for that run, and reruns failed jobs once;
+6. checks again that `main` isn't broken, fast-forwards `main` to that commit, pushes it, deletes every `land/<id>--…` branch, and closes the bead with "Landed <sha>";
 7. removes the worktree and branch if they are under `.worktrees/`; otherwise the harness that made them cleans them up.
 
 A checkout with no remote has no CI: there, steps 3 and 5 are one step, the full `scripts/check` on this machine.

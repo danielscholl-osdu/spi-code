@@ -74,25 +74,27 @@ until refusal=$(bd merge-slot acquire --holder "$holder" 2>&1 >/dev/null); do
   ((SECONDS < slot_deadline)) || die "the merge slot is still held after ${SPI_LAND_SLOT_TIMEOUT:-7200}s; run scripts/land --wait $id again"
   sleep "${SPI_LAND_POLL:-20}"
 done
-land_branch=
+asked_ci=
 leave() {
-  if [[ -n $land_branch ]]; then
-    git -C "$root" push --quiet origin --delete "land/$id" 2>/dev/null || echo "land: delete the branch land/$id on origin" >&2
+  # Every branch a landing of this bead published, this one's or an interrupted one's.
+  if [[ -n $asked_ci ]]; then
+    while IFS= read -r ref; do
+      [[ -z $ref ]] || git -C "$root" push --quiet origin --delete "${ref#refs/heads/}" 2>/dev/null ||
+        echo "land: delete the branch ${ref#refs/heads/} on origin" >&2
+    done < <(git -C "$root" ls-remote origin "refs/heads/land/$id--*" 2>/dev/null | awk '{print $2}')
   fi
   bd merge-slot release --holder "$holder" >/dev/null || echo "land: release the merge slot: bd merge-slot release" >&2
 }
 trap leave EXIT
 
 # Waits for the Packaged smoke workflow to pass on the exact commit being landed. A green run
-# from the bead's own branch counts; otherwise the commit goes to land/<id> to get one.
+# from the bead's own branch counts; otherwise the commit goes to a new land/<id>--* branch to
+# get one. The branch name is never reused, so pushing it always starts a run.
 ci_gate() {
   command -v gh >/dev/null || die "gh is required to land through CI; SPI_LAND_LOCAL=1 checks on this machine instead"
   local limit=${SPI_LAND_CI_TIMEOUT:-2700} runs mine attempt reran= published=
   local deadline=$((SECONDS + limit))
-  # A landing that was interrupted leaves its branch; this one adopts and removes it.
-  if git -C "$root" ls-remote --exit-code origin "refs/heads/land/$id" >/dev/null 2>&1; then
-    land_branch=1
-  fi
+  asked_ci=1
   while :; do
     runs=$(cd "$root" && gh run list --workflow packaged-smoke.yml --commit "$head" --limit 20 \
       --json databaseId,attempt,status,conclusion,headBranch,url) || die "cannot read the CI runs for $head"
@@ -101,16 +103,12 @@ ci_gate() {
       return
     fi
     if jq -e 'all(.[]; .status == "completed")' <<<"$runs" >/dev/null; then
-      mine=$(jq -c --arg b "land/$id" '[.[] | select(.headBranch == $b)]' <<<"$runs")
+      mine=$(jq -c --arg b "land/$id--" '[.[] | select(.headBranch | startswith($b))]' <<<"$runs")
       if [[ $mine == "[]" ]]; then
         if [[ -z $published ]]; then
-          # Whatever an earlier landing left there, remove it first: only a branch being
-          # created is certain to start a run.
-          git -C "$root" push --quiet origin --delete "land/$id" 2>/dev/null || true
-          git -C "$root" push --quiet origin "$head:refs/heads/land/$id" || die "cannot push $head to land/$id"
-          published=1
-          land_branch=1
-          echo "land: waiting for CI on land/$id ($head)"
+          published="land/$id--${head:0:12}-$(date +%s)-$$"
+          git -C "$root" push --quiet origin "$head:refs/heads/$published" || die "cannot push $head to $published"
+          echo "land: waiting for CI on $published"
         fi
       else
         attempt=$(jq -r '.[0].attempt' <<<"$mine")
