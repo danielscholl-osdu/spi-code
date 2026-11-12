@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { EventEmitter } from "node:events";
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runInNewContext } from "node:vm";
@@ -119,18 +119,42 @@ it("keeps every renderer limit when the start function builds a fake BrowserWind
   expect(electron.current?.shell.openExternal).toHaveBeenCalledExactlyOnceWith(url);
 });
 
-it("has no static smoke import in the entry or start module", () => {
-  for (const name of ["index.ts", "start.ts"]) {
-    const source = readFileSync(new URL(name, import.meta.url), "utf8");
-    const imports = Array.from(
-      source.matchAll(/^import\s+(?:[\w*{},\s]+\s+from\s+)?["']([^"']+)["']/gm),
-      (match) => match[1] ?? "",
-    );
-    expect(
-      imports.filter((path) => /(?:^|\/)smoke-/.test(path)),
-      name,
-    ).toEqual([]);
+function productionImports(name: string): string[] {
+  const source = readFileSync(new URL(name, import.meta.url), "utf8");
+  const statements = Array.from(
+    source.matchAll(/^\s*(?:import|export)\s+(type\s+)?[^;]*?\bfrom\s*["'](\.{1,2}\/[^"']+)["']/gm),
+    (match) => (match[1] ? undefined : match[2]),
+  );
+  const bare = Array.from(source.matchAll(/^\s*import\s*["'](\.{1,2}\/[^"']+)["']/gm), (m) => m[1]);
+  // index.ts's own import() calls sit behind --smoke/--proof; the runtime test proves production reaches none.
+  const dynamic =
+    name === "index.ts"
+      ? []
+      : Array.from(source.matchAll(/\bimport\(\s*["'](\.{1,2}\/[^"']+)["']\s*\)/g), (m) => m[1]);
+  return [...statements, ...bare, ...dynamic]
+    .filter((path): path is string => path !== undefined)
+    .map((path) => new URL(path.replace(/\.js$/, ".ts"), new URL(name, import.meta.url)))
+    .map((url) => url.pathname.slice(new URL(".", import.meta.url).pathname.length))
+    .filter((path) => !path.endsWith(".test.ts"));
+}
+
+it("reaches no smoke module through the static import graph of the entry and start module", () => {
+  const visited = new Set<string>();
+  const pending = ["index.ts", "start.ts"];
+  const reached: string[] = [];
+  for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
+    if (visited.has(name)) continue;
+    visited.add(name);
+    expect(existsSync(new URL(name, import.meta.url)), name).toBe(true);
+    for (const path of productionImports(name)) {
+      if (/^smoke-[^/]*\.ts$/.test(path)) reached.push(`${name} -> ${path}`);
+      pending.push(path);
+    }
   }
+  expect([...visited]).toEqual(
+    expect.arrayContaining(["start.ts", "tray.ts", "interrupts.ts", "outage.ts", "host-tree.ts"]),
+  );
+  expect(reached).toEqual([]);
 });
 
 it("starts production wiring without loading smoke or registering proof:message", async () => {
