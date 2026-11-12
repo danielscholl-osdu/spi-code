@@ -54,10 +54,12 @@ Never edit files in the main checkout.
 ## 4. Check
 
 ```bash
-scripts/check
+scripts/check --quick
 ```
 
-Don't ask for review while it fails.
+It runs lint, typecheck, license headers and, once, the tests your diff reaches: the ones that import what you changed, every package that depends on a package you changed, and every package when a fixture changed. Don't ask for review while it fails.
+
+Don't run the full `scripts/check` on this machine: it runs every test twice, and several agents share the CPU. Push your branch (`git push origin bead/<id>`); CI runs the full check and the packaged smoke on macOS and Windows. Put the run id in a bead note.
 
 `scripts/check` does not run the packaged smoke. If the bead changes `apps/window`, `apps/desktop`, `scripts/package*.mjs` or `scripts/packaged-host.mjs`, also run `pnpm package:mac` (it packages and runs the smoke) and paste its tail in a bead note before asking for review.
 

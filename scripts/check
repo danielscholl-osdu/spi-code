@@ -2,14 +2,58 @@
 # Copyright 2026, Daniel Scholl
 # SPDX-License-Identifier: MIT
 #
-# The checks a bead must pass before review and before landing.
+# The checks a bead must pass. CI and scripts/land run all of them; see docs/sdlc.md.
+#   scripts/check           everything: lint, typecheck, every test twice, headers, licenses
+#   scripts/check --quick   while building or reviewing: lint, typecheck, headers, and once,
+#                           the tests the diff against main reaches and the packages that
+#                           depend on what it changes
 set -euo pipefail
+
+quick=
+case ${1:-} in
+  "") ;;
+  --quick) quick=1 ;;
+  *)
+    echo "check: unknown option $1 (usage: scripts/check [--quick])" >&2
+    exit 2
+    ;;
+esac
 
 cd "$(git rev-parse --show-toplevel)"
 
 if [[ -f package.json ]]; then
   if [[ ! -d node_modules ]]; then
     pnpm install --frozen-lockfile
+  fi
+  if [[ -n $quick ]]; then
+    base=$(git merge-base HEAD main)
+    pnpm run lint
+    pnpm run typecheck
+    pnpm run check:headers
+    pnpm run test --changed "$base" --passWithNoTests
+    changed=$({ git diff --name-only "$base"; git ls-files --others --exclude-standard; } | sort -u)
+    # Vitest follows imports. It does not follow one package into another's built output, a
+    # fixture, or a script a test reads from disk, so run those tests by name.
+    more=()
+    if [[ -f scripts/check-dependents.mjs ]]; then
+      while IFS= read -r project; do
+        [[ -n $project ]] && more+=(--project "$project")
+      done < <(node scripts/check-dependents.mjs <<<"$changed")
+    fi
+    if ((${#more[@]})); then
+      pnpm run test "${more[@]}"
+    fi
+    beside=()
+    while IFS= read -r path; do
+      [[ $path == *.ts || $path == *.tsx ]] && continue
+      test=${path%.*}.test.ts
+      if [[ -f $test ]]; then beside+=("$test"); fi
+    done <<<"$changed"
+    if ((${#beside[@]})); then
+      pnpm run test "${beside[@]}"
+    fi
+    echo "check: quick pass only; CI and scripts/land run every test, twice"
+    exit 0
   fi
   pnpm run check
   # A second zone too, so a test that only passes in this machine's zone fails here, not in CI.

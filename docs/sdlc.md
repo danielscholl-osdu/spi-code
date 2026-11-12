@@ -17,7 +17,7 @@ epic ──breakdown──▶ beads ──claim──▶ worktree ──build─
 | **Keelson beads board** | Where you watch it: the Epics wave map, In flight claims, Your calls (decisions waiting on you), Shipped. `beads-next` picks a bead; `beads-groom` checks backlog health. `beads-work` is not used, because it is built around draft PRs. |
 | **Keelson workflows** | `adversarial-review` for high-risk beads (three lenses plus a verifier, with the author's model excluded). `design-converge` when a bead hits a real design fork. `investigate` when a fact needs establishing first. |
 | **T3 Code** | The main place work is dispatched from: one delegated agent per bead, each in its own worktree, mixing Claude, Codex and Gemini. |
-| **`scripts/check`** | The checks every bead passes before review and before landing. Installs the pinned dependencies with `pnpm install --frozen-lockfile` if `node_modules` is missing, then runs `pnpm run check`: Biome, a strict TypeScript build, Vitest and source license headers. |
+| **`scripts/check`** | The checks every bead passes in CI and at landing. `scripts/check --quick` is the builder's and reviewer's pass: lint, typecheck, headers, and once, the tests the diff reaches. Installs the pinned dependencies with `pnpm install --frozen-lockfile` if `node_modules` is missing, then runs `pnpm run check`: Biome, a strict TypeScript build, Vitest and source license headers. |
 | **`scripts/land`** | The only way onto `main`. It is deterministic, so it behaves the same whichever harness or model calls it. |
 | **GitHub** | Not set up yet. When M0 needs CI for signed builds, `main` gets a remote and Actions runs on it. `scripts/land` pushes once a remote exists. No issues and no PRs. |
 
