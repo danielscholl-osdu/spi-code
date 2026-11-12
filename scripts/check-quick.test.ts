@@ -130,23 +130,21 @@ it("--quick lints, typechecks, checks headers and runs once the tests the diff a
   expect(result.stdout).toContain("CI runs every test");
 }, 90_000);
 
-it("--quick also runs the test beside a changed file that no test imports, committed or not", () => {
+it("--quick runs the scripts project whole for a changed script, and the test beside any other file no test imports", () => {
   const repo = fixture();
   repo.write("scripts/land.test.ts");
-  repo.write("scripts/data.test.ts");
-  repo.write("scripts/tool.test.ts");
   repo.write("scripts/land");
+  repo.write("styles/panel.test.ts");
   repo.commit();
-  repo.write("scripts/data.json");
-  repo.write("scripts/tool.ts");
+  repo.write("styles/panel.css");
 
   const result = repo.check("--quick");
 
   expect(result.status, result.stdout + result.stderr).toBe(0);
-  expect(repo.calls().at(-1)).toEqual({
-    args: ["test", "scripts/data.test.ts", "scripts/land.test.ts"],
-    shifted: "",
-  });
+  expect(repo.calls().slice(3)).toEqual([
+    { args: ["test", "--project", "scripts"], shifted: "" },
+    { args: ["test", "styles/panel.test.ts"], shifted: "" },
+  ]);
 }, 90_000);
 
 it("--quick runs whole the packages that depend on a changed one", () => {
@@ -164,7 +162,21 @@ it("--quick runs whole the packages that depend on a changed one", () => {
 
   expect(result.status, result.stdout + result.stderr).toBe(0);
   expect(repo.calls().slice(3)).toEqual([
-    { args: ["test", "--changed", base, "--passWithNoTests"], shifted: "" },
+    {
+      args: [
+        "test",
+        "--changed",
+        base,
+        "--passWithNoTests",
+        "--project",
+        "apps/window",
+        "--project",
+        "packages/core",
+        "--project",
+        "scripts",
+      ],
+      shifted: "",
+    },
     { args: ["test", "--project", "packages/host"], shifted: "" },
   ]);
 }, 90_000);
@@ -192,14 +204,14 @@ it("refuses an option it does not know, before running anything", () => {
   expect(repo.calls()).toEqual([]);
 });
 
-it("fails when the project helper fails, and runs no further tests", () => {
+it("fails when the project helper fails, before running any test", () => {
   const repo = fixture();
   repo.write("scripts/check-dependents.mjs", "process.exit(3);\n");
 
   const result = repo.check("--quick");
 
   expect(result.status, result.stdout + result.stderr).not.toBe(0);
-  expect(repo.calls().filter((call) => call.args[0] === "test")).toHaveLength(1);
+  expect(repo.calls().filter((call) => call.args[0] === "test")).toEqual([]);
   expect(result.stdout).not.toContain("quick pass only");
 }, 90_000);
 

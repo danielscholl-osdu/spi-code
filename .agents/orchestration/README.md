@@ -12,7 +12,7 @@ Every bead in flight carries exactly one stage label. You swap it in a single wr
 |---|---|---|
 | `stage:build` | A builder has it, or has reported and no reviewer is on it yet | you dispatch the builder |
 | `stage:review` | A reviewer or recheck is running | you dispatch the review or recheck |
-| `stage:fix` | Findings stand and the fix is not back in review | a verdict with findings arrives |
+| `stage:fix` | Something must change before a reviewer passes it | a verdict with findings arrives, or you rule on a conflict the builder raised before review |
 | `stage:ready` | Passed, waiting to land | the pass is recorded |
 
 ```bash
@@ -37,9 +37,12 @@ The reviewer is always a different provider from the author. Alternate builders 
 ## Dispatch
 
 - At most 4 agents at once; a two-seat review counts as 2.
-- Builders get their own worktree (`isolation: "worktree"`). A build dispatched without one damages the checkout it lands in.
-- Before a wave, read every ready bead's files. Beads that edit the same file run one after another, or one owns the file and the others add their own files beside it.
+- Builders get their own worktree (`isolation: "worktree"`). A build dispatched without one damages the checkout it lands in. The harness cuts that worktree from your checkout, not from `main`; step 2 of the build skill has the builder prepare it.
+- A fix round, a review and a recheck work in or beside the bead's existing worktree, which the harness cannot start an agent in. Dispatch them without isolation and make the first line of the brief the worktree path, with: "Change directory there before anything else, and touch nothing where you start."
+- Before a wave, read every ready bead's files. Beads that edit the same file run one after another, or one owns the file and the others add their own files beside it. The breakdown should have said who owns what; where it didn't, rule and record it on the beads before you dispatch.
 - A review, a recheck and a fix round are each a new task. Don't reuse a finished agent's thread.
+- A wave is the beads you were given, by label or by list. `bd ready --parent <epic>` after a landing shows everything the epic has ready; dispatch only what is in the wave.
+- The sweep bead collects items of very different size. Before you dispatch it, rule on each: in, out, or its own bead when it changes what a user sees or leaves a contract unguarded.
 
 ### Builder brief
 
@@ -50,6 +53,8 @@ Record build.provider=<provider> and build.model=<model>.
 main is at <sha>.
 Notes for this bead: <ownership of shared files, rulings, what to leave alone>
 ```
+
+If a note depends on what a fixture holds or what the code does today, check it before you write it, or ask the builder to check first and stop if it is not so.
 
 ### Review brief
 
@@ -72,12 +77,18 @@ A fix brief lists the findings that stand, each with its file and line and the s
 ## Review rounds
 
 - Send both seats of a `risk:high` review at once, on the same head. Wait for both, write one synthesis on the bead, and send one fix round. One seat rechecks.
-- When a finding is a disagreement with the design, rule on it and record the ruling; don't let it ride through fix rounds.
+- When a finding is a disagreement with the design, rule on it and record the ruling; don't let it ride through fix rounds. The same goes for a conflict a builder raises before review: rule, send the fix, and only then send the reviewer.
+- A reviewer's note about the bead's text (a missing statement, an unclear line) is yours: edit the bead and say so in a comment. It needs no recheck.
+- If a fix round changes nothing in the diff's own lines (regenerated fixtures only), the review stands; send no recheck.
 - If the second fix round fails for the same kind of reason as the first, stop and take the approach to the maintainer.
 
 ## Landing
 
 `scripts/land --wait <id>` once the bead is `stage:ready`. It queues on the merge slot, runs the quick check here, and waits for CI on the exact commit, so several can wait at once without loading this machine. Run it the way your harness keeps a long command alive: in the foreground with a long timeout, or as a tracked background command you wait on, never one you walk away from. Each takes 10 to 15 minutes of CI once it holds the slot; land beads that are ready together in dependency order. After each landing, read `bd ready --parent <epic>`.
+
+If a landing refuses because a watch fixture test fails after the rebase, a neighbour's landing changed what the fixture is generated from. You run the regeneration command from `rules.md` in the bead's worktree and commit the result with the bead trailer; it is generated output, not authored code, and the review stands.
+
+A harness worktree outlives its task. When a bead has landed, remove its worktree and branch yourself, after the ignored-files check in `rules.md`.
 
 ## Checkpoints
 

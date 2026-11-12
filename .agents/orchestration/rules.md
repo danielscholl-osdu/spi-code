@@ -6,8 +6,8 @@ Builders, reviewers and orchestrators all follow these. A brief can add to them;
 
 - The main checkout is the first entry of `git worktree list`. Never edit, commit or `git checkout` there.
 - A builder works only in its own worktree, on `bead/<id>`. If you were not given one, stop and say so; do not rename or reset a branch someone else is on.
-- A reviewer changes nothing in the bead's worktree. Mutations and probes go in your own copy: `git -C <worktree> worktree add --detach /tmp/<you>-<id> HEAD`, removed when you finish.
-- Before removing any worktree, run `git status --ignored` in it. Ignored data, such as `fixtures/exec/local/`, is lost with it. Never use `git worktree remove --force` without that check.
+- A reviewer changes nothing in the bead's worktree. Mutations and probes go in your own copy, in your harness's scratch directory or `/tmp`: `git -C <worktree> worktree add --detach <dir>/<you>-<id> HEAD`, removed when you finish.
+- Before removing any worktree, run `git status --ignored` in it. `node_modules/`, `dist/`, `build/` and `.turbo/` are rebuilt and safe to lose. Anything else ignored, such as `fixtures/exec/local/`, is data: move it out first. Never use `git worktree remove --force` without that check.
 
 ## Secrets and remotes
 
@@ -26,8 +26,10 @@ Builders, reviewers and orchestrators all follow these. A brief can add to them;
 
 Several agents share this machine. The full `scripts/check` runs every test twice and belongs to CI, which `scripts/land` waits on.
 
-- Run `scripts/check --quick`. A builder pushes its branch and lets CI run the rest, and puts the run id in a bead note. A reviewer pushes nothing.
-- Run `pnpm package:mac` only when your diff changes what the packaged smoke looks at: `apps/desktop/src/smoke*`, `scripts/package*.mjs`, `scripts/packaged-host.mjs`, or a selector the smoke reads. CI packages and smokes every pushed branch on macOS and Windows.
+- Run `scripts/check --quick`. It takes one to six minutes depending on how much depends on what you changed; give it a ten-minute timeout. A builder pushes its branch and lets CI run the rest, and puts the run id in a bead note. A reviewer pushes nothing.
+- CI is one workflow, named Packaged smoke. Its `check` jobs run the full `scripts/check` and its `package` jobs build and smoke the app, each on macOS and Windows.
+- To run one test file: from the repository root, `pnpm vitest run <path>`. Tests in one package run another package's built output, so after changing a package run `pnpm --filter <package> build` (or `pnpm build`) first.
+- A builder runs `pnpm package:mac` only when the diff changes what the packaged smoke looks at: `apps/desktop/src/smoke*`, `scripts/package*.mjs`, `scripts/packaged-host.mjs`, or a selector the smoke reads. A reviewer never does; CI packages and smokes every pushed branch on macOS and Windows.
 - A test outside your diff that fails on a 30-second timeout is load. Rerun that file alone and report both results. Never rerun everything for it, and never run a load generator to reproduce one.
 - Never end your turn while a command you need is still running: your task ends with no result. Run long commands in the foreground, or in the background only when your harness lets you wait on them.
 
@@ -40,6 +42,8 @@ Several agents share this machine. The full `scripts/check` runs every test twic
 
 ## This machine
 
+- The shell is zsh. A word starting with `=` is expanded as a command path, so quote it (`echo "====="`).
+- A fresh worktree has no `node_modules` and no built packages: `pnpm install --frozen-lockfile && pnpm build` before anything else.
 - Node 22.22.0 and Bun 1.3.13, ahead of Homebrew's:
   `export PATH="$HOME/.local/share/fnm/node-versions/v22.22.0/installation/bin:$HOME/.bun/bin:$PATH"`
 - After main moves under you, run `pnpm install --frozen-lockfile` before checking.

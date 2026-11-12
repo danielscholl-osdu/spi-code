@@ -1,7 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-// Reads changed paths on stdin and prints the vitest projects scripts/check --quick runs whole.
+// Reads changed paths on stdin and prints the vitest projects scripts/check --quick runs whole,
+// or with --rest the projects it leaves to vitest --changed.
 // Packages import each other's built output, which vitest --changed does not follow, and tests
 // read fixtures and shell scripts from disk.
 import { readdirSync, readFileSync } from "node:fs";
@@ -68,10 +69,21 @@ export function wholeProjects(changed, dependencies) {
   return [...whole].sort();
 }
 
+/**
+ * The projects left for the import-following run: every one that does not run whole.
+ * @param {string[]} whole
+ * @param {Map<string, string[]>} dependencies
+ * @returns {string[]} sorted
+ */
+export function restProjects(whole, dependencies) {
+  return [...dependencies.keys(), "scripts"].filter((project) => !whole.includes(project)).sort();
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const changed = readFileSync(0, "utf8").split("\n").filter(Boolean);
-  const root = fileURLToPath(new URL("..", import.meta.url));
-  for (const directory of wholeProjects(changed, workspaceDependencies(root))) {
-    console.log(directory);
+  const dependencies = workspaceDependencies(fileURLToPath(new URL("..", import.meta.url)));
+  const whole = wholeProjects(changed, dependencies);
+  for (const project of process.argv[2] === "--rest" ? restProjects(whole, dependencies) : whole) {
+    console.log(project);
   }
 }

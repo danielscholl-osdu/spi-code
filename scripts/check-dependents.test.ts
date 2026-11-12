@@ -3,7 +3,7 @@
 
 import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
-import { wholeProjects, workspaceDependencies } from "./check-dependents.mjs";
+import { restProjects, wholeProjects, workspaceDependencies } from "./check-dependents.mjs";
 
 const dependencies = workspaceDependencies(fileURLToPath(new URL("..", import.meta.url)));
 
@@ -48,4 +48,21 @@ it("runs every package and the script tests whole when a fixture changes", () =>
   expect(wholeProjects(["fixtures/rib-59d6895/oracle/lines.json"], dependencies)).toEqual(
     [...dependencies.keys(), "scripts"].sort(),
   );
+});
+
+it("leaves to the import-following run every project that does not run whole", () => {
+  const whole = wholeProjects(["packages/core/src/brief/places.ts"], dependencies);
+  const rest = restProjects(whole, dependencies);
+
+  expect(rest).toEqual([
+    "apps/window",
+    "packages/contracts",
+    "packages/core",
+    "packages/tools",
+    "scripts",
+  ]);
+  expect(rest.filter((project) => whole.includes(project))).toEqual([]);
+  expect(
+    restProjects(wholeProjects(["fixtures/watch/snapshot-calm.json"], dependencies), dependencies),
+  ).toEqual([]);
 });

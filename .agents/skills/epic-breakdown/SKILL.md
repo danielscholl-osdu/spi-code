@@ -24,7 +24,13 @@ Each bead is one slice: one worktree, one author, one reviewer, one landing.
   - the case the code cannot prove (a missing read, an unknown order, an empty history), and that it must report the quieter state;
   - where the design is silent and a builder would have to guess, your ruling, or a `decision` bead for the maintainer;
   - for a bead that changes a gate (`scripts/land`, the sandbox, a credential path), what the gate defends against and what it does not.
-- **Shared files:** when several beads will edit one file, say which bead owns it and have the others add files beside it. Give those beads dependencies so they land in turn.
+  - for a change meant to alter no behaviour (a split, a move, a rename), the proof: which tests must pass unedited, which fixtures must stay byte-identical, and what may change in tests (moves only).
+
+  For a gate, give both halves: what it must never allow, and how far it must keep working (after a killed script, a flaky run, a neighbour's landing). Without the second, a reviewer has no line between a real gap and an arranged one.
+
+  An epic with no PRD rows (a cleanup, a process change, a design pass) takes each bead's acceptance from the cost the bead removes, measured; the behaviour that must not change; and the case the code cannot prove.
+- **Check what you assume.** If an acceptance says the suite is clean, a fixture holds some case, or a file is unused, run the probe before you write it. A bead whose acceptance is wrong about the starting state makes its builder decide scope.
+- **Shared files:** when several beads will edit one file, say which bead owns it and have the others add files beside it. Give those beads dependencies so they land in turn. Two cases directory ownership misses: a bead that changes a fixture owns every test that pins that fixture's content, wherever it lives; and when an acceptance offers two ways to prove a line ("a window test, or a smoke geometry rule"), name the files each way would touch and who owns them.
 - **Labels:** `risk:high` if it touches credentials, the sandbox, approvals or tiers, intents and durability, or the Copilot session boundary (PRD areas AU, RN, CT, CP, EV-05, NF-01 to NF-03); otherwise `risk:std`. Add `review:exempt` only for Markdown changes outside `design/`, `.agents/` and `AGENTS.md`.
 - **Type:** `task` or `feature` for build work, `spike` for a probe whose answer decides later beads, `decision` for a call only the maintainer makes.
 
@@ -43,9 +49,11 @@ Add a `decision` bead wherever the maintainer should look before work goes on: b
 
 Don't add beads for work the epic doesn't name. Findings that belong to another milestone become beads under that epic, or are left for its breakdown.
 
+Breakdown changes no files, so it needs no claimed bead and no `bead/<id>` branch; write to `bd` under an actor name of your own. With other agents running, each `bd` write can take several seconds: put a long batch of `bd dep add` in one command with a long timeout.
+
 ## 3. Review the breakdown
 
-Ask a reviewer from a different provider than yours to check the plan read-only: missing requirements, beads that are too big, wrong or missing dependencies, an acceptance check that cannot fail, and scope beyond the milestone. Give it the epic id and `bd children <epic>` output. Fix what holds up; push back on what doesn't.
+Ask a reviewer from a different provider than yours to check the plan read-only: missing requirements, beads that are too big, wrong or missing dependencies, an acceptance check that cannot fail, and scope beyond the milestone. Give it the epic id and `bd children <epic>` output. Fix what holds up; push back on what doesn't. Fixes to bead text need no second review unless the reviewer rejected the plan's shape.
 
 ## 4. Get approval
 
