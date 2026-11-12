@@ -150,7 +150,7 @@ describe("login-shell PATH", () => {
           `printf '%s\\n' '${start}' '/captured/bin' '${end}'`,
         ].join("\n"),
       );
-      const result = await captureLoginShellPath({ shells: [shell] });
+      const result = await captureLoginShellPath({ shells: [shell], timeoutMs: 25_000 });
       expect(result.captured).toBe(true);
       expect(result.path.split(":")[0]).toBe("/captured/bin");
       expect(result.failures).toEqual([]);

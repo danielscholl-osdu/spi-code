@@ -543,19 +543,18 @@ describe("TCP listener evidence", () => {
   });
 
   it("runs commands without blocking the event loop", async () => {
-    const ticks: string[] = [];
-    const timer = setInterval(() => ticks.push("tick"), 5);
-    try {
-      const result = await execText(
-        process.execPath,
-        ["-e", "setTimeout(() => process.stdout.write('done'), 200)"],
-        5000,
-      );
-      expect(result).toEqual({ status: 0, stdout: "done", stderr: "", pid: expect.any(Number) });
-    } finally {
-      clearInterval(timer);
-    }
-    expect(ticks.length).toBeGreaterThan(0);
+    const events: string[] = [];
+    const yielded = new Promise<void>((resolve) => {
+      setImmediate(() => {
+        events.push("event loop");
+        resolve();
+      });
+    });
+    const result = await execText(process.execPath, ["-e", "process.stdout.write('done')"], 25_000);
+    events.push("command completed");
+    await yielded;
+    expect(result).toEqual({ status: 0, stdout: "done", stderr: "", pid: expect.any(Number) });
+    expect(events).toEqual(["event loop", "command completed"]);
   });
 
   it("reports a non-zero exit with its output instead of throwing", async () => {

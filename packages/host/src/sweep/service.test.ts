@@ -169,19 +169,19 @@ function traceBudgetIO(beforeSync: (file: string | undefined) => void = () => {}
 
 it("renews at ttl/3, excludes a second service and schedules full sweeps at SWEEP_MS", async () => {
   const read = vi.fn(async () => ({ data: auth, reads: [] }));
-  const after = vi.fn((ms: number, callback: () => void) => {
-    const timer = setTimeout(callback, ms);
-    return () => clearTimeout(timer);
-  });
-  const first = service([{ name: "auth", read }], { timers: { after } });
+  const { timers, fire } = controlledTimers();
+  const after = vi.spyOn(timers, "after");
+  const first = service([{ name: "auth", read }], { timers });
   const second = service([{ name: "auth", read }]);
   expect(await first.start()).toBe(true);
   expect(await second.start()).toBe(false);
   expect(read).toHaveBeenCalledTimes(1);
-  await vi.advanceTimersByTimeAsync(1000);
+  vi.setSystemTime(epoch + 1000);
+  await fire(1000);
   expect(after).toHaveBeenCalledWith(1000, expect.any(Function));
   expect(db.prepare("SELECT expires_at FROM leases").get()?.expires_at).toBe(epoch + 4000);
-  await vi.advanceTimersByTimeAsync(SWEEP_MS - 1000);
+  expect(after).toHaveBeenCalledWith(SWEEP_MS, expect.any(Function));
+  await fire(SWEEP_MS);
   expect(read).toHaveBeenCalledTimes(2);
   expect(first.latest()?.cursor).toBe(2);
   expect(budgets()).toHaveLength(2);
@@ -1499,6 +1499,28 @@ it("recovers a complete snapshot and cursor after SIGKILL during writeSnapshot",
   }
 }, 30_000);
 
+function controlledTimers() {
+  const pending = new Set<{ ms: number; callback: () => void }>();
+  const deadlines: number[] = [];
+  const timers = {
+    after(ms: number, callback: () => void) {
+      if (ms === SWEEP_MS) deadlines.push(Date.now() + ms);
+      const timer = { ms, callback };
+      pending.add(timer);
+      return () => pending.delete(timer);
+    },
+  };
+  const fire = async (ms: number) => {
+    const timer = [...pending].find((timer) => timer.ms === ms);
+    expect(timer).toBeDefined();
+    if (!timer) throw new Error(`No timer armed for ${ms} ms`);
+    pending.delete(timer);
+    timer.callback();
+    await vi.advanceTimersByTimeAsync(0);
+  };
+  return { deadlines, timers, fire };
+}
+
 function scheduled() {
   const deadlines: number[] = [];
   const after = (ms: number, callback: () => void) => {
@@ -1529,11 +1551,12 @@ function gated() {
 }
 
 it("reports the armed timer's deadline as the next sweep, null while one runs", async () => {
-  const { deadlines, timers } = scheduled();
+  const { deadlines, timers, fire } = controlledTimers();
   const { gate, read } = gated();
   const statuses: SweepSchedulerStatus[] = [];
   const first = service([{ name: "auth", read }], {
     timers,
+    ttlMs: 10 * SWEEP_MS,
     onStatus: (status) => statuses.push(status),
   });
   const started = first.start();
@@ -1541,7 +1564,7 @@ it("reports the armed timer's deadline as the next sweep, null while one runs", 
     { nextSweepAt: new Date(epoch + SWEEP_MS).toISOString(), forceCooldownUntil: null },
     { nextSweepAt: null, forceCooldownUntil: null },
   ]);
-  await vi.advanceTimersByTimeAsync(4000);
+  vi.setSystemTime(epoch + 4000);
   await gate.open();
   await expect(started).resolves.toBe(true);
   expect(deadlines).toEqual([epoch + SWEEP_MS]);
@@ -1550,15 +1573,16 @@ it("reports the armed timer's deadline as the next sweep, null while one runs", 
     lastSweep: { outcome: "committed" },
   });
 
-  await vi.advanceTimersByTimeAsync(SWEEP_MS - 4000);
+  vi.setSystemTime(epoch + SWEEP_MS);
+  await fire(SWEEP_MS);
   expect(statuses.at(-1)).toEqual({ nextSweepAt: null, forceCooldownUntil: null });
-  await vi.advanceTimersByTimeAsync(2000);
+  vi.setSystemTime(epoch + SWEEP_MS + 2000);
   await gate.open();
   await vi.advanceTimersByTimeAsync(0);
   expect(deadlines).toEqual([epoch + SWEEP_MS, epoch + 2 * SWEEP_MS + 2000]);
   expect(statuses.at(-1)?.nextSweepAt).toBe(new Date(epoch + 2 * SWEEP_MS + 2000).toISOString());
 
-  await vi.advanceTimersByTimeAsync(60_000);
+  vi.setSystemTime(epoch + SWEEP_MS + 62_000);
   const requested = first.sweep(false, true);
   expect(statuses.at(-1)).toEqual({ nextSweepAt: null, forceCooldownUntil: null });
   await gate.open();
