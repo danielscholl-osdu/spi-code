@@ -74,6 +74,7 @@ function hermeticEnv(directory: string): NodeJS.ProcessEnv {
   env.GIT_CONFIG_NOSYSTEM = "1";
   env.GIT_ALLOW_PROTOCOL = "file";
   env.LAND_FIXTURE_STATE = toGitPath(join(directory, "state"));
+  env.SPI_LAND_POLL = "0";
   return env;
 }
 
@@ -132,6 +133,10 @@ case "$1" in
     if [ -e "$state/list.$n.json" ]; then cat "$state/list.$n.json"; else cat "$state/list.json"; fi
     ;;
   merge-slot)
+    if [ "$2" = acquire ] && [ -e "$state/slot-frees-after" ] &&
+      [ "$(grep -c '^merge-slot acquire ' "$state/calls.log")" -gt "$(cat "$state/slot-frees-after")" ]; then
+      exit 0
+    fi
     if [ "$2" = acquire ] && [ -e "$state/slot-held" ]; then
       printf 'merge slot is held by %s\\n' "$(cat "$state/slot-held")" >&2
       exit 1
@@ -149,6 +154,30 @@ case "$1" in
 esac
 `;
 
+// The gh stand-in answers "run list" from gh.<n>.json for the nth such call, else gh.json, and
+// logs every call. It knows nothing else, so any other use of gh fails the landing.
+const ghStub = `#!/bin/sh
+set -eu
+state=$LAND_FIXTURE_STATE
+printf '%s\\n' "$*" >> "$state/gh.log"
+case "$1 $2" in
+  "run list")
+    n=$(grep -c '^run list ' "$state/gh.log")
+    if [ -e "$state/gh.$n.json" ]; then cat "$state/gh.$n.json"; else cat "$state/gh.json"; fi
+    ;;
+  "run rerun") ;;
+  *) printf 'Unexpected gh command: %s\\n' "$*" >&2; exit 1 ;;
+esac
+`;
+const run = (status: string, conclusion: string, headBranch = `land/${id}`) => ({
+  databaseId: 7,
+  status,
+  conclusion,
+  headBranch,
+  url: "https://ci.example.test/runs/7",
+});
+const green = [run("completed", "success", branch)];
+
 function buildTemplate() {
   const directory = temporaryDirectory("spi-code-land-template-");
   const git = gitIn(directory);
@@ -165,7 +194,7 @@ function buildTemplate() {
   copyFileSync(reviewHeadSource, join(root, "scripts/review-head"));
   writeFileSync(
     join(root, "scripts/check"),
-    '#!/bin/sh\necho ran >> "$LAND_FIXTURE_STATE/checks.log"\n',
+    '#!/bin/sh\necho "ran $*" >> "$LAND_FIXTURE_STATE/checks.log"\n',
     { mode: 0o755 },
   );
   writeFileSync(join(root, "change.md"), "Initial content\n");
@@ -191,6 +220,9 @@ function buildTemplate() {
   writeFileSync(join(state, "list.json"), "[]\n");
   writeFileSync(join(state, "calls.log"), "");
   writeFileSync(join(bin, "bd"), bdStub, { mode: 0o755 });
+  writeFileSync(join(bin, "gh"), ghStub, { mode: 0o755 });
+  writeFileSync(join(state, "gh.json"), JSON.stringify(green));
+  writeFileSync(join(state, "gh.log"), "");
   base = git(root, "rev-parse", "main");
   return directory;
 }
@@ -348,11 +380,40 @@ function fixture({ origin = false } = {}) {
         unlinkSync(hook);
       }
     },
-    land: () =>
-      spawnSync("bash", ["scripts/land", id], {
+    // What CI reports for the commit: on the nth "gh run list", or on every one without n.
+    ci(runs: ReturnType<typeof run>[], call?: number) {
+      writeFileSync(
+        join(state, call === undefined ? "gh.json" : `gh.${call}.json`),
+        JSON.stringify(runs),
+      );
+    },
+    ghCalls: (command: string) =>
+      readFileSync(join(state, "gh.log"), "utf8")
+        .split("\n")
+        .filter((line) => line.startsWith(command)),
+    checks: () =>
+      existsSync(join(state, "checks.log"))
+        ? readFileSync(join(state, "checks.log"), "utf8").split("\n").filter(Boolean)
+        : [],
+    // Records every ref origin receives, so a branch that came and went still shows.
+    recordPushes() {
+      writeFileSync(
+        join(remote, "hooks", "post-receive"),
+        '#!/bin/sh\nwhile read -r _old new ref; do echo "$ref $new" >> "$LAND_FIXTURE_STATE/pushed.log"; done\n',
+        { mode: 0o755 },
+      );
+    },
+    pushed: () =>
+      existsSync(join(state, "pushed.log"))
+        ? readFileSync(join(state, "pushed.log"), "utf8").split("\n").filter(Boolean)
+        : [],
+    slotFreesAfter: (attempts: number) =>
+      writeFileSync(join(state, "slot-frees-after"), String(attempts)),
+    land: (env: Record<string, string> = {}, ...options: string[]) =>
+      spawnSync("bash", ["scripts/land", ...options, id], {
         cwd: root,
         encoding: "utf8",
-        env: hermeticEnv(directory),
+        env: { ...hermeticEnv(directory), ...env },
         timeout: landTimeout,
       }),
   };
@@ -1017,6 +1078,184 @@ describe("landing gates", () => {
       expect(repo.calls("update")).toHaveLength(1);
       expect(repo.checkRuns()).toBe(1);
       expect(repo.calls("merge-slot release")).toHaveLength(2);
+    },
+    testTimeout,
+  );
+});
+
+describe("landing through CI", () => {
+  const landRef = `refs/heads/land/${id}`;
+  const gone = "0".repeat(40);
+  function withOrigin() {
+    const repo = fixture({ origin: true });
+    repo.recordPushes();
+    return { repo, head: repo.commit("docs: update fixture") };
+  }
+
+  it(
+    "pushes the commit to land/<id>, waits for its run, lands it and removes the branch",
+    () => {
+      const { repo, head } = withOrigin();
+      repo.ci([], 1);
+      repo.ci([], 2);
+      repo.ci([run("in_progress", "")], 3);
+      repo.ci([run("completed", "success")]);
+
+      expectLanded(repo, repo.land(), head);
+      expect(repo.originMain()).toBe(head);
+      expect(repo.pushed()).toEqual([
+        `${landRef} ${head}`,
+        `refs/heads/main ${head}`,
+        `${landRef} ${gone}`,
+      ]);
+      expect(repo.checks()).toEqual(["ran --quick"]);
+      expect(repo.ghCalls("run list")).toHaveLength(4);
+      expect(repo.ghCalls("run list")[0]).toContain(`--commit ${head}`);
+      expect(repo.ghCalls("run rerun")).toEqual([]);
+    },
+    testTimeout,
+  );
+
+  it(
+    "lands on a run the bead's own branch already passed, without a land branch",
+    () => {
+      const { repo, head } = withOrigin();
+
+      expectLanded(repo, repo.land(), head);
+      expect(repo.pushed()).toEqual([`refs/heads/main ${head}`]);
+      expect(repo.ghCalls("run list")).toHaveLength(1);
+    },
+    testTimeout,
+  );
+
+  it(
+    "ignores a failed run from the bead's branch and gets its own",
+    () => {
+      const { repo, head } = withOrigin();
+      repo.ci([run("completed", "failure", branch)], 1);
+      repo.ci([run("completed", "failure", branch), run("completed", "success")]);
+
+      expectLanded(repo, repo.land(), head);
+      expect(repo.pushed()[0]).toBe(`${landRef} ${head}`);
+      expect(repo.ghCalls("run rerun")).toEqual([]);
+    },
+    testTimeout,
+  );
+
+  it(
+    "reruns a failed run's failed jobs once, and lands when they pass",
+    () => {
+      const { repo, head } = withOrigin();
+      repo.ci([], 1);
+      repo.ci([run("completed", "failure")], 2);
+      repo.ci([run("completed", "success")]);
+
+      expectLanded(repo, repo.land(), head);
+      expect(repo.ghCalls("run rerun")).toEqual(["run rerun 7 --failed"]);
+    },
+    testTimeout,
+  );
+
+  it(
+    "refuses after a second failure, leaving main alone and the land branch removed",
+    () => {
+      const { repo, head } = withOrigin();
+      repo.ci([], 1);
+      repo.ci([run("completed", "failure")]);
+
+      const result = repo.land();
+
+      expectRefused(repo, result, `CI failed twice on ${head}: https://ci.example.test/runs/7`);
+      expect(repo.originMain()).toBe(repo.base);
+      expect(repo.ghCalls("run rerun")).toEqual(["run rerun 7 --failed"]);
+      expect(repo.pushed()).toEqual([`${landRef} ${head}`, `${landRef} ${gone}`]);
+      expect(repo.calls("merge-slot release")).toHaveLength(1);
+    },
+    testTimeout,
+  );
+
+  it(
+    "refuses a run that does not finish by the deadline",
+    () => {
+      const { repo, head } = withOrigin();
+      repo.ci([run("in_progress", "", branch)]);
+
+      const result = repo.land({ SPI_LAND_CI_TIMEOUT: "0" });
+
+      expectRefused(repo, result, `CI did not finish on ${head} within 0s`);
+      expect(repo.pushed()).toEqual([]);
+    },
+    testTimeout,
+  );
+
+  it(
+    "refuses before asking CI when the review does not hold",
+    () => {
+      const { repo } = withOrigin();
+      repo.review({ "build.provider": "anthropic" });
+
+      expectRefused(repo, repo.land(), "has no passing review");
+      expect(repo.ghCalls("run")).toEqual([]);
+    },
+    testTimeout,
+  );
+
+  it(
+    "runs the whole check here and asks CI nothing when there is no remote",
+    () => {
+      const repo = fixture();
+      const head = repo.commit("docs: update fixture");
+
+      expectLanded(repo, repo.land(), head);
+      expect(repo.checks()).toEqual(["ran "]);
+      expect(repo.ghCalls("run")).toEqual([]);
+    },
+    testTimeout,
+  );
+
+  it(
+    "runs the whole check here, asks CI nothing and says so under SPI_LAND_LOCAL",
+    () => {
+      const { repo, head } = withOrigin();
+
+      const result = repo.land({ SPI_LAND_LOCAL: "1" });
+
+      expectLanded(repo, result, head);
+      expect(result.stdout).toContain("checked on this machine only");
+      expect(repo.checks()).toEqual(["ran "]);
+      expect(repo.ghCalls("run")).toEqual([]);
+      expect(repo.pushed()).toEqual([`refs/heads/main ${head}`]);
+    },
+    testTimeout,
+  );
+});
+
+describe("queueing for the merge slot", () => {
+  it(
+    "--wait keeps asking until the slot frees, then lands",
+    () => {
+      const repo = fixture();
+      const head = repo.commit("docs: update fixture");
+      repo.holdSlot("land:spicode-other:1");
+      repo.slotFreesAfter(2);
+
+      expectLanded(repo, repo.land({}, "--wait"), head);
+      expect(repo.calls("merge-slot acquire")).toHaveLength(3);
+    },
+    testTimeout,
+  );
+
+  it(
+    "--wait gives up at its deadline without touching the other lander's slot",
+    () => {
+      const repo = fixture();
+      repo.commit("docs: update fixture");
+      repo.holdSlot("land:spicode-other:1");
+
+      const result = repo.land({ SPI_LAND_SLOT_TIMEOUT: "0" }, "--wait");
+
+      expectRefused(repo, result, "the merge slot is still held after 0s");
+      expect(repo.calls("merge-slot release")).toEqual([]);
     },
     testTimeout,
   );

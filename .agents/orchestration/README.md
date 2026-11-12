@@ -77,7 +77,7 @@ A fix brief lists the findings that stand, each with its file and line and the s
 
 ## Landing
 
-`scripts/land <id>` once the bead is `stage:ready`. Landings queue on the merge slot. After each landing, read `bd ready --parent <epic>` and check main's CI run.
+`scripts/land --wait <id>` once the bead is `stage:ready`, as a background command you wait on. It queues on the merge slot and waits for CI on the exact commit, so it uses none of this machine's CPU and several can wait at once. Each takes 10 to 15 minutes of CI once it holds the slot; land beads that are ready together in dependency order. After each landing, read `bd ready --parent <epic>`.
 
 ## Checkpoints
 

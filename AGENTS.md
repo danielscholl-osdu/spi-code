@@ -34,7 +34,7 @@ Work is tracked in beads (`bd`, prefix `spicode`), built in parallel worktrees, 
 | `.agents/skills/stop-the-line/SKILL.md` | Fix a broken `main` |
 | `.agents/orchestration/README.md` | Orchestrate an epic: seats, stages, briefs and limits |
 
-Every agent follows `.agents/orchestration/rules.md`. `scripts/check --quick` is the pass to run while building or reviewing; CI and `scripts/land` run the full `scripts/check`. What a builder learned about the product is in `docs/notes/`. The beads database (`.beads/`) is git-ignored and local to this machine; every worktree finds it through git's common directory.
+Every agent follows `.agents/orchestration/rules.md`. `scripts/check --quick` is the pass to run while building or reviewing; CI runs the full `scripts/check` and the packaged smoke on macOS and Windows, and `scripts/land` lands only a commit CI passed. What a builder learned about the product is in `docs/notes/`. The beads database (`.beads/`) is git-ignored and local to this machine; every worktree finds it through git's common directory.
 
 ## License headers
 

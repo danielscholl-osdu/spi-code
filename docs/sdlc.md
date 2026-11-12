@@ -19,8 +19,8 @@ This file is the process and nothing else. What a builder learned about the prod
 | **Orchestrator** | One agent that dispatches builders and reviewers, rules on disputes and lands. `.agents/orchestration/README.md` is its guide. |
 | **`.agents/orchestration/rules.md`** | What every agent follows: where to work, secrets, commits, checks and load. |
 | **`scripts/check --quick`** | The builder's and reviewer's pass: lint, typecheck, license headers and, once, the tests the diff reaches. |
-| **`scripts/check`** | Everything: lint, a strict TypeScript build, every test twice (the second time 400 days ahead in another time zone), license headers and third-party notices. CI and `scripts/land` run it. |
-| **CI** | The Packaged smoke workflow runs the full check and the packaged smoke on macOS and Windows for `main` and every pushed `bead/**` branch. |
+| **`scripts/check`** | Everything: lint, a strict TypeScript build, every test twice (the second time 400 days ahead in another time zone), license headers and third-party notices. CI runs it. |
+| **CI** | The Packaged smoke workflow runs the full check and the packaged smoke on macOS and Windows for `main`, every pushed `bead/**` branch, and the `land/**` branch a landing waits on. |
 | **`scripts/land`** | The only way onto `main`. It is deterministic, so it behaves the same whichever harness or model calls it. |
 | **Keelson** | The beads board shows the wave map and the decisions waiting on the maintainer. The `adversarial-review` workflow is an alternative to a two-seat review for `risk:high` beads. |
 
@@ -84,11 +84,14 @@ Skill: `bead-land`. `scripts/land <id>`:
 
 1. Refuses while a `main-broken` bead is open, unless this bead is that fix.
 2. Takes the merge slot, so landings happen one at a time.
-3. Syncs `main` from the remote, rebases the bead onto it, installs the pinned dependencies (the rebase may bring new ones), and runs `scripts/check`.
+3. Syncs `main` from the remote, rebases the bead onto it, installs the pinned dependencies (the rebase may bring new ones), and runs `scripts/check --quick`.
 4. Verifies the review: a pass from a provider other than the author's, for a commit that still equals what is landing once merged onto `main`.
-5. Checks again that `main` isn't broken, then fast-forwards `main` to the exact commit it checked. It pushes, closes the bead with "Landed <sha>", and cleans up worktrees under `.worktrees/`. If the push fails, the bead stays open, and rerunning the script finishes the landing.
+5. Waits for CI to pass on that exact commit, on macOS and Windows, with the packaged smoke. A green run from the bead's own branch counts when the rebase changed nothing; otherwise the commit goes to `land/<id>` to get a run. Failed jobs are rerun once; a second failure refuses the landing.
+6. Checks again that `main` isn't broken, then fast-forwards `main` to the exact commit CI passed. It pushes, closes the bead with "Landed <sha>", and cleans up worktrees under `.worktrees/`. If the push fails, the bead stays open, and rerunning the script finishes the landing.
 
-History stays linear, and `main` always equals a tree that passed the checks.
+`scripts/land --wait <id>` queues behind other landings instead of refusing. `SPI_LAND_LOCAL=1` runs the full check on this machine instead of waiting for CI, for when CI is down; it says so in its output, and it checks neither Windows nor the packaged smoke.
+
+History stays linear, and `main` always equals a commit that passed every check on both platforms.
 
 ## 7. Stop the line
 
@@ -97,6 +100,6 @@ Skill: `stop-the-line`. When `main` breaks, locally or in CI, open a P0 bug labe
 ## Not doing
 
 - **Pull requests.** Review is recorded on beads and the maintainer signs off at checkpoints, so a pull request would track the same thing twice. Revisit when a second person reviews changes.
-- **GitHub branch protection.** With no pull requests, `scripts/land` and CI do that job.
+- **GitHub branch protection.** With no pull requests, `scripts/land` waiting on CI does that job.
 - **A workflow that runs breakdown, dispatch and landing on its own.** The orchestrator does this by hand, from the guide.
 - **Planning beyond epics.**
