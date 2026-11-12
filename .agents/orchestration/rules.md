@@ -6,8 +6,8 @@ Builders, reviewers and orchestrators all follow these. A brief can add to them;
 
 - The main checkout is the first entry of `git worktree list`. Never edit, commit or `git checkout` there.
 - A builder works only in its own worktree, on `bead/<id>`. If you were not given one, stop and say so; do not rename or reset a branch someone else is on.
-- A reviewer changes nothing in the bead's worktree. Mutations and probes go in your own copy, in your harness's scratch directory or `/tmp`: `git -C <worktree> worktree add --detach <dir>/<you>-<id> HEAD`, removed when you finish.
-- Before removing any worktree, run `git status --ignored` in it. `node_modules/`, `dist/`, `build/` and `.turbo/` are rebuilt and safe to lose. Anything else ignored, such as `fixtures/exec/local/`, is data: move it out first. Never use `git worktree remove --force` without that check.
+- A reviewer changes nothing in the bead's worktree. Mutations and probes go in your own copy, in your harness's scratch directory or `/tmp`: `git -C <worktree> worktree add --detach <dir>/<you>-<id> HEAD`, removed when you finish. Enter it by its physical path (`cd "$(cd <dir>/<you>-<id> && pwd -P)"`) before installing or building: on macOS `/tmp` is a link to `/private/tmp`, and TypeScript treats the two spellings as different files.
+- Before removing any worktree, run `git status --ignored` in it. `node_modules/`, `dist/`, `build/`, `.turbo/` and `*.tsbuildinfo` are rebuilt and safe to lose. Anything else ignored, such as `fixtures/exec/local/`, is data: move it out first. Never use `git worktree remove --force` without that check.
 
 ## Secrets and remotes
 

@@ -9,7 +9,7 @@ A broken `main` comes before every other bead. While a bead labelled `main-broke
 
 ## 0. Is it broken, or did a run flake?
 
-`scripts/land` moves `main` only to a commit CI passed, so a red run on `main` afterwards is the same commit failing a second run. If the failing test is in code the last landing did not touch, rerun the failed job once (`gh run rerun <run id> --failed`) and wait for it before opening anything. If it passes, `main` is not broken: file the test as a bug with both run ids and carry on. If it fails again, or the failure is in what just landed, go on to step 1.
+`scripts/land` moves `main` only to a commit CI passed (a landing made with no remote or under `SPI_LAND_LOCAL=1` is the exception: treat its first red run as real). So a red run on `main` afterwards is usually the same commit failing a second run. If the failing test is in code the last landing did not touch, rerun the failed job once (`gh run rerun <run id> --failed`) and wait for it before opening anything. If it passes, `main` is not broken: file the test as a bug with the run id and the two attempt numbers, plus the id of the land run that passed, and carry on. If it fails again, or the failure is in what just landed, go on to step 1.
 
 A `main-broken` bead blocks every landing by every session, so don't open one to find out.
 

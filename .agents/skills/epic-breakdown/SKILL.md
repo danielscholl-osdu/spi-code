@@ -53,7 +53,7 @@ Breakdown changes no files, so it needs no claimed bead and no `bead/<id>` branc
 
 ## 3. Review the breakdown
 
-Ask a reviewer from a different provider than yours to check the plan read-only: missing requirements, beads that are too big, wrong or missing dependencies, an acceptance check that cannot fail, and scope beyond the milestone. Give it the epic id and `bd children <epic>` output. Fix what holds up; push back on what doesn't. Fixes to bead text need no second review unless the reviewer rejected the plan's shape.
+Ask a reviewer from a different provider than yours to check the plan read-only: missing requirements, beads that are too big, wrong or missing dependencies, an acceptance check that cannot fail, and scope beyond the milestone. Give it the epic id and `bd children <epic>` output. Fix what holds up; push back on what doesn't. Fixes to bead text need no second review unless the reviewer rejected the plan's shape. To drop a draft bead the review rejected, remove its dependencies first (`bd dep remove <bead> <blocker>`, and the same for anything that waits on it), then `bd close <bead> --reason "dropped in breakdown review: <why>"`; `bd close` refuses a bead that is still blocked.
 
 ## 4. Get approval
 

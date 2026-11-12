@@ -3,7 +3,9 @@
 
 import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
+import config from "../vitest.config.js";
 import { restProjects, wholeProjects, workspaceDependencies } from "./check-dependents.mjs";
+import { configuredProjects } from "./vitest-projects.mjs";
 
 const dependencies = workspaceDependencies(fileURLToPath(new URL("..", import.meta.url)));
 
@@ -65,4 +67,10 @@ it("leaves to the import-following run every project that does not run whole", (
   expect(
     restProjects(wholeProjects(["fixtures/watch/snapshot-calm.json"], dependencies), dependencies),
   ).toEqual([]);
+});
+
+it("knows every project vitest is configured with, so none is left out of both runs", () => {
+  const configured = configuredProjects(config.test?.projects).map((project) => project.name);
+
+  expect([...dependencies.keys(), "scripts"].sort()).toEqual([...configured].sort());
 });
