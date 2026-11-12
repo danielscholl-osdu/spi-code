@@ -2809,7 +2809,7 @@
         "tone": "bad",
         "figure": "At least 1 of 13 stopped",
         "line": "Stopped: entitlements (cascade, release).",
-        "reason": "Stopped: entitlements (cascade, release).",
+        "reason": "stations: cascade, release",
         "caveat": "5 forks' repository stations not read yet.",
         "areas": [
           "github",
@@ -2917,7 +2917,7 @@
         "place": "environment",
         "mark": "in-progress",
         "tone": "warn",
-        "figure": "v0.35.3 is deployable, green since 04:20",
+        "figure": "v0.35.3 deployable",
         "line": "Place reading is incomplete.",
         "reason": "Place reading is incomplete.",
         "caveat": "GitHub issues and PRs not fully read; the figure covers only the evidence read.",
@@ -2971,7 +2971,7 @@
         "tone": "warn",
         "figure": "0 of 13 forks on 7d269b5 · 5 not read yet",
         "line": "Template rollout is in progress; verification is still pending.",
-        "reason": "Template rollout is in progress; verification is still pending.",
+        "reason": "verification pending",
         "caveat": "GitHub repository reads failed: adoption or template changes could be missing.",
         "areas": ["github", "runs", "template"],
         "unread": {

@@ -1730,7 +1730,7 @@
         "place": "environment",
         "mark": "nothing-due",
         "tone": "neutral",
-        "figure": "v0.35.3 is deployable, green since 04:20",
+        "figure": "v0.35.3 deployable",
         "line": "v0.35.3 is deployable, green since 04:20.",
         "areas": ["github", "lifecycle"],
         "itemIds": [],
@@ -1778,7 +1778,7 @@
         "tone": "warn",
         "figure": "11 of 13 forks on 7d269b5",
         "line": "Template rollout is in progress; verification is still pending.",
-        "reason": "Template rollout is in progress; verification is still pending.",
+        "reason": "verification pending",
         "areas": ["github", "runs", "template"],
         "itemIds": ["rollout"],
         "fresh": {

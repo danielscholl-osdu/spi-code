@@ -2509,7 +2509,7 @@
         "tone": "bad",
         "figure": "2 of 13 stopped",
         "line": "Stopped: storage (sync), indexer-queue (main).",
-        "reason": "Stopped: storage (sync), indexer-queue (main).",
+        "reason": "stations: sync, main",
         "areas": [
           "github",
           "runs",
@@ -2616,7 +2616,7 @@
         "place": "environment",
         "mark": "nothing-due",
         "tone": "neutral",
-        "figure": "v0.35.3 is deployable, green since 04:20",
+        "figure": "v0.35.3 deployable",
         "line": "v0.35.3 is deployable, green since 04:20.",
         "areas": ["github", "lifecycle"],
         "itemIds": [],
@@ -2664,7 +2664,7 @@
         "tone": "warn",
         "figure": "7 of 13 forks on 7d269b5",
         "line": "Template rollout is in progress; verification is still pending.",
-        "reason": "Template rollout is in progress; verification is still pending.",
+        "reason": "verification pending",
         "areas": ["github", "runs", "template"],
         "itemIds": ["rollout"],
         "fresh": {
@@ -2748,7 +2748,7 @@
         "tone": "warn",
         "figure": "26 high or critical",
         "line": "26 high or critical findings need SPI fixes.",
-        "reason": "26 high or critical findings need SPI fixes.",
+        "reason": "1 needs you",
         "areas": ["radar", "template", "security"],
         "itemIds": ["security:dependabot:fixture-library"],
         "fresh": {

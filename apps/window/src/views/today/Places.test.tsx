@@ -1,6 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -8,6 +10,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import bad from "../../../../../fixtures/watch/snapshot-bad.json?raw";
 import busy from "../../../../../fixtures/watch/snapshot-busy.json?raw";
 import calm from "../../../../../fixtures/watch/snapshot-calm.json?raw";
+import { widthBudget } from "../../app/width-budget.js";
 import { selectionStore } from "../../panels/selection.js";
 import { clockTime } from "../../time.js";
 import { Places } from "./Places.js";
@@ -320,4 +323,78 @@ it("opens the oldest affected read even when a newer area is listed first", asyn
   expect(oldest.scrollIntoView).toHaveBeenCalledWith({ block: "center" });
   expect(newest.scrollIntoView).not.toHaveBeenCalled();
   expect(document.activeElement).toBe(oldest);
+});
+
+const styles = (path: string) => readFileSync(resolve("apps/window/src", path), "utf8");
+const px = (css: string, pattern: RegExp) => {
+  const found = css.match(pattern)?.[1];
+  if (!found) throw new Error(`Missing ${pattern}`);
+  return Number(found);
+};
+// A semibold system-font glyph averages under half an em; 0.6 em per character leaves margin.
+const ADVANCE = 0.6;
+
+it.each(["calm", "busy", "bad"] as const)(
+  "fits %s figures and reasons on the card at 1440 with Detail open",
+  async (name) => {
+    const centre = widthBudget({
+      windowWidth: 1440,
+      open: { sidebar: true, rightPanel: true, lineSheet: false },
+    }).centre.width;
+    const content =
+      centre - 2 * px(styles("style.css"), /--centre-content-padding-inline:\s*(\d+)px/);
+    const places = styles("views/today/places.css");
+    const narrower = [
+      ...styles("views/today/today.css").matchAll(
+        /@container today \(max-width: (\d+)px\) \{(?:[^{}]*\{[^}]*\})*?[^{}]*\.today-places \{ grid-template-columns: repeat\((\d+),/g,
+      ),
+    ]
+      .map(([, max, columns]) => ({ max: Number(max), columns: Number(columns) }))
+      .filter(({ max }) => content <= max)
+      .sort((a, b) => a.max - b.max)[0];
+    const columns = narrower?.columns ?? px(places, /\.today-places \{[^}]*repeat\((\d+),/);
+    const gap = px(places, /\.today-places \{[^}]*gap: (\d+)px/);
+    const card = /\.today-place \{[^}]*\}/.exec(places)?.[0] ?? "";
+    const inner =
+      (content - gap * (columns - 1)) / columns -
+      2 * px(card, /padding: (\d+)px/) -
+      2 * px(card, /border: (\d+)px/);
+    const chip = styles("components/kit/kit.css");
+    const chipFont = px(chip, /\.kit-chip \{[^}]*font-size: ([\d.]+)px/);
+    const chipFrame =
+      2 * px(chip, /\.kit-chip \{[^}]*padding: 0 (\d+)px/) +
+      2 * px(chip, /\.kit-chip \{[^}]*border: (\d+)px/);
+    const figureFont = px(places, /\.today-place-figure \{[^}]*font-size: (\d+)px/);
+    expect(columns).toBe(3);
+    const body = snapshot(name);
+    const { container } = await mount(body);
+    for (const card of container.querySelectorAll<HTMLElement>(".today-place")) {
+      const figure = card.querySelector(".today-place-figure")?.textContent ?? "";
+      const reason = card.querySelector(".today-place-reason")?.textContent ?? "";
+      expect(
+        figure.length * figureFont * ADVANCE,
+        `${card.dataset.place}: ${figure}`,
+      ).toBeLessThanOrEqual(inner);
+      expect(
+        reason.length * chipFont * ADVANCE + chipFrame,
+        `${card.dataset.place}: ${reason}`,
+      ).toBeLessThanOrEqual(inner);
+    }
+  },
+);
+
+it("keeps the full sentence as the figure's hover and the reason's accessible name", async () => {
+  const body = snapshot("busy");
+  const { container } = await mount(body);
+  for (const row of body.briefing.places ?? []) {
+    const card = container.querySelector(`[data-place="${row.place}"]`);
+    expect(card?.querySelector(".today-place-figure")?.getAttribute("title")).toBe(row.line);
+    const chip = card?.querySelector(".today-place-reason .kit-chip");
+    if (!row.reason) expect(chip).toBeNull();
+    else {
+      expect(chip?.textContent).toBe(row.reason);
+      expect(chip?.getAttribute("aria-label")).toBe(row.line);
+      expect(chip?.getAttribute("title")).toBe(row.line);
+    }
+  }
 });

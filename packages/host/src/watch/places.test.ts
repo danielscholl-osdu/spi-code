@@ -4,7 +4,7 @@
 import type { PlaceId, ViewSnapshot } from "@spi-code/contracts";
 import { buildModel, placesOf, programReading } from "@spi-code/core";
 import { describe, expect, it } from "vitest";
-import { projectWatch } from "./project.js";
+import { projectWatch, type WatchInput } from "./project.js";
 import {
   badInput,
   busyInput,
@@ -13,6 +13,11 @@ import {
   unreadForksInput,
 } from "./snapshot-fixture.js";
 
+const sourceOf = (input: WatchInput) => ({
+  model: buildModel(input.facts, input.context.clock.now(), {}, input.context),
+  facts: input.facts,
+  reads: input.reads,
+});
 const readingOf = (snapshot: ViewSnapshot, place: PlaceId) =>
   snapshot.readings.find(({ anchor }) => anchor.kind === (place === "line" ? "program" : place))
     ?.content;
@@ -33,9 +38,7 @@ describe("Today place rows (PS-03, PS-19)", () => {
       for (const row of snapshot.briefing.places ?? []) {
         const reading = readingOf(snapshot, row.place);
         expect(reading).toBeTruthy();
-        if (row.place === "environment")
-          expect(row.figure).toBe(reading?.headline.replace(/\.$/, ""));
-        else expect(row.figure.startsWith(reading?.tiles[0].value ?? "missing")).toBe(true);
+        expect(row.figure.startsWith(reading?.tiles[0].value ?? "missing")).toBe(true);
         expect(row.fresh).toEqual({ itemIds: [] });
         expect(row.visual).toBeDefined();
         const refs = new Set(reading?.itemIds);
@@ -114,8 +117,12 @@ describe("Today place rows (PS-03, PS-19)", () => {
     });
     const snapshot = projectWatch(input);
     const line = snapshot.briefing.places?.find(({ place }) => place === "line");
-    expect(line).toMatchObject({ mark: "needs-person", reason: "Waiting on you: schema." });
-    expect(readingOf(snapshot, "line")?.headline).toBe(line?.reason);
+    expect(line).toMatchObject({
+      mark: "needs-person",
+      reason: "1 needs you",
+      line: "Waiting on you: schema.",
+    });
+    expect(readingOf(snapshot, "line")?.headline).toBe(line?.line);
   });
 
   it("names an owed lane re-run even after its stations have recovered", () => {
@@ -139,9 +146,14 @@ describe("Today place rows (PS-03, PS-19)", () => {
       readings: [{ anchor: { kind: "program" }, content: reading }],
       areas: snapshot.areas,
       items: [item],
+      source: sourceOf(input),
     })[0];
-    expect(row).toMatchObject({ mark: "needs-person", reason: "A fork lane re-run is owed." });
-    expect(reading.headline).toBe(row?.reason);
+    expect(row).toMatchObject({
+      mark: "needs-person",
+      reason: "lane re-run owed",
+      line: "A fork lane re-run is owed.",
+    });
+    expect(reading.headline).toBe(row?.line);
   });
 
   for (const area of [
@@ -198,10 +210,12 @@ describe("Today place rows (PS-03, PS-19)", () => {
   }
 
   it("uses the strip's area labels in fallback caveats", () => {
-    const snapshot = projectWatch(calmInput());
+    const input = calmInput();
+    const snapshot = projectWatch(input);
     const row = placesOf({
       readings: snapshot.readings,
       items: [],
+      source: sourceOf(input),
       areas: snapshot.areas.filter(({ area }) => area !== "approvals" && area !== "radar"),
     })[0];
     expect(row?.caveat).toBe(
@@ -233,6 +247,7 @@ describe("Today place rows (PS-03, PS-19)", () => {
         ...item,
         attention: "background" as const,
       })),
+      source: sourceOf(input),
     }).find(({ place }) => place === "security");
     expect(row).toMatchObject({ mark: "nothing-due", tone: "warn" });
     expect(row?.line).toContain("none blocking today");
@@ -262,7 +277,8 @@ describe("Today place rows (PS-03, PS-19)", () => {
   });
 
   it("uses the oldest last good time and omits it when any unread area has none", () => {
-    const snapshot = projectWatch(badInput());
+    const input = badInput();
+    const snapshot = projectWatch(input);
     const areas = snapshot.areas.map((entry) =>
       entry.area === "template"
         ? {
@@ -281,6 +297,7 @@ describe("Today place rows (PS-03, PS-19)", () => {
         readings: snapshot.readings,
         items: [...snapshot.briefing.focus, ...snapshot.briefing.rest],
         areas,
+        source: sourceOf(input),
       });
     expect(project().find(({ place }) => place === "engineering")?.unread).toEqual({
       areas: ["github", "template"],
@@ -300,7 +317,8 @@ describe("Today place rows (PS-03, PS-19)", () => {
   });
 
   it("keeps the mark of an Interrupt folded past the reading's five-item cap", () => {
-    const snapshot = projectWatch(busyInput());
+    const input = busyInput();
+    const snapshot = projectWatch(input);
     const reading = readingOf(snapshot, "line");
     const refs = new Set(reading?.itemIds);
     const visible = new Set(reading?.items.map(({ id }) => id));
@@ -328,13 +346,15 @@ describe("Today place rows (PS-03, PS-19)", () => {
         ...item,
         attention: item.id === folded?.id ? ("interrupt" as const) : ("background" as const),
       })),
+      source: sourceOf(input),
     });
     expect(rows[0]).toMatchObject({ mark: "stopped", tone: "bad" });
     expect(rows[0]?.itemIds).toContain(folded?.id);
   });
 
   it("keeps full membership on overlapping places without changing tiers", () => {
-    const snapshot = projectWatch(recordedInput());
+    const input = recordedInput();
+    const snapshot = projectWatch(input);
     const items = [...snapshot.briefing.focus, ...snapshot.briefing.rest];
     for (const row of snapshot.briefing.places ?? []) {
       const reading = readingOf(snapshot, row.place);
@@ -367,8 +387,122 @@ describe("Today place rows (PS-03, PS-19)", () => {
       ),
       areas: snapshot.areas,
       items,
+      source: sourceOf(input),
     });
     expect(rows.find(({ place }) => place === "line")?.itemIds).toContain(shared);
     expect(rows.find(({ place }) => place === "engineering")?.itemIds).toContain(shared);
   });
+});
+
+describe("Today place cards speak compactly (draft 7, Words and visuals)", () => {
+  const reasons = {
+    calm: { engineering: "verification pending" },
+    busy: {
+      line: "stations: sync, main",
+      engineering: "verification pending",
+      security: "1 needs you",
+    },
+    bad: {
+      line: "stations: sync, main",
+      environment: "Place reading is incomplete.",
+      engineering: "verification pending",
+      security: "1 needs you",
+    },
+  } as const;
+  for (const [name, fixture] of [
+    ["calm", calmInput],
+    ["busy", busyInput],
+    ["bad", badInput],
+  ] as const) {
+    it(`${name}: figures and reasons are compact and the full sentence stays the line`, () => {
+      const snapshot = projectWatch(fixture());
+      const rows = snapshot.briefing.places ?? [];
+      expect(
+        Object.fromEntries(rows.flatMap(({ place, reason }) => (reason ? [[place, reason]] : []))),
+      ).toEqual(reasons[name]);
+      for (const row of rows) {
+        const reading = readingOf(snapshot, row.place);
+        if (row.reason === "Place reading is incomplete.") expect(row.line).toBe(row.reason);
+        else if (row.place === "security" && row.mark === "nothing-due")
+          expect(row.line).toBe("In SPI-owned shipped code, none blocking today.");
+        else {
+          expect(row.line).toBe(reading?.headline);
+          if (row.reason) expect(row.line).not.toContain(row.reason);
+        }
+      }
+      const environment = rows.find(({ place }) => place === "environment");
+      expect(environment?.figure).toBe(
+        `${readingOf(snapshot, "environment")?.tiles[0].value} deployable`,
+      );
+      const security = rows.find(({ place }) => place === "security");
+      const high = readingOf(snapshot, "security")?.tiles[0].value ?? "missing";
+      expect(security?.figure).toBe(`${high} high or critical`);
+      expect(security?.reason ?? "").not.toMatch(new RegExp(`\\b${high}\\b`));
+      const line = rows.find(({ place }) => place === "line");
+      const stopped = line?.visual?.kind === "pips" ? line.visual.stopped : [];
+      if (name !== "calm") expect(stopped.length).toBeGreaterThan(0);
+      for (const fork of stopped) expect(line?.reason ?? "").not.toContain(fork);
+    });
+  }
+
+  it("builds the compact fields from core state, never from a reading's sentence", () => {
+    const input = busyInput();
+    const snapshot = projectWatch(input);
+    const base = {
+      items: [...snapshot.briefing.focus, ...snapshot.briefing.rest],
+      areas: snapshot.areas,
+      source: sourceOf(input),
+    };
+    const compact = (rows: ReturnType<typeof placesOf>) =>
+      rows.map(({ place, figure, reason }) => ({ place, figure, reason }));
+    const told = placesOf({ ...base, readings: snapshot.readings });
+    const reworded = placesOf({
+      ...base,
+      readings: snapshot.readings.map((entry) =>
+        entry.content ? { ...entry, content: { ...entry.content, headline: "Reworded." } } : entry,
+      ),
+    });
+    expect(compact(reworded)).toEqual(compact(told));
+    expect(reworded.map(({ line }) => line)).toEqual([
+      "Reworded.",
+      "Reworded.",
+      "Reworded.",
+      "Reworded.",
+    ]);
+  });
+
+  for (const place of ["line", "environment", "engineering", "security"] as const) {
+    it(`keeps ${place} at not read yet when its areas are unread or its reading is missing`, () => {
+      const input = busyInput();
+      const snapshot = projectWatch(input);
+      const areas = snapshot.briefing.places?.find((row) => row.place === place)?.areas ?? [];
+      expect(areas.length).toBeGreaterThan(0);
+      const items = [...snapshot.briefing.focus, ...snapshot.briefing.rest];
+      const kind = place === "line" ? "program" : place;
+      const unread = placesOf({
+        readings: snapshot.readings,
+        items,
+        areas: snapshot.areas.map((entry) =>
+          areas.includes(entry.area)
+            ? { area: entry.area, envelope: { source: entry.area, state: "unread" as const } }
+            : entry,
+        ),
+        source: sourceOf(input),
+      });
+      const missing = placesOf({
+        readings: snapshot.readings.filter(({ anchor }) => anchor.kind !== kind),
+        items,
+        areas: snapshot.areas,
+        source: sourceOf(input),
+      });
+      for (const rows of [unread, missing]) {
+        const row = rows.find((entry) => entry.place === place);
+        expect(row).toMatchObject({
+          figure: "not read yet",
+          reason: "Place reading is incomplete.",
+        });
+        expect(row?.mark).not.toBe("nothing-due");
+      }
+    });
+  }
 });

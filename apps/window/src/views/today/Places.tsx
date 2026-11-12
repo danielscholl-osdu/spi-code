@@ -258,7 +258,7 @@ export function Places({
                 {label}
               </button>
             </h3>
-            <div className="today-place-figure" data-tone={row.tone} title={row.figure}>
+            <div className="today-place-figure" data-tone={row.tone} title={row.line}>
               {row.figure}
             </div>
             <div className="today-place-chips">
@@ -266,7 +266,7 @@ export function Places({
                 <span className="today-place-reason">
                   <Chip
                     label={row.reason}
-                    text={row.reason}
+                    text={row.line}
                     tone={row.tone === "bad" ? "bad" : "warn"}
                   />
                 </span>
