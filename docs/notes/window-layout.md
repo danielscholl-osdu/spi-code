@@ -30,3 +30,6 @@ most 960 px wide with 20 by 24 px padding; its full-width place header stays abo
 the scrolling body. The Line body also scrolls below its header and contains its
 absolutely positioned accessibility labels. Service source sections use named, styled disclosures,
 with nonempty Attention open by default.
+Shell's effects live in hooks beside it, and the order Shell calls them is the effect order:
+the tray-destination ref must be set before the host subscription, because the preload hands
+a held destination to `onNavigate` synchronously (`shell-order.test.tsx`).
