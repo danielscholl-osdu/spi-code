@@ -7,6 +7,7 @@ import { buildBriefing, buildModel, detectCampaigns } from "@spi-code/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as attention from "./attention.js";
 import { projectWatch, type WatchInput } from "./project.js";
+import { readingFor } from "./readings.js";
 import * as seen from "./seen.js";
 import {
   fixtureInput,
@@ -316,26 +317,68 @@ describe("Watch projection", () => {
   it("reads the clock once for the projection, then per item and per reading, in that order", () => {
     const input = recordedInput();
     const start = input.context.clock.now().getTime();
-    const readers: string[] = [];
+    const reads: string[] = [];
+    let reader: string | undefined;
+    const within =
+      <A extends unknown[], R>(label: (...args: A) => string, fn: (...args: A) => R) =>
+      (...args: A): R => {
+        reader = label(...args);
+        try {
+          return fn(...args);
+        } finally {
+          reader = undefined;
+        }
+      };
+    const realAttention = attention.itemAttention;
+    vi.spyOn(attention, "itemAttention").mockImplementation(
+      within((item) => `item ${item.id}`, realAttention),
+    );
+    for (const kind of ["environment", "service"] as const) {
+      const real = readingFor[kind];
+      vi.spyOn(readingFor, kind).mockImplementation(
+        within((anchor) => (anchor.kind === "service" ? `service ${anchor.id}` : kind), real),
+      );
+    }
     const now = () => {
-      const caller = new Error().stack?.split("\n")[2] ?? "";
-      const at = new Date(start + 1000 * readers.length);
-      readers.push(/^\s*at (\S+)/.exec(caller)?.[1] ?? caller);
-      return at;
+      const caller = /^\s*at (\S+)/.exec(new Error().stack?.split("\n")[2] ?? "")?.[1];
+      reads.push(`+${reads.length}s ${reader ?? caller}`);
+      return new Date(start + 1000 * (reads.length - 1));
     };
     const snapshot = projectWatch({ ...input, context: { ...input.context, clock: { now } } });
     expect(snapshot).toEqual(JSON.parse(readFileSync(recordedSnapshotPath, "utf8")));
-    const runs: [string, number][] = [];
-    for (const reader of readers) {
-      const last = runs.at(-1);
-      if (last?.[0] === reader) last[1]++;
-      else runs.push([reader, 1]);
-    }
-    expect(runs).toEqual([
-      ["projectWatch", 1],
-      ["itemAttention", 17],
-      ["Object.environment", 1],
-      ["Object.service", 13],
+    expect(reads).toEqual([
+      "+0s projectWatch",
+      "+1s item conflict:entitlements:121",
+      "+2s item rollout",
+      "+3s item release-red:Azure/osdu-spi-entitlements#89",
+      "+4s item radar:indexer",
+      "+5s item radar:legal",
+      "+6s item radar:schema",
+      "+7s item radar:storage",
+      "+8s item radar:partition",
+      "+9s item radar:unit",
+      "+10s item radar:workflow",
+      "+11s item radar:search",
+      "+12s item radar:file",
+      "+13s item radar:crs-conversion",
+      "+14s item gate1:indexer",
+      "+15s item gate1:storage",
+      "+16s item gate1:indexer-queue",
+      "+17s item port:entitlements",
+      "+18s environment",
+      "+19s service partition",
+      "+20s service entitlements",
+      "+21s service legal",
+      "+22s service schema",
+      "+23s service file",
+      "+24s service storage",
+      "+25s service indexer",
+      "+26s service search",
+      "+27s service workflow",
+      "+28s service indexer-queue",
+      "+29s service unit",
+      "+30s service crs-catalog",
+      "+31s service crs-conversion",
     ]);
   });
 });
