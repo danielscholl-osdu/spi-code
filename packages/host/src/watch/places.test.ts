@@ -100,6 +100,28 @@ describe("Today place rows (PS-03, PS-19)", () => {
     expect(line?.itemIds).toContain("lane-deploy:storage");
   });
 
+  it("gives Line's reason as its failed lanes, and as stopped stations only when no lane failed", () => {
+    const quiet = projectWatch(busyInput());
+    expect(readingOf(quiet, "line")?.tiles[1]).toMatchObject({ label: "Lanes", value: "0" });
+    expect(quiet.briefing.places?.find(({ place }) => place === "line")).toMatchObject({
+      mark: "stopped",
+      reason: "stations: sync, main",
+    });
+    const input = busyInput();
+    for (const id of ["indexer", "storage"]) {
+      const repo = input.context.fleet.forks.find((fork) => fork.id === id)?.repo;
+      const facts = repo ? input.facts.github.data?.repos[repo] : undefined;
+      if (!facts) throw new Error(`Fixture lacks ${id}`);
+      facts.deployments = [{ createdAt: "2026-11-06T13:00:00Z", state: "FAILURE" }];
+    }
+    const snapshot = projectWatch(input);
+    expect(readingOf(snapshot, "line")?.tiles[1]).toMatchObject({ label: "Lanes", value: "2" });
+    expect(snapshot.briefing.places?.find(({ place }) => place === "line")).toMatchObject({
+      mark: "stopped",
+      reason: "lanes: storage, indexer",
+    });
+  });
+
   it("leads with the fork work owed when a calm Line has a Surface item", () => {
     const input = calmInput();
     const repoName = input.context.fleet.forks.find(({ id }) => id === "schema")?.repo;
