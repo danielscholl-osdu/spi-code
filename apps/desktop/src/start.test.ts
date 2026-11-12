@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { runInNewContext } from "node:vm";
 import { PROTOCOL_VERSION } from "@spi-code/contracts";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { parseAst } from "vitest/node";
 
 const electron = { current: undefined as ReturnType<typeof harness> | undefined };
 vi.mock("./tray.js", () => ({
@@ -119,35 +120,65 @@ it("keeps every renderer limit when the start function builds a fake BrowserWind
   expect(electron.current?.shell.openExternal).toHaveBeenCalledExactlyOnceWith(url);
 });
 
-function productionImports(name: string): string[] {
+type Node = { type: string; [key: string]: unknown };
+const isNode = (value: unknown): value is Node =>
+  typeof value === "object" && value !== null && typeof (value as Node).type === "string";
+
+function moduleLoads(name: string): { specifier: string | undefined; dynamic: boolean }[] {
   const source = readFileSync(new URL(name, import.meta.url), "utf8");
-  const statements = Array.from(
-    source.matchAll(/^\s*(?:import|export)\s+(type\s+)?[^;]*?\bfrom\s*["'](\.{1,2}\/[^"']+)["']/gm),
-    (match) => (match[1] ? undefined : match[2]),
-  );
-  const bare = Array.from(source.matchAll(/^\s*import\s*["'](\.{1,2}\/[^"']+)["']/gm), (m) => m[1]);
-  // index.ts's own import() calls sit behind --smoke/--proof; the runtime test proves production reaches none.
-  const dynamic =
-    name === "index.ts"
-      ? []
-      : Array.from(source.matchAll(/\bimport\(\s*["'](\.{1,2}\/[^"']+)["']\s*\)/g), (m) => m[1]);
-  return [...statements, ...bare, ...dynamic]
-    .filter((path): path is string => path !== undefined)
-    .map((path) => new URL(path.replace(/\.js$/, ".ts"), new URL(name, import.meta.url)))
-    .map((url) => url.pathname.slice(new URL(".", import.meta.url).pathname.length))
-    .filter((path) => !path.endsWith(".test.ts"));
+  const loads: { specifier: string | undefined; dynamic: boolean }[] = [];
+  const literal = (node: unknown) =>
+    isNode(node) && node.type === "Literal" && typeof node.value === "string"
+      ? node.value
+      : undefined;
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item);
+      return;
+    }
+    if (!isNode(value)) return;
+    // verbatimModuleSyntax erases only whole `import type`; `import { type X }` still loads.
+    const typeOnly = value.importKind === "type" || value.exportKind === "type";
+    const declaration = /^(Import|ExportNamed|ExportAll)Declaration$/.test(value.type);
+    if (declaration && value.source && !typeOnly)
+      loads.push({ specifier: literal(value.source), dynamic: false });
+    const reference = value.moduleReference;
+    if (value.type === "TSImportEqualsDeclaration" && !typeOnly && isNode(reference))
+      if (reference.type === "TSExternalModuleReference")
+        loads.push({ specifier: literal(reference.expression), dynamic: false });
+    if (value.type === "ImportExpression")
+      loads.push({ specifier: literal(value.source), dynamic: true });
+    for (const child of Object.values(value)) visit(child);
+  };
+  visit(parseAst(source, { lang: "ts", sourceType: "module" }, name));
+  return loads;
 }
+
+const guardedEntryImports = ["./smoke-messages.js", "./smoke-report.js", "./smoke-run.js"];
 
 it("reaches no smoke module through the static import graph of the entry and start module", () => {
   const visited = new Set<string>();
   const pending = ["index.ts", "start.ts"];
   const reached: string[] = [];
+  const entryGuarded: string[] = [];
+  const root = new URL(".", import.meta.url).pathname;
   for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
     if (visited.has(name)) continue;
     visited.add(name);
     expect(existsSync(new URL(name, import.meta.url)), name).toBe(true);
-    for (const path of productionImports(name)) {
-      if (/^smoke-[^/]*\.ts$/.test(path)) reached.push(`${name} -> ${path}`);
+    for (const { specifier, dynamic } of moduleLoads(name)) {
+      if (specifier === undefined) {
+        reached.push(`${name} -> import(<not a string literal>)`);
+        continue;
+      }
+      if (!/^\.{1,2}\//.test(specifier)) continue;
+      const url = new URL(specifier.replace(/\.js$/, ".ts"), new URL(name, import.meta.url));
+      const path = url.pathname.slice(root.length);
+      if (/^smoke-[^/]*\.ts$/.test(path)) {
+        if (name === "index.ts" && dynamic) entryGuarded.push(specifier);
+        else reached.push(`${name} -> ${path}`);
+        continue;
+      }
       pending.push(path);
     }
   }
@@ -155,6 +186,8 @@ it("reaches no smoke module through the static import graph of the entry and sta
     expect.arrayContaining(["start.ts", "tray.ts", "interrupts.ts", "outage.ts", "host-tree.ts"]),
   );
   expect(reached).toEqual([]);
+  // These sit behind --smoke/--proof; the production start test below fails if one runs.
+  expect(entryGuarded.sort()).toEqual(guardedEntryImports);
 });
 
 it("starts production wiring without loading smoke or registering proof:message", async () => {
@@ -164,8 +197,12 @@ it("starts production wiring without loading smoke or registering proof:message"
   expect(smokeModules).toEqual(expect.arrayContaining(["./smoke-run.js", "./smoke-listeners.js"]));
   for (const module of smokeModules) vi.doMock(module, loadSmoke);
   vi.doUnmock("./host-tree.js");
+  vi.useFakeTimers();
   await import("./index.js");
   await vi.waitFor(() => expect(electron.current?.utilityProcess.fork).toHaveBeenCalledOnce());
+  await vi.dynamicImportSettled();
+  await vi.runOnlyPendingTimersAsync();
+  await vi.dynamicImportSettled();
   expect(electron.current?.ipcMain.listenerCount("proof:message")).toBe(0);
   expect(loadSmoke).not.toHaveBeenCalled();
   expect(electron.current?.app.exit).not.toHaveBeenCalled();
