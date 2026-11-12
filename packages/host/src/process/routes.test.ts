@@ -44,6 +44,8 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { mrBoard } from "../../../core/src/inspect/mr.js";
+import { inspectResult } from "../inspect/item.js";
+import { upstreamForkResult, upstreamPlanResult } from "../inspect/upstream.js";
 import { createLeaseStore } from "../store/leases.js";
 import { createSeenStore } from "../store/seen.js";
 import { createSnapshotStore } from "../store/snapshots.js";
@@ -54,13 +56,7 @@ import { projectReleases, projectWatch } from "../watch/project.js";
 import { baselineItems as baselineOf } from "../watch/seen.js";
 import { fixtureInput, oracle } from "../watch/snapshot-fixture.js";
 import { attachHostPort, type HostPort } from "./port.js";
-import {
-  inspectResult,
-  upstreamForkResult,
-  upstreamPlanResult,
-  WatchRoutes,
-  watchFleet,
-} from "./routes.js";
+import { WatchRoutes, watchFleet } from "./routes.js";
 
 const input = fixtureInput();
 const ctx = input.context;
