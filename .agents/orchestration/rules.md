@@ -28,6 +28,7 @@ Several agents share this machine. The full `scripts/check` runs every test twic
 
 - Run `scripts/check --quick`. It takes one to six minutes depending on how much depends on what you changed; give it a ten-minute timeout. A builder pushes its branch and lets CI run the rest, and puts the run id in a bead note. A reviewer pushes nothing.
 - CI is one workflow, named Packaged smoke. Its `check` jobs run the full `scripts/check` and its `package` jobs build and smoke the app, each on macOS and Windows.
+- To see which test files are slow, read a run's timings instead of running the suite: the check job's summary lists the ten slowest, and `gh run download <run id> -R <owner>/<repo> -n timings-macos-latest-<head sha>` (or `windows-latest`) gives every file's seconds in both passes.
 - To run one test file: from the repository root, `pnpm vitest run <path>`. Tests in one package run another package's built output, so after changing a package run `pnpm --filter <package> build` (or `pnpm build`) first.
 - A builder runs `pnpm package:mac` only when the diff changes what the packaged smoke looks at: `apps/desktop/src/smoke*`, `scripts/package*.mjs`, `scripts/packaged-host.mjs`, or a selector the smoke reads. A reviewer never does; CI packages and smokes every pushed branch on macOS and Windows.
 - A test outside your diff that fails on a 30-second timeout is load. Rerun that file alone and report both results. Never rerun everything for it, and never run a load generator to reproduce one.

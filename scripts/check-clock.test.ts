@@ -96,6 +96,7 @@ it.each(["2040-01-01T00:00:00.998Z", "2040-01-01T00:00:00.999Z"])(
     const env = {
       ...process.env,
       SPI_TEST_CLOCK_SHIFT: "",
+      SPI_CHECK_REPORT_DIR: "",
       SPI_TEST_ZONE: "",
       VITEST_MAX_WORKERS: "1",
     };

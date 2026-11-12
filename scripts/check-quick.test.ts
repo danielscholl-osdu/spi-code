@@ -59,6 +59,7 @@ function fixture() {
     join(directory, "record.mjs"),
     `import { appendFileSync } from "node:fs";
 appendFileSync("calls.log", JSON.stringify({ args: process.argv.slice(2), shifted: process.env.SPI_TEST_CLOCK_SHIFT ?? "" }) + "\\n");
+if (process.env.RECORD_FAILS && process.env.RECORD_FAILS === process.argv[2]) process.exit(1);
 `,
   );
   writeFileSync(join(directory, "scripts/third-party-notices.mjs"), 'import "../record.mjs";\n');
@@ -76,6 +77,19 @@ appendFileSync("calls.log", JSON.stringify({ args: process.argv.slice(2), shifte
   git("commit", "--quiet", "-m", "base");
   const base = git("rev-parse", "HEAD");
   git("switch", "--quiet", "-c", "bead/fixture");
+  const run = (env: Record<string, string>, args: string[]) =>
+    spawnSync("bash", ["check", ...args], {
+      cwd: directory,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        SPI_TEST_CLOCK_SHIFT: "",
+        SPI_TEST_ZONE: "",
+        SPI_CHECK_REPORT_DIR: "",
+        ...env,
+      },
+      timeout: 60_000,
+    });
   return {
     base,
     write(path: string, contents = "changed\n") {
@@ -96,13 +110,8 @@ appendFileSync("calls.log", JSON.stringify({ args: process.argv.slice(2), shifte
       git("merge", "--quiet", "--ff-only", "main");
       return git("rev-parse", "main");
     },
-    check: (...args: string[]) =>
-      spawnSync("bash", ["check", ...args], {
-        cwd: directory,
-        encoding: "utf8",
-        env: { ...process.env, SPI_TEST_CLOCK_SHIFT: "", SPI_TEST_ZONE: "" },
-        timeout: 60_000,
-      }),
+    checkWith: (env: Record<string, string>, ...args: string[]) => run(env, args),
+    check: (...args: string[]) => run({}, args),
     calls: (): { args: string[]; shifted: string }[] =>
       existsSync(join(directory, "calls.log"))
         ? readFileSync(join(directory, "calls.log"), "utf8")
@@ -240,3 +249,43 @@ it("--static lints, typechecks and checks headers, and runs no test", () => {
   ]);
   expect(result.stdout).toContain("no test ran");
 }, 90_000);
+
+const reporter = (pass: number) => [
+  "test",
+  "--reporter=default",
+  "--reporter=json",
+  `--outputFile.json=reports/pass-${pass}.json`,
+];
+
+it("with a report directory runs the same steps in the same order, with a JSON report of each pass", () => {
+  const repo = fixture();
+
+  const result = repo.checkWith({ SPI_CHECK_REPORT_DIR: "reports" });
+
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  expect(repo.calls()).toEqual([
+    { args: ["lint"], shifted: "" },
+    { args: ["typecheck"], shifted: "" },
+    { args: reporter(1), shifted: "" },
+    { args: ["check:headers"], shifted: "" },
+    { args: reporter(2), shifted: "1" },
+    { args: [], shifted: "" },
+  ]);
+}, 90_000);
+
+it("still fails when a test fails under a report directory", () => {
+  const repo = fixture();
+
+  const result = repo.checkWith({ SPI_CHECK_REPORT_DIR: "reports", RECORD_FAILS: "test" });
+
+  expect(result.status, result.stdout + result.stderr).not.toBe(0);
+  expect(repo.calls().map((call) => call.args[0])).toEqual(["lint", "typecheck", "test"]);
+}, 90_000);
+
+it("spells out exactly the steps of the package's check script, so the two cannot drift", () => {
+  const scripts = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).scripts;
+
+  expect(scripts.check).toBe(
+    "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run check:headers",
+  );
+});

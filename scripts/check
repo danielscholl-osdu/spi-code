@@ -83,14 +83,30 @@ if [[ -f package.json ]]; then
     echo "check: quick pass only; CI runs every test, twice, before scripts/land moves main"
     exit 0
   fi
-  pnpm run check
+  # CI sets SPI_CHECK_REPORT_DIR to keep vitest's JSON report of each pass for its timings.
+  report=()
+  if [[ -n ${SPI_CHECK_REPORT_DIR:-} ]]; then
+    mkdir -p "$SPI_CHECK_REPORT_DIR"
+    report=(--reporter=default --reporter=json)
+    # The steps of `pnpm run check`, spelled out so the test step can take the reporter.
+    pnpm run lint
+    pnpm run typecheck
+    pnpm run test "${report[@]}" "--outputFile.json=$SPI_CHECK_REPORT_DIR/pass-1.json"
+    pnpm run check:headers
+  else
+    pnpm run check
+  fi
   # A second zone too, so a test that only passes in this machine's zone fails here, not in CI.
   zone=UTC
   if [[ $(node -e 'process.stdout.write(String(new Date().getTimezoneOffset()))') == 0 ]]; then
     zone=Pacific/Kiritimati
   fi
   echo "check: testing with the wall clock 400 days forward in time zone $zone"
-  SPI_TEST_ZONE=$zone SPI_TEST_CLOCK_SHIFT=1 pnpm run test
+  if ((${#report[@]})); then
+    SPI_TEST_ZONE=$zone SPI_TEST_CLOCK_SHIFT=1 pnpm run test "${report[@]}" "--outputFile.json=$SPI_CHECK_REPORT_DIR/pass-2.json"
+  else
+    SPI_TEST_ZONE=$zone SPI_TEST_CLOCK_SHIFT=1 pnpm run test
+  fi
   node scripts/third-party-notices.mjs
   exit 0
 fi
