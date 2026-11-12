@@ -13,7 +13,20 @@ die() { echo "land: $*" >&2; exit 1; }
 id=${1:?usage: scripts/land <bead-id>}
 branch="bead/$id"
 command -v jq >/dev/null || die "jq is required"
-here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# Written by scripts/watch-snapshot.ts. A test compares each with a fresh projection, so
+# scripts/check vouches for these files and a review does not have to cover them.
+generated=(
+  fixtures/watch/inspect-1106.json
+  fixtures/watch/snapshot-1106-unread.json
+  fixtures/watch/snapshot-1106-unverified.json
+  fixtures/watch/snapshot-1106.json
+  fixtures/watch/snapshot-59d6895.json
+  fixtures/watch/snapshot-bad.json
+  fixtures/watch/snapshot-busy.json
+  fixtures/watch/snapshot-calm.json
+  fixtures/watch/snapshot-mixed-59d6895.json
+)
 
 root=$(git worktree list --porcelain | sed -n '1s/^worktree //p')
 [[ -n $root ]] || die "cannot find the main checkout"
@@ -54,6 +67,7 @@ finish() {
       die "$sha is on local main but the push failed; fix the remote, then rerun scripts/land $id"
   fi
   bd close "$id" --actor "$assignee" --reason "Landed $(git -C "$root" rev-parse --short "$sha")" >/dev/null
+  git -C "$root" update-ref -d "refs/reviewed/$id"
   echo "land: $id landed as $(git -C "$root" rev-parse --short "$sha")"
   case $worktree in
     "$root"/.worktrees/*)
@@ -124,13 +138,25 @@ if has_label review:exempt; then
     esac
   done < <(git -C "$root" diff --no-renames --name-only -z "$base" "$head")
 else
-  patch=$(cd "$root" && "$here/review-patch-id" "$base" "$head")
-  # Passes recorded before scripts/review-patch-id carry the id of the whole diff.
-  whole=$(git -C "$root" diff "$base" "$head" | git patch-id --verbatim | awk '{print $1}')
-  reviewed=$(meta review.patch_id)
   [[ $(meta review.verdict) == pass ]] || die "$id has no passing review"
-  [[ -n $reviewed && ( $reviewed == "$patch" || $reviewed == "$whole" ) ]] ||
-    die "the diff changed since review ($patch vs $reviewed); review again"
+  reviewed=$(meta review.head)
+  if [[ -n $reviewed ]]; then
+    git -C "$root" cat-file -e "$reviewed^{commit}" 2>/dev/null ||
+      die "the reviewed commit $reviewed is not in this repository; review again"
+    # What the reviewed commit becomes on today's main. A neighbour's landing and a clean
+    # rebase leave it equal to the bead; anything written after the review does not.
+    merged=$(git -C "$root" merge-tree --write-tree "$base" "$reviewed" 2>/dev/null) ||
+      die "the reviewed commit $reviewed no longer merges cleanly with main; review again"
+    expected=${merged%%$'\n'*}
+    unreviewed=("${generated[@]/#/:(top,exclude)}")
+    git -C "$root" diff --quiet "$expected" "$head" -- ':(top)' "${unreviewed[@]}" ||
+      die "$branch differs from the reviewed commit $reviewed (git diff $expected $head); review again"
+  else
+    # Passes recorded before scripts/review-head carry the patch-id of the whole diff.
+    patch=$(git -C "$root" diff "$base" "$head" | git patch-id --verbatim | awk '{print $1}')
+    [[ -n $(meta review.patch_id) && $(meta review.patch_id) == "$patch" ]] ||
+      die "the diff changed since review ($patch vs $(meta review.patch_id)); review again"
+  fi
   author=$(meta build.provider)
   reviewer=$(meta review.provider)
   [[ -n $author && -n $reviewer ]] || die "build.provider and review.provider must both be set on $id"

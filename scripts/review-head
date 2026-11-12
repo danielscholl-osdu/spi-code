@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Copyright 2026, Daniel Scholl
+# SPDX-License-Identifier: MIT
+#
+# Pins the commit a review passed and prints it, for the bead's review.head; scripts/land
+# compares what it lands with this commit. Run it in the bead's worktree. See docs/sdlc.md.
+#   scripts/review-head <bead-id>
+set -euo pipefail
+
+id=${1:?usage: scripts/review-head <bead-id>}
+[[ $(git symbolic-ref --short HEAD) == "bead/$id" ]] || { echo "review-head: not on bead/$id" >&2; exit 1; }
+[[ -z $(git status --porcelain) ]] || { echo "review-head: uncommitted changes; the review covers commits only" >&2; exit 1; }
+
+head=$(git rev-parse HEAD)
+# A later rebase leaves this commit unreachable from the branch; the ref keeps it.
+git update-ref "refs/reviewed/$id" "$head"
+echo "$head"
