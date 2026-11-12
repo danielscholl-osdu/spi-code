@@ -72,3 +72,8 @@ updates. If Watch becomes ready while Settings is open, the
 banner turns green with Go to Today; Settings stays open, and either that button
 or closing the dialog lands on Today. A later readiness loss opens nothing, and
 ordinary Settings visits preserve the place behind them.
+
+An inspect id resolves through `resolveInspect` in `packages/host/src/inspect/resolve.ts`,
+outside the `inspect.request` route, so thread context or Diagnose can ask the same
+question. Its table is ordered and only the first row that claims an id answers; a new
+id kind is a new row, and a row whose lookup finds nothing answers undefined.
