@@ -141,6 +141,8 @@ else
   [[ $(meta review.verdict) == pass ]] || die "$id has no passing review"
   reviewed=$(meta review.head)
   if [[ -n $reviewed ]]; then
+    [[ $reviewed =~ ^[0-9a-f]{40}$ ]] ||
+      die "review.head must be a full commit id, not a name that can move ($reviewed); review again"
     git -C "$root" cat-file -e "$reviewed^{commit}" 2>/dev/null ||
       die "the reviewed commit $reviewed is not in this repository; review again"
     # What the reviewed commit becomes on today's main. A neighbour's landing and a clean
@@ -149,7 +151,7 @@ else
       die "the reviewed commit $reviewed no longer merges cleanly with main; review again"
     expected=${merged%%$'\n'*}
     unreviewed=("${generated[@]/#/:(top,exclude)}")
-    git -C "$root" diff --quiet "$expected" "$head" -- ':(top)' "${unreviewed[@]}" ||
+    git -C "$root" diff --quiet --ignore-submodules=none --no-ext-diff --no-textconv "$expected" "$head" -- ':(top)' "${unreviewed[@]}" ||
       die "$branch differs from the reviewed commit $reviewed (git diff $expected $head); review again"
   else
     # Passes recorded before scripts/review-head carry the patch-id of the whole diff.

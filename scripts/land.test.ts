@@ -302,6 +302,13 @@ function fixture({ origin = false } = {}) {
       git(worktree, "commit", "--quiet", "--all", "--amend", "--no-edit");
       return git(worktree, "rev-parse", "HEAD");
     },
+    // Points a submodule entry at a commit, on main or on the bead, without a checkout.
+    gitlink(where: "bead" | "main", path: string, commit: string) {
+      const cwd = where === "bead" ? worktree : root;
+      git(cwd, "update-index", "--add", "--cacheinfo", `160000,${commit},${path}`);
+      git(cwd, "commit", "--quiet", "-m", `chore: point ${path}\nBead: ${id}`);
+      return git(cwd, "rev-parse", "HEAD");
+    },
     refs: (pattern: string) => git(root, "for-each-ref", "--format=%(refname)", pattern),
     // The id reviews carried before scripts/review-head: the whole diff, context included.
     patchId() {
@@ -787,6 +794,46 @@ describe("landing gates", () => {
       repo.write("bead", "fixtures/watch/inspect-stations-legal-59d6895.json", "{}\n");
 
       expectRefused(repo, repo.land(), `differs from the reviewed commit ${reviewed}`);
+    },
+    testTimeout,
+  );
+
+  it.each([
+    ["the bead's branch", branch],
+    ["HEAD", "HEAD"],
+    ["a short id", (head: string) => head.slice(0, 12)],
+  ] as const)(
+    "refuses a pass recorded against %s, which a later commit would move",
+    (_name, recorded) => {
+      const repo = fixture();
+      const head = repo.commit("docs: update fixture");
+      repo.review(passedAt(typeof recorded === "string" ? recorded : recorded(head)));
+
+      expectRefused(repo, repo.land(), "review.head must be a full commit id");
+    },
+    testTimeout,
+  );
+
+  it(
+    "refuses a submodule moved after the review, even where git is told to ignore submodules",
+    () => {
+      const repo = fixture();
+      repo.write(
+        "main",
+        ".gitmodules",
+        '[submodule "vendored"]\n\tpath = vendored\n\turl = ./vendored\n\tignore = all\n',
+      );
+      repo.gitlink("main", "vendored", repo.base);
+      repo.rebase();
+      repo.commit("docs: update fixture");
+      const reviewed = repo.reviewHead();
+      repo.review(passedAt(reviewed));
+      repo.gitlink("bead", "vendored", reviewed);
+
+      const result = repo.land();
+
+      expect(result.status, result.stdout + result.stderr).toBe(1);
+      expect(result.stderr).toContain(`differs from the reviewed commit ${reviewed}`);
     },
     testTimeout,
   );
