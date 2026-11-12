@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { moving } from "../views/today/in-motion.test-helper.js";
 import { treeServices } from "./queue.js";
@@ -41,7 +42,7 @@ import {
 } from "./reachability-shell.test-helper.js";
 import { DEFAULT_REGISTRY } from "./routes.js";
 
-shellHooks();
+shellHooks((path) => readFileSync(path, "utf8"));
 
 describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
   it("has a case or a named exemption for every leaf, and every exemption still applies", () => {

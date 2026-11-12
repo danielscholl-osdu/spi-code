@@ -1,18 +1,23 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { readFileSync } from "node:fs";
 import { act } from "react";
 import { expect, it, vi } from "vitest";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
-import { WATCH_SNAPSHOTS, watchSnapshot } from "../test-utils/watch-fixtures.test-helper.js";
+import {
+  type Read,
+  WATCH_SNAPSHOTS,
+  watchInspections,
+  watchSnapshot,
+} from "../test-utils/watch-fixtures.test-helper.js";
 import { plainTitle } from "../text.js";
 import { clockTime } from "../time.js";
 import {
   assertRules,
   container,
   emoji,
-  inspections,
   open,
   shellHooks,
   todayLabelled,
@@ -26,7 +31,9 @@ const sweepSchedule = {
   releasesMs: 3_600_000,
 };
 
-const snapshots = WATCH_SNAPSHOTS.map(watchSnapshot);
+const read: Read = (path) => readFileSync(path, "utf8");
+const snapshots = WATCH_SNAPSHOTS.map((name) => watchSnapshot(name, read));
+const inspections = watchInspections(read);
 
 shellHooks();
 

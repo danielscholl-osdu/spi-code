@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import {
   RELEASES_QUIET,
@@ -20,7 +21,7 @@ import {
   shellHooks,
 } from "./reachability-shell.test-helper.js";
 
-shellHooks();
+shellHooks((path) => readFileSync(path, "utf8"));
 
 describe("Today's Releases block, on every morning", () => {
   const MORNINGS = {

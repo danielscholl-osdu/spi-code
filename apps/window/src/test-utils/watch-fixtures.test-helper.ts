@@ -1,8 +1,6 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import {
   type InspectResult,
   InspectResultSchema,
@@ -28,20 +26,23 @@ export const EXCLUDED_SNAPSHOTS: Record<string, string> = {};
 
 export const WATCH_INSPECTIONS = ["inspect-1106.json", "inspect-stations-legal-59d6895.json"];
 
-const directory = `${resolve("fixtures/watch")}/`;
+/** A repository-relative file reader; window helpers may not import node, so tests pass one. */
+export type Read = (path: string) => string;
 
-export function watchSnapshot(name: string): { name: string; body: ViewSnapshot } {
+const directory = "fixtures/watch/";
+
+export function watchSnapshot(name: string, read: Read): { name: string; body: ViewSnapshot } {
   if (!(WATCH_SNAPSHOTS as readonly string[]).includes(name))
     throw new Error(`${name} is not in WATCH_SNAPSHOTS`);
   return {
     name,
-    body: ViewSnapshotSchema.parse(JSON.parse(readFileSync(`${directory}${name}`, "utf8"))),
+    body: ViewSnapshotSchema.parse(JSON.parse(read(`${directory}${name}`))),
   };
 }
 
-export const watchInspections = (): InspectResult[] =>
+export const watchInspections = (read: Read): InspectResult[] =>
   WATCH_INSPECTIONS.flatMap((file) =>
-    InspectResultSchema.array().parse(JSON.parse(readFileSync(`${directory}${file}`, "utf8"))),
+    InspectResultSchema.array().parse(JSON.parse(read(`${directory}${file}`))),
   );
 
 /** Snapshot and inspection files in a fixtures/watch listing that no list names. */
