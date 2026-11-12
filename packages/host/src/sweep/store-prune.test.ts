@@ -4,12 +4,13 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { DatabaseSync } from "node:sqlite";
+import { DatabaseSync } from "node:sqlite";
 import { cacheSchema, createContext, emptyCache, type Facts } from "@spi-code/core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { Sweeper } from "../../../core/src/sweep/sweeper.js";
 import { createLeaseStore } from "../store/leases.js";
+import { migrate } from "../store/migrations.js";
 import { openStore } from "../store/open.js";
 import { createSnapshotStore } from "../store/snapshots.js";
 import { DAY_MS, SweepService } from "./service.js";
@@ -85,4 +86,30 @@ it("reports a failed daily prune without rolling back the committed sweep snapsh
       .snapshotsSince(0)
       .map(({ cursor }) => cursor),
   ).toEqual([2, 3, 4]);
+});
+
+it("refuses a migrated connection that is not in WAL mode", () => {
+  const memory = new DatabaseSync(":memory:");
+  try {
+    migrate(memory);
+    expect(memory.prepare("PRAGMA journal_mode").get()?.journal_mode).toBe("memory");
+    expect(
+      () =>
+        new SweepService({
+          db: memory,
+          fleet: "test",
+          ctx: createContext(),
+          appData: directory,
+          exec: {
+            runJSON: async () => ({ ok: false, error: "offline", code: 1 }),
+            runText: async () => ({ ok: false, error: "offline", code: 1 }),
+          },
+          factsSchema: z.custom<Facts>(),
+          doctor: () => ({ state: "clear", problems: [] }),
+          onError,
+        }),
+    ).toThrow(new Error("Sweep service requires a WAL store"));
+  } finally {
+    memory.close();
+  }
 });

@@ -159,6 +159,9 @@ export class SweepService {
       onError: options.onError,
     });
     const db = options.db;
+    if (db.prepare("PRAGMA journal_mode").get()?.journal_mode !== "wal") {
+      throw new Error("Sweep service requires a WAL store");
+    }
     this.leases = createLeaseStore(db);
     this.snapshots = createSnapshotStore(db);
   }
