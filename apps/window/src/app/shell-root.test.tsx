@@ -1,16 +1,18 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { ViewSnapshotSchema } from "@spi-code/contracts";
+import { readFileSync } from "node:fs";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
-import recorded from "../../../../fixtures/watch/snapshot-1106.json?raw";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
+import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import { PANES_STORAGE_KEY } from "./pane-layout.js";
 import { closeSheet, pinSheet } from "./routes.js";
 import { Shell } from "./Shell.js";
+
+const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
 
 type HappyWindow = { happyDOM: { setViewport(viewport: { width: number; height: number }): void } };
 
@@ -62,17 +64,11 @@ async function root(width: number, panes: Panes) {
   localStorage.removeItem(PANES_STORAGE_KEY);
   closeSheet();
   window.location.hash = "#today";
-  const body = ViewSnapshotSchema.parse(JSON.parse(recorded));
+  const body = loadFixture("snapshot-1106.json");
   watchStore.setState({ snapshot: { cursor: body.cursor, body }, setup: null });
   selectionStore.setState({ selected: null, open: panes === "right panel" });
   if (panes === "line sheet") pinSheet();
-  const previous = window.spi;
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
-    postMessage: vi.fn(),
-    onMessage: () => () => {},
-  };
+  const harness = installSpi();
   const container = document.createElement("div");
   document.body.append(container);
   const view = createRoot(container);
@@ -85,7 +81,7 @@ async function root(width: number, panes: Panes) {
     await act(async () => view.unmount());
     container.remove();
     closeSheet();
-    window.spi = previous;
+    harness.restore();
   }
 }
 
