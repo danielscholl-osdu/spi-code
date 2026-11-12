@@ -91,6 +91,8 @@ Skill: `bead-land`. `scripts/land <id>`:
 
 `scripts/land --wait <id>` queues behind other landings instead of refusing. `SPI_LAND_LOCAL=1` runs the full check on this machine instead of waiting for CI, for when CI is down; it says so in its output, and it checks neither Windows nor the packaged smoke.
 
+A checkout with no remote runs the full check locally in place of steps 3 and 5.
+
 History stays linear, and `main` always equals a commit that passed every check on both platforms.
 
 ## 7. Stop the line

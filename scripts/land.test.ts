@@ -133,6 +133,18 @@ case "$1" in
     if [ -e "$state/list.$n.json" ]; then cat "$state/list.$n.json"; else cat "$state/list.json"; fi
     ;;
   merge-slot)
+    if [ "$2" = check ]; then
+      if [ -e "$state/slot-held" ]; then
+        printf '{"available":false,"holder":"%s"}\\n' "$(cat "$state/slot-held")"
+      else
+        echo '{"available":true,"holder":null}'
+      fi
+      exit 0
+    fi
+    if [ "$2" = acquire ] && [ -e "$state/slot-error" ]; then
+      cat "$state/slot-error" >&2
+      exit 1
+    fi
     if [ "$2" = acquire ] && [ -e "$state/slot-frees-after" ] &&
       [ "$(grep -c '^merge-slot acquire ' "$state/calls.log")" -gt "$(cat "$state/slot-frees-after")" ]; then
       exit 0
@@ -169,8 +181,9 @@ case "$1 $2" in
   *) printf 'Unexpected gh command: %s\\n' "$*" >&2; exit 1 ;;
 esac
 `;
-const run = (status: string, conclusion: string, headBranch = `land/${id}`) => ({
+const run = (status: string, conclusion: string, headBranch = `land/${id}`, attempt = 1) => ({
   databaseId: 7,
+  attempt,
   status,
   conclusion,
   headBranch,
@@ -407,6 +420,8 @@ function fixture({ origin = false } = {}) {
       existsSync(join(state, "pushed.log"))
         ? readFileSync(join(state, "pushed.log"), "utf8").split("\n").filter(Boolean)
         : [],
+    slotError: (message: string) => writeFileSync(join(state, "slot-error"), message),
+    originRefs: () => git(directory, "--git-dir", remote, "for-each-ref", "--format=%(refname)"),
     slotFreesAfter: (attempts: number) =>
       writeFileSync(join(state, "slot-frees-after"), String(attempts)),
     land: (env: Record<string, string> = {}, ...options: string[]) =>
@@ -1148,10 +1163,13 @@ describe("landing through CI", () => {
       const { repo, head } = withOrigin();
       repo.ci([], 1);
       repo.ci([run("completed", "failure")], 2);
-      repo.ci([run("completed", "success")]);
+      repo.ci([run("completed", "failure")], 3);
+      repo.ci([run("queued", "", undefined, 2)], 4);
+      repo.ci([run("completed", "success", undefined, 2)]);
 
       expectLanded(repo, repo.land(), head);
       expect(repo.ghCalls("run rerun")).toEqual(["run rerun 7 --failed"]);
+      expect(repo.ghCalls("run list")).toHaveLength(5);
     },
     testTimeout,
   );
@@ -1161,7 +1179,8 @@ describe("landing through CI", () => {
     () => {
       const { repo, head } = withOrigin();
       repo.ci([], 1);
-      repo.ci([run("completed", "failure")]);
+      repo.ci([run("completed", "failure")], 2);
+      repo.ci([run("completed", "failure", undefined, 2)]);
 
       const result = repo.land();
 
@@ -1170,6 +1189,20 @@ describe("landing through CI", () => {
       expect(repo.ghCalls("run rerun")).toEqual(["run rerun 7 --failed"]);
       expect(repo.pushed()).toEqual([`${landRef} ${head}`, `${landRef} ${gone}`]);
       expect(repo.calls("merge-slot release")).toHaveLength(1);
+    },
+    testTimeout,
+  );
+
+  it(
+    "adopts the land branch an interrupted landing left, and removes it",
+    () => {
+      const { repo, head } = withOrigin();
+      repo.git("push", "--quiet", "origin", `${head}:${landRef}`);
+      repo.ci([run("completed", "success")]);
+      expect(repo.originRefs()).toContain(landRef);
+
+      expectLanded(repo, repo.land(), head);
+      expect(repo.originRefs()).not.toContain(landRef);
     },
     testTimeout,
   );
@@ -1241,6 +1274,21 @@ describe("queueing for the merge slot", () => {
 
       expectLanded(repo, repo.land({}, "--wait"), head);
       expect(repo.calls("merge-slot acquire")).toHaveLength(3);
+    },
+    testTimeout,
+  );
+
+  it(
+    "--wait shows an error from bd at once instead of waiting on it",
+    () => {
+      const repo = fixture();
+      repo.commit("docs: update fixture");
+      repo.slotError("Error: database is locked");
+
+      const result = repo.land({}, "--wait");
+
+      expectRefused(repo, result, "cannot take the merge slot: Error: database is locked");
+      expect(repo.calls("merge-slot acquire")).toHaveLength(1);
     },
     testTimeout,
   );

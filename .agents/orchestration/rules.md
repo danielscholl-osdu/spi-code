@@ -26,10 +26,10 @@ Builders, reviewers and orchestrators all follow these. A brief can add to them;
 
 Several agents share this machine. The full `scripts/check` runs every test twice and belongs to CI, which `scripts/land` waits on.
 
-- Run `scripts/check --quick`. Push your branch and let CI run the rest; put the run id in a bead note.
+- Run `scripts/check --quick`. A builder pushes its branch and lets CI run the rest, and puts the run id in a bead note. A reviewer pushes nothing.
 - Run `pnpm package:mac` only when your diff changes what the packaged smoke looks at: `apps/desktop/src/smoke*`, `scripts/package*.mjs`, `scripts/packaged-host.mjs`, or a selector the smoke reads. CI packages and smokes every pushed branch on macOS and Windows.
 - A test outside your diff that fails on a 30-second timeout is load. Rerun that file alone and report both results. Never rerun everything for it, and never run a load generator to reproduce one.
-- Run long commands in the foreground. If you end your turn while one runs in the background, your task ends with no result.
+- Never end your turn while a command you need is still running: your task ends with no result. Run long commands in the foreground, or in the background only when your harness lets you wait on them.
 
 ## Scope
 
