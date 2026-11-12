@@ -329,10 +329,10 @@ A pass is recorded as bead metadata, which `scripts/land` reads:
 | `build.provider`, `build.model` | Who built the bead (set at claim) |
 | `review.provider`, `review.model` | Who reviewed it |
 | `review.verdict` | `pass` |
-| `review.patch_id` | `git patch-id --verbatim` of the reviewed diff |
+| `review.patch_id` | `scripts/review-patch-id` for the reviewed diff |
 | `land.sha` | The commit `scripts/land` put on `main`, so a rerun after a failed push can finish |
 
-A clean rebase keeps the patch-id. Any change to the diff, whitespace included, voids the review.
+The id covers the lines the bead adds and removes, without context, and leaves out the generated watch fixtures, which `scripts/check` compares with a fresh projection. A rebase, a neighbour's edit beside the bead's lines and a fixture regeneration keep the review. Any change to the bead's own lines, whitespace included, voids it.
 
 ## 6. Land
 

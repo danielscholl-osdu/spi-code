@@ -26,8 +26,9 @@ Run it from the bead's worktree or from the main checkout. It:
 |---|---|
 | main is broken | Wait, or help fix it (`stop-the-line`). |
 | the merge slot is held | Another landing is running. Try again in a minute. If the slot is stale after a crash: `bd merge-slot check`, then `bd merge-slot release`. |
-| does not rebase cleanly | Rebase in the worktree, resolve, run `scripts/check`, then get a fresh review: the diff has changed. |
-| the diff changed since review | Get another review round on the current diff. |
+| does not rebase cleanly | Rebase in the worktree, resolve, and run `scripts/check`. If `scripts/review-patch-id` still prints the reviewed id, land again; otherwise get a review round on what changed. |
+| the diff changed since review | The bead's own lines differ from the reviewed ones. Get another review round on the current diff. |
+| a watch fixture test fails after the rebase | Regenerate the fixtures (`pnpm build && TZ=UTC bun scripts/watch-snapshot.ts && pnpm biome check --write`), commit, and land again. The review stands. |
 | scripts/check failed | Fix it in the worktree. If the fix changes the diff, it needs review again. |
 | uncommitted changes | Commit or discard them. Never land a dirty tree. |
 | moved while checks ran | Something committed to the branch during the checks. Make sure the work is finished, then run it again. |

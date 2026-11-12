@@ -13,6 +13,7 @@ die() { echo "land: $*" >&2; exit 1; }
 id=${1:?usage: scripts/land <bead-id>}
 branch="bead/$id"
 command -v jq >/dev/null || die "jq is required"
+here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 root=$(git worktree list --porcelain | sed -n '1s/^worktree //p')
 [[ -n $root ]] || die "cannot find the main checkout"
@@ -123,9 +124,13 @@ if has_label review:exempt; then
     esac
   done < <(git -C "$root" diff --no-renames --name-only -z "$base" "$head")
 else
-  patch=$(git -C "$root" diff "$base" "$head" | git patch-id --verbatim | awk '{print $1}')
+  patch=$(cd "$root" && "$here/review-patch-id" "$base" "$head")
+  # Passes recorded before scripts/review-patch-id carry the id of the whole diff.
+  whole=$(git -C "$root" diff "$base" "$head" | git patch-id --verbatim | awk '{print $1}')
+  reviewed=$(meta review.patch_id)
   [[ $(meta review.verdict) == pass ]] || die "$id has no passing review"
-  [[ $(meta review.patch_id) == "$patch" ]] || die "the diff changed since review ($patch vs $(meta review.patch_id)); review again"
+  [[ -n $reviewed && ( $reviewed == "$patch" || $reviewed == "$whole" ) ]] ||
+    die "the diff changed since review ($patch vs $reviewed); review again"
   author=$(meta build.provider)
   reviewer=$(meta review.provider)
   [[ -n $author && -n $reviewer ]] || die "build.provider and review.provider must both be set on $id"
