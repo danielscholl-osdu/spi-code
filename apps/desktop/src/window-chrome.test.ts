@@ -40,7 +40,7 @@ it("matches the overlay height to the first row the window draws its title bar i
 it.each(["darwin", "win32"])(
   "sets a 740 px content minimum on the actual %s BrowserWindow",
   (platform) => {
-    const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+    const source = readFileSync(new URL("./start.ts", import.meta.url), "utf8");
     const construction = source.slice(
       source.indexOf("const window = new BrowserWindow("),
       source.indexOf("lifecycle.setWindow(window)"),
