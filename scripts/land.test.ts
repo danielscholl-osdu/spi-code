@@ -31,7 +31,7 @@ const assignee = "fixture-builder";
 // Set this to a mutated copy of scripts/land to confirm a focused case notices the mutation.
 const landSource =
   process.env.LAND_FIXTURE_SCRIPT ?? fileURLToPath(new URL("./land", import.meta.url));
-const patchIdSource = fileURLToPath(new URL("./review-patch-id", import.meta.url));
+const reviewHeadSource = fileURLToPath(new URL("./review-head", import.meta.url));
 const directories: string[] = [];
 let template = "";
 let base = "";
@@ -162,7 +162,7 @@ function buildTemplate() {
   git(root, "init", "--quiet", "--template=", "-b", "main");
   mkdirSync(join(root, "scripts"));
   copyFileSync(landSource, join(root, "scripts/land"));
-  copyFileSync(patchIdSource, join(root, "scripts/review-patch-id"));
+  copyFileSync(reviewHeadSource, join(root, "scripts/review-head"));
   writeFileSync(
     join(root, "scripts/check"),
     '#!/bin/sh\necho ran >> "$LAND_FIXTURE_STATE/checks.log"\n',
@@ -290,15 +290,21 @@ function fixture({ origin = false } = {}) {
       return git(cwd, "rev-parse", "HEAD");
     },
     rebase: () => git(worktree, "rebase", "--quiet", "main"),
-    // The id bead-review records, from the bead's worktree.
-    patchId: () =>
-      execFileSync("bash", ["scripts/review-patch-id"], {
+    // What bead-review records, from the bead's worktree: pins and prints the reviewed commit.
+    reviewHead: () =>
+      execFileSync("bash", ["scripts/review-head", id], {
         cwd: worktree,
         encoding: "utf8",
         env: hermeticEnv(directory),
       }).trim(),
-    // The id reviews carried before scripts/review-patch-id: the whole diff, context included.
-    wholePatchId() {
+    amend(path: string, contents: string) {
+      writeFileSync(join(worktree, path), contents);
+      git(worktree, "commit", "--quiet", "--all", "--amend", "--no-edit");
+      return git(worktree, "rev-parse", "HEAD");
+    },
+    refs: (pattern: string) => git(root, "for-each-ref", "--format=%(refname)", pattern),
+    // The id reviews carried before scripts/review-head: the whole diff, context included.
+    patchId() {
       const env = hermeticEnv(directory);
       const head = git(worktree, "rev-parse", "HEAD");
       const from = git(worktree, "merge-base", "main", head);
@@ -646,29 +652,113 @@ describe("landing gates", () => {
     Array.from({ length: 9 }, (_, index) => `${changed[index + 1] ?? `line ${index + 1}`}\n`).join(
       "",
     );
-  const passed = (patch: string) => ({
-    ...anthropicBuild,
-    "review.verdict": "pass",
-    "review.provider": "openai",
-    "review.patch_id": patch,
-  });
+  const pass = { ...anthropicBuild, "review.verdict": "pass", "review.provider": "openai" };
+  const passedAt = (head: string) => ({ ...pass, "review.head": head });
+  // A bead that changes line 5 of a nine-line file main already holds.
+  function notesBead() {
+    const repo = fixture();
+    repo.write("main", "notes.md", lines());
+    repo.rebase();
+    repo.write("bead", "notes.md", lines({ 5: "the bead's line" }));
+    return repo;
+  }
 
   it(
-    "keeps a review when main gains an edit beside the bead's lines",
+    "keeps a review when main gains an edit beside the bead's lines, and drops the pin",
     () => {
-      const repo = fixture();
-      repo.write("main", "notes.md", lines());
-      repo.rebase();
-      repo.write("bead", "notes.md", lines({ 5: "the bead's line" }));
-      const reviewedWhole = repo.wholePatchId();
-      repo.review(passed(repo.patchId()));
+      const repo = notesBead();
+      repo.review(passedAt(repo.reviewHead()));
+      expect(repo.refs("refs/reviewed")).toBe(`refs/reviewed/${id}`);
       repo.write("main", "notes.md", lines({ 3: "a neighbour's line" }));
 
       const result = repo.land();
 
       expect(result.status, result.stdout + result.stderr).toBe(0);
       expect(repo.bead().status).toBe("closed");
-      expect(repo.wholePatchId()).not.toBe(reviewedWhole);
+      expect(repo.refs("refs/reviewed")).toBe("");
+    },
+    testTimeout,
+  );
+
+  it(
+    "refuses the same neighbour's edit for a pass recorded against the whole diff",
+    () => {
+      const repo = notesBead();
+      repo.review({ ...pass, "review.patch_id": repo.patchId() });
+      repo.write("main", "notes.md", lines({ 3: "a neighbour's line" }));
+
+      const result = repo.land();
+
+      expect(result.status, result.stdout + result.stderr).toBe(1);
+      expect(result.stderr).toContain("the diff changed since review");
+    },
+    testTimeout,
+  );
+
+  it(
+    "keeps a review when the builder rebases cleanly after it",
+    () => {
+      const repo = notesBead();
+      repo.review(passedAt(repo.reviewHead()));
+      repo.write("main", "notes.md", lines({ 3: "a neighbour's line" }));
+      repo.rebase();
+
+      const result = repo.land();
+
+      expect(result.status, result.stdout + result.stderr).toBe(0);
+      expect(repo.bead().status).toBe("closed");
+    },
+    testTimeout,
+  );
+
+  it(
+    "refuses the reviewed edit moved to an identical line elsewhere",
+    () => {
+      const repo = fixture();
+      const same = { 2: "return false;", 7: "return false;" };
+      repo.write("main", "notes.md", lines(same));
+      repo.rebase();
+      repo.write("bead", "notes.md", lines({ ...same, 2: "return true;" }));
+      const reviewed = repo.reviewHead();
+      repo.review(passedAt(reviewed));
+      repo.amend("notes.md", lines({ ...same, 7: "return true;" }));
+
+      const result = repo.land();
+
+      expect(result.status, result.stdout + result.stderr).toBe(1);
+      expect(result.stderr).toContain(`differs from the reviewed commit ${reviewed}`);
+      expect(repo.bead().status).toBe("in_progress");
+    },
+    testTimeout,
+  );
+
+  it(
+    "refuses a commit added after the review",
+    () => {
+      const repo = fixture();
+      repo.commit("docs: update fixture");
+      const reviewed = repo.reviewHead();
+      repo.review(passedAt(reviewed));
+      repo.commit("docs: change after review");
+
+      expectRefused(repo, repo.land(), `differs from the reviewed commit ${reviewed}`);
+    },
+    testTimeout,
+  );
+
+  it(
+    "refuses when the reviewed commit conflicts with what main has since gained",
+    () => {
+      const repo = notesBead();
+      const reviewed = repo.reviewHead();
+      repo.review(passedAt(reviewed));
+      repo.write("main", "notes.md", lines({ 5: "a neighbour took the same line" }));
+      repo.amend("notes.md", lines({ 9: "the bead moved out of the way" }));
+
+      const result = repo.land();
+
+      expect(result.status, result.stdout + result.stderr).toBe(1);
+      expect(result.stderr).toContain(`${reviewed} no longer merges cleanly with main`);
     },
     testTimeout,
   );
@@ -678,7 +768,7 @@ describe("landing gates", () => {
     () => {
       const repo = fixture();
       repo.commit("docs: update fixture");
-      repo.review(passed(repo.patchId()));
+      repo.review(passedAt(repo.reviewHead()));
       const head = repo.write("bead", "fixtures/watch/snapshot-calm.json", "{}\n");
 
       expectLanded(repo, repo.land(), head);
@@ -692,36 +782,33 @@ describe("landing gates", () => {
     () => {
       const repo = fixture();
       repo.commit("docs: update fixture");
-      const reviewed = repo.patchId();
-      repo.review(passed(reviewed));
+      const reviewed = repo.reviewHead();
+      repo.review(passedAt(reviewed));
       repo.write("bead", "fixtures/watch/inspect-stations-legal-59d6895.json", "{}\n");
 
-      expectRefused(repo, repo.land(), `vs ${reviewed}); review again`);
+      expectRefused(repo, repo.land(), `differs from the reviewed commit ${reviewed}`);
     },
     testTimeout,
   );
 
   it(
-    "lands a pass recorded against the whole diff, as reviews were before review-patch-id",
-    () => {
-      const repo = fixture();
-      repo.write("main", "notes.md", lines());
-      repo.rebase();
-      const head = repo.write("bead", "notes.md", lines({ 5: "the bead's line" }));
-      expect(repo.wholePatchId()).not.toBe(repo.patchId());
-      repo.review(passed(repo.wholePatchId()));
-
-      expectLanded(repo, repo.land(), head);
-    },
-    testTimeout,
-  );
-
-  it(
-    "refuses a pass recorded with no id",
+    "refuses a reviewed commit the repository does not hold",
     () => {
       const repo = fixture();
       repo.commit("docs: update fixture");
-      repo.review(passed(""));
+      repo.review(passedAt("0123456789abcdef0123456789abcdef01234567"));
+
+      expectRefused(repo, repo.land(), "is not in this repository; review again");
+    },
+    testTimeout,
+  );
+
+  it(
+    "refuses a pass that records neither a reviewed commit nor an id",
+    () => {
+      const repo = fixture();
+      repo.commit("docs: update fixture");
+      repo.review({ ...pass, "review.head": "", "review.patch_id": "" });
 
       expectRefused(repo, repo.land(), "review again");
     },

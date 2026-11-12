@@ -329,10 +329,10 @@ A pass is recorded as bead metadata, which `scripts/land` reads:
 | `build.provider`, `build.model` | Who built the bead (set at claim) |
 | `review.provider`, `review.model` | Who reviewed it |
 | `review.verdict` | `pass` |
-| `review.patch_id` | `scripts/review-patch-id` for the reviewed diff |
+| `review.head` | The reviewed commit, pinned and printed by `scripts/review-head` |
 | `land.sha` | The commit `scripts/land` put on `main`, so a rerun after a failed push can finish |
 
-The id covers the lines the bead adds and removes, without context, and leaves out the generated watch fixtures, which `scripts/check` compares with a fresh projection. A rebase, a neighbour's edit beside the bead's lines and a fixture regeneration keep the review. Any change to the bead's own lines, whitespace included, voids it.
+`scripts/land` merges the reviewed commit onto the `main` it lands on and requires the bead to equal the result, apart from the generated watch fixtures, which `scripts/check` compares with a fresh projection. A rebase, a neighbour's landing and a fixture regeneration keep the review. Anything else written after it, whitespace included, voids it.
 
 ## 6. Land
 
@@ -341,7 +341,7 @@ Skill: `bead-land`. `scripts/land <id>`:
 1. Refuses while a `main-broken` bead is open, unless this bead is that fix.
 2. Takes the merge slot, so landings happen one at a time.
 3. Syncs `main` from the remote if there is one, rebases the bead onto it, installs the pinned dependencies (the rebase may bring new ones), and runs `scripts/check`.
-4. Verifies the review: a pass whose patch-id matches, from a provider other than the author's.
+4. Verifies the review: a pass from a provider other than the author's, for a commit that still equals what is landing once merged onto `main`.
 5. Checks again that `main` isn't broken, then fast-forwards `main` to the exact commit it checked. It pushes, closes the bead with "Landed <sha>", and cleans up worktrees under `.worktrees/`. If the push fails, the bead stays open, and rerunning the script finishes the landing.
 
 Agents land their own beads once these gates pass. History stays linear, and `main` always equals a tree that passed the checks.
