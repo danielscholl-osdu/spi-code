@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 import { dirname } from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import {
   type Message,
   PROTOCOL_VERSION,
@@ -30,7 +29,8 @@ import { WatchRoutes, watchFleet } from "./process/routes.js";
 import { probeStore } from "./process/store-probe.js";
 import { probeCopilotSeat } from "./setup/seat.js";
 import { type SetupGit, SetupService } from "./setup/service.js";
-import { openRunStore } from "./store/store.js";
+import { openStore } from "./store/open.js";
+import { createRunStore } from "./store/store.js";
 import { SweepService } from "./sweep/service.js";
 
 const stub = process.argv.includes("--stub-model");
@@ -40,10 +40,10 @@ const [storePath, phase, rowId, reportPath] = process.argv
   .slice(2)
   .filter((arg) => arg !== "--stub-model" && arg !== "--smoke");
 if (!storePath) throw new Error("Host requires an app-data store path");
-const store = openRunStore(storePath);
+const db = openStore(storePath);
 if (phase) {
   if (!rowId || !reportPath) throw new Error("Smoke probe requires a row id and report path");
-  probeStore(store, phase, rowId, reportPath);
+  probeStore(createRunStore(db), phase, rowId, reportPath);
 }
 const parentPort = (
   process as typeof process & {
@@ -54,9 +54,7 @@ const parentPort = (
 ).parentPort;
 if (!parentPort) throw new Error("Host must run inside an Electron utilityProcess");
 const appData = dirname(storePath);
-const watchPath = storePath;
 const ctx = contextFromEnv(process.env);
-let watchDb: DatabaseSync | undefined;
 function memo<T>(load: () => Promise<T>): () => Promise<T> {
   let value: Promise<T> | undefined;
   return () => {
@@ -96,15 +94,8 @@ const exec: Exec = {
     return (await resolveExec()).runText(cmd, args, opts);
   },
 };
-function openWatchDb(): DatabaseSync {
-  if (!watchDb) {
-    watchDb = new DatabaseSync(watchPath);
-    watchDb.exec("PRAGMA busy_timeout = 5000");
-  }
-  return watchDb;
-}
 const watch = new WatchRoutes({
-  db: openWatchDb,
+  db: () => db,
   fleet: watchFleet(ctx),
   ctx,
   appData,
@@ -146,7 +137,7 @@ const setup: SetupService = new SetupService({
   },
   createSweep: () =>
     new SweepService({
-      db: openWatchDb(),
+      db,
       fleet: watchFleet(ctx),
       appData,
       ctx,
@@ -237,6 +228,5 @@ attachHostConnections(
   console.error,
 );
 process.once("exit", () => {
-  watchDb?.close();
-  store.close();
+  db.close();
 });

@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createLeaseStore } from "./leases.js";
+import { openStore } from "./open.js";
 import { createSnapshotStore } from "./snapshots.js";
 import { openRunStore } from "./store.js";
 
@@ -136,3 +137,50 @@ it.each([1050, 1100])(
     }
   },
 );
+
+it("prunes snapshots strictly beyond seven days but retains each fleet's latest cursor", () => {
+  let store = createSnapshotStore(db);
+  const now = Date.parse("2026-11-05T04:00:00.000Z");
+  const cutoff = now - 7 * 24 * 60 * 60 * 1000;
+  const insert = db.prepare(
+    `INSERT INTO facts_snapshots (fleet, at, facts, envelope, fence)
+       VALUES (?, ?, '{}', '{}', 1)`,
+  );
+  insert.run("a", cutoff - 1);
+  insert.run("a", cutoff);
+  insert.run("a", cutoff + 1);
+  insert.run("b", cutoff - 100);
+  insert.run("b", cutoff - 200);
+  insert.run("c", cutoff - 100);
+  insert.run("c", cutoff - 100);
+  store.pruneSnapshots(now);
+  expect(db.prepare("SELECT cursor FROM facts_snapshots ORDER BY cursor").all()).toEqual([
+    { cursor: 2 },
+    { cursor: 3 },
+    { cursor: 5 },
+    { cursor: 7 },
+  ]);
+  store.pruneSnapshots(now);
+  expect(db.prepare("SELECT COUNT(*) AS count FROM facts_snapshots").get()?.count).toBe(4);
+  db.close();
+  db = openStore(path);
+  store = createSnapshotStore(db);
+  store.pruneSnapshots(now + 2);
+  expect(db.prepare("SELECT cursor FROM facts_snapshots ORDER BY cursor").all()).toEqual([
+    { cursor: 3 },
+    { cursor: 5 },
+    { cursor: 7 },
+  ]);
+});
+
+it("rejects invalid pruning clocks without deleting snapshots", () => {
+  const store = createSnapshotStore(db);
+  db.exec(
+    `INSERT INTO facts_snapshots (fleet, at, facts, envelope, fence)
+       VALUES ('a', 0, '{}', '{}', 1), ('a', 1, '{}', '{}', 1)`,
+  );
+  for (const now of [Number.NaN, Infinity, 0.5, Number.MAX_SAFE_INTEGER + 1]) {
+    expect(() => store.pruneSnapshots(now)).toThrow(RangeError);
+  }
+  expect(db.prepare("SELECT COUNT(*) AS count FROM facts_snapshots").get()?.count).toBe(2);
+});

@@ -117,7 +117,6 @@ export class SweepService {
   private readonly interval;
   readonly leadTime: number;
   private readonly timers;
-  private readonly prune;
   private holder: Holder | undefined;
   private running: Promise<boolean> | undefined;
   private polling = false;
@@ -160,14 +159,8 @@ export class SweepService {
       onError: options.onError,
     });
     const db = options.db;
-    db.exec("PRAGMA busy_timeout = 5000; PRAGMA synchronous = FULL");
-    if (db.prepare("PRAGMA journal_mode").get()?.journal_mode !== "wal") {
-      throw new Error("Sweep service requires a WAL store");
-    }
     this.leases = createLeaseStore(db);
     this.snapshots = createSnapshotStore(db);
-    this.prune = db.prepare(`DELETE FROM facts_snapshots WHERE at < ?
-      AND cursor NOT IN (SELECT MAX(cursor) FROM facts_snapshots GROUP BY fleet)`);
   }
 
   get sweeping(): boolean {
@@ -194,7 +187,7 @@ export class SweepService {
   start(): Promise<boolean> {
     if (!this.started) {
       try {
-        this.prune.run(this.now() - 7 * DAY_MS);
+        this.snapshots.pruneSnapshots(this.now());
         try {
           this.trimBudgetLog();
         } catch (error) {
@@ -209,7 +202,7 @@ export class SweepService {
       this.scheduleForceCooldown();
       this.repeat(INFLIGHT_POLL_MS, () => this.poll());
       this.repeat(DAY_MS, async () => {
-        this.prune.run(this.now() - 7 * DAY_MS);
+        this.snapshots.pruneSnapshots(this.now());
         this.trimBudgetLog();
       });
     }
