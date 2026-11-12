@@ -13,6 +13,7 @@ import { type SelectionStore, selectionStore } from "../../panels/selection.js";
 import { todayGroupRow } from "../../panels/selection-rows.js";
 import { areaEnvelope } from "../../store/evidence.js";
 import type { createWatchStore } from "../../store/watch.js";
+import { plainTitle } from "../../text.js";
 import { Time } from "../../time.js";
 import { More, useFold } from "./folding.js";
 import "./horizon.css";
@@ -51,7 +52,7 @@ function Fork({
   return (
     <ServiceChip
       service={service}
-      text={text}
+      text={plainTitle(text)}
       onOpen={() => openService(service)}
       {...(pr
         ? {
@@ -87,7 +88,7 @@ function Card({
       data-card-id={card.id}
       data-theme={card.id}
       data-item-ids={card.itemIds.join(" ")}
-      title={card.text}
+      title={plainTitle(card.text)}
     >
       <div className="horizon-card-head">
         <span className="horizon-kind" role="img" title={card.kind} aria-label={card.kind}>
@@ -110,7 +111,7 @@ function Card({
             data-pointer={`${pointer}/services/${index}`}
             data-stage={fork.stage}
           >
-            <Slot state={STAGES[fork.stage]} origin="upstream" text={card.text} />
+            <Slot state={STAGES[fork.stage]} origin="upstream" text={plainTitle(card.text)} />
             <Fork service={fork.service} text={card.text} pr={fork.pr} select={select} />
             {fork.at && <Time at={fork.at} hint={false} />}
             {fork.stage === "held" && !fork.pr && <span className="horizon-stage-label">held</span>}
@@ -194,7 +195,7 @@ export function Horizon({
             aria-controls={stagesId}
             onClick={() => setExpanded(!expanded)}
           >
-            <span title={stages.nextSync.text}>
+            <span title={plainTitle(stages.nextSync.text)}>
               {stages.nextSync.count}
               {stages.nextSync.at && (
                 <>
@@ -204,16 +205,16 @@ export function Horizon({
               )}
             </span>
             <span aria-hidden="true">→</span>
-            <span title={stages.held.text}>{stages.held.count} held</span>
+            <span title={plainTitle(stages.held.text)}>{stages.held.count} held</span>
             <span aria-hidden="true">→</span>
-            <span title={stages.forks.text}>{stages.forks.text}</span>
+            <span title={plainTitle(stages.forks.text)}>{stages.forks.text}</span>
             <span aria-hidden="true">{expanded ? "⌃" : "⌄"}</span>
           </button>
           <div className="horizon-stages" id={stagesId}>
             <div
               className="horizon-stage horizon-stage--upstream"
               data-pointer={`${ROOT}/stages/upstream`}
-              title={stages.upstream.text}
+              title={plainTitle(stages.upstream.text)}
             >
               <h3>upstream</h3>
               <strong>{stages.upstream.count}</strong>
@@ -221,7 +222,7 @@ export function Horizon({
             <div
               className="horizon-stage horizon-stage--nextSync"
               data-pointer={`${ROOT}/stages/nextSync`}
-              title={stages.nextSync.text}
+              title={plainTitle(stages.nextSync.text)}
             >
               <h3>
                 next sync {stages.nextSync.at && <Time at={stages.nextSync.at} hint={false} />}
@@ -243,9 +244,9 @@ export function Horizon({
                       key={fork.service}
                       data-pointer={`${ROOT}/stages/wontLand/${i}`}
                       data-reason={fork.reason}
-                      title={fork.text}
+                      title={plainTitle(fork.text)}
                     >
-                      <Slot state="broken" text={fork.text} />
+                      <Slot state="broken" text={plainTitle(fork.text)} />
                       <Fork service={fork.service} text={fork.text} select={select} />
                       <span className="horizon-wont-count">{fork.count}</span>
                     </span>
@@ -256,7 +257,7 @@ export function Horizon({
             <div
               className="horizon-stage horizon-stage--held"
               data-pointer={`${ROOT}/stages/held`}
-              title={stages.held.text}
+              title={plainTitle(stages.held.text)}
             >
               <h3>in open sync PRs</h3>
               <strong>{stages.held.count}</strong>
@@ -301,7 +302,7 @@ export function Horizon({
             <div
               className="horizon-stage horizon-stage--forks"
               data-pointer={`${ROOT}/stages/forks`}
-              title={stages.forks.text}
+              title={plainTitle(stages.forks.text)}
             >
               <h3>your forks</h3>
               <span className="horizon-fork-figure">{stages.forks.text}</span>
@@ -355,7 +356,7 @@ export function Horizon({
           <SegmentedBar
             tint="upstream"
             figure={owed.text}
-            text={owed.text}
+            text={plainTitle(owed.text)}
             segments={owed.services.map((fork) => ({
               id: fork.service,
               label: fork.service,
@@ -367,11 +368,11 @@ export function Horizon({
               type="button"
               className="horizon-owed-open"
               key={id}
-              aria-label={`Open Detail for ${
+              aria-label={`Open Detail for ${plainTitle(
                 [...snapshot.briefing.focus, ...snapshot.briefing.rest].find(
                   (item) => item.id === id,
-                )?.title ?? id
-              }`}
+                )?.title ?? id,
+              )}`}
               onClick={() => select(id)}
             >
               Detail ›

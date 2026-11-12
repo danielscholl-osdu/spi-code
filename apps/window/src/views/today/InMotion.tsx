@@ -19,6 +19,7 @@ import {
   selectionRows,
   todayGroupRow,
 } from "../../panels/selection-rows.js";
+import { plainTitle } from "../../text.js";
 import { More, useFold } from "./folding.js";
 import "./in-motion.css";
 
@@ -77,20 +78,21 @@ function Line({
 }) {
   const [first = line.id] = line.itemIds;
   const row = itemRow(rows, first, line.text);
+  const text = plainTitle(line.text);
   const shared = {
     "data-line-id": line.id,
     "data-item-ids": line.itemIds.join(" "),
     "data-count": line.count,
     "data-origin": line.origin,
     "data-selected": selected === row.id || undefined,
-    title: line.text,
+    title: text,
   };
   const count = line.count > 1 && (
     <span className="today-motion-count" aria-hidden="true">
       {line.count}
     </span>
   );
-  const open = <Open label={line.text} selected={selected === row.id} onOpen={() => select(row)} />;
+  const open = <Open label={text} selected={selected === row.id} onOpen={() => select(row)} />;
   if (line.next !== undefined)
     return (
       <li className="today-motion-line today-motion-rollout" {...shared}>
@@ -111,7 +113,7 @@ function Line({
           {count}
         </span>
         <span className="today-motion-age">
-          {line.age && <AgeChip age={line.age} text={line.text} />}
+          {line.age && <AgeChip age={line.age} text={text} />}
         </span>
         {open}
       </li>
@@ -145,7 +147,7 @@ function Line({
                 station={GLYPH_STATION[line.station]}
                 state={slotState(line)}
                 origin={line.origin}
-                text={line.text}
+                text={text}
               />
             )}
           </span>
@@ -161,14 +163,14 @@ function Line({
         </>
       )}
       <span className="today-motion-state">
-        {line.state && <Chip label={line.state.text} text={line.text} tone={line.state.tone} />}
-        {line.followUp && <Chip label={line.followUp} text={line.followUp} tone="plain" />}
-        {line.origin === "upstream" && <UpstreamChip text={line.text} />}
+        {line.state && <Chip label={line.state.text} text={text} tone={line.state.tone} />}
+        {line.followUp && (
+          <Chip label={line.followUp} text={plainTitle(line.followUp)} tone="plain" />
+        )}
+        {line.origin === "upstream" && <UpstreamChip text={text} />}
         {count}
       </span>
-      <span className="today-motion-age">
-        {line.age && <AgeChip age={line.age} text={line.text} />}
-      </span>
+      <span className="today-motion-age">{line.age && <AgeChip age={line.age} text={text} />}</span>
       {open}
     </li>
   );
@@ -194,7 +196,7 @@ function CanWaitChips({
           key={index}
           type="button"
           className="kit-chip kit-chip--plain today-canwait-chip"
-          aria-label={`${chip.text}: open the Can wait list`}
+          aria-label={`${plainTitle(chip.text)}: open the Can wait list`}
           aria-pressed={selected}
           title="Open the Can wait list in Detail, with why each item can wait"
           {...(chip.service ? { "data-service": chip.service } : {})}

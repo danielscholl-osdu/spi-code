@@ -51,6 +51,11 @@ const titles = [
   ".today-motion-head, .today-motion-text, .today-motion-quiet, .today-motion-state, .today-canwait-chip",
 ].join(", ");
 
+const emoji = /\p{Emoji_Presentation}|\p{Extended_Pictographic}\uFE0F|\u20E3/u;
+const todayLabelled = ["title", "aria-label"]
+  .flatMap((name) => [`[aria-label="Today"][${name}]`, `[aria-label="Today"] [${name}]`])
+  .join(", ");
+
 function violations(scope: ParentNode): string[] {
   const failures: string[] = [];
   const outsideDetail = (element: Element) =>
@@ -83,14 +88,13 @@ function violations(scope: ParentNode): string[] {
     const text = element.textContent?.trim() ?? "";
     if (text.split(/\s+/).length > 12) failures.push(`headline: ${text}`);
   }
-  for (const element of scope.querySelectorAll(titles)) {
-    if (
-      /\p{Emoji_Presentation}|\p{Extended_Pictographic}\uFE0F|\u20E3/u.test(
-        element.textContent ?? "",
-      )
-    )
-      failures.push(`emoji: ${element.textContent}`);
-  }
+  for (const element of scope.querySelectorAll(titles))
+    if (emoji.test(element.textContent ?? "")) failures.push(`emoji: ${element.textContent}`);
+  for (const element of scope.querySelectorAll(todayLabelled))
+    for (const name of ["title", "aria-label"]) {
+      const value = element.getAttribute(name) ?? "";
+      if (emoji.test(value)) failures.push(`emoji: ${name}="${value}"`);
+    }
   return failures;
 }
 
@@ -457,6 +461,52 @@ it.each([false, true])("cleans Today decision text with a token: %s", async (wit
   expect(cause?.getAttribute("aria-label")).toBe(text);
   expect(cause?.textContent).toBe(withToken ? "Code Coverage" : text);
   assertRules("Today decision with recorded job emoji");
+});
+
+const GLYPHS = "› ⇣ ✕ ! ◐ ○ ⌀ ⏸ ⇡";
+const PROSE = new Set([
+  ...["headline", "summary", "title", "sub", "cause", "effect", "next", "text", "line", "lines"],
+  ...["caveat", "note", "detail", "reason", "readyLine", "stateText", "followUp", "token"],
+]);
+
+/** Every prose string under `value` wrapped in job emoji, with the navigation glyphs after it. */
+function withEmoji<T>(value: T, key = ""): T {
+  if (typeof value === "string" && PROSE.has(key)) return `🚨 ${value} 📊 ${GLYPHS}` as T;
+  if (Array.isArray(value)) return value.map((entry) => withEmoji(entry, key)) as T;
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([name, entry]) => [name, withEmoji(entry, name)]),
+  ) as T;
+}
+
+it.each(snapshots.filter(({ name }) => name.startsWith("snapshot-1106")))(
+  "cleans job emoji from Today's titles and aria-labels on $name, keeping the navigation glyphs",
+  async ({ body }) => {
+    const dressed = structuredClone(body);
+    dressed.briefing = withEmoji(dressed.briefing);
+    dressed.releases = withEmoji(dressed.releases);
+    await open(dressed);
+    const labels = [...container.querySelectorAll(todayLabelled)].flatMap((element) =>
+      ["title", "aria-label"].map((name) => element.getAttribute(name) ?? ""),
+    );
+    expect(labels.filter((label) => emoji.test(label))).toEqual([]);
+    const marked = labels.filter((label) => label.includes("⇡"));
+    expect(marked.length).toBeGreaterThan(0);
+    expect(marked.filter((label) => !label.includes(GLYPHS))).toEqual([]);
+  },
+);
+
+it("shows an emoji-only decision token as the cleaned decision text", async () => {
+  const body = structuredClone(snapshots.find(({ name }) => name === "snapshot-1106.json")?.body);
+  const group = body?.briefing.decisions?.groups[0];
+  if (!body || !group) throw new Error("Missing a decision");
+  group.token = "📊";
+  await open(body);
+  const cause = container.querySelector(
+    `.today-decision[data-decision-id="${group.id}"] .today-decision-cause`,
+  );
+  expect(cause?.textContent).toBe(plainTitle(group.text));
+  expect(cause?.textContent).not.toBe("");
 });
 
 it("strips injected emoji from the template queue row", async () => {

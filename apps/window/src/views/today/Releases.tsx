@@ -16,6 +16,7 @@ import {
   releaseVersionRow,
   type SelectionRow,
 } from "../../panels/selection-rows.js";
+import { plainTitle } from "../../text.js";
 import { clockTime, Time } from "../../time.js";
 import { FORMING_RELEASES_ANCHOR, SHARED_COMPONENTS_ANCHOR } from "../releases/anchors.js";
 import "./releases.css";
@@ -165,7 +166,7 @@ function Versions({
             data-state={version.state}
           >
             <span className="today-release-service">{version.service}</span>
-            <fieldset className="today-release-pair" aria-label={version.text}>
+            <fieldset className="today-release-pair" aria-label={plainTitle(version.text)}>
               <button
                 type="button"
                 className="today-release-released"
@@ -218,13 +219,14 @@ function Platform({
   const { stack, template, coreLibAzure } = platform;
   const at = `${TODAY}/platform`;
   const fromReleases = (field: string) => unreadIf(!released || isHeld([`${at}/${field}`]));
+  const text = plainTitle(platform.text);
   return (
     <div className="today-release-line today-release-platform" data-pointer={at}>
       <button
         type="button"
         className="today-release-open"
-        title={platform.text}
-        aria-label={`Platform: ${platform.text}. Open Releases at the shared components.`}
+        title={text}
+        aria-label={`Platform: ${text}. Open Releases at the shared components.`}
         onClick={() => onNavigate({ kind: "releases", section: SHARED_COMPONENTS_ANCHOR })}
       >
         Platform
@@ -257,7 +259,7 @@ function Platform({
             core-lib-azure
             <SegmentedBar
               figure={coreLibAzure.map(({ version, count }) => `${version} ×${count}`).join(" · ")}
-              text={platform.text}
+              text={text}
               segments={coreLibAzure.map(({ version, count }) => ({
                 id: version,
                 label: version,
@@ -292,6 +294,7 @@ function Changes({
     ? KINDS.map(([kind, tone]) => ({ id: kind, label: kind, count: kinds[kind], tone }))
     : [];
   const counted = segments.some(({ count }) => count > 0);
+  const text = plainTitle(forming.text);
   return (
     <>
       <div
@@ -303,8 +306,8 @@ function Changes({
         <button
           type="button"
           className="today-release-open"
-          title={kinds ? forming.text : "not read this sweep"}
-          aria-label={`${kinds ? forming.text : "Unreleased: not read this sweep"}. Open Releases at the forming changes.`}
+          title={kinds ? text : "not read this sweep"}
+          aria-label={`${kinds ? text : "Unreleased: not read this sweep"}. Open Releases at the forming changes.`}
           onClick={() => onNavigate({ kind: "releases", section: FORMING_RELEASES_ANCHOR })}
         >
           Unreleased
@@ -313,7 +316,7 @@ function Changes({
           {!kinds ? (
             <span className="today-release-unread">not read this sweep</span>
           ) : counted ? (
-            <StackedBar segments={segments} text={forming.text} />
+            <StackedBar segments={segments} text={text} />
           ) : (
             <span className="today-release-quiet">{forming.text}</span>
           )}

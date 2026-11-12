@@ -102,10 +102,10 @@ function NeedCard({ item, open }: { item: WatchItem; open: Open }) {
       </button>
       <span className="today-need-act">
         {upstream && <UpstreamChip text="From upstream GitLab" />}
-        {item.age && <AgeChip age={item.age} text={item.sub || item.age} />}
+        {item.age && <AgeChip age={item.age} text={plainTitle(item.sub) || item.age} />}
         {item.blocks && (
           <span className="today-need-blocks">
-            <Chip label={item.blocks.text} text={item.effect} tone="warn" />
+            <Chip label={item.blocks.text} text={plainTitle(item.effect)} tone="warn" />
           </span>
         )}
         <button type="button" className="today-verb" onClick={() => open.select(item.id)}>
@@ -146,6 +146,7 @@ function Decision({
     group.itemIds.length > 1 && themes.has(group.theme) ? `theme:${group.theme}` : first;
   const kind = group.kind ? KIND[group.kind] : undefined;
   const text = plainTitle(group.text);
+  const token = group.token && plainTitle(group.token);
   const openGroup = () => target && open.select(target);
   return (
     <li
@@ -196,11 +197,11 @@ function Decision({
       </span>
       <button
         type="button"
-        className={group.token ? "today-decision-cause kit-chip" : "today-decision-cause"}
+        className={token ? "today-decision-cause kit-chip" : "today-decision-cause"}
         aria-label={text}
         onClick={openGroup}
       >
-        {plainTitle(group.token ?? text)}
+        {token || text}
       </button>
       {group.verb && (
         <button type="button" className="today-verb" onClick={openGroup}>
@@ -242,6 +243,7 @@ function DecisionsWaiting({ snapshot, open }: { snapshot: ViewSnapshot; open: Op
 
 function FailingRow({ line, open }: { line: AmbientLine; open: Open }) {
   const [first] = line.itemIds;
+  const text = plainTitle(line.text);
   return (
     <li
       className="today-item-row"
@@ -249,16 +251,14 @@ function FailingRow({ line, open }: { line: AmbientLine; open: Open }) {
       data-item-ids={line.itemIds.join(" ")}
       data-count={line.count}
       data-origin={line.origin}
-      title={line.text}
+      title={text}
       aria-current={(first !== undefined && open.selected === first) || undefined}
     >
       <span className="today-item-fork">
         {line.service && <Service id={line.service} open={open} className="today-item-service" />}
       </span>
       <span className="today-item-glyph" data-station={line.station}>
-        {line.station && (
-          <LineGlyph station={STATION[line.station]} state="broken" text={line.text} />
-        )}
+        {line.station && <LineGlyph station={STATION[line.station]} state="broken" text={text} />}
       </span>
       <span className="today-item-pr" data-pr-url={line.pr?.url} data-inspect={line.pr?.inspect}>
         {line.pr && (
@@ -270,17 +270,17 @@ function FailingRow({ line, open }: { line: AmbientLine; open: Open }) {
         )}
       </span>
       <span className="today-item-state" data-tone={line.state?.tone}>
-        {line.state && <Chip label={line.state.text} text={line.text} tone={line.state.tone} />}
-        {line.followUp && <Chip label={line.followUp} text={line.followUp} tone="plain" />}
+        {line.state && <Chip label={line.state.text} text={text} tone={line.state.tone} />}
+        {line.followUp && (
+          <Chip label={line.followUp} text={plainTitle(line.followUp)} tone="plain" />
+        )}
         {line.origin === "upstream" && <UpstreamChip text="From upstream GitLab" />}
       </span>
-      <span className="today-item-age">
-        {line.age && <AgeChip age={line.age} text={line.text} />}
-      </span>
+      <span className="today-item-age">{line.age && <AgeChip age={line.age} text={text} />}</span>
       <button
         type="button"
         className="today-item-open"
-        aria-label={line.text}
+        aria-label={text}
         onClick={() => first && open.select(first)}
       >
         ›
@@ -335,7 +335,7 @@ function BandTop({
       {counts && need > 0 && (
         <UpstreamChip
           label={`${need} upstream need you first`}
-          text={counts.text}
+          text={plainTitle(counts.text)}
           onOpen={onHorizon}
         />
       )}
@@ -348,8 +348,8 @@ function BandTop({
               className="today-band-mark"
               data-place={row.place}
               data-mark={row.mark}
-              title={row.line}
-              aria-label={`${PLACE[row.place].name}: ${row.line}`}
+              title={plainTitle(row.line)}
+              aria-label={`${PLACE[row.place].name}: ${plainTitle(row.line)}`}
               onClick={() => onPlace(PLACE[row.place].to)}
             >
               <Mark tier={TIER[row.mark]} />

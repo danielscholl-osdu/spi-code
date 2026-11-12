@@ -15,6 +15,7 @@ import { Mark, type MarkTier } from "../../components/kit/Mark.js";
 import { Slot } from "../../components/kit/Slot.js";
 import { selectionStore } from "../../panels/selection.js";
 import { areaEnvelope } from "../../store/evidence.js";
+import { plainTitle } from "../../text.js";
 import { clockTime, Time } from "../../time.js";
 import "./places.css";
 
@@ -101,25 +102,28 @@ function Visual({
         data-target={visual.kind === "rollout" ? visual.target : undefined}
       >
         <div className="today-place-columns" title={line}>
-          {visual.slots.map(({ service: id, state, text, origin }) => (
-            <button
-              type="button"
-              className="today-place-slot"
-              data-service={id}
-              data-state={state}
-              data-origin={origin}
-              key={id}
-              title={text}
-              aria-label={text}
-              onClick={() => service(id)}
-            >
-              {visual.kind === "pips" || state !== "done" ? (
-                <Slot state={state} text={text} {...(origin ? { origin } : {})} />
-              ) : (
-                <span className="kit-cell kit-cell--filled" aria-hidden="true" />
-              )}
-            </button>
-          ))}
+          {visual.slots.map(({ service: id, state, text: raw, origin }) => {
+            const text = plainTitle(raw);
+            return (
+              <button
+                type="button"
+                className="today-place-slot"
+                data-service={id}
+                data-state={state}
+                data-origin={origin}
+                key={id}
+                title={text}
+                aria-label={text}
+                onClick={() => service(id)}
+              >
+                {visual.kind === "pips" || state !== "done" ? (
+                  <Slot state={state} text={text} {...(origin ? { origin } : {})} />
+                ) : (
+                  <span className="kit-cell kit-cell--filled" aria-hidden="true" />
+                )}
+              </button>
+            );
+          })}
         </div>
         {visual.kind === "pips" && (
           <>
@@ -138,8 +142,8 @@ function Visual({
             </div>
             {visual.horizon && (
               <UpstreamChip
-                label={visual.horizon.text.replace(/^⇣\s*/, "")}
-                text={visual.horizon.text}
+                label={plainTitle(visual.horizon.text).replace(/^⇣\s*/, "")}
+                text={plainTitle(visual.horizon.text)}
                 onOpen={() =>
                   document
                     .querySelector<HTMLElement>('[data-today-slot="horizon"]')
@@ -161,7 +165,7 @@ function Visual({
               data-lane={lane.lane}
               data-total={lane.total}
               data-state={lane.state}
-              title={lane.text}
+              title={plainTitle(lane.text)}
             >
               <span>{lane.lane}</span>
               <meter
@@ -169,8 +173,8 @@ function Visual({
                 min={0}
                 max={lane.total || 1}
                 value={lane.green}
-                title={lane.text}
-                aria-label={lane.text}
+                title={plainTitle(lane.text)}
+                aria-label={plainTitle(lane.text)}
               />
               <span>{lane.state === "unknown" ? "?" : `${lane.green}/${lane.total}`}</span>
             </div>
@@ -194,8 +198,8 @@ function Visual({
             data-service={column.service}
             data-count={String(column.count)}
             key={column.service}
-            title={column.text}
-            aria-label={column.text}
+            title={plainTitle(column.text)}
+            aria-label={plainTitle(column.text)}
             onClick={() => service(column.service)}
           >
             {column.count === null ? (
@@ -212,12 +216,12 @@ function Visual({
       </div>
       {visual.program && (
         <div className="today-place-program" data-count={String(visual.program.count)}>
-          <Chip label={visual.program.text} text={visual.program.text} />
+          <Chip label={visual.program.text} text={plainTitle(visual.program.text)} />
         </div>
       )}
       {visual.largest && (
         <div className="today-place-largest">
-          <Chip label={visual.largest.text} text={visual.largest.text} />
+          <Chip label={visual.largest.text} text={plainTitle(visual.largest.text)} />
         </div>
       )}
     </div>
@@ -237,6 +241,7 @@ export function Places({
     <section className="today-places" aria-label="System health">
       {rows.map((row) => {
         const { label, route } = PLACES[row.place];
+        const line = plainTitle(row.line);
         return (
           <article
             className="today-place card"
@@ -251,24 +256,20 @@ export function Places({
               <button
                 type="button"
                 className="today-place-open"
-                title={row.line}
+                title={line}
                 onClick={() => onNavigate(route)}
               >
                 <Mark tier={TIER[row.mark]} />
                 {label}
               </button>
             </h3>
-            <div className="today-place-figure" data-tone={row.tone} title={row.line}>
+            <div className="today-place-figure" data-tone={row.tone} title={line}>
               {row.figure}
             </div>
             <div className="today-place-chips">
               {row.mark !== "nothing-due" && row.reason && (
                 <span className="today-place-reason">
-                  <Chip
-                    label={row.reason}
-                    text={row.line}
-                    tone={row.tone === "bad" ? "bad" : "warn"}
-                  />
+                  <Chip label={row.reason} text={line} tone={row.tone === "bad" ? "bad" : "warn"} />
                 </span>
               )}
               {(row.fresh?.itemIds.length ?? 0) > 0 && (
@@ -285,7 +286,7 @@ export function Places({
               <Held row={row} snapshot={snapshot} />
             </div>
             {row.caveat && <p className="today-place-caveat">{row.caveat}</p>}
-            {row.visual && <Visual visual={row.visual} line={row.line} onNavigate={onNavigate} />}
+            {row.visual && <Visual visual={row.visual} line={line} onNavigate={onNavigate} />}
           </article>
         );
       })}

@@ -1127,21 +1127,19 @@ export function horizonCases(snapshot: ViewSnapshot): Reach[] {
   return cases;
 }
 
-const PR = ["pr/number", "pr/url", "pr/inspect"];
-const under = (root: string, leaves: readonly string[]) => leaves.map((leaf) => `${root}/${leaf}`);
-const ambient = (run: string) => [
-  ...under(`/briefing/ambient/${run}`, ["items", "text"]),
-  ...under(`/briefing/ambient/${run}/lines/#`, [
-    ...["id", "count", "service", "station", ...PR, "state/text", "state/tone"],
-    ...["followUp", "age", "origin", "text"],
-  ]),
-  `/briefing/ambient/${run}/lines/#/itemIds/#`,
-  `/briefing/ambient/${run}/lines/#/next/#`,
-];
 /** The focus or rest item a leaf belongs to. */
 function itemAt(pointer: string, { briefing }: Leaves) {
   const [, list, index] = pointer.match(/^\/briefing\/(focus|rest)\/(\d+)\//) ?? [];
   return list === "focus" || list === "rest" ? briefing[list][Number(index)] : undefined;
+}
+
+/** A fact another surface draws: the third on Engineering system, Environment's on the strip. */
+function factElsewhere(pointer: string, { briefing }: Leaves) {
+  const [, index, key] = pointer.match(/^\/briefing\/facts\/(\d+)\/(\w+)$/) ?? [];
+  const fact = briefing.facts[Number(index)];
+  if (!fact) return false;
+  if (index === "2") return true;
+  return fact.label === "Environment" && fact.figure !== "?" && key !== "label";
 }
 
 /** Today briefing fields the contract carries before a window bead draws them; each names its bead. */
@@ -1248,11 +1246,13 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
     ],
     reason:
       "Today's tiles and its n-more fold are gone (today-design 'What goes'); the place cards and the Releases block draw from briefing.places and releases.today",
+    when: (_value, { pointer, snapshot }) => !factElsewhere(pointer, snapshot),
   },
   "item-chips": {
     patterns: ["/briefing/focus/#/age", "/briefing/rest/#/age"],
     reason:
       "Only a Needs you card draws an item's own age chip; a decision, a horizon card and an Ambient line carry their own figures (today-design 'Words and visuals')",
+    when: (_value, { pointer, snapshot }) => itemAt(pointer, snapshot)?.attention !== "interrupt",
   },
   "empty-failing-run": {
     patterns: ["/briefing/ambient/failing/items", "/briefing/ambient/failing/text"],
@@ -1264,7 +1264,9 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
   },
   verb: {
     patterns: ["/briefing/focus/#/verb", "/briefing/rest/#/verb"],
-    reason: "Verbs are not drawn until actions ship (PS-04, CO-05; spicode-t1k.56)",
+    reason:
+      "Only a Needs you card draws an item's verb; the rest wait for actions to ship (PS-04, CO-05; spicode-t1k.56)",
+    when: (_value, { pointer, snapshot }) => itemAt(pointer, snapshot)?.attention !== "interrupt",
   },
   "unset-flag": {
     patterns: ["/briefing/focus/#/owned", "/briefing/rest/#/owned", "/briefing/flow/next/quiet"],
@@ -1294,6 +1296,20 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
   },
 };
 
+/** Rows that share one home, one click and one target, so each opener is clicked once. */
+export function openerCases(rows: readonly Reach[]) {
+  const groups = new Map<string, Map<Selector | undefined, Reach[]>>();
+  for (const row of rows) {
+    const { click, ...target } = row.opens ?? { click: undefined };
+    const key = JSON.stringify([row.home.name, target]);
+    const clicks = groups.get(key) ?? new Map<Selector | undefined, Reach[]>();
+    groups.set(key, clicks.set(click, [...(clicks.get(click) ?? []), row]));
+  }
+  return [...groups.values()]
+    .flatMap((clicks) => [...clicks.values()])
+    .map((rows) => ({ name: `${rows[0]?.pointer} via ${String(rows[0]?.opens?.click)}`, rows }));
+}
+
 /** Every primitive leaf under /briefing and /releases, with its index-free pattern. */
 export function leaves(snapshot: Pick<ViewSnapshot, "briefing" | "releases">) {
   const out: { pointer: string; pattern: string; value: unknown }[] = [];
@@ -1311,7 +1327,8 @@ export function leaves(snapshot: Pick<ViewSnapshot, "briefing" | "releases">) {
 
 /**
  * Leaves with no case or exemption, cases that point at no leaf, exemption patterns no leaf uses,
- * and leaves only partly drawn: each with the tail no surface shows and the bead that owns it.
+ * exemptions on a leaf a case draws, and leaves only partly drawn: each with the tail no surface
+ * shows and the bead that owns it.
  */
 export function coverage(
   snapshot: Pick<ViewSnapshot, "briefing" | "releases">,
@@ -1321,14 +1338,18 @@ export function coverage(
   const all = leaves(snapshot);
   const pointers = new Set(cases.map(({ pointer }) => pointer));
   const used = new Set<string>();
+  const drawn: string[] = [];
   const uncovered = all
     .filter(({ pointer, pattern, value }) => {
-      if (pointers.has(pointer)) return false;
       const name = Object.entries(exemptions).find(
         ([, exemption]) =>
           exemption.patterns.includes(pattern) &&
           (exemption.when?.(value, { pointer, snapshot }) ?? true),
       )?.[0];
+      if (pointers.has(pointer)) {
+        if (name) drawn.push(`${name} ${pointer}`);
+        return false;
+      }
       if (name) used.add(`${name} ${pattern}`);
       return !name;
     })
@@ -1357,6 +1378,7 @@ export function coverage(
   return {
     uncovered,
     stray: [...pointers].filter((pointer) => !values.has(pointer)),
+    drawn,
     stale: Object.entries(exemptions).flatMap(([name, { patterns, pending }]) =>
       pending
         ? []
