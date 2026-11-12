@@ -7,6 +7,8 @@
 # Rerunning after a failed push finishes the landing.
 set -euo pipefail
 export BD_DISABLE_METRICS=1 OTEL_SDK_DISABLED=true
+# Read the objects the ids name, never a local replacement for them.
+export GIT_NO_REPLACE_OBJECTS=1
 
 die() { echo "land: $*" >&2; exit 1; }
 
@@ -59,6 +61,14 @@ check_line() {
 holder="land:$id:$$"
 bd merge-slot acquire --holder "$holder" >/dev/null || die "the merge slot is held; try again shortly"
 trap 'bd merge-slot release --holder "$holder" >/dev/null || echo "land: release the merge slot: bd merge-slot release" >&2' EXIT
+
+# Every mode, type, id and path in a tree, without the generated fixtures.
+entries() {
+  git -C "$root" ls-tree -r --full-tree "$1" |
+    SKIP="${generated[*]}" awk -F'\t' '
+      BEGIN { n = split(ENVIRON["SKIP"], path, " "); for (i = 1; i <= n; i++) skip[path[i]] = 1 }
+      !($2 in skip)'
+}
 
 finish() {
   local sha=$1
@@ -150,8 +160,10 @@ else
     merged=$(git -C "$root" merge-tree --write-tree "$base" "$reviewed" 2>/dev/null) ||
       die "the reviewed commit $reviewed no longer merges cleanly with main; review again"
     expected=${merged%%$'\n'*}
-    unreviewed=("${generated[@]/#/:(top,exclude)}")
-    git -C "$root" diff --quiet --ignore-submodules=none --no-ext-diff --no-textconv "$expected" "$head" -- ':(top)' "${unreviewed[@]}" ||
+    # Compared entry by entry, so no diff setting or attribute decides what counts as a change.
+    want=$(entries "$expected")
+    have=$(entries "$head")
+    [[ -n $want && $want == "$have" ]] ||
       die "$branch differs from the reviewed commit $reviewed (git diff $expected $head); review again"
   else
     # Passes recorded before scripts/review-head carry the patch-id of the whole diff.
