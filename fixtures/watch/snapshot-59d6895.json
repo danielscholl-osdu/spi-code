@@ -1670,7 +1670,7 @@
         "tone": "bad",
         "figure": "5 of 5 stopped",
         "line": "Stopped: entitlements (upstream, sync), legal (sync).",
-        "reason": "Stopped: entitlements (upstream, sync), legal (sync).",
+        "reason": "stations: upstream, sync, lane",
         "areas": [
           "github",
           "runs",
@@ -1725,9 +1725,9 @@
         "place": "environment",
         "mark": "stopped",
         "tone": "bad",
-        "figure": "v0.28.0 is not deployable while an upgrade to v0.28.2 runs",
+        "figure": "v0.28.0 not deployable",
         "line": "v0.28.0 is not deployable while an upgrade to v0.28.2 runs.",
-        "reason": "v0.28.0 is not deployable while an upgrade to v0.28.2 runs.",
+        "reason": "upgrade running",
         "areas": ["github", "lifecycle"],
         "itemIds": ["stack:38181620856", "approvals:Azure/osdu-spi-stack"],
         "fresh": {
@@ -1773,7 +1773,7 @@
         "tone": "warn",
         "figure": "0 of 5 forks on bb49a03",
         "line": "Template rollout is in progress; verification is still pending.",
-        "reason": "Template rollout is in progress; verification is still pending.",
+        "reason": "verification pending",
         "areas": ["github", "runs", "template"],
         "itemIds": ["rollout"],
         "fresh": {

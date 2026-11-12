@@ -2588,7 +2588,7 @@
         "tone": "bad",
         "figure": "At least 4 of 13 stopped",
         "line": "Stopped: entitlements (main), legal (sync), storage (sync), indexer-queue (main).",
-        "reason": "Stopped: entitlements (main), legal (sync), storage (sync), indexer-queue (main).",
+        "reason": "stations: sync, main",
         "caveat": "GitHub issues and PRs not fully read; the figure covers only the evidence read.",
         "areas": [
           "github",
@@ -2701,7 +2701,7 @@
         "place": "environment",
         "mark": "in-progress",
         "tone": "warn",
-        "figure": "v0.35.3 is deployable, green since 04:20",
+        "figure": "v0.35.3 deployable",
         "line": "Place reading is incomplete.",
         "reason": "Place reading is incomplete.",
         "caveat": "GitHub issues and PRs not fully read; the figure covers only the evidence read.",
@@ -2755,7 +2755,7 @@
         "tone": "warn",
         "figure": "7 of 13 forks on 7d269b5",
         "line": "Template rollout is in progress; verification is still pending.",
-        "reason": "Template rollout is in progress; verification is still pending.",
+        "reason": "verification pending",
         "caveat": "GitHub repository reads failed: adoption or template changes could be missing.",
         "areas": ["github", "runs", "template"],
         "unread": {
@@ -2844,7 +2844,7 @@
         "tone": "warn",
         "figure": "26 high or critical",
         "line": "26 high or critical findings need SPI fixes.",
-        "reason": "26 high or critical findings need SPI fixes.",
+        "reason": "1 needs you",
         "areas": ["radar", "template", "security"],
         "itemIds": ["security:dependabot:fixture-library"],
         "fresh": {

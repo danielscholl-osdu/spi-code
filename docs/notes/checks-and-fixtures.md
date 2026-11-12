@@ -46,3 +46,7 @@ matching installed `koffi` package's LICENSE.txt. Other missing notices fail;
 version updates require rechecking these repairs. Supplemental shipped notices
 are retained too. `scripts/licenses/t3-code-MIT.txt` preserves T3 Code's LICENSE
 for copied/ported portions, following its `docs/internals/open-source-licenses.md`.
+
+Host and window tests import `@spi-code/core` from its built `dist`, not its source. When you
+mutate core to see a host test fail, run `pnpm tsc -b packages/core` before the test, and again
+after restoring; `pnpm run typecheck` also rebuilds it.
