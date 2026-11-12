@@ -7,10 +7,8 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import actions from "../../../../fixtures/rib-59d6895/oracle/inspect-actions.json?raw";
-import legalStations from "../../../../fixtures/watch/inspect-stations-legal-59d6895.json?raw";
-import projected from "../../../../fixtures/watch/snapshot-59d6895.json?raw";
-import recorded from "../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
 import { widthBudget } from "../app/width-budget.js";
+import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import { plainTitle, sentenceCase } from "../text.js";
 import { clockTime } from "../time.js";
 import { bridgeOpens } from "./detail-action.js";
@@ -19,8 +17,10 @@ import { RightPanelFrame } from "./RightPanelFrame.js";
 import { createSelectionStore } from "./selection.js";
 import { routeSelectionIds, type SelectionRow, selectionRows } from "./selection-rows.js";
 
+const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
+
 const panelsCss = readFileSync("apps/window/src/panels/panels.css", "utf8");
-const snapshot = ViewSnapshotSchema.parse(JSON.parse(recorded));
+const snapshot = loadFixture("snapshot-mixed-59d6895.json");
 const steps: { steps: { id: string; board: { header: { status: { label: string } } } }[] } =
   JSON.parse(actions);
 const bare = structuredClone(snapshot);
@@ -290,12 +290,12 @@ it.each([
 });
 
 async function mountStation(stationId: string) {
-  const body = ViewSnapshotSchema.parse(JSON.parse(projected));
+  const body = loadFixture("snapshot-59d6895.json");
   const station = body.stations
     .find(({ service }) => service === "legal")
     ?.stations.find(({ id }) => id === stationId);
   const row = selectionRows(body).find(({ id }) => id === `station:legal:${stationId}`);
-  const result = (JSON.parse(legalStations) as InspectResult[]).find(
+  const result = loadFixture("inspect-stations-legal-59d6895.json").find(
     ({ id }) => id === `station:legal:${stationId}`,
   );
   if (!station || !row || !result) throw new Error(`Missing recorded legal ${stationId}`);
@@ -332,9 +332,8 @@ it.each(lineStations)(
   "leads the recorded legal %s station's Detail with its own reading and offers one action",
   async (stationId, label, verb) => {
     const view = await mountStation(stationId);
-    const previous = window.spi;
     const bridge = await desktopBridge();
-    window.spi = { ...previous, openExternal: bridge.openExternal };
+    const harness = installSpi({ ...window.spi, openExternal: bridge.openExternal });
     try {
       const { container, station, result } = view;
       expect(container.querySelector("h2")?.textContent).toBe(`${label} · legal`);
@@ -368,7 +367,7 @@ it.each(lineStations)(
         expect(window.location.hash).toBe("#service/legal");
       }
     } finally {
-      window.spi = previous;
+      harness.restore();
       await view.cleanup();
     }
   },
@@ -558,7 +557,7 @@ it("knows every all-caps status the host's inspect boards emit", () => {
 });
 
 it("opens the fork's place as the one action for an upstream sync row", async () => {
-  const body = ViewSnapshotSchema.parse(JSON.parse(projected));
+  const body = loadFixture("snapshot-59d6895.json");
   const row = selectionRows(body).find(({ id }) => id === "upstream:legal");
   if (!row) throw new Error("Missing recorded legal Flow row");
   const store = createSelectionStore({ postMessage: vi.fn() });

@@ -9,21 +9,22 @@ import {
   type SetupState,
   type SweepStatus,
   type ViewSnapshot,
-  ViewSnapshotSchema,
 } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import briefing from "../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import releases from "../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
-import november6 from "../../../../fixtures/watch/snapshot-1106.json?raw";
 import { navigate, relaunch } from "../app/routes.js";
 import { Shell } from "../app/Shell.js";
 import { midSweep, savedSweep, sweepStatus } from "../components/sweep/test-helper.js";
 import { selectionStore } from "../panels/selection.js";
 import { testSnapshot } from "../store/test-snapshot.js";
 import { watchStore } from "../store/watch.js";
+import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import { clockTime, timeUnit } from "../time.js";
+
+const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
 
 type HappyWindow = { happyDOM: { setViewport(viewport: { width: number; height: number }): void } };
 const viewport = (width: number, height = 900) =>
@@ -32,14 +33,9 @@ const viewport = (width: number, height = 900) =>
 const previousStore = watchStore.getState();
 
 async function mountShell() {
-  const previous = window.spi;
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
+  const harness = installSpi({
     setAppearance: vi.fn(async () => true),
-    postMessage: vi.fn(),
-    onMessage: () => () => {},
-  };
+  });
   const spi = window.spi;
   const container = document.createElement("div");
   document.body.append(container);
@@ -51,7 +47,7 @@ async function mountShell() {
     async cleanup() {
       await act(async () => root.unmount());
       container.remove();
-      window.spi = previous;
+      harness.restore();
     },
   };
 }
@@ -87,7 +83,6 @@ const tools = (states: SetupState["tools"][number]["state"][]): SetupState => {
 };
 
 beforeEach(() => {
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   window.location.hash = "";
   localStorage.removeItem("spi-code.last-place");
   relaunch();
@@ -671,7 +666,7 @@ describe("the Sweep section", () => {
     });
   /** The recorded 11-06 snapshot, its release reads taken at 13:32. */
   const snapshot = (): { cursor: number; body: ViewSnapshot } => {
-    const body = ViewSnapshotSchema.parse(JSON.parse(november6));
+    const body = loadFixture("snapshot-1106.json");
     return {
       cursor: 1,
       body: {

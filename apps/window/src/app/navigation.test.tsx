@@ -1,13 +1,13 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { ViewSnapshotSchema } from "@spi-code/contracts";
+import { readFileSync } from "node:fs";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import recorded from "../../../../fixtures/watch/snapshot-59d6895.json?raw";
 import { PINS_STORAGE_KEY } from "../store/pins.js";
 import { watchStore } from "../store/watch.js";
+import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import {
   closeSheet,
   LINE,
@@ -23,9 +23,11 @@ import {
 } from "./routes.js";
 import { Shell } from "./Shell.js";
 
+const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
+
 let container: HTMLDivElement;
 let unmount: () => Promise<void>;
-const previousSpi = window.spi;
+let harness: ReturnType<typeof installSpi>;
 const previousWatch = watchStore.getState();
 
 function View({ route }: { route: Route }) {
@@ -96,18 +98,14 @@ beforeEach(() => {
   localStorage.removeItem(LAST_PLACE_KEY);
   localStorage.removeItem(PINS_STORAGE_KEY);
   sheet.mockClear();
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
+  harness = installSpi({
     setAppearance: vi.fn(async () => true),
-    postMessage: vi.fn(),
-    onMessage: () => () => {},
-  };
+  });
 });
 
 afterEach(async () => {
   await unmount();
-  window.spi = previousSpi;
+  harness.restore();
   watchStore.setState(previousWatch, true);
   window.location.hash = "";
   closeSheet();
@@ -278,7 +276,7 @@ it("leaves ⌘L alone when no Line sheet is registered", async () => {
 });
 
 it("lists only registered places in the sidebar and Find, and falls back from the rest", async () => {
-  const body = ViewSnapshotSchema.parse(JSON.parse(recorded));
+  const body = loadFixture("snapshot-59d6895.json");
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
   const { upstream: _u, security: _s, environment: _e, ...views } = every;
   localStorage.setItem(
@@ -317,7 +315,7 @@ it("lists only registered places in the sidebar and Find, and falls back from th
 });
 
 describe("landing", () => {
-  const recordedBody = ViewSnapshotSchema.parse(JSON.parse(recorded));
+  const recordedBody = loadFixture("snapshot-59d6895.json");
   const registry: Registry = { views: every, sheet, fallback: { kind: "today" } };
   const arrive = (cursor: number, seen: { cursor: number; since: string[] }) =>
     act(async () => {

@@ -1,34 +1,31 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
+import { readFileSync } from "node:fs";
+import { PROTOCOL_VERSION, type ViewSnapshot } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import recorded from "../../../../fixtures/watch/snapshot-59d6895.json?raw";
-import fleet from "../../../../fixtures/watch/snapshot-1106.json?raw";
 import { PLACES, routeLabel } from "../app/navigation.js";
 import { Shell } from "../app/Shell.js";
 import { selectionStore } from "../panels/selection.js";
 import { PINS_STORAGE_KEY, readPins } from "../store/pins.js";
 import { watchStore } from "../store/watch.js";
+import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import { buildPaletteGroups, filterPaletteGroups } from "./palette.logic.js";
 
-const body = ViewSnapshotSchema.parse(JSON.parse(recorded));
+const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
+
+const body = loadFixture("snapshot-59d6895.json");
 const previous = watchStore.getState();
-const previousSpi = window.spi;
+let harness: ReturnType<typeof installSpi>;
 let container: HTMLDivElement;
 let root: Root;
 
 beforeEach(async () => {
   window.location.hash = "";
   localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(serviceIds));
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
-    postMessage: vi.fn(),
-    onMessage: () => () => {},
-  };
+  harness = installSpi();
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
   container = document.createElement("div");
   document.body.append(container);
@@ -41,7 +38,7 @@ afterEach(async () => {
   container.remove();
   selectionStore.getState().clear();
   watchStore.setState(previous);
-  window.spi = previousSpi;
+  harness.restore();
   window.location.hash = "";
   localStorage.removeItem(PINS_STORAGE_KEY);
   vi.restoreAllMocks();
@@ -341,7 +338,7 @@ it("opens a service result and pins it on Ctrl+Enter, and keeps it pinned when p
 });
 
 it("finds every place and every service of the Nov 6 fleet", async () => {
-  const next = ViewSnapshotSchema.parse(JSON.parse(fleet));
+  const next = loadFixture("snapshot-1106.json");
   await act(async () => watchStore.setState({ snapshot: { cursor: next.cursor, body: next } }));
   await shortcut({ ctrlKey: true });
   const found = (group: string) =>

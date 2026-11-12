@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: MIT
 
 import { readFileSync } from "node:fs";
-import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
-import recorded from "../../../../fixtures/watch/snapshot-1106.json?raw";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
 import { directoryPaths } from "../test-utils/directory-paths.test.js";
+import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import { navigate, openSheet, pinSheet, type Registry, type Route } from "./routes.js";
 import { Shell } from "./Shell.js";
+
+const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
 
 const styles = directoryPaths("apps/window/src")
   .filter((file) => file.endsWith(".css"))
@@ -32,25 +33,21 @@ function element(container: Element, selector: string): HTMLElement {
 }
 
 async function mount(registry?: Registry) {
-  const previousSpi = window.spi;
   const previousWatch = watchStore.getState();
   const previousSelection = selectionStore.getState();
   const previousTheme = document.documentElement.dataset.theme;
   const previousHash = window.location.hash;
-  const body = ViewSnapshotSchema.parse(JSON.parse(recorded));
+  const body = loadFixture("snapshot-1106.json");
   let receive: Parameters<typeof window.spi.onMessage>[0] | undefined;
   window.location.hash = "#today";
   watchStore.setState({ snapshot: { cursor: body.cursor, body }, setup: null });
   selectionStore.setState({ selected: null, open: false });
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
-    postMessage: vi.fn(),
+  const harness = installSpi({
     onMessage: (listener) => {
       receive = listener;
       return () => {};
     },
-  };
+  });
   const style = document.createElement("style");
   style.textContent = styles.map(({ css }) => css).join("\n");
   document.head.append(style);
@@ -67,7 +64,7 @@ async function mount(registry?: Registry) {
       style.remove();
       watchStore.setState(previousWatch, true);
       selectionStore.setState(previousSelection, true);
-      window.spi = previousSpi;
+      harness.restore();
       window.location.hash = previousHash;
       if (previousTheme === undefined) delete document.documentElement.dataset.theme;
       else document.documentElement.dataset.theme = previousTheme;

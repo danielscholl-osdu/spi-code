@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { readFileSync } from "node:fs";
 import {
   BriefingSchema,
   type InspectResult,
@@ -25,14 +26,15 @@ import POLICY from "../../../../fixtures/rib-59d6895/oracle/inspect/POLICY.json?
 import TEST from "../../../../fixtures/rib-59d6895/oracle/inspect/TEST.json?raw";
 import TOOLCHAIN from "../../../../fixtures/rib-59d6895/oracle/inspect/TOOLCHAIN.json?raw";
 import UNREAD from "../../../../fixtures/rib-59d6895/oracle/inspect/UNREAD.json?raw";
-import mixed from "../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
 import { expectNoEvidenceMarks } from "../components/evidence/marks.test-helper.js";
-import { mixedSnapshot } from "../store/test-snapshot.js";
+import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import { clockTime } from "../time.js";
 import { RightPanel } from "./RightPanel.js";
 import { createSelectionStore, type SelectionStore } from "./selection.js";
 import { runRow, type SelectionKind, type SelectionRow, selectionRows } from "./selection-rows.js";
 import { inspectFromOracle, type OracleBoard, oracleClass, oracleNext } from "./test-inspect.js";
+
+const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
 
 const oracle: Record<string, OracleBoard> = Object.fromEntries(
   Object.entries({
@@ -496,7 +498,7 @@ it("keeps a host-shaped repository selection's reads from the sweep on its Evide
     completeness: { kind: "complete" },
     ...more,
   });
-  const fixture = mixedSnapshot(mixed);
+  const fixture = loadFixture("snapshot-mixed-59d6895.json");
   const snapshot = ViewSnapshotSchema.parse({
     ...fixture,
     reads: [
@@ -553,8 +555,9 @@ it("keeps a host-shaped repository selection's reads from the sweep on its Evide
 async function mountDetail(snapshot: ViewSnapshot) {
   const port = fakePort();
   const openExternal = vi.fn(async () => true);
-  const previous = window.spi;
-  window.spi = { proof: false, openExternal, postMessage: vi.fn(), onMessage: () => () => {} };
+  const harness = installSpi({
+    openExternal,
+  });
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -590,7 +593,7 @@ async function mountDetail(snapshot: ViewSnapshot) {
     cleanup: async () => {
       await act(async () => root.unmount());
       container.remove();
-      window.spi = previous;
+      harness.restore();
     },
   };
 }
@@ -605,7 +608,7 @@ const recordedLine = (snapshot: ViewSnapshot, prefix: string) => {
 it.each(["pr:", "issue:", "alert:"])(
   "shows a %s line's id and snapshot URL in Detail, selected through inspect.request",
   async (prefix) => {
-    const snapshot = mixedSnapshot(mixed);
+    const snapshot = loadFixture("snapshot-mixed-59d6895.json");
     const line = recordedLine(snapshot, prefix);
     const row = selectionRows(snapshot).find(({ id }) => id === line.id);
     if (!row || !line.id || !line.url) throw new Error("Recorded line needs an id and a URL");
@@ -636,7 +639,7 @@ it.each(["pr:", "issue:", "alert:"])(
 );
 
 it("leaves a repository line's missing tag, reading and link out of Detail", async () => {
-  const snapshot = structuredClone(mixedSnapshot(mixed));
+  const snapshot = structuredClone(loadFixture("snapshot-mixed-59d6895.json"));
   const line = recordedLine(snapshot, "issue:");
   Object.assign(line, { tag: "", sub: "" });
   delete line.url;
@@ -656,7 +659,7 @@ it("leaves a repository line's missing tag, reading and link out of Detail", asy
 });
 
 it("shows a run's workflow, result and local time, with its snapshot URL", async () => {
-  const snapshot = mixedSnapshot(mixed);
+  const snapshot = loadFixture("snapshot-mixed-59d6895.json");
   const services = snapshot.services ?? [];
   const recorded = services[0]?.runs[0];
   if (!recorded) throw new Error("Recorded sweep needs a run");
@@ -686,7 +689,7 @@ it("shows a run's workflow, result and local time, with its snapshot URL", async
 });
 
 it("leaves a run's empty workflow or result out of Detail", async () => {
-  const snapshot = mixedSnapshot(mixed);
+  const snapshot = loadFixture("snapshot-mixed-59d6895.json");
   const recorded = snapshot.services?.[0]?.runs[0];
   if (!recorded) throw new Error("Recorded sweep needs a run");
   const view = await mountDetail(snapshot);
@@ -706,7 +709,7 @@ it("leaves a run's empty workflow or result out of Detail", async () => {
 });
 
 it.each(["", "not-an-instant"])("leaves a run's unusable time %j out of Detail", async (time) => {
-  const snapshot = mixedSnapshot(mixed);
+  const snapshot = loadFixture("snapshot-mixed-59d6895.json");
   const recorded = snapshot.services?.[0]?.runs[0];
   if (!recorded) throw new Error("Recorded sweep needs a run");
   const view = await mountDetail(snapshot);
@@ -720,7 +723,7 @@ it.each(["", "not-an-instant"])("leaves a run's unusable time %j out of Detail",
 });
 
 it("leaves a run's empty URL out of Detail", async () => {
-  const snapshot = mixedSnapshot(mixed);
+  const snapshot = loadFixture("snapshot-mixed-59d6895.json");
   const recorded = snapshot.services?.[0]?.runs[0];
   if (!recorded) throw new Error("Recorded sweep needs a run");
   const view = await mountDetail(snapshot);
