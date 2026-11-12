@@ -190,7 +190,28 @@ export function startHost(options: HostOptions) {
         },
         stub ? undefined : await toolInstaller(),
       );
-      handler = conversationHandler(activeBackend, sendToWindow);
+      const backend = activeBackend;
+      async function whileRunning<T>(run: () => Promise<T>): Promise<T> {
+        if (stopped) throw new Error("Host is stopped");
+        const result = await run();
+        if (stopped) throw new Error("Host is stopped");
+        return result;
+      }
+      handler = conversationHandler(
+        {
+          get mode() {
+            return backend.mode;
+          },
+          get generation() {
+            return backend.generation;
+          },
+          models: () => whileRunning(() => backend.models()),
+          turn: (...args) => whileRunning(() => backend.turn(...args)),
+          endSession: () => backend.endSession(),
+          stop: () => whileRunning(() => backend.stop()),
+        },
+        sendToWindow,
+      );
     }
     if (stopped) throw new Error("Host is stopped");
     if (message.type === "turn.start") {
@@ -271,7 +292,6 @@ export function startHost(options: HostOptions) {
       (port as typeof port & { on(event: "close", listener: () => void): unknown }).on(
         "close",
         () => {
-          ports.get(port)?.();
           ports.delete(port);
         },
       );

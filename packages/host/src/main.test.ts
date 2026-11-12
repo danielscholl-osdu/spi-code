@@ -126,15 +126,19 @@ it("serializes backend startup and in-flight turns across reloads with correct e
   const sent: Message[] = [];
   const port = () => {
     let receive: (event: { data: unknown }) => void = () => {};
+    let close: () => void = () => {};
     return {
-      on(_event: string, listener: typeof receive) {
-        receive = listener;
+      on(event: string, listener: typeof receive | (() => void)) {
+        if (event === "close") close = listener as () => void;
+        else receive = listener as typeof receive;
       },
       postMessage(message: Message) {
         sent.push(message);
       },
       start() {},
-      close() {},
+      close() {
+        close();
+      },
       send(id: string, type: string, payload: unknown) {
         receive({ data: { version: PROTOCOL_VERSION, id, kind: "request", type, payload } });
       },
@@ -1042,6 +1046,61 @@ it("stop prevents an in-flight turn startup from calling models or turn", async 
     );
   } finally {
     finishStartup(backend);
+    await host.stop();
+  }
+});
+
+it("SIGTERM during models exits without starting a turn on the stopped backend", async () => {
+  const host = await composedHost();
+  let releaseModels = () => {};
+  const heldModels = new Promise<void>((resolve) => {
+    releaseModels = resolve;
+  });
+  let releaseTurn = () => {};
+  const heldTurn = new Promise<void>((resolve) => {
+    releaseTurn = resolve;
+  });
+  const models = vi.fn(async () => {
+    await heldModels;
+    return [{ id: "stub", name: "Stub" }];
+  });
+  const turn = vi.fn(() => heldTurn);
+  const backendStop = vi.fn(async () => {
+    await heldModels;
+  });
+  mocks.createBackend.mockResolvedValue({
+    mode: "stub",
+    generation: 1,
+    models,
+    turn,
+    endSession() {},
+    stop: backendStop,
+  } satisfies ConversationBackend);
+  try {
+    host.attach();
+    host.request("listing-turn", "turn.start");
+    await vi.waitFor(() => expect(models).toHaveBeenCalledOnce());
+    const signal = host.lifecycle.once.mock.calls.find(
+      ([event]) => event === "SIGTERM",
+    )?.[1] as () => void;
+    const at = Date.now();
+    signal();
+    await vi.waitFor(() => expect(backendStop).toHaveBeenCalledOnce());
+    releaseModels();
+    await vi.waitFor(() => expect(host.lifecycle.exit).toHaveBeenCalledWith(0), { timeout: 1500 });
+    expect(Date.now() - at).toBeLessThan(2000);
+    expect(turn).not.toHaveBeenCalled();
+    expect(backendStop).toHaveBeenCalledOnce();
+    expect(host.sent).toContainEqual(
+      expect.objectContaining({
+        id: "listing-turn",
+        type: "error",
+        payload: { code: "host_failed", message: "Host request failed" },
+      }),
+    );
+  } finally {
+    releaseModels();
+    releaseTurn();
     await host.stop();
   }
 });
