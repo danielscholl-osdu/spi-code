@@ -10,7 +10,11 @@ The scaffold uses Node 22.16 or newer, matching `engines` in `package.json`, and
 The header check covers tracked and untracked, non-ignored sources, including
 extensionless shebang scripts. Build output and dependencies are ignored.
 
-The window's `app/text-rules.test.tsx` renders every Watch fixture across its places,
+The window's text rules render every Watch snapshot named in
+`test-utils/watch-fixtures.test-helper.ts`, one `app/text-rules.<stem>.test.tsx` per
+snapshot (Vitest runs a file in one worker, so a file per fixture keeps each under the
+timeout). A new `fixtures/watch` snapshot fails `watch-fixtures.test.ts` until it is
+listed with its file or excluded with a reason. The walk covers places,
 strip, Line sheet, sidebar, command palette and Detail kinds. It checks headline length,
 internal names, title emoji and empty or placeholder sections, with rule mutations.
 Injected emoji cases cover Detail fields, Today sublines, template queue rows and
