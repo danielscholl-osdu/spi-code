@@ -52,6 +52,14 @@ const firstSweepQualifiers: Record<string, string[]> = {
   ],
   "first-sweep-refresh": ["Swept 08:02 · sweeping, 4 of 12 sources done", "GitLab reads failed."],
 };
+const acknowledgedQualifiers = [
+  "swept 08:02 · 1 failed",
+  "Upstream radar read failed; items may be missing.",
+  "1 thing needs you; 1 fork is stopped; 5 upstream changes need you before they land.",
+  "1",
+  "1",
+  "acknowledged 1 · seen 1 · since 0",
+];
 const scheduledQualifiers: Record<string, string[]> = {
   "settings-sweep-idle": [
     "Swept 08:02",
@@ -422,7 +430,8 @@ const report: SmokeReport = {
           bytes: 20000,
           dominantFraction: 0.6,
           qualifiers: scheduledQualifiers[id] ??
-            firstSweepQualifiers[id] ?? [
+            firstSweepQualifiers[id] ??
+            (id === "today-acknowledged" ? acknowledgedQualifiers : undefined) ?? [
               "swept 08:02 · 1 failed",
               "GitLab reads failed; items may be missing.",
             ],
@@ -810,6 +819,53 @@ it.each(Object.keys(firstSweepQualifiers))(
     }
   },
 );
+
+it("requires Today after acknowledgement at every width and appearance", () => {
+  for (const width of VIEW_WIDTHS)
+    for (const appearance of ["light", "dark"]) {
+      const matches = (shot: SmokeReport["views"][number]) =>
+        shot.surface === "today-acknowledged" &&
+        shot.viewportWidth === width &&
+        shot.appearance === appearance;
+      expect(report.views.filter(matches)).toHaveLength(1);
+      expect(() => assertSmokeViews(report.views.filter((shot) => !matches(shot)))).toThrow(
+        "Missing screenshot",
+      );
+    }
+});
+
+it.each([
+  [2, "No new interruptions since 08:05.", "Headline claims nothing open"],
+  [2, "Nothing new since 08:05 · 1 interruption still needs you.", "Headline claims nothing open"],
+  [
+    2,
+    "Nothing urgent needs you. v0.35.3 is deployable; all 13 forks are flowing.",
+    "Headline claims",
+  ],
+  [2, "1 fork is stopped; 5 upstream changes need you before they land.", "still-open headline"],
+  [2, "2 things need you.", "Sidebar Today count 1 differs"],
+  [3, "", "Sidebar Today count  differs"],
+  [3, "2", "Sidebar Today count 2 differs"],
+  [4, "0", "Needs you holds 0"],
+  [5, "acknowledged 1 · seen 1 · since 1", "not after an acknowledgement"],
+  [5, "acknowledged 1 · seen 2 · since 0", "not after an acknowledgement"],
+  [5, "", "not after an acknowledgement"],
+] as const)("rejects acknowledged Today with qualifier %i as %j", (index, text, message) => {
+  const qualifiers = [...acknowledgedQualifiers];
+  qualifiers[index] = text;
+  expect(() =>
+    assertSmokeShot("today-acknowledged", syntheticImage(24, 20000), qualifiers),
+  ).toThrow(message);
+  expect(() =>
+    assertSmokeViews(
+      report.views.map((shot) =>
+        shot.surface === "today-acknowledged" && shot.viewportWidth === 740
+          ? { ...shot, qualifiers }
+          : shot,
+      ),
+    ),
+  ).toThrow(message);
+});
 
 it.each(["first-sweep-stopped", "first-sweep-stopped-saving"])(
   "rejects stale stopped capture qualifiers: %s",

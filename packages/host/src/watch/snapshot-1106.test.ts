@@ -6,6 +6,8 @@ import type { ViewSnapshot } from "@spi-code/contracts";
 import { describe, expect, it } from "vitest";
 import { projectWatch } from "./project.js";
 import {
+  acknowledgedInput,
+  acknowledgedSnapshotPath,
   recordedInput,
   recordedSnapshotPath,
   unreadForksInput,
@@ -105,5 +107,27 @@ describe("the 6 Nov sweep with partition verified and legal merged but red on ma
       counts: "forks on 7d269b5",
     });
     expect(reading?.verifiedTemplate).toMatchObject({ verified: 1, total: 13, unread: 0 });
+  });
+});
+
+describe("the 6 Nov sweep pushed again after its first push was acknowledged", () => {
+  const acknowledged: ViewSnapshot = JSON.parse(readFileSync(acknowledgedSnapshotPath, "utf8"));
+
+  it("matches a fresh projection", () => {
+    expect(projectWatch(acknowledgedInput())).toEqual(acknowledged);
+  });
+
+  it("holds the acknowledged baseline with nothing new and its Interrupt still open (AU-09)", () => {
+    expect(acknowledged.cursor).toBe(snapshot.cursor + 1);
+    expect(acknowledged.seen).toEqual({
+      cursor: snapshot.cursor,
+      since: [],
+      at: "2026-11-06T14:05:00.000Z",
+    });
+    const open = [...acknowledged.briefing.focus, ...acknowledged.briefing.rest].filter(
+      ({ attention }) => attention === "interrupt",
+    );
+    expect(open.map(({ id }) => id)).toEqual(["conflict:entitlements:121"]);
+    expect(acknowledged.briefing).toEqual(snapshot.briefing);
   });
 });

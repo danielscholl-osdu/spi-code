@@ -245,6 +245,15 @@ export const VIEW_SURFACES = [
     designSection: "Sweep settings / Evidence header; PRD EV-03",
     qualified: false,
   })),
+  {
+    id: "today-acknowledged",
+    name: "Today / Back after acknowledgement, an Interrupt still open",
+    route: "today",
+    place: "Today",
+    selector: ".today .today-needs .today-need",
+    designSection: "decision.md draft 7: Headline; PRD PS-03, PS-19, AU-09",
+    qualified: true,
+  },
 ] as const;
 
 export function geometryRules(surface: string, width: number): SmokeGeometry["rule"][] {
@@ -406,6 +415,27 @@ function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
       /failed|incomplete|truncated/i.test(qualifiers[1] ?? ""),
       `Missing envelope qualifier: ${surfaceId}`,
     );
+  if (surfaceId === "today-acknowledged") assertAcknowledgedToday(qualifiers);
+}
+
+/**
+ * Qualifiers 2 to 5: Today's headline, the sidebar's Today count, the Needs you rows, and
+ * "acknowledged <cursor> · seen <cursor> · since <n>" from the acknowledgement and the snapshot.
+ */
+function assertAcknowledgedToday(qualifiers: readonly string[]): void {
+  const [, , headline = "", pip = "", needs = "", seen = ""] = qualifiers;
+  assert(
+    /^acknowledged (\d+) · seen \1 · since 0$/.test(seen),
+    `Today is not after an acknowledgement with nothing new: ${seen}`,
+  );
+  assert(
+    !/no new interruptions|nothing (new|urgent)/i.test(headline),
+    `Headline claims nothing open while an Interrupt is: ${headline}`,
+  );
+  const open = /^(\d+) things? needs? you\b/.exec(headline)?.[1];
+  assert(open && Number(open) > 0, `Missing still-open headline: ${headline}`);
+  assert.equal(pip, open, `Sidebar Today count ${pip} differs from the headline's ${open}`);
+  assert.equal(needs, open, `Needs you holds ${needs}; the headline names ${open}`);
 }
 
 export function assertSmokeViews(value: unknown): asserts value is SmokeShot[] {

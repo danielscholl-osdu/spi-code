@@ -6,10 +6,12 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import {
   PROTOCOL_VERSION,
   parseMessage,
   type SetupState,
+  type ViewSnapshot,
   ViewSnapshotSchema,
 } from "@spi-code/contracts";
 import { type BrowserWindow, ipcMain, nativeImage } from "electron";
@@ -32,6 +34,9 @@ const sweepSchedule = {
   securityMs: 1_800_000,
   releasesMs: 3_600_000,
 };
+
+/** Written by scripts/watch-snapshot.ts beside the Nov 6 fixture: that sweep after its acknowledgement. */
+export const ACKNOWLEDGED_FIXTURE = "snapshot-1106-acknowledged.json";
 
 async function rendered(window: BrowserWindow, condition: string): Promise<void> {
   await window.webContents.executeJavaScript(`new Promise((resolve, reject) => {
@@ -95,6 +100,40 @@ async function closeSettings(window: BrowserWindow): Promise<void> {
     "document.querySelector(\"[aria-label='Close settings']\").click()",
   );
   await rendered(window, '!document.querySelector("[role=dialog]")');
+}
+
+/**
+ * Shows the first push on Today in the foreground, leaves for Upstream, waits for the window's
+ * own acknowledgement, then pushes the sweep that carries it. Returns the qualifier the report
+ * checks; the caller returns to Today.
+ */
+async function leaveAcknowledged(
+  window: BrowserWindow,
+  load: () => Promise<void>,
+  first: ViewSnapshot,
+  acknowledged: ViewSnapshot,
+  acknowledgements: number[],
+): Promise<string> {
+  await window.webContents.debugger.sendCommand("Emulation.setFocusEmulationEnabled", {
+    enabled: true,
+  });
+  await load();
+  await rendered(window, 'document.visibilityState === "visible" && document.hasFocus()');
+  acknowledgements.length = 0;
+  fixture(window, "view.snapshot", first);
+  await rendered(window, 'document.querySelector(".today .place-reading")');
+  await window.webContents.executeJavaScript('location.hash = "#upstream"');
+  await rendered(window, 'document.querySelector("[data-place]")?.textContent === "Upstream"');
+  const deadline = Date.now() + 5000;
+  while (acknowledgements.length === 0 && Date.now() < deadline) await delay(20);
+  assert.deepEqual(
+    acknowledgements,
+    [first.cursor],
+    "Leaving Today must acknowledge the snapshot it showed",
+  );
+  assert.equal(acknowledged.seen.cursor, first.cursor, "Wrong acknowledged baseline");
+  fixture(window, "view.snapshot", acknowledged);
+  return `acknowledged ${acknowledgements[0]} · seen ${acknowledged.seen.cursor} · since ${acknowledged.seen.since.length}`;
 }
 
 async function measure(
@@ -363,6 +402,13 @@ export async function captureSmokeViews(
   morningPaths: Readonly<Record<Morning, string>>,
 ): Promise<SmokeShot[]> {
   const snapshot = ViewSnapshotSchema.parse(JSON.parse(readFileSync(fixturePath, "utf8")));
+  const acknowledged = ViewSnapshotSchema.parse(
+    JSON.parse(readFileSync(join(dirname(fixturePath), ACKNOWLEDGED_FIXTURE), "utf8")),
+  );
+  assert(
+    acknowledged.sweptAt === snapshot.sweptAt && acknowledged.cursor > snapshot.cursor,
+    "The acknowledged fixture must push the Nov 6 sweep again",
+  );
   const mornings = loadMornings(morningPaths);
   const progress = smokeSweepProgress();
   const [originalWidth, originalHeight] = window.getContentSize();
@@ -384,12 +430,14 @@ export async function captureSmokeViews(
     ],
   };
   let ghRequest = "";
+  const acknowledgements: number[] = [];
   const request = (event: Electron.IpcMainEvent, input: unknown) => {
     if (event.sender !== window.webContents) return;
     const parsed = parseMessage(input);
     assert(parsed.ok, "Invalid renderer smoke request");
     const message = parsed.message;
-    if (message.type === "setup.signin") {
+    if (message.type === "view.acknowledge") acknowledgements.push(message.payload.cursor);
+    else if (message.type === "setup.signin") {
       if (message.payload.tool === "gh") ghRequest = message.id;
       fixture(
         window,
@@ -579,6 +627,39 @@ export async function captureSmokeViews(
               lastSweep: null,
             });
           }
+          const seen =
+            surface.id === "today-acknowledged"
+              ? await leaveAcknowledged(
+                  window,
+                  async () => {
+                    await window.webContents.executeJavaScript(`{
+                      localStorage.removeItem("spi-code.panes");
+                      localStorage.removeItem("spi-code.line-sheet.pinned");
+                      location.hash = "#today";
+                    }`);
+                    const loaded = once(window.webContents, "did-finish-load");
+                    window.webContents.reload();
+                    await loaded;
+                    await rendered(
+                      window,
+                      'document.querySelector(".shell [data-sidebar-row=settings]")',
+                    );
+                    fixture(window, "sweep.status", {
+                      remaining: 4865,
+                      floor: 100,
+                      resetAt: "2026-11-06T15:36:00.000Z",
+                      deferredAreas: [],
+                      nextSweepAt: null,
+                      schedule: sweepSchedule,
+                      lastSweep: null,
+                    });
+                    fixture(window, "setup.state", ready);
+                  },
+                  snapshot,
+                  acknowledged,
+                  acknowledgements,
+                )
+              : undefined;
           if (surface.id !== first.id) {
             await window.webContents.executeJavaScript(
               `location.hash = ${JSON.stringify(`#${surface.route}`)}`,
@@ -835,6 +916,15 @@ export async function captureSmokeViews(
                         : "main :is(.place-qualifier, .today-caveat)",
             )})?.innerText?.replace(/\\s+/g, " ").trim() ?? ""
           ]`);
+          if (seen !== undefined)
+            qualifiers.push(
+              ...(await window.webContents.executeJavaScript(`[
+                document.querySelector(".today .today-headline")?.textContent.trim() ?? "",
+                document.querySelector('ul[aria-label="Today"] .sidebar-pip')?.textContent.trim() ?? "",
+                String(document.querySelectorAll(".today .today-needs .today-need").length)
+              ]`)),
+              seen,
+            );
           const file = `${surface.id}-${viewportWidth}-${appearance}.png`;
           const path = join(output, file);
           writeFileSync(path, (await window.webContents.capturePage()).toPNG());
@@ -853,6 +943,10 @@ export async function captureSmokeViews(
             ...(rejectedGeometry ? { rejectedGeometry } : {}),
             ...shot,
           });
+          if (seen !== undefined)
+            await window.webContents.debugger.sendCommand("Emulation.setFocusEmulationEnabled", {
+              enabled: false,
+            });
           if (surface.id.startsWith("settings")) {
             if (surface.id === first.id)
               fixture(window, "setup.signin.progress", {
@@ -956,6 +1050,9 @@ First-sweep surfaces inject schema-valid sweep.progress messages through the sam
 view.snapshot and setup.state. This screenshot phase precedes host startup, so it cannot feed the real host progress path;
 the persisted-snapshot and supervision host proof runs separately, after these fixtures are removed.
 Only view.snapshot hands over the first-sweep list; the refresh preserves the older brief.
+Today after acknowledgement shows the Nov 6 projection in the foreground, leaves for Upstream, waits for
+the window's own view.acknowledge, receives that sweep pushed again with the acknowledged baseline
+(${ACKNOWLEDGED_FIXTURE}: nothing new since, its Interrupt still open) and comes back to Today.
 Settings / Sweep and the Evidence header use schema-valid sweep.status, sweep.progress and
 view.snapshot fixtures. Each named header, schedule line and Sweep now control must be inside
 its panel and viewport. At 740 px the native picker must select Sweep and every cadence and

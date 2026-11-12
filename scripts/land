@@ -20,6 +20,7 @@ command -v jq >/dev/null || die "jq is required"
 # scripts/check vouches for these files and a review does not have to cover them.
 generated=(
   fixtures/watch/inspect-1106.json
+  fixtures/watch/snapshot-1106-acknowledged.json
   fixtures/watch/snapshot-1106-unread.json
   fixtures/watch/snapshot-1106-unverified.json
   fixtures/watch/snapshot-1106.json

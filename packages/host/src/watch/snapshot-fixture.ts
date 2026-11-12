@@ -24,7 +24,8 @@ import {
   type SweepReads,
   TEMPLATE_REPO,
 } from "@spi-code/core";
-import type { WatchInput } from "./project.js";
+import { projectWatch, type WatchInput } from "./project.js";
+import { baselineItems } from "./seen.js";
 
 export const fixtureRoot = fileURLToPath(
   new URL("../../../core/test/fixtures/rib-59d6895/", import.meta.url),
@@ -163,6 +164,27 @@ export function recordedInput(): WatchInput {
     intervalMs: 300_000,
     reads: { ...inferredReads(facts), radar },
     releaseRecords: [],
+  };
+}
+
+export const acknowledgedSnapshotPath = fileURLToPath(
+  new URL("../../../../fixtures/watch/snapshot-1106-acknowledged.json", import.meta.url),
+);
+
+/**
+ * The 6 Nov sweep pushed again after the operator acknowledged its first push at 08:05 Chicago:
+ * the baseline holds every item, so nothing arrived since, and its Interrupt is still open.
+ */
+export function acknowledgedInput(): WatchInput {
+  const input = recordedInput();
+  return {
+    ...input,
+    cursor: input.cursor + 1,
+    baseline: {
+      cursor: input.cursor,
+      at: "2026-11-06T14:05:00.000Z",
+      items: baselineItems(projectWatch(input).briefing),
+    },
   };
 }
 
