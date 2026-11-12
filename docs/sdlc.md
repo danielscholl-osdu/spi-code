@@ -86,7 +86,7 @@ Skill: `bead-land`. `scripts/land <id>`:
 2. Takes the merge slot, so landings happen one at a time.
 3. Syncs `main` from the remote, rebases the bead onto it, installs the pinned dependencies (the rebase may bring new ones), and runs `scripts/check --quick`.
 4. Verifies the review: a pass from a provider other than the author's, for a commit that still equals what is landing once merged onto `main`.
-5. Waits for CI to pass on that exact commit, on macOS and Windows, with the packaged smoke. A green run from the bead's own branch counts when the rebase changed nothing; otherwise the commit goes to `land/<id>` to get a run. Failed jobs are rerun once; a second failure refuses the landing.
+5. Waits for CI to pass on that exact commit, on macOS and Windows, with the packaged smoke. A green run from the bead's own branch counts when the rebase changed nothing; otherwise the commit goes to a new `land/<id>--…` branch to get a run. Failed jobs are rerun once; a second failure refuses the landing.
 6. Checks again that `main` isn't broken, then fast-forwards `main` to the exact commit CI passed. It pushes, closes the bead with "Landed <sha>", and cleans up worktrees under `.worktrees/`. If the push fails, the bead stays open, and rerunning the script finishes the landing.
 
 `scripts/land --wait <id>` queues behind other landings instead of refusing. `SPI_LAND_LOCAL=1` runs the full check on this machine instead of waiting for CI, for when CI is down; it says so in its output, and it checks neither Windows nor the packaged smoke.

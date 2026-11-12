@@ -181,7 +181,12 @@ case "$1 $2" in
   *) printf 'Unexpected gh command: %s\\n' "$*" >&2; exit 1 ;;
 esac
 `;
-const run = (status: string, conclusion: string, headBranch = `land/${id}`, attempt = 1) => ({
+const run = (
+  status: string,
+  conclusion: string,
+  headBranch = `land/${id}--abc-1-1`,
+  attempt = 1,
+) => ({
   databaseId: 7,
   attempt,
   status,
@@ -1099,16 +1104,19 @@ describe("landing gates", () => {
 });
 
 describe("landing through CI", () => {
-  const landRef = `refs/heads/land/${id}`;
   const gone = "0".repeat(40);
+  const published = (head: string) =>
+    new RegExp(`^refs/heads/land/${id}--${head.slice(0, 12)}-\\d+-\\d+ ${head}$`);
   function withOrigin() {
     const repo = fixture({ origin: true });
     repo.recordPushes();
     return { repo, head: repo.commit("docs: update fixture") };
   }
+  // The land branches origin received, as [created, deleted] lines, in order.
+  const landPushes = (repo: Fixture) => repo.pushed().filter((line) => line.includes("/land/"));
 
   it(
-    "pushes the commit to land/<id>, waits for its run, lands it and removes the branch",
+    "publishes the commit on a land branch, waits for its run, lands it and removes the branch",
     () => {
       const { repo, head } = withOrigin();
       repo.ci([], 1);
@@ -1118,11 +1126,11 @@ describe("landing through CI", () => {
 
       expectLanded(repo, repo.land(), head);
       expect(repo.originMain()).toBe(head);
-      expect(repo.pushed()).toEqual([
-        `${landRef} ${head}`,
-        `refs/heads/main ${head}`,
-        `${landRef} ${gone}`,
-      ]);
+      const [created, deleted, ...rest] = landPushes(repo);
+      expect(created).toMatch(published(head));
+      expect(deleted).toBe(`${created?.split(" ")[0]} ${gone}`);
+      expect(rest).toEqual([]);
+      expect(repo.originRefs()).not.toContain("/land/");
       expect(repo.checks()).toEqual(["ran --quick"]);
       expect(repo.ghCalls("run list")).toHaveLength(4);
       expect(repo.ghCalls("run list")[0]).toContain(`--commit ${head}`);
@@ -1151,7 +1159,7 @@ describe("landing through CI", () => {
       repo.ci([run("completed", "failure", branch), run("completed", "success")]);
 
       expectLanded(repo, repo.land(), head);
-      expect(repo.pushed()[0]).toBe(`${landRef} ${head}`);
+      expect(landPushes(repo)[0]).toMatch(published(head));
       expect(repo.ghCalls("run rerun")).toEqual([]);
     },
     testTimeout,
@@ -1187,57 +1195,56 @@ describe("landing through CI", () => {
       expectRefused(repo, result, `CI failed twice on ${head}: https://ci.example.test/runs/7`);
       expect(repo.originMain()).toBe(repo.base);
       expect(repo.ghCalls("run rerun")).toEqual(["run rerun 7 --failed"]);
-      expect(repo.pushed()).toEqual([`${landRef} ${head}`, `${landRef} ${gone}`]);
+      expect(landPushes(repo)).toHaveLength(2);
+      expect(repo.originRefs()).not.toContain("/land/");
       expect(repo.calls("merge-slot release")).toHaveLength(1);
     },
     testTimeout,
   );
 
-  it(
-    "adopts the land branch an interrupted landing left, and removes it",
-    () => {
+  it.each([
+    ["this commit", (head: string) => head],
+    ["an older commit", (_head: string, base: string) => base],
+  ])(
+    "publishes under a new name beside a branch an interrupted landing left at %s, and removes both",
+    (_name, at) => {
       const { repo, head } = withOrigin();
-      repo.git("push", "--quiet", "origin", `${head}:${landRef}`);
+      const left = `refs/heads/land/${id}--left-1-1`;
+      repo.git("push", "--quiet", "origin", `${at(head, repo.base)}:${left}`);
+      repo.ci([], 1);
       repo.ci([run("completed", "success")]);
-      expect(repo.originRefs()).toContain(landRef);
 
       expectLanded(repo, repo.land(), head);
-      expect(repo.originRefs()).not.toContain(landRef);
+      const created = landPushes(repo).filter(
+        (line) => !line.startsWith(left) && line.endsWith(head),
+      );
+      expect(created).toHaveLength(1);
+      expect(created[0]).toMatch(published(head));
+      expect(repo.originRefs()).not.toContain("/land/");
     },
     testTimeout,
   );
 
   it(
-    "replaces a leftover land branch that points at an older commit",
+    "removes an interrupted landing's branch even when it lands on the bead branch's run",
     () => {
       const { repo, head } = withOrigin();
-      repo.git("push", "--quiet", "origin", `${repo.base}:${landRef}`);
-      repo.ci([], 1);
-      repo.ci([run("completed", "success")]);
+      repo.git("push", "--quiet", "origin", `${head}:refs/heads/land/${id}--left-1-1`);
 
       expectLanded(repo, repo.land(), head);
-      expect(repo.pushed()).toContain(`${landRef} ${head}`);
-      expect(repo.originRefs()).not.toContain(landRef);
+      expect(repo.originRefs()).not.toContain("/land/");
     },
     testTimeout,
   );
 
   it(
-    "recreates a leftover land branch that already points at this commit but has no run",
+    "leaves another bead's land branch alone",
     () => {
       const { repo, head } = withOrigin();
-      repo.git("push", "--quiet", "origin", `${head}:${landRef}`);
-      repo.ci([], 1);
-      repo.ci([run("completed", "success")]);
+      repo.git("push", "--quiet", "origin", `${head}:refs/heads/land/${id}-other--left-1-1`);
 
       expectLanded(repo, repo.land(), head);
-      expect(repo.pushed()).toEqual([
-        `${landRef} ${head}`,
-        `${landRef} ${gone}`,
-        `${landRef} ${head}`,
-        `refs/heads/main ${head}`,
-        `${landRef} ${gone}`,
-      ]);
+      expect(repo.originRefs()).toContain(`refs/heads/land/${id}-other--left-1-1`);
     },
     testTimeout,
   );
@@ -1251,7 +1258,7 @@ describe("landing through CI", () => {
       const result = repo.land({ SPI_LAND_CI_TIMEOUT: "0" });
 
       expectRefused(repo, result, `CI did not finish on ${head} within 0s`);
-      expect(repo.pushed()).toEqual([]);
+      expect(landPushes(repo)).toEqual([]);
     },
     testTimeout,
   );
