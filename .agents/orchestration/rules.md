@@ -24,7 +24,7 @@ Builders, reviewers and orchestrators all follow these. A brief can add to them;
 
 ## Checks and load
 
-Several agents share this machine. The full `scripts/check` runs every test twice and belongs to CI and `scripts/land`.
+Several agents share this machine. The full `scripts/check` runs every test twice and belongs to CI, which `scripts/land` waits on.
 
 - Run `scripts/check --quick`. Push your branch and let CI run the rest; put the run id in a bead note.
 - Run `pnpm package:mac` only when your diff changes what the packaged smoke looks at: `apps/desktop/src/smoke*`, `scripts/package*.mjs`, `scripts/packaged-host.mjs`, or a selector the smoke reads. CI packages and smokes every pushed branch on macOS and Windows.

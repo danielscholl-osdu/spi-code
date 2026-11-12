@@ -2,7 +2,7 @@
 # Copyright 2026, Daniel Scholl
 # SPDX-License-Identifier: MIT
 #
-# The checks a bead must pass. CI and scripts/land run all of them; see docs/sdlc.md.
+# The checks a bead must pass. CI runs all of them and scripts/land waits for it; see docs/sdlc.md.
 #   scripts/check           everything: lint, typecheck, every test twice, headers, licenses
 #   scripts/check --quick   while building or reviewing: lint, typecheck, headers, and once,
 #                           the tests the diff against main reaches and the packages that
@@ -55,7 +55,7 @@ if [[ -f package.json ]]; then
     if ((${#beside[@]})); then
       pnpm run test "${beside[@]}"
     fi
-    echo "check: quick pass only; CI and scripts/land run every test, twice"
+    echo "check: quick pass only; CI runs every test, twice, before scripts/land moves main"
     exit 0
   fi
   pnpm run check

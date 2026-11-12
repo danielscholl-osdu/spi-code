@@ -127,7 +127,7 @@ it("--quick lints, typechecks, checks headers and runs once the tests the diff a
     { args: ["check:headers"], shifted: "" },
     { args: ["test", "--changed", repo.base, "--passWithNoTests"], shifted: "" },
   ]);
-  expect(result.stdout).toContain("CI and scripts/land run every test");
+  expect(result.stdout).toContain("CI runs every test");
 }, 90_000);
 
 it("--quick also runs the test beside a changed file that no test imports, committed or not", () => {
