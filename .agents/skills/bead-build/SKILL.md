@@ -20,7 +20,7 @@ Pick a worker name once, your model plus four random hex characters (for example
 bd show <id>                      # read the description and acceptance
 bd update <id> --claim --actor <worker>
 bd update <id> --actor <worker> \
-  --set-metadata build.provider=<anthropic|openai|google> \
+  --set-metadata build.provider=<anthropic|openai> \
   --set-metadata build.model=<model id>
 ```
 
@@ -42,7 +42,8 @@ Never edit files in the main checkout.
 
 - Do what the acceptance criteria ask, and nothing more. Something else you notice becomes a new bead: `bd create "<title>" -t task --parent <epic> --deps discovered-from:<id>`.
 - Write the test named in the acceptance first when you can.
-- Follow `AGENTS.md`: the MIT header on new source files, no comments that narrate the change.
+- Follow `AGENTS.md` and `.agents/orchestration/rules.md`: the MIT header on new source files, no comments that narrate the change.
+- What you learn that a later builder could not get from the code and tests goes in `docs/notes/<area>.md`, in a line or two. Never in `docs/sdlc.md`.
 - Commit with `aipr` and the bead trailer:
 
   ```bash
@@ -51,20 +52,34 @@ Never edit files in the main checkout.
 
 - For work that runs long, keep the claim alive: `bd heartbeat <id> --actor <worker>`.
 
-## 4. Check
+## 4. Check, push and show your evidence
 
 ```bash
 scripts/check --quick
+git push origin bead/<id>
 ```
 
-It runs lint, typecheck, license headers and, once, the tests your diff reaches: the ones that import what you changed, every package that depends on a package you changed, and every package when a fixture changed. Don't ask for review while it fails.
+`--quick` runs lint, typecheck, license headers and, once, the tests your diff reaches: the ones that import what you changed, every package that depends on a package you changed, and every package when a fixture changed. Don't hand off while it fails.
 
-Don't run the full `scripts/check` on this machine: it runs every test twice, and several agents share the CPU. Push your branch (`git push origin bead/<id>`); CI runs the full check and the packaged smoke on macOS and Windows. Put the run id in a bead note.
+Don't run the full `scripts/check` on this machine: it runs every test twice, and several agents share the CPU. The push starts CI, which runs the full check and the packaged smoke on macOS and Windows. Run `pnpm package:mac` yourself only when your diff changes what the smoke looks at (`.agents/orchestration/rules.md` lists what).
 
-`scripts/check` does not run the packaged smoke. If the bead changes `apps/window`, `apps/desktop`, `scripts/package*.mjs` or `scripts/packaged-host.mjs`, also run `pnpm package:mac` (it packages and runs the smoke) and paste its tail in a bead note before asking for review.
+Then write the evidence a reviewer will check, as a bead note:
 
-## 5. Review, then land
+```bash
+bd note <id> "Built <sha> on main <sha>. CI run <run id>.
+1. <acceptance line>: <test file:line>; fails when <the change you made to see it fail>.
+2. ...
+Not proven: <anything the acceptance asks that no test shows, and why>."
+```
 
-Follow `.agents/skills/bead-review/SKILL.md` to get a review from a different provider. Fix the findings that hold up, and push back on the ones that don't. When the bead has a recorded pass for the current diff, follow `.agents/skills/bead-land/SKILL.md`.
+For each acceptance line, break the code the test guards, run that one test, see it fail, and restore the code. A line whose test you could not make fail is not done. Include the case the code cannot prove: when it cannot know an order, a read or a membership, it must report the quieter state, and a test must show that.
 
-If you stop before landing, leave a note saying where you got to (`bd note <id> "<state>"`) and keep the claim, so the next agent can pick it up.
+## 5. Hand off
+
+Stop here when an orchestrator dispatched you: reply with the worktree path, the branch, the head, the CI run id and the evidence note, and keep the claim. The orchestrator sends a reviewer from another provider.
+
+When you work alone, follow `.agents/skills/bead-review/SKILL.md` to get that review yourself, fix the findings that hold up, push back on the ones that don't, and land with `.agents/skills/bead-land/SKILL.md` once the pass is recorded.
+
+In a fix round, change only what the findings name, take the nits that cost a line, and add to the evidence note a line per finding: the test, and that it fails without the fix.
+
+If you stop early, leave a note saying where you got to (`bd note <id> "<state>"`) and keep the claim, so the next agent can pick it up.

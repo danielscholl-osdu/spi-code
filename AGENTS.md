@@ -1,6 +1,6 @@
 # SPI Code
 
-A macOS and Windows desktop app for running the OSDU SPI program, with GitHub Copilot as its only agent. Nothing is built yet. The design lives in `design/`:
+A macOS and Windows desktop app for running the OSDU SPI program, with GitHub Copilot as its only agent. The design lives in `design/`:
 
 - `design/spi-code-product-brief.md`: what the product is and why
 - `design/spi-code-prd.md`: requirements with IDs, milestones and checks; appendix C maps each capability to its source
@@ -32,8 +32,9 @@ Work is tracked in beads (`bd`, prefix `spicode`), built in parallel worktrees, 
 | `.agents/skills/bead-review/SKILL.md` | Review a bead from another provider and record the verdict |
 | `.agents/skills/bead-land/SKILL.md` | Land a reviewed bead on `main` |
 | `.agents/skills/stop-the-line/SKILL.md` | Fix a broken `main` |
+| `.agents/orchestration/README.md` | Orchestrate an epic: seats, stages, briefs and limits |
 
-`scripts/check` runs the checks every bead must pass. The beads database (`.beads/`) is git-ignored and local to this machine; every worktree finds it through git's common directory.
+Every agent follows `.agents/orchestration/rules.md`. `scripts/check --quick` is the pass to run while building or reviewing; CI and `scripts/land` run the full `scripts/check`. What a builder learned about the product is in `docs/notes/`. The beads database (`.beads/`) is git-ignored and local to this machine; every worktree finds it through git's common directory.
 
 ## License headers
 

@@ -36,4 +36,4 @@ Run it from the bead's worktree or from the main checkout. It:
 | moved while checks ran | Something committed to the branch during the checks. Make sure the work is finished, then run it again. |
 | the push failed | The commit is on local `main`, and the bead stays open. Fix the remote, then rerun `scripts/land <id>`; it pushes and finishes. Don't push by hand. |
 
-After landing, check `bd ready --parent <epic>` and say which beads this one released.
+After landing, check `bd ready --parent <epic>` and say which beads this one released, and read main's CI run (`gh run list --branch main --limit 1`). A red run on `main` is a `stop-the-line`.
