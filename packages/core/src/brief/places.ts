@@ -84,6 +84,13 @@ function stoppedStations({ model, facts }: VisualSource): string[] {
   return [...at].sort((a, b) => a[1] - b[1]).map(([id]) => id);
 }
 
+function failedLanes({ model, facts }: VisualSource): string[] {
+  if (model.stack.deployable.state === "no") return [];
+  return model.lines.filter((line) => line.stations.some((station) =>
+    station.id === "lane" && stationSubstateOf(station, line, facts) === "stopped",
+  )).map((line) => line.fork.id);
+}
+
 function environmentFigure(stack: Model["stack"]): string {
   const version = stack.running?.version ?? stack.declared;
   if (!version) return NOT_READ;
@@ -114,6 +121,8 @@ function itemsReason(place: PlaceId, items: readonly PlaceItem[]): string | unde
 
 function compactReason(place: PlaceId, mark: Mark, source: VisualSource, items: readonly PlaceItem[]): string | undefined {
   if (place === "engineering") return engineeringReason(source.model);
+  const lanes = place === "line" ? failedLanes(source) : [];
+  if (lanes.length) return `lanes: ${lanes.join(", ")}`;
   if (place === "line" && mark === "stopped") {
     const stations = stoppedStations(source);
     if (stations.length) return `stations: ${stations.join(", ")}`;
