@@ -104,7 +104,7 @@ export async function recordedDetailAnswers(): Promise<Map<string, InspectResult
         throw error;
       },
     });
-    attachHostPort(port, 1, undefined, undefined, routes.routes);
+    attachHostPort(port, 1, routes.routes);
     const ids = [
       ...[...briefing.focus, ...briefing.rest].map(({ id }) => id),
       ...briefing.themes.map((theme) => `theme:${theme.id}`),

@@ -66,7 +66,10 @@ it("ignores inbound responses and events without replying or dispatching", () =>
       start() {},
     },
     123,
-    handler,
+    {
+      "models.list": Object.assign(handler, { serial: true }),
+      "turn.start": Object.assign(handler, { serial: true }),
+    },
   );
   sent.length = 0;
   for (const message of [
@@ -109,7 +112,10 @@ it("serializes turns and refreshes, rejects malformed dispatch, and recovers fro
       start() {},
     },
     123,
-    handler,
+    {
+      "models.list": Object.assign(handler, { serial: true }),
+      "turn.start": Object.assign(handler, { serial: true }),
+    },
   );
   const request = { version: PROTOCOL_VERSION, kind: "request", type: "models.list", payload: {} };
   receive({ data: { ...request, id: "malformed", payload: { token: "secret" } } });
@@ -149,7 +155,10 @@ it("logs a failed error reply and lets the next queued request run", async () =>
         start() {},
       },
       123,
-      handler,
+      {
+        "models.list": Object.assign(handler, { serial: true }),
+        "turn.start": Object.assign(handler, { serial: true }),
+      },
       queue,
     );
     const request = {
@@ -167,4 +176,152 @@ it("logs a failed error reply and lets the next queued request run", async () =>
   } finally {
     log.mockRestore();
   }
+});
+
+it("queues arbitrary serial routes together while a plain route answers", async () => {
+  const sent: unknown[] = [];
+  let receive: (event: { data: unknown }) => void = () => {};
+  let release = () => {};
+  const blocked = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const order: string[] = [];
+  const queue: HostRequestQueue = { pending: Promise.resolve() };
+  const answer = (message: Message, send: (message: Message) => void) => {
+    order.push(message.id);
+    send({
+      version: PROTOCOL_VERSION,
+      id: message.id,
+      kind: "response",
+      type: "pong",
+      payload: {},
+    });
+  };
+  attachHostPort(
+    {
+      on(_event, listener) {
+        receive = listener;
+      },
+      postMessage(message) {
+        sent.push(message);
+      },
+      start() {},
+    },
+    1,
+    {
+      "view.subscribe": Object.assign(
+        async (message: Message, send: (message: Message) => void) => {
+          order.push("started");
+          await blocked;
+          answer(message, send);
+        },
+        { serial: true },
+      ),
+      "setup.check": Object.assign(answer, { serial: true }),
+      "models.list": (message, send) => answer(message, send),
+    },
+    queue,
+  );
+  for (const [id, type] of [
+    ["first", "view.subscribe"],
+    ["second", "setup.check"],
+    ["plain", "models.list"],
+  ])
+    receive({
+      data: {
+        version: PROTOCOL_VERSION,
+        id,
+        kind: "request",
+        type,
+        payload: type === "view.subscribe" ? { fromCursor: 0 } : {},
+      },
+    });
+  try {
+    await vi.waitFor(() => expect(order).toEqual(["started", "plain"]));
+    expect(sent).toContainEqual(expect.objectContaining({ id: "plain", type: "pong" }));
+    expect(sent).not.toContainEqual(expect.objectContaining({ id: "second" }));
+  } finally {
+    release();
+  }
+  await queue.pending;
+  expect(order).toEqual(["started", "plain", "first", "second"]);
+});
+
+it("fails closed for unregistered routes, throwing routes and invalid outbound messages", async () => {
+  const sent: unknown[] = [];
+  let receive: (event: { data: unknown }) => void = () => {};
+  attachHostPort(
+    {
+      on(_event, listener) {
+        receive = listener;
+      },
+      postMessage(message) {
+        sent.push(message);
+      },
+      start() {},
+    },
+    1,
+    {
+      "setup.check": () => {
+        throw new Error("private failure");
+      },
+      "models.list": (_message, send) =>
+        send({
+          version: PROTOCOL_VERSION,
+          id: "bad",
+          kind: "response",
+          type: "pong",
+          payload: { extra: true },
+        } as unknown as Message),
+    },
+  );
+  for (const type of ["view.subscribe", "setup.check", "models.list"])
+    receive({
+      data: {
+        version: PROTOCOL_VERSION,
+        id: type,
+        kind: "request",
+        type,
+        payload: type === "view.subscribe" ? { fromCursor: 0 } : {},
+      },
+    });
+  await vi.waitFor(() => expect(sent).toHaveLength(4));
+  expect(sent.slice(1)).toMatchObject([
+    { id: "view.subscribe", type: "error", payload: { code: "unsupported_message" } },
+    { id: "setup.check", type: "error", payload: { code: "host_failed" } },
+    { id: "models.list", type: "error", payload: { code: "host_failed" } },
+  ]);
+  expect(sent.every((message) => parseMessage(message).ok)).toBe(true);
+  expect(JSON.stringify(sent)).not.toContain("private failure");
+});
+
+it("rejects requests queued before stop and received after stop", async () => {
+  const sent: unknown[] = [];
+  let receive: (event: { data: unknown }) => void = () => {};
+  const queue: HostRequestQueue = { pending: Promise.resolve() };
+  const handler = vi.fn();
+  const stop = attachHostPort(
+    {
+      on(_event, listener) {
+        receive = listener;
+      },
+      postMessage(message) {
+        sent.push(message);
+      },
+      start() {},
+    },
+    1,
+    { "models.list": Object.assign(handler, { serial: true }) },
+    queue,
+  );
+  const request = { version: PROTOCOL_VERSION, kind: "request", type: "models.list", payload: {} };
+  receive({ data: { ...request, id: "queued" } });
+  stop();
+  receive({ data: { ...request, id: "stopped" } });
+  await queue.pending;
+  expect(handler).not.toHaveBeenCalled();
+  expect(sent.slice(1)).toMatchObject([
+    { id: "stopped", type: "error", payload: { code: "host_failed" } },
+    { id: "queued", type: "error", payload: { code: "host_failed" } },
+  ]);
 });

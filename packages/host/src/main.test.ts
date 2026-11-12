@@ -159,7 +159,21 @@ it("serializes backend startup and in-flight turns across reloads with correct e
     payload: {},
   };
   try {
-    await import("./main.js");
+    const { startHost } = await import("./host.js");
+    startHost({
+      storePath: process.argv[2] ?? "",
+      stub: process.argv.includes("--stub-model"),
+      smoke: process.argv.includes("--smoke"),
+      parentPort: (
+        process as typeof process & {
+          parentPort: { on(event: "message", listener: (event: HostConnection) => void): void };
+        }
+      ).parentPort,
+      env: process.env,
+      platform: process.platform,
+      pid: process.pid,
+      lifecycle: process,
+    });
     const first = port();
     connect({ data: ping, ports: [first] });
     first.request("first");
@@ -273,7 +287,21 @@ it("keeps explicit smoke Setup fixture-only and forbids every external command",
     "--smoke",
   ];
   try {
-    await import("./main.js");
+    const { startHost } = await import("./host.js");
+    startHost({
+      storePath: process.argv[2] ?? "",
+      stub: process.argv.includes("--stub-model"),
+      smoke: process.argv.includes("--smoke"),
+      parentPort: (
+        process as typeof process & {
+          parentPort: { on(event: "message", listener: (event: HostConnection) => void): void };
+        }
+      ).parentPort,
+      env: process.env,
+      platform: process.platform,
+      pid: process.pid,
+      lifecycle: process,
+    });
     const sent: Message[] = [];
     connect({
       data: {
@@ -400,7 +428,21 @@ it.skipIf(process.platform === "win32")(
     const setupStates = (sent: Message[]) =>
       sent.flatMap((message) => (message.type === "setup.state" ? [message.payload] : []));
     try {
-      await import("./main.js");
+      const { startHost } = await import("./host.js");
+      startHost({
+        storePath: process.argv[2] ?? "",
+        stub: process.argv.includes("--stub-model"),
+        smoke: process.argv.includes("--smoke"),
+        parentPort: (
+          process as typeof process & {
+            parentPort: { on(event: "message", listener: (event: HostConnection) => void): void };
+          }
+        ).parentPort,
+        env: process.env,
+        platform: process.platform,
+        pid: process.pid,
+        lifecycle: process,
+      });
       const first = port();
       connect({ data: ping, ports: [first] });
       await vi.waitFor(() => expect(setupStates(first.sent).at(-1)?.watchReady).toBe(true), wait);
@@ -549,3 +591,370 @@ it.skipIf(process.platform === "win32")(
   },
   60_000,
 );
+
+async function composedHost() {
+  vi.resetModules();
+  mocks.createBackend.mockReset();
+  const { startHost } = await import("./host.js");
+  let connect: (event: HostConnection) => void = () => {};
+  const lifecycle = {
+    once: vi.fn().mockReturnThis(),
+    exit: vi.fn() as unknown as NodeJS.Process["exit"],
+  };
+  mocks.realSetup = true;
+  let host: ReturnType<typeof startHost>;
+  try {
+    host = startHost({
+      storePath: "/tmp/unused.sqlite",
+      stub: true,
+      smoke: true,
+      parentPort: {
+        on(_event, listener) {
+          connect = listener;
+        },
+      },
+      env: {},
+      platform: process.platform,
+      pid: 123,
+      lifecycle,
+    });
+  } finally {
+    mocks.realSetup = false;
+  }
+  const setup = mocks.setupServices.at(-1);
+  if (!setup) throw new Error("Setup service missing");
+  const setupStop = vi.spyOn(setup, "stop");
+  const sent: Message[] = [];
+  let receive: (event: { data: unknown }) => void = () => {};
+  const port = {
+    on(_event: "message", listener: typeof receive) {
+      receive = listener;
+    },
+    postMessage(message: Message) {
+      sent.push(message);
+    },
+    start() {},
+    close: vi.fn(),
+  };
+  const attach = () =>
+    connect({
+      data: {
+        version: PROTOCOL_VERSION,
+        id: "connect",
+        kind: "request",
+        type: "ping",
+        payload: {},
+      },
+      ports: [port],
+    });
+  const request = (id: string, type = "models.list") =>
+    receive({
+      data: {
+        version: PROTOCOL_VERSION,
+        id,
+        kind: "request",
+        type,
+        payload: type === "turn.start" ? { modelId: "stub", prompt: id } : {},
+      },
+    });
+  return { ...host, sent, attach, request, lifecycle, port, setupStop };
+}
+
+it("the composed turn registration holds models.list on the shared queue", async () => {
+  const host = await composedHost();
+  let release = () => {};
+  const blocked = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const models = vi.fn(async () => [{ id: "stub", name: "Stub" }]);
+  const turn = vi.fn(async () => {
+    await blocked;
+  });
+  mocks.createBackend.mockResolvedValue({
+    mode: "stub",
+    generation: 1,
+    models,
+    turn,
+    endSession() {},
+    stop: async () => {},
+  });
+  host.attach();
+  try {
+    host.request("turn", "turn.start");
+    await vi.waitFor(() => expect(turn).toHaveBeenCalledOnce());
+    host.request("list");
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(models).toHaveBeenCalledOnce();
+    expect(host.sent).not.toContainEqual(expect.objectContaining({ id: "list" }));
+    release();
+    await vi.waitFor(() =>
+      expect(host.sent).toContainEqual(
+        expect.objectContaining({ id: "list", type: "models.result" }),
+      ),
+    );
+    expect(models).toHaveBeenCalledTimes(2);
+  } finally {
+    release();
+    await host.stop();
+  }
+});
+
+it("cannot route before attachment or after stop, including queued requests and late connections", async () => {
+  const host = await composedHost();
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  const request: Message = {
+    version: PROTOCOL_VERSION,
+    id: "early",
+    kind: "request",
+    type: "models.list",
+    payload: {},
+  };
+  try {
+    const { attachHostPort } = await import("./process/port.js");
+    let receive: (event: { data: unknown }) => void = () => {};
+    const early: Message[] = [];
+    const stopEarly = attachHostPort(
+      {
+        on(_event, listener) {
+          receive = listener;
+        },
+        postMessage(message) {
+          early.push(message as Message);
+        },
+        start() {},
+      },
+      123,
+      host.routes,
+    );
+    receive({ data: request });
+    await vi.waitFor(() =>
+      expect(early).toContainEqual(
+        expect.objectContaining({
+          id: "early",
+          type: "error",
+          payload: { code: "host_failed", message: "Host request failed" },
+        }),
+      ),
+    );
+    stopEarly();
+    expect(mocks.createBackend).not.toHaveBeenCalled();
+    host.attach();
+    host.request("queued");
+    await host.stop();
+    host.request("late");
+    for (const id of ["queued", "late"])
+      expect(host.sent).toContainEqual(
+        expect.objectContaining({
+          id,
+          type: "error",
+          payload: { code: "host_failed", message: "Host request failed" },
+        }),
+      );
+    expect(() => host.routes["models.list"]?.(request, () => {})).toThrow("stopped");
+    host.attach();
+    expect(log).toHaveBeenCalledWith("Rejected host connection after stop");
+    expect(host.port.close).toHaveBeenCalled();
+    expect(mocks.createBackend).not.toHaveBeenCalled();
+  } finally {
+    await host.stop();
+    log.mockRestore();
+  }
+});
+
+it("SIGTERM stops setup before the backend and closes the store once", async () => {
+  const host = await composedHost();
+  const order: string[] = [];
+  let release = () => {};
+  const blocked = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  host.setupStop.mockImplementation(async () => {
+    order.push("setup");
+    await blocked;
+  });
+  const backendStop = vi.fn(async () => {
+    order.push("backend");
+  });
+  mocks.createBackend.mockResolvedValue({
+    mode: "stub",
+    generation: 1,
+    models: async () => [{ id: "stub", name: "Stub" }],
+    turn: async () => {},
+    endSession() {},
+    stop: backendStop,
+  });
+  host.attach();
+  host.request("list");
+  await vi.waitFor(() =>
+    expect(host.sent).toContainEqual(
+      expect.objectContaining({ id: "list", type: "models.result" }),
+    ),
+  );
+  mocks.close.mockClear();
+  const signal = host.lifecycle.once.mock.calls.find(
+    ([event]) => event === "SIGTERM",
+  )?.[1] as () => void;
+  try {
+    signal();
+    expect(order).toEqual(["setup"]);
+    expect(backendStop).not.toHaveBeenCalled();
+    release();
+    await host.stop();
+    await vi.waitFor(() => expect(host.lifecycle.exit).toHaveBeenCalledWith(0));
+    expect(order).toEqual(["setup", "backend"]);
+    const exit = host.lifecycle.once.mock.calls.find(
+      ([event]) => event === "exit",
+    )?.[1] as () => void;
+    exit();
+    expect(mocks.close).toHaveBeenCalledOnce();
+  } finally {
+    release();
+    await host.stop();
+  }
+});
+
+it("refuses smoke without a stub before opening the store or attaching a connection", async () => {
+  const { startHost } = await import("./host.js");
+  const on = vi.fn();
+  mocks.close.mockClear();
+  expect(() =>
+    startHost({
+      storePath: "/tmp/unused.sqlite",
+      stub: false,
+      smoke: true,
+      parentPort: { on },
+      env: {},
+      platform: process.platform,
+      pid: 123,
+      lifecycle: process,
+    }),
+  ).toThrow("Smoke requires the stub model");
+  expect(on).not.toHaveBeenCalled();
+  expect(mocks.close).not.toHaveBeenCalled();
+});
+
+it("tags detached tool callbacks with their active turn and logs callbacks with no owner", async () => {
+  const host = await composedHost();
+  let observe: Parameters<typeof import("./process/conversation.js").createConversationBackend>[2] =
+    () => {};
+  let release = () => {};
+  const blocked = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const turn = vi.fn(async () => {
+    await blocked;
+  });
+  mocks.createBackend.mockImplementation((_path, _stub, listener) => {
+    observe = listener;
+    return {
+      mode: "stub",
+      generation: 1,
+      models: async () => [{ id: "stub", name: "Stub" }],
+      turn,
+      endSession() {},
+      stop: async () => {},
+    };
+  });
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    host.attach();
+    host.request("owner", "turn.start");
+    await vi.waitFor(() => expect(turn).toHaveBeenCalledOnce());
+    observe({ callId: "detached", name: "spi_brief", outcome: "completed" });
+    expect(host.sent).toContainEqual(
+      expect.objectContaining({
+        id: "owner",
+        type: "tool.call",
+        payload: { callId: "detached", name: "spi_brief", outcome: "completed", arguments: {} },
+      }),
+    );
+    release();
+    await vi.waitFor(() =>
+      expect(host.sent).toContainEqual(expect.objectContaining({ id: "owner", type: "turn.end" })),
+    );
+    observe({ callId: "late", name: "spi_brief", outcome: "completed" });
+    expect(log).toHaveBeenCalledWith("Tool event has no active turn");
+    expect(host.sent.filter(({ type }) => type === "tool.call")).toHaveLength(1);
+    await host.stop();
+    observe({ callId: "stopped", name: "spi_brief", outcome: "completed" });
+    expect(host.sent.filter(({ type }) => type === "tool.call")).toHaveLength(1);
+  } finally {
+    release();
+    await host.stop();
+    log.mockRestore();
+  }
+});
+
+it("answers a backend startup failure with host_failed and retries the next serial request", async () => {
+  const host = await composedHost();
+  mocks.createBackend.mockRejectedValueOnce(new Error("private startup detail")).mockResolvedValue({
+    mode: "stub",
+    generation: 1,
+    models: async () => [{ id: "stub", name: "Stub" }],
+    turn: async () => {},
+    endSession() {},
+    stop: async () => {},
+  });
+  try {
+    host.attach();
+    host.request("failed");
+    host.request("retry");
+    await vi.waitFor(() =>
+      expect(host.sent).toContainEqual(
+        expect.objectContaining({ id: "retry", type: "models.result" }),
+      ),
+    );
+    expect(host.sent).toContainEqual(
+      expect.objectContaining({
+        id: "failed",
+        type: "error",
+        payload: { code: "host_failed", message: "Host request failed" },
+      }),
+    );
+    expect(mocks.createBackend).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(host.sent)).not.toContain("private startup detail");
+  } finally {
+    await host.stop();
+  }
+});
+
+it("stop waits for an already-started backend and never starts a queued turn", async () => {
+  const host = await composedHost();
+  let finishStartup: (backend: ConversationBackend) => void = () => {};
+  const startup = new Promise<ConversationBackend>((resolve) => {
+    finishStartup = resolve;
+  });
+  const turn = vi.fn();
+  const backendStop = vi.fn(async () => {});
+  const backend: ConversationBackend = {
+    mode: "stub",
+    generation: 1,
+    models: async () => [{ id: "stub", name: "Stub" }],
+    turn,
+    endSession() {},
+    stop: backendStop,
+  };
+  mocks.createBackend.mockReturnValue(startup);
+  try {
+    host.attach();
+    host.request("starting");
+    await vi.waitFor(() => expect(mocks.createBackend).toHaveBeenCalledOnce());
+    host.request("queued-turn", "turn.start");
+    const stopped = host.stop();
+    expect(backendStop).not.toHaveBeenCalled();
+    finishStartup(backend);
+    await stopped;
+    expect(backendStop).toHaveBeenCalledOnce();
+    expect(turn).not.toHaveBeenCalled();
+    expect(host.sent).toContainEqual(
+      expect.objectContaining({
+        id: "queued-turn",
+        type: "error",
+        payload: { code: "host_failed", message: "Host request failed" },
+      }),
+    );
+  } finally {
+    finishStartup(backend);
+    await host.stop();
+  }
+});

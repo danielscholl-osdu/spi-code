@@ -2,6 +2,10 @@
 
 What builders recorded about the host's setup and sweep messages, notifications, Readiness and the shared Sweep control. The code and its tests are the authority; these notes say what is not obvious from them.
 
+Copilot tool observations have no SDK turn key: the host binds their sender to the
+active serialized turn; a callback from an earlier turn arriving during a later
+turn cannot be distinguished. Callbacks outside a turn are logged and dropped.
+
 The host's stores borrow one `openStore` connection; only `openRunStore` owns an
 extra connection for external callers. Snapshot pruning stays outside the write
 transaction, so a daily retention failure reports an error without undoing a sweep.

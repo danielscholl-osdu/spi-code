@@ -147,7 +147,7 @@ function host(watch: WatchRoutes, reject: (message: Message) => boolean = () => 
     },
     start() {},
   };
-  attachHostPort(port, 1, undefined, undefined, watch.routes);
+  attachHostPort(port, 1, watch.routes);
   return {
     sent,
     request(type: string, payload: unknown, id = "req") {

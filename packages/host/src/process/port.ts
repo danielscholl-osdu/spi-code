@@ -14,17 +14,18 @@ export interface HostRequestQueue {
 }
 
 export type HostSend = (message: Message) => void;
-export type HostRoute = (message: Message, send: HostSend) => void | Promise<void>;
-/** Requests answered outside the serialized conversation queue, keyed by message type. */
+export type HostRoute = ((message: Message, send: HostSend) => void | Promise<void>) & {
+  serial?: boolean;
+};
 export type HostRoutes = Partial<Record<Message["type"], HostRoute>>;
 
 export function attachHostPort(
   port: HostPort,
   pid: number,
-  handler?: (message: Message, send: (message: Message) => void) => Promise<void>,
-  queue: HostRequestQueue = { pending: Promise.resolve() },
   routes: HostRoutes = {},
-): void {
+  queue: HostRequestQueue = { pending: Promise.resolve() },
+): () => void {
+  let stopped = false;
   const send = (message: Message) => {
     const parsed = parseMessage(message);
     if (!parsed.ok) throw new Error("Host generated an invalid message");
@@ -57,6 +58,10 @@ export function attachHostPort(
     }
     const message = parsed.message;
     if (message.kind !== "request") return;
+    if (stopped) {
+      failed(message.id);
+      return;
+    }
     if (message.type === "ping") {
       send({
         version: PROTOCOL_VERSION,
@@ -67,17 +72,19 @@ export function attachHostPort(
       });
       return;
     }
-    if (handler && (message.type === "models.list" || message.type === "turn.start")) {
-      queue.pending = queue.pending
-        .then(() => handler(message, send))
-        .catch(() => failed(message.id));
-      return;
-    }
     const route = Object.hasOwn(routes, message.type) ? routes[message.type] : undefined;
     if (route) {
-      void Promise.resolve()
-        .then(() => route(message, send))
-        .catch(() => failed(message.id));
+      const run = () => {
+        if (stopped) throw new Error("Host port is stopped");
+        return route(message, send);
+      };
+      if (route.serial) {
+        queue.pending = queue.pending.then(run).catch(() => failed(message.id));
+      } else {
+        void Promise.resolve()
+          .then(run)
+          .catch(() => failed(message.id));
+      }
       return;
     }
     send({
@@ -96,4 +103,7 @@ export function attachHostPort(
     type: "host.hello",
     payload: { pid },
   });
+  return () => {
+    stopped = true;
+  };
 }

@@ -619,7 +619,7 @@ it("sends Sweep now from the tray through the real relay to the host's sweep.req
         },
       });
       const { port2 } = relay.connect();
-      attachHostPort(port2, process.pid, undefined, undefined, watch.routes);
+      attachHostPort(port2, process.pid, watch.routes);
     });
     item("Sweep now")?.click?.();
     await expect(requested).resolves.toEqual({ now: true });
