@@ -1,9 +1,9 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-// Reads changed paths on stdin and prints the workspace directories whose tests scripts/check
-// --quick runs whole. Packages import each other's built output, which vitest --changed does
-// not follow, and tests read fixtures/ from disk.
+// Reads changed paths on stdin and prints the vitest projects scripts/check --quick runs whole.
+// Packages import each other's built output, which vitest --changed does not follow, and tests
+// read fixtures and shell scripts from disk.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,25 +40,32 @@ export function workspaceDependencies(root) {
 /**
  * @param {string[]} changed repository-relative paths, forward slashes
  * @param {Map<string, string[]>} dependencies
- * @returns {string[]} directories to run whole, sorted
+ * @returns {string[]} vitest project names to run whole, sorted
  */
 export function wholeProjects(changed, dependencies) {
   const directories = [...dependencies.keys()];
-  if (changed.some((path) => path.startsWith("fixtures/"))) return directories.sort();
-  const touched = new Set(
-    directories.filter((directory) => changed.some((path) => path.startsWith(`${directory}/`))),
+  if (changed.some((path) => path.startsWith("fixtures/")))
+    return [...directories, "scripts"].sort();
+  const touched = directories.filter((directory) =>
+    changed.some((path) => path.startsWith(`${directory}/`)),
   );
-  const reached = new Set(touched);
-  for (let grew = true; grew; ) {
-    grew = false;
+  // A dependent runs whole even when it has changes of its own: those select only what
+  // imports them, not what reads the package it depends on.
+  const whole = new Set();
+  for (let frontier = touched; frontier.length > 0; ) {
+    const next = [];
     for (const [directory, needs] of dependencies) {
-      if (!reached.has(directory) && needs.some((need) => reached.has(need))) {
-        reached.add(directory);
-        grew = true;
+      if (!whole.has(directory) && needs.some((need) => frontier.includes(need))) {
+        whole.add(directory);
+        next.push(directory);
       }
     }
+    frontier = next;
   }
-  return [...reached].filter((directory) => !touched.has(directory)).sort();
+  if (changed.some((path) => path.startsWith("scripts/") && !/\.tsx?$/.test(path))) {
+    whole.add("scripts");
+  }
+  return [...whole].sort();
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

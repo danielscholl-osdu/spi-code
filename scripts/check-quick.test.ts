@@ -48,6 +48,12 @@ function fixture() {
   cpSync(join(root, "scripts/check"), join(directory, "check"));
   mkdirSync(join(directory, "node_modules"));
   mkdirSync(join(directory, "scripts"));
+  cpSync(
+    join(root, "scripts/check-dependents.mjs"),
+    join(directory, "scripts/check-dependents.mjs"),
+  );
+  mkdirSync(join(directory, "apps"));
+  mkdirSync(join(directory, "packages"));
   writeFileSync(join(directory, ".gitignore"), "node_modules\ncalls.log\n");
   writeFileSync(
     join(directory, "record.mjs"),
@@ -145,7 +151,6 @@ it("--quick also runs the test beside a changed file that no test imports, commi
 
 it("--quick runs whole the packages that depend on a changed one", () => {
   const repo = fixture();
-  repo.copy("scripts/check-dependents.mjs");
   repo.write("apps/window/package.json", JSON.stringify({ name: "@fixture/window" }));
   repo.write("packages/core/package.json", JSON.stringify({ name: "@fixture/core" }));
   repo.write(
@@ -184,5 +189,26 @@ it("refuses an option it does not know, before running anything", () => {
 
   expect(result.status).toBe(2);
   expect(result.stderr).toContain("unknown option --fast");
+  expect(repo.calls()).toEqual([]);
+});
+
+it("fails when the project helper fails, and runs no further tests", () => {
+  const repo = fixture();
+  repo.write("scripts/check-dependents.mjs", "process.exit(3);\n");
+
+  const result = repo.check("--quick");
+
+  expect(result.status, result.stdout + result.stderr).not.toBe(0);
+  expect(repo.calls().filter((call) => call.args[0] === "test")).toHaveLength(1);
+  expect(result.stdout).not.toContain("quick pass only");
+}, 90_000);
+
+it("refuses a second option, before running anything", () => {
+  const repo = fixture();
+
+  const result = repo.check("--quick", "--typo");
+
+  expect(result.status).toBe(2);
+  expect(result.stderr).toContain("unexpected option --typo");
   expect(repo.calls()).toEqual([]);
 });

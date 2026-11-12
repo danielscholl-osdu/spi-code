@@ -10,6 +10,10 @@
 set -euo pipefail
 
 quick=
+if (($# > 1)); then
+  echo "check: unexpected option $2 (usage: scripts/check [--quick])" >&2
+  exit 2
+fi
 case ${1:-} in
   "") ;;
   --quick) quick=1 ;;
@@ -35,11 +39,10 @@ if [[ -f package.json ]]; then
     # Vitest follows imports. It does not follow one package into another's built output, a
     # fixture, or a script a test reads from disk, so run those tests by name.
     more=()
-    if [[ -f scripts/check-dependents.mjs ]]; then
-      while IFS= read -r project; do
-        [[ -n $project ]] && more+=(--project "$project")
-      done < <(node scripts/check-dependents.mjs <<<"$changed")
-    fi
+    projects=$(node scripts/check-dependents.mjs <<<"$changed")
+    while IFS= read -r project; do
+      [[ -n $project ]] && more+=(--project "$project")
+    done <<<"$projects"
     if ((${#more[@]})); then
       pnpm run test "${more[@]}"
     fi

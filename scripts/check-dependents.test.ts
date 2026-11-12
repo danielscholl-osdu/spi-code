@@ -28,13 +28,24 @@ it("runs whole every package that depends, directly or not, on a changed one", (
   ]);
 });
 
-it("runs nothing whole for a change no other package depends on", () => {
-  expect(wholeProjects(["apps/window/src/views/today/Band.tsx"], dependencies)).toEqual([]);
-  expect(wholeProjects(["scripts/land", "docs/sdlc.md"], dependencies)).toEqual([]);
+it("runs a dependent whole even when it has changes of its own", () => {
+  expect(
+    wholeProjects(["packages/core/src/brief/places.ts", "packages/host/README.md"], dependencies),
+  ).toEqual(["apps/desktop", "packages/host"]);
 });
 
-it("runs every package whole when a fixture changes", () => {
-  expect(wholeProjects(["fixtures/watch/snapshot-calm.json"], dependencies)).toEqual(
-    [...dependencies.keys()].sort(),
+it("runs nothing whole for a change no other package depends on", () => {
+  expect(wholeProjects(["apps/window/src/views/today/Band.tsx"], dependencies)).toEqual([]);
+  expect(wholeProjects(["scripts/rib-oracle.ts", "docs/sdlc.md"], dependencies)).toEqual([]);
+});
+
+it("runs the script tests whole when a script that is not TypeScript changes", () => {
+  expect(wholeProjects(["scripts/check"], dependencies)).toEqual(["scripts"]);
+  expect(wholeProjects(["scripts/package.mjs"], dependencies)).toEqual(["scripts"]);
+});
+
+it("runs every package and the script tests whole when a fixture changes", () => {
+  expect(wholeProjects(["fixtures/rib-59d6895/oracle/lines.json"], dependencies)).toEqual(
+    [...dependencies.keys(), "scripts"].sort(),
   );
 });
