@@ -77,7 +77,7 @@ A fix brief lists the findings that stand, each with its file and line and the s
 
 ## Landing
 
-`scripts/land --wait <id>` once the bead is `stage:ready`, as a background command you wait on. It queues on the merge slot and waits for CI on the exact commit, so it uses none of this machine's CPU and several can wait at once. Each takes 10 to 15 minutes of CI once it holds the slot; land beads that are ready together in dependency order. After each landing, read `bd ready --parent <epic>`.
+`scripts/land --wait <id>` once the bead is `stage:ready`. It queues on the merge slot, runs the quick check here, and waits for CI on the exact commit, so several can wait at once without loading this machine. Run it the way your harness keeps a long command alive: in the foreground with a long timeout, or as a tracked background command you wait on, never one you walk away from. Each takes 10 to 15 minutes of CI once it holds the slot; land beads that are ready together in dependency order. After each landing, read `bd ready --parent <epic>`.
 
 ## Checkpoints
 

@@ -11,7 +11,7 @@ description: Land a reviewed spi-code bead on main with scripts/land. Use when a
 scripts/land --wait <id>
 ```
 
-Run it from the bead's worktree or from the main checkout, in the foreground with a long timeout: it waits for CI, usually 10 to 15 minutes. It:
+Run it from the bead's worktree or from the main checkout, and stay with it: it waits for CI, usually 10 to 15 minutes. It:
 
 1. refuses if `main` is broken, unless this bead is the fix;
 2. takes the merge slot, so landings happen one at a time; with `--wait` it queues for the slot instead of refusing;
@@ -20,6 +20,8 @@ Run it from the bead's worktree or from the main checkout, in the foreground wit
 5. waits for the Packaged smoke workflow to pass on the exact commit: it uses a green run from the bead's branch when the rebase changed nothing, and otherwise pushes the commit to `land/<id>`, waits for that run, and reruns failed jobs once;
 6. checks again that `main` isn't broken, fast-forwards `main` to that commit, pushes it, deletes `land/<id>`, and closes the bead with "Landed <sha>";
 7. removes the worktree and branch if they are under `.worktrees/`; otherwise the harness that made them cleans them up.
+
+A checkout with no remote has no CI: there, steps 3 and 5 are one step, the full `scripts/check` on this machine.
 
 ## When it refuses
 
