@@ -1,37 +1,34 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
+import { readFileSync } from "node:fs";
+import type { ViewSnapshot } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import recorded from "../../../../fixtures/watch/snapshot-1106.json?raw";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
+import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import { type LensField, lensFields } from "./lens-fields.test-helper.js";
 import { closeSheet, navigate, relaunch } from "./navigation.js";
 import { Shell } from "./Shell.js";
 
-const fixture = () => ViewSnapshotSchema.parse(JSON.parse(recorded));
+const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
+
+const fixture = () => loadFixture("snapshot-1106.json");
 const table = lensFields(fixture());
 const homes = [...new Set(table.filter((row) => !row.exempt).map((row) => row.home))];
 const previous = watchStore.getState();
-const previousSpi = window.spi;
+let harness: ReturnType<typeof installSpi>;
 let container: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   closeSheet();
   relaunch();
   localStorage.clear();
   window.location.hash = "#today";
-  window.spi = {
-    proof: false,
-    postMessage: vi.fn(),
-    openExternal: vi.fn(),
-    onMessage: () => () => {},
-  };
+  harness = installSpi();
   selectionStore.getState().clear();
   container = document.createElement("div");
   document.body.append(container);
@@ -43,7 +40,7 @@ afterEach(async () => {
   container.remove();
   selectionStore.getState().clear();
   watchStore.setState(previous, true);
-  window.spi = previousSpi;
+  harness.restore();
   closeSheet();
   relaunch();
   vi.unstubAllGlobals();

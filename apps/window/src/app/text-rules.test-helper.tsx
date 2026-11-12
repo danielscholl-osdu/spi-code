@@ -9,10 +9,12 @@ import { selectionStore } from "../panels/selection.js";
 import { runRow, type SelectionRow, selectionRows } from "../panels/selection-rows.js";
 import { watchStore } from "../store/watch.js";
 import {
-  type Read,
-  watchInspections,
-  watchSnapshot,
-} from "../test-utils/watch-fixtures.test-helper.js";
+  fixtureLoader,
+  type InspectionName,
+  installSpi,
+  type SnapshotName,
+} from "../test-utils/harness.js";
+import { type Read, WATCH_INSPECTIONS } from "../test-utils/watch-fixtures.test-helper.js";
 import { closeSheet, navigate, type Route, relaunch } from "./navigation.js";
 import { Shell } from "./Shell.js";
 
@@ -77,25 +79,19 @@ export function violations(scope: ParentNode): string[] {
 }
 
 const previous = watchStore.getState();
-const previousSpi = window.spi;
+let harness: ReturnType<typeof installSpi>;
 export let container: HTMLDivElement;
 let root: Root;
 
 export function shellHooks() {
   beforeEach(() => {
-    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     localStorage.clear();
     closeSheet();
     relaunch();
     selectionStore.getState().clear();
     selectionStore.getState().setTab("detail");
     window.location.hash = "#today";
-    window.spi = {
-      proof: false,
-      postMessage: vi.fn(),
-      openExternal: vi.fn(),
-      onMessage: () => () => {},
-    };
+    harness = installSpi();
     container = document.createElement("div");
     document.body.append(container);
     root = createRoot(container);
@@ -106,7 +102,7 @@ export function shellHooks() {
     container.remove();
     selectionStore.getState().clear();
     watchStore.setState(previous, true);
-    window.spi = previousSpi;
+    harness.restore();
     closeSheet();
     relaunch();
     vi.unstubAllGlobals();
@@ -127,10 +123,12 @@ export function assertRules(label: string, scope: ParentNode = document.body) {
 }
 
 /** The text rules on every route, the Line sheet, Cmd-K and every Detail of one listed snapshot. */
-export function textRulesOn(name: string, read: Read) {
+export function textRulesOn(name: SnapshotName, read: Read) {
   shellHooks();
-  const inspections = watchInspections(read);
-  describe.each([watchSnapshot(name, read)])("window text rules on $name", ({ body }) => {
+  const loadFixture = fixtureLoader(read);
+  const inspections = WATCH_INSPECTIONS.flatMap((name) => loadFixture(name as InspectionName));
+  const snapshot = { name, body: loadFixture(name) };
+  describe.each([snapshot])("window text rules on $name", ({ body }) => {
     const routes: Route[] = [
       { kind: "today" },
       { kind: "upstream" },

@@ -1,24 +1,27 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { ViewSnapshotSchema } from "@spi-code/contracts";
+import { readFileSync } from "node:fs";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import november6 from "../../../../fixtures/watch/snapshot-1106.json?raw";
-import unread from "../../../../fixtures/watch/snapshot-1106-unread.json?raw";
-import unverified from "../../../../fixtures/watch/snapshot-1106-unverified.json?raw";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
+import { fixtureLoader, installSpi, type SnapshotName } from "../test-utils/harness.js";
 import { closeSheet } from "./navigation.js";
 import { Shell } from "./Shell.js";
 
+const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
+
+const november6 = "snapshot-1106.json" as const;
+const unread = "snapshot-1106-unread.json" as const;
+const unverified = "snapshot-1106-unverified.json" as const;
 const previousWatch = watchStore.getState();
-const previousSpi = window.spi;
+let harness: ReturnType<typeof installSpi>;
 let unmount: (() => Promise<void>) | undefined;
 
-async function mount(raw: string, hash: string) {
-  const body = ViewSnapshotSchema.parse(JSON.parse(raw));
+async function mount(name: SnapshotName, hash: string) {
+  const body = loadFixture(name);
   watchStore.setState({ snapshot: { cursor: body.cursor, body }, setup: null });
   window.location.hash = hash;
   const container = document.createElement("div");
@@ -41,15 +44,11 @@ async function mount(raw: string, hash: string) {
 }
 
 beforeEach(() => {
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   closeSheet();
-  window.spi = {
-    proof: false,
+  harness = installSpi({
     openExternal: vi.fn(async () => true),
     setAppearance: vi.fn(async () => true),
-    postMessage: vi.fn(),
-    onMessage: () => () => {},
-  };
+  });
   selectionStore.getState().clear();
 });
 
@@ -58,7 +57,7 @@ afterEach(async () => {
   unmount = undefined;
   closeSheet();
   watchStore.setState(previousWatch, true);
-  window.spi = previousSpi;
+  harness.restore();
   window.location.hash = "";
   vi.unstubAllGlobals();
 });

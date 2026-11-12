@@ -5,6 +5,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { selectionStore } from "../panels/selection.js";
+import { installSpi } from "../test-utils/harness.js";
 import { loadPanes, PANES_STORAGE_KEY, savePanes } from "./pane-layout.js";
 import { closeSheet, pinSheet } from "./routes.js";
 import { Shell } from "./Shell.js";
@@ -21,14 +22,12 @@ async function resizeWindow(width: number) {
 }
 
 async function mountShell() {
-  const previous = window.spi;
-  window.spi = {
-    proof: false,
+  const harness = installSpi({
     openExternal: async () => true,
     setAppearance: async () => true,
     postMessage: () => undefined,
     onMessage: () => () => undefined,
-  };
+  });
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -39,7 +38,7 @@ async function mountShell() {
     mounted = false;
     await act(async () => root.unmount());
     container.remove();
-    window.spi = previous;
+    harness.restore();
   };
   cleanups.push(unmount);
   const layout = container.querySelector<HTMLElement>(".shell");

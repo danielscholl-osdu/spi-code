@@ -1,12 +1,13 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { PROTOCOL_VERSION, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
+import { PROTOCOL_VERSION, type ViewSnapshot } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
+import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import type { Read } from "../test-utils/watch-fixtures.test-helper.js";
 import { moving } from "../views/today/in-motion.test-helper.js";
 import { closeSheet, navigate, relaunch, routeHash } from "./navigation.js";
@@ -16,7 +17,6 @@ import {
   bandCases,
   briefingItems,
   coverage,
-  detailFeed,
   EXEMPTIONS,
   type Home,
   horizonCases,
@@ -40,17 +40,15 @@ export const pairs = new Map<string, { first: Reach; row: Reach; group: Reach[] 
 
 /** The recorded mornings and their cases, read through the calling test file's reader. */
 function load(read: Read) {
-  const watch = (name: string) => read(`fixtures/watch/${name}`);
-  const recorded = watch("snapshot-1106.json");
-  const feed = watch("inspect-1106.json");
-  const calmRaw = watch("snapshot-calm.json");
-  const busyRaw = watch("snapshot-busy.json");
-  const badRaw = watch("snapshot-bad.json");
-  recordedSnapshot = ViewSnapshotSchema.parse(JSON.parse(recorded));
-  calmSnapshot = ViewSnapshotSchema.parse(JSON.parse(calmRaw));
-  busySnapshot = ViewSnapshotSchema.parse(JSON.parse(busyRaw));
-  badSnapshot = ViewSnapshotSchema.parse(JSON.parse(badRaw));
-  cases = reachCases(fixture(), detailFeed(feed));
+  const loadFixture = fixtureLoader(read);
+  recordedSnapshot = loadFixture("snapshot-1106.json");
+  calmSnapshot = loadFixture("snapshot-calm.json");
+  busySnapshot = loadFixture("snapshot-busy.json");
+  badSnapshot = loadFixture("snapshot-bad.json");
+  const feed = Object.fromEntries(
+    loadFixture("inspect-1106.json").map((result) => [result.id, result]),
+  );
+  cases = reachCases(fixture(), feed);
   drawn = cases.filter(({ exempt }) => !exempt);
   homes = [...new Map(drawn.map(({ home }) => [home.name, home])).values()];
   const groups = new Map<string, Reach[]>();
@@ -67,24 +65,18 @@ function load(read: Read) {
 }
 
 const previous = watchStore.getState();
-const previousSpi = window.spi;
+let harness: ReturnType<typeof installSpi>;
 export let container: HTMLDivElement;
 let root: Root;
 
 export function shellHooks(read: Read) {
   load(read);
   beforeEach(() => {
-    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     closeSheet();
     relaunch();
     localStorage.clear();
     window.location.hash = "#today";
-    window.spi = {
-      proof: false,
-      postMessage: vi.fn(),
-      openExternal: vi.fn(),
-      onMessage: () => () => {},
-    };
+    harness = installSpi();
     selectionStore.getState().clear();
     container = document.createElement("div");
     document.body.append(container);
@@ -96,7 +88,7 @@ export function shellHooks(read: Read) {
     container.remove();
     selectionStore.getState().clear();
     watchStore.setState(previous, true);
-    window.spi = previousSpi;
+    harness.restore();
     closeSheet();
     relaunch();
     vi.unstubAllGlobals();

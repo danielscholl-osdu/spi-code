@@ -1,21 +1,23 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type WatchItem as FocusItem, ViewSnapshotSchema } from "@spi-code/contracts";
+import { readFileSync } from "node:fs";
+import type { WatchItem as FocusItem } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import recorded from "../../../../fixtures/watch/snapshot-59d6895.json?raw";
-import current from "../../../../fixtures/watch/snapshot-1106.json?raw";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
+import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import { relaunch } from "./navigation.js";
 import { queueGroups } from "./queue.js";
 import { Shell } from "./Shell.js";
 
-const body = ViewSnapshotSchema.parse(JSON.parse(recorded));
+const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
+
+const body = loadFixture("snapshot-59d6895.json");
 const previous = watchStore.getState();
-const previousSpi = window.spi;
+let harness: ReturnType<typeof installSpi>;
 let container: HTMLDivElement;
 let root: Root;
 
@@ -23,12 +25,7 @@ beforeEach(() => {
   localStorage.clear();
   relaunch();
   window.location.hash = "";
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
-    postMessage: vi.fn(),
-    onMessage: () => () => {},
-  };
+  harness = installSpi();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -39,7 +36,7 @@ afterEach(async () => {
   container.remove();
   selectionStore.getState().clear();
   watchStore.setState(previous);
-  window.spi = previousSpi;
+  harness.restore();
   window.location.hash = "";
   localStorage.clear();
   relaunch();
@@ -67,7 +64,7 @@ it("groups the queue by rung into Now, Next and Later in briefing order", () => 
 });
 
 it("keeps Today's distinct Interrupt count after acknowledgement, until resolution", async () => {
-  const fixture = ViewSnapshotSchema.parse(JSON.parse(current));
+  const fixture = loadFixture("snapshot-1106.json");
   const interrupt = fixture.briefing.focus[0];
   if (!interrupt) throw new Error("Recorded Interrupt missing");
   fixture.seen.since = [interrupt.id];

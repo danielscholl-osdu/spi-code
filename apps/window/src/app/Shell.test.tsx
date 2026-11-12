@@ -1,26 +1,24 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import {
-  InspectResultSchema,
-  PROTOCOL_VERSION,
-  type ReadRecord,
-  ViewSnapshotSchema,
-} from "@spi-code/contracts";
+import { readFileSync } from "node:fs";
+import { InspectResultSchema, PROTOCOL_VERSION, type ReadRecord } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { beforeEach, expect, it, vi } from "vitest";
 import briefing from "../../../../fixtures/rib-59d6895/oracle/briefing.json?raw";
 import releases from "../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
-import november6 from "../../../../fixtures/watch/snapshot-1106.json?raw";
 import { after, midSweep, SWEEP_START, sweepStatus } from "../components/sweep/test-helper.js";
 import { selectionStore } from "../panels/selection.js";
 import { PINS_STORAGE_KEY } from "../store/pins.js";
 import { testSnapshot } from "../store/test-snapshot.js";
 import { watchStore } from "../store/watch.js";
+import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import { PANES_STORAGE_KEY } from "./pane-layout.js";
 import { closeSheet, navigate, pinSheet } from "./routes.js";
 import { Shell } from "./Shell.js";
+
+const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
 
 type HappyWindow = { happyDOM: { setViewport(viewport: { width: number; height: number }): void } };
 const viewport = (width: number, height = 900) =>
@@ -28,14 +26,10 @@ const viewport = (width: number, height = 900) =>
 
 async function mountShell() {
   const unsubscribe = vi.fn();
-  const previous = window.spi;
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
+  const harness = installSpi({
     setAppearance: vi.fn(async () => true),
-    postMessage: vi.fn(),
     onMessage: () => unsubscribe,
-  };
+  });
   const spi = window.spi;
   const container = document.createElement("div");
   document.body.append(container);
@@ -48,7 +42,7 @@ async function mountShell() {
     async cleanup() {
       await act(async () => root.unmount());
       container.remove();
-      window.spi = previous;
+      harness.restore();
     },
   };
 }
@@ -310,7 +304,7 @@ it.each([740, 900, 980, 1100, 1280])(
   async (width) => {
     viewport(width);
     const previous = watchStore.getState();
-    const body = ViewSnapshotSchema.parse(JSON.parse(november6));
+    const body = loadFixture("snapshot-1106.json");
     watchStore.setState({ snapshot: { cursor: body.cursor, body } });
     const shell = await mountShell();
     const { container } = shell;
@@ -755,18 +749,14 @@ it.each([900, 1280])(
 );
 
 it("updates the title-bar sweep line from the live areas with the worst tone, and opens the sweep Evidence", async () => {
-  const previous = window.spi;
   const previousState = watchStore.getState();
   let receive: Parameters<typeof window.spi.onMessage>[0] | undefined;
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
-    postMessage: vi.fn(),
+  const harness = installSpi({
     onMessage: (listener) => {
       receive = listener;
       return vi.fn();
     },
-  };
+  });
   watchStore.setState({ snapshot: null });
   const container = document.createElement("div");
   document.body.append(container);
@@ -831,25 +821,21 @@ it("updates the title-bar sweep line from the live areas with the worst tone, an
     await act(async () => root.unmount());
     container.remove();
     watchStore.setState(previousState);
-    window.spi = previous;
+    harness.restore();
   }
 });
 
 it.each(["failed", "stale"] as const)(
   "turns the title-bar freshness glyph on a %s non-area release envelope and clears it on recovery",
   async (state) => {
-    const previous = window.spi;
     const previousState = watchStore.getState();
     let receive: Parameters<typeof window.spi.onMessage>[0] | undefined;
-    window.spi = {
-      proof: false,
-      openExternal: vi.fn(),
-      postMessage: vi.fn(),
+    const harness = installSpi({
       onMessage: (listener) => {
         receive = listener;
         return vi.fn();
       },
-    };
+    });
     watchStore.setState({ snapshot: null });
     const base = testSnapshot(briefing, releases);
     const areas = base.areas.map(({ area }) => ({
@@ -908,25 +894,21 @@ it.each(["failed", "stale"] as const)(
       await act(async () => root.unmount());
       container.remove();
       watchStore.setState(previousState);
-      window.spi = previous;
+      harness.restore();
     }
   },
 );
 
 it("shows each pinned snapshot service in the sidebar on every route, as the packaged smoke reads it", async () => {
   localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(["smoke-persisted", "smoke-resumed"]));
-  const previous = window.spi;
   const previousState = watchStore.getState();
   let receive: Parameters<typeof window.spi.onMessage>[0] | undefined;
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
-    postMessage: vi.fn(),
+  const harness = installSpi({
     onMessage: (listener) => {
       receive = listener;
       return vi.fn();
     },
-  };
+  });
   watchStore.setState({ snapshot: null });
   const container = document.createElement("div");
   document.body.append(container);
@@ -964,26 +946,22 @@ it("shows each pinned snapshot service in the sidebar on every route, as the pac
     await act(async () => root.unmount());
     container.remove();
     watchStore.setState(previousState);
-    window.spi = previous;
+    harness.restore();
     localStorage.removeItem(PINS_STORAGE_KEY);
   }
 });
 
 it("opens the sweep's Evidence when desktop main routes the tray's View sweep, and ignores other places", async () => {
-  const previous = window.spi;
   const previousState = watchStore.getState();
   let route: ((destination: unknown) => void) | undefined;
   const unroute = vi.fn();
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
-    postMessage: vi.fn(),
+  const harness = installSpi({
     onMessage: () => vi.fn(),
     onNavigate: (listener) => {
       route = listener;
       return unroute;
     },
-  };
+  });
   watchStore.setState({ snapshot: { cursor: 1, body: testSnapshot(briefing, releases) } });
   selectionStore.setState({ open: false, tab: "detail" });
   const container = document.createElement("div");
@@ -1020,24 +998,20 @@ it("opens the sweep's Evidence when desktop main routes the tray's View sweep, a
     expect(unroute).toHaveBeenCalledOnce();
     container.remove();
     watchStore.setState(previousState);
-    window.spi = previous;
+    harness.restore();
   }
 });
 
 it("closes Settings before View sweep opens the sweep's Evidence, and opens Readiness for a can't-read click", async () => {
-  const previous = window.spi;
   const previousState = watchStore.getState();
   let route: ((destination: unknown) => void) | undefined;
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
-    postMessage: vi.fn(),
+  const harness = installSpi({
     onMessage: () => vi.fn(),
     onNavigate: (listener) => {
       route = listener;
       return vi.fn();
     },
-  };
+  });
   watchStore.setState({ snapshot: { cursor: 1, body: testSnapshot(briefing, releases) } });
   selectionStore.setState({ open: false, tab: "detail" });
   const agent = vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (Macintosh)");
@@ -1078,6 +1052,6 @@ it("closes Settings before View sweep opens the sweep's Evidence, and opens Read
     agent.mockRestore();
     container.remove();
     watchStore.setState(previousState);
-    window.spi = previous;
+    harness.restore();
   }
 });
