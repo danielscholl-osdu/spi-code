@@ -1,23 +1,27 @@
 # Window shell
 
-The shell follows T3 Code's layout: a 40 px title bar naming the current place, drawn
-in the window's own title bar space (beside the macOS traffic lights, or under the
-Windows caption overlay) and draggable except on its controls, with
-toggles for the sidebar (⌘B), terminal (⌘J, not available yet) and right panel (⌘I),
-using Ctrl on Windows; a 232 px sidebar of things; the middle frame; and the right panel.
-The sidebar lists Find or ask, Today, Line, Places (Upstream, Environment, Engineering
-system, Releases, Security), the services the operator pinned, the Settled shelf and a
-footer with Setup and the sweep time. Places and Pinned scroll between the header and
-the shelf. The groups fold, and the fold is saved in localStorage; on a window shorter
-than 640 px Places folds unless the operator chose otherwise. Below 980 px wide the
-sidebar opens off-canvas and Escape closes it.
+The shell follows T3 Code's layout: a 44 px top row drawn in the window's own title bar
+space (beside the macOS traffic lights, or under the Windows caption overlay) and
+draggable except on its controls. It holds the strip and toggles for the sidebar (⌘B) and
+right panel (⌘I), using Ctrl on Windows; the document title names the current place.
+Below it sit a 232 px sidebar of things, the middle frame and the right panel.
+The sidebar lists Find or ask (⌘K), Today, Line, Places (Upstream, Environment,
+Engineering system, Releases, Security), the services the operator pinned, and a footer
+row that opens Settings (⌘,) with a readiness dot. Places and Pinned scroll between the
+header and the footer. The groups fold, and the fold is saved in localStorage; on a window
+shorter than 640 px Places folds unless the operator chose otherwise. The width budget
+(`app/width-budget.ts`) puts the sidebar off-canvas when the centre would still be
+narrower than 520 px after the right panel becomes a sheet and the Line sheet stacks;
+Escape closes it there.
 
 The location hash holds the route: `today`, `upstream`,
 `environment`, `engineering-system` (`template` still opens it), `releases`,
-`release/<month>`, `security`, `service/<id>` and `setup`. `app/navigation.tsx` parses
-it and `app/routes.tsx` picks the middle frame's view. A retired hash (`inbox`,
-`lens/<flow|repositories|horizon>`) or an unknown one opens Today. Appearance follows
-the system unless pinned in the title bar; the pin is saved in localStorage.
+`releases/<forming-releases|shared-components>`, `release/<month>`, `security` and
+`service/<id>`. `app/navigation.tsx` parses it and `app/routes.tsx` picks the middle
+frame's view. A retired hash (`inbox`, `lens/<flow|repositories|horizon>`) or an unknown
+one opens Today. Settings, with Readiness, Sweep and Appearance, is a dialog over the
+current place, not a route. Appearance follows the system unless the operator picks light
+or dark in Settings, Appearance; the choice is saved in localStorage.
 
 The Line sheet opens over any surface with ⌘L (Ctrl+L on Windows), without
 replacing the centre or its selection. Escape or Close returns to that surface.

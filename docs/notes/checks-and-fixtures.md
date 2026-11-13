@@ -6,7 +6,8 @@ The scaffold uses Node 22.16 or newer, matching `engines` in `package.json`, and
 
 `pnpm run build` compiles all six workspaces; `pnpm run lint`, `pnpm run typecheck`,
 `pnpm run test` and `pnpm run check:headers` run individual checks. Vitest discovers
-`src/**/*.test.ts` and `src/**/*.test.tsx` in each workspace, plus script tests.
+`src/**/*.test.{ts,tsx}` in each workspace, `packages/core/test/**/*.test.ts` and
+`scripts/**/*.test.ts` (`vitest.config.ts`).
 The header check covers tracked and untracked, non-ignored sources, including
 extensionless shebang scripts. Build output and dependencies are ignored.
 

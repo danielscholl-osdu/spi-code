@@ -26,7 +26,7 @@ remains. Joined and cooldown-downgraded requests, and later ordinary sweeps, do 
 move this session-only anchor. Failed and cancelled forced sweeps start it too.
 Expiry publishes `null`; subscription replay also clears expired deadlines and
 keeps snapshot, progress, status order. The field is optional in the contract
-for existing fixtures, so protocol version 3 and the desktop preload stay unchanged.
+so existing fixtures still parse.
 Consumers treat an absent or past deadline as no cooldown.
 Desktop Interrupt notifications consume committed snapshot tiers and `seen.since`,
 coalescing new or worsened items into one native banner per sweep. Dedupe keeps the

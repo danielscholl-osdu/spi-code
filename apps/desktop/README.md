@@ -1,10 +1,14 @@
-# Desktop process spike
+# Desktop main
 
 `pnpm --filter @spi-code/desktop start` compiles the host and desktop with
 `tsc -b`, builds the window with Vite, and starts unpackaged Electron.
+`src/index.ts` reads the flags and calls `createDesktop` from `src/start.ts`,
+which owns the window, the tray and the host supervisor. The smoke sequence is
+`runSmoke` in `src/smoke-run.ts`, imported only under `--smoke`.
 The sandboxed window talks directly to the utility process over a transferred
-MessagePort. Contracts are validated in the window and host; preload exposes
-only `postMessage` and `onMessage`. No network server is started.
+MessagePort. Contracts are validated in the window and host. `src/preload.cjs`
+exposes seven members on `window.spi`: `proof`, `openExternal`, `setAppearance`,
+`postMessage`, `onMessage`, `onNavigate` and `onLeave`. No network server is started.
 
 On macOS, run:
 
@@ -47,8 +51,8 @@ crashes clear any pending reconnect until the next main-frame navigation.
 
 The host's explicit `--smoke --stub-model` path bypasses live Setup and forbids
 external commands: no real gh/glab, seat lookup or sweep runs. Normal and
-development-stub launches retain production Setup. The smoke has a 45-second
-in-app deadline and a 60-second launcher timeout. The `supervision` section of
+development-stub launches retain production Setup. The in-app deadline and the
+launcher timeout are both `SMOKE_TIMEOUT_MS` in `src/smoke-report.ts`. The `supervision` section of
 the JSON report is required by both the local and packaged smoke gates.
 
 `pnpm run package:mac` builds unsigned macOS arm64 DMG and ZIP artifacts under

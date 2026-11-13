@@ -11,7 +11,7 @@ the generated ZIP, including the shipped runtime handshake, rather than the
 builder's app directory.
 Before starting the host proof, it renders `fixtures/watch/snapshot-1106.json`
 at 1440, 900 and 740 x 800 content bounds and pins the app's Appearance selector
-to light and dark. `build/package-<mac|win>/views/` holds 180 PNGs, a side-by-side
+to light and dark. `build/package-<mac|win>/views/` holds a PNG per shot, a side-by-side
 `index.html` review report and a copy of the window layout design. `smoke.json.views`
 lists every surface/viewport width/appearance combination, its image and DOM
 qualifier evidence, and its measured geometry. Missing combinations fail.
@@ -36,7 +36,7 @@ value to 159 px, records the expected rejection in `rejectedGeometry`, then
 restores the value before capturing it. Missing rejection evidence fails.
 The fixture clock, pane preferences and sign-in interception
 are removed before the host proof, so they cannot affect its persisted-snapshot
-and supervision checks. The 180-capture matrix has a six-minute smoke deadline.
+and supervision checks. The whole capture matrix runs inside `SMOKE_TIMEOUT_MS`.
 Settings → Sweep adds idle, sweeping, saved-with-a-failure and Watch-not-ready
 surfaces; Evidence adds idle and sweeping headers. Schema-valid status, progress
 and snapshot fixtures pin future next-sweep and budget-reset times. A single
@@ -76,14 +76,11 @@ The screenshot phase precedes host startup, so these schema-valid `sweep.progres
 fixtures use the same smoke-only preload channel as `view.snapshot` and `setup.state`,
 not the real host progress feed. The later persisted-snapshot and supervision proof
 starts only after removing fixtures.
-The launcher's child-process hard limit and the in-app smoke watchdog both use
-`SMOKE_TIMEOUT_MS` (480,000 ms, previously 360,000 ms and before that 240,000 ms):
-Windows CI's 180-capture run reached the last 740 px appearance at the four-minute
-deadline, before the host proof could run, and used about 290 s of the six-minute
-one before the Today mornings added 18 full-height captures. Both limits must allow the expanded
-matrix, overlay checks and host/runtime proof to finish: raising only one leaves
-the other able to terminate a healthy run. The launcher starts its deadline first,
-so it SIGKILLs a stuck app before the later-starting in-app watchdog can report.
+The launcher's child-process hard limit (`apps/desktop/src/smoke-launch.ts`) and
+the in-app smoke watchdog (`apps/desktop/src/index.ts`) both use `SMOKE_TIMEOUT_MS`,
+480,000 ms in `apps/desktop/src/smoke-report.ts`. Both limits must allow the capture
+matrix, overlay checks and host/runtime proof to finish: raising only one leaves the
+other able to terminate a healthy run. The launcher starts its deadline first, so it SIGKILLs a stuck app before the later-starting in-app watchdog can report.
 The non-smoke proof watchdog stays at 120,000 ms. Per-DOM waits and all
 geometry/image gates are unchanged.
 Today is also captured on the calm, busy and bad mornings (`snapshot-calm.json`,
@@ -122,7 +119,11 @@ under its platform's shared budget. The scan runs after the handshake, without e
 the host's hello deadline.
 Runtime staging excludes compiled `*.test.*` files and `smoke-launch.*`, including
 their declarations and maps, across the desktop and bundled workspace libraries.
-The in-app smoke modules remain bundled; the launcher runs from the build checkout.
+The watch fixture builders compile from `packages/host/test` to `packages/host/build`,
+which is never staged; staging also drops any `snapshot-fixture` or `detail-feed`
+module an older build left in `packages/host/dist/watch`.
+The in-app smoke modules remain bundled, and desktop main imports `smoke-run.ts` only
+under `--smoke`; the launcher runs from the build checkout.
 The renderer's turn spike is a headless test harness in `apps/window/src/index.tsx`,
 enabled only by `window.spi.proof` for packaged smoke and live proof runs. No page
 renders a turn panel or composer; the harness still pings the host and starts one
