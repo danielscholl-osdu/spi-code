@@ -3,7 +3,7 @@
 
 import type { AttentionTier } from "../attention.js";
 import { AREAS, type AreaName } from "../facts.js";
-import { names, plural } from "../util.js";
+import { names, plural, span } from "../util.js";
 import type { Origin } from "./horizon.js";
 
 type Mark = "stopped" | "needs-person" | "in-progress" | "nothing-due";
@@ -26,6 +26,14 @@ export interface VerdictInput {
   forks: number;
   deployable: { state: "yes" | "no" | "unknown" };
   version?: string | undefined;
+  /** An open maintenance hold: how long it has lasted when known, the run working on it, its item. */
+  hold?:
+    | {
+        ms?: number | undefined;
+        run?: { kind: string; target?: string | undefined } | undefined;
+        itemId?: string | undefined;
+      }
+    | undefined;
   places: readonly { areas: readonly AreaName[] }[];
   areas: readonly { area: AreaName; envelope: { state: string } }[];
 }
@@ -48,6 +56,19 @@ function cap(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+function article(word: string): string {
+  return /^[aeiou]/i.test(word) ? "an" : "a";
+}
+
+// The line stop leads: how long the environment has been in maintenance, and whether a run clears it.
+function holdSentence(hold: NonNullable<VerdictInput["hold"]>): string {
+  const held = span(hold.ms);
+  const state = held ? `has been in maintenance for ${held}` : "is in maintenance";
+  if (!hold.run) return `The environment ${state}, and nothing is running to clear it.`;
+  const what = `${hold.run.kind}${hold.run.target ? ` to ${hold.run.target}` : ""}`;
+  return `The environment ${state} while ${article(what)} ${what} runs.`;
+}
+
 function notRead(areas: readonly AreaName[], how: string): string | undefined {
   if (areas.length === 0) return undefined;
   const many = areas.length > 1 || LABELS[areas[0] as AreaName][1];
@@ -64,7 +85,10 @@ export function briefingVerdict(input: VerdictInput): { text: string; mark: Mark
     ...(input.horizon.owed?.itemIds ?? []),
   ]);
   const upstream = (item: VerdictItem) => item.origin === "upstream" || housed.has(item.id);
+  const hold = input.hold;
+  const lead = hold ? holdSentence(hold) : undefined;
   const interrupts = input.items.filter((item) => item.attention === "interrupt");
+  const others = hold ? interrupts.filter((item) => item.id !== hold.itemId) : interrupts;
   const surface = input.items.filter((item) => item.attention === "surface");
   const systemSurface = surface.filter((item) => !upstream(item)).length;
   const tierOf = new Map(input.items.map((item) => [item.id, item.attention]));
@@ -78,12 +102,14 @@ export function briefingVerdict(input: VerdictInput): { text: string; mark: Mark
   const stopped = input.stoppedForks.length;
 
   const clauses: string[] = [];
-  if (interrupts.length > 0)
-    clauses.push(`${plural(interrupts.length, "thing")} ${interrupts.length === 1 ? "needs" : "need"} you`);
+  if (others.length > 0)
+    clauses.push(
+      `${plural(others.length, lead ? "other thing" : "thing")} ${others.length === 1 ? "needs" : "need"} you`,
+    );
   if (stopped > 0) clauses.push(`${plural(stopped, "fork")} ${stopped === 1 ? "is" : "are"} stopped`);
-  if (systemSurface > 0 && !interrupts.some((item) => !upstream(item)))
+  if (systemSurface > 0 && !others.some((item) => !upstream(item)))
     clauses.push(`${plural(systemSurface, "decision")} ${systemSurface === 1 ? "waits" : "wait"} on you`);
-  if (upstreamSurface > 0 && !interrupts.some(upstream))
+  if (upstreamSurface > 0 && !others.some(upstream))
     clauses.push(
       `${plural(upstreamSurface, "upstream change")} ${upstreamSurface === 1 ? "needs you before it lands" : "need you before they land"}`,
     );
@@ -107,6 +133,7 @@ export function briefingVerdict(input: VerdictInput): { text: string; mark: Mark
 
   const deployable = input.deployable.state === "yes";
   const calm =
+    !lead &&
     clauses.length === 0 &&
     surface.length === 0 &&
     caveats.length === 0 &&
@@ -115,25 +142,26 @@ export function briefingVerdict(input: VerdictInput): { text: string; mark: Mark
   if (calm) {
     const forks = input.forks === 1 ? "the fork is flowing" : `all ${input.forks} forks are flowing`;
     return {
-      text: `Nothing urgent needs you. ${input.version ?? "The environment"} is deployable; ${forks}.`,
+      text: `Nothing urgent needs you. ${input.version ?? "The environment"} is ready; ${forks}.`,
       mark: "nothing-due",
     };
   }
 
-  const sentences =
-    clauses.length > 0
+  const sentences = lead
+    ? [lead, ...(clauses.length > 0 ? [`${cap(clauses.join("; "))}.`] : [])]
+    : clauses.length > 0
       ? [`${cap(clauses.join("; "))}.`]
       : [
           caveats.length > 0 ? "Nothing read needs you." : "Nothing urgent needs you.",
           ...(input.deployable.state === "no"
-            ? ["The environment isn't deployable."]
+            ? ["The environment isn't ready."]
             : !deployable
-              ? ["The environment isn't shown deployable."]
+              ? ["The environment isn't shown ready."]
               : []),
           ...(input.forks === 0 ? ["No forks were read."] : []),
         ];
   const mark: Mark =
-    interrupts.length > 0 || stopped > 0
+    (hold && !hold.run) || interrupts.length > 0 || stopped > 0
       ? "stopped"
       : surface.length > 0
         ? "needs-person"

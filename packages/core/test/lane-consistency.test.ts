@@ -3,10 +3,12 @@
 
 import { describe, expect, test } from "vitest";
 import { buildBriefing } from "../src/brief/index.js";
+import { type CoreContext, createContext } from "../src/context.js";
 import { verbsOf } from "../src/inspect/actions.js";
 import { buildModel } from "../src/model/index.js";
 import { stationSubstateOf } from "../src/model/substate.js";
 import { environmentReading } from "../src/readings/environment.js";
+import { serviceReading } from "../src/readings/index.js";
 import { fixtureContext } from "./briefing-setup.js";
 import { FIXTURE_NOW, fixtureFacts, laneFacts } from "./harness.js";
 
@@ -30,9 +32,9 @@ function mixedLanes() {
   return facts;
 }
 
-function project(facts = mixedLanes()) {
-  const model = buildModel(facts, FIXTURE_NOW, {}, fixtureContext);
-  const brief = buildBriefing(model, { state: "clear", problems: [] }, FIXTURE_NOW, fixtureContext);
+function project(facts = mixedLanes(), context: CoreContext = fixtureContext) {
+  const model = buildModel(facts, FIXTURE_NOW, {}, context);
+  const brief = buildBriefing(model, { state: "clear", problems: [] }, FIXTURE_NOW, context);
   const items = [...brief.focus, ...brief.rest];
   const reading = environmentReading({
     model,
@@ -40,11 +42,43 @@ function project(facts = mixedLanes()) {
     facts,
     lifecycle: [],
     reads: [],
-    stackRepo: fixtureContext.stackRepo,
+    stackRepo: context.stackRepo,
     now: FIXTURE_NOW,
   });
   return { facts, model, items, reading };
 }
+
+describe("the re-run after the environment recovered lives with its fork in the app", () => {
+  const partition = (p: ReturnType<typeof project>) =>
+    serviceReading({
+      model: p.model,
+      service: "partition",
+      items: p.items,
+      reads: [],
+      now: FIXTURE_NOW,
+    });
+
+  test("the app scopes it to the one fork, leads with the ask, and moves it off the Environment", () => {
+    const app = project(mixedLanes(), createContext({ ...fixtureContext, words: "app" }));
+    const item = app.items.find((i) => i.id === "stack:lanes");
+    expect(item).toMatchObject({
+      scope: "partition",
+      title: "Re-run 1 check that failed on the environment",
+    });
+    expect(app.reading.items.some((i) => i.id === "stack:lanes")).toBe(false);
+    expect(partition(app)?.items.some((i) => i.id === "stack:lanes")).toBe(true);
+  });
+
+  test("the boards keep it on the Environment in their words", () => {
+    const boards = project();
+    expect(boards.items.find((i) => i.id === "stack:lanes")).toMatchObject({
+      scope: "Environment",
+      title: "Deployable again",
+    });
+    expect(boards.reading.items.some((i) => i.id === "stack:lanes")).toBe(true);
+    expect(partition(boards)?.items.some((i) => i.id === "stack:lanes")).toBe(false);
+  });
+});
 
 describe("lane deployment failures beside recovered environment checks", () => {
   test("every stopped fork has its deployment item in the brief and Environment", () => {
@@ -58,9 +92,9 @@ describe("lane deployment failures beside recovered environment checks", () => {
       .map((line) => line.fork.id);
     expect(stopped).toEqual(["entitlements", "legal"]);
     expect(reading.tiles[1]).toEqual({
-      label: "Lane",
-      value: "Stopped",
-      counts: "fork lanes · entitlements and legal · newest deploy passed on 3 of 5",
+      label: "Fork deploys",
+      value: "2 failed",
+      counts: "each fork's newest deploy to the environment · failed: entitlements and legal",
     });
     const deployments = model.queue.items.filter((i) => i.kind === "lane-deploy");
     expect(deployments.map((i) => i.cause.find((f) => f.label === "fork")?.value).sort()).toEqual(
@@ -108,7 +142,10 @@ describe("lane deployment failures beside recovered environment checks", () => {
     const { items, reading } = project(facts);
     expect(items.some((i) => i.id === "lane-deploy:entitlements")).toBe(false);
     expect(items.some((i) => i.id === "lane-deploy:legal")).toBe(true);
-    expect(reading.tiles[1]?.counts).toBe("fork lanes · legal · newest deploy passed on 4 of 5");
+    expect(reading.tiles[1]).toMatchObject({
+      value: "1 failed",
+      counts: "each fork's newest deploy to the environment · failed: legal",
+    });
   });
 
   test("a deployment already explained by the same head's ENV check keeps its existing item", () => {

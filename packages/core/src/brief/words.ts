@@ -27,10 +27,12 @@ function pct(share: number): string {
 export function deployableWords(
   model: Model,
   now: Date,
-  context?: Pick<CoreContext, "timeStyle">,
+  context?: Pick<CoreContext, "timeStyle" | "words">,
 ): { label: string; figure: string | null; sub: string } {
   const a = model.stack.availability;
-  const label = `Deployable · ${HISTORY_DAYS} days`;
+  const app = context?.words === "app";
+  const label = `${app ? "Ready" : "Deployable"} · ${HISTORY_DAYS} days`;
+  const held = app ? "in maintenance" : "held";
   if (!a) return { label, figure: null, sub: "no lifecycle run read" };
   const unread = model.stack.history.held?.filter((d) => d.unread).length ?? 0;
   const at = a.since !== undefined && Number.isFinite(a.since) ? stamp(new Date(a.since).toISOString(), now, context) : undefined;
@@ -41,7 +43,7 @@ export function deployableWords(
       a.long === 0
         ? "no hold over an hour"
         : `${a.long} ${a.long === 1 ? "hold" : "holds"} over an hour, ${span(a.longMs)} in all`,
-      a.heldNow ? (at ? `held since ${at}` : "held now") : at ? `up since ${at}` : undefined,
+      a.heldNow ? (at ? `${held} since ${at}` : `${held} now`) : at ? `up since ${at}` : undefined,
       unread > 0 ? `${unread === 1 ? "1 day" : `${unread} days`} not read` : undefined,
     ]
       .filter(Boolean)

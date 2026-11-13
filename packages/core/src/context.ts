@@ -20,6 +20,8 @@ export interface CoreContext {
   readonly voice: Voice;
   /** Clock text preserves the boards; instant text lets a consumer choose its zone. */
   readonly timeStyle: "clock" | "instant";
+  /** Boards keep the rib's environment words; the app says ready and in maintenance. */
+  readonly words: "boards" | "app";
 }
 
 export function createContext(input: Partial<CoreContext> = {}): CoreContext {
@@ -34,6 +36,7 @@ export function createContext(input: Partial<CoreContext> = {}): CoreContext {
     fleet,
     stackRepo,
     timeStyle: input.timeStyle ?? "clock",
+    words: input.words ?? "boards",
     paths: Object.freeze({ ...(input.paths ?? DEFAULT_PATHS) }),
     rollout: rollout
       ? Object.freeze({

@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: MIT
 
 import type { CoreContext } from "../context.js";
-import type { StationSubstate } from "../model/substate.js";
-import { stationSubstateOf } from "../model/substate.js";
 import { shortRepo } from "../config.js";
 import type { ReadRecord } from "../evidence/index.js";
 import type { Facts } from "../facts.js";
 import type { Model } from "../model/index.js";
 import { runResult, stoppedAttempts } from "../model/stack.js";
 import type { WorkRow } from "../model/work.js";
-import { names, plural, span, stamp } from "../util.js";
+import { fitHeadline, names, plural, span, stamp } from "../util.js";
 import {
   beforeTime,
   NOT_READ,
@@ -34,22 +32,6 @@ export interface EnvironmentReadingInput<T extends ReadingItem> {
   now: Date;
 }
 
-const SUBSTATE_RANK: Readonly<Record<StationSubstate, number>> = Object.freeze({
-  stopped: 0,
-  "waiting-on-person": 1,
-  "waiting-on-clock": 2,
-  "in-progress": 3,
-  ready: 4,
-});
-
-const SUBSTATE_WORDS: Readonly<Record<StationSubstate, string>> = Object.freeze({
-  stopped: "Stopped",
-  "waiting-on-person": "Waiting on you",
-  "waiting-on-clock": "Waiting on the clock",
-  "in-progress": "Deploying",
-  ready: "Clear",
-});
-
 function article(word: string): string {
   return /^[aeiou]/i.test(word) ? "an" : "a";
 }
@@ -61,19 +43,28 @@ function headlineOf(model: Model, now: Date, context?: CoreContext): string {
   if (stack.inflight) {
     const run = stack.inflight.run;
     const what = `${run.kind}${run.target && run.target !== version ? ` to ${run.target}` : ""}`;
-    return `${subject} is not deployable while ${article(what)} ${what} runs.`;
+    return `${subject} is in maintenance while ${article(what)} ${what} runs.`;
   }
-  if (stack.deployable.state === "no") return `${subject} is held in maintenance with no run in flight.`;
+  if (stack.deployable.state === "no") {
+    const a = stack.availability;
+    const held = a?.heldNow && a.since !== undefined ? span(now.getTime() - a.since) : undefined;
+    return held
+      ? fitHeadline([
+          `${subject} in maintenance for ${held}, with no run in flight.`,
+          `${subject} in maintenance for ${held}, no run in flight.`,
+        ])
+      : `${subject} is in maintenance with no run in flight.`;
+  }
   if (stack.deployable.state === "yes") {
     const green = stamp(stack.running?.at ?? stack.lastGreen?.updatedAt, now, context);
-    return `${subject} is deployable${green ? `, green since ${green}` : ""}.`;
+    return `${subject} is ready${green ? `, green since ${green}` : ""}.`;
   }
   if (!stack.history.held) return `The environment is ${NOT_READ}.`;
   const last = stoppedAttempts(stack).at(-1);
-  if (last) return `${subject}: the last ${last.run.kind} ${runResult(last.run)}, so deployability is unclear.`;
+  if (last) return `${subject}: the last ${last.run.kind} ${runResult(last.run)}, so readiness is unclear.`;
   return version
-    ? `No run in the window says whether ${version} is deployable.`
-    : `Deployability is ${NOT_READ}.`;
+    ? `No run in the window says whether ${version} is ready.`
+    : `Readiness is ${NOT_READ}.`;
 }
 
 function versionTile(model: Model): ReadingTile {
@@ -98,26 +89,19 @@ function versionTile(model: Model): ReadingTile {
   };
 }
 
-function laneTile(model: Model, facts: EnvironmentReadingInput<ReadingItem>["facts"]): ReadingTile {
+// A word when every fork's newest deploy passed, a count of the ones that failed otherwise.
+function deployTile(model: Model): ReadingTile {
+  const label = "Fork deploys";
   const forks = model.stack.forks;
-  if (!forks) return { label: "Lane", value: NOT_READ, counts: "fork deploys to the environment" };
-  const states = model.lines.flatMap((line) => {
-    const lane = line.stations.find((s) => s.id === "lane");
-    return lane ? [{ fork: line.fork.id, substate: stationSubstateOf(lane, line, facts) }] : [];
-  });
-  const worst = states.reduce<StationSubstate>(
-    (w, s) => (SUBSTATE_RANK[s.substate] < SUBSTATE_RANK[w] ? s.substate : w),
-    "ready",
-  );
-  const passed = forks.newest.filter((f) => f.passed).length;
-  const which = worst === "ready" ? [] : states.filter((s) => s.substate === worst).map((s) => s.fork);
+  if (!forks) return { label, value: NOT_READ, counts: "fork deploys to the environment" };
+  const failed = forks.newest.filter((f) => !f.passed).map((f) => f.fork);
   return {
-    label: "Lane",
-    value: SUBSTATE_WORDS[worst],
+    label,
+    value:
+      forks.newest.length === 0 ? "None yet" : failed.length > 0 ? `${failed.length} failed` : "All passed",
     counts: [
-      "fork lanes",
-      which.length > 3 ? plural(which.length, "fork") : which.length > 0 ? names(which) : undefined,
-      `newest deploy passed on ${passed} of ${forks.newest.length}`,
+      "each fork's newest deploy to the environment",
+      failed.length > 0 ? `failed: ${names(failed)}` : undefined,
       forks.noLane.length > 0 ? `${forks.noLane.length} never deployed` : undefined,
     ]
       .filter(Boolean)
@@ -194,12 +178,12 @@ function aboutStack(read: ReadRecord, stackRepo: string): boolean {
   );
 }
 
-// The environment place: the deployable version and when it went green, the fork lanes'
-// worst state, and the stack repository's open work.
+// The environment place: the running version and whether it is ready, the forks' newest
+// deploys, and the stack repository's open work.
 export function environmentReading<T extends ReadingItem>(
   input: EnvironmentReadingInput<T>,
 ): PlaceReading<T> {
-  const { model, items, facts, lifecycle, reads, stackRepo, now } = input;
+  const { model, items, lifecycle, reads, stackRepo, now } = input;
   const scopes = new Set(["Environment", shortRepo(stackRepo)]);
   const bite = (i: T): string | undefined => i.due?.at;
   const tier = (i: T): number => (i.rung === 0 ? 0 : bite(i) ? 1 : i.rung === 1 ? 2 : 3);
@@ -209,7 +193,7 @@ export function environmentReading<T extends ReadingItem>(
       : bite(i)
         ? beforeTime(bite(i), input.context)
         : i.rung === 1
-          ? "Needs a decision"
+          ? "Waiting on you"
           : "Ready to move";
   const time = (i: T): number => (tier(i) === 1 ? Date.parse(bite(i) as string) : 0);
   const own = items
@@ -232,7 +216,7 @@ export function environmentReading<T extends ReadingItem>(
     membership: true,
     headline: headlineOf(model, now, input.context),
     ...(qualifier ? { qualifier } : {}),
-    tiles: [versionTile(model), laneTile(model, facts), repoTile(row)],
+    tiles: [versionTile(model), deployTile(model), repoTile(row)],
     groups,
     ...(extra ? { extra } : {}),
   });

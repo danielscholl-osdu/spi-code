@@ -4,6 +4,7 @@
 import { describe, expect, test } from "vitest";
 import { type BriefFact, buildBriefing, type DoctorView, readItem } from "../src/brief/index";
 import { ago, deployableWords, streakText } from "../src/brief/words";
+import { createContext } from "../src/context";
 import type { Facts, LifecycleRun } from "../src/facts";
 import { buildModel, type Model } from "../src/model/index";
 import { buildQueue, type QueueItem } from "../src/model/queue";
@@ -585,9 +586,13 @@ describe("the environment", () => {
   const IN_FLIGHT = 38312331838;
   const WINDOW_FROM = FIXTURE_NOW.getTime() - 86_400_000;
 
-  function envOf(facts: Facts) {
-    const m = buildModel(facts, FIXTURE_NOW, {}, fixtureContext);
-    return { m, env: buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext).environment };
+  // The app's words; the rib's default context keeps the boards' words byte for byte.
+  const appWords = createContext({ ...fixtureContext, words: "app" });
+
+  function envOf(facts: Facts, context = fixtureContext) {
+    const m = buildModel(facts, FIXTURE_NOW, {}, context);
+    const briefing = buildBriefing(m, CLEAR, FIXTURE_NOW, context);
+    return { m, env: briefing.environment, facts: briefing.facts };
   }
 
   // The recorded in-flight upgrade, finished green at 21:58 with maintenance cleared.
@@ -669,6 +674,40 @@ describe("the environment", () => {
     expect(env.facts[0]?.tone).toBe("bad");
     expect(env.facts[1]?.sub).toContain("held since");
     figuresHold(env.facts);
+    const app = envOf(facts, appWords).env;
+    expect(app.headline).toMatch(
+      /^The environment is in maintenance: env-upgrade v0\.28\.1 cancelled at verify › .+\.$/,
+    );
+    expect(app.facts[0]?.sub).toMatch(
+      /^in maintenance · env-upgrade v0\.28\.1 cancelled at verify/,
+    );
+    expect(app.facts[1]).toMatchObject({ label: "Ready · 21 days" });
+    expect(app.facts[1]?.sub).toContain("in maintenance since");
+    for (const text of [app.headline, ...app.facts.flatMap((f) => [f.label, f.sub])])
+      expect(text).not.toMatch(/held|deployable/i);
+  });
+
+  test("a failed attempt after maintenance cleared says the environment is not ready", () => {
+    const facts = finished();
+    const upgrade = facts.lifecycle.data?.upgrade ?? [];
+    const green = upgrade.find((r) => r.id === IN_FLIGHT);
+    if (!green) throw new Error("fixture lost its in-flight upgrade");
+    upgrade.push({
+      ...green,
+      id: 99_000_002,
+      createdAt: "2026-10-12T22:30:00Z",
+      updatedAt: "2026-10-12T22:40:00Z",
+      conclusion: "failure",
+      jobs: undefined,
+    });
+    const { env } = envOf(facts);
+    expect(env.headline).toMatch(
+      /^The environment is not deployable: env-upgrade v0\.28\.2 failed/,
+    );
+    expect(env.facts[0]?.sub).toMatch(/^not deployable · env-upgrade v0\.28\.2 failed/);
+    const app = envOf(facts, appWords).env;
+    expect(app.headline).toMatch(/^The environment is not ready: env-upgrade v0\.28\.2 failed/);
+    expect(app.facts[0]?.sub).toMatch(/^not ready · env-upgrade v0\.28\.2 failed/);
   });
 
   test("deployable after failures counts each failed attempt the timeline draws", () => {
@@ -682,7 +721,20 @@ describe("the environment", () => {
       "Deployable on v0.28.2 since 21:58, after 2 failed attempts in the last day.",
     );
     expect(env.facts[0]).toMatchObject({ figure: "v0.28.2", tone: "ok" });
+    expect(env.facts[0]?.sub).toMatch(/^deployable · green at /);
     figuresHold(env.facts);
+    const app = envOf(finished(), appWords).env;
+    expect(app.headline).toBe(
+      "Ready on v0.28.2 since 21:58, after 2 failed attempts in the last day.",
+    );
+    expect(app.facts[0]?.sub).toMatch(/^ready · green at /);
+  });
+
+  test("briefing.facts keeps 'deployable' for the app, because the top row reads it until spicode-f0s.47", () => {
+    const { facts, env } = envOf(finished(), appWords);
+    expect(facts[0]).toMatchObject({ label: "Environment", figure: "v0.28.2" });
+    expect(facts[0]?.sub).toMatch(/^deployable · green at /);
+    expect(env.facts[0]?.sub).toBe(facts[0]?.sub.replace(/^deployable/, "ready"));
   });
 
   test("a day of green runs says so", () => {
@@ -694,6 +746,9 @@ describe("the environment", () => {
     if (lc?.refresh) lc.refresh = lc.refresh.filter(keep);
     const { env } = envOf(facts);
     expect(env.headline).toBe("Deployable on v0.28.2; every run in the last day was green.");
+    expect(envOf(facts, appWords).env.headline).toBe(
+      "Ready on v0.28.2; every run in the last day was green.",
+    );
     const states = env.lanes.flatMap((l) => l.events.map((e) => e.state));
     expect(states.length).toBeGreaterThan(0);
     expect(states.every((s) => s === "ok" || s === "held")).toBe(true);
@@ -707,6 +762,12 @@ describe("the environment", () => {
     figuresHold(env.facts);
     expect(env.facts.map((f) => f.figure)).toEqual(["v0.28.2", "?", "?"]);
     expect(env.lanes.every((l) => l.events.length === 0)).toBe(true);
+    expect(env.headline).toBe("Deployability is unknown; no lifecycle run in the window says.");
+    expect(env.facts[0]?.sub).toMatch(/^deployability unread/);
+    const app = envOf(facts, appWords).env;
+    expect(app.headline).toBe("Readiness is unknown; no lifecycle run in the window says.");
+    expect(app.facts[0]?.sub).toMatch(/^readiness unread/);
+    expect(app.facts[1]).toMatchObject({ label: "Ready · 21 days", sub: "no lifecycle run read" });
   });
 });
 
@@ -717,6 +778,17 @@ describe("shared wording", () => {
     expect(d.sub).toMatch(
       /^6 holds over an hour, 7\u00a0d 14\u00a0h in all · held since 10-11 22:44$/,
     );
+    const app = { timeStyle: "clock", words: "app" } as const;
+    expect(deployableWords(fixtureModel(), FIXTURE_NOW, app)).toMatchObject({
+      label: "Ready · 21 days",
+      sub: expect.stringMatching(/ · in maintenance since 10-11 22:44$/),
+    });
+    const m = fixtureModel();
+    const a = m.stack.availability;
+    if (!a) throw new Error("fixture has an availability");
+    const unknown = { ...m, stack: { ...m.stack, availability: { ...a, since: undefined } } };
+    expect(deployableWords(unknown, FIXTURE_NOW).sub).toMatch(/ · held now$/);
+    expect(deployableWords(unknown, FIXTURE_NOW, app).sub).toMatch(/ · in maintenance now$/);
   });
 
   test("an environment back up says since when; one with no lifecycle read has no figure", () => {

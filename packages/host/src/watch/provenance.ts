@@ -59,7 +59,7 @@ function briefFactAreas(label: string, stack: StackModel): readonly AreaName[] {
 
 function environmentFactAreas(label: string, stack: StackModel): readonly AreaName[] {
   if (label === "Running") return versionAreas(stack);
-  if (label.startsWith("Deployable") || label === "Last proof") return LIFECYCLE;
+  if (/^(Deployable|Ready) · /.test(label) || label === "Last proof") return LIFECYCLE;
   return MODEL;
 }
 

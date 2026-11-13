@@ -39,7 +39,7 @@ describe("briefingVerdict", () => {
     expect(
       briefingVerdict(calm({ items: [{ id: "rollout", attention: "ambient", origin: "system" }] })),
     ).toEqual({
-      text: "Nothing urgent needs you. v0.35.5 is deployable; all 13 forks are flowing.",
+      text: "Nothing urgent needs you. v0.35.5 is ready; all 13 forks are flowing.",
       mark: "nothing-due",
     });
   });
@@ -148,6 +148,74 @@ describe("briefingVerdict", () => {
     });
   });
 
+  describe("a maintenance hold leads as a line stop", () => {
+    const DAY_13H = (2 * 24 + 13) * 3_600_000;
+    const held = (hold: VerdictInput["hold"], over: Partial<VerdictInput> = {}) =>
+      briefingVerdict(
+        calm({
+          deployable: { state: "no" },
+          items: [
+            { id: "stack:maintenance", attention: "interrupt", origin: "system" },
+            { id: "sync-run:storage", attention: "interrupt", origin: "system" },
+            { id: "halt:legal", attention: "interrupt", origin: "upstream" },
+          ],
+          hold,
+          ...over,
+        }),
+      );
+
+    test("with nothing running it says how long, and counts the other Interrupts", () => {
+      expect(held({ ms: DAY_13H, itemId: "stack:maintenance" })).toEqual({
+        text: "The environment has been in maintenance for 2\u00a0d 13\u00a0h, and nothing is running to clear it. 2 other things need you.",
+        mark: "stopped",
+      });
+    });
+
+    test("with a run in flight it names the run", () => {
+      expect(
+        held({
+          ms: DAY_13H,
+          itemId: "stack:maintenance",
+          run: { kind: "upgrade", target: "v0.36.0" },
+        }),
+      ).toEqual({
+        text: "The environment has been in maintenance for 2\u00a0d 13\u00a0h while an upgrade to v0.36.0 runs. 2 other things need you.",
+        mark: "stopped",
+      });
+      expect(held({ ms: DAY_13H, run: { kind: "refresh" } }, { items: [] })).toEqual({
+        text: "The environment has been in maintenance for 2\u00a0d 13\u00a0h while a refresh runs.",
+        mark: "in-progress",
+      });
+    });
+
+    test("one other Interrupt is one other thing", () => {
+      expect(
+        held(
+          { ms: DAY_13H, itemId: "stack:maintenance" },
+          {
+            items: [
+              { id: "stack:maintenance", attention: "interrupt", origin: "system" },
+              { id: "sync-run:storage", attention: "interrupt", origin: "system" },
+            ],
+          },
+        ).text,
+      ).toBe(
+        "The environment has been in maintenance for 2\u00a0d 13\u00a0h, and nothing is running to clear it. 1 other thing needs you.",
+      );
+    });
+
+    test("a hold whose start is unknown leads without a duration", () => {
+      expect(held({ itemId: "stack:maintenance" })).toEqual({
+        text: "The environment is in maintenance, and nothing is running to clear it. 2 other things need you.",
+        mark: "stopped",
+      });
+    });
+
+    test("without a hold the environment's item is counted with the rest", () => {
+      expect(held(undefined)).toEqual({ text: "3 things need you.", mark: "stopped" });
+    });
+  });
+
   describe("fails toward the quieter, honest state", () => {
     test("an unread area takes the caveat and never the calm mark", () => {
       expect(briefingVerdict(calm({ areas: withState({ security: "unread" }) }))).toEqual({
@@ -191,8 +259,8 @@ describe("briefingVerdict", () => {
     });
 
     test.each([
-      ["unknown", "Nothing urgent needs you. The environment isn't shown deployable."],
-      ["no", "Nothing urgent needs you. The environment isn't deployable."],
+      ["unknown", "Nothing urgent needs you. The environment isn't shown ready."],
+      ["no", "Nothing urgent needs you. The environment isn't ready."],
     ] as const)("deployability %s is never claimed", (state, text) => {
       expect(briefingVerdict(calm({ deployable: { state } }))).toEqual({
         text,

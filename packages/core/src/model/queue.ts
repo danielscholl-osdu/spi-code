@@ -307,18 +307,23 @@ function stackItems(
   const loose = envFailures.filter(({ f }) => !folded.has(f));
   if (loose.length > 0 && !stack.inflight) {
     const oldest = loose.reduce((a, b) => (Date.parse(a.f.at) < Date.parse(b.f.at) ? a : b));
+    const app = context.words === "app";
+    const ready = stack.deployable.state === "yes";
+    // The re-run lands on the fork's PR, so the app files it under the fork.
+    const forks = [...new Set(loose.map(({ line }) => line.fork.id))];
     items.push({
       id: "stack:lanes",
       kind: "lanes",
       rung: 1,
-      scope: "Environment",
-      text:
-        stack.deployable.state === "yes"
-          ? `deployable again; ${plural(loose.length, "fork lane")} failed before it recovered`
-          : `${plural(loose.length, "fork lane")} failed on the environment${oldest.f.reason ? `: ${oldest.f.reason}` : ""}`,
+      scope: !app ? "Environment" : forks.length === 1 ? (forks[0] as string) : plural(forks.length, "fork"),
+      text: !ready
+        ? `${plural(loose.length, "fork lane")} failed on the environment${oldest.f.reason ? `: ${oldest.f.reason}` : ""}`
+        : app
+          ? `re-run ${plural(loose.length, "check")} that failed on the environment`
+          : `deployable again; ${plural(loose.length, "fork lane")} failed before it recovered`,
       since: oldest.f.at,
       url: oldest.f.url ?? oldest.f.prUrl,
-      note: stack.deployable.state === "yes" ? "re-run now" : undefined,
+      note: !ready ? undefined : app ? "the environment is ready again" : "re-run now",
       effects: loose.map(({ line, f }) => ({
         text: failureLine(line.fork.id, f, now, context),
         url: f.url ?? f.prUrl,

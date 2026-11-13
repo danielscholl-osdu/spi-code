@@ -116,7 +116,10 @@ export function fixtureInput(): WatchInput {
 
 /** The watch snapshots use the host's style; oracle inputs keep their default context. */
 export function appStyle(input: WatchInput): WatchInput {
-  return { ...input, context: Object.freeze({ ...input.context, timeStyle: "instant" }) };
+  return {
+    ...input,
+    context: Object.freeze({ ...input.context, timeStyle: "instant", words: "app" }),
+  };
 }
 
 /** Lifecycle runs (deployability, maintenance) come only from inferred reads; peers are observed. */

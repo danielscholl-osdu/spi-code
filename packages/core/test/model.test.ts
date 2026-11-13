@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "vitest";
+import { createContext } from "../src/context";
 import { emptyFacts } from "../src/facts";
 import { classOf } from "../src/model/attribution";
 import { buildModel } from "../src/model/index";
@@ -158,9 +159,35 @@ describe("the fleet on 12 October", () => {
     const lanes = items.find((i) => i.id === "stack:lanes");
     expect(lanes?.text).toBe("deployable again; 5 fork lanes failed before it recovered");
     expect(lanes?.note).toBe("re-run now");
+    expect(lanes?.scope).toBe("Environment");
     expect(items.find((i) => i.id === "rollout")?.text).toBe(
       "Rollout to template bb49a03 · 0 of 5 merged",
     );
+    const app = createContext({ ...fixtureContext, words: "app" });
+    const forks = new Set(lanes?.lanes?.map((l) => l.service));
+    expect(forks.size).toBe(5);
+    const own = buildModel(f, FIXTURE_NOW, {}, app).queue.items.find((i) => i.id === "stack:lanes");
+    expect(own).toMatchObject({
+      scope: "5 forks",
+      text: "re-run 5 checks that failed on the environment",
+      note: "the environment is ready again",
+    });
+    expect(own && nextText(own)).toBe(lanes && nextText(lanes));
+  });
+
+  test("before the stack reads ready, the app files the failed lanes under their forks, its text unchanged", () => {
+    const f = fixtureFacts();
+    f.lifecycle.data = { refresh: [], upgrade: [], smoke: [], sweeper: [] };
+    const lanes = buildModel(f, FIXTURE_NOW, {}, fixtureContext).queue.items.find(
+      (i) => i.id === "stack:lanes",
+    );
+    expect(lanes).toMatchObject({ scope: "Environment", note: undefined });
+    expect(lanes?.text).toMatch(/^\d+ fork lanes failed on the environment/);
+    const app = createContext({ ...fixtureContext, words: "app" });
+    const own = buildModel(f, FIXTURE_NOW, {}, app).queue.items.find((i) => i.id === "stack:lanes");
+    expect(own?.text).toBe(lanes?.text);
+    expect(own?.note).toBeUndefined();
+    expect(own?.scope).toBe(`${new Set(lanes?.lanes?.map((l) => l.service)).size} forks`);
   });
 
   test("each line wears its worst state: a halt is red, a failing PR amber, an update calm", () => {

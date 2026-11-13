@@ -74,3 +74,5 @@ Watch fixtures use instant text through briefing and place readers; oracle input
 Desktop's boundary scan includes tests. Package imports use their public entry points;
 the one named tooling exception is `scripts/watch-generated.mjs`, in desktop tests only.
 `core-diff-rib.sh` is a historical extraction audit against 59d6895, not a current parity gate.
+
+`CoreContext.words` is the wording twin of `timeStyle`: the default `"boards"` keeps the rib oracle's words, and the host and `appStyle` set `"app"` (ready, in maintenance). A changed string in code the rib also runs (brief/index.ts, brief/words.ts, model/queue.ts) goes behind it, with a paired test of both words; brief/places.ts, brief/verdict.ts and the readings are app-only.

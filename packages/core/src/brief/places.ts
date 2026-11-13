@@ -94,8 +94,8 @@ function failedLanes({ model, facts }: VisualSource): string[] {
 function environmentFigure(stack: Model["stack"]): string {
   const version = stack.running?.version ?? stack.declared;
   if (!version) return NOT_READ;
-  if (stack.inflight || stack.deployable.state === "no") return `${version} not deployable`;
-  if (stack.deployable.state === "yes") return `${version} deployable`;
+  if (stack.inflight || stack.deployable.state === "no") return `${version} in maintenance`;
+  if (stack.deployable.state === "yes") return `${version} ready`;
   return stack.history.held ? `${version} unproven` : NOT_READ;
 }
 

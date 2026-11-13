@@ -95,7 +95,7 @@ describe("Today place rows (PS-03, PS-19)", () => {
     ).toBe("stopped");
     const environment = snapshot.briefing.places?.find(({ place }) => place === "environment");
     expect(environment).toMatchObject({ mark: "nothing-due", tone: "neutral" });
-    expect(environment?.figure).toContain("deployable");
+    expect(environment?.figure).toMatch(/^v\S+ ready$/);
     expect(environment?.line).not.toContain("lane");
     expect(environment?.itemIds).not.toContain("lane-deploy:storage");
     expect(line?.itemIds).toContain("lane-deploy:storage");
@@ -471,7 +471,7 @@ describe("Today place cards speak compactly (draft 7, Words and visuals)", () =>
       }
       const environment = rows.find(({ place }) => place === "environment");
       expect(environment?.figure).toBe(
-        `${readingOf(snapshot, "environment")?.tiles[0].value} deployable`,
+        `${readingOf(snapshot, "environment")?.tiles[0].value} ready`,
       );
       const security = rows.find(({ place }) => place === "security");
       const high = readingOf(snapshot, "security")?.tiles[0].value ?? "missing";
@@ -508,6 +508,36 @@ describe("Today place cards speak compactly (draft 7, Words and visuals)", () =>
       "Reworded.",
       "Reworded.",
     ]);
+  });
+
+  it("words the environment figure as ready, or in maintenance while held or a run is in flight", () => {
+    const input = busyInput();
+    const snapshot = projectWatch(input);
+    const source = sourceOf(input);
+    const figure = (stack: Partial<typeof source.model.stack>) =>
+      placesOf({
+        readings: snapshot.readings,
+        items: [...snapshot.briefing.focus, ...snapshot.briefing.rest],
+        areas: snapshot.areas,
+        source: {
+          ...source,
+          model: { ...source.model, stack: { ...source.model.stack, ...stack } },
+        },
+      }).find(({ place }) => place === "environment")?.figure;
+    const version = source.model.stack.running?.version;
+    expect(version).toMatch(/^v\d/);
+    expect(figure({})).toBe(`${version} ready`);
+    expect(
+      figure({ deployable: { state: "no", reason: "The environment is in maintenance." } }),
+    ).toBe(`${version} in maintenance`);
+    const run = source.model.stack.lastGreen;
+    if (!run) throw new Error("Fixture lacks a green lifecycle run");
+    expect(
+      figure({
+        deployable: { state: "no", reason: "env-refresh in flight" },
+        inflight: { run: { ...run, status: "in_progress" }, stages: [] },
+      }),
+    ).toBe(`${version} in maintenance`);
   });
 
   for (const place of ["line", "environment", "engineering", "security"] as const) {

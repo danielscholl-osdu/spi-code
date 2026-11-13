@@ -68,9 +68,9 @@ const envItem = (n: number, rung: FocusItem["rung"]): FocusItem => ({
 });
 
 describe("Environment reading on the recorded 6 Nov sweep", () => {
-  it("names v0.35.3 deployable with its green time in a headline of at most 12 words", () => {
+  it("names v0.35.3 ready with its green time in a headline of at most 12 words", () => {
     const reading = environment();
-    expect(reading.headline).toBe("v0.35.3 is deployable, green since 11-05 22:20.");
+    expect(reading.headline).toBe("v0.35.3 is ready, green since 11-05 22:20.");
     expect(wordCount(reading.headline)).toBeLessThanOrEqual(12);
     expect(reading.tiles[0]).toEqual({
       label: "Version",
@@ -79,13 +79,18 @@ describe("Environment reading on the recorded 6 Nov sweep", () => {
     });
   });
 
-  it("reads the fork lanes' worst state and the stack repository's open work", () => {
+  it("reads the forks' newest deploys and the stack repository's open work", () => {
     const reading = environment();
     expect(reading.tiles[1]).toEqual({
-      label: "Lane",
-      value: "Clear",
-      counts: "fork lanes · newest deploy passed on 13 of 13",
+      label: "Fork deploys",
+      value: "All passed",
+      counts: "each fork's newest deploy to the environment",
     });
+    for (const text of [
+      reading.headline,
+      ...reading.tiles.flatMap((t) => [t.label, t.value, t.counts]),
+    ])
+      expect(text).not.toMatch(/deployable|Lane|Stopped/);
     expect(reading.tiles[2]).toEqual({
       label: "Stack repository",
       value: "2",
@@ -96,21 +101,27 @@ describe("Environment reading on the recorded 6 Nov sweep", () => {
     );
   });
 
-  it("names the forks whose lane is in the worst state", () => {
-    const stopLane = (line: Model["lines"][number]) => ({
-      ...line,
-      stations: line.stations.map((s) =>
-        s.id === "lane" ? { ...s, state: "stopped" as const } : s,
-      ),
+  it("counts the forks whose newest deploy failed and names them", () => {
+    const forks = model.stack.forks;
+    if (!forks) throw new Error("no fork deploys read");
+    const failing = new Set(["legal", "partition"]);
+    const failed = {
+      ...model,
+      stack: {
+        ...model.stack,
+        forks: {
+          ...forks,
+          newest: forks.newest.map((f) => (failing.has(f.fork) ? { ...f, passed: false } : f)),
+        },
+      },
+    };
+    expect(environment({ model: failed }).tiles[1]).toEqual({
+      label: "Fork deploys",
+      value: "2 failed",
+      counts: "each fork's newest deploy to the environment · failed: partition and legal",
     });
-    const [first, ...others] = model.lines;
-    if (!first) throw new Error("no lines");
-    const stopped = { ...model, lines: [stopLane(first), ...others] };
-    expect(environment({ model: stopped }).tiles[1]).toEqual({
-      label: "Lane",
-      value: "Stopped",
-      counts: `fork lanes · ${first.fork.id} · newest deploy passed on 13 of 13`,
-    });
+    const none = { ...model, stack: { ...model.stack, forks: { ...forks, newest: [] } } };
+    expect(environment({ model: none }).tiles[1]?.value).toBe("None yet");
   });
 
   it("counts and folds a pipeline pull request on the stack repository", () => {
@@ -177,7 +188,7 @@ describe("Environment reading on the recorded 6 Nov sweep", () => {
     const reading = environment({ items: [...items, service, ...extra] });
     expect(reading.items.map((i) => [i.id, i.group])).toEqual([
       ["stack:extra-2", "Stopped"],
-      ["stack:extra-3", "Needs a decision"],
+      ["stack:extra-3", "Waiting on you"],
       ["stack:extra-1", "Ready to move"],
       ["stack:extra-4", "Ready to move"],
       ["stack:extra-5", "Ready to move"],
@@ -235,12 +246,30 @@ describe("Environment reading on the recorded 6 Nov sweep", () => {
         deployable: { state: "no" as const, reason: "The environment is in maintenance." },
       },
     };
+    const since = now.getTime() - (2 * 24 + 13) * 3_600_000;
+    const timed = {
+      ...held,
+      stack: {
+        ...held.stack,
+        availability: { share: 0.9, long: 1, longMs: 0, heldNow: true, since },
+      },
+    };
+    const hours = {
+      ...timed,
+      stack: {
+        ...timed.stack,
+        availability: { ...timed.stack.availability, since: now.getTime() - 5 * 3_600_000 },
+      },
+    };
     const running = environment({ model: inflight }).headline;
-    expect(running).toBe("v0.35.3 is not deployable while an upgrade to v0.36.0 runs.");
-    expect(environment({ model: held }).headline).toBe(
-      "v0.35.3 is held in maintenance with no run in flight.",
-    );
-    for (const headline of [running, environment({ model: held }).headline])
+    const unknownStart = environment({ model: held }).headline;
+    const known = environment({ model: hours }).headline;
+    const long = environment({ model: timed }).headline;
+    expect(running).toBe("v0.35.3 is in maintenance while an upgrade to v0.36.0 runs.");
+    expect(unknownStart).toBe("v0.35.3 is in maintenance with no run in flight.");
+    expect(known).toBe("v0.35.3 in maintenance for 5\u00a0h, with no run in flight.");
+    expect(long).toBe("v0.35.3 in maintenance for 2\u00a0d 13\u00a0h, no run in flight.");
+    for (const headline of [running, unknownStart, known, long])
       expect(wordCount(headline)).toBeLessThanOrEqual(12);
   });
 });

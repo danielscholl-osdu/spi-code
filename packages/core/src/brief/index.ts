@@ -1321,6 +1321,7 @@ function envHeadline(
   context: CoreContext,
 ): string {
   const { stack } = model;
+  const app = context.words === "app";
   const live = stack.inflight;
   if (live) {
     const { kind, target } = live.run;
@@ -1330,13 +1331,14 @@ function envHeadline(
         : `A ${kind}${target ? ` of ${target}` : ""}`;
     return `${what} is running${live.current ? `, at ${live.current}` : ""}.`;
   }
-  if (held) return sentence(`The environment is held: ${held}`);
+  if (held) return sentence(`The environment is ${app ? "in maintenance" : "held"}: ${held}`);
   if (stack.deployable.state !== "yes") {
     const last = stoppedAttempts(stack).at(-1);
     return last
-      ? sentence(`The environment is not deployable: ${attemptLine(last)}`)
-      : "Deployability is unknown; no lifecycle run in the window says.";
+      ? sentence(`The environment is ${app ? "not ready" : "not deployable"}: ${attemptLine(last)}`)
+      : `${app ? "Readiness" : "Deployability"} is unknown; no lifecycle run in the window says.`;
   }
+  const ready = app ? "Ready" : "Deployable";
   const version = stack.running?.version ?? "?";
   const runs = lanes.filter((l) => l.id !== "holds");
   const failed = runs
@@ -1346,7 +1348,7 @@ function envHeadline(
   const a = stack.availability;
   const up = a && !a.heldNow && a.since !== undefined && Number.isFinite(a.since) ? new Date(a.since).toISOString() : undefined;
   const at = stamp(up ?? stack.running?.at, now, context);
-  const head = `Deployable on ${version}${at ? ` since ${at}` : ""}`;
+  const head = `${ready} on ${version}${at ? ` since ${at}` : ""}`;
   if (failed > 0) return `${head}, after ${plural(failed, "failed attempt")} in the last day.`;
   const smoke = runs.find((l) => l.id === "smoke")?.events.filter((e) => e.state === "failed");
   const lastSmoke = smoke?.at(-1);
@@ -1356,8 +1358,8 @@ function envHeadline(
   const events = runs.flatMap((l) => l.events);
   const cancelled = events.filter((e) => e.state === "cancelled").length;
   if (cancelled > 0) return `${head}; ${plural(cancelled, "run")} cancelled in the last day.`;
-  if (events.length === 0) return `Deployable on ${version}; no lifecycle run in the last day.`;
-  return `Deployable on ${version}; every run in the last day was green.`;
+  if (events.length === 0) return `${ready} on ${version}; no lifecycle run in the last day.`;
+  return `${ready} on ${version}; every run in the last day was green.`;
 }
 
 function proofFact(model: Model, now: Date): BriefFact {
@@ -1409,11 +1411,13 @@ function envFacts(
   };
   const declares = running.sub.match(/ · declares \S+$/)?.[0] ?? "";
   const stopped = stoppedAttempts(stack).at(-1);
+  const app = context.words === "app";
+  if (app) running.sub = running.sub.replace(/^deployability\b/, "readiness").replace(/^deployable\b/, "ready");
   if (held) {
-    running.sub = `held · ${held}${declares}`;
+    running.sub = `${app ? "in maintenance" : "held"} · ${held}${declares}`;
     running.tone = "bad";
   } else if (!stack.inflight && stack.deployable.state !== "yes" && stopped) {
-    running.sub = `not deployable · ${attemptLine(stopped)}${declares}`;
+    running.sub = `${app ? "not ready" : "not deployable"} · ${attemptLine(stopped)}${declares}`;
     running.tone = "bad";
   }
   const d = deployableWords(model, now, context);

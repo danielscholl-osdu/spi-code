@@ -15,6 +15,7 @@ import {
   type Model,
   placesOf,
   sinceOf,
+  type VerdictInput,
 } from "@spi-code/core";
 import { itemAttention } from "./attention.js";
 import type { WatchInput } from "./project.js";
@@ -80,6 +81,22 @@ export function projectBriefing(
   return { briefing, horizon };
 }
 
+/** An open maintenance hold of the environment; unread lifecycle runs prove none. */
+function holdOf(model: Model, now: Date): VerdictInput["hold"] {
+  const { stack } = model;
+  const a = stack.availability;
+  if (stack.maintenance.state !== "set" && !a?.heldNow) return undefined;
+  const run = stack.inflight?.run;
+  return {
+    ms: a?.heldNow && a.since !== undefined ? now.getTime() - a.since : undefined,
+    run: run
+      ? { kind: run.kind, target: run.target !== stack.running?.version ? run.target : undefined }
+      : undefined,
+    itemId: model.queue.items.find((item) => item.kind === "stack" || item.kind === "maintenance")
+      ?.id,
+  };
+}
+
 /** Adds the places, ambient, can-wait and verdict, which read the readings and area envelopes. */
 export function settleBriefing(
   briefing: ProjectedBriefing,
@@ -109,6 +126,7 @@ export function settleBriefing(
     forks: model.lines.length,
     deployable: model.stack.deployable,
     version: model.stack.running?.version,
+    hold: holdOf(model, now),
     places,
     areas,
   });

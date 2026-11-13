@@ -3,6 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  appStyle,
   badInput,
   busyInput,
   calmInput,
@@ -15,12 +16,12 @@ process.env.TZ = "UTC";
 const verdictOf = (input: WatchInput) => projectWatch(input).briefing.verdict;
 
 describe("Today's verdict (decision.md: Headline, Calm and bad mornings)", () => {
-  it("calm: says nothing urgent, names the deployable version and every fork flowing, with ○", () => {
+  it("calm: says nothing urgent, names the ready version and every fork flowing, with ○", () => {
     const view = projectWatch(calmInput());
     const version = view.briefing.facts.find(({ label }) => label === "Environment")?.figure;
     expect(version).toMatch(/^v\d/);
     expect(view.briefing.verdict).toEqual({
-      text: `Nothing urgent needs you. ${version} is deployable; all 13 forks are flowing.`,
+      text: `Nothing urgent needs you. ${version} is ready; all 13 forks are flowing.`,
       mark: "nothing-due",
     });
   });
@@ -79,7 +80,7 @@ describe("Today's verdict (decision.md: Headline, Calm and bad mornings)", () =>
     expect(binding?.areas).toContain("fleet");
   });
 
-  it("calm with deployability unproven never claims deployable", () => {
+  it("calm with deployability unproven never claims ready", () => {
     const input = calmInput();
     const verdict = verdictOf({
       ...input,
@@ -92,8 +93,86 @@ describe("Today's verdict (decision.md: Headline, Calm and bad mornings)", () =>
       },
     });
     expect(verdict).toEqual({
-      text: "Nothing urgent needs you. The environment isn't shown deployable.",
+      text: "Nothing urgent needs you. The environment isn't shown ready.",
       mark: "in-progress",
+    });
+  });
+
+  describe("a maintenance hold leads as a line stop", () => {
+    // A refresh after the last green one set maintenance at 08:02 and never cleared it.
+    const held = (input: WatchInput, status: "failed" | "running"): WatchInput => {
+      const lifecycle = input.facts.lifecycle.data;
+      const green = lifecycle?.refresh.find((run) => run.conclusion === "success" && run.jobs);
+      if (!lifecycle || !green) throw new Error("Fixture lacks a green refresh");
+      const step = (name: string, conclusion: string | null, startedAt: string) => ({
+        name,
+        status: conclusion ? "completed" : "in_progress",
+        conclusion,
+        startedAt,
+        completedAt: conclusion ? startedAt : null,
+      });
+      const run = {
+        ...green,
+        id: 99_000_001,
+        createdAt: "2026-11-06T08:01:00Z",
+        updatedAt: "2026-11-06T08:30:00Z",
+        status: status === "running" ? "in_progress" : "completed",
+        conclusion: status === "running" ? null : "failure",
+        jobs: [
+          {
+            ...(green.jobs?.at(-1) as NonNullable<typeof green.jobs>[number]),
+            name: "refresh",
+            status: status === "running" ? "in_progress" : "completed",
+            conclusion: status === "running" ? null : "failure",
+            steps: [
+              step("Quiesce (set maintenance)", "success", "2026-11-06T08:02:00Z"),
+              step(
+                "Wait for Flux Kustomizations to be Ready",
+                status === "running" ? null : "failure",
+                "2026-11-06T08:03:00Z",
+              ),
+              step(
+                "Clear maintenance",
+                status === "running" ? null : "skipped",
+                "2026-11-06T08:30:00Z",
+              ),
+            ],
+          },
+        ],
+      } as typeof green;
+      input.facts.lifecycle.data = { ...lifecycle, refresh: [...lifecycle.refresh, run] };
+      return input;
+    };
+
+    it("with nothing running it says how long, and counts the rest as other things", () => {
+      const view = projectWatch(held(busyInput(), "failed"));
+      const items = [...view.briefing.focus, ...view.briefing.rest];
+      expect(items.filter((item) => item.attention === "interrupt").map((item) => item.id)).toEqual(
+        ["sync-run:storage", "stack:99000001"],
+      );
+      expect(view.briefing.verdict).toEqual({
+        text: "The environment has been in maintenance for 6\u00a0h, and nothing is running to clear it. 1 other thing needs you; 2 forks are stopped; 4 upstream changes need you before they land.",
+        mark: "stopped",
+      });
+      expect(projectWatch(held(calmInput(), "failed")).briefing.verdict).toEqual({
+        text: "The environment has been in maintenance for 6\u00a0h, and nothing is running to clear it.",
+        mark: "stopped",
+      });
+    });
+
+    it("with a run in flight it names the run", () => {
+      expect(verdictOf(held(calmInput(), "running"))?.text).toMatch(
+        /^The environment has been in maintenance for 6\u00a0h while a refresh runs\./,
+      );
+    });
+
+    it("with lifecycle runs unread it says nothing about a hold, and the reading says not read", () => {
+      const input = held(calmInput(), "failed");
+      delete input.facts.lifecycle.data;
+      const view = projectWatch(appStyle(input));
+      expect(view.briefing.verdict?.text).not.toMatch(/maintenance/);
+      const reading = view.readings.find(({ anchor }) => anchor.kind === "environment")?.content;
+      expect(reading?.headline).toBe("The environment is not read yet.");
     });
   });
 });

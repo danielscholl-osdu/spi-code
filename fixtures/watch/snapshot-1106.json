@@ -1967,16 +1967,16 @@
       "inspect": "upstream"
     },
     "environment": {
-      "headline": "Deployable on v0.35.3; every run in the last day was green.",
+      "headline": "Ready on v0.35.3; every run in the last day was green.",
       "facts": [
         {
           "label": "Running",
           "figure": "v0.35.3",
-          "sub": "deployable · green at 2026-11-06T04:20:36.000Z",
+          "sub": "ready · green at 2026-11-06T04:20:36.000Z",
           "tone": "ok"
         },
         {
-          "label": "Deployable · 21 days",
+          "label": "Ready · 21 days",
           "figure": "89%",
           "sub": "6 holds over an hour, 44 h 10 min in all · up since 2026-11-06T04:20:16.000Z",
           "tone": "neutral"
@@ -2992,8 +2992,8 @@
         "place": "environment",
         "mark": "nothing-due",
         "tone": "neutral",
-        "figure": "v0.35.3 deployable",
-        "line": "v0.35.3 is deployable, green since 2026-11-06T04:20:36.000Z.",
+        "figure": "v0.35.3 ready",
+        "line": "v0.35.3 is ready, green since 2026-11-06T04:20:36.000Z.",
         "areas": ["github", "lifecycle"],
         "itemIds": [],
         "fresh": {
@@ -3703,7 +3703,7 @@
         "kind": "environment"
       },
       "content": {
-        "headline": "v0.35.3 is deployable, green since 2026-11-06T04:20:36.000Z.",
+        "headline": "v0.35.3 is ready, green since 2026-11-06T04:20:36.000Z.",
         "tiles": [
           {
             "label": "Version",
@@ -3711,9 +3711,9 @@
             "counts": "running · the latest release · landed 3 h 32 min after its release"
           },
           {
-            "label": "Lane",
-            "value": "Clear",
-            "counts": "fork lanes · newest deploy passed on 13 of 13"
+            "label": "Fork deploys",
+            "value": "All passed",
+            "counts": "each fork's newest deploy to the environment"
           },
           {
             "label": "Stack repository",
