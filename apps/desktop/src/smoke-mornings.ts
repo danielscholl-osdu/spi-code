@@ -26,18 +26,19 @@ export type TodayBlock = (typeof TODAY_BLOCKS)[number];
 
 const required: Readonly<Record<Morning, readonly TodayBlock[]>> = {
   calm: ["head", "horizon", "places", "releases", "motion"],
-  busy: ["head", "band", "horizon", "places", "releases", "motion"],
-  bad: ["head", "caveat", "band", "horizon", "places", "releases"],
+  busy: ["band", "horizon", "places", "releases", "motion"],
+  bad: ["caveat", "band", "horizon", "places", "releases"],
 };
 const absent: Readonly<Record<Morning, readonly TodayBlock[]>> = {
   calm: ["caveat", "band"],
-  busy: ["caveat"],
-  bad: ["motion"],
+  busy: ["head", "caveat"],
+  bad: ["head", "motion"],
 };
+/** The verdict Today draws: only on the calm morning, whose band is empty. */
 const headlines: Readonly<Record<Morning, RegExp>> = {
   calm: /^Nothing urgent needs you\./,
-  busy: /needs you/,
-  bad: /GitHub wasn't read this sweep\./,
+  busy: /^$/,
+  bad: /^$/,
 };
 
 export const MORNING_SURFACES = MORNINGS.flatMap((morning) => [
@@ -82,6 +83,10 @@ export interface MorningEvidence {
   detail: boolean;
   sections: string[];
   headline: string;
+  /** Open Interrupts drawn on Today: the Needs you cards and the Stops the line block. */
+  interrupts: number;
+  /** The sidebar's Today count, empty when it draws none. */
+  todayCount: string;
   viewportHeight: number;
   scrollHeight: number;
   clientHeight: number;
@@ -115,6 +120,16 @@ export function assertMorningEvidence(
   assert(
     typeof evidence.headline === "string" && headlines[surface.morning].test(evidence.headline),
     `Wrong headline: ${label}`,
+  );
+  const { interrupts, todayCount } = evidence;
+  assert(typeof interrupts === "number" && interrupts >= 0, `Missing Interrupt count: ${label}`);
+  if (surface.morning === "calm")
+    assert.equal(interrupts, 0, `Interrupt on the calm morning: ${label}`);
+  else assert(interrupts > 0, `No open Interrupt drawn under the band: ${label}`);
+  assert.equal(
+    todayCount,
+    interrupts > 0 ? String(interrupts) : "",
+    `Sidebar Today count differs from the ${interrupts} Interrupts Today draws: ${label}`,
   );
   const qualifiers = shot.qualifiers;
   assert(

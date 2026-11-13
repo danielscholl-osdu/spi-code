@@ -21,10 +21,11 @@ import { Shell } from "./Shell.js";
 const internal = /\bfork_upstream\b|\bgate\s+\d+\b|\bpresses\b|\bcut\b/i;
 const machineTime = /\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}|\bUTC\b/;
 const placeholder = /not available yet|No settled threads yet|ships in M[3-9]/i;
-const headlines = '.place-headline, [data-pointer$="/headline"], .release-months td:nth-child(3)';
+const headlines =
+  '.place-headline, [data-pointer$="/headline"], .release-months td:nth-child(3), .today-stop-title';
 const titles = [
   ".place-item-title, .place-item-sub, .place-item-next, .template-line-text, .template-line-sub, .env-repo-line-text, .env-repo-line small, .env-muted, .template-repo-title, .service-row-title, .service-section-count, .service-row-sub, .detail-title, [data-field], .inspector-related dd, .palette-label, .inbox-row-title, .inbox-sub",
-  ".today-headline, .today-need-title, .today-decision-cause, .today-verb, .today-item-state",
+  ".today-headline, .today-need-title, .today-decision-cause, .today-verb, .today-item-state, .today-stop-label, .today-stop-title, .today-stop-facts dd",
   ".horizon-heading, .horizon-token, .horizon-verb",
   ".today-place-open, .today-place-figure, .today-place-reason, .today-place-caveat",
   ".today-releases-heading, .today-releases-ready, .today-release-service, .today-release-none, .today-release-value, .today-release-notable button",

@@ -419,23 +419,19 @@ function assertSmokeQualifiers(surfaceId: string, qualifiers: unknown): void {
 }
 
 /**
- * Qualifiers 2 to 5: Today's headline, the sidebar's Today count, the Needs you rows, and
- * "acknowledged <cursor> · seen <cursor> · since <n>" from the acknowledgement and the snapshot.
+ * Qualifiers 2 to 5: Today's verdict, the sidebar's Today count, the open Interrupts drawn in Needs
+ * you and Stops the line, and "acknowledged <cursor> · seen <cursor> · since <n>" from the
+ * acknowledgement and the snapshot.
  */
 function assertAcknowledgedToday(qualifiers: readonly string[]): void {
-  const [, , headline = "", pip = "", needs = "", seen = ""] = qualifiers;
+  const [, , verdict = "", pip = "", open = "", seen = ""] = qualifiers;
   assert(
     /^acknowledged (\d+) · seen \1 · since 0$/.test(seen),
     `Today is not after an acknowledgement with nothing new: ${seen}`,
   );
-  assert(
-    !/no new interruptions|nothing (new|urgent)/i.test(headline),
-    `Headline claims nothing open while an Interrupt is: ${headline}`,
-  );
-  const open = /^(\d+) things? needs? you\b/.exec(headline)?.[1];
-  assert(open && Number(open) > 0, `Missing still-open headline: ${headline}`);
-  assert.equal(pip, open, `Sidebar Today count ${pip} differs from the headline's ${open}`);
-  assert.equal(needs, open, `Needs you holds ${needs}; the headline names ${open}`);
+  assert.equal(verdict, "", `Today draws a verdict above its band: ${verdict}`);
+  assert(Number(open) > 0, `No still-open Interrupt drawn: ${open}`);
+  assert.equal(pip, open, `Sidebar Today count ${pip} differs from the ${open} Interrupts drawn`);
 }
 
 export function assertSmokeViews(value: unknown): asserts value is SmokeShot[] {

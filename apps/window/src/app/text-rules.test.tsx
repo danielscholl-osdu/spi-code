@@ -343,6 +343,12 @@ it.each([
   ["emoji", '<span class="today-place-reason">🚨 Release blocked</span>'],
   ["emoji", '<li class="today-release-notable"><button>🔧 Fix the build</button></li>'],
   ["emoji", '<span class="today-motion-text">🔧 Fix the build</span>'],
+  ["emoji", '<button class="today-stop-title">🚨 v0.28.0 is in maintenance.</button>'],
+  ["emoji", '<dl class="today-stop-facts"><div><dt>Why</dt><dd>🔧 Fix it</dd></div></dl>'],
+  [
+    "headline",
+    '<button class="today-stop-title">One two three four five six seven eight nine ten eleven twelve thirteen</button>',
+  ],
   ["action", "<button>Open in inspector · Investigate, then Dispatch cascade</button>"],
   ["time", "<p>swept 2026-11-06T14:02:00Z</p>"],
   ["time", "<p>at 2026-10-12 21:58 UTC</p>"],

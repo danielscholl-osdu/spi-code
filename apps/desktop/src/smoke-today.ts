@@ -162,8 +162,11 @@ export async function captureMornings(
           };
         })()`);
         const geometry = [await context.measure("window"), platformGeometry];
-        const [headline, ...qualifiers]: string[] = await window.webContents.executeJavaScript(`[
+        const [headline, interrupts, todayCount, ...qualifiers]: string[] =
+          await window.webContents.executeJavaScript(`[
           document.querySelector(".today-headline")?.textContent.trim() ?? "",
+          String(document.querySelectorAll(".today .today-needs .today-need, .today .today-stop").length),
+          document.querySelector('ul[aria-label="Today"] .sidebar-pip')?.textContent.trim() ?? "",
           document.getElementById(document.querySelector("[data-sweep-line]")?.getAttribute("aria-labelledby") ?? "")?.textContent ?? "",
           document.querySelector("main .today-caveat")?.innerText?.replace(/\\s+/g, " ").trim() ?? ""
         ]`);
@@ -190,6 +193,8 @@ export async function captureMornings(
             detail: surface.detail,
             sections: morningSections(surface.morning, surface.detail, viewportWidth),
             headline: headline ?? "",
+            interrupts: Number(interrupts),
+            todayCount: todayCount ?? "",
             viewportHeight: page.height,
             scrollHeight: page.scrollHeight,
             clientHeight: page.clientHeight,

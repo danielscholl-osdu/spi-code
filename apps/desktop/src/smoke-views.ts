@@ -923,7 +923,7 @@ export async function captureSmokeViews(
               ...(await window.webContents.executeJavaScript(`[
                 document.querySelector(".today .today-headline")?.textContent.trim() ?? "",
                 document.querySelector('ul[aria-label="Today"] .sidebar-pip')?.textContent.trim() ?? "",
-                String(document.querySelectorAll(".today .today-needs .today-need").length)
+                String(document.querySelectorAll(".today .today-needs .today-need, .today .today-stop").length)
               ]`)),
               seen,
             );

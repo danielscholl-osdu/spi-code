@@ -23,8 +23,8 @@ function Slot({ name, children }: { name: keyof TodaySlots; children: ReactNode 
 }
 
 /**
- * Today top to bottom: the verdict and since pips, the caveat band, the attention band, On the
- * horizon, the place cards, then Releases beside In motion.
+ * Today top to bottom: the verdict when there is one to draw, the caveat band, the attention band,
+ * On the horizon, the place cards, then Releases beside In motion.
  */
 export function TodayFrame({
   sweptAt,
@@ -48,7 +48,7 @@ export function TodayFrame({
         </time>
       </header>
       <section ref={frame} className="place-reading today-frame" aria-label="Today reading">
-        <div className="today-head">{head}</div>
+        {head && <div className="today-head">{head}</div>}
         {caveat}
         <Slot name="band">{slots.band}</Slot>
         <Slot name="horizon">{slots.horizon}</Slot>

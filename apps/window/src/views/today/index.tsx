@@ -18,7 +18,6 @@ import { Horizon } from "./Horizon.js";
 import { motionSlot } from "./InMotion.js";
 import { Places } from "./Places.js";
 import { releasesSlot } from "./Releases.js";
-import { Since } from "./Since.js";
 import { Verdict } from "./Verdict.js";
 import "./today.css";
 
@@ -123,10 +122,9 @@ export default function Today({
       <TodayFrame
         sweptAt={body.sweptAt}
         head={
-          <>
+          bandHolds(body) || !body.briefing.verdict ? null : (
             <Verdict verdict={body.briefing.verdict} />
-            <Since snapshot={body} onOpenEvidence={openEvidence} />
-          </>
+          )
         }
         caveat={
           <CaveatBand

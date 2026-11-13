@@ -128,3 +128,8 @@ The renderer's turn spike is a headless test harness in `apps/window/src/index.t
 enabled only by `window.spi.proof` for packaged smoke and live proof runs. No page
 renders a turn panel or composer; the harness still pings the host and starts one
 turn per renderer load when the model catalog arrives.
+Today draws the verdict only when its band is empty, so the busy, bad and acknowledged
+captures read no headline; they count the open Interrupts as the Needs you cards plus
+the Stops the line block and hold that count equal to the sidebar's Today count.
+None of the smoke mornings holds the environment, so no packaged capture draws the
+block; feed the packaged app a morning whose Held lane names an Interrupt to see it.

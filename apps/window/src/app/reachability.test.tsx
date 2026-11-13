@@ -79,6 +79,17 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
     expect(uncoveredRoutes(DEFAULT_REGISTRY, cases)).toEqual([]);
   });
 
+  it("exempts briefing.since by name, and the verdict only while the band is drawn", () => {
+    const verdict = ["/briefing/verdict/text", "/briefing/verdict/mark"];
+    expect(EXEMPTIONS["since-undrawn"]?.reason).toMatch(/^spicode-f0s\.47: /);
+    const recorded = coverage(fixture(), []).uncovered;
+    expect(recorded.filter((pointer) => pointer.startsWith("/briefing/since/"))).toEqual([]);
+    expect(recorded.filter((pointer) => verdict.includes(pointer))).toEqual([]);
+    const calm = coverage(structuredClone(calmSnapshot), []).uncovered;
+    expect(calm.filter((pointer) => verdict.includes(pointer))).toEqual(verdict);
+    expect(cases.filter(({ pointer }) => verdict.includes(pointer))).toEqual([]);
+  });
+
   it("has shared fields to compare", () => {
     expect(pairs.size).toBeGreaterThan(0);
   });

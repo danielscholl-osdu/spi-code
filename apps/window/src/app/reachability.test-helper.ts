@@ -9,6 +9,8 @@ import { clockTime, instantsIn, timedText } from "../time.js";
 import { runningFactHome } from "../views/environment/running-fact.js";
 import { eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
 import { releaseSectionCases } from "../views/releases/reachability.test-helper.js";
+import { bandHolds } from "../views/today/Band.js";
+import { lineStop } from "../views/today/LineStop.js";
 import { todayReleasesCases } from "../views/today/releases.test-helper.js";
 import { lensFields } from "./lens-fields.test-helper.js";
 import type { Destination, Registry, Route } from "./navigation.js";
@@ -237,49 +239,10 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
   });
 
   const verdict = briefing.verdict;
-  if (verdict) {
+  if (verdict && !bandHolds(snapshot)) {
     add("/briefing/verdict/text", verdict.text, TODAY, ".today-verdict .today-headline");
     add("/briefing/verdict/mark", verdict.mark, TODAY, ".today-verdict", {
       attribute: "data-mark",
-    });
-  }
-  const since = briefing.since;
-  if (since) {
-    add("/briefing/since/basis", since.basis, TODAY, ".today-since", { attribute: "data-basis" });
-    const basis = ".today-since-basis";
-    if (since.asOf) {
-      add("/briefing/since/asOf", since.asOf, TODAY, `${basis} time`, { attribute: "dateTime" });
-      add("/briefing/since/from", clockTime(since.from, { hint: false }), TODAY, basis, {
-        attribute: "title",
-        contains: true,
-      });
-    } else
-      add("/briefing/since/from", since.from, TODAY, `${basis} time`, { attribute: "dateTime" });
-    since.rows.forEach((row, index) => {
-      const pointer = `/briefing/since/rows/${index}`;
-      const div = `.today-since-row:nth-of-type(${index + 1})`;
-      add(`${pointer}/workflow`, row.workflow, TODAY, div, { attribute: "data-workflow" });
-      add(`${pointer}/label`, row.label, TODAY, `${div} .kit-slot-row-label`);
-      add(`${pointer}/countText`, row.countText, TODAY, `${div} .kit-slot-row-count`);
-      row.slots.forEach((slot, at) => {
-        const pip = `${div} .kit-slot:nth-child(${at + 1})`;
-        add(`${pointer}/slots/${at}/text`, slot.text, TODAY, pip, { attribute: "aria-label" });
-        add(`${pointer}/slots/${at}/service`, slot.service, TODAY, pip, {
-          attribute: "aria-label",
-          contains: true,
-        });
-        add(`${pointer}/slots/${at}/state`, slot.state, TODAY, pip, {
-          read: (element) =>
-            [...element.classList]
-              .find((name) => name.startsWith("kit-slot--") && name !== "kit-slot--upstream")
-              ?.slice("kit-slot--".length) ?? "",
-        });
-        if (slot.origin)
-          add(`${pointer}/slots/${at}/origin`, slot.origin, TODAY, pip, {
-            read: (element) =>
-              element.classList.contains("kit-slot--upstream") ? "upstream" : "system",
-          });
-      });
     });
   }
 
@@ -906,8 +869,23 @@ export function bandCases(snapshot: ViewSnapshot): Reach[] {
   const known = new Set(treeServices(snapshot.tree));
   const themes = new Set(briefing.themes.map(({ id }) => id));
   const place = (service: string): Route => ({ kind: "service", id: service });
+  const stop = lineStop(snapshot)?.item;
   for (const [pointer, item] of items) {
     if (item.attention !== "interrupt") continue;
+    if (item.id === stop?.id) {
+      const block = `${band} .today-stop[data-item-id=${quote(item.id)}]`;
+      const detail = { click: `${block} .today-verb`, detail: item.id };
+      add(`${pointer}/verb`, item.verb, TODAY, `${block} .today-verb`, {
+        read: verbOf,
+        opens: detail,
+      });
+      if (item.blocks) {
+        const chip = `${block} .today-stop-blocks .kit-chip`;
+        add(`${pointer}/blocks/text`, item.blocks.text, TODAY, chip);
+        add(`${pointer}/blocks/count`, item.blocks.count, TODAY, chip, { contains: true });
+      }
+      continue;
+    }
     const card = `${band} li.today-need[data-item-id=${quote(item.id)}]`;
     const title = `${card} .today-need-title`;
     const detail = { click: title, detail: item.id };
@@ -1293,6 +1271,25 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
   "evidence-label": {
     patterns: ["/briefing/focus/#/evidence/#/label", "/briefing/rest/#/evidence/#/label"],
     reason: "spicode-t1k.218: item evidence links render on no surface",
+  },
+  "since-undrawn": {
+    patterns: [
+      "/briefing/since/basis",
+      "/briefing/since/from",
+      "/briefing/since/rows/#/workflow",
+      "/briefing/since/rows/#/label",
+      "/briefing/since/rows/#/countText",
+      "/briefing/since/rows/#/slots/#/service",
+      "/briefing/since/rows/#/slots/#/state",
+      "/briefing/since/rows/#/slots/#/text",
+    ],
+    reason:
+      "spicode-f0s.47: briefing.since stays in the contract and no surface draws it (PS-03; spicode-eib ruling R2)",
+  },
+  "verdict-with-band": {
+    patterns: ["/briefing/verdict/text", "/briefing/verdict/mark"],
+    reason: "Today draws the verdict only when the attention band is empty (PS-03)",
+    when: (_value, { snapshot }) => bandHolds(snapshot),
   },
   "briefing-voice": {
     patterns: ["/briefing/headline", "/briefing/summary", "/briefing/doctor/state"],

@@ -13,11 +13,11 @@ import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import november6 from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
-import { SLOT_STATES } from "../../components/kit/Slot.js";
 import { createSelectionStore } from "../../panels/selection.js";
 import { createWatchStore } from "../../store/watch.js";
 import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { clockTime, dayLine } from "../../time.js";
+import { bandHolds } from "./Band.js";
 import Today from "./index.js";
 
 const bad = watchFixtureText("snapshot-bad.json", readFixture);
@@ -67,41 +67,6 @@ const clock = (at: string) => clockTime(at, { hint: false });
 const GLYPH = { stopped: "✕", "needs-person": "!", "in-progress": "◐", "nothing-due": "○" };
 
 describe.each(NAMES)("on the %s morning", (name) => {
-  it("draws core's verdict with its mark, and since rows with a legend of drawn states only", async () => {
-    const body = morning(name);
-    const { verdict, since } = body.briefing;
-    if (!verdict || !since) throw new Error(`${name} carries no verdict or since rows`);
-    const { container } = await mount(body);
-    const head = container.querySelector(".today-verdict");
-    expect(head?.querySelector(".today-headline")?.textContent).toBe(verdict.text);
-    expect(head?.getAttribute("data-mark")).toBe(verdict.mark);
-    expect(head?.querySelectorAll(".kit-mark")).toHaveLength(1);
-    expect(head?.querySelector(".kit-mark")?.textContent).toBe(GLYPH[verdict.mark]);
-
-    const rows = [...container.querySelectorAll(".today-since-row")];
-    expect(rows.map((row) => row.getAttribute("data-workflow"))).toEqual(
-      since.rows.map(({ workflow }) => workflow),
-    );
-    expect(texts(container, ".today-since .kit-slot-row-label")).toEqual(
-      since.rows.map(({ label }) => label),
-    );
-    expect(texts(container, ".today-since .kit-slot-row-count")).toEqual(
-      since.rows.map(({ countText }) => countText),
-    );
-    rows.forEach((row, index) => {
-      expect(
-        [...row.querySelectorAll(".kit-slot")].map((slot) => slot.getAttribute("aria-label")),
-      ).toEqual(since.rows[index]?.slots.map(({ text }) => text));
-    });
-    const drawn = new Set(since.rows.flatMap(({ slots }) => slots.map(({ state }) => state)));
-    expect(container.querySelectorAll(".today-since .kit-slot-legend")).toHaveLength(1);
-    expect(
-      [...container.querySelectorAll(".today-since .kit-slot-legend [data-state]")].map((entry) =>
-        entry.getAttribute("data-state"),
-      ),
-    ).toEqual(SLOT_STATES.filter((state) => drawn.has(state)));
-  });
-
   it("dates the page by its sweep only and keeps the frame in briefing order", async () => {
     const body = morning(name);
     const { container } = await mount(body);
@@ -111,7 +76,8 @@ describe.each(NAMES)("on the %s morning", (name) => {
     expect(date?.textContent).toMatch(/^[A-Z][a-z]+day \d{1,2} [A-Z][a-z]{2}$/);
     const frame = container.querySelector(".today .place-reading.today-frame");
     expect(frame).not.toBeNull();
-    expect(frame?.firstElementChild?.className).toBe("today-head");
+    if (bandHolds(body)) expect(frame?.querySelector(".today-head")).toBeNull();
+    else expect(frame?.firstElementChild?.className).toBe("today-head");
     const order = ["band", "horizon", "places", "releases", "motion"];
     const slots = [...(frame?.querySelectorAll(".today-slot") ?? [])].map((slot) =>
       order.indexOf(slot.getAttribute("data-today-slot") ?? ""),
@@ -224,64 +190,73 @@ describe("the caveat band", () => {
   );
 });
 
-it("marks since pips held from a kept read with the oldest last good time, and opens Evidence", async () => {
-  const body = morning("bad");
-  const github = body.areas.find(({ area }) => area === "github")?.envelope;
-  if (github?.state !== "failed" || !github.observedAt) throw new Error("bad keeps no github read");
-  const { container, onOpenEvidence } = await mount(body);
-  const held = container.querySelector<HTMLButtonElement>(".today-since .today-held");
-  expect(held?.textContent).toBe(`⌀ from ${clock(github.observedAt)}`);
-  expect(held?.querySelector("time")?.getAttribute("dateTime")).toBe(github.observedAt);
-  expect(held?.title).toContain("GitHub issues and PRs · read failed");
-  await act(async () => held?.click());
-  expect(onOpenEvidence).toHaveBeenCalledOnce();
+const VERDICT_GONE = ".today-head, .today-verdict, .today-since, .today-band-mark, .today-held";
 
-  for (const name of ["calm", "busy", "snapshot-1106"] as const) {
-    const fresh = await mount(morning(name));
-    expect(fresh.container.querySelector(".today-held")).toBeNull();
-  }
-  const unread = morning("calm");
-  const runs = unread.areas.find(({ area }) => area === "runs");
-  if (!runs) throw new Error("calm carries no runs area");
-  runs.envelope = { source: "runs", state: "unread" };
-  const notRead = await mount(unread);
-  expect(notRead.container.querySelector(".today-held")?.textContent).toBe("⌀ not read");
-});
+/** The calm morning with one of busy's Interrupts, so its band is drawn. */
+function calmWithBand() {
+  const body = morning("calm");
+  const [item] = morning("busy").briefing.focus.filter(
+    ({ attention }) => attention === "interrupt",
+  );
+  if (!item) throw new Error("busy carries no Interrupt");
+  body.briefing.focus.push(item);
+  return body;
+}
 
-it("labels the since window from core's basis, with 24 h only for the fallback", async () => {
-  const body = morning("snapshot-1106");
-  const since = body.briefing.since;
-  if (!since) throw new Error("1106 carries no since rows");
-  const chip = (container: Element) => container.querySelector(".today-since-basis time");
-  const cases = [
-    [{ ...since, basis: "fallback" as const }, "24 h", since.from],
-    [{ ...since, basis: "seen" as const }, `since ${clock(since.from)}`, since.from],
-    [{ ...since, basis: "history-short" as const }, `since ${clock(since.from)}`, since.from],
-    [
-      { ...since, basis: "stale" as const, asOf: body.sweptAt },
-      `as of ${clock(body.sweptAt)}`,
-      body.sweptAt,
-    ],
-  ] as const;
-  for (const [basis, label, time] of cases) {
-    const { container } = await mount({ ...body, briefing: { ...body.briefing, since: basis } });
-    expect(container.querySelector(".today-since")?.getAttribute("data-basis")).toBe(basis.basis);
-    expect(chip(container)?.textContent).toBe(label);
-    expect(chip(container)?.getAttribute("dateTime")).toBe(time);
-  }
-});
-
-it("draws no mark and no since rows when core sends neither, never a calm mark", async () => {
+/** The busy morning with nothing in its band. */
+function busyWithoutBand() {
   const body = morning("busy");
-  delete body.briefing.verdict;
-  delete body.briefing.since;
-  const { container } = await mount(body);
-  expect(
-    container.querySelector(
-      ".today-head .today-verdict, .today-head .kit-mark, .today-head .today-since",
-    ),
-  ).toBeNull();
-  expect(container.querySelector(".today-frame")).not.toBeNull();
+  for (const item of [...body.briefing.focus, ...body.briefing.rest])
+    if (item.attention === "interrupt") item.attention = "surface";
+  if (!body.briefing.decisions || !body.briefing.ambient) throw new Error("busy is incomplete");
+  body.briefing.decisions = { items: 0, text: "", groups: [] };
+  body.briefing.ambient.failing = { items: 0, text: "", lines: [] };
+  return body;
+}
+
+describe("the verdict", () => {
+  it.each([
+    ["calm", () => morning("calm")],
+    ["busy with its band emptied", busyWithoutBand],
+  ] as const)("is drawn with its mark on the %s morning, whose band is empty", async (_, make) => {
+    const body = make();
+    const { verdict } = body.briefing;
+    if (!verdict) throw new Error("the morning carries no verdict");
+    const { container } = await mount(body);
+    expect(container.querySelector(".today-band")).toBeNull();
+    const head = container.querySelector(".today-frame > .today-head > .today-verdict");
+    expect(head?.querySelector(".today-headline")?.textContent).toBe(verdict.text);
+    expect(head?.getAttribute("data-mark")).toBe(verdict.mark);
+    expect(head?.querySelectorAll(".kit-mark")).toHaveLength(1);
+    expect(head?.querySelector(".kit-mark")?.textContent).toBe(GLYPH[verdict.mark]);
+    expect(container.querySelector(".today-since, .today-band-mark")).toBeNull();
+  });
+
+  it.each([
+    ["busy", () => morning("busy")],
+    ["calm with an Interrupt", calmWithBand],
+  ] as const)(
+    "and the since rows and place marks are not drawn on the %s morning, whose band is",
+    async (_, make) => {
+      const body = make();
+      expect(body.briefing.verdict).toBeDefined();
+      expect(body.briefing.since?.rows.length).toBeGreaterThan(0);
+      const { container } = await mount(body);
+      expect(container.querySelector(".today-band")).not.toBeNull();
+      expect(container.querySelector(VERDICT_GONE)).toBeNull();
+      expect(container.querySelector(".today-frame")?.textContent).not.toContain(
+        body.briefing.verdict?.text,
+      );
+    },
+  );
+
+  it("draws no head and no mark when core sends no verdict, never a calm mark", async () => {
+    const body = morning("calm");
+    delete body.briefing.verdict;
+    const { container } = await mount(body);
+    expect(container.querySelector(`${VERDICT_GONE}, .today-frame > .kit-mark`)).toBeNull();
+    expect(container.querySelector(".today-frame")).not.toBeNull();
+  });
 });
 
 it.each(NAMES)(

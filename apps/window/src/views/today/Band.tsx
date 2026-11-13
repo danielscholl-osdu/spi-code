@@ -5,14 +5,12 @@ import type {
   AmbientLine,
   LineStation as CoreStation,
   DecisionGroup,
-  PlaceId,
-  Mark as PlaceMark,
   ViewSnapshot,
   WatchItem,
 } from "@spi-code/contracts";
-import { useRef } from "react";
+import { type ReactNode, useRef } from "react";
 import { useStore } from "zustand";
-import { type Destination, LINE, navigate } from "../../app/navigation.js";
+import { type Destination, navigate } from "../../app/navigation.js";
 import { treeServices } from "../../app/queue.js";
 import {
   AgeChip,
@@ -23,28 +21,14 @@ import {
   UpstreamChip,
 } from "../../components/kit/Chip.js";
 import { LineGlyph, LineGlyphLegend, type LineStation } from "../../components/kit/LineGlyph.js";
-import { Mark, type MarkTier } from "../../components/kit/Mark.js";
 import { type SelectionStore, selectionStore } from "../../panels/selection.js";
 import { selectionRows, todayGroupRow } from "../../panels/selection-rows.js";
 import { plainTitle } from "../../text.js";
 import { TimedText, timedText } from "../../time.js";
 import { More, useFold } from "./folding.js";
+import { LineStop, lineStop } from "./LineStop.js";
 import { interruptsOf } from "./selectors.js";
 import "./band.css";
-
-const TIER: Readonly<Record<PlaceMark, MarkTier>> = {
-  stopped: "interrupt",
-  "needs-person": "surface",
-  "in-progress": "ambient",
-  "nothing-due": "background",
-};
-
-const PLACE: Readonly<Record<PlaceId, { name: string; to: Destination }>> = {
-  line: { name: "Line", to: LINE },
-  environment: { name: "Environment", to: { kind: "environment" } },
-  engineering: { name: "Engineering", to: { kind: "engineering-system" } },
-  security: { name: "Security", to: { kind: "security" } },
-};
 
 const STATION: Readonly<Record<CoreStation, LineStation>> = {
   sync: "sync-pr",
@@ -126,13 +110,27 @@ function NeedCard({ item, open }: { item: WatchItem; open: Open }) {
   );
 }
 
-function NeedsYou({ items, open }: { items: readonly WatchItem[]; open: Open }) {
+function NeedsYou({
+  items,
+  open,
+  services,
+  chip,
+}: {
+  items: readonly WatchItem[];
+  open: Open;
+  services: boolean;
+  chip: ReactNode;
+}) {
   if (items.length === 0) return null;
   return (
     <div className="today-band-group today-needs" data-group="needs">
-      <h3 className="today-band-heading">
-        Needs you <span className="today-band-count">· {items.length}</span>
-      </h3>
+      <div className="today-band-headline">
+        <h3 className="today-band-heading">
+          {services ? "Needs you · services" : "Needs you"}{" "}
+          <span className="today-band-count">· {items.length}</span>
+        </h3>
+        {chip}
+      </div>
       <ul className="today-band-list">
         {items.map((item) => (
           <NeedCard key={item.id} item={item} open={open} />
@@ -327,48 +325,17 @@ function Failing({ snapshot, open }: { snapshot: ViewSnapshot; open: Open }) {
   );
 }
 
-function BandTop({
-  snapshot,
-  onHorizon,
-  onPlace,
-}: {
-  snapshot: ViewSnapshot;
-  onHorizon: () => void;
-  onPlace: (to: Destination) => void;
-}) {
-  const counts = snapshot.briefing.horizon.counts;
-  const places = snapshot.briefing.places ?? [];
+/** The "n upstream need you first" chip, which scrolls to On the horizon; nothing when none do. */
+function upstreamFirst({ briefing }: ViewSnapshot, onOpen: () => void): ReactNode {
+  const counts = briefing.horizon.counts;
   const need = counts?.needYouCards ?? 0;
-  if (need === 0 && places.length === 0) return null;
+  if (!counts || need === 0) return null;
   return (
-    <div className="today-band-top">
-      {counts && need > 0 && (
-        <UpstreamChip
-          label={`${need} upstream need you first`}
-          text={plainTitle(counts.text)}
-          onOpen={onHorizon}
-        />
-      )}
-      {places.length > 0 && (
-        <span className="today-band-marks">
-          {places.map((row) => (
-            <button
-              key={row.place}
-              type="button"
-              className="today-band-mark"
-              data-place={row.place}
-              data-mark={row.mark}
-              title={timedText(plainTitle(row.line), { hint: false })}
-              aria-label={`${PLACE[row.place].name}: ${timedText(plainTitle(row.line), { hint: false })}`}
-              onClick={() => onPlace(PLACE[row.place].to)}
-            >
-              <Mark tier={TIER[row.mark]} />
-              <span className="today-band-mark-name">{PLACE[row.place].name}</span>
-            </button>
-          ))}
-        </span>
-      )}
-    </div>
+    <UpstreamChip
+      label={`${need} upstream need you first`}
+      text={plainTitle(counts.text)}
+      onOpen={onOpen}
+    />
   );
 }
 
@@ -382,8 +349,8 @@ export function bandHolds({ briefing }: Pick<ViewSnapshot, "briefing">): boolean
 }
 
 /**
- * What asks for the operator: every Interrupt in Needs you, the in-system Surface decisions and the
- * Failing run. Drawn only when one of them holds something.
+ * What asks for the operator: a stop of the shared environment, every other Interrupt in Needs you,
+ * the in-system Surface decisions and the Failing run. Drawn only when one of them holds something.
  */
 export function AttentionBand({
   snapshot,
@@ -398,7 +365,10 @@ export function AttentionBand({
   const selected = useStore(inspector, (state) => state.selected);
   const { briefing } = snapshot;
   if (!bandHolds(snapshot)) return null;
-  const needs = interruptsOf(briefing).sort((a, b) => a.rung - b.rung);
+  const stop = lineStop(snapshot);
+  const needs = interruptsOf(briefing)
+    .filter((item) => item !== stop?.item)
+    .sort((a, b) => a.rung - b.rung);
   const decisions = briefing.decisions?.groups.length ?? 0;
   const open: Open = {
     select(id) {
@@ -415,17 +385,28 @@ export function AttentionBand({
       ?.closest(".today-frame")
       ?.querySelector('[data-today-slot="horizon"]')
       ?.scrollIntoView({ block: "start" });
+  const chip = upstreamFirst(snapshot, toHorizon);
   const paired = needs.length > 0 && decisions > 0;
   return (
-    <section
-      ref={band}
-      className="today-band card"
-      aria-label="Needs your attention, in your system"
-    >
-      <BandTop snapshot={snapshot} onHorizon={toHorizon} onPlace={onNavigate} />
+    <section ref={band} className="today-band" aria-label="Needs your attention, in your system">
+      {needs.length === 0 && chip && <div className="today-band-top">{chip}</div>}
+      {stop && (
+        <LineStop
+          snapshot={snapshot}
+          stop={stop}
+          selected={selected === stop.item.id}
+          onSelect={open.select}
+          onOpenPlace={() => onNavigate({ kind: "environment" })}
+        />
+      )}
       {(needs.length > 0 || decisions > 0) && (
         <div className={paired ? "today-band-grid" : "today-band-grid today-band-one"}>
-          <NeedsYou items={needs} open={open} />
+          <NeedsYou
+            items={needs}
+            open={open}
+            services={stop !== undefined && needs.every(({ scope }) => open.known.has(scope))}
+            chip={chip}
+          />
           <DecisionsWaiting snapshot={snapshot} open={open} />
         </div>
       )}

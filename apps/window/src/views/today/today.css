@@ -32,24 +32,6 @@
   line-height: 1.35;
   text-wrap: balance;
 }
-.today-since {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 24px;
-  margin: 10px 0 0 28px;
-}
-.today-since .kit-slot-row-label,
-.today-since .kit-slot-row-count {
-  color: var(--text-muted);
-  font-size: 11.5px;
-}
-.today-held {
-  border: 0;
-  font: inherit;
-  font-size: 11px;
-  cursor: pointer;
-}
 .today-caveat {
   display: flex;
   align-items: baseline;

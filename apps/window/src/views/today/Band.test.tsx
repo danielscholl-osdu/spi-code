@@ -1,13 +1,13 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { readFileSync } from "node:fs";
 import { type ViewSnapshot, ViewSnapshotSchema, type WatchItem } from "@spi-code/contracts";
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import november6 from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
-import { LINE } from "../../app/navigation.js";
 import { treeServices } from "../../app/queue.js";
 import { createSelectionStore } from "../../panels/selection.js";
 import { createWatchStore } from "../../store/watch.js";
@@ -96,14 +96,14 @@ describe("the attention band", () => {
     expect(container.querySelector(".today-band")).toBeNull();
   });
 
-  it("sits in Today's band slot, after the head and caveat, on the busy morning", async () => {
+  it("sits in Today's band slot at the top of the frame, with no verdict above it, on the busy morning", async () => {
     const body = morning("busy");
     const store = createWatchStore(vi.fn(), createSelectionStore({ postMessage: vi.fn() }));
     store.setState({ snapshot: { cursor: body.cursor, body } });
     const today = await render(<Today store={store} />);
     const slot = today.querySelector('.today-frame > [data-today-slot="band"]');
     expect(slot?.firstElementChild?.classList.contains("today-band")).toBe(true);
-    expect(slot?.previousElementSibling?.className).toBe("today-head");
+    expect(slot?.previousElementSibling).toBeNull();
   });
 
   it("draws Needs you, Decisions waiting and Failing from core on the busy morning, in that order", async () => {
@@ -116,7 +116,6 @@ describe("the attention band", () => {
       "decisions",
       "failing",
     ]);
-    expect(container.querySelector(".today-band")?.classList.contains("card")).toBe(true);
     expect(container.querySelectorAll(".today-band section")).toHaveLength(0);
 
     const [storage] = interrupts(body);
@@ -172,30 +171,46 @@ describe("the attention band", () => {
     expect(container.querySelectorAll(".today-failing .kit-line-legend")).toHaveLength(1);
   });
 
-  it("carries the four place marks and the upstream chip in its heading row", async () => {
+  it("has no frame of its own and draws no place marks", async () => {
+    const body = morning("busy");
+    const { container } = await band(body);
+    const section = container.querySelector(".today-band");
+    expect(section?.classList.contains("card")).toBe(false);
+    const css = readFileSync("apps/window/src/views/today/band.css", "utf8");
+    const rule = /(?:^|\n)\.today-band \{([^}]*)\}/.exec(css)?.[1];
+    expect(rule).toBeDefined();
+    expect(rule).not.toMatch(/\b(border|background|box-shadow|padding)\b/);
+    expect(container.querySelector(".today-band-mark, .today-band-marks, .kit-mark")).toBeNull();
+  });
+
+  it("puts the upstream chip on the Needs you heading line, and above the band only without Needs you", async () => {
     const body = morning("busy");
     const counts = body.briefing.horizon.counts;
     if (!counts) throw new Error("busy carries no horizon counts");
     const { container } = await band(body);
-    const marks = [...container.querySelectorAll(".today-band-top .today-band-mark")];
-    expect(marks.map((mark) => mark.getAttribute("data-place"))).toEqual(
-      body.briefing.places?.map(({ place }) => place),
-    );
-    expect(marks.map((mark) => mark.getAttribute("data-mark"))).toEqual(
-      body.briefing.places?.map(({ mark }) => mark),
-    );
-    expect(marks.map((mark) => mark.getAttribute("title"))).toEqual(
-      body.briefing.places?.map(({ line }) => timedText(line, { hint: false })),
-    );
-    const chip = container.querySelector(".today-band-top .kit-chip--upstream");
+    const line = container.querySelector(".today-needs .today-band-headline");
+    const chip = line?.querySelector(":scope > .kit-chip--upstream");
+    expect(line?.querySelector(".today-band-heading")?.textContent).toBe("Needs you · 1");
     expect(chip?.textContent).toBe(`⇣${counts.needYouCards} upstream need you first`);
     expect(chip?.getAttribute("title")).toBe(counts.text);
+    expect(container.querySelectorAll(".kit-chip--upstream")).toHaveLength(1);
+    expect(container.querySelector(".today-band-top")).toBeNull();
+
+    const noNeeds = morning("busy");
+    for (const item of [...noNeeds.briefing.focus, ...noNeeds.briefing.rest])
+      if (item.attention === "interrupt") item.attention = "surface";
+    const top = await band(noNeeds);
+    expect(top.container.querySelector(".today-needs")).toBeNull();
+    expect(
+      top.container.querySelector(".today-band > .today-band-top > .kit-chip--upstream")
+        ?.textContent,
+    ).toBe(`⇣${counts.needYouCards} upstream need you first`);
 
     const quiet = morning("busy");
     if (!quiet.briefing.horizon.counts) throw new Error("busy carries no horizon counts");
     quiet.briefing.horizon.counts.needYouCards = 0;
     const none = await band(quiet);
-    expect(none.container.querySelector(".today-band-top .kit-chip--upstream")).toBeNull();
+    expect(none.container.querySelector(".kit-chip--upstream, .today-band-top")).toBeNull();
   });
 
   it("shows all three Interrupts on the bad morning, P0 first, with the upstream one in Needs you", async () => {
@@ -222,7 +237,10 @@ describe("the attention band", () => {
 
   it("draws a blocks chip only on the Interrupt core says open work waits on", async () => {
     const body = morning("recorded");
+    for (const event of body.briefing.environment.lanes.flatMap(({ events }) => events))
+      delete event.inspect;
     const { container } = await band(body);
+    expect(container.querySelector(".today-stop")).toBeNull();
     const stack = interrupts(body).find(({ blocks }) => blocks);
     const rest = interrupts(body).filter((item) => item !== stack);
     if (!stack?.blocks) throw new Error("the recorded sweep carries no Interrupt that blocks");
@@ -337,21 +355,6 @@ describe("the attention band's openers", () => {
     expect(inspector.getState().selected).toBe(line.pr.inspect);
   });
 
-  it("opens each place from its mark", async () => {
-    const body = morning("busy");
-    const { onNavigate, click } = await band(body);
-    const to = {
-      line: LINE,
-      environment: { kind: "environment" },
-      engineering: { kind: "engineering-system" },
-      security: { kind: "security" },
-    };
-    for (const { place } of body.briefing.places ?? []) {
-      await click(`.today-band-mark[data-place="${place}"]`);
-      expect(onNavigate).toHaveBeenLastCalledWith(to[place]);
-    }
-  });
-
   it("scrolls to the horizon slot from the upstream chip, and does nothing before it is drawn", async () => {
     const body = morning("busy");
     const drawn = await band(body, true);
@@ -359,10 +362,10 @@ describe("the attention band's openers", () => {
     if (!horizon) throw new Error("no horizon slot");
     const scroll = vi.fn();
     horizon.scrollIntoView = scroll;
-    await drawn.click(".today-band-top .kit-chip--upstream");
+    await drawn.click(".today-needs .kit-chip--upstream");
     expect(scroll).toHaveBeenCalledWith({ block: "start" });
     const bare = await band(body);
-    await bare.click(".today-band-top .kit-chip--upstream");
+    await bare.click(".today-needs .kit-chip--upstream");
     expect(bare.inspector.getState().selected).toBeNull();
   });
 });
