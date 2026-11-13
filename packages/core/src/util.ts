@@ -88,8 +88,8 @@ export function timeClause(
 
 /** The next midnight UTC; the default preserves the boards' schedule wording. */
 export function dailySyncTime(now: Date, context: Pick<CoreContext, "timeStyle">): string {
-  if (!Number.isFinite(now.getTime())) return "";
   if (context.timeStyle === "clock") return " at 00:00Z";
+  if (!Number.isFinite(now.getTime())) return "";
   const next = new Date(now);
   next.setUTCHours(24, 0, 0, 0);
   return timeClause(next.toISOString(), now, context, " at ");

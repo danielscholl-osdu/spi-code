@@ -31,7 +31,7 @@ const iso = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:
 
 function noClocks(value: unknown) {
   const text = JSON.stringify(value).replace(iso, "instant");
-  expect(text).not.toMatch(/\b\d{2}:\d{2}\b/);
+  expect(text).not.toMatch(/\b\d{2}:\d{2}(?!\d)/);
   expect(text).not.toMatch(/Invalid Date|undefined|1970-01-01/);
 }
 
@@ -155,6 +155,7 @@ it("defaults to the existing text and gives the app only offset-bearing instants
     expect(stamp(at, now, context("instant"))).toMatch(/(?:Z|[+-]\d{2}:\d{2})$/);
   }
   expect(dailySyncTime(now, context())).toBe(" at 00:00Z");
+  expect(dailySyncTime(new Date("bad"), context())).toBe(" at 00:00Z");
   expect(dailySyncTime(now, context("instant"))).toBe(" at 2026-11-07T00:00:00.000Z");
   expect(dailySyncTime(new Date("bad"), context("instant"))).toBe("");
 });
