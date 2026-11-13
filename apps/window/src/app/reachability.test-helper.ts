@@ -5,7 +5,7 @@ import { type InspectResult, InspectResultSchema, type ViewSnapshot } from "@spi
 import { inScope } from "../components/sidebar/attention.js";
 import { selectionRows, TODAY_GROUPS, todayGroupRow } from "../panels/selection-rows.js";
 import { plainTitle } from "../text.js";
-import { clockTime, timedText } from "../time.js";
+import { clockTime, instantsIn, timedText } from "../time.js";
 import { runningFactHome } from "../views/environment/running-fact.js";
 import { eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
 import { releaseSectionCases } from "../views/releases/reachability.test-helper.js";
@@ -325,7 +325,19 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
       add(`${pointer}/scope`, item.scope, where, `${li} .place-scope`);
       if (item.sub) add(`${pointer}/sub`, subText(item.sub), where, `${li} .place-item-sub`);
       if (item.next) add(`${pointer}/next`, plainTitle(item.next), where, `${li} .place-item-next`);
-      if (item.due) {
+      const group = reading.groups.get(item.id) ?? "";
+      if (item.due && instantsIn(group).includes(Date.parse(item.due.at))) {
+        const heading = (root: ParentNode) =>
+          root.querySelector(li)?.closest(".place-group")?.querySelector(":scope > h3 time");
+        add(`${pointer}/due/at`, item.due.at, where, heading, { attribute: "dateTime" });
+        add(
+          `${pointer}/due/before`,
+          subText(`Before ${item.due.before}`),
+          where,
+          `${li} .place-item-content`,
+          { attribute: "title" },
+        );
+      } else if (item.due) {
         const time = `${li} .place-item-meta time`;
         add(`${pointer}/due/at`, item.due.at, where, time, { attribute: "dateTime" });
         add(`${pointer}/due/before`, `Before ${item.due.before}`, where, time);

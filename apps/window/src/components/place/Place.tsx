@@ -6,11 +6,18 @@ import type { ReactNode } from "react";
 import { type Navigation, PLACES, routeLabel } from "../../app/navigation.js";
 import { scopeRoute } from "../../app/queue.js";
 import { plainTitle } from "../../text.js";
-import { TimedText, timedText } from "../../time.js";
+import { instantsIn, TimedText, timedText } from "../../time.js";
 import { FreshChip, FreshItems, freshItemIds } from "./FreshItems.js";
 import "./place.css";
 
 type Item = NonNullable<Reading["content"]>["items"][number];
+
+/** An item's due, unless its group heading names the same instant and so already says it. */
+function ownDue(item: Item): Item["due"] {
+  return item.due && instantsIn(item.group).includes(Date.parse(item.due.at))
+    ? undefined
+    : item.due;
+}
 
 export type PlaceProps = {
   name: string;
@@ -107,7 +114,7 @@ export function Place({
                       const route =
                         PLACES.find((place) => routeLabel(place) === item.scope) ??
                         scopeRoute(item.scope, services);
-                      const due = item.due;
+                      const due = ownDue(item);
                       return (
                         <li
                           className="place-item"
@@ -144,6 +151,11 @@ export function Place({
                                   ? timedText(`${item.scope}: ${plainTitle(item.title)}`, {
                                       hint: false,
                                     })
+                                  : undefined
+                              }
+                              title={
+                                !due && item.due
+                                  ? timedText(`Before ${item.due.before}`, { hint: false })
                                   : undefined
                               }
                               aria-pressed={onSelect ? selectedId === item.id : undefined}

@@ -64,7 +64,10 @@ it.each([
   expect(due.length).toBeGreaterThan(0);
   for (const item of due) {
     expect(
-      host.querySelector(`[data-item-id="${item.id}"] .place-item-meta`)?.textContent,
+      host.querySelector(`[data-item-id="${item.id}"] .place-item-meta`)?.textContent ??
+        host
+          .querySelector(`[data-item-id="${item.id}"] .place-item-content`)
+          ?.getAttribute("title"),
     ).toContain(`Before ${item.due?.before}`);
   }
   const answers = load("inspect-1106.json");
@@ -86,8 +89,14 @@ it.each([
         payload: answer,
       }),
     );
-    const times = host.querySelectorAll('.inspector time[datetime="2026-11-07T00:00:00.000Z"]');
-    expect(times.length, answer.id).toBeGreaterThan(0);
+    const theme = answer.id.startsWith("theme:");
+    const field = theme ? ".inspector-related dt" : '.inspector [data-field="effect"]';
+    const times = host.querySelectorAll(`${field} time[datetime="2026-11-07T00:00:00.000Z"]`);
+    const expected = theme
+      ? answer.related.filter(({ state }) => state.includes(body.briefing.nextSyncAt ?? "missing"))
+          .length
+      : 1;
+    expect(times.length, answer.id).toBe(expected);
     for (const time of times) expect(time.textContent).toContain(sync);
   }
   await act(async () => navigate({ kind: "environment" }));
