@@ -119,7 +119,7 @@ export interface Theme {
   when?: string;
   tone: Tone;
   next: string;
-  // A queue item id carrying this theme's verbs, so the inspector opens with real buttons.
+  // A queue item id shown in Related by the theme:<id> inspector.
   inspect?: string;
 }
 

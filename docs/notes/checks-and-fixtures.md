@@ -2,6 +2,8 @@
 
 How the checks are put together, the window's text rules, time formatting, fixture regeneration, the shifted-clock pass and the license notices.
 
+When Bun is on PATH, `scripts/check` requires Bun 1.3.13 or newer for the record-sweep proxy tests.
+
 The scaffold uses Node 22.16 or newer, matching `engines` in `package.json`, and pnpm 10 (the exact pnpm version is in `package.json`). `node:sqlite` is unflagged from 22.13, but the host store also needs `DatabaseSync.isTransaction`, which arrived in 22.16.
 
 `pnpm run build` compiles all six workspaces; `pnpm run lint`, `pnpm run typecheck`,
@@ -68,3 +70,7 @@ mutate core to see a host test fail, run `pnpm tsc -b packages/core` before the 
 after restoring; `pnpm run typecheck` also rebuilds it.
 
 Watch fixtures use instant text through briefing and place readers; oracle inputs keep the default clock style. The reading context must reach service, engineering and environment readers as well as releases.
+
+Desktop's boundary scan includes tests. Package imports use their public entry points;
+the one named tooling exception is `scripts/watch-generated.mjs`, in desktop tests only.
+`core-diff-rib.sh` is a historical extraction audit against 59d6895, not a current parity gate.

@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
  * @returns {{ name: string, seconds: number, failed: boolean }[] | undefined}
  */
 function filesOf(report) {
-  const results = /** @type {{ testResults?: unknown }} */ (report ?? {}).testResults;
+  const results = /** @type {{ testResults?: unknown }} */ (report)?.testResults;
   if (!Array.isArray(results)) return undefined;
   const files = [];
   for (const result of results) {

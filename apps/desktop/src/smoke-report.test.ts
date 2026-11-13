@@ -3,10 +3,9 @@
 
 import { readFileSync } from "node:fs";
 import { ViewSnapshotSchema } from "@spi-code/contracts";
+import { APPENDIX_A_TOOLS } from "@spi-code/host";
 import { expect, it } from "vitest";
-import { APPENDIX_A_TOOLS } from "../../../packages/host/src/tools/tool-names.js";
-import { projectWatch } from "../../../packages/host/src/watch/project.js";
-import { busyInput } from "../../../packages/host/test/watch/snapshot-fixture.js";
+import { readGenerated } from "../../../scripts/watch-generated.mjs";
 import type { SmokeGeometry } from "./smoke-geometry.js";
 import {
   MORNING_FIXTURES,
@@ -1159,7 +1158,7 @@ it("fails a capture that stops at window height or leaves a block outside the im
 });
 
 it("accepts busy's projected In motion beside its full band", () => {
-  const snapshot = projectWatch(busyInput());
+  const snapshot = ViewSnapshotSchema.parse(JSON.parse(readGenerated("snapshot-busy.json")));
   const inMotion =
     (snapshot.briefing.ambient?.inProgress.lines.length ?? 0) > 0 ||
     (snapshot.briefing.canWait?.chips.length ?? 0) > 0;

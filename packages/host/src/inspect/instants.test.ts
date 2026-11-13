@@ -160,3 +160,18 @@ describe("action reasons on the 6 Nov input, in the app's time style", () => {
     noClocks(said);
   });
 });
+
+it("keeps a synthetic Sync Upstream dispatch's plan Detail in app time", async () => {
+  const synthetic = structuredClone(model);
+  const fork = synthetic.upstream.forks.find((f) => f.wave !== undefined);
+  if (!fork) throw new Error("fixture has an upstream fork");
+  Object.assign(synthetic.upstream, { startNext: [], dispatches: [], prepareNext: [fork] });
+  synthetic.upstream.schedule.upstream = "2026-11-06T23:00:00Z";
+  const result = await resolveIn({ ...scope, model: synthetic }, UPSTREAM_ITEM);
+  expect(JSON.stringify(result)).toContain("now instead of at 2026-11-06T23:00:00.000Z");
+  noClocks(result);
+  synthetic.upstream.schedule.upstream = "not-a-time";
+  const unknown = await resolveIn({ ...scope, model: synthetic }, UPSTREAM_ITEM);
+  expect(JSON.stringify(unknown)).not.toContain("instead of at");
+  noClocks(unknown);
+});

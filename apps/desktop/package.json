@@ -80,6 +80,7 @@
   },
   "devDependencies": {
     "electron": "44.10.0",
-    "electron-builder": "26.16.1"
+    "electron-builder": "26.16.1",
+    "@spi-code/core": "workspace:*"
   }
 }

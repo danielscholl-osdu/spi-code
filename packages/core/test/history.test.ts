@@ -98,7 +98,9 @@ describe("day history", () => {
   test("the window is local days ending today, today cut at now", () => {
     expect(days.map((d) => d.key)).toEqual(["10-11", "10-12", "10-13"]);
     expect(days[2]?.end).toBe(now.getTime());
-    expect(days[0]?.end).toBe(days[0]!.start + DAY);
+    const first = days[0];
+    if (!first) throw new Error("fixture has a first day");
+    expect(first.end).toBe(first.start + DAY);
   });
 
   test("a day takes its newest run; a scheduled day with no run is missed, a weekend is idle", () => {

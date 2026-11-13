@@ -97,7 +97,8 @@ it("keeps every renderer limit when the start function builds a fake BrowserWind
   await desktop.start();
   const window = electron.current?.BrowserWindow.windows[0];
   expect(window).toBeDefined();
-  expect(window?.options.webPreferences).toMatchObject({
+  expect(window?.options.webPreferences).toEqual({
+    preload: expect.stringMatching(/[/\\]src[/\\]preload\.cjs$/),
     contextIsolation: true,
     nodeIntegration: false,
     sandbox: true,
@@ -124,8 +125,10 @@ type Node = { type: string; [key: string]: unknown };
 const isNode = (value: unknown): value is Node =>
   typeof value === "object" && value !== null && typeof (value as Node).type === "string";
 
-function moduleLoads(name: string): { specifier: string | undefined; dynamic: boolean }[] {
-  const source = readFileSync(new URL(name, import.meta.url), "utf8");
+function moduleLoads(
+  name: string,
+  source = readFileSync(new URL(name, import.meta.url), "utf8"),
+): { specifier: string | undefined; dynamic: boolean }[] {
   const loads: { specifier: string | undefined; dynamic: boolean }[] = [];
   const literal = (node: unknown) =>
     isNode(node) && node.type === "Literal" && typeof node.value === "string"
@@ -219,6 +222,7 @@ it.each(["load", "run"])(
   async (failure) => {
     const current = electron.current;
     if (!current) throw new Error("Missing Electron harness");
+    await import("./smoke-report.js");
     vi.useFakeTimers();
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     const error = new Error(`Smoke ${failure} failed`);
@@ -264,3 +268,12 @@ it("pins the preload malformed probe version to PROTOCOL_VERSION", () => {
     payload: { extra: true },
   });
 });
+
+it.each(['export * from "./smoke-run.js";', 'export { run } from "./smoke-run.js";'])(
+  "scans a runtime re-export: %s",
+  (source) => {
+    expect(moduleLoads("planted.ts", source)).toEqual([
+      { specifier: "./smoke-run.js", dynamic: false },
+    ]);
+  },
+);

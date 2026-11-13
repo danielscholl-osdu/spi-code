@@ -1197,3 +1197,56 @@ it("the guarded turn settles and drains queued work before the backend turn retu
     await host.stop();
   }
 });
+
+it("a models call that never settles cannot keep SIGTERM alive", async () => {
+  const host = await composedHost();
+  const models = vi.fn(() => new Promise<never>(() => {}));
+  mocks.createBackend.mockResolvedValue({
+    mode: "stub",
+    generation: 1,
+    models,
+    turn: async () => {},
+    endSession() {},
+    stop: async () => {},
+  } satisfies ConversationBackend);
+  host.attach();
+  host.request("held-models");
+  await vi.waitFor(() => expect(models).toHaveBeenCalledOnce());
+  const signal = host.lifecycle.once.mock.calls.find(
+    ([event]) => event === "SIGTERM",
+  )?.[1] as () => void;
+  signal();
+  await vi.waitFor(() => expect(host.lifecycle.exit).toHaveBeenCalledWith(0));
+  expect(host.sent).not.toContainEqual(
+    expect.objectContaining({ id: "held-models", type: "models.result" }),
+  );
+  await host.stop();
+});
+
+it("drops a backend delta after stop answered its turn", async () => {
+  const host = await composedHost();
+  let delta = (_text: string) => {};
+  const turn = vi.fn((_model, _prompt, send) => {
+    delta = send;
+    return new Promise<void>(() => {});
+  });
+  mocks.createBackend.mockResolvedValue({
+    mode: "stub",
+    generation: 1,
+    models: async () => [{ id: "stub", name: "Stub" }],
+    turn,
+    endSession() {},
+    stop: async () => {},
+  } satisfies ConversationBackend);
+  host.attach();
+  host.request("late-delta", "turn.start");
+  await vi.waitFor(() => expect(turn).toHaveBeenCalledOnce());
+  delta("before");
+  expect(host.sent).toContainEqual(
+    expect.objectContaining({ type: "turn.delta", payload: { text: "before" } }),
+  );
+  await host.stop();
+  const count = host.sent.length;
+  delta("after");
+  expect(host.sent).toHaveLength(count);
+});

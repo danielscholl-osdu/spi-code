@@ -2,9 +2,12 @@
 # Copyright 2026, Daniel Scholl
 # SPDX-License-Identifier: MIT
 
+# Historical extraction audit against rib 59d6895, not a parity gate for today's core.
+# Later intentional model and display changes appear as differences. No build script calls it.
+# Pass the read-only rib checkout as the first argument to inspect the original extraction.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
-rib="${1:-/Users/danielscholl/keelson/keelson-rib-spi}"
+rib="${1:?Usage: scripts/core-diff-rib.sh /path/to/keelson-rib-spi}"
 
 # Exit 1 means diff found changes; 2 means the comparison could not run.
 # Compare the selected modules and the exact release/notes extraction, not collectors.

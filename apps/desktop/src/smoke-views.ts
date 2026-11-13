@@ -35,7 +35,7 @@ const sweepSchedule = {
   releasesMs: 3_600_000,
 };
 
-/** Written by scripts/watch-snapshot.ts beside the Nov 6 fixture: that sweep after its acknowledgement. */
+/** Written by scripts/watch-snapshot.mjs beside the Nov 6 fixture: that sweep after its acknowledgement. */
 export const ACKNOWLEDGED_FIXTURE = "snapshot-1106-acknowledged.json";
 
 async function rendered(window: BrowserWindow, condition: string): Promise<void> {

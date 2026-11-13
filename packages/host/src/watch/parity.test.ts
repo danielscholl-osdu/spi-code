@@ -18,7 +18,7 @@ process.env.TZ = "UTC";
  * recorded snapshot: a briefing value the window sends to Detail must come back unchanged after the
  * sweep is persisted and served by the router. The window's reachability suite draws Detail from
  * fixtures/watch/inspect-1106.json, which must equal the router's answers field for field;
- * scripts/watch-snapshot.ts regenerates it through detail-feed.ts, the same path these checks ask.
+ * scripts/watch-snapshot.mjs regenerates it through detail-feed.ts, the same path these checks ask.
  * Projection, the store's replay and the oracle comparisons live in project.test.ts,
  * snapshot-1106.test.ts and process/routes.test.ts.
  */

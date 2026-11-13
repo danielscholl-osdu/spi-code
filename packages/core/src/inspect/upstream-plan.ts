@@ -195,7 +195,7 @@ function scheduleSection(
   voice: Voice,
   context: Pick<CoreContext, "timeStyle"> | undefined,
 ): Section | undefined {
-  const s = upstreamView(u, now, voice).schedule;
+  const s = upstreamView(u, now, voice, context).schedule;
   if (!s) return undefined;
   const at = stamp(u.schedule.upstream, now, context);
   const label = at ?? (context?.timeStyle === "instant" ? undefined : "?");
@@ -235,7 +235,7 @@ export function inspectUpstreamPlan(
 ): UpstreamBoard {
   const u = model.upstream;
   const voice = opts.voice ?? APP_VOICE;
-  const view = upstreamView(u, now, voice);
+  const view = upstreamView(u, now, voice, opts.context);
   const step = planStep(u);
   const verbs = planActions(u, {
     swept: model.sweptAt ?? "",
@@ -265,7 +265,7 @@ export function inspectUpstreamPlan(
     { kind: "rows", items: [{ text: sub }, { text: flowStatement(u) }] },
     nextCard(
       `${view.next.title}.`,
-      [stepWhy(u, step, now, voice), targets.length ? `Touches ${targets.join(", ")}.` : ""]
+      [stepWhy(u, step, now, voice, true, opts.context), targets.length ? `Touches ${targets.join(", ")}.` : ""]
         .filter(Boolean)
         .join(" "),
       verbs,

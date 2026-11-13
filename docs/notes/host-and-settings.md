@@ -86,3 +86,7 @@ the app's instant style reaches Detail; `fixtures/watch/inspect-1106.json` is an
 that style, and `inspect/instants.test.ts` fails on a clock time in any kind's answer.
 
 The host package emits declarations, so an exported watch step whose inferred return type reaches a core type core does not export (`Since`, `HorizonStages`, `PlaceRow`) fails `tsc` with TS2883 or TS4058. Spell the return type from exported types and `ReturnType<typeof fn>`, as `ProjectedBriefing` in `watch/briefing.ts` does.
+
+M0 probes still live: `process/store-probe.ts` runs through the packaged persistence smoke;
+`copilot/probe.ts` runs through the host's `probe:copilot` script. `sandbox/probe.ts` has
+only the historical sandbox decision's manual command; removal is tracked by spicode-xzf.31.

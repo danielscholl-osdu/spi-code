@@ -13,7 +13,12 @@ const graph = {
   tools: { path: "packages/tools", allows: ["contracts"] },
   host: { path: "packages/host", allows: ["core", "contracts", "tools"] },
   window: { path: "apps/window", allows: ["contracts"] },
-} satisfies Record<string, { path: string; allows: string[] }>;
+  desktop: {
+    path: "apps/desktop",
+    allows: ["contracts", "core", "host"],
+    testTools: ["scripts/watch-generated.mjs"],
+  },
+} satisfies Record<string, { path: string; allows: string[]; testTools?: string[] }>;
 type Package = keyof typeof graph;
 const sections = [
   "dependencies",
@@ -38,9 +43,18 @@ function forbiddenSpecifier(owner: Package, specifier: string, file: string): bo
       const packagePath = resolve(root, config.path);
       return path === packagePath || path.startsWith(`${packagePath}${sep}`);
     })?.[0];
+    if (
+      owner === "desktop" &&
+      /\.test\.[cm]?[jt]sx?$/.test(file) &&
+      graph.desktop.testTools.some((tool) => path === resolve(root, tool))
+    )
+      return false;
     if (target === undefined) return true;
     if (target === owner) return false;
+    if (owner === "desktop") return true;
   }
+  if (owner === "desktop" && target !== undefined && specifier !== `@spi-code/${target}`)
+    return true;
   const allows: readonly string[] = graph[owner].allows;
   return target !== undefined && !allows.includes(target);
 }
@@ -93,7 +107,7 @@ it.each(Object.keys(graph) as Package[])(
         (file): file is string =>
           typeof file === "string" &&
           /\.[cm]?[jt]sx?$/.test(file) &&
-          !/\.test\.[cm]?[jt]sx?$/.test(file),
+          (owner === "desktop" || !/\.test\.[cm]?[jt]sx?$/.test(file)),
       )
       .flatMap((file) =>
         forbiddenImports(
@@ -189,4 +203,31 @@ it("does not mistake comments or strings for imports", () => {
       '// import "electron";\nconst example = \'import "node:fs";\';\nimport { z } from "zod";',
     ),
   ).toEqual([]);
+});
+
+it.each(["src/example.ts", "src/example.test.ts"])(
+  "enforces desktop entry points in %s",
+  (name) => {
+    const file = resolve(root, graph.desktop.path, name);
+    expect(forbiddenImports('import "@spi-code/host";', "desktop", file)).toEqual([]);
+    expect(
+      forbiddenImports('import "../../../packages/host/src/index.js";', "desktop", file),
+    ).toEqual(["../../../packages/host/src/index.js"]);
+    expect(forbiddenImports('import "../../../unknown/src/index.js";', "desktop", file)).toEqual([
+      "../../../unknown/src/index.js",
+    ]);
+    expect(forbiddenImports('export * from "@spi-code/host/store";', "desktop", file)).toEqual([
+      "@spi-code/host/store",
+    ]);
+  },
+);
+
+it("allows the named fixture tooling only in desktop tests", () => {
+  const specifier = "../../../scripts/watch-generated.mjs";
+  for (const test of [false, true]) {
+    const file = resolve(root, graph.desktop.path, `src/example${test ? ".test" : ""}.ts`);
+    expect(forbiddenImports(`import "${specifier}";`, "desktop", file)).toEqual(
+      test ? [] : [specifier],
+    );
+  }
 });

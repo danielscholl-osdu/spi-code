@@ -95,6 +95,7 @@ if (process.env.RECORD_FAILS && process.env.RECORD_FAILS === process.argv[2]) pr
       timeout: 60_000,
     });
   return {
+    directory,
     base,
     write(path: string, contents = "changed\n") {
       mkdirSync(join(directory, path, ".."), { recursive: true });
@@ -318,4 +319,16 @@ it("spells out exactly the steps of the package's check script, so the two canno
   expect(scripts.check).toBe(
     "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run check:headers",
   );
+});
+
+it("refuses Bun 1.3.3 with the minimum version before running checks", () => {
+  const repo = fixture();
+  repo.write("old-bun.sh", "bun() { echo 1.3.3; }\n");
+  const result = repo.checkWith(
+    { BASH_ENV: join(repo.directory, "old-bun.sh").replaceAll("\\", "/") },
+    "--quick",
+  );
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain("Bun >= 1.3.13 required for record-sweep tests; found 1.3.3");
+  expect(repo.calls()).toEqual([]);
 });

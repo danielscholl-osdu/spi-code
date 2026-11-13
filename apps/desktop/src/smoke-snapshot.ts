@@ -4,19 +4,7 @@
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { AREAS, ViewSnapshotSchema } from "@spi-code/contracts";
-import type * as Leases from "../../../packages/host/src/store/leases.js";
-import type * as Snapshots from "../../../packages/host/src/store/snapshots.js";
-import type * as Store from "../../../packages/host/src/store/store.js";
-
-const leases: typeof Leases = await import(
-  new URL("../../../packages/host/dist/store/leases.js", import.meta.url).href
-);
-const snapshots: typeof Snapshots = await import(
-  new URL("../../../packages/host/dist/store/snapshots.js", import.meta.url).href
-);
-const store: typeof Store = await import(
-  new URL("../../../packages/host/dist/store/store.js", import.meta.url).href
-);
+import { createLeaseStore, createSnapshotStore, openRunStore } from "@spi-code/host";
 
 const fleet = "Azure/osdu-spi-stack";
 // The service names the smoke pins, so the shell sidebar shows each snapshot on every route.
@@ -28,12 +16,12 @@ export const resumedSmoke = { headline: "Resumed Watch smoke snapshot", service:
 export type SmokeMark = typeof initialSmoke;
 
 export function writeSmokeSnapshot(path: string, { headline, service }: SmokeMark): number {
-  store.openRunStore(path).close();
+  openRunStore(path).close();
   const db = new DatabaseSync(path);
   try {
     const now = Date.now();
     const sweptAt = new Date(now).toISOString();
-    const lease = leases.createLeaseStore(db);
+    const lease = createLeaseStore(db);
     const fence = lease.acquire(fleet, "smoke", 60000, now);
     assert(fence !== undefined);
     const view = ViewSnapshotSchema.parse({
@@ -77,9 +65,12 @@ export function writeSmokeSnapshot(path: string, { headline, service }: SmokeMar
       provenance: [],
       selection: null,
     });
-    const cursor = snapshots
-      .createSnapshotStore(db)
-      .writeSnapshot({ fleet, owner: "smoke", fence }, {}, view, now);
+    const cursor = createSnapshotStore(db).writeSnapshot(
+      { fleet, owner: "smoke", fence },
+      {},
+      view,
+      now,
+    );
     assert(lease.release(fleet, "smoke", fence));
     return cursor;
   } finally {
@@ -91,8 +82,7 @@ export function smokeSnapshotCursors(path: string): number[] {
   const db = new DatabaseSync(path);
   try {
     assert.equal(db.prepare("PRAGMA integrity_check").get()?.integrity_check, "ok");
-    return snapshots
-      .createSnapshotStore(db)
+    return createSnapshotStore(db)
       .snapshotsSince(0)
       .map(({ cursor }) => cursor);
   } finally {

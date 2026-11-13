@@ -23,10 +23,8 @@ import {
   parseMessage,
   ViewSnapshotSchema,
 } from "@spi-code/contracts";
+import { createLeaseStore, createSnapshotStore, openRunStore } from "@spi-code/host";
 import { expect, it, vi } from "vitest";
-import { createLeaseStore } from "../../../packages/host/src/store/leases.js";
-import { createSnapshotStore } from "../../../packages/host/src/store/snapshots.js";
-import { openRunStore } from "../../../packages/host/src/store/store.js";
 import { readGenerated } from "../../../scripts/watch-generated.mjs";
 import { HostSupervisor, hostPortCallbacks } from "./supervisor.js";
 

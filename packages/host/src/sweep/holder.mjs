@@ -1,14 +1,17 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import assert from "node:assert/strict";
 import { writeSync } from "node:fs";
-import { DatabaseSync } from "node:sqlite";
 import { cacheSchema, createContext, emptyCache, Sweeper } from "@spi-code/core";
 import { z } from "zod";
+import { openStore } from "../../dist/store/open.js";
 import { SweepService } from "../../dist/sweep/service.js";
 
 const [path, appData, at, mode] = process.argv.slice(2);
-const db = new DatabaseSync(path);
+const db = openStore(path);
+assert.equal(db.prepare("PRAGMA foreign_keys").get()?.foreign_keys, 1);
+assert.equal(db.prepare("PRAGMA busy_timeout").get()?.timeout, 5000);
 const service = new SweepService({
   db,
   fleet: "test",

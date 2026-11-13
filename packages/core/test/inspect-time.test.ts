@@ -212,6 +212,18 @@ describe("the template rollout", () => {
       return flowActions(model.rollout, opts).primary.confirm?.body ?? "";
     };
     expect(start()).toMatch(/Upstream sync at \d{4}-\d{2}-\d{2}T[^ ]+Z opens/);
+    expect(
+      start((m) => {
+        if (m.rollout) m.rollout.schedule.template = "2026-10-12T23:00:00Z";
+      }),
+    ).toContain("The 2026-10-12T23:00:00.000Z template sync opens");
+    for (const at of UNKNOWN) {
+      const text = start((m) => {
+        if (m.rollout) m.rollout.schedule.template = at;
+      });
+      expect(text).not.toContain("template sync opens");
+      expect(text).not.toMatch(junk);
+    }
     const unread = start((m) => {
       if (m.rollout) m.rollout.schedule = { ...m.rollout.schedule, upstream: "not-a-time" };
     });

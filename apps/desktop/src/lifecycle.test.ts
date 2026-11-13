@@ -7,16 +7,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { PROTOCOL_VERSION } from "@spi-code/contracts";
+import { cacheSchema, createContext, emptyCache, factsSchema, Sweeper } from "@spi-code/core";
+import { openRunStore, SweepService } from "@spi-code/host";
 import { afterEach, expect, it, vi } from "vitest";
-import {
-  cacheSchema,
-  createContext,
-  emptyCache,
-  factsSchema,
-  Sweeper,
-} from "../../../packages/core/src/index.js";
-import { openRunStore } from "../../../packages/host/src/store/store.js";
-import { SweepService } from "../../../packages/host/src/sweep/service.js";
 import { type ProcessIdentity, QUIT_BUDGET_MS, reapProcesses, stopHostTree } from "./host-tree.js";
 import { WINDOW_LEAVE_ID, windowLeave } from "./leave.js";
 import {

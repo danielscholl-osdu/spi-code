@@ -30,6 +30,9 @@ importers:
         specifier: workspace:*
         version: link:../../packages/host
     devDependencies:
+      '@spi-code/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       electron:
         specifier: 44.10.0
         version: 44.10.0

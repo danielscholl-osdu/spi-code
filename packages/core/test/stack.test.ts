@@ -109,8 +109,10 @@ const cancelledUpgrade = (at: string) => {
   const verify = job("verify", [["Wait for Flux Kustomizations to be Ready", "cancelled"]], {
     conclusion: "cancelled",
   });
-  verify.steps[0]!.startedAt = "2026-10-12T20:37:00Z";
-  verify.steps[0]!.completedAt = "2026-10-12T21:39:00Z";
+  const first = verify.steps[0];
+  if (!first) throw new Error("fixture has a verify step");
+  first.startedAt = "2026-10-12T20:37:00Z";
+  first.completedAt = "2026-10-12T21:39:00Z";
   return run(
     "upgrade",
     at,
@@ -173,7 +175,9 @@ describe("remote-mode inference", () => {
     );
     expect(stack.lastGreen?.kind).toBe("refresh");
     expect(stack.attempts.map((v) => v.run.kind)).toEqual(["upgrade", "refresh"]);
-    expect(attemptText(stack.attempts[0]!, stack.maintenance.run?.id)).toBe(
+    const attempt = stack.attempts[0];
+    if (!attempt) throw new Error("fixture has an attempt");
+    expect(attemptText(attempt, stack.maintenance.run?.id)).toBe(
       "env-upgrade v0.28.1 failed in provision › spi up: GitLab API unreachable while resolving images · set maintenance",
     );
     expect(stack.deployable.state).toBe("no");
@@ -233,8 +237,10 @@ describe("remote-mode inference", () => {
             ["Clear maintenance", "success"],
           ]),
         ].map((j) => {
-          j.steps[0]!.startedAt = took[0];
-          j.steps[0]!.completedAt = took[1];
+          const first = j.steps[0];
+          if (!first) throw new Error("fixture has a verify step");
+          first.startedAt = took[0];
+          first.completedAt = took[1];
           return j;
         }),
         { target: "v0.28.0" },
@@ -245,7 +251,9 @@ describe("remote-mode inference", () => {
         ["Clear maintenance", undefined],
       ]),
     ]);
-    live.jobs![0]!.steps[0]!.startedAt = "2026-10-12T21:58:00Z";
+    const first = live.jobs?.[0]?.steps[0];
+    if (!first) throw new Error("fixture has a live verify step");
+    first.startedAt = "2026-10-12T21:58:00Z";
     const runs = {
       upgrade: [
         green("2026-10-02T03:13:00Z", ["2026-10-02T03:20:00Z", "2026-10-02T03:21:00Z"]),

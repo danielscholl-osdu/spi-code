@@ -120,7 +120,8 @@ describe("the recorded sweep", () => {
       "gate1:legal",
       "approvals:Azure/osdu-spi-stack",
     ]);
-    const port = b.rest[0]!;
+    const port = b.rest[0];
+    if (!port) throw new Error("fixture has port");
     expect(port.ids).toEqual(["port:entitlements", "port:legal"]);
     expect(port.title).toBe("3 upstream provider changes not ported");
     expect(port.sub).toBe("entitlements 2 · legal 1");
@@ -132,7 +133,8 @@ describe("the recorded sweep", () => {
   });
 
   test("a halt says what it is, what it holds and how far the entry reaches", () => {
-    const halt = b.focus[1]!;
+    const halt = b.focus[1];
+    if (!halt) throw new Error("fixture has halt");
     expect(halt.title).toBe("Sync halted on schemathesis-tests");
     expect(halt.sub).toContain("the same entry is missing from 4 other filters");
     expect(halt.cause).toBe(
@@ -151,10 +153,12 @@ describe("the recorded sweep", () => {
       "port",
       "deadline:azure-removal",
     ]);
-    const java = b.themes[0]!;
+    const java = b.themes[0];
+    if (!java) throw new Error("fixture has java");
     expect(java.certain.map((f) => f.fork)).toEqual(["legal"]);
     expect(java.possible.map((f) => f.fork).sort()).toEqual(["partition", "schema"]);
-    const halt = b.themes.find((theme) => theme.kind === "halt")!;
+    const halt = b.themes.find((theme) => theme.kind === "halt");
+    if (!halt) throw new Error("fixture has halt");
     expect(halt.sub).toBe(
       "halted: entitlements · 4 other filters lack it · open MRs bring it to legal and file",
     );
@@ -527,8 +531,10 @@ describe("the horizon", () => {
 
   test("a queued Java move leads the themes with every queued fork and the sync time", () => {
     const m = withQueue([RADAR_PARTITION]);
-    const svc = m.radar.services.partition!;
-    const java = m.radar.services.legal!.certain.find((v) => v.bucket === "Toolchain")!;
+    const svc = m.radar.services.partition;
+    if (!svc) throw new Error("fixture has svc");
+    const java = m.radar.services.legal?.certain.find((v) => v.bucket === "Toolchain");
+    if (!java) throw new Error("fixture has Java toolchain");
     svc.certain = [...svc.certain, java];
     svc.possible = svc.possible.filter((v) => v.bucket !== "Toolchain");
     const b = buildBriefing(m, CLEAR, FIXTURE_NOW, fixtureContext);

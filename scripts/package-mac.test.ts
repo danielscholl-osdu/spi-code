@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { join, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
+import { listenerScanBudget } from "../apps/desktop/src/smoke-listeners.js";
 import { stageRuntimeFiles } from "./package.mjs";
 import {
   assertRuntimeEvidence,
@@ -166,6 +167,33 @@ describe("packaged smoke gate", () => {
     ...evidence,
     listenerCheck: { ...evidence.listenerCheck, ...listenerCheck },
   });
+  it.each(["darwin", "win32"] as const)(
+    "pins the packaged scan bound to listenerScanBudget on %s",
+    (platform) => {
+      const arch = platform === "win32" ? "x64" : "arm64";
+      const root = platform === "win32" ? "C:\\artifacts\\resources" : resources;
+      const target = `${platform}-${arch}`;
+      const path = platform === "win32" ? win32.join : join;
+      const runtimePath = path(
+        root,
+        `app.asar.unpacked/node_modules/@github/copilot-sdk-${target}/prebuilds/${target}/copilot-runtime${platform === "win32" ? ".exe" : ""}`,
+      );
+      const check = (scanDurationMs: number) =>
+        assertRuntimeEvidence(
+          { mainPid: 41, hostPid: 42 },
+          {
+            ...evidence,
+            runtimePath,
+            listenerCheck: { ...evidence.listenerCheck, scanDurationMs },
+          },
+          root,
+          platform,
+          arch,
+        );
+      expect(() => check(listenerScanBudget(platform) - 1)).not.toThrow();
+      expect(() => check(listenerScanBudget(platform))).toThrow("Listener scan duration");
+    },
+  );
   it("accepts a protocol response from the shipped binary in the observed host", () => {
     expect(() =>
       assertRuntimeEvidence({ mainPid: 41, hostPid: 42 }, evidence, resources, "darwin", "arm64"),
