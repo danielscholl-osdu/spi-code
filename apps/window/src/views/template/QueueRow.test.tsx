@@ -1,10 +1,9 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it } from "vitest";
 import { useStore } from "zustand";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { queueGroups, treeServices } from "../../app/queue.js";
@@ -12,25 +11,18 @@ import { DEFAULT_REGISTRY, navigate } from "../../app/routes.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { watchStore } from "../../store/watch.js";
-import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
+import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import { QueueRow } from "./QueueRow.js";
 
-const recorded = watchFixtureText("snapshot-59d6895.json", readFixture);
-
-const body = ViewSnapshotSchema.parse(JSON.parse(recorded));
+const body = fixtureLoader(readFixture)("snapshot-59d6895.json");
 const previous = watchStore.getState();
-const previousSpi = window.spi;
+let harness: ReturnType<typeof installSpi>;
 let container: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
   window.location.hash = "";
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
-    postMessage: vi.fn(),
-    onMessage: () => () => {},
-  };
+  harness = installSpi();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -41,7 +33,7 @@ afterEach(async () => {
   container.remove();
   selectionStore.getState().clear();
   watchStore.setState(previous);
-  window.spi = previousSpi;
+  harness.restore();
   window.location.hash = "";
 });
 

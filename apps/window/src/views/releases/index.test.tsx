@@ -20,6 +20,7 @@ import { RightPanel } from "../../panels/RightPanel.js";
 import { selectionStore } from "../../panels/selection.js";
 import { testSnapshot } from "../../store/test-snapshot.js";
 import { watchStore } from "../../store/watch.js";
+import { installSpi } from "../../test-utils/harness.js";
 import Releases, { ReleaseMonth } from "./index.js";
 
 const container = document.createElement("div");
@@ -27,19 +28,17 @@ let root: ReturnType<typeof createRoot> | undefined;
 const previous = watchStore.getState();
 const send = vi.fn<(message: Message) => void>();
 const listeners = new Set<(message: Message) => void>();
-let previousBridge: Window["spi"];
+let harness: ReturnType<typeof installSpi>;
 
 beforeEach(() => {
-  previousBridge = window.spi;
-  window.spi = {
-    proof: false,
+  harness = installSpi({
     postMessage: send,
-    openExternal: vi.fn(async () => true),
+    openExternal: async () => true,
     onMessage(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-  };
+  });
   send.mockClear();
   selectionStore.getState().clear();
 });
@@ -51,7 +50,7 @@ afterEach(async () => {
   selectionStore.getState().clear();
   watchStore.setState(previous);
   listeners.clear();
-  window.spi = previousBridge;
+  harness.restore();
   window.location.hash = "";
 });
 

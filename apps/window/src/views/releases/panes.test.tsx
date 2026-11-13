@@ -11,6 +11,7 @@ import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { expectNoEvidenceMarks } from "../../components/evidence/marks.test-helper.js";
 import { mixedSnapshot, testSnapshot } from "../../store/test-snapshot.js";
 import { watchStore } from "../../store/watch.js";
+import { installSpi } from "../../test-utils/harness.js";
 import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import Releases, { ReleaseMonth } from "./index.js";
 
@@ -23,16 +24,10 @@ const snapshot = () => testSnapshot(fixture("briefing.json"), fixture("releases.
 const container = document.createElement("div");
 let root: ReturnType<typeof createRoot> | undefined;
 const send = vi.fn();
-let previous: Window["spi"];
+let harness: ReturnType<typeof installSpi>;
 
 beforeEach(() => {
-  previous = window.spi;
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
-    postMessage: send,
-    onMessage: () => () => {},
-  };
+  harness = installSpi({ postMessage: send });
   send.mockClear();
 });
 
@@ -49,7 +44,7 @@ afterEach(async () => {
   container.remove();
   watchStore.getState().clear();
   watchStore.setState({ snapshot: null });
-  window.spi = previous;
+  harness.restore();
 });
 
 it.each<{ notes: NotesState; label: string; tone: string }>([

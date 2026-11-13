@@ -14,6 +14,7 @@ import { selectionRows } from "../../panels/selection-rows.js";
 import { inspectFromOracle, type OracleBoard } from "../../panels/test-inspect.js";
 import { mixedSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore, watchStore } from "../../store/watch.js";
+import { installSpi } from "../../test-utils/harness.js";
 import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { clockTime } from "../../time.js";
 import Environment from "../environment/index.js";
@@ -24,12 +25,11 @@ const mixed = watchFixtureText("snapshot-mixed-59d6895.json", readFixture);
 const SERVICE = "entitlements";
 const container = document.createElement("div");
 let root: ReturnType<typeof createRoot> | undefined;
-let previous: Window["spi"];
+let harness: ReturnType<typeof installSpi>;
 const openExternal = vi.fn();
 
 beforeEach(() => {
-  previous = window.spi;
-  window.spi = { proof: false, openExternal, postMessage: vi.fn(), onMessage: () => () => {} };
+  harness = installSpi({ openExternal });
   openExternal.mockClear();
 });
 
@@ -39,7 +39,7 @@ afterEach(async () => {
   container.remove();
   watchStore.getState().clear();
   watchStore.setState({ snapshot: null });
-  window.spi = previous;
+  harness.restore();
 });
 
 async function render(body: ViewSnapshot = mixedSnapshot(mixed), panel = false, id = SERVICE) {

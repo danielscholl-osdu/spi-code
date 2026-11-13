@@ -1,56 +1,48 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
+import type { ViewSnapshot } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import november from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { navigate, parseRoute, routeHash } from "../../app/navigation.js";
 import { type Home, PENDING } from "../../app/reachability.test-helper.js";
 import { RouteView } from "../../app/routes.js";
 import { selectionStore } from "../../panels/selection.js";
 import { watchStore } from "../../store/watch.js";
-import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
+import { fixtureLoader, installSpi, type SnapshotName } from "../../test-utils/harness.js";
 import { FORMING_RELEASES_ANCHOR, SHARED_COMPONENTS_ANCHOR } from "./anchors.js";
 import Releases from "./index.js";
 import { releaseSectionCases } from "./reachability.test-helper.js";
 
-const busy = watchFixtureText("snapshot-busy.json", readFixture);
+const loadFixture = fixtureLoader(readFixture);
 
 let container: HTMLDivElement;
 let root: Root;
 const previous = watchStore.getState();
-const bridge = window.spi;
+let harness: ReturnType<typeof installSpi>;
 function must<T>(value: T | null | undefined): T {
   if (value == null) throw new Error("Missing fixture value");
   return value;
 }
-const snapshot = (raw = busy) => ViewSnapshotSchema.parse(JSON.parse(raw));
+const snapshot = (name: SnapshotName = "snapshot-busy.json") => loadFixture(name);
 const pointer = (value: string) => container.querySelector(`[data-pointer="${value}"]`);
 
 beforeEach(() => {
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
-  window.spi = {
-    proof: false,
-    postMessage: vi.fn(),
-    openExternal: vi.fn(async () => true),
-    onMessage: () => () => {},
-  };
+  harness = installSpi({ openExternal: async () => true });
 });
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   watchStore.setState(previous, true);
   selectionStore.getState().clear();
-  window.spi = bridge;
+  harness.restore();
   window.location.hash = "";
   vi.restoreAllMocks();
-  vi.unstubAllGlobals();
 });
 async function mount(body: ViewSnapshot) {
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
@@ -95,7 +87,7 @@ it("draws the stack, template pair and all 13 service library versions directly 
 });
 
 it("shows November's unread forming changes as not read with provenance, never zero", async () => {
-  await mount(snapshot(november));
+  await mount(snapshot("snapshot-1106.json"));
   const section = container.querySelector(`#${FORMING_RELEASES_ANCHOR}`);
   expect(section?.querySelector(".release-forming-text")?.textContent).toContain("not read");
   expect(section?.querySelector(".release-held")?.textContent).toBe("⌀");
@@ -181,7 +173,7 @@ it("clicks every forming and shared-component service and PR opener", async () =
 });
 
 it("opens inspectable PRs in Detail, reports failed browser opens, and opens provenance in Evidence", async () => {
-  const body = snapshot(november);
+  const body = snapshot("snapshot-1106.json");
   must(must(body.releases.forming).prs[0]).pr.inspect = "pr:partition:198";
   await mount(body);
   await act(async () =>

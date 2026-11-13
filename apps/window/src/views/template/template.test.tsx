@@ -6,7 +6,6 @@ import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useStore } from "zustand";
-import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { Shell } from "../../app/Shell.js";
 import { RightPanel } from "../../panels/RightPanel.js";
@@ -17,26 +16,20 @@ import {
 } from "../../panels/selection.js";
 import { selectionRows } from "../../panels/selection-rows.js";
 import { createWatchStore, watchStore } from "../../store/watch.js";
-import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
+import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import { timedText } from "../../time.js";
 import Template from "./index.js";
 
-const earlier = watchFixtureText("snapshot-59d6895.json", readFixture);
-
-const snapshot = () => ViewSnapshotSchema.parse(JSON.parse(recorded));
+const loadFixture = fixtureLoader(readFixture);
+const snapshot = () => loadFixture("snapshot-1106.json");
 const previous = watchStore.getState();
-const previousSpi = window.spi;
+let harness: ReturnType<typeof installSpi>;
 let container: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
   window.location.hash = "";
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(async () => true),
-    postMessage: vi.fn(),
-    onMessage: () => () => {},
-  };
+  harness = installSpi({ openExternal: async () => true });
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -47,7 +40,7 @@ afterEach(async () => {
   container.remove();
   selectionStore.getState().clear();
   watchStore.setState(previous);
-  window.spi = previousSpi;
+  harness.restore();
   window.location.hash = "";
 });
 
@@ -150,12 +143,12 @@ it("opens a reading item in Detail, including when Evidence was open", async () 
 });
 
 it.each([
-  ["November", recorded],
-  ["October", earlier],
-])(
+  ["November", "snapshot-1106.json"],
+  ["October", "snapshot-59d6895.json"],
+] as const)(
   "keeps every former Template field one disclosure away in the %s sweep",
   async (_name, fixture) => {
-    const body = ViewSnapshotSchema.parse(JSON.parse(fixture));
+    const body = loadFixture(fixture);
     const factIndex = body.briefing.facts.findIndex(({ label }) => label.startsWith("Template"));
     const fact = body.briefing.facts[factIndex];
     const rollout = [...body.briefing.focus, ...body.briefing.rest].find(

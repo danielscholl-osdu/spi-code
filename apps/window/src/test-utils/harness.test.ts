@@ -13,26 +13,6 @@ import { WATCH_INSPECTIONS, WATCH_SNAPSHOTS } from "./watch-fixtures.test-helper
 
 const loadFixture = fixtureLoader(readFixture);
 
-const deferred = [
-  "components/evidence/sweep-header.test.tsx",
-  "components/place/fresh.test.tsx",
-  "components/strip/Strip.test.tsx",
-  "components/strip/StripFold.test.tsx",
-  "components/sweep/SweepSources.test.tsx",
-  "store/watch.test.ts",
-  "views/line/line.test.tsx",
-  "views/releases/index.test.tsx",
-  "views/releases/panes.test.tsx",
-  "views/releases/place.test.tsx",
-  "views/releases/sections.test.tsx",
-  "views/service/service.test.tsx",
-  "views/setup/setup.test.tsx",
-  "views/template/QueueRow.test.tsx",
-  "views/template/template.test.tsx",
-  "views/today/narrow.test.tsx",
-  "views/upstream/upstream.test.tsx",
-];
-
 const virtualRoot = `${process.cwd().replaceAll("\\", "/")}/build/window-spi-guard`;
 const configPath = `${virtualRoot}/tsconfig.json`;
 const sourcePath = `${virtualRoot}/scan.test.tsx`;
@@ -80,11 +60,11 @@ function assignments(source: string): boolean {
   }
 }
 
-it("keeps hand-written SPI assignments exactly on the deferred list and in the harness", () => {
+it("keeps hand-written SPI assignments only in the harness", () => {
   const files = directoryPaths("apps/window/src")
     .filter((file) => /\.tsx?$/.test(file))
     .filter((file) => assignments(readFileSync(`apps/window/src/${file}`, "utf8")));
-  expect(files).toEqual([...deferred, "test-utils/harness.ts"].sort());
+  expect(files).toEqual(["test-utils/harness.ts"]);
 });
 
 it.each([

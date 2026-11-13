@@ -1,26 +1,22 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import {
-  type InspectResult,
-  PROTOCOL_VERSION,
-  type ViewSnapshot,
-  ViewSnapshotSchema,
-} from "@spi-code/contracts";
+import { PROTOCOL_VERSION, type ViewSnapshot } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
-import inspectFeed from "../../../../../fixtures/watch/inspect-1106.json?raw";
-import november6 from "../../../../../fixtures/watch/snapshot-1106.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { closeSheet, navigate } from "../../app/navigation.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { routeSelectionIds, selectionRows } from "../../panels/selection-rows.js";
 import { watchStore } from "../../store/watch.js";
+import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import { timedText } from "../../time.js";
 import { upstreamReading } from "./reading.js";
 
-const fixture = () => ViewSnapshotSchema.parse(JSON.parse(november6));
+const loadFixture = fixtureLoader(readFixture);
+const fixture = () => loadFixture("snapshot-1106.json");
 // Core writes the fixture in UTC; the window reads its instants in Chicago, where 00:00Z is 18:00.
 const previousZone = process.env.TZ;
 process.env.TZ = "America/Chicago";
@@ -29,7 +25,7 @@ afterAll(() => {
   else process.env.TZ = previousZone;
 });
 const previousWatch = watchStore.getState();
-const previousSpi = window.spi;
+let harness: ReturnType<typeof installSpi>;
 let container: HTMLDivElement;
 const unmounts: (() => Promise<void>)[] = [];
 
@@ -90,16 +86,9 @@ const detailFields = () =>
 beforeEach(async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(Date.parse(fixture().sweptAt));
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   closeSheet();
   window.location.hash = "#upstream";
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
-    setAppearance: vi.fn(async () => true),
-    postMessage: vi.fn(),
-    onMessage: () => () => {},
-  };
+  harness = installSpi();
   selectionStore.getState().clear();
   selectionStore.getState().setOpen(false);
   load(fixture());
@@ -110,9 +99,8 @@ afterEach(async () => {
   for (const unmount of unmounts.splice(0)) await unmount();
   closeSheet();
   watchStore.setState(previousWatch, true);
-  window.spi = previousSpi;
+  harness.restore();
   vi.restoreAllMocks();
-  vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
@@ -357,7 +345,7 @@ it("reaches every former Horizon field within one click of the Upstream place", 
 
 it("opens every theme's next step, fork states and exposed forks in one click", async () => {
   const body = fixture();
-  const answers: InspectResult[] = JSON.parse(inspectFeed);
+  const answers = loadFixture("inspect-1106.json");
   for (const entry of body.briefing.themes) {
     await click(theme(entry.id).querySelector(".upstream-theme-head"));
     const id = `theme:${entry.id}`;

@@ -1,35 +1,34 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type SweepProgress, type SweepStatus, ViewSnapshotSchema } from "@spi-code/contracts";
+import type { SweepProgress, SweepStatus } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import snapshot from "../../../../../fixtures/watch/snapshot-1106.json" with { type: "json" };
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { watchStore } from "../../store/watch.js";
+import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import { clockTime } from "../../time.js";
 import { after, midSweep, SWEEP_START, sweepStatus } from "../sweep/test-helper.js";
 import { SweepEvidence } from "./EvidenceTab.js";
 
 const previousWatch = watchStore.getState();
-const previousSpi = window.spi;
+let harness: ReturnType<typeof installSpi>;
 const cleanups: (() => Promise<void>)[] = [];
-const body = ViewSnapshotSchema.parse({ ...snapshot, sweptAt: after(120) });
+const body = { ...fixtureLoader(readFixture)("snapshot-1106.json"), sweptAt: after(120) };
 const clock = (at: string) => clockTime(at, { now: Date.now(), hint: false });
 
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(SWEEP_START + 130_000);
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  window.spi = { ...previousSpi, postMessage: vi.fn() };
+  harness = installSpi();
 });
 
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0)) await cleanup();
   watchStore.setState(previousWatch, true);
-  window.spi = previousSpi;
+  harness.restore();
   vi.useRealTimers();
-  vi.unstubAllGlobals();
 });
 
 async function render(

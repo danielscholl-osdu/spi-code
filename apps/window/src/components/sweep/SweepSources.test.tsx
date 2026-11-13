@@ -10,6 +10,7 @@ import { closeSheet } from "../../app/navigation.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { watchStore } from "../../store/watch.js";
+import { installSpi } from "../../test-utils/harness.js";
 import { clockTime } from "../../time.js";
 import { applyContainerRules } from "./container-rules.test-helper.js";
 import { SweepSources } from "./SweepSources.js";
@@ -442,25 +443,16 @@ it("lays the rows out by the list's own width, two columns in a narrow panel ins
 
 it("drops Today's middle column in the 740 px layout, where the list is wider than at 900", async () => {
   const previousWatch = watchStore.getState();
-  const previousSpi = window.spi;
   const previousWidth = window.innerWidth;
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const harness = installSpi();
   cleanups.push(async () => {
     closeSheet();
     watchStore.setState(previousWatch, true);
-    window.spi = previousSpi;
+    harness.restore();
     window.innerWidth = previousWidth;
-    vi.unstubAllGlobals();
   });
   closeSheet();
   window.location.hash = "#today";
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
-    setAppearance: vi.fn(async () => true),
-    postMessage: vi.fn(),
-    onMessage: () => () => {},
-  };
   selectionStore.getState().clear();
   selectionStore.getState().setOpen(false);
   watchStore.setState({ snapshot: null, progress: midSweep() });

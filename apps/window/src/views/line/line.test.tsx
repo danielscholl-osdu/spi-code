@@ -1,11 +1,9 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import november6 from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { closeSheet, navigate, openSheet, type Route, routeHash } from "../../app/navigation.js";
 import { DEFAULT_REGISTRY } from "../../app/routes.js";
@@ -13,11 +11,10 @@ import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { PINS_STORAGE_KEY, readPins } from "../../store/pins.js";
 import { watchStore } from "../../store/watch.js";
-import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
+import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 
-const recorded = watchFixtureText("snapshot-59d6895.json", readFixture);
-
-const recording = () => ViewSnapshotSchema.parse(JSON.parse(recorded));
+const loadFixture = fixtureLoader(readFixture);
+const recording = () => loadFixture("snapshot-59d6895.json");
 const NOVEMBER_6_NEEDING = [
   "partition",
   "entitlements",
@@ -29,7 +26,7 @@ const NOVEMBER_6_NEEDING = [
 const NOVEMBER_6_QUIET =
   "7 services need nothing: schema, file, search, workflow, unit, crs-catalog, crs-conversion";
 const previousWatch = watchStore.getState();
-const previousSpi = window.spi;
+let harness: ReturnType<typeof installSpi>;
 const PINNED_KEY = "spi-code.line-sheet.pinned";
 let container: HTMLDivElement;
 let unmount: (() => Promise<void>) | undefined;
@@ -72,18 +69,11 @@ beforeEach(() => {
     happyDOM: { setViewport(viewport: { width: number; height: number }): void };
   };
   (window as unknown as HappyWindow).happyDOM.setViewport({ width: 1440, height: 900 });
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Mozilla/5.0 (Macintosh; Mac OS X)");
   closeSheet();
   localStorage.removeItem(PINNED_KEY);
   window.location.hash = "#today";
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
-    setAppearance: vi.fn(async () => true),
-    postMessage: vi.fn(),
-    onMessage: () => () => {},
-  };
+  harness = installSpi();
   selectionStore.getState().clear();
   selectionStore.getState().setOpen(false);
   const body = recording();
@@ -97,7 +87,7 @@ afterEach(async () => {
   localStorage.removeItem(PINNED_KEY);
   localStorage.removeItem(PINS_STORAGE_KEY);
   watchStore.setState(previousWatch, true);
-  window.spi = previousSpi;
+  harness.restore();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -249,7 +239,7 @@ it("folds quiet rows into one named line and expands them in fleet order", async
 });
 
 it("folds November 6 rows whose release PRs only wait for review, marking those cells scheduled", async () => {
-  const body = ViewSnapshotSchema.parse(JSON.parse(november6));
+  const body = loadFixture("snapshot-1106.json");
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
   await mount();
   await open();
@@ -296,7 +286,7 @@ it("filters the recorded log-injection campaign to exactly its three forks, then
 });
 
 it("filters the November 6 recorded 8.5.0 campaign to all ten predicted forks with the fact shown once", async () => {
-  const body = ViewSnapshotSchema.parse(JSON.parse(november6));
+  const body = loadFixture("snapshot-1106.json");
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
   await mount();
   await open();
@@ -404,7 +394,7 @@ it("draws no empty cells, campaign controls, tables or repeated freshness", asyn
 it.each(["recorded", "blank stations"] as const)(
   "opens the November 6 sheet with exactly the services with upstream text (%s)",
   async (variant) => {
-    const body = ViewSnapshotSchema.parse(JSON.parse(november6));
+    const body = loadFixture("snapshot-1106.json");
     if (variant === "blank stations") {
       for (const [service, text] of [
         ["partition", ""],
@@ -433,7 +423,7 @@ it.each(["recorded", "blank stations"] as const)(
 );
 
 it("clears the column chip to restore every November 6 service", async () => {
-  const body = ViewSnapshotSchema.parse(JSON.parse(november6));
+  const body = loadFixture("snapshot-1106.json");
   const station = body.stations[0]?.stations.find(({ id }) => id === "upstream");
   if (!station) throw new Error("Missing fixture station");
   station.text = "";
@@ -454,7 +444,7 @@ it.each([
   ["main", "Main"],
   ["release", "Release PR"],
 ] as const)("opens with the %s station filter", async (column, label) => {
-  const body = ViewSnapshotSchema.parse(JSON.parse(november6));
+  const body = loadFixture("snapshot-1106.json");
   const station = body.stations[0]?.stations.find(({ id }) => id === column);
   if (!station) throw new Error("Missing fixture station");
   station.text = "";
@@ -470,7 +460,7 @@ it.each([
 });
 
 it("reopens unfiltered with Cmd-L after a November 6 column filter", async () => {
-  const body = ViewSnapshotSchema.parse(JSON.parse(november6));
+  const body = loadFixture("snapshot-1106.json");
   const station = body.stations[0]?.stations.find(({ id }) => id === "upstream");
   if (!station) throw new Error("Missing fixture station");
   station.text = "";
@@ -486,7 +476,7 @@ it("reopens unfiltered with Cmd-L after a November 6 column filter", async () =>
 });
 
 it("intersects a station filter with a campaign and clears either independently", async () => {
-  const body = ViewSnapshotSchema.parse(JSON.parse(november6));
+  const body = loadFixture("snapshot-1106.json");
   const station = body.stations
     .find(({ service }) => service === "schema")
     ?.stations.find(({ id }) => id === "upstream");
@@ -520,7 +510,7 @@ it("intersects a station filter with a campaign and clears either independently"
 });
 
 it("opens a new column or an unfiltered sheet over a pinned sheet without keeping its campaign", async () => {
-  const body = ViewSnapshotSchema.parse(JSON.parse(november6));
+  const body = loadFixture("snapshot-1106.json");
   const station = body.stations[0]?.stations.find(({ id }) => id === "upstream");
   if (!station) throw new Error("Missing fixture station");
   station.text = "";

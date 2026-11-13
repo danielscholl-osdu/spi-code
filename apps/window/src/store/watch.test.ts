@@ -10,6 +10,7 @@ import releases from "../../../../fixtures/rib-59d6895/oracle/releases.json?raw"
 import { Shell } from "../app/Shell.js";
 import { midSweep } from "../components/sweep/test-helper.js";
 import { createSelectionStore } from "../panels/selection.js";
+import { installSpi } from "../test-utils/harness.js";
 import { testSnapshot as snapshotFromOracles } from "./test-snapshot.js";
 import { createWatchStore, selectAreaEnvelopes, selectEnvelopes, watchStore } from "./watch.js";
 
@@ -430,19 +431,16 @@ it("subscribes on every hello with zero initially and the last cursor after rese
 });
 
 it("keeps the mounted snapshot across reconnect and shows the supervisor's schema-valid give-up error", async () => {
-  const previous = window.spi;
   const previousState = watchStore.getState();
   const listeners = new Set<(message: unknown) => void>();
   const postMessage = vi.fn();
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
+  const harness = installSpi({
     postMessage,
     onMessage: (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-  };
+  });
   watchStore.setState({ snapshot: null });
   const container = document.createElement("div");
   document.body.append(container);
@@ -481,7 +479,7 @@ it("keeps the mounted snapshot across reconnect and shows the supervisor's schem
     await act(async () => root.unmount());
     container.remove();
     watchStore.setState(previousState);
-    window.spi = previous;
+    harness.restore();
   }
 });
 

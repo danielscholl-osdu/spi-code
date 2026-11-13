@@ -7,18 +7,18 @@ import {
   type Station,
   type StationSubstate,
   type ViewSnapshot,
-  ViewSnapshotSchema,
 } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import november6 from "../../../../../fixtures/watch/snapshot-1106.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { closeSheet } from "../../app/navigation.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { PINS_STORAGE_KEY, readPins } from "../../store/pins.js";
 import { PIPS, type PipState, selectStrip } from "../../store/strip.js";
 import { watchStore } from "../../store/watch.js";
+import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import { clockTime } from "../../time.js";
 import { after, midSweep, SWEEP_START, sweepStatus } from "../sweep/test-helper.js";
 
@@ -37,9 +37,10 @@ const FLEET = [
   "crs-catalog",
   "crs-conversion",
 ];
-const fixture = () => ViewSnapshotSchema.parse(JSON.parse(november6));
+const loadFixture = fixtureLoader(readFixture);
+const fixture = () => loadFixture("snapshot-1106.json");
 const previousWatch = watchStore.getState();
-const previousSpi = window.spi;
+let harness: ReturnType<typeof installSpi>;
 let container: HTMLDivElement;
 let unmount: (() => Promise<void>) | undefined;
 
@@ -71,19 +72,12 @@ const pips = () => [...(strip()?.querySelectorAll<HTMLElement>("[data-pip]") ?? 
 const sheet = () => container.querySelector(".line-sheet");
 
 beforeEach(() => {
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
     "Mozilla/5.0 (Macintosh; Mac OS X) Electron/44.10.0",
   );
   closeSheet();
   window.location.hash = "#today";
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
-    setAppearance: vi.fn(async () => true),
-    postMessage: vi.fn(),
-    onMessage: () => () => {},
-  };
+  harness = installSpi();
   selectionStore.getState().clear();
   selectionStore.getState().setOpen(false);
   show(fixture());
@@ -94,7 +88,7 @@ afterEach(async () => {
   unmount = undefined;
   closeSheet();
   watchStore.setState(previousWatch, true);
-  window.spi = previousSpi;
+  harness.restore();
   localStorage.removeItem(PINS_STORAGE_KEY);
   vi.useRealTimers();
   vi.restoreAllMocks();

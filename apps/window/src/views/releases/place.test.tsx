@@ -1,44 +1,36 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import {
-  type InspectResult,
-  type Message,
-  PROTOCOL_VERSION,
-  ViewSnapshotSchema,
-} from "@spi-code/contracts";
+import { type InspectResult, type Message, PROTOCOL_VERSION } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import november from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { RouteView } from "../../app/routes.js";
 import { selectionStore } from "../../panels/selection.js";
 import { watchStore } from "../../store/watch.js";
-import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
+import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import Releases, { ReleaseMonth } from "./index.js";
 
-const recorded = watchFixtureText("snapshot-59d6895.json", readFixture);
+const loadFixture = fixtureLoader(readFixture);
 
 const container = document.createElement("div");
 let root: ReturnType<typeof createRoot>;
 const previous = watchStore.getState();
-let bridge: Window["spi"];
+let harness: ReturnType<typeof installSpi>;
 const listeners = new Set<(input: unknown) => void>();
 const send = vi.fn<(message: Message) => void>();
-const snapshot = () => ViewSnapshotSchema.parse(JSON.parse(november));
+const snapshot = () => loadFixture("snapshot-1106.json");
 
 beforeEach(() => {
-  bridge = window.spi;
-  window.spi = {
-    proof: false,
+  harness = installSpi({
     postMessage: send,
-    openExternal: vi.fn(async () => true),
+    openExternal: async () => true,
     onMessage(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-  };
+  });
   send.mockClear();
   document.body.append(container);
   root = createRoot(container);
@@ -49,7 +41,7 @@ afterEach(async () => {
   container.remove();
   watchStore.setState(previous);
   selectionStore.getState().clear();
-  window.spi = bridge;
+  harness.restore();
   window.location.hash = "";
   listeners.clear();
 });
@@ -109,7 +101,7 @@ it("updates the reading from the snapshot and omits absent reading, groups, mont
 });
 
 it("keeps every former Releases field one click away through its recorded month anchor", async () => {
-  const body = ViewSnapshotSchema.parse(JSON.parse(recorded));
+  const body = loadFixture("snapshot-59d6895.json");
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
   const months = [...body.releases.lines].sort((a, b) => b.month.localeCompare(a.month));
   for (const line of months) {

@@ -13,6 +13,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { Shell } from "../../app/Shell.js";
 import { watchStore } from "../../store/watch.js";
+import { installSpi } from "../../test-utils/harness.js";
 import Setup from "./index.js";
 
 const sweepSchedule = {
@@ -26,7 +27,7 @@ type Tool = SetupState["tools"][number];
 const tools: Tool["tool"][] = ["copilot", "git", "gh", "glab"];
 let container: HTMLDivElement;
 let root: Root;
-let previous: Window["spi"];
+let harness: ReturnType<typeof installSpi>;
 const send = vi.fn();
 const unhandled = vi.fn();
 
@@ -36,13 +37,7 @@ beforeEach(() => {
   window.addEventListener("unhandledrejection", unhandled);
   process.on("unhandledRejection", unhandled);
   window.location.hash = "";
-  previous = window.spi;
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
-    postMessage: send,
-    onMessage: () => () => {},
-  };
+  harness = installSpi({ postMessage: send });
   send.mockReset();
   watchStore.setState({
     setup: null,
@@ -75,7 +70,7 @@ afterEach(async () => {
     setupCheckError: null,
   });
   vi.restoreAllMocks();
-  window.spi = previous;
+  harness.restore();
 });
 const render = (node: ReactNode = <Setup />) => act(async () => root.render(node));
 const receive = (type: string, payload: unknown, id = "host") =>

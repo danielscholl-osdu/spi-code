@@ -1,39 +1,33 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type PlaceRow, ViewSnapshotSchema } from "@spi-code/contracts";
+import type { PlaceRow } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it } from "vitest";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { closeSheet, navigate } from "../../app/navigation.js";
 import { placeFreshCases, placeReachCases } from "../../app/place-reachability.test-helper.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { watchStore } from "../../store/watch.js";
-import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
+import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import Environment from "../../views/environment/index.js";
 import Line from "../../views/line/index.js";
 import Security from "../../views/security/index.js";
 import Template from "../../views/template/index.js";
 
-const busy = watchFixtureText("snapshot-busy.json", readFixture);
+const loadFixture = fixtureLoader(readFixture);
 
 const previous = watchStore.getState();
 const container = document.createElement("div");
 let root: ReturnType<typeof createRoot>;
-const previousSpi = window.spi;
+let harness: ReturnType<typeof installSpi>;
 beforeEach(() => {
   root = createRoot(container);
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   closeSheet();
   localStorage.clear();
-  window.spi = {
-    proof: false,
-    postMessage: vi.fn(),
-    openExternal: vi.fn(),
-    onMessage: () => () => {},
-  };
+  harness = installSpi();
 });
 afterEach(async () => {
   await act(async () => root.unmount());
@@ -41,8 +35,7 @@ afterEach(async () => {
   watchStore.setState(previous, true);
   selectionStore.getState().clear();
   closeSheet();
-  window.spi = previousSpi;
-  vi.unstubAllGlobals();
+  harness.restore();
 });
 
 const views = {
@@ -59,7 +52,7 @@ const marked = () =>
 it.each(Object.keys(views) as PlaceRow["place"][])(
   "%s marks exactly core's fresh ids, including items outside its capped reading",
   async (place) => {
-    const body = ViewSnapshotSchema.parse(JSON.parse(busy));
+    const body = loadFixture("snapshot-busy.json");
     const row = body.briefing.places?.find((row) => row.place === place);
     const reading = body.readings.find(
       ({ anchor }) => anchor.kind === (place === "line" ? "program" : place),
@@ -102,7 +95,7 @@ it.each(Object.keys(views) as PlaceRow["place"][])(
 );
 
 it("registers each new chip at its place and Today's opener, and opens all four destinations", async () => {
-  const body = ViewSnapshotSchema.parse(JSON.parse(busy));
+  const body = loadFixture("snapshot-busy.json");
   for (const row of body.briefing.places ?? []) {
     const reading = body.readings.find(
       ({ anchor }) => anchor.kind === (row.place === "line" ? "program" : row.place),

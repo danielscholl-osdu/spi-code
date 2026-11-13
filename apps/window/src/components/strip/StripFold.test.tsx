@@ -2,15 +2,16 @@
 // SPDX-License-Identifier: MIT
 
 import { readFileSync } from "node:fs";
-import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
+import type { ViewSnapshot } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import november6 from "../../../../../fixtures/watch/snapshot-1106.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { closeSheet } from "../../app/navigation.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { watchStore } from "../../store/watch.js";
+import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import { clockTime } from "../../time.js";
 import { midSweep } from "../sweep/test-helper.js";
 
@@ -28,9 +29,10 @@ const WIDTHS: Record<string, number> = {
 };
 const SECOND_PADDING = 26;
 
-const fixture = () => ViewSnapshotSchema.parse(JSON.parse(november6));
+const loadFixture = fixtureLoader(readFixture);
+const fixture = () => loadFixture("snapshot-1106.json");
 const previousWatch = watchStore.getState();
-const previousSpi = window.spi;
+let harness: ReturnType<typeof installSpi>;
 let container: HTMLDivElement;
 let unmount: (() => Promise<void>) | undefined;
 let layout: { first: number; second: number; widths: Record<string, number> };
@@ -100,19 +102,12 @@ const topbar = () =>
   container.querySelector<HTMLElement>(".shell")?.style.getPropertyValue("--topbar-height");
 
 beforeEach(() => {
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
     "Mozilla/5.0 (Macintosh; Mac OS X) Electron/44.10.0",
   );
   closeSheet();
   window.location.hash = "#today";
-  window.spi = {
-    proof: false,
-    openExternal: vi.fn(),
-    setAppearance: vi.fn(async () => true),
-    postMessage: vi.fn(),
-    onMessage: () => () => {},
-  };
+  harness = installSpi();
   selectionStore.getState().clear();
   selectionStore.getState().setOpen(false);
   layout = { first: 760, second: 1000, widths: { ...WIDTHS } };
@@ -152,7 +147,7 @@ afterEach(async () => {
   unmount = undefined;
   closeSheet();
   watchStore.setState(previousWatch, true);
-  window.spi = previousSpi;
+  harness.restore();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });

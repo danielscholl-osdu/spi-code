@@ -3,7 +3,7 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
+import type { ViewSnapshot } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -14,17 +14,17 @@ import { Shell } from "../../app/Shell.js";
 import { RightPanel } from "../../panels/RightPanel.js";
 import { selectionStore } from "../../panels/selection.js";
 import { createWatchStore, watchStore } from "../../store/watch.js";
-import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
+import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import Today from "./index.js";
 
-const raw = watchFixtureText("snapshot-busy.json", readFixture);
+const loadFixture = fixtureLoader(readFixture);
 
 const css = readFileSync(resolve("apps/window/src/views/today/today.css"), "utf8");
 
 const cleanup: (() => Promise<void>)[] = [];
 let measure: () => void;
+let harness: ReturnType<typeof installSpi>;
 beforeEach(() => {
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -40,16 +40,12 @@ beforeEach(() => {
   localStorage.clear();
   closeSheet();
   relaunch();
-  window.spi = {
-    postMessage: vi.fn(),
-    openExternal: vi.fn(),
-    onMessage: () => () => {},
-    proof: false,
-  };
+  harness = installSpi();
 });
 afterEach(async () => {
   for (const dispose of cleanup.splice(0)) await dispose();
   selectionStore.getState().clear();
+  harness.restore();
   vi.unstubAllGlobals();
 });
 const resize = async (width: number) => {
@@ -57,7 +53,7 @@ const resize = async (width: number) => {
   await act(async () => window.dispatchEvent(new Event("resize")));
 };
 function populated(ids = [0, 1, 2, 3, 4]): ViewSnapshot {
-  const body = ViewSnapshotSchema.parse(JSON.parse(raw));
+  const body = loadFixture("snapshot-busy.json");
   const seed = body.briefing.focus[0];
   if (!seed) throw new Error("Missing item");
   body.briefing.focus = Array.from({ length: 4 }, (_, at) => ({
