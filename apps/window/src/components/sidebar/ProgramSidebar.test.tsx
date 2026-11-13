@@ -16,7 +16,6 @@ import type { Route } from "../../app/routes.js";
 import { PINS_STORAGE_KEY, pin, unpin } from "../../store/pins.js";
 import { createWatchStore } from "../../store/watch.js";
 import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
-import "../../test-utils/web-storage.js";
 import { COLLAPSE_STORAGE_KEY, isCollapsed } from "./collapse.js";
 import { ProgramSidebar } from "./ProgramSidebar.js";
 import { SidebarProvider } from "./ui-sidebar.js";

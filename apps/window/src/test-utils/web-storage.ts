@@ -3,7 +3,7 @@
 
 /**
  * Node 26 defines its own localStorage and sessionStorage on globalThis, and vitest's happy-dom
- * environment leaves those in place of the window's, so window tests import this to get the window's.
+ * environment leaves those in place of the window's, so the window project's setup file installs the window's.
  */
 export function installWebStorage(global: typeof globalThis = globalThis) {
   for (const name of ["localStorage", "sessionStorage"] as const)

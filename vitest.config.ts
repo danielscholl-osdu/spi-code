@@ -36,7 +36,15 @@ export default defineConfig({
       ].map((directory) => ({
         test: {
           ...timeouts,
-          setupFiles,
+          setupFiles:
+            directory === "apps/window"
+              ? [
+                  ...setupFiles,
+                  fileURLToPath(
+                    new URL("./apps/window/src/test-utils/web-storage.ts", import.meta.url),
+                  ),
+                ]
+              : setupFiles,
           name: directory,
           include: [
             `${directory}/src/**/*.test.{ts,tsx}`,

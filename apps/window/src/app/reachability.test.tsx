@@ -1,9 +1,10 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
+import { directoryPaths } from "../test-utils/directory-paths.test.js";
 import { moving } from "../views/today/in-motion.test-helper.js";
 import { treeServices } from "./queue.js";
 import {
@@ -168,8 +169,8 @@ describe("every focus and rest item's scope and origin, at its home on Today", (
 
 describe("the suite's own guards", () => {
   const sources = Object.fromEntries(
-    readdirSync("apps/window/src/app")
-      .filter((file) => file.endsWith(".test.tsx"))
+    directoryPaths("apps/window/src/app")
+      .filter((file) => !file.includes("/") && file.endsWith(".test.tsx"))
       .map((file) => [file, readFileSync(`apps/window/src/app/${file}`, "utf8")]),
   );
 
