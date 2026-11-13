@@ -81,5 +81,8 @@ An inspect id resolves through `resolveInspect` in `packages/host/src/inspect/re
 outside the `inspect.request` route, so thread context or Diagnose can ask the same
 question. Its table is ordered and only the first row that claims an id answers; a new
 id kind is a new row, and a row whose lookup finds nothing answers undefined.
+A row that composes a time passes `deps.ctx` on (core's boards take it as `context`), so
+the app's instant style reaches Detail; `fixtures/watch/inspect-1106.json` is answered in
+that style, and `inspect/instants.test.ts` fails on a clock time in any kind's answer.
 
 The host package emits declarations, so an exported watch step whose inferred return type reaches a core type core does not export (`Since`, `HorizonStages`, `PlaceRow`) fails `tsc` with TS2883 or TS4058. Spell the return type from exported types and `ReturnType<typeof fn>`, as `ProjectedBriefing` in `watch/briefing.ts` does.

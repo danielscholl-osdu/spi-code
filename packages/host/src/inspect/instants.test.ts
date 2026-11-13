@@ -21,6 +21,7 @@ import { briefingHolds } from "../../test/watch/detail-feed.js";
 import { appStyle, recordedInput } from "../../test/watch/snapshot-fixture.js";
 import { projectWatch } from "../watch/project.js";
 import { recordedRuns } from "../watch/recorded-runs.js";
+import { holdResult } from "./hold.js";
 import { RUN_PREFIX, STATION_PREFIX } from "./prefixes.js";
 import { inspectScope, resolveIn } from "./resolve.js";
 
@@ -103,6 +104,27 @@ describe("inspect results on the 6 Nov input, in the app's time style", () => {
     const items = await Promise.all((KINDS["queue item"] ?? []).map((id) => resolveIn(scope, id)));
     const read = JSON.stringify(items.flatMap((r) => (r ? [briefRead(r)] : []))).replace(iso, "");
     expect(read, `${BRIEF_GAP} closed this gap: drop BRIEF_GAP`).toMatch(/\b\d{2}:\d{2}\b/);
+  });
+});
+
+describe("a hold whose ends cannot all be read", () => {
+  const recorded = briefingHolds(view.briefing)[0]?.event;
+  if (!recorded) throw new Error("the 6 Nov sweep has a hold");
+  const why = (start: string, end: string | undefined) => {
+    const { end: _, ...open } = recorded;
+    const hold = end === undefined ? { ...open, start } : { ...open, start, end };
+    return holdResult(`hold:${hold.id}`, hold, view.briefing, view.areas, now, ctx).why;
+  };
+  const start = "2026-11-06T04:07:05Z";
+  const end = "2026-11-06T04:20:16Z";
+
+  it("states both ends, or only the end it can read", () => {
+    expect(why(start, end)).toBe("2026-11-06T04:07:05.000Z to 2026-11-06T04:20:16.000Z");
+    expect(why(start, undefined)).toBe("since 2026-11-06T04:07:05.000Z");
+    expect(why(start, "not-a-time")).toBe("from 2026-11-06T04:07:05.000Z");
+    expect(why("not-a-time", end)).toBe("until 2026-11-06T04:20:16.000Z");
+    expect(why("", "not-a-time")).toBe("");
+    expect(why("not-a-time", undefined)).toBe("");
   });
 });
 
