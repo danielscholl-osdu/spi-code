@@ -3,9 +3,11 @@
 
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import { selectionStore } from "../panels/selection.js";
-import { installSpi } from "../test-utils/harness.js";
+import { watchStore } from "../store/watch.js";
+import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import { loadPanes, PANES_STORAGE_KEY, savePanes } from "./pane-layout.js";
 import { closeSheet, pinSheet } from "./routes.js";
 import { Shell } from "./Shell.js";
@@ -311,6 +313,40 @@ describe("pane separators", () => {
     await mountShell();
     expect(selectionStore.getState().open).toBe(false);
     expect(saved().open.rightPanel).toBe(true);
+  });
+
+  it("restores a saved open right panel before the shell first measures its top row or visits a route", async () => {
+    const previousWatch = watchStore.getState();
+    const { visit } = selectionStore.getState();
+    const measure = HTMLElement.prototype.getBoundingClientRect;
+    const openAt: { measure?: boolean; visit?: boolean } = {};
+    try {
+      const body = fixtureLoader(readFixture)("snapshot-1106.json");
+      watchStore.setState({ snapshot: { cursor: body.cursor, body }, setup: null });
+      savePanes({ open: { rightPanel: true } });
+      selectionStore.setState({
+        selected: null,
+        row: null,
+        open: false,
+        visit: (...args) => {
+          openAt.visit ??= selectionStore.getState().open;
+          return visit(...args);
+        },
+      });
+      await resizeWindow(1440);
+      vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        if (this.matches(".title-bar")) openAt.measure ??= selectionStore.getState().open;
+        return measure.call(this);
+      });
+      await mountShell();
+      expect(openAt).toEqual({ measure: true, visit: true });
+    } finally {
+      vi.restoreAllMocks();
+      selectionStore.setState({ visit });
+      watchStore.setState(previousWatch, true);
+    }
   });
 
   it("remembers the inline sidebar's state, not an off-canvas peek at 740 px", async () => {
