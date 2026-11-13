@@ -427,7 +427,7 @@
     "title": "indexer · next sync predicted",
     "class": "TOOLCHAIN",
     "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
-    "effect": "23 commits wait in sync PR #58; 2 more reach the fork at the 00:00 sync.",
+    "effect": "23 commits wait in sync PR #58; 2 more reach the fork at the 2026-11-07T00:00:00.000Z sync.",
     "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
     "why": "Commit: 7749dc4b · Upgrade to Spring Boot 4 / Spring Framework 7 on Java 17 for M27 vulnerabilities; Filter: .github/upstream-filter.yml on main; Queued: 23 commits wait in sync PR #58; 2 more wait for the next Sync Upstream at 2026-11-07T00:00:00.000Z",
     "evidence": [],
@@ -568,7 +568,7 @@
     "title": "legal · next sync predicted",
     "class": "TOOLCHAIN",
     "cause": "Queued upstream commits move the root pom to os-core-common 8.4.1-boot4-SNAPSHOT, os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT and os-core-common 8.5.0.",
-    "effect": "17 commits reach the fork at the 00:00 sync.",
+    "effect": "17 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
     "next": "Absorb os-core-common 8.4.1-boot4-SNAPSHOT on the fork before the next Sync Upstream carries it.",
     "why": "Commit: 0cab1090 · Migrate Legal to Spring Boot 4 on Java 17; Filter: .github/upstream-filter.yml on main; Queued: 17 commits wait for the next Sync Upstream at 2026-11-07T00:00:00.000Z",
     "evidence": [],
@@ -709,7 +709,7 @@
     "title": "schema · next sync predicted",
     "class": "TOOLCHAIN",
     "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
-    "effect": "16 commits reach the fork at the 00:00 sync.",
+    "effect": "16 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
     "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
     "why": "Commit: 28d5a930 · Migrate Schema to Spring Boot 4 / Spring 7 on Java 17; Filter: .github/upstream-filter.yml on main; Queued: 16 commits wait for the next Sync Upstream at 2026-11-07T00:00:00.000Z",
     "evidence": [],
@@ -991,7 +991,7 @@
     "title": "partition · next sync predicted",
     "class": "HALT",
     "cause": "Queued upstream commits add schemathesis-tests, which the fork's filter has no rule for.",
-    "effect": "8 commits reach the fork at the 00:00 sync.",
+    "effect": "8 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
     "next": "Pre-classify: add schemathesis-tests to top_level in .github/upstream-filter.yml before the next Sync Upstream.",
     "why": "Commit: 69785fa5 · Schemathesis Fix; Map: top_level; Filter: .github/upstream-filter.yml on main · no rule for schemathesis-tests; Queued: 8 commits wait for the next Sync Upstream at 2026-11-07T00:00:00.000Z",
     "evidence": [
@@ -1408,7 +1408,7 @@
     "title": "unit · next sync predicted",
     "class": "TOOLCHAIN",
     "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
-    "effect": "7 commits reach the fork at the 00:00 sync.",
+    "effect": "7 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
     "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
     "why": "Commit: 3a69766c · Upgrade to Spring Boot 4.0.8 / Spring Framework 7.0.9 on Java 17 (M27 vulnerability remediation); Filter: .github/upstream-filter.yml on main; Queued: 7 commits wait for the next Sync Upstream at 2026-11-07T00:00:00.000Z",
     "evidence": [],
@@ -1549,7 +1549,7 @@
     "title": "workflow · next sync predicted",
     "class": "TOOLCHAIN",
     "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-    "effect": "7 commits reach the fork at the 00:00 sync.",
+    "effect": "7 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
     "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
     "why": "Commit: d6847cea · Upgrade to Spring Boot 4 / Spring Framework 7 on Java 17 for M27 vulnerabilities; Filter: .github/upstream-filter.yml on main; Queued: 7 commits wait for the next Sync Upstream at 2026-11-07T00:00:00.000Z",
     "evidence": [],
@@ -1690,7 +1690,7 @@
     "title": "search · next sync predicted",
     "class": "TOOLCHAIN",
     "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-    "effect": "6 commits reach the fork at the 00:00 sync.",
+    "effect": "6 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
     "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
     "why": "Commit: aded8a3f · Upgrade to Spring Boot 4 / Spring Framework 7 on Java 17 for M27 vulnerabilities; Filter: .github/upstream-filter.yml on main; Queued: 6 commits wait for the next Sync Upstream at 2026-11-07T00:00:00.000Z",
     "evidence": [],
@@ -1831,7 +1831,7 @@
     "title": "file · next sync predicted",
     "class": "TOOLCHAIN",
     "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-    "effect": "5 commits reach the fork at the 00:00 sync.",
+    "effect": "5 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
     "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
     "why": "Commit: 4d0ff1f4 · Upgrade to Spring Boot 4 / Spring Framework 7 on Java 17 for M27 vulnerabilities; Filter: .github/upstream-filter.yml on main; Queued: 5 commits wait for the next Sync Upstream at 2026-11-07T00:00:00.000Z",
     "evidence": [],
@@ -1972,7 +1972,7 @@
     "title": "crs-conversion · next sync predicted",
     "class": "TOOLCHAIN",
     "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-    "effect": "5 commits reach the fork at the 00:00 sync.",
+    "effect": "5 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
     "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
     "why": "Commit: 80e3497b · Upgrade to Spring Boot 4 / Spring Framework 7 on Java 17 for M27 vulnerabilities; Filter: .github/upstream-filter.yml on main; Queued: 5 commits wait for the next Sync Upstream at 2026-11-07T00:00:00.000Z",
     "evidence": [],
@@ -2735,7 +2735,7 @@
     "cause": "os-core-common 8.5.0",
     "effect": "held: partition and legal · queued: schema, file, storage, indexer, search, workflow, unit and crs-conversion",
     "next": "Absorb os-core-common 8.5.0 on the forks before the next sync carries it.",
-    "why": "at 00:00",
+    "why": "at 2026-11-07T00:00:00.000Z",
     "evidence": [],
     "related": [
       {
@@ -2750,42 +2750,42 @@
       },
       {
         "text": "schema",
-        "state": "certain · queued · syncs at 00:00",
+        "state": "certain · queued · syncs at 2026-11-07T00:00:00.000Z",
         "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/commit/28d5a93096f69a90ee3df7727103d2394e09c789"
       },
       {
         "text": "file",
-        "state": "certain · queued · syncs at 00:00",
+        "state": "certain · queued · syncs at 2026-11-07T00:00:00.000Z",
         "url": "https://community.opengroup.org/osdu/platform/system/file/-/commit/4d0ff1f4ff24edbeda28d2c161a144a4e3e02db2"
       },
       {
         "text": "storage",
-        "state": "certain · queued · syncs at 00:00",
+        "state": "certain · queued · syncs at 2026-11-07T00:00:00.000Z",
         "url": "https://community.opengroup.org/osdu/platform/system/storage/-/commit/9acda5e50312d03e4e8b891c6923d01ec90dfd7d"
       },
       {
         "text": "indexer",
-        "state": "certain · queued · syncs at 00:00",
+        "state": "certain · queued · syncs at 2026-11-07T00:00:00.000Z",
         "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/commit/7749dc4b7b5865f3030b6b089068f8de80729918"
       },
       {
         "text": "search",
-        "state": "certain · queued · syncs at 00:00",
+        "state": "certain · queued · syncs at 2026-11-07T00:00:00.000Z",
         "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/commit/aded8a3f3eb04154f291d4af4e33116514e40599"
       },
       {
         "text": "workflow",
-        "state": "certain · queued · syncs at 00:00",
+        "state": "certain · queued · syncs at 2026-11-07T00:00:00.000Z",
         "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/d6847cea52b94f697ab67ef471f1bfeff33b6d93"
       },
       {
         "text": "unit",
-        "state": "certain · queued · syncs at 00:00",
+        "state": "certain · queued · syncs at 2026-11-07T00:00:00.000Z",
         "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/3a69766c25b03b450d95b55ef21c013c63ef407f"
       },
       {
         "text": "crs-conversion",
-        "state": "certain · queued · syncs at 00:00",
+        "state": "certain · queued · syncs at 2026-11-07T00:00:00.000Z",
         "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-conversion-service/-/commit/80e3497b7e5c8cba61810c2fb51c9e9fb9e5ea17"
       },
       {
@@ -3079,22 +3079,22 @@
     "cause": "os-core-common 10.0.0",
     "effect": "queued: schema, indexer and unit · open MRs: partition, legal, file, storage, search, workflow, crs-catalog and crs-conversion",
     "next": "Absorb os-core-common 10.0.0 on the forks before the next sync carries it.",
-    "why": "at 00:00",
+    "why": "at 2026-11-07T00:00:00.000Z",
     "evidence": [],
     "related": [
       {
         "text": "schema",
-        "state": "certain · queued · syncs at 00:00",
+        "state": "certain · queued · syncs at 2026-11-07T00:00:00.000Z",
         "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/commit/d708bac1910407e175278e721a86fe20249e18bf"
       },
       {
         "text": "indexer",
-        "state": "certain · queued · syncs at 00:00",
+        "state": "certain · queued · syncs at 2026-11-07T00:00:00.000Z",
         "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/commit/f9643b164cf5eb0994df18a6d30ddcd37738d245"
       },
       {
         "text": "unit",
-        "state": "certain · queued · syncs at 00:00",
+        "state": "certain · queued · syncs at 2026-11-07T00:00:00.000Z",
         "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/d4b65bdf42503bf50bdbed11249c06bd9c0c4fe0"
       },
       {
@@ -3585,7 +3585,7 @@
     "cause": "schemathesis-tests",
     "effect": "halts at the next sync: partition · 4 other filters lack it · open MRs bring it to legal and crs-conversion",
     "next": "Add a rule for schemathesis-tests to every fork's .github/upstream-filter.yml.",
-    "why": "at 00:00",
+    "why": "at 2026-11-07T00:00:00.000Z",
     "evidence": [],
     "related": [
       {

@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import type { CoreContext } from "../context.js";
 import type { AttentionTier } from "../attention.js";
 import { TEMPLATE_REPO } from "../config.js";
 import type { ReadRecord } from "../evidence/index.js";
@@ -8,7 +9,7 @@ import type { Model } from "../model/index.js";
 import { templatePrState } from "../model/queue.js";
 import { plural, short } from "../util.js";
 import {
-  clockOf,
+  beforeTime,
   NOT_READ,
   type PlaceReading,
   placeReading,
@@ -23,6 +24,7 @@ export interface EngineeringItem extends ReadingItem {
 
 export interface EngineeringReadingInput<T extends EngineeringItem> {
   model: Model;
+  context?: CoreContext;
   items: readonly T[];
   reads: Partial<Record<"template" | "github" | "runs", readonly ReadRecord[]>>;
 }
@@ -63,7 +65,7 @@ function qualifierFor(
     : undefined;
 }
 
-function groupsFor<T extends EngineeringItem>(items: readonly T[]): ReadingGroup<T>[] {
+function groupsFor<T extends EngineeringItem>(items: readonly T[], context?: CoreContext): ReadingGroup<T>[] {
   const tier = (item: T) =>
     item.due ? 0 : item.owned ? 1 : item.attention === "interrupt" ? 2 : item.attention === "surface" ? 3 : 4;
   const ordered = [...items].sort(
@@ -74,7 +76,7 @@ function groupsFor<T extends EngineeringItem>(items: readonly T[]): ReadingGroup
   const groups = new Map<string, T[]>();
   for (const item of ordered) {
     const group = item.due
-      ? `Before ${clockOf(item.due.at)}`
+      ? beforeTime(item.due.at, context)
       : item.owned
         ? "Owned"
         : item.attention === "interrupt"
@@ -159,7 +161,7 @@ export function engineeringReading<T extends EngineeringItem>(
           : "forks awaiting verification",
       },
     ],
-    groups: groupsFor(own),
+    groups: groupsFor(own, input.context),
     ...(extra ? { extra } : {}),
   });
   return {

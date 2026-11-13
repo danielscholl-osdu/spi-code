@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import type { CoreContext } from "../context.js";
 import { HISTORY_DAYS } from "../config.js";
 import type { Model } from "../model/index.js";
 import type { LifecycleStat } from "../model/stack.js";
@@ -26,12 +27,13 @@ function pct(share: number): string {
 export function deployableWords(
   model: Model,
   now: Date,
+  context?: Pick<CoreContext, "timeStyle">,
 ): { label: string; figure: string | null; sub: string } {
   const a = model.stack.availability;
   const label = `Deployable · ${HISTORY_DAYS} days`;
   if (!a) return { label, figure: null, sub: "no lifecycle run read" };
   const unread = model.stack.history.held?.filter((d) => d.unread).length ?? 0;
-  const at = a.since !== undefined ? stamp(new Date(a.since).toISOString(), now) : undefined;
+  const at = a.since !== undefined && Number.isFinite(a.since) ? stamp(new Date(a.since).toISOString(), now, context) : undefined;
   return {
     label,
     figure: unread > 0 ? null : pct(a.share),

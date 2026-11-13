@@ -9,7 +9,7 @@ import { withoutNoise } from "../model/noise.js";
 import { type ReleasePr, releasePrs } from "../model/queue.js";
 import { plural } from "../util.js";
 import {
-  clockOf,
+  beforeTime,
   NOT_READ,
   type PlaceReading,
   placeReading,
@@ -157,13 +157,13 @@ function qualifierOf(reads: readonly ReadRecord[]): string | undefined {
 }
 
 // Failing release PRs bite as the briefing projects them: stopped first, then by due time.
-function groupsOf<T extends ReadingItem>(items: readonly T[]): ReadingGroup<T>[] {
+function groupsOf<T extends ReadingItem>(items: readonly T[], context: CoreContext): ReadingGroup<T>[] {
   const tier = (i: T): number => (i.rung === 0 ? 0 : i.due ? 1 : i.rung === 1 ? 2 : 3);
   const name = (i: T): string =>
     i.rung === 0
       ? "Stopped"
       : i.due
-        ? `Before ${clockOf(i.due.at)}`
+        ? beforeTime(i.due.at, context)
         : i.rung === 1
           ? "Needs a decision"
           : "Ready to move";
@@ -231,7 +231,7 @@ export function releasesReading<T extends ReadingItem>(input: ReleasesReadingInp
     headline: headlineOf(open.length, red, open.filter((r) => r.ready).length),
     ...(qualifier ? { qualifier } : {}),
     tiles: [openTile(open), failingTile(red), currentTile(months)],
-    groups: groupsOf(own),
+    groups: groupsOf(own, context),
     ...(extra ? { extra } : {}),
   });
 }

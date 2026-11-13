@@ -16,7 +16,7 @@ import { Slot } from "../../components/kit/Slot.js";
 import { selectionStore } from "../../panels/selection.js";
 import { areaEnvelope } from "../../store/evidence.js";
 import { plainTitle } from "../../text.js";
-import { clockTime, Time } from "../../time.js";
+import { clockTime, Time, timedText } from "../../time.js";
 import "./places.css";
 
 const PLACES = {
@@ -241,7 +241,7 @@ export function Places({
     <section className="today-places" aria-label="System health">
       {rows.map((row) => {
         const { label, route } = PLACES[row.place];
-        const line = plainTitle(row.line);
+        const line = timedText(plainTitle(row.line), { hint: false });
         return (
           <article
             className="today-place card"

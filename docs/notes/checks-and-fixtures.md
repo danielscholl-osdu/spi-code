@@ -60,3 +60,5 @@ for copied/ported portions, following its `docs/internals/open-source-licenses.m
 Host and window tests import `@spi-code/core` from its built `dist`, not its source. When you
 mutate core to see a host test fail, run `pnpm tsc -b packages/core` before the test, and again
 after restoring; `pnpm run typecheck` also rebuilds it.
+
+Watch fixtures use instant text through briefing and place readers; oracle inputs keep the default clock style. The reading context must reach service, engineering and environment readers as well as releases.

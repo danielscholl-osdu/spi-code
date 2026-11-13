@@ -3,6 +3,7 @@
 
 import type { ViewSnapshot } from "@spi-code/contracts";
 import { plainTitle } from "../text.js";
+import { timedText } from "../time.js";
 import { FLOW_MODES } from "../views/environment/flow-context.js";
 import { horizonFields } from "./horizon-fields.test-helper.js";
 
@@ -29,7 +30,14 @@ export function lensFields({ briefing }: ViewSnapshot): LensField[] {
     selector: string,
     extra: Partial<LensField> = {},
   ) => {
-    rows.push({ lens, pointer, value: String(value), home, selector, ...extra });
+    rows.push({
+      lens,
+      pointer,
+      value: timedText(String(value), { hint: false }),
+      home,
+      selector,
+      ...extra,
+    });
   };
   const at = (pointer: string) => `[data-pointer="${pointer}"]`;
   const flow = briefing.flow;

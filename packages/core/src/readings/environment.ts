@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import type { CoreContext } from "../context.js";
 import type { StationSubstate } from "../model/substate.js";
 import { stationSubstateOf } from "../model/substate.js";
 import { shortRepo } from "../config.js";
@@ -11,7 +12,7 @@ import { runResult, stoppedAttempts } from "../model/stack.js";
 import type { WorkRow } from "../model/work.js";
 import { names, plural, span, stamp } from "../util.js";
 import {
-  clockOf,
+  beforeTime,
   NOT_READ,
   type PlaceReading,
   placeReading,
@@ -22,6 +23,7 @@ import {
 
 export interface EnvironmentReadingInput<T extends ReadingItem> {
   model: Model;
+  context?: CoreContext;
   items: readonly T[];
   facts: Pick<Facts, "approvals" | "runs" | "radar">;
   // The lifecycle area's read records; all of them are about the environment.
@@ -52,7 +54,7 @@ function article(word: string): string {
   return /^[aeiou]/i.test(word) ? "an" : "a";
 }
 
-function headlineOf(model: Model, now: Date): string {
+function headlineOf(model: Model, now: Date, context?: CoreContext): string {
   const stack = model.stack;
   const version = stack.running?.version ?? stack.declared;
   const subject = version ?? "The environment";
@@ -63,7 +65,7 @@ function headlineOf(model: Model, now: Date): string {
   }
   if (stack.deployable.state === "no") return `${subject} is held in maintenance with no run in flight.`;
   if (stack.deployable.state === "yes") {
-    const green = stamp(stack.running?.at ?? stack.lastGreen?.updatedAt, now);
+    const green = stamp(stack.running?.at ?? stack.lastGreen?.updatedAt, now, context);
     return `${subject} is deployable${green ? `, green since ${green}` : ""}.`;
   }
   if (!stack.history.held) return `The environment is ${NOT_READ}.`;
@@ -205,7 +207,7 @@ export function environmentReading<T extends ReadingItem>(
     i.rung === 0
       ? "Stopped"
       : bite(i)
-        ? `Before ${clockOf(bite(i))}`
+        ? beforeTime(bite(i), input.context)
         : i.rung === 1
           ? "Needs a decision"
           : "Ready to move";
@@ -228,7 +230,7 @@ export function environmentReading<T extends ReadingItem>(
   const extra = repoLine(row);
   return placeReading({
     membership: true,
-    headline: headlineOf(model, now),
+    headline: headlineOf(model, now, input.context),
     ...(qualifier ? { qualifier } : {}),
     tiles: [versionTile(model), laneTile(model, facts), repoTile(row)],
     groups,

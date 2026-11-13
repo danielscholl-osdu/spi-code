@@ -34,7 +34,7 @@ import {
   stoppedAttempts,
   viewRun,
 } from "../model/stack.js";
-import { age, clip, firstAndMore, fitHeadline, plural, short, span, stamp, whose } from "../util.js";
+import { age, clip, firstAndMore, fitHeadline, plural, short, span, stamp, timeClause, whose } from "../util.js";
 import { type Horizon, type Origin, itemOrigin, upstreamHorizon } from "./horizon.js";
 import { type Repositories, repositoriesOf } from "./repos.js";
 import { rolloutWords } from "./rollout.js";
@@ -220,14 +220,11 @@ function javaOf(item: QueueItem): string | undefined {
 
 function syncAt(now: Date): string | undefined {
   const at = nextFire(toCrons([SYNC_UPSTREAM_CRON]), now);
-  return at === undefined ? undefined : new Date(at).toISOString();
+  return at === undefined || !Number.isFinite(at) ? undefined : new Date(at).toISOString();
 }
 
-// The daily sync is always less than a day away, so its local clock time names it.
-function clock(iso: string | undefined): string | undefined {
-  if (!iso) return undefined;
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+function clock(iso: string | undefined, context?: Pick<CoreContext, "timeStyle">): string | undefined {
+  return stamp(iso, new Date(iso ?? ""), context);
 }
 
 function stoppedLines(model: Model): LineModel[] {
@@ -301,6 +298,7 @@ function headlineOf(
   ready: number,
   next: string | undefined,
   now: Date,
+  context: CoreContext,
 ): string {
   const incidents = focusable.filter((i) => i.incident);
   const radar = focusable.filter((i) => i.kind === "radar");
@@ -315,7 +313,7 @@ function headlineOf(
     let tail = "";
     let shortTail = "";
     if (lead.kind === "rollout") {
-      const at = stamp(model.rollout?.schedule.template, now);
+      const at = stamp(model.rollout?.schedule.template, now, context);
       if (model.rollout?.phase === "ready" && at) tail = ` before the ${at} template sync`;
       shortTail = tail;
     } else if (lead.kind === "radar") {
@@ -426,7 +424,7 @@ function problemText(doctor: DoctorView): string {
   return (doctor.problems[0] ?? "").replace(/^⚠\s*/, "");
 }
 
-function factsOf(model: Model, now: Date): BriefFact[] {
+function factsOf(model: Model, now: Date, context: CoreContext): BriefFact[] {
   const { stack } = model;
   const env: BriefFact = {
     label: "Environment",
@@ -438,7 +436,7 @@ function factsOf(model: Model, now: Date): BriefFact[] {
     env.sub = `${stack.inflight.run.kind} running${stack.inflight.current ? ` · at ${stack.inflight.current}` : ""}`;
     env.tone = "warn";
   } else if (stack.deployable.state === "yes") {
-    const at = stamp(stack.running?.at, now);
+    const at = stamp(stack.running?.at, now, context);
     env.sub = `deployable${at ? ` · green at ${at}` : ""}`;
     env.tone = "ok";
   } else if (stack.deployable.state === "no") {
@@ -720,8 +718,9 @@ function focusOf(
   nextAt: string | undefined,
   now: Date,
   voice: Voice,
+  context: CoreContext,
 ): FocusItem[] {
-  const next = clock(nextAt);
+  const next = clock(nextAt, context);
   const ordered = [...focusable].sort((a, b) => rank(a) - rank(b));
   const stuck = ordered.filter((i) => i.incident);
   const ports = ordered.filter((i) => i.cls === "PORT");
@@ -749,7 +748,7 @@ function focusOf(
       continue;
     }
     if (item.kind === "rollout" && model.rollout) {
-      const w = rolloutWords(model.rollout, now);
+      const w = rolloutWords(model.rollout, now, context);
       out.push({
         origin: itemOrigin(item),
         id: item.id,
@@ -875,7 +874,7 @@ function relatedOf(model: Model, item: QueueItem, themes: readonly Theme[]): Rel
 export function readItem(model: Model, item: QueueItem, now: Date | undefined = undefined, context: CoreContext): Reading {
   now ??= context.clock.now();
   if (item.kind === "rollout" && model.rollout) {
-    const w = rolloutWords(model.rollout, now);
+    const w = rolloutWords(model.rollout, now, context);
     return {
       title: w.title,
       sub: w.sub,
@@ -886,7 +885,7 @@ export function readItem(model: Model, item: QueueItem, now: Date | undefined = 
     };
   }
   const nextAt = syncAt(now);
-  const next = clock(nextAt);
+  const next = clock(nextAt, context);
   const stuck = model.queue.items.filter((i) => i.incident).sort((a, b) => rank(a) - rank(b));
   const { title, sub } = describe(model, item, stuck, nextAt, now);
   const themes = themesOf(model, now, next);
@@ -1302,13 +1301,13 @@ function envLanes(model: Model, from: number, now: Date): EnvLane[] {
 }
 
 // Why the environment is held when no run is working on it.
-function heldReason(model: Model, now: Date): string | undefined {
+function heldReason(model: Model, now: Date, context: CoreContext): string | undefined {
   const { stack } = model;
   if (stack.inflight || stack.maintenance.state !== "set") return undefined;
   const last = stoppedAttempts(stack).at(-1);
   if (last) return attemptLine(last);
   const run = stack.maintenance.run;
-  const at = stamp(stack.maintenance.since, now);
+  const at = stamp(stack.maintenance.since, now, context);
   return run
     ? `maintenance set${at ? ` at ${at}` : ""} by ${runName(run)}, no run in flight`
     : "maintenance is set";
@@ -1319,6 +1318,7 @@ function envHeadline(
   lanes: readonly EnvLane[],
   held: string | undefined,
   now: Date,
+  context: CoreContext,
 ): string {
   const { stack } = model;
   const live = stack.inflight;
@@ -1344,14 +1344,14 @@ function envHeadline(
     .flatMap((l) => l.events)
     .filter((e) => e.state === "failed").length;
   const a = stack.availability;
-  const up = a && !a.heldNow && a.since !== undefined ? new Date(a.since).toISOString() : undefined;
-  const at = stamp(up ?? stack.running?.at, now);
+  const up = a && !a.heldNow && a.since !== undefined && Number.isFinite(a.since) ? new Date(a.since).toISOString() : undefined;
+  const at = stamp(up ?? stack.running?.at, now, context);
   const head = `Deployable on ${version}${at ? ` since ${at}` : ""}`;
   if (failed > 0) return `${head}, after ${plural(failed, "failed attempt")} in the last day.`;
   const smoke = runs.find((l) => l.id === "smoke")?.events.filter((e) => e.state === "failed");
   const lastSmoke = smoke?.at(-1);
   if (lastSmoke) {
-    return `${head}; smoke on a fresh cluster failed at ${stamp(lastSmoke.start, now)}.`;
+    return `${head}; smoke on a fresh cluster failed${timeClause(lastSmoke.start, now, context, " at ")}.`;
   }
   const events = runs.flatMap((l) => l.events);
   const cancelled = events.filter((e) => e.state === "cancelled").length;
@@ -1400,6 +1400,7 @@ function envFacts(
   env: BriefFact | undefined,
   held: string | undefined,
   now: Date,
+  context: CoreContext,
 ): BriefFact[] {
   const { stack } = model;
   const running: BriefFact = {
@@ -1415,7 +1416,7 @@ function envFacts(
     running.sub = `not deployable · ${attemptLine(stopped)}${declares}`;
     running.tone = "bad";
   }
-  const d = deployableWords(model, now);
+  const d = deployableWords(model, now, context);
   const heldNow = stack.availability?.heldNow ?? false;
   const deployable: BriefFact = {
     label: d.label,
@@ -1438,13 +1439,13 @@ function deployNote(model: Model): string {
   return `${counted} Deploys are counted per day, so the timeline leaves them out.`;
 }
 
-function environmentOf(model: Model, env: BriefFact | undefined, now: Date): Environment {
+function environmentOf(model: Model, env: BriefFact | undefined, now: Date, context: CoreContext): Environment {
   const from = now.getTime() - DAY_MS;
   const lanes = envLanes(model, from, now);
-  const held = heldReason(model, now);
+  const held = heldReason(model, now, context);
   return {
-    headline: envHeadline(model, lanes, held, now),
-    facts: envFacts(model, env, held, now),
+    headline: envHeadline(model, lanes, held, now, context),
+    facts: envFacts(model, env, held, now, context),
     lanes,
     from: new Date(from).toISOString(),
     to: now.toISOString(),
@@ -1453,15 +1454,15 @@ function environmentOf(model: Model, env: BriefFact | undefined, now: Date): Env
 }
 
 // The briefing's themes without the rest of the briefing.
-export function briefThemes(model: Model, now: Date): Theme[] {
-  return model.measured ? themesOf(model, now, clock(syncAt(now))) : [];
+export function briefThemes(model: Model, now: Date, context?: Pick<CoreContext, "timeStyle">): Theme[] {
+  return model.measured ? themesOf(model, now, clock(syncAt(now), context)) : [];
 }
 
 // Pure: the same model, doctor and clock always write the same briefing.
 export function buildBriefing(model: Model, doctor: DoctorView, now: Date | undefined = undefined, context: CoreContext): Briefing {
   now ??= context.clock.now();
   const nextIso = syncAt(now);
-  const next = clock(nextIso);
+  const next = clock(nextIso, context);
   const base = { sweptAt: model.sweptAt, nextSyncAt: nextIso, doctor };
   if (!model.measured) {
     const headline =
@@ -1479,7 +1480,7 @@ export function buildBriefing(model: Model, doctor: DoctorView, now: Date | unde
       ready: [],
       themes: [],
       horizon: upstreamHorizon(model, headline),
-      flow: upstreamView(model.upstream, now, context.voice),
+      flow: upstreamView(model.upstream, now, context.voice, context),
       environment: {
         headline,
         facts: [],
@@ -1493,13 +1494,13 @@ export function buildBriefing(model: Model, doctor: DoctorView, now: Date | unde
   const focusable = model.queue.items.filter((i) => i.rung <= 1);
   const ready = readyOf(model);
   const readyCount = ready.reduce((n, r) => n + r.count, 0);
-  const focus = focusOf(model, focusable, nextIso, now, context.voice);
+  const focus = focusOf(model, focusable, nextIso, now, context.voice, context);
   const themes = themesOf(model, now, next);
-  const facts = factsOf(model, now);
+  const facts = factsOf(model, now, context);
   const headline =
     doctor.state === "dark"
       ? `${sentence(problemText(doctor) || "GitHub cannot be read")} Figures are from the last good read.`
-      : headlineOf(model, focusable, readyCount, next, now);
+      : headlineOf(model, focusable, readyCount, next, now, context);
   return {
     ...base,
     headline,
@@ -1511,8 +1512,8 @@ export function buildBriefing(model: Model, doctor: DoctorView, now: Date | unde
     ready,
     themes,
     horizon: upstreamHorizon(model),
-    flow: upstreamView(model.upstream, now, context.voice),
-    environment: environmentOf(model, facts[0], now),
+    flow: upstreamView(model.upstream, now, context.voice, context),
+    environment: environmentOf(model, facts[0], now, context),
     repositories: repositoriesOf(model, now),
   };
 }

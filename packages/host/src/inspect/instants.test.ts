@@ -52,11 +52,6 @@ const instantsIn = (value: unknown) => JSON.stringify(value).match(iso)?.length 
 /** What Detail draws and Ask attaches; areas carry only the sweep's own observedAt. */
 const shown = ({ areas: _a, provenance: _p, ...rest }: InspectResult) => rest;
 
-/**
- * Named gap: a queue item's cause, effect and next are the briefing's reading of it, which
- * spicode-xzf.22 moves to instants. The gap's own test fails once that lands.
- */
-const BRIEF_GAP = "spicode-xzf.22";
 const briefRead = ({ cause, effect, next }: InspectResult) => ({ cause, effect, next });
 const ownText = (result: InspectResult) => ({
   ...shown(result),
@@ -100,10 +95,11 @@ describe("inspect results on the 6 Nov input, in the app's time style", () => {
     noClocks(found.map(ownText));
   });
 
-  it(`leaves the briefing's reading of a queue item to ${BRIEF_GAP}`, async () => {
+  it("keeps the briefing's reading of every queue item as instants", async () => {
     const items = await Promise.all((KINDS["queue item"] ?? []).map((id) => resolveIn(scope, id)));
-    const read = JSON.stringify(items.flatMap((r) => (r ? [briefRead(r)] : []))).replace(iso, "");
-    expect(read, `${BRIEF_GAP} closed this gap: drop BRIEF_GAP`).toMatch(/\b\d{2}:\d{2}\b/);
+    const read = items.flatMap((r) => (r ? [briefRead(r)] : []));
+    expect(instantsIn(read)).toBeGreaterThan(0);
+    noClocks(read);
   });
 });
 

@@ -56,6 +56,7 @@ export const readingFor: Record<Anchor["kind"], PlaceReader> = {
   service: (anchor, { model, input, briefing }) =>
     anchor.kind === "service"
       ? serviceReading({
+          context: input.context,
           model,
           service: anchor.id,
           items: [...briefing.focus, ...briefing.rest],
@@ -66,6 +67,7 @@ export const readingFor: Record<Anchor["kind"], PlaceReader> = {
   environment: (_anchor, { model, input, briefing }) => {
     const reads = input.envelopeReads ?? input.reads;
     return environmentReading({
+      context: input.context,
       model,
       items: [...briefing.focus, ...briefing.rest],
       facts: input.facts,
@@ -77,6 +79,7 @@ export const readingFor: Record<Anchor["kind"], PlaceReader> = {
   },
   engineering: (_anchor, { model, input, briefing }) =>
     engineeringReading({
+      context: input.context,
       model,
       items: [...briefing.focus, ...briefing.rest],
       reads: input.envelopeReads ?? input.reads,

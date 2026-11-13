@@ -358,8 +358,8 @@ function BandTop({
               className="today-band-mark"
               data-place={row.place}
               data-mark={row.mark}
-              title={plainTitle(row.line)}
-              aria-label={`${PLACE[row.place].name}: ${plainTitle(row.line)}`}
+              title={timedText(plainTitle(row.line), { hint: false })}
+              aria-label={`${PLACE[row.place].name}: ${timedText(plainTitle(row.line), { hint: false })}`}
               onClick={() => onPlace(PLACE[row.place].to)}
             >
               <Mark tier={TIER[row.mark]} />

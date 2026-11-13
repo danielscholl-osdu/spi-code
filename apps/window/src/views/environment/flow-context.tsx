@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { Briefing } from "@spi-code/contracts";
+import { TimedText } from "../../time.js";
 
 export const FLOW_MODES: Record<Briefing["flow"]["mode"], string> = {
   flight: "Syncs in progress",
@@ -66,7 +67,11 @@ export function FlowContext({
       {(flow.next.title || flow.next.text || flow.next.button) && (
         <div data-pointer="/briefing/flow/next">
           {flow.next.title && <h3>{flow.next.title}</h3>}
-          {flow.next.text && <p>{flow.next.text}</p>}
+          {flow.next.text && (
+            <p>
+              <TimedText text={flow.next.text} hint={false} />
+            </p>
+          )}
           {flow.next.button && (
             <button type="button" onClick={() => onSelect(flow.inspect)}>
               View upstream plan
@@ -91,7 +96,9 @@ export function FlowContext({
       )}
       {flow.schedule && (
         <div data-pointer="/briefing/flow/schedule">
-          <h3>{flow.schedule.title}</h3>
+          <h3>
+            <TimedText text={flow.schedule.title} hint={false} />
+          </h3>
           <p>{flow.schedule.text}</p>
         </div>
       )}

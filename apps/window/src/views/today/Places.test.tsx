@@ -12,7 +12,7 @@ import busy from "../../../../../fixtures/watch/snapshot-busy.json?raw";
 import calm from "../../../../../fixtures/watch/snapshot-calm.json?raw";
 import { widthBudget } from "../../app/width-budget.js";
 import { selectionStore } from "../../panels/selection.js";
-import { clockTime } from "../../time.js";
+import { clockTime, timedText } from "../../time.js";
 import { Places } from "./Places.js";
 
 const mornings = { calm, busy, bad };
@@ -60,7 +60,9 @@ it.each(["calm", "busy", "bad"] as const)(
         row.mark === "nothing-due" ? undefined : row.reason,
       );
       expect(card.querySelector(".today-place-caveat")?.textContent ?? undefined).toBe(row.caveat);
-      expect(card.querySelector(".today-place-open")?.getAttribute("title")).toBe(row.line);
+      expect(card.querySelector(".today-place-open")?.getAttribute("title")).toBe(
+        timedText(row.line, { hint: false }),
+      );
       const visual = row.visual;
       expect(card.querySelector("[data-visual]")?.getAttribute("data-visual")).toBe(visual?.kind);
       if (visual?.kind === "pips" || visual?.kind === "rollout") {
@@ -388,13 +390,15 @@ it("keeps the full sentence as the figure's hover and the reason's accessible na
   const { container } = await mount(body);
   for (const row of body.briefing.places ?? []) {
     const card = container.querySelector(`[data-place="${row.place}"]`);
-    expect(card?.querySelector(".today-place-figure")?.getAttribute("title")).toBe(row.line);
+    expect(card?.querySelector(".today-place-figure")?.getAttribute("title")).toBe(
+      timedText(row.line, { hint: false }),
+    );
     const chip = card?.querySelector(".today-place-reason .kit-chip");
     if (!row.reason) expect(chip).toBeNull();
     else {
       expect(chip?.textContent).toBe(row.reason);
-      expect(chip?.getAttribute("aria-label")).toBe(row.line);
-      expect(chip?.getAttribute("title")).toBe(row.line);
+      expect(chip?.getAttribute("aria-label")).toBe(timedText(row.line, { hint: false }));
+      expect(chip?.getAttribute("title")).toBe(timedText(row.line, { hint: false }));
     }
   }
 });

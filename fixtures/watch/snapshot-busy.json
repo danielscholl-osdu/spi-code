@@ -14,7 +14,7 @@
       {
         "label": "Environment",
         "figure": "v0.35.3",
-        "sub": "deployable · green at 04:20",
+        "sub": "deployable · green at 2026-11-06T04:20:36.000Z",
         "tone": "ok"
       },
       {
@@ -84,7 +84,7 @@
           },
           {
             "label": "Watch",
-            "text": "Upstream sync at 11-07 00:00 opens 6 PRs (legal halts instead) that share these lanes. The 11-07 08:00 template sync opens nothing: every fork already has a PR or the change."
+            "text": "Upstream sync at 2026-11-07T00:00:00.000Z opens 6 PRs (legal halts instead) that share these lanes. The 2026-11-07T08:00:00.000Z template sync opens nothing: every fork already has a PR or the change."
           }
         ],
         "attention": "surface",
@@ -123,7 +123,7 @@
         "title": "Next sync carries os-core-common 10.0.0",
         "sub": "1 commit queued · syncs at 2026-11-07T00:00:00.000Z",
         "cause": "Queued upstream commits move the root pom to os-core-common 10.0.0.",
-        "effect": "1 commit reach the fork at the 00:00 sync.",
+        "effect": "1 commit reach the fork at the 2026-11-07T00:00:00.000Z sync.",
         "next": "Absorb os-core-common 10.0.0 on the fork before the next Sync Upstream carries it.",
         "verb": "Absorb toolchain",
         "evidence": [
@@ -150,7 +150,7 @@
         "title": "Next sync halts on schemathesis-tests",
         "sub": "1 commit queued · syncs at 2026-11-07T00:00:00.000Z",
         "cause": "Queued upstream commits add schemathesis-tests, which the fork's filter has no rule for.",
-        "effect": "1 commit reach the fork at the 00:00 sync.",
+        "effect": "1 commit reach the fork at the 2026-11-07T00:00:00.000Z sync.",
         "next": "Pre-classify: add schemathesis-tests to top_level in .github/upstream-filter.yml before the next Sync Upstream.",
         "verb": "Pre-classify",
         "evidence": [
@@ -180,7 +180,7 @@
         "title": "Next sync carries Java 25",
         "sub": "1 commit queued · syncs at 2026-11-07T00:00:00.000Z",
         "cause": "Queued upstream commits move the root pom to Java 25.",
-        "effect": "1 commit reach the fork at the 00:00 sync.",
+        "effect": "1 commit reach the fork at the 2026-11-07T00:00:00.000Z sync.",
         "next": "Move the fork's Java pin to 25 before the next Sync Upstream carries it.",
         "verb": "Absorb toolchain",
         "evidence": [
@@ -276,7 +276,7 @@
         "title": "Next sync carries Java 25",
         "sub": "1 commit queued · syncs at 2026-11-07T00:00:00.000Z",
         "cause": "Queued upstream commits move the root pom to Java 25.",
-        "effect": "1 commit reach the fork at the 00:00 sync.",
+        "effect": "1 commit reach the fork at the 2026-11-07T00:00:00.000Z sync.",
         "next": "Move the fork's Java pin to 25 before the next Sync Upstream carries it.",
         "verb": "Absorb toolchain",
         "evidence": [
@@ -486,13 +486,13 @@
         "certain": [
           {
             "fork": "partition",
-            "state": "queued · syncs at 00:00",
+            "state": "queued · syncs at 2026-11-07T00:00:00.000Z",
             "url": "https://example.com/upstream/partition/commit/morning"
           }
         ],
         "possible": [],
         "exposed": [],
-        "when": "at 00:00",
+        "when": "at 2026-11-07T00:00:00.000Z",
         "tone": "warn",
         "next": "Absorb os-core-common 10.0.0 on the forks before the next sync carries it.",
         "inspect": "radar:partition"
@@ -510,13 +510,13 @@
           },
           {
             "fork": "crs-conversion",
-            "state": "queued · syncs at 00:00",
+            "state": "queued · syncs at 2026-11-07T00:00:00.000Z",
             "url": "https://example.com/upstream/crs-conversion/commit/morning"
           }
         ],
         "possible": [],
         "exposed": [],
-        "when": "at 00:00",
+        "when": "at 2026-11-07T00:00:00.000Z",
         "tone": "warn",
         "next": "Move one fork's Java pin to 25 and repeat it for the others before the next sync carries it.",
         "inspect": "radar:storage"
@@ -529,23 +529,23 @@
         "certain": [
           {
             "fork": "indexer",
-            "state": "queued · syncs at 00:00",
+            "state": "queued · syncs at 2026-11-07T00:00:00.000Z",
             "url": "https://example.com/upstream/indexer/commit/morning"
           },
           {
             "fork": "workflow",
-            "state": "queued · syncs at 00:00",
+            "state": "queued · syncs at 2026-11-07T00:00:00.000Z",
             "url": "https://example.com/upstream/workflow/commit/morning"
           },
           {
             "fork": "unit",
-            "state": "queued · syncs at 00:00",
+            "state": "queued · syncs at 2026-11-07T00:00:00.000Z",
             "url": "https://example.com/upstream/unit/commit/morning"
           }
         ],
         "possible": [],
         "exposed": [],
-        "when": "at 00:00",
+        "when": "at 2026-11-07T00:00:00.000Z",
         "tone": "warn",
         "next": "Absorb os-core-common 8.5.0 on the forks before the next sync carries it.",
         "inspect": "radar:indexer"
@@ -577,7 +577,7 @@
           "crs-catalog",
           "crs-conversion"
         ],
-        "when": "at 00:00",
+        "when": "at 2026-11-07T00:00:00.000Z",
         "tone": "warn",
         "next": "Add a rule for schemathesis-tests to every fork's .github/upstream-filter.yml.",
         "inspect": "radar:legal"
@@ -1435,12 +1435,12 @@
         "button": "Open in inspector · Plan upstream syncs"
       },
       "schedule": {
-        "title": "At 11-07 00:00 if you do nothing",
+        "title": "At 2026-11-07T00:00:00.000Z if you do nothing",
         "text": "Sync Upstream opens 3 sync PRs and a sync-failed issue on legal. They wait for you; SPI Code adopts them into the plan. 4 prepared PRs update in place."
       },
       "next": {
         "title": "Prepare the pilot: open sync PRs on partition",
-        "text": "Dispatches Sync Upstream now instead of at 11-07 00:00. Each opens a sync PR with the filtered upstream tree. Nothing merges.",
+        "text": "Dispatches Sync Upstream now instead of at 2026-11-07T00:00:00.000Z. Each opens a sync PR with the filtered upstream tree. Nothing merges.",
         "button": "Open in inspector · Prepare the pilot",
         "quiet": false
       },
@@ -1461,13 +1461,13 @@
         {
           "label": "Running",
           "figure": "v0.35.3",
-          "sub": "deployable · green at 04:20",
+          "sub": "deployable · green at 2026-11-06T04:20:36.000Z",
           "tone": "ok"
         },
         {
           "label": "Deployable · 21 days",
           "figure": "89%",
-          "sub": "6 holds over an hour, 44 h 10 min in all · up since 04:20",
+          "sub": "6 holds over an hour, 44 h 10 min in all · up since 2026-11-06T04:20:16.000Z",
           "tone": "neutral"
         },
         {
@@ -2643,7 +2643,7 @@
         "mark": "nothing-due",
         "tone": "neutral",
         "figure": "v0.35.3 deployable",
-        "line": "v0.35.3 is deployable, green since 04:20.",
+        "line": "v0.35.3 is deployable, green since 2026-11-06T04:20:36.000Z.",
         "areas": ["github", "lifecycle"],
         "itemIds": [],
         "fresh": {
@@ -3225,7 +3225,7 @@
             "title": "Next sync halts on schemathesis-tests",
             "sub": "1 commit queued · syncs at 2026-11-07T00:00:00.000Z",
             "cause": "Queued upstream commits add schemathesis-tests, which the fork's filter has no rule for.",
-            "effect": "1 commit reach the fork at the 00:00 sync.",
+            "effect": "1 commit reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "next": "Pre-classify: add schemathesis-tests to top_level in .github/upstream-filter.yml before the next Sync Upstream.",
             "verb": "Pre-classify",
             "evidence": [
@@ -3324,7 +3324,7 @@
             "title": "Next sync carries os-core-common 10.0.0",
             "sub": "1 commit queued · syncs at 2026-11-07T00:00:00.000Z",
             "cause": "Queued upstream commits move the root pom to os-core-common 10.0.0.",
-            "effect": "1 commit reach the fork at the 00:00 sync.",
+            "effect": "1 commit reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "next": "Absorb os-core-common 10.0.0 on the fork before the next Sync Upstream carries it.",
             "verb": "Absorb toolchain",
             "evidence": [
@@ -3351,7 +3351,7 @@
         "kind": "environment"
       },
       "content": {
-        "headline": "v0.35.3 is deployable, green since 04:20.",
+        "headline": "v0.35.3 is deployable, green since 2026-11-06T04:20:36.000Z.",
         "tiles": [
           {
             "label": "Version",
@@ -3453,7 +3453,7 @@
               },
               {
                 "label": "Watch",
-                "text": "Upstream sync at 11-07 00:00 opens 6 PRs (legal halts instead) that share these lanes. The 11-07 08:00 template sync opens nothing: every fork already has a PR or the change."
+                "text": "Upstream sync at 2026-11-07T00:00:00.000Z opens 6 PRs (legal halts instead) that share these lanes. The 2026-11-07T08:00:00.000Z template sync opens nothing: every fork already has a PR or the change."
               }
             ],
             "attention": "surface",
@@ -3663,7 +3663,7 @@
             "title": "Next sync carries os-core-common 10.0.0",
             "sub": "1 commit queued · syncs at 2026-11-07T00:00:00.000Z",
             "cause": "Queued upstream commits move the root pom to os-core-common 10.0.0.",
-            "effect": "1 commit reach the fork at the 00:00 sync.",
+            "effect": "1 commit reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "next": "Absorb os-core-common 10.0.0 on the fork before the next Sync Upstream carries it.",
             "verb": "Absorb toolchain",
             "evidence": [
@@ -3679,7 +3679,7 @@
               "before": "next sync"
             },
             "owned": false,
-            "group": "Before 00:00"
+            "group": "Before 2026-11-07T00:00:00.000Z"
           },
           {
             "id": "repo:partition",
@@ -3799,7 +3799,7 @@
             "title": "Next sync halts on schemathesis-tests",
             "sub": "1 commit queued · syncs at 2026-11-07T00:00:00.000Z",
             "cause": "Queued upstream commits add schemathesis-tests, which the fork's filter has no rule for.",
-            "effect": "1 commit reach the fork at the 00:00 sync.",
+            "effect": "1 commit reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "next": "Pre-classify: add schemathesis-tests to top_level in .github/upstream-filter.yml before the next Sync Upstream.",
             "verb": "Pre-classify",
             "evidence": [
@@ -3815,7 +3815,7 @@
               "before": "next sync"
             },
             "owned": false,
-            "group": "Before 00:00"
+            "group": "Before 2026-11-07T00:00:00.000Z"
           },
           {
             "id": "repo:legal",
@@ -4033,7 +4033,7 @@
             "title": "Next sync carries Java 25",
             "sub": "1 commit queued · syncs at 2026-11-07T00:00:00.000Z",
             "cause": "Queued upstream commits move the root pom to Java 25.",
-            "effect": "1 commit reach the fork at the 00:00 sync.",
+            "effect": "1 commit reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "next": "Move the fork's Java pin to 25 before the next Sync Upstream carries it.",
             "verb": "Absorb toolchain",
             "evidence": [
@@ -4049,7 +4049,7 @@
               "before": "next sync"
             },
             "owned": false,
-            "group": "Before 00:00"
+            "group": "Before 2026-11-07T00:00:00.000Z"
           },
           {
             "id": "repo:storage",
@@ -4633,7 +4633,7 @@
             "title": "Next sync carries Java 25",
             "sub": "1 commit queued · syncs at 2026-11-07T00:00:00.000Z",
             "cause": "Queued upstream commits move the root pom to Java 25.",
-            "effect": "1 commit reach the fork at the 00:00 sync.",
+            "effect": "1 commit reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "next": "Move the fork's Java pin to 25 before the next Sync Upstream carries it.",
             "verb": "Absorb toolchain",
             "evidence": [
@@ -4649,7 +4649,7 @@
               "before": "next sync"
             },
             "owned": false,
-            "group": "Before 00:00"
+            "group": "Before 2026-11-07T00:00:00.000Z"
           },
           {
             "id": "repo:crs-conversion",

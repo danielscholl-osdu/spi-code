@@ -131,7 +131,7 @@
           },
           {
             "label": "Watch",
-            "text": "Upstream sync at 10-22 00:00 opens 1 PR (entitlements halts instead) that share these lanes."
+            "text": "Upstream sync at 2026-10-22T00:00:00.000Z opens 1 PR (entitlements halts instead) that share these lanes."
           },
           {
             "label": "Reaches",
@@ -835,7 +835,7 @@
         "button": "Open in inspector · Plan upstream syncs"
       },
       "schedule": {
-        "title": "At 10-22 00:00 if you do nothing",
+        "title": "At 2026-10-22T00:00:00.000Z if you do nothing",
         "text": "Sync Upstream updates 1 prepared PR in place."
       },
       "next": {
@@ -859,7 +859,7 @@
         {
           "label": "Deployable · 21 days",
           "figure": "35%",
-          "sub": "4 holds over an hour, 13 d 7 h in all · held since 10-11 22:44",
+          "sub": "4 holds over an hour, 13 d 7 h in all · held since 2026-10-11T22:44:33.000Z",
           "tone": "warn"
         },
         {
@@ -2256,7 +2256,7 @@
               },
               {
                 "label": "Watch",
-                "text": "Upstream sync at 10-22 00:00 opens 1 PR (entitlements halts instead) that share these lanes."
+                "text": "Upstream sync at 2026-10-22T00:00:00.000Z opens 1 PR (entitlements halts instead) that share these lanes."
               },
               {
                 "label": "Reaches",

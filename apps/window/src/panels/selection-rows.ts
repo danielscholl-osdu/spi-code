@@ -3,7 +3,7 @@
 
 import type { CanWait, Forming, ReleaseVersion, RepoLine, ViewSnapshot } from "@spi-code/contracts";
 import type { Route } from "../app/routes.js";
-import { clockTime } from "../time.js";
+import { clockTime, timedText } from "../time.js";
 import { inspectId } from "../views/environment/timeline.js";
 import { upstreamItemRows, upstreamSelectionIds } from "../views/upstream/reading.js";
 
@@ -289,7 +289,12 @@ export function selectionRows(snapshot: ViewSnapshot): SelectionRow[] {
         ...briefing.flow.plan.lines.map(({ label, text }) => ({ label, value: text })),
         { label: "Note", value: briefing.flow.plan.note },
         ...(briefing.flow.schedule
-          ? [{ label: briefing.flow.schedule.title, value: briefing.flow.schedule.text }]
+          ? [
+              {
+                label: timedText(briefing.flow.schedule.title, { hint: false }),
+                value: briefing.flow.schedule.text,
+              },
+            ]
           : []),
       ],
     },

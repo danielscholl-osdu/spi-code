@@ -11,6 +11,7 @@ import { Place } from "../../components/place/Place.js";
 import { type SelectionStore, selectionStore } from "../../panels/selection.js";
 import { selectionRows } from "../../panels/selection-rows.js";
 import { watchStore } from "../../store/watch.js";
+import { TimedText } from "../../time.js";
 import { themeRow, upstreamReading } from "./reading.js";
 import "./upstream.css";
 
@@ -87,7 +88,7 @@ export default function Upstream({
           />
           {horizon.headline && (
             <p className="upstream-ahead-headline" data-pointer="/briefing/horizon/headline">
-              {horizon.headline}
+              <TimedText text={horizon.headline} hint={false} />
             </p>
           )}
           <ul>
@@ -115,7 +116,11 @@ export default function Upstream({
                       {theme.kind}
                     </span>
                     <span className="upstream-theme-title">{theme.title}</span>
-                    {theme.when && <span className="upstream-theme-when">{theme.when}</span>}
+                    {theme.when && (
+                      <span className="upstream-theme-when">
+                        <TimedText text={theme.when} hint={false} />
+                      </span>
+                    )}
                   </button>
                   {theme.sub && <ThemeSub theme={theme} />}
                   {item && (
@@ -126,7 +131,7 @@ export default function Upstream({
                       aria-pressed={selected === item.id}
                       onClick={() => select(item.id)}
                     >
-                      {item.title}
+                      <TimedText text={item.title} hint={false} />
                     </button>
                   )}
                 </li>

@@ -17,6 +17,7 @@ import {
 } from "../../panels/selection.js";
 import { selectionRows } from "../../panels/selection-rows.js";
 import { createWatchStore, watchStore } from "../../store/watch.js";
+import { timedText } from "../../time.js";
 import Template from "./index.js";
 
 const snapshot = () => ViewSnapshotSchema.parse(JSON.parse(recorded));
@@ -184,7 +185,9 @@ it.each([
         label: line.querySelector("dt")?.textContent,
         text: line.querySelector("dd")?.textContent,
       })),
-    ).toEqual(rollout.more);
+    ).toEqual(
+      rollout.more?.map(({ label, text }) => ({ label, text: timedText(text, { hint: false }) })),
+    );
     const repoNode = part("repository");
     expect(repoNode?.querySelector(".inbox-section-count")?.textContent).toBe(repository.name);
     expect(repoNode?.querySelector(".template-repo-title")?.textContent).toBe(repository.title);

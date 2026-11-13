@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import type { CoreContext } from "../context.js";
 import type { DetectedCampaign } from "../model/campaigns.js";
 import type { CellTone } from "../model/rollout.js";
 import {
@@ -281,8 +282,9 @@ export function stepWhy(
   voice: Voice = APP_VOICE,
   // The window's flow card names no branch; the inspector keeps the branch names.
   branches = true,
+  context?: Pick<CoreContext, "timeStyle">,
 ): string {
-  const at = stamp(u.schedule.upstream, now);
+  const at = stamp(u.schedule.upstream, now, context);
   switch (step.kind) {
     case "start":
       return `${step.forks.length === 1 ? "Its sync PR is" : "Their sync PRs are"} green. Merging starts the cascade at once; ${voice.name} dispatches it with the tracking issue instead of waiting up to 6 hours for the monitor.`;
@@ -341,8 +343,8 @@ function planCard(u: UpstreamModel): UpstreamView["plan"] {
   };
 }
 
-function scheduleCard(u: UpstreamModel, now: Date, voice: Voice): UpstreamView["schedule"] {
-  const at = stamp(u.schedule.upstream, now);
+function scheduleCard(u: UpstreamModel, now: Date, voice: Voice, context?: Pick<CoreContext, "timeStyle">): UpstreamView["schedule"] {
+  const at = stamp(u.schedule.upstream, now, context);
   if (!at) return undefined;
   const s = u.schedule;
   const parts: string[] = [];
@@ -562,7 +564,7 @@ export function planOrder(u: UpstreamModel): UpFork[] {
     .map((x) => x.f);
 }
 
-export function upstreamView(u: UpstreamModel, now: Date, voice: Voice = APP_VOICE): UpstreamView {
+export function upstreamView(u: UpstreamModel, now: Date, voice: Voice = APP_VOICE, context?: Pick<CoreContext, "timeStyle">): UpstreamView {
   const campaigns = u.toolchains ?? [];
   const step = planStep(u);
   const words = u.mode === "flight" ? flightWords(u) : planningWords(u);
@@ -592,12 +594,12 @@ export function upstreamView(u: UpstreamModel, now: Date, voice: Voice = APP_VOI
       .map((f) => rowOf(u, f, step, voice, campaigns)),
     plan: planCard(u),
     ...(() => {
-      const s = scheduleCard(u, now, voice);
+      const s = scheduleCard(u, now, voice, context);
       return s ? { schedule: s } : {};
     })(),
     next: {
       title,
-      text: stepWhy(u, step, now, voice, false),
+      text: stepWhy(u, step, now, voice, false, context),
       ...(step.kind === "wait" && u.reviews.length === 0 && u.startWaits.length === 0
         ? { button: "Open the plan", quiet: true }
         : { button: `Open in inspector · ${title.split(":")[0]}`, quiet: false }),

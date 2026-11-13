@@ -14,7 +14,7 @@
       {
         "label": "Environment",
         "figure": "v0.35.3",
-        "sub": "deployable · green at 04:20",
+        "sub": "deployable · green at 2026-11-06T04:20:36.000Z",
         "tone": "ok"
       },
       {
@@ -61,7 +61,7 @@
           },
           {
             "label": "Watch",
-            "text": "Upstream sync at 11-07 00:00 opens 10 PRs (partition halts instead) that share these lanes. The 11-07 08:00 template sync opens nothing: every fork already has a PR or the change."
+            "text": "Upstream sync at 2026-11-07T00:00:00.000Z opens 10 PRs (partition halts instead) that share these lanes. The 2026-11-07T08:00:00.000Z template sync opens nothing: every fork already has a PR or the change."
           },
           {
             "label": "Reaches",
@@ -154,7 +154,7 @@
         "title": "Sync PR #58 and the next sync carry os-core-common 8.5.0",
         "sub": "23 commits in sync PR #58 · 2 more at 2026-11-07T00:00:00.000Z",
         "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
-        "effect": "23 commits wait in sync PR #58; 2 more reach the fork at the 00:00 sync.",
+        "effect": "23 commits wait in sync PR #58; 2 more reach the fork at the 2026-11-07T00:00:00.000Z sync.",
         "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
         "verb": "Absorb toolchain",
         "evidence": [
@@ -188,7 +188,7 @@
         "title": "Next sync carries os-core-common 8.4.1-boot4-SNAPSHOT",
         "sub": "17 commits queued · syncs at 2026-11-07T00:00:00.000Z",
         "cause": "Queued upstream commits move the root pom to os-core-common 8.4.1-boot4-SNAPSHOT, os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT and os-core-common 8.5.0.",
-        "effect": "17 commits reach the fork at the 00:00 sync.",
+        "effect": "17 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
         "next": "Absorb os-core-common 8.4.1-boot4-SNAPSHOT on the fork before the next Sync Upstream carries it.",
         "verb": "Absorb toolchain",
         "evidence": [
@@ -223,7 +223,7 @@
         "title": "Next sync carries os-core-common 8.5.0",
         "sub": "16 commits queued · syncs at 2026-11-07T00:00:00.000Z",
         "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
-        "effect": "16 commits reach the fork at the 00:00 sync.",
+        "effect": "16 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
         "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
         "verb": "Absorb toolchain",
         "evidence": [
@@ -277,7 +277,7 @@
         "title": "Next sync halts on schemathesis-tests",
         "sub": "8 commits queued · syncs at 2026-11-07T00:00:00.000Z",
         "cause": "Queued upstream commits add schemathesis-tests, which the fork's filter has no rule for.",
-        "effect": "8 commits reach the fork at the 00:00 sync.",
+        "effect": "8 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
         "next": "Pre-classify: add schemathesis-tests to top_level in .github/upstream-filter.yml before the next Sync Upstream.",
         "verb": "Pre-classify",
         "evidence": [
@@ -304,7 +304,7 @@
         "title": "Next sync carries os-core-common 8.5.0",
         "sub": "7 commits queued · syncs at 2026-11-07T00:00:00.000Z",
         "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
-        "effect": "7 commits reach the fork at the 00:00 sync.",
+        "effect": "7 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
         "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
         "verb": "Absorb toolchain",
         "evidence": [
@@ -335,7 +335,7 @@
         "title": "Next sync carries os-core-common 8.5.0",
         "sub": "7 commits queued · syncs at 2026-11-07T00:00:00.000Z",
         "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-        "effect": "7 commits reach the fork at the 00:00 sync.",
+        "effect": "7 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
         "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
         "verb": "Absorb toolchain",
         "evidence": [
@@ -362,7 +362,7 @@
         "title": "Next sync carries os-core-common 8.5.0",
         "sub": "6 commits queued · syncs at 2026-11-07T00:00:00.000Z",
         "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-        "effect": "6 commits reach the fork at the 00:00 sync.",
+        "effect": "6 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
         "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
         "verb": "Absorb toolchain",
         "evidence": [
@@ -389,7 +389,7 @@
         "title": "Next sync carries os-core-common 8.5.0",
         "sub": "5 commits queued · syncs at 2026-11-07T00:00:00.000Z",
         "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-        "effect": "5 commits reach the fork at the 00:00 sync.",
+        "effect": "5 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
         "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
         "verb": "Absorb toolchain",
         "evidence": [
@@ -416,7 +416,7 @@
         "title": "Next sync carries os-core-common 8.5.0",
         "sub": "5 commits queued · syncs at 2026-11-07T00:00:00.000Z",
         "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-        "effect": "5 commits reach the fork at the 00:00 sync.",
+        "effect": "5 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
         "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
         "verb": "Absorb toolchain",
         "evidence": [
@@ -576,48 +576,48 @@
           },
           {
             "fork": "schema",
-            "state": "queued · syncs at 00:00",
+            "state": "queued · syncs at 2026-11-07T00:00:00.000Z",
             "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/commit/28d5a93096f69a90ee3df7727103d2394e09c789"
           },
           {
             "fork": "file",
-            "state": "queued · syncs at 00:00",
+            "state": "queued · syncs at 2026-11-07T00:00:00.000Z",
             "url": "https://community.opengroup.org/osdu/platform/system/file/-/commit/4d0ff1f4ff24edbeda28d2c161a144a4e3e02db2"
           },
           {
             "fork": "storage",
-            "state": "queued · syncs at 00:00",
+            "state": "queued · syncs at 2026-11-07T00:00:00.000Z",
             "url": "https://community.opengroup.org/osdu/platform/system/storage/-/commit/9acda5e50312d03e4e8b891c6923d01ec90dfd7d"
           },
           {
             "fork": "indexer",
-            "state": "queued · syncs at 00:00",
+            "state": "queued · syncs at 2026-11-07T00:00:00.000Z",
             "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/commit/7749dc4b7b5865f3030b6b089068f8de80729918"
           },
           {
             "fork": "search",
-            "state": "queued · syncs at 00:00",
+            "state": "queued · syncs at 2026-11-07T00:00:00.000Z",
             "url": "https://community.opengroup.org/osdu/platform/system/search-service/-/commit/aded8a3f3eb04154f291d4af4e33116514e40599"
           },
           {
             "fork": "workflow",
-            "state": "queued · syncs at 00:00",
+            "state": "queued · syncs at 2026-11-07T00:00:00.000Z",
             "url": "https://community.opengroup.org/osdu/platform/data-flow/ingestion/ingestion-workflow/-/commit/d6847cea52b94f697ab67ef471f1bfeff33b6d93"
           },
           {
             "fork": "unit",
-            "state": "queued · syncs at 00:00",
+            "state": "queued · syncs at 2026-11-07T00:00:00.000Z",
             "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/3a69766c25b03b450d95b55ef21c013c63ef407f"
           },
           {
             "fork": "crs-conversion",
-            "state": "queued · syncs at 00:00",
+            "state": "queued · syncs at 2026-11-07T00:00:00.000Z",
             "url": "https://community.opengroup.org/osdu/platform/system/reference/crs-conversion-service/-/commit/80e3497b7e5c8cba61810c2fb51c9e9fb9e5ea17"
           }
         ],
         "possible": [],
         "exposed": [],
-        "when": "at 00:00",
+        "when": "at 2026-11-07T00:00:00.000Z",
         "tone": "warn",
         "next": "Absorb os-core-common 8.5.0 on the forks before the next sync carries it.",
         "inspect": "radar:legal"
@@ -647,17 +647,17 @@
         "certain": [
           {
             "fork": "schema",
-            "state": "queued · syncs at 00:00",
+            "state": "queued · syncs at 2026-11-07T00:00:00.000Z",
             "url": "https://community.opengroup.org/osdu/platform/system/schema-service/-/commit/d708bac1910407e175278e721a86fe20249e18bf"
           },
           {
             "fork": "indexer",
-            "state": "queued · syncs at 00:00",
+            "state": "queued · syncs at 2026-11-07T00:00:00.000Z",
             "url": "https://community.opengroup.org/osdu/platform/system/indexer-service/-/commit/f9643b164cf5eb0994df18a6d30ddcd37738d245"
           },
           {
             "fork": "unit",
-            "state": "queued · syncs at 00:00",
+            "state": "queued · syncs at 2026-11-07T00:00:00.000Z",
             "url": "https://community.opengroup.org/osdu/platform/system/reference/unit-service/-/commit/d4b65bdf42503bf50bdbed11249c06bd9c0c4fe0"
           }
         ],
@@ -712,7 +712,7 @@
           }
         ],
         "exposed": [],
-        "when": "at 00:00",
+        "when": "at 2026-11-07T00:00:00.000Z",
         "tone": "warn",
         "next": "Absorb os-core-common 10.0.0 on the forks before the next sync carries it.",
         "inspect": "radar:schema"
@@ -780,7 +780,7 @@
           }
         ],
         "exposed": ["workflow", "indexer-queue"],
-        "when": "at 00:00",
+        "when": "at 2026-11-07T00:00:00.000Z",
         "tone": "warn",
         "next": "Add a rule for schemathesis-tests to every fork's .github/upstream-filter.yml.",
         "inspect": "radar:partition"
@@ -1969,7 +1969,7 @@
         "button": "Open in inspector · Plan upstream syncs"
       },
       "schedule": {
-        "title": "At 11-07 00:00 if you do nothing",
+        "title": "At 2026-11-07T00:00:00.000Z if you do nothing",
         "text": "Sync Upstream opens 7 sync PRs and a sync-failed issue on partition. They wait for you; SPI Code adopts them into the plan. 3 prepared PRs update in place."
       },
       "next": {
@@ -1995,13 +1995,13 @@
         {
           "label": "Running",
           "figure": "v0.35.3",
-          "sub": "deployable · green at 04:20",
+          "sub": "deployable · green at 2026-11-06T04:20:36.000Z",
           "tone": "ok"
         },
         {
           "label": "Deployable · 21 days",
           "figure": "89%",
-          "sub": "6 holds over an hour, 44 h 10 min in all · up since 04:20",
+          "sub": "6 holds over an hour, 44 h 10 min in all · up since 2026-11-06T04:20:16.000Z",
           "tone": "neutral"
         },
         {
@@ -3016,7 +3016,7 @@
         "mark": "nothing-due",
         "tone": "neutral",
         "figure": "v0.35.3 deployable",
-        "line": "v0.35.3 is deployable, green since 04:20.",
+        "line": "v0.35.3 is deployable, green since 2026-11-06T04:20:36.000Z.",
         "areas": ["github", "lifecycle"],
         "itemIds": [],
         "fresh": {
@@ -3530,7 +3530,7 @@
             "title": "Next sync halts on schemathesis-tests",
             "sub": "8 commits queued · syncs at 2026-11-07T00:00:00.000Z",
             "cause": "Queued upstream commits add schemathesis-tests, which the fork's filter has no rule for.",
-            "effect": "8 commits reach the fork at the 00:00 sync.",
+            "effect": "8 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "next": "Pre-classify: add schemathesis-tests to top_level in .github/upstream-filter.yml before the next Sync Upstream.",
             "verb": "Pre-classify",
             "evidence": [
@@ -3558,7 +3558,7 @@
             "title": "Next sync carries os-core-common 8.4.1-boot4-SNAPSHOT",
             "sub": "17 commits queued · syncs at 2026-11-07T00:00:00.000Z",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.4.1-boot4-SNAPSHOT, os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT and os-core-common 8.5.0.",
-            "effect": "17 commits reach the fork at the 00:00 sync.",
+            "effect": "17 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "next": "Absorb os-core-common 8.4.1-boot4-SNAPSHOT on the fork before the next Sync Upstream carries it.",
             "verb": "Absorb toolchain",
             "evidence": [
@@ -3719,7 +3719,7 @@
         "kind": "environment"
       },
       "content": {
-        "headline": "v0.35.3 is deployable, green since 04:20.",
+        "headline": "v0.35.3 is deployable, green since 2026-11-06T04:20:36.000Z.",
         "tiles": [
           {
             "label": "Version",
@@ -3796,7 +3796,7 @@
               },
               {
                 "label": "Watch",
-                "text": "Upstream sync at 11-07 00:00 opens 10 PRs (partition halts instead) that share these lanes. The 11-07 08:00 template sync opens nothing: every fork already has a PR or the change."
+                "text": "Upstream sync at 2026-11-07T00:00:00.000Z opens 10 PRs (partition halts instead) that share these lanes. The 2026-11-07T08:00:00.000Z template sync opens nothing: every fork already has a PR or the change."
               },
               {
                 "label": "Reaches",
@@ -3938,7 +3938,7 @@
             "title": "Next sync halts on schemathesis-tests",
             "sub": "8 commits queued · syncs at 2026-11-07T00:00:00.000Z",
             "cause": "Queued upstream commits add schemathesis-tests, which the fork's filter has no rule for.",
-            "effect": "8 commits reach the fork at the 00:00 sync.",
+            "effect": "8 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "next": "Pre-classify: add schemathesis-tests to top_level in .github/upstream-filter.yml before the next Sync Upstream.",
             "verb": "Pre-classify",
             "evidence": [
@@ -3954,7 +3954,7 @@
               "before": "next sync"
             },
             "owned": false,
-            "group": "Before 00:00"
+            "group": "Before 2026-11-07T00:00:00.000Z"
           },
           {
             "id": "repo:partition",
@@ -4137,7 +4137,7 @@
             "title": "Next sync carries os-core-common 8.4.1-boot4-SNAPSHOT",
             "sub": "17 commits queued · syncs at 2026-11-07T00:00:00.000Z",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.4.1-boot4-SNAPSHOT, os-core-common trusted-fix-java17-spring-boot-4-SNAPSHOT and os-core-common 8.5.0.",
-            "effect": "17 commits reach the fork at the 00:00 sync.",
+            "effect": "17 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "next": "Absorb os-core-common 8.4.1-boot4-SNAPSHOT on the fork before the next Sync Upstream carries it.",
             "verb": "Absorb toolchain",
             "evidence": [
@@ -4161,7 +4161,7 @@
               "before": "next sync"
             },
             "owned": false,
-            "group": "Before 00:00"
+            "group": "Before 2026-11-07T00:00:00.000Z"
           },
           {
             "id": "repo:legal",
@@ -4221,7 +4221,7 @@
             "title": "Next sync carries os-core-common 8.5.0",
             "sub": "16 commits queued · syncs at 2026-11-07T00:00:00.000Z",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
-            "effect": "16 commits reach the fork at the 00:00 sync.",
+            "effect": "16 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
             "verb": "Absorb toolchain",
             "evidence": [
@@ -4241,7 +4241,7 @@
               "before": "next sync"
             },
             "owned": false,
-            "group": "Before 00:00"
+            "group": "Before 2026-11-07T00:00:00.000Z"
           },
           {
             "id": "repo:schema",
@@ -4301,7 +4301,7 @@
             "title": "Next sync carries os-core-common 8.5.0",
             "sub": "5 commits queued · syncs at 2026-11-07T00:00:00.000Z",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-            "effect": "5 commits reach the fork at the 00:00 sync.",
+            "effect": "5 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
             "verb": "Absorb toolchain",
             "evidence": [
@@ -4317,7 +4317,7 @@
               "before": "next sync"
             },
             "owned": false,
-            "group": "Before 00:00"
+            "group": "Before 2026-11-07T00:00:00.000Z"
           },
           {
             "id": "repo:file",
@@ -4472,7 +4472,7 @@
             "title": "Sync PR #58 and the next sync carry os-core-common 8.5.0",
             "sub": "23 commits in sync PR #58 · 2 more at 2026-11-07T00:00:00.000Z",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
-            "effect": "23 commits wait in sync PR #58; 2 more reach the fork at the 00:00 sync.",
+            "effect": "23 commits wait in sync PR #58; 2 more reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "next": "Absorb os-core-common 8.5.0 on the fork before merging sync PR #58.",
             "verb": "Absorb toolchain",
             "evidence": [
@@ -4492,7 +4492,7 @@
               "before": "next sync"
             },
             "owned": false,
-            "group": "Before 00:00"
+            "group": "Before 2026-11-07T00:00:00.000Z"
           },
           {
             "id": "gate1:indexer",
@@ -4576,7 +4576,7 @@
             "title": "Next sync carries os-core-common 8.5.0",
             "sub": "6 commits queued · syncs at 2026-11-07T00:00:00.000Z",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-            "effect": "6 commits reach the fork at the 00:00 sync.",
+            "effect": "6 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
             "verb": "Absorb toolchain",
             "evidence": [
@@ -4592,7 +4592,7 @@
               "before": "next sync"
             },
             "owned": false,
-            "group": "Before 00:00"
+            "group": "Before 2026-11-07T00:00:00.000Z"
           },
           {
             "id": "repo:search",
@@ -4651,7 +4651,7 @@
             "title": "Next sync carries os-core-common 8.5.0",
             "sub": "7 commits queued · syncs at 2026-11-07T00:00:00.000Z",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-            "effect": "7 commits reach the fork at the 00:00 sync.",
+            "effect": "7 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
             "verb": "Absorb toolchain",
             "evidence": [
@@ -4667,7 +4667,7 @@
               "before": "next sync"
             },
             "owned": false,
-            "group": "Before 00:00"
+            "group": "Before 2026-11-07T00:00:00.000Z"
           },
           {
             "id": "repo:workflow",
@@ -4798,7 +4798,7 @@
             "title": "Next sync carries os-core-common 8.5.0",
             "sub": "7 commits queued · syncs at 2026-11-07T00:00:00.000Z",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0 and os-core-common 10.0.0.",
-            "effect": "7 commits reach the fork at the 00:00 sync.",
+            "effect": "7 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
             "verb": "Absorb toolchain",
             "evidence": [
@@ -4818,7 +4818,7 @@
               "before": "next sync"
             },
             "owned": false,
-            "group": "Before 00:00"
+            "group": "Before 2026-11-07T00:00:00.000Z"
           },
           {
             "id": "repo:unit",
@@ -4926,7 +4926,7 @@
             "title": "Next sync carries os-core-common 8.5.0",
             "sub": "5 commits queued · syncs at 2026-11-07T00:00:00.000Z",
             "cause": "Queued upstream commits move the root pom to os-core-common 8.5.0.",
-            "effect": "5 commits reach the fork at the 00:00 sync.",
+            "effect": "5 commits reach the fork at the 2026-11-07T00:00:00.000Z sync.",
             "next": "Absorb os-core-common 8.5.0 on the fork before the next Sync Upstream carries it.",
             "verb": "Absorb toolchain",
             "evidence": [
@@ -4942,7 +4942,7 @@
               "before": "next sync"
             },
             "owned": false,
-            "group": "Before 00:00"
+            "group": "Before 2026-11-07T00:00:00.000Z"
           },
           {
             "id": "repo:crs-conversion",

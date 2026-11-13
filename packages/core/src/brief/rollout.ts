@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import type { CoreContext } from "../context.js";
 import type { RolloutFork, RolloutModel } from "../model/rollout.js";
 import { names, plural, short, stamp, whose } from "../util.js";
 
@@ -70,15 +71,15 @@ export function upstreamPrs(r: RolloutModel): string {
     : prs;
 }
 
-export function watchText(r: RolloutModel, now: Date): string {
+export function watchText(r: RolloutModel, now: Date, context?: Pick<CoreContext, "timeStyle">): string {
   const out: string[] = [];
-  const up = stamp(r.schedule.upstream, now);
+  const up = stamp(r.schedule.upstream, now, context);
   if (up && upstreamSays(r)) {
     out.push(
       `Upstream sync at ${up} opens ${upstreamPrs(r)}${r.borrows && r.schedule.upstreamForks > 0 ? " that share these lanes" : ""}.`,
     );
   }
-  const tmpl = stamp(r.schedule.template, now);
+  const tmpl = stamp(r.schedule.template, now, context);
   if (tmpl) {
     out.push(
       r.schedule.templateOpens > 0
@@ -197,14 +198,14 @@ export function verbText(r: RolloutModel): string {
   }
 }
 
-export function rolloutWords(r: RolloutModel, now: Date): RolloutWords {
+export function rolloutWords(r: RolloutModel, now: Date, context?: Pick<CoreContext, "timeStyle">): RolloutWords {
   const target = short(r.target.sha);
   const reaches = reachedPaths(r);
   const base = {
     next: nextSentence(r),
     verb: verbText(r),
     plan: planText(r),
-    watch: watchText(r, now),
+    watch: watchText(r, now, context),
     reaches: reaches.length > 0 ? reaches.join(" · ") : r.consequences.join(", "),
   };
   const lanesText = r.borrows

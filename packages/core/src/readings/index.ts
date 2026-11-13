@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { defaultContext, type CoreContext } from "../context.js";
 import { heldRadar } from "../attention.js";
 import type { Fleet } from "../config.js";
 import type { ReadRecord } from "../evidence/index.js";
@@ -8,7 +9,7 @@ import { campaignItemText } from "../model/campaigns.js";
 import type { Model } from "../model/index.js";
 import { type LineModel, prRed, type Station } from "../model/lines.js";
 import { horizonStages } from "../brief/horizon.js";
-import { fitHeadline, plural, since, wordCount } from "../util.js";
+import { fitHeadline, plural, since, timeClause, wordCount } from "../util.js";
 import { type SecurityReadingItem, serviceSecurityItem } from "./security.js";
 
 export { programReading } from "./program.js";
@@ -152,11 +153,8 @@ function cap(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-// The daily sync is always less than a day away, so its local clock time names it.
-export function clockOf(iso: string | undefined): string | undefined {
-  if (!iso) return undefined;
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+export function beforeTime(iso: string | undefined, context = defaultContext): string {
+  return timeClause(iso, new Date(iso ?? ""), context, "Before ") || "Before the next sync";
 }
 
 export const NOT_READ = "not read yet";
@@ -589,6 +587,7 @@ function belongs(item: ReadingItem, service: string): boolean {
 export interface ServiceReadingInput<T extends ReadingItem> {
   model: Model;
   service: string;
+  context?: CoreContext;
   items: readonly T[];
   // Every read record the sweep kept; the reading qualifies itself on this service's failed or cut ones.
   reads: readonly ReadRecord[];
@@ -598,7 +597,7 @@ export interface ServiceReadingInput<T extends ReadingItem> {
 export function serviceReading<T extends ReadingItem>(
   input: ServiceReadingInput<T>,
 ): PlaceReading<T | SecurityReadingItem> | null {
-  const { model, service, items, reads, now } = input;
+  const { model, service, items, reads, now, context } = input;
   const line = model.lines.find((l) => l.fork.id === service);
   if (!line) return null;
   const next = model.upstream.schedule.upstream;
@@ -612,7 +611,7 @@ export function serviceReading<T extends ReadingItem>(
   const groupOf = (i: Item): string => {
     if (i.rung === 0) return "Stopped";
     const at = bite(i);
-    if (at) return `Before ${clockOf(at)}`;
+    if (at) return beforeTime(at, context);
     return i.rung === 1 ? "Needs a decision" : i.cls === "SECURITY" ? "Security" : "Ready to move";
   };
   const tier = (i: Item): number => (i.rung === 0 ? 0 : bite(i) ? 1 : i.rung === 1 ? 2 : 3);

@@ -18,6 +18,7 @@ import {
 import { useSelectionList } from "../../panels/useSelectionList.js";
 import { watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
+import { TimedText } from "../../time.js";
 import { QueueRow } from "./QueueRow.js";
 import "./template.css";
 
@@ -207,7 +208,9 @@ export default function Template({
                     {parts.rollout.item.more.map(({ label, text }) => (
                       <div key={label}>
                         <dt>{label}</dt>
-                        <dd>{text}</dd>
+                        <dd>
+                          <TimedText text={text} hint={false} />
+                        </dd>
                       </div>
                     ))}
                   </dl>

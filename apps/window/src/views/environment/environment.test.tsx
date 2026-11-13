@@ -24,6 +24,7 @@ import { routeSelectionIds, selectionRows } from "../../panels/selection-rows.js
 import { inspectFromOracle, type OracleBoard } from "../../panels/test-inspect.js";
 import { mixedSnapshot, testSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore } from "../../store/watch.js";
+import { timedText } from "../../time.js";
 import Environment from "./index.js";
 import { runningFactHome } from "./running-fact.js";
 import { eventWhen, hourTicks, place } from "./timeline.js";
@@ -207,7 +208,7 @@ it("renders oracle lane order, labels, facts and bars; selects only in the right
     for (const fact of environment.facts) {
       expect(container.textContent).toContain(fact.label);
       expect(container.textContent).toContain(fact.figure);
-      expect(container.textContent).toContain(fact.sub);
+      expect(container.textContent).toContain(timedText(fact.sub, { hint: false }));
     }
     expect(container.textContent).toContain(environment.note);
     expect(container.querySelectorAll(".env-none")).toHaveLength(2);
@@ -668,7 +669,7 @@ it("draws the recorded environment reading through the place, with no placeholde
     expect(view.page.firstElementChild).toBe(place);
     expect(place?.querySelector("h1")?.textContent).toBe("Environment");
     expect(place?.querySelector(".place-headline")?.textContent).toBe(
-      "v0.35.3 is deployable, green since 04:20.",
+      timedText("v0.35.3 is deployable, green since 2026-11-06T04:20:36.000Z.", { hint: false }),
     );
     expect(
       [...(place?.querySelectorAll(".place-tiles > div") ?? [])].map((tile) => [
@@ -730,7 +731,7 @@ it.each([
         if (!fact) throw new Error("Missing unique supporting fact");
         expect(element, fact.label).not.toBeNull();
         for (const text of [fact.label, fact.figure, fact.sub])
-          expect(element?.textContent, fact.label).toContain(text);
+          expect(element?.textContent, fact.label).toContain(timedText(text, { hint: false }));
       }
       expect(runs.querySelectorAll("[data-lane]")).toHaveLength(
         view.body.briefing.environment.lanes.length,
@@ -766,7 +767,7 @@ it.each(["different version", "unread fact", "unread tile", "declared tile", "no
         '[data-pointer="/briefing/environment/facts/0/figure"]',
       );
       expect(running?.querySelector("strong")?.textContent).toBe(fact.figure);
-      expect(running?.textContent).toContain(fact.sub);
+      expect(running?.textContent).toContain(timedText(fact.sub, { hint: false }));
     } finally {
       await view.done();
     }
@@ -807,7 +808,9 @@ function formerFields(body: ReturnType<typeof mixedSnapshot>): FormerField[] {
   if (!repo || !env.note) throw new Error("Recorded snapshot needs the stack row and lane note");
   const all = (page: HTMLElement, selector: string) => [...page.querySelectorAll(selector)];
   const holding = (selector: string, text: string) => (page: HTMLElement) =>
-    all(page, selector).find((element) => element.textContent?.includes(text));
+    all(page, selector).find((element) =>
+      element.textContent?.includes(timedText(text, { hint: false })),
+    );
   return [
     { field: "headline", find: holding(".env-lead", env.headline), text: env.headline },
     ...env.facts.flatMap((fact, index) => {
@@ -895,7 +898,7 @@ it("keeps every former Environment page field within one click", async () => {
       const element = find(view.page);
       expect(element, field).toBeDefined();
       const shown = `${element?.textContent ?? ""} ${element?.getAttribute("aria-label") ?? ""}`;
-      expect(shown, field).toContain(text);
+      expect(shown, field).toContain(timedText(text, { hint: false }));
       const closed: HTMLDetailsElement[] = [];
       for (let node = element?.parentElement; node && node !== view.page; node = node.parentElement)
         if (node instanceof HTMLDetailsElement && !node.open) closed.push(node);

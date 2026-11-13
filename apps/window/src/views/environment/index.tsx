@@ -19,6 +19,7 @@ import {
 import { useSelectionList } from "../../panels/useSelectionList.js";
 import { watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
+import { TimedText } from "../../time.js";
 import { FlowContext } from "./flow-context.js";
 import { runningFactHome } from "./running-fact.js";
 import {
@@ -157,7 +158,7 @@ export default function Environment({
           />
           <SectionEvidence evidence={body} prefixes={["/briefing/environment/headline"]} />
           <p className="env-lead" data-pointer="/briefing/environment/headline">
-            {env.headline}
+            <TimedText text={env.headline} hint={false} />
           </p>
           {env.facts.length > 0 && (
             <>
@@ -174,7 +175,11 @@ export default function Environment({
                       >
                         <div className="env-fact-label">{fact.label}</div>
                         {home.versionTile < 0 && <strong>{fact.figure}</strong>}
-                        {!home.subInHeadline && <div>{fact.sub}</div>}
+                        {!home.subInHeadline && (
+                          <div>
+                            <TimedText text={fact.sub} hint={false} />
+                          </div>
+                        )}
                       </div>
                     );
                   })}

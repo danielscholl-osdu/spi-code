@@ -182,7 +182,7 @@ describe("the attention band", () => {
       body.briefing.places?.map(({ mark }) => mark),
     );
     expect(marks.map((mark) => mark.getAttribute("title"))).toEqual(
-      body.briefing.places?.map(({ line }) => line),
+      body.briefing.places?.map(({ line }) => timedText(line, { hint: false })),
     );
     const chip = container.querySelector(".today-band-top .kit-chip--upstream");
     expect(chip?.textContent).toBe(`⇣${counts.needYouCards} upstream need you first`);

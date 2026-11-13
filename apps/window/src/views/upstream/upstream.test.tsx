@@ -17,6 +17,7 @@ import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { routeSelectionIds, selectionRows } from "../../panels/selection-rows.js";
 import { watchStore } from "../../store/watch.js";
+import { timedText } from "../../time.js";
 import { upstreamReading } from "./reading.js";
 
 const fixture = () => ViewSnapshotSchema.parse(JSON.parse(november6));
@@ -347,7 +348,10 @@ it("reaches every former Horizon field within one click of the Upstream place", 
   for (const { field, expected, locate } of table) {
     window.location.hash = "#upstream";
     await act(async () => navigate({ kind: "upstream" }));
-    expect({ field, value: await locate() }).toEqual({ field, value: expected });
+    expect({ field, value: await locate() }).toEqual({
+      field,
+      value: timedText(expected, { hint: false }),
+    });
   }
 });
 
@@ -377,7 +381,7 @@ it("opens every theme's next step, fork states and exposed forks in one click", 
     for (const list of ["certain", "possible"] as const)
       for (const fork of entry[list]) {
         expect(detail?.textContent).toContain(fork.fork);
-        expect(detail?.textContent).toContain(`${list} · ${fork.state}`);
+        expect(detail?.textContent).toContain(timedText(`${list} · ${fork.state}`));
       }
     for (const fork of entry.exposed) expect(detail?.textContent).toContain(fork);
     if (entry.inspect) {

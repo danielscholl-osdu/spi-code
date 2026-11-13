@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { ViewSnapshot } from "@spi-code/contracts";
+import { timedText } from "../time.js";
 import type { Destination } from "./navigation.js";
 import type { Reach } from "./reachability.test-helper.js";
 
@@ -55,7 +56,7 @@ export function placeReachCases(snapshot: ViewSnapshot): Reach[] {
     self("mark", row.mark, "data-mark");
     attr("tone", row.tone, ".today-place-figure", "data-tone");
     add("figure", row.figure, ".today-place-figure");
-    attr("line", row.line, ".today-place-open", "title");
+    attr("line", timedText(row.line, { hint: false }), ".today-place-open", "title");
     if (row.reason) add("reason", row.reason, ".today-place-reason");
     if (row.caveat) add("caveat", row.caveat, ".today-place-caveat");
     row.areas.forEach((area, at) => {

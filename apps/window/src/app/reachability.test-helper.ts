@@ -5,7 +5,7 @@ import { type InspectResult, InspectResultSchema, type ViewSnapshot } from "@spi
 import { inScope } from "../components/sidebar/attention.js";
 import { selectionRows, TODAY_GROUPS, todayGroupRow } from "../panels/selection-rows.js";
 import { plainTitle } from "../text.js";
-import { clockTime, instantsIn, timedText } from "../time.js";
+import { clockTime, timedText } from "../time.js";
 import { runningFactHome } from "../views/environment/running-fact.js";
 import { eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
 import { releaseSectionCases } from "../views/releases/reachability.test-helper.js";
@@ -325,12 +325,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
       add(`${pointer}/scope`, item.scope, where, `${li} .place-scope`);
       if (item.sub) add(`${pointer}/sub`, subText(item.sub), where, `${li} .place-item-sub`);
       if (item.next) add(`${pointer}/next`, plainTitle(item.next), where, `${li} .place-item-next`);
-      const group = reading.groups.get(item.id) ?? "";
-      if (item.due && instantsIn(group).includes(Date.parse(item.due.at))) {
-        const heading = (root: ParentNode) =>
-          root.querySelector(li)?.closest(".place-group")?.querySelector(":scope > h3 time");
-        add(`${pointer}/due/at`, item.due.at, where, heading, { attribute: "dateTime" });
-      } else if (item.due) {
+      if (item.due) {
         const time = `${li} .place-item-meta time`;
         add(`${pointer}/due/at`, item.due.at, where, time, { attribute: "dateTime" });
         add(`${pointer}/due/before`, `Before ${item.due.before}`, where, time);
@@ -367,7 +362,12 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
       item.more?.forEach((entry, index) => {
         const div = `dl.template-detail${at(`${pointer}/more`)} > div:nth-child(${index + 1})`;
         add(`${pointer}/more/${index}/label`, entry.label, engineeringDetails, `${div} > dt`);
-        add(`${pointer}/more/${index}/text`, entry.text, engineeringDetails, `${div} > dd`);
+        add(
+          `${pointer}/more/${index}/text`,
+          subText(entry.text),
+          engineeringDetails,
+          `${div} > dd`,
+        );
       });
     }
 
@@ -397,7 +397,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
     const grouped = item.cls === "PORT" && item.ids.length > 1;
     for (const key of ["cause", "effect", "next"] as const)
       if (plainTitle(item[key]))
-        add(`${pointer}/${key}`, plainTitle(item[key]), detail, detailField(key), {
+        add(`${pointer}/${key}`, timedText(plainTitle(item[key])), detail, detailField(key), {
           ...(grouped && key !== "next"
             ? { exempt: "spicode-t1k.216: a grouped port's Detail tells its first fork only" }
             : {}),
@@ -415,14 +415,14 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
     add(`${pointer}/title`, theme.title, where, detailField("cause"));
     if (theme.sub) add(`${pointer}/sub`, theme.sub, where, detailField("effect"));
     if (theme.next) add(`${pointer}/next`, plainTitle(theme.next), where, detailField("next"));
-    if (theme.when) add(`${pointer}/when`, theme.when, where, detailField("why"));
+    if (theme.when) add(`${pointer}/when`, timedText(theme.when), where, detailField("why"));
     let offset = 0;
     for (const list of ["certain", "possible"] as const) {
       theme[list].forEach((fork, at) => {
         add(`${pointer}/${list}/${at}/fork`, fork.fork, where, related(offset + at, "dd"));
         add(
           `${pointer}/${list}/${at}/state`,
-          `${list} · ${fork.state}`,
+          timedText(`${list} · ${fork.state}`),
           where,
           related(offset + at, "dt"),
         );
@@ -438,7 +438,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
   const runs = lensHome("Environment · Stack runs");
   add(
     "/briefing/environment/headline",
-    environment.headline,
+    subText(environment.headline),
     runs,
     at("/briefing/environment/headline"),
   );
@@ -467,7 +467,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
     }
     add(
       `${pointer}/sub`,
-      fact.sub,
+      subText(fact.sub),
       subInHeadline ? environmentHome : runs,
       subInHeadline ? `${environmentPlace} .place-headline` : `${div} > div:last-child`,
       subInHeadline

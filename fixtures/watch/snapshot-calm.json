@@ -14,7 +14,7 @@
       {
         "label": "Environment",
         "figure": "v0.35.3",
-        "sub": "deployable · green at 04:20",
+        "sub": "deployable · green at 2026-11-06T04:20:36.000Z",
         "tone": "ok"
       },
       {
@@ -61,7 +61,7 @@
           },
           {
             "label": "Watch",
-            "text": "Upstream sync at 11-07 00:00 opens 2 PRs that share these lanes. The 11-07 08:00 template sync opens nothing: every fork already has a PR or the change."
+            "text": "Upstream sync at 2026-11-07T00:00:00.000Z opens 2 PRs that share these lanes. The 2026-11-07T08:00:00.000Z template sync opens nothing: every fork already has a PR or the change."
           }
         ],
         "attention": "ambient",
@@ -782,12 +782,12 @@
         "button": "Open in inspector · Plan upstream syncs"
       },
       "schedule": {
-        "title": "At 11-07 00:00 if you do nothing",
+        "title": "At 2026-11-07T00:00:00.000Z if you do nothing",
         "text": "Sync Upstream opens 2 sync PRs. They wait for you; SPI Code adopts them into the plan."
       },
       "next": {
         "title": "Prepare the pilot: open sync PRs on partition and schema",
-        "text": "Dispatches Sync Upstream now instead of at 11-07 00:00. Each opens a sync PR with the filtered upstream tree. Nothing merges.",
+        "text": "Dispatches Sync Upstream now instead of at 2026-11-07T00:00:00.000Z. Each opens a sync PR with the filtered upstream tree. Nothing merges.",
         "button": "Open in inspector · Prepare the pilot",
         "quiet": false
       },
@@ -800,13 +800,13 @@
         {
           "label": "Running",
           "figure": "v0.35.3",
-          "sub": "deployable · green at 04:20",
+          "sub": "deployable · green at 2026-11-06T04:20:36.000Z",
           "tone": "ok"
         },
         {
           "label": "Deployable · 21 days",
           "figure": "89%",
-          "sub": "6 holds over an hour, 44 h 10 min in all · up since 04:20",
+          "sub": "6 holds over an hour, 44 h 10 min in all · up since 2026-11-06T04:20:16.000Z",
           "tone": "neutral"
         },
         {
@@ -1731,7 +1731,7 @@
         "mark": "nothing-due",
         "tone": "neutral",
         "figure": "v0.35.3 deployable",
-        "line": "v0.35.3 is deployable, green since 04:20.",
+        "line": "v0.35.3 is deployable, green since 2026-11-06T04:20:36.000Z.",
         "areas": ["github", "lifecycle"],
         "itemIds": [],
         "fresh": {
@@ -2152,7 +2152,7 @@
         "kind": "environment"
       },
       "content": {
-        "headline": "v0.35.3 is deployable, green since 04:20.",
+        "headline": "v0.35.3 is deployable, green since 2026-11-06T04:20:36.000Z.",
         "tiles": [
           {
             "label": "Version",
@@ -2229,7 +2229,7 @@
               },
               {
                 "label": "Watch",
-                "text": "Upstream sync at 11-07 00:00 opens 2 PRs that share these lanes. The 11-07 08:00 template sync opens nothing: every fork already has a PR or the change."
+                "text": "Upstream sync at 2026-11-07T00:00:00.000Z opens 2 PRs that share these lanes. The 2026-11-07T08:00:00.000Z template sync opens nothing: every fork already has a PR or the change."
               }
             ],
             "attention": "ambient",
