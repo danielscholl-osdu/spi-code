@@ -3,6 +3,7 @@
 
 import { upstreamPrs, upstreamSays } from "../brief/rollout.js";
 import { FLEET_RELEASE_WORKFLOW, TEMPLATE_REPO } from "../config.js";
+import type { CoreContext } from "../context.js";
 import type { LaneLoad } from "../model/lanes.js";
 import type { EnvRerun, RolloutFork, RolloutModel } from "../model/rollout.js";
 import { names, plural, short, stamp, whose } from "../util.js";
@@ -69,15 +70,19 @@ function rerunTarget(e: EnvRerun): Target {
   };
 }
 
-function scheduleLines(r: RolloutModel, now: Date): string[] {
+function scheduleLines(
+  r: RolloutModel,
+  now: Date,
+  context: Pick<CoreContext, "timeStyle"> | undefined,
+): string[] {
   const out: string[] = [];
-  const up = stamp(r.schedule.upstream, now);
+  const up = stamp(r.schedule.upstream, now, context);
   if (up && upstreamSays(r)) {
     out.push(
       `Upstream sync at ${up} opens ${upstreamPrs(r)}${r.schedule.upstreamForks > 0 ? " that share the lanes" : ""}.`,
     );
   }
-  const tmpl = stamp(r.schedule.template, now);
+  const tmpl = stamp(r.schedule.template, now, context);
   if (tmpl) out.push(`The ${tmpl} template sync opens every fork still without a PR at once.`);
   return out;
 }
@@ -106,6 +111,7 @@ function dispatchAction(
   load: LaneLoad,
   now: Date,
   start: boolean,
+  context?: Pick<CoreContext, "timeStyle">,
 ): ActionItem {
   const targets = forks.map((f) => dispatchTarget(r, f));
   const label = start
@@ -123,7 +129,7 @@ function dispatchAction(
         `Dispatches Sync Template on ${services(forks)}, so each fork's template-sync PR carries ${r.target.label} (${short(r.target.sha)}).`,
         ...paceText(load, []),
         ...orderLines(r),
-        ...(start ? scheduleLines(r, now) : []),
+        ...(start ? scheduleLines(r, now, context) : []),
         "Each fork is read again first: one with Sync Template already running is skipped, and every press is refused if osdu-spi main moved since this board drew.",
       ],
     },
@@ -213,9 +219,16 @@ function releaseAction(r: RolloutModel, swept: string, item: string): ActionItem
 // The primary press names exactly what it does next; every other verb says why it waits.
 export function flowActions(
   r: RolloutModel,
-  opts: { swept: string; item: string; load: LaneLoad; now: Date; blocked?: string },
+  opts: {
+    swept: string;
+    item: string;
+    load: LaneLoad;
+    now: Date;
+    blocked?: string;
+    context?: Pick<CoreContext, "timeStyle">;
+  },
 ): FlowActions {
-  const { swept, item, load, now, blocked } = opts;
+  const { swept, item, load, now, blocked, context } = opts;
   const secondary: ActionItem[] = [];
   let primary: ActionItem;
   const target = short(r.target.sha);
@@ -224,7 +237,7 @@ export function flowActions(
     case "start":
       primary =
         r.dispatchNext.length > 0
-          ? dispatchAction(r, r.dispatchNext, swept, item, load, now, true)
+          ? dispatchAction(r, r.dispatchNext, swept, item, load, now, true, context)
           : disabled(
               "Start rollout",
               r.lanes.unread
@@ -236,7 +249,7 @@ export function flowActions(
       primary = mergeAction(r, swept, item, load);
       break;
     case "dispatch":
-      primary = dispatchAction(r, r.dispatchNext, swept, item, load, now, false);
+      primary = dispatchAction(r, r.dispatchNext, swept, item, load, now, false, context);
       break;
     case "rerun":
       primary = rerunAction(r, swept, item, true);
@@ -253,7 +266,7 @@ export function flowActions(
       primary =
         go.length > 0
           ? {
-              ...dispatchAction(r, go, swept, item, load, now, false),
+              ...dispatchAction(r, go, swept, item, load, now, false, context),
               label: `Retarget the rollout to main · dispatch ${services(go)}`,
             }
           : disabled("Retarget the rollout to main", "every lane is busy");

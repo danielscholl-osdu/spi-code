@@ -3,6 +3,7 @@
 
 import type { ActionItem } from "../act/action-item.js";
 import type { UpstreamActions } from "../act/upstream.js";
+import type { CoreContext } from "../context.js";
 import type { CanvasTone } from "../tone.js";
 import type { Voice } from "../voice.js";
 
@@ -59,6 +60,7 @@ export interface UpstreamBoardOptions {
   extra?: UpstreamSection[];
   /** How the board names the actor; defaults to SPI Code. */
   voice?: Voice;
+  context?: Pick<CoreContext, "timeStyle">;
 }
 
 export function inspectRow(id: string): Pick<UpstreamRow, "action"> {

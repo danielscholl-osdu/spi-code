@@ -103,7 +103,7 @@ export function inspectStep(model: Model, id: string, context: CoreContext): Ste
       : `${step.label} is the oldest position a fork holds.`,
     changes: step.changes.map((c) => ({
       text: c.title,
-      trailing: [c.pr ? `#${c.pr}` : undefined, stamp(c.at, now)].filter(Boolean).join(" · "),
+      trailing: [c.pr ? `#${c.pr}` : undefined, stamp(c.at, now, context)].filter(Boolean).join(" · "),
       href: c.url,
     })),
     forks: [

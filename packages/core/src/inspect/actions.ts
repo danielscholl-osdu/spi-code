@@ -102,6 +102,7 @@ export function rolloutActionItems(
     context.fleet.forks,
     blocked,
     model.lanes,
+    context,
   ).map((a) => (a.label.startsWith("Sync all forks") ? syncNamed(a, model, context) : a));
 }
 
@@ -121,6 +122,7 @@ export function verbsOf(
         ops: opts.ops ?? false,
         voice: context.voice,
         load: model.lanes,
+        context,
         ...(blocked ? { blocked } : {}),
         ...(opts.waiting ? { waiting: opts.waiting } : {}),
       })

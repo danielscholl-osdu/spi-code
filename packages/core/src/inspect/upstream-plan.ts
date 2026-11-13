@@ -11,6 +11,7 @@ import {
   tag,
   upstreamView,
 } from "../brief/upstream.js";
+import type { CoreContext } from "../context.js";
 import type { Model } from "../model/index.js";
 import type { Cell, CellTone } from "../model/rollout.js";
 import { planStep, UPSTREAM_PREFIX, type UpFork, type UpstreamModel } from "../model/upstream.js";
@@ -188,14 +189,21 @@ function heldSection(u: UpstreamModel): Section | undefined {
   };
 }
 
-function scheduleSection(u: UpstreamModel, now: Date, voice: Voice): Section | undefined {
+function scheduleSection(
+  u: UpstreamModel,
+  now: Date,
+  voice: Voice,
+  context: Pick<CoreContext, "timeStyle"> | undefined,
+): Section | undefined {
   const s = upstreamView(u, now, voice).schedule;
   if (!s) return undefined;
+  const at = stamp(u.schedule.upstream, now, context);
+  const label = at ?? (context?.timeStyle === "instant" ? undefined : "?");
   return {
     kind: "rows",
     title: "Schedule",
     items: [
-      { chip: { label: stamp(u.schedule.upstream, now) ?? "?", tone: "neutral" }, text: s.text },
+      { ...(label ? { chip: { label, tone: "neutral" as const } } : {}), text: s.text },
       {
         glyph: "neutral",
         text: "A sync PR the schedule opens is adopted as Prepared; a fork already in the plan keeps its PR, updated in place.",
@@ -234,6 +242,7 @@ export function inspectUpstreamPlan(
     load: model.lanes,
     now,
     ...(opts.blocked ? { blocked: opts.blocked } : {}),
+    ...(opts.context ? { context: opts.context } : {}),
   });
   const planned = u.pilot.length + u.waves.reduce((n, w) => n + w.forks.length, 0);
   const waves = (u.pilot.length > 0 ? 1 : 0) + u.waves.length;
@@ -296,7 +305,7 @@ export function inspectUpstreamPlan(
   const held = heldSection(u);
   if (held) sections.push(held);
   if (u.mode !== "flight") sections.push(stepsSection(voice));
-  const sched = scheduleSection(u, now, voice);
+  const sched = scheduleSection(u, now, voice, opts.context);
   if (sched) sections.push(sched);
   sections.push({
     kind: "rows",

@@ -121,7 +121,7 @@ describe("Detail answers on the recorded 6 Nov sweep equal its briefing", () => 
         cause: `Held ${event.label}`,
         effect: event.detail,
         next: "",
-        why: `${event.start} to ${event.end ?? "now"}`,
+        why: event.end === undefined ? `since ${event.start}` : `${event.start} to ${event.end}`,
         evidence: [],
         related: runs,
         approval: null,

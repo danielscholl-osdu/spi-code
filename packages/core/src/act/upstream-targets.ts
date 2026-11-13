@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { CASCADE_WORKFLOW, SYNC_UPSTREAM_WORKFLOW } from "../config.js";
+import type { CoreContext } from "../context.js";
 import type { LaneLoad } from "../model/lanes.js";
 import type { UpFork, UpstreamModel } from "../model/upstream.js";
 import { names, plural, stamp } from "../util.js";
@@ -108,9 +109,10 @@ export function prepareAction(
     label?: string;
     primary?: boolean;
     extra?: string[];
+    context?: Pick<CoreContext, "timeStyle">;
   },
 ): ActionItem {
-  const at = stamp(u.schedule.upstream, opts.now);
+  const at = stamp(u.schedule.upstream, opts.now, opts.context);
   return verbAction(
     PREPARE,
     { item: opts.item, swept: opts.swept, targets: forks.map(prepareTarget) },
@@ -168,9 +170,18 @@ export function cascadeAction(
   verb: Verb,
   u: UpstreamModel,
   forks: readonly UpFork[],
-  opts: { swept: string; item: string; label?: string; primary?: boolean; now: Date },
+  opts: {
+    swept: string;
+    item: string;
+    label?: string;
+    primary?: boolean;
+    now: Date;
+    context?: Pick<CoreContext, "timeStyle">;
+  },
 ): ActionItem {
   const rerun = verb.id === RERUN_CASCADE.id;
+  const fixed =
+    forks.length === 1 ? stamp(forks[0]?.stop?.run?.updatedAt, opts.now, opts.context) : undefined;
   return verbAction(
     verb,
     { item: opts.item, swept: opts.swept, targets: forks.map(cascadeTarget) },
@@ -181,7 +192,7 @@ export function cascadeAction(
       title: `${verb.label} · ${services(forks)}`,
       detail: [
         rerun
-          ? `A fix landed on fork_integration after the failed cascade${forks.length === 1 && forks[0]?.stop?.run ? ` (${stamp(forks[0].stop.run.updatedAt, opts.now)})` : ""}, so the cascade runs again with each tracking issue.`
+          ? `A fix landed on fork_integration after the failed cascade${fixed ? ` (${fixed})` : ""}, so the cascade runs again with each tracking issue.`
           : `The sync PR merged and no cascade ran, so this dispatches Cascade Integration with each tracking issue.`,
         "A green cascade opens a Sync to Main PR that borrows a lane.",
         ...laneText(u),

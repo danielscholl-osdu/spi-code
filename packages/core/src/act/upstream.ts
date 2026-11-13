@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import type { CoreContext } from "../context.js";
 import type { AreaName } from "../facts.js";
 import { type LaneLoad, laneRoom } from "../model/lanes.js";
 import {
@@ -91,9 +92,19 @@ function blockAll(a: UpstreamActions, blocked?: string): UpstreamActions {
 
 export function planActions(
   u: UpstreamModel,
-  opts: { swept: string; load: LaneLoad; now: Date; blocked?: string },
+  opts: {
+    swept: string;
+    load: LaneLoad;
+    now: Date;
+    blocked?: string;
+    context?: Pick<CoreContext, "timeStyle">;
+  },
 ): UpstreamActions {
-  const base = { swept: opts.swept, item: UPSTREAM_ITEM };
+  const base = {
+    swept: opts.swept,
+    item: UPSTREAM_ITEM,
+    ...(opts.context ? { context: opts.context } : {}),
+  };
   const secondary: ActionItem[] = [];
   let primary: ActionItem | undefined;
   const group = (list: readonly UpFork[]) =>
@@ -208,9 +219,19 @@ export function planActions(
 export function forkActions(
   u: UpstreamModel,
   f: UpFork,
-  opts: { swept: string; load: LaneLoad; now: Date; blocked?: string },
+  opts: {
+    swept: string;
+    load: LaneLoad;
+    now: Date;
+    blocked?: string;
+    context?: Pick<CoreContext, "timeStyle">;
+  },
 ): UpstreamActions {
-  const base = { swept: opts.swept, item: `${UPSTREAM_PREFIX}${f.service}` };
+  const base = {
+    swept: opts.swept,
+    item: `${UPSTREAM_PREFIX}${f.service}`,
+    ...(opts.context ? { context: opts.context } : {}),
+  };
   const room = laneRoom(opts.load);
   const anyway =
     f.held === "snapshot"

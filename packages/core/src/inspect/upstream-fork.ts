@@ -3,6 +3,7 @@
 
 import { forkActions } from "../act/upstream.js";
 import { carriesText, LINE_COLUMNS, tag } from "../brief/upstream.js";
+import type { CoreContext } from "../context.js";
 import type { Model } from "../model/index.js";
 import type { Cell } from "../model/rollout.js";
 import {
@@ -128,7 +129,23 @@ function forkNext(u: UpstreamModel, f: UpFork, voice: Voice): { title: string; w
   }
 }
 
-function failedSection(u: UpstreamModel, f: UpFork, now: Date): Section | undefined {
+// The app's text leaves an unknown failure time out; the boards keep their "?".
+function failedAt(
+  iso: string | undefined,
+  now: Date,
+  context: Pick<CoreContext, "timeStyle"> | undefined,
+): { label: string; value: string }[] {
+  const at = stamp(iso, now, context);
+  if (at) return [{ label: "Failed", value: at }];
+  return context?.timeStyle === "instant" ? [] : [{ label: "Failed", value: "?" }];
+}
+
+function failedSection(
+  u: UpstreamModel,
+  f: UpFork,
+  now: Date,
+  context: Pick<CoreContext, "timeStyle"> | undefined,
+): Section | undefined {
   const s = f.stop;
   if (!s) return undefined;
   const passed = u.forks
@@ -154,10 +171,7 @@ function failedSection(u: UpstreamModel, f: UpFork, now: Date): Section | undefi
             ? [{ label: "Issue", value: `#${s.issue.number} ${s.issue.title}`, href: s.issue.url }]
             : []),
           { label: "First error", value: s.error ?? "unread" },
-          {
-            label: "Failed",
-            value: stamp(s.run?.updatedAt, now) ?? "?",
-          },
+          ...failedAt(s.run?.updatedAt, now, context),
           {
             label: "Same cause",
             value:
@@ -228,6 +242,7 @@ export function inspectUpstreamFork(
     load: model.lanes,
     now,
     ...(opts.blocked ? { blocked: opts.blocked } : {}),
+    ...(opts.context ? { context: opts.context } : {}),
   });
   const voice = opts.voice ?? APP_VOICE;
   const next = forkNext(u, f, voice);
@@ -268,7 +283,7 @@ export function inspectUpstreamFork(
       f.phase === "stopped" || f.phase === "red" ? "error" : "brand",
     ),
   );
-  const failed = failedSection(u, f, now);
+  const failed = failedSection(u, f, now, opts.context);
   if (failed) sections.push(failed);
   if (f.phase === "stopped") {
     sections.push({
@@ -301,7 +316,7 @@ export function inspectUpstreamFork(
       ],
     });
   }
-  const at = stamp(u.schedule.upstream, now);
+  const at = stamp(u.schedule.upstream, now, opts.context);
   if (at && f.phase === "stopped") {
     sections.push({
       kind: "rows",

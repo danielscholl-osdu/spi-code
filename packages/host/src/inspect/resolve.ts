@@ -104,14 +104,19 @@ export const INSPECT_TABLE: readonly InspectRow[] = [
   {
     kind: "upstream plan",
     claims: (id) => id === UPSTREAM_ITEM,
-    resolve: (_id, { model, now, snapshot }) =>
-      upstreamPlanResult(inspectUpstreamPlan(model, now), snapshot.view.areas),
+    resolve: (_id, { model, now, deps, snapshot }) =>
+      upstreamPlanResult(
+        inspectUpstreamPlan(model, now, { context: deps.ctx }),
+        snapshot.view.areas,
+      ),
   },
   {
     kind: "upstream fork",
     claims: prefixed(UPSTREAM_PREFIX),
-    resolve: (id, { model, now, snapshot }) => {
-      const fork = inspectUpstreamFork(model, id.slice(UPSTREAM_PREFIX.length), now);
+    resolve: (id, { model, now, deps, snapshot }) => {
+      const fork = inspectUpstreamFork(model, id.slice(UPSTREAM_PREFIX.length), now, {
+        context: deps.ctx,
+      });
       return fork ? upstreamForkResult(id, fork, snapshot.view.areas) : undefined;
     },
   },
@@ -141,19 +146,19 @@ export const INSPECT_TABLE: readonly InspectRow[] = [
   {
     kind: "repository",
     claims: prefixed(REPO_PREFIX),
-    resolve: (id, { model, now, snapshot }) => {
-      const repo = inspectRepo(model, id, now);
+    resolve: (id, { model, now, deps, snapshot }) => {
+      const repo = inspectRepo(model, id, now, deps.ctx);
       return repo ? repoResult(id, repo, snapshot.view.areas) : undefined;
     },
   },
   {
     kind: "service",
     claims: prefixed(SERVICE_PREFIX),
-    resolve: (id, { model, now, snapshot }) => {
+    resolve: (id, { model, now, deps, snapshot }) => {
       const service = id.slice(SERVICE_PREFIX.length);
-      const fork = inspectUpstreamFork(model, service, now);
+      const fork = inspectUpstreamFork(model, service, now, { context: deps.ctx });
       if (fork) return upstreamForkResult(id, fork, snapshot.view.areas);
-      const repo = inspectRepo(model, `${REPO_PREFIX}${service}`, now);
+      const repo = inspectRepo(model, `${REPO_PREFIX}${service}`, now, deps.ctx);
       return repo ? repoResult(id, repo, snapshot.view.areas) : undefined;
     },
   },
@@ -170,11 +175,11 @@ export const INSPECT_TABLE: readonly InspectRow[] = [
   {
     kind: "hold",
     claims: prefixed(HOLD_PREFIX),
-    resolve: (id, { snapshot: { view } }) => {
+    resolve: (id, { now, deps, snapshot: { view } }) => {
       const hold = view.briefing.environment.lanes
         .find((lane) => lane.id === "holds")
         ?.events.find((e) => `${HOLD_PREFIX}${e.id}` === id);
-      return hold ? holdResult(id, hold, view.briefing, view.areas) : undefined;
+      return hold ? holdResult(id, hold, view.briefing, view.areas, now, deps.ctx) : undefined;
     },
   },
   {
@@ -197,7 +202,8 @@ export const INSPECT_TABLE: readonly InspectRow[] = [
   {
     kind: "station",
     claims: prefixed(STATION_PREFIX),
-    resolve: (id, { model, now, snapshot }) => stationResult(model, id, now, snapshot.view.areas),
+    resolve: (id, { model, now, deps, snapshot }) =>
+      stationResult(model, id, now, deps.ctx, snapshot.view.areas),
   },
   {
     kind: "repository line",

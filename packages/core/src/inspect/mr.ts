@@ -6,7 +6,7 @@ import type { CoreContext } from "../context.js";
 import type { Model } from "../model/index.js";
 import type { Bucket } from "../model/radar.js";
 import type { CanvasTone } from "../tone.js";
-import { clip, names, plural, stamp, whose } from "../util.js";
+import { clip, names, plural, timeClause, whose } from "../util.js";
 
 export const MR_PREFIX = "mr:";
 const FILTER_BLOB = "/blob/main/.github/upstream-filter.yml";
@@ -153,7 +153,7 @@ export function mrBoard(
       chip: [
         `${at.fork} · !${mr.iid}`,
         mr.draft ? "draft" : undefined,
-        `opened ${stamp(mr.createdAt, now)}`,
+        timeClause(mr.createdAt, now, context, "opened "),
       ]
         .filter(Boolean)
         .join(" · "),

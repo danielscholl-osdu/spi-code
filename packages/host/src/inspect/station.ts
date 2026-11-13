@@ -3,10 +3,12 @@
 
 import { type AreaEnvelope, type InspectResult, InspectResultSchema } from "@spi-code/contracts";
 import {
+  type CoreContext,
   inspectUpstreamFork,
   itemClass,
   type Model,
   type QueueItem,
+  stamp,
   UPSTREAM_PREFIX,
 } from "@spi-code/core";
 import { webUrl } from "./shared.js";
@@ -25,11 +27,20 @@ function prRelated(pr: Line["syncPr"], state: string): Related[] {
   return pr ? [{ text: `#${pr.pr.number} ${pr.pr.title}`, state, ...webUrl(pr.pr.url) }] : [];
 }
 
-function runRelated(run: Line["mainRun"], state: string): Related[] {
+interface Clock {
+  readonly now: Date;
+  readonly ctx: Pick<CoreContext, "timeStyle">;
+}
+
+function runRelated(run: Line["mainRun"], state: string, { now, ctx }: Clock): Related[] {
   return run
     ? [
         {
-          text: [run.name, run.status === "completed" ? run.conclusion : run.status, run.createdAt]
+          text: [
+            run.name,
+            run.status === "completed" ? run.conclusion : run.status,
+            stamp(run.createdAt, now, ctx),
+          ]
             .filter(Boolean)
             .join(" · "),
           state,
@@ -43,6 +54,7 @@ function runRelated(run: Line["mainRun"], state: string): Related[] {
 function lineStationFacts(
   line: Line,
   id: keyof typeof LINE_STATIONS,
+  clock: Clock,
 ): { why: string[]; related: Related[] } {
   switch (id) {
     case "upstream":
@@ -75,7 +87,7 @@ function lineStationFacts(
               ]
             : []),
           ...prRelated(line.syncPr, "Sync PR"),
-          ...runRelated(line.syncRun, "Sync Upstream run"),
+          ...runRelated(line.syncRun, "Sync Upstream run", clock),
         ],
       };
     case "cascade":
@@ -113,7 +125,7 @@ function lineStationFacts(
         ],
         related: [
           ...prRelated(line.cascadePr, "Cascade PR"),
-          ...runRelated(line.mainRed?.run ?? line.mainRun, "Main run"),
+          ...runRelated(line.mainRed?.run ?? line.mainRun, "Main run", clock),
         ],
       };
   }
@@ -125,6 +137,7 @@ function lineStationResult(
   station: Line["stations"][number] & { id: keyof typeof LINE_STATIONS },
   id: string,
   now: Date,
+  ctx: CoreContext,
   areas: readonly AreaEnvelope[],
 ): InspectResult {
   const fork = line.fork.id;
@@ -132,8 +145,8 @@ function lineStationResult(
   const items = model.queue.items.filter(
     (item) => item.scope === fork && (kinds as readonly string[]).includes(item.kind),
   );
-  const facts = lineStationFacts(line, station.id);
-  const upstream = inspectUpstreamFork(model, fork, now);
+  const facts = lineStationFacts(line, station.id, { now, ctx });
+  const upstream = inspectUpstreamFork(model, fork, now, { context: ctx });
   return InspectResultSchema.parse({
     id,
     title: `${fork} · ${title}`,
@@ -170,6 +183,7 @@ export function stationResult(
   model: Model,
   id: string,
   now: Date,
+  ctx: CoreContext,
   areas: readonly AreaEnvelope[],
 ): InspectResult | undefined {
   for (const line of model.lines) {
@@ -182,6 +196,7 @@ export function stationResult(
         station as Line["stations"][number] & { id: keyof typeof LINE_STATIONS },
         id,
         now,
+        ctx,
         areas,
       );
     if (station.id !== "release" && station.id !== "lane") return undefined;
@@ -220,7 +235,7 @@ export function stationResult(
               ? [
                   {
                     text: line.release.tag,
-                    state: line.release.at,
+                    state: stamp(line.release.at, now, ctx) ?? "Release",
                     ...webUrl(line.release.url),
                   },
                 ]
@@ -231,7 +246,9 @@ export function stationResult(
               ? [
                   {
                     text: [line.lane.last.ref, line.lane.last.sha].filter(Boolean).join(" · "),
-                    state: `${line.lane.last.state} · ${line.lane.last.createdAt}`,
+                    state: [line.lane.last.state, stamp(line.lane.last.createdAt, now, ctx)]
+                      .filter(Boolean)
+                      .join(" · "),
                   },
                 ]
               : []),

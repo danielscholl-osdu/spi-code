@@ -110,7 +110,11 @@ function Inspector({
           <dl className="inspector-related" aria-label="Related">
             {relatedEntries.map((related) => (
               <div key={`${related.text}/${related.state}`}>
-                {plainTitle(related.state) && <dt>{sentenceCase(plainTitle(related.state))}</dt>}
+                {plainTitle(related.state) && (
+                  <dt>
+                    <TimedText text={sentenceCase(plainTitle(related.state))} />
+                  </dt>
+                )}
                 <dd>
                   {related.inspect ? (
                     <button
@@ -151,7 +155,7 @@ function Inspector({
         <>
           <h3>Approval</h3>
           <p data-approval={result.approval.state}>
-            {result.approval.state} · {result.approval.reason}
+            {result.approval.state} · <TimedText text={result.approval.reason} />
           </p>
         </>
       )}

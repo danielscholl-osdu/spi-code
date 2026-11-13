@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { LIFECYCLE_WORKFLOWS, shortRepo, STACK_REPO } from "../config.js";
+import type { CoreContext } from "../context.js";
 import type { LaneLoad } from "../model/lanes.js";
 import type { LaneRun, QueueItem } from "../model/queue.js";
 import { runName, type StackModel, stoppedAttempts } from "../model/stack.js";
@@ -83,6 +84,12 @@ export interface LaneOptions {
   // A wait already holds this item.
   waiting?: { id: string; at: string };
   load?: LaneLoad;
+  context?: Pick<CoreContext, "timeStyle">;
+}
+
+function waitedSince(at: string, opts: LaneOptions): string {
+  const since = stamp(at, opts.now, opts.context);
+  return since ? ` since ${since}` : "";
 }
 
 // Re-run lanes while the stack is deployable; otherwise a wait that re-runs them once it is.
@@ -100,7 +107,7 @@ export function laneActions(item: QueueItem, stack: StackModel, given: LaneOptio
   const opts = stop && !given.blocked ? { ...given, blocked: stop } : given;
   const blockedFrom: readonly AreaName[] = given.blocked ? [] : JUDGEMENT_SOURCES;
   if (stack.deployable.state === "yes") {
-    const since = stamp(stack.lastGreen?.updatedAt, opts.now);
+    const since = stamp(stack.lastGreen?.updatedAt, opts.now, opts.context);
     const busy = new Set(opts.load?.inflight.map((l) => l.repo));
     const now = paced(
       targets.filter((t) => !busy.has(t.repo)),
@@ -139,7 +146,7 @@ export function laneActions(item: QueueItem, stack: StackModel, given: LaneOptio
     (!opts.ops
       ? voice.noOps
       : opts.waiting
-        ? `already waiting since ${stamp(opts.waiting.at, opts.now)} as op ${opts.waiting.id}${voice.existingWaitSuffix ?? ""}`
+        ? `already waiting${waitedSince(opts.waiting.at, opts)} as op ${opts.waiting.id}${voice.existingWaitSuffix ?? ""}`
         : undefined);
   const wait = (action: ActionItem) =>
     sourced({ ...action, type: WAIT_ACTION }, opts.blocked ? blockedFrom : []);

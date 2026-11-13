@@ -20,7 +20,7 @@ import { createLeaseStore } from "../../src/store/leases.js";
 import { openStore } from "../../src/store/open.js";
 import { createSnapshotStore } from "../../src/store/snapshots.js";
 import { projectWatch } from "../../src/watch/project.js";
-import { recordedInput } from "./snapshot-fixture.js";
+import { appStyle, recordedInput } from "./snapshot-fixture.js";
 
 type Briefing = ViewSnapshot["briefing"];
 
@@ -48,10 +48,11 @@ const offline: Exec = {
 
 /**
  * Persists the recorded 6 Nov sweep to a scratch store and asks the offline router's
- * inspect.request for every queue item, theme and hold, as the window's Detail does.
+ * inspect.request for every queue item, theme and hold, as the window's Detail does, in the app's
+ * time style.
  */
 export async function recordedDetailAnswers(): Promise<Map<string, InspectResult>> {
-  const input = recordedInput();
+  const input = appStyle(recordedInput());
   const { cursor: _, ...projected } = projectWatch(input);
   const { briefing } = projected;
   const ctx = input.context;

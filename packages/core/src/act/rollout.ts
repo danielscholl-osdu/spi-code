@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { type ForkDef, forkOf, SYNC_TEMPLATE_WORKFLOW } from "../config.js";
+import type { CoreContext } from "../context.js";
 import type { AreaName } from "../facts.js";
 import { type LaneLoad, laneRoom } from "../model/lanes.js";
 import { heldBecause, type TemplateModel, type TemplateRow } from "../model/template.js";
@@ -230,11 +231,13 @@ export function rolloutActions(
   forks: readonly ForkDef[],
   blocked?: string,
   load?: LaneLoad,
+  context?: Pick<CoreContext, "timeStyle">,
 ): ActionItem[] {
   const item = ROLLOUT_ITEM;
   const sync = syncPlan(t, forks, load);
   const head = t.steps[0]?.label ?? "main";
-  const next = t.nextSync ? ` instead of at ${stamp(t.nextSync, now)}` : "";
+  const nextAt = stamp(t.nextSync, now, context);
+  const next = nextAt ? ` instead of at ${nextAt}` : "";
   const syncFull = sync.targets.length === 0 ? fullText(load, sync.waiting) : undefined;
   const syncDisabled =
     blocked ??

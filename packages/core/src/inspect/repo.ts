@@ -11,6 +11,7 @@ import {
   type RepoLine,
   repositoriesOf,
 } from "../brief/repos.js";
+import type { CoreContext } from "../context.js";
 import type { Model } from "../model/index.js";
 import type { AlertGroup, RepoRow } from "../model/repos.js";
 import { needsHuman } from "../model/work.js";
@@ -161,7 +162,7 @@ function prsTab(r: RepoRow, now: Date): RepoTab {
   return { label: "PRs", badge: String(r.changes.length + r.dependabot.length), sections: all };
 }
 
-function issuesTab(r: RepoRow, now: Date): RepoTab {
+function issuesTab(r: RepoRow, now: Date, context?: Pick<CoreContext, "timeStyle">): RepoTab {
   const kinds: [keyof RepoRow["issues"], string][] = [
     ["bug", "bug"],
     ["enhancement", "enhancement"],
@@ -170,7 +171,7 @@ function issuesTab(r: RepoRow, now: Date): RepoTab {
   ];
   const rows: RepoItem[] = kinds.flatMap(([kind, tag]) =>
     r.issues[kind].map((i) => {
-      const since = stamp(i.createdAt, now);
+      const since = stamp(i.createdAt, now, context);
       const human = needsHuman(i);
       return {
         chip: human
@@ -210,17 +211,22 @@ export function repoTitle(model: Model, id: string): string | undefined {
 }
 
 /** A watched repository's detail; undefined when the id names no watched repository. */
-export function inspectRepo(model: Model, id: string, now: Date): RepoInspection | undefined {
+export function inspectRepo(
+  model: Model,
+  id: string,
+  now: Date,
+  context?: Pick<CoreContext, "timeStyle">,
+): RepoInspection | undefined {
   const r = find(model, id);
   const entry = repositoriesOf(model, now).rows.find((e) => e.id === id);
   if (!r || !entry) return undefined;
-  const read = model.repositories.alertsAt ? stamp(model.repositories.alertsAt, now) : undefined;
+  const read = stamp(model.repositories.alertsAt, now, context);
   return {
     title: entry.title,
     status: { label: r.group === "program" ? "PROGRAM" : "FORK", tone: TONE[entry.tone] },
     chip: [r.repo, read ? `alerts read ${read}` : "alerts not read yet"].join(" · "),
     summary: entry.sub,
-    tabs: [issuesTab(r, now), prsTab(r, now), alertsTab(r, "dependabot"), alertsTab(r, "code")],
+    tabs: [issuesTab(r, now, context), prsTab(r, now), alertsTab(r, "dependabot"), alertsTab(r, "code")],
     links: [
       { text: "Security overview", href: `${r.url}/security` },
       { text: "Pull requests", href: `${r.url}/pulls` },

@@ -120,10 +120,21 @@ export function sourceOf(item: QueueItem): InspectField | undefined {
   };
 }
 
-function whySection(item: QueueItem, said: string): InspectField[] {
-  const facts = item.cause.filter(
-    (f) => f.label !== "held" && !said.includes(f.value.toLowerCase()),
-  );
+// Each instant reads as one token, so a date-only fact (the day a fork was seeded) is not said by
+// an instant that falls on that day.
+function sayer(context: CoreContext): (text: string) => string {
+  if (context.timeStyle !== "instant") return (text) => text.toLowerCase();
+  const tokens = new Map<string, string>();
+  return (text) =>
+    text.toLowerCase().replace(/\d{4}-\d{2}-\d{2}t\d{2}:\d{2}:\d{2}\.\d{3}z/g, (at) => {
+      const token = tokens.get(at) ?? `\u0000${tokens.size}\u0000`;
+      tokens.set(at, token);
+      return token;
+    });
+}
+
+function whySection(item: QueueItem, said: string, say: (text: string) => string): InspectField[] {
+  const facts = item.cause.filter((f) => f.label !== "held" && !said.includes(say(f.value)));
   const fields: InspectField[] = facts.map((f) => ({
     label: factLabel(f.label),
     value: f.value,
@@ -228,6 +239,7 @@ export function inspectItem(
   const lede = [reading.gap ? undefined : reading.cause, effect]
     .filter((t, i, all): t is string => !!t && all.indexOf(t) === i).join(" ");
   const same = sameEntry(item, state);
+  const say = sayer(context);
   return {
     ...reading,
     id: item.id,
@@ -236,7 +248,7 @@ export function inspectItem(
     chip,
     lede,
     ...nextCard(item, reading, state, context.voice),
-    why: whySection(item, `${reading.cause} ${reading.effect}`.toLowerCase()),
+    why: whySection(item, say(`${reading.cause} ${reading.effect}`), say),
     evidence: evidence(item),
     effects: item.effects.map((e) => ({ ...e })),
     related: relatedSection(reading),
