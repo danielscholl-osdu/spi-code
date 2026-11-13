@@ -672,7 +672,7 @@ it("draws the recorded environment reading through the place, with no placeholde
     expect(view.page.firstElementChild).toBe(place);
     expect(place?.querySelector("h1")?.textContent).toBe("Environment");
     expect(place?.querySelector(".place-headline")?.textContent).toBe(
-      timedText("v0.35.3 is deployable, green since 2026-11-06T04:20:36.000Z.", { hint: false }),
+      timedText("v0.35.3 is ready, green since 2026-11-06T04:20:36.000Z.", { hint: false }),
     );
     expect(
       [...(place?.querySelectorAll(".place-tiles > div") ?? [])].map((tile) => [
@@ -683,7 +683,7 @@ it("draws the recorded environment reading through the place, with no placeholde
     ).toEqual(reading.content.tiles.map((tile) => [tile.label, tile.value, tile.counts]));
     expect(reading.content.tiles.map(({ label }) => label)).toEqual([
       "Version",
-      "Lane",
+      "Fork deploys",
       "Stack repository",
     ]);
     expect(place?.querySelector(".place-folded")?.textContent).toBe(reading.content.folded);
@@ -720,7 +720,7 @@ it.each([
       if (name === "1106") {
         expect(running).toBeNull();
         expect(runs.querySelector(".env-facts")?.textContent).not.toContain(
-          "deployable \u00b7 green at 04:20",
+          "ready \u00b7 green at 04:20",
         );
       } else {
         expect(running?.textContent).toContain("upgrade running \u00b7 at verify");

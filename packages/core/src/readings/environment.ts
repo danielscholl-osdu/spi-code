@@ -8,7 +8,7 @@ import type { Facts } from "../facts.js";
 import type { Model } from "../model/index.js";
 import { runResult, stoppedAttempts } from "../model/stack.js";
 import type { WorkRow } from "../model/work.js";
-import { fitHeadline, names, plural, span, stamp } from "../util.js";
+import { names, plural, span, stamp } from "../util.js";
 import {
   beforeTime,
   NOT_READ,
@@ -49,11 +49,8 @@ function headlineOf(model: Model, now: Date, context?: CoreContext): string {
     const a = stack.availability;
     const held = a?.heldNow && a.since !== undefined ? span(now.getTime() - a.since) : undefined;
     return held
-      ? fitHeadline([
-          `${subject} in maintenance for ${held}, with no run in flight.`,
-          `${subject} in maintenance for ${held}, no run in flight.`,
-        ])
-      : `${subject} is in maintenance with no run in flight.`;
+      ? `${subject} in maintenance for ${held}, no run in flight.`
+      : `${subject} is in maintenance, no run in flight.`;
   }
   if (stack.deployable.state === "yes") {
     const green = stamp(stack.running?.at ?? stack.lastGreen?.updatedAt, now, context);

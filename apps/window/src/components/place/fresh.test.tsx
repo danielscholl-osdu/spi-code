@@ -57,17 +57,18 @@ it.each(Object.keys(views) as PlaceRow["place"][])(
     const reading = body.readings.find(
       ({ anchor }) => anchor.kind === (place === "line" ? "program" : place),
     );
-    const item = reading?.content?.items[0];
+    const own = reading?.content?.items[0]?.id;
     const extra = body.briefing.rest.find(({ cls }) => cls === "SECURITY");
-    if (!row || !item || !extra) throw new Error("Missing recorded data");
-    row.fresh.itemIds = [item.id, extra.id, "not-in-the-snapshot"];
+    if (!row || !reading?.content || !extra) throw new Error("Missing recorded data");
+    const ids = own ? [own, extra.id] : [extra.id];
+    row.fresh.itemIds = [...ids, "not-in-the-snapshot"];
     // A different place's freshness must not mark this place's other items.
     const other = body.briefing.places?.find((candidate) => candidate !== row);
     if (other) other.fresh.itemIds = reading.content?.items.slice(1).map(({ id }) => id) ?? [];
     watchStore.setState({ snapshot: { cursor: body.cursor, body } });
     document.body.append(container);
     await act(async () => root.render(views[place]));
-    expect(marked().sort()).toEqual([...new Set([item.id, extra.id])].sort());
+    expect(marked().sort()).toEqual([...new Set(ids)].sort());
     for (const chip of container.querySelectorAll("[data-fresh-item]")) {
       expect(chip.querySelector(".kit-chip--accent")).not.toBeNull();
       expect(chip.textContent).toBe("new");
@@ -94,18 +95,24 @@ it.each(Object.keys(views) as PlaceRow["place"][])(
   },
 );
 
-it("registers each new chip at its place and Today's opener, and opens all four destinations", async () => {
+it("registers each new chip at its place and Today's opener, and opens each one's destination", async () => {
   const body = loadFixture("snapshot-busy.json");
+  const seeded: string[] = [];
   for (const row of body.briefing.places ?? []) {
     const reading = body.readings.find(
       ({ anchor }) => anchor.kind === (row.place === "line" ? "program" : row.place),
     );
-    const item = reading?.content?.items[0];
-    if (!item) throw new Error("Missing reading item");
-    row.fresh.itemIds = [item.id];
+    if (!reading?.content) throw new Error("Missing reading");
+    const item = reading.content.items[0];
+    if (item) {
+      row.fresh.itemIds = [item.id];
+      seeded.push(row.place);
+    }
   }
+  // The busy sweep's Environment reading has no item: its re-run item belongs to the fork.
+  expect(seeded.sort()).toEqual(["engineering", "line", "security"]);
   const cases = placeFreshCases(body);
-  expect(cases).toHaveLength(4);
+  expect(cases).toHaveLength(seeded.length);
   for (const row of cases) {
     watchStore.setState({ snapshot: { cursor: body.cursor, body } });
     document.body.append(container);
@@ -124,7 +131,7 @@ it("registers each new chip at its place and Today's opener, and opens all four 
   const openers = placeReachCases(body).filter(
     ({ opens, pointer }) => opens && pointer.includes("/fresh/"),
   );
-  expect(openers).toHaveLength(4);
+  expect(openers).toHaveLength(seeded.length);
   for (const opener of openers) {
     await act(async () => navigate({ kind: "today" }));
     const opens = opener.opens;

@@ -23,7 +23,7 @@ const blockedLane = "/stations/0/stations/5";
 
 describe("evidence helpers on the mixed-source fixture", () => {
   it("marks lifecycle-only deployability and maintenance values inferred", () => {
-    expect(mixed.briefing.environment.facts[1]?.label).toMatch(/^Deployable/);
+    expect(mixed.briefing.environment.facts[1]?.label).toMatch(/^Ready/);
     expect(mixed.briefing.environment.lanes[3]?.id).toBe("holds");
     expect(isInferred(mixed, deployability)).toBe(true);
     expect(isInferred(mixed, maintenance)).toBe(true);

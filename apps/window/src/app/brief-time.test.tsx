@@ -101,6 +101,6 @@ it.each([
   }
   await act(async () => navigate({ kind: "environment" }));
   expect(host.querySelector(".place-headline")?.textContent).toBe(
-    `v0.35.3 is deployable, green since ${green}.`,
+    `v0.35.3 is ready, green since ${green}.`,
   );
 });

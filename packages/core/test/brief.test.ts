@@ -755,6 +755,64 @@ describe("the environment", () => {
     figuresHold(env.facts);
   });
 
+  function withoutFailures(keepCancelled: boolean): Facts {
+    const facts = finished();
+    const lc = facts.lifecycle.data;
+    const keep = (r: LifecycleRun) =>
+      r.conclusion === "success" ||
+      (keepCancelled && r.conclusion === "cancelled") ||
+      Date.parse(r.createdAt) < WINDOW_FROM;
+    if (lc?.upgrade) lc.upgrade = lc.upgrade.filter(keep);
+    if (lc?.refresh) lc.refresh = lc.refresh.filter(keep);
+    return facts;
+  }
+
+  test("a failed fresh-cluster smoke after a ready environment says so", () => {
+    const facts = withoutFailures(false);
+    const smoke = facts.lifecycle.data?.smoke ?? [];
+    const last = smoke[0];
+    if (!last) throw new Error("fixture lost its smoke run");
+    smoke.unshift({
+      ...last,
+      id: 99_000_003,
+      createdAt: "2026-10-12T19:00:00Z",
+      updatedAt: "2026-10-12T19:20:00Z",
+      conclusion: "failure",
+      jobs: undefined,
+    });
+    expect(envOf(facts).env.headline).toMatch(
+      /^Deployable on v0\.28\.2 since 21:58; smoke on a fresh cluster failed at 19:00\.$/,
+    );
+    expect(envOf(facts, appWords).env.headline).toMatch(
+      /^Ready on v0\.28\.2 since 21:58; smoke on a fresh cluster failed at 19:00\.$/,
+    );
+  });
+
+  test("cancelled runs after a ready environment are counted", () => {
+    const facts = withoutFailures(true);
+    expect(envOf(facts).env.headline).toBe(
+      "Deployable on v0.28.2 since 21:58; 1 run cancelled in the last day.",
+    );
+    expect(envOf(facts, appWords).env.headline).toBe(
+      "Ready on v0.28.2 since 21:58; 1 run cancelled in the last day.",
+    );
+  });
+
+  test("a ready environment with no lifecycle run in the last day says so", () => {
+    const facts = withoutFailures(false);
+    const lc = facts.lifecycle.data;
+    const before = (r: LifecycleRun) => Date.parse(r.createdAt) < WINDOW_FROM;
+    if (lc)
+      for (const kind of ["upgrade", "refresh", "smoke"] as const)
+        lc[kind] = lc[kind]?.filter(before);
+    expect(envOf(facts).env.headline).toBe(
+      "Deployable on v0.28.0; no lifecycle run in the last day.",
+    );
+    expect(envOf(facts, appWords).env.headline).toBe(
+      "Ready on v0.28.0; no lifecycle run in the last day.",
+    );
+  });
+
   test("with no lifecycle run read, the declaration stands in and the rest are unread", () => {
     const facts = fixtureFacts();
     facts.lifecycle.data = { refresh: [], upgrade: [], smoke: [], sweeper: [] };

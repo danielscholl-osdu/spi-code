@@ -254,22 +254,13 @@ describe("Environment reading on the recorded 6 Nov sweep", () => {
         availability: { share: 0.9, long: 1, longMs: 0, heldNow: true, since },
       },
     };
-    const hours = {
-      ...timed,
-      stack: {
-        ...timed.stack,
-        availability: { ...timed.stack.availability, since: now.getTime() - 5 * 3_600_000 },
-      },
-    };
     const running = environment({ model: inflight }).headline;
     const unknownStart = environment({ model: held }).headline;
-    const known = environment({ model: hours }).headline;
     const long = environment({ model: timed }).headline;
     expect(running).toBe("v0.35.3 is in maintenance while an upgrade to v0.36.0 runs.");
-    expect(unknownStart).toBe("v0.35.3 is in maintenance with no run in flight.");
-    expect(known).toBe("v0.35.3 in maintenance for 5\u00a0h, with no run in flight.");
+    expect(unknownStart).toBe("v0.35.3 is in maintenance, no run in flight.");
     expect(long).toBe("v0.35.3 in maintenance for 2\u00a0d 13\u00a0h, no run in flight.");
-    for (const headline of [running, unknownStart, known, long])
+    for (const headline of [running, unknownStart, long])
       expect(wordCount(headline)).toBeLessThanOrEqual(12);
   });
 });

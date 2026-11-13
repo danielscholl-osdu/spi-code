@@ -15,7 +15,7 @@ export function runningFactHome(fact: BriefFact, { content }: Reading) {
       : -1;
   const subInHeadline =
     versionTile >= 0 &&
-    /^deployable(?: · green at .+)?$/.test(fact.sub) &&
+    /^ready(?: · green at .+)?$/.test(fact.sub) &&
     content?.headline ===
       `${fact.figure} is ${fact.sub.replace(" · green at ", ", green since ")}.`;
   return { versionTile, subInHeadline };
