@@ -8,6 +8,7 @@ import {
   ViewSnapshotSchema,
 } from "@spi-code/contracts";
 import { vi } from "vitest";
+import "./web-storage.js";
 import {
   type Read,
   WATCH_INSPECTIONS,

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { expect, it, vi } from "vitest";
+import "../test-utils/web-storage.js";
 import { createAppearance, type Theme } from "./appearance.js";
 
 function system(dark: boolean) {

@@ -14,6 +14,7 @@ import { createSelectionStore } from "../../panels/selection.js";
 import { PINS_STORAGE_KEY, readPins } from "../../store/pins.js";
 import { createWatchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
+import "../../test-utils/web-storage.js";
 import { clockTime, timedText } from "../../time.js";
 import ServicePlace from "./index.js";
 
