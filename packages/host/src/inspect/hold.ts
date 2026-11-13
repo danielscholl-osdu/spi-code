@@ -7,15 +7,15 @@ import {
   type InspectResult,
   InspectResultSchema,
 } from "@spi-code/contracts";
-import { type CoreContext, stamp } from "@spi-code/core";
 import { RUN_PREFIX } from "./prefixes.js";
+import { instant } from "./shared.js";
 
 type EnvEvent = Briefing["environment"]["lanes"][number]["events"][number];
 
 /** States only the ends it can read: an open hold runs since its start, an unread end is left out. */
-function heldWhen(hold: EnvEvent, now: Date, ctx: Pick<CoreContext, "timeStyle">): string {
-  const start = stamp(hold.start, now, ctx);
-  const end = stamp(hold.end, now, ctx);
+function heldWhen(hold: EnvEvent, now: Date): string {
+  const start = instant(hold.start, now);
+  const end = instant(hold.end, now);
   if (start && end) return `${start} to ${end}`;
   if (end) return `until ${end}`;
   if (!start) return "";
@@ -29,7 +29,6 @@ export function holdResult(
   briefing: Briefing,
   areas: readonly AreaEnvelope[],
   now: Date,
-  ctx: Pick<CoreContext, "timeStyle">,
 ): InspectResult {
   const from = Date.parse(hold.start);
   const to = hold.end === undefined ? Number.POSITIVE_INFINITY : Date.parse(hold.end);
@@ -55,7 +54,7 @@ export function holdResult(
     cause: `Held ${hold.label}`,
     effect: hold.detail,
     next: "",
-    why: heldWhen(hold, now, ctx),
+    why: heldWhen(hold, now),
     evidence: [],
     related: runs,
     approval: null,

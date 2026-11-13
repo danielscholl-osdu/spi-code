@@ -179,7 +179,7 @@
         "url": "https://github.com/Azure/osdu-spi-legal/pull/31"
       },
       {
-        "text": "Sync Upstream · success · 2026-10-12T00:08:53Z",
+        "text": "Sync Upstream · success · 2026-10-12T00:08:53.000Z",
         "state": "Sync Upstream run",
         "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/38186901020"
       },
@@ -487,7 +487,7 @@
     "evidence": [],
     "related": [
       {
-        "text": "Validation · success · 2026-10-06T22:02:03Z",
+        "text": "Validation · success · 2026-10-06T22:02:03.000Z",
         "state": "Main run",
         "url": "https://github.com/Azure/osdu-spi-legal/actions/runs/37537951640"
       },

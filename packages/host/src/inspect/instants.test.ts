@@ -113,7 +113,7 @@ describe("a hold whose ends cannot all be read", () => {
   const why = (start: string, end: string | undefined) => {
     const { end: _, ...open } = recorded;
     const hold = end === undefined ? { ...open, start } : { ...open, start, end };
-    return holdResult(`hold:${hold.id}`, hold, view.briefing, view.areas, now, ctx).why;
+    return holdResult(`hold:${hold.id}`, hold, view.briefing, view.areas, now).why;
   };
   const start = "2026-11-06T04:07:05Z";
   const end = "2026-11-06T04:20:16Z";

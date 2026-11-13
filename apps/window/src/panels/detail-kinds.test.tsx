@@ -448,7 +448,7 @@ it("renders Related as label and value rows, never one paragraph", async () => {
       expect(row?.querySelector("dt")?.textContent ?? "").toBe(
         sentenceCase(plainTitle(entry.state)),
       );
-      const iso = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z/g;
+      const iso = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/g;
       expect(row?.querySelector("dd")?.textContent).toBe(
         sentenceCase(plainTitle(entry.text)).replace(iso, (at) => clockTime(at)),
       );

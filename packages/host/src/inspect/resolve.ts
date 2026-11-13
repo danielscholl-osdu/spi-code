@@ -175,11 +175,11 @@ export const INSPECT_TABLE: readonly InspectRow[] = [
   {
     kind: "hold",
     claims: prefixed(HOLD_PREFIX),
-    resolve: (id, { now, deps, snapshot: { view } }) => {
+    resolve: (id, { now, snapshot: { view } }) => {
       const hold = view.briefing.environment.lanes
         .find((lane) => lane.id === "holds")
         ?.events.find((e) => `${HOLD_PREFIX}${e.id}` === id);
-      return hold ? holdResult(id, hold, view.briefing, view.areas, now, deps.ctx) : undefined;
+      return hold ? holdResult(id, hold, view.briefing, view.areas, now) : undefined;
     },
   },
   {

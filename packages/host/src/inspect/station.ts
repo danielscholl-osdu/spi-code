@@ -8,10 +8,9 @@ import {
   itemClass,
   type Model,
   type QueueItem,
-  stamp,
   UPSTREAM_PREFIX,
 } from "@spi-code/core";
-import { webUrl } from "./shared.js";
+import { instant, webUrl } from "./shared.js";
 
 type Line = Model["lines"][number];
 type Related = InspectResult["related"][number];
@@ -27,19 +26,14 @@ function prRelated(pr: Line["syncPr"], state: string): Related[] {
   return pr ? [{ text: `#${pr.pr.number} ${pr.pr.title}`, state, ...webUrl(pr.pr.url) }] : [];
 }
 
-interface Clock {
-  readonly now: Date;
-  readonly ctx: Pick<CoreContext, "timeStyle">;
-}
-
-function runRelated(run: Line["mainRun"], state: string, { now, ctx }: Clock): Related[] {
+function runRelated(run: Line["mainRun"], state: string, now: Date): Related[] {
   return run
     ? [
         {
           text: [
             run.name,
             run.status === "completed" ? run.conclusion : run.status,
-            stamp(run.createdAt, now, ctx),
+            instant(run.createdAt, now),
           ]
             .filter(Boolean)
             .join(" · "),
@@ -54,7 +48,7 @@ function runRelated(run: Line["mainRun"], state: string, { now, ctx }: Clock): R
 function lineStationFacts(
   line: Line,
   id: keyof typeof LINE_STATIONS,
-  clock: Clock,
+  now: Date,
 ): { why: string[]; related: Related[] } {
   switch (id) {
     case "upstream":
@@ -87,7 +81,7 @@ function lineStationFacts(
               ]
             : []),
           ...prRelated(line.syncPr, "Sync PR"),
-          ...runRelated(line.syncRun, "Sync Upstream run", clock),
+          ...runRelated(line.syncRun, "Sync Upstream run", now),
         ],
       };
     case "cascade":
@@ -125,7 +119,7 @@ function lineStationFacts(
         ],
         related: [
           ...prRelated(line.cascadePr, "Cascade PR"),
-          ...runRelated(line.mainRed?.run ?? line.mainRun, "Main run", clock),
+          ...runRelated(line.mainRed?.run ?? line.mainRun, "Main run", now),
         ],
       };
   }
@@ -145,7 +139,7 @@ function lineStationResult(
   const items = model.queue.items.filter(
     (item) => item.scope === fork && (kinds as readonly string[]).includes(item.kind),
   );
-  const facts = lineStationFacts(line, station.id, { now, ctx });
+  const facts = lineStationFacts(line, station.id, now);
   const upstream = inspectUpstreamFork(model, fork, now, { context: ctx });
   return InspectResultSchema.parse({
     id,
@@ -235,7 +229,7 @@ export function stationResult(
               ? [
                   {
                     text: line.release.tag,
-                    state: stamp(line.release.at, now, ctx) ?? "Release",
+                    state: instant(line.release.at, now) ?? "Release",
                     ...webUrl(line.release.url),
                   },
                 ]
@@ -246,7 +240,7 @@ export function stationResult(
               ? [
                   {
                     text: [line.lane.last.ref, line.lane.last.sha].filter(Boolean).join(" · "),
-                    state: [line.lane.last.state, stamp(line.lane.last.createdAt, now, ctx)]
+                    state: [line.lane.last.state, instant(line.lane.last.createdAt, now)]
                       .filter(Boolean)
                       .join(" · "),
                   },
