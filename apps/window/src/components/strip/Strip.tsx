@@ -8,7 +8,7 @@ import { ariaShortcut } from "../../app/shortcuts.js";
 import { type StripState, selectStrip } from "../../store/strip.js";
 import { watchStore } from "../../store/watch.js";
 import { Time } from "../../time.js";
-import { firstSweepForms, SweepLine } from "../evidence/SweepLine.js";
+import { firstSweepForms, SweepLine, SweepMark } from "../evidence/SweepLine.js";
 import { useSidebar } from "../sidebar/ui-sidebar.js";
 import { openFreshness } from "../sweep/reveal.js";
 import { STRIP_FIELDS, type StripField } from "./fold-plan.js";
@@ -75,11 +75,11 @@ export function Strip() {
         {forms && (
           <div className="strip-ruler" aria-hidden inert>
             <span className="sweep-line" data-measure={MEASURE.freshnessFull}>
-              <span className="evidence-dot" />
+              <SweepMark tone={firstStopped ? "bad" : "run"} />
               {forms.full}
             </span>
             <span className="sweep-line" data-measure={MEASURE.freshnessShort}>
-              <span className="evidence-dot" />
+              <SweepMark tone={firstStopped ? "bad" : "run"} />
               {forms.short}
             </span>
           </div>

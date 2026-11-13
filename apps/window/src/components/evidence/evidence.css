@@ -7,6 +7,11 @@
 .evidence-dot[data-tone="muted"] { background: var(--text-muted); }
 .evidence-dot[data-tone="run"] { background: linear-gradient(to right, var(--accent) 50%, transparent 50%); box-shadow: inset 0 0 0 1.3px var(--accent); }
 .evidence-dot[data-tone="inferred"] { background: transparent; border: 1.3px dashed var(--text-muted); width: 5px; height: 5px; }
+.evidence-dot[data-spin] { box-sizing: border-box; width: 9px; height: 9px; background: none; box-shadow: none; border: 1.5px solid color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent); animation: evidence-spin .9s linear infinite; }
+@keyframes evidence-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .evidence-dot[data-spin] { width: 7px; height: 7px; border: 0; animation: none; background: linear-gradient(to right, var(--accent) 50%, transparent 50%); box-shadow: inset 0 0 0 1.3px var(--accent); }
+}
 
 .sweep-line { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-muted); font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .sweep-line:hover { border-color: var(--border); background: var(--surface); }

@@ -100,7 +100,7 @@ it("removes a next sweep promise at its deadline without another host event", as
   expect(h.schedule()).toBe(`Swept ${clock(after(120))}`);
 });
 
-it("shows the live start and count, and View live sweep keeps Evidence open without a request", async () => {
+it("shows only the live start while a sweep runs, with no forced-sweep control or state line", async () => {
   const progress = midSweep({
     first: false,
     startedAt: after(125),
@@ -111,14 +111,11 @@ it("shows the live start and count, and View live sweep keeps Evidence open with
     ),
   });
   const h = await render(sweepStatus(), progress);
-  expect(h.schedule()).toBe(`Sweeping since ${clock(after(125))} · 4 of 12`);
+  expect(h.schedule()).toBe(`Sweeping since ${clock(after(125))}`);
   expect(h.header()?.textContent).not.toContain("next sweep");
-  expect(h.button()?.textContent).toBe("Sweeping · 4 of 12");
-  expect(h.button()?.disabled).toBe(true);
-  await act(async () => h.container.querySelector<HTMLButtonElement>(".sweep-now-view")?.click());
-  expect(h.container.querySelector('[data-evidence="sweep"]')).not.toBeNull();
-  expect(window.spi.postMessage).not.toHaveBeenCalled();
-  expect(h.onOpenSettings).not.toHaveBeenCalled();
+  expect(h.container.querySelector(".sweep-now")).toBeNull();
+  expect(h.container.querySelector(".evidence-line")).toBeNull();
+  expect(h.container.querySelector(".sweep-meta")).toBeNull();
 });
 
 it("opens Readiness through the shared control when Watch is not ready", async () => {

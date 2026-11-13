@@ -106,9 +106,9 @@ export function chipText(envelope: Envelope, now: number): string {
 
 /**
  * The row sentence: state, age and completeness in the window's words. A cut gives its read and
- * total, never core's reason text.
+ * total, never core's reason text. A last read that says the same age as `sweptAt` is left out.
  */
-export function envelopeSentence(envelope: Envelope, now: number): string {
+export function envelopeSentence(envelope: Envelope, now: number, sweptAt?: string): string {
   if (envelope.state === "unread") return "not read yet";
   const { completeness, observedAt } = envelope;
   const cut =
@@ -120,7 +120,11 @@ export function envelopeSentence(envelope: Envelope, now: number): string {
       observedAt === undefined ? "nothing retained" : `showing data from ${ago(observedAt, now)}`;
     return cut ? `read failed, ${kept}, ${cut}` : `read failed, ${kept}`;
   }
-  const read = observedAt === undefined ? "" : `, last read ${ago(observedAt, now)}`;
+  const read =
+    observedAt === undefined ||
+    (sweptAt !== undefined && ago(observedAt, now) === ago(sweptAt, now))
+      ? ""
+      : `, last read ${ago(observedAt, now)}`;
   if (envelope.state === "incomplete") return `cut${read}, ${cut || "not every item read"}`;
   return `${envelope.state}${read}, complete`;
 }
@@ -129,13 +133,14 @@ export function envelopeSentence(envelope: Envelope, now: number): string {
  * What an area's envelope adds to a sweep source's row, which already says how this sweep read
  * it: when it was last read, and whether the data is stale or retained from an earlier read. An
  * unread area adds nothing. `reusedFrom` is the oldest read this sweep's read carried over from an
- * earlier sweep, as the sweep recorded it; the row says the read reused data from then rather than
- * pairing "read" with an older age.
+ * earlier sweep, as the sweep recorded it; the row says the read is cached from then rather than
+ * pairing "read" with an older age. A last read that says the same age as `sweptAt`, the sweep the
+ * header names, is left out.
  */
 export function areaFact(
   envelope: Envelope,
   now: number,
-  reusedFrom?: string,
+  { reusedFrom, sweptAt }: { reusedFrom?: string | undefined; sweptAt?: string | undefined } = {},
 ): { text: string; tone?: EvidenceTone } | null {
   if (envelope.state === "unread") return null;
   const { observedAt } = envelope;
@@ -147,12 +152,18 @@ export function areaFact(
     };
   const age =
     reusedFrom !== undefined
-      ? `reuses reads from ${ago(reusedFrom, now)}`
-      : observedAt === undefined
+      ? cachedFrom(reusedFrom, now)
+      : observedAt === undefined ||
+          (sweptAt !== undefined && ago(observedAt, now) === ago(sweptAt, now))
         ? undefined
         : `last read ${ago(observedAt, now)}`;
   if (age === undefined) return envelope.state === "stale" ? { text: "stale", tone: "warn" } : null;
   return envelope.state === "stale" ? { text: `stale, ${age}`, tone: "warn" } : { text: age };
+}
+
+/** A read carried over from an earlier sweep, by that read's age. */
+export function cachedFrom(from: string, now: number): string {
+  return `cached from ${ago(from, now)}`;
 }
 
 const RANK: Readonly<Record<Envelope["state"], number>> = {
@@ -248,13 +259,6 @@ export function worstTone(envelopes: readonly Envelope[]): EvidenceTone {
   }, "fresh");
 }
 
-export type SweepLineInput = {
-  sources: readonly Envelope[];
-  sweptAt: string;
-  nextSyncAt?: string | undefined;
-  now: number;
-};
-
 const SUPPLEMENTAL_WORDS: Readonly<Record<Envelope["state"], string>> = {
   fresh: "fresh",
   failed: "read failed",
@@ -266,10 +270,11 @@ const SUPPLEMENTAL_WORDS: Readonly<Record<Envelope["state"], string>> = {
 const isArea = (source: string) => (AREAS as readonly string[]).includes(source);
 
 /**
- * The title-bar sentence and the worst tone across the sweep's sources. The counts are of the
- * appendix C areas; a source outside them that is not fresh is named on its own.
+ * The sweep Evidence's state sentence and the worst tone across the sweep's sources. The counts
+ * are of the appendix C areas; a source outside them that is not fresh is named on its own. When
+ * and next are the header's and the top row's to say.
  */
-export function sweepLine({ sources, sweptAt, nextSyncAt, now }: SweepLineInput): {
+export function sweepLine({ sources }: { sources: readonly Envelope[] }): {
   text: string;
   tone: EvidenceTone;
 } {
@@ -286,12 +291,10 @@ export function sweepLine({ sources, sweptAt, nextSyncAt, now }: SweepLineInput)
     .filter((envelope) => !isArea(envelope.source) && envelope.state !== "fresh")
     .sort(byWorst);
   const inferred = everyInferred(sources);
-  const parts = [`swept ${ago(sweptAt, now)}`];
-  let first = true;
+  const parts: string[] = [];
   for (const [n, word] of counts) {
     if (n === 0) continue;
-    parts.push(first ? `${n} ${n === 1 ? "area" : "areas"} ${word}` : `${n} ${word}`);
-    first = false;
+    parts.push(parts.length === 0 ? `${n} ${n === 1 ? "area" : "areas"} ${word}` : `${n} ${word}`);
   }
   for (const envelope of supplemental) {
     const name = sourceName(envelope.source);
@@ -299,9 +302,7 @@ export function sweepLine({ sources, sweptAt, nextSyncAt, now }: SweepLineInput)
       `${name.charAt(0).toLowerCase()}${name.slice(1)} ${SUPPLEMENTAL_WORDS[envelope.state]}`,
     );
   }
-  if (first && supplemental.length === 0 && !inferred) parts.push("all fresh");
-  if (nextSyncAt !== undefined && Date.parse(nextSyncAt) > now)
-    parts.push(`next sync in ${span(Date.parse(nextSyncAt) - now)}`);
+  if (parts.length === 0 && !inferred) parts.push("all fresh");
   if (inferred) parts.push("inferred");
   return { text: parts.join(" · "), tone: worstTone(sources) };
 }
@@ -314,7 +315,11 @@ export function freshnessGlyph({
   sources,
   sweptAt,
   now,
-}: Omit<SweepLineInput, "now" | "nextSyncAt"> & { now?: number | undefined }): {
+}: {
+  sources: readonly Envelope[];
+  sweptAt: string;
+  now?: number | undefined;
+}): {
   text: string;
   tail: string;
   tone: EvidenceTone;

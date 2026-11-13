@@ -570,12 +570,12 @@ code{font-family:var(--mono);font-size:.9em}
           <tr><td>Every area fresh</td><td><span class="fresh ok" style="font-family:var(--app)">08:58</span></td><td>Muted</td><td>Swept 08:58 · all areas read</td></tr>
           <tr><td>Some area stale or incomplete</td><td><span class="fresh warn" style="font-family:var(--app)">08:58 · 2</span></td><td>Amber</td><td>Swept 08:58 · 1 incomplete, 1 stale</td></tr>
           <tr><td>Some area failed or cut</td><td><span class="fresh" style="font-family:var(--app)">08:58 · 3</span></td><td>Red</td><td>Swept 08:58 · 1 failed, 1 incomplete, 1 stale</td></tr>
-          <tr><td>First sweep running</td><td><span class="fresh run" style="font-family:var(--app)">sweeping · 9 of 12</span>, "9 of 12" at 740 px</td><td>Half-filled</td><td>First sweep · 9 of 12 sources done</td></tr>
-          <tr><td>A later sweep running</td><td><span class="fresh run" style="font-family:var(--app)">08:02 · sweeping 4 of 12</span></td><td>Half-filled</td><td>Swept 08:02 · sweeping, 4 of 12 sources done</td></tr>
+          <tr><td>First sweep running</td><td><span class="fresh run" style="font-family:var(--app)">sweeping</span>, the mark alone at 740 px</td><td>Spinning</td><td>First sweep · 9 of 12 sources done</td></tr>
+          <tr><td>A later sweep running</td><td><span class="fresh run" style="font-family:var(--app)">08:02</span></td><td>Spinning</td><td>Swept 08:02 · sweeping, 4 of 12 sources done</td></tr>
         </tbody>
       </table>
     </div>
-    <p>Clicking the field opens Evidence for the sweep, as the sweep sentence does today. During the first sweep it scrolls Today's list into view instead; the First sweep section draws both sweeping states.</p>
+    <p>Clicking the field opens Evidence for the sweep, as the sweep sentence does today. During the first sweep it scrolls Today's list into view instead; the First sweep section draws both sweeping states. While a sweep runs the dot spins and the field shows no count; the hover keeps it. Under reduced motion the mark is a still half-filled dot.</p>
 
     <h3>Targets</h3>
     <p>Each state field is one button, the full row height. Environment opens the Environment place, Templates the Engineering system, and Forks the Line sheet, carrying ⌘L as its shortcut and the sheet as what it controls. Each field's hover and accessible name carry the sentence behind its state and name the forks behind a count ("Forks: 2 stopped. Stopped: storage, indexer-queue"). Next sync opens the Line sheet; freshness opens Evidence. A service's pin and its other actions are on its Line sheet row, which is also the keyboard path.</p>
@@ -868,9 +868,9 @@ code{font-family:var(--mono);font-size:.9em}
     <p class="note">View sweep opens Evidence. These are small in-place completions, never OS notifications. All future times come from the host; an expired next, retry or reset time is never shown as a promise.</p>
 
     <h3>Evidence and freshness</h3>
-    <div class="sweep-evidence" role="img" aria-label="Evidence header while idle: Swept 08:02, next sweep 08:07, with Sweep now. While running: Sweeping since 08:07, 4 of 12. Freshness hover adds next sweep to the failed, incomplete and stale counts.">
+    <div class="sweep-evidence" role="img" aria-label="Evidence header while idle: Swept 08:02, next sweep 08:07, with Sweep now. While running: Sweeping since 08:07, with no Sweep now. Freshness hover adds next sweep to the failed, incomplete and stale counts.">
       <header><b>Swept 08:02 · next sweep 08:07</b><span class="btn">Sweep now</span></header>
-      <p>While running: <b>Sweeping since 08:07 · 4 of 12</b></p>
+      <p>While running: <b>Sweeping since 08:07</b></p>
       <p>Freshness hover: <b>1 failed · 0 incomplete · 0 stale · next sweep 08:07</b></p>
     </div>
     <p class="note">The existing Evidence list stays live during later sweeps. No new progress surface or history is needed.</p>
@@ -936,8 +936,8 @@ code{font-family:var(--mono);font-size:.9em}
     <p class="shot-cap">In a 1440 px window, mid-sweep · nine of twelve settled, one partly failed, one failed on sign-in</p>
     <div class="shot">
       <div class="winwrap">
-        <div class="win next fsw" role="img" aria-label="First launch at 1440 px: the top row shows only the freshness field, sweeping 9 of 12. The sidebar's places are muted. Today lists twelve sources in sweep order with their marks, what each reads and its outcome; Template read but 2 reads failed and names unit and crs-catalog on its own line; Upstream GitLab failed because glab is not signed in and offers Open Settings; Upstream radar is reading; two sources wait.">
-          <div class="tb" style="gap:12px"><span class="lights"><i></i><i></i><i></i></span><span class="sp"></span><span class="fresh run">sweeping · 9 of 12</span><span class="tgl"><i class="l"></i><i class="r"></i></span></div>
+        <div class="win next fsw" role="img" aria-label="First launch at 1440 px: the top row shows only the freshness field, sweeping. The sidebar's places are muted. Today lists twelve sources in sweep order with their marks, what each reads and its outcome; Template read but 2 reads failed and names unit and crs-catalog on its own line; Upstream GitLab failed because glab is not signed in and offers Open Settings; Upstream radar is reading; two sources wait.">
+          <div class="tb" style="gap:12px"><span class="lights"><i></i><i></i><i></i></span><span class="sp"></span><span class="fresh run">sweeping</span><span class="tgl"><i class="l"></i><i class="r"></i></span></div>
           <div class="sb">
             <div class="find"><span>○ Find or ask</span><span>⌘K</span></div>
             <div class="row"><span>Today</span></div>
@@ -989,7 +989,7 @@ code{font-family:var(--mono);font-size:.9em}
       <table class="tbl">
         <thead><tr><th>#</th><th>What it shows</th><th>Kind</th></tr></thead>
         <tbody>
-          <tr><td class="num">1</td><td><b>Freshness carries the sweep.</b> Before the first snapshot the top row has no program fields, so the freshness field is the only one: a half-filled mark and "sweeping · 9 of 12", the sources settled so far. Clicking it scrolls Today's list into view.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
+          <tr><td class="num">1</td><td><b>Freshness carries the sweep.</b> Before the first snapshot the top row has no program fields, so the freshness field is the only one: a spinning mark and "sweeping"; the hover counts the sources settled so far. Clicking it scrolls Today's list into view.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
           <tr><td class="num">2</td><td><b>Places stay reachable.</b> Sidebar rows keep their order in the muted ink and stay clickable. Each place opens one line, such as "Upstream opens after the first sweep. It is read 9th of 12."; the Line sheet says "Service rows appear after the first sweep." Settings, Find and the panel toggles stay live.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
           <tr><td class="num">3</td><td><b>One segment per source.</b> The bar has twelve segments toned like their rows. No percentage and no countdown: sources take from 1 s to 80 s, so either would mislead.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
           <tr><td class="num">4</td><td><b>Twelve rows in sweep order.</b> Mark, the Evidence tab's name, a fixed line saying what the source reads, and its outcome. Rows never reorder; a source put off for budget keeps its place.</td><td><span class="tag kind k-prd">Design change</span></td></tr>
@@ -1072,19 +1072,19 @@ code{font-family:var(--mono);font-size:.9em}
 
     <p class="shot-cap">A later sweep at 1280 px · the brief stays, only the field changes</p>
     <div class="shot"><div class="rowstudy">
-      <div class="one"><span class="lights"><i></i><i></i><i></i></span><span>Environment<span class="state ok">Ready</span></span><span>Templates<span class="state warn">1 pending</span></span><span>Forks<span class="state bad">2 stopped</span></span><span style="flex:1"></span><span>next sync <b>18:00</b></span><span class="fresh run">08:02 · sweeping 4 of 12</span><span class="tgl"><i class="l"></i><i class="r"></i></span></div>
+      <div class="one"><span class="lights"><i></i><i></i><i></i></span><span>Environment<span class="state ok">Ready</span></span><span>Templates<span class="state warn">1 pending</span></span><span>Forks<span class="state bad">2 stopped</span></span><span style="flex:1"></span><span>next sync <b>18:00</b></span><span class="fresh run">08:02</span><span class="tgl"><i class="l"></i><i class="r"></i></span></div>
     </div></div>
 
     <div class="tblwrap">
       <table class="tbl compact">
         <thead><tr><th>State</th><th>Today shows</th><th>Top row and tray</th></tr></thead>
         <tbody>
-          <tr><td><b>First sweep running</b></td><td>"First sweep is reading the program." · "A first sweep takes a few minutes. Today opens here when it's done.", or "Usually about 2 min." once a usual duration is known · "{elapsed} so far · {n} source(s) failed" · the bar and twelve rows · the closing line</td><td><span class="fresh run" style="font-family:var(--app)">sweeping · 9 of 12</span>, "9 of 12" at 740 px; the click scrolls the list into view</td></tr>
+          <tr><td><b>First sweep running</b></td><td>"First sweep is reading the program." · "A first sweep takes a few minutes. Today opens here when it's done.", or "Usually about 2 min." once a usual duration is known · "{elapsed} so far · {n} source(s) failed" · the bar and twelve rows · the closing line</td><td><span class="fresh run" style="font-family:var(--app)">sweeping</span>, the mark alone at 740 px; the click scrolls the list into view</td></tr>
           <tr><td><b>A source</b></td><td>○ waiting · ◐ "reading · 22 s", "still reading · 1 min 10 s" past a minute · ✓ "read · 31 s" · ⚠ "read · 52 s · 6 run lists cut short; rest read", or "read · 12 s · 1 job log cut short; rest read", with the complete-read count and the cut's reason and read/total on hover and in its accessible description · ⚠ "read · 6 s · 2 reads failed", or "read · 12 s · 14 diffs cut short; 3 reads failed", when some reads failed and the rest read, with the failed services on the next line ("Reads failed for 2 services: unit, crs-catalog.") · – "waits for GitHub budget · after 09:10", or skipped · ✕ "failed" when nothing read or the source named its cause, with its reason on the next line, and Open Settings for a sign-in failure. The filled dot and the diamond are not used, because Today's slots use them for occupied and broken.</td><td>The count rises as each source settles: read, cut, put off or failed</td></tr>
           <tr><td><b>Throttled</b></td><td>"GitHub asked SPI Code to slow down. Resumes at 08:04." under the meta line</td><td>Unchanged</td></tr>
           <tr><td><b>Hand-over</b></td><td>The brief replaces the list in place when <code>view.snapshot</code> lands. If some sources failed it still hands over, and the subline names what failed.</td><td>The field becomes the sweep time, and one click on it opens the completed list, kept with each source's final state, as Evidence. The tray tooltip reads "Today is ready"; if the window is hidden, one notification says "Today is ready", with the interruption count when there is one.</td></tr>
           <tr><td><b>Stopped</b></td><td>"The first sweep stopped." over the rows, each keeping its state · "It stopped while reading {source}: {reason}. SPI Code tries again at {time}." · Try again sends <code>sweep.request</code> through the non-forced path and the readiness gate. The panel and each stopped source offer Open Settings only when their reason code points to a Readiness fix; in the current contract that set is <code>signin</code>. Readiness checks Copilot, git, gh and glab, not fleet configuration; there is no separate missing-tool or fleet stop code. Network, unavailable-forge, timeout, save and host errors offer Try again only, with their plain reason, never Settings inferred from prose.</td><td><span class="fresh t-bad" style="font-family:var(--app)">first sweep stopped</span>, "stopped" at 740 px, in the failed tone. Clicking scrolls Today to the stopped panel, including its reason and actions. A retry that starts reading returns the field to its sweeping form. The tray shows failed.</td></tr>
-          <tr><td><b>Later sweeps</b></td><td>The brief, unchanged until the sweep commits; items then change in place</td><td><span class="fresh run" style="font-family:var(--app)">08:02 · sweeping 4 of 12</span>; the click opens Evidence with the live list beside each source's last good read</td></tr>
+          <tr><td><b>Later sweeps</b></td><td>The brief, unchanged until the sweep commits; items then change in place</td><td><span class="fresh run" style="font-family:var(--app)">08:02</span> with a spinning mark; the click opens Evidence with the live list beside each source's last good read</td></tr>
         </tbody>
       </table>
     </div>
@@ -1157,7 +1157,7 @@ code{font-family:var(--mono);font-size:.9em}
           <tr><td class="mono">Setup section</td><td>Setup is the first screen, a place reached from the footer.</td><td>Setup is the Readiness section of the Settings dialog, which opens by itself on first launch over the Watch gate and from ⌘, or the footer at any time.</td></tr>
           <tr><td class="mono">PS-03</td><td>Before the first sweep finishes Today shows what <code>sweep.status</code> carries, named by field.</td><td>Today shows the sweep's twelve sources live from <code>sweep.progress</code>, in Evidence words and sweep order, with a stopped state that offers Try again and Open Settings; only <code>view.snapshot</code> hands over. Done 2026-11-09.</td></tr>
           <tr><td class="mono">PS-05, PS-19</td><td>Nothing on places before the first snapshot, or on the first sweep's notification.</td><td>Places open one line before the first snapshot; the hand-over sets the tray tooltip and, when the window is hidden, sends one "Today is ready" notification. Done 2026-11-09.</td></tr>
-          <tr><td class="mono">EV-03</td><td>The freshness field shows the last sweep only.</td><td>It carries the sweep while one runs: "sweeping · 9 of 12" first, "08:02 · sweeping 4 of 12" later. Done 2026-11-09.</td></tr>
+          <tr><td class="mono">EV-03</td><td>The freshness field shows the last sweep only.</td><td>It carries the sweep while one runs: "sweeping" first, "08:02" later, each with a spinning mark and the count in the hover. Done 2026-11-09.</td></tr>
           <tr><td class="mono">ST-07, EV-07</td><td>Settings has Readiness and Appearance; Readiness holds the budget.</td><td>Sweep sits between them with the fixed schedule, this session's last sweep, source cadences, the budget and notification copy. Readiness links to it. Sweep now reads all sources, within readiness and budget limits, with cooldown, timer restart and wake requests.</td></tr>
           <tr><td class="mono">EV-03, PS-19, AU-09</td><td>No next-sweep feedback; attention notifications wait for M3 and the badge for M4.</td><td>Next sweep in the freshness hover and Evidence header, Sweep now in Evidence and the tray, the Today badge, coalesced Interrupt notifications and one can't-read notification per outage ship at M2. M3 adds ownership and owning-thread routing.</td></tr>
           <tr><td class="mono">Appendix H</td><td>Rejects per-area first-sweep progress because <code>sweep.status</code> carries no progress.</td><td>The rejection is withdrawn. Done 2026-11-09.</td></tr>

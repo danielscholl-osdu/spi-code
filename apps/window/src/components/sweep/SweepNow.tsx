@@ -27,14 +27,17 @@ function useSweepClock(cooldown: number | null | undefined, next: string | null 
   return Date.now();
 }
 
-/** Shared by Settings and Evidence; the caller closes its surface before opening the sweep. */
+/**
+ * Shared by Settings and Evidence; the caller closes its surface before opening the sweep. Without
+ * `onViewSweep`, as on the sweep's own Evidence, it offers no link to the sweep.
+ */
 export function SweepNow({
   store = watchStore,
   onViewSweep,
   onOpenReadiness,
 }: {
   store?: typeof watchStore;
-  onViewSweep(): void;
+  onViewSweep?: (() => void) | undefined;
   onOpenReadiness(): void;
 }) {
   const state = useStore(store);
@@ -70,11 +73,12 @@ export function SweepNow({
             source.state === "failed" || (source.state === "cut" && !!source.incomplete.failed),
         ).length
       : 0;
-  const view = (live = false) => (
-    <button type="button" className="sweep-now-view" onClick={onViewSweep}>
-      {live ? "View live sweep →" : "View sweep →"}
-    </button>
-  );
+  const view = (live = false) =>
+    onViewSweep && (
+      <button type="button" className="sweep-now-view" onClick={onViewSweep}>
+        {live ? "View live sweep →" : "View sweep →"}
+      </button>
+    );
   const feedback =
     setup === null ? null : disconnected ? (
       "Reconnecting to the host."

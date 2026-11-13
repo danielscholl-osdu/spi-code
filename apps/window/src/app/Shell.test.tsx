@@ -736,7 +736,6 @@ it.each([900, 1280])(
         );
         expect([...(sweep?.querySelectorAll("h3") ?? [])].map((h) => h.textContent)).toEqual([
           "Sources",
-          "Failed reads",
           "API budget",
         ]);
         if (id) expect(selectionStore.getState().selected).toBe(id);

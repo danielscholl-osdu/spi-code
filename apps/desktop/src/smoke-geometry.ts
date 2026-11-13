@@ -217,7 +217,7 @@ export function assertSmokeGeometry(
       rect(value.viewport);
       rect(value.panel);
       assert(contains(value.viewport, value.panel), "Sweep panel outside viewport");
-      assert(Array.isArray(value.elements) && value.elements.length >= 3, "Sweep elements missing");
+      assert(Array.isArray(value.elements) && value.elements.length >= 2, "Sweep elements missing");
       for (const element of value.elements) {
         rect(element);
         assert(

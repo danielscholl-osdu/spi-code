@@ -16,7 +16,7 @@ import { FirstSweepBody } from "../sweep/FirstSweepBody.js";
 import { SweepNow } from "../sweep/SweepNow.js";
 import { SweepSources } from "../sweep/SweepSources.js";
 import { SweepStopped } from "../sweep/SweepStopped.js";
-import { type SourceTone, settled } from "../sweep/words.js";
+import type { SourceTone } from "../sweep/words.js";
 import { FailedReads } from "./FailedReads.js";
 import type { SweepLineSnapshot } from "./SweepLine.js";
 import { useNow } from "./useNow.js";
@@ -25,6 +25,7 @@ import {
   ago,
   areaFact,
   byWorst,
+  cachedFrom,
   chipText,
   type EvidenceSource,
   type EvidenceTone,
@@ -105,11 +106,9 @@ function readRow(record: ReadRecord, now: number): Row {
 function Budget({ sweep, now }: { sweep: SweepStatus | null; now: number }) {
   if (sweep === null) return <p className="panel-empty">The API budget has not been read yet.</p>;
   const reset =
-    sweep.resetAt === null
-      ? ""
-      : Date.parse(sweep.resetAt) > now
-        ? `, resets in ${span(Date.parse(sweep.resetAt) - now)}`
-        : ", reset due";
+    sweep.resetAt !== null && Date.parse(sweep.resetAt) > now
+      ? `, resets in ${span(Date.parse(sweep.resetAt) - now)}`
+      : "";
   const left =
     sweep.remaining === null
       ? "GitHub did not report the requests left"
@@ -151,10 +150,12 @@ function EnvelopeRows({
   label,
   sources,
   now,
+  sweptAt,
 }: {
   label: string;
   sources: readonly EvidenceSource[];
   now: number;
+  sweptAt: string;
 }) {
   return (
     <div className="sweep-sources">
@@ -171,7 +172,7 @@ function EnvelopeRows({
             </span>
             <span className="sweep-name">{name}</span>
             <span className="sweep-what">{sourceReads(key) ?? ""}</span>
-            <span className="sweep-outcome">{envelopeSentence(envelope, now)}</span>
+            <span className="sweep-outcome">{envelopeSentence(envelope, now, sweptAt)}</span>
           </li>
         ))}
       </ul>
@@ -221,7 +222,6 @@ export function SweepEvidence({
   if (snapshot === null)
     return (
       <article className="evidence" data-evidence="sweep">
-        <p className="inspector-kicker">what the sweep is drawn from</p>
         {progress ? (
           <FirstSweepBody
             progress={progress}
@@ -238,12 +238,7 @@ export function SweepEvidence({
       </article>
     );
   const sources = sweepSources(snapshot);
-  const line = sweepLine({
-    sources: sources.map(({ envelope }) => envelope),
-    sweptAt: snapshot.sweptAt,
-    nextSyncAt: snapshot.briefing.nextSyncAt,
-    now: at,
-  });
+  const line = sweepLine({ sources: sources.map(({ envelope }) => envelope) });
   const failed = snapshot.reads.filter((record) => record.failure !== undefined);
   const next = sweep?.nextSweepAt && Date.parse(sweep.nextSweepAt) > at ? sweep.nextSweepAt : null;
   const list = progress ?? completed;
@@ -260,8 +255,9 @@ export function SweepEvidence({
     // snapshot's age is the previous read's, not this one's.
     const words: { text: string; tone?: EvidenceTone } | null | undefined =
       read !== undefined && !own
-        ? read.reused && { text: `reuses reads from ${ago(read.reused.from, at)}` }
-        : envelope && areaFact(envelope, at, read?.reused?.from);
+        ? read.reused && { text: cachedFrom(read.reused.from, at) }
+        : envelope &&
+          areaFact(envelope, at, { reusedFrom: read?.reused?.from, sweptAt: snapshot.sweptAt });
     return (
       words && (
         <span className="evidence-fact" data-tone={words.tone}>
@@ -272,7 +268,6 @@ export function SweepEvidence({
   };
   return (
     <article className="evidence" data-evidence="sweep">
-      <p className="inspector-kicker">what the sweep is drawn from</p>
       <header className="evidence-header" data-sweep-header="">
         <div>
           <h2 className="evidence-title">The sweep</h2>
@@ -282,8 +277,7 @@ export function SweepEvidence({
                 Sweeping since{" "}
                 <time dateTime={live.startedAt}>
                   {clockTime(live.startedAt, { now: at, hint: false })}
-                </time>{" "}
-                · {settled(live)} of {live.sources.length}
+                </time>
               </>
             ) : (
               <>
@@ -301,11 +295,13 @@ export function SweepEvidence({
             )}
           </p>
         </div>
-        <SweepNow onViewSweep={() => {}} onOpenReadiness={onOpenSettings} />
+        {!live && <SweepNow onOpenReadiness={onOpenSettings} />}
       </header>
-      <p className="evidence-line" data-tone={line.tone}>
-        {line.text}
-      </p>
+      {!live && (
+        <p className="evidence-line" data-tone={line.tone}>
+          {line.text}
+        </p>
+      )}
       {list ? (
         <section data-sweep-list={LIST[list.outcome]} aria-label="Sources">
           <h3>Sources</h3>
@@ -322,24 +318,31 @@ export function SweepEvidence({
           <SweepSources
             progress={list}
             now={at}
-            meta={list === live}
+            meta={false}
             onOpenSettings={onOpenSettings}
             fact={fact}
             envelope={(source) => envelopes.get(source)}
           />
-          {unlisted.length > 0 && <EnvelopeRows label="More sources" sources={unlisted} now={at} />}
+          {unlisted.length > 0 && (
+            <EnvelopeRows
+              label="More sources"
+              sources={unlisted}
+              now={at}
+              sweptAt={snapshot.sweptAt}
+            />
+          )}
         </section>
       ) : (
         <section aria-label="Sources">
           <h3>Sources</h3>
-          <EnvelopeRows label="Sources" sources={sources} now={at} />
+          <EnvelopeRows label="Sources" sources={sources} now={at} sweptAt={snapshot.sweptAt} />
         </section>
       )}
-      <h3>Failed reads</h3>
-      {failed.length > 0 ? (
-        <FailedReads reads={failed} />
-      ) : (
-        <p className="panel-empty">No read failed in this sweep.</p>
+      {failed.length > 0 && (
+        <>
+          <h3>Failed reads</h3>
+          <FailedReads reads={failed} />
+        </>
       )}
       <h3>API budget</h3>
       <Budget sweep={sweep} now={at} />

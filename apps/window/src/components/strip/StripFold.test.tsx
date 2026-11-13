@@ -299,13 +299,13 @@ it("keeps each state field's accessible name as the row folds and wraps", async 
   expect(named()).toEqual(unfolded);
 });
 
-it("wraps a later sweep's longer freshness label to the second row like any other field", async () => {
+it("wraps a later sweep's freshness field to the second row like any other field", async () => {
   const body = fixture();
   await mount();
   expect(strip()?.dataset.rows).toBe("1");
   await act(async () => watchStore.setState({ progress: midSweep({ first: false }) }));
   expect(field("freshness")?.querySelector("[data-sweep-display]")?.textContent).toBe(
-    `${clockTime(body.sweptAt)} · sweeping 9 of 12`,
+    clockTime(body.sweptAt),
   );
   await relayout({ widths: { ...layout.widths, freshness: 190 } });
   expect(strip()?.dataset.rows).toBe("2");
@@ -316,7 +316,7 @@ it("wraps a later sweep's longer freshness label to the second row like any othe
   expect(topbar()).toBe("75px");
 });
 
-it("lets the fold plan, not the window width, shorten the first sweep's count", async () => {
+it("lets the fold plan, not the window width, shorten the first sweep to its spinning mark", async () => {
   const width = window.innerWidth;
   try {
     window.innerWidth = 899;
@@ -328,19 +328,22 @@ it("lets the fold plan, not the window width, shorten the first sweep's count", 
     };
     await mount();
     const shown = () => field("freshness")?.querySelector("[data-sweep-display]")?.textContent;
-    expect(shown()).toBe("sweeping · 9 of 12");
+    expect(shown()).toBe("sweeping");
     await relayout({ first: 150 });
-    expect(shown()).toBe("9 of 12");
+    expect(shown()).toBe("");
+    expect(field("freshness")?.querySelector(".evidence-dot")?.hasAttribute("data-spin")).toBe(
+      true,
+    );
     expect(field("freshness")?.title).toBe("First sweep · 9 of 12 sources done");
     expect(strip()?.dataset.rows).toBeUndefined();
     await relayout({ first: 640 });
-    expect(shown()).toBe("sweeping · 9 of 12");
+    expect(shown()).toBe("sweeping");
   } finally {
     window.innerWidth = width;
   }
 });
 
-it("shortens the first sweep's count in the narrow layout, where the sidebar leaves the row", async () => {
+it("shortens the first sweep to its spinning mark in the narrow layout, where the sidebar leaves the row", async () => {
   const width = window.innerWidth;
   const resize = async (to: number, first: number) => {
     window.innerWidth = to;
@@ -359,12 +362,12 @@ it("shortens the first sweep's count in the narrow layout, where the sidebar lea
     await mount();
     const shown = () => field("freshness")?.querySelector("[data-sweep-display]")?.textContent;
     expect(container.querySelector(".shell")?.getAttribute("data-layout")).toBe("narrow");
-    expect(shown()).toBe("9 of 12");
+    expect(shown()).toBe("");
     expect(field("freshness")?.title).toBe("First sweep · 9 of 12 sources done");
     await resize(900, 734);
-    expect(shown()).toBe("sweeping · 9 of 12");
+    expect(shown()).toBe("sweeping");
     await resize(740, 574);
-    expect(shown()).toBe("9 of 12");
+    expect(shown()).toBe("");
   } finally {
     window.innerWidth = width;
   }
@@ -409,7 +412,7 @@ it.each(["failed", "cancelled"] as const)(
       expect(shown()).toBe("first sweep stopped");
       await act(async () => watchStore.setState({ progress: midSweep({ sweep: "sweep-2" }) }));
       await settle();
-      expect(shown()).toBe("sweeping · 9 of 12");
+      expect(shown()).toBe("sweeping");
       expect(field("freshness")?.dataset.tone).toBe("run");
     } finally {
       window.innerWidth = width;

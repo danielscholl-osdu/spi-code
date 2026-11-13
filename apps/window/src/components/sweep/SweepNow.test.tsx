@@ -34,6 +34,7 @@ async function harness({
   ready = true,
   knownSetup = true,
   initialStatus = sweepStatus(),
+  offerView = true,
 } = {}) {
   const send = vi.fn();
   const store = createWatchStore(send);
@@ -54,7 +55,11 @@ async function harness({
   const onOpenReadiness = vi.fn();
   await act(async () =>
     root.render(
-      <SweepNow store={store} onViewSweep={onViewSweep} onOpenReadiness={onOpenReadiness} />,
+      <SweepNow
+        store={store}
+        onViewSweep={offerView ? onViewSweep : undefined}
+        onOpenReadiness={onOpenReadiness}
+      />,
     ),
   );
   cleanups.push(async () => {
@@ -202,6 +207,28 @@ it.each([1, 2])(
     );
     await act(async () => h.container.querySelector<HTMLButtonElement>(".sweep-now-view")?.click());
     expect(h.onViewSweep).toHaveBeenCalledTimes(1);
+  },
+);
+
+it.each(["failed sources", "a stopped sweep"])(
+  "offers no View sweep after %s on the sweep's own Evidence, where the caller gives no link",
+  async (kind) => {
+    const h = await harness({ offerView: false });
+    if (kind === "failed sources") {
+      const progress = savedSweep();
+      progress.sources[1] = {
+        source: "fleet",
+        state: "failed",
+        code: "other",
+        reason: "Fleet read failed.",
+      };
+      await h.finish(progress);
+      expect(h.container.textContent).toContain("1 source failed.");
+    } else {
+      await h.finish(midSweep({ outcome: "cancelled" }));
+      expect(h.container.textContent).toContain("Sweep stopped.");
+    }
+    expect(h.container.querySelector(".sweep-now-view")).toBeNull();
   },
 );
 

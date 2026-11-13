@@ -599,7 +599,7 @@ const receive = (type: string, payload: unknown) =>
       .receive({ version: PROTOCOL_VERSION, id: "host", kind: "event", type, payload }),
   );
 
-it("carries the first sweep's count and scrolls the list into view", async () => {
+it("spins the first sweep's mark, keeps its count in the name, and scrolls the list into view", async () => {
   const scrolled: Element[] = [];
   const scrollIntoView = Element.prototype.scrollIntoView;
   Element.prototype.scrollIntoView = function (this: Element) {
@@ -614,7 +614,8 @@ it("carries the first sweep's count and scrolls the list into view", async () =>
     await mount();
     expect(display()).toBe("waiting for the first sweep");
     await receive("sweep.progress", midSweep());
-    expect(display()).toBe("sweeping · 9 of 12");
+    expect(display()).toBe("sweeping");
+    expect(glyph()?.querySelector(".evidence-dot")?.hasAttribute("data-spin")).toBe(true);
     expect(glyphName()).toBe("First sweep · 9 of 12 sources done");
     expect(glyph()?.title).toBe("First sweep · 9 of 12 sources done");
     expect(glyph()?.dataset.tone).toBe("run");
@@ -626,6 +627,7 @@ it("carries the first sweep's count and scrolls the list into view", async () =>
     expect(container.querySelector('#app-right-panel [data-evidence="sweep"]')).toBeNull();
     await receive("sweep.progress", { ...midSweep(), outcome: "cancelled" });
     expect(display()).toBe("first sweep stopped");
+    expect(glyph()?.querySelector(".evidence-dot")?.hasAttribute("data-spin")).toBe(false);
   } finally {
     Element.prototype.scrollIntoView = scrollIntoView;
   }
@@ -677,7 +679,7 @@ it.each(["failed", "cancelled"] as const)(
       expect.objectContaining({ type: "sweep.request", payload: {} }),
     );
     await receive("sweep.progress", midSweep({ sweep: "sweep-2" }));
-    expect(display()).toBe("sweeping · 9 of 12");
+    expect(display()).toBe("sweeping");
     expect(glyph()?.dataset.tone).toBe("run");
   },
 );
@@ -687,7 +689,8 @@ it("keeps the sweep time over an older snapshot while a later sweep runs and ope
   await mount();
   const later = midSweep({ first: false, sweep: "sweep-2" });
   await receive("sweep.progress", later);
-  expect(display()).toBe(`${clockTime(body.sweptAt)} · sweeping 9 of 12`);
+  expect(display()).toBe(clockTime(body.sweptAt));
+  expect(glyph()?.querySelector(".evidence-dot")?.hasAttribute("data-spin")).toBe(true);
   expect(glyphName()).toBe(`Swept ${clockTime(body.sweptAt)} · sweeping, 9 of 12 sources done`);
   expect(glyph()?.dataset.tone).toBe("run");
   await act(async () => glyph()?.click());
@@ -696,7 +699,9 @@ it("keeps the sweep time over an older snapshot while a later sweep runs and ope
     "live",
   );
   expect(evidence()?.querySelectorAll(".sweep-row")).toHaveLength(12);
-  expect(evidence()?.querySelector(".sweep-row .evidence-fact")?.textContent).toMatch(/last read/);
+  const facts = [...(evidence()?.querySelectorAll(".sweep-row .evidence-fact") ?? [])];
+  expect(facts.length).toBeGreaterThan(0);
+  expect(facts.map((fact) => fact.textContent).join()).not.toMatch(/last read/);
   await receive("sweep.progress", {
     ...later,
     outcome: "committed",

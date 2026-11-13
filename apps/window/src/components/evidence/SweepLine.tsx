@@ -19,23 +19,34 @@ const running = (progress: SweepProgress | null | undefined) =>
 const counted = (progress: SweepProgress) => `${settled(progress)} of ${progress.sources.length}`;
 
 /**
- * The first sweep's two display forms, "sweeping · 9 of 12" and the folded "9 of 12", or null when
- * the field does not carry a first sweep.
+ * The first sweep's two display forms beside the spinning mark, "sweeping" and the folded mark
+ * alone, or null when the field does not carry a first sweep.
  */
 export function firstSweepForms(
   snapshot: SweepLineSnapshot | null,
   progress: SweepProgress | null | undefined,
 ): { full: string; short: string } | null {
-  const live = running(progress);
-  if (snapshot !== null || !live) return null;
-  const count = counted(live);
-  return { full: `sweeping · ${count}`, short: count };
+  if (snapshot !== null || !running(progress)) return null;
+  return { full: "sweeping", short: "" };
+}
+
+/** The freshness field's mark: a dot in the field's tone, spinning while a sweep runs. */
+export function SweepMark({ tone }: { tone: string }) {
+  return (
+    <span
+      className="evidence-dot"
+      data-tone={tone}
+      {...(tone === "run" ? { "data-spin": "" } : {})}
+      aria-hidden
+    />
+  );
 }
 
 /**
  * The title bar's freshness glyph (EV-03); a button that opens the sweep Evidence. While a sweep
- * runs it carries the sweep: "sweeping · 9 of 12" before the first snapshot ("9 of 12" when the top
- * row's fold plan shortens it), the sweep time and "sweeping 4 of 12" over an older one.
+ * runs its mark spins: beside "sweeping" before the first snapshot (the mark alone when the top
+ * row's fold plan shortens it), beside the last sweep's time over an older one. The count stays in
+ * the hover and accessible name.
  */
 export function SweepLine({
   snapshot,
@@ -83,23 +94,23 @@ export function SweepLine({
       title={text}
       onClick={onOpen}
     >
-      <span className="evidence-dot" data-tone={tone} aria-hidden />
+      <SweepMark tone={tone} />
       <span id={labelId} className="visually-hidden">
         {text}
       </span>
       <span data-sweep-display="" aria-hidden>
         {first ? (
           short ? (
-            first
+            ""
           ) : (
-            `sweeping · ${first}`
+            "sweeping"
           )
         ) : snapshot === null || glyph === null ? (
           text
         ) : (
           <>
             <Time at={snapshot.sweptAt} now={now} />
-            {later ? ` · sweeping ${later}` : glyph.tail}
+            {!later && glyph.tail}
           </>
         )}
       </span>

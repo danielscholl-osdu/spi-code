@@ -100,54 +100,34 @@ async function render(node: ReactNode) {
 }
 
 it.each([
-  ["fresh", areas(), "swept 2\u00a0min ago · all fresh · next sync in 3\u00a0h", "fresh"],
+  ["fresh", areas(), "all fresh", "fresh"],
   [
     "failed",
     areas({ github: { state: "failed" }, runs: { state: "stale" }, security: cut }),
-    "swept 2\u00a0min ago · 1 area failed · 1 incomplete · 1 stale · next sync in 3\u00a0h",
+    "1 area failed · 1 incomplete · 1 stale",
     "bad",
   ],
-  [
-    "cut",
-    areas({ security: cut }),
-    "swept 2\u00a0min ago · 1 area incomplete · next sync in 3\u00a0h",
-    "warn",
-  ],
+  ["cut", areas({ security: cut }), "1 area incomplete", "warn"],
   [
     "stale",
     areas({ radar: { state: "stale" }, upstream: { state: "stale" } }),
-    "swept 2\u00a0min ago · 2 areas stale · next sync in 3\u00a0h",
+    "2 areas stale",
     "warn",
   ],
-  [
-    "all-inferred",
-    areas({}, { inferred: true }),
-    "swept 2\u00a0min ago · next sync in 3\u00a0h · inferred",
-    "inferred",
-  ],
-  [
-    "one-inferred",
-    areas({ fleet: { inferred: true } }),
-    "swept 2\u00a0min ago · all fresh · next sync in 3\u00a0h",
-    "fresh",
-  ],
+  ["all-inferred", areas({}, { inferred: true }), "inferred", "inferred"],
+  ["one-inferred", areas({ fleet: { inferred: true } }), "all fresh", "fresh"],
   [
     "stale and all inferred",
     areas({ auth: { state: "stale" } }, { inferred: true }),
-    "swept 2\u00a0min ago · 1 area stale · next sync in 3\u00a0h · inferred",
+    "1 area stale · inferred",
     "warn",
   ],
-  [
-    "unread",
-    areas().filter(({ area }) => area !== "details"),
-    "swept 2\u00a0min ago · 1 area not read yet · next sync in 3\u00a0h",
-    "muted",
-  ],
+  ["unread", areas().filter(({ area }) => area !== "details"), "1 area not read yet", "muted"],
 ] as const)(
   "says the %s sweep in the Evidence sentence with the worst tone",
   async (_, list, text, tone) => {
     const sources = sweepSources(snapshot([...list])).map(({ envelope }) => envelope);
-    expect(sweepLine({ sources, sweptAt, nextSyncAt, now })).toEqual({ text, tone });
+    expect(sweepLine({ sources })).toEqual({ text, tone });
   },
 );
 
@@ -273,11 +253,11 @@ it.each([
 );
 
 it.each([
-  ["eleven fresh areas", areas(), "swept 2\u00a0min ago · release lines read failed", " · 1"],
+  ["eleven fresh areas", areas(), "release lines read failed", " · 1"],
   [
     "a stale area",
     areas({ runs: { state: "stale" } }),
-    "swept 2\u00a0min ago · 1 area stale · release lines read failed",
+    "1 area stale · release lines read failed",
     " · 2",
   ],
 ] as const)(
@@ -302,14 +282,10 @@ it.each([
     };
     const sources = sweepSources(body);
     expect(sources.at(-1)).toMatchObject({ key: "releases", name: "Release lines" });
-    expect(
-      sweepLine({
-        sources: sources.map(({ envelope }) => envelope),
-        sweptAt,
-        nextSyncAt: sweptAt,
-        now,
-      }),
-    ).toEqual({ text, tone: "bad" });
+    expect(sweepLine({ sources: sources.map(({ envelope }) => envelope) })).toEqual({
+      text,
+      tone: "bad",
+    });
     const view = await render(<SweepLine snapshot={body} onOpen={() => {}} />);
     try {
       const line = view.container.querySelector("[data-sweep-line]");
@@ -375,7 +351,7 @@ it("lists every source of the sweep once in plain words with state, age and comp
   try {
     const sweepView = view.container.querySelector('[data-evidence="sweep"]');
     expect(sweepView?.querySelector(".evidence-line")?.textContent).toBe(
-      "swept 2\u00a0min ago · 1 area failed · 1 incomplete · 1 stale · 1 not read yet · next sync in 3\u00a0h",
+      "1 area failed · 1 incomplete · 1 stale · 1 not read yet",
     );
     expect(view.container.querySelector("table[aria-label='Areas']")).toBeNull();
     const rows = sourceRows(view.container);
@@ -393,7 +369,7 @@ it("lists every source of the sweep once in plain words with state, age and comp
       "cut, last read 5\u00a0min ago, 48,000 of 71,250 read",
     ]);
     expect(row("details")?.slice(1)).toEqual(["wait", "not read yet"]);
-    expect(row("fleet")?.slice(1)).toEqual(["ok", "fresh, last read 2\u00a0min ago, complete"]);
+    expect(row("fleet")?.slice(1)).toEqual(["ok", "fresh, complete"]);
     expect(failedRows(view.container).map((row) => row.textContent)).toEqual([
       "✕Upstream GitLabGitLab unavailable · partition",
     ]);
@@ -414,6 +390,39 @@ it("lists every source of the sweep once in plain words with state, age and comp
   try {
     expect(empty.container.textContent).toContain("Waiting for the first sweep.");
     expect(empty.container.textContent).toContain("The API budget has not been read yet.");
+  } finally {
+    await empty.cleanup();
+  }
+});
+
+it("leaves out the kicker, an empty Failed reads, and a budget reset already past", async () => {
+  const sweep: SweepStatus = {
+    remaining: 4_800,
+    floor: 500,
+    resetAt: new Date(now - 60_000).toISOString(),
+    deferredAreas: [],
+    nextSweepAt: null,
+    schedule: sweepSchedule,
+    lastSweep: null,
+  };
+  const view = await render(<SweepEvidence snapshot={snapshot(areas())} sweep={sweep} now={now} />);
+  try {
+    const article = view.container.querySelector('[data-evidence="sweep"]') as HTMLElement;
+    expect(article.querySelector(".inspector-kicker")).toBeNull();
+    expect([...article.querySelectorAll("h3")].map((h) => h.textContent)).toEqual([
+      "Sources",
+      "API budget",
+    ]);
+    expect(failedRows(article)).toHaveLength(0);
+    expect(article.querySelector("[data-budget]")?.textContent).toBe(
+      "4,800 GitHub requests left; reads pause at 500 to keep a reserve.",
+    );
+  } finally {
+    await view.cleanup();
+  }
+  const empty = await render(<SweepEvidence snapshot={null} sweep={null} now={now} />);
+  try {
+    expect(empty.container.querySelector(".inspector-kicker")).toBeNull();
   } finally {
     await empty.cleanup();
   }
@@ -651,7 +660,7 @@ it.each([
   ["after the first sweep", committed()],
   ["after a relaunch, with no list kept", null],
 ] as const)(
-  "shows each source once with its last read in window words %s, then failed reads and the budget",
+  "shows each source once in window words %s, a last read only when older than the sweep, then failed reads and the budget",
   async (_, list) => {
     const body = firstSweep();
     const sweep: SweepStatus = {
@@ -673,8 +682,11 @@ it.each([
       const sourceSection = article.querySelector('section[aria-label="Sources"]');
       for (const name of NAMES)
         expect(sourceSection?.textContent?.split(name).length, name).toBe(2);
+      const older = new Set(["Stack lifecycle runs", "Upstream radar", "Release lines"]);
       for (const [name, , outcome] of rows)
-        expect(outcome, name ?? "").toMatch(/last read \d+\u00a0min ago/);
+        if (older.has(name ?? ""))
+          expect(outcome, name ?? "").toMatch(/last read \d+\u00a0min ago/);
+        else expect(outcome, name ?? "").not.toContain("last read");
       expect(article.textContent).not.toMatch(/GitLab omitted|Job log character limit|hunks/);
       expect(article.querySelector("table[aria-label='Areas']")).toBeNull();
       expect([...article.querySelectorAll("h3")].map((h) => h.textContent)).toEqual([
@@ -718,22 +730,20 @@ it("keeps not-due sources neutral and says a read reused older data, in the 11:1
   );
   try {
     const article = view.container.querySelector('[data-evidence="sweep"]') as HTMLElement;
-    expect(article.querySelector(".evidence-line")?.textContent).toBe(
-      "swept 3\u00a0min ago · 2 areas incomplete · next sync in 7\u00a0h",
-    );
+    expect(article.querySelector(".evidence-line")?.textContent).toBe("2 areas incomplete");
     expect(sourceRows(article)).toEqual([
-      ["Sign-in", "ok", "read · 2\u00a0s · last read 3\u00a0min ago"],
-      ["Fleet membership", "ok", "read · 0\u00a0s · reuses reads from 14\u00a0min ago"],
-      ["GitHub issues and PRs", "ok", "read · 9\u00a0s · last read 3\u00a0min ago"],
-      ["Workflow runs", "ok", "read · 14\u00a0s · reuses reads from 14\u00a0min ago"],
-      ["Run approvals", "ok", "read · 6\u00a0s · last read 3\u00a0min ago"],
+      ["Sign-in", "ok", "read · 2\u00a0s"],
+      ["Fleet membership", "ok", "read · 0\u00a0s · cached from 14\u00a0min ago"],
+      ["GitHub issues and PRs", "ok", "read · 9\u00a0s"],
+      ["Workflow runs", "ok", "read · 14\u00a0s · cached from 14\u00a0min ago"],
+      ["Run approvals", "ok", "read · 6\u00a0s"],
       [
         "Stack lifecycle runs",
         "warn",
-        "read · 3\u00a0s · 1 job log cut short; rest read · reuses reads from 13\u00a0min ago",
+        "read · 3\u00a0s · 1 job log cut short; rest read · cached from 13\u00a0min ago",
       ],
-      ["Template", "ok", "read · 0\u00a0s · reuses reads from 13\u00a0min ago"],
-      ["Run details", "ok", "read · 0\u00a0s · reuses reads from 8\u00a0min ago"],
+      ["Template", "ok", "read · 0\u00a0s · cached from 13\u00a0min ago"],
+      ["Run details", "ok", "read · 0\u00a0s · cached from 8\u00a0min ago"],
       ["Upstream GitLab", "idle", "skipped · last read 13\u00a0min ago"],
       [
         "Upstream radar",
@@ -1496,7 +1506,7 @@ it("says a live later sweep's cached read reused older reads and pairs no old ag
   );
   try {
     const rows = new Map(sourceRows(view.container).map(([name, , outcome]) => [name, outcome]));
-    expect(rows.get("Workflow runs")).toBe("read · 9\u00a0s · reuses reads from 16\u00a0min ago");
+    expect(rows.get("Workflow runs")).toBe("read · 9\u00a0s · cached from 16\u00a0min ago");
     expect(rows.get("Run approvals")).toBe("read · 9\u00a0s");
   } finally {
     await view.cleanup();

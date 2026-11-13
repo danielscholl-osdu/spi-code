@@ -164,7 +164,7 @@ async function measure(
         const schedule = element(settings ? ".sweep-summary" : "[data-sweep-schedule]");
         return { rule: "sweep-visible", viewport, panel: rect(panel),
           elements: [header, schedule, header.querySelector(".sweep-now > button"),
-            ...[...header.querySelectorAll(".sweep-now-status")].filter(item => item.textContent.trim())].map(rect) };
+            ...[...header.querySelectorAll(".sweep-now-status")].filter(item => item.textContent.trim())].filter(Boolean).map(rect) };
       }
       case "sweep-reads": {
         const picker = document.querySelector(".settings-picker select");
@@ -714,7 +714,7 @@ export async function captureSmokeViews(
               fixture(window, "sweep.progress", progress.refresh);
               await rendered(
                 window,
-                'document.querySelector("[data-sweep-display]")?.textContent.includes("sweeping 4 of 12")',
+                'document.querySelector("[data-sweep-line] .evidence-dot[data-spin]")',
               );
               assert.equal(
                 await window.webContents.executeJavaScript(
@@ -855,11 +855,17 @@ export async function captureSmokeViews(
             }`);
             await rendered(window, "true");
             const disabled = await window.webContents.executeJavaScript(
-              'document.querySelector(".sweep-now > button").disabled',
+              `document.querySelector(${JSON.stringify(
+                surface.id.startsWith("settings-sweep-")
+                  ? "[role=dialog].settings"
+                  : "[data-sweep-header]",
+              )})?.querySelector(".sweep-now > button")?.disabled ?? null`,
             );
             assert.equal(
               disabled,
-              !surface.id.endsWith("-idle") && !surface.id.endsWith("-saved-failure"),
+              surface.id === "evidence-header-sweeping"
+                ? null
+                : !surface.id.endsWith("-idle") && !surface.id.endsWith("-saved-failure"),
               `Wrong Sweep now availability: ${surface.id}`,
             );
           }

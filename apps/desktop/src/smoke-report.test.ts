@@ -81,7 +81,7 @@ const scheduledQualifiers: Record<string, string[]> = {
   "evidence-header-idle": ["Swept 08:02", "Swept 08:02 · next sweep 08:07 Sweep now"],
   "evidence-header-sweeping": [
     "Swept 08:02 · sweeping, 4 of 12 sources done",
-    "Sweeping since 08:07 · 4 of 12 Sweeping · 4 of 12 View live sweep →",
+    "Sweeping since 08:07",
   ],
 };
 
@@ -615,8 +615,8 @@ it.each([
   ["evidence-header-idle", "next sweep 08:07", "next sweep 08:08"],
   ["evidence-header-idle", "Sweep now", "Sweep unavailable"],
   ["evidence-header-sweeping", "Sweeping since 08:07", "Sweeping since 08:06"],
-  ["evidence-header-sweeping", "Sweeping · 4 of 12", "Sweeping · 5 of 12"],
-  ["evidence-header-sweeping", "View live sweep →", "View sweep →"],
+  ["evidence-header-sweeping", "Sweeping since 08:07", "Sweeping since 08:07 · 4 of 12"],
+  ["evidence-header-sweeping", "Sweeping since 08:07", "Sweeping since 08:07 Sweeping · 4 of 12"],
 ])("requires the scheduled state text in %s: %s", (surface, before, after) => {
   expect(() =>
     assertSmokeViews(

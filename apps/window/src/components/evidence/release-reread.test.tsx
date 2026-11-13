@@ -16,7 +16,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { SweepSection } from "../../settings/SweepSection.js";
 import { createWatchStore, type Snapshot } from "../../store/watch.js";
-import { clockTime, timeUnit } from "../../time.js";
+import { clockTime } from "../../time.js";
 import { sweepStatus } from "../sweep/test-helper.js";
 import { SweepEvidence } from "./EvidenceTab.js";
 import { SweepLine, type SweepLineSnapshot } from "./SweepLine.js";
@@ -136,8 +136,8 @@ afterEach(() => {
 
 it("shows Release lines read by this sweep as read just now in Evidence, the header and Settings", async () => {
   const view = await shown(sweep());
-  expect(view.evidence).toEqual(["ok", "read · 0\u00a0s · last read just now"]);
-  expect(view.line).toBe(`swept just now · all fresh · next sync in ${timeUnit(5, "h")}`);
+  expect(view.evidence).toEqual(["ok", "read · 0\u00a0s"]);
+  expect(view.line).toBe("all fresh");
   expect(view.header).toContain("all areas read");
   expect(view.settings).toEqual([
     "Release lines",
