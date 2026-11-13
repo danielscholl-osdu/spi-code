@@ -214,3 +214,23 @@
   padding: 0;
   list-style: none;
 }
+
+.place-tile[data-tone="bad"]:first-child {
+  border-color: var(--error);
+  background: var(--error-surface);
+}
+.place-tile[data-tone="warn"]:first-child {
+  border-color: var(--warning);
+  background: var(--warning-surface);
+}
+.place-tile[data-tone="bad"]:first-child dt,
+.place-tile[data-tone="bad"] .place-tile-value {
+  color: var(--error-text);
+}
+.place-tile[data-tone="warn"]:first-child dt,
+.place-tile[data-tone="warn"] .place-tile-value {
+  color: var(--warning-text);
+}
+.place-tile[data-tone="ok"] .place-tile-value {
+  color: var(--success-text);
+}

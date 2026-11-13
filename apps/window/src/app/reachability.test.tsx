@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { readFileSync } from "node:fs";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import { directoryPaths } from "../test-utils/directory-paths.test.js";
 import { fixtureLoader } from "../test-utils/harness.js";
@@ -13,7 +13,6 @@ import {
   briefingItems,
   coverage,
   EXEMPTIONS,
-  HOLD_GAP,
   leaves,
   motionCases,
   openerCases,
@@ -22,13 +21,11 @@ import {
   uncoveredRoutes,
 } from "./reachability.test-helper.js";
 import {
-  answerDetail,
   assertReach,
   bad,
   busySnapshot,
   calmSnapshot,
   cases,
-  click,
   container,
   DEALS,
   dealProblems,
@@ -311,10 +308,11 @@ describe("the suite's own guards", () => {
   });
 
   it("rejects a click on a target hidden inside a closed details", async () => {
-    const hold = cases.find(({ exempt }) => exempt === HOLD_GAP)?.home;
-    expect(hold?.step).toBeDefined();
-    if (!hold) return;
-    await expect(openHome(hold)).rejects.toThrow(/click/);
+    const step = '[data-part="repository"] button.env-repo-line';
+    const hidden = { name: "Environment · Stack repository line", start: STARTS.environment, step };
+    await start(hidden);
+    expect(container.querySelector(step)?.closest("details")?.open).toBe(false);
+    await expect(openHome(hidden)).rejects.toThrow(/click/);
   });
 
   it("reports a route with no case", () => {
@@ -333,24 +331,5 @@ describe("the suite's own guards", () => {
     body.briefing.environment.headline = "";
     await openHome(row.home, body);
     expect(() => assertReach(row)).toThrow();
-  });
-});
-
-describe("named gaps the suite tracks until their beads close", () => {
-  it("spicode-t1k.226: a hold's Detail draws the host's answer two clicks from Environment, not one", async () => {
-    const rows = cases.filter(({ exempt }) => exempt === HOLD_GAP);
-    const hold = rows[0]?.home;
-    expect(hold?.step).toBeDefined();
-    expect(rows.some(({ selector }) => String(selector).includes("inspector-related"))).toBe(true);
-    if (!hold?.step) return;
-    // The Detail reads its times against the wall clock; pin it to the track's clock the expected
-    // text reads against, so the day prefix agrees in every zone.
-    vi.useFakeTimers({ toFake: ["Date"], now: Date.parse(fixture().briefing.environment.to) });
-    await start(hold);
-    expect(await click('[data-part="runs"] > summary', hold.name)).toBe(1);
-    expect(container.querySelector(".inspector")).toBeNull();
-    expect(await click(hold.step, hold.name)).toBe(1);
-    await answerDetail(hold);
-    for (const row of rows) assertReach(row);
   });
 });

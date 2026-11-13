@@ -18,7 +18,12 @@
 .environment .tone-bad strong { color: var(--error-text); }
 .environment .tone-warn strong { color: var(--warning-text); }
 .environment .tone-ok strong { color: var(--success-text); }
-.environment .env-scroll { overflow-x: auto; margin-top: 16px; padding: 4px 0 2px; direction: rtl; }
+.environment .env-day { margin: 4px 0 16px; }
+.environment .env-section-label {
+  margin: 0; font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.environment .env-scroll { overflow-x: auto; margin-top: 4px; padding: 4px 0 2px; direction: rtl; }
 .environment .env-timeline { direction: ltr; position: relative; }
 .environment .env-row { display: grid; grid-template-columns: 84px minmax(0, 1fr); border-bottom: 1px solid var(--border); }
 .environment .env-row:last-child { border-bottom: none; }
@@ -41,9 +46,14 @@
 .environment .env-event.state-ok { background: var(--success); }
 .environment .env-event.state-failed { background: var(--error); }
 .environment .env-event.state-running { background: var(--warning); }
+.environment .env-event.open { border-top-right-radius: 0; border-bottom-right-radius: 0; }
 .environment .env-event.state-held {
-  background: color-mix(in srgb, var(--warning) 25%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warning) 55%, transparent);
+  background: color-mix(in srgb, var(--text-muted) 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-muted) 45%, transparent);
+}
+.environment .env-event.state-held.open {
+  background: color-mix(in srgb, var(--error) 30%, transparent);
+  box-shadow: inset 0 0 0 1px var(--error);
 }
 .environment .env-event-label {
   position: absolute; left: calc(100% + 9px); top: -3px;
@@ -52,11 +62,12 @@
 .environment .env-event-label.flip { left: auto; right: calc(100% + 9px); }
 .environment .state-failed .env-event-label { color: var(--error-text); font-weight: 600; }
 .environment .state-held .env-event-label { color: var(--text-muted); }
+.environment .state-held.open .env-event-label { color: var(--error-text); font-weight: 600; }
 .environment .env-event[aria-selected="true"] .env-event-label {
   font-weight: 600; text-decoration: underline 2px var(--accent); text-underline-offset: 3px;
 }
 .environment .env-none, .environment .env-note { color: var(--text-muted); font-size: 12px; }
-.environment .env-none { position: absolute; left: 6px; top: 7px; }
+.environment .env-none { position: sticky; left: 90px; display: inline-block; margin: 7px 0 0 6px; }
 .environment .env-part { margin-top: 12px; }
 .environment .env-part > summary {
   padding: 6px 0; border-bottom: 1px solid var(--border-soft);
@@ -83,3 +94,11 @@
 .environment .env-part [data-tone="warn"] { color: var(--warning-text); }
 .environment .env-part [data-tone="ok"] { color: var(--success-text); }
 .environment [data-selection-id]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.environment .env-quiet {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px;
+  margin: 14px 0 0; padding-top: 10px; border-top: 1px solid var(--border-soft);
+  font-size: 12px; color: var(--text-muted);
+}
+.environment .env-quiet > div { display: contents; }
+.environment .env-quiet dd { margin: 0; }
+.environment .env-quiet b { color: var(--text); font-weight: 600; }

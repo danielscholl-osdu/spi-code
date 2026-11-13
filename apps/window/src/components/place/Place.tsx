@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import type { PlaceRow, Reading, ViewSnapshot } from "@spi-code/contracts";
+import type { PlaceRow, Reading, Tone, ViewSnapshot } from "@spi-code/contracts";
 import type { ReactNode } from "react";
 import { type Navigation, PLACES, routeLabel } from "../../app/navigation.js";
 import { scopeRoute } from "../../app/queue.js";
@@ -19,6 +19,9 @@ function ownDue(item: Item): Item["due"] {
     : item.due;
 }
 
+/** A lead tile; a tone inks its value, and frames it when it leads. */
+export type PlaceTile = { label: string; value: string; counts: string; tone?: Tone };
+
 export type PlaceProps = {
   name: string;
   reading: Reading;
@@ -33,6 +36,12 @@ export type PlaceProps = {
   onPin?: () => void;
   /** With onPin, the header button reads Unpin. */
   pinned?: boolean;
+  /** Tiles drawn in place of the reading's own. */
+  tiles?: readonly PlaceTile[] | undefined;
+  /** Drawn between the tiles and the items. */
+  belowTiles?: ReactNode;
+  /** Drawn after the items. */
+  belowItems?: ReactNode;
 };
 
 /** A null reading content leaves only the place header, without an empty reading region. */
@@ -47,6 +56,9 @@ export function Place({
   actions,
   onPin,
   pinned = false,
+  tiles,
+  belowTiles,
+  belowItems,
 }: PlaceProps) {
   const { content } = reading;
   const place = (
@@ -59,6 +71,7 @@ export function Place({
   )[reading.anchor.kind];
   const fresh = place ? freshItemIds(snapshot, place) : [];
   const ItemContent = onSelect ? "button" : "div";
+  const lead = tiles ?? content?.tiles;
   const groups = new Map<string, Item[]>();
   for (const item of content?.items.slice(0, 5) ?? []) {
     const group = groups.get(item.group);
@@ -80,24 +93,29 @@ export function Place({
           </button>
         )}
       </header>
-      {content && (
+      {(content || tiles || belowTiles) && (
         <section className="place-reading" aria-label={`${name} reading`}>
-          <h2 className="place-headline">
-            <TimedText text={content.headline} hint={false} />
-          </h2>
-          {content.qualifier && <p className="place-qualifier">{content.qualifier}</p>}
-          <dl className="place-tiles">
-            {content.tiles.map((tile, index) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: The three tile positions are fixed; labels may repeat.
-              <div className="place-tile" key={index}>
-                <dt>{tile.label}</dt>
-                <dd className="place-tile-value">{tile.value}</dd>
-                <dd className="place-tile-counts">
-                  <TimedText text={tile.counts} hint={false} />
-                </dd>
-              </div>
-            ))}
-          </dl>
+          {content && (
+            <h2 className="place-headline">
+              <TimedText text={content.headline} hint={false} />
+            </h2>
+          )}
+          {content?.qualifier && <p className="place-qualifier">{content.qualifier}</p>}
+          {lead && (
+            <dl className="place-tiles">
+              {lead.map((tile: PlaceTile, index) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: The three tile positions are fixed; labels may repeat.
+                <div className="place-tile" key={index} data-tone={tile.tone}>
+                  <dt>{tile.label}</dt>
+                  <dd className="place-tile-value">{tile.value}</dd>
+                  <dd className="place-tile-counts">
+                    <TimedText text={tile.counts} hint={false} />
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          {belowTiles}
           {groups.size > 0 && (
             <div className="place-groups">
               {[...groups].map(([label, items]) => (
@@ -189,7 +207,8 @@ export function Place({
               ))}
             </div>
           )}
-          {content.folded && <p className="place-folded">{content.folded}</p>}
+          {content?.folded && <p className="place-folded">{content.folded}</p>}
+          {belowItems}
         </section>
       )}
       {place && (

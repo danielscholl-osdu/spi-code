@@ -6,7 +6,7 @@ import { inScope } from "../components/sidebar/attention.js";
 import { selectionRows, TODAY_GROUPS, todayGroupRow } from "../panels/selection-rows.js";
 import { plainTitle } from "../text.js";
 import { clockTime, instantsIn, timedText } from "../time.js";
-import { runningFactHome } from "../views/environment/running-fact.js";
+import { openHold } from "../views/environment/hold.js";
 import { eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
 import { releaseSectionCases } from "../views/releases/reachability.test-helper.js";
 import { bandHolds } from "../views/today/Band.js";
@@ -173,8 +173,8 @@ function overlaps(hold: Event, e: Event) {
   return Date.parse(e.start) <= end(hold) && end(e) >= Date.parse(hold.start);
 }
 
-/** The hold Detail sits behind Stack runs and its bar: two clicks from Environment. */
-export const HOLD_GAP = "spicode-t1k.226: a hold's Detail is two clicks from Environment";
+/** While a hold is open the Maintenance tile leads; the Running fact's run is the Stack runs headline. */
+const MAINTENANCE_LEADS = "Maintenance leads in the Running fact's place while a hold is open";
 
 const detailField = (field: string) => `.inspector dd[data-field="${field}"]`;
 const related = (index: number, part: "dt" | "dd") =>
@@ -415,63 +415,37 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
   );
   if (environment.note)
     add("/briefing/environment/note", environment.note, runs, at("/briefing/environment/note"));
-  const environmentReading = snapshot.readings.find(({ anchor }) => anchor.kind === "environment");
   const environmentHome = home("Environment", STARTS.environment);
   const environmentPlace = 'section.place[aria-label="Environment"]';
+  const held = environment.lanes.some(({ id }) => id === "holds") && openHold(snapshot);
   environment.facts.forEach((fact, index) => {
     const pointer = `/briefing/environment/facts/${index}`;
-    const div = at(`${pointer}/figure`);
-    const { versionTile, subInHeadline } = runningFactHome(
-      fact,
-      environmentReading ?? { anchor: { kind: "environment" }, content: null },
-    );
-    const tile = `${environmentPlace} .place-tile:nth-child(${versionTile + 1})`;
-    if (versionTile >= 0) {
-      add(`${pointer}/label`, "running", environmentHome, `${tile} .place-tile-counts`, {
-        read: (element) => firstClause(element.textContent ?? ""),
-        canon: (value) => value.toLowerCase(),
-      });
-      add(`${pointer}/figure`, fact.figure, environmentHome, `${tile} .place-tile-value`);
-    } else {
-      add(`${pointer}/label`, fact.label, runs, `${div} .env-fact-label`);
-      add(`${pointer}/figure`, fact.figure, runs, `${div} strong`);
-    }
-    add(
-      `${pointer}/sub`,
-      subText(fact.sub),
-      subInHeadline ? environmentHome : runs,
-      subInHeadline ? `${environmentPlace} .place-headline` : `${div} > div:last-child`,
-      subInHeadline
-        ? {
-            read: (element) =>
-              (element.textContent ?? "")
-                .replace(/^v\S+ is /, "")
-                .replace(", green since ", " · green at ")
-                .replace(/\.$/, ""),
-          }
-        : {},
-    );
+    const tile = `${environmentPlace} .place-tile:nth-child(${index + 1})`;
+    const lead = held && index === 0 ? { exempt: MAINTENANCE_LEADS } : {};
+    add(`${pointer}/label`, fact.label, environmentHome, `${tile} dt`, lead);
+    add(`${pointer}/figure`, fact.figure, environmentHome, `${tile} .place-tile-value`, lead);
+    add(`${pointer}/sub`, subText(fact.sub), environmentHome, `${tile} .place-tile-counts`, lead);
   });
   const now = new Date(Date.parse(environment.to));
   const overlapped = new Set<string>();
   environment.lanes.forEach((lane, laneIndex) => {
     const pointer = `/briefing/environment/lanes/${laneIndex}`;
     const row = `.env-row[data-lane=${quote(lane.id)}]`;
-    add(`${pointer}/label`, lane.label, runs, `${row} .env-lane-label`);
+    add(`${pointer}/label`, lane.label, environmentHome, `${row} .env-lane-label`);
     lane.events.forEach((e, index) => {
       const event = `${pointer}/events/${index}`;
       const bar = `button.env-event[data-event=${quote(`${lane.id}:${e.id}`)}]`;
-      add(`${event}/label`, eventText(e), runs, `${bar} .env-event-label`);
-      add(`${event}/state`, eventWord[e.state], runs, bar, {
+      add(`${event}/label`, eventText(e), environmentHome, `${bar} .env-event-label`);
+      add(`${event}/state`, eventWord[e.state], environmentHome, bar, {
         attribute: "aria-label",
         contains: true,
       });
-      add(`${event}/start`, eventWhen(e, now), runs, bar, {
+      add(`${event}/start`, eventWhen(e, now), environmentHome, bar, {
         attribute: "aria-label",
         contains: true,
       });
       if (e.end)
-        add(`${event}/end`, eventWhen(e, now), runs, bar, {
+        add(`${event}/end`, eventWhen(e, now), environmentHome, bar, {
           attribute: "aria-label",
           contains: true,
         });
@@ -482,12 +456,10 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
         bar,
         answer(e.inspect ?? `hold:${e.id}`),
       );
-      const gap = { exempt: HOLD_GAP };
       add(`${event}/label`, `Held ${e.label}`, where, detailField("cause"), {
         canon: (value) => value.replace(/^Held /, ""),
-        ...gap,
       });
-      if (e.detail) add(`${event}/detail`, e.detail, where, detailField("effect"), gap);
+      if (e.detail) add(`${event}/detail`, e.detail, where, detailField("effect"));
       // The Detail draws its instants as `time` elements and no span; read the instants from their
       // datetime, and require the drawn text to be the same reading against the test's pinned clock.
       const when = (element: Element) => {
@@ -502,9 +474,8 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
         const drawn = element.textContent ?? "";
         return drawn === read.split(" \u00b7 ")[0] ? read : drawn;
       };
-      add(`${event}/start`, eventWhen(e, now), where, detailField("why"), { read: when, ...gap });
-      if (e.end)
-        add(`${event}/end`, eventWhen(e, now), where, detailField("why"), { read: when, ...gap });
+      add(`${event}/start`, eventWhen(e, now), where, detailField("why"), { read: when });
+      if (e.end) add(`${event}/end`, eventWhen(e, now), where, detailField("why"), { read: when });
       let offset = 0;
       environment.lanes
         .filter(({ id }) => id !== "holds")
@@ -514,7 +485,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
             if (!overlaps(e, run)) return;
             const runPointer = `/briefing/environment/lanes/${otherIndex}/events/${runIndex}`;
             overlapped.add(runPointer);
-            add(`${runPointer}/detail`, run.detail, where, related(offset, "dt"), gap);
+            add(`${runPointer}/detail`, run.detail, where, related(offset, "dt"));
             offset += 1;
           });
         });

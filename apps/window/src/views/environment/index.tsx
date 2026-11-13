@@ -7,7 +7,7 @@ import { useStore } from "zustand";
 import { navigate } from "../../app/navigation.js";
 import { treeServices } from "../../app/queue.js";
 import { SectionEvidence } from "../../components/evidence/SectionEvidence.js";
-import { Place } from "../../components/place/Place.js";
+import { Place, type PlaceProps } from "../../components/place/Place.js";
 import { RepositoryFacts } from "../../components/place/RepositoryFacts.js";
 import { type SelectionStore, selectionStore } from "../../panels/selection.js";
 import {
@@ -21,7 +21,7 @@ import { watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
 import { TimedText } from "../../time.js";
 import { FlowContext } from "./flow-context.js";
-import { runningFactHome } from "./running-fact.js";
+import { leadTiles } from "./lead.js";
 import {
   eventKey,
   eventText,
@@ -64,15 +64,12 @@ export default function Environment({
 }) {
   const runsHeading = useId();
   const repositoryHeading = useId();
+  const dayHeading = useId();
   const snapshot = useStore(store, (state) => state.snapshot);
   const selected = useStore(inspector, (state) => state.selected);
   const body = snapshot?.body;
   const env = body?.briefing.environment;
   const reading = body?.readings.find(({ anchor }) => anchor.kind === "environment") ?? NO_READING;
-  const facts =
-    env?.facts
-      .map((fact, index) => ({ fact, index, home: runningFactHome(fact, reading) }))
-      .filter(({ home }) => home.versionTile < 0 || !home.subInHeadline) ?? [];
   const from = env ? Date.parse(env.from) : 0;
   const to = env ? Date.parse(env.to) : 0;
   const lanes =
@@ -115,8 +112,9 @@ export default function Environment({
     undefined,
     inspector,
   );
-  const placeView = (
+  const placeOf = (extra: Pick<PlaceProps, "tiles" | "belowTiles" | "belowItems"> = {}) => (
     <Place
+      {...extra}
       name="Environment"
       reading={reading}
       snapshot={body}
@@ -135,15 +133,119 @@ export default function Environment({
   if (!body || !env)
     return (
       <div className="environment" data-view-pane="environment">
-        {placeView}
+        {placeOf()}
       </div>
     );
   // Keep duration text deterministic for the snapshot rather than ticking on the renderer clock.
   const now = new Date(to);
   const ticks = hourTicks(from, to);
+  const timeline = env.lanes.length > 0 && (
+    <section className="env-day" aria-labelledby={dayHeading}>
+      <h3 className="env-section-label" id={dayHeading}>
+        Last 24 hours
+      </h3>
+      <SectionEvidence evidence={body} prefixes={["/briefing/environment/lanes"]} />
+      <div role="listbox" aria-label="Events in the last 24 hours" data-selection-list>
+        <div className="env-scroll">
+          <div className="env-timeline" style={{ minWidth: TRACK_MIN_PX + 84 }}>
+            <div className="env-grid" aria-hidden="true">
+              {ticks.map((tick) => (
+                <span
+                  key={tick.at}
+                  className={`env-tick${new Date(tick.at).getHours() % 2 === 0 ? " major" : ""}`}
+                  style={{ left: `${fixed(pctOf(tick.at, from, to))}%` }}
+                />
+              ))}
+            </div>
+            <div className="env-row env-axis" aria-hidden="true">
+              <div />
+              <div className="env-track">
+                {ticks
+                  .filter((tick) => {
+                    const left = pctOf(tick.at, from, to);
+                    return left > 2 && left < 98 && new Date(tick.at).getHours() % 2 === 0;
+                  })
+                  .map((tick) => (
+                    <span
+                      className="env-hour"
+                      key={tick.at}
+                      style={{ left: `${fixed(pctOf(tick.at, from, to))}%` }}
+                    >
+                      {tick.text}
+                    </span>
+                  ))}
+              </div>
+            </div>
+            {lanes.map(({ lane, pointer, placed }) => {
+              const tiers = Math.max(1, ...placed.map((p) => p.tier + 1));
+              return (
+                <div className="env-row" key={lane.id} data-lane={lane.id}>
+                  <div className="env-lane-label" data-pointer={pointer}>
+                    {lane.label}
+                  </div>
+                  <div className="env-track" style={{ height: tiers * TIER_PX + 10 }}>
+                    {placed.map((p) => {
+                      const key = eventKey(lane, p.e);
+                      const name = `${lane.label} ${p.e.label}, ${eventWord[p.e.state]}, ${eventWhen(p.e, now)}`;
+                      return (
+                        <button
+                          type="button"
+                          className={`env-event state-${p.e.state}${p.e.end ? "" : " open"}`}
+                          key={key}
+                          data-event={key}
+                          role="option"
+                          {...events.rowProps(p.row)}
+                          title={name}
+                          aria-label={name}
+                          style={{
+                            left: `${fixed(p.left)}%`,
+                            width: `${fixed(p.width)}%`,
+                            top: p.tier * TIER_PX + 10,
+                          }}
+                        >
+                          <span className={`env-event-label${p.flip ? " flip" : ""}`}>
+                            {eventText(p.e)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                    {placed.length === 0 && <span className="env-none">none in the last day</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+  const tiles = leadTiles(body);
+  const quiet = tiles && reading.content && (
+    <dl className="env-quiet">
+      {reading.content.tiles.map((tile) => (
+        <div key={tile.label}>
+          <dt>{tile.label}</dt>
+          <dd>
+            <b>{tile.value}</b> <TimedText text={tile.counts} hint={false} />
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
   return (
     <div className="environment" data-view-pane="environment">
-      {placeView}
+      {placeOf({
+        tiles,
+        belowTiles: (tiles || timeline) && (
+          <>
+            {tiles && (
+              <SectionEvidence evidence={body} prefixes={["/briefing/environment/facts"]} />
+            )}
+            {timeline}
+          </>
+        ),
+        belowItems: quiet,
+      })}
       <details className="env-part" data-part="runs">
         <summary id={runsHeading}>Stack runs</summary>
         <section className="env-part-body" aria-labelledby={runsHeading}>
@@ -160,112 +262,6 @@ export default function Environment({
           <p className="env-lead" data-pointer="/briefing/environment/headline">
             <TimedText text={env.headline} hint={false} />
           </p>
-          {env.facts.length > 0 && (
-            <>
-              <SectionEvidence evidence={body} prefixes={["/briefing/environment/facts"]} />
-              {facts.length > 0 && (
-                <div className="env-facts">
-                  {facts.map(({ fact, index, home }) => {
-                    const pointer = `/briefing/environment/facts/${index}/figure`;
-                    return (
-                      <div
-                        className={`env-fact tone-${fact.tone}`}
-                        data-pointer={pointer}
-                        key={fact.label}
-                      >
-                        <div className="env-fact-label">{fact.label}</div>
-                        {home.versionTile < 0 && <strong>{fact.figure}</strong>}
-                        {!home.subInHeadline && (
-                          <div>
-                            <TimedText text={fact.sub} hint={false} />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
-          {env.lanes.length > 0 && (
-            <>
-              <SectionEvidence evidence={body} prefixes={["/briefing/environment/lanes"]} />
-              <div role="listbox" aria-label="Lane events" data-selection-list>
-                <div className="env-scroll">
-                  <div className="env-timeline" style={{ minWidth: TRACK_MIN_PX + 84 }}>
-                    <div className="env-grid" aria-hidden="true">
-                      {ticks.map((tick) => (
-                        <span
-                          key={tick.at}
-                          className={`env-tick${new Date(tick.at).getHours() % 2 === 0 ? " major" : ""}`}
-                          style={{ left: `${fixed(pctOf(tick.at, from, to))}%` }}
-                        />
-                      ))}
-                    </div>
-                    <div className="env-row env-axis" aria-hidden="true">
-                      <div />
-                      <div className="env-track">
-                        {ticks
-                          .filter((tick) => {
-                            const left = pctOf(tick.at, from, to);
-                            return left > 2 && left < 98 && new Date(tick.at).getHours() % 2 === 0;
-                          })
-                          .map((tick) => (
-                            <span
-                              className="env-hour"
-                              key={tick.at}
-                              style={{ left: `${fixed(pctOf(tick.at, from, to))}%` }}
-                            >
-                              {tick.text}
-                            </span>
-                          ))}
-                      </div>
-                    </div>
-                    {lanes.map(({ lane, pointer, placed }) => {
-                      const tiers = Math.max(1, ...placed.map((p) => p.tier + 1));
-                      return (
-                        <div className="env-row" key={lane.id} data-lane={lane.id}>
-                          <div className="env-lane-label" data-pointer={pointer}>
-                            {lane.label}
-                          </div>
-                          <div className="env-track" style={{ height: tiers * TIER_PX + 10 }}>
-                            {placed.map((p) => {
-                              const key = eventKey(lane, p.e);
-                              const name = `${lane.label} ${p.e.label}, ${eventWord[p.e.state]}, ${eventWhen(p.e, now)}`;
-                              return (
-                                <button
-                                  type="button"
-                                  className={`env-event state-${p.e.state}`}
-                                  key={key}
-                                  data-event={key}
-                                  role="option"
-                                  {...events.rowProps(p.row)}
-                                  title={name}
-                                  aria-label={name}
-                                  style={{
-                                    left: `${fixed(p.left)}%`,
-                                    width: `${fixed(p.width)}%`,
-                                    top: p.tier * TIER_PX + 10,
-                                  }}
-                                >
-                                  <span className={`env-event-label${p.flip ? " flip" : ""}`}>
-                                    {eventText(p.e)}
-                                  </span>
-                                </button>
-                              );
-                            })}
-                            {placed.length === 0 && (
-                              <span className="env-none">none in the last day</span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
           {env.note && (
             <>
               <SectionEvidence evidence={body} prefixes={["/briefing/environment/note"]} />
