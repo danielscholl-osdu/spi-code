@@ -1,18 +1,13 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { readGenerated } from "../../../../scripts/watch-generated.mjs";
 import { AREAS, resolvePointer } from "./evidence.js";
 import { type ViewSnapshot, ViewSnapshotSchema } from "./snapshot.js";
 
 const snapshot: ViewSnapshot = ViewSnapshotSchema.parse(
-  JSON.parse(
-    readFileSync(
-      new URL("../../../../fixtures/watch/snapshot-59d6895.json", import.meta.url),
-      "utf8",
-    ),
-  ),
+  JSON.parse(readGenerated("snapshot-59d6895.json")),
 );
 
 function messages(value: unknown): string[] {

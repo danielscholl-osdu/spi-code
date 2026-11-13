@@ -6,15 +6,18 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import novemberRaw from "../../../../../fixtures/watch/snapshot-1106.json?raw";
-import badRaw from "../../../../../fixtures/watch/snapshot-bad.json?raw";
-import busyRaw from "../../../../../fixtures/watch/snapshot-busy.json?raw";
-import calmRaw from "../../../../../fixtures/watch/snapshot-calm.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { createSelectionStore } from "../../panels/selection.js";
 import { createWatchStore } from "../../store/watch.js";
+import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { clockTime } from "../../time.js";
 import { FORMING_RELEASES_ANCHOR, SHARED_COMPONENTS_ANCHOR } from "../releases/anchors.js";
 import Today from "./index.js";
 import { Releases } from "./Releases.js";
+
+const badRaw = watchFixtureText("snapshot-bad.json", readFixture);
+const busyRaw = watchFixtureText("snapshot-busy.json", readFixture);
+const calmRaw = watchFixtureText("snapshot-calm.json", readFixture);
 
 const RAW = { busy: busyRaw, calm: calmRaw, bad: badRaw, "1106": novemberRaw };
 const morning = (name: keyof typeof RAW) => ViewSnapshotSchema.parse(JSON.parse(RAW[name]));

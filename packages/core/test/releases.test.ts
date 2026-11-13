@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, test } from "vitest";
-import snapshot from "../../../fixtures/watch/snapshot-mixed-59d6895.json";
+import { readGenerated } from "../../../scripts/watch-generated.mjs";
 import { releaseDoc } from "../src/brief/release";
 import { STACK_REPO, TEMPLATE_REPO } from "../src/config";
 import { buildModel } from "../src/model/index";
@@ -13,6 +13,11 @@ import { FORKS, fixtureContext } from "./briefing-setup";
 import fixture from "./fixtures/rib-59d6895/releases.json";
 import { fixtureFacts } from "./harness";
 import { skeleton } from "./release-fixtures";
+
+const snapshot: {
+  stations: { service: string; stations: { id: string }[] }[];
+  services: { service: string; releases: { month: string }[] }[];
+} = JSON.parse(readGenerated("snapshot-mixed-59d6895.json"));
 
 const NOW = new Date("2026-10-21T15:00:00Z");
 function reads(): ReleaseReads {

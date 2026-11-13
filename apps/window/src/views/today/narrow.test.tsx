@@ -7,14 +7,17 @@ import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import raw from "../../../../../fixtures/watch/snapshot-busy.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { closeSheet, navigate, relaunch } from "../../app/navigation.js";
 import { moreCases, PENDING } from "../../app/reachability.test-helper.js";
 import { Shell } from "../../app/Shell.js";
 import { RightPanel } from "../../panels/RightPanel.js";
 import { selectionStore } from "../../panels/selection.js";
 import { createWatchStore, watchStore } from "../../store/watch.js";
+import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import Today from "./index.js";
+
+const raw = watchFixtureText("snapshot-busy.json", readFixture);
 
 const css = readFileSync(resolve("apps/window/src/views/today/today.css"), "utf8");
 

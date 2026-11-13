@@ -14,8 +14,8 @@ extensionless shebang scripts. Build output and dependencies are ignored.
 The window's text rules render every Watch snapshot named in
 `test-utils/watch-fixtures.test-helper.ts`, one `app/text-rules.<stem>.test.tsx` per
 snapshot (Vitest runs a file in one worker, so a file per fixture keeps each under the
-timeout). A new `fixtures/watch` snapshot fails `watch-fixtures.test.ts` until it is
-listed with its file or excluded with a reason. The walk covers places,
+timeout). A new `fixtures/watch` snapshot, committed or generated, fails
+`watch-fixtures.test.ts` until it is listed with its file or excluded with a reason. The walk covers places,
 strip, Line sheet, sidebar, command palette and Detail kinds. It checks headline length,
 internal names, title emoji and empty or placeholder sections, with rule mutations.
 Injected emoji cases cover Detail fields, Today sublines, template queue rows and
@@ -30,6 +30,12 @@ lists, running the host and the builders compiled from their current sources int
 temporary directory; it never loads `dist` or `packages/host/build`. It refuses and
 writes nothing while `tsc -b --dry` would rebuild them, or when a module they import
 has no current source.
+Only `snapshot-1106.json` and `inspect-1106.json` are committed.
+`node scripts/watch-generated.mjs` writes the rest into the git-ignored
+`fixtures/watch/generated` with a digest of the sources it read. Tests read those files
+through `scripts/watch-generated.mjs`, which refuses them, naming the command, when the
+folder is missing or the digest no longer matches the checkout. `scripts/check` and
+packaging run it first.
 Recompute the models digest with
 `SPI_RECORD_MODEL_DIGEST=1 pnpm vitest run packages/core/test/inspect/identity.test.ts`.
 The frozen rib oracle stays unchanged; its comparison ignores only U+00A0.

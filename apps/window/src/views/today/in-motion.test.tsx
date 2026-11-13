@@ -5,15 +5,18 @@ import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import busyRaw from "../../../../../fixtures/watch/snapshot-busy.json?raw";
-import calmRaw from "../../../../../fixtures/watch/snapshot-calm.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { RightPanel } from "../../panels/RightPanel.js";
 import { createSelectionStore } from "../../panels/selection.js";
 import { CAN_WAIT_ID } from "../../panels/selection-rows.js";
 import { createWatchStore } from "../../store/watch.js";
+import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { InMotion } from "./InMotion.js";
 import { CASCADE, moving as movingFrom, ROLLOUT, SYNC_PR } from "./in-motion.test-helper.js";
 import Today from "./index.js";
+
+const busyRaw = watchFixtureText("snapshot-busy.json", readFixture);
+const calmRaw = watchFixtureText("snapshot-calm.json", readFixture);
 
 const CORE_AMBIENT = "../../../../../packages/core/src/brief/ambient.ts";
 const calm = () => ViewSnapshotSchema.parse(JSON.parse(calmRaw));

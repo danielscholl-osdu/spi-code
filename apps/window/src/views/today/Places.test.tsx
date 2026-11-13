@@ -7,13 +7,16 @@ import { type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
-import bad from "../../../../../fixtures/watch/snapshot-bad.json?raw";
-import busy from "../../../../../fixtures/watch/snapshot-busy.json?raw";
-import calm from "../../../../../fixtures/watch/snapshot-calm.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { widthBudget } from "../../app/width-budget.js";
 import { selectionStore } from "../../panels/selection.js";
+import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { clockTime, timedText } from "../../time.js";
 import { Places } from "./Places.js";
+
+const bad = watchFixtureText("snapshot-bad.json", readFixture);
+const busy = watchFixtureText("snapshot-busy.json", readFixture);
+const calm = watchFixtureText("snapshot-calm.json", readFixture);
 
 const mornings = { calm, busy, bad };
 const cleanups: (() => Promise<void>)[] = [];

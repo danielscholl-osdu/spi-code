@@ -1,9 +1,10 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
+import { watchFixtures } from "../../../scripts/watch-generated.mjs";
 import { attentionOf, LEAD_TIME_MS } from "../src/attention.js";
 import { buildBriefing, type FocusItem } from "../src/brief/index.js";
 import { builtInFleet, fleetOf } from "../src/config.js";
@@ -731,16 +732,13 @@ describe("placeReading", () => {
 
 describe("Watch snapshot qualifiers", () => {
   it("keeps the internal word cut out of every emitted qualifier", () => {
-    const root = new URL("../../../fixtures/watch/", import.meta.url);
-    const snapshots = readdirSync(root).filter(
-      (name) => name.startsWith("snapshot") && name.endsWith(".json"),
-    );
+    const snapshots = watchFixtures().filter(({ name }) => name.startsWith("snapshot"));
     expect(snapshots.length).toBeGreaterThan(0);
     let qualifiers = 0;
-    for (const name of snapshots) {
+    for (const { name, path } of snapshots) {
       const snapshot: {
         readings: { anchor: unknown; content: PlaceReading<ReadingItem> | null }[];
-      } = JSON.parse(readFileSync(new URL(name, root), "utf8"));
+      } = JSON.parse(readFileSync(path, "utf8"));
       expect(snapshot.readings.length, name).toBeGreaterThan(0);
       for (const { anchor, content } of snapshot.readings) {
         if (!content?.qualifier) continue;

@@ -1,10 +1,10 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { type Envelope, ViewSnapshotSchema } from "@spi-code/contracts";
 import { describe, expect, it } from "vitest";
+import { readFixture } from "../../../../scripts/watch-generated.mjs";
+import { watchFixtureText } from "../test-utils/watch-fixtures.test-helper.js";
 import {
   areaEnvelope,
   type Evidence,
@@ -14,7 +14,7 @@ import {
 } from "./evidence.js";
 
 const mixed = ViewSnapshotSchema.parse(
-  JSON.parse(readFileSync(resolve("fixtures/watch/snapshot-mixed-59d6895.json"), "utf8")),
+  JSON.parse(watchFixtureText("snapshot-mixed-59d6895.json", readFixture)),
 );
 
 const deployability = "/briefing/environment/facts/1/figure";

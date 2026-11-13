@@ -10,14 +10,17 @@ import {
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import recorded from "../../../../../fixtures/watch/snapshot-59d6895.json?raw";
 import current from "../../../../../fixtures/watch/snapshot-1106.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import type { Route } from "../../app/routes.js";
 import { PINS_STORAGE_KEY, pin, unpin } from "../../store/pins.js";
 import { createWatchStore } from "../../store/watch.js";
+import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { COLLAPSE_STORAGE_KEY, isCollapsed } from "./collapse.js";
 import { ProgramSidebar } from "./ProgramSidebar.js";
 import { SidebarProvider } from "./ui-sidebar.js";
+
+const recorded = watchFixtureText("snapshot-59d6895.json", readFixture);
 
 let container: HTMLDivElement;
 let root: Root;

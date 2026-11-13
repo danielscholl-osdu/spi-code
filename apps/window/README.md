@@ -30,7 +30,7 @@ reload. Quiet service rows fold into one expandable line. Detected campaign chip
 filter to their member forks, with membership in a separate column; selecting the
 chip again clears the filter. Station glyphs name their typed sub-state, and cells
 open their own Detail reading. The campaign filter test uses the recorded
-`CodeQL: java/log-injection` campaign in `fixtures/watch/snapshot-59d6895.json`,
+`CodeQL: java/log-injection` campaign in `fixtures/watch/generated/snapshot-59d6895.json`,
 whose member forks are file, partition and schema.
 
 The Zustand Watch store keeps the highest snapshot cursor and the latest cursorless

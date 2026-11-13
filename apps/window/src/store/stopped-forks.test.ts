@@ -1,9 +1,10 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readFileSync } from "node:fs";
 import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { expect, test } from "vitest";
+import { readFixture } from "../../../../scripts/watch-generated.mjs";
+import { watchFixtureText } from "../test-utils/watch-fixtures.test-helper.js";
 import { selectStrip } from "./strip.js";
 
 test.each([
@@ -13,9 +14,7 @@ test.each([
   "snapshot-1106-unread.json",
   "snapshot-1106-unverified.json",
 ])("%s gives Today and the strip the same stopped forks", (file) => {
-  const snapshot = ViewSnapshotSchema.parse(
-    JSON.parse(readFileSync(`fixtures/watch/${file}`, "utf8")),
-  );
+  const snapshot = ViewSnapshotSchema.parse(JSON.parse(watchFixtureText(file, readFixture)));
   const { stopped, pips } = selectStrip(snapshot);
   const tile = snapshot.briefing.facts.find(({ label }) => label === "Upstream sync");
   expect(tile?.figure).toBe(`${stopped.length} of ${pips.length}`);
@@ -34,9 +33,7 @@ test.each([
   "snapshot-1106-unread.json",
   "snapshot-1106-unverified.json",
 ])("%s gives the verdict and the strip the same stopped count", (file) => {
-  const snapshot = ViewSnapshotSchema.parse(
-    JSON.parse(readFileSync(`fixtures/watch/${file}`, "utf8")),
-  );
+  const snapshot = ViewSnapshotSchema.parse(JSON.parse(watchFixtureText(file, readFixture)));
   const { stopped, pips } = selectStrip(snapshot);
   const text = snapshot.briefing.verdict?.text ?? "";
   const named = /\b(\d+) forks? (?:is|are) stopped\b/.exec(text)?.[1];

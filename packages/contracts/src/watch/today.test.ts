@@ -1,9 +1,10 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { watchFixtures } from "../../../../scripts/watch-generated.mjs";
 import { LifecycleLaneSchema } from "./briefing.js";
 import { InspectResultSchema } from "./inspect.js";
 import { ViewSnapshotSchema } from "./snapshot.js";
@@ -490,14 +491,16 @@ describe("Today's contract", () => {
 });
 
 describe("existing Watch fixtures", () => {
-  const names = readdirSync(dir).filter((name) => name.endsWith(".json"));
+  const fixtures = watchFixtures();
+  const names = fixtures.map(({ name }) => name);
   it("include snapshots and inspect feeds", () => {
     expect(names.some((name) => name.startsWith("snapshot-"))).toBe(true);
     expect(names.some((name) => name.startsWith("inspect-"))).toBe(true);
   });
   it.each(names)("still parse: %s", (name) => {
     const schema = name.startsWith("inspect-") ? z.array(InspectResultSchema) : ViewSnapshotSchema;
-    expect(schema.safeParse(read(name)).error).toBeUndefined();
+    const { path } = fixtures.find((fixture) => fixture.name === name) ?? { path: "" };
+    expect(schema.safeParse(JSON.parse(readFileSync(path, "utf8"))).error).toBeUndefined();
   });
 });
 

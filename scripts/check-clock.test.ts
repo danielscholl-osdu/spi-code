@@ -124,7 +124,8 @@ it.each(["2040-01-01T00:00:00.998Z", "2040-01-01T00:00:00.999Z"])(
         join(directory, "run-vitest.mjs"),
         `${header}
 import { spawnSync } from "node:child_process";
-const result = spawnSync(process.execPath, [...${JSON.stringify(args)}, "--outputFile.json=" + process.argv[2]], { stdio: "inherit" });
+const report = process.env.SPI_TEST_CLOCK_SHIFT === "1" ? "test.json" : "check.json";
+const result = spawnSync(process.execPath, [...${JSON.stringify(args)}, "--outputFile.json=" + report], { stdio: "inherit" });
 if (result.error) throw result.error;
 if (result.status === null) throw new Error("Vitest terminated by signal " + result.signal);
 process.exitCode = result.status;
@@ -135,13 +136,16 @@ process.exitCode = result.status;
         join(directory, "scripts/third-party-notices.mjs"),
         `${header}\nconsole.log("third-party notices: fixture stub ran");\n`,
       );
+      writeFileSync(join(directory, "scripts/watch-generated.mjs"), `${header}\n`);
       writeFileSync(
         join(directory, "package.json"),
         JSON.stringify({
           type: "module",
           scripts: {
-            check: "node run-vitest.mjs check.json",
-            test: "node run-vitest.mjs test.json",
+            lint: "node -e 0",
+            typecheck: "node -e 0",
+            test: "node run-vitest.mjs",
+            "check:headers": "node -e 0",
           },
         }),
       );

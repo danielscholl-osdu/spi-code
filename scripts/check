@@ -44,6 +44,7 @@ if [[ -f package.json ]]; then
     pnpm run lint
     pnpm run typecheck
     pnpm run check:headers
+    node scripts/watch-generated.mjs
     changed=$({ git diff --name-only "$base"; git ls-files --others --exclude-standard; } | sort -u)
     # Vitest follows imports. It does not follow one package into another's built output, a
     # fixture, or a script a test reads from disk, so those projects run whole, and the
@@ -88,14 +89,18 @@ if [[ -f package.json ]]; then
   if [[ -n ${SPI_CHECK_REPORT_DIR:-} ]]; then
     mkdir -p "$SPI_CHECK_REPORT_DIR"
     report=(--reporter=default --reporter=json)
-    # The steps of `pnpm run check`, spelled out so the test step can take the reporter.
-    pnpm run lint
-    pnpm run typecheck
-    pnpm run test "${report[@]}" "--outputFile.json=$SPI_CHECK_REPORT_DIR/pass-1.json"
-    pnpm run check:headers
-  else
-    pnpm run check
   fi
+  # The steps of `pnpm run check`, spelled out so the watch fixtures are generated from the
+  # typechecked build before the tests, and the test step can take the reporter.
+  pnpm run lint
+  pnpm run typecheck
+  node scripts/watch-generated.mjs
+  if ((${#report[@]})); then
+    pnpm run test "${report[@]}" "--outputFile.json=$SPI_CHECK_REPORT_DIR/pass-1.json"
+  else
+    pnpm run test
+  fi
+  pnpm run check:headers
   # A second zone too, so a test that only passes in this machine's zone fails here, not in CI.
   zone=UTC
   if [[ $(node -e 'process.stdout.write(String(new Date().getTimezoneOffset()))') == 0 ]]; then

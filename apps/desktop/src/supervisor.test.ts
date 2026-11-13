@@ -27,6 +27,7 @@ import { expect, it, vi } from "vitest";
 import { createLeaseStore } from "../../../packages/host/src/store/leases.js";
 import { createSnapshotStore } from "../../../packages/host/src/store/snapshots.js";
 import { openRunStore } from "../../../packages/host/src/store/store.js";
+import { readGenerated } from "../../../scripts/watch-generated.mjs";
 import { HostSupervisor, hostPortCallbacks } from "./supervisor.js";
 
 function assertFreshBuild(directory: string) {
@@ -602,14 +603,7 @@ it("SIGKILLs the real host, resumes the same window store from its cursor, and p
   const lease = createLeaseStore(db).acquire(fleet, "test", 60000, 0);
   if (lease === undefined) throw new Error("Missing test lease");
   const snapshots = createSnapshotStore(db);
-  const envelope = ViewSnapshotSchema.parse(
-    JSON.parse(
-      readFileSync(
-        new URL("../../../fixtures/watch/snapshot-59d6895.json", import.meta.url),
-        "utf8",
-      ),
-    ),
-  );
+  const envelope = ViewSnapshotSchema.parse(JSON.parse(readGenerated("snapshot-59d6895.json")));
   const write = () =>
     snapshots.writeSnapshot({ fleet, owner: "test", fence: lease }, {}, envelope, 0);
   const firstCursor = write();

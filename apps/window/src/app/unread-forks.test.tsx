@@ -1,17 +1,17 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readFileSync } from "node:fs";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi, type SnapshotName } from "../test-utils/harness.js";
 import { closeSheet } from "./navigation.js";
 import { Shell } from "./Shell.js";
 
-const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
+const loadFixture = fixtureLoader(readFixture);
 
 const november6 = "snapshot-1106.json" as const;
 const unread = "snapshot-1106-unread.json" as const;

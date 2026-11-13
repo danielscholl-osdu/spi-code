@@ -178,7 +178,7 @@ describe("landing gates", () => {
       const repo = fixture();
       repo.commit("docs: update fixture");
       repo.review(passedAt(repo.reviewHead()));
-      const head = repo.write("bead", "fixtures/watch/snapshot-calm.json", "{}\n");
+      const head = repo.write("bead", "fixtures/watch/snapshot-1106.json", "{}\n");
 
       expectLanded(repo, repo.land(), head);
       expect(repo.checkRuns()).toBe(1);

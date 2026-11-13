@@ -6,13 +6,16 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import oldRaw from "../../../../../fixtures/watch/snapshot-1106.json?raw";
-import badRaw from "../../../../../fixtures/watch/snapshot-bad.json?raw";
-import busyRaw from "../../../../../fixtures/watch/snapshot-busy.json?raw";
-import calmRaw from "../../../../../fixtures/watch/snapshot-calm.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { createSelectionStore } from "../../panels/selection.js";
 import { createWatchStore } from "../../store/watch.js";
+import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { clockTime } from "../../time.js";
 import Today from "./index.js";
+
+const badRaw = watchFixtureText("snapshot-bad.json", readFixture);
+const busyRaw = watchFixtureText("snapshot-busy.json", readFixture);
+const calmRaw = watchFixtureText("snapshot-calm.json", readFixture);
 
 const bodies = { busy: busyRaw, calm: calmRaw, bad: badRaw, owed: oldRaw };
 const morning = (name: keyof typeof bodies) => ViewSnapshotSchema.parse(JSON.parse(bodies[name]));

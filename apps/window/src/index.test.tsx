@@ -1,15 +1,15 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readFileSync } from "node:fs";
 import { type Message, PROTOCOL_VERSION } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { expect, it, vi } from "vitest";
+import { readFixture } from "../../../scripts/watch-generated.mjs";
 import type { Route } from "./app/routes.js";
 import { fixtureLoader, installSpi } from "./test-utils/harness.js";
 
-const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
+const loadFixture = fixtureLoader(readFixture);
 
 vi.mock("react-dom/client", async (importOriginal) => {
   const original = await importOriginal<typeof import("react-dom/client")>();

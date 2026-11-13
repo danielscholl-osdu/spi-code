@@ -1,7 +1,6 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readFileSync } from "node:fs";
 import {
   BriefingSchema,
   type InspectResult,
@@ -26,6 +25,7 @@ import POLICY from "../../../../fixtures/rib-59d6895/oracle/inspect/POLICY.json?
 import TEST from "../../../../fixtures/rib-59d6895/oracle/inspect/TEST.json?raw";
 import TOOLCHAIN from "../../../../fixtures/rib-59d6895/oracle/inspect/TOOLCHAIN.json?raw";
 import UNREAD from "../../../../fixtures/rib-59d6895/oracle/inspect/UNREAD.json?raw";
+import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import { expectNoEvidenceMarks } from "../components/evidence/marks.test-helper.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import { clockTime } from "../time.js";
@@ -34,7 +34,7 @@ import { createSelectionStore, type SelectionStore } from "./selection.js";
 import { runRow, type SelectionKind, type SelectionRow, selectionRows } from "./selection-rows.js";
 import { inspectFromOracle, type OracleBoard, oracleClass, oracleNext } from "./test-inspect.js";
 
-const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
+const loadFixture = fixtureLoader(readFixture);
 
 const oracle: Record<string, OracleBoard> = Object.fromEntries(
   Object.entries({

@@ -5,14 +5,17 @@ import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import recorded from "../../../../../fixtures/watch/snapshot-59d6895.json?raw";
 import november6 from "../../../../../fixtures/watch/snapshot-1106.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { closeSheet, navigate, openSheet, type Route, routeHash } from "../../app/navigation.js";
 import { DEFAULT_REGISTRY } from "../../app/routes.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { PINS_STORAGE_KEY, readPins } from "../../store/pins.js";
 import { watchStore } from "../../store/watch.js";
+import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
+
+const recorded = watchFixtureText("snapshot-59d6895.json", readFixture);
 
 const recording = () => ViewSnapshotSchema.parse(JSON.parse(recorded));
 const NOVEMBER_6_NEEDING = [

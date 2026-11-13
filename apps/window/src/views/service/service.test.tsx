@@ -7,16 +7,19 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useStore } from "zustand";
 import HALT from "../../../../../fixtures/rib-59d6895/oracle/inspect/HALT.json?raw";
-import mixed from "../../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { RightPanel } from "../../panels/RightPanel.js";
 import { createSelectionStore, type SelectionStore } from "../../panels/selection.js";
 import { selectionRows } from "../../panels/selection-rows.js";
 import { inspectFromOracle, type OracleBoard } from "../../panels/test-inspect.js";
 import { mixedSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore, watchStore } from "../../store/watch.js";
+import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { clockTime } from "../../time.js";
 import Environment from "../environment/index.js";
 import ServicePage from "./index.js";
+
+const mixed = watchFixtureText("snapshot-mixed-59d6895.json", readFixture);
 
 const SERVICE = "entitlements";
 const container = document.createElement("div");

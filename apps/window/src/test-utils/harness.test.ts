@@ -6,11 +6,12 @@ import * as ts from "typescript/unstable/ast";
 import { createVirtualFileSystem } from "typescript/unstable/fs";
 import { API } from "typescript/unstable/sync";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import { directoryPaths } from "./directory-paths.test.js";
 import { fixtureLoader, installSpi, stubActEnvironment } from "./harness.js";
 import { WATCH_INSPECTIONS, WATCH_SNAPSHOTS } from "./watch-fixtures.test-helper.js";
 
-const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
+const loadFixture = fixtureLoader(readFixture);
 
 const deferred = [
   "components/evidence/sweep-header.test.tsx",
@@ -139,6 +140,21 @@ it("passes the named repository path to the fixture reader", () => {
   const read = vi.fn((path: string) => readFileSync(path, "utf8"));
   expect(loadFixture("snapshot-1106.json", read)).toEqual(loadFixture("snapshot-1106.json"));
   expect(read).toHaveBeenCalledExactlyOnceWith("fixtures/watch/snapshot-1106.json");
+});
+
+it("reads a generated snapshot from fixtures/watch/generated", () => {
+  const read = vi.fn(readFixture);
+  expect(loadFixture("snapshot-calm.json", read).cursor).toBeGreaterThan(0);
+  expect(read).toHaveBeenCalledExactlyOnceWith("fixtures/watch/generated/snapshot-calm.json");
+});
+
+it("names the generator when a generated snapshot cannot be read", () => {
+  const missing = () => {
+    throw new Error("ENOENT");
+  };
+  expect(() => loadFixture("snapshot-calm.json", missing)).toThrow(
+    "pnpm build && node scripts/watch-generated.mjs",
+  );
 });
 
 const previous = window.spi;

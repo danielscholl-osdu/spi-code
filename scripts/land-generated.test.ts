@@ -20,12 +20,19 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { watchOutputs } from "../packages/host/test/watch/outputs.js";
+import { GENERATED } from "./watch-generated.mjs";
 import { staleBuild } from "./watch-snapshot.mjs";
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 const generator = fileURLToPath(new URL("./watch-snapshot.mjs", import.meta.url));
 const tsc = fileURLToPath(new URL("../node_modules/typescript/bin/tsc", import.meta.url));
 const manifest = [...new Set(watchOutputs.map(({ path }) => path))].sort();
+const repository = fileURLToPath(new URL("../", import.meta.url));
+const committed = (paths: readonly string[]) =>
+  execFileSync("git", ["ls-files", "--", ...paths], { cwd: repository, encoding: "utf8" })
+    .split("\n")
+    .filter(Boolean)
+    .sort();
 
 const directories: string[] = [];
 afterEach(() => {
@@ -47,11 +54,23 @@ const filesUnder = (root: string) =>
     )
     .sort();
 
-it("lets land without review exactly the files the watch fixture manifest names", () => {
+it("lets land without review exactly the committed files the watch fixture manifest names", () => {
   const unreviewed = /generated=\(\n([^)]*)\)/.exec(read("./land"))?.[1]?.trim().split(/\s+/);
 
-  expect(manifest.length).toBeGreaterThan(0);
-  expect(unreviewed).toEqual(manifest);
+  expect(committed(manifest).length).toBeGreaterThan(0);
+  expect(unreviewed).toEqual(committed(manifest));
+});
+
+it("writes every manifest file it does not commit into the git-ignored generated folder", () => {
+  const uncommitted = manifest.filter((path) => !committed(manifest).includes(path));
+  const ignored = spawnSync("git", ["check-ignore", "--no-index", "--", ...uncommitted], {
+    cwd: repository,
+    encoding: "utf8",
+  });
+
+  expect(uncommitted.length).toBeGreaterThan(0);
+  for (const path of uncommitted) expect(path.startsWith(`${GENERATED}/`), path).toBe(true);
+  expect(ignored.stdout.split("\n").filter(Boolean).sort()).toEqual(uncommitted);
 });
 
 it("writes exactly the files in the manifest", () => {

@@ -1,9 +1,9 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readdirSync, readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { watchFixtures } from "../../../scripts/watch-generated.mjs";
 import { buildBriefing } from "../src/brief/index.js";
 import { builtInFleet, fleetOf } from "../src/config.js";
 import { createContext } from "../src/context.js";
@@ -18,11 +18,10 @@ import {
 import { parseRollout } from "../src/rollout.js";
 import { UPSTREAM_NOW, UPSTREAM_SERVICES, UPSTREAM_STATES } from "./upstream-states.js";
 
-const root = fileURLToPath(new URL("../../../fixtures/watch/", import.meta.url));
-const fixtures = readdirSync(root)
-  .filter((name) => name.endsWith(".json"))
-  .sort()
-  .map((name) => ({ name, body: JSON.parse(readFileSync(`${root}${name}`, "utf8")) as unknown }));
+const fixtures = watchFixtures().map(({ name, path }) => ({
+  name,
+  body: JSON.parse(readFileSync(path, "utf8")) as unknown,
+}));
 
 // Fields the window draws only in Detail or as read evidence.
 const DETAIL = new Set(["detail", "evidence", "envelope", "reads", "provenance"]);

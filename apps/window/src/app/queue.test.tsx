@@ -1,11 +1,11 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readFileSync } from "node:fs";
 import type { WatchItem as FocusItem } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
@@ -13,7 +13,7 @@ import { relaunch } from "./navigation.js";
 import { queueGroups } from "./queue.js";
 import { Shell } from "./Shell.js";
 
-const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
+const loadFixture = fixtureLoader(readFixture);
 
 const body = loadFixture("snapshot-59d6895.json");
 const previous = watchStore.getState();

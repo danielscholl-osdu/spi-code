@@ -26,15 +26,7 @@ command -v jq >/dev/null || die "jq is required"
 # scripts/check vouches for these files and a review does not have to cover them.
 generated=(
   fixtures/watch/inspect-1106.json
-  fixtures/watch/snapshot-1106-acknowledged.json
-  fixtures/watch/snapshot-1106-unread.json
-  fixtures/watch/snapshot-1106-unverified.json
   fixtures/watch/snapshot-1106.json
-  fixtures/watch/snapshot-59d6895.json
-  fixtures/watch/snapshot-bad.json
-  fixtures/watch/snapshot-busy.json
-  fixtures/watch/snapshot-calm.json
-  fixtures/watch/snapshot-mixed-59d6895.json
 )
 
 root=$(git worktree list --porcelain | sed -n '1s/^worktree //p')

@@ -5,10 +5,13 @@ import { PROTOCOL_VERSION, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
-import recorded from "../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
+import { readFixture } from "../../../../scripts/watch-generated.mjs";
+import { watchFixtureText } from "../test-utils/watch-fixtures.test-helper.js";
 import { createSelectionStore, type SelectionStore } from "./selection.js";
 import { routeSelectionIds, type SelectionRow, selectionRows } from "./selection-rows.js";
 import { useSelectionList } from "./useSelectionList.js";
+
+const recorded = watchFixtureText("snapshot-mixed-59d6895.json", readFixture);
 
 const snapshot = ViewSnapshotSchema.parse(JSON.parse(recorded));
 

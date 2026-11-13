@@ -403,7 +403,7 @@ export async function captureSmokeViews(
 ): Promise<SmokeShot[]> {
   const snapshot = ViewSnapshotSchema.parse(JSON.parse(readFileSync(fixturePath, "utf8")));
   const acknowledged = ViewSnapshotSchema.parse(
-    JSON.parse(readFileSync(join(dirname(fixturePath), ACKNOWLEDGED_FIXTURE), "utf8")),
+    JSON.parse(readFileSync(join(dirname(fixturePath), "generated", ACKNOWLEDGED_FIXTURE), "utf8")),
   );
   assert(
     acknowledged.sweptAt === snapshot.sweptAt && acknowledged.cursor > snapshot.cursor,

@@ -6,8 +6,8 @@ import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useStore } from "zustand";
-import earlier from "../../../../../fixtures/watch/snapshot-59d6895.json?raw";
 import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { Shell } from "../../app/Shell.js";
 import { RightPanel } from "../../panels/RightPanel.js";
 import {
@@ -17,8 +17,11 @@ import {
 } from "../../panels/selection.js";
 import { selectionRows } from "../../panels/selection-rows.js";
 import { createWatchStore, watchStore } from "../../store/watch.js";
+import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { timedText } from "../../time.js";
 import Template from "./index.js";
+
+const earlier = watchFixtureText("snapshot-59d6895.json", readFixture);
 
 const snapshot = () => ViewSnapshotSchema.parse(JSON.parse(recorded));
 const previous = watchStore.getState();

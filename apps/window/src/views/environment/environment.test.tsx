@@ -13,7 +13,7 @@ import placement from "../../../../../fixtures/rib-59d6895/oracle/environment-pl
 import envInspect from "../../../../../fixtures/rib-59d6895/oracle/inspect/ENV.json?raw";
 import releases from "../../../../../fixtures/rib-59d6895/oracle/releases.json?raw";
 import recorded from "../../../../../fixtures/watch/snapshot-1106.json?raw";
-import mixed from "../../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import {
   expectEvidenceMarks,
   expectNoEvidenceMarks,
@@ -24,10 +24,13 @@ import { routeSelectionIds, selectionRows } from "../../panels/selection-rows.js
 import { inspectFromOracle, type OracleBoard } from "../../panels/test-inspect.js";
 import { mixedSnapshot, testSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore } from "../../store/watch.js";
+import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { timedText } from "../../time.js";
 import Environment from "./index.js";
 import { runningFactHome } from "./running-fact.js";
 import { eventWhen, hourTicks, place } from "./timeline.js";
+
+const mixed = watchFixtureText("snapshot-mixed-59d6895.json", readFixture);
 
 const snapshot = testSnapshot(briefing, releases);
 const environmentStyles = readFileSync(

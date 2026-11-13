@@ -1,8 +1,8 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
+import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import {
   RELEASES_QUIET,
   TODAY_RELEASES,
@@ -21,7 +21,7 @@ import {
   shellHooks,
 } from "./reachability-shell.test-helper.js";
 
-shellHooks((path) => readFileSync(path, "utf8"));
+shellHooks(readFixture);
 
 describe("Today's Releases block, on every morning", () => {
   const MORNINGS = {

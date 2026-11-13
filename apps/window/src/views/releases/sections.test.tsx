@@ -6,15 +6,18 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import november from "../../../../../fixtures/watch/snapshot-1106.json?raw";
-import busy from "../../../../../fixtures/watch/snapshot-busy.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { navigate, parseRoute, routeHash } from "../../app/navigation.js";
 import { type Home, PENDING } from "../../app/reachability.test-helper.js";
 import { RouteView } from "../../app/routes.js";
 import { selectionStore } from "../../panels/selection.js";
 import { watchStore } from "../../store/watch.js";
+import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { FORMING_RELEASES_ANCHOR, SHARED_COMPONENTS_ANCHOR } from "./anchors.js";
 import Releases from "./index.js";
 import { releaseSectionCases } from "./reachability.test-helper.js";
+
+const busy = watchFixtureText("snapshot-busy.json", readFixture);
 
 let container: HTMLDivElement;
 let root: Root;

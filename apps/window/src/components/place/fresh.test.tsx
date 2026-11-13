@@ -5,16 +5,19 @@ import { type PlaceRow, ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import busy from "../../../../../fixtures/watch/snapshot-busy.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { closeSheet, navigate } from "../../app/navigation.js";
 import { placeFreshCases, placeReachCases } from "../../app/place-reachability.test-helper.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { watchStore } from "../../store/watch.js";
+import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import Environment from "../../views/environment/index.js";
 import Line from "../../views/line/index.js";
 import Security from "../../views/security/index.js";
 import Template from "../../views/template/index.js";
+
+const busy = watchFixtureText("snapshot-busy.json", readFixture);
 
 const previous = watchStore.getState();
 const container = document.createElement("div");

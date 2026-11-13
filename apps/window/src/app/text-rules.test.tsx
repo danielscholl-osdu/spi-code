@@ -1,9 +1,9 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readFileSync } from "node:fs";
 import { act } from "react";
 import { expect, it, vi } from "vitest";
+import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
 import {
@@ -31,7 +31,7 @@ const sweepSchedule = {
   releasesMs: 3_600_000,
 };
 
-const read: Read = (path) => readFileSync(path, "utf8");
+const read: Read = readFixture;
 const snapshots = WATCH_SNAPSHOTS.map((name) => watchSnapshot(name, read));
 const inspections = watchInspections(read);
 

@@ -10,6 +10,9 @@
 
 .DS_Store
 
+# Watch fixtures scripts/watch-generated.mjs writes before tests and packaging
+fixtures/watch/generated/
+
 # Dependencies and TypeScript output
 node_modules/
 dist/

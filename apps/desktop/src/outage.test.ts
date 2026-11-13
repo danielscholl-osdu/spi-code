@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 import { EventEmitter } from "node:events";
-import { readFileSync } from "node:fs";
 import {
   type Message,
   PROTOCOL_VERSION,
@@ -31,6 +30,7 @@ vi.mock("electron", () => ({
   },
 }));
 
+import { readGenerated } from "../../../scripts/watch-generated.mjs";
 import { createOutageNotifications, STALL_MS } from "./outage.js";
 
 const MINUTE = 60_000;
@@ -50,11 +50,7 @@ afterEach(() => vi.useRealTimers());
 const event = (type: string, payload: unknown) =>
   ({ version: PROTOCOL_VERSION, id: `${type}-1`, kind: "event", type, payload }) as Message;
 
-const fixture = ViewSnapshotSchema.parse(
-  JSON.parse(
-    readFileSync(new URL("../../../fixtures/watch/snapshot-59d6895.json", import.meta.url), "utf8"),
-  ),
-);
+const fixture = ViewSnapshotSchema.parse(JSON.parse(readGenerated("snapshot-59d6895.json")));
 const snapshot = (sweptAt: number, cursor = 1) =>
   event("view.snapshot", { ...fixture, cursor, sweptAt: iso(sweptAt) });
 

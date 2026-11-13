@@ -12,7 +12,9 @@ it("keeps oracle inputs on clock text beside the app snapshot path", async () =>
   const app = appStyle(input);
   expect(app.context.timeStyle).toBe("instant");
   expect(input.context.timeStyle).toBe("clock");
-  const output = watchOutputs.find(({ path }) => path === "fixtures/watch/snapshot-59d6895.json");
+  const output = watchOutputs.find(
+    ({ path }) => path === "fixtures/watch/generated/snapshot-59d6895.json",
+  );
   expect(output).toBeDefined();
   const saved = await output?.value();
   expect(saved).toEqual(projectWatch(app));

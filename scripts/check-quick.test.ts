@@ -64,6 +64,10 @@ if (process.env.RECORD_FAILS && process.env.RECORD_FAILS === process.argv[2]) pr
   );
   writeFileSync(join(directory, "scripts/third-party-notices.mjs"), 'import "../record.mjs";\n');
   writeFileSync(
+    join(directory, "scripts/watch-generated.mjs"),
+    'process.argv[2] = "watch-generated";\nawait import("../record.mjs");\n',
+  );
+  writeFileSync(
     join(directory, "package.json"),
     JSON.stringify({
       type: "module",
@@ -134,6 +138,7 @@ it("--quick lints, typechecks, checks headers and runs once the tests the diff a
     { args: ["lint"], shifted: "" },
     { args: ["typecheck"], shifted: "" },
     { args: ["check:headers"], shifted: "" },
+    { args: ["watch-generated"], shifted: "" },
     { args: ["test", "--changed", repo.base, "--passWithNoTests"], shifted: "" },
   ]);
   expect(result.stdout).toContain("CI runs every test");
@@ -150,7 +155,7 @@ it("--quick runs the scripts project whole for a changed script, and the test be
   const result = repo.check("--quick");
 
   expect(result.status, result.stdout + result.stderr).toBe(0);
-  expect(repo.calls().slice(3)).toEqual([
+  expect(repo.calls().slice(4)).toEqual([
     { args: ["test", "--project", "scripts"], shifted: "" },
     { args: ["test", "styles/panel.test.ts"], shifted: "" },
   ]);
@@ -170,7 +175,7 @@ it("--quick runs whole the packages that depend on a changed one", () => {
   const result = repo.check("--quick");
 
   expect(result.status, result.stdout + result.stderr).toBe(0);
-  expect(repo.calls().slice(3)).toEqual([
+  expect(repo.calls().slice(4)).toEqual([
     {
       args: [
         "test",
@@ -197,11 +202,30 @@ it("with no option runs the whole check, the shifted pass and the notices", () =
 
   expect(result.status, result.stdout + result.stderr).toBe(0);
   expect(repo.calls()).toEqual([
-    { args: ["check"], shifted: "" },
+    { args: ["lint"], shifted: "" },
+    { args: ["typecheck"], shifted: "" },
+    { args: ["watch-generated"], shifted: "" },
+    { args: ["test"], shifted: "" },
+    { args: ["check:headers"], shifted: "" },
     { args: ["test"], shifted: "1" },
     { args: [], shifted: "" },
   ]);
 }, 90_000);
+
+it.each([[[]], [["--quick"]]])(
+  "with options %j fails before any test when the watch fixtures cannot be generated",
+  (args) => {
+    const repo = fixture();
+    repo.write("scripts/tool.ts");
+    repo.commit();
+
+    const result = repo.checkWith({ RECORD_FAILS: "watch-generated" }, ...args);
+
+    expect(result.status, result.stdout + result.stderr).not.toBe(0);
+    expect(repo.calls().filter((call) => call.args[0] === "test")).toEqual([]);
+  },
+  90_000,
+);
 
 it("refuses an option it does not know, before running anything", () => {
   const repo = fixture();
@@ -266,6 +290,7 @@ it("with a report directory runs the same steps in the same order, with a JSON r
   expect(repo.calls()).toEqual([
     { args: ["lint"], shifted: "" },
     { args: ["typecheck"], shifted: "" },
+    { args: ["watch-generated"], shifted: "" },
     { args: reporter(1), shifted: "" },
     { args: ["check:headers"], shifted: "" },
     { args: reporter(2), shifted: "1" },
@@ -279,7 +304,12 @@ it("still fails when a test fails under a report directory", () => {
   const result = repo.checkWith({ SPI_CHECK_REPORT_DIR: "reports", RECORD_FAILS: "test" });
 
   expect(result.status, result.stdout + result.stderr).not.toBe(0);
-  expect(repo.calls().map((call) => call.args[0])).toEqual(["lint", "typecheck", "test"]);
+  expect(repo.calls().map((call) => call.args[0])).toEqual([
+    "lint",
+    "typecheck",
+    "watch-generated",
+    "test",
+  ]);
 }, 90_000);
 
 it("spells out exactly the steps of the package's check script, so the two cannot drift", () => {

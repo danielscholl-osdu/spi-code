@@ -68,7 +68,10 @@ export async function runSmoke(
         flag >= 0
           ? process.argv[flag + 1]
           : fileURLToPath(
-              new URL(`../../../fixtures/watch/${MORNING_FIXTURES[morning]}`, import.meta.url),
+              new URL(
+                `../../../fixtures/watch/generated/${MORNING_FIXTURES[morning]}`,
+                import.meta.url,
+              ),
             );
       assert(path && !path.startsWith("--"), `Smoke views require the ${morning} morning path`);
       return [morning, path];

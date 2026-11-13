@@ -1,9 +1,9 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { readFileSync } from "node:fs";
 import { AREAS, buildModel, monthFacts, pinKey, STACK_REPO, TEMPLATE_REPO } from "@spi-code/core";
 import { describe, expect, it } from "vitest";
+import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import {
   appStyle,
   badInput,
@@ -35,7 +35,7 @@ describe("Today morning sweep inputs", () => {
     it(`${name} deterministically reproduces its saved projection`, () => {
       const view = projectWatch(appStyle(make()));
       expect(projectWatch(appStyle(make()))).toEqual(view);
-      expect(view).toEqual(JSON.parse(readFileSync(path, "utf8")));
+      expect(view).toEqual(JSON.parse(readFixture(path)));
     });
   }
 

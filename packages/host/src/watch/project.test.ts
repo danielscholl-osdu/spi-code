@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { buildBriefing, buildModel, detectCampaigns } from "@spi-code/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import {
   appStyle,
   fixtureInput,
@@ -272,11 +273,9 @@ describe("Watch projection", () => {
   }
 
   it("fails when the committed snapshot differs from a fresh projection", () => {
-    expect(projectWatch(appStyle(fixtureInput()))).toEqual(
-      JSON.parse(readFileSync(snapshotPath, "utf8")),
-    );
+    expect(projectWatch(appStyle(fixtureInput()))).toEqual(JSON.parse(readFixture(snapshotPath)));
     expect(projectWatch(appStyle(mixedFixtureInput()))).toEqual(
-      JSON.parse(readFileSync(mixedSnapshotPath, "utf8")),
+      JSON.parse(readFixture(mixedSnapshotPath)),
     );
   });
 

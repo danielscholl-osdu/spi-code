@@ -5,11 +5,14 @@ import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it } from "vitest";
-import recorded from "../../../../../fixtures/watch/snapshot-59d6895.json?raw";
 import november from "../../../../../fixtures/watch/snapshot-1106.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { RouteView } from "../../app/routes.js";
 import { watchStore } from "../../store/watch.js";
+import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import Security from "./index.js";
+
+const recorded = watchFixtureText("snapshot-59d6895.json", readFixture);
 
 const container = document.createElement("div");
 let root: ReturnType<typeof createRoot>;

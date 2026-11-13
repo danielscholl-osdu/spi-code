@@ -5,18 +5,21 @@ import { type ViewSnapshot, ViewSnapshotSchema, type WatchItem } from "@spi-code
 import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import recorded from "../../../../../fixtures/watch/snapshot-59d6895.json?raw";
 import november6 from "../../../../../fixtures/watch/snapshot-1106.json?raw";
-import bad from "../../../../../fixtures/watch/snapshot-bad.json?raw";
-import busy from "../../../../../fixtures/watch/snapshot-busy.json?raw";
-import calm from "../../../../../fixtures/watch/snapshot-calm.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { LINE } from "../../app/navigation.js";
 import { treeServices } from "../../app/queue.js";
 import { createSelectionStore } from "../../panels/selection.js";
 import { createWatchStore } from "../../store/watch.js";
+import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { timedText } from "../../time.js";
 import { AttentionBand } from "./Band.js";
 import Today from "./index.js";
+
+const recorded = watchFixtureText("snapshot-59d6895.json", readFixture);
+const bad = watchFixtureText("snapshot-bad.json", readFixture);
+const busy = watchFixtureText("snapshot-busy.json", readFixture);
+const calm = watchFixtureText("snapshot-calm.json", readFixture);
 
 const MORNINGS = {
   calm: ViewSnapshotSchema.parse(JSON.parse(calm)),

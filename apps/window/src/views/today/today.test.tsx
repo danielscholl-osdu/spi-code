@@ -12,14 +12,17 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import november6 from "../../../../../fixtures/watch/snapshot-1106.json?raw";
-import bad from "../../../../../fixtures/watch/snapshot-bad.json?raw";
-import busy from "../../../../../fixtures/watch/snapshot-busy.json?raw";
-import calm from "../../../../../fixtures/watch/snapshot-calm.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { SLOT_STATES } from "../../components/kit/Slot.js";
 import { createSelectionStore } from "../../panels/selection.js";
 import { createWatchStore } from "../../store/watch.js";
+import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { clockTime, dayLine } from "../../time.js";
 import Today from "./index.js";
+
+const bad = watchFixtureText("snapshot-bad.json", readFixture);
+const busy = watchFixtureText("snapshot-busy.json", readFixture);
+const calm = watchFixtureText("snapshot-calm.json", readFixture);
 
 const MORNINGS = {
   calm: ViewSnapshotSchema.parse(JSON.parse(calm)),

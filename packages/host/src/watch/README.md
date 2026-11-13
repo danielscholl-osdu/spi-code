@@ -336,8 +336,12 @@ Regenerate only the Watch fixtures from the repository root:
 ```sh
 pnpm run build
 TZ=UTC node scripts/watch-snapshot.mjs
-pnpm biome check --write fixtures/watch/snapshot-59d6895.json fixtures/watch/snapshot-mixed-59d6895.json fixtures/watch/snapshot-1106.json fixtures/watch/inspect-1106.json
+pnpm biome check --write fixtures/watch/snapshot-1106.json fixtures/watch/inspect-1106.json
 ```
+
+Only those two are committed. The other snapshots go to the git-ignored
+`fixtures/watch/generated`, which `node scripts/watch-generated.mjs` rewrites on its
+own; `scripts/check` and packaging run it before anything reads them.
 
 The mixed fixture (`mixedFixtureInput`) keeps only lifecycle reads inferred and
 marks every other area and the release reads observed, so the window's evidence

@@ -6,13 +6,16 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { useStore } from "zustand";
-import recorded from "../../../../../fixtures/watch/snapshot-59d6895.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { queueGroups, treeServices } from "../../app/queue.js";
 import { DEFAULT_REGISTRY, navigate } from "../../app/routes.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { watchStore } from "../../store/watch.js";
+import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { QueueRow } from "./QueueRow.js";
+
+const recorded = watchFixtureText("snapshot-59d6895.json", readFixture);
 
 const body = ViewSnapshotSchema.parse(JSON.parse(recorded));
 const previous = watchStore.getState();

@@ -48,4 +48,4 @@ Several agents share this machine. The full `scripts/check` runs every test twic
 - Node 22.22.0 and Bun 1.3.13, ahead of Homebrew's:
   `export PATH="$HOME/.local/share/fnm/node-versions/v22.22.0/installation/bin:$HOME/.bun/bin:$PATH"`
 - After main moves under you, run `pnpm install --frozen-lockfile` before checking.
-- Fixture regeneration: `pnpm build && TZ=UTC node scripts/watch-snapshot.mjs && pnpm biome check --write`.
+- Fixture regeneration: `pnpm build && TZ=UTC node scripts/watch-snapshot.mjs && pnpm biome check --write`. Commit only `fixtures/watch/snapshot-1106.json` and `inspect-1106.json`; the other snapshots are git-ignored in `fixtures/watch/generated`, which `scripts/check` and packaging regenerate with `node scripts/watch-generated.mjs`. Run that after `pnpm build` before a single test file that reads them.

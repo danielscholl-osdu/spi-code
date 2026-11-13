@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 import { EventEmitter } from "node:events";
-import { readFileSync } from "node:fs";
 import { AREAS, type Message, PROTOCOL_VERSION, ViewSnapshotSchema } from "@spi-code/contracts";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -36,6 +35,7 @@ vi.mock("electron", () => ({
   },
 }));
 
+import { readGenerated } from "../../../scripts/watch-generated.mjs";
 import { createSweepTray, dockBadge, trayChannel } from "./tray.js";
 
 const sweepSchedule = {
@@ -94,14 +94,7 @@ function read(
   states: ("fresh" | "stale" | "incomplete" | "failed" | "unread")[],
   sweptAt: string,
 ): Message {
-  const fixture = ViewSnapshotSchema.parse(
-    JSON.parse(
-      readFileSync(
-        new URL("../../../fixtures/watch/snapshot-59d6895.json", import.meta.url),
-        "utf8",
-      ),
-    ),
-  );
+  const fixture = ViewSnapshotSchema.parse(JSON.parse(readGenerated("snapshot-59d6895.json")));
   return {
     version: PROTOCOL_VERSION,
     id: "snapshot",

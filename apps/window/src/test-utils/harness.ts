@@ -8,7 +8,12 @@ import {
   ViewSnapshotSchema,
 } from "@spi-code/contracts";
 import { vi } from "vitest";
-import { type Read, WATCH_INSPECTIONS, WATCH_SNAPSHOTS } from "./watch-fixtures.test-helper.js";
+import {
+  type Read,
+  WATCH_INSPECTIONS,
+  WATCH_SNAPSHOTS,
+  watchFixtureText,
+} from "./watch-fixtures.test-helper.js";
 
 export function stubActEnvironment() {
   const previous = Object.getOwnPropertyDescriptor(globalThis, "IS_REACT_ACT_ENVIRONMENT");
@@ -55,7 +60,7 @@ export function fixtureLoader(read: Read) {
   function loadFixture(name: string, reader: Read = read): ViewSnapshot | InspectResult[] {
     if (![...WATCH_SNAPSHOTS, ...WATCH_INSPECTIONS].includes(name))
       throw new Error(`Unknown watch fixture: ${name}`);
-    const input: unknown = JSON.parse(reader(`fixtures/watch/${name}`));
+    const input: unknown = JSON.parse(watchFixtureText(name, reader));
     return name.startsWith("snapshot-")
       ? ViewSnapshotSchema.parse(input)
       : InspectResultSchema.array().parse(input);

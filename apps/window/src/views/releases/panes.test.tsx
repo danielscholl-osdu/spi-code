@@ -7,11 +7,14 @@ import type { NotesState } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import mixed from "../../../../../fixtures/watch/snapshot-mixed-59d6895.json?raw";
+import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import { expectNoEvidenceMarks } from "../../components/evidence/marks.test-helper.js";
 import { mixedSnapshot, testSnapshot } from "../../store/test-snapshot.js";
 import { watchStore } from "../../store/watch.js";
+import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import Releases, { ReleaseMonth } from "./index.js";
+
+const mixed = watchFixtureText("snapshot-mixed-59d6895.json", readFixture);
 
 const fixture = (name: string) =>
   readFileSync(resolve("fixtures/rib-59d6895/oracle", name), "utf8");

@@ -7,6 +7,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import actions from "../../../../fixtures/rib-59d6895/oracle/inspect-actions.json?raw";
+import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import { widthBudget } from "../app/width-budget.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import { plainTitle, sentenceCase } from "../text.js";
@@ -17,7 +18,7 @@ import { RightPanelFrame } from "./RightPanelFrame.js";
 import { createSelectionStore } from "./selection.js";
 import { routeSelectionIds, type SelectionRow, selectionRows } from "./selection-rows.js";
 
-const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
+const loadFixture = fixtureLoader(readFixture);
 
 const panelsCss = readFileSync("apps/window/src/panels/panels.css", "utf8");
 const snapshot = loadFixture("snapshot-mixed-59d6895.json");

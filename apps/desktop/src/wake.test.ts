@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 import { EventEmitter } from "node:events";
-import { readFileSync } from "node:fs";
 import {
   type Message,
   PROTOCOL_VERSION,
@@ -13,6 +12,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 vi.mock("electron", () => ({}));
 
+import { readGenerated } from "../../../scripts/watch-generated.mjs";
 import { trayChannel } from "./tray.js";
 import { WAKE_DELAY_MS, wakeSweep } from "./wake.js";
 
@@ -58,14 +58,7 @@ function status(sweepMs: number, endedAt: number | null): Message {
 }
 
 function snapshot(sweptAt: number): Message {
-  const fixture = ViewSnapshotSchema.parse(
-    JSON.parse(
-      readFileSync(
-        new URL("../../../fixtures/watch/snapshot-59d6895.json", import.meta.url),
-        "utf8",
-      ),
-    ),
-  );
+  const fixture = ViewSnapshotSchema.parse(JSON.parse(readGenerated("snapshot-59d6895.json")));
   return {
     version: PROTOCOL_VERSION,
     id: "snapshot",

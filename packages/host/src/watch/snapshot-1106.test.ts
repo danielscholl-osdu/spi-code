@@ -4,6 +4,7 @@
 import { readFileSync } from "node:fs";
 import type { ViewSnapshot } from "@spi-code/contracts";
 import { describe, expect, it } from "vitest";
+import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import {
   acknowledgedInput,
   acknowledgedSnapshotPath,
@@ -57,7 +58,7 @@ describe("the projected 6 Nov recorded sweep", () => {
 });
 
 describe("the 6 Nov sweep with five forks' GitHub reads failed", () => {
-  const unread: ViewSnapshot = JSON.parse(readFileSync(unreadSnapshotPath, "utf8"));
+  const unread: ViewSnapshot = JSON.parse(readFixture(unreadSnapshotPath));
 
   it("matches a fresh projection", () => {
     expect(projectWatch(appStyle(unreadForksInput()))).toEqual(unread);
@@ -87,7 +88,7 @@ describe("the 6 Nov sweep with five forks' GitHub reads failed", () => {
 });
 
 describe("the 6 Nov sweep with partition verified and legal merged but red on main", () => {
-  const unverified: ViewSnapshot = JSON.parse(readFileSync(unverifiedSnapshotPath, "utf8"));
+  const unverified: ViewSnapshot = JSON.parse(readFixture(unverifiedSnapshotPath));
   const reading = unverified.readings.find(({ anchor }) => anchor.kind === "engineering")?.content;
 
   it("matches a fresh projection", () => {
@@ -112,7 +113,7 @@ describe("the 6 Nov sweep with partition verified and legal merged but red on ma
 });
 
 describe("the 6 Nov sweep pushed again after its first push was acknowledged", () => {
-  const acknowledged: ViewSnapshot = JSON.parse(readFileSync(acknowledgedSnapshotPath, "utf8"));
+  const acknowledged: ViewSnapshot = JSON.parse(readFixture(acknowledgedSnapshotPath));
 
   it("matches a fresh projection", () => {
     expect(projectWatch(appStyle(acknowledgedInput()))).toEqual(acknowledged);

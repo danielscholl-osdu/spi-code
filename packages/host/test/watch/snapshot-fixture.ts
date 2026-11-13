@@ -31,7 +31,7 @@ export const fixtureRoot = fileURLToPath(
   new URL("../../../core/test/fixtures/rib-59d6895/", import.meta.url),
 );
 export const snapshotPath = fileURLToPath(
-  new URL("../../../../fixtures/watch/snapshot-59d6895.json", import.meta.url),
+  new URL("../../../../fixtures/watch/generated/snapshot-59d6895.json", import.meta.url),
 );
 
 function json<T>(path: string): T {
@@ -39,7 +39,7 @@ function json<T>(path: string): T {
 }
 
 export const mixedSnapshotPath = fileURLToPath(
-  new URL("../../../../fixtures/watch/snapshot-mixed-59d6895.json", import.meta.url),
+  new URL("../../../../fixtures/watch/generated/snapshot-mixed-59d6895.json", import.meta.url),
 );
 
 export const recordedRoot = fileURLToPath(new URL("../../../core/test/fixtures/", import.meta.url));
@@ -173,7 +173,7 @@ export function recordedInput(): WatchInput {
 }
 
 export const acknowledgedSnapshotPath = fileURLToPath(
-  new URL("../../../../fixtures/watch/snapshot-1106-acknowledged.json", import.meta.url),
+  new URL("../../../../fixtures/watch/generated/snapshot-1106-acknowledged.json", import.meta.url),
 );
 
 /**
@@ -194,7 +194,7 @@ export function acknowledgedInput(): WatchInput {
 }
 
 export const unreadSnapshotPath = fileURLToPath(
-  new URL("../../../../fixtures/watch/snapshot-1106-unread.json", import.meta.url),
+  new URL("../../../../fixtures/watch/generated/snapshot-1106-unread.json", import.meta.url),
 );
 
 export const UNREAD_FORKS = ["workflow", "indexer-queue", "unit", "crs-catalog", "crs-conversion"];
@@ -240,7 +240,7 @@ export function unreadForksInput(): WatchInput {
 }
 
 export const unverifiedSnapshotPath = fileURLToPath(
-  new URL("../../../../fixtures/watch/snapshot-1106-unverified.json", import.meta.url),
+  new URL("../../../../fixtures/watch/generated/snapshot-1106-unverified.json", import.meta.url),
 );
 
 /**
@@ -290,13 +290,13 @@ export function unverifiedForkInput(): WatchInput {
 }
 
 export const calmSnapshotPath = fileURLToPath(
-  new URL("../../../../fixtures/watch/snapshot-calm.json", import.meta.url),
+  new URL("../../../../fixtures/watch/generated/snapshot-calm.json", import.meta.url),
 );
 export const busySnapshotPath = fileURLToPath(
-  new URL("../../../../fixtures/watch/snapshot-busy.json", import.meta.url),
+  new URL("../../../../fixtures/watch/generated/snapshot-busy.json", import.meta.url),
 );
 export const badSnapshotPath = fileURLToPath(
-  new URL("../../../../fixtures/watch/snapshot-bad.json", import.meta.url),
+  new URL("../../../../fixtures/watch/generated/snapshot-bad.json", import.meta.url),
 );
 
 const MORNING_AT = "2026-11-06T14:02:00.133Z";

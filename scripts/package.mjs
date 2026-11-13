@@ -227,6 +227,13 @@ export async function packageDesktop(platform = process.platform) {
   const json = (path, value) => writeFile(path, `${JSON.stringify(value, null, 2)}\n`);
   try {
     run(["--filter", "@spi-code/desktop", "build"]);
+    // The smoke shows the morning and acknowledged snapshots, which are generated, not committed.
+    execFileSync(process.execPath, [join(root, "scripts/watch-generated.mjs")], {
+      cwd: root,
+      env,
+      stdio: "inherit",
+      timeout: 120000,
+    });
     await stageWorkspace(root, stage);
     process.stdout.write(installProductionDependencies(stage, env));
     const desktop = /** @type {Manifest} */ (
@@ -358,7 +365,7 @@ export async function packageDesktop(platform = process.platform) {
         join(root, "fixtures/watch/snapshot-1106.json"),
         ...["calm", "busy", "bad"].flatMap((morning) => [
           `--smoke-views-${morning}-fixture`,
-          join(root, `fixtures/watch/snapshot-${morning}.json`),
+          join(root, `fixtures/watch/generated/snapshot-${morning}.json`),
         ]),
         "--smoke-views-design",
         join(root, "design/spi-code-window-layout.html"),
