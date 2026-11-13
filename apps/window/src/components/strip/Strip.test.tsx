@@ -408,19 +408,27 @@ it.each([
       return body;
     },
     "forks",
+    ["template"],
   ],
-] as const)("reads not read yet in the plain tone for an %s", async (_case, change, name) => {
-  show(change(current(flowing(fixture()))));
-  await mount();
-  const state = field(name)?.querySelector(".strip-state");
-  expect(state?.textContent).toBe("not read yet");
-  expect(state?.getAttribute("data-tone")).toBe("plain");
-  expect(field(name)?.title).not.toMatch(/Ready|Current|Flowing/);
-  const others = ["environment", "template", "forks"].filter((other) => other !== name);
-  expect(others.map((other) => field(other)?.querySelector(".strip-state")?.textContent)).toEqual(
-    others.map((other) => ({ environment: "Ready", template: "Current", forks: "Flowing" })[other]),
-  );
-});
+] as const)(
+  "reads not read yet in the plain tone for an %s",
+  async (_case, change, name, quiet: readonly string[] = []) => {
+    show(change(current(flowing(fixture()))));
+    await mount();
+    const state = field(name)?.querySelector(".strip-state");
+    expect(state?.textContent).toBe("not read yet");
+    expect(state?.getAttribute("data-tone")).toBe("plain");
+    expect(field(name)?.title).not.toMatch(/Ready|Current|Flowing/);
+    const others = ["environment", "template", "forks"].filter(
+      (other) => other !== name && !quiet.includes(other),
+    );
+    expect(others.map((other) => field(other)?.querySelector(".strip-state")?.textContent)).toEqual(
+      others.map(
+        (other) => ({ environment: "Ready", template: "Current", forks: "Flowing" })[other],
+      ),
+    );
+  },
+);
 
 it("names the forks not read beside a count, and keeps a stopped fork in the count", async () => {
   const body = forks(fixture(), (service, id) =>
@@ -440,6 +448,63 @@ it("names the forks not read beside a count, and keeps a stopped fork in the cou
   expect(field("template")?.title).toBe(
     "Templates: 1 pending. Template 7d269b5 is pending on legal. Not read yet on unit.",
   );
+});
+
+it("reads a fork with no rollout slot as not read, never Current", async () => {
+  const body = current(flowing(fixture()));
+  expect(body.stations).toHaveLength(13);
+  for (const place of body.briefing.places ?? [])
+    if (place.visual?.kind === "rollout")
+      place.visual.slots = place.visual.slots.filter(({ service }) => service !== "unit");
+  show(body);
+  await mount();
+  const state = field("template")?.querySelector(".strip-state");
+  expect(state?.textContent).toBe("not read yet");
+  expect(state?.getAttribute("data-tone")).toBe("plain");
+  expect(field("template")?.title).toBe(
+    "Templates: not read yet. Template 7d269b5 was not read on unit.",
+  );
+});
+
+it("names a fork with no rollout slot beside a pending count", async () => {
+  const body = rollout(flowing(fixture()), (service) => (service === "legal" ? "empty" : "done"));
+  for (const place of body.briefing.places ?? [])
+    if (place.visual?.kind === "rollout")
+      place.visual.slots = place.visual.slots.filter(({ service }) => service !== "unit");
+  show(body);
+  await mount();
+  expect(field("template")?.title).toBe(
+    "Templates: 1 pending. Template 7d269b5 is pending on legal. Not read yet on unit.",
+  );
+});
+
+it.each([
+  ["done", "Current", "ok"],
+  ["empty", "1 pending", "warn"],
+] as const)("counts a %s slot for a service outside the fleet", async (slot, text, tone) => {
+  const body = current(flowing(fixture()));
+  for (const place of body.briefing.places ?? [])
+    if (place.visual?.kind === "rollout")
+      place.visual.slots = [
+        ...place.visual.slots,
+        { service: "retired", state: slot, text: `retired ${slot}` },
+      ];
+  show(body);
+  await mount();
+  const state = field("template")?.querySelector(".strip-state");
+  expect(state?.textContent).toBe(text);
+  expect(state?.getAttribute("data-tone")).toBe(tone);
+});
+
+it("reads Templates not read yet when the fleet is empty, though every slot is done", async () => {
+  const body = current(flowing(fixture()));
+  body.stations = [];
+  show(body);
+  await mount();
+  const state = field("template")?.querySelector(".strip-state");
+  expect(state?.textContent).toBe("not read yet");
+  expect(state?.getAttribute("data-tone")).toBe("plain");
+  expect(field("template")?.title).not.toMatch(/Current/);
 });
 
 it("draws the three state fields with no next sync when the snapshot has none", async () => {

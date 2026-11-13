@@ -109,14 +109,15 @@ function forksState(snapshot: ViewSnapshot, pips: readonly StripPip[]): StripSta
   return state("Forks", "Flowing", "ok", `All ${pips.length} forks are flowing.`);
 }
 
-function templateState(rollout: Rollout | undefined): StripState {
-  if (!rollout || rollout.slots.length === 0)
+function templateState(rollout: Rollout | undefined, fleet: readonly string[]): StripState {
+  if (!rollout || rollout.slots.length === 0 || fleet.length === 0)
     return state("Templates", NOT_READ, "plain", "The template rollout was not read.");
   const of = (...states: string[]) =>
     rollout.slots.filter(({ state }) => states.includes(state)).map(({ service }) => service);
   const failed = of("broken");
   const pending = of("empty", "occupied", "waiting");
-  const unread = of("unknown");
+  const slotted = new Set(rollout.slots.map(({ service }) => service));
+  const unread = [...of("unknown"), ...fleet.filter((service) => !slotted.has(service))];
   const target = rollout.target.slice(0, 7);
   const notRead = unread.length > 0 ? ` Not read yet on ${list(unread)}.` : "";
   const pendingOn = pending.length > 0 ? `pending on ${list(pending)}` : "";
@@ -180,7 +181,10 @@ export function selectStrip(snapshot: ViewSnapshot): StripFields {
     pips,
     stopped: pips.filter(({ state }) => state === "stopped").map(({ service }) => service),
     environment: environmentState(snapshot),
-    template: templateState(rollout?.kind === "rollout" ? rollout : undefined),
+    template: templateState(
+      rollout?.kind === "rollout" ? rollout : undefined,
+      pips.map(({ service }) => service),
+    ),
     forks: { ...forksState(snapshot, pips), services: pips.length },
   };
   const { nextSyncAt } = snapshot.briefing;

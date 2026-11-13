@@ -17,7 +17,7 @@
 :is(.strip, .strip-second) [data-tone="bad"] { color: var(--error-text); }
 :is(.strip, .strip-second) [data-tone="warn"] { color: var(--warning-text); }
 .strip-state { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 9px; line-height: 20px; color: var(--text); font-weight: 600; }
-.strip-state[data-tone="ok"] { background: color-mix(in srgb, var(--success) 16%, transparent); color: var(--success-text); }
+.strip-state[data-tone="ok"] { background: color-mix(in srgb, var(--success) 16%, var(--surface)); color: var(--success-text); }
 .strip-state[data-tone="warn"] { background: var(--warning-surface); color: var(--warning-text); }
 .strip-state[data-tone="bad"] { background: var(--error-surface); color: var(--error-text); }
 .strip-state[data-tone="plain"] { padding: 0; font-weight: 400; }
