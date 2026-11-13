@@ -17,10 +17,14 @@ const now = new Date("2026-11-06T14:02:00.133Z");
 const fleet = fleetOf(
   builtInFleet(fileURLToPath(new URL("./fixtures/upstream-services.json", import.meta.url))),
 );
-const context = (timeStyle: CoreContext["timeStyle"] = "clock") =>
+const context = (
+  timeStyle: CoreContext["timeStyle"] = "clock",
+  words: CoreContext["words"] = "boards",
+) =>
   createContext({
     fleet,
     timeStyle,
+    words,
     clock: { now: () => now },
   });
 const facts = (): Facts => ({
@@ -133,6 +137,25 @@ describe.each(["clock", "instant"] as const)("%s style", (style) => {
     expect(behind?.why).toBe(
       `8 upstream commits not yet synced; the next daily sync runs${dailySyncTime(now, ctx)}`,
     );
+  });
+
+  it("says in maintenance in the app's words, at the same time", () => {
+    const app = context(style, "app");
+    const { item, model } = maintenance(app, "2026-11-06T13:00:00Z");
+    const boards = maintenance(ctx, "2026-11-06T13:00:00Z").item;
+    expect(item.text).toBe(boards.text.replace(/^maintenance held/, "in maintenance"));
+    expect(item.cause).toEqual(boards.cause);
+    expect(maintenance(app, undefined).item.text).toBe(
+      "in maintenance with no lifecycle run in flight",
+    );
+    const focus = buildBriefing(model, { state: "clear", problems: [] }, now, app).focus.find((f) =>
+      f.ids.includes(item.id),
+    );
+    if (!focus) throw new Error("the maintenance item must reach focus");
+    expect(focus.title).toMatch(/^In maintenance since /);
+    const texts = [focus.title, focus.sub, focus.cause, ...item.cause.map((c) => c.value)];
+    for (const text of texts) expect(text).not.toMatch(/held|deployable/i);
+    if (style === "instant") noClocks([item, focus.title, focus.sub, focus.cause]);
   });
 
   it.each([undefined, "", "not-a-time"])(

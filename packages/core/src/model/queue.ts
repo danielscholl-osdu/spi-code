@@ -241,7 +241,12 @@ function stackItems(
     }
     const live = stack.inflight;
     const usual = usualText(stack.usual);
-    const state = stack.maintenance.state === "set" ? "maintenance mode" : "not deployable";
+    const state =
+      stack.maintenance.state === "set"
+        ? "maintenance mode"
+        : context.words === "app"
+          ? "not ready"
+          : "not deployable";
     const text = live
       ? `${state}; ${runName(live.run)} in ${runWhere(live) ?? "progress"} now${
           overdue(stack, now) && usual ? `, past ${usual}` : ""
@@ -287,7 +292,7 @@ function stackItems(
       kind: "maintenance",
       rung: 0,
       scope: "Environment",
-      text: `maintenance held${timeClause(stack.maintenance.since, now, context, " since ")} with no lifecycle run in flight`,
+      text: `${context.words === "app" ? "in maintenance" : "maintenance held"}${timeClause(stack.maintenance.since, now, context, " since ")} with no lifecycle run in flight`,
       since: stack.maintenance.since,
       url: stack.maintenance.run.url,
       effects: [],

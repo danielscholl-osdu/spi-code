@@ -827,6 +827,98 @@ describe("the environment", () => {
     expect(app.facts[0]?.sub).toMatch(/^readiness unread/);
     expect(app.facts[1]).toMatchObject({ label: "Ready · 21 days", sub: "no lifecycle run read" });
   });
+
+  function failedAfterClear(): Facts {
+    const facts = finished();
+    const upgrade = facts.lifecycle.data?.upgrade ?? [];
+    const green = upgrade.find((r) => r.id === IN_FLIGHT);
+    if (!green) throw new Error("fixture lost its in-flight upgrade");
+    upgrade.push({
+      ...green,
+      id: 99_000_002,
+      createdAt: "2026-10-12T22:30:00Z",
+      updatedAt: "2026-10-12T22:40:00Z",
+      conclusion: "failure",
+      jobs: undefined,
+    });
+    return facts;
+  }
+
+  function stackItemOf(facts: Facts, context = fixtureContext) {
+    const m = buildModel(facts, FIXTURE_NOW, {}, context);
+    const item = m.queue.items.find((i) => i.kind === "stack");
+    if (!item) throw new Error("the made-up model must reach a stack item");
+    const focus = buildBriefing(m, CLEAR, FIXTURE_NOW, context).focus.find((f) =>
+      f.ids.includes(item.id),
+    );
+    if (!focus) throw new Error("the stack item must reach focus");
+    return { item, focus };
+  }
+
+  const noStateWords = (texts: readonly string[]) => {
+    for (const text of texts) expect(text).not.toMatch(/held|deployable/i);
+  };
+
+  test("a stack item after maintenance cleared says not ready in the app's words", () => {
+    const boards = stackItemOf(failedAfterClear());
+    expect(boards.item.text).toMatch(/^not deployable; last attempt env-upgrade v0\.28\.2 failed/);
+    expect(boards.item.cause[0]?.value).toMatch(/^not deployable since /);
+    expect(boards.focus.title).toBe("Not deployable");
+    expect(boards.focus.cause).toMatch(/^Not deployable; last attempt /);
+    const app = stackItemOf(failedAfterClear(), appWords);
+    expect(app.item.text).toBe(boards.item.text.replace(/^not deployable/, "not ready"));
+    expect(app.item.cause[0]?.value).toBe(
+      boards.item.cause[0]?.value.replace(/^not deployable/, "not ready"),
+    );
+    expect(app.focus.title).toBe("Not ready");
+    expect(app.focus.sub).toBe(boards.focus.sub);
+    expect(app.focus.cause).toBe(boards.focus.cause.replace(/^Not deployable/, "Not ready"));
+    noStateWords([
+      app.focus.title,
+      app.focus.sub,
+      app.focus.cause,
+      ...app.item.cause.map((c) => c.value),
+    ]);
+  });
+
+  test("a held stack item keeps maintenance mode and never says held or deployable to the app", () => {
+    const facts = () => {
+      const f = fixtureFacts();
+      const lc = f.lifecycle.data;
+      if (lc?.upgrade) lc.upgrade = lc.upgrade.filter((r) => r.id !== IN_FLIGHT);
+      return f;
+    };
+    const boards = stackItemOf(facts());
+    const app = stackItemOf(facts(), appWords);
+    expect(boards.item.text).toMatch(/^maintenance mode; last attempt env-upgrade v0\.28\.1 /);
+    expect(app.item.text).toBe(boards.item.text);
+    expect(app.focus.title).toBe("Maintenance mode");
+    expect(app.item.cause[0]?.value).toBe(boards.item.cause[0]?.value);
+    noStateWords([
+      app.focus.title,
+      app.focus.sub,
+      app.focus.cause,
+      ...app.item.cause.map((c) => c.value),
+    ]);
+  });
+
+  test("the summary's environment sentence says in maintenance and ready in the app's words", () => {
+    const summary = (deployable: Model["stack"]["deployable"], context = fixtureContext) => {
+      const m = withQueue([]);
+      delete m.stack.inflight;
+      m.stack.deployable = deployable;
+      return buildBriefing(m, CLEAR, FIXTURE_NOW, context).summary;
+    };
+    const held = { state: "no", reason: "The environment is in maintenance." } as const;
+    expect(summary(held)).toBe("The environment is held: The environment is in maintenance.");
+    expect(summary(held, appWords)).toBe("The environment is in maintenance.");
+    const ready = {
+      state: "yes",
+      reason: "maintenance clear after the last lifecycle run",
+    } as const;
+    expect(summary(ready)).toBe("The environment is deployable again.");
+    expect(summary(ready, appWords)).toBe("The environment is ready again.");
+  });
 });
 
 describe("shared wording", () => {

@@ -378,18 +378,23 @@ function stoppedFor(model: Model, lines: readonly LineModel[], now: Date): strin
   return ms >= DAY_MS ? plural(Math.floor(ms / DAY_MS), "day") : age(oldest, now);
 }
 
-function environmentSentence(model: Model, now: Date): string | undefined {
+function environmentSentence(model: Model, now: Date, context: CoreContext): string | undefined {
   const { deployable, inflight, recent } = model.stack;
+  const app = context.words === "app";
   if (inflight) {
     const kind = inflight.run.kind;
     return `${/^[aeiou]/.test(kind) ? "An" : "A"} ${kind} is running on the environment.`;
   }
-  if (deployable.state === "no") return sentence(`The environment is held: ${deployable.reason}`);
+  if (deployable.state === "no") {
+    return app
+      ? "The environment is in maintenance."
+      : sentence(`The environment is held: ${deployable.reason}`);
+  }
   if (deployable.state !== "yes") return undefined;
   const failedToday = recent.some(
     (v) => v.failedAt && now.getTime() - Date.parse(v.run.createdAt) < DAY_MS,
   );
-  return `The environment is deployable${failedToday ? " again" : ""}.`;
+  return `The environment is ${app ? "ready" : "deployable"}${failedToday ? " again" : ""}.`;
 }
 
 function summaryOf(
@@ -398,6 +403,7 @@ function summaryOf(
   ready: number,
   doctor: DoctorView,
   now: Date,
+  context: CoreContext,
 ): string {
   const parts: string[] = [];
   if (doctor.state === "partial" && doctor.problems[0]) parts.push(sentence(problemText(doctor)));
@@ -411,7 +417,7 @@ function summaryOf(
     parts.push(`${cap(who)} been stopped${span ? ` for ${span}` : ""}.`);
   }
   if (!focusable.some((i) => ENVIRONMENT.has(i.kind))) {
-    const env = environmentSentence(model, now);
+    const env = environmentSentence(model, now, context);
     if (env) parts.push(env);
   }
   if (ready > 0 && focusable.length > 0) {
@@ -1508,7 +1514,7 @@ export function buildBriefing(model: Model, doctor: DoctorView, now: Date | unde
   return {
     ...base,
     headline,
-    summary: summaryOf(model, focusable, readyCount, doctor, now),
+    summary: summaryOf(model, focusable, readyCount, doctor, now, context),
     facts,
     focus: focus.slice(0, FOCUS_MAX),
     more: Math.max(0, focus.length - FOCUS_MAX),
