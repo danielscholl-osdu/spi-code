@@ -38,13 +38,11 @@ sweep and setup states. Each `host.hello` sends a validated `view.subscribe` fro
 the retained cursor (zero before the first snapshot). Snapshot bodies remain opaque
 until BRIEFSCHEMA lands. The sender is injected for fake-port tests.
 
-The expandable Copilot turn panel lists models through the host, sends prompts, and shows
-streamed text and gated tool outcomes. Refresh sign-in and models re-reads gh;
-when CP-03 replaces the runtime, the host announces that the previous session
-ended. Only validated contract messages cross the MessagePort. Tool arguments,
-results, SDK errors and credentials are not forwarded to the renderer.
-Streamed text and tool events are accepted only for the window's active turn,
-so an earlier turn cannot populate a reloaded window or a later response.
+No page renders a Copilot turn panel or composer. `ProofTurnHarness` in
+`src/index.tsx` mounts only when `window.spi.proof` is set, for the packaged smoke
+and live proof runs: on each `host.hello` it pings the host and lists models, and
+on the first model catalog it starts one turn with the first model. It validates
+each message against the contract before posting it, and reads no turn output.
 
 From the repository root:
 
