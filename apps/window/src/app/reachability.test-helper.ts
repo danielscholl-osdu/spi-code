@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { type InspectResult, InspectResultSchema, type ViewSnapshot } from "@spi-code/contracts";
+import type { InspectResult, ViewSnapshot } from "@spi-code/contracts";
 import { inScope } from "../components/sidebar/attention.js";
 import { selectionRows, TODAY_GROUPS, todayGroupRow } from "../panels/selection-rows.js";
 import { plainTitle } from "../text.js";
@@ -152,19 +152,12 @@ function lensHome(name: string): Home {
   return home(name, from, step);
 }
 
-type DetailFeed = Readonly<Record<string, InspectResult>>;
-
 /**
- * The router's Detail answers on the recorded sweep (fixtures/watch/inspect-1106.json), which
+ * The router's Detail answers on the recorded sweep (fixtures/watch/inspect-1106.json) by id, which
  * packages/host/src/watch/parity.test.ts pins to the router field for field: the feed Detail
  * draws here is the host's.
  */
-export const detailFeed = (raw: string): DetailFeed =>
-  Object.fromEntries(
-    InspectResultSchema.array()
-      .parse(JSON.parse(raw))
-      .map((result) => [result.id, result]),
-  );
+type DetailFeed = Readonly<Record<string, InspectResult>>;
 
 function overlaps(hold: Event, e: Event) {
   const end = (x: Event) => (x.end === undefined ? Number.POSITIVE_INFINITY : Date.parse(x.end));

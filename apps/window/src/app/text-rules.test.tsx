@@ -6,12 +6,8 @@ import { expect, it, vi } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import { selectionStore } from "../panels/selection.js";
 import { watchStore } from "../store/watch.js";
-import {
-  type Read,
-  WATCH_SNAPSHOTS,
-  watchInspections,
-  watchSnapshot,
-} from "../test-utils/watch-fixtures.test-helper.js";
+import { fixtureLoader, type InspectionName } from "../test-utils/harness.js";
+import { WATCH_INSPECTIONS, WATCH_SNAPSHOTS } from "../test-utils/watch-fixtures.test-helper.js";
 import { plainTitle } from "../text.js";
 import { clockTime } from "../time.js";
 import {
@@ -31,9 +27,9 @@ const sweepSchedule = {
   releasesMs: 3_600_000,
 };
 
-const read: Read = readFixture;
-const snapshots = WATCH_SNAPSHOTS.map((name) => watchSnapshot(name, read));
-const inspections = watchInspections(read);
+const loadFixture = fixtureLoader(readFixture);
+const snapshots = WATCH_SNAPSHOTS.map((name) => ({ name, body: loadFixture(name) }));
+const inspections = WATCH_INSPECTIONS.flatMap((name) => loadFixture(name as InspectionName));
 
 shellHooks();
 

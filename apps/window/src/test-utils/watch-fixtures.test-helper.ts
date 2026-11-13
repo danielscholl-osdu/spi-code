@@ -1,13 +1,6 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import {
-  type InspectResult,
-  InspectResultSchema,
-  type ViewSnapshot,
-  ViewSnapshotSchema,
-} from "@spi-code/contracts";
-
 /** The fixtures/watch snapshots the window text rules walk, one text-rules.<stem>.test.tsx each. */
 export const WATCH_SNAPSHOTS = [
   "snapshot-1106-acknowledged.json",
@@ -52,20 +45,6 @@ export function watchFixtureText(name: string, read: Read): string {
     );
   }
 }
-
-export function watchSnapshot(name: string, read: Read): { name: string; body: ViewSnapshot } {
-  if (!(WATCH_SNAPSHOTS as readonly string[]).includes(name))
-    throw new Error(`${name} is not in WATCH_SNAPSHOTS`);
-  return {
-    name,
-    body: ViewSnapshotSchema.parse(JSON.parse(watchFixtureText(name, read))),
-  };
-}
-
-export const watchInspections = (read: Read): InspectResult[] =>
-  WATCH_INSPECTIONS.flatMap((file) =>
-    InspectResultSchema.array().parse(JSON.parse(watchFixtureText(file, read))),
-  );
 
 /** Snapshot and inspection files in a fixtures/watch listing, generated ones included, that no list names. */
 export function unlisted(files: readonly string[]): string[] {
