@@ -26,7 +26,8 @@ cleanup preserves those bindings. After changing core time copy, regenerate Watc
 fixtures with `TZ=UTC node scripts/watch-snapshot.mjs` after building, then format
 `fixtures/watch`. The generator writes what `packages/host/test/watch/outputs.ts`
 lists, from the host's `dist` and the builders' `packages/host/build`. It refuses and
-writes nothing while `tsc -b --dry` would rebuild either, or a module is missing.
+writes nothing while `tsc -b --dry` would rebuild either, a module is missing, or a
+module differs from what tsc emits now for its current source.
 Recompute the models digest with
 `SPI_RECORD_MODEL_DIGEST=1 pnpm vitest run packages/core/test/inspect/identity.test.ts`.
 The frozen rib oracle stays unchanged; its comparison ignores only U+00A0.

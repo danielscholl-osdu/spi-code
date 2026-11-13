@@ -3,9 +3,18 @@
 
 // pnpm build && TZ=UTC node scripts/watch-snapshot.mjs && pnpm biome check --write
 // Biome formats the written files back to their checked-in bytes.
-import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { register } from "node:module";
+import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -24,19 +33,57 @@ const builds = [
   ["packages/host/test/tsconfig.json", "packages/host/test", "packages/host/build"],
 ];
 
+/** @param {string} root @param {string} source @returns {string[]} */
+const modules = (root, source) =>
+  readdirSync(join(root, source), { recursive: true, encoding: "utf8" })
+    .filter((file) => file.endsWith(".ts") && !/\.(test|d)\.ts$/.test(file))
+    .map((file) => file.split("\\").join("/").replace(/\.ts$/, ".js"));
+
 /**
- * Why the build the generator would load cannot be trusted: a source with no emitted module, or a
- * project tsc -b would still build. Undefined only when tsc reports each of those projects current.
+ * The first built module whose bytes differ from what tsc emits now for its current source, found
+ * by compiling each project, without checking, into a private directory.
+ * @param {string} root
+ * @returns {string | undefined}
+ */
+function divergentModule(root) {
+  const projection = mkdtempSync(join(tmpdir(), "spi-watch-projection-"));
+  try {
+    for (const [index, [project, source, built]] of builds.entries()) {
+      const out = join(projection, String(index));
+      spawnSync(
+        process.execPath,
+        [
+          tsc,
+          ...["-p", project, "--outDir", out, "--noCheck", "--composite", "false"],
+          ...["--declaration", "false", "--incremental", "false"],
+        ],
+        { cwd: root, stdio: "ignore" },
+      );
+      for (const module of modules(root, source)) {
+        const from = `${source}/${module.replace(/\.js$/, ".ts")}`;
+        if (!existsSync(join(out, module))) return `tsc could not compile ${from}`;
+        if (!readFileSync(join(out, module)).equals(readFileSync(join(root, built, module))))
+          return `${built}/${module} is not built from the current ${from}; touch it if pnpm build skips it`;
+      }
+    }
+  } finally {
+    rmSync(projection, { recursive: true, force: true });
+  }
+  return undefined;
+}
+
+/**
+ * Why the build the generator would load cannot be trusted: a source with no emitted module, a
+ * project tsc -b would still build, or a module that is not what its current source compiles to.
  * @param {string} [root]
  * @returns {string | undefined}
  */
 export function staleBuild(root = repository) {
   const missing = builds.flatMap(([, source, built]) =>
     existsSync(join(root, source))
-      ? readdirSync(join(root, source), { recursive: true, encoding: "utf8" })
-          .filter((file) => file.endsWith(".ts") && !/\.(test|d)\.ts$/.test(file))
-          .filter((file) => !existsSync(join(root, built, file.replace(/\.ts$/, ".js"))))
-          .map((file) => `${source}/${file.split("\\").join("/")}`)
+      ? modules(root, source)
+          .filter((module) => !existsSync(join(root, built, module)))
+          .map((module) => `${source}/${module.replace(/\.js$/, ".ts")}`)
       : [`${source}/`],
   );
   if (missing.length > 0) return `${missing[0]} has no built module`;
@@ -56,7 +103,7 @@ export function staleBuild(root = repository) {
     if (status === undefined) return `tsc -b --dry did not report ${project}`;
     if (!status.endsWith(" is up to date")) return status.slice(status.indexOf(" - ") + 3);
   }
-  return undefined;
+  return divergentModule(root);
 }
 
 /**

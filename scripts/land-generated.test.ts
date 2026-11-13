@@ -10,6 +10,8 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  statSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -140,6 +142,39 @@ await generate(${JSON.stringify(out)}, ${JSON.stringify(build)});`,
     writeFileSync(join(build, path), text);
 
     expect(staleBuild(build)).toMatch(/would build/);
+    const { status, stderr, written } = generate(build);
+    expect(status).not.toBe(0);
+    expect(stderr).toContain("pnpm build");
+    expect(written).toEqual([]);
+  });
+
+  it("refuses, naming pnpm build, when an older emitted module is restored after a build", () => {
+    const build = tree();
+    const module = join(build, "packages/host/dist/index.js");
+    const older = { text: readFileSync(module), time: statSync(module).mtime };
+    writeFileSync(join(build, "packages/host/src/index.ts"), "export const value = 2;\n");
+    execFileSync(process.execPath, [tsc, "-b", "packages/host/test"], {
+      cwd: build,
+      stdio: "pipe",
+    });
+    writeFileSync(module, older.text);
+    utimesSync(module, older.time, older.time);
+
+    expect(staleBuild(build)).toMatch(/dist\/index\.js is not built from the current/);
+    const { status, stderr, written } = generate(build);
+    expect(status).not.toBe(0);
+    expect(stderr).toContain("pnpm build");
+    expect(written).toEqual([]);
+  });
+
+  it("refuses, naming pnpm build, when a source changed after the build keeps its old mtime", () => {
+    const build = tree();
+    const source = join(build, "packages/host/src/index.ts");
+    const { atime, mtime } = statSync(source);
+    writeFileSync(source, "export const value = 2;\n");
+    utimesSync(source, atime, mtime);
+
+    expect(staleBuild(build)).toMatch(/dist\/index\.js is not built from the current/);
     const { status, stderr, written } = generate(build);
     expect(status).not.toBe(0);
     expect(stderr).toContain("pnpm build");
