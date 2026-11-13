@@ -7,6 +7,7 @@ import { selectionRows, TODAY_GROUPS, todayGroupRow } from "../panels/selection-
 import { plainTitle } from "../text.js";
 import { clockTime, instantsIn, timedText } from "../time.js";
 import { openHold } from "../views/environment/hold.js";
+import { heldLaneRead } from "../views/environment/lead.js";
 import { eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
 import { releaseSectionCases } from "../views/releases/reachability.test-helper.js";
 import { bandHolds } from "../views/today/Band.js";
@@ -31,6 +32,8 @@ export type Home = {
   start: Start;
   step?: Selector;
   detail?: InspectResult;
+  /** The wall clock pinned before the home renders, for a home that draws times against it. */
+  clock?: number;
 };
 
 /** What a click on the drawn field opens: the item's Detail, or a place. */
@@ -417,7 +420,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
     add("/briefing/environment/note", environment.note, runs, at("/briefing/environment/note"));
   const environmentHome = home("Environment", STARTS.environment);
   const environmentPlace = 'section.place[aria-label="Environment"]';
-  const held = environment.lanes.some(({ id }) => id === "holds") && openHold(snapshot);
+  const held = heldLaneRead(snapshot) && openHold(snapshot);
   environment.facts.forEach((fact, index) => {
     const pointer = `/briefing/environment/facts/${index}`;
     const tile = `${environmentPlace} .place-tile:nth-child(${index + 1})`;
@@ -450,12 +453,15 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
           contains: true,
         });
       if (lane.id !== "holds") return;
-      const where = home(
-        `Environment · Detail hold:${e.id}`,
-        STARTS.environment,
-        bar,
-        answer(e.inspect ?? `hold:${e.id}`),
-      );
+      const where = {
+        ...home(
+          `Environment · Detail hold:${e.id}`,
+          STARTS.environment,
+          bar,
+          answer(e.inspect ?? `hold:${e.id}`),
+        ),
+        clock: now.getTime(),
+      };
       add(`${event}/label`, `Held ${e.label}`, where, detailField("cause"), {
         canon: (value) => value.replace(/^Held /, ""),
       });

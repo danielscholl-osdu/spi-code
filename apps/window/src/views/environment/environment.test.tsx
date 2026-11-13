@@ -26,6 +26,7 @@ import { mixedSnapshot, testSnapshot } from "../../store/test-snapshot.js";
 import { createWatchStore } from "../../store/watch.js";
 import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { timedText } from "../../time.js";
+import { lineStop } from "../today/LineStop.js";
 import Environment from "./index.js";
 import { eventWhen, hourTicks, place } from "./timeline.js";
 
@@ -761,32 +762,56 @@ it.each(
   }
 });
 
-it.each(["no environment facts", "no Held lane"])(
-  "draws the reading's own tiles and no Maintenance tile with %s",
-  async (change) => {
-    const body = environmentAs("held, nothing running");
-    const environment = body.briefing.environment;
-    if (change === "no environment facts") environment.facts = [];
-    else environment.lanes = environment.lanes.filter(({ id }) => id !== "holds");
-    const reading = body.readings.find(({ anchor }) => anchor.kind === "environment");
-    if (!reading?.content) throw new Error("Recorded snapshot needs an environment reading");
-    const view = await renderRecorded(body);
-    try {
-      expect(tilesOf(view.page)).toEqual(
-        reading.content.tiles.map((tile) => [
-          tile.label,
-          tile.value,
-          timedText(tile.counts, { hint: false }),
-          undefined,
-        ]),
-      );
-      expect(view.page.querySelector(".env-quiet")).toBeNull();
-      expect(view.page.querySelector(".place-reading")?.textContent).not.toContain("Maintenance");
-    } finally {
-      await view.done();
-    }
-  },
-);
+it.each([
+  "no environment facts",
+  "no Held lane",
+  "an unread Held lane with an open hold",
+  "an unread Held lane with none open",
+])("draws the reading's own tiles and no Maintenance tile with %s", async (change) => {
+  const body = environmentAs(
+    change === "an unread Held lane with none open" ? "not held" : "held, nothing running",
+  );
+  const environment = body.briefing.environment;
+  if (change === "no environment facts") environment.facts = [];
+  else if (change === "no Held lane")
+    environment.lanes = environment.lanes.filter(({ id }) => id !== "holds");
+  else {
+    const lifecycle = body.areas.find(({ area }) => area === "lifecycle");
+    const holds = environment.lanes.findIndex(({ id }) => id === "holds");
+    const feeds = body.provenance.find(
+      ({ path }) => path === `/briefing/environment/lanes/${holds}`,
+    );
+    if (!lifecycle || !feeds?.areas.includes("lifecycle"))
+      throw new Error("Recorded snapshot needs the Held lane fed by lifecycle");
+    lifecycle.envelope = { source: "lifecycle", state: "unread" };
+  }
+  const reading = body.readings.find(({ anchor }) => anchor.kind === "environment");
+  if (!reading?.content) throw new Error("Recorded snapshot needs an environment reading");
+  const view = await renderRecorded(body);
+  try {
+    expect(tilesOf(view.page)).toEqual(
+      reading.content.tiles.map((tile) => [
+        tile.label,
+        tile.value,
+        timedText(tile.counts, { hint: false }),
+        undefined,
+      ]),
+    );
+    expect(view.page.querySelector(".env-quiet")).toBeNull();
+    expect(view.page.querySelector(".place-reading")?.textContent).not.toContain("Maintenance");
+  } finally {
+    await view.done();
+  }
+});
+
+it("stops Today's line only from a Held lane that was read, as the place leads", () => {
+  const body = mixedSnapshot(mixed);
+  expect(lineStop(body)?.item.id).toBe("stack:38181620856");
+  const lifecycle = body.areas.find(({ area }) => area === "lifecycle");
+  if (!lifecycle) throw new Error("Mixed snapshot needs a lifecycle area");
+  lifecycle.envelope = { source: "lifecycle", state: "unread" };
+  expect(lineStop(body)).toBeUndefined();
+});
 
 it("draws the last 24 hours open between the tiles and the items, an open hold apart from an ended one", async () => {
   const body = mixedSnapshot(mixed);

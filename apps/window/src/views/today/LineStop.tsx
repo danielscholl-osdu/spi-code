@@ -6,13 +6,16 @@ import { Chip } from "../../components/kit/Chip.js";
 import { plainTitle } from "../../text.js";
 import { Time, TimedText, timedText } from "../../time.js";
 import { type OpenHold, openHold } from "../environment/hold.js";
+import { heldLaneRead, holdTone } from "../environment/lead.js";
 import { interruptsOf } from "./selectors.js";
 
 export type LineStopped = { hold: OpenHold; item: WatchItem };
 
 /** The open hold and the Interrupt it names, or nothing when the hold names no Interrupt. */
-export function lineStop(snapshot: Pick<ViewSnapshot, "briefing">): LineStopped | undefined {
-  const hold = openHold(snapshot);
+export function lineStop(
+  snapshot: Pick<ViewSnapshot, "briefing" | "areas" | "provenance">,
+): LineStopped | undefined {
+  const hold = heldLaneRead(snapshot) ? openHold(snapshot) : undefined;
   const inspect = hold?.inspect;
   if (!hold || !inspect) return undefined;
   const item = interruptsOf(snapshot.briefing).find(
@@ -48,9 +51,7 @@ export function LineStop({
   onSelect: (id: string) => void;
   onOpenPlace: () => void;
 }) {
-  const fact = snapshot.briefing.facts.find(({ label }) => label === "Environment");
-  const read = fact && fact.figure !== "?";
-  const tone = read && (fact.tone === "warn" || fact.tone === "bad") ? fact.tone : "plain";
+  const tone = holdTone(snapshot) ?? "plain";
   const headline = snapshot.readings.find(({ anchor }) => anchor.kind === "environment")?.content
     ?.headline;
   const facts = [plainTitle(item.cause), plainTitle(item.next)].some(Boolean) || item.blocks;

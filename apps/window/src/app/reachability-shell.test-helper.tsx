@@ -117,6 +117,7 @@ function visible(element: Element | null, where: string) {
 
 export async function start(home: Home, body = fixture()) {
   await act(async () => root.render(null));
+  if (home.clock !== undefined) vi.useFakeTimers({ toFake: ["Date"], now: home.clock });
   selectionStore.getState().clear();
   await act(async () => {
     watchStore.setState({ snapshot: { cursor: body.cursor, body }, setup: null });
