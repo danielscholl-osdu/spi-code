@@ -25,9 +25,10 @@ number to its unit with U+00A0; compound durations may wrap between pairs. Title
 cleanup preserves those bindings. After changing core time copy, regenerate Watch
 fixtures with `TZ=UTC node scripts/watch-snapshot.mjs` after building, then format
 `fixtures/watch`. The generator writes what `packages/host/test/watch/outputs.ts`
-lists, from the host's `dist` and the builders' `packages/host/build`. It refuses and
-writes nothing while `tsc -b --dry` would rebuild either, a module is missing, or a
-module differs from what tsc emits now for its current source.
+lists, running the host and the builders compiled from their current sources into a
+temporary directory; it never loads `dist` or `packages/host/build`. It refuses and
+writes nothing while `tsc -b --dry` would rebuild them, or when a module they import
+has no current source.
 Recompute the models digest with
 `SPI_RECORD_MODEL_DIGEST=1 pnpm vitest run packages/core/test/inspect/identity.test.ts`.
 The frozen rib oracle stays unchanged; its comparison ignores only U+00A0.

@@ -4,15 +4,7 @@
 // pnpm build && TZ=UTC node scripts/watch-snapshot.mjs && pnpm biome check --write
 // Biome formats the written files back to their checked-in bytes.
 import { execFileSync, spawnSync } from "node:child_process";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { register } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -22,71 +14,23 @@ const repository = fileURLToPath(new URL("../", import.meta.url));
 const tsc = fileURLToPath(new URL("../node_modules/typescript/bin/tsc", import.meta.url));
 
 /**
- * Each project whose output the generator loads: its tsconfig, its sources and its build.
- * @type {[project: string, source: string, built: string][]}
+ * Each project whose modules the generator loads: its tsconfig and where pnpm build emits it.
+ * @type {[project: string, built: string][]}
  */
 const builds = [
-  ["packages/contracts/tsconfig.json", "packages/contracts/src", "packages/contracts/dist"],
-  ["packages/core/tsconfig.build.json", "packages/core/src", "packages/core/dist"],
-  ["packages/tools/tsconfig.json", "packages/tools/src", "packages/tools/dist"],
-  ["packages/host/tsconfig.build.json", "packages/host/src", "packages/host/dist"],
-  ["packages/host/test/tsconfig.json", "packages/host/test", "packages/host/build"],
+  ["packages/contracts/tsconfig.json", "packages/contracts/dist"],
+  ["packages/core/tsconfig.build.json", "packages/core/dist"],
+  ["packages/tools/tsconfig.json", "packages/tools/dist"],
+  ["packages/host/tsconfig.build.json", "packages/host/dist"],
+  ["packages/host/test/tsconfig.json", "packages/host/build"],
 ];
 
-/** @param {string} root @param {string} source @returns {string[]} */
-const modules = (root, source) =>
-  readdirSync(join(root, source), { recursive: true, encoding: "utf8" })
-    .filter((file) => file.endsWith(".ts") && !/\.(test|d)\.ts$/.test(file))
-    .map((file) => file.split("\\").join("/").replace(/\.ts$/, ".js"));
-
 /**
- * The first built module whose bytes differ from what tsc emits now for its current source, found
- * by compiling each project, without checking, into a private directory.
- * @param {string} root
- * @returns {string | undefined}
- */
-function divergentModule(root) {
-  const projection = mkdtempSync(join(tmpdir(), "spi-watch-projection-"));
-  try {
-    for (const [index, [project, source, built]] of builds.entries()) {
-      const out = join(projection, String(index));
-      spawnSync(
-        process.execPath,
-        [
-          tsc,
-          ...["-p", project, "--outDir", out, "--noCheck", "--composite", "false"],
-          ...["--declaration", "false", "--incremental", "false"],
-        ],
-        { cwd: root, stdio: "ignore" },
-      );
-      for (const module of modules(root, source)) {
-        const from = `${source}/${module.replace(/\.js$/, ".ts")}`;
-        if (!existsSync(join(out, module))) return `tsc could not compile ${from}`;
-        if (!readFileSync(join(out, module)).equals(readFileSync(join(root, built, module))))
-          return `${built}/${module} is not built from the current ${from}; touch it if pnpm build skips it`;
-      }
-    }
-  } finally {
-    rmSync(projection, { recursive: true, force: true });
-  }
-  return undefined;
-}
-
-/**
- * Why the build the generator would load cannot be trusted: a source with no emitted module, a
- * project tsc -b would still build, or a module that is not what its current source compiles to.
+ * Why the type-checked build is behind the sources: a project tsc -b would still build.
  * @param {string} [root]
  * @returns {string | undefined}
  */
 export function staleBuild(root = repository) {
-  const missing = builds.flatMap(([, source, built]) =>
-    existsSync(join(root, source))
-      ? modules(root, source)
-          .filter((module) => !existsSync(join(root, built, module)))
-          .map((module) => `${source}/${module.replace(/\.js$/, ".ts")}`)
-      : [`${source}/`],
-  );
-  if (missing.length > 0) return `${missing[0]} has no built module`;
   let report;
   try {
     report = execFileSync(process.execPath, [tsc, "-b", "--dry", "packages/host/test"], {
@@ -103,31 +47,90 @@ export function staleBuild(root = repository) {
     if (status === undefined) return `tsc -b --dry did not report ${project}`;
     if (!status.endsWith(" is up to date")) return status.slice(status.indexOf(" - ") + 3);
   }
-  return divergentModule(root);
+  return undefined;
+}
+
+/** @param {string} path @returns {string} the directory's file URL, ending in a slash */
+const directoryUrl = (path) => pathToFileURL(join(path, "/")).href;
+
+/**
+ * Compiles each project's current sources, without checking, into its own directory under out.
+ * @param {string} root
+ * @param {string} out
+ * @returns {{built: string, compiled: string}[]} each project's built and compiled directory URLs
+ */
+function compile(root, out) {
+  return builds.map(([project, built], index) => {
+    const directory = join(out, String(index));
+    spawnSync(
+      process.execPath,
+      [
+        tsc,
+        ...["-p", project, "--outDir", directory, "--noCheck", "--composite", "false"],
+        ...["--declaration", "false", "--incremental", "false"],
+      ],
+      { cwd: root, stdio: "ignore" },
+    );
+    return { built: directoryUrl(join(root, built)), compiled: directoryUrl(directory) };
+  });
 }
 
 /**
- * A loader hook that sends the compiled builders' imports of host source to the host's build.
- * @param {string} host the packages/host directory's file URL, ending in a slash
+ * Workspace package names mapped to the built entry their exports name.
+ * @param {string} root
  */
-const hostSourceHook = (host) => `const [source, built, builders] = ${JSON.stringify([
-  `${host}src/`,
-  `${host}dist/`,
-  `${host}build/`,
-])};
+function workspaceEntries(root) {
+  /** @type {Record<string, string>} */
+  const entries = {};
+  for (const [, built] of builds) {
+    const manifest = join(root, dirname(built), "package.json");
+    if (!existsSync(manifest)) continue;
+    const { name, exports } = JSON.parse(readFileSync(manifest, "utf8"));
+    const entry = exports?.["."]?.import;
+    if (typeof name === "string" && typeof entry === "string")
+      entries[name] = pathToFileURL(join(root, dirname(built), entry)).href;
+  }
+  return entries;
+}
+
+/**
+ * Loader hooks under which every module at a built path is read from the matching compile of the
+ * current sources instead, so the built files themselves are never loaded. The builders' imports
+ * of host source go to the host's built path, and so to its compile.
+ * @param {{built: string, compiled: string}[]} places file URLs, each ending in a slash
+ * @param {Record<string, string>} entries
+ * @param {{source: string, built: string, builders: string}} host file URLs, ending in a slash
+ */
+const compiledHooks = (places, entries, host) => `import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+const [places, entries, host] = ${JSON.stringify([places, entries, host])};
+const place = (url) => places.find(({ built }) => url.startsWith(built));
 export function resolve(specifier, context, next) {
+  if (Object.hasOwn(entries, specifier)) return { url: entries[specifier], shortCircuit: true };
   const relative = specifier.startsWith("./") || specifier.startsWith("../");
-  const url = relative && context.parentURL?.startsWith(builders)
-    ? new URL(specifier, context.parentURL).href
-    : "";
-  return next(url.startsWith(source) ? built + url.slice(source.length) : specifier, context);
+  let url = relative && context.parentURL ? new URL(specifier, context.parentURL).href : specifier;
+  if (relative && context.parentURL?.startsWith(host.builders) && url.startsWith(host.source))
+    url = host.built + url.slice(host.source.length);
+  return place(url) ? { url, shortCircuit: true } : next(specifier, context);
+}
+export function load(url, context, next) {
+  const at = place(url);
+  if (at === undefined) return next(url, context);
+  let source;
+  try {
+    source = readFileSync(new URL(at.compiled + url.slice(at.built.length)));
+  } catch {
+    throw new Error(fileURLToPath(url) + " is not compiled from any current source");
+  }
+  return { format: "module", source, shortCircuit: true };
 }`;
 
 /**
- * Writes every file in packages/host/test/watch/outputs.ts under root from the built host, or
- * throws and writes nothing when that build is stale.
+ * Writes every file in packages/host/test/watch/outputs.ts under root, running the host and the
+ * builders compiled from the current sources, or throws and writes nothing when the type-checked
+ * build is behind those sources or a module they need has no source.
  * @param {string} [root] where the files go
- * @param {string} [build] the checkout whose built host and builders run
+ * @param {string} [build] the checkout whose sources run
  */
 export async function generate(root = repository, build = repository) {
   const stale = staleBuild(build);
@@ -136,16 +139,36 @@ export async function generate(root = repository, build = repository) {
       `The built host is stale (${stale}). Run pnpm build first; nothing was written.`,
     );
   process.env.TZ = "UTC";
-  const host = pathToFileURL(join(build, "packages/host/")).href;
-  register(`data:text/javascript,${encodeURIComponent(hostSourceHook(host))}`);
-  /** @type {{watchOutputs: readonly {path: string, value: () => unknown}[]}} */
-  const { watchOutputs } = await import(`${host}build/watch/outputs.js`);
-  const files = [];
-  for (const { path, value } of watchOutputs)
-    files.push({ path: join(root, path), text: `${JSON.stringify(await value(), null, 2)}\n` });
-  for (const { path, text } of files) {
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, text);
+  const out = mkdtempSync(join(tmpdir(), "spi-watch-compile-"));
+  try {
+    const places = compile(build, out);
+    const hostUrl = directoryUrl(join(build, "packages/host"));
+    const host = {
+      source: `${hostUrl}src/`,
+      built: `${hostUrl}dist/`,
+      builders: `${hostUrl}build/`,
+    };
+    register(
+      `data:text/javascript,${encodeURIComponent(compiledHooks(places, workspaceEntries(build), host))}`,
+    );
+    /** @type {{watchOutputs: readonly {path: string, value: () => unknown}[]}} */
+    let outputs;
+    try {
+      outputs = await import(`${host.builders}watch/outputs.js`);
+    } catch (error) {
+      throw new Error(
+        `The builders do not load from the current sources (${error instanceof Error ? error.message : error}); nothing was written.`,
+      );
+    }
+    const files = [];
+    for (const { path, value } of outputs.watchOutputs)
+      files.push({ path: join(root, path), text: `${JSON.stringify(await value(), null, 2)}\n` });
+    for (const { path, text } of files) {
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, text);
+    }
+  } finally {
+    rmSync(out, { recursive: true, force: true });
   }
 }
 

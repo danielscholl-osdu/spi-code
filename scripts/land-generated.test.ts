@@ -11,6 +11,7 @@ import {
   realpathSync,
   rmSync,
   statSync,
+  symlinkSync,
   utimesSync,
   writeFileSync,
 } from "node:fs";
@@ -63,10 +64,10 @@ it("writes exactly the files in the manifest", () => {
   expect(filesUnder(root)).toEqual(manifest);
 });
 
-describe("a stale build", () => {
+describe("the build gate", () => {
   /**
-   * The five projects the generator loads, built by tsc, whose manifest writes one file holding
-   * what the host's built source exports.
+   * The five projects the generator compiles, plus core's tests, built by tsc. The manifest
+   * writes one file holding the host's value, which comes from @spi-code/core.
    */
   function tree(): string {
     const root = scratch();
@@ -92,108 +93,174 @@ describe("a stale build", () => {
       write(`packages/${name}/tsconfig.json`, project("src", "dist"));
       write(`packages/${name}/src/index.ts`, "export {};\n");
     }
+    write(
+      "packages/core/package.json",
+      JSON.stringify({
+        name: "@spi-code/core",
+        type: "module",
+        exports: { ".": { types: "./dist/index.d.ts", import: "./dist/index.js" } },
+      }),
+    );
+    write(
+      "packages/core/tsconfig.json",
+      JSON.stringify({
+        compilerOptions: { composite: true },
+        files: [],
+        references: [{ path: "./tsconfig.build.json" }, { path: "./test" }],
+      }),
+    );
     write("packages/core/tsconfig.build.json", project("src", "dist"));
-    write("packages/core/src/index.ts", "export {};\n");
+    write("packages/core/src/index.ts", "export const core = 1;\n");
+    write("packages/core/src/time.ts", "export {};\n");
+    write("packages/core/test/tsconfig.json", project(".", "../build", ["../tsconfig.build.json"]));
+    write("packages/core/test/fixture.ts", "export const fixture = 1;\n");
+    mkdirSync(join(root, "node_modules/@spi-code"), { recursive: true });
+    symlinkSync(join(root, "packages/core"), join(root, "node_modules/@spi-code/core"), "junction");
     write(
       "packages/host/tsconfig.build.json",
-      project("src", "dist", ["../contracts", "../core/tsconfig.build.json", "../tools"]),
+      project("src", "dist", ["../contracts", "../core", "../tools"]),
     );
-    write("packages/host/src/index.ts", "export const value = 1;\n");
+    write(
+      "packages/host/src/index.ts",
+      'import { core } from "@spi-code/core";\nexport const value = core;\n',
+    );
+    write("packages/host/src/port.ts", "export {};\n");
     write("packages/host/test/tsconfig.json", project(".", "../build", ["../tsconfig.build.json"]));
     write(
       "packages/host/test/watch/outputs.ts",
       `import { value } from "../../src/index.js";
 export const watchOutputs = [{ path: "fixtures/watch/x.json", value: () => value }];\n`,
     );
-    execFileSync(process.execPath, [tsc, "-b", "packages/host/test"], { cwd: root, stdio: "pipe" });
+    build(root);
     return root;
   }
 
-  function generate(build: string) {
+  const build = (root: string) =>
+    execFileSync(process.execPath, [tsc, "-b", "packages/host/test"], { cwd: root, stdio: "pipe" });
+
+  /** Runs the generator from the checkout at root in its own process and temp directory. */
+  function generate(root: string) {
     const out = scratch();
+    const temp = scratch();
     const run = spawnSync(
       process.execPath,
       [
         "--input-type=module",
         "-e",
         `const { generate } = await import(${JSON.stringify(new URL("./watch-snapshot.mjs", import.meta.url).href)});
-await generate(${JSON.stringify(out)}, ${JSON.stringify(build)});`,
+await generate(${JSON.stringify(out)}, ${JSON.stringify(root)});`,
       ],
-      { encoding: "utf8", env: { ...process.env, TZ: "UTC" } },
+      { encoding: "utf8", env: { ...process.env, TZ: "UTC", TMPDIR: temp, TEMP: temp, TMP: temp } },
     );
-    return { status: run.status, stderr: run.stderr, written: filesUnder(out), out };
+    const written = filesUnder(out);
+    const value = written.length > 0 ? readFileSync(join(out, written[0] ?? ""), "utf8") : "";
+    return { status: run.status, stderr: run.stderr, written, value, left: readdirSync(temp) };
   }
 
-  it("writes from a build tsc reports current, through the host's built modules", () => {
-    const build = tree();
+  function expectRefusal(run: ReturnType<typeof generate>, reason: string) {
+    expect(run.status).not.toBe(0);
+    expect(run.stderr).toContain(reason);
+    expect(run.written).toEqual([]);
+    expect(run.left).toEqual([]);
+  }
 
-    expect(staleBuild(build)).toBeUndefined();
-    const { status, written, out } = generate(build);
-    expect(status).toBe(0);
-    expect(written).toEqual(["fixtures/watch/x.json"]);
-    expect(readFileSync(join(out, "fixtures/watch/x.json"), "utf8")).toBe("1\n");
+  function expectCurrent(run: ReturnType<typeof generate>, value: string) {
+    expect(run.stderr).not.toContain("watch-snapshot:");
+    expect(run.status).toBe(0);
+    expect(run.written).toEqual(["fixtures/watch/x.json"]);
+    expect(run.value).toBe(`${value}\n`);
+    expect(run.left).toEqual([]);
+  }
+
+  it("writes what the current sources compute when tsc reports the build current", () => {
+    const root = tree();
+
+    expect(staleBuild(root)).toBeUndefined();
+    expectCurrent(generate(root), "1");
   });
 
   it.each([
+    ["packages/contracts/src/index.ts", "export const changed = 1;\n"],
+    ["packages/core/src/index.ts", "export const core = 2;\n"],
+    ["packages/tools/src/index.ts", "export const changed = 1;\n"],
     ["packages/host/src/index.ts", "export const value = 2;\n"],
     ["packages/host/test/watch/outputs.ts", "export const watchOutputs = [];\n"],
   ])("refuses, naming pnpm build, when %s changed after the build", (path, text) => {
-    const build = tree();
-    writeFileSync(join(build, path), text);
+    const root = tree();
+    writeFileSync(join(root, path), text);
 
-    expect(staleBuild(build)).toMatch(/would build/);
-    const { status, stderr, written } = generate(build);
-    expect(status).not.toBe(0);
-    expect(stderr).toContain("pnpm build");
-    expect(written).toEqual([]);
+    expect(staleBuild(root)).toMatch(/would build/);
+    expectRefusal(generate(root), "pnpm build");
   });
 
-  it("refuses, naming pnpm build, when an older emitted module is restored after a build", () => {
-    const build = tree();
-    const module = join(build, "packages/host/dist/index.js");
+  it("refuses, naming pnpm build, when the last build failed", () => {
+    const root = tree();
+    writeFileSync(join(root, "packages/host/src/index.ts"), "export const value: string = 2;\n");
+
+    expect(() => build(root)).toThrow();
+    expect(staleBuild(root)).toBeDefined();
+    expectRefusal(generate(root), "pnpm build");
+  });
+
+  it("writes when only core's tests changed after the build", () => {
+    const root = tree();
+    writeFileSync(join(root, "packages/core/test/fixture.ts"), "export const fixture = 2;\n");
+
+    expect(staleBuild(root)).toBeUndefined();
+    expectCurrent(generate(root), "1");
+  });
+
+  it.each([
+    ["packages/host/src/index.ts", "packages/host/dist/index.js"],
+    ["packages/core/src/index.ts", "packages/core/dist/index.js"],
+  ])(
+    "refuses when %s was deleted and the build since succeeded, leaving its old module",
+    (source, module) => {
+      const root = tree();
+      rmSync(join(root, source));
+      build(root);
+
+      expect(existsSync(join(root, module))).toBe(true);
+      expect(staleBuild(root)).toBeUndefined();
+      expectRefusal(generate(root), "is not compiled from any current source");
+    },
+  );
+
+  it("writes the current value, not an older emitted module restored after a build", () => {
+    const root = tree();
+    const module = join(root, "packages/host/dist/index.js");
     const older = { text: readFileSync(module), time: statSync(module).mtime };
-    writeFileSync(join(build, "packages/host/src/index.ts"), "export const value = 2;\n");
-    execFileSync(process.execPath, [tsc, "-b", "packages/host/test"], {
-      cwd: build,
-      stdio: "pipe",
-    });
+    writeFileSync(join(root, "packages/host/src/index.ts"), "export const value = 2;\n");
+    build(root);
     writeFileSync(module, older.text);
     utimesSync(module, older.time, older.time);
 
-    expect(staleBuild(build)).toMatch(/dist\/index\.js is not built from the current/);
-    const { status, stderr, written } = generate(build);
-    expect(status).not.toBe(0);
-    expect(stderr).toContain("pnpm build");
-    expect(written).toEqual([]);
+    expectCurrent(generate(root), "2");
   });
 
-  it("refuses, naming pnpm build, when a source changed after the build keeps its old mtime", () => {
-    const build = tree();
-    const source = join(build, "packages/host/src/index.ts");
+  it("writes the current value, not the build, when a source changed with its old mtime", () => {
+    const root = tree();
+    const source = join(root, "packages/host/src/index.ts");
     const { atime, mtime } = statSync(source);
     writeFileSync(source, "export const value = 2;\n");
     utimesSync(source, atime, mtime);
 
-    expect(staleBuild(build)).toMatch(/dist\/index\.js is not built from the current/);
-    const { status, stderr, written } = generate(build);
-    expect(status).not.toBe(0);
-    expect(stderr).toContain("pnpm build");
-    expect(written).toEqual([]);
+    expectCurrent(generate(root), "2");
   });
 
   it.each([
-    "packages/host/dist/index.js",
-    "packages/core/dist/index.js",
-    "packages/host/build/watch/outputs.js",
-  ])("refuses, naming pnpm build, when %s is missing", (path) => {
-    const build = tree();
-    rmSync(join(build, path));
+    ["deleted", (path: string) => rmSync(path)],
+    [
+      "replaced",
+      (path: string) => writeFileSync(path, 'throw new Error("built module loaded");\n'),
+    ],
+  ])("never loads a built module: writes the current value with every one %s", (_, change) => {
+    const root = tree();
+    for (const built of ["packages/core/dist", "packages/host/dist", "packages/host/build"])
+      for (const file of filesUnder(join(root, built)))
+        if (file.endsWith(".js")) change(join(root, built, file));
 
-    expect(existsSync(join(build, path))).toBe(false);
-    expect(staleBuild(build)).toMatch(/has no built module/);
-    const { status, stderr, written } = generate(build);
-    expect(status).not.toBe(0);
-    expect(stderr).toContain("pnpm build");
-    expect(written).toEqual([]);
+    expect(staleBuild(root)).toBeUndefined();
+    expectCurrent(generate(root), "1");
   });
 });
