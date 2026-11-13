@@ -119,6 +119,46 @@ describe("Stops the line", () => {
     expect(container.querySelectorAll(`[data-item-id="${STACK}"]`)).toHaveLength(1);
   });
 
+  const withoutFact = () => {
+    const body = recorded();
+    body.briefing.facts = body.briefing.facts.filter(({ label }) => label !== "Environment");
+    return body;
+  };
+  const unreadFact = () => {
+    const body = recorded();
+    const fact = body.briefing.facts.find(({ label }) => label === "Environment");
+    if (!fact) throw new Error("the recorded sweep carries no Environment fact");
+    Object.assign(fact, { figure: "?", sub: "deployability unread", tone: "neutral" });
+    return body;
+  };
+
+  it.each([
+    ["a run is in flight", recorded, "warn"],
+    ["no run is in flight", noRun, "bad"],
+    ["the Environment fact is missing", withoutFact, "plain"],
+    ["the Environment fact was not read", unreadFact, "plain"],
+  ] as const)("takes its tone from the evidence: %s", async (_, make, tone) => {
+    const { container } = await band(make());
+    const block = container.querySelector(".today-stop");
+    expect(block?.getAttribute("data-item-id")).toBe(STACK);
+    expect(block?.getAttribute("data-tone")).toBe(tone);
+  });
+
+  it.each([
+    ["missing", withoutFact],
+    ["not read", unreadFact],
+  ] as const)(
+    "never says nothing is running while its title names a run, with the fact %s",
+    async (_, make) => {
+      const body = make();
+      const { container } = await band(body);
+      const block = container.querySelector(".today-stop");
+      expect(block?.querySelector(".today-stop-title")?.textContent).toMatch(/\bruns\b/);
+      expect(block?.getAttribute("data-tone")).toBe("plain");
+      expect(block?.textContent).not.toMatch(/nothing is running|no run in flight/);
+    },
+  );
+
   it("selects the item in Detail from its verb, and opens the Environment place from its title", async () => {
     const { container, inspector, onNavigate } = await band(recorded());
     const block = container.querySelector(".today-stop");

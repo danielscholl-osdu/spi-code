@@ -243,6 +243,13 @@ button.today-item-service:hover,
   border-color: var(--warning);
   background: var(--warning-surface);
 }
+.today-stop[data-tone="plain"] {
+  border-color: var(--border);
+  background: var(--surface);
+}
+.today-stop[data-tone="plain"] :is(.today-stop-label, .today-stop-length strong) {
+  color: var(--text-strong);
+}
 .today-stop[aria-current="true"] {
   box-shadow: 0 0 0 1px var(--accent);
 }

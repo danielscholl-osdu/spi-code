@@ -49,6 +49,8 @@ export function LineStop({
   onOpenPlace: () => void;
 }) {
   const fact = snapshot.briefing.facts.find(({ label }) => label === "Environment");
+  const read = fact && fact.figure !== "?";
+  const tone = read && (fact.tone === "warn" || fact.tone === "bad") ? fact.tone : "plain";
   const headline = snapshot.readings.find(({ anchor }) => anchor.kind === "environment")?.content
     ?.headline;
   const facts = [plainTitle(item.cause), plainTitle(item.next)].some(Boolean) || item.blocks;
@@ -57,7 +59,7 @@ export function LineStop({
       className="today-stop"
       data-group="line-stop"
       data-item-id={item.id}
-      data-tone={fact?.tone === "warn" ? "warn" : "bad"}
+      data-tone={tone}
       aria-current={selected || undefined}
     >
       <div className="today-stop-label">

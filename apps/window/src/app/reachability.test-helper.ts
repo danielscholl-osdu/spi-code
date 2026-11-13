@@ -1276,12 +1276,14 @@ export const EXEMPTIONS: Readonly<Record<string, Exemption>> = {
     patterns: [
       "/briefing/since/basis",
       "/briefing/since/from",
+      "/briefing/since/asOf",
       "/briefing/since/rows/#/workflow",
       "/briefing/since/rows/#/label",
       "/briefing/since/rows/#/countText",
       "/briefing/since/rows/#/slots/#/service",
       "/briefing/since/rows/#/slots/#/state",
       "/briefing/since/rows/#/slots/#/text",
+      "/briefing/since/rows/#/slots/#/origin",
     ],
     reason:
       "spicode-f0s.47: briefing.since stays in the contract and no surface draws it (PS-03; spicode-eib ruling R2)",

@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import { directoryPaths } from "../test-utils/directory-paths.test.js";
+import { fixtureLoader } from "../test-utils/harness.js";
 import { moving } from "../views/today/in-motion.test-helper.js";
 import { treeServices } from "./queue.js";
 import {
@@ -48,15 +49,41 @@ import { DEFAULT_REGISTRY } from "./routes.js";
 
 shellHooks(readFixture);
 
+/** The recorded 59d6895 sweep with an origin on a since slot: the optional leaves the 6 Nov sweep lacks. */
+const optionalSince = () =>
+  fixtureLoader((path) => {
+    const body = JSON.parse(readFixture(path));
+    body.briefing.since.rows[0].slots[0].origin = "upstream";
+    return JSON.stringify(body);
+  })("snapshot-59d6895.json");
+
+/** Exemption patterns no leaf uses on the 6 Nov sweep nor on the optional-field one. */
+function staleOnEvery(exemptions = EXEMPTIONS) {
+  const [first = [], ...rest] = [fixture(), optionalSince()].map(
+    (body) => coverage(body, cases, exemptions).stale,
+  );
+  return first.filter((entry) => rest.every((stale) => stale.includes(entry)));
+}
+
 describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
   it("has a case or a named exemption for every leaf, and every exemption still applies", () => {
-    expect(coverage(fixture(), cases)).toEqual({
+    expect({ ...coverage(fixture(), cases), stale: staleOnEvery() }).toEqual({
       uncovered: [],
       stray: [],
       drawn: [],
       stale: [],
       partial: [],
     });
+  });
+
+  it("counts an exemption used when the optional-field sweep uses it", () => {
+    const optional = [
+      "since-undrawn /briefing/since/asOf",
+      "since-undrawn /briefing/since/rows/#/slots/#/origin",
+    ];
+    expect(coverage(fixture(), cases).stale).toEqual(optional);
+    const used = coverage(optionalSince(), cases).stale;
+    expect(optional.filter((entry) => used.includes(entry))).toEqual([]);
   });
 
   it("starts every home at a signed-off place, and one name means one home", () => {
@@ -82,8 +109,11 @@ describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
   it("exempts briefing.since by name, and the verdict only while the band is drawn", () => {
     const verdict = ["/briefing/verdict/text", "/briefing/verdict/mark"];
     expect(EXEMPTIONS["since-undrawn"]?.reason).toMatch(/^spicode-f0s\.47: /);
+    for (const body of [fixture(), optionalSince()]) {
+      const uncovered = coverage(body, []).uncovered;
+      expect(uncovered.filter((pointer) => pointer.startsWith("/briefing/since/"))).toEqual([]);
+    }
     const recorded = coverage(fixture(), []).uncovered;
-    expect(recorded.filter((pointer) => pointer.startsWith("/briefing/since/"))).toEqual([]);
     expect(recorded.filter((pointer) => verdict.includes(pointer))).toEqual([]);
     const calm = coverage(structuredClone(calmSnapshot), []).uncovered;
     expect(calm.filter((pointer) => verdict.includes(pointer))).toEqual(verdict);
@@ -220,13 +250,13 @@ describe("the suite's own guards", () => {
 
   it("reports an exemption pattern no leaf uses", () => {
     const unused = { ...EXEMPTIONS, unused: { patterns: ["/nowhere"], reason: "test" } };
-    expect(coverage(fixture(), cases, unused).stale).toEqual(["unused /nowhere"]);
+    expect(staleOnEvery(unused)).toEqual(["unused /nowhere"]);
   });
 
   it("keeps a pending contract field out of stale until core fills it, and exempts it once it does", () => {
     const later = { patterns: ["/briefing/later"], reason: "test", pending: true as const };
     const exemptions = { ...EXEMPTIONS, later };
-    expect(coverage(fixture(), cases, exemptions).stale).toEqual([]);
+    expect(staleOnEvery(exemptions)).toEqual([]);
     const body = fixture();
     (body.briefing as unknown as Record<string, unknown>).later = "a field core fills later";
     expect(coverage(body, cases, exemptions).uncovered).toEqual([]);
