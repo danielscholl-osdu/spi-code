@@ -167,6 +167,11 @@ export function startHost(options: HostOptions) {
   let stopped = false;
   let closed = false;
   let stopping: Promise<void> | undefined;
+  let signalStop: () => void = () => {};
+  const stopSignal = new Promise<never>((_resolve, reject) => {
+    signalStop = () => reject(new Error("Host is stopped"));
+  });
+  void stopSignal.catch(() => {});
   const ports = new Map<HostPort, () => void>();
   let observeTurn: Parameters<typeof createConversationBackend>[2] | undefined;
   const requestQueue: HostRequestQueue = { pending: Promise.resolve() };
@@ -193,7 +198,7 @@ export function startHost(options: HostOptions) {
       const backend = activeBackend;
       async function whileRunning<T>(run: () => Promise<T>): Promise<T> {
         if (stopped) throw new Error("Host is stopped");
-        const result = await run();
+        const result = await Promise.race([run(), stopSignal]);
         if (stopped) throw new Error("Host is stopped");
         return result;
       }
@@ -207,7 +212,10 @@ export function startHost(options: HostOptions) {
           },
           models: () => whileRunning(() => backend.models()),
           turn: (...args) => whileRunning(() => backend.turn(...args)),
-          endSession: () => backend.endSession(),
+          endSession: () => {
+            if (stopped) throw new Error("Host is stopped");
+            backend.endSession();
+          },
           stop: () => whileRunning(() => backend.stop()),
         },
         sendToWindow,
@@ -231,6 +239,7 @@ export function startHost(options: HostOptions) {
     } else {
       await handler(message);
     }
+    if (stopped) throw new Error("Host is stopped");
   };
   const registrations: HostRoutes = {
     ...watch.routes,
@@ -258,6 +267,7 @@ export function startHost(options: HostOptions) {
   function stop(): Promise<void> {
     if (stopping) return stopping;
     stopped = true;
+    signalStop();
     for (const stopPort of ports.values()) stopPort();
     stopping = setup
       .stop()

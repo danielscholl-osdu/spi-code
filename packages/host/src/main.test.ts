@@ -1104,3 +1104,96 @@ it("SIGTERM during models exits without starting a turn on the stopped backend",
     await host.stop();
   }
 });
+
+it("SIGTERM exits within 2000 ms while a backend turn is blocked on an internal await", async () => {
+  const host = await composedHost();
+  let release = () => {};
+  const internalAwait = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const turn = vi.fn(async () => {
+    await internalAwait;
+  });
+  const backendStop = vi.fn(async () => {});
+  mocks.createBackend.mockResolvedValue({
+    mode: "stub",
+    generation: 1,
+    models: async () => [{ id: "stub", name: "Stub" }],
+    turn,
+    endSession() {},
+    stop: backendStop,
+  } satisfies ConversationBackend);
+  try {
+    host.attach();
+    host.request("blocked-turn", "turn.start");
+    await vi.waitFor(() => expect(turn).toHaveBeenCalledOnce());
+    const signal = host.lifecycle.once.mock.calls.find(
+      ([event]) => event === "SIGTERM",
+    )?.[1] as () => void;
+    const at = Date.now();
+    signal();
+    await vi.waitFor(() => expect(host.lifecycle.exit).toHaveBeenCalledWith(0), { timeout: 1500 });
+    expect(Date.now() - at).toBeLessThan(2000);
+    expect(backendStop).toHaveBeenCalledOnce();
+    expect(host.sent).toContainEqual(
+      expect.objectContaining({
+        id: "blocked-turn",
+        type: "error",
+        payload: { code: "host_failed", message: "Host request failed" },
+      }),
+    );
+  } finally {
+    release();
+    await host.stop();
+  }
+});
+
+it("the guarded turn settles and drains queued work before the backend turn returns", async () => {
+  const host = await composedHost();
+  let release = () => {};
+  const heldTurn = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const models = vi.fn(async () => [{ id: "stub", name: "Stub" }]);
+  const turn = vi.fn(() => heldTurn);
+  mocks.createBackend.mockResolvedValue({
+    mode: "stub",
+    generation: 1,
+    models,
+    turn,
+    endSession() {},
+    stop: async () => {},
+  } satisfies ConversationBackend);
+  try {
+    host.attach();
+    host.request("guarded-turn", "turn.start");
+    await vi.waitFor(() => expect(turn).toHaveBeenCalledOnce());
+    host.request("queued-list");
+    const stopped = host.stop();
+    await vi.waitFor(() => {
+      for (const id of ["guarded-turn", "queued-list"])
+        expect(host.sent).toContainEqual(
+          expect.objectContaining({
+            id,
+            type: "error",
+            payload: { code: "host_failed", message: "Host request failed" },
+          }),
+        );
+    });
+    await stopped;
+    expect(models).toHaveBeenCalledOnce();
+    expect(turn).toHaveBeenCalledOnce();
+    release();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(host.sent).not.toContainEqual(
+      expect.objectContaining({
+        id: "guarded-turn",
+        type: "turn.end",
+        payload: { reason: "completed" },
+      }),
+    );
+  } finally {
+    release();
+    await host.stop();
+  }
+});
