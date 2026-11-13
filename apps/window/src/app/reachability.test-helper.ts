@@ -72,6 +72,13 @@ const firstClause = (value: string) => value.split(" · ")[0] ?? value;
 const lastWord = (value: string) => value.trim().split(/\s+/).pop() ?? "";
 const nextSync = (value: string) => value.replace(/^Next sync /, "");
 const subText = (value: string) => timedText(plainTitle(value), { hint: false });
+/** The Environment fact's first clause as the strip's state words it: Ready, Maintenance · <run>, Maintenance. */
+const stripClause = (element: Element) => {
+  const state = element.querySelector(".strip-state")?.textContent ?? "";
+  if (state === "Ready") return "deployable";
+  if (state.startsWith("Maintenance · ")) return state.slice("Maintenance · ".length);
+  return state.startsWith("Maintenance") ? "held" : state;
+};
 const NOTES_STATE: Readonly<Record<string, string>> = {
   Approved: "approved",
   Draft: "draft",
@@ -214,16 +221,12 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
   const envFact = facts[environmentFact];
   if (envFact && envFact.figure !== "?") {
     const pointer = `/briefing/facts/${environmentFact}`;
-    add(`${pointer}/figure`, envFact.figure, STRIP, '.window-strip [data-field="environment"] b');
-    add(
-      `${pointer}/sub`,
-      firstClause(envFact.sub),
-      STRIP,
-      '.window-strip [data-field="environment"]',
-      {
-        read: (element) => (element.textContent ?? "").replace(`env ${envFact.figure}`, "").trim(),
-      },
-    );
+    const environment = '.window-strip [data-field="environment"]';
+    add(`${pointer}/figure`, envFact.figure, STRIP, environment, {
+      attribute: "aria-label",
+      contains: true,
+    });
+    add(`${pointer}/sub`, firstClause(envFact.sub), STRIP, environment, { read: stripClause });
   }
   if (briefing.nextSyncAt) {
     const time = clockTime(briefing.nextSyncAt);

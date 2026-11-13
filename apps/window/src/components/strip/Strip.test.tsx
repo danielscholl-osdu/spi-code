@@ -2,12 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { readFileSync } from "node:fs";
-import {
-  PROTOCOL_VERSION,
-  type Station,
-  type StationSubstate,
-  type ViewSnapshot,
-} from "@spi-code/contracts";
+import { PROTOCOL_VERSION, type Station, type Tone, type ViewSnapshot } from "@spi-code/contracts";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -16,7 +11,6 @@ import { closeSheet } from "../../app/navigation.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
 import { PINS_STORAGE_KEY, readPins } from "../../store/pins.js";
-import { PIPS, type PipState, selectStrip } from "../../store/strip.js";
 import { watchStore } from "../../store/watch.js";
 import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import { clockTime } from "../../time.js";
@@ -68,7 +62,21 @@ async function mount() {
 
 const strip = () => container.querySelector<HTMLElement>(".window-strip [data-strip]");
 const field = (name: string) => strip()?.querySelector<HTMLElement>(`[data-field="${name}"]`);
-const pips = () => [...(strip()?.querySelectorAll<HTMLElement>("[data-pip]") ?? [])];
+const fieldNames = () =>
+  [...(strip()?.querySelectorAll<HTMLElement>("[data-field]") ?? [])].map(
+    (node) => node.dataset.field,
+  );
+const states = () =>
+  Object.fromEntries(
+    ["environment", "template", "forks"].map((name) => {
+      const button = field(name);
+      const state = button?.querySelector(".strip-state");
+      return [
+        name,
+        [button?.firstChild?.textContent, state?.textContent, state?.getAttribute("data-tone")],
+      ];
+    }),
+  );
 const sheet = () => container.querySelector(".line-sheet");
 
 beforeEach(() => {
@@ -117,56 +125,16 @@ it("adds only a future next sweep to the freshness hover and accessible name, ex
   expect(freshness?.title).not.toContain("next sweep");
 });
 
-it("draws one pip per service in fleet order, partition first", async () => {
-  await mount();
-  const services = pips().map((pip) => pip.dataset.service);
-  expect(services).toEqual(FLEET);
-  expect(services[0]).toBe("partition");
-});
-
-it("raises ! on November 6 only where a person is needed, not for release PRs waiting for review", async () => {
-  await mount();
-  expect(
-    pips()
-      .map((pip) => PIPS[pip.dataset.pip as PipState].mark)
-      .join(" "),
-  ).toBe("! ✕ ! ○ ○ ! ! ○ ○ ! ○ ○ ○");
-});
-
-it("draws and names the four pip shapes, the worst line station winning", async () => {
-  const body = fixture();
-  const set = (service: string, substate: (id: Station["id"]) => StationSubstate) => {
-    const row = body.stations.find((entry) => entry.service === service);
-    if (!row) throw new Error(`fixture has no ${service}`);
-    row.stations = row.stations.map((station) => ({
-      ...station,
-      substate: substate(station.id),
-    })) as typeof row.stations;
-  };
-  set("schema", (id) => (id === "lane" ? "stopped" : "ready"));
-  set("file", (id) => (id === "upstream" ? "in-progress" : "waiting-on-clock"));
-  set("legal", () => "waiting-on-clock");
-  show(body);
-  await mount();
-  const names = Object.fromEntries(
-    pips().map((pip) => [
-      pip.dataset.service,
-      [pip.title, pip.querySelector(".strip-pip-mark")?.getAttribute("data-shape")],
-    ]),
-  );
-  expect(names).toMatchObject({
-    partition: ["partition: needs a person", "filled"],
-    entitlements: ["entitlements: stopped", "diamond"],
-    legal: ["legal: nothing due", "hollow"],
-    schema: ["schema: nothing due", "hollow"],
-    file: ["file: in progress", "half"],
+const menu = (service: string) =>
+  document.querySelector<HTMLElement>(`[data-pin-menu="${service}"]`);
+const keydown = (target: Element | null | undefined, init: KeyboardEventInit) =>
+  act(async () => {
+    target?.dispatchEvent(
+      new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init }),
+    );
   });
-  const mark = pips()[1]?.querySelector(".strip-pip-mark");
-  if (!mark) throw new Error("Missing stopped pip mark");
-  expect(getComputedStyle(mark).transform).toBe("rotate(45deg)");
-});
 
-it("holds pips, fields and panel controls beside the native window controls in one 44 px row", async () => {
+it("holds the fields and panel controls beside the native window controls in one 44 px row, with no pips", async () => {
   await mount();
   const row = container.querySelector<HTMLElement>(".title-bar");
   const status = strip();
@@ -184,268 +152,337 @@ it("holds pips, fields and panel controls beside the native window controls in o
     Number.parseFloat(rowStyle.borderTopWidth || "0") -
     Number.parseFloat(rowStyle.borderBottomWidth || "0");
   expect(getComputedStyle(status).height).toBe(`${contentHeight}px`);
-  for (const target of status.querySelectorAll<HTMLElement>("button, .strip-pip-target")) {
+  for (const target of status.querySelectorAll<HTMLElement>(":scope > button")) {
     expect(getComputedStyle(target).height).toBe(`${contentHeight}px`);
   }
   expect(container.querySelector(".shell")?.getAttribute("data-window-controls")).toBe("inset");
   expect(getComputedStyle(row).paddingLeft).toBe("84px");
   expect(row?.querySelector(".strip-line")).toBeNull();
   expect(getComputedStyle(status).flexWrap).toBe("nowrap");
+  expect(container.querySelector(".strip-pips, .strip-pip-target, [data-pip]")).toBeNull();
+  expect(status.querySelector("[data-service]")).toBeNull();
 });
 
-it("renders the fields from the November 6 sweep", async () => {
+it("renders the fields from the November 6 sweep in PS-18 order", async () => {
   const body = fixture();
   await mount();
   const nextSync = body.briefing.nextSyncAt as string;
-  expect(field("stopped")?.textContent).toBe("entitlements stopped");
-  expect(field("environment")?.textContent).toBe("env v0.35.3 deployable");
-  expect(field("template")?.textContent).toBe("template 0/13");
-  expect(field("template")?.title).toBe("0 of 13 forks on template 7d269b5");
+  expect(fieldNames()).toEqual(["environment", "template", "forks", "next-sync", "freshness"]);
+  expect(states()).toEqual({
+    environment: ["Environment", "Ready", "ok"],
+    template: ["Templates", "13 pending", "warn"],
+    forks: ["Forks", "1 stopped", "bad"],
+  });
+  expect(field("forks")?.title).toBe("Forks: 1 stopped. Stopped: entitlements.");
+  expect(field("environment")?.title).toBe("Environment: Ready. v0.35.3 is ready.");
+  expect(field("template")?.title).toBe(
+    `Templates: 13 pending. Template 7d269b5 is pending on ${FLEET.join(", ")}.`,
+  );
   expect(field("due")).toBeNull();
   expect(field("next-sync")?.textContent).toBe(`next sync ${clockTime(nextSync)}`);
-  expect(
-    [...(strip()?.querySelectorAll<HTMLElement>("[data-field]") ?? [])].map(
-      (node) => node.dataset.field,
-    ),
-  ).toEqual(["stopped", "environment", "template", "next-sync", "freshness"]);
 });
 
-it("gives a field with no data no space", async () => {
-  const body = fixture();
-  for (const row of body.stations) {
-    row.stations = row.stations.map((station) => ({
-      ...station,
-      substate: "ready",
-    })) as typeof row.stations;
-  }
-  const undated = (items: typeof body.briefing.focus) =>
-    items.map(({ due: _due, ...item }) => item);
-  body.briefing = {
-    ...body.briefing,
-    focus: undated(body.briefing.focus),
-    rest: undated(body.briefing.rest),
-    facts: body.briefing.facts
-      .map((fact) => (fact.label === "Environment" ? { ...fact, figure: "?" } : fact))
-      .filter(({ label }) => !label.startsWith("Template")),
-  };
-  body.readings = body.readings.map((reading) =>
-    reading.anchor.kind === "engineering" ? { ...reading, content: null } : reading,
-  );
-  delete body.briefing.nextSyncAt;
-  expect(selectStrip(body)).toEqual({
-    pips: FLEET.map((service) => ({ service, state: "nothing-due" })),
-    stopped: [],
-  });
-  show(body);
-  await mount();
-  expect(strip()?.querySelectorAll("[data-field]")).toHaveLength(1);
-  expect(field("freshness")).not.toBeNull();
-  expect(strip()?.querySelector(".strip-line")).toBeNull();
-});
+type Body = ReturnType<typeof fixture>;
+type SlotState = "empty" | "occupied" | "done" | "waiting" | "broken" | "unknown";
 
-function adoption(
-  body: ViewSnapshot,
-  marker: string,
-  verifiedTemplate: NonNullable<ViewSnapshot["readings"][number]["content"]>["verifiedTemplate"],
-  rollout: string,
+function environment(
+  body: Body,
+  fact: { tone: Tone; sub: string; figure?: string },
+  hold?: string,
 ) {
-  body.briefing.facts = body.briefing.facts.map((fact) =>
-    fact.label.startsWith("Template") ? { ...fact, figure: marker } : fact,
+  body.briefing.facts = body.briefing.facts.map((entry) =>
+    entry.label === "Environment" ? { ...entry, ...fact } : entry,
   );
-  for (const reading of body.readings) {
-    if (reading.anchor.kind !== "engineering" || !reading.content) continue;
-    const [system, prs, state] = reading.content.tiles;
-    if (verifiedTemplate) reading.content.verifiedTemplate = verifiedTemplate;
-    else delete reading.content.verifiedTemplate;
-    reading.content.tiles = [
-      {
-        ...system,
-        value: verifiedTemplate
-          ? `${verifiedTemplate.verified} of ${verifiedTemplate.total}`
-          : "not read yet",
-        counts: "forks on the target template",
-      },
-      prs,
-      { ...state, value: rollout },
-    ];
+  const lane = body.briefing.environment.lanes.find(({ id }) => id === "holds");
+  if (lane && hold !== undefined)
+    lane.events.push({
+      id: "hold-open",
+      start: "2026-11-04T15:00:00.000Z",
+      state: "held",
+      label: hold,
+      detail: `in maintenance for ${hold} so far`,
+    });
+  return body;
+}
+
+function rollout(body: Body, slots: (service: string, index: number) => SlotState) {
+  for (const place of body.briefing.places ?? []) {
+    if (place.visual?.kind !== "rollout") continue;
+    place.visual.slots = place.visual.slots.map((slot, index) => ({
+      ...slot,
+      state: slots(slot.service, index),
+    }));
   }
   return body;
 }
 
-it.each([
-  [
-    "merged, main validation pending",
-    "1 of 13",
-    { verified: 0, total: 13, unread: 0, target: "7d269b5" },
-    "In progress",
-    "0/13",
-  ],
-  [
-    "merged, main validation failed",
-    "1 of 13",
-    { verified: 0, total: 13, unread: 0, target: "7d269b5" },
-    "Stopped",
-    "0/13",
-  ],
-  [
-    "merged and verified, another fork's marker unread",
-    "1 of 12",
-    { verified: 1, total: 13, unread: 1, target: "7d269b5" },
-    "In progress",
-    "1/13",
-  ],
-  [
-    "one fork's marker unread",
-    "0 of 12",
-    { verified: 0, total: 13, unread: 1, target: "7d269b5" },
-    "In progress",
-    "0/13",
-  ],
-] as const)(
-  "counts verified forks over the fleet for the template: %s",
-  async (_case, marker, verifiedTemplate, rollout, shown) => {
-    show(adoption(fixture(), marker, verifiedTemplate, rollout));
-    await mount();
-    expect(pips()).toHaveLength(13);
-    expect(field("template")?.textContent).toBe(`template ${shown}`);
-    expect(field("template")?.title).toBe(
-      `${shown.replace("/", " of ")} forks on template 7d269b5`,
-    );
-  },
-);
-
-it("gives the template no space when the engineering reading is absent or not read", async () => {
-  const body = fixture();
-  const absent = {
-    ...body,
-    readings: body.readings.filter(({ anchor }) => anchor.kind !== "engineering"),
-  };
-  expect(selectStrip(absent).template).toBeUndefined();
-  const unread = adoption(fixture(), "0 of 0", undefined, "not read yet");
-  expect(selectStrip(unread).template).toBeUndefined();
-  expect(
-    selectStrip(
-      adoption(
-        fixture(),
-        "0 of 0",
-        {
-          verified: 0,
-          total: 13,
-          unread: 13,
-          target: "7d269b5",
-        },
-        "not read yet",
-      ),
-    ).template,
-  ).toBeUndefined();
-  show(absent);
-  await mount();
-  expect(field("template")).toBeNull();
-  expect(field("environment")).not.toBeNull();
-});
-
-it("keeps typed adoption unchanged when every engineering tile's wording changes", () => {
-  const body = adoption(
-    fixture(),
-    "9 of 12",
-    {
-      verified: 1,
-      total: 13,
-      unread: 1,
-      target: `7d269b5${"a".repeat(33)}`,
-    },
-    "In progress",
-  );
-  expect(selectStrip(body).template).toEqual({ verified: 1, total: 13, target: "7d269b5" });
-  const reading = body.readings.find(({ anchor }) => anchor.kind === "engineering");
-  if (!reading?.content) throw new Error("Missing engineering reading");
-  reading.content.tiles = reading.content.tiles.map(() => ({
-    label: "Adoption",
-    value: "Editorial words",
-    counts: "A different description",
-  })) as typeof reading.content.tiles;
-  expect(selectStrip(body).template).toEqual({ verified: 1, total: 13, target: "7d269b5" });
-});
-
-it.each(["stopped", "environment", "template", "next-sync"])(
-  "opens the Line sheet from the %s field button",
-  async (name) => {
-    await mount();
-    const button = field(name);
-    expect(button?.tagName).toBe("BUTTON");
-    expect(sheet()).toBeNull();
-    await act(async () => button?.click());
-    expect(sheet()).not.toBeNull();
-  },
-);
-
-it("aggregates pip states into one Line button without roving tab stops", async () => {
-  const body = fixture();
+function forks(body: Body, station: (service: string, id: Station["id"]) => Partial<Station>) {
   for (const row of body.stations) {
-    if (row.service !== "file" && row.service !== "legal") continue;
-    row.stations = row.stations.map((station) => ({
-      ...station,
-      substate: row.service === "file" ? "in-progress" : "ready",
+    row.stations = row.stations.map((entry) => ({
+      ...entry,
+      substate: "ready",
+      state: "idle",
+      ...station(row.service, entry.id),
     })) as typeof row.stations;
   }
-  show(body);
+  return body;
+}
+
+const flowing = (body: Body) => forks(body, () => ({}));
+const current = (body: Body) => rollout(body, () => "done");
+const STOPPED = new Set(["storage", "indexer", "search", "workflow"]);
+const WAITING = new Set(["legal", "schema"]);
+
+it.each([
+  [
+    "environment ready",
+    (body: Body) => body,
+    "environment",
+    ["Ready", "ok", "Environment: Ready. v0.35.3 is ready."],
+  ],
+  [
+    "environment in maintenance with nothing running",
+    (body: Body) =>
+      environment(
+        body,
+        { tone: "bad", sub: "held · The environment is in maintenance." },
+        "2 d 13 h",
+      ),
+    "environment",
+    [
+      "Maintenance 2 d 13 h",
+      "bad",
+      "Environment: Maintenance 2 d 13 h. v0.35.3 has been in maintenance for 2 d 13 h, and nothing is running to clear it.",
+    ],
+  ],
+  [
+    "environment in maintenance while a refresh runs",
+    (body: Body) =>
+      environment(body, { tone: "warn", sub: "refresh running · at deploy" }, "2 d 13 h"),
+    "environment",
+    [
+      "Maintenance · refresh running",
+      "warn",
+      "Environment: Maintenance · refresh running. v0.35.3 has been in maintenance for 2 d 13 h; refresh running.",
+    ],
+  ],
+  [
+    "templates current",
+    current,
+    "template",
+    ["Current", "ok", "Templates: Current. Every fork is on template 7d269b5."],
+  ],
+  [
+    "templates pending",
+    (body: Body) =>
+      rollout(body, (service) =>
+        service === "legal"
+          ? "empty"
+          : service === "file"
+            ? "waiting"
+            : service === "unit"
+              ? "occupied"
+              : "done",
+      ),
+    "template",
+    [
+      "3 pending",
+      "warn",
+      "Templates: 3 pending. Template 7d269b5 is pending on legal, file, unit.",
+    ],
+  ],
+  [
+    "templates failed",
+    (body: Body) =>
+      rollout(body, (service) =>
+        service === "storage"
+          ? "broken"
+          : service === "legal" || service === "unit"
+            ? "occupied"
+            : "done",
+      ),
+    "template",
+    [
+      "1 failed · 2 pending",
+      "bad",
+      "Templates: 1 failed · 2 pending. Template 7d269b5 failed on storage; pending on legal, unit.",
+    ],
+  ],
+  [
+    "forks flowing",
+    flowing,
+    "forks",
+    ["Flowing", "ok", "Forks: Flowing. All 13 forks are flowing."],
+  ],
+  [
+    "forks stopped",
+    (body: Body) =>
+      forks(body, (service, id) =>
+        STOPPED.has(service) && id === "cascade"
+          ? { substate: "stopped", state: "stopped" }
+          : WAITING.has(service) && id === "sync"
+            ? { substate: "waiting-on-person", state: "waiting" }
+            : {},
+      ),
+    "forks",
+    ["4 stopped", "bad", "Forks: 4 stopped. Stopped: storage, indexer, search, workflow."],
+  ],
+  [
+    "forks waiting on a person",
+    (body: Body) =>
+      forks(body, (service, id) =>
+        WAITING.has(service) && id === "sync"
+          ? { substate: "waiting-on-person", state: "waiting" }
+          : {},
+      ),
+    "forks",
+    ["2 waiting", "warn", "Forks: 2 waiting. Waiting on a person: legal, schema."],
+  ],
+] as const)("words the %s", async (_case, change, name, [text, tone, label]) => {
+  show(change(fixture()));
   await mount();
-  const line = strip()?.querySelector<HTMLButtonElement>(".strip-pips");
-  expect(line?.getAttribute("aria-label")).toBe(
-    "Line: 1 stopped, 4 need a person, 1 in progress, 7 nothing due",
-  );
-  expect(line?.getAttribute("aria-keyshortcuts")).toBe("Meta+L");
-  expect(pips().map((item) => item.tabIndex)).toEqual(FLEET.map(() => -1));
-  expect(pips().every((item) => !item.hasAttribute("tabindex"))).toBe(true);
-  await act(async () => line?.focus());
-  expect(sheet()).toBeNull();
-  await act(async () => pips()[0]?.click());
-  expect(sheet()).not.toBeNull();
-  await keydown(document.activeElement, { key: "Escape" });
-  expect(sheet()).toBeNull();
-  expect(document.activeElement).toBe(line);
+  const button = field(name);
+  expect(button?.querySelector(".strip-state")?.textContent).toBe(text);
+  expect(button?.querySelector(".strip-state")?.getAttribute("data-tone")).toBe(tone);
+  expect(button?.title).toBe(label);
+  expect(button?.getAttribute("aria-label")).toBe(label);
+  expect(fieldNames().slice(0, 3)).toEqual(["environment", "template", "forks"]);
+  for (const state of strip()?.querySelectorAll(".strip-state") ?? [])
+    expect(state.textContent).not.toMatch(/ of |\//);
 });
 
-const pip = (service: string) => strip()?.querySelector<HTMLElement>(`[data-service="${service}"]`);
-const menu = (service: string) =>
-  document.querySelector<HTMLElement>(`[data-pin-menu="${service}"]`);
-const pinned = () =>
-  [...container.querySelectorAll('ul[aria-label="Pinned"] [data-sidebar-row]')].map((row) =>
-    row.getAttribute("data-sidebar-row"),
-  );
-const keydown = (target: Element | null | undefined, init: KeyboardEventInit) =>
-  act(async () => {
-    target?.dispatchEvent(
-      new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init }),
-    );
-  });
-
-it("opens a pip's menu from its full-height hit area and pins without opening the Line sheet", async () => {
+it.each([
+  [
+    "environment whose figure is not read",
+    (body: Body) => environment(body, { tone: "ok", sub: "deployable", figure: "?" }),
+    "environment",
+  ],
+  [
+    "environment whose deployability is unread",
+    (body: Body) => environment(body, { tone: "neutral", sub: "deployability unread" }),
+    "environment",
+  ],
+  [
+    "environment fact that is absent",
+    (body: Body) => {
+      body.briefing.facts = body.briefing.facts.filter(({ label }) => label !== "Environment");
+      return body;
+    },
+    "environment",
+  ],
+  ["rollout whose slots are unknown", (body: Body) => rollout(body, () => "unknown"), "template"],
+  [
+    "rollout with one fork unknown and the rest done",
+    (body: Body) => rollout(body, (_s, index) => (index === 4 ? "unknown" : "done")),
+    "template",
+  ],
+  [
+    "rollout that is absent",
+    (body: Body) => {
+      body.briefing.places = body.briefing.places?.filter(({ place }) => place !== "engineering");
+      return body;
+    },
+    "template",
+  ],
+  [
+    "rollout with no slots",
+    (body: Body) => {
+      for (const place of body.briefing.places ?? [])
+        if (place.visual?.kind === "rollout") place.visual.slots = [];
+      return body;
+    },
+    "template",
+  ],
+  [
+    "fork whose stations were not read",
+    (body: Body) =>
+      forks(body, (service, id) =>
+        service === "file" && id !== "lane" ? { state: "unknown" } : {},
+      ),
+    "forks",
+  ],
+  [
+    "fleet with no stations",
+    (body: Body) => {
+      body.stations = [];
+      return body;
+    },
+    "forks",
+  ],
+] as const)("reads not read yet in the plain tone for an %s", async (_case, change, name) => {
+  show(change(current(flowing(fixture()))));
   await mount();
-  const target = pip("legal");
-  if (!target) throw new Error("Missing legal pip");
-  expect(target?.classList.contains("strip-pip-target")).toBe(true);
-  expect(getComputedStyle(target).height).toBe("44px");
-  expect(getComputedStyle(target).width).toBe("12px");
-  expect(target?.querySelector(".strip-pip-mark")).not.toBeNull();
-  const rightClick = () =>
-    act(async () => {
-      pip("legal")?.dispatchEvent(
-        new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 4, clientY: 4 }),
-      );
-    });
-  await rightClick();
-  expect(menu("legal")?.textContent).toBe("Pin legal");
-  await act(async () => menu("legal")?.querySelector<HTMLElement>("[role='menuitem']")?.click());
-  expect(readPins()).toEqual(["legal"]);
-  expect(pinned()).toEqual(["service/legal"]);
+  const state = field(name)?.querySelector(".strip-state");
+  expect(state?.textContent).toBe("not read yet");
+  expect(state?.getAttribute("data-tone")).toBe("plain");
+  expect(field(name)?.title).not.toMatch(/Ready|Current|Flowing/);
+  const others = ["environment", "template", "forks"].filter((other) => other !== name);
+  expect(others.map((other) => field(other)?.querySelector(".strip-state")?.textContent)).toEqual(
+    others.map((other) => ({ environment: "Ready", template: "Current", forks: "Flowing" })[other]),
+  );
+});
+
+it("names the forks not read beside a count, and keeps a stopped fork in the count", async () => {
+  const body = forks(fixture(), (service, id) =>
+    service === "storage" && id === "main"
+      ? { substate: "stopped", state: "stopped" }
+      : service === "file" && id === "sync"
+        ? { state: "unknown" }
+        : {},
+  );
+  show(
+    rollout(body, (service) =>
+      service === "legal" ? "occupied" : service === "unit" ? "unknown" : "done",
+    ),
+  );
+  await mount();
+  expect(field("forks")?.title).toBe("Forks: 1 stopped. Stopped: storage. Not read yet: file.");
+  expect(field("template")?.title).toBe(
+    "Templates: 1 pending. Template 7d269b5 is pending on legal. Not read yet on unit.",
+  );
+});
+
+it("draws the three state fields with no next sync when the snapshot has none", async () => {
+  const body = fixture();
+  delete body.briefing.nextSyncAt;
+  show(body);
+  await mount();
+  expect(fieldNames()).toEqual(["environment", "template", "forks", "freshness"]);
+});
+
+it.each([
+  ["environment", "#environment"],
+  ["template", "#engineering-system"],
+] as const)("opens the place behind the %s field", async (name, hash) => {
+  await mount();
+  const button = field(name);
+  expect(button?.tagName).toBe("BUTTON");
+  await act(async () => button?.click());
+  expect(window.location.hash).toBe(hash);
   expect(sheet()).toBeNull();
-  await rightClick();
-  expect(menu("legal")?.textContent).toBe("Unpin legal");
-  await act(async () => menu("legal")?.querySelector<HTMLElement>("[role='menuitem']")?.click());
-  expect(readPins()).toEqual([]);
-  expect(pinned()).toEqual([]);
+});
+
+it.each(["forks", "next-sync"])("opens the Line sheet from the %s field", async (name) => {
+  await mount();
+  const button = field(name);
+  expect(button?.tagName).toBe("BUTTON");
   expect(sheet()).toBeNull();
+  await act(async () => button?.click());
+  expect(sheet()).not.toBeNull();
+});
+
+it("gives the Forks field the Line sheet's shortcut and the services it counts", async () => {
+  await mount();
+  const forks = field("forks");
+  expect(forks?.getAttribute("aria-keyshortcuts")).toBe("Meta+L");
+  expect(forks?.getAttribute("aria-controls")).toBe("app-line-sheet");
+  expect(forks?.dataset.services).toBe(String(FLEET.length));
+  await act(async () => forks?.focus());
+  await act(async () => forks?.click());
+  expect(sheet()?.id).toBe("app-line-sheet");
+  await keydown(document.activeElement, { key: "Escape" });
+  expect(sheet()).toBeNull();
+  expect(document.activeElement).toBe(forks);
 });
 
 it("keeps each pip menu action on its service row in the Line sheet for the keyboard path", async () => {

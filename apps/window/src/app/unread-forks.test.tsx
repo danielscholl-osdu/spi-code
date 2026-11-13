@@ -34,7 +34,11 @@ async function mount(name: SnapshotName, hash: string) {
   };
   const text = (selector: string) => container.querySelector(selector)?.textContent ?? null;
   return {
-    strip: text('.window-strip [data-strip] [data-field="template"] b'),
+    strip: text('.window-strip [data-strip] [data-field="template"] .strip-state'),
+    stripName:
+      container
+        .querySelector('.window-strip [data-strip] [data-field="template"]')
+        ?.getAttribute("aria-label") ?? null,
     sidebar: text('[data-sidebar-row="engineering-system"] .sidebar-row-note'),
     tile: [
       text("section.place .place-tile:first-child .place-tile-value"),
@@ -62,22 +66,23 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-it("counts all 13 forks on the strip and the sidebar when 5 forks were not read", async () => {
+it("counts all 13 forks on the sidebar and names the 5 not read on the strip", async () => {
   const today = await mount(unread, "#today");
-  expect(today.strip).toBe("0/13");
+  expect(today.strip).toBe("8 pending");
+  expect(today.stripName).toMatch(/\. Not read yet on (\S+, ){4}\S+\.$/);
   expect(today.sidebar).toBe("0 of 13");
 });
 
 it("names the 5 forks not read in the Engineering system place", async () => {
   const place = await mount(unread, "#engineering-system");
-  expect(place.strip).toBe("0/13");
+  expect(place.strip).toBe("8 pending");
   expect(place.sidebar).toBe("0 of 13");
   expect(place.tile).toEqual(["0 of 13", "forks on 7d269b5 · 5 not read yet"]);
 });
 
 it("reads as before when every fork is read", async () => {
   const today = await mount(november6, "#today");
-  expect(today.strip).toBe("0/13");
+  expect(today.strip).toBe("13 pending");
   expect(today.sidebar).toBe("0 of 13");
   await unmount?.();
   const place = await mount(november6, "#engineering-system");
@@ -86,11 +91,11 @@ it("reads as before when every fork is read", async () => {
 
 it("counts only the verified fork on every surface when another is on 7d269b5 but red", async () => {
   const today = await mount(unverified, "#today");
-  expect(today.strip).toBe("1/13");
+  expect(today.strip).toBe("1 failed · 11 pending");
   expect(today.sidebar).toBe("1 of 13");
   await unmount?.();
   const place = await mount(unverified, "#engineering-system");
-  expect(place.strip).toBe("1/13");
+  expect(place.strip).toBe("1 failed · 11 pending");
   expect(place.sidebar).toBe("1 of 13");
   expect(place.tile).toEqual(["1 of 13", "forks on 7d269b5"]);
 });

@@ -219,7 +219,7 @@ async function measure(
         const style = getComputedStyle(title);
         const left = parseFloat(style.paddingLeft);
         const right = parseFloat(style.paddingRight);
-        return { rule: "drag", services: document.querySelectorAll("[data-strip] [data-service]").length,
+        return { rule: "drag", services: Number(document.querySelector("[data-strip] [data-field=forks]")?.dataset.services ?? 0),
           appRegion: style.getPropertyValue("-webkit-app-region"),
           region: { x: bounds.x + left, y: bounds.y, width: bounds.width - left - right, height: 44 },
           targets: [...title.querySelectorAll("button, select, input, textarea, a, label, summary")]
@@ -347,7 +347,9 @@ async function overlayDragProbe(
   assert(first);
   window.setContentSize(first[1], first[2]);
   await load();
-  await window.webContents.executeJavaScript('document.querySelector(".strip-pips").click()');
+  await window.webContents.executeJavaScript(
+    'document.querySelector("[data-strip] [data-field=forks]").click()',
+  );
   await rendered(window, 'document.querySelector(".line-sheet .line-grid")');
   await each(".line-sheet", "", sizes);
   await window.webContents.executeJavaScript(
@@ -733,7 +735,7 @@ export async function captureSmokeViews(
           }
           if (surface.id === "line" || surface.id === "panes") {
             await window.webContents.executeJavaScript(
-              'document.querySelector(".strip-pips").click()',
+              'document.querySelector("[data-strip] [data-field=forks]").click()',
             );
             await rendered(window, 'document.querySelector(".line-grid")');
           }

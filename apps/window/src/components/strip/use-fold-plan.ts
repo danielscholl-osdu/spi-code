@@ -7,7 +7,6 @@ import {
   type FoldChange,
   type FoldInput,
   type FoldPlan,
-  pipsWidth,
   planFold,
 } from "./fold-plan.js";
 
@@ -28,11 +27,10 @@ export const FOLD_CHANGE: Readonly<Record<StripTrigger, FoldChange>> = {
 
 /** The ruler's hidden forms, named `<field>.<form>`, and the live field measured in place. */
 export const MEASURE = {
-  stoppedNames: "stopped.names",
-  stoppedCount: "stopped.count",
   environmentFull: "environment.full",
-  environmentVersion: "environment.version",
+  environmentShort: "environment.short",
   template: "template",
+  forks: "forks",
   nextSync: "next-sync",
   freshnessFull: "freshness.full",
   freshnessShort: "freshness.short",
@@ -53,7 +51,7 @@ const gapOf = (style: CSSStyleDeclaration) =>
   Number.parseFloat(style.columnGap) || Number.parseFloat(style.gap) || 0;
 
 /** The row's field widths in every form and the room on both rows; nothing while it is not laid out. */
-export function measureStrip(root: HTMLElement, pips: number): Measured | undefined {
+export function measureStrip(root: HTMLElement): Measured | undefined {
   const first = widthOf(root) ?? 0;
   if (!(first > 0)) return undefined;
   const row = root.querySelector<HTMLElement>('[data-strip-row="second"]');
@@ -63,13 +61,12 @@ export function measureStrip(root: HTMLElement, pips: number): Measured | undefi
     return x === undefined || y === undefined ? undefined : ([x, y] as const);
   };
   const fields: FieldWidths = {};
-  if (pips > 0) fields.pips = { full: pipsWidth(pips, "full"), small: pipsWidth(pips, "small") };
-  const stopped = pair(MEASURE.stoppedNames, MEASURE.stoppedCount);
-  if (stopped) fields.stopped = { names: stopped[0], count: stopped[1] };
-  const environment = pair(MEASURE.environmentFull, MEASURE.environmentVersion);
-  if (environment) fields.environment = { full: environment[0], version: environment[1] };
+  const environment = pair(MEASURE.environmentFull, MEASURE.environmentShort);
+  if (environment) fields.environment = { full: environment[0], short: environment[1] };
   const template = form(MEASURE.template);
   if (template !== undefined) fields.template = template;
+  const forks = form(MEASURE.forks);
+  if (forks !== undefined) fields.forks = forks;
   const nextSync = form(MEASURE.nextSync);
   if (nextSync !== undefined) fields.nextSync = nextSync;
   const freshnessForms = pair(MEASURE.freshnessFull, MEASURE.freshnessShort);
@@ -93,7 +90,7 @@ const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringif
  */
 export function useFoldPlan(
   root: RefObject<HTMLElement | null>,
-  snapshot: { sweptAt: string; stations: readonly unknown[] } | undefined,
+  snapshot: { sweptAt: string } | undefined,
   narrow = false,
 ): FoldPlan | undefined {
   const [state, setState] = useState<{ plan: FoldPlan; snapshot: boolean }>();
@@ -101,8 +98,7 @@ export function useFoldPlan(
     plan?: FoldPlan;
     measured?: Measured & { narrow: boolean };
     sweep?: string;
-    pips: number;
-  }>({ pips: 0 });
+  }>({});
   const layout = useRef(narrow);
   useLayoutEffect(() => {
     layout.current = narrow;
@@ -111,7 +107,7 @@ export function useFoldPlan(
     (trigger?: StripTrigger) => {
       const element = root.current;
       if (!element) return;
-      const measuredRow = measureStrip(element, last.current.pips);
+      const measuredRow = measureStrip(element);
       if (!measuredRow) return;
       const measured = { ...measuredRow, narrow: layout.current };
       const before = last.current.measured;
@@ -170,12 +166,11 @@ export function useFoldPlan(
   useLayoutEffect(() => {
     if (!snapshot) {
       if (last.current.sweep === undefined) return;
-      last.current = { pips: 0 };
+      last.current = {};
       replan();
       return;
     }
-    last.current.pips = snapshot.stations.length;
-    if (last.current.sweep === undefined) last.current = { pips: last.current.pips };
+    if (last.current.sweep === undefined) last.current = {};
     const trigger = last.current.sweep === snapshot.sweptAt ? "refresh" : "sweep";
     last.current.sweep = snapshot.sweptAt;
     replan(trigger);

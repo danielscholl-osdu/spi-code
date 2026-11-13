@@ -14,17 +14,10 @@
 .strip-ruler > span { flex: none; }
 /* Measures the first sweep's freshness forms as the field draws them in the row. */
 .strip-ruler > .sweep-line { padding: 0; border: 0; }
-.strip-pips { display: inline-flex; align-items: center; }
-.strip-pip-target { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 12px; height: 44px; color: var(--text-muted); }
-.strip-pip-target:last-child { width: 9px; }
-.strip-pip-mark { box-sizing: border-box; width: 9px; height: 9px; border: 1.3px solid currentColor; border-radius: 50%; }
-.strip-pip-mark[data-shape="diamond"] { width: 7px; height: 7px; border-radius: 0; background: currentColor; transform: rotate(45deg); }
-.strip-pip-mark[data-shape="filled"] { background: currentColor; }
-.strip-pip-mark[data-shape="half"] { background: linear-gradient(to right, currentColor 50%, transparent 50%); }
-.strip[data-pips="small"] .strip-pip-target { width: 8px; }
-.strip[data-pips="small"] .strip-pip-target:last-child { width: 6px; }
-.strip[data-pips="small"] .strip-pip-mark { width: 6px; height: 6px; border-width: 1px; }
-.strip[data-pips="small"] .strip-pip-mark[data-shape="diamond"] { width: 4.5px; height: 4.5px; }
-.strip-pip-target[data-pip="stopped"], :is(.strip, .strip-second) [data-tone="bad"] { color: var(--error-text); }
-.strip-pip-target[data-pip="needs-person"], :is(.strip, .strip-second) [data-tone="warn"] { color: var(--warning-text); }
-.strip-pip-target[data-pip="in-progress"] { color: var(--accent-text); }
+:is(.strip, .strip-second) [data-tone="bad"] { color: var(--error-text); }
+:is(.strip, .strip-second) [data-tone="warn"] { color: var(--warning-text); }
+.strip-state { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 9px; line-height: 20px; color: var(--text); font-weight: 600; }
+.strip-state[data-tone="ok"] { background: color-mix(in srgb, var(--success) 16%, transparent); color: var(--success-text); }
+.strip-state[data-tone="warn"] { background: var(--warning-surface); color: var(--warning-text); }
+.strip-state[data-tone="bad"] { background: var(--error-surface); color: var(--error-text); }
+.strip-state[data-tone="plain"] { padding: 0; font-weight: 400; }

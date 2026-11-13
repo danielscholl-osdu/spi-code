@@ -15,18 +15,19 @@ import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 import { clockTime } from "../../time.js";
 import { midSweep } from "../sweep/test-helper.js";
 
-// Stubbed layout for the November 6 sweep: 13 pips are 153 px full and 102 px small, the gap is
-// 14 px. Unfolded the row needs 884 px, with stopped as a count 734, with small pips 683; wrapped
-// from next sync on, the first row needs 469 and the second 200. Every level keeps 48 px to drag.
+// Stubbed layout for the November 6 sweep, the gap 14 px: unfolded the row needs 608 px; wrapped
+// from next sync on, the first row needs 394, and 345 with Environment shortened to Env. Every
+// level keeps 48 px to drag.
 const WIDTHS: Record<string, number> = {
-  "stopped.names": 216,
-  "stopped.count": 66,
-  "environment.full": 158,
-  "environment.version": 80,
-  template: 101,
+  "environment.full": 131,
+  "environment.short": 82,
+  template: 130,
+  forks: 105,
   "next-sync": 108,
   freshness: 78,
 };
+/** "Environment Maintenance · refresh running" and its "Env" form. */
+const LONG_ENVIRONMENT = { "environment.full": 280, "environment.short": 230 };
 const SECOND_PADDING = 26;
 
 const loadFixture = fixtureLoader(readFixture);
@@ -87,10 +88,12 @@ async function mount() {
 const strip = () => container.querySelector<HTMLElement>(".window-strip [data-strip]");
 const rowOf = (row: "first" | "second") =>
   row === "first"
-    ? [...(strip()?.children ?? [])].filter((node) => node.matches("[data-field], .strip-pips"))
+    ? [...(strip()?.children ?? [])].filter((node) => node.matches("[data-field]"))
     : [...(strip()?.querySelector('[data-strip-row="second"]')?.children ?? [])];
 const names = (row: "first" | "second") =>
-  rowOf(row).map((node) => (node as HTMLElement).dataset.field ?? "pips");
+  rowOf(row).map((node) => (node as HTMLElement).dataset.field);
+const ORDER = ["environment", "template", "forks", "next-sync", "freshness"];
+const label = (name: string) => field(name)?.firstChild?.textContent;
 const field = (name: string) => strip()?.querySelector<HTMLElement>(`[data-field="${name}"]`);
 /** happy-dom does not re-match :has() when a descendant changes until the element itself does. */
 function heightOf(element: HTMLElement) {
@@ -166,37 +169,50 @@ it.each([1440, 740])("keeps next sync without a due field at %i px", async (widt
     expect(field("due")).toBeNull();
     expect(strip()?.querySelector('[data-measure^="due"]')).toBeNull();
     expect(strip()?.textContent).not.toMatch(/\d+ due/);
-    expect([...names("first"), ...names("second")]).toEqual([
-      "pips",
-      "stopped",
-      "environment",
-      "template",
-      "next-sync",
-      "freshness",
-    ]);
+    expect([...names("first"), ...names("second")]).toEqual(ORDER);
   } finally {
     window.innerWidth = previousWidth;
   }
 });
 
-it("folds stopped to a count and shrinks the pips before it wraps, keeping one 44 px row", async () => {
+it("wraps next sync and freshness first, keeping the Environment label", async () => {
+  layout = { ...layout, first: 532 };
   await mount();
-  expect(strip()?.dataset.rows).toBe("1");
-  expect(strip()?.dataset.pips).toBe("small");
-  expect(field("stopped")?.textContent).toBe("1 stopped");
-  expect(field("stopped")?.title).toBe("entitlements stopped");
-  expect(names("second")).toEqual([]);
-  const mark = strip()?.querySelector<HTMLElement>(".strip-pip-mark:not([data-shape=diamond])");
-  if (!mark) throw new Error("Missing pip mark");
-  expect(getComputedStyle(mark).width).toBe("6px");
-  expect(topbar()).toBe("44px");
+  expect(strip()?.dataset.rows).toBe("2");
+  expect(names("first")).toEqual(["environment", "template", "forks"]);
+  expect(names("second")).toEqual(["next-sync", "freshness"]);
+  expect(label("environment")).toBe("Environment");
+  expect(topbar()).toBe("75px");
+});
+
+it("shortens the Environment label to Env before Forks wraps, keeping the full name in its hover", async () => {
+  layout = { ...layout, first: 560, widths: { ...layout.widths, ...LONG_ENVIRONMENT } };
+  await mount();
+  expect(names("first")).toEqual(["environment", "template", "forks"]);
+  expect(names("second")).toEqual(["next-sync", "freshness"]);
+  expect(label("environment")).toBe("Env");
+  expect(field("environment")?.title).toMatch(/^Environment: Ready\./);
+  expect(field("environment")?.getAttribute("aria-label")).toBe(field("environment")?.title);
+});
+
+it.each([
+  [500, ["environment", "template"], ["forks", "next-sync", "freshness"]],
+  [300, ["environment"], ["template", "forks", "next-sync", "freshness"]],
+  [200, [], ORDER],
+])("at a %i px row wraps a run from the end in reading order", async (first, top, second) => {
+  layout = { ...layout, first, widths: { ...layout.widths, ...LONG_ENVIRONMENT } };
+  await mount();
+  expect(names("first")).toEqual(top);
+  expect(names("second")).toEqual(second);
+  expect(label("environment")).toBe("Env");
+  expect(strip()?.dataset.rows).toBe("2");
 });
 
 it("wraps at once when a field's content overflows the first row", async () => {
   await mount();
   await relayout({ widths: { ...layout.widths, "environment.full": 360 } });
   expect(strip()?.dataset.rows).toBe("2");
-  expect(names("first")).toEqual(["pips", "stopped", "environment", "template"]);
+  expect(names("first")).toEqual(["environment", "template", "forks"]);
   expect(names("second")).toEqual(["next-sync", "freshness"]);
   const second = strip()?.querySelector<HTMLElement>('[data-strip-row="second"]');
   if (!second) throw new Error("Missing second row");
@@ -221,26 +237,19 @@ it("unwraps on a resize only with 24 px to spare beyond the drag area", async ()
   await mount();
   await relayout({ widths: { ...layout.widths, "environment.full": 360 } });
   layout.widths["environment.full"] = WIDTHS["environment.full"] as number;
-  await relayout({ first: 754 });
+  await relayout({ first: 679 });
   expect(strip()?.dataset.rows).toBe("2");
-  await relayout({ first: 755 });
+  await relayout({ first: 680 });
   expect(strip()?.dataset.rows).toBe("1");
-  expect(names("first")).toEqual([
-    "pips",
-    "stopped",
-    "environment",
-    "template",
-    "next-sync",
-    "freshness",
-  ]);
+  expect(names("first")).toEqual(ORDER);
   expect(topbar()).toBe("44px");
 });
 
 it.each([
-  ["refresh, then resize", 755, "1"],
-  ["resize, then refresh", 755, "1"],
-  ["refresh, then resize", 754, "2"],
-  ["resize, then refresh", 754, "2"],
+  ["refresh, then resize", 680, "1"],
+  ["resize, then refresh", 680, "1"],
+  ["refresh, then resize", 679, "2"],
+  ["resize, then refresh", 679, "2"],
 ])("a %s of the same sweep to %i px leaves %s row(s)", async (order, first, rows) => {
   await mount();
   await relayout({ widths: { ...layout.widths, "environment.full": 360 } });
@@ -269,40 +278,25 @@ it("unwraps on a new sweep with slack", async () => {
   expect(topbar()).toBe("44px");
 });
 
-it("shortens the second row's fields and keeps their full text on hover", async () => {
-  layout = { ...layout, first: 240, second: 420 };
-  await mount();
-  expect(names("first")).toEqual(["pips", "stopped"]);
-  expect(names("second")).toEqual(["environment", "template", "next-sync", "freshness"]);
-  expect(field("environment")?.textContent).toBe("env v0.35.3");
-  expect(field("environment")?.title).toBe("env v0.35.3 deployable");
-  expect(field("stopped")?.title).toBe("entitlements stopped");
-});
-
-it("shows every field in full with no titles added when the row has room", async () => {
+it("shows every field in full on one row when the row has room", async () => {
   layout = { ...layout, first: 1200 };
   await mount();
-  expect(strip()?.dataset.pips).toBe("full");
-  expect(field("stopped")?.textContent).toBe("entitlements stopped");
-  expect(field("stopped")?.hasAttribute("title")).toBe(false);
-  expect(field("environment")?.hasAttribute("title")).toBe(false);
+  expect(strip()?.dataset.rows).toBe("1");
+  expect(names("first")).toEqual(ORDER);
+  expect(label("environment")).toBe("Environment");
 });
 
-it("names each folded field with its unfolded text", async () => {
-  const name = (field: string) => {
-    const node = strip()?.querySelector<HTMLElement>(`[data-field="${field}"]`);
-    return node?.getAttribute("aria-label") ?? node?.textContent;
-  };
-  const folded = ["stopped", "environment"];
+it("keeps each state field's accessible name as the row folds and wraps", async () => {
+  const named = () =>
+    ["environment", "template", "forks"].map((name) => field(name)?.getAttribute("aria-label"));
   layout = { ...layout, first: 1200 };
   await mount();
-  const unfolded = folded.map(name);
-  expect(unfolded.every((text) => text && !field("stopped")?.hasAttribute("aria-label"))).toBe(
-    true,
-  );
+  const unfolded = named();
+  expect(unfolded.every(Boolean)).toBe(true);
   await relayout({ first: 240, second: 420 });
-  expect(folded.map((name) => field(name)?.textContent)).toEqual(["1 stopped", "env v0.35.3"]);
-  expect(folded.map(name)).toEqual(unfolded);
+  expect(names("second")).toEqual(["template", "forks", "next-sync", "freshness"]);
+  expect(label("environment")).toBe("Env");
+  expect(named()).toEqual(unfolded);
 });
 
 it("wraps a later sweep's longer freshness label to the second row like any other field", async () => {
