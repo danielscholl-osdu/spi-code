@@ -4,7 +4,7 @@
 import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, win32 } from "node:path";
+import { join, posix, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { listenerScanBudget } from "../apps/desktop/src/smoke-listeners.js";
@@ -173,7 +173,7 @@ describe("packaged smoke gate", () => {
       const arch = platform === "win32" ? "x64" : "arm64";
       const root = platform === "win32" ? "C:\\artifacts\\resources" : resources;
       const target = `${platform}-${arch}`;
-      const path = platform === "win32" ? win32.join : join;
+      const path = platform === "win32" ? win32.join : posix.join;
       const runtimePath = path(
         root,
         `app.asar.unpacked/node_modules/@github/copilot-sdk-${target}/prebuilds/${target}/copilot-runtime${platform === "win32" ? ".exe" : ""}`,

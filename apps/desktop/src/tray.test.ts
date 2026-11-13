@@ -557,8 +557,7 @@ it("badges the dock with the Today count, 9+ past nine, and clears it when the c
 
 it("sends Sweep now from the tray through the real relay to the host's sweep.request route", async () => {
   const { MessageChannel } = await import("node:worker_threads");
-  const { attachHostPort } = await import("@spi-code/host");
-  const { WatchRoutes } = await import("@spi-code/host");
+  const { attachHostPort, WatchRoutes } = await import("@spi-code/host");
   type NodePort = InstanceType<typeof MessageChannel>["port1"];
   const adapt = (port: NodePort) => {
     const adapted = {

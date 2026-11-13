@@ -8,4 +8,3 @@ export { createSnapshotStore } from "./store/snapshots.js";
 export { openRunStore } from "./store/store.js";
 export { SweepService } from "./sweep/service.js";
 export { APPENDIX_A_TOOLS } from "./tools/tool-names.js";
-export { projectWatch } from "./watch/project.js";

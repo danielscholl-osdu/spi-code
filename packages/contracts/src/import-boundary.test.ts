@@ -51,7 +51,6 @@ function forbiddenSpecifier(owner: Package, specifier: string, file: string): bo
       return false;
     if (target === undefined) return true;
     if (target === owner) return false;
-    if (owner === "desktop") return true;
   }
   if (owner === "desktop" && target !== undefined && specifier !== `@spi-code/${target}`)
     return true;
