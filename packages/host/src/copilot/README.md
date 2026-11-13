@@ -1,79 +1,32 @@
 # Copilot runtime boundary
 
-The host starts the SDK 1.0.26 platform package's `prebuilds/<platform>/copilot-runtime`
-(`.exe` on Windows) by absolute `connection.path`, over stdio. Empty mode uses
-`<appDataDir>/copilot`; auth and HostExec environments come from
-`createManagedToolEnvironment`. Its shared synchronous builder also supplies
-`buildClientOptions` when no resolved auth environment is passed.
-Only the runtime child's environment redirects `HOME`, `USERPROFILE`,
-`XDG_CACHE_HOME`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `XDG_DATA_HOME`, `LOCALAPPDATA`, `APPDATA`
-and `COPILOT_HOME` beneath app data. This includes the runtime's macOS caches
-and Microsoft device ID. Token lookup uses a separate scrubbed environment
-with the operator's original home and gh configuration. The runtime child drops
-`HOMEDRIVE` and `HOMEPATH` so they cannot override its isolated `USERPROFILE`.
-Setup and the conversation backend pass their tool installer into the runtime.
-Auth environments resolve `installer.binDir("gh")` and `installer.binDir("glab")`
-before each credential read, putting managed gh first, then glab, then the
-captured login-shell PATH. Missing managed tools fall back to the login-shell
-PATH. Both auth and HostExec use `<appDataDir>/kube/config` for `KUBECONFIG`
-and `<appDataDir>/azure` for `AZURE_CONFIG_DIR`. Environment building does not
-create directories; HostExec prepares these tool directories before spawning.
-Legacy `<appDataDir>/kubeconfig` files are left untouched; migration is tracked
-in `spicode-t1k.161`.
-Each runtime operation resolves the tool paths once and reuses the full auth
-environment if it starts a client, changing only the isolated homes. Installing gh
-after a failed lookup does not require restarting the backend. Tokens stay out of these
-environment objects; only the SDK's client credential receives the token.
-`ghAuthToken` defaults to `github.com`; Copilot reads also explicitly select it,
-never gh's default enterprise host, and time out after five seconds (or the
-probe's shorter limit).
-The packaging bead must leave the complete platform runtime package unpacked.
-Startup cleanup, credential-keyed warm-client handling, and streamed delta
-subscription are ported from Keelson's `copilot/factory.ts` and `provider.ts`.
-
-`SessionToolSource` is the tool registry integration point. Its default stub
-offers no tools and denies all permission requests.
+The host starts the SDK platform package's `prebuilds/<platform>/copilot-runtime`
+by absolute path, over stdio. Only the runtime child's environment redirects the
+home, XDG, app-data and `COPILOT_HOME` variables beneath app data. Token lookup uses
+a separate scrubbed environment with the operator's original home and gh
+configuration. Tokens stay out of these environment objects; only the SDK's client
+credential receives one.
 
 ## CP-03 fallback
 
-The bundled runtime 1.0.103 rejects a provider credential with `expiresIn: 60`:
-it requires **more than 3,600 seconds** remaining. Claiming an hour of remaining
-lifetime for a gh credential would not establish the short refresh interval
-required by CP-03. The host therefore uses CP-03's client-level fallback.
+The bundled runtime rejects a provider credential with less than 3,600 seconds
+remaining, so a gh credential cannot carry CP-03's short refresh interval. The host
+uses CP-03's client-level fallback instead: each model listing and session creation
+reads gh again, and a changed credential stops the previous client before another
+starts.
 
-Each model listing and session creation reads gh again. Credential changes stop
-the previous client (including its sessions) before starting another. Operations
-are serialized so a concurrent account switch cannot interrupt session creation
-or model listing. Model listings always call `rpc.models.list({ gitHubToken })`;
-there is no host model cache. The SDK 1.0.26 passes the client-level token to the
-runtime in its `COPILOT_SDK_AUTH_TOKEN` environment variable; it is never saved
-by the host. Under this fallback, any process the runtime spawns would inherit
-the token. That is safe today only because production sessions expose custom
-tools alone (CP-04) and the runtime's base directory is the app-owned
-`<appDataDir>/copilot`, not the operator's config directory. The runtime ignores
-`HOME` and `COPILOT_HOME` for Copilot configuration in favor of that base directory.
-Other caches and the device ID still follow the isolated home. Empty mode can still
-spawn MCP servers configured there, even with `availableTools: []`. The app must
-never write `mcp-config.json` or any MCP configuration there: a server spawned
-from it would inherit `COPILOT_SDK_AUTH_TOKEN`. The isolation-only probe allows
-MCP tools to test discovery, but discovers no servers in the clean base directory.
-Tokens are validated before client construction and outward errors are
-recursively redacted, including their stacks, causes and aggregate errors.
-The runtime can create a session without a valid credential, but authentication
-fails at its first turn; the live probe checks both the listing and the turn.
+Under this fallback the SDK passes the token to the runtime in
+`COPILOT_SDK_AUTH_TOKEN`, so any process the runtime spawns inherits it. That is
+safe only because production sessions expose custom tools alone (CP-04) and the
+runtime's base directory is the app-owned `<appDataDir>/copilot`. The app must never
+write `mcp-config.json` or any MCP configuration there: a server spawned from it
+would inherit the token.
 
-Run `pnpm --filter @spi-code/host probe:copilot` on a machine signed into gh with
-a Copilot seat. The probe uses disposable OS-temp HOME and app-data directories,
-redacts token values, scans app data before deleting it, and exits nonzero when
-its evidence cannot be established.
+## Live probes
 
-Run `SPICODE_LIVE_COPILOT_ISOLATION=1 pnpm vitest run packages/host/src/copilot/isolation.test.ts`
-to check filesystem isolation with the real runtime. It skips unless explicitly
-enabled and gh credentials are available; enabling it requires network access
-and a Copilot seat. It opens a session, lists models, stops the runtime, and
-compares file and directory listings in a disposable scratch home outside app data.
-It also checks existence, size and modification time of the real home's Copilot
-cache and Microsoft device-ID files without writing to them; absent files are
-recorded as absent. It prints the before/after evidence and app-data listing.
-It never uses the operator's
-real home for the runtime or alters their Copilot cache.
+Both need gh sign-in, a Copilot seat and network access, and use disposable homes.
+
+```sh
+pnpm --filter @spi-code/host probe:copilot
+SPICODE_LIVE_COPILOT_ISOLATION=1 pnpm vitest run packages/host/src/copilot/isolation.test.ts
+```

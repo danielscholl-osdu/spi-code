@@ -4,7 +4,7 @@
 
 What SPI Code must do at each milestone, how each requirement is checked, and which existing code each capability is built from.
 
-Documents: [Product brief](spi-code-product-brief.md) · **Product requirements** (this page) · [Window design](spi-code-window-design.html) · [Visual design](spi-code-visual-design.html) ([PDF](spi-code-visual-design.pdf)) · [Original combined design (PDF)](spi-code-design.pdf)
+Documents: [Product brief](spi-code-product-brief.md) · **Product requirements** (this page) · [Window design](spi-code-window-design.html) · [Visual design](spi-code-visual-design.html) · [Original combined design (PDF)](spi-code-design.pdf)
 
 > The [original design](spi-code-design.pdf) describes SPI Code in one document: the product, its rules, its window and its build plan. It does not give requirements an ID, a milestone or a check. It also has a few claims that the source does not support, among them the fix path for a cascade that fails at Prove. That makes it hard to plan a milestone or know when one is done.
 >

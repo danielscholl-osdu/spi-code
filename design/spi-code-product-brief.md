@@ -4,7 +4,7 @@
 
 A macOS and Windows desktop app for running the OSDU SPI program, with GitHub Copilot as its only agent, built from the SPI domain already proven in keelson-rib-spi.
 
-Documents: **Product brief** (this page) · [Product requirements](spi-code-prd.md) · [Visual design](spi-code-visual-design.html) ([PDF](spi-code-visual-design.pdf)) · [Original combined design (PDF)](spi-code-design.pdf)
+Documents: **Product brief** (this page) · [Product requirements](spi-code-prd.md) · [Visual design](spi-code-visual-design.html) · [Original combined design (PDF)](spi-code-design.pdf)
 
 > Running SPI today takes four tools and an agent that knows nothing about the program. The keelson-rib-spi console in Keelson reads the program well: about 23,000 lines and 469 tests cover failure attribution, incident folding, the upstream radar and template rollout. It writes only to GitHub, and only through board buttons. Stack work happens in a terminal with `spi`, `kubectl` and `az`. Upstream work happens in `glab` or the browser. Rerun-when-deployable waits and workflow approval pauses are lost when Keelson restarts. Setup means installing Bun, Keelson and seven command-line tools by hand.
 >

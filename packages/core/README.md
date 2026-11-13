@@ -3,54 +3,6 @@
 SPI domain facts, models and briefing for plain Node, compiled as ESM with
 TypeScript declarations.
 
-## Station substates
-
-`stationSubstateOf(station, line, facts)` distinguishes stopped work, work waiting
-on a person, work waiting on the daily upstream sync, work in progress and
-stations with nothing to do. It uses typed model fields and recorded checks,
-runs, approvals and upstream predictions, never station text. Release PRs still
-need a person to merge after approval; an approved, green, clean Sync to Main PR
-can progress automatically when the repository allows auto-merge.
-An active lane follows its pending Validation checks, not the PR's review or
-draft state; only a waiting Validation check or a current-head workflow approval
-makes that lane wait on a person.
-An unread station retains the neutral `ready` substate; its legacy `unknown`
-state and evidence still describe the missing read, not confirmed health.
-
-## Detected campaigns
-
-`detectCampaigns(model)` groups every queued non-SNAPSHOT toolchain move on
-waiting forks and SPI/template-owned code-scanning rules shared by at least two
-forks. Toolchain moves exclude forks held on their own halt or SNAPSHOT, which
-keep their individual hold items; open merge requests are not queued moves.
-Security groups use tool and rule identity, across paths and severities, and
-exclude upstream-owned findings and program repositories.
-
-IDs derive from kind and fact, not fork order or sweep time. `campaignItemText`
-returns the detected item's words without an action; detection adopts no plan
-and grants no write. Shared targets stay in radar and flow Detail but no longer
-repeat in per-fork station labels or flow-row `carries`.
-
-## Exec progress and credentials
-
-`ExecOptions.onOutput(stream, text)` receives redacted stdout and stderr while
-the host command runs. Potential credential fragments are held across chunks;
-unterminated credentials and authorization lines flush when the command ends.
-Buffered stdout remains unchanged for existing parsers. `signal` cancels the
-host process tree; a pre-aborted signal does not start a command or consume a
-replay entry. Recording forwards cancellation to its runner and replays deliver
-the recorded stdout and stderr through the same callback (without timing or
-cross-stream ordering guarantees).
-
-Credential stdin is transient: trimmed values of at least eight characters are
-stripped from recordings, progress, stderr and errors even without a recognizable
-token prefix. Short interactive responses such as `y` are preserved.
-Recordings store credential stdin as `<redacted>`, so replay does not verify its
-contents. Never persist or log the original options.
-The additive `setup.signin` request accepts an
-optional `token` only for `glab` (8-4096 characters, no whitespace); setup state
-and progress messages remain strict and have no credential field.
-
 ## Vendoring version 0.1.2
 
 Each vendored tarball must carry a version not used before; never replace the
