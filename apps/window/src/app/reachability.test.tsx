@@ -1,8 +1,10 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
+import { directoryPaths } from "../test-utils/directory-paths.test.js";
 import { moving } from "../views/today/in-motion.test-helper.js";
 import { treeServices } from "./queue.js";
 import {
@@ -27,6 +29,8 @@ import {
   cases,
   click,
   container,
+  DEALS,
+  dealProblems,
   drawn,
   fixture,
   ITEM_HOME,
@@ -164,6 +168,39 @@ describe("every focus and rest item's scope and origin, at its home on Today", (
 });
 
 describe("the suite's own guards", () => {
+  const sources = Object.fromEntries(
+    directoryPaths("apps/window/src/app")
+      .filter((file) => file.endsWith(".test.tsx"))
+      .map((file) => [file, readFileSync(`apps/window/src/app/${file}`, "utf8")]),
+  );
+
+  it("runs every dealt fields and item-homes part exactly once, in its own file", () => {
+    expect(DEALS).toBe(3);
+    expect(dealProblems(sources)).toEqual([]);
+  });
+
+  it("reports a deleted, repeated or misdealt fields or item-homes part", () => {
+    const fields = "sweepFields";
+    const {
+      "reachability.item-homes-1.test.tsx": _deleted,
+      "reachability.fields-3.test.tsx": _missing,
+      ...rest
+    } = sources;
+    expect(
+      dealProblems({
+        ...rest,
+        "reachability.fields-3.test.tsx": `${fields}(dealt(1, 3), readFixture);`,
+        "reachability.test.tsx": `${fields}(dealt(0, 2), readFixture);`,
+      }),
+    ).toEqual([
+      `reachability.test.tsx: ${fields}(dealt(0, 2) is not dealt as one of 3 parts`,
+      "sweepFields part 1 runs in [reachability.fields-2.test.tsx, reachability.fields-3.test.tsx], not reachability.fields-2.test.tsx",
+      "sweepFields part 2 runs in [], not reachability.fields-3.test.tsx",
+      "reachability.item-homes-1.test.tsx is missing",
+      "itemHomesOn part 0 runs in [], not reachability.item-homes-1.test.tsx",
+    ]);
+  });
+
   it("reports a leaf no surface draws", () => {
     const body = fixture();
     (body.briefing as unknown as Record<string, unknown>).added = "a field no surface draws";

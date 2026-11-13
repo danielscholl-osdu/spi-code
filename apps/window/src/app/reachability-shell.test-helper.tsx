@@ -284,6 +284,36 @@ export const dealt =
   <T,>(items: readonly T[]) =>
     items.filter((_, index) => index % of === part);
 
+/** How many files the sweepFields and itemHomesOn blocks are each dealt over. */
+export const DEALS = 3;
+const DEALT_BLOCKS = { fields: "sweepFields", "item-homes": "itemHomesOn" } as const;
+
+/**
+ * Where test file sources (by name) break the deal: each part of each block must run exactly once,
+ * in reachability.<block>-<part + 1>.test.tsx.
+ */
+export function dealProblems(sources: Readonly<Record<string, string>>): string[] {
+  const calls = Object.entries(sources).flatMap(([file, source]) =>
+    [...source.matchAll(/\b(sweepFields|itemHomesOn)\(\s*(?:dealt\((\d+),\s*(\d+)\))?/g)].map(
+      ([text, call, part, of]) => ({ file, text, call, part: Number(part), of: Number(of) }),
+    ),
+  );
+  const problems = calls
+    .filter(({ part, of }) => !(of === DEALS && part >= 0 && part < DEALS))
+    .map(({ file, text }) => `${file}: ${text} is not dealt as one of ${DEALS} parts`);
+  for (const [block, call] of Object.entries(DEALT_BLOCKS))
+    for (let part = 0; part < DEALS; part++) {
+      const file = `reachability.${block}-${part + 1}.test.tsx`;
+      const at = calls
+        .filter((entry) => entry.call === call && entry.part === part && entry.of === DEALS)
+        .map((entry) => entry.file);
+      if (!(file in sources)) problems.push(`${file} is missing`);
+      if (at.length !== 1 || at[0] !== file)
+        problems.push(`${call} part ${part} runs in [${at.join(", ")}], not ${file}`);
+    }
+  return problems;
+}
+
 export function sweepFields(deal: ReturnType<typeof dealt>, read: Read) {
   shellHooks(read);
   describe("every Briefing and Releases field the 6 Nov sweep carries", () => {
