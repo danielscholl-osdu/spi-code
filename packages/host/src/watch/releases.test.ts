@@ -5,8 +5,8 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { fixtureInput, fixtureRoot } from "../../test/watch/snapshot-fixture.js";
 import { projectReleases } from "./releases.js";
-import { fixtureInput, fixtureRoot } from "./snapshot-fixture.js";
 
 process.env.TZ = "UTC";
 

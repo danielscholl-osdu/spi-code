@@ -6,7 +6,7 @@ import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { expect, it } from "vitest";
 import { APPENDIX_A_TOOLS } from "../../../packages/host/src/tools/tool-names.js";
 import { projectWatch } from "../../../packages/host/src/watch/project.js";
-import { busyInput } from "../../../packages/host/src/watch/snapshot-fixture.js";
+import { busyInput } from "../../../packages/host/test/watch/snapshot-fixture.js";
 import type { SmokeGeometry } from "./smoke-geometry.js";
 import {
   MORNING_FIXTURES,

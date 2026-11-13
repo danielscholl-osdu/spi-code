@@ -3,8 +3,8 @@
 
 import { buildModel, repositoriesOf } from "@spi-code/core";
 import { describe, expect, it } from "vitest";
+import { fixtureInput } from "../../test/watch/snapshot-fixture.js";
 import { repositoryLines } from "./repository-lines.js";
-import { fixtureInput } from "./snapshot-fixture.js";
 
 process.env.TZ = "UTC";
 

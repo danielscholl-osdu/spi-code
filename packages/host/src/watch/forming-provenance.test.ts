@@ -3,8 +3,8 @@
 
 import type { AreaName, Envelope, ViewSnapshot } from "@spi-code/contracts";
 import { describe, expect, it } from "vitest";
+import { busyInput } from "../../test/watch/snapshot-fixture.js";
 import { projectWatch } from "./project.js";
-import { busyInput } from "./snapshot-fixture.js";
 
 const formingPath = "/releases/forming";
 

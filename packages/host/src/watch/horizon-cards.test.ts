@@ -3,8 +3,6 @@
 
 import { buildBriefing, buildModel, horizonCards, LEAD_TIME_MS } from "@spi-code/core";
 import { describe, expect, it } from "vitest";
-import { itemAttention } from "./attention.js";
-import { projectWatch, type WatchInput } from "./project.js";
 import {
   badInput,
   busyInput,
@@ -14,7 +12,9 @@ import {
   recordedInput,
   unreadForksInput,
   unverifiedForkInput,
-} from "./snapshot-fixture.js";
+} from "../../test/watch/snapshot-fixture.js";
+import { itemAttention } from "./attention.js";
+import { projectWatch, type WatchInput } from "./project.js";
 
 process.env.TZ = "UTC";
 

@@ -15,12 +15,12 @@ import {
   STEP_PREFIX,
 } from "@spi-code/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { fixtureInput } from "../../test/watch/snapshot-fixture.js";
 import { WatchRoutes, watchFleet } from "../process/routes.js";
 import { createLeaseStore } from "../store/leases.js";
 import { createSnapshotStore } from "../store/snapshots.js";
 import { openRunStore } from "../store/store.js";
 import { projectWatch } from "../watch/project.js";
-import { fixtureInput } from "../watch/snapshot-fixture.js";
 import { inspectResult } from "./item.js";
 import {
   INSPECT_TABLE,

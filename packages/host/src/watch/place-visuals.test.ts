@@ -6,7 +6,6 @@ import { buildModel, stationSubstateOf } from "@spi-code/core";
 import { describe, expect, it } from "vitest";
 import { horizonWaitServices } from "../../../core/src/brief/horizon.js";
 import { placesOf } from "../../../core/src/brief/places.js";
-import { projectWatch, type WatchInput } from "./project.js";
 import {
   badInput,
   busyInput,
@@ -16,7 +15,8 @@ import {
   recordedInput,
   unreadForksInput,
   unverifiedForkInput,
-} from "./snapshot-fixture.js";
+} from "../../test/watch/snapshot-fixture.js";
+import { projectWatch, type WatchInput } from "./project.js";
 
 function visual<K extends PlaceVisual["kind"]>(input: WatchInput, place: PlaceId, kind: K) {
   const value = projectWatch(input).briefing.places?.find((row) => row.place === place)?.visual;

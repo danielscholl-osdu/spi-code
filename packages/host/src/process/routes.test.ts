@@ -44,6 +44,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { mrBoard } from "../../../core/src/inspect/mr.js";
+import { fixtureInput, oracle } from "../../test/watch/snapshot-fixture.js";
 import { inspectResult } from "../inspect/item.js";
 import { upstreamForkResult, upstreamPlanResult } from "../inspect/upstream.js";
 import { createLeaseStore } from "../store/leases.js";
@@ -54,7 +55,6 @@ import { SweepService } from "../sweep/service.js";
 import { emptySweepStatus, SWEEP_SCHEDULE } from "../sweep/status.js";
 import { projectReleases, projectWatch } from "../watch/project.js";
 import { baselineItems as baselineOf } from "../watch/seen.js";
-import { fixtureInput, oracle } from "../watch/snapshot-fixture.js";
 import { attachHostPort, type HostPort } from "./port.js";
 import { WatchRoutes, watchFleet } from "./routes.js";
 

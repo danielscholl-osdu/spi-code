@@ -4,7 +4,6 @@
 import type { PlaceId, ViewSnapshot } from "@spi-code/contracts";
 import { buildModel, placesOf, programReading } from "@spi-code/core";
 import { describe, expect, it } from "vitest";
-import { projectWatch, type WatchInput } from "./project.js";
 import {
   badInput,
   busyInput,
@@ -12,7 +11,8 @@ import {
   fixtureInput,
   recordedInput,
   unreadForksInput,
-} from "./snapshot-fixture.js";
+} from "../../test/watch/snapshot-fixture.js";
+import { projectWatch, type WatchInput } from "./project.js";
 
 const sourceOf = (input: WatchInput) => ({
   model: buildModel(input.facts, input.context.clock.now(), {}, input.context),

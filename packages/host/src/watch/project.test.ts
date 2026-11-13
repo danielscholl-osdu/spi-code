@@ -5,10 +5,6 @@ import { readFileSync } from "node:fs";
 import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { buildBriefing, buildModel, detectCampaigns } from "@spi-code/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import * as attention from "./attention.js";
-import { projectWatch, type WatchInput } from "./project.js";
-import { readingFor } from "./readings.js";
-import * as seen from "./seen.js";
 import {
   fixtureInput,
   mixedFixtureInput,
@@ -17,7 +13,11 @@ import {
   recordedInput,
   recordedSnapshotPath,
   snapshotPath,
-} from "./snapshot-fixture.js";
+} from "../../test/watch/snapshot-fixture.js";
+import * as attention from "./attention.js";
+import { projectWatch, type WatchInput } from "./project.js";
+import { readingFor } from "./readings.js";
+import * as seen from "./seen.js";
 
 process.env.TZ = "UTC";
 

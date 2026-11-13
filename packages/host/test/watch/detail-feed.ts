@@ -1,7 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
@@ -14,13 +14,13 @@ import {
   type ViewSnapshot,
 } from "@spi-code/contracts";
 import { type Exec, emptyCache } from "@spi-code/core";
-import { attachHostPort, type HostPort } from "../process/port.js";
-import { WatchRoutes, watchFleet } from "../process/routes.js";
-import { createLeaseStore } from "../store/leases.js";
-import { openStore } from "../store/open.js";
-import { createSnapshotStore } from "../store/snapshots.js";
-import { projectWatch } from "./project.js";
-import { detailFeedPath, recordedInput } from "./snapshot-fixture.js";
+import { attachHostPort, type HostPort } from "../../src/process/port.js";
+import { WatchRoutes, watchFleet } from "../../src/process/routes.js";
+import { createLeaseStore } from "../../src/store/leases.js";
+import { openStore } from "../../src/store/open.js";
+import { createSnapshotStore } from "../../src/store/snapshots.js";
+import { projectWatch } from "../../src/watch/project.js";
+import { recordedInput } from "./snapshot-fixture.js";
 
 type Briefing = ViewSnapshot["briefing"];
 
@@ -139,11 +139,4 @@ export function detailFeed(briefing: Briefing, answers: Map<string, InspectResul
     if (!result) throw new Error(`No inspect.result for ${id}`);
     return result;
   });
-}
-
-/** Regenerates fixtures/watch/inspect-1106.json; scripts/watch-snapshot.ts runs it under Node. */
-export async function writeDetailFeed(path = detailFeedPath): Promise<void> {
-  const { briefing } = projectWatch(recordedInput());
-  const feed = detailFeed(briefing, await recordedDetailAnswers());
-  writeFileSync(path, `${JSON.stringify(feed, null, 2)}\n`);
 }

@@ -4,10 +4,10 @@
 import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { buildModel, type ReadRecord, TEMPLATE_REPO } from "@spi-code/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { fixtureInput, recordedInput } from "../../test/watch/snapshot-fixture.js";
 import * as campaigns from "./campaigns.js";
 import { projectWatch, type WatchInput } from "./project.js";
 import { readingFor } from "./readings.js";
-import { fixtureInput, recordedInput } from "./snapshot-fixture.js";
 
 process.env.TZ = "UTC";
 

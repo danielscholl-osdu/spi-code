@@ -3,8 +3,8 @@
 
 import { TEMPLATE_REPO } from "@spi-code/core";
 import { describe, expect, it } from "vitest";
+import { busyInput, recordedInput } from "../../test/watch/snapshot-fixture.js";
 import { projectWatch } from "./project.js";
-import { busyInput, recordedInput } from "./snapshot-fixture.js";
 
 describe("Today's release versions", () => {
   it("keeps all 13 released versions, pairs only open PRs, and carries each library pin", () => {

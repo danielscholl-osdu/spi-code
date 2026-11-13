@@ -4,8 +4,8 @@
 import { buildBriefing, buildModel } from "@spi-code/core";
 import { describe, expect, it } from "vitest";
 import { ambientOf, canWaitOf } from "../../../core/src/brief/ambient.js";
+import { busyInput, calmInput } from "../../test/watch/snapshot-fixture.js";
 import { projectWatch, type WatchInput } from "./project.js";
-import { busyInput, calmInput } from "./snapshot-fixture.js";
 
 function known(input: WatchInput): WatchInput {
   const now = input.context.clock.now();

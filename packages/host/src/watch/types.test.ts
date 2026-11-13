@@ -4,7 +4,7 @@
 import type { Briefing, ReleaseDoc } from "@spi-code/contracts";
 import { buildBriefing, buildModel, monthFacts, releaseDoc } from "@spi-code/core";
 import { expect, it } from "vitest";
-import { fixtureInput } from "./snapshot-fixture.js";
+import { fixtureInput } from "../../test/watch/snapshot-fixture.js";
 
 process.env.TZ = "UTC";
 

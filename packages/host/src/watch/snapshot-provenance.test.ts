@@ -11,11 +11,11 @@ import {
   type ReadRecord,
 } from "@spi-code/core";
 import { describe, expect, it } from "vitest";
+import { fixtureInput, mixedFixtureInput } from "../../test/watch/snapshot-fixture.js";
 import { projectWatch, type WatchInput } from "./project.js";
 import { briefingProvenance, releaseProvenance, stationAreas } from "./provenance.js";
 import { runProvenance } from "./recorded-runs.js";
 import { projectReleases } from "./releases.js";
-import { fixtureInput, mixedFixtureInput } from "./snapshot-fixture.js";
 import { snapshotProvenance } from "./snapshot-provenance.js";
 
 process.env.TZ = "UTC";

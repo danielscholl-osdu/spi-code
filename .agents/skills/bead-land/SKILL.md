@@ -33,7 +33,7 @@ A checkout with no remote has no CI: there, steps 3 and 5 are one step, the full
 | differs from the reviewed commit | Something was written after the review. The message names a `git diff` that shows it; get a review round on that. |
 | no longer merges cleanly with main | A landing since the review touched the same lines. Rebase, resolve, and get a review round on the resolution. |
 | the diff changed since review | A pass recorded the old way, against the whole diff's patch-id, and the diff or its context has changed. Get a review round; it will record `review.head`. |
-| CI failed twice, on a watch fixture test | Regenerate the fixtures (`pnpm build && TZ=UTC bun scripts/watch-snapshot.ts && pnpm biome check --write`), commit, and land again. The review stands. |
+| CI failed twice, on a watch fixture test | Regenerate the fixtures (`pnpm build && TZ=UTC node scripts/watch-snapshot.mjs && pnpm biome check --write`), commit, and land again. The review stands. |
 | scripts/check --static failed | The rebase left a lint, type or header error. Fix it in the worktree. The fix is new work: it needs a review round. |
 | CI failed twice | The message names the run. Read its failed job (`gh run view <run id> --log-failed`). A failure in your bead's code is yours to fix, with a review round. A failure in a test your bead does not touch is a flake: file it as a bug with the run id, then land again. |
 | CI did not finish | Run `scripts/land --wait <id>` again; it picks up the same run. |

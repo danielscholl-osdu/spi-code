@@ -50,7 +50,7 @@ ${directories.map((directory) => `\n  ${directory}: {}\n`).join("")}`;
     return { stage, lockfile };
   }
 
-  it("stages no compiled tests or smoke launcher while retaining in-bundle smoke modules", async () => {
+  it("stages no compiled tests, fixture builders or smoke launcher while retaining in-bundle smoke modules", async () => {
     const root = await mkdtemp(join(tmpdir(), "spi-package-runtime-"));
     fixtures.push(root);
     const stage = join(root, "stage");
@@ -77,6 +77,9 @@ ${directories.map((directory) => `\n  ${directory}: {}\n`).join("")}`;
         );
       }
     }
+    for (const name of ["snapshot-fixture", "detail-feed"])
+      for (const extension of ["js", "js.map", "d.ts", "d.ts.map"])
+        omit.push(`packages/host/dist/watch/${name}.${extension}`);
     for (const path of [...keep, ...omit]) {
       const parts = path.split("/");
       await mkdir(join(root, ...parts.slice(0, -1)), { recursive: true });
@@ -86,7 +89,11 @@ ${directories.map((directory) => `\n  ${directory}: {}\n`).join("")}`;
     await stageRuntimeFiles(root, stage);
 
     const staged = await readdir(stage, { recursive: true });
-    expect(staged.filter((path) => /\.test\.|smoke-launch\./.test(path))).toEqual([]);
+    expect(
+      staged.filter((path) =>
+        /\.test\.|smoke-launch\.|snapshot-fixture\.|detail-feed\./.test(path),
+      ),
+    ).toEqual([]);
     for (const path of keep) expect(await readFile(join(stage, path), "utf8")).toBe(path);
   });
 

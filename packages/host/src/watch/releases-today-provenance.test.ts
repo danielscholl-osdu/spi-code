@@ -4,9 +4,9 @@
 import { type ReleasesToday, type ViewSnapshot, ViewSnapshotSchema } from "@spi-code/contracts";
 import type { ReadRecord } from "@spi-code/core";
 import { describe, expect, it } from "vitest";
+import { fixtureInput, recordedInput } from "../../test/watch/snapshot-fixture.js";
 import { projectWatch } from "./project.js";
 import { releaseProvenance, releasesTodayProvenance } from "./provenance.js";
-import { fixtureInput, recordedInput } from "./snapshot-fixture.js";
 
 const today: ReleasesToday = {
   versions: [

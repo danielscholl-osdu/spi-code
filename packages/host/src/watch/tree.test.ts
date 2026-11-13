@@ -3,8 +3,8 @@
 
 import { type AreaName, type ReadRecord, TEMPLATE_REPO } from "@spi-code/core";
 import { describe, expect, it } from "vitest";
+import { fixtureInput } from "../../test/watch/snapshot-fixture.js";
 import { projectWatch } from "./project.js";
-import { fixtureInput } from "./snapshot-fixture.js";
 import { treeOf } from "./tree.js";
 
 process.env.TZ = "UTC";

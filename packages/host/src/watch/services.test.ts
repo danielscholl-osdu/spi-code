@@ -4,9 +4,9 @@
 import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { buildModel, type ReadRecord } from "@spi-code/core";
 import { describe, expect, it } from "vitest";
+import { fixtureInput, mixedFixtureInput } from "../../test/watch/snapshot-fixture.js";
 import { projectWatch } from "./project.js";
 import { projectReleases } from "./releases.js";
-import { fixtureInput, mixedFixtureInput } from "./snapshot-fixture.js";
 import { stationSubstate } from "./substate.js";
 
 process.env.TZ = "UTC";

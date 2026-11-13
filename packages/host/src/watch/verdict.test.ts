@@ -2,8 +2,13 @@
 // SPDX-License-Identifier: MIT
 
 import { describe, expect, it } from "vitest";
+import {
+  badInput,
+  busyInput,
+  calmInput,
+  recordedInput,
+} from "../../test/watch/snapshot-fixture.js";
 import { projectWatch, type WatchInput } from "./project.js";
-import { badInput, busyInput, calmInput, recordedInput } from "./snapshot-fixture.js";
 
 process.env.TZ = "UTC";
 

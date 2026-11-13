@@ -159,6 +159,10 @@ export async function stageWorkspace(root, stage) {
   );
 }
 
+/** The fixture builders build to packages/host/build; an older build can still hold them in dist. */
+const hostFixtureBuilder =
+  /[\\/]packages[\\/]host[\\/]dist[\\/]watch[\\/](snapshot-fixture|detail-feed)\./;
+
 /** @param {string} root @param {string} stage */
 export async function stageRuntimeFiles(root, stage) {
   for (const path of [
@@ -171,7 +175,8 @@ export async function stageRuntimeFiles(root, stage) {
     await mkdir(dirname(join(stage, path)), { recursive: true });
     await cp(join(root, path), join(stage, path), {
       recursive: true,
-      filter: (source) => !/\.test\.|^smoke-launch\./.test(basename(source)),
+      filter: (source) =>
+        !/\.test\.|^smoke-launch\./.test(basename(source)) && !hostFixtureBuilder.test(source),
     });
   }
 }

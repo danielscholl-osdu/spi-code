@@ -43,11 +43,11 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { ForgeError } from "../../../core/src/forge.js";
 import { Sweeper } from "../../../core/src/sweep/sweeper.js";
+import { fixtureInput } from "../../test/watch/snapshot-fixture.js";
 import { createLeaseStore } from "../store/leases.js";
 import { createSnapshotStore } from "../store/snapshots.js";
 import { openRunStore } from "../store/store.js";
 import * as project from "../watch/project.js";
-import { fixtureInput } from "../watch/snapshot-fixture.js";
 import { DAY_MS, FORCE_COOLDOWN_MS, SweepService, type SweepServiceOptions } from "./service.js";
 import type { SweepSchedulerStatus } from "./status.js";
 

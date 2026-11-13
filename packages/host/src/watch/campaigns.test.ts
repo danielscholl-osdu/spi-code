@@ -4,9 +4,9 @@
 import { CampaignSchema } from "@spi-code/contracts";
 import { buildModel, campaignItemText, detectCampaigns } from "@spi-code/core";
 import { expect, test } from "vitest";
+import { fixtureInput } from "../../test/watch/snapshot-fixture.js";
 import { detectedCampaigns } from "./campaigns.js";
 import { projectWatch } from "./project.js";
-import { fixtureInput } from "./snapshot-fixture.js";
 
 test("projects core's detected security campaigns and their reading anchors", () => {
   const input = fixtureInput();

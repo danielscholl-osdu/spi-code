@@ -24,8 +24,8 @@ import {
   type SweepReads,
   TEMPLATE_REPO,
 } from "@spi-code/core";
-import { projectWatch, type WatchInput } from "./project.js";
-import { baselineItems } from "./seen.js";
+import { projectWatch, type WatchInput } from "../../src/watch/project.js";
+import { baselineItems } from "../../src/watch/seen.js";
 
 export const fixtureRoot = fileURLToPath(
   new URL("../../../core/test/fixtures/rib-59d6895/", import.meta.url),

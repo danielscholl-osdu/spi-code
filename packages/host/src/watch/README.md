@@ -335,7 +335,7 @@ Regenerate only the Watch fixtures from the repository root:
 
 ```sh
 pnpm run build
-TZ=UTC bun scripts/watch-snapshot.ts
+TZ=UTC node scripts/watch-snapshot.mjs
 pnpm biome check --write fixtures/watch/snapshot-59d6895.json fixtures/watch/snapshot-mixed-59d6895.json fixtures/watch/snapshot-1106.json fixtures/watch/inspect-1106.json
 ```
 

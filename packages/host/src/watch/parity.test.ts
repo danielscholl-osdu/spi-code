@@ -4,8 +4,12 @@
 import { readFileSync } from "node:fs";
 import type { InspectResult, ViewSnapshot } from "@spi-code/contracts";
 import { beforeAll, describe, expect, it } from "vitest";
-import { briefingHolds, detailFeedIds, recordedDetailAnswers } from "./detail-feed.js";
-import { detailFeedPath, recordedSnapshotPath } from "./snapshot-fixture.js";
+import {
+  briefingHolds,
+  detailFeedIds,
+  recordedDetailAnswers,
+} from "../../test/watch/detail-feed.js";
+import { detailFeedPath, recordedSnapshotPath } from "../../test/watch/snapshot-fixture.js";
 
 process.env.TZ = "UTC";
 

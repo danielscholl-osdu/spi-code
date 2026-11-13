@@ -4,7 +4,6 @@
 import { readFileSync } from "node:fs";
 import { AREAS, buildModel, monthFacts, pinKey, STACK_REPO, TEMPLATE_REPO } from "@spi-code/core";
 import { describe, expect, it } from "vitest";
-import { projectWatch } from "./project.js";
 import {
   badInput,
   badSnapshotPath,
@@ -12,7 +11,8 @@ import {
   busySnapshotPath,
   calmInput,
   calmSnapshotPath,
-} from "./snapshot-fixture.js";
+} from "../../test/watch/snapshot-fixture.js";
+import { projectWatch } from "./project.js";
 
 process.env.TZ = "UTC";
 
