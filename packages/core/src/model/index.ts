@@ -91,7 +91,7 @@ export function buildModel(
       stack,
       radar: predictions[fork.id],
       now,
-    }),
+    }, context),
   );
   const radar = buildRadar(predictions, lines, facts.radar.data);
   const template = buildTemplate(templateRepo, facts.template.data, lines, {

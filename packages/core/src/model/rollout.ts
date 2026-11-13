@@ -5,7 +5,7 @@ import { forkOf, githubUrl, SYNC_UPSTREAM_CRON, TEMPLATE_REPO } from "../config.
 import type { CoreContext } from "../context.js";
 import type { ForkRuns, JobDetail, PastPrFact, RunFact, TemplateChange } from "../facts.js";
 import { type Judgement, judgeRun, type OrderRule } from "../rollout.js";
-import { names, stamp } from "../util.js";
+import { names, stamp, timeClause } from "../util.js";
 import { classifyPr } from "./attribution.js";
 import { latestChecks } from "./checks.js";
 import { type LaneLoad, laneRoom } from "./lanes.js";
@@ -166,7 +166,7 @@ function lastGoodBefore(runs: ForkRuns | undefined, at: string): RolloutFork["la
   return run ? { sha: run.sha, at: run.createdAt, url: run.url } : undefined;
 }
 
-function mainCell(run: RunFact | undefined, judgement: Judgement | undefined, now: Date): Cell {
+function mainCell(run: RunFact | undefined, judgement: Judgement | undefined, now: Date, context: CoreContext): Cell {
   if (!run) return cell("unread", "idle", undefined, "main run not read");
   if (run.status !== "completed") return cell("running", "run", run.url);
   if (run.conclusion === "success") {
@@ -179,7 +179,7 @@ function mainCell(run: RunFact | undefined, judgement: Judgement | undefined, no
       "red",
       "warn",
       run.url,
-      `main run red${stamp(run.updatedAt, now) ? ` at ${stamp(run.updatedAt, now)}` : ""}, failed jobs still being read`,
+      `main run red${timeClause(run.updatedAt, now, context, " at ")}, failed jobs still being read`,
     );
   return judgement.class === "environment"
     ? cell("env", "warn", run.url, `main run hit an environment failure on attempt ${run.attempt}`)
@@ -380,7 +380,7 @@ export function buildRollout(input: {
       validation: onTarget ? cell("green", "ok") : v.cell,
       review: onTarget ? cell("reviewed", "ok") : carries ? reviewCell(row) : cell("·", "idle"),
       merge: cell("·", "idle"),
-      main: onTarget || red ? mainCell(run, judgement, now) : cell("·", "idle"),
+      main: onTarget || red ? mainCell(run, judgement, now, context) : cell("·", "idle"),
       ready: carries && !heldBecause(row),
       heldBy: [],
       ...(env ? { env: { service: row.service, repo: row.repo, ...env } } : {}),
@@ -402,7 +402,7 @@ export function buildRollout(input: {
       })(),
     };
     if (onTarget && merge?.mergedAt) {
-      fork.merge = cell(stamp(merge.mergedAt, now) ?? "merged", "ok", merge.url);
+      fork.merge = cell(stamp(merge.mergedAt, now, context) ?? "merged", "ok", merge.url);
     } else if (onTarget) fork.merge = cell("on main", "ok");
     return fork;
   });

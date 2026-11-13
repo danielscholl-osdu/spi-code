@@ -20,6 +20,7 @@ import {
   todayGroupRow,
 } from "../../panels/selection-rows.js";
 import { plainTitle } from "../../text.js";
+import { TimedText, timedText } from "../../time.js";
 import { More, useFold } from "./folding.js";
 import "./in-motion.css";
 
@@ -78,7 +79,7 @@ function Line({
 }) {
   const [first = line.id] = line.itemIds;
   const row = itemRow(rows, first, line.text);
-  const text = plainTitle(line.text);
+  const text = timedText(plainTitle(line.text), { hint: false });
   const shared = {
     "data-line-id": line.id,
     "data-item-ids": line.itemIds.join(" "),
@@ -108,7 +109,9 @@ function Line({
               />
             ))
           ) : (
-            <span className="today-motion-quiet">{line.text}</span>
+            <span className="today-motion-quiet">
+              <TimedText text={line.text} hint={false} />
+            </span>
           )}
           {count}
         </span>
@@ -138,7 +141,9 @@ function Line({
         )}
       </span>
       {plain ? (
-        <span className="today-motion-text">{line.text}</span>
+        <span className="today-motion-text">
+          <TimedText text={line.text} hint={false} />
+        </span>
       ) : (
         <>
           <span className="today-motion-glyph">

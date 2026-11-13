@@ -18,6 +18,7 @@ import { FreshItems } from "../../components/place/FreshItems.js";
 import { selectionStore } from "../../panels/selection.js";
 import { selectionRows } from "../../panels/selection-rows.js";
 import { watchStore } from "../../store/watch.js";
+import { TimedText } from "../../time.js";
 import "./line.css";
 
 const columns: readonly { id: Station["id"]; label: string }[] = [
@@ -179,7 +180,7 @@ function LineContent({
                                   >
                                     {glyph.mark}
                                   </span>{" "}
-                                  {station.text}
+                                  <TimedText text={station.text} hint={false} />
                                 </button>
                               )}
                             </td>

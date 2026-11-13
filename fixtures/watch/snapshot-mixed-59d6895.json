@@ -41,7 +41,7 @@
         "title": "Maintenance mode",
         "sub": "env-upgrade v0.28.2 in verify › Azure login (OIDC) now · folds 8 effects · 9d",
         "cause": "Maintenance mode; env-upgrade v0.28.2 in verify › Azure login (OIDC) now.",
-        "effect": "10-11 22:44 · env-upgrade v0.28.1 failed in provision › spi up: GitLab API unreachable while resolving images · set maintenance. 10-12 04:16 · env-refresh v0.28.1 failed in Verify stack version and source suspension are unchanged: deployed v0.28.0 drifted from declared v0.28.1. 10-12 20:20 · env-upgrade v0.28.1 (dispatched) cancelled after 1h 2m in verify › Wait for Flux Kustomizations to be Ready.",
+        "effect": "2026-10-11T22:44:33.000Z · env-upgrade v0.28.1 failed in provision › spi up: GitLab API unreachable while resolving images · set maintenance. 2026-10-12T04:16:54.000Z · env-refresh v0.28.1 failed in Verify stack version and source suspension are unchanged: deployed v0.28.0 drifted from declared v0.28.1. 2026-10-12T20:20:08.000Z · env-upgrade v0.28.1 (dispatched) cancelled after 1h 2m in verify › Wait for Flux Kustomizations to be Ready.",
         "next": "Wait for the run in flight; if it fails, fix its cause and re-dispatch.",
         "verb": "Re-dispatch",
         "evidence": [
@@ -2148,7 +2148,7 @@
             "title": "Maintenance mode",
             "sub": "env-upgrade v0.28.2 in verify › Azure login (OIDC) now · folds 8 effects · 9d",
             "cause": "Maintenance mode; env-upgrade v0.28.2 in verify › Azure login (OIDC) now.",
-            "effect": "10-11 22:44 · env-upgrade v0.28.1 failed in provision › spi up: GitLab API unreachable while resolving images · set maintenance. 10-12 04:16 · env-refresh v0.28.1 failed in Verify stack version and source suspension are unchanged: deployed v0.28.0 drifted from declared v0.28.1. 10-12 20:20 · env-upgrade v0.28.1 (dispatched) cancelled after 1h 2m in verify › Wait for Flux Kustomizations to be Ready.",
+            "effect": "2026-10-11T22:44:33.000Z · env-upgrade v0.28.1 failed in provision › spi up: GitLab API unreachable while resolving images · set maintenance. 2026-10-12T04:16:54.000Z · env-refresh v0.28.1 failed in Verify stack version and source suspension are unchanged: deployed v0.28.0 drifted from declared v0.28.1. 2026-10-12T20:20:08.000Z · env-upgrade v0.28.1 (dispatched) cancelled after 1h 2m in verify › Wait for Flux Kustomizations to be Ready.",
             "next": "Wait for the run in flight; if it fails, fix its cause and re-dispatch.",
             "verb": "Re-dispatch",
             "evidence": [

@@ -18,6 +18,8 @@ export interface CoreContext {
   readonly clock: Clock;
   /** How operator-facing text names the actor; the rib passes RIB_VOICE. */
   readonly voice: Voice;
+  /** Clock text preserves the boards; instant text lets a consumer choose its zone. */
+  readonly timeStyle: "clock" | "instant";
 }
 
 export function createContext(input: Partial<CoreContext> = {}): CoreContext {
@@ -31,6 +33,7 @@ export function createContext(input: Partial<CoreContext> = {}): CoreContext {
   return Object.freeze({
     fleet,
     stackRepo,
+    timeStyle: input.timeStyle ?? "clock",
     paths: Object.freeze({ ...(input.paths ?? DEFAULT_PATHS) }),
     rollout: rollout
       ? Object.freeze({

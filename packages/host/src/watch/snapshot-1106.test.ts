@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   acknowledgedInput,
   acknowledgedSnapshotPath,
+  appStyle,
   recordedInput,
   recordedSnapshotPath,
   unreadForksInput,
@@ -22,7 +23,7 @@ const snapshot: ViewSnapshot = JSON.parse(readFileSync(recordedSnapshotPath, "ut
 
 describe("the projected 6 Nov recorded sweep", () => {
   it("matches a fresh projection", () => {
-    expect(projectWatch(recordedInput())).toEqual(snapshot);
+    expect(projectWatch(appStyle(recordedInput()))).toEqual(snapshot);
   });
 
   it("reads legal as 17 commits incoming, a SNAPSHOT hold and release PR #48 passing", () => {
@@ -59,7 +60,7 @@ describe("the 6 Nov sweep with five forks' GitHub reads failed", () => {
   const unread: ViewSnapshot = JSON.parse(readFileSync(unreadSnapshotPath, "utf8"));
 
   it("matches a fresh projection", () => {
-    expect(projectWatch(unreadForksInput())).toEqual(unread);
+    expect(projectWatch(appStyle(unreadForksInput()))).toEqual(unread);
   });
 
   it("counts the engineering system over all 13 forks and names the 5 not read", () => {
@@ -90,7 +91,7 @@ describe("the 6 Nov sweep with partition verified and legal merged but red on ma
   const reading = unverified.readings.find(({ anchor }) => anchor.kind === "engineering")?.content;
 
   it("matches a fresh projection", () => {
-    expect(projectWatch(unverifiedForkInput())).toEqual(unverified);
+    expect(projectWatch(appStyle(unverifiedForkInput()))).toEqual(unverified);
   });
 
   it("puts two forks on 7d269b5 and counts only the verified one (PS-09, PS-18)", () => {
@@ -114,7 +115,7 @@ describe("the 6 Nov sweep pushed again after its first push was acknowledged", (
   const acknowledged: ViewSnapshot = JSON.parse(readFileSync(acknowledgedSnapshotPath, "utf8"));
 
   it("matches a fresh projection", () => {
-    expect(projectWatch(acknowledgedInput())).toEqual(acknowledged);
+    expect(projectWatch(appStyle(acknowledgedInput()))).toEqual(acknowledged);
   });
 
   it("holds the acknowledged baseline with nothing new and its Interrupt still open (AU-09)", () => {

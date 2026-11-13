@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import { timeUnit } from "@spi-code/contracts";
+import type { CoreContext } from "./context.js";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -56,16 +57,42 @@ function two(n: number): string {
 
 // "16:40" today, "10-11 17:44" on an earlier day, in local time: the zone the
 // host draws timelines and clocks in.
-export function stamp(iso: string | undefined, now: Date): string | undefined {
+export function stamp(
+  iso: string | undefined,
+  now: Date,
+  context?: Pick<CoreContext, "timeStyle">,
+): string | undefined {
   if (!iso) return undefined;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return undefined;
+  if (context?.timeStyle === "instant") return d.toISOString();
   const hm = `${two(d.getHours())}:${two(d.getMinutes())}`;
   const today =
     d.getFullYear() === now.getFullYear() &&
     d.getMonth() === now.getMonth() &&
     d.getDate() === now.getDate();
   return today ? hm : `${two(d.getMonth() + 1)}-${two(d.getDate())} ${hm}`;
+}
+
+/** A time and its joining words, omitted together when the time is unknown. */
+export function timeClause(
+  iso: string | undefined,
+  now: Date,
+  context: Pick<CoreContext, "timeStyle">,
+  before = "",
+  after = "",
+): string {
+  const text = stamp(iso, now, context);
+  return text ? `${before}${text}${after}` : "";
+}
+
+/** The next midnight UTC; the default preserves the boards' schedule wording. */
+export function dailySyncTime(now: Date, context: Pick<CoreContext, "timeStyle">): string {
+  if (!Number.isFinite(now.getTime())) return "";
+  if (context.timeStyle === "clock") return " at 00:00Z";
+  const next = new Date(now);
+  next.setUTCHours(24, 0, 0, 0);
+  return timeClause(next.toISOString(), now, context, " at ");
 }
 
 // A stamp that names its zone, for the one place a board says when it was read.

@@ -5,6 +5,7 @@ import type { LiHTMLAttributes } from "react";
 import { type QueueEntry, scopeRoute } from "../../app/queue.js";
 import type { Route } from "../../app/routes.js";
 import { plainTitle } from "../../text.js";
+import { TimedText } from "../../time.js";
 import "./queue.css";
 
 /** One queue item. A page that lists it with useSelectionList passes its rowProps, less onClick. */
@@ -61,7 +62,7 @@ export function QueueRow({
             aria-pressed={selected}
             onClick={() => onSelect(item.id)}
           >
-            {plainTitle(item.title)}
+            <TimedText text={plainTitle(item.title)} hint={false} />
           </button>
           <span className="inbox-class">{item.cls}</span>
         </span>

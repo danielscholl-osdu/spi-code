@@ -5,7 +5,7 @@ import { forkOf, githubUrl, shortRepo, TEMPLATE_REPO } from "../config.js";
 import type { CoreContext } from "../context.js";
 import type { OutsidePr, PrFact, RepoFact, WaitingRun } from "../facts.js";
 import { governing, type Judgement } from "../rollout.js";
-import { clip, plural, releaseTag, short, stamp } from "../util.js";
+import { clip, plural, releaseTag, short, stamp, dailySyncTime, timeClause } from "../util.js";
 import {
   CLASS_LABEL,
   type Failure,
@@ -141,19 +141,19 @@ export interface Queue {
   dismissed: { item: QueueItem; entry: DismissEntry }[];
 }
 
-function failureLine(service: string, f: Failure, now: Date): string {
+function failureLine(service: string, f: Failure, now: Date, context: CoreContext): string {
   const parts = [`${service} ${CLASS_LABEL[f.prClass]} #${f.pr}`];
   if (f.step) parts.push(f.step);
   if (f.reason) parts.push(f.reason);
-  parts.push(stamp(f.at, now) ?? "");
+  parts.push(timeClause(f.at, now, context));
   return parts.filter(Boolean).join(" · ");
 }
 
-function prFacts(p: LinePr, now: Date): Fact[] {
+function prFacts(p: LinePr, now: Date, context: CoreContext): Fact[] {
   const facts: Fact[] = [
     {
       label: "PR",
-      value: `#${p.pr.number} · ${p.pr.title} · opened ${stamp(p.pr.createdAt, now)}`,
+      value: `#${p.pr.number} · ${p.pr.title}${timeClause(p.pr.createdAt, now, context, " · opened ")}`,
       url: p.pr.url,
     },
   ];
@@ -210,6 +210,7 @@ function stackItems(
   stack: StackModel,
   lines: readonly LineModel[],
   now: Date,
+  context: CoreContext,
 ): { items: QueueItem[]; folded: Set<Failure> } {
   const items: QueueItem[] = [];
   const folded = new Set<Failure>();
@@ -229,14 +230,14 @@ function stackItems(
     const effects: Effect[] = stack.attempts
       .filter((a) => a !== last)
       .map((a) => ({
-        text: `${stamp(a.run.createdAt, now)} · ${attemptText(a, setter)}`,
+        text: `${timeClause(a.run.createdAt, now, context, "", " · ")}${attemptText(a, setter)}`,
         url: a.run.url,
       }));
     const since = Date.parse(first.run.createdAt);
     for (const { line, f } of envFailures) {
       if (Date.parse(f.at) < since) continue;
       folded.add(f);
-      effects.push({ text: failureLine(line.fork.id, f, now), url: f.url ?? f.prUrl });
+      effects.push({ text: failureLine(line.fork.id, f, now, context), url: f.url ?? f.prUrl });
     }
     const live = stack.inflight;
     const usual = usualText(stack.usual);
@@ -249,7 +250,7 @@ function stackItems(
     const cause: Fact[] = [
       {
         label: "state",
-        value: `${state} since ${stamp(stack.maintenance.since ?? first.run.createdAt, now)}`,
+        value: `${state}${timeClause(stack.maintenance.since ?? first.run.createdAt, now, context, " since ")}`,
       },
       { label: "first", value: attemptText(first), url: first.run.url },
       { label: "last", value: attemptText(last), url: last.run.url },
@@ -286,14 +287,14 @@ function stackItems(
       kind: "maintenance",
       rung: 0,
       scope: "Environment",
-      text: `maintenance held since ${stamp(stack.maintenance.since, now)} with no lifecycle run in flight`,
+      text: `maintenance held${timeClause(stack.maintenance.since, now, context, " since ")} with no lifecycle run in flight`,
       since: stack.maintenance.since,
       url: stack.maintenance.run.url,
       effects: [],
       cause: [
         {
           label: "set by",
-          value: `${runName(stack.maintenance.run)} ${stamp(stack.maintenance.run.createdAt, now)}`,
+          value: `${runName(stack.maintenance.run)}${timeClause(stack.maintenance.run.createdAt, now, context, " ")}`,
           url: stack.maintenance.run.url,
         },
       ],
@@ -319,7 +320,7 @@ function stackItems(
       url: oldest.f.url ?? oldest.f.prUrl,
       note: stack.deployable.state === "yes" ? "re-run now" : undefined,
       effects: loose.map(({ line, f }) => ({
-        text: failureLine(line.fork.id, f, now),
+        text: failureLine(line.fork.id, f, now, context),
         url: f.url ?? f.prUrl,
       })),
       cause: [
@@ -329,7 +330,7 @@ function stackItems(
         },
         {
           label: "first failure",
-          value: failureLine(oldest.line.fork.id, oldest.f, now),
+          value: failureLine(oldest.line.fork.id, oldest.f, now, context),
           url: oldest.f.url ?? oldest.f.prUrl,
         },
       ],
@@ -351,7 +352,7 @@ function gateText(p: LinePr): string {
   return ` fails ${failure.check}${tool ? `: ${tool}` : failure.reason ? `: ${failure.reason}` : ""}`;
 }
 
-function lineItems(line: LineModel, stack: StackModel, now: Date): QueueItem[] {
+function lineItems(line: LineModel, stack: StackModel, now: Date, context: CoreContext): QueueItem[] {
   const items: QueueItem[] = [];
   const svc = line.fork.id;
   const deployment = line.lane.last;
@@ -402,7 +403,7 @@ function lineItems(line: LineModel, stack: StackModel, now: Date): QueueItem[] {
     const cause: Fact[] = [
       {
         label: "issue",
-        value: `#${h.issue.number} · sync-failed · opened ${stamp(h.issue.createdAt, now)}`,
+        value: `#${h.issue.number} · sync-failed${timeClause(h.issue.createdAt, now, context, " · opened ")}`,
         url: h.issue.url,
       },
       { label: "halt", value: h.code },
@@ -446,7 +447,7 @@ function lineItems(line: LineModel, stack: StackModel, now: Date): QueueItem[] {
       cause: [
         {
           label: "run",
-          value: `Sync Upstream ${stamp(line.syncRun.createdAt, now)} · ${line.syncRun.conclusion ?? line.syncRun.status}`,
+          value: `Sync Upstream${timeClause(line.syncRun.createdAt, now, context, " ")} · ${line.syncRun.conclusion ?? line.syncRun.status}`,
           url: line.syncRun.url,
         },
       ],
@@ -467,7 +468,7 @@ function lineItems(line: LineModel, stack: StackModel, now: Date): QueueItem[] {
       cause: [
         {
           label: "issue",
-          value: `#${issue.number} · ${issue.labels.join(", ")} · opened ${stamp(issue.createdAt, now)}`,
+          value: `#${issue.number} · ${issue.labels.join(", ")}${timeClause(issue.createdAt, now, context, " · opened ")}`,
           url: issue.url,
         },
       ],
@@ -512,7 +513,7 @@ function lineItems(line: LineModel, stack: StackModel, now: Date): QueueItem[] {
       cause: [
         {
           label: "run",
-          value: `${m.run.name ?? "Validation"} on ${short(m.run.sha)} · ${stamp(m.run.createdAt, now)}`,
+          value: `${m.run.name ?? "Validation"} on ${short(m.run.sha)}${timeClause(m.run.createdAt, now, context, " · ")}`,
           url: m.run.url,
         },
         ...(m.job
@@ -544,7 +545,7 @@ function lineItems(line: LineModel, stack: StackModel, now: Date): QueueItem[] {
       cause: [
         {
           label: "run",
-          value: `Sync Template ${stamp(line.templateRun.createdAt, now)} · ${line.templateRun.conclusion ?? line.templateRun.status}`,
+          value: `Sync Template${timeClause(line.templateRun.createdAt, now, context, " ")} · ${line.templateRun.conclusion ?? line.templateRun.status}`,
           url: line.templateRun.url,
         },
       ],
@@ -568,7 +569,7 @@ function lineItems(line: LineModel, stack: StackModel, now: Date): QueueItem[] {
       note: lag ? `${plural(lag, "commit")} behind` : undefined,
       effects: [],
       cause: [
-        ...prFacts(p, now),
+        ...prFacts(p, now, context),
         ...(lag
           ? [{ label: "held", value: `${plural(lag, "upstream commit")} wait on this PR` }]
           : []),
@@ -592,7 +593,7 @@ function lineItems(line: LineModel, stack: StackModel, now: Date): QueueItem[] {
       since: p.pr.createdAt,
       url: p.pr.url,
       effects: [],
-      cause: [...prFacts(p, now), { label: "merge", value: "merge commit, never a squash" }],
+      cause: [...prFacts(p, now, context), { label: "merge", value: "merge commit, never a squash" }],
       cls: red ? realFailure(p)?.cls : undefined,
       incident: red && p.failures.some((f) => f.cls !== "ENV" && f.cls !== "POLICY"),
       blocks: 1,
@@ -611,7 +612,7 @@ function lineItems(line: LineModel, stack: StackModel, now: Date): QueueItem[] {
         url: line.templatePr.pr.url,
         effects: [],
         cause: [
-          ...prFacts(line.templatePr, now),
+          ...prFacts(line.templatePr, now, context),
           ...(line.template.target
             ? [
                 {
@@ -641,7 +642,7 @@ function lineItems(line: LineModel, stack: StackModel, now: Date): QueueItem[] {
       cause: [
         {
           label: "issue",
-          value: `#${line.labelsIssue.number} · opened ${stamp(line.labelsIssue.createdAt, now)}`,
+          value: `#${line.labelsIssue.number}${timeClause(line.labelsIssue.createdAt, now, context, " · opened ")}`,
           url: line.labelsIssue.url,
         },
       ],
@@ -663,7 +664,7 @@ function lineItems(line: LineModel, stack: StackModel, now: Date): QueueItem[] {
       since: f.at,
       url: f.url ?? p.pr.url,
       effects: [],
-      cause: prFacts(p, now),
+      cause: prFacts(p, now, context),
       cls: "ACCESS",
       incident: true,
       blocks: 1,
@@ -677,6 +678,7 @@ function templateSetItem(
   lines: readonly LineModel[],
   stack: StackModel,
   now: Date,
+  context: CoreContext,
 ): QueueItem | undefined {
   const open = lines.filter((l) => l.templatePr);
   if (open.length === 0) return undefined;
@@ -738,7 +740,7 @@ function templateSetItem(
     since: oldest.templatePr?.pr.createdAt,
     url: oldest.templatePr?.pr.url,
     effects: open.map((l) => ({
-      text: `${l.fork.id} #${l.templatePr?.pr.number} · ${l.templatePr ? prVerdict(l.templatePr.pr) : ""}${l.templatePr?.failures[0] ? ` · ${l.templatePr.failures[0].cls} ${l.templatePr.failures[0].step ?? l.templatePr.failures[0].check}` : ""} · updated ${stamp(l.templatePr?.pr.updatedAt, now)}`,
+      text: `${l.fork.id} #${l.templatePr?.pr.number} · ${l.templatePr ? prVerdict(l.templatePr.pr) : ""}${l.templatePr?.failures[0] ? ` · ${l.templatePr.failures[0].cls} ${l.templatePr.failures[0].step ?? l.templatePr.failures[0].check}` : ""}${timeClause(l.templatePr?.pr.updatedAt, now, context, " · updated ")}`,
       url: l.templatePr?.pr.url,
     })),
     cause,
@@ -897,7 +899,7 @@ function releaseItems(
           since: pr.createdAt,
           url: pr.url,
           effects: [],
-          cause: prFacts({ pr, prClass: "release", failures }, now),
+          cause: prFacts({ pr, prClass: "release", failures }, now, context),
           cls: real[0]?.cls,
           incident: true,
           blocks: 1,
@@ -978,7 +980,7 @@ function templatePrItems(
       since: pr.createdAt,
       url: pr.url,
       effects: [{ text: "every fork takes it at the next Sync Template after it merges" }],
-      cause: prFacts({ pr, prClass, failures }, now),
+      cause: prFacts({ pr, prClass, failures }, now, context),
       ...(red ? { cls: red.cls } : {}),
       incident: false,
       blocks: 0,
@@ -1123,6 +1125,8 @@ function radarItems(
   lines: readonly LineModel[],
   radar: RadarModel | undefined,
   forks: readonly UpFork[],
+  now: Date,
+  context: CoreContext,
 ): QueueItem[] {
   const items: QueueItem[] = [];
   for (const line of lines) {
@@ -1186,7 +1190,7 @@ function radarItems(
         url: filterUrl,
       },
     ];
-    const waiting = { label: "queued", value: `${queued} wait for the next Sync Upstream at 00:00Z` };
+    const waiting = { label: "queued", value: `${queued} wait for the next Sync Upstream${dailySyncTime(now, context)}` };
     const item: QueueItem = {
       id: `radar:${svc}`,
       kind: "radar",
@@ -1216,13 +1220,13 @@ function radarItems(
       blocks: r.queued,
     };
     // A sync PR taking the commits quiets the item, so it must not resurface a dismissal.
-    item.fingerprint = fingerprintOf(item);
+    item.fingerprint = itemFingerprint(item, now, context);
     if (held) {
       const wait = (n: number) => (n === 1 ? "waits" : "wait");
       const inPr = `${plural(held.held, "commit")} ${wait(held.held)} in sync PR #${held.pr}`;
       const rest =
         held.next > 0
-          ? `; ${held.next} more ${wait(held.next)} for the next Sync Upstream at 00:00Z`
+          ? `; ${held.next} more ${wait(held.next)} for the next Sync Upstream${dailySyncTime(now, context)}`
           : "";
       item.cause = [...cause, { label: "queued", value: `${inPr}${rest}` }];
     }
@@ -1236,6 +1240,7 @@ function portItems(
   lines: readonly LineModel[],
   radar: RadarModel | undefined,
   now: Date,
+  context: CoreContext,
 ): QueueItem[] {
   const items: QueueItem[] = [];
   for (const line of lines) {
@@ -1256,7 +1261,7 @@ function portItems(
       ...(oldest ? { since: oldest.mergedAt } : {}),
       url: prs,
       effects: owed.map((m) => ({
-        text: `!${m.iid} · ${m.title} · merged ${stamp(m.mergedAt, now)}`,
+        text: `!${m.iid} · ${m.title}${timeClause(m.mergedAt, now, context, " · merged ")}`,
         url: m.url,
       })),
       cause: [
@@ -1376,14 +1381,14 @@ export function buildQueue(input: {
 }, context: CoreContext): Queue {
   const { stack, lines, template, repos, details, approvals, radar, now } = input;
   const items: QueueItem[] = [];
-  items.push(...stackItems(stack, lines, now).items);
-  for (const line of lines) items.push(...lineItems(line, stack, now));
-  items.push(...radarItems(lines, radar, input.forks));
-  items.push(...portItems(lines, radar, now));
+  items.push(...stackItems(stack, lines, now, context).items);
+  for (const line of lines) items.push(...lineItems(line, stack, now, context));
+  items.push(...radarItems(lines, radar, input.forks, now, context));
+  items.push(...portItems(lines, radar, now, context));
   items.push(...approvalItems(approvals));
   if (input.rollout) items.push(rolloutItem(input.rollout, template));
   else {
-    const set = templateSetItem(template, lines, stack, now);
+    const set = templateSetItem(template, lines, stack, now, context);
     if (set) items.push(set);
   }
   items.push(...releaseItems(repos, details, now, context));
@@ -1401,12 +1406,26 @@ export function buildQueue(input: {
   const dismissed: Queue["dismissed"] = [];
   const live: QueueItem[] = [];
   for (const item of items) {
-    item.fingerprint ??= fingerprintOf(item);
+    item.fingerprint ??= itemFingerprint(item, now, context);
     const entry = quieted(item, input.dismissed ?? [], now);
     if (entry) dismissed.push({ item, entry });
     else live.push(item);
   }
   return finish(live, dismissed, stack);
+}
+
+// Dismissals depend on inputs, so both display styles hash the same clock-neutral prose.
+function itemFingerprint(item: QueueItem, now: Date, context: CoreContext): string {
+  if (context.timeStyle === "clock") return fingerprintOf(item);
+  const instant = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\b/g;
+  const clockText = (text: string) => text
+    .replace(/(next Sync Upstream at )\d{4}-\d{2}-\d{2}T00:00:00\.000Z/g, "$100:00Z")
+    .replace(instant, (at) => stamp(at, now) ?? "");
+  return fingerprintOf({
+    ...item,
+    cause: item.cause.map((fact) => ({ ...fact, value: clockText(fact.value) })),
+    effects: item.effects.map((effect) => ({ ...effect, text: clockText(effect.text) })),
+  });
 }
 
 function finish(items: QueueItem[], dismissed: Queue["dismissed"], stack: StackModel): Queue {

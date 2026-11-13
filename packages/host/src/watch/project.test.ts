@@ -6,6 +6,7 @@ import { ViewSnapshotSchema } from "@spi-code/contracts";
 import { buildBriefing, buildModel, detectCampaigns } from "@spi-code/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  appStyle,
   fixtureInput,
   mixedFixtureInput,
   mixedSnapshotPath,
@@ -271,8 +272,10 @@ describe("Watch projection", () => {
   }
 
   it("fails when the committed snapshot differs from a fresh projection", () => {
-    expect(projectWatch(fixtureInput())).toEqual(JSON.parse(readFileSync(snapshotPath, "utf8")));
-    expect(projectWatch(mixedFixtureInput())).toEqual(
+    expect(projectWatch(appStyle(fixtureInput()))).toEqual(
+      JSON.parse(readFileSync(snapshotPath, "utf8")),
+    );
+    expect(projectWatch(appStyle(mixedFixtureInput()))).toEqual(
       JSON.parse(readFileSync(mixedSnapshotPath, "utf8")),
     );
   });
@@ -344,7 +347,9 @@ describe("Watch projection", () => {
       reads.push(`+${reads.length}s ${reader ?? caller}`);
       return new Date(start + 1000 * (reads.length - 1));
     };
-    const snapshot = projectWatch({ ...input, context: { ...input.context, clock: { now } } });
+    const snapshot = projectWatch(
+      appStyle({ ...input, context: { ...input.context, clock: { now } } }),
+    );
     expect(snapshot).toEqual(JSON.parse(readFileSync(recordedSnapshotPath, "utf8")));
     expect(reads).toEqual([
       "+0s projectWatch",

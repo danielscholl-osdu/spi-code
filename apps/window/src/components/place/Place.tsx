@@ -147,12 +147,18 @@ export function Place({
                               type={onSelect ? "button" : undefined}
                               data-selection-id={onSelect ? item.id : undefined}
                               aria-label={
-                                onSelect ? `${item.scope}: ${plainTitle(item.title)}` : undefined
+                                onSelect
+                                  ? timedText(`${item.scope}: ${plainTitle(item.title)}`, {
+                                      hint: false,
+                                    })
+                                  : undefined
                               }
                               aria-pressed={onSelect ? selectedId === item.id : undefined}
                               onClick={onSelect ? () => onSelect(item.id) : undefined}
                             >
-                              <span className="place-item-title">{plainTitle(item.title)}</span>
+                              <span className="place-item-title">
+                                <TimedText text={plainTitle(item.title)} hint={false} />
+                              </span>
                               {item.sub && (
                                 <span className="place-item-sub">
                                   <TimedText text={plainTitle(item.sub)} hint={false} />

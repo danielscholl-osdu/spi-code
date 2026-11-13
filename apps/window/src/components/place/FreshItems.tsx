@@ -5,6 +5,7 @@ import type { PlaceRow, ViewSnapshot } from "@spi-code/contracts";
 import { selectionStore } from "../../panels/selection.js";
 import { selectionRows } from "../../panels/selection-rows.js";
 import { plainTitle } from "../../text.js";
+import { TimedText } from "../../time.js";
 import { Chip } from "../kit/Chip.js";
 import "./place.css";
 
@@ -61,7 +62,7 @@ export function FreshItems({
               }}
             >
               <span className="place-item-title">
-                {item.scope}: {plainTitle(item.title)}
+                {item.scope}: <TimedText text={plainTitle(item.title)} hint={false} />
               </span>
             </button>
             <FreshChip id={item.id} />

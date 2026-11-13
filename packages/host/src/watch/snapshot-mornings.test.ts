@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { AREAS, buildModel, monthFacts, pinKey, STACK_REPO, TEMPLATE_REPO } from "@spi-code/core";
 import { describe, expect, it } from "vitest";
 import {
+  appStyle,
   badInput,
   badSnapshotPath,
   busyInput,
@@ -32,8 +33,8 @@ describe("Today morning sweep inputs", () => {
     ["bad", badInput, badSnapshotPath],
   ] as const) {
     it(`${name} deterministically reproduces its saved projection`, () => {
-      const view = projectWatch(make());
-      expect(projectWatch(make())).toEqual(view);
+      const view = projectWatch(appStyle(make()));
+      expect(projectWatch(appStyle(make()))).toEqual(view);
       expect(view).toEqual(JSON.parse(readFileSync(path, "utf8")));
     });
   }

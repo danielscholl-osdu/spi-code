@@ -1,6 +1,7 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
+import { type CoreContext, defaultContext } from "../context.js";
 import type { CanvasTone } from "../tone.js";
 import { type ForkDef, HISTORY_DAYS } from "../config.js";
 import type {
@@ -15,7 +16,7 @@ import type {
   TemplateCompare,
   UpstreamFact,
 } from "../facts.js";
-import { days, plural, since, stamp } from "../util.js";
+import { days, plural, since, dailySyncTime, timeClause } from "../util.js";
 import {
   classOf,
   type Failure,
@@ -238,7 +239,7 @@ export function buildLine(input: {
   stack: StackModel;
   radar?: Prediction;
   now: Date;
-}): LineModel {
+}, context: CoreContext = defaultContext): LineModel {
   const {
     fork,
     repo,
@@ -398,14 +399,14 @@ export function buildLine(input: {
     why = `template-sync PR #${templatePr.pr.number} fails ${failureText(templateFailure)}`;
   } else if (templateDelivery.state === "stale" && templateDelivery.run) {
     pill = pillOf("template stale", "stale");
-    why = `Sync Template last ran ${stamp(templateDelivery.run.createdAt, now)}; it runs daily`;
+    why = `Sync Template last ran${timeClause(templateDelivery.run.createdAt, now, context, " ")}; it runs daily`;
   } else if (syncPr) {
     pill = pillOf("gate 1 waiting", "waiting");
   } else if (cascadePr) {
     pill = pillOf("gate 2 waiting", "waiting");
   } else if (lag !== undefined && lag > 0) {
     pill = pillOf("behind", "waiting");
-    why = `${plural(lag, "upstream commit")} not yet synced; the next daily sync runs at 00:00Z`;
+    why = `${plural(lag, "upstream commit")} not yet synced; the next daily sync runs${dailySyncTime(now, context)}`;
   } else if (templatePr && templateBehind) {
     pill = pillOf("template update", "waiting");
   } else if (awaitingRun) {

@@ -27,6 +27,7 @@ import { Mark, type MarkTier } from "../../components/kit/Mark.js";
 import { type SelectionStore, selectionStore } from "../../panels/selection.js";
 import { selectionRows, todayGroupRow } from "../../panels/selection-rows.js";
 import { plainTitle } from "../../text.js";
+import { TimedText, timedText } from "../../time.js";
 import { More, useFold } from "./folding.js";
 import { interruptsOf } from "./selectors.js";
 import "./band.css";
@@ -98,14 +99,23 @@ function NeedCard({ item, open }: { item: WatchItem; open: Open }) {
       <Chip label={`P${item.rung}`} text={`P${item.rung}`} tone={RANK_TONE[item.rung]} />
       <Service id={item.scope} open={open} className="today-need-scope" />
       <button type="button" className="today-need-title" onClick={() => open.select(item.id)}>
-        {item.title}
+        <TimedText text={item.title} hint={false} />
       </button>
       <span className="today-need-act">
         {upstream && <UpstreamChip text="From upstream GitLab" />}
-        {item.age && <AgeChip age={item.age} text={plainTitle(item.sub) || item.age} />}
+        {item.age && (
+          <AgeChip
+            age={item.age}
+            text={timedText(plainTitle(item.sub), { hint: false }) || item.age}
+          />
+        )}
         {item.blocks && (
           <span className="today-need-blocks">
-            <Chip label={item.blocks.text} text={plainTitle(item.effect)} tone="warn" />
+            <Chip
+              label={item.blocks.text}
+              text={timedText(plainTitle(item.effect), { hint: false })}
+              tone="warn"
+            />
           </span>
         )}
         <button type="button" className="today-verb" onClick={() => open.select(item.id)}>

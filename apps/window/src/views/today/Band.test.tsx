@@ -14,6 +14,7 @@ import { LINE } from "../../app/navigation.js";
 import { treeServices } from "../../app/queue.js";
 import { createSelectionStore } from "../../panels/selection.js";
 import { createWatchStore } from "../../store/watch.js";
+import { timedText } from "../../time.js";
 import { AttentionBand } from "./Band.js";
 import Today from "./index.js";
 
@@ -226,7 +227,7 @@ describe("the attention band", () => {
     expect(chips).toHaveLength(1);
     expect(chips[0]?.closest("li.today-need")?.getAttribute("data-item-id")).toBe(stack.id);
     expect(chips[0]?.textContent).toBe(stack.blocks.text);
-    expect(chips[0]?.getAttribute("title")).toBe(stack.effect);
+    expect(chips[0]?.getAttribute("title")).toBe(timedText(stack.effect, { hint: false }));
     expect(rest.length).toBeGreaterThan(0);
     expect(rest.every(({ blocks }) => !blocks)).toBe(true);
   });

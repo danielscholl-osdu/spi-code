@@ -8,7 +8,13 @@ import {
   parseMessage,
   SweepStatusSchema,
 } from "@spi-code/contracts";
-import { contextFromEnv, type Exec, factsSchema, GraphqlBudget } from "@spi-code/core";
+import {
+  contextFromEnv,
+  createContext,
+  type Exec,
+  factsSchema,
+  GraphqlBudget,
+} from "@spi-code/core";
 import {
   createToolInstaller,
   createWindowsGitInstaller,
@@ -63,7 +69,7 @@ export function startHost(options: HostOptions) {
   const db = openStore(storePath);
   if (probe) probeStore(createRunStore(db), probe.phase, probe.rowId, probe.reportPath);
   const appData = dirname(storePath);
-  const ctx = contextFromEnv(env);
+  const ctx = createContext({ ...contextFromEnv(env), timeStyle: "instant" });
   function memo<T>(load: () => Promise<T>): () => Promise<T> {
     let value: Promise<T> | undefined;
     return () => {

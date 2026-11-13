@@ -46,7 +46,7 @@
         "verb": "Investigate",
         "evidence": [
           {
-            "label": "run Sync Upstream 12:00",
+            "label": "run Sync Upstream 2026-11-06T12:00:00.000Z",
             "url": "https://github.com/Azure/osdu-spi-storage/actions/runs/42137178477"
           }
         ],
@@ -100,7 +100,7 @@
         "title": "Deployable again",
         "sub": "1 fork lane failed before it recovered · re-run now · 11h",
         "cause": "Deployable again; 1 fork lane failed before it recovered.",
-        "effect": "Indexer-queue release/upstream PR #67 · Verify · The shared environment is draining · 03:00.",
+        "effect": "Indexer-queue release/upstream PR #67 · Verify · The shared environment is draining · 2026-11-06T03:00:00.000Z.",
         "next": "Re-run the fork lanes that failed while the stack was down.",
         "verb": "Re-run lanes",
         "evidence": [
@@ -3068,7 +3068,7 @@
             "verb": "Investigate",
             "evidence": [
               {
-                "label": "run Sync Upstream 12:00",
+                "label": "run Sync Upstream 2026-11-06T12:00:00.000Z",
                 "url": "https://github.com/Azure/osdu-spi-storage/actions/runs/42137178477"
               }
             ],
@@ -3087,7 +3087,7 @@
             "title": "Deployable again",
             "sub": "1 fork lane failed before it recovered · re-run now · 11h",
             "cause": "Deployable again; 1 fork lane failed before it recovered.",
-            "effect": "Indexer-queue release/upstream PR #67 · Verify · The shared environment is draining · 03:00.",
+            "effect": "Indexer-queue release/upstream PR #67 · Verify · The shared environment is draining · 2026-11-06T03:00:00.000Z.",
             "next": "Re-run the fork lanes that failed while the stack was down.",
             "verb": "Re-run lanes",
             "evidence": [
@@ -3380,7 +3380,7 @@
             "title": "Deployable again",
             "sub": "1 fork lane failed before it recovered · re-run now · 11h",
             "cause": "Deployable again; 1 fork lane failed before it recovered.",
-            "effect": "Indexer-queue release/upstream PR #67 · Verify · The shared environment is draining · 03:00.",
+            "effect": "Indexer-queue release/upstream PR #67 · Verify · The shared environment is draining · 2026-11-06T03:00:00.000Z.",
             "next": "Re-run the fork lanes that failed while the stack was down.",
             "verb": "Re-run lanes",
             "evidence": [
@@ -4014,7 +4014,7 @@
             "verb": "Investigate",
             "evidence": [
               {
-                "label": "run Sync Upstream 12:00",
+                "label": "run Sync Upstream 2026-11-06T12:00:00.000Z",
                 "url": "https://github.com/Azure/osdu-spi-storage/actions/runs/42137178477"
               }
             ],

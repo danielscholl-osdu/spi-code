@@ -347,7 +347,7 @@ function ServiceBody({
                     </span>
                     <span className="service-row-body">
                       <span className="service-row-title">
-                        {plainTitle(item.title)}
+                        <TimedText text={plainTitle(item.title)} hint={false} />
                         <span className="service-class">{item.cls}</span>
                       </span>
                       <span className="service-row-sub">

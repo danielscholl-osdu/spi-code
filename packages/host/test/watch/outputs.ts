@@ -8,6 +8,7 @@ import { detailFeed, recordedDetailAnswers } from "./detail-feed.js";
 import {
   acknowledgedInput,
   acknowledgedSnapshotPath,
+  appStyle,
   badInput,
   badSnapshotPath,
   busyInput,
@@ -42,16 +43,16 @@ const output = (path: string, value: () => unknown): WatchOutput => ({
 
 /** Every file scripts/watch-snapshot.mjs writes; scripts/land lets exactly these land unreviewed. */
 export const watchOutputs: readonly WatchOutput[] = [
-  output(calmSnapshotPath, () => projectWatch(calmInput())),
-  output(busySnapshotPath, () => projectWatch(busyInput())),
-  output(badSnapshotPath, () => projectWatch(badInput())),
-  output(snapshotPath, () => projectWatch(fixtureInput())),
-  output(mixedSnapshotPath, () => projectWatch(mixedFixtureInput())),
-  output(recordedSnapshotPath, () => projectWatch(recordedInput())),
-  output(acknowledgedSnapshotPath, () => projectWatch(acknowledgedInput())),
-  output(unreadSnapshotPath, () => projectWatch(unreadForksInput())),
-  output(unverifiedSnapshotPath, () => projectWatch(unverifiedForkInput())),
+  output(calmSnapshotPath, () => projectWatch(appStyle(calmInput()))),
+  output(busySnapshotPath, () => projectWatch(appStyle(busyInput()))),
+  output(badSnapshotPath, () => projectWatch(appStyle(badInput()))),
+  output(snapshotPath, () => projectWatch(appStyle(fixtureInput()))),
+  output(mixedSnapshotPath, () => projectWatch(appStyle(mixedFixtureInput()))),
+  output(recordedSnapshotPath, () => projectWatch(appStyle(recordedInput()))),
+  output(acknowledgedSnapshotPath, () => projectWatch(appStyle(acknowledgedInput()))),
+  output(unreadSnapshotPath, () => projectWatch(appStyle(unreadForksInput()))),
+  output(unverifiedSnapshotPath, () => projectWatch(appStyle(unverifiedForkInput()))),
   output(detailFeedPath, async () =>
-    detailFeed(projectWatch(recordedInput()).briefing, await recordedDetailAnswers()),
+    detailFeed(projectWatch(appStyle(recordedInput())).briefing, await recordedDetailAnswers()),
   ),
 ];
