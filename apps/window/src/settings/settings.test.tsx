@@ -294,12 +294,16 @@ it("opens on Readiness from the footer row and from Find, even after Appearance 
   }
 });
 
-it("lights the footer row with readiness, shows no sweep time there, and reaches no Setup place", async () => {
+it("dots the footer gear only when Readiness needs the operator, shows no sweep time there, and reaches no Setup place", async () => {
   const shell = await mountShell();
   const footer = () => shell.container.querySelector('[data-slot="sidebar-footer"]');
   const dot = () => footer()?.querySelector<HTMLElement>(".sidebar-readiness-dot");
   try {
-    expect(dot()?.dataset.readiness).toBe("ready");
+    expect(dot()).toBeNull();
+    await act(async () =>
+      watchStore.setState({ setup: tools(["ready", "ready", "ready", "ready"]) }),
+    );
+    expect(dot()).toBeNull();
     await act(async () => watchStore.setState({ setup: tools(["ready", "ready", "signed-out"]) }));
     expect(dot()?.dataset.readiness).toBe("attention");
     await act(async () =>

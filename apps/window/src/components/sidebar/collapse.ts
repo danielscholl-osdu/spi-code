@@ -3,15 +3,12 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-export const SIDEBAR_GROUPS = ["places", "pinned", "settled"] as const;
+export const SIDEBAR_GROUPS = ["pinned", "settled"] as const;
 export type SidebarGroupId = (typeof SIDEBAR_GROUPS)[number];
 type CollapseChoices = Partial<Record<SidebarGroupId, boolean>>;
 
 export const COLLAPSE_STORAGE_KEY = "spi-code.sidebar.collapsed";
-/** Below these window heights a group folds unless the operator has opened or folded it. */
-export const FOLD_HEIGHTS: Partial<Record<SidebarGroupId, number>> = { places: 640 };
 const DEFAULT_COLLAPSED: Record<SidebarGroupId, boolean> = {
-  places: false,
   pinned: false,
   settled: true,
 };
@@ -57,13 +54,9 @@ function writeCollapseChoice(group: SidebarGroupId, collapsed: boolean) {
   for (const listener of listeners) listener();
 }
 
-/** Whether a group is folded: the operator's choice, else the height fold, else its default. */
-export function isCollapsed(group: SidebarGroupId, choices: CollapseChoices, height: number) {
-  const choice = choices[group];
-  if (choice !== undefined) return choice;
-  const fold = FOLD_HEIGHTS[group];
-  if (fold !== undefined && height < fold) return true;
-  return DEFAULT_COLLAPSED[group];
+/** Whether a group is folded: the operator's choice, else its default. */
+export function isCollapsed(group: SidebarGroupId, choices: CollapseChoices) {
+  return choices[group] ?? DEFAULT_COLLAPSED[group];
 }
 
 function subscribe(listener: () => void) {
@@ -71,27 +64,19 @@ function subscribe(listener: () => void) {
   const onStorage = (event: StorageEvent) => {
     if (event.key === COLLAPSE_STORAGE_KEY) listener();
   };
-  window.addEventListener("resize", listener);
   window.addEventListener("storage", onStorage);
   return () => {
     listeners.delete(listener);
-    window.removeEventListener("resize", listener);
     window.removeEventListener("storage", onStorage);
   };
 }
 
-const readHeight = () => window.innerHeight;
-
 export function useGroupCollapse() {
   const choices = useSyncExternalStore(subscribe, readCollapseChoices, readCollapseChoices);
-  const height = useSyncExternalStore(subscribe, readHeight, readHeight);
-  const collapsed = useCallback(
-    (group: SidebarGroupId) => isCollapsed(group, choices, height),
-    [choices, height],
-  );
+  const collapsed = useCallback((group: SidebarGroupId) => isCollapsed(group, choices), [choices]);
   const toggle = useCallback(
-    (group: SidebarGroupId) => writeCollapseChoice(group, !isCollapsed(group, choices, height)),
-    [choices, height],
+    (group: SidebarGroupId) => writeCollapseChoice(group, !isCollapsed(group, choices)),
+    [choices],
   );
   return { collapsed, toggle };
 }

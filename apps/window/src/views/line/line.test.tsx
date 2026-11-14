@@ -9,7 +9,7 @@ import { closeSheet, navigate, openSheet, type Route, routeHash } from "../../ap
 import { DEFAULT_REGISTRY } from "../../app/routes.js";
 import { Shell } from "../../app/Shell.js";
 import { selectionStore } from "../../panels/selection.js";
-import { PINS_STORAGE_KEY, readPins } from "../../store/pins.js";
+import { PINS_STORAGE_KEY, readPins, SEED_PINS } from "../../store/pins.js";
 import { watchStore } from "../../store/watch.js";
 import { fixtureLoader, installSpi } from "../../test-utils/harness.js";
 
@@ -198,8 +198,8 @@ it("pins and unpins a row's service from its context menu, by pointer and keyboa
   });
   expect(item()?.textContent).toBe("Pin legal");
   await act(async () => item()?.click());
-  expect(readPins()).toEqual(["legal"]);
-  expect(pinned()).toEqual(["service/legal"]);
+  expect(readPins()).toEqual([...SEED_PINS, "legal"]);
+  expect(pinned().at(-1)).toBe("service/legal");
   expect(sheet()).not.toBeNull();
   expect(window.location.hash).toBe("#today");
 
@@ -213,8 +213,8 @@ it("pins and unpins a row's service from its context menu, by pointer and keyboa
   await act(async () => name?.focus());
   await press("ContextMenu");
   await act(async () => item()?.click());
-  expect(readPins()).toEqual([]);
-  expect(pinned()).toEqual([]);
+  expect(readPins()).toEqual(SEED_PINS);
+  expect(pinned()).not.toContain("service/legal");
   expect(sheet()).not.toBeNull();
 });
 

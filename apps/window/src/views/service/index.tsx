@@ -18,7 +18,6 @@ import {
   selectionRows,
 } from "../../panels/selection-rows.js";
 import { useSelectionList } from "../../panels/useSelectionList.js";
-import { togglePin, usePins } from "../../store/pins.js";
 import { type createWatchStore, watchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
 import { Time, TimedText } from "../../time.js";
@@ -214,7 +213,6 @@ export default function ServicePage({
   selection?: SelectionStore;
 }) {
   const evidence = useStore(store, (state) => state.snapshot?.body);
-  const pinned = usePins().includes(id);
   if (!evidence) {
     return (
       <section className="service-page" data-view-pane="service" aria-label={id}>
@@ -222,25 +220,22 @@ export default function ServicePage({
           name={id}
           reading={{ anchor: { kind: "service", id }, content: null }}
           onNavigate={navigate}
-          onPin={() => togglePin(id)}
-          pinned={pinned}
+          pin={id}
         />
       </section>
     );
   }
-  return <ServiceBody key={id} id={id} evidence={evidence} selection={selection} pinned={pinned} />;
+  return <ServiceBody key={id} id={id} evidence={evidence} selection={selection} />;
 }
 
 function ServiceBody({
   id,
   evidence,
   selection,
-  pinned,
 }: {
   id: string;
   evidence: ViewSnapshot;
   selection: SelectionStore;
-  pinned: boolean;
 }) {
   const { briefing } = evidence;
   const rows = selectionRows(evidence);
@@ -286,8 +281,7 @@ function ServiceBody({
         reading={reading ?? { anchor: { kind: "service", id }, content: null }}
         services={services}
         onNavigate={navigate}
-        onPin={() => togglePin(id)}
-        pinned={pinned}
+        pin={id}
         onSelect={(itemId) => {
           const row = rows.find((row) => row.id === itemId);
           if (row) select(row);

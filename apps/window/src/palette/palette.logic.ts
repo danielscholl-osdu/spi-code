@@ -31,11 +31,13 @@ import {
   type Route,
   routeLabel,
 } from "../app/routes.js";
+import { LINE_PIN, pinOf } from "../store/pins.js";
 import { plainTitle } from "../text.js";
 import { foldSearchQuery, rankSearchGroups, scoreSearchTerms } from "./search.js";
 
 export type PaletteTarget =
   | { kind: "route"; route: Route }
+  | { kind: "line" }
   | { kind: "queue"; id: string }
   | { kind: "settings" };
 
@@ -48,6 +50,8 @@ export type PaletteItem = {
   keywords: readonly string[];
   priority?: 0 | 1 | 2;
   target: PaletteTarget;
+  /** What ⌘↩ pins besides opening it; Today, Settings and the queue pin nothing. */
+  pin?: string;
 };
 
 export type PaletteGroup = {
@@ -56,7 +60,15 @@ export type PaletteGroup = {
   items: PaletteItem[];
 };
 
-const GO_TO: readonly Route[] = [{ kind: "today" }, ...PLACES];
+const TODAY: Route = { kind: "today" };
+const LINE: PaletteItem = {
+  value: "line",
+  label: "Line",
+  kind: "page",
+  keywords: [],
+  target: { kind: "line" },
+  pin: LINE_PIN,
+};
 /** Settings is a dialog, not a place: Find opens it on Readiness, where Setup now lives. */
 const SETTINGS: PaletteItem = {
   value: "settings",
@@ -74,18 +86,20 @@ type SnapshotBody = {
 function routeItem(route: Route, kind: string, keywords: readonly string[] = []): PaletteItem {
   const label = routeLabel(route);
   const id = route.kind === "service" ? route.id : "";
+  const pin = pinOf(route);
   return {
     value: `route:${route.kind}${id ? `:${id}` : ""}`,
     label,
     kind,
     keywords,
     target: { kind: "route", route },
+    ...(pin ? { pin } : {}),
   };
 }
 
 /**
  * Go to, Services and Queue, from the registered routes and the snapshot; empty groups and
- * routes with no registered view are left out.
+ * routes with no registered view are left out, and Line only with a registered sheet.
  */
 export function buildPaletteGroups(
   body: SnapshotBody | undefined,
@@ -110,7 +124,12 @@ export function buildPaletteGroups(
     {
       value: "go-to",
       label: "Go to",
-      items: [...GO_TO.filter(reachable).map((route) => routeItem(route, "page")), SETTINGS],
+      items: [
+        ...(reachable(TODAY) ? [routeItem(TODAY, "page")] : []),
+        ...(registry.sheet ? [LINE] : []),
+        ...PLACES.filter(reachable).map((route) => routeItem(route, "page")),
+        SETTINGS,
+      ],
     },
     { value: "services", label: "Services", items: services },
     { value: "queue", label: "Queue", items: queue },

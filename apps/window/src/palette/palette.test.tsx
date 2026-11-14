@@ -9,7 +9,7 @@ import { readFixture } from "../../../../scripts/watch-generated.mjs";
 import { PLACES, routeLabel } from "../app/navigation.js";
 import { Shell } from "../app/Shell.js";
 import { selectionStore } from "../panels/selection.js";
-import { PINS_STORAGE_KEY, readPins } from "../store/pins.js";
+import { LINE_PIN, PINS_STORAGE_KEY, readPins } from "../store/pins.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import { buildPaletteGroups, filterPaletteGroups } from "./palette.logic.js";
@@ -57,21 +57,16 @@ const rows = (group: string) =>
   );
 const highlighted = () => palette()?.querySelector("[data-highlighted]")?.textContent;
 const serviceIds = ["partition", "entitlements", "legal", "schema", "file"];
-const serviceAttention = (id: string, surface: "palette" | "sidebar" = "palette") => {
-  const row =
-    surface === "palette"
-      ? [...(palette()?.querySelectorAll('[data-group="services"] .palette-row') ?? [])].find(
-          (element) => element.querySelector(".palette-label")?.textContent === id,
-        )
-      : container.querySelector(`[data-sidebar-row="service/${id}"]`);
-  expect(row, `${surface} service ${id}`).toBeTruthy();
+const serviceAttention = (id: string) => {
+  const row = [...(palette()?.querySelectorAll('[data-group="services"] .palette-row') ?? [])].find(
+    (element) => element.querySelector(".palette-label")?.textContent === id,
+  );
+  expect(row, `palette service ${id}`).toBeTruthy();
   const dot = row?.querySelector(".sidebar-attention-dot");
   return {
     dot: dot?.getAttribute("data-attention") ?? null,
     priority: dot?.getAttribute("aria-label") ?? null,
-    word:
-      row?.querySelector(surface === "palette" ? ".palette-kind" : ".sidebar-row-note")
-        ?.textContent ?? null,
+    word: row?.querySelector(".palette-kind")?.textContent ?? null,
   };
 };
 async function receive(body: ViewSnapshot) {
@@ -152,6 +147,7 @@ it("lists Go to, Services and Queue from the routes and the snapshot, without le
   expect(palette()?.textContent).not.toMatch(/Actions/);
   expect(rows("go-to")).toEqual([
     "Todaypage",
+    "Linepage",
     "Upstreampage",
     "Environmentpage",
     "Engineering systempage",
@@ -178,7 +174,7 @@ it("lists Go to, Services and Queue from the routes and the snapshot, without le
   ]);
 });
 
-it("mirrors every recorded service's sidebar attention dot and word, not counts", async () => {
+it("marks every recorded service with its queue attention dot and word, not counts", async () => {
   await shortcut({ ctrlKey: true });
   const marks = serviceIds.map((id) => serviceAttention(id));
   expect(marks).toEqual([
@@ -188,7 +184,6 @@ it("mirrors every recorded service's sidebar attention dot and word, not counts"
     { dot: "unread", priority: "Unread", word: "unread" },
     { dot: "unread", priority: "Unread", word: "unread" },
   ]);
-  expect(marks).toEqual(serviceIds.map((id) => serviceAttention(id, "sidebar")));
   expect(palette()?.querySelector('[data-group="services"] .sidebar-pip')).toBeNull();
 });
 
@@ -206,13 +201,10 @@ it("uses hollow for empty unread scopes and no dot for empty read scopes", async
     word: "unread",
   });
   expect(serviceAttention("file")).toEqual({ dot: null, priority: null, word: null });
-  for (const id of serviceIds) {
-    expect(serviceAttention(id)).toEqual(serviceAttention(id, "sidebar"));
-  }
 });
 
 it.each([false, true])(
-  "retains sidebar attention across failed reads while the palette is open: %s",
+  "retains service attention across failed reads while the palette is open: %s",
   async (open) => {
     const read = structuredClone(body);
     read.cursor += 1;
@@ -220,8 +212,9 @@ it.each([false, true])(
       node.id === "service:file" ? { ...node, status: "fresh" } : node,
     );
     await receive(read);
-    if (open) await shortcut({ ctrlKey: true });
-    const before = serviceIds.map((id) => serviceAttention(id, "sidebar"));
+    await shortcut({ ctrlKey: true });
+    const before = serviceIds.map((id) => serviceAttention(id));
+    if (!open) await key("Escape");
     const failed = structuredClone(read);
     failed.cursor += 1;
     failed.tree = failed.tree.map((node) => ({ ...node, status: "failed" }));
@@ -246,7 +239,6 @@ it.each([false, true])(
     await receive(failed);
     if (!open) await shortcut({ ctrlKey: true });
     expect(serviceIds.map((id) => serviceAttention(id))).toEqual(before);
-    expect(serviceIds.map((id) => serviceAttention(id, "sidebar"))).toEqual(before);
     await key("Escape");
     await shortcut({ ctrlKey: true });
     expect(serviceIds.map((id) => serviceAttention(id))).toEqual(before);
@@ -258,9 +250,6 @@ it.each([false, true])(
     });
     expect(serviceAttention("partition")).toEqual({ dot: null, priority: null, word: null });
     expect(serviceAttention("entitlements")).toEqual({ dot: "p0", priority: "P0", word: "halt" });
-    for (const id of serviceIds) {
-      expect(serviceAttention(id)).toEqual(serviceAttention(id, "sidebar"));
-    }
   },
 );
 
@@ -281,7 +270,8 @@ it("moves with the arrows, opens with Enter, and filters as the operator types",
   await shortcut({ ctrlKey: true });
   expect(highlighted()).toBe("Todaypage");
   await key("ArrowDown");
-  expect(highlighted()).toBe("Upstreampage");
+  expect(highlighted()).toBe("Linepage");
+  await key("ArrowDown");
   await key("ArrowDown");
   await key("ArrowUp");
   expect(highlighted()).toBe("Upstreampage");
@@ -309,9 +299,9 @@ it("opens a service result and pins it on Ctrl+Enter, and keeps it pinned when p
   expect(container.querySelector('[data-sidebar-row="service/legal"]')).not.toBeNull();
 
   await shortcut({ ctrlKey: true });
-  await type("Releases");
+  await type("Today");
   await key("Enter", { ctrlKey: true });
-  expect(window.location.hash).toBe("#releases");
+  expect(window.location.hash).toBe("#today");
   expect(readPins()).toEqual(["legal"]);
 
   await shortcut({ ctrlKey: true });
@@ -335,6 +325,40 @@ it("opens a service result and pins it on Ctrl+Enter, and keeps it pinned when p
   await key("Enter", { metaKey: true });
   expect(window.location.hash).toBe("#service/schema");
   expect(readPins()).toEqual(["legal", "schema"]);
+});
+
+it("opens Line and each place and pins it on Ctrl+Enter, in the order pinned", async () => {
+  localStorage.setItem(PINS_STORAGE_KEY, "[]");
+  const pinned = () =>
+    [...container.querySelectorAll('ul[aria-label="Pinned"] .sidebar-row-label')].map(
+      (label) => label.textContent,
+    );
+  for (const name of ["Releases", "Line", ...PLACES.map(routeLabel)]) {
+    await shortcut({ ctrlKey: true });
+    await type(name);
+    expect(highlighted()).toBe(`${name}page`);
+    await key("Enter", { ctrlKey: true });
+    expect(palettes()).toHaveLength(0);
+    if (name === "Line")
+      expect(container.querySelector("#app-line-sheet h1")?.textContent).toBe("Line");
+    else expect(container.querySelector("main h1")?.textContent).toBe(name);
+  }
+  expect(readPins()).toEqual([
+    "place:releases",
+    LINE_PIN,
+    "place:upstream",
+    "place:environment",
+    "place:engineering-system",
+    "place:security",
+  ]);
+  expect(pinned()).toEqual([
+    "Releases",
+    "Line",
+    "Upstream",
+    "Environment",
+    "Engineering system",
+    "Security",
+  ]);
 });
 
 it("finds every place and every service of the Nov 6 fleet", async () => {

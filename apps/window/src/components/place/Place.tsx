@@ -4,6 +4,7 @@
 import type { PlaceRow, Reading, Tone, ViewSnapshot } from "@spi-code/contracts";
 import type { ReactNode } from "react";
 import { type Navigation, PLACES, routeLabel } from "../../app/navigation.js";
+import { PlacePin } from "../../app/PlacePin.js";
 import { scopeRoute } from "../../app/queue.js";
 import { plainTitle } from "../../text.js";
 import { instantsIn, TimedText, timedText } from "../../time.js";
@@ -32,10 +33,8 @@ export type PlaceProps = {
   onSelect?: (id: string) => void;
   selectedId?: string;
   actions?: ReactNode;
-  /** Supply only when the place is outside the sidebar; pin persistence belongs to the caller. */
-  onPin?: () => void;
-  /** With onPin, the header button reads Unpin. */
-  pinned?: boolean;
+  /** The pin this place is kept under in the sidebar; without it the header has no Pin. */
+  pin?: string | undefined;
   /** Tiles drawn in place of the reading's own. */
   tiles?: readonly PlaceTile[] | undefined;
   /** Drawn between the tiles and the items. */
@@ -54,8 +53,7 @@ export function Place({
   onSelect,
   selectedId,
   actions,
-  onPin,
-  pinned = false,
+  pin,
   tiles,
   belowTiles,
   belowItems,
@@ -83,15 +81,7 @@ export function Place({
       <header className="place-header pane-header">
         <h1 data-place>{name}</h1>
         {actions}
-        {onPin && (
-          <button
-            type="button"
-            aria-label={`${pinned ? "Unpin" : "Pin"} ${name}`}
-            onClick={() => onPin()}
-          >
-            {pinned ? "Unpin" : "Pin"}
-          </button>
-        )}
+        {pin && <PlacePin pin={pin} name={name} />}
       </header>
       {(content || tiles || belowTiles) && (
         <section className="place-reading" aria-label={`${name} reading`}>

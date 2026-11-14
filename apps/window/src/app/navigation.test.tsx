@@ -5,7 +5,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
-import { PINS_STORAGE_KEY, readPins } from "../store/pins.js";
+import { PINS_STORAGE_KEY, readPins, SEED_PINS } from "../store/pins.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import {
@@ -282,7 +282,7 @@ it("lists only registered places in the sidebar and Find, and falls back from th
   const { upstream: _u, security: _s, environment: _e, ...views } = every;
   localStorage.setItem(
     PINS_STORAGE_KEY,
-    JSON.stringify(body.stations.map(({ service }) => service)),
+    JSON.stringify([...SEED_PINS, ...body.stations.map(({ service }) => service)]),
   );
   await mount({ views, fallback: { kind: "today" } });
   const nav = container.querySelector('nav[aria-label="Sidebar"]');
@@ -292,8 +292,16 @@ it("lists only registered places in the sidebar and Find, and falls back from th
     );
   expect(rows("Today")).toEqual(["Today"]);
   expect(rows("Inbox")).toEqual([]);
-  expect(rows("Places")).toEqual(["Engineering system", "Releases"]);
-  expect(rows("Pinned")).toEqual(["partition", "entitlements", "legal", "schema", "file"]);
+  expect(rows("Places")).toEqual([]);
+  expect(rows("Pinned")).toEqual([
+    "Engineering system",
+    "Releases",
+    "partition",
+    "entitlements",
+    "legal",
+    "schema",
+    "file",
+  ]);
   expect(nav?.querySelector('ul[aria-label="Lenses"]')).toBeNull();
   expect(nav?.textContent).not.toMatch(/Upstream|Security|Environment|Setup|Flow/);
 
@@ -558,7 +566,7 @@ it("keeps each pip menu action on its service row in the Line sheet for the keyb
   await act(async () =>
     menu("entitlements")?.querySelector<HTMLElement>("[role='menuitem']")?.click(),
   );
-  expect(readPins()).toEqual(["entitlements"]);
+  expect(readPins()).toEqual([...SEED_PINS, "entitlements"]);
   await keydown(service, { key: "ContextMenu" });
   expect(menu("entitlements")?.textContent).toBe("Unpin entitlements");
   await keydown(document.activeElement, { key: "Escape" });

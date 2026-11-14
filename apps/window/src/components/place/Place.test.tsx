@@ -6,6 +6,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import { navigate } from "../../app/navigation.js";
+import { readPins } from "../../store/pins.js";
 import { Place, type PlaceProps } from "./Place.js";
 
 type Content = NonNullable<Reading["content"]>;
@@ -81,6 +82,7 @@ async function mount(props: Partial<PlaceProps> = {}) {
 
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0)) await cleanup();
+  localStorage.clear();
 });
 
 const text = (container: Element, selector: string) =>
@@ -169,27 +171,22 @@ it("keeps only the header when the reading has not been computed", async () => {
   expect(container.querySelector(".place-reading")).toBeNull();
 });
 
-it("omits Pin without a callback and invokes the supplied callback from the header", async () => {
+it("omits Pin without a pin and toggles the place's pin from the header", async () => {
   const { container, render } = await mount();
   expect(container.querySelector("header button")).toBeNull();
-  const onPin = vi.fn();
-  await render({ name: "legal", onPin });
+  await render({ name: "Environment", pin: "place:environment" });
   const button = container.querySelector<HTMLButtonElement>("header button");
-  expect(button?.textContent).toBe("Pin");
-  expect(button?.getAttribute("aria-label")).toBe("Pin legal");
+  expect(button?.getAttribute("aria-label")).toBe("Unpin Environment");
   await act(async () => button?.click());
-  expect(onPin).toHaveBeenCalledExactlyOnceWith();
-  await render({ name: "legal", onPin, pinned: true });
-  expect(button?.textContent).toBe("Unpin");
-  expect(button?.getAttribute("aria-label")).toBe("Unpin legal");
+  expect(readPins()).not.toContain("place:environment");
+  expect(button?.getAttribute("aria-label")).toBe("Pin Environment");
   await act(async () => button?.click());
-  expect(onPin).toHaveBeenCalledTimes(2);
-  await render({ name: "legal" });
+  expect(readPins().at(-1)).toBe("place:environment");
+  await render({ name: "Environment" });
   expect(container.querySelector("header button")).toBeNull();
 });
 
 it("renders supplied header actions beside Pin, with no action space when absent", async () => {
-  const onPin = vi.fn();
   const onAction = vi.fn();
   const { container, render } = await mount();
   const header = container.querySelector("header");
@@ -204,8 +201,7 @@ it("renders supplied header actions beside Pin, with no action space when absent
   const action = header?.querySelector<HTMLButtonElement>("button");
   await act(async () => action?.click());
   expect(onAction).toHaveBeenCalledExactlyOnceWith();
-  expect(onPin).not.toHaveBeenCalled();
-  await render({ actions, onPin });
+  await render({ actions, pin: "legal" });
   expect(text(container, "header > *")).toEqual(["Upstream", "Line view", "Pin"]);
   await render({});
   expect(text(container, "header > *")).toEqual(["Upstream"]);

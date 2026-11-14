@@ -1090,9 +1090,9 @@ it("opens Settings on Readiness when the first host state is not ready and gates
     dialog()?.querySelector<HTMLButtonElement>('[aria-label="Close settings"]')?.click(),
   );
   expect(dialog()).toBeNull();
-  const watchRoutes = [...container.querySelectorAll<HTMLButtonElement>("nav ul button")].filter(
-    (button) => !["line", "settings"].includes(button.dataset.sidebarRow ?? ""),
-  );
+  const watchRoutes = [
+    ...container.querySelectorAll<HTMLButtonElement>("nav ul button[data-sidebar-row]"),
+  ].filter((button) => !["line", "settings"].includes(button.dataset.sidebarRow ?? ""));
   expect(watchRoutes.map((button) => button.textContent)).toEqual([
     "Today",
     "Upstream",

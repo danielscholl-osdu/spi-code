@@ -14,6 +14,7 @@ import { watchStore } from "../../store/watch.js";
 import { TimedText } from "../../time.js";
 import { themeRow, upstreamReading } from "./reading.js";
 import "./upstream.css";
+import { placePin } from "../../store/pins.js";
 
 function ThemeSub({ theme }: { theme: Theme }) {
   const forks = new Set([
@@ -64,6 +65,7 @@ export default function Upstream({
     <div className="upstream">
       <Place
         name="Upstream"
+        pin={placePin("upstream")}
         reading={reading}
         services={treeServices(snapshot.tree)}
         onNavigate={navigate}
