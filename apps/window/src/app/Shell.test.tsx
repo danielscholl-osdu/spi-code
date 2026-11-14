@@ -723,6 +723,11 @@ it.each([900, 1280])(
         await act(async () =>
           shell.container.querySelector<HTMLButtonElement>("header [data-sweep-line]")?.click(),
         );
+        await act(async () =>
+          document
+            .querySelector<HTMLButtonElement>("[data-sweep-popover] .capsule-evidence")
+            ?.click(),
+        );
         const panel = shell.container.querySelector("#app-right-panel");
         expect(panel?.hasAttribute("data-sheet")).toBe(width < 1032);
         expect(panel?.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
@@ -781,12 +786,12 @@ it("updates the title-bar sweep line from the live areas with the worst tone, an
   try {
     await act(async () => root.render(<Shell />));
     const line = () => container.querySelector<HTMLButtonElement>("header [data-sweep-line]");
-    expect(line()?.getAttribute("data-tone")).toBe("muted");
-    expect(line()?.textContent).toContain("waiting for the first sweep");
+    expect(line()?.getAttribute("data-tone")).toBe("fine");
+    expect(line()?.textContent).toContain("Waiting for the first sweep");
     for (const [snapshot, tone, words] of [
       [failed, "bad", "1 failed"],
-      [recovered, "fresh", null],
-      [failed, "fresh", null],
+      [recovered, "fine", null],
+      [failed, "fine", null],
     ] as const) {
       await act(async () =>
         receive?.({
@@ -813,6 +818,9 @@ it("updates the title-bar sweep line from the live areas with the worst tone, an
     );
     expect(container.querySelector("#app-right-panel")).toBeNull();
     await act(async () => line()?.click());
+    await act(async () =>
+      document.querySelector<HTMLButtonElement>("[data-sweep-popover] .capsule-evidence")?.click(),
+    );
     const sweep = container.querySelector('#app-right-panel [data-evidence="sweep"]');
     expect(sweep?.querySelectorAll(".sweep-row[data-source]").length).toBeGreaterThanOrEqual(11);
     expect(sweep?.textContent).toContain("GitHub issues and PRs");
@@ -869,8 +877,8 @@ it.each(["failed", "stale"] as const)(
       const tone = state === "failed" ? "bad" : "warn";
       for (const [snapshot, expected] of [
         [degraded, tone],
-        [recovered, "fresh"],
-        [degraded, "fresh"],
+        [recovered, "fine"],
+        [degraded, "fine"],
       ] as const) {
         await act(async () =>
           receive?.({
@@ -886,7 +894,7 @@ it.each(["failed", "stale"] as const)(
         const name = document.getElementById(
           line?.getAttribute("aria-labelledby") ?? "",
         )?.textContent;
-        if (expected === "fresh") expect(name).toContain("all areas read");
+        if (expected === "fine") expect(name).toContain("all areas read");
         else expect(name).toContain(`1 ${state}`);
       }
     } finally {

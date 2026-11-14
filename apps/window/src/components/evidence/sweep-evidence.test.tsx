@@ -18,6 +18,7 @@ import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { clockTime } from "../../time.js";
+import { sweepSegment } from "../capsule/sweep.js";
 import { applyContainerRules } from "../sweep/container-rules.test-helper.js";
 import { midSweep } from "../sweep/test-helper.js";
 import { EnvelopeBadge } from "./EnvelopeBadge.js";
@@ -230,6 +231,13 @@ it.each([
     const sources = sweepSources(body).map(({ envelope }) => envelope);
     const name = `Swept ${clockTime(sweptAt)} · ${counts}`;
     expect(freshnessGlyph({ sources, sweptAt })).toEqual({ text: name, tail, tone });
+    const capsule = tone === "bad" || tone === "warn" ? tone : "fine";
+    expect(sweepSegment(body, null, null, Date.now())).toEqual({
+      tone: capsule,
+      icon: capsule === "fine" ? "refresh" : "alert",
+      sweptAt,
+      sentence: name,
+    });
     const onOpen = vi.fn();
     const view = await render(<SweepLine snapshot={body} onOpen={onOpen} />);
     try {

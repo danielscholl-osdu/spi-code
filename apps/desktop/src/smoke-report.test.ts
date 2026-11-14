@@ -36,11 +36,11 @@ const firstSweepQualifiers: Record<string, string[]> = {
     "GitHub asked SPI Code to slow down. Resumes at 09:10.",
   ],
   "first-sweep-stopped": [
-    "first sweep stopped",
+    "First sweep stopped",
     "The first sweep stopped. It stopped while reading Workflow runs: GitHub did not answer in time. SPI Code tries again at 09:07. Try again",
   ],
   "first-sweep-stopped-saving": [
-    "first sweep stopped",
+    "First sweep stopped",
     "The first sweep stopped. It stopped while saving: The disk is full. Try again",
   ],
   "first-sweep-place": [
@@ -878,7 +878,7 @@ it.each(["first-sweep-stopped", "first-sweep-stopped-saving"])(
         shot.surface === surface ? { ...shot, qualifiers: qualifiers(shot.qualifiers) } : shot,
       );
     expect(() =>
-      assertSmokeViews(mutate((text) => ["waiting for the first sweep", text[1] ?? ""])),
+      assertSmokeViews(mutate((text) => ["Waiting for the first sweep", text[1] ?? ""])),
     ).toThrow("Missing stopped qualifier");
     if (surface === "first-sweep-stopped") {
       expect(() =>

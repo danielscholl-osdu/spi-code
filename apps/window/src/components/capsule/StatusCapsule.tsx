@@ -1,17 +1,15 @@
 // Copyright 2026, Daniel Scholl
 // SPDX-License-Identifier: MIT
 
-import { useId } from "react";
 import { useStore } from "zustand";
 import { navigate, openSheet } from "../../app/navigation.js";
 import { ariaShortcut } from "../../app/shortcuts.js";
 import { type StripState, selectStrip } from "../../store/strip.js";
 import { watchStore } from "../../store/watch.js";
 import { clockTime } from "../../time.js";
-import { SweepLine, SweepMark } from "../evidence/SweepLine.js";
 import { useNow } from "../evidence/useNow.js";
 import { Icon } from "../icons/Icon.js";
-import { openFreshness } from "../sweep/reveal.js";
+import { SweepProgressLine, SweepSegment } from "./SweepSegment.js";
 import "./capsule.css";
 
 const SYNC_WINDOW_MS = 2 * 60 * 60_000;
@@ -70,16 +68,11 @@ function syncText(ms: number): string {
 }
 
 export function StatusCapsule() {
-  const stoppedLabel = useId();
   const snapshot = useStore(watchStore, (state) => state.snapshot?.body);
-  const progress = useStore(watchStore, (state) => state.progress);
-  const nextSweepAt = useStore(watchStore, (state) => state.sweep?.nextSweepAt);
   const strip = snapshot ? selectStrip(snapshot) : null;
   const syncAt = strip?.nextSync ? Date.parse(strip.nextSync) : Number.NaN;
   const now = useNow(30_000, syncAt > Date.now() ? syncAt : undefined);
   const nextSync = syncAt - now;
-  const firstStopped =
-    !snapshot && (progress?.outcome === "failed" || progress?.outcome === "cancelled");
   return (
     <fieldset className="capsule" aria-label="Program status" data-strip="">
       <Segment
@@ -118,33 +111,8 @@ export function StatusCapsule() {
         </button>
       )}
       <span className="capsule-divider" aria-hidden />
-      {firstStopped ? (
-        <button
-          type="button"
-          className="sweep-line"
-          data-sweep-line=""
-          data-field="freshness"
-          data-tone="bad"
-          aria-labelledby={stoppedLabel}
-          title="first sweep stopped"
-          onClick={() => openFreshness(snapshot)}
-        >
-          <SweepMark tone="bad" />
-          <span id={stoppedLabel} className="visually-hidden">
-            first sweep stopped
-          </span>
-          <span data-sweep-display="" aria-hidden>
-            first sweep stopped
-          </span>
-        </button>
-      ) : (
-        <SweepLine
-          snapshot={snapshot ?? null}
-          progress={progress}
-          nextSweepAt={nextSweepAt}
-          onOpen={() => openFreshness(snapshot)}
-        />
-      )}
+      <SweepSegment />
+      <SweepProgressLine />
     </fieldset>
   );
 }
