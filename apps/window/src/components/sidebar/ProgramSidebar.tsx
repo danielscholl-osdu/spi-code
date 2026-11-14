@@ -36,12 +36,23 @@ import {
   unpin,
   usePins,
 } from "../../store/pins.js";
+import { selectStrip } from "../../store/strip.js";
 import type { createWatchStore } from "../../store/watch.js";
 import { countInterrupts } from "../../views/today/selectors.js";
+import { useNow } from "../evidence/useNow.js";
 import { Icon, type IconName } from "../icons/Icon.js";
 import { isContextMenuKey } from "../pin/PinMenu.js";
 import { useGroupCollapse } from "./collapse.js";
 import { type PinWord, pinWord } from "./pin-word.js";
+import {
+  STATUS_DOT_LABEL,
+  type StatusDot,
+  type StatusMark,
+  type StatusRow,
+  statusDot,
+  statusRows,
+  syncDeadline,
+} from "./status-marks.js";
 import {
   CollapsibleSectionHeader,
   Sidebar,
@@ -85,8 +96,36 @@ type PinRow = {
   icon: IconName;
   beforeSweep?: boolean;
   word?: PinWord | undefined;
+  status?: StatusRow | undefined;
+  shortcut?: string;
   open(): void;
 };
+
+const MARK_ICONS: Readonly<Record<Exclude<StatusMark["kind"], "count">, IconName>> = {
+  check: "check",
+  wrench: "wrench",
+  refresh: "refresh",
+  clock: "clock",
+};
+
+function Mark({ mark }: { mark: StatusMark }) {
+  return (
+    <span className="sidebar-mark" data-mark={mark.kind} data-tone={mark.tone} aria-hidden>
+      {mark.kind === "count" ? (
+        mark.count
+      ) : (
+        <Icon name={MARK_ICONS[mark.kind]} size={15} stroke={2} />
+      )}
+    </span>
+  );
+}
+
+/** A dot for a list that is out of sight, in the most urgent tone it holds. */
+export function StatusDotMark({ dot, className }: { dot: StatusDot; className: string }) {
+  return (
+    <span className={className} data-tone={dot} role="img" aria-label={STATUS_DOT_LABEL[dot]} />
+  );
+}
 
 function openMenuFromKeyboard(event: KeyboardEvent<HTMLElement>) {
   if (!isContextMenuKey(event)) return;
@@ -153,6 +192,12 @@ function PinItem({
               isActive={ariaCurrent !== undefined}
               data-sidebar-row={row.key}
               data-before-sweep={row.beforeSweep ? "" : undefined}
+              data-status={row.status?.status}
+              data-classification={row.status?.classification}
+              data-services={row.status?.services}
+              title={row.status?.sentence}
+              aria-description={row.status?.sentence}
+              aria-keyshortcuts={row.shortcut}
               aria-current={ariaCurrent}
               onClick={row.open}
               onKeyDown={openMenuFromKeyboard}
@@ -169,6 +214,7 @@ function PinItem({
               {row.word.text}
             </span>
           )}
+          {row.status?.mark && <Mark mark={row.status.mark} />}
         </ContextMenu.Trigger>
         <ContextMenu.Portal>
           <ContextMenu.Positioner>
@@ -235,6 +281,9 @@ export function ProgramSidebar({
   const body = useStore(store, (state) => state.snapshot?.body);
   const dot = readinessDot(useStore(store, (state) => state.setup));
   const { tree, briefing } = body ?? {};
+  const strip = body ? selectStrip(body) : undefined;
+  const now = useNow(30_000, syncDeadline(strip?.nextSync, Date.now()));
+  const status = statusRows(strip, now);
   const interrupts = briefing ? countInterrupts(briefing) : 0;
   const { isMobile, setOpenMobile } = useSidebar();
   const { collapsed, toggle } = useGroupCollapse();
@@ -259,6 +308,8 @@ export function ProgramSidebar({
               key: "line",
               label: "Line",
               icon: "rows",
+              status: status[LINE_PIN],
+              shortcut: ariaShortcut("l"),
               open: () => {
                 onLine();
                 closeMobile();
@@ -277,6 +328,7 @@ export function ProgramSidebar({
           label: routeLabel(target),
           icon: PLACE_ICONS[place],
           beforeSweep: !body,
+          status: (status as Readonly<Partial<Record<string, StatusRow>>>)[pin],
           open: go(target),
         },
       ];
@@ -294,6 +346,11 @@ export function ProgramSidebar({
       },
     ];
   });
+
+  const pinnedDot = statusDot(
+    0,
+    rows.map((row) => row.status?.mark),
+  );
 
   return (
     <Sidebar id="app-sidebar" aria-label="Sidebar" className="app-sidebar">
@@ -346,6 +403,11 @@ export function ProgramSidebar({
               expanded={!collapsed("pinned")}
               aria-controls={pinnedId}
               onClick={() => toggle("pinned")}
+              dot={
+                collapsed("pinned") && pinnedDot ? (
+                  <StatusDotMark dot={pinnedDot} className="sidebar-status-dot" />
+                ) : undefined
+              }
             >
               Pinned
             </CollapsibleSectionHeader>

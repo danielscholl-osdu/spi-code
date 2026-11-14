@@ -159,6 +159,19 @@ async function captureCapsuleStates(
     images.push(
       `<figure><figcaption>${scene}</figcaption><img src="${file}" alt="${scene}"></figure>`,
     );
+    const sidebar = await window.webContents.executeJavaScript(`(() => {
+      const rect = document.querySelector('#app-sidebar[data-state=expanded]')?.getBoundingClientRect();
+      return rect && { x: Math.floor(rect.x), y: Math.floor(rect.y), width: Math.ceil(rect.width), height: Math.ceil(rect.height) };
+    })()`);
+    assert(sidebar?.width > 0, `The sidebar is out of sight in the ${scene} capsule scene`);
+    const sidebarFile = `sidebar-status-${scene}-${appearance}.png`;
+    writeFileSync(
+      join(output, sidebarFile),
+      (await window.webContents.capturePage(sidebar)).toPNG(),
+    );
+    images.push(
+      `<figure><figcaption>${scene}: sidebar</figcaption><img src="${sidebarFile}" alt="${scene} sidebar"></figure>`,
+    );
   }
   writeFileSync(
     join(output, `capsule-states-${appearance}.html`),

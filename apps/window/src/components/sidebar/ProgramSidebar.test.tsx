@@ -8,7 +8,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import current from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import type { Route } from "../../app/routes.js";
-import { LINE_PIN, PINS_STORAGE_KEY, pin, readPins, unpin } from "../../store/pins.js";
+import { LINE_PIN, movePin, PINS_STORAGE_KEY, pin, readPins, unpin } from "../../store/pins.js";
 import { createWatchStore } from "../../store/watch.js";
 import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { COLLAPSE_STORAGE_KEY } from "./collapse.js";
@@ -328,3 +328,94 @@ it("keeps a folded Pinned list folded across a fresh render, from local storage"
   await render();
   expect(header("Pinned")?.getAttribute("aria-expanded")).toBe("false");
 });
+
+const marks = () =>
+  [...container.querySelectorAll(".sidebar-mark")].map((mark) => [
+    mark.closest("[data-sidebar-row]")?.getAttribute("data-sidebar-row"),
+    mark.getAttribute("data-mark"),
+    mark.getAttribute("data-tone"),
+    mark.textContent,
+  ]);
+
+async function nov6Evening(run: () => Promise<void>) {
+  vi.useFakeTimers({ now: Date.parse("2026-11-06T22:30:00.000Z"), toFake: ["Date"] });
+  try {
+    await run();
+  } finally {
+    vi.useRealTimers();
+  }
+}
+
+it("draws each status mark on its own pin wherever that pin sits, and nowhere else", () =>
+  nov6Evening(async () => {
+    storePins([
+      "place:releases",
+      "place:engineering-system",
+      "entitlements",
+      "place:environment",
+      "place:security",
+      LINE_PIN,
+      "place:upstream",
+    ]);
+    await render(undefined, undefined, currentBody, vi.fn());
+    expect(marks()).toEqual([
+      ["engineering-system", "count", "warning", "13"],
+      ["environment", "check", "success", ""],
+      ["line", "count", "error", "1"],
+      ["upstream", "clock", "sync", ""],
+    ]);
+    await act(async () => movePin(LINE_PIN, "place:releases"));
+    expect(marks()[0]).toEqual(["line", "count", "error", "1"]);
+  }));
+
+it("draws an unpinned status pin's mark nowhere", () =>
+  nov6Evening(async () => {
+    await render(undefined, undefined, currentBody, vi.fn());
+    for (const id of [LINE_PIN, "place:environment"]) await act(async () => unpin(id));
+    expect(marks()).toEqual([
+      ["upstream", "clock", "sync", ""],
+      ["engineering-system", "count", "warning", "13"],
+    ]);
+    for (const id of ["place:upstream", "place:engineering-system"])
+      await act(async () => unpin(id));
+    expect(marks()).toEqual([]);
+  }));
+
+it("puts each status field's sentence in its row's hover and description, a fine Environment's included", () =>
+  nov6Evening(async () => {
+    await render(undefined, undefined, currentBody, vi.fn());
+    const sentence = (key: string) => {
+      const element = row(key);
+      expect(element?.getAttribute("title")).toBe(element?.getAttribute("aria-description"));
+      return element?.getAttribute("aria-description");
+    };
+    expect(sentence("environment")).toBe("Environment: Ready. v0.35.3 is ready.");
+    expect(sentence("line")).toBe("Forks: 1 stopped. Stopped: entitlements.");
+    expect(sentence("engineering-system")).toMatch(/^Templates: 13 pending\. /);
+    expect(sentence("upstream")).toMatch(/^Next upstream sync .+ \(in .+\)\.$/);
+    expect(row("line")?.getAttribute("data-services")).toBe(String(currentBody.stations.length));
+    expect(sentence("releases")).toBeNull();
+  }));
+
+it("keeps Cmd+L on the Line row", async () => {
+  await render(undefined, undefined, currentBody, vi.fn());
+  expect(row("line")?.getAttribute("aria-keyshortcuts")).toMatch(/^(Meta|Control)\+L$/);
+});
+
+it("dots a collapsed Pinned header for its own rows only, and only while collapsed", () =>
+  nov6Evening(async () => {
+    await render(undefined, undefined, currentBody, vi.fn());
+    const dot = () => header("Pinned")?.querySelector(".sidebar-status-dot");
+    expect(dot()).toBeNull();
+    await act(async () => header("Pinned")?.click());
+    expect(dot()?.getAttribute("data-tone")).toBe("error");
+    await act(async () => unpin(LINE_PIN));
+    expect(dot()?.getAttribute("data-tone")).toBe("warning");
+    await act(async () => unpin("place:engineering-system"));
+    expect(row("today")?.querySelector(".sidebar-pip")?.textContent).toBe("1");
+    expect(dot()).toBeNull();
+    await act(async () => pin(LINE_PIN));
+    expect(dot()?.getAttribute("data-tone")).toBe("error");
+    await act(async () => header("Pinned")?.click());
+    expect(dot()).toBeNull();
+  }));

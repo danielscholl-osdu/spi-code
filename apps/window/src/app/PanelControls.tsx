@@ -22,8 +22,14 @@
 // SOFTWARE.
 
 import { useCallback, useEffect } from "react";
+import { useStore } from "zustand";
 import { Icon } from "../components/icons/Icon.js";
+import { StatusDotMark } from "../components/sidebar/ProgramSidebar.js";
+import { statusDot, statusRows } from "../components/sidebar/status-marks.js";
 import { SidebarTrigger, useSidebar } from "../components/sidebar/ui-sidebar.js";
+import { selectStrip } from "../store/strip.js";
+import { watchStore } from "../store/watch.js";
+import { countInterrupts } from "../views/today/selectors.js";
 import { ariaShortcut, matchesShortcut, shortcutLabel } from "./shortcuts.js";
 
 /** Opening the narrow sidebar closes Detail, and opening Detail closes the narrow sidebar. */
@@ -76,7 +82,18 @@ export function PanelShortcuts({
   return null;
 }
 
-/** The one sidebar toggle, just after the window controls whether the sidebar shows or not. */
+/** Today's count and the status marks, as one dot for a sidebar that is out of sight. */
+function useHiddenSidebarDot() {
+  const body = useStore(watchStore, (state) => state.snapshot?.body);
+  if (!body) return undefined;
+  const marks = Object.values(statusRows(selectStrip(body), Date.now())).map(({ mark }) => mark);
+  return statusDot(countInterrupts(body.briefing), marks);
+}
+
+/**
+ * The one sidebar toggle, just after the window controls whether the sidebar shows or not. While
+ * the sidebar is out of sight it carries the dot.
+ */
 export function SidebarToggle({
   rightPanelOpen,
   onToggleRightPanel,
@@ -85,6 +102,8 @@ export function SidebarToggle({
   onToggleRightPanel(): void;
 }) {
   const { closeDetailForSidebar } = usePanelToggles(rightPanelOpen, onToggleRightPanel);
+  const { visible } = useSidebar();
+  const dot = useHiddenSidebarDot();
   return (
     <SidebarTrigger
       onClick={closeDetailForSidebar}
@@ -95,6 +114,7 @@ export function SidebarToggle({
       title={`Toggle sidebar (${shortcutLabel("b")})`}
     >
       <Icon name="panelLeft" />
+      {!visible && dot && <StatusDotMark dot={dot} className="sidebar-toggle-dot" />}
     </SidebarTrigger>
   );
 }

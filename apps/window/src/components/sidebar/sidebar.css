@@ -35,7 +35,7 @@
 .pin-item:hover .pin-grip { display: flex; }
 .pin-unpin { display: none; position: absolute; right: 4px; top: 4px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--text-muted); place-items: center; }
 .pin-item:hover .pin-unpin, .pin-unpin:focus-visible { display: grid; }
-.pin-item:hover .sidebar-word { visibility: hidden; }
+.pin-item:hover :is(.sidebar-word, .sidebar-mark) { visibility: hidden; }
 .pin-unpin:hover { background: var(--surface); color: var(--text); }
 .app-sidebar [data-slot="sidebar-footer"] { flex: none; display: flex; align-items: center; gap: 2px; height: 44px; box-sizing: border-box; padding: 0 10px; border-top: 1px solid var(--border-soft); }
 .sidebar-settings { position: relative; flex: none; display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: default; }
@@ -46,3 +46,16 @@
 .app-sidebar[data-mobile="true"] { position: fixed; top: var(--pane-header-height); bottom: 0; left: 0; z-index: 10; width: var(--sidebar-width, 232px); transform: translateX(-100%); transition: transform .15s ease-out; }
 .app-sidebar[data-mobile="true"][data-state="expanded"] { transform: none; box-shadow: 0 8px 24px rgb(0 0 0 / 0.25); }
 .sidebar-pip { flex: none; min-width: 18px; height: 18px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding: 0 5px; border-radius: 9px; background: var(--error); color: var(--on-fill); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.sidebar-mark { flex: none; display: grid; place-items: center; min-width: 18px; }
+.sidebar-mark[data-mark="count"] { min-width: 17px; height: 17px; box-sizing: border-box; padding: 0 4px; border: 1.75px solid; border-radius: 9px; font-size: 10.5px; font-weight: 650; line-height: 1; font-variant-numeric: tabular-nums; }
+.sidebar-mark[data-mark="count"][data-tone="error"] { border-color: var(--error); color: var(--error-text); }
+.sidebar-mark[data-mark="count"][data-tone="warning"] { border-color: var(--warning); color: var(--warning-text); }
+.app-sidebar [data-slot="sidebar-menu-button"]:hover:not([data-active="true"]) .sidebar-mark[data-mark="count"] { background: var(--sidebar); }
+.sidebar-mark[data-mark="check"] { color: var(--success-text); }
+.sidebar-mark[data-mark="wrench"] { color: var(--warning-text); }
+.sidebar-mark[data-mark="refresh"] { color: var(--work); }
+.sidebar-mark[data-mark="clock"] { color: var(--upstream-text); }
+.sidebar-status-dot, .sidebar-toggle-dot { flex: none; width: 7px; height: 7px; border-radius: 4px; background: var(--warning); }
+.sidebar-status-dot[data-tone="error"], .sidebar-toggle-dot[data-tone="error"] { background: var(--error); }
+.sidebar-status-dot { margin-right: 2px; }
+.sidebar-toggle-dot { position: absolute; top: 4px; right: 3px; box-shadow: 0 0 0 2px var(--surface); }

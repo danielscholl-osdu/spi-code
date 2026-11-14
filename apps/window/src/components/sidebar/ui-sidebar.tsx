@@ -24,6 +24,7 @@
 import {
   type ComponentProps,
   createContext,
+  type ReactNode,
   useContext,
   useEffect,
   useRef,
@@ -273,8 +274,9 @@ export function SidebarTrigger({
 export function CollapsibleSectionHeader({
   children,
   expanded,
+  dot,
   ...buttonProps
-}: Omit<ComponentProps<"button">, "aria-expanded"> & { expanded: boolean }) {
+}: Omit<ComponentProps<"button">, "aria-expanded"> & { expanded: boolean; dot?: ReactNode }) {
   return (
     <button
       type="button"
@@ -284,6 +286,7 @@ export function CollapsibleSectionHeader({
       {...buttonProps}
     >
       <span className="section-header-label">{children}</span>
+      {dot}
       <Icon name={expanded ? "chevD" : "chevR"} size={12} stroke={2} />
     </button>
   );

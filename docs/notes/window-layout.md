@@ -39,3 +39,5 @@ with nonempty Attention open by default.
 Shell's effects live in hooks beside it, and the order Shell calls them is the effect order:
 the tray-destination ref must be set before the host subscription, because the preload hands
 a held destination to `onNavigate` synchronously (`shell-order.test.tsx`).
+A pinned row's outlined count fills its ring with `--sidebar` on hover: Warm light `--error-text`
+and `--warning-text` read 4.25 and 4.15 on `--hover`, under AA, and `--hover` is not a gated surface.

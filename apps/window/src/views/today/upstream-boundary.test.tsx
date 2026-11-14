@@ -26,6 +26,11 @@ function leaks(file: string, source: string): boolean {
     )
       continue;
     if (
+      file === "components/sidebar/sidebar.css" &&
+      /^\s*\.sidebar-mark\[data-mark="clock"\]\s*$/.test(selector)
+    )
+      continue;
+    if (
       file === "components/kit/kit.css" &&
       /^\s*\.kit-(chip--upstream|slot--upstream|segmented--upstream|segment--upstream)\b/.test(
         selector,
@@ -58,6 +63,25 @@ it("reserves upstream tokens and ⇣ for the horizon, upstream chips, upstream-o
       ),
       selector,
     ).toBe(true);
+  for (const selector of [
+    ".sidebar-mark",
+    '.sidebar-mark[data-mark="count"]',
+    '.sidebar-mark[data-mark="clock"]:hover',
+    '.sidebar-mark[data-mark="clock"], .sidebar-word',
+    ".sidebar-status-dot",
+    ".sidebar-toggle-dot",
+    ".sidebar-word",
+  ])
+    expect(
+      leaks("components/sidebar/sidebar.css", `${selector} { color: var(--upstream-text); }`),
+      selector,
+    ).toBe(true);
+  expect(
+    leaks(
+      "components/sidebar/sidebar.css",
+      '.sidebar-mark[data-mark="clock"] { color: var(--upstream-text); }',
+    ),
+  ).toBe(false);
   const kit = readFileSync(`${src}/components/kit/Slot.tsx`, "utf8");
   expect(kit).toContain('state === "waiting" && origin === "upstream"');
 });
