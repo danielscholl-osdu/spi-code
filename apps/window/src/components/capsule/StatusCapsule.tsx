@@ -42,7 +42,7 @@ function Segment({
     <button
       type="button"
       className="capsule-seg"
-      data-field={field === "template" ? "template" : field}
+      data-field={field}
       aria-label={sentence}
       title={sentence}
       onClick={onClick}
