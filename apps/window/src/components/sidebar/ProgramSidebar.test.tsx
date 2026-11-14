@@ -8,7 +8,16 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import current from "../../../../../fixtures/watch/snapshot-1106.json?raw";
 import { readFixture } from "../../../../../scripts/watch-generated.mjs";
 import type { Route } from "../../app/routes.js";
-import { LINE_PIN, movePin, PINS_STORAGE_KEY, pin, readPins, unpin } from "../../store/pins.js";
+import {
+  isAlwaysPinned,
+  LINE_PIN,
+  movePin,
+  PINS_STORAGE_KEY,
+  pin,
+  readPins,
+  SEED_PINS,
+  unpin,
+} from "../../store/pins.js";
 import { createWatchStore } from "../../store/watch.js";
 import { watchFixtureText } from "../../test-utils/watch-fixtures.test-helper.js";
 import { COLLAPSE_STORAGE_KEY } from "./collapse.js";
@@ -165,7 +174,13 @@ it.each(["ambient", "interrupt"] as const)(
 it("draws a service pin only while the sweep names it, in pin order, and lights the open one", async () => {
   storePins(["gone", "schema", "place:releases", "entitlements"]);
   await render({ kind: "release", month: "2026-10" });
-  expect(rows("Pinned")).toEqual(["schema", "Releases", "entitlements"]);
+  expect(rows("Pinned")).toEqual([
+    "Environment",
+    "Engineering system",
+    "schema",
+    "Releases",
+    "entitlements",
+  ]);
   expect(row("releases")?.getAttribute("aria-current")).toBe("true");
   const { onNavigate } = await render({ kind: "service", id: "schema" });
   expect(container.querySelector('[aria-current="page"]')?.textContent).toContain("schema");
@@ -174,9 +189,8 @@ it("draws a service pin only while the sweep names it, in pin order, and lights 
   await act(async () => row("releases")?.click());
   expect(onNavigate).toHaveBeenLastCalledWith({ kind: "releases" });
   for (const id of ["schema", "place:releases", "entitlements"]) await act(async () => unpin(id));
-  expect(header("Pinned")).toBeUndefined();
-  expect(container.querySelector('ul[aria-label="Pinned"]')).toBeNull();
-  expect(readPins()).toEqual(["gone"]);
+  expect(rows("Pinned")).toEqual(["Environment", "Engineering system"]);
+  expect(readPins()).toEqual([LINE_PIN, "place:environment", "place:engineering-system", "gone"]);
 });
 
 it("words a pinned service only when its line is read and not fine, and never a place", async () => {
@@ -196,13 +210,15 @@ it("words a pinned service only when its line is read and not fine, and never a 
   expect(row("environment")?.querySelector(".sidebar-word")).toBeNull();
 });
 
-it("unpins Line from its row and pins it again at the end, across a reload", async () => {
+it("unpins Upstream from its row and pins it again at the end, across a reload", async () => {
   await render(undefined, undefined, undefined, vi.fn());
-  const unpinLine = container.querySelector<HTMLButtonElement>('button[aria-label="Unpin Line"]');
-  await act(async () => unpinLine?.click());
-  expect(rows("Pinned")).toEqual(PLACE_LABELS);
-  expect(readPins()).not.toContain(LINE_PIN);
-  await act(async () => pin(LINE_PIN));
+  const unpinUpstream = container.querySelector<HTMLButtonElement>(
+    'button[aria-label="Unpin Upstream"]',
+  );
+  await act(async () => unpinUpstream?.click());
+  expect(rows("Pinned")).toEqual(["Line", ...PLACE_LABELS.filter((label) => label !== "Upstream")]);
+  expect(readPins()).not.toContain("place:upstream");
+  await act(async () => pin("place:upstream"));
   await act(async () => root.unmount());
   vi.resetModules();
   const pins = await import("../../store/pins.js");
@@ -225,28 +241,93 @@ it("unpins Line from its row and pins it again at the end, across a reload", asy
       </ui.SidebarProvider>,
     ),
   );
-  expect(rows("Pinned")).toEqual([...PLACE_LABELS, "Line"]);
+  expect(rows("Pinned")).toEqual([
+    "Line",
+    ...PLACE_LABELS.filter((label) => label !== "Upstream"),
+    "Upstream",
+  ]);
+});
+
+it("keeps Line, Environment and Engineering system with Open and moves but no unpin; the others unpin", async () => {
+  storePins([...SEED_PINS, "entitlements"]);
+  await render(undefined, undefined, undefined, vi.fn());
+  const items = (pinId: string) =>
+    [...document.querySelectorAll(`[data-pin-menu="${pinId}"] [role="menuitem"]`)].map(
+      (item) => item.textContent,
+    );
+  const unpinButton = (label: string) =>
+    container.querySelector<HTMLButtonElement>(`button[aria-label="Unpin ${label}"]`);
+  for (const [key, pinId, label] of [
+    ["line", LINE_PIN, "Line"],
+    ["environment", "place:environment", "Environment"],
+    ["engineering-system", "place:engineering-system", "Engineering system"],
+    ["upstream", "place:upstream", "Upstream"],
+    ["releases", "place:releases", "Releases"],
+    ["security", "place:security", "Security"],
+    ["service/entitlements", "entitlements", "entitlements"],
+  ] as const) {
+    const fixed = isAlwaysPinned(pinId);
+    expect(unpinButton(label) === null, label).toBe(fixed);
+    await openMenu(key);
+    expect(items(pinId)).toEqual(["Open", "Move up", "Move down", ...(fixed ? [] : ["Unpin"])]);
+    await act(async () => menuItem(pinId, "Open")?.click());
+  }
+  await act(async () => unpinButton("Upstream")?.click());
+  await openMenu("service/entitlements");
+  await act(async () => menuItem("entitlements", "Unpin")?.click());
+  await act(async () => unpinButton("Security")?.click());
+  await openMenu("releases");
+  await act(async () => menuItem("place:releases", "Unpin")?.click());
+  expect(rows("Pinned")).toEqual(["Line", "Environment", "Engineering system"]);
 });
 
 it("moves a pin up and down from its context menu, past a pin the sweep does not name", async () => {
-  storePins([LINE_PIN, "gone", "place:upstream", "place:security"]);
+  storePins([
+    "place:environment",
+    "place:engineering-system",
+    LINE_PIN,
+    "gone",
+    "place:upstream",
+    "place:security",
+  ]);
   const onLine = vi.fn();
   await render(undefined, undefined, undefined, onLine);
+  await openMenu("environment");
+  expect(menuItem("place:environment", "Move up")?.hasAttribute("data-disabled")).toBe(true);
+  await act(async () => menuItem("place:environment", "Open")?.click());
   await openMenu("line");
-  expect(menuItem(LINE_PIN, "Move up")?.hasAttribute("data-disabled")).toBe(true);
   await act(async () => menuItem(LINE_PIN, "Move down")?.click());
-  expect(rows("Pinned")).toEqual(["Upstream", "Line", "Security"]);
+  expect(rows("Pinned")).toEqual([
+    "Environment",
+    "Engineering system",
+    "Upstream",
+    "Line",
+    "Security",
+  ]);
   await openMenu("security");
   await act(async () => menuItem("place:security", "Move up")?.click());
-  expect(rows("Pinned")).toEqual(["Upstream", "Security", "Line"]);
-  expect(readPins()).toEqual(["gone", "place:upstream", "place:security", LINE_PIN]);
+  expect(rows("Pinned")).toEqual([
+    "Environment",
+    "Engineering system",
+    "Upstream",
+    "Security",
+    "Line",
+  ]);
+  expect(readPins()).toEqual([
+    "place:environment",
+    "place:engineering-system",
+    "gone",
+    "place:upstream",
+    "place:security",
+    LINE_PIN,
+  ]);
   await openMenu("line");
   expect(menuItem(LINE_PIN, "Move down")?.hasAttribute("data-disabled")).toBe(true);
   await act(async () => menuItem(LINE_PIN, "Open")?.click());
   expect(onLine).toHaveBeenCalledOnce();
-  await openMenu("line");
-  await act(async () => menuItem(LINE_PIN, "Unpin")?.click());
-  expect(rows("Pinned")).toEqual(["Upstream", "Security"]);
+  await openMenu("security");
+  await act(async () => menuItem("place:security", "Unpin")?.click());
+  expect(rows("Pinned")).toEqual(["Environment", "Engineering system", "Upstream", "Line"]);
 });
 
 it("reorders by dragging one pin onto another", async () => {
@@ -261,8 +342,20 @@ it("reorders by dragging one pin onto another", async () => {
   await drag("place:security", "dragstart");
   await drag(LINE_PIN, "dragover");
   await drag(LINE_PIN, "drop");
-  expect(readPins()).toEqual(["place:security", LINE_PIN, "place:upstream"]);
-  expect(rows("Pinned")).toEqual(["Security", "Line", "Upstream"]);
+  expect(readPins()).toEqual([
+    "place:environment",
+    "place:engineering-system",
+    "place:security",
+    LINE_PIN,
+    "place:upstream",
+  ]);
+  expect(rows("Pinned")).toEqual([
+    "Environment",
+    "Engineering system",
+    "Security",
+    "Line",
+    "Upstream",
+  ]);
 });
 
 it("ends with a gear that opens Settings, and no sweep time", async () => {
@@ -371,14 +464,13 @@ it("draws each status mark on its own pin wherever that pin sits, and nowhere el
 it("draws an unpinned status pin's mark nowhere", () =>
   nov6Evening(async () => {
     await render(undefined, undefined, currentBody, vi.fn());
-    for (const id of [LINE_PIN, "place:environment"]) await act(async () => unpin(id));
+    for (const id of [LINE_PIN, "place:environment", "place:upstream", "place:engineering-system"])
+      await act(async () => unpin(id));
     expect(marks()).toEqual([
-      ["upstream", "clock", "sync", ""],
+      ["line", "count", "error", "1"],
+      ["environment", "check", "success", ""],
       ["engineering-system", "count", "warning", "13"],
     ]);
-    for (const id of ["place:upstream", "place:engineering-system"])
-      await act(async () => unpin(id));
-    expect(marks()).toEqual([]);
   }));
 
 it("puts each status field's sentence in its row's hover and description, a fine Environment's included", () =>
@@ -409,12 +501,10 @@ it("dots a collapsed Pinned header for its own rows only, and only while collaps
     expect(dot()).toBeNull();
     await act(async () => header("Pinned")?.click());
     expect(dot()?.getAttribute("data-tone")).toBe("error");
-    await act(async () => unpin(LINE_PIN));
-    expect(dot()?.getAttribute("data-tone")).toBe("warning");
-    await act(async () => unpin("place:engineering-system"));
+    await render(undefined, undefined, currentBody);
     expect(row("today")?.querySelector(".sidebar-pip")?.textContent).toBe("1");
-    expect(dot()).toBeNull();
-    await act(async () => pin(LINE_PIN));
+    expect(dot()?.getAttribute("data-tone")).toBe("warning");
+    await render(undefined, undefined, currentBody, vi.fn());
     expect(dot()?.getAttribute("data-tone")).toBe("error");
     await act(async () => header("Pinned")?.click());
     expect(dot()).toBeNull();

@@ -28,16 +28,57 @@ import { useStore } from "zustand";
 import { type Destination, LINE, useRegistry } from "../app/routes.js";
 import { isMacPlatform } from "../app/shortcuts.js";
 import { AttentionDot } from "../components/AttentionDot.js";
+import { Icon } from "../components/icons/Icon.js";
 import { useSidebarAttention } from "../components/sidebar/attention.js";
-import { pin } from "../store/pins.js";
+import { isAlwaysPinned, pin, togglePin, usePins } from "../store/pins.js";
 import type { createWatchStore } from "../store/watch.js";
 import { buildPaletteGroups, filterPaletteGroups, type PaletteItem } from "./palette.logic.js";
 import "./palette.css";
 
+type PinState = "unpinned" | "pinned" | "always";
+
+const PIN_STATE_NAME: Readonly<Record<PinState, string>> = {
+  unpinned: "not pinned",
+  pinned: "pinned",
+  always: "always pinned",
+};
+
+const PIN_TITLE: Readonly<Record<PinState, string>> = {
+  unpinned: "Pin to the sidebar",
+  pinned: "Unpin from the sidebar",
+  always: "Always pinned",
+};
+
+function pinStateOf(id: string, pins: readonly string[]): PinState {
+  if (isAlwaysPinned(id)) return "always";
+  return pins.includes(id) ? "pinned" : "unpinned";
+}
+
+/** Pins or unpins its result in place, without opening it; inert on an always-pinned result. */
+function PinControl({ pin: id, state }: { pin: string; state: PinState }) {
+  return (
+    <button
+      type="button"
+      className="palette-pin"
+      tabIndex={-1}
+      aria-hidden
+      aria-disabled={state === "always" || undefined}
+      title={PIN_TITLE[state]}
+      onClick={(event) => {
+        event.stopPropagation();
+        togglePin(id);
+      }}
+    >
+      <Icon name="pin" size={14} stroke={2} />
+    </button>
+  );
+}
+
 /**
  * Find (PS-12): Go to, Services and Queue. The shell opens it from ⌘K or Ctrl+K (through
  * PanelControls' shortcuts) and from the sidebar's field. ⏎ opens a result; ⌘↩ (Ctrl+Enter) opens
- * Line, a place or a service and pins it, leaving a pin where it is. Esc closes it and focus
+ * Line, a place or a service and pins it, leaving a pin where it is. A result that can be pinned
+ * ends in a pointer-only pin control that pins or unpins it in place. Esc closes it and focus
  * returns to the opener.
  */
 export function CommandPalette({
@@ -98,6 +139,7 @@ function PaletteContent({
   const [query, setQuery] = useState("");
   const [highlighted, setHighlighted] = useState<string | undefined>(undefined);
   const registry = useRegistry();
+  const pins = usePins();
   const groups = useMemo(() => buildPaletteGroups(body, registry), [body, registry]);
   const shown = useMemo(() => filterPaletteGroups(groups, query), [groups, query]);
   const highlightedItem = shown
@@ -164,11 +206,18 @@ function PaletteContent({
               const service = route?.kind === "service" ? route : undefined;
               const mark = service ? attention.get(`service:${service.id}`) : undefined;
               const kind = service ? mark?.word : item.kind;
+              const pinState = item.pin === undefined ? undefined : pinStateOf(item.pin, pins);
               return (
                 <Autocomplete.Item
                   key={item.value}
                   value={item.value}
                   className="palette-row"
+                  data-pin-state={pinState}
+                  aria-label={
+                    pinState
+                      ? [item.label, kind, PIN_STATE_NAME[pinState]].filter(Boolean).join(", ")
+                      : undefined
+                  }
                   onClick={() => run(item)}
                 >
                   {service && <AttentionDot dot={mark?.dot} />}
@@ -182,6 +231,9 @@ function PaletteContent({
                     <span className="palette-kind" title={service ? kind : undefined}>
                       {kind}
                     </span>
+                  )}
+                  {item.pin !== undefined && pinState && (
+                    <PinControl pin={item.pin} state={pinState} />
                   )}
                 </Autocomplete.Item>
               );

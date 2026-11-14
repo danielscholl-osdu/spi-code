@@ -343,7 +343,7 @@ function collect(scope: string): Collected {
       .slice(0, 2)
       .map((name) => `.${name}`)
       .join("") +
-    ["data-tone", "data-field", "data-state", "role"]
+    ["data-tone", "data-field", "data-state", "data-pin-state", "role"]
       .filter((name) => element.hasAttribute(name))
       .map((name) => `[${name}=${element.getAttribute(name)}]`)
       .join("");
@@ -768,10 +768,22 @@ const PINS = [
   "place:security",
   PINNED_STOPPED,
 ];
-const PINNED_WORD: Required = {
+const PINNED: Required = {
   rest: [{ selector: "sidebar-word[data-tone=bad]", text: "stopped" }],
-  hover: [{ selector: "sidebar-row-label", text: PINNED_STOPPED }],
+  hover: [
+    { selector: "sidebar-row-label", text: PINNED_STOPPED },
+    { selector: "sidebar-mark[data-tone=error]", text: "1" },
+    { selector: "sidebar-mark[data-tone=warning]", text: "13" },
+  ],
 };
+const FIND_UNPINNED = "partition";
+const FIND_ROWS = [
+  { selector: "[data-pin-state=always]", text: "Line" },
+  { selector: "[data-pin-state=pinned]", text: "Upstream" },
+  { selector: "[data-pin-state=pinned]", text: PINNED_STOPPED },
+  { selector: "[data-pin-state=unpinned]", text: FIND_UNPINNED },
+];
+const FIND: Required = { rest: FIND_ROWS, hover: FIND_ROWS };
 
 const ROOT_STATE = `(() => {
   const root = document.documentElement;
@@ -785,8 +797,9 @@ const ROOT_STATE = `(() => {
 })()`;
 
 /**
- * Measures every visible text on Today, the sweep popover, Upstream, the Line sheet, Detail and three
- * Settings sections, in both palettes and both themes, at rest and with every :hover target forced.
+ * Measures every visible text on Today, the sweep popover, Upstream, the Line sheet, Detail, three
+ * Settings sections and Find or ask, in both palettes and both themes, at rest and with every :hover
+ * target forced.
  * Each view is mounted once and shaded in place by writing the root attributes Settings > Appearance
  * writes; Settings is shaded through its own controls, and those attributes must match.
  */
@@ -1016,7 +1029,7 @@ export async function assertRenderedContrast(
       `Packaged contrast controls: ${report.controls.map(({ control, found }) => `${control}: ${found}`).join("; ")}`,
     );
     await shade({ palette: "warm", theme: "light" });
-    await everyShade("today", ".today", PINNED_WORD);
+    await everyShade("today", ".today", PINNED);
     await js('document.querySelector("[data-strip] [data-sweep-line]").click()');
     await rendered(window, 'document.querySelector("[data-sweep-popover] .capsule-evidence")');
     await everyShade("sweep-popover", "[data-sweep-popover]");
@@ -1090,6 +1103,32 @@ export async function assertRenderedContrast(
       }
     }
     await js("document.querySelector(\"[aria-label='Close settings']\").click()");
+    await rendered(window, '!document.querySelector("[role=dialog]")');
+    await js(`{
+      const mac = /Mac|iPhone|iPad/.test(navigator.userAgent);
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: mac, ctrlKey: !mac, bubbles: true }));
+    }`);
+    await rendered(window, 'document.querySelector("[role=dialog].palette [data-pin-state]")');
+    assert(
+      await js<boolean>(`(async () => {
+        const input = document.querySelector("[role=dialog].palette input");
+        const label = () => document.querySelector(".palette-row[data-highlighted] .palette-label")?.textContent;
+        for (let step = 0; step < 30 && label() !== ${JSON.stringify(FIND_UNPINNED)}; step++) {
+          input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+          await new Promise((resolve) => {
+            const channel = new MessageChannel();
+            channel.port1.onmessage = resolve;
+            channel.port2.postMessage(0);
+          });
+        }
+        return label() === ${JSON.stringify(FIND_UNPINNED)};
+      })()`),
+      `Find or ask must highlight the unpinned ${FIND_UNPINNED}`,
+    );
+    await everyShade("find", "[role=dialog].palette", FIND);
+    await js(
+      'document.querySelector("[role=dialog].palette input").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))',
+    );
     await rendered(window, '!document.querySelector("[role=dialog]")');
   } finally {
     ipcMain.removeListener("smoke:request", request);

@@ -57,6 +57,7 @@ const rows = (group: string) =>
   );
 const highlighted = () => palette()?.querySelector("[data-highlighted]")?.textContent;
 const serviceIds = ["partition", "entitlements", "legal", "schema", "file"];
+const ALWAYS = [LINE_PIN, "place:environment", "place:engineering-system"];
 const serviceAttention = (id: string) => {
   const row = [...(palette()?.querySelectorAll('[data-group="services"] .palette-row') ?? [])].find(
     (element) => element.querySelector(".palette-label")?.textContent === id,
@@ -295,14 +296,14 @@ it("opens a service result and pins it on Ctrl+Enter, and keeps it pinned when p
   await key("Enter", { ctrlKey: true });
   expect(palettes()).toHaveLength(0);
   expect(window.location.hash).toBe("#service/legal");
-  expect(readPins()).toEqual(["legal"]);
+  expect(readPins()).toEqual([...ALWAYS, "legal"]);
   expect(container.querySelector('[data-sidebar-row="service/legal"]')).not.toBeNull();
 
   await shortcut({ ctrlKey: true });
   await type("Today");
   await key("Enter", { ctrlKey: true });
   expect(window.location.hash).toBe("#today");
-  expect(readPins()).toEqual(["legal"]);
+  expect(readPins()).toEqual([...ALWAYS, "legal"]);
 
   await shortcut({ ctrlKey: true });
   await type("legal");
@@ -310,7 +311,7 @@ it("opens a service result and pins it on Ctrl+Enter, and keeps it pinned when p
   await key("Enter", { ctrlKey: true });
   expect(palettes()).toHaveLength(0);
   expect(window.location.hash).toBe("#service/legal");
-  expect(readPins()).toEqual(["legal"]);
+  expect(readPins()).toEqual([...ALWAYS, "legal"]);
   expect(container.querySelector('[data-sidebar-row="service/legal"]')).not.toBeNull();
 
   vi.spyOn(navigator, "userAgent", "get").mockReturnValue(
@@ -320,11 +321,11 @@ it("opens a service result and pins it on Ctrl+Enter, and keeps it pinned when p
   await type("schema");
   expect(hint()).toContain("⌘↩ open and pin");
   await key("Enter", { ctrlKey: true });
-  expect(readPins()).toEqual(["legal"]);
+  expect(readPins()).toEqual([...ALWAYS, "legal"]);
   expect(palettes()).toHaveLength(1);
   await key("Enter", { metaKey: true });
   expect(window.location.hash).toBe("#service/schema");
-  expect(readPins()).toEqual(["legal", "schema"]);
+  expect(readPins()).toEqual([...ALWAYS, "legal", "schema"]);
 });
 
 it("opens Line and each place and pins it on Ctrl+Enter, in the order pinned", async () => {
@@ -344,21 +345,86 @@ it("opens Line and each place and pins it on Ctrl+Enter, in the order pinned", a
     else expect(container.querySelector("main h1")?.textContent).toBe(name);
   }
   expect(readPins()).toEqual([
-    "place:releases",
     LINE_PIN,
-    "place:upstream",
     "place:environment",
     "place:engineering-system",
+    "place:releases",
+    "place:upstream",
     "place:security",
   ]);
   expect(pinned()).toEqual([
-    "Releases",
     "Line",
-    "Upstream",
     "Environment",
     "Engineering system",
+    "Releases",
+    "Upstream",
     "Security",
   ]);
+});
+
+const option = (text: string) =>
+  [...(palette()?.querySelectorAll<HTMLElement>(".palette-row") ?? [])].find(
+    (row) => row.textContent === text,
+  );
+const pinControl = (text: string) => option(text)?.querySelector<HTMLButtonElement>(".palette-pin");
+
+it("pins and unpins a result in place from its pin control, leaving Find as it was", async () => {
+  await shortcut({ ctrlKey: true });
+  await type("Releases");
+  expect(highlighted()).toBe("Releasespage");
+  expect(option("Releasespage")?.getAttribute("aria-label")).toBe("Releases, page, not pinned");
+  const control = pinControl("Releasespage");
+  expect(control?.tabIndex).toBe(-1);
+  await act(async () => control?.click());
+  expect(readPins()).toContain("place:releases");
+  expect(container.querySelector('[data-sidebar-row="releases"]')).not.toBeNull();
+  expect(palettes()).toHaveLength(1);
+  expect(input()?.value).toBe("Releases");
+  expect(highlighted()).toBe("Releasespage");
+  expect(document.activeElement).toBe(input());
+  expect(window.location.hash).toBe("");
+  expect(option("Releasespage")?.getAttribute("aria-label")).toBe("Releases, page, pinned");
+
+  await act(async () => pinControl("Releasespage")?.click());
+  expect(readPins()).not.toContain("place:releases");
+  expect(option("Releasespage")?.getAttribute("aria-label")).toBe("Releases, page, not pinned");
+  await act(async () => pinControl("Releasespage")?.click());
+  await key("Enter", { ctrlKey: true });
+  expect(window.location.hash).toBe("#releases");
+  expect(readPins().filter((id) => id === "place:releases")).toHaveLength(1);
+
+  await shortcut({ ctrlKey: true });
+  await type("legal");
+  expect(option("legaltoolchain")?.getAttribute("aria-label")).toBe("legal, toolchain, pinned");
+  await act(async () => pinControl("legaltoolchain")?.click());
+  expect(readPins()).not.toContain("legal");
+  expect(container.querySelector('[data-sidebar-row="service/legal"]')).toBeNull();
+  expect(option("legaltoolchain")?.getAttribute("aria-label")).toBe("legal, toolchain, not pinned");
+  expect(palettes()).toHaveLength(1);
+  expect(window.location.hash).toBe("#releases");
+});
+
+it("does nothing on an always-pinned result's control, and draws none on Queue results", async () => {
+  const before = readPins();
+  await shortcut({ ctrlKey: true });
+  for (const [query, text, name] of [
+    ["Line", "Linepage", "Line"],
+    ["Environment", "Environmentpage", "Environment"],
+    ["Engineering", "Engineering systempage", "Engineering system"],
+  ] as const) {
+    await type(query);
+    expect(option(text)?.getAttribute("aria-label")).toBe(`${name}, page, always pinned`);
+    await act(async () => pinControl(text)?.click());
+    expect(readPins()).toEqual(before);
+    expect(palettes()).toHaveLength(1);
+    expect(input()?.value).toBe(query);
+    expect(window.location.hash).toBe("");
+  }
+  await type("schemathesis");
+  const queue = palette()?.querySelector<HTMLElement>('[data-group="queue"] .palette-row');
+  expect(queue).toBeTruthy();
+  expect(queue?.querySelector(".palette-pin")).toBeNull();
+  expect(queue?.hasAttribute("aria-label")).toBe(false);
 });
 
 it("finds every place and every service of the Nov 6 fleet", async () => {

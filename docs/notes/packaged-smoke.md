@@ -164,7 +164,11 @@ two seconds. The Windows smoke spends about 410 to 445 s of `SMOKE_TIMEOUT_MS`'s
 Today runs with a stopped service (entitlements) pinned under the `.v2` key, and fails unless it
 measures that pin's sidebar word at rest and its row hovered: `.pin-item:hover` hides the word, so
 hovered there is no word to measure. The key is restored after the rule, since supervision pins
-under the legacy key.
+under the legacy key. Line, Environment and Engineering system have no unpin button, so their marks
+stay drawn on hover, and the rule requires Line's and Engineering system's hovered digits.
+Find or ask is the last view: its results carry `data-pin-state`, which the collector names in
+selectors, and the rule requires an always-pinned, a pinned and the highlighted unpinned result.
+`views/find-pins-<appearance>.html` captures the same at 1440 px.
 The top row's capsule holds only the sweep, so the program status is read from the status pins:
 the 20-service probe reads `[data-sidebar-row=line]`'s `data-services`, the Line sheet opens from
 that pin, and the status scenes wait on each pin's `data-status`, `data-classification` and title
