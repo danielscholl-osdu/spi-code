@@ -20,6 +20,8 @@ function leaks(file: string, source: string): boolean {
     if (!/var\(--upstream/.test(body)) continue;
     if (file === "views/today/horizon.css" && /^\s*\.(today-horizon|horizon-)/.test(selector))
       continue;
+    if (file === "components/capsule/capsule.css" && /^\s*\.capsule-(up|sync)\s*$/.test(selector))
+      continue;
     if (
       file === "components/kit/kit.css" &&
       /^\s*\.kit-(chip--upstream|slot--upstream|segmented--upstream|segment--upstream)\b/.test(
@@ -31,7 +33,7 @@ function leaks(file: string, source: string): boolean {
   }
   return false;
 }
-it("reserves upstream tokens and ⇣ for the horizon, upstream chips and upstream-origin waiting slots (O5-1)", () => {
+it("reserves upstream tokens and ⇣ for the horizon, upstream chips, upstream-origin waiting slots and next sync (O5-1)", () => {
   const files = directoryPaths(src).filter(
     (file) => /\.(tsx?|css)$/.test(file) && !file.includes(".test"),
   );

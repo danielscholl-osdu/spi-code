@@ -94,7 +94,44 @@ const cases: [
     "failed",
     1,
   ],
+  [
+    "templates count a done slot outside the fleet",
+    (b) => {
+      for (const place of b.briefing.places ?? [])
+        if (place.visual?.kind === "rollout")
+          place.visual.slots.push({ service: "retired", state: "done", text: "retired done" });
+      return b;
+    },
+    "template",
+    "fine",
+  ],
+  [
+    "templates count an empty slot outside the fleet",
+    (b) => {
+      for (const place of b.briefing.places ?? [])
+        if (place.visual?.kind === "rollout")
+          place.visual.slots.push({ service: "retired", state: "empty", text: "retired empty" });
+      return b;
+    },
+    "template",
+    "pending",
+    1,
+  ],
   ["flowing forks", flowing, "forks", "fine"],
+  [
+    "stopped forks win over a fork not read",
+    (b) =>
+      forks(b, (s, id) =>
+        s === "storage" && id === "main"
+          ? { substate: "stopped", state: "stopped" }
+          : s === "file" && id === "sync"
+            ? { state: "unknown" }
+            : {},
+      ),
+    "forks",
+    "stopped",
+    1,
+  ],
   [
     "stopped forks win over waiting",
     (b) =>

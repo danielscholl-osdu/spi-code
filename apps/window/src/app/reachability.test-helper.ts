@@ -237,7 +237,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
       "/briefing/nextSyncAt",
       briefing.nextSyncAt,
       home("Upstream", STARTS.upstream),
-      ".upstream-theme-when time",
+      ".place-group[aria-label^='Before '] > h3 time",
       { attribute: "dateTime" },
     );
   }

@@ -93,14 +93,14 @@ const unreadLine = (stations: Stations) => {
 
 function worst(stations: Stations): PipState {
   if (isStoppedFork(stations)) return "stopped";
-  const worst = stations
+  const worstSubstate = stations
     .filter(({ id }) => id !== "lane")
     .reduce<StationSubstate>(
       (held, { substate }) => (RANK[substate] > RANK[held] ? substate : held),
       "ready",
     );
-  if (worst === "waiting-on-person") return "needs-person";
-  return unreadLine(stations) ? "unread" : PIP_OF[worst];
+  if (worstSubstate === "waiting-on-person") return "needs-person";
+  return unreadLine(stations) ? "unread" : PIP_OF[worstSubstate];
 }
 
 function forksState(snapshot: ViewSnapshot, pips: readonly StripPip[]): StripState {

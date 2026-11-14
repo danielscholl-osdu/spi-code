@@ -19,7 +19,7 @@ afterEach(async () => {
 
 it.each([
   ["exactly two hours", 7_200_000, true],
-  ["inside two hours", 6_000_000, true],
+  ["inside two hours", 6_000_010, true],
   ["outside two hours", 7_200_001, false],
   ["past", -1, false],
   ["now", 0, false],
@@ -47,7 +47,9 @@ it.each([
   await act(async () => root.render(<StatusCapsule />));
   expect(container.querySelector("[data-field=next-sync]") !== null).toBe(present);
   if (present && delta !== undefined) {
-    await act(async () => vi.advanceTimersByTimeAsync(delta));
+    await act(async () => vi.advanceTimersByTimeAsync(delta - 1));
+    expect(container.querySelector("[data-field=next-sync]")).not.toBeNull();
+    await act(async () => vi.advanceTimersByTimeAsync(1));
     expect(container.querySelector("[data-field=next-sync]")).toBeNull();
   }
 });
