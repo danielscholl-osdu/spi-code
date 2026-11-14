@@ -65,6 +65,106 @@ function fixture(window: BrowserWindow, type: string, payload: unknown, id = "sm
   window.webContents.send("smoke:fixture", parsed.message);
 }
 
+async function captureCapsuleStates(
+  window: BrowserWindow,
+  snapshot: ViewSnapshot,
+  output: string,
+  appearance: string,
+  now: number,
+  cursor: number,
+): Promise<void> {
+  const scenes = [
+    "fine",
+    "waiting",
+    "stopped",
+    "maintenance",
+    "refreshing",
+    "unread",
+    "sync",
+  ] as const;
+  const images: string[] = [];
+  await window.webContents.executeJavaScript(`void (Date.now = () => ${now})`);
+  for (const scene of scenes) {
+    const body = structuredClone(snapshot);
+    body.cursor = cursor++;
+    delete body.briefing.nextSyncAt;
+    const environment = body.briefing.facts.find(({ label }) => label === "Environment");
+    assert(environment);
+    environment.tone = "ok";
+    environment.sub = "deployable";
+    const holds = body.briefing.environment.lanes.find(({ id }) => id === "holds");
+    if (holds) holds.events = [];
+    for (const row of body.stations)
+      for (const station of row.stations) {
+        station.state = "idle";
+        station.substate = "ready";
+      }
+    const visual = body.briefing.places?.find(({ place }) => place === "engineering")?.visual;
+    assert(visual?.kind === "rollout");
+    for (const slot of visual.slots) slot.state = "done";
+    if (scene === "waiting" || scene === "stopped") {
+      const pending = visual.slots[0];
+      assert(pending);
+      pending.state = "waiting";
+      if (scene === "stopped") {
+        const failed = visual.slots[1];
+        assert(failed);
+        failed.state = "broken";
+      }
+      for (const row of body.stations.slice(0, scene === "waiting" ? 2 : 4)) {
+        const station = row.stations.find(({ id }) => id === "cascade");
+        assert(station);
+        station.state = scene === "waiting" ? "waiting" : "stopped";
+        station.substate = scene === "waiting" ? "waiting-on-person" : "stopped";
+      }
+    }
+    if (scene === "maintenance" || scene === "refreshing") {
+      environment.tone = scene === "maintenance" ? "bad" : "warn";
+      environment.sub = scene === "maintenance" ? "held" : "refresh running · at deploy";
+      assert(holds);
+      holds.events.push({
+        id: "capsule-hold",
+        start: new Date(now - 2 * 86_400_000).toISOString(),
+        state: "held",
+        label: "2 d",
+        detail: "in maintenance for 2 d so far",
+      });
+    }
+    if (scene === "unread") {
+      environment.figure = "?";
+      for (const slot of visual.slots) slot.state = "unknown";
+      for (const row of body.stations)
+        for (const station of row.stations) station.state = "unknown";
+    }
+    if (scene === "sync") body.briefing.nextSyncAt = new Date(now + 6_000_000).toISOString();
+    fixture(window, "view.snapshot", ViewSnapshotSchema.parse(body));
+    const ready =
+      scene === "waiting" || scene === "stopped"
+        ? `document.querySelector('[data-strip] [data-field=forks]')?.title.includes(${JSON.stringify(scene)})`
+        : scene === "maintenance" || scene === "refreshing"
+          ? `document.querySelector('[data-strip] [data-field=environment]')?.title.includes(${JSON.stringify(scene === "maintenance" ? "Maintenance 2 d" : "refresh running")})`
+          : scene === "unread"
+            ? `document.querySelectorAll('[data-strip] .capsule-unread').length === 3`
+            : scene === "sync"
+              ? `document.querySelector('[data-strip] [data-field=next-sync]')`
+              : `document.querySelectorAll('[data-strip] .capsule-ok').length === 3`;
+    await rendered(window, ready);
+    const bounds = await window.webContents.executeJavaScript(`(() => {
+      const rect = document.querySelector('[data-strip]').getBoundingClientRect();
+      return { x: Math.floor(rect.x), y: Math.floor(rect.y), width: Math.ceil(rect.width), height: Math.ceil(rect.height) };
+    })()`);
+    const file = `capsule-${scene}-${appearance}.png`;
+    writeFileSync(join(output, file), (await window.webContents.capturePage(bounds)).toPNG());
+    images.push(
+      `<figure><figcaption>${scene}</figcaption><img src="${file}" alt="${scene}"></figure>`,
+    );
+  }
+  writeFileSync(
+    join(output, `capsule-states-${appearance}.html`),
+    `<!doctype html><meta charset="utf-8"><title>Capsule states</title><style>body{font:14px system-ui;padding:24px}figure{margin:24px 0}figcaption{margin-bottom:8px}</style><h1>Capsule / ${appearance}</h1>${images.join("")}`,
+  );
+}
+
 async function settingsSection(
   window: BrowserWindow,
   section: "readiness" | "appearance" | "sweep",
@@ -847,6 +947,14 @@ export async function captureSmokeViews(
             );
           }
           await rendered(window, `document.querySelector(${JSON.stringify(surface.selector)})`);
+          if (surface.id === "strip" || surface.id === "strip-20") {
+            await rendered(
+              window,
+              `[
+              "environment", "template", "forks", "freshness"
+            ].every(field => document.querySelector('[data-strip] [data-field="' + field + '"]'))`,
+            );
+          }
           if (scheduled) {
             await window.webContents.executeJavaScript(`{
               const settings = document.querySelector("[data-settings-section=sweep]");
@@ -977,6 +1085,17 @@ export async function captureSmokeViews(
             await window.webContents.executeJavaScript(
               "document.querySelector(\"[aria-label='Close detail']\").click()",
             );
+        }
+        if (viewportWidth === 1440) {
+          fixture(window, "sweep.progress", progress.committed);
+          await captureCapsuleStates(
+            window,
+            snapshot,
+            output,
+            appearance,
+            Date.parse(checkedAt),
+            scheduledCursor + 100,
+          );
         }
       }
     }

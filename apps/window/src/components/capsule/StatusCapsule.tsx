@@ -1,0 +1,150 @@
+// Copyright 2026, Daniel Scholl
+// SPDX-License-Identifier: MIT
+
+import { useId } from "react";
+import { useStore } from "zustand";
+import { navigate, openSheet } from "../../app/navigation.js";
+import { ariaShortcut } from "../../app/shortcuts.js";
+import { type StripState, selectStrip } from "../../store/strip.js";
+import { watchStore } from "../../store/watch.js";
+import { clockTime } from "../../time.js";
+import { SweepLine, SweepMark } from "../evidence/SweepLine.js";
+import { useNow } from "../evidence/useNow.js";
+import { Icon } from "../icons/Icon.js";
+import { openFreshness } from "../sweep/reveal.js";
+import "./capsule.css";
+
+const SYNC_WINDOW_MS = 2 * 60 * 60_000;
+
+function Segment({
+  label,
+  state,
+  field,
+  onClick,
+  extra,
+}: {
+  label: string;
+  state: StripState | null;
+  field: "environment" | "template" | "forks";
+  onClick(): void;
+  extra?: Record<string, string>;
+}) {
+  const classification = state?.classification ?? "unread";
+  const tone =
+    classification === "refreshing"
+      ? "work"
+      : classification === "maintenance"
+        ? "warn"
+        : state?.tone;
+  const text = classification === "refreshing" ? "Refreshing" : state?.text;
+  const sentence = state?.label ?? `${label}: not read yet`;
+  return (
+    <button
+      type="button"
+      className="capsule-seg"
+      data-field={field === "template" ? "template" : field}
+      aria-label={sentence}
+      title={sentence}
+      onClick={onClick}
+      {...extra}
+    >
+      <span className="capsule-label">{label}</span>
+      {classification === "fine" && (
+        <Icon name="check" size={14} stroke={2} className="capsule-ok" />
+      )}
+      {classification === "unread" && <span className="capsule-unread">—</span>}
+      {classification !== "fine" && classification !== "unread" && (
+        <span className="capsule-pill" data-tone={tone}>
+          {text}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function syncText(ms: number): string {
+  const minutes = Math.max(1, Math.round(ms / 60_000));
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return hours > 0 ? `${hours}h${rest > 0 ? ` ${rest}m` : ""}` : `${rest}m`;
+}
+
+export function StatusCapsule() {
+  const stoppedLabel = useId();
+  const snapshot = useStore(watchStore, (state) => state.snapshot?.body);
+  const progress = useStore(watchStore, (state) => state.progress);
+  const nextSweepAt = useStore(watchStore, (state) => state.sweep?.nextSweepAt);
+  const strip = snapshot ? selectStrip(snapshot) : null;
+  const syncAt = strip?.nextSync ? Date.parse(strip.nextSync) : Number.NaN;
+  const now = useNow(30_000, syncAt > Date.now() ? syncAt : undefined);
+  const nextSync = syncAt - now;
+  const firstStopped =
+    !snapshot && (progress?.outcome === "failed" || progress?.outcome === "cancelled");
+  return (
+    <fieldset className="capsule" aria-label="Program status" data-strip="">
+      <Segment
+        label="Env"
+        field="environment"
+        state={strip?.environment ?? null}
+        onClick={() => navigate({ kind: "environment" })}
+      />
+      <Segment
+        label="Templates"
+        field="template"
+        state={strip?.template ?? null}
+        onClick={() => navigate({ kind: "engineering-system" })}
+      />
+      <Segment
+        label="Forks"
+        field="forks"
+        state={strip?.forks ?? null}
+        onClick={() => openSheet()}
+        extra={{
+          "data-services": String(strip?.forks.services ?? 0),
+          "aria-keyshortcuts": ariaShortcut("l"),
+          "aria-controls": "app-line-sheet",
+        }}
+      />
+      {nextSync > 0 && nextSync <= SYNC_WINDOW_MS && strip?.nextSync && (
+        <button
+          type="button"
+          className="capsule-seg"
+          data-field="next-sync"
+          title={`Next upstream sync ${clockTime(strip.nextSync, { now })}`}
+          onClick={() => openSheet()}
+        >
+          <Icon name="upstream" size={14} stroke={2} className="capsule-up" />
+          <span className="capsule-sync">Sync {syncText(nextSync)}</span>
+        </button>
+      )}
+      <span className="capsule-divider" aria-hidden />
+      {firstStopped ? (
+        <button
+          type="button"
+          className="sweep-line"
+          data-sweep-line=""
+          data-field="freshness"
+          data-tone="bad"
+          aria-labelledby={stoppedLabel}
+          title="first sweep stopped"
+          onClick={() => openFreshness(snapshot)}
+        >
+          <SweepMark tone="bad" />
+          <span id={stoppedLabel} className="visually-hidden">
+            first sweep stopped
+          </span>
+          <span data-sweep-display="" aria-hidden>
+            first sweep stopped
+          </span>
+        </button>
+      ) : (
+        <SweepLine
+          snapshot={snapshot ?? null}
+          progress={progress}
+          nextSweepAt={nextSweepAt}
+          onOpen={() => openFreshness(snapshot)}
+        />
+      )}
+    </fieldset>
+  );
+}

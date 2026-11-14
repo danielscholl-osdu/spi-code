@@ -141,10 +141,8 @@ it("renders the Nov 6 upstream reading: headline, qualifier, tiles and groups", 
   );
 });
 
-it("states the next sync in the strip's local time, and leaves the due to the group that says it", () => {
+it("states the next sync in local time, and leaves the due to the group that says it", () => {
   const body = fixture();
-  const strip = container.querySelector('.window-strip [data-field="next-sync"] b');
-  expect(strip?.textContent).toMatch(/^18:00 \(in /);
   expect(place().querySelector(".place-headline")?.textContent).toMatch(/^At 18:00, /);
   const before = group("Before 18:00");
   expect(before?.querySelector("h3 time")?.getAttribute("datetime")).toBe(body.briefing.nextSyncAt);

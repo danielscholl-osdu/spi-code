@@ -22,7 +22,7 @@ afterEach(async () => {
 it.each([
   ["America/Chicago", "18:00", "11-05 22:20"],
   ["UTC", "11-07 00:00", "04:20"],
-])("uses the strip's clock in every briefing surface under TZ=%s", async (zone, sync, green) => {
+])("uses the shared clock in every briefing surface under TZ=%s", async (zone, sync, green) => {
   process.env.TZ = zone;
   vi.resetModules();
   const [{ Shell }, { watchStore }, { selectionStore }, { navigate }] = await Promise.all([
@@ -50,7 +50,6 @@ it.each([
     navigate({ kind: "upstream" });
     root.render(<Shell />);
   });
-  expect(host.querySelector('[data-field="next-sync"] time')?.textContent).toContain(sync);
   expect(host.querySelector(".place-headline")?.textContent).toBe(
     `At ${sync}, 65 commits reach 8 forks. 13 need you first.`,
   );

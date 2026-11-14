@@ -5,11 +5,12 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFixture } from "../../../../scripts/watch-generated.mjs";
-import { PINS_STORAGE_KEY } from "../store/pins.js";
+import { PINS_STORAGE_KEY, readPins } from "../store/pins.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import {
   closeSheet,
+  DEFAULT_REGISTRY,
   LINE,
   navigate,
   pinSheet,
@@ -524,4 +525,71 @@ describe("landing", () => {
     await go({ kind: "security" });
     expect(acknowledged()).toEqual([{ cursor: 4 }]);
   });
+});
+
+const menu = (service: string) =>
+  document.querySelector<HTMLElement>(`[data-pin-menu="${service}"]`);
+const keydown = (target: Element | null | undefined, init: KeyboardEventInit) =>
+  act(async () => {
+    target?.dispatchEvent(
+      new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init }),
+    );
+  });
+
+it("keeps each pip menu action on its service row in the Line sheet for the keyboard path", async () => {
+  vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Macintosh");
+  const body = loadFixture("snapshot-1106.json");
+  watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+  await mount({
+    views: every,
+    sheet: DEFAULT_REGISTRY.sheet,
+    strip: DEFAULT_REGISTRY.strip,
+    fallback: { kind: "today" },
+  });
+  await keydown(document.body, { key: "l", metaKey: true });
+  const service = lineSheet()?.querySelector<HTMLButtonElement>(
+    '[data-service="entitlements"] th button',
+  );
+  expect(service).not.toBeNull();
+  await act(async () => service?.focus());
+  await keydown(service, { key: "F10", shiftKey: true });
+  expect(menu("entitlements")).not.toBeNull();
+  expect(menu("entitlements")?.textContent).toBe("Pin entitlements");
+  await act(async () =>
+    menu("entitlements")?.querySelector<HTMLElement>("[role='menuitem']")?.click(),
+  );
+  expect(readPins()).toEqual(["entitlements"]);
+  await keydown(service, { key: "ContextMenu" });
+  expect(menu("entitlements")?.textContent).toBe("Unpin entitlements");
+  await keydown(document.activeElement, { key: "Escape" });
+  expect(menu("entitlements")).toBeNull();
+  expect(lineSheet()).not.toBeNull();
+});
+
+it("opens capsule destinations and returns from the Line with its shortcut", async () => {
+  vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Macintosh");
+  const body = loadFixture("snapshot-1106.json");
+  watchStore.setState({ snapshot: { cursor: body.cursor, body } });
+  await mount({ views: every, sheet, strip: DEFAULT_REGISTRY.strip, fallback: { kind: "today" } });
+  for (const [field, hash] of [
+    ["environment", "#environment"],
+    ["template", "#engineering-system"],
+  ]) {
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>(`[data-strip] [data-field=${field}]`)?.click(),
+    );
+    expect(shown()).toBe(hash);
+    expect(lineSheet()).toBeNull();
+  }
+  const forks = container.querySelector<HTMLButtonElement>("[data-strip] [data-field=forks]");
+  await act(async () => {
+    forks?.focus();
+    forks?.click();
+  });
+  expect(lineSheet()).not.toBeNull();
+  await press("l", { metaKey: true });
+  expect(lineSheet()).toBeNull();
+  expect(document.activeElement).toBe(forks);
+  await press("l", { metaKey: true });
+  expect(lineSheet()).not.toBeNull();
 });
