@@ -14,18 +14,6 @@ import {
 const css = readFileSync("apps/window/src/theme/tokens.css", "utf8");
 const design = readFileSync("design/spi-code-visual-design.html", "utf8");
 const surfaces = ["chrome", "sidebar", "surface", "surface-raised"];
-const textRoles = [
-  "text",
-  "text-strong",
-  "text-muted",
-  "placeholder",
-  "accent-text",
-  "error-text",
-  "warning-text",
-  "success-text",
-  "agent-text",
-  "upstream-text",
-];
 
 function tokens(mode: Appearance, palette: "warm" | "neutral" = "warm"): Record<string, string> {
   const selector =
@@ -48,27 +36,46 @@ function value(theme: Record<string, string>, role: string): string {
 }
 
 function textFailures(theme: Record<string, string>): string[] {
-  return textRoles.flatMap((role) =>
-    surfaces.flatMap((surface) => {
+  const textRoles = [
+    "text",
+    "text-strong",
+    "text-muted",
+    "placeholder",
+    "work",
+    ...Object.keys(theme).filter((role) => role.endsWith("-text")),
+  ];
+  return textRoles.flatMap((role) => {
+    const tint = `${role.replace(/-text$/, "")}-surface`;
+    const backgrounds = tint in theme ? [...surfaces, tint] : surfaces;
+    return backgrounds.flatMap((surface) => {
       const ratio = wcagContrast(value(theme, role), value(theme, surface));
       return ratio >= 4.5 ? [] : [`${role} on ${surface}: ${ratio.toFixed(2)}`];
-    }),
-  );
+    });
+  });
 }
 
 describe.each(["warm", "neutral"] as const)("%s", (palette) => {
   describe.each(["light", "dark"] as const)("%s", (mode) => {
     const theme = tokens(mode, palette);
 
-    it("meets AA for every text role on all four surfaces and badge pairs", () => {
+    it("meets AA for every text role on shared surfaces and its own tint", () => {
       expect(textFailures(theme)).toEqual([]);
       for (const role of ["accent", "error", "warning", "upstream"]) {
         expect(
           wcagContrast(value(theme, "on-fill"), value(theme, `${role}-text`)),
         ).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+
+    it("meets non-text contrast for fills and icons on their own tints", () => {
+      for (const textRole of Object.keys(theme).filter((role) => role.endsWith("-text"))) {
+        const role = textRole.replace(/-text$/, "");
+        const surface = `${role}-surface`;
+        if (!(surface in theme)) continue;
         expect(
-          wcagContrast(value(theme, `${role}-text`), value(theme, `${role}-surface`)),
-        ).toBeGreaterThanOrEqual(4.5);
+          wcagContrast(value(theme, role), value(theme, surface)),
+          `${role} on ${surface}`,
+        ).toBeGreaterThanOrEqual(3);
       }
     });
 
@@ -170,15 +177,5 @@ describe.each(["warm", "neutral"] as const)("%s shell tokens", (palette) => {
         ).toBeGreaterThanOrEqual(4.5);
       }
     }
-    for (const surface of ["surface", "work-surface"]) {
-      expect(
-        wcagContrast(value(theme, "work"), value(theme, surface)),
-        `work on ${surface}`,
-      ).toBeGreaterThanOrEqual(4.5);
-    }
-    expect(
-      wcagContrast(value(theme, "success"), value(theme, "success-surface")),
-      "success on success-surface",
-    ).toBeGreaterThanOrEqual(3);
   });
 });
