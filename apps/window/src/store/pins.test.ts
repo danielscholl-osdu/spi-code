@@ -3,6 +3,7 @@
 
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
+  ALWAYS_PINNED,
   LEGACY_PINS_STORAGE_KEY,
   LINE_PIN,
   movePin,
@@ -14,6 +15,7 @@ import {
   unpin,
 } from "./pins.js";
 
+const ALWAYS = [LINE_PIN, "place:environment", "place:engineering-system"];
 const SEED = [
   LINE_PIN,
   "place:upstream",
@@ -64,12 +66,63 @@ it.each([
   expect(readPins()).toEqual(SEED);
 });
 
-it("keeps a valid empty list empty across a restart", async () => {
+it("keeps Line, Environment and Engineering system in an emptied list across a restart", async () => {
   for (const id of SEED) unpin(id);
-  expect(readPins()).toEqual([]);
-  expect(localStorage.getItem(PINS_STORAGE_KEY)).toBe("[]");
+  expect(readPins()).toEqual(ALWAYS);
+  expect(JSON.parse(localStorage.getItem(PINS_STORAGE_KEY) ?? "null")).toEqual(ALWAYS);
+  localStorage.setItem(PINS_STORAGE_KEY, "[]");
   localStorage.setItem(LEGACY_PINS_STORAGE_KEY, JSON.stringify(["legal"]));
-  expect(await restart()).toEqual([]);
+  expect(readPins()).toEqual(ALWAYS);
+  expect(await restart()).toEqual(ALWAYS);
+});
+
+it("refuses to unpin Line, Environment and Engineering system, and writes nothing", async () => {
+  expect(ALWAYS_PINNED).toEqual(ALWAYS);
+  for (const id of ALWAYS) unpin(id);
+  expect(readPins()).toEqual(SEED);
+  expect(localStorage.getItem(PINS_STORAGE_KEY)).toBeNull();
+  const stored = JSON.stringify(["place:upstream", ...ALWAYS, "legal"]);
+  localStorage.setItem(PINS_STORAGE_KEY, stored);
+  for (const id of ALWAYS) unpin(id);
+  expect(localStorage.getItem(PINS_STORAGE_KEY)).toBe(stored);
+  expect(await restart()).toEqual(JSON.parse(stored));
+});
+
+it.each([
+  ["none of them", ["legal", "place:releases"], [...ALWAYS, "legal", "place:releases"]],
+  [
+    "one of them",
+    ["legal", "place:environment", "place:upstream"],
+    [LINE_PIN, "place:engineering-system", "legal", "place:environment", "place:upstream"],
+  ],
+])(
+  "puts back the always-pinned ids a stored list lacks (%s), first and in seed order",
+  async (_, stored, read) => {
+    localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(stored));
+    expect(readPins()).toEqual(read);
+    expect(await restart()).toEqual(read);
+  },
+);
+
+it("moves an always-pinned row and keeps it there across a restart", async () => {
+  movePin("place:environment", "place:security");
+  const moved = [
+    LINE_PIN,
+    "place:upstream",
+    "place:engineering-system",
+    "place:releases",
+    "place:security",
+    "place:environment",
+  ];
+  expect(readPins()).toEqual(moved);
+  expect(await restart()).toEqual(moved);
+});
+
+it("adds a pin once when it is pinned again", () => {
+  pin("legal");
+  pin("legal");
+  pin(LINE_PIN);
+  expect(readPins()).toEqual([...SEED, "legal"]);
 });
 
 it.each([
@@ -95,31 +148,31 @@ it("falls back to the seed when storage cannot be read, and holds writes for the
 });
 
 it("persists an unpin, a pin again and a move across a restart", async () => {
-  unpin(LINE_PIN);
+  unpin("place:releases");
   pin("legal");
   movePin("legal", "place:upstream");
   movePin("place:security", "place:environment");
-  pin(LINE_PIN);
+  pin("place:releases");
   expect(await restart()).toEqual([
+    LINE_PIN,
     "legal",
     "place:upstream",
     "place:security",
     "place:environment",
     "place:engineering-system",
     "place:releases",
-    LINE_PIN,
   ]);
   const pins = await import("./pins.js");
   pins.movePin(LINE_PIN, "legal");
-  pins.movePin("legal", "place:upstream");
+  pins.movePin("place:releases", "place:upstream");
   expect(await restart()).toEqual([
-    LINE_PIN,
-    "place:upstream",
     "legal",
+    LINE_PIN,
+    "place:releases",
+    "place:upstream",
     "place:security",
     "place:environment",
     "place:engineering-system",
-    "place:releases",
   ]);
 });
 

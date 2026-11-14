@@ -24,6 +24,16 @@ const PLACE_KINDS = [
 export type PinnedPlace = (typeof PLACE_KINDS)[number];
 export const placePin = (kind: PinnedPlace) => `place:${kind}`;
 export const SEED_PINS: readonly string[] = [LINE_PIN, ...PLACE_KINDS.map(placePin)];
+/** Pins the operator cannot remove, in seed order; a stored list missing one gets it back first. */
+export const ALWAYS_PINNED: readonly string[] = [
+  LINE_PIN,
+  placePin("environment"),
+  placePin("engineering-system"),
+];
+
+export function isAlwaysPinned(id: string) {
+  return ALWAYS_PINNED.includes(id);
+}
 
 /** The pin a destination is kept under; Today and a release month have none. */
 export function pinOf(destination: Destination): string | undefined {
@@ -64,9 +74,17 @@ function parse(raw: string): string[] | undefined {
   return undefined;
 }
 
+function withAlwaysPinned(pins: readonly string[]): readonly string[] {
+  const missing = ALWAYS_PINNED.filter((id) => !pins.includes(id));
+  return missing.length > 0 ? [...missing, ...pins] : pins;
+}
+
 function resolve(current: string | null | undefined, legacy: string | null | undefined) {
   if (current === undefined) return SEED_PINS;
-  if (current !== null) return parse(current) ?? SEED_PINS;
+  if (current !== null) {
+    const stored = parse(current);
+    return stored ? withAlwaysPinned(stored) : SEED_PINS;
+  }
   const kept = typeof legacy === "string" ? (parse(legacy) ?? []) : [];
   return [...new Set([...SEED_PINS, ...kept])];
 }
@@ -110,6 +128,7 @@ export function pin(id: string) {
 }
 
 export function unpin(id: string) {
+  if (isAlwaysPinned(id)) return;
   const pins = readPins();
   if (pins.includes(id)) writePins(pins.filter((pinned) => pinned !== id));
 }

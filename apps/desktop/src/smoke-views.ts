@@ -250,6 +250,75 @@ async function captureSweepStates(
   );
 }
 
+const PINS_KEY = "spi-code.sidebar.pins.v2";
+
+/**
+ * Find or ask with Line, Environment and Engineering system always pinned, Upstream and
+ * entitlements pinned, and the unpinned partition highlighted, so its hollow pin shows.
+ */
+async function captureFindPins(
+  window: BrowserWindow,
+  output: string,
+  appearance: string,
+): Promise<void> {
+  const key = JSON.stringify(PINS_KEY);
+  const saved: string | null = await window.webContents.executeJavaScript(
+    `localStorage.getItem(${key})`,
+  );
+  const pins = [
+    "sheet:line",
+    "place:upstream",
+    "place:environment",
+    "place:engineering-system",
+    "entitlements",
+  ];
+  const store = (value: string | null) =>
+    window.webContents.executeJavaScript(`{
+      const value = ${JSON.stringify(value)};
+      value === null ? localStorage.removeItem(${key}) : localStorage.setItem(${key}, value);
+      window.dispatchEvent(new StorageEvent("storage", { key: ${key} }));
+    }`);
+  await store(JSON.stringify(pins));
+  try {
+    await shortcut(window, "k");
+    // Message-channel turns, not timers or frames, which the hidden window throttles on Windows.
+    await window.webContents.executeJavaScript(`(async () => {
+      const turn = () => new Promise((resolve) => {
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(0);
+      });
+      const input = () => document.querySelector("[role=dialog].palette [data-pin-state]") &&
+        document.querySelector("[role=dialog].palette input");
+      const label = () => document.querySelector(".palette-row[data-highlighted] .palette-label")?.textContent;
+      for (let step = 0; step < 200 && !input(); step++) await turn();
+      for (let step = 0; step < 30 && label() !== "partition"; step++) {
+        input()?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+        await turn();
+      }
+    })()`);
+    await rendered(
+      window,
+      'document.querySelector(".palette-row[data-highlighted][data-pin-state=unpinned] .palette-label")?.textContent === "partition" && document.querySelector(".palette-row[data-pin-state=always]") && document.querySelector(".palette-row[data-pin-state=pinned]")',
+    );
+    const bounds = await window.webContents.executeJavaScript(`(() => {
+      const rect = document.querySelector("[role=dialog].palette").getBoundingClientRect();
+      return { x: Math.floor(rect.x) - 8, y: Math.floor(rect.y) - 8, width: Math.ceil(rect.width) + 16, height: Math.ceil(rect.height) + 16 };
+    })()`);
+    const file = `find-pins-${appearance}.png`;
+    writeFileSync(join(output, file), (await window.webContents.capturePage(bounds)).toPNG());
+    writeFileSync(
+      join(output, `find-pins-${appearance}.html`),
+      `<!doctype html><meta charset="utf-8"><title>Find or ask pins</title><style>body{font:14px system-ui;padding:24px}img{max-width:100%}</style><h1>Find or ask pins / ${appearance}</h1><p>Design: epic spicode-8i9 and its rulings. Line, Environment and Engineering system are always pinned (filled, placeholder ink); Upstream and entitlements are pinned (filled); partition is highlighted and unpinned (hollow).</p><img src="${file}" alt="Find or ask with pinned, unpinned and always-pinned results">`,
+    );
+    await window.webContents.executeJavaScript(
+      'document.querySelector("[role=dialog].palette input").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))',
+    );
+  } finally {
+    await store(saved);
+  }
+}
+
 /** The sweep segment opens a popover; its Evidence opens the sweep's Evidence. */
 async function openSweepEvidence(window: BrowserWindow): Promise<void> {
   await window.webContents.executeJavaScript('document.querySelector("[data-sweep-line]").click()');
@@ -1271,6 +1340,7 @@ export async function captureSmokeViews(
             Date.parse(checkedAt),
             scheduledCursor + 200,
           );
+          await captureFindPins(window, output, appearance);
         }
       }
     }

@@ -171,19 +171,33 @@ it("keeps only the header when the reading has not been computed", async () => {
   expect(container.querySelector(".place-reading")).toBeNull();
 });
 
-it("omits Pin without a pin and toggles the place's pin from the header", async () => {
+it.each([
+  ["Upstream", "place:upstream"],
+  ["Releases", "place:releases"],
+  ["Security", "place:security"],
+])("omits Pin without a pin and toggles %s's pin from the header", async (name, pin) => {
   const { container, render } = await mount();
   expect(container.querySelector("header button")).toBeNull();
-  await render({ name: "Environment", pin: "place:environment" });
+  await render({ name, pin });
   const button = container.querySelector<HTMLButtonElement>("header button");
-  expect(button?.getAttribute("aria-label")).toBe("Unpin Environment");
+  expect(button?.getAttribute("aria-label")).toBe(`Unpin ${name}`);
   await act(async () => button?.click());
-  expect(readPins()).not.toContain("place:environment");
-  expect(button?.getAttribute("aria-label")).toBe("Pin Environment");
+  expect(readPins()).not.toContain(pin);
+  expect(button?.getAttribute("aria-label")).toBe(`Pin ${name}`);
   await act(async () => button?.click());
-  expect(readPins().at(-1)).toBe("place:environment");
-  await render({ name: "Environment" });
+  expect(readPins().at(-1)).toBe(pin);
+  await render({ name });
   expect(container.querySelector("header button")).toBeNull();
+});
+
+it.each([
+  ["Environment", "place:environment"],
+  ["Engineering system", "place:engineering-system"],
+])("draws no Pin or Unpin in %s's header, which is always pinned", async (name, pin) => {
+  const { container, render } = await mount();
+  await render({ name, pin });
+  expect(container.querySelector("header button")).toBeNull();
+  expect(readPins()).toContain(pin);
 });
 
 it("renders supplied header actions beside Pin, with no action space when absent", async () => {

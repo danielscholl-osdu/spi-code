@@ -29,6 +29,7 @@ import { isReachable, type Route, routeLabel, useRegistry } from "../../app/rout
 import { ariaShortcut, shortcutLabel } from "../../app/shortcuts.js";
 import { READINESS_DOT_LABEL, readinessDot } from "../../settings/readiness.js";
 import {
+  isAlwaysPinned,
   LINE_PIN,
   movePin,
   type PinnedPlace,
@@ -157,6 +158,7 @@ function PinItem({
   onDrag(pin: string | null): void;
 }) {
   const [over, setOver] = useState(false);
+  const fixed = isAlwaysPinned(row.pin);
   const drop = (event: DragEvent) => {
     event.preventDefault();
     setOver(false);
@@ -236,22 +238,26 @@ function PinItem({
               >
                 Move down
               </ContextMenu.Item>
-              <ContextMenu.Item className="pin-menu-item" onClick={() => unpin(row.pin)}>
-                Unpin
-              </ContextMenu.Item>
+              {!fixed && (
+                <ContextMenu.Item className="pin-menu-item" onClick={() => unpin(row.pin)}>
+                  Unpin
+                </ContextMenu.Item>
+              )}
             </ContextMenu.Popup>
           </ContextMenu.Positioner>
         </ContextMenu.Portal>
       </ContextMenu.Root>
-      <button
-        type="button"
-        className="pin-unpin"
-        aria-label={`Unpin ${row.label}`}
-        title={`Unpin ${row.label}`}
-        onClick={() => unpin(row.pin)}
-      >
-        <Icon name="pinOff" size={13} />
-      </button>
+      {!fixed && (
+        <button
+          type="button"
+          className="pin-unpin"
+          aria-label={`Unpin ${row.label}`}
+          title={`Unpin ${row.label}`}
+          onClick={() => unpin(row.pin)}
+        >
+          <Icon name="pinOff" size={13} />
+        </button>
+      )}
     </SidebarMenuItem>
   );
 }
