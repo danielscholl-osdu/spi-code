@@ -122,7 +122,7 @@ it("adds a pin once when it is pinned again", () => {
   pin("legal");
   pin("legal");
   pin(LINE_PIN);
-  expect(readPins()).toEqual([...SEED, "legal"]);
+  expect(JSON.parse(localStorage.getItem(PINS_STORAGE_KEY) ?? "null")).toEqual([...SEED, "legal"]);
 });
 
 it.each([
