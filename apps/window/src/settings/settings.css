@@ -53,8 +53,8 @@
   font: inherit;
   text-align: left;
 }
-.settings-nav-item:hover { background: var(--surface-raised); }
-.settings-nav-item[aria-current="page"] { background: var(--surface-raised); color: var(--text-strong); font-weight: 600; }
+.settings-nav-item:hover { background: var(--hover); }
+.settings-nav-item[aria-current="page"] { background: var(--active); box-shadow: var(--active-shadow); color: var(--text-strong); font-weight: 600; }
 .settings-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; }
 .settings-dot[data-readiness="attention"] { background: var(--warning); }
 .settings-dot[data-readiness="failure"] { background: var(--error); }

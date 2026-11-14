@@ -43,6 +43,23 @@ it.each(["warm", "neutral"] as const)("applies %s at once and restores it at sta
   appearance.dispose();
 });
 
+it.each(["warm", "neutral"] as const)("starts %s on the injected target and storage", (choice) => {
+  const storage = window.sessionStorage;
+  storage.setItem("spi-code.palette", choice);
+  setPalette(choice === "warm" ? "neutral" : "warm");
+  const target = document.createElement("div");
+  const media = {
+    matches: false,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  };
+  const appearance = createAppearance(storage, media, target);
+  expect(target.dataset.palette).toBe(choice);
+  expect(document.documentElement.dataset.palette).toBe(choice === "warm" ? "neutral" : "warm");
+  appearance.dispose();
+  storage.removeItem("spi-code.palette");
+});
+
 it("defaults to Neutral when storage cannot be read", () => {
   vi.spyOn(Storage.prototype, "getItem").mockImplementation((key) => {
     if (key === "spi-code.palette") throw new Error("unavailable");

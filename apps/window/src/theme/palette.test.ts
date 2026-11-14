@@ -56,35 +56,59 @@ function textFailures(theme: Record<string, string>): string[] {
   );
 }
 
-describe.each(["light", "dark"] as const)("Shore %s", (mode) => {
-  const theme = tokens(mode);
+describe.each(["warm", "neutral"] as const)("%s", (palette) => {
+  describe.each(["light", "dark"] as const)("%s", (mode) => {
+    const theme = tokens(mode, palette);
 
-  it("meets AA for every text role on all four surfaces and badge pairs", () => {
-    expect(textFailures(theme)).toEqual([]);
-    for (const role of ["accent", "error", "warning", "upstream"]) {
-      expect(
-        wcagContrast(value(theme, "on-fill"), value(theme, `${role}-text`)),
-      ).toBeGreaterThanOrEqual(4.5);
-      expect(
-        wcagContrast(value(theme, `${role}-text`), value(theme, `${role}-surface`)),
-      ).toBeGreaterThanOrEqual(4.5);
-    }
-  });
+    it("meets AA for every text role on all four surfaces and badge pairs", () => {
+      expect(textFailures(theme)).toEqual([]);
+      for (const role of ["accent", "error", "warning", "upstream"]) {
+        expect(
+          wcagContrast(value(theme, "on-fill"), value(theme, `${role}-text`)),
+        ).toBeGreaterThanOrEqual(4.5);
+        expect(
+          wcagContrast(value(theme, `${role}-text`), value(theme, `${role}-surface`)),
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    });
 
-  it("distinguishes upstream from every other palette role under CVD", () => {
-    for (const [role, color] of Object.entries(theme)) {
-      if (role.startsWith("upstream")) continue;
-      for (const [hex] of color.matchAll(/#[0-9a-f]{6}/g)) {
-        for (const variant of ["upstream", "upstream-text"]) {
-          expect(
-            minimumCvdDistance(value(theme, variant), hex),
-            `${variant} versus ${role}`,
-          ).toBeGreaterThanOrEqual(12);
+    it("distinguishes upstream from every other palette role under CVD", () => {
+      for (const [role, color] of Object.entries(theme)) {
+        if (role.startsWith("upstream")) continue;
+        for (const [hex] of color.matchAll(/#[0-9a-f]{6}/g)) {
+          for (const variant of ["upstream", "upstream-text"]) {
+            expect(
+              minimumCvdDistance(value(theme, variant), hex),
+              `${variant} versus ${role}`,
+            ).toBeGreaterThanOrEqual(12);
+          }
         }
       }
-    }
-    expect(minimumCvdDistance(value(theme, "upstream"), value(theme, "upstream"))).toBe(0);
+      expect(minimumCvdDistance(value(theme, "upstream"), value(theme, "upstream"))).toBe(0);
+    });
+
+    it("validates the six-color series and rejects indistinguishable marks", () => {
+      const series = Array.from({ length: 6 }, (_, i) => value(theme, `chart-${i + 1}`));
+      const report = validateCategoricalPalette(series, { mode, surface: value(theme, "surface") });
+      expect(report.ok, JSON.stringify(report)).toBe(true);
+      const first = value(theme, "chart-1");
+      const bad = validateCategoricalPalette([first, first], { mode });
+      expect(bad.ok).toBe(false);
+      expect(bad.checks).toContainEqual(
+        expect.objectContaining({ check: "cvd-separation", status: "fail" }),
+      );
+    });
+
+    it("fails the same text gate for a planted below-AA variant", () => {
+      expect(
+        textFailures({ ...theme, placeholder: value(theme, "placeholder-fill") }),
+      ).toHaveLength(4);
+    });
   });
+});
+
+describe.each(["light", "dark"] as const)("Shore design %s", (mode) => {
+  const theme = tokens(mode);
 
   it("matches the visual design role table and Appendix B text variants", () => {
     const table = design.slice(
@@ -106,24 +130,6 @@ describe.each(["light", "dark"] as const)("Shore %s", (mode) => {
       }
     }
   });
-
-  it("validates the six-color series and rejects indistinguishable marks", () => {
-    const series = Array.from({ length: 6 }, (_, i) => value(theme, `chart-${i + 1}`));
-    const report = validateCategoricalPalette(series, { mode, surface: value(theme, "surface") });
-    expect(report.ok, JSON.stringify(report)).toBe(true);
-    const first = value(theme, "chart-1");
-    const bad = validateCategoricalPalette([first, first], { mode });
-    expect(bad.ok).toBe(false);
-    expect(bad.checks).toContainEqual(
-      expect.objectContaining({ check: "cvd-separation", status: "fail" }),
-    );
-  });
-
-  it("fails the same text gate for a planted below-AA variant", () => {
-    expect(textFailures({ ...theme, placeholder: value(theme, "placeholder-fill") })).toHaveLength(
-      4,
-    );
-  });
 });
 
 describe.each(["light", "dark"] as const)("Neutral %s", (mode) => {
@@ -131,18 +137,6 @@ describe.each(["light", "dark"] as const)("Neutral %s", (mode) => {
 
   it("defines every Warm token without inheriting palette colours", () => {
     expect(Object.keys(theme).sort()).toEqual(Object.keys(tokens(mode)).sort());
-  });
-
-  it("meets AA for every text role on all four surfaces and badge pairs", () => {
-    expect(textFailures(theme)).toEqual([]);
-    for (const role of ["accent", "error", "warning", "upstream"]) {
-      expect(
-        wcagContrast(value(theme, "on-fill"), value(theme, `${role}-text`)),
-      ).toBeGreaterThanOrEqual(4.5);
-      expect(
-        wcagContrast(value(theme, `${role}-text`), value(theme, `${role}-surface`)),
-      ).toBeGreaterThanOrEqual(4.5);
-    }
   });
 });
 
@@ -176,11 +170,15 @@ describe.each(["warm", "neutral"] as const)("%s shell tokens", (palette) => {
         ).toBeGreaterThanOrEqual(4.5);
       }
     }
-    for (const role of ["success", "work"]) {
+    for (const surface of ["surface", "work-surface"]) {
       expect(
-        wcagContrast(value(theme, role), value(theme, `${role}-surface`)),
-        `${role} on ${role}-surface`,
-      ).toBeGreaterThanOrEqual(3);
+        wcagContrast(value(theme, "work"), value(theme, surface)),
+        `work on ${surface}`,
+      ).toBeGreaterThanOrEqual(4.5);
     }
+    expect(
+      wcagContrast(value(theme, "success"), value(theme, "success-surface")),
+      "success on success-surface",
+    ).toBeGreaterThanOrEqual(3);
   });
 });

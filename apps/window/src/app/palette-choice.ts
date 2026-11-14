@@ -9,16 +9,19 @@ const KEY = "spi-code.palette";
 const listeners = new Set<() => void>();
 let shown: PaletteChoice = "neutral";
 
-export function readPalette(): PaletteChoice {
+export function readPalette(storage?: Pick<Storage, "getItem">): PaletteChoice {
   try {
-    return window.localStorage.getItem(KEY) === "warm" ? "warm" : "neutral";
+    return (storage ?? window.localStorage).getItem(KEY) === "warm" ? "warm" : "neutral";
   } catch {
     return "neutral";
   }
 }
 
-export function applyPalette(choice: PaletteChoice = readPalette()) {
-  document.documentElement.dataset.palette = choice;
+export function applyPalette(
+  choice: PaletteChoice = readPalette(),
+  target: HTMLElement = document.documentElement,
+) {
+  target.dataset.palette = choice;
   if (choice === shown) return;
   shown = choice;
   for (const listener of listeners) listener();
