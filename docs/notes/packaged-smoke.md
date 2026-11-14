@@ -165,3 +165,7 @@ Today runs with a stopped service (entitlements) pinned under the `.v2` key, and
 measures that pin's sidebar word at rest and its row hovered: `.pin-item:hover` hides the word, so
 hovered there is no word to measure. The key is restored after the rule, since supervision pins
 under the legacy key.
+The top row's capsule holds only the sweep, so the program status is read from the status pins:
+the 20-service probe reads `[data-sidebar-row=line]`'s `data-services`, the Line sheet opens from
+that pin, and the status scenes wait on each pin's `data-status`, `data-classification` and title
+before their `sidebar-status-<scene>` shots.

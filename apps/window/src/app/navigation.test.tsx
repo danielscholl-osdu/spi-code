@@ -573,30 +573,30 @@ it("keeps each pip menu action on its service row in the Line sheet for the keyb
   expect(lineSheet()).not.toBeNull();
 });
 
-it("opens capsule destinations and returns from the Line with its shortcut", async () => {
+it("opens the status pins' destinations and returns from the Line to its pin with its shortcut", async () => {
   vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Macintosh");
   const body = loadFixture("snapshot-1106.json");
   watchStore.setState({ snapshot: { cursor: body.cursor, body } });
   await mount({ views: every, sheet, strip: DEFAULT_REGISTRY.strip, fallback: { kind: "today" } });
-  for (const [field, hash] of [
+  const pin = (key: string) =>
+    container.querySelector<HTMLButtonElement>(`[data-sidebar-row="${key}"]`);
+  for (const [key, hash] of [
     ["environment", "#environment"],
-    ["template", "#engineering-system"],
-  ]) {
-    await act(async () =>
-      container.querySelector<HTMLButtonElement>(`[data-strip] [data-field=${field}]`)?.click(),
-    );
+    ["engineering-system", "#engineering-system"],
+  ] as const) {
+    await act(async () => pin(key)?.click());
     expect(shown()).toBe(hash);
     expect(lineSheet()).toBeNull();
   }
-  const forks = container.querySelector<HTMLButtonElement>("[data-strip] [data-field=forks]");
+  const line = pin("line");
   await act(async () => {
-    forks?.focus();
-    forks?.click();
+    line?.focus();
+    line?.click();
   });
   expect(lineSheet()).not.toBeNull();
   await press("l", { metaKey: true });
   expect(lineSheet()).toBeNull();
-  expect(document.activeElement).toBe(forks);
+  expect(document.activeElement).toBe(line);
   await press("l", { metaKey: true });
   expect(lineSheet()).not.toBeNull();
 });

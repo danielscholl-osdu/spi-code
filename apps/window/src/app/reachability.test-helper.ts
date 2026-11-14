@@ -77,8 +77,8 @@ const firstClause = (value: string) => value.split(" · ")[0] ?? value;
 const lastWord = (value: string) => value.trim().split(/\s+/).pop() ?? "";
 const nextSync = (value: string) => value.replace(/^Next sync /, "");
 const subText = (value: string) => timedText(plainTitle(value), { hint: false });
-const stripClause = (element: Element) => {
-  const state = element.getAttribute("aria-label")?.split(": ")[1]?.split(". ")[0] ?? "";
+const pinClause = (element: Element) => {
+  const state = element.getAttribute("aria-description")?.split(": ")[1]?.split(". ")[0] ?? "";
   if (state === "Ready") return "deployable";
   if (state.startsWith("Maintenance · ")) return state.slice("Maintenance · ".length);
   return state.startsWith("Maintenance") ? "held" : state;
@@ -133,6 +133,7 @@ function home(name: string, from: Start, step?: Selector, detail?: InspectResult
 
 const TODAY = home("Today", STARTS.today);
 const STRIP = home("Strip", STARTS.strip);
+const PINS = home("Pinned", STARTS.today);
 const LINE = home("Line sheet", STARTS.line);
 const LINE_UNFOLDED = home("Line sheet, unfolded", STARTS.line, ".line-fold");
 
@@ -225,12 +226,12 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
   const envFact = facts[environmentFact];
   if (envFact && envFact.figure !== "?") {
     const pointer = `/briefing/facts/${environmentFact}`;
-    const environment = '.window-strip [data-field="environment"]';
-    add(`${pointer}/figure`, envFact.figure, STRIP, environment, {
-      attribute: "aria-label",
+    const environment = '[data-sidebar-row="environment"]';
+    add(`${pointer}/figure`, envFact.figure, PINS, environment, {
+      attribute: "aria-description",
       contains: true,
     });
-    add(`${pointer}/sub`, firstClause(envFact.sub), STRIP, environment, { read: stripClause });
+    add(`${pointer}/sub`, firstClause(envFact.sub), PINS, environment, { read: pinClause });
   }
   if (briefing.nextSyncAt) {
     add(
@@ -241,7 +242,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
       { attribute: "dateTime" },
     );
   }
-  add("/briefing/sweptAt", briefing.sweptAt, TODAY, "[data-sweep-line] time", {
+  add("/briefing/sweptAt", briefing.sweptAt, STRIP, "[data-strip] [data-sweep-line] time", {
     attribute: "dateTime",
   });
 

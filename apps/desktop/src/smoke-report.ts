@@ -160,7 +160,7 @@ export const VIEW_SURFACES = [
     name: "Top row / 20 services",
     route: "today",
     place: "Today",
-    selector: '[data-strip] [data-field=forks][data-services="20"]',
+    selector: '[data-sidebar-row=line][data-services="20"]',
     designSection: "Layout / Top row at 740 px on Windows, 20 services",
     qualified: true,
   },

@@ -354,6 +354,8 @@ it.each([
   ["time", "<p>at 2026-10-12 21:58 UTC</p>"],
   ["time", "<p>swept <time>14:02</time></p>"],
   ["time", '<p>swept <time datetime="soon">14:02</time></p>'],
+  ["strip", "<fieldset data-strip><span data-sweep-display>3 of 12</span></fieldset>"],
+  ["strip", '<span class="sidebar-mark" data-mark="count">2/5</span>'],
 ])("rejects a %s rule mutation", (kind, html) => {
   container.innerHTML = html;
   expect(violations(container).some((failure) => failure.startsWith(`${kind}:`))).toBe(true);

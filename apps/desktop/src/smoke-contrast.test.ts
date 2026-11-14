@@ -224,8 +224,8 @@ it("names each failure with its view, palette, theme, state, selector, colours a
             palette: "neutral",
             theme: "dark",
             state: "hover",
-            selector: "button.capsule-seg span.capsule-sync",
-            text: "Sync 1h 40m",
+            selector: "button.capsule-seg span.capsule-sweep-text",
+            text: "14:02",
             color: "#c463aa",
             background: "#232328",
             ratio: 4.2512,
@@ -235,7 +235,7 @@ it("names each failure with its view, palette, theme, state, selector, colours a
       }),
     ),
   ).toThrow(
-    'today / neutral / dark / hovered: button.capsule-seg span.capsule-sync "Sync 1h 40m" #c463aa on #232328 is 4.25:1, needs 4.5:1',
+    'today / neutral / dark / hovered: button.capsule-seg span.capsule-sweep-text "14:02" #c463aa on #232328 is 4.25:1, needs 4.5:1',
   );
 });
 

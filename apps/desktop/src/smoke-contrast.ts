@@ -1027,7 +1027,7 @@ export async function assertRenderedContrast(
       await everyShade(`today-${morning}`, ".today");
     }
     await push(nov6);
-    await js('document.querySelector("[data-strip] [data-field=forks]").click()');
+    await js('document.querySelector("[data-sidebar-row=line]").click()');
     await rendered(window, 'document.querySelector(".line-sheet .line-grid")');
     await everyShade("line", ".line-sheet");
     await js("document.querySelector(\"[aria-label='Close Line']\").click()");

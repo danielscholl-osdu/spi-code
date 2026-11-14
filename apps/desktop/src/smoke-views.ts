@@ -66,7 +66,7 @@ function fixture(window: BrowserWindow, type: string, payload: unknown, id = "sm
   window.webContents.send("smoke:fixture", parsed.message);
 }
 
-async function captureCapsuleStates(
+async function captureStatusStates(
   window: BrowserWindow,
   snapshot: ViewSnapshot,
   output: string,
@@ -124,7 +124,7 @@ async function captureCapsuleStates(
       environment.sub = scene === "maintenance" ? "held" : "refresh running · at deploy";
       assert(holds);
       holds.events.push({
-        id: "capsule-hold",
+        id: "status-hold",
         start: new Date(now - 2 * 86_400_000).toISOString(),
         state: "held",
         label: "2 d",
@@ -139,43 +139,36 @@ async function captureCapsuleStates(
     }
     if (scene === "sync") body.briefing.nextSyncAt = new Date(now + 6_000_000).toISOString();
     fixture(window, "view.snapshot", ViewSnapshotSchema.parse(body));
+    const pin = (status: string, classification: string) =>
+      `document.querySelector('[data-status=${status}][data-classification=${classification}]')`;
     const ready =
       scene === "waiting" || scene === "stopped"
-        ? `document.querySelector('[data-strip] [data-field=forks]')?.title.includes(${JSON.stringify(scene)})`
+        ? `${pin("forks", scene)}?.title.includes(${JSON.stringify(scene)})`
         : scene === "maintenance" || scene === "refreshing"
-          ? `document.querySelector('[data-strip] [data-field=environment]')?.title.includes(${JSON.stringify(scene === "maintenance" ? "Maintenance 2 d" : "refresh running")})`
-          : scene === "unread"
-            ? `document.querySelectorAll('[data-strip] .capsule-unread').length === 3`
-            : scene === "sync"
-              ? `document.querySelector('[data-strip] [data-field=next-sync]')`
-              : `document.querySelectorAll('[data-strip] .capsule-ok').length === 3`;
+          ? `${pin("environment", scene)}?.title.includes(${JSON.stringify(scene === "maintenance" ? "Maintenance 2 d" : "refresh running")})`
+          : scene === "sync"
+            ? `${pin("next-sync", "soon")}?.title.startsWith("Next upstream sync")`
+            : ["environment", "template", "forks"]
+                .map((status) => `${pin(status, scene)}?.title`)
+                .join(" && ");
     await rendered(window, ready);
-    const bounds = await window.webContents.executeJavaScript(`(() => {
-      const rect = document.querySelector('[data-strip]').getBoundingClientRect();
-      return { x: Math.floor(rect.x), y: Math.floor(rect.y), width: Math.ceil(rect.width), height: Math.ceil(rect.height) };
-    })()`);
-    const file = `capsule-${scene}-${appearance}.png`;
-    writeFileSync(join(output, file), (await window.webContents.capturePage(bounds)).toPNG());
-    images.push(
-      `<figure><figcaption>${scene}</figcaption><img src="${file}" alt="${scene}"></figure>`,
-    );
     const sidebar = await window.webContents.executeJavaScript(`(() => {
       const rect = document.querySelector('#app-sidebar[data-state=expanded]')?.getBoundingClientRect();
       return rect && { x: Math.floor(rect.x), y: Math.floor(rect.y), width: Math.ceil(rect.width), height: Math.ceil(rect.height) };
     })()`);
-    assert(sidebar?.width > 0, `The sidebar is out of sight in the ${scene} capsule scene`);
+    assert(sidebar?.width > 0, `The sidebar is out of sight in the ${scene} status scene`);
     const sidebarFile = `sidebar-status-${scene}-${appearance}.png`;
     writeFileSync(
       join(output, sidebarFile),
       (await window.webContents.capturePage(sidebar)).toPNG(),
     );
     images.push(
-      `<figure><figcaption>${scene}: sidebar</figcaption><img src="${sidebarFile}" alt="${scene} sidebar"></figure>`,
+      `<figure><figcaption>${scene}</figcaption><img src="${sidebarFile}" alt="${scene} sidebar"></figure>`,
     );
   }
   writeFileSync(
-    join(output, `capsule-states-${appearance}.html`),
-    `<!doctype html><meta charset="utf-8"><title>Capsule states</title><style>body{font:14px system-ui;padding:24px}figure{margin:24px 0}figcaption{margin-bottom:8px}</style><h1>Capsule / ${appearance}</h1>${images.join("")}`,
+    join(output, `sidebar-status-states-${appearance}.html`),
+    `<!doctype html><meta charset="utf-8"><title>Sidebar status states</title><style>body{font:14px system-ui;padding:24px}figure{margin:24px 0}figcaption{margin-bottom:8px}</style><h1>Sidebar status / ${appearance}</h1>${images.join("")}`,
   );
 }
 
@@ -441,7 +434,7 @@ async function measure(
             const label = item.getAttribute("aria-label") || item.textContent.replace(/\\s+/g, " ").trim().slice(0, 40) || item.tagName.toLowerCase();
             return bounds.width > 0 && bounds.height > 0 && bounds.y < 44 ? [{ label, rect: bounds }] : [];
           });
-        return { rule: "drag", services: Number(document.querySelector("[data-strip] [data-field=forks]")?.dataset.services ?? 0),
+        return { rule: "drag", services: Number(document.querySelector("[data-sidebar-row=line]")?.dataset.services ?? 0),
           controls, clear, viewport, centre: rect(element(".centre-bar")), capsule: rect(element(".centre-bar .window-strip")),
           detailSheet: Boolean(document.querySelector(".right-panel-frame[data-sheet]")), regions, targets };
       }
@@ -605,7 +598,7 @@ async function overlayDragProbe(
   window.setContentSize(first[1], first[2]);
   await load();
   await window.webContents.executeJavaScript(
-    'document.querySelector("[data-strip] [data-field=forks]").click()',
+    'document.querySelector("[data-sidebar-row=line]").click()',
   );
   await rendered(window, 'document.querySelector(".line-sheet .line-grid")');
   await each(".line-sheet", "", sizes);
@@ -986,7 +979,7 @@ export async function captureSmokeViews(
           }
           if (surface.id === "line" || surface.id === "panes") {
             await window.webContents.executeJavaScript(
-              'document.querySelector("[data-strip] [data-field=forks]").click()',
+              'document.querySelector("[data-sidebar-row=line]").click()',
             );
             await rendered(window, 'document.querySelector(".line-grid")');
           }
@@ -1111,14 +1104,8 @@ export async function captureSmokeViews(
             );
           }
           await rendered(window, `document.querySelector(${JSON.stringify(surface.selector)})`);
-          if (surface.id === "strip" || surface.id === "strip-20") {
-            await rendered(
-              window,
-              `[
-              "environment", "template", "forks", "freshness"
-            ].every(field => document.querySelector('[data-strip] [data-field="' + field + '"]'))`,
-            );
-          }
+          if (surface.id === "strip" || surface.id === "strip-20")
+            await rendered(window, "document.querySelector('[data-strip] [data-sweep-line]')");
           if (scheduled) {
             await window.webContents.executeJavaScript(`{
               const settings = document.querySelector("[data-settings-section=sweep]");
@@ -1267,7 +1254,7 @@ export async function captureSmokeViews(
         }
         if (viewportWidth === 1440) {
           fixture(window, "sweep.progress", progress.committed);
-          await captureCapsuleStates(
+          await captureStatusStates(
             window,
             snapshot,
             output,

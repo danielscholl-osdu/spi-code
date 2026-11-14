@@ -71,7 +71,7 @@ export function violations(scope: ParentNode): string[] {
   }
   for (const element of scope.querySelectorAll(titles))
     if (emoji.test(element.textContent ?? "")) failures.push(`emoji: ${element.textContent}`);
-  for (const element of scope.querySelectorAll("[data-strip] .capsule-pill"))
+  for (const element of scope.querySelectorAll("[data-strip] [data-sweep-display], .sidebar-mark"))
     if (/ of |\//.test(element.textContent ?? "")) failures.push(`strip: ${element.textContent}`);
   for (const element of scope.querySelectorAll(todayLabelled))
     for (const name of ["title", "aria-label"]) {
