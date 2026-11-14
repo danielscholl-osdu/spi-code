@@ -51,7 +51,7 @@ Never edit files in the main checkout.
 
 - Read the acceptance against the design or requirement it names before you write code. If they disagree, or a line can be read two ways, stop and ask the orchestrator; a ruling now costs minutes, and the same question found in review costs a round.
 - Do what the acceptance criteria ask, and nothing more. Something else you notice becomes a new bead: `bd create "<title>" -t task --parent <epic> --deps discovered-from:<id>`.
-- Write the test named in the acceptance first when you can.
+- Write the test named in the acceptance first when you can. "What to test" in `.agents/orchestration/rules.md` says which lines get a test and which a capture proves instead.
 - Follow `AGENTS.md` and `.agents/orchestration/rules.md`: the MIT header on new source files, no comments that narrate the change.
 - What you learn that a later builder could not get from the code and tests goes in `docs/notes/<area>.md`, in a line or two. Never in `docs/sdlc.md`.
 - Commit with `aipr` and the bead trailer:
@@ -88,7 +88,7 @@ For each acceptance line, break the code the test guards, run that one test, see
 
 Two kinds of line have no failing test, and the note says so instead:
 
-- a line the reviewer judges, such as a capture compared with the design: write "reviewer's: <what you looked at and saw>";
+- a line about how a place looks or reads (copy, markup, layout, spacing), which the reviewer judges from a capture compared with the design: write "reviewer's: <what you looked at and saw>". Don't add a test for it;
 - a line only a command can show, such as a lint warning gone: write the command and its output.
 
 Don't wait for CI before handing off; give the run id. The reviewer reads the run, and `scripts/land` waits for one.

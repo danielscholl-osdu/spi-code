@@ -28,11 +28,15 @@ This file is the process and nothing else. What a builder learned about the prod
 
 There is one epic per milestone (M0 to M7), and one for each design pass the maintainer approves between them. Its description is the PRD's milestone row, or the approved design, and the requirement IDs it ships. Open maintainer questions are `decision` beads. Nothing finer is planned until an epic starts.
 
+A change to how the window looks or reads starts as a prototype bead: its own worktree, no review, no CI, never landed. The maintainer runs it against a live sweep and iterates there. What survives becomes a design-pass epic, and its builders start from the prototype's diff.
+
+The maintainer changes the design pages and these process docs directly on `main`, or through a `review:exempt` bead. Agents do so only when the maintainer asks.
+
 ## 2. Breakdown, when an epic starts
 
 Skill: `epic-breakdown`. One agent breaks the epic into beads:
 
-- **Size:** one worktree and one reviewer per bead, and roughly 400 changed lines or less.
+- **Size:** one behaviour that one reviewer can hold, in one worktree: up to about 800 changed lines. A bead costs about an hour of review and CI whatever its size, so split by behaviour, never by file.
 - **Requirements:** each bead names the requirement IDs it satisfies. Its acceptance criteria are their "Verified by" checks, made concrete, including the case the code cannot prove.
 - **Dependencies:** set with `bd dep`, so `bd ready` shows what can run at once. `bd swarm validate` confirms the graph.
 - **Risk:** label `risk:high` for credentials, the sandbox, approvals and tiers, durability and intents, and the Copilot session boundary. Label everything else `risk:std`.
@@ -62,7 +66,7 @@ Skill: `bead-review`. The reviewer comes from a different provider than the auth
 |---|---|
 | `risk:std` | One reviewer from another provider, up to 3 rounds. Round 1 is full; later rounds cover only the fix and the open findings. Nits are taken in the fix round or dropped. |
 | `risk:high` | Two seats from different providers, in parallel on the same head, then one synthesis and one fix round. Or Keelson `adversarial-review`. |
-| `review:exempt` | None. Only for Markdown outside `design/`, `.agents/` and `AGENTS.md`, which `scripts/land` enforces. |
+| `review:exempt` | None. Only for Markdown and the pages in `design/`, which `scripts/land` enforces. The maintainer's approval of the design or the breakdown is the review. |
 
 A pass is recorded as bead metadata, which `scripts/land` reads:
 

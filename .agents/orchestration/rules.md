@@ -41,6 +41,16 @@ Several agents share this machine. The full `scripts/check` runs every test twic
 - Don't edit a package's `index.ts`, `package.json`, root config, `vitest.config.ts` or `pnpm-lock.yaml` unless your bead owns that package. Don't add a dependency unless the bead cannot be done without it.
 - If the same kind of finding survives two fix rounds, stop and tell the orchestrator. The approach is wrong, not the patch.
 
+## What to test
+
+A test is code the next redesign has to rewrite. Write the ones that guard behaviour and leave the rest out.
+
+- Test behaviour that can break: the model and briefing, projections, parsing of forge and tool output, stores and state machines, credentials, tiers and durability, and the logic a bug fix changed.
+- Leave out tests for what the types already guarantee, copy text, static markup, class names, layout, spacing and callback wiring. The packaged smoke's capture is the proof of how a place looks and reads.
+- Extend before you add. When an existing test or table covers the behaviour, add a row there.
+- Test at one layer, the lowest one that fails without the change. A rule proven in core is not proven again in the host and the window.
+- A rule that holds across the whole window stays one test over every fixture: the text rules, the upstream boundary, reachability. Add the case there, not a copy beside each view.
+
 ## This machine
 
 - The shell is zsh. A word starting with `=` is expanded as a command path, so quote it (`echo "====="`).

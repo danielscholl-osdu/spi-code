@@ -216,10 +216,8 @@ fi
 
 if has_label review:exempt; then
   while IFS= read -r -d '' path; do
-    [[ $path == *.md ]] || die "review:exempt covers Markdown only; $path is not"
-    case $path in
-      design/* | .agents/* | AGENTS.md) die "review:exempt does not cover $path" ;;
-    esac
+    [[ $path == *.md || $path == design/* ]] ||
+      die "review:exempt covers Markdown and design/ only; $path is neither"
   done < <(git -C "$root" diff --no-renames --name-only -z "$base" "$head")
 else
   [[ $(meta review.verdict) == pass ]] || die "$id has no passing review"

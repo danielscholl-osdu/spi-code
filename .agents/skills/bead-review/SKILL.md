@@ -13,6 +13,7 @@ The reviewer is always from a different provider than the author (`build.provide
 - **Diff:** `git diff main...bead/<id>`, run in the bead's worktree.
 - **Look for:** bugs, acceptance criteria not actually met, a test that cannot fail, the case the code cannot prove reported as a claim, broken callers, security and durability holes, and anything the PRD forbids.
 - **The builder's evidence:** the bead note lists, for each acceptance line, the test that proves it and how the builder saw it fail. Repeat at least one of those mutations yourself, and every one that looks weak. A missing or untrue evidence table is a `should`.
+- **Tests:** ask for a missing test only when a real regression would get past without it. A missing test for copy, markup, layout or spacing is not a finding: the capture covers it (`.agents/orchestration/rules.md`, "What to test"). A new test that breaks those rules is a `nit`; name the row to fold it into, or say delete it.
 - **Your own probes:** at least one beyond the builder's tests: an edge case, a split input, a failure path. This is where a review earns its cost.
 - **Your copy:** mutations and probes run in your own copy of the worktree, which needs `pnpm install --frozen-lockfile` and `pnpm build` before anything runs, and a rebuild of any package you mutate before a dependent's test will see it.
 - **Checks:** run `scripts/check --quick` in your copy once, and read the bead branch's CI run (`gh run list --branch bead/<id> --limit 1`). A green run is the cross-platform and packaged-smoke evidence; a run that is red or has not finished is something to say in the verdict, not to wait for. Don't run the full `scripts/check` or `pnpm package:mac`: CI runs both, and `scripts/land` lands only a commit CI passed.
@@ -41,7 +42,7 @@ Something outside the acceptance is not a finding. Decide what it is:
 |---|---|
 | `risk:std` | One reviewer from another provider. Up to 3 rounds. |
 | `risk:high` | Two seats from different providers, reviewing the same head at the same time. Neither writes to the bead. The orchestrator writes one synthesis, sends one fix round, and one seat rechecks. Keelson's `adversarial-review` workflow is the alternative. |
-| `review:exempt` | None. `scripts/land` checks that the diff really is Markdown outside `design/`, `.agents/` and `AGENTS.md`. |
+| `review:exempt` | None. `scripts/land` checks that the diff really is Markdown or pages in `design/`. The maintainer's approval is the review. |
 
 ## Later rounds
 

@@ -17,13 +17,14 @@ An epic is a milestone. It stays one bead until we start it. Breakdown turns it 
 
 Each bead is one slice: one worktree, one author, one reviewer, one landing.
 
-- **Size:** a diff of about 400 changed lines or less, excluding fixtures and generated files. If it is bigger, split it along a seam the code already has.
+- **Size:** one behaviour that one reviewer can hold: up to about 800 changed lines, excluding fixtures and generated files. Every bead costs about an hour of review and CI whatever its size, so split by behaviour along a seam the code already has, never by file.
 - **Title:** what exists afterwards, not the activity. "Host starts the Copilot runtime by path", not "Work on CP-01".
 - **Description:** the requirement IDs it satisfies, what is in scope, what is explicitly out, and the files or packages it touches.
 - **Acceptance:** the PRD's "Verified by" for those requirements, made concrete: the test or observation that closes the bead. Most review bounces come from what the acceptance left unsaid, so say it:
   - the case the code cannot prove (a missing read, an unknown order, an empty history), and that it must report the quieter state;
   - where the design is silent and a builder would have to guess, your ruling, or a `decision` bead for the maintainer;
   - for a bead that changes a gate (`scripts/land`, the sandbox, a credential path), what the gate defends against and what it does not.
+  - for a line about how a place looks or reads (copy, markup, layout, spacing), the capture and the design section to compare it with, not a test (`.agents/orchestration/rules.md`, "What to test");
   - for a change meant to alter no behaviour (a split, a move, a rename), the proof: which tests must pass unedited, which fixtures must stay byte-identical, and what may change in tests (moves only).
 
   For a gate, give both halves: what it must never allow, and how far it must keep working (after a killed script, a flaky run, a neighbour's landing). Without the second, a reviewer has no line between a real gap and an arranged one.
@@ -31,7 +32,7 @@ Each bead is one slice: one worktree, one author, one reviewer, one landing.
   An epic with no PRD rows (a cleanup, a process change, a design pass) takes each bead's acceptance from the cost the bead removes, measured; the behaviour that must not change; and the case the code cannot prove.
 - **Check what you assume.** If an acceptance says the suite is clean, a fixture holds some case, or a file is unused, run the probe before you write it. A bead whose acceptance is wrong about the starting state makes its builder decide scope.
 - **Shared files:** when several beads will edit one file, say which bead owns it and have the others add files beside it. Give those beads dependencies so they land in turn. Two cases directory ownership misses: a bead that changes a fixture owns every test that pins that fixture's content, wherever it lives; and when an acceptance offers two ways to prove a line ("a window test, or a smoke geometry rule"), name the files each way would touch and who owns them.
-- **Labels:** `risk:high` if it touches credentials, the sandbox, approvals or tiers, intents and durability, or the Copilot session boundary (PRD areas AU, RN, CT, CP, EV-05, NF-01 to NF-03); otherwise `risk:std`. Add `review:exempt` only for Markdown changes outside `design/`, `.agents/` and `AGENTS.md`.
+- **Labels:** `risk:high` if it touches credentials, the sandbox, approvals or tiers, intents and durability, or the Copilot session boundary (PRD areas AU, RN, CT, CP, EV-05, NF-01 to NF-03); otherwise `risk:std`. Add `review:exempt` only for a change that is all Markdown or pages in `design/`, and only when the maintainer has approved what it says.
 - **Type:** `task` or `feature` for build work, `spike` for a probe whose answer decides later beads, `decision` for a call only the maintainer makes.
 
 ```bash

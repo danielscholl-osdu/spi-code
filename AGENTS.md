@@ -17,7 +17,7 @@ Work is tracked in beads (`bd`, prefix `spicode`), built in parallel worktrees, 
 1. Work only on a claimed bead, in its own worktree, on branch `bead/<id>`. Never edit in the main checkout.
 2. One bead, one author, one review, one landing. Anything outside the bead's acceptance becomes a new bead.
 3. A different provider reviews what you wrote, and the pass is recorded on the bead.
-4. Land only with `scripts/land <id>`. Never commit, merge or push to `main` by hand.
+4. Land only with `scripts/land <id>`. Never commit, merge or push to `main` by hand, unless the maintainer asks for a design or process change made there directly.
 5. If a bead labelled `main-broken` is open, fixing it comes first.
 6. Never close a bead without a landed commit or a stated reason.
 
