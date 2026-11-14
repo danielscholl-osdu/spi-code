@@ -5,6 +5,7 @@ import { useStore } from "zustand";
 import { navigate } from "../../app/navigation.js";
 import { treeServices } from "../../app/queue.js";
 import { Place } from "../../components/place/Place.js";
+import { placePin } from "../../store/pins.js";
 import { watchStore } from "../../store/watch.js";
 
 export default function Security() {
@@ -16,6 +17,7 @@ export default function Security() {
   return (
     <Place
       name="Security"
+      pin={placePin("security")}
       reading={reading}
       snapshot={snapshot}
       services={treeServices(snapshot?.tree)}

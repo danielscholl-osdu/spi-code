@@ -36,6 +36,7 @@ import {
   TRACK_MIN_PX,
 } from "./timeline.js";
 import "./environment.css";
+import { placePin } from "../../store/pins.js";
 
 function LineReading({ line }: { line: RepoLine }) {
   return (
@@ -116,6 +117,7 @@ export default function Environment({
     <Place
       {...extra}
       name="Environment"
+      pin={placePin("environment")}
       reading={reading}
       snapshot={body}
       services={treeServices(body?.tree)}

@@ -24,6 +24,7 @@ export { FORMING_RELEASES_ANCHOR, SHARED_COMPONENTS_ANCHOR } from "./anchors.js"
 
 import "./panes.css";
 import "./releases.css";
+import { placePin } from "../../store/pins.js";
 
 const notesLabels: Record<NotesState, string> = {
   approved: "APPROVED",
@@ -93,6 +94,7 @@ export default function Releases({ section }: { section?: ReleasesSection | unde
     <div className="releases" data-view-pane="releases" ref={pane}>
       <Place
         name="Releases"
+        pin={placePin("releases")}
         reading={reading}
         services={treeServices(evidence?.tree)}
         onNavigate={navigate}

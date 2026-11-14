@@ -21,6 +21,7 @@ import { plainTitle } from "../../text.js";
 import { TimedText } from "../../time.js";
 import { QueueRow } from "./QueueRow.js";
 import "./template.css";
+import { placePin } from "../../store/pins.js";
 
 const TEMPLATE_REPOSITORY = "osdu-spi";
 const ROLLOUT = "rollout";
@@ -140,6 +141,7 @@ export default function Template({
     <div className="inbox template" data-view-pane="engineering-system" ref={pane}>
       <Place
         name="Engineering system"
+        pin={placePin("engineering-system")}
         reading={reading}
         snapshot={snapshot}
         services={treeServices(snapshot?.tree)}

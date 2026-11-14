@@ -11,7 +11,7 @@ import { DEFAULT_REGISTRY } from "../../app/routes.js";
 import { inScope } from "../../components/sidebar/attention.js";
 import { RightPanel } from "../../panels/RightPanel.js";
 import { createSelectionStore } from "../../panels/selection.js";
-import { PINS_STORAGE_KEY, readPins } from "../../store/pins.js";
+import { PINS_STORAGE_KEY, readPins, SEED_PINS } from "../../store/pins.js";
 import { createWatchStore } from "../../store/watch.js";
 import { plainTitle } from "../../text.js";
 import { clockTime, timedText } from "../../time.js";
@@ -61,12 +61,15 @@ it("pins the service from its place header, labels the control Unpin, and unpins
     );
   expect(pinButton()?.getAttribute("aria-label")).toBe("Pin legal");
   await act(async () => pinButton()?.click());
-  expect(readPins()).toEqual(["legal"]);
-  expect(JSON.parse(localStorage.getItem(PINS_STORAGE_KEY) ?? "[]")).toEqual(["legal"]);
+  expect(readPins()).toEqual([...SEED_PINS, "legal"]);
+  expect(JSON.parse(localStorage.getItem(PINS_STORAGE_KEY) ?? "[]")).toEqual([
+    ...SEED_PINS,
+    "legal",
+  ]);
   expect(pinButton()?.textContent).toBe("Unpin");
   expect(pinButton()?.getAttribute("aria-label")).toBe("Unpin legal");
   await act(async () => pinButton()?.click());
-  expect(readPins()).toEqual([]);
+  expect(readPins()).toEqual(SEED_PINS);
   expect(pinButton()?.getAttribute("aria-label")).toBe("Pin legal");
 });
 

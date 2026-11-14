@@ -133,3 +133,6 @@ captures read no headline; they count the open Interrupts as the Needs you cards
 the Stops the line block and hold that count equal to the sidebar's Today count.
 None of the smoke mornings holds the environment, so no packaged capture draws the
 block; feed the packaged app a morning whose Held lane names an Interrupt to see it.
+The supervision step pins services under the legacy `spi-code.sidebar.pins` key after
+start; the pins store reads that key live until its first write under the `.v2` key,
+so it must never persist the seed on read.

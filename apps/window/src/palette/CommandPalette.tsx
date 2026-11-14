@@ -25,7 +25,7 @@ import { Autocomplete } from "@base-ui/react/autocomplete";
 import { Dialog } from "@base-ui/react/dialog";
 import { useMemo, useRef, useState } from "react";
 import { useStore } from "zustand";
-import { type Route, useRegistry } from "../app/routes.js";
+import { type Destination, LINE, useRegistry } from "../app/routes.js";
 import { isMacPlatform } from "../app/shortcuts.js";
 import { AttentionDot } from "../components/AttentionDot.js";
 import { useSidebarAttention } from "../components/sidebar/attention.js";
@@ -37,8 +37,8 @@ import "./palette.css";
 /**
  * Find (PS-12): Go to, Services and Queue. The shell opens it from ⌘K or Ctrl+K (through
  * PanelControls' shortcuts) and from the sidebar's field. ⏎ opens a result; ⌘↩ (Ctrl+Enter) opens
- * a service and pins it, leaving a pinned service pinned. Esc closes it and focus returns to the
- * opener.
+ * Line, a place or a service and pins it, leaving a pin where it is. Esc closes it and focus
+ * returns to the opener.
  */
 export function CommandPalette({
   store,
@@ -50,7 +50,7 @@ export function CommandPalette({
   store: ReturnType<typeof createWatchStore>;
   open: boolean;
   onOpenChange(open: boolean): void;
-  onNavigate(route: Route): void;
+  onNavigate(destination: Destination): void;
   /** Opens Settings on Readiness. */
   onSettings(): void;
 }) {
@@ -89,7 +89,7 @@ function PaletteContent({
 }: {
   store: ReturnType<typeof createWatchStore>;
   attention: ReturnType<typeof useSidebarAttention>;
-  onNavigate(route: Route): void;
+  onNavigate(destination: Destination): void;
   onSettings(): void;
   onClose(): void;
 }) {
@@ -103,16 +103,13 @@ function PaletteContent({
   const highlightedItem = shown
     .flatMap(({ items }) => items)
     .find(({ value }) => value === highlighted);
-  const highlightedService =
-    highlightedItem?.target.kind === "route" && highlightedItem.target.route.kind === "service"
-      ? highlightedItem.target.route.id
-      : undefined;
   const values = useMemo(
     () => shown.flatMap(({ items }) => items.map(({ value }) => value)),
     [shown],
   );
   const run = (item: PaletteItem) => {
     if (item.target.kind === "route") onNavigate(item.target.route);
+    else if (item.target.kind === "line") onNavigate(LINE);
     else if (item.target.kind === "settings") onSettings();
     else {
       select(item.target.id);
@@ -150,7 +147,7 @@ function PaletteContent({
             highlightedItem
           ) {
             event.preventDefault();
-            if (highlightedService) pin(highlightedService);
+            if (highlightedItem.pin) pin(highlightedItem.pin);
             run(highlightedItem);
           }
         }}

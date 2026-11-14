@@ -34,7 +34,6 @@ async function mount(name: SnapshotName, hash: string) {
   };
   const text = (selector: string) => container.querySelector(selector)?.textContent ?? null;
   return {
-    sidebar: text('[data-sidebar-row="engineering-system"] .sidebar-row-note'),
     tile: [
       text("section.place .place-tile:first-child .place-tile-value"),
       text("section.place .place-tile:first-child .place-tile-counts"),
@@ -61,30 +60,17 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-it("counts all 13 forks on the sidebar when 5 are unread", async () => {
-  const today = await mount(unread, "#today");
-  expect(today.sidebar).toBe("0 of 13");
-});
-
 it("names the 5 forks not read in the Engineering system place", async () => {
   const place = await mount(unread, "#engineering-system");
-  expect(place.sidebar).toBe("0 of 13");
   expect(place.tile).toEqual(["0 of 13", "forks on 7d269b5 · 5 not read yet"]);
 });
 
 it("reads as before when every fork is read", async () => {
-  const today = await mount(november6, "#today");
-  expect(today.sidebar).toBe("0 of 13");
-  await unmount?.();
   const place = await mount(november6, "#engineering-system");
   expect(place.tile).toEqual(["0 of 13", "forks on 7d269b5"]);
 });
 
-it("counts only the verified fork on every surface when another is on 7d269b5 but red", async () => {
-  const today = await mount(unverified, "#today");
-  expect(today.sidebar).toBe("1 of 13");
-  await unmount?.();
+it("counts only the verified fork when another is on 7d269b5 but red", async () => {
   const place = await mount(unverified, "#engineering-system");
-  expect(place.sidebar).toBe("1 of 13");
   expect(place.tile).toEqual(["1 of 13", "forks on 7d269b5"]);
 });

@@ -104,12 +104,12 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
-it("lists Upstream first among the places and opens it from the sidebar", async () => {
+it("pins Upstream first among the places and opens it from the sidebar", async () => {
   await act(async () => navigate({ kind: "today" }));
   const nav = container.querySelector('nav[aria-label="Sidebar"]');
   if (!nav) throw new Error("Missing sidebar");
-  const places = texts(nav, 'ul[aria-label="Places"] .sidebar-row-label');
-  expect(places[0]).toBe("Upstream");
+  const pinned = texts(nav, 'ul[aria-label="Pinned"] .sidebar-row-label');
+  expect(pinned.filter((label) => label !== "Line")[0]).toBe("Upstream");
   await click(nav?.querySelector('[data-sidebar-row="upstream"]'));
   expect(window.location.hash).toBe("#upstream");
   expect(place().querySelector("h1")?.textContent).toBe("Upstream");

@@ -24,13 +24,13 @@
 import {
   type ComponentProps,
   createContext,
-  type ReactNode,
   useContext,
   useEffect,
   useRef,
   useState,
   useSyncExternalStore,
 } from "react";
+import { Icon } from "../icons/Icon.js";
 
 export function useMediaQuery(query: string): boolean {
   return useSyncExternalStore(
@@ -269,16 +269,12 @@ export function SidebarTrigger({
   );
 }
 
-/** A group header that folds its group: the label, a rule or a count, and a chevron. */
+/** A group header that folds its group: the label and a chevron. */
 export function CollapsibleSectionHeader({
   children,
   expanded,
-  accessory,
   ...buttonProps
-}: Omit<ComponentProps<"button">, "aria-expanded"> & {
-  expanded: boolean;
-  accessory?: ReactNode;
-}) {
+}: Omit<ComponentProps<"button">, "aria-expanded"> & { expanded: boolean }) {
   return (
     <button
       type="button"
@@ -288,12 +284,7 @@ export function CollapsibleSectionHeader({
       {...buttonProps}
     >
       <span className="section-header-label">{children}</span>
-      {accessory === undefined ? (
-        <span aria-hidden className="section-header-rule" />
-      ) : (
-        <span className="section-header-count">{accessory}</span>
-      )}
-      <span aria-hidden className="section-header-chevron" data-expanded={expanded} />
+      <Icon name={expanded ? "chevD" : "chevR"} size={12} stroke={2} />
     </button>
   );
 }
