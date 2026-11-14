@@ -4,8 +4,10 @@
 import { expect, it } from "vitest";
 import {
   assertContrast,
+  CONTROLS,
   type Collected,
   type ContrastReport,
+  checkControls,
   composite,
   EXCLUSIONS,
   judge,
@@ -79,6 +81,54 @@ it("fails --success-text on a 16% color-mix tint of --success, and passes it on 
   expect(surface?.ratio).toBeGreaterThanOrEqual(4.5);
 });
 
+it("holds each packaged control to its failure, and names a control that passed or went unmeasured", () => {
+  const control = (selector: string, text: string, color: string, layers: number[]) => ({
+    selector,
+    text,
+    color,
+    size: 12,
+    weight: 400,
+    layers,
+    inScope: true,
+  });
+  const collected: Collected = {
+    layers: [
+      layer("rgb(255, 255, 255)"),
+      layer("color(srgb 0.85318 0.920314 0.878275)"),
+      layer("rgb(227, 245, 232)"),
+    ],
+    samples: [
+      control("span.contrast-control-tint", "Verify", "rgb(21, 124, 59)", [0, 1]),
+      control("span.contrast-control-hidden", "08:02", "rgb(255, 255, 255)", [0]),
+    ],
+    excluded: {},
+    examples: {},
+    unmeasured: [
+      {
+        selector: "span.contrast-control-generated::before",
+        text: "Sync",
+        reason: "generated content with words",
+      },
+    ],
+  };
+  expect(checkControls(collected).map(({ found }) => found)).toEqual([
+    "#157c3b on #daebe0 is 4.26:1, needs 4.5:1",
+    "#ffffff on #ffffff is 1.00:1, needs 4.5:1",
+    "unmeasured: generated content with words",
+  ]);
+  const broken = {
+    ...collected,
+    samples: [control("span.contrast-control-tint", "Verify", "rgb(21, 124, 59)", [0, 2])],
+    unmeasured: [],
+  };
+  for (const line of [
+    `${CONTROLS.tint.what}: expected below AA, found #157c3b on #e3f5e8 is`,
+    `${CONTROLS.hidden.what}: expected below AA, found not measured`,
+    `${CONTROLS.generated.what}: expected unmeasured, found not measured`,
+  ])
+    expect(() => checkControls(broken)).toThrow(line);
+});
+
 it("composites translucent backgrounds and opacity groups up the ancestors", () => {
   const stacked = composite(
     [layer("rgb(255, 255, 255)"), layer("rgba(0, 0, 0, 0.5)"), layer("rgba(0, 0, 0, 0)")],
@@ -141,6 +191,7 @@ it("measures text over a gradient that an opaque descendant covers", () => {
 
 const report = (overrides: Partial<ContrastReport>): ContrastReport => ({
   exclusions: EXCLUSIONS,
+  controls: [],
   views: [
     {
       view: "today",

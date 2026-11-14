@@ -22,20 +22,34 @@ import type { BrowserWindow, IpcMainEvent } from "electron";
 export const EXCLUSIONS = {
   hidden:
     "not drawn: no box, visibility other than visible, opacity 0 on it or an ancestor, or a transparent colour",
-  "aria-hidden": "inside aria-hidden=true: decoration, with its words given elsewhere",
   disabled: "a disabled control (:disabled or aria-disabled=true), which WCAG 1.4.3 exempts",
   clipped: "clipped to a box of 1 px or less, or by clip or clip-path: words for assistive tech",
   covered:
     "under another element at its centre, such as a dialog, sheet or backdrop: the view on top is measured instead",
   offscreen:
     "never inside the viewport, even with each scroll container stepped through its height",
-  decoration: "generated ::before or ::after content with no letter or digit, such as an arrow",
+  decoration:
+    "no letter or digit, inside aria-hidden=true or in generated ::before or ::after content, such as an arrow",
 } as const;
 
 export type Exclusion = keyof typeof EXCLUSIONS;
 
 export const PALETTES = ["warm", "neutral"] as const;
 export const THEMES = ["light", "dark"] as const;
+const SHADES = PALETTES.flatMap((palette) => THEMES.map((theme) => ({ palette, theme })));
+
+/**
+ * Pairs drawn on a temporary node that the packaged collector must not pass. Their results go
+ * in views/contrast.json under controls and never count against the views.
+ */
+export const CONTROLS = {
+  tint: {
+    expect: "below AA",
+    what: "--success-text on a 16% color-mix tint of --success, in Neutral light",
+  },
+  hidden: { expect: "below AA", what: "readable text inside aria-hidden=true, white on white" },
+  generated: { expect: "unmeasured", what: "generated words inside aria-hidden=true" },
+} as const;
 
 /** One element from the root down to the text's own element, as computed. */
 export interface Layer {
@@ -419,9 +433,10 @@ function collect(scope: string): Collected {
   const unmeasured: Collected["unmeasured"] = [];
   const reasons = new Map<Element, Exclusion | "measured" | "unmeasured">();
   const samples: Sample[] = [];
+  const readable = (text: string) => /[\p{L}\p{N}]/u.test(text);
   const check = (candidate: Candidate): Exclusion | "measured" | "unmeasured" => {
     const { element } = candidate;
-    if (element.closest('[aria-hidden="true"]')) return "aria-hidden";
+    if (!readable(candidate.text) && element.closest('[aria-hidden="true"]')) return "decoration";
     if (element.closest(':disabled, [aria-disabled="true"]')) return "disabled";
     const s = style(element);
     if (s.visibility !== "visible" || transparent(candidate.color())) return "hidden";
@@ -503,8 +518,8 @@ function collect(scope: string): Collected {
       const content = getComputedStyle(element, pseudo).content;
       if (!/^["']/.test(content) || content.length <= 2) continue;
       const box = element.getBoundingClientRect();
-      if (box.width === 0 || box.height === 0 || element.closest('[aria-hidden="true"]')) continue;
-      if (/[\p{L}\p{N}]/u.test(content)) {
+      if (box.width === 0 || box.height === 0) continue;
+      if (readable(content)) {
         unmeasured.push({
           selector: `${describe(element)}${pseudo}`,
           text: content.slice(1, -1),
@@ -597,6 +612,7 @@ interface ContrastView {
 
 export interface ContrastReport {
   exclusions: typeof EXCLUSIONS;
+  controls: { control: string; expect: string; found: string }[];
   views: ContrastView[];
   failures: Finding[];
   unmeasured: Unmeasured[];
@@ -620,6 +636,75 @@ export function assertContrast(report: ContrastReport): void {
     });
 }
 
+/** Fails unless the collector failed every control as it must; returns what it found. */
+export function checkControls(collected: Collected): ContrastReport["controls"] {
+  const { judged, unmeasured } = judge(collected);
+  const found: ContrastReport["controls"] = [];
+  const wrong: string[] = [];
+  for (const [id, { expect, what }] of Object.entries(CONTROLS)) {
+    const owns = ({ selector }: { selector: string }) =>
+      selector.includes(`.contrast-control-${id}`);
+    const measured = judged.find(owns);
+    const missing = unmeasured.find(owns);
+    const result = measured
+      ? `${measured.color} on ${measured.background} is ${measured.ratio.toFixed(2)}:1, needs ${measured.needs}:1`
+      : missing
+        ? `unmeasured: ${missing.reason}`
+        : "not measured";
+    const held =
+      expect === "unmeasured" ? !measured && missing : measured && measured.ratio < measured.needs;
+    if (held) found.push({ control: what, expect, found: result });
+    else wrong.push(`${what}: expected ${expect}, found ${result}`);
+  }
+  if (wrong.length > 0)
+    throw new AssertionError({
+      message: `Rendered contrast controls did not fail as they must:\n${wrong.join("\n")}`,
+    });
+  return found;
+}
+
+/**
+ * Runs in the renderer: draws the controls over the view with DOM and CSSOM calls, which the
+ * window's style-src 'self' allows, and returns what removes them.
+ */
+function drawControls(): () => void {
+  const span = (css: string, text = "", attributes: Record<string, string> = {}) => {
+    const element = document.createElement("span");
+    element.style.cssText = css;
+    element.textContent = text;
+    for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+    return element;
+  };
+  const host = document.createElement("div");
+  host.dataset.contrastControl = "";
+  host.style.cssText =
+    "position: fixed; left: 0; top: 0; z-index: 2147483647; display: flex; gap: 8px; padding: 8px; background: var(--surface); font: 400 12px/16px sans-serif";
+  const white = span("background: rgb(255, 255, 255)");
+  white.append(
+    span("color: rgb(255, 255, 255)", "08:02", {
+      class: "contrast-control-hidden",
+      "aria-hidden": "true",
+    }),
+  );
+  host.append(
+    span(
+      "background: color-mix(in srgb, var(--success) 16%, var(--surface)); color: var(--success-text)",
+      "Verify",
+      { class: "contrast-control-tint" },
+    ),
+    white,
+    span("color: var(--text)", "", { class: "contrast-control-generated", "aria-hidden": "true" }),
+  );
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync('.contrast-control-generated::before { content: "Sync"; }');
+  document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+  document.body.append(host);
+  return () => {
+    host.remove();
+    document.adoptedStyleSheets = document.adoptedStyleSheets.filter((item) => item !== sheet);
+  };
+}
+
 function fixture(
   window: BrowserWindow,
   type: string,
@@ -637,21 +722,47 @@ function fixture(
   window.webContents.send("smoke:fixture", parsed.message);
 }
 
+/** Waits on DOM mutations rather than animation frames, which the hidden smoke window throttles on Windows. */
 async function rendered(window: BrowserWindow, condition: string): Promise<void> {
   await window.webContents.executeJavaScript(`new Promise((resolve, reject) => {
-    const deadline = performance.now() + 5000;
-    const check = () => {
-      if (${condition}) return requestAnimationFrame(() => requestAnimationFrame(resolve));
-      if (performance.now() > deadline) return reject(new Error("Contrast smoke DOM timeout: " + ${JSON.stringify(condition)}));
-      setTimeout(check, 20);
+    const done = () => {
+      observer.disconnect();
+      clearTimeout(timer);
+      const channel = new MessageChannel();
+      channel.port1.onmessage = () => resolve();
+      channel.port2.postMessage(0);
     };
-    check();
+    const observer = new MutationObserver(() => {
+      if (${condition}) done();
+    });
+    const timer = setTimeout(() => {
+      observer.disconnect();
+      if (${condition}) done();
+      else reject(new Error("Contrast smoke DOM timeout: " + ${JSON.stringify(condition)}));
+    }, 5000);
+    if (${condition}) done();
+    else observer.observe(document, { subtree: true, childList: true, attributes: true, characterData: true });
   })`);
 }
+
+const STATES = ["rest", "hover"] as const;
+
+const ROOT_STATE = `(() => {
+  const root = document.documentElement;
+  return JSON.stringify({
+    attributes: [...root.attributes]
+      .filter(({ name }) => name !== "style")
+      .map(({ name, value }) => name + "=" + value)
+      .sort(),
+    colorScheme: root.style.colorScheme,
+  });
+})()`;
 
 /**
  * Measures every visible text on Today, the sweep popover, Upstream, the Line sheet, Detail and three
  * Settings sections, in both palettes and both themes, at rest and with every :hover target forced.
+ * Each view is mounted once and shaded in place by writing the root attributes Settings > Appearance
+ * writes; Settings is shaded through its own controls, and those attributes must match.
  */
 export async function assertRenderedContrast(
   window: BrowserWindow,
@@ -661,6 +772,7 @@ export async function assertRenderedContrast(
 ): Promise<ContrastReport> {
   const started = Date.now();
   const { ipcMain } = await import("electron");
+  const js = <T>(source: string): Promise<T> => window.webContents.executeJavaScript(source);
   const read = (path: string) => ViewSnapshotSchema.parse(JSON.parse(readFileSync(path, "utf8")));
   const checkedAt = "2026-11-06T15:04:00.000Z";
   const nov6 = read(fixturePath);
@@ -668,19 +780,9 @@ export async function assertRenderedContrast(
   const mornings = Object.entries(morningPaths).map(
     ([morning, path]) => [morning, read(path)] as const,
   );
-  const busy = mornings.find(([morning]) => morning === "busy")?.[1];
-  assert(busy, "Rendered contrast needs the busy morning");
-  const settled = structuredClone(busy);
-  const ambient = settled.briefing.ambient;
-  assert(ambient, "The busy morning must draw lines in motion");
-  for (const group of [ambient.failing, ambient.inProgress])
-    for (const line of group.lines) if (line.state) line.state.tone = "ok";
-  mornings.push(["busy-ok", ViewSnapshotSchema.parse(settled)]);
   let cursor = Math.max(nov6.cursor, ...mornings.map(([, snapshot]) => snapshot.cursor)) + 1;
   const push = async (snapshot: typeof nov6) => {
-    const before: string = await window.webContents.executeJavaScript(
-      'document.querySelector(".today")?.innerText ?? ""',
-    );
+    const before = await js<string>('document.querySelector(".today")?.innerText ?? ""');
     fixture(window, "view.snapshot", { ...snapshot, cursor: cursor++ });
     await rendered(
       window,
@@ -746,11 +848,12 @@ export async function assertRenderedContrast(
   const attached = debug.isAttached();
   if (!attached) debug.attach("1.3");
   const [width, height] = window.getContentSize();
-  const saved: Record<string, string | null> = await window.webContents.executeJavaScript(
+  const saved = await js<Record<string, string | null>>(
     `Object.fromEntries(["spi-code.appearance", "spi-code.palette"].map(key => [key, localStorage.getItem(key)]))`,
   );
   const report: ContrastReport = {
     exclusions: EXCLUSIONS,
+    controls: [],
     views: [],
     failures: [],
     unmeasured: [],
@@ -769,159 +872,192 @@ export async function assertRenderedContrast(
     );
     clockScript = clock.identifier;
     window.setContentSize(1440, 800);
-    const measure = async (context: Omit<ViewContext, "state">, scope: string) => {
-      for (const state of ["rest", "hover"] as const) {
-        let forced: number[] = [];
-        if (state === "hover") {
-          const selectors: string[] = await window.webContents.executeJavaScript(
-            `(${hoverTargets.toString()})()`,
-          );
-          const { root }: { root: { nodeId: number } } = await debug.sendCommand(
-            "DOM.getDocument",
-            {
-              depth: 0,
-            },
-          );
-          const ids = new Set<number>();
-          for (const selector of selectors) {
-            const { nodeIds }: { nodeIds: number[] } = await debug.sendCommand(
-              "DOM.querySelectorAll",
-              { nodeId: root.nodeId, selector },
-            );
-            for (const id of nodeIds) ids.add(id);
-          }
-          forced = [...ids];
-          for (const nodeId of forced)
-            await debug.sendCommand("CSS.forcePseudoState", {
-              nodeId,
-              forcedPseudoClasses: ["hover"],
-            });
-        }
-        try {
-          const collected: Collected = await window.webContents.executeJavaScript(
-            `(${settle.toString()})(), (${collect.toString()})(${JSON.stringify(scope)})`,
-          );
-          const { judged, unmeasured } = judge(collected);
-          const ctx: ViewContext = { ...context, state };
-          const failures = new Map<string, Finding>();
-          for (const item of judged)
-            if (item.ratio < item.needs)
-              failures.set(`${item.selector}|${item.color}|${item.background}`, {
-                ...ctx,
-                ...item,
-              });
-          const missing = new Map<string, Unmeasured>();
-          for (const item of unmeasured)
-            missing.set(`${item.selector}|${item.reason}`, { ...ctx, ...item });
-          report.failures.push(...failures.values());
-          report.unmeasured.push(...missing.values());
-          report.views.push({
-            ...ctx,
-            measured: judged.length,
-            inScope: collected.samples.filter(({ inScope }) => inScope).length,
-            excluded: collected.excluded,
-            examples: collected.examples,
-            failures: failures.size,
-            unmeasured: missing.size,
-          });
-          console.log(
-            `Packaged contrast ${context.view}/${context.palette}/${context.theme}/${state}: ${judged.length} measured, ${failures.size} below AA, ${missing.size} unmeasured, excluded ${JSON.stringify(collected.excluded)}`,
-          );
-        } finally {
-          for (const nodeId of forced)
-            await debug.sendCommand("CSS.forcePseudoState", { nodeId, forcedPseudoClasses: [] });
-        }
+    const written = new Map<string, string>();
+    const shade = async ({ palette, theme }: (typeof SHADES)[number]) => {
+      const state = await js<string>(`(() => {
+        const root = document.documentElement;
+        root.dataset.palette = ${JSON.stringify(palette)};
+        root.dataset.theme = ${JSON.stringify(theme)};
+        root.style.colorScheme = ${JSON.stringify(theme)};
+        return ${ROOT_STATE};
+      })()`);
+      written.set(`${palette}/${theme}`, state);
+    };
+    const force = async (): Promise<number[]> => {
+      const selectors = await js<string[]>(`(${hoverTargets.toString()})()`);
+      const { root }: { root: { nodeId: number } } = await debug.sendCommand("DOM.getDocument", {
+        depth: 0,
+      });
+      const found: { nodeIds: number[] }[] = await Promise.all(
+        selectors.map((selector) =>
+          debug.sendCommand("DOM.querySelectorAll", { nodeId: root.nodeId, selector }),
+        ),
+      );
+      const ids = [...new Set(found.flatMap(({ nodeIds }) => nodeIds))];
+      await Promise.all(
+        ids.map((nodeId) =>
+          debug.sendCommand("CSS.forcePseudoState", { nodeId, forcedPseudoClasses: ["hover"] }),
+        ),
+      );
+      return ids;
+    };
+    const hovered = async (state: ViewContext["state"], run: () => Promise<void>) => {
+      const forced = state === "hover" ? await force() : [];
+      try {
+        await run();
+      } finally {
+        await Promise.all(
+          forced.map((nodeId) =>
+            debug.sendCommand("CSS.forcePseudoState", { nodeId, forcedPseudoClasses: [] }),
+          ),
+        );
       }
     };
-    for (const palette of PALETTES) {
-      for (const theme of THEMES) {
-        const context = { palette, theme };
-        await window.webContents.executeJavaScript(`{
-          localStorage.removeItem("spi-code.panes");
-          localStorage.removeItem("spi-code.line-sheet.pinned");
-          localStorage.setItem("spi-code.appearance", ${JSON.stringify(theme)});
-          localStorage.setItem("spi-code.palette", ${JSON.stringify(palette)});
-          location.hash = "#today";
-        }`);
-        const loaded = once(window.webContents, "did-finish-load");
-        window.webContents.reload();
-        await loaded;
-        await rendered(window, 'document.querySelector(".shell [data-sidebar-row=settings]")');
-        fixture(window, "sweep.status", sweepStatus);
-        fixture(window, "setup.state", ready);
-        await push(nov6);
-        await rendered(
-          window,
-          `document.documentElement.dataset.theme === ${JSON.stringify(theme)} && document.documentElement.dataset.palette === ${JSON.stringify(palette)}`,
-        );
-        await measure({ ...context, view: "today" }, ".today");
-        await window.webContents.executeJavaScript(
-          'document.querySelector("[data-strip] [data-sweep-line]").click()',
-        );
-        await rendered(window, 'document.querySelector("[data-sweep-popover] .capsule-evidence")');
-        await measure({ ...context, view: "sweep-popover" }, "[data-sweep-popover]");
-        await window.webContents.executeJavaScript(
-          'document.querySelector("[data-strip] [data-sweep-line]").click()',
-        );
-        await rendered(window, '!document.querySelector("[data-sweep-popover]")');
-        for (const [morning, snapshot] of mornings) {
-          await push(snapshot);
-          await measure({ ...context, view: `today-${morning}` }, ".today");
+    const sample = async (ctx: ViewContext, scope: string) => {
+      const collected = await js<Collected>(
+        `(${settle.toString()})(), (${collect.toString()})(${JSON.stringify(scope)})`,
+      );
+      const { judged, unmeasured } = judge(collected);
+      const failures = new Map<string, Finding>();
+      for (const item of judged)
+        if (item.ratio < item.needs)
+          failures.set(`${item.selector}|${item.color}|${item.background}`, { ...ctx, ...item });
+      const missing = new Map<string, Unmeasured>();
+      for (const item of unmeasured)
+        missing.set(`${item.selector}|${item.reason}`, { ...ctx, ...item });
+      report.failures.push(...failures.values());
+      report.unmeasured.push(...missing.values());
+      report.views.push({
+        ...ctx,
+        measured: judged.length,
+        inScope: collected.samples.filter(({ inScope }) => inScope).length,
+        excluded: collected.excluded,
+        examples: collected.examples,
+        failures: failures.size,
+        unmeasured: missing.size,
+      });
+      console.log(
+        `Packaged contrast ${ctx.view}/${ctx.palette}/${ctx.theme}/${ctx.state}: ${judged.length} measured, ${failures.size} below AA, ${missing.size} unmeasured, excluded ${JSON.stringify(collected.excluded)}`,
+      );
+    };
+    const everyShade = async (view: string, scope: string) => {
+      for (const state of STATES)
+        await hovered(state, async () => {
+          for (const shading of SHADES) {
+            await shade(shading);
+            await sample({ view, ...shading, state }, scope);
+          }
+        });
+      await shade({ palette: "warm", theme: "light" });
+    };
+    await js(`{
+      localStorage.removeItem("spi-code.panes");
+      localStorage.removeItem("spi-code.line-sheet.pinned");
+      localStorage.setItem("spi-code.appearance", "light");
+      localStorage.setItem("spi-code.palette", "warm");
+      location.hash = "#today";
+    }`);
+    const loaded = once(window.webContents, "did-finish-load");
+    window.webContents.reload();
+    await loaded;
+    await rendered(window, 'document.querySelector(".shell [data-sidebar-row=settings]")');
+    fixture(window, "sweep.status", sweepStatus);
+    fixture(window, "setup.state", ready);
+    await push(nov6);
+    await rendered(
+      window,
+      'document.documentElement.dataset.theme === "light" && document.documentElement.dataset.palette === "warm"',
+    );
+    await shade({ palette: "neutral", theme: "light" });
+    report.controls = checkControls(
+      await js<Collected>(`(() => {
+        const remove = (${drawControls.toString()})();
+        try {
+          return (${collect.toString()})("[data-contrast-control]");
+        } finally {
+          remove();
         }
-        await push(nov6);
-        await window.webContents.executeJavaScript(
-          'document.querySelector("[data-strip] [data-field=forks]").click()',
-        );
-        await rendered(window, 'document.querySelector(".line-sheet .line-grid")');
-        await measure({ ...context, view: "line" }, ".line-sheet");
-        await window.webContents.executeJavaScript(
-          "document.querySelector(\"[aria-label='Close Line']\").click()",
-        );
-        await window.webContents.executeJavaScript('location.hash = "#upstream"');
-        await rendered(window, 'document.querySelector(".upstream .place-reading")');
-        await measure({ ...context, view: "upstream" }, ".upstream");
-        await window.webContents.executeJavaScript(
-          "document.querySelector(\".place-item-content[data-selection-id='campaign:toolchain:os-core-common%208.5.0']\").click()",
-        );
-        await rendered(
-          window,
-          'document.querySelector("aside[aria-label=Detail] .detail-row-fields")',
-        );
-        await measure({ ...context, view: "detail" }, "aside[aria-label=Detail]");
-        await window.webContents.executeJavaScript(
-          'document.querySelector(".upstream-theme-head").click()',
-        );
-        await rendered(
-          window,
-          'document.querySelector("aside[aria-label=Detail]:not([aria-busy=true]) article.inspector")',
-        );
-        await measure({ ...context, view: "detail-reading" }, "aside[aria-label=Detail]");
-        await window.webContents.executeJavaScript(
-          "document.querySelector(\"[aria-label='Close detail']\").click()",
-        );
-        fixture(window, "setup.state", notReady);
-        await window.webContents.executeJavaScript(`{
-          const mac = /Mac|iPhone|iPad/.test(navigator.userAgent);
-          window.dispatchEvent(new KeyboardEvent("keydown", { key: ",", metaKey: mac, ctrlKey: !mac, bubbles: true }));
-        }`);
-        await rendered(window, 'document.querySelector("[role=dialog].settings")');
-        for (const [section, label] of [
-          ["readiness", "Readiness"],
-          ["appearance", "Appearance"],
-          ["sweep", "Sweep"],
-        ] as const) {
-          await window.webContents.executeJavaScript(
-            `[...document.querySelectorAll(".settings-nav button")].find(item => item.textContent === ${JSON.stringify(label)}).click()`,
+      })()`),
+    );
+    console.log(
+      `Packaged contrast controls: ${report.controls.map(({ control, found }) => `${control}: ${found}`).join("; ")}`,
+    );
+    await shade({ palette: "warm", theme: "light" });
+    await everyShade("today", ".today");
+    await js('document.querySelector("[data-strip] [data-sweep-line]").click()');
+    await rendered(window, 'document.querySelector("[data-sweep-popover] .capsule-evidence")');
+    await everyShade("sweep-popover", "[data-sweep-popover]");
+    await js('document.querySelector("[data-strip] [data-sweep-line]").click()');
+    await rendered(window, '!document.querySelector("[data-sweep-popover]")');
+    for (const [morning, snapshot] of mornings) {
+      await push(snapshot);
+      await everyShade(`today-${morning}`, ".today");
+    }
+    await push(nov6);
+    await js('document.querySelector("[data-strip] [data-field=forks]").click()');
+    await rendered(window, 'document.querySelector(".line-sheet .line-grid")');
+    await everyShade("line", ".line-sheet");
+    await js("document.querySelector(\"[aria-label='Close Line']\").click()");
+    await js('location.hash = "#upstream"');
+    await rendered(window, 'document.querySelector(".upstream .place-reading")');
+    await everyShade("upstream", ".upstream");
+    await js(
+      "document.querySelector(\".place-item-content[data-selection-id='campaign:toolchain:os-core-common%208.5.0']\").click()",
+    );
+    await rendered(window, 'document.querySelector("aside[aria-label=Detail] .detail-row-fields")');
+    await everyShade("detail", "aside[aria-label=Detail]");
+    await js('document.querySelector(".upstream-theme-head").click()');
+    await rendered(
+      window,
+      'document.querySelector("aside[aria-label=Detail]:not([aria-busy=true]) article.inspector")',
+    );
+    await everyShade("detail-reading", "aside[aria-label=Detail]");
+    await js("document.querySelector(\"[aria-label='Close detail']\").click()");
+    fixture(window, "setup.state", notReady);
+    await js(`{
+      const mac = /Mac|iPhone|iPad/.test(navigator.userAgent);
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: ",", metaKey: mac, ctrlKey: !mac, bubbles: true }));
+    }`);
+    await rendered(window, 'document.querySelector("[role=dialog].settings")');
+    const section = async (name: string, label: string) => {
+      await js(
+        `[...document.querySelectorAll(".settings-nav button")].find(item => item.textContent === ${JSON.stringify(label)}).click()`,
+      );
+      await rendered(window, `document.querySelector("[data-settings-section=${name}]")`);
+    };
+    for (const { palette, theme } of SHADES) {
+      await section("appearance", "Appearance");
+      const inputs = [
+        `input[name="settings-theme"][value="${theme}"]`,
+        `input[name="settings-palette"][value="${palette}"]`,
+      ];
+      await js(`for (const selector of ${JSON.stringify(inputs)}) {
+        const input = document.querySelector(selector);
+        if (!input.checked) input.click();
+      }`);
+      await rendered(
+        window,
+        `document.documentElement.dataset.theme === ${JSON.stringify(theme)} && document.documentElement.dataset.palette === ${JSON.stringify(palette)}`,
+      );
+      assert.equal(
+        await js<string>(ROOT_STATE),
+        written.get(`${palette}/${theme}`),
+        `Shading ${palette}/${theme} in place must write what Settings > Appearance writes`,
+      );
+      for (const [name, label] of [
+        ["appearance", "Appearance"],
+        ["readiness", "Readiness"],
+        ["sweep", "Sweep"],
+      ] as const) {
+        if (name !== "appearance") await section(name, label);
+        for (const state of STATES)
+          await hovered(state, () =>
+            sample({ view: `settings-${name}`, palette, theme, state }, "[role=dialog].settings"),
           );
-          await rendered(window, `document.querySelector("[data-settings-section=${section}]")`);
-          await measure({ ...context, view: `settings-${section}` }, "[role=dialog].settings");
-        }
-        await window.webContents.executeJavaScript(
-          "document.querySelector(\"[aria-label='Close settings']\").click()",
-        );
-        await rendered(window, '!document.querySelector("[role=dialog]")');
       }
     }
+    await js("document.querySelector(\"[aria-label='Close settings']\").click()");
+    await rendered(window, '!document.querySelector("[role=dialog]")');
   } finally {
     ipcMain.removeListener("smoke:request", request);
     if (clockScript)
@@ -929,7 +1065,7 @@ export async function assertRenderedContrast(
         identifier: clockScript,
       });
     await debug.sendCommand("Emulation.setTimezoneOverride", { timezoneId: "" });
-    await window.webContents.executeJavaScript(`{
+    await js(`{
       const saved = ${JSON.stringify(saved)};
       for (const [key, value] of Object.entries(saved))
         value === null ? localStorage.removeItem(key) : localStorage.setItem(key, value);
@@ -948,6 +1084,9 @@ export async function assertRenderedContrast(
   writeFileSync(
     join(dirname(reportPath), "views", "contrast.json"),
     `${JSON.stringify(report, null, 2)}\n`,
+  );
+  console.log(
+    `Packaged contrast: ${report.views.length} measurements in ${(report.durationMs / 1000).toFixed(1)} s, ${report.failures.length} below AA, ${report.unmeasured.length} unmeasured`,
   );
   assertContrast(report);
   return report;
