@@ -327,7 +327,7 @@
 
 .kit-chip--ok {
   border-color: transparent;
-  background: color-mix(in srgb, var(--success) 18%, var(--surface));
+  background: var(--success-surface);
   color: var(--success-text);
 }
 

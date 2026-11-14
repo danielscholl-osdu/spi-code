@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Message } from "@spi-code/contracts";
 import { app } from "electron";
+import { assertRenderedContrast } from "./smoke-contrast.js";
 import { assertNoProcessListeners, listenerScanBudget } from "./smoke-listeners.js";
 import type { smokeMessages } from "./smoke-messages.js";
 import { assertSmokeReport, assertSmokeTools, type SmokeReport } from "./smoke-report.js";
@@ -78,6 +79,7 @@ export async function runSmoke(
     }),
   ) as Record<(typeof MORNINGS)[number], string>;
   const views = await captureSmokeViews(window, reportPath, fixturePath, designPath, morningPaths);
+  await assertRenderedContrast(window, reportPath, fixturePath, morningPaths);
   const rowId = randomUUID();
   const probePath = join(dataDir, "probe.json");
   const firstCursor = writeSmokeSnapshot(hostStorePath, initialSmoke);

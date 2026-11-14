@@ -13,6 +13,7 @@
 .capsule-pill[data-tone="work"] { color: var(--work, var(--accent-text)); background: var(--work-surface, var(--accent-surface)); }
 .capsule-up { color: var(--upstream); flex: none; }
 .capsule-sync { color: var(--upstream-text); font-weight: 600; }
+.capsule-seg[data-field="next-sync"]:hover { background: var(--upstream-surface); }
 .capsule-divider { flex: none; width: 1px; height: 16px; margin: 0 3px; background: var(--border); }
 .capsule-sweep-icon { flex: none; color: var(--text-muted); }
 .capsule-sweep[data-tone="run"] .capsule-sweep-icon { color: var(--accent); animation: capsule-spin 1s linear infinite; }
