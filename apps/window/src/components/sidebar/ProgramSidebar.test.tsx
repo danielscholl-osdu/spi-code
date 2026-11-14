@@ -257,6 +257,7 @@ it("reorders by dragging one pin onto another", async () => {
     act(async () => {
       item(id)?.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
     });
+  expect(item("place:security")?.getAttribute("draggable")).toBe("true");
   await drag("place:security", "dragstart");
   await drag(LINE_PIN, "dragover");
   await drag(LINE_PIN, "drop");
