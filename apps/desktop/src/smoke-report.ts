@@ -10,6 +10,25 @@ import type { SupervisionReport } from "./smoke-supervision.js";
 export const VIEW_WIDTHS = [1440, 900, 740] as const;
 export const SMOKE_TIMEOUT_MS = 480_000;
 
+const seconds = (ms: number) => (ms / 1000).toFixed(1);
+
+export function smokeElapsed(ms: number): string {
+  return `${seconds(ms)} of ${seconds(SMOKE_TIMEOUT_MS)} s`;
+}
+
+/** Each call logs the section since the last call and the time since launch. */
+export function smokeSections(
+  sinceLaunch: () => number = () => process.uptime() * 1000,
+  log: (line: string) => void = console.log,
+): (section: string) => void {
+  let last = 0;
+  return (section) => {
+    const now = sinceLaunch();
+    log(`Packaged smoke ${section}: ${seconds(now - last)} s, ${smokeElapsed(now)} since launch`);
+    last = now;
+  };
+}
+
 export const VIEW_SURFACES = [
   {
     id: "today",

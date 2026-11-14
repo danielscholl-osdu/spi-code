@@ -20,6 +20,7 @@ import {
   assertSmokeViews,
   geometryRules,
   type SmokeReport,
+  smokeSections,
   VIEW_SURFACES,
   VIEW_WIDTHS,
 } from "./smoke-report.js";
@@ -1315,4 +1316,21 @@ it("names decision.md's sections per morning, width and Detail state", () => {
       "Click targets: a version opens that service's release in Detail",
     ]),
   );
+});
+
+it("logs each smoke section's own seconds and the run's seconds since launch", () => {
+  const lines: string[] = [];
+  const times = [2_200, 61_000, 61_000];
+  const section = smokeSections(
+    () => times.shift() ?? Number.NaN,
+    (line) => lines.push(line),
+  );
+  section("launch");
+  section("captures 1440/light");
+  section("empty");
+  expect(lines).toEqual([
+    "Packaged smoke launch: 2.2 s, 2.2 of 480.0 s since launch",
+    "Packaged smoke captures 1440/light: 58.8 s, 61.0 of 480.0 s since launch",
+    "Packaged smoke empty: 0.0 s, 61.0 of 480.0 s since launch",
+  ]);
 });

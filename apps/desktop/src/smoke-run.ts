@@ -12,7 +12,12 @@ import { app } from "electron";
 import { assertRenderedContrast } from "./smoke-contrast.js";
 import { assertNoProcessListeners, listenerScanBudget } from "./smoke-listeners.js";
 import type { smokeMessages } from "./smoke-messages.js";
-import { assertSmokeReport, assertSmokeTools, type SmokeReport } from "./smoke-report.js";
+import {
+  assertSmokeReport,
+  assertSmokeTools,
+  type SmokeReport,
+  smokeSections,
+} from "./smoke-report.js";
 import type { DesktopHandles } from "./start.js";
 
 export async function runSmoke(
@@ -33,6 +38,8 @@ export async function runSmoke(
   evidence: { toolEvents: Extract<Message, { type: "tool.call" }>["payload"][] },
   saveReport: (report: unknown) => void,
 ): Promise<void> {
+  const section = smokeSections();
+  section("launch");
   const wait = messages.wait;
   const [
     { initialSmoke, writeSmokeSnapshot },
@@ -78,8 +85,16 @@ export async function runSmoke(
       return [morning, path];
     }),
   ) as Record<(typeof MORNINGS)[number], string>;
-  const views = await captureSmokeViews(window, reportPath, fixturePath, designPath, morningPaths);
+  const views = await captureSmokeViews(
+    window,
+    reportPath,
+    fixturePath,
+    designPath,
+    morningPaths,
+    section,
+  );
   await assertRenderedContrast(window, reportPath, fixturePath, morningPaths);
+  section("rendered contrast");
   const rowId = randomUUID();
   const probePath = join(dataDir, "probe.json");
   const firstCursor = writeSmokeSnapshot(hostStorePath, initialSmoke);
@@ -176,6 +191,7 @@ export async function runSmoke(
   await stopHost();
   dispose();
   saveReport(report);
+  section("host proof");
   console.log(JSON.stringify(report, null, 2));
   window.destroy();
   app.exit(0);

@@ -6,7 +6,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { SMOKE_TIMEOUT_MS } from "./smoke-report.js";
+import { SMOKE_TIMEOUT_MS, smokeElapsed } from "./smoke-report.js";
 
 export function launchSmoke(
   executable: string,
@@ -17,6 +17,7 @@ export function launchSmoke(
   const inherited = Object.fromEntries(
     Object.entries(env).filter(([key]) => key.toUpperCase() !== "ELECTRON_RUN_AS_NODE"),
   );
+  const launched = performance.now();
   try {
     execFileSync(executable, [...args, "--smoke", `--user-data-dir=${directory}`], {
       env: inherited,
@@ -24,6 +25,11 @@ export function launchSmoke(
       timeout: SMOKE_TIMEOUT_MS,
       killSignal: "SIGKILL",
     });
+    // The app's report can end mid-line when it exits, so the verdict starts its own line.
+    console.log(`\nPackaged smoke passed in ${smokeElapsed(performance.now() - launched)}`);
+  } catch (error) {
+    console.log(`\nPackaged smoke failed after ${smokeElapsed(performance.now() - launched)}`);
+    throw error;
   } finally {
     rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }

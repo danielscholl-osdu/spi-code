@@ -54,6 +54,24 @@ async function rendered(window: BrowserWindow, condition: string): Promise<void>
   })`);
 }
 
+/**
+ * A screencast keeps the hidden window drawing at the display rate. Unwatched on Windows, it soon
+ * draws one frame a second, and each `rendered` wait for two painted frames then costs two seconds.
+ */
+async function keepDrawing(window: BrowserWindow): Promise<() => Promise<void>> {
+  const debug = window.webContents.debugger;
+  const ack = (_event: Electron.Event, method: string, params: { sessionId?: number }) => {
+    if (method === "Page.screencastFrame")
+      debug.sendCommand("Page.screencastFrameAck", { sessionId: params.sessionId }).catch(() => {});
+  };
+  debug.on("message", ack);
+  await debug.sendCommand("Page.startScreencast", { format: "png", maxWidth: 64, maxHeight: 64 });
+  return async () => {
+    await debug.sendCommand("Page.stopScreencast");
+    debug.removeListener("message", ack);
+  };
+}
+
 function fixture(window: BrowserWindow, type: string, payload: unknown, id = "smoke-views"): void {
   const parsed = parseMessage({
     version: PROTOCOL_VERSION,
@@ -725,6 +743,7 @@ export async function captureSmokeViews(
   fixturePath: string,
   designPath: string,
   morningPaths: Readonly<Record<Morning, string>>,
+  section: (name: string) => void,
 ): Promise<SmokeShot[]> {
   const snapshot = ViewSnapshotSchema.parse(JSON.parse(readFileSync(fixturePath, "utf8")));
   const acknowledged = ViewSnapshotSchema.parse(
@@ -811,10 +830,12 @@ export async function captureSmokeViews(
   };
   const shots: SmokeShot[] = [];
   let clockScript: string | undefined;
+  let stopDrawing: (() => Promise<void>) | undefined;
   window.webContents.debugger.attach("1.3");
   ipcMain.on("smoke:request", request);
   try {
     await window.webContents.debugger.sendCommand("Page.enable");
+    stopDrawing = await keepDrawing(window);
     await window.webContents.debugger.sendCommand("Emulation.setTimezoneOverride", {
       timezoneId: "America/Chicago",
     });
@@ -1325,6 +1346,7 @@ export async function captureSmokeViews(
               "document.querySelector(\"[aria-label='Close detail']\").click()",
             );
         }
+        section(`captures ${viewportWidth}/${appearance}`);
         if (viewportWidth === 1440) {
           fixture(window, "sweep.progress", progress.committed);
           await captureStatusStates(
@@ -1345,6 +1367,7 @@ export async function captureSmokeViews(
             scheduledCursor + 200,
           );
           await captureFindPins(window, output, appearance);
+          section(`status, sweep and Find captures ${viewportWidth}/${appearance}`);
         }
       }
     }
@@ -1370,6 +1393,7 @@ export async function captureSmokeViews(
         mornings,
       )),
     );
+    section("Today mornings");
     assertSmokeViews(shots);
     await overlayDragProbe(window, output, async () => {
       await window.webContents.executeJavaScript(`{
@@ -1394,7 +1418,9 @@ export async function captureSmokeViews(
       fixture(window, "setup.state", ready);
       await rendered(window, 'document.querySelector(".today .place-reading")');
     });
+    section("overlay drag probe");
   } finally {
+    await stopDrawing?.();
     ipcMain.removeListener("smoke:request", request);
     if (clockScript)
       await window.webContents.debugger.sendCommand("Page.removeScriptToEvaluateOnNewDocument", {

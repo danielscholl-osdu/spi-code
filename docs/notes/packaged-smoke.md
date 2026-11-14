@@ -93,6 +93,14 @@ matrix, overlay checks and host/runtime proof to finish: raising only one leaves
 other able to terminate a healthy run. The launcher starts its deadline first, so it SIGKILLs a stuck app before the later-starting in-app watchdog can report.
 The non-smoke proof watchdog stays at 120,000 ms. Per-DOM waits and all
 geometry/image gates are unchanged.
+Each section logs `Packaged smoke <section>: <s> s, <s> of 480.0 s since launch` (launch, each
+capture group, the 1440 status, sweep and Find captures, Today mornings, the overlay drag probe,
+rendered contrast and the host proof), and the launcher logs `Packaged smoke passed in <s> of
+480.0 s`, or `failed after`, so any CI log shows the margin on both platforms.
+The smoke window is hidden. On Windows it soon draws one frame a second, and each `rendered` wait
+for two painted frames then costs two seconds; `setBackgroundThrottling(false)` does not change
+that, while a running capture does. `captureSmokeViews` keeps a 64 px CDP screencast running for
+its whole matrix and stops it before the contrast pass and host proof.
 Today is also captured on the calm, busy and bad mornings (`snapshot-calm.json`,
 `snapshot-busy.json`, `snapshot-bad.json`, each passed by its own
 `--smoke-views-<morning>-fixture` flag) at 1440 and 740 px in both appearances, and
@@ -159,9 +167,8 @@ testing skips `pointer-events: none` layers. aria-hidden is not an exclusion: on
 letter or digit are. Before the views, controls drawn on a temporary node (a 16% success tint,
 white-on-white text inside aria-hidden, generated words) must fail, or the rule throws.
 Each view is mounted once and shaded in place; Settings is shaded through its own Appearance radios,
-which checks the in-place shading writes the same root attributes. Its waits watch DOM mutations: the
-smoke window is hidden, and on Windows every `requestAnimationFrame` or timer wait there cost about
-two seconds. The Windows smoke spends about 410 to 445 s of `SMOKE_TIMEOUT_MS`'s 480 before this rule.
+which checks the in-place shading writes the same root attributes. It runs after the
+screencast stops, so its waits watch DOM mutations rather than animation frames.
 Today runs with a stopped service (entitlements) pinned under the `.v2` key, and fails unless it
 measures that pin's sidebar word at rest and its row hovered: `.pin-item:hover` hides the word, so
 hovered there is no word to measure. The key is restored after the rule, since supervision pins
