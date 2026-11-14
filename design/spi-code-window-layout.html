@@ -1094,24 +1094,6 @@ code{font-family:var(--mono);font-size:.9em}
   </section>
 
   <!-- ================= NOT IN THIS CHANGE ================= -->
-  <section>
-    <h2>Not in this change</h2>
-    <div class="tblwrap">
-      <table class="tbl compact">
-        <thead><tr><th>Item</th><th>Where it goes</th></tr></thead>
-        <tbody>
-          <tr><td><b>Service-page stations as status cells</b></td><td>A separate change against the window design's place readings</td></tr>
-          <tr><td><b>Models section and thread defaults</b></td><td>M3, with threads (TH-08). Settings shows no section for it until then.</td></tr>
-          <tr><td><b>GitHub token override (ST-04)</b></td><td>Its own work; it adds an Advanced section when built</td></tr>
-          <tr><td><b>Right-panel editor tabs, split, expand, open in editor</b></td><td>Not planned. The panel is context for one selection.</td></tr>
-          <tr><td><b>A bottom status bar</b></td><td>Not planned. The top row carries the program's state.</td></tr>
-          <tr><td><b>Thread surfaces, terminal drawer</b></td><td>M3. They follow the pane rules here: flush, resizable, 44 px header, inside the width budget.</td></tr>
-          <tr><td><b>Other field copy and data</b></td><td>Unchanged outside the first sweep and the sweep-settings decision above</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
   <!-- ================= VALIDATION ================= -->
   <section>
     <h2>Validation</h2>
@@ -1120,78 +1102,4 @@ code{font-family:var(--mono);font-size:.9em}
     <p>The sweep-settings pass checks ST-07's contract extension and protocol rules, forced all-source reads with the readiness gate and budget floor, timer restart and cooldown joins, resume and unlock, and no persistence of session status. Window tests cover every drawn Sweep now state, expired times, the moved budget and link, and the 740 px column fold. Desktop tests cover tray actions and committed dot tone, the badge, coalesced notifications, focus suppression, rung dedupe and relaunch, both outage triggers and reset on commit, click targets and every never-notify case. Its document-only bead renders this page in headless Chrome at 1440 and 740 px in light and dark; it does not run a packaged smoke.</p>
   </section>
 
-  <!-- ================= APPENDIX ================= -->
-  <div class="appendix">
-    <p class="eyebrow">Appendix · reference material</p>
-    <h2>Reference detail</h2>
-
-    <section>
-      <h3>A · Defects this change fixes</h3>
-      <div class="tblwrap"><table class="tbl compact">
-        <thead><tr><th>Defect</th><th>Where</th><th>Cause</th><th>Fix</th></tr></thead>
-        <tbody>
-          <tr><td><b>Related wraps one syllable per line</b></td><td class="mono">panels/panels.css:15</td><td>The label column is <code>minmax(84px, max-content)</code>, so the longest label in any row sets the column for all rows; <code>overflow-wrap: anywhere</code> then lets the value shrink to one glyph.</td><td>Stack label over value; omit empty labels</td></tr>
-          <tr><td><b>Related repeats Effect</b></td><td class="mono">packages/host/src/process/routes.ts:388</td><td>Every board section is flattened into Related, including the untitled lead section that already feeds Effect, with an empty label.</td><td>Skip the lead section when it fed Effect</td></tr>
-          <tr><td><b>Every section is a card</b></td><td class="mono">window/src/style.css:47</td><td>A bare <code>section</code> rule adds surface, border, radius and padding to every section element.</td><td>Move the styling to an explicit card class</td></tr>
-          <tr><td><b>Centre and right panel surfaces swapped</b></td><td class="mono">style.css:4, 33, 35</td><td>The centre is transparent over <code>chrome</code> and <code>aside</code> is on <code>surface</code>; the visual design assigns the reverse.</td><td>Centre on <code>surface</code>, right panel on <code>chrome</code></td></tr>
-          <tr><td><b>Narrow sheets overlap the strip</b></td><td class="mono">style.css:53-54, sidebar.css:37,39</td><td>Sheets and backdrops start at a fixed 40 px, which counts only the title bar.</td><td>Offset by the top row's measured height</td></tr>
-          <tr><td><b>Selecting an item can leave Evidence showing</b></td><td class="mono">panels/selection.ts:82-117</td><td><code>select()</code> never sets the tab, so a panel opened on Evidence stays there.</td><td>Selecting a row switches to Detail</td></tr>
-          <tr><td><b>Times read three ways</b></td><td class="mono">views/setup/index.tsx:225, ProgramSidebar.tsx:250</td><td>Setup prints the raw ISO reset time; the title bar and sidebar use different formatters.</td><td>One formatter for the window</td></tr>
-          <tr><td><b>Setup requests fail silently</b></td><td class="mono">views/setup/index.tsx:153, store/watch.ts:98</td><td>Install and Sign in sends have no transport-error handling, and a throw escapes the click handler; GitLab sign-in does handle it.</td><td>Inline error and Try again on every row</td></tr>
-          <tr><td><b>Attention button only reveals text</b></td><td class="mono">views/setup/index.tsx:143-165</td><td>The button toggles a hidden reason without checking or fixing anything.</td><td>Always show the reason; the action re-checks or fixes</td></tr>
-        </tbody>
-      </table></div>
-    </section>
-
-    <section>
-      <h3>B · PRD and window design changes</h3>
-      <p>These edit the documents in <code>design/</code> in the same work that builds them.</p>
-      <div class="tblwrap"><table class="tbl compact">
-        <thead><tr><th>Requirement</th><th>Today it says</th><th>It would say</th></tr></thead>
-        <tbody>
-          <tr><td class="mono">PS-18</td><td>One strip runs under the title bar on every surface; pips show ✕ ! ◐ ○.</td><td>The strip is the window's top row, beside the window controls and the panel toggles, and moves a run of its last fields to a second row, in order, when they do not fit. Since the 2026-11-13 design pass its fields are Environment, Templates and Forks in words, then next sync and freshness; PS-18 in the PRD has the current text.</td></tr>
-          <tr><td class="mono">EV-03</td><td>Freshness is the title bar's sweep line, which is also the strip's freshness field.</td><td>Freshness is one field at the end of the top row: a dot toned by the worst area, the sweep time, and the count of areas failed, cut, incomplete or stale. Clicking it opens the sweep's Evidence.</td></tr>
-          <tr><td class="mono">PS-08</td><td>Footer with Setup and the sweep time; the Settled shelf with its count.</td><td>Footer with Settings and a readiness dot. The Settled shelf appears when threads ship.</td></tr>
-          <tr><td class="mono">PS-13</td><td>One breakpoint, T3 Code's 980 px.</td><td>Panes fold by the centre's minimum of 520 px in four steps: narrow, Detail to a sheet, pinned context stacks, sidebar off-canvas. Sheet, focus and keyboard rules unchanged.</td></tr>
-          <tr><td class="mono">PS-11</td><td>The title bar carries T3 Code's three toggles.</td><td>The top row carries them. The sidebar, the right panel and pinned sheets are resizable with saved preferred widths.</td></tr>
-          <tr><td class="mono">Setup section</td><td>Setup is the first screen, a place reached from the footer.</td><td>Setup is the Readiness section of the Settings dialog, which opens by itself on first launch over the Watch gate and from ⌘, or the footer at any time.</td></tr>
-          <tr><td class="mono">PS-03</td><td>Before the first sweep finishes Today shows what <code>sweep.status</code> carries, named by field.</td><td>Today shows the sweep's twelve sources live from <code>sweep.progress</code>, in Evidence words and sweep order, with a stopped state that offers Try again and Open Settings; only <code>view.snapshot</code> hands over. Done 2026-11-09.</td></tr>
-          <tr><td class="mono">PS-05, PS-19</td><td>Nothing on places before the first snapshot, or on the first sweep's notification.</td><td>Places open one line before the first snapshot; the hand-over sets the tray tooltip and, when the window is hidden, sends one "Today is ready" notification. Done 2026-11-09.</td></tr>
-          <tr><td class="mono">EV-03</td><td>The freshness field shows the last sweep only.</td><td>It carries the sweep while one runs: "sweeping" first, "08:02" later, each with a spinning mark and the count in the hover. Done 2026-11-09.</td></tr>
-          <tr><td class="mono">ST-07, EV-07</td><td>Settings has Readiness and Appearance; Readiness holds the budget.</td><td>Sweep sits between them with the fixed schedule, this session's last sweep, source cadences, the budget and notification copy. Readiness links to it. Sweep now reads all sources, within readiness and budget limits, with cooldown, timer restart and wake requests.</td></tr>
-          <tr><td class="mono">EV-03, PS-19, AU-09</td><td>No next-sweep feedback; attention notifications wait for M3 and the badge for M4.</td><td>Next sweep in the freshness hover and Evidence header, Sweep now in Evidence and the tray, the Today badge, coalesced Interrupt notifications and one can't-read notification per outage ship at M2. M3 adds ownership and owning-thread routing.</td></tr>
-          <tr><td class="mono">Appendix H</td><td>Rejects per-area first-sweep progress because <code>sweep.status</code> carries no progress.</td><td>The rejection is withdrawn. Done 2026-11-09.</td></tr>
-          <tr><td class="mono">Window design</td><td>Fixed right panel and sidebar widths; title bar and strip as two rows; place name in the title bar; Setup as a centre surface.</td><td>The layout on this page: one top row, resizable panes in a width budget, Settings as a dialog.</td></tr>
-        </tbody>
-      </table></div>
-    </section>
-
-    <section>
-      <h3>C · Alternatives not chosen</h3>
-      <div class="tblwrap"><table class="tbl compact">
-        <thead><tr><th>Alternative</th><th>Why not</th></tr></thead>
-        <tbody>
-          <tr><td><b>Keep two rows and thin them</b></td><td>Once Appearance and the sweep sentence leave, the title bar holds only the place name, which the centre header already shows.</td></tr>
-          <tr><td><b>Move the strip to a bottom bar</b></td><td>The environment, template and fork states and the next sync are what the operator checks first; the bottom of the window is where the eye goes last.</td></tr>
-          <tr><td><b>Keep Setup as a centre place</b></td><td>Opening it replaces the place the operator was working in, and Appearance is not a program place. The first-launch case is kept by opening the dialog over the Watch gate.</td></tr>
-          <tr><td><b>Settings as a separate OS window</b></td><td>A second window can fall behind the main one, and on first launch it must sit over the gate it explains.</td></tr>
-          <tr><td><b>Two-column Related with a bounded label column</b></td><td>Still squeezes at 280 px with long labels, and the other Detail fields already stack.</td></tr>
-          <tr><td><b>Fold Detail to a sheet before narrowing it</b></td><td>Covers the centre when 40 px of narrowing would have kept everything visible.</td></tr>
-          <tr><td><b>Sync widths across machines</b></td><td>Screens differ per machine; a width that suits a laptop is wrong on a desktop display.</td></tr>
-        </tbody>
-      </table></div>
-    </section>
-
-    <section>
-      <h3>D · Build order</h3>
-      <div class="tblwrap"><table class="tbl compact">
-        <thead><tr><th>Wave</th><th>Contents</th><th>Size</th></tr></thead>
-        <tbody>
-          <tr><td><b>1 · Defects</b></td><td>Every row of appendix A, the Settled shelf hidden, Detail values in sentence case.</td><td>Small, parallel</td></tr>
-          <tr><td><b>2 · Panes</b></td><td>Flush panes and surfaces, shared pane headers, styled section headers, resizable sidebar, right panel and Line sheet with saved widths, the width budget.</td><td>Medium</td></tr>
-          <tr><td><b>3 · Top row and Settings</b></td><td>The merged top row with its fold, wrap and freshness rules, the Settings dialog with Readiness and Appearance, and the appendix B document edits. A maintainer checkpoint on packaged screenshots closes the wave.</td><td>Medium</td></tr>
-        </tbody>
-      </table></div>
-    </section>
-  </div>
 </div>

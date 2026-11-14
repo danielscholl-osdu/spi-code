@@ -304,25 +304,6 @@ code{font-family:var(--mono);font-size:.9em}
   </div>
 
   <section>
-    <h2>Since the first revision</h2>
-    <div class="tblwrap">
-      <table class="tbl compact">
-        <thead><tr><th></th><th>First revision</th><th>This revision</th></tr></thead>
-        <tbody>
-          <tr><td><b>Landing</b></td><td>Today, always: headline, three bands, the 13 × 6 grid, four queue items</td><td>Today when something that interrupts arrived since you last looked. Otherwise your last thread, in the centre.</td></tr>
-          <tr><td><b>Today</b></td><td>A dashboard</td><td>The daily briefing: an attention band for every Interrupt and the in-system work that asks for you, led by a Stops the line block when the shared environment is stopped, or the verdict sentence when the band is empty; On the horizon for what is coming from upstream, four place cards, and Releases beside In motion and Can wait. Places are the drill-down.</td></tr>
-          <tr><td><b>The grid</b></td><td>The landing view</td><td>The Line sheet, one keystroke away from anywhere, pinnable for a monitoring session</td></tr>
-          <tr><td><b>Fleet at a glance</b></td><td>Sidebar pip rows</td><td>One strip on every surface, as the window's top row: Environment, Templates and Forks, each a word when fine and a count of what is not</td></tr>
-          <tr><td><b>Sidebar</b></td><td>Inventory: campaigns, system, services, views</td><td>Work in flight: threads by status, a few fixed places, your pins</td></tr>
-          <tr><td><b>Threads</b></td><td>A strip on pages, last thread restored in the right panel</td><td>The centre. The right panel is context: the anchor's reading, the lane, a diff.</td></tr>
-          <tr><td><b>Agents</b></td><td>Not described</td><td>Watchers and campaign threads that notice and draft cards, started explicitly, with coverage you can see</td></tr>
-          <tr><td><b>Freshness</b></td><td>Title-bar line and a hatch on affected cells</td><td>One freshness field at the end of the top row. Per-cell hatching waits until provenance maps a failed source to cells.</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <section>
     <h2>The window</h2>
     <p>The window is T3 Code's shell. The sidebar holds work. The centre holds one thing: a brief, a place or a thread. The right panel is closed until the centre has context worth showing. One strip runs across the top on every surface, so the line is never more than a glance away.</p>
     <div class="callout">The mockups on this page draw what each surface says, not how the window is laid out. Their fixed sidebar and right-panel widths, the title bar and strip as two rows, the place name and sweep line in the title bar, and Setup as a sidebar destination are superseded by the <a href="spi-code-window-layout.html">window layout</a>: one top row that ends with the freshness field, flush panes that resize within a width budget, and Setup as the Readiness section of a Settings dialog. For layout, panes, the top row and Settings, the <a href="spi-code-window-layout.html">window layout</a> wins over this page.</div>
@@ -916,21 +897,6 @@ code{font-family:var(--mono);font-size:.9em}
   </section>
 
   <section>
-    <h2>Proposed sequence</h2>
-    <div class="tblwrap">
-      <table class="tbl compact">
-        <thead><tr><th>When</th><th>Work</th><th>New data</th></tr></thead>
-        <tbody>
-          <tr><td><span class="tag m2">M2</span></td><td>Rewrite PS-02, PS-03, PS-08, PS-10 and TH-07. Hold t1k.59 and t1k.62. Today as the brief. The strip. The Line sheet. The sidebar as places and pins. Place readings for upstream, services, environment, engineering system and releases. Detail with one action. Text rules. Remove placeholders. Fix the Detail defects.</td><td>typed station sub-state, typed <code>due</code>, seen-state (local)</td></tr>
-          <tr><td><span class="tag later">M3</span></td><td>Threads in the centre with place composers, ⌘N and @ places. The Copilot model picker. Attention tiers and notifications. Lane events, Lane watch detection, Diagnose. Adopted campaigns as threads.</td><td>lane events, campaign record</td></tr>
-          <tr><td><span class="tag later">M4</span></td><td>Cards in the composer strip. Rerun-after-restore waits. Wave cards with ledgers. The stack's workflow guard as a template rollout.</td><td>admission state</td></tr>
-          <tr><td><span class="tag later">M5 to M6</span></td><td>Code threads, campaign children. Live cluster reads corroborate the lane.</td><td>thread store joins</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <section>
     <h2>Decisions for you</h2>
     <ul class="plain">
       <li><b>Parity.</b> Replace word-for-word parity with reachability, and hold t1k.59 and t1k.62 until the new layout lands.</li>
@@ -943,75 +909,6 @@ code{font-family:var(--mono);font-size:.9em}
     </ul>
   </section>
 
-  <div class="appendix">
-    <p class="eyebrow">Appendix · reference material</p>
-    <h2>Reference detail</h2>
-
-    <section>
-      <h3>A · Requirement changes by ID</h3>
-      <div class="tblwrap"><table class="tbl compact"><thead><tr><th>ID</th><th>Change</th></tr></thead><tbody>
-        <tr><td><b>PS-02, PS-10</b></td><td>Retire word-for-word parity and "lenses in full". Every Briefing and Releases field is reachable within one click of its place, with no conflicting duplicates. The core and oracle regression checks stay.</td></tr>
-        <tr><td><b>PS-03</b></td><td>Today is the daily briefing and says nothing the top row says: the verdict sentence only when the band is empty; a caveat band when a source failed; an attention band without a frame, only with an Interrupt or in-system work, led by Stops the line when the shared environment is stopped and needs you, then Needs you (every other Interrupt, whatever its origin) with the upstream chip on its heading line, Decisions waiting and Failing; no since row and no place marks in the band; On the horizon from upstream GitLab; four place cards; Releases beside In motion and Can wait. No tiles, caps, deadline or New groups; time is a fact, not the spine. Before the first sweep finishes, Today lists the sweep's sources live from <code>sweep.progress</code> and hands over on <code>view.snapshot</code>; the <a href="spi-code-window-layout.html#first-sweep">window layout's first-sweep frame</a> draws it.</td></tr>
-        <tr><td><b>PS-04</b></td><td>Station Detail leads with that station's own reading. Related renders as a label and value table. One action per item, which opens or starts the owning thread or raises its card.</td></tr>
-        <tr><td><b>PS-05, PS-09</b></td><td>Every place has the same three parts: reading, its threads, an anchored composer. No always-present empty sections. Places are Today's drill-down and each opens on what Today can't show. The Environment place leads with its own state (Maintenance or Running, Ready · 21 days, Last proof) and an open 24-hour timeline; Fork deploys is a quiet line that says "All passed" or counts what failed.</td></tr>
-        <tr><td><b>PS-08</b></td><td>Sidebar: Find or ask, Today, Line, the places (Upstream, Environment, Engineering system, Releases, Security), Pinned, threads by status, Settled once threads ship, and a Settings footer row with a readiness dot. No per-service or per-theme rows.</td></tr>
-        <tr><td><b>PS-11</b></td><td>The right panel is context for the centre and closed when empty. Threads occupy the centre. The top row carries the panel toggles, and pane widths, resizing and narrow-window folding (PS-13) follow the <a href="spi-code-window-layout.html">window layout</a>.</td></tr>
-        <tr><td><b>EV-03</b></td><td>Freshness appears once, as the last field of the top row. Per-cell marking waits for provenance that maps a failed source to values. While a sweep runs the field carries its progress: a spinning mark with "sweeping" on the first sweep and the sweep time on later ones; the count is in its hover.</td></tr>
-        <tr><td><b>TH-01</b></td><td>Add campaign, environment-lane and upstream anchors. The upstream anchor's reading (TH-02) is the Upstream place's reading: next sync, commits incoming, toolchain moves, holds and the radar's completeness.</td></tr>
-        <tr><td><b>TH-03</b></td><td>Every place carries a composer anchored to it.</td></tr>
-        <tr><td><b>TH-07</b></td><td>Open on Today when an Interrupt item arrived since last acknowledgement, otherwise restore the last thread in the centre.</td></tr>
-        <tr><td><b>AU-09</b></td><td>Pending button cards are Interrupts and wait in Today's Needs you, which replaces the Inbox. The Today count is the number of distinct Interrupt items: a card counts once, its waiting thread and the P0 it owns are not counted again, and the count falls on resolution. Add the card state <b>approved, waiting</b> for a card bound to a wait.</td></tr>
-        <tr><td><b>AU-10</b></td><td>Replace "the Inbox's Waiting for you" with "Today's Needs you". A thread's card is drawn and decided in its composer strip only.</td></tr>
-        <tr><td><b>AU-04</b></td><td>A Consequential card with several targets is confirmed by typing its campaign and wave name ("Boot 4 wave 1"), never a bare "wave 1", and the field starts empty.</td></tr>
-        <tr><td><b>AU-06</b></td><td>For a card bound to a wait, the binding re-read happens when the wait fires.</td></tr>
-        <tr><td><b>TH-08, CP-09</b></td><td>The picker is T3 Code's without the provider rail: Auto first, starred models with ⌘1 to ⌘4, the premium-request multiplier per row, the reasoning column only for models that support it, models not enabled for the account greyed with a pointer, and a footer with account and usage. ⌘N starts a program-anchored thread; @ adds places as context attachments, never as a second anchor.</td></tr>
-        <tr><td><b>New: Upstream place</b></td><td>A place whose reading is the next sync: commits incoming, toolchain moves, holds and halts, qualified when the radar read was cut. M2.</td></tr>
-        <tr><td><b>New: pins</b></td><td>Pin from a place header, a Line sheet row, or ⌘↩ in ⌘K. M2. Pinning from a strip pip went with the pips.</td></tr>
-        <tr><td><b>New: strip</b></td><td>The strip as the window's top row with fixed fields: Environment, Templates and Forks, each a word when fine (Ready, Current, Flowing) and a count of what is not, then next sync and the freshness field. No pips, no "n of m" and no due count. Each opens its place: the Environment place, the Engineering system, the Line sheet. The <a href="spi-code-window-layout.html">window layout</a> draws how it folds and wraps. M2; words in place of pips from the 2026-11-13 design pass.</td></tr>
-        <tr><td><b>New: attention</b></td><td>Four tiers assigned in core, each with one home on Today, and an origin, in your system or from upstream; a seen-state baseline; ownership suppresses duplicates but not escalation; due items escalate inside a lead time; one notification per distinct item. M2 seen-state and due, M3 notifications.</td></tr>
-        <tr><td><b>New: lane queue</b></td><td>One admission queue for waves, reruns and proves, ordered by core's pacing guards and capped by lane capacity, mirrored by the stack's workflow guard. M4.</td></tr>
-        <tr><td><b>New: watchers</b></td><td>A standing operate thread with a scope, coverage state, Pause and Stop. Host-owned waits and deduplication. M3.</td></tr>
-        <tr><td><b>New: lane events</b></td><td>Borrow, prove and restore per fork, with run id, job and result. Overlaps flagged, failures attributed. Contract at M3.</td></tr>
-        <tr><td><b>New: campaigns</b></td><td>Detected at M2 as a horizon card on Today and a Line filter. Adopted at M3 as a thread with a plan record. Waves at M4. Children at M5.</td></tr>
-        <tr><td><b>New: capability rule</b></td><td>Every M3 to M6 capability declares its anchor and reading, attention rule, lane use and fleet scope in its bead's acceptance.</td></tr>
-      </tbody></table></div>
-    </section>
-
-    <section>
-      <h3>B · Council scores</h3>
-      <div class="tblwrap"><table class="tbl compact"><thead><tr><th>Delegate</th><th>Round 1 (current window)</th><th>Round 2 (first revision)</th><th>Round 3 (revision 2)</th><th>Round 4 (revision 3)</th><th>Round 5 (revision 4)</th><th>Round 6 (revision 5)</th></tr></thead><tbody>
-        <tr><td><b>Claude Opus 5.5</b></td><td class="num">4/10</td><td class="num">6/10</td><td class="num">7.5/10</td><td class="num">8.5/10</td><td class="num">9/10</td><td class="num">9/10</td></tr>
-        <tr><td><b>GPT-6.1 Sol</b></td><td class="num">4/10</td><td class="num">6.5/10</td><td class="num">7.5/10</td><td class="num">8.5/10</td><td class="num">9/10</td><td class="num">9/10</td></tr>
-        <tr><td><b>Muse Wonder 1.0</b></td><td class="num">4/10</td><td class="num">6/10</td><td class="num">7.5/10</td><td class="num">8.5/10</td><td class="num">9/10</td><td class="num">9/10</td></tr>
-      </tbody></table></div>
-    </section>
-
-    <section>
-      <h3>C · Where the reviewers differ</h3>
-      <div class="tblwrap"><table class="tbl compact"><thead><tr><th>Question</th><th>Positions</th><th>This page</th></tr></thead><tbody>
-        <tr><td><b>Landing</b></td><td>Opus: Today as a brief. Sol and Wonder: restore the last thread.</td><td>Today when an Interrupt arrived since last look, otherwise the last thread.</td></tr>
-        <tr><td><b>Morning digest</b></td><td>Wonder: an agent writes a digest thread each sweep. Sol: no model needs to narrate sweeps.</td><td>Deterministic brief. The model is called on events that need diagnosis.</td></tr>
-        <tr><td><b>Owned items</b></td><td>Opus and Wonder: owned work drops to ambient. Sol: ownership isn't health.</td><td>Owned items stop notifying but stay on the strip and keep their home on Today, with the thread's marker.</td></tr>
-        <tr><td><b>Freshness per cell</b></td><td>Opus: hatch affected cells. Sol: the mapping doesn't exist yet.</td><td>The top row's freshness field only until provenance maps sources to values.</td></tr>
-        <tr><td><b>Standing orders</b></td><td>Opus: offer bounded standing orders at M4. Sol: per-call authority everywhere.</td><td>Listed as a decision for you. The page assumes per-call cards.</td></tr>
-        <tr><td><b>Campaign children</b></td><td>Wonder: fan out a child per fork. Sol: create them only when useful.</td><td>Children only for forks that fail on their own code.</td></tr>
-      </tbody></table></div>
-    </section>
-
-    <section>
-      <h3>D · Unchanged from the first revision</h3>
-      <p>The retirement of word-for-word parity, fleet facts once on campaigns, the detected → adopted → sequenced → fanned-out campaign lifecycle, lane events as new data, sequencing enforced in the stack's workflows, the typed station sub-state, the ~120-word service reading, dashed "pending, not yet in a sweep" results, and the two confirmed Detail defects: a clean Sync PR station showing the cascade's cause, and Related flattened into one paragraph.</p>
-    </section>
-
-    <section>
-      <h3>E · Not verified</h3>
-      <ul class="plain">
-        <li>The Sync PR station reads "gate 1 · PR #58" on storage, indexer and indexer-queue. These are different repositories, so the shared number may be a coincidence or a station reading the wrong PR.</li>
-        <li>The radar's envelope keeps only its first cut (entitlements, 125 of 130 hunks) while 12 reads were cut. Fixing the envelope to aggregate its cuts is core work, separate from this layout.</li>
-        <li>The duration estimate in the campaign mockup ("about 40 minutes each") would come from recorded prove durations, which the contract doesn't carry as typed values yet.</li>
-      </ul>
-    </section>
-  </div>
 </div>
 </body>
 </html>

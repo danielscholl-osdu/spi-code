@@ -6,13 +6,9 @@ A macOS and Windows desktop app for running the OSDU SPI program, with GitHub Co
 - `design/spi-code-prd.md`: requirements with IDs, milestones and checks; appendix C maps each capability to its source
 - `design/spi-code-window-design.html`: the window's information design (the strip, Today, the Line sheet, places, threads, attention and agents)
 - `design/spi-code-window-layout.html`: the window's layout (the top row, flush and resizable panes in a width budget, the Detail panel, and the Settings dialog with Readiness and Appearance)
-- `design/spi-code-visual-design.html`: the palette and component kit, and the earlier window layout
+- `design/spi-code-visual-design.html`: the palette, the component kit, the thread and hand-off design, and the T3 Code source map
 
-Where the original combined design (`design/spi-code-design.pdf`) disagrees with these, these win.
-
-Where the visual design's layout, page table or PS-02 parity table disagrees with the window design, the window design wins. The visual design's palette and component kit stand.
-
-For layout, panes, the top row and Settings, the window layout (`design/spi-code-window-layout.html`) wins over the window design and the visual design.
+Each page owns its own topic. Where two disagree, the window layout wins, then the window design, then the visual design. All of them win over the original combined design (`design/spi-code-design.pdf`).
 
 ## How work moves
 
