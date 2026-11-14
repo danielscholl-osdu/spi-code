@@ -1,0 +1,16 @@
+/* Copyright 2026, Daniel Scholl */
+/* SPDX-License-Identifier: MIT */
+
+.capsule { flex: none; margin: 0; width: max-content; min-width: 0; display: flex; align-items: center; gap: 1px; height: 30px; box-sizing: border-box; padding: 0 3px; border: 1px solid var(--border); border-radius: 9px; background: var(--capsule, var(--chrome)); font-size: 12.5px; line-height: 1.4; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.capsule-seg { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font: inherit; white-space: nowrap; cursor: default; }
+.capsule-seg:hover { background: var(--hover, var(--surface-raised)); }
+.capsule-label { color: var(--text-muted); }
+.capsule-ok { color: var(--success); flex: none; }
+.capsule-unread { color: var(--placeholder-fill); }
+.capsule-pill { padding: 1px 6px; border-radius: 5px; font-weight: 600; }
+.capsule-pill[data-tone="warn"] { color: var(--warning-text); background: var(--warning-surface); }
+.capsule-pill[data-tone="bad"] { color: var(--error-text); background: var(--error-surface); }
+.capsule-pill[data-tone="work"] { color: var(--work, var(--accent-text)); background: var(--work-surface, var(--accent-surface)); }
+.capsule-up { color: var(--upstream); flex: none; }
+.capsule-sync { color: var(--upstream-text); font-weight: 600; }
+.capsule-divider { flex: none; width: 1px; height: 16px; margin: 0 3px; background: var(--border); }

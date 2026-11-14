@@ -3,7 +3,7 @@
 
 import { type ReactNode, useEffect, useRef } from "react";
 import { useStore } from "zustand";
-import { Strip } from "../components/strip/Strip.js";
+import { StatusCapsule } from "../components/capsule/StatusCapsule.js";
 import { BeforeFirstSweep } from "../components/sweep/BeforeFirstSweep.js";
 import { OPEN_READINESS_EVENT } from "../settings/readiness.js";
 import { watchStore } from "../store/watch.js";
@@ -45,7 +45,7 @@ export const DEFAULT_REGISTRY: Registry = {
     release: (route) => gated(route, <ReleaseMonth month={route.month} />),
   },
   sheet: (_origin, presentation) => <Line presentation={presentation} />,
-  strip: () => <Strip />,
+  strip: () => <StatusCapsule />,
   fallback: { kind: "today" },
 };
 

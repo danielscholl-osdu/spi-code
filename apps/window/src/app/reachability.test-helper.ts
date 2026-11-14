@@ -5,7 +5,7 @@ import type { InspectResult, ViewSnapshot } from "@spi-code/contracts";
 import { inScope } from "../components/sidebar/attention.js";
 import { selectionRows, TODAY_GROUPS, todayGroupRow } from "../panels/selection-rows.js";
 import { plainTitle } from "../text.js";
-import { clockTime, instantsIn, timedText } from "../time.js";
+import { instantsIn, timedText } from "../time.js";
 import { openHold } from "../views/environment/hold.js";
 import { heldLaneRead } from "../views/environment/lead.js";
 import { eventText, eventWhen, eventWord } from "../views/environment/timeline.js";
@@ -77,9 +77,8 @@ const firstClause = (value: string) => value.split(" · ")[0] ?? value;
 const lastWord = (value: string) => value.trim().split(/\s+/).pop() ?? "";
 const nextSync = (value: string) => value.replace(/^Next sync /, "");
 const subText = (value: string) => timedText(plainTitle(value), { hint: false });
-/** The Environment fact's first clause as the strip's state words it: Ready, Maintenance · <run>, Maintenance. */
 const stripClause = (element: Element) => {
-  const state = element.querySelector(".strip-state")?.textContent ?? "";
+  const state = element.getAttribute("aria-label")?.split(": ")[1]?.split(". ")[0] ?? "";
   if (state === "Ready") return "deployable";
   if (state.startsWith("Maintenance · ")) return state.slice("Maintenance · ".length);
   return state.startsWith("Maintenance") ? "held" : state;
@@ -234,8 +233,13 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
     add(`${pointer}/sub`, firstClause(envFact.sub), STRIP, environment, { read: stripClause });
   }
   if (briefing.nextSyncAt) {
-    const time = clockTime(briefing.nextSyncAt);
-    add("/briefing/nextSyncAt", time, STRIP, '.window-strip [data-field="next-sync"] b');
+    add(
+      "/briefing/nextSyncAt",
+      briefing.nextSyncAt,
+      home("Upstream", STARTS.upstream),
+      ".upstream-theme-when time",
+      { attribute: "dateTime" },
+    );
   }
   add("/briefing/sweptAt", briefing.sweptAt, TODAY, "[data-sweep-line] time", {
     attribute: "dateTime",
