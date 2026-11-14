@@ -29,7 +29,7 @@ export interface TodayCaptureContext {
   setupState: unknown;
 }
 
-const SCROLLER = 'document.querySelector(".today-frame").closest(".middle-frame > *")';
+const SCROLLER = 'document.querySelector(".today-frame").closest(".centre-body > *")';
 
 const blocksScript = `(() => {
   const frame = document.querySelector(".today-frame");

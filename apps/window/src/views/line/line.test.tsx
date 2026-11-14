@@ -43,7 +43,7 @@ async function mount() {
 }
 
 const sheet = () => container.querySelector<HTMLElement>(".line-sheet");
-const main = () => container.querySelector<HTMLElement>("main");
+const main = () => container.querySelector<HTMLElement>(".centre-body");
 const button = (label: string) => {
   const found = [...(sheet()?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find(
     (item) => (item.getAttribute("aria-label") ?? item.textContent) === label,

@@ -245,7 +245,7 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
           rule,
           viewport: rect(0, 0, width, 800),
           scroll: { width, height: 800 },
-          panes: [rect(0, 75, width, 725)],
+          panes: [rect(0, 0, width, 800)],
         };
       case "settings":
         return {
@@ -290,9 +290,9 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
           panes: [232, 568, 360, 280].map((size, index, sizes) => ({
             rect: rect(
               sizes.slice(0, index).reduce((a, b) => a + b, 0),
-              75,
+              0,
               size,
-              725,
+              800,
             ),
             borderLeft: index > 1 ? 1 : 0,
             borderRight: index === 0 ? 1 : 0,
@@ -301,9 +301,18 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
       case "headers":
         return {
           rule,
-          paneTop: 75,
-          panes: [rect(232, 75, 568, 725), rect(800, 75, 360, 725), rect(1160, 75, 280, 725)],
-          headers: [rect(232, 75, 568, 44), rect(800, 75, 360, 44), rect(1160, 75, 280, 44)],
+          panes: [
+            rect(0, 0, 231, 800),
+            rect(232, 0, 568, 800),
+            rect(801, 0, 359, 800),
+            rect(1161, 0, 279, 800),
+          ],
+          headers: [
+            rect(0, 0, 231, 44),
+            rect(232, 0, 568, 44),
+            rect(801, 0, 359, 44),
+            rect(1161, 0, 279, 44),
+          ].map((header, index) => ({ rect: header, rule: index === 0 ? 0 : 1 })),
         };
       case "failed-reads":
         return {
@@ -321,14 +330,31 @@ function geometry(surface: string, width: number): SmokeGeometry[] {
         return {
           rule,
           services: 20,
-          appRegion: "drag",
-          region: rect(84, 0, 648, 44),
-          targets: [rect(84, 0, 500, 44), rect(632, 0, 100, 44)],
+          controls: "inset",
+          clear: rect(0, 0, width, 44),
+          viewport: rect(0, 0, width, 800),
+          centre: rect(0, 0, width, 44),
+          detailSheet: false,
+          regions: [
+            { appRegion: "drag", rect: rect(0, 0, width, 44) },
+            { appRegion: "no-drag", rect: rect(76, 8, 28, 28) },
+            { appRegion: "no-drag", rect: rect(width - 40, 8, 28, 28) },
+          ],
+          targets: [
+            { label: "Toggle sidebar", rect: rect(76, 8, 28, 28) },
+            { label: "Toggle right panel", rect: rect(width - 40, 8, 28, 28) },
+          ],
         };
     }
     throw new Error(`Unknown geometry rule: ${rule}`);
   });
 }
+
+const rejected: Record<string, string> = {
+  "detail-related/1440": "Related value squeezed to 159 px",
+  "panes/1440": "Header top: 4 != 0",
+  "strip-20/740": "Toggle sidebar at 76,8 28x28 lies in a drag rectangle",
+};
 
 const morningBlocks: Record<MorningSurface["morning"], MorningEvidence["blocks"]> = {
   calm: [
@@ -376,7 +402,7 @@ function morningShot(
         : "",
     ],
     geometry: [
-      ...geometry("today", viewportWidth),
+      ...geometry("strip", viewportWidth),
       { rule: "release-platform", platform: rect(24, 1000, 676, 40), versions: 0, library: null },
     ],
     morning: {
@@ -441,8 +467,8 @@ const report: SmokeReport = {
               "GitLab reads failed; items may be missing.",
             ],
           geometry: geometry(id, viewportWidth),
-          ...(id === "detail-related" && viewportWidth === 1440 && appearance === "light"
-            ? { rejectedGeometry: "Related value squeezed to 159 px" }
+          ...(appearance === "light" && rejected[`${id}/${viewportWidth}`]
+            ? { rejectedGeometry: rejected[`${id}/${viewportWidth}`] }
             : {}),
         })),
       ),
@@ -909,26 +935,45 @@ it("fails missing or broken renderer geometry in the terminal report", () => {
       ),
     ).toThrow();
   }
+  for (const proof of Object.keys(rejected))
+    expect(() =>
+      assertSmokeViews(
+        report.views.map((shot) =>
+          `${shot.surface}/${shot.viewportWidth}` === proof
+            ? { ...shot, rejectedGeometry: undefined }
+            : shot,
+        ),
+      ),
+    ).toThrow(`Missing packaged broken-rule proof: ${proof}`);
   expect(() =>
     assertSmokeViews(
-      report.views.map((shot) => ({
-        ...shot,
-        rejectedGeometry: undefined,
-      })),
+      report.views.map((shot) =>
+        shot.surface === "panes" ? { ...shot, rejectedGeometry: "Header left: 4 != 0" } : shot,
+      ),
     ),
-  ).toThrow("Missing packaged broken-rule proof");
+  ).toThrow("Missing packaged broken-rule proof: panes/1440");
   expect(() =>
     assertSmokeViews(
       report.views.map((shot) => ({
         ...shot,
         geometry: shot.geometry.map((check) =>
           shot.surface === "panes" && check.rule === "headers"
-            ? { ...check, panes: check.panes.slice(0, 1), headers: check.headers.slice(0, 1) }
+            ? { ...check, panes: check.panes.slice(1, 2), headers: check.headers.slice(1, 2) }
             : check,
         ),
       })),
     ),
-  ).toThrow("Header probe requires centre, Line and Detail");
+  ).toThrow("Header probe requires sidebar, centre, Line and Detail");
+  expect(() =>
+    assertSmokeViews(
+      report.views.map((shot) => ({
+        ...shot,
+        geometry: shot.geometry.map((check) =>
+          shot.surface === "strip-20" && check.rule === "drag" ? { ...check, services: 13 } : check,
+        ),
+      })),
+    ),
+  ).toThrow("Drag probe requires 20 services");
 });
 
 it("requires the window edge and page scroll proof on every surface, width and appearance", () => {

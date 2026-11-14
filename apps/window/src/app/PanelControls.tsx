@@ -22,19 +22,12 @@
 // SOFTWARE.
 
 import { useCallback, useEffect } from "react";
+import { Icon } from "../components/icons/Icon.js";
 import { SidebarTrigger, useSidebar } from "../components/sidebar/ui-sidebar.js";
 import { ariaShortcut, matchesShortcut, shortcutLabel } from "./shortcuts.js";
 
-/** The title bar's shipped toggles: sidebar (B) and right panel (I), plus Find (K). */
-export function PanelControls({
-  rightPanelOpen,
-  onToggleRightPanel,
-  onToggleFind,
-}: {
-  rightPanelOpen: boolean;
-  onToggleRightPanel(): void;
-  onToggleFind?(): void;
-}) {
+/** Opening the narrow sidebar closes Detail, and opening Detail closes the narrow sidebar. */
+function usePanelToggles(rightPanelOpen: boolean, onToggleRightPanel: () => void) {
   const { toggleSidebar, isMobile, openMobile, setOpenMobile } = useSidebar();
   const closeDetailForSidebar = useCallback(() => {
     if (isMobile && !openMobile && rightPanelOpen) onToggleRightPanel();
@@ -43,6 +36,23 @@ export function PanelControls({
     if (isMobile && openMobile) setOpenMobile(false);
     onToggleRightPanel();
   }, [isMobile, openMobile, setOpenMobile, onToggleRightPanel]);
+  return { toggleSidebar, closeDetailForSidebar, toggleDetail };
+}
+
+/** The shell's panel shortcuts: sidebar (B), right panel (I) and Find (K). */
+export function PanelShortcuts({
+  rightPanelOpen,
+  onToggleRightPanel,
+  onToggleFind,
+}: {
+  rightPanelOpen: boolean;
+  onToggleRightPanel(): void;
+  onToggleFind?(): void;
+}) {
+  const { toggleSidebar, closeDetailForSidebar, toggleDetail } = usePanelToggles(
+    rightPanelOpen,
+    onToggleRightPanel,
+  );
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
@@ -63,30 +73,47 @@ export function PanelControls({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [toggleSidebar, closeDetailForSidebar, toggleDetail, onToggleFind]);
+  return null;
+}
+
+/** The one sidebar toggle, just after the window controls whether the sidebar shows or not. */
+export function SidebarToggle({
+  rightPanelOpen,
+  onToggleRightPanel,
+}: {
+  rightPanelOpen: boolean;
+  onToggleRightPanel(): void;
+}) {
+  const { closeDetailForSidebar } = usePanelToggles(rightPanelOpen, onToggleRightPanel);
   return (
-    <div className="panel-controls">
-      <SidebarTrigger
-        onClick={closeDetailForSidebar}
-        className="panel-toggle"
-        aria-label="Toggle sidebar"
-        aria-controls="app-sidebar"
-        aria-keyshortcuts={ariaShortcut("b")}
-        title={`Toggle sidebar (${shortcutLabel("b")})`}
-      >
-        <span aria-hidden className="panel-glyph" data-panel="sidebar" />
-      </SidebarTrigger>
-      <button
-        type="button"
-        className="panel-toggle"
-        aria-label="Toggle right panel"
-        aria-pressed={rightPanelOpen}
-        aria-controls="app-right-panel"
-        aria-keyshortcuts={ariaShortcut("i")}
-        title={`Toggle right panel (${shortcutLabel("i")})`}
-        onClick={toggleDetail}
-      >
-        <span aria-hidden className="panel-glyph" data-panel="right" />
-      </button>
-    </div>
+    <SidebarTrigger
+      onClick={closeDetailForSidebar}
+      className="panel-toggle sidebar-toggle"
+      aria-label="Toggle sidebar"
+      aria-controls="app-sidebar"
+      aria-keyshortcuts={ariaShortcut("b")}
+      title={`Toggle sidebar (${shortcutLabel("b")})`}
+    >
+      <Icon name="panelLeft" />
+    </SidebarTrigger>
+  );
+}
+
+/** The right panel's toggle at the end of the centre's header, drawn while the panel is closed. */
+export function RightPanelToggle({ onToggleRightPanel }: { onToggleRightPanel(): void }) {
+  const { toggleDetail } = usePanelToggles(false, onToggleRightPanel);
+  return (
+    <button
+      type="button"
+      className="panel-toggle"
+      aria-label="Toggle right panel"
+      aria-pressed={false}
+      aria-controls="app-right-panel"
+      aria-keyshortcuts={ariaShortcut("i")}
+      title={`Show right panel (${shortcutLabel("i")})`}
+      onClick={toggleDetail}
+    >
+      <Icon name="panelRight" />
+    </button>
   );
 }

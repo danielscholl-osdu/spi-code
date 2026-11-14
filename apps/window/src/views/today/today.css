@@ -79,7 +79,7 @@
 }
 .today-leaving {
   position: absolute;
-  inset: var(--pane-header-height) 0 0 0;
+  inset: 0;
   box-sizing: border-box;
   padding: var(--centre-content-padding-block) var(--centre-content-padding-inline);
   overflow: hidden;

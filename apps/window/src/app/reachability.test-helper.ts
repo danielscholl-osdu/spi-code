@@ -548,7 +548,7 @@ export function reachCases(snapshot: ViewSnapshot, feed: DetailFeed): Reach[] {
     add(`${pointer}/stateText`, line.stateText, releasesPlace, `${row} td:nth-child(4)`);
     const place = ".release-page > section.place";
     const notesTile = `${place} .place-tile:nth-child(1)`;
-    add(`${pointer}/name`, line.name, month, `${place} .place-header h1`, { read: ofName });
+    add(`${pointer}/name`, line.name, month, "main header h1", { read: ofName });
     add(`${pointer}/headline`, line.headline, month, `${place} .place-headline`);
     add(`${pointer}/notes`, line.notes, month, `${notesTile} .place-tile-value`, {
       read: (element) => NOTES_STATE[element.textContent ?? ""] ?? "",

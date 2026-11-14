@@ -36,7 +36,7 @@ export type SmokeGeometry =
       scroll: { width: number; height: number };
       panes: { rect: SmokeRect; borderLeft: number; borderRight: number }[];
     }
-  | { rule: "headers"; paneTop: number; panes: SmokeRect[]; headers: SmokeRect[] }
+  | { rule: "headers"; panes: SmokeRect[]; headers: { rect: SmokeRect; rule: number }[] }
   | { rule: "settings"; viewport: SmokeRect; dialog: SmokeRect }
   | { rule: "sweep-visible"; viewport: SmokeRect; panel: SmokeRect; elements: SmokeRect[] }
   | {
@@ -51,7 +51,18 @@ export type SmokeGeometry =
       panel: SmokeRect;
       rows: { source: string; outcome: string }[];
     }
-  | { rule: "drag"; services: number; appRegion: string; region: SmokeRect; targets: SmokeRect[] }
+  | {
+      rule: "drag";
+      services: number;
+      controls: "inset" | "overlay" | "none";
+      /** The top row less the native window controls: Windows' titlebar area, else the whole row. */
+      clear: SmokeRect;
+      viewport: SmokeRect;
+      centre: SmokeRect;
+      detailSheet: boolean;
+      regions: SmokeAppRegion[];
+      targets: { label: string; rect: SmokeRect }[];
+    }
   | {
       rule: "overlay-drag";
       overlay: string;
@@ -123,17 +134,20 @@ function windowEdges(viewport: unknown, scroll: unknown, panes: SmokeRect[]): vo
   );
 }
 
-export function dragSpan(region: SmokeRect, targets: readonly SmokeRect[]): number {
+/** The widest stretch of the region's row that no target covers. */
+export function dragGap(region: SmokeRect, targets: readonly SmokeRect[]): SmokeRect {
   let edge = region.x;
-  let span = 0;
+  let gap = { x: region.x, width: 0 };
   for (const target of targets
     .filter((target) => target.y < region.y + region.height && target.y + target.height > region.y)
     .sort((a, b) => a.x - b.x)) {
     const start = Math.max(region.x, Math.min(region.x + region.width, target.x));
-    span = Math.max(span, start - edge);
+    if (start - edge > gap.width) gap = { x: edge, width: start - edge };
     edge = Math.max(edge, Math.min(region.x + region.width, target.x + target.width));
   }
-  return Math.max(span, region.x + region.width - edge);
+  if (region.x + region.width - edge > gap.width)
+    gap = { x: edge, width: region.x + region.width - edge };
+  return { ...gap, y: region.y, height: region.height };
 }
 
 /**
@@ -313,6 +327,7 @@ export function assertSmokeGeometry(
       for (const pane of value.panes) {
         record(pane);
         rect(pane.rect);
+        aligned(pane.rect.y, 0, "Pane top");
         assert(
           typeof pane.borderLeft === "number" && typeof pane.borderRight === "number",
           "Pane divider missing",
@@ -334,10 +349,6 @@ export function assertSmokeGeometry(
     }
     case "headers": {
       assert(
-        typeof value.paneTop === "number" && Number.isFinite(value.paneTop),
-        "Header pane top missing",
-      );
-      assert(
         Array.isArray(value.headers) && value.headers.length > 0,
         "Header probe requires visible pane headers",
       );
@@ -345,15 +356,24 @@ export function assertSmokeGeometry(
         Array.isArray(value.panes) && value.panes.length === value.headers.length,
         "Header panes missing",
       );
+      let rules = 0;
       for (const [index, header] of value.headers.entries()) {
-        rect(header);
+        record(header);
+        rect(header.rect);
         const pane = value.panes[index];
         rect(pane);
-        aligned(header.height, 44, "Header height");
-        aligned(header.y, value.paneTop, "Header top");
-        aligned(header.x, pane.x, "Header left");
-        aligned(header.width, pane.width, "Header width");
+        assert(typeof header.rule === "number", "Header rule missing");
+        aligned(pane.y, 0, "Pane top");
+        aligned(header.rect.y, 0, "Header top");
+        aligned(header.rect.height, 44, "Header height");
+        aligned(header.rect.x, pane.x, "Header left");
+        aligned(header.rect.width, pane.width, "Header width");
+        if (header.rule > 0) {
+          aligned(header.rule, 1, "Header rule");
+          rules++;
+        }
       }
+      assert(rules > 0, "Header probe found no bottom rule");
       break;
     }
     case "settings": {
@@ -371,14 +391,70 @@ export function assertSmokeGeometry(
       break;
     }
     case "drag": {
-      assert.equal(value.services, 20, "Drag probe must exercise 20 services");
-      assert.equal(value.appRegion, "drag", "Drag row is not draggable");
-      rect(value.region);
-      aligned(value.region.height, 44, "Drag must be on the first row");
+      assert(Number.isInteger(value.services), "Drag probe services missing");
+      assert(
+        value.controls === "inset" || value.controls === "overlay" || value.controls === "none",
+        "Window controls missing",
+      );
+      rect(value.clear);
+      rect(value.viewport);
+      rect(value.centre);
+      aligned(value.clear.y, 0, "Top row top");
+      aligned(value.clear.height, 44, "Top row height");
+      if (value.controls === "overlay")
+        assert(
+          value.clear.x + value.clear.width <= value.viewport.width - 40,
+          `Caption buttons not reported: ${JSON.stringify(value.clear)}`,
+        );
+      assert(Array.isArray(value.regions), "App regions missing");
+      for (const region of value.regions) {
+        record(region);
+        rect(region.rect);
+      }
       assert(Array.isArray(value.targets), "Drag targets missing");
-      for (const target of value.targets) rect(target);
-      const span = dragSpan(value.region, value.targets);
-      assert(span >= 48, `Drag area is ${span} px, below 48`);
+      const labels: string[] = [];
+      for (const target of value.targets) {
+        record(target);
+        rect(target.rect);
+        const { x, y, width, height } = target.rect;
+        const at = `${String(target.label)} at ${x},${y} ${width}x${height}`;
+        assert(y >= -0.02 && y + height <= 44.02, `Top row target off the row: ${at}`);
+        assert(
+          x >= value.clear.x - 0.02 && x + width <= value.clear.x + value.clear.width + 0.02,
+          `Top row target under the window controls: ${at}`,
+        );
+        assert(!inDragShape(value.regions, target.rect), `${at} lies in a drag rectangle`);
+        labels.push(String(target.label));
+      }
+      assert.equal(
+        labels.filter((label) => label === "Toggle sidebar").length,
+        1,
+        "Top row needs one sidebar toggle",
+      );
+      assert.equal(
+        labels.filter((label) => label === "Toggle right panel" || label === "Close detail").length,
+        value.detailSheet ? 0 : 1,
+        "Top row needs one right-panel toggle",
+      );
+      const left = Math.max(value.centre.x, value.clear.x);
+      const right = Math.min(
+        value.centre.x + value.centre.width,
+        value.clear.x + value.clear.width,
+      );
+      const gap = dragGap(
+        { x: left, y: 0, width: right - left, height: 44 },
+        value.targets.map((target) => target.rect),
+      );
+      assert(gap.width >= 48, `Drag area is ${gap.width} px, below 48`);
+      assert(
+        inDragShape(value.regions, {
+          x: gap.x + gap.width / 2 - 0.5,
+          y: 21.5,
+          width: 1,
+          height: 1,
+        }),
+        `Drag area at ${gap.x} is not a drag rectangle`,
+      );
       break;
     }
     case "overlay-drag": {

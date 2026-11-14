@@ -24,7 +24,9 @@
 import type { InspectResult, ReadRecord, ViewSnapshot } from "@spi-code/contracts";
 import { type KeyboardEvent, type ReactNode, useId } from "react";
 import { useStore } from "zustand";
+import { ariaShortcut, shortcutLabel } from "../app/shortcuts.js";
 import { SelectionEvidence, SelectionEvidenceChip } from "../components/evidence/index.js";
+import { Icon } from "../components/icons/Icon.js";
 import { plainTitle, sentenceCase } from "../text.js";
 import { Time, TimedText } from "../time.js";
 import { detailAction, runDetailAction } from "./detail-action.js";
@@ -260,9 +262,11 @@ export function RightPanel({
             type="button"
             className="panel-close panel-toggle"
             aria-label="Close detail"
+            aria-keyshortcuts={ariaShortcut("i")}
+            title={`Hide right panel (${shortcutLabel("i")})`}
             onClick={onClose}
           >
-            ×
+            <Icon name="panelRight" />
           </button>
         )}
       </div>

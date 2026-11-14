@@ -112,7 +112,7 @@ it("pins Upstream first among the places and opens it from the sidebar", async (
   expect(pinned.filter((label) => label !== "Line")[0]).toBe("Upstream");
   await click(nav?.querySelector('[data-sidebar-row="upstream"]'));
   expect(window.location.hash).toBe("#upstream");
-  expect(place().querySelector("h1")?.textContent).toBe("Upstream");
+  expect(container.querySelector("main header h1")?.textContent).toBe("Upstream");
 });
 
 it("renders the Nov 6 upstream reading: headline, qualifier, tiles and groups", () => {
@@ -412,7 +412,7 @@ it("opens the Line sheet filtered to the Upstream column from its Line view link
   await act(async () => load({ ...body, cursor: body.cursor + 1 }));
   const sheet = () => container.querySelector<HTMLElement>(".line-sheet");
   expect(sheet()).toBeNull();
-  const link = [...place().querySelectorAll<HTMLButtonElement>("header button")].find(
+  const link = [...container.querySelectorAll<HTMLButtonElement>("main header button")].find(
     (button) => button.textContent === "Line view",
   );
   await click(link);

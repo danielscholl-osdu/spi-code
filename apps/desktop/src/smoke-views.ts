@@ -20,6 +20,7 @@ import { MORNING_SURFACES, type Morning } from "./smoke-mornings.js";
 import {
   assertSmokeShot,
   assertSmokeViews,
+  BROKEN_PROOFS,
   geometryRules,
   type SmokeShot,
   VIEW_SURFACES,
@@ -388,30 +389,48 @@ async function measure(
           return { rect: rect(item), borderLeft: parseFloat(style.borderLeftWidth), borderRight: parseFloat(style.borderRightWidth) };
         }) };
       case "headers": {
-        const panes = [".middle-frame", ".line-sheet", ".right-panel"]
-          .map(selector => document.querySelector(selector)).filter(Boolean);
-        return { rule: "headers", paneTop: rect(element(".middle-frame")).y,
-          panes: panes.map(item => {
-            const bounds = rect(item);
-            const style = getComputedStyle(item);
-            const left = parseFloat(style.borderLeftWidth);
-            return { ...bounds, x: bounds.x + left, width: bounds.width - left - parseFloat(style.borderRightWidth) };
-          }),
-          headers: panes.map(item => rect(item.querySelector(".pane-header"))) };
+        const inner = item => {
+          const bounds = rect(item);
+          const style = getComputedStyle(item);
+          const left = parseFloat(style.borderLeftWidth);
+          return { ...bounds, x: bounds.x + left, width: bounds.width - left - parseFloat(style.borderRightWidth) };
+        };
+        const parts = [
+          [".app-sidebar:not([data-mobile]):not([inert]):not([data-state=collapsed])", ".sidebar-top"],
+          [".middle-frame", ".centre-bar"],
+          [".line-sheet[data-presentation=pinned]", ".line-toolbar"],
+          [".right-panel-frame:not([data-sheet]) .right-panel", ".panel-tabs"]
+        ].flatMap(([pane, header]) => {
+          const item = document.querySelector(pane);
+          return item && item.getBoundingClientRect().width > 0 ? [[item, item.querySelector(header)]] : [];
+        });
+        return { rule: "headers", panes: parts.map(([pane]) => inner(pane)),
+          headers: parts.map(([, header]) => ({ rect: rect(header), rule: parseFloat(getComputedStyle(header).borderBottomWidth) })) };
       }
       case "settings":
         return { rule: "settings", viewport, dialog: rect(element("[role=dialog].settings")) };
       case "drag": {
-        const title = element(".title-bar");
-        const bounds = rect(title);
-        const style = getComputedStyle(title);
-        const left = parseFloat(style.paddingLeft);
-        const right = parseFloat(style.paddingRight);
+        const controls = element(".shell").dataset.windowControls;
+        const overlay = navigator.windowControlsOverlay;
+        const area = controls === "overlay" && overlay?.visible ? overlay.getTitlebarAreaRect() : null;
+        const clear = area ? { x: area.x, y: area.y, width: area.width, height: area.height }
+          : { x: 0, y: 0, width: innerWidth, height: 44 };
+        const regions = [...document.querySelectorAll("*")].flatMap(item => {
+          const appRegion = getComputedStyle(item).getPropertyValue("-webkit-app-region");
+          const bounds = rect(item);
+          return (appRegion === "drag" || appRegion === "no-drag") && bounds.width > 0 && bounds.height > 0 && bounds.y < 44
+            ? [{ appRegion, rect: bounds }] : [];
+        });
+        const targets = [...document.querySelectorAll("button, select, input, textarea, a[href], label, summary, [role=button], [role=tab]")]
+          .filter(item => getComputedStyle(item).visibility !== "hidden" && !item.closest("[inert]"))
+          .flatMap(item => {
+            const bounds = rect(item);
+            const label = item.getAttribute("aria-label") || item.textContent.replace(/\\s+/g, " ").trim().slice(0, 40) || item.tagName.toLowerCase();
+            return bounds.width > 0 && bounds.height > 0 && bounds.y < 44 ? [{ label, rect: bounds }] : [];
+          });
         return { rule: "drag", services: Number(document.querySelector("[data-strip] [data-field=forks]")?.dataset.services ?? 0),
-          appRegion: style.getPropertyValue("-webkit-app-region"),
-          region: { x: bounds.x + left, y: bounds.y, width: bounds.width - left - right, height: 44 },
-          targets: [...title.querySelectorAll("button, select, input, textarea, a, label, summary")]
-            .filter(item => item.getBoundingClientRect().width > 0 && getComputedStyle(item).visibility !== "hidden").map(rect) };
+          controls, clear, viewport, centre: rect(element(".centre-bar")),
+          detailSheet: Boolean(document.querySelector(".right-panel-frame[data-sheet]")), regions, targets };
       }
       case "overlay-drag": {
         const root = element(${JSON.stringify(overlay)});
@@ -449,29 +468,60 @@ async function measure(
   return value;
 }
 
-async function brokenRelatedProbe(window: BrowserWindow): Promise<string> {
+interface BrokenProof {
+  rule: SmokeGeometry["rule"];
+  selector: string;
+  property: string;
+  value: string;
+}
+
+const BREAKS: Partial<Record<string, BrokenProof>> = {
+  "detail-related/1440": {
+    rule: "related",
+    selector: ".inspector-related dd",
+    property: "width",
+    value: "159px",
+  },
+  "panes/1440": {
+    rule: "headers",
+    selector: ".panel-tabs",
+    property: "margin-top",
+    value: "4px",
+  },
+  "strip-20/740": {
+    rule: "drag",
+    selector: ".centre-row > .toggle-room",
+    property: "-webkit-app-region",
+    value: "initial",
+  },
+};
+
+async function brokenRuleProbe(
+  window: BrowserWindow,
+  proof: BrokenProof,
+  rejects: RegExp,
+): Promise<string> {
+  const target = `document.querySelector(${JSON.stringify(proof.selector)})`;
   const original: string = await window.webContents.executeJavaScript(`(() => {
-    const value = document.querySelector(".inspector-related dd");
-    const original = value.style.width;
-    value.style.width = "159px";
+    const item = ${target};
+    const original = item.style.getPropertyValue(${JSON.stringify(proof.property)});
+    item.style.setProperty(${JSON.stringify(proof.property)}, ${JSON.stringify(proof.value)}, "important");
     return original;
   })()`);
+  await rendered(window, "true");
   try {
-    await measure(window, "related");
-    assert.fail("Broken Related geometry passed");
+    await measure(window, proof.rule);
+    assert.fail(`Broken ${proof.rule} geometry passed`);
   } catch (error) {
-    if (!(error instanceof AssertionError) || error.message !== "Related value squeezed to 159 px")
-      throw error;
+    if (!(error instanceof AssertionError) || !rejects.test(error.message)) throw error;
     console.log(`Packaged broken-rule proof rejected: ${error.message}`);
     return error.message;
   } finally {
     await window.webContents.executeJavaScript(
-      `document.querySelector(".inspector-related dd").style.width = ${JSON.stringify(original)}`,
+      `${target}.style.setProperty(${JSON.stringify(proof.property)}, ${JSON.stringify(original)})`,
     );
-    await rendered(
-      window,
-      'document.querySelector(".inspector-related dd").getBoundingClientRect().width >= 160',
-    );
+    await rendered(window, "true");
+    await measure(window, proof.rule);
   }
 }
 
@@ -508,7 +558,7 @@ async function overlayDragProbe(
         `Math.abs(innerWidth - ${width}) <= 1 && Math.abs(innerHeight - ${height}) <= 1`,
       );
       const titleBar: number = await window.webContents.executeJavaScript(
-        'document.querySelector(".title-bar").getBoundingClientRect().height',
+        'document.querySelector(".centre-bar").getBoundingClientRect().height',
       );
       let geometry: SmokeGeometry;
       try {
@@ -1028,6 +1078,15 @@ export async function captureSmokeViews(
               ViewSnapshotSchema.parse({ ...snapshot, cursor: snapshot.cursor + 1, stations }),
             );
           }
+          if (surface.id === "sidebar") {
+            await window.webContents.executeJavaScript(
+              'document.querySelector("#app-sidebar[data-mobile][data-state=collapsed]") && document.querySelector("[aria-label=\'Toggle sidebar\']").click()',
+            );
+            await rendered(
+              window,
+              'document.querySelector("#app-sidebar").getBoundingClientRect().x === 0',
+            );
+          }
           await rendered(window, `document.querySelector(${JSON.stringify(surface.selector)})`);
           if (surface.id === "strip" || surface.id === "strip-20") {
             await rendered(
@@ -1093,10 +1152,10 @@ export async function captureSmokeViews(
           console.log(
             `Packaged window ${surface.id}/${viewportWidth}/${appearance}: viewport ${bounds.viewport.width}x${bounds.viewport.height}, page ${bounds.scroll.width}x${bounds.scroll.height}, edges 0..${Math.max(...bounds.panes.map((pane) => pane.x + pane.width))}, bottom ${Math.max(...bounds.panes.map((pane) => pane.y + pane.height))}`,
           );
+          const proof = appearance === "light" && BREAKS[`${surface.id}/${viewportWidth}`];
+          const rejects = BROKEN_PROOFS[`${surface.id}/${viewportWidth}`];
           const rejectedGeometry =
-            surface.id === "detail-related" && viewportWidth === 1440 && appearance === "light"
-              ? await brokenRelatedProbe(window)
-              : undefined;
+            proof && rejects ? await brokenRuleProbe(window, proof, rejects) : undefined;
           const qualifiers: string[] = await window.webContents.executeJavaScript(`[
             document.getElementById(document.querySelector("[data-sweep-line]")?.getAttribute("aria-labelledby") ?? "")?.textContent ?? "",
             document.querySelector(${JSON.stringify(
@@ -1160,6 +1219,12 @@ export async function captureSmokeViews(
             await window.webContents.executeJavaScript(
               "document.querySelector(\"[aria-label='Close Line']\").click()",
             );
+          if (surface.id === "sidebar") {
+            await window.webContents.executeJavaScript(
+              'document.querySelector("#app-sidebar[data-mobile][data-state=expanded]") && document.querySelector(".sidebar-backdrop").click()',
+            );
+            await rendered(window, '!document.querySelector(".sidebar-backdrop")');
+          }
           if (
             surface.id === "evidence-header-sweeping" ||
             ["detail", "detail-related", "panes", "first-sweep-evidence"].includes(surface.id)

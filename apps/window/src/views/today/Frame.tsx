@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 import type { ReactNode } from "react";
+import { PaneTitle } from "../../app/title-row.js";
 import { dayLine } from "../../time.js";
 import { useTodayAnchor } from "./anchor.js";
 
@@ -41,12 +42,12 @@ export function TodayFrame({
   const lower = Boolean(slots.releases || slots.motion);
   return (
     <section className="place" aria-label="Today">
-      <header className="place-header pane-header">
+      <PaneTitle>
         <h1 data-place>Today</h1>
         <time className="today-date" dateTime={sweptAt}>
           {dayLine(sweptAt)}
         </time>
-      </header>
+      </PaneTitle>
       <section ref={frame} className="place-reading today-frame" aria-label="Today reading">
         {head && <div className="today-head">{head}</div>}
         {caveat}

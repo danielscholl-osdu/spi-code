@@ -3,6 +3,7 @@
 
 import type { ReactNode } from "react";
 import { useStore } from "zustand";
+import { PaneTitle } from "../../app/title-row.js";
 import { openReadiness } from "../../settings/readiness.js";
 import { watchStore } from "../../store/watch.js";
 
@@ -11,9 +12,9 @@ export function WatchGate({ label, children }: { label: string; children: ReactN
   if (!setup || setup.watchReady) return children;
   return (
     <>
-      <header className="place-header pane-header">
+      <PaneTitle>
         <h1 data-place>{label}</h1>
-      </header>
+      </PaneTitle>
       <p role="status">Watch unavailable: {setup.disabledReason}. Open Settings to continue.</p>
       <button type="button" onClick={openReadiness}>
         Open Settings

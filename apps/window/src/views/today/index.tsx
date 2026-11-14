@@ -5,6 +5,7 @@ import type { SweepProgress } from "@spi-code/contracts";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useStore } from "zustand";
 import type { Navigation } from "../../app/navigation.js";
+import { PaneTitle } from "../../app/title-row.js";
 import { useNow } from "../../components/evidence/useNow.js";
 import { FirstSweepBody } from "../../components/sweep/FirstSweepBody.js";
 import { openFreshness } from "../../components/sweep/reveal.js";
@@ -49,9 +50,9 @@ function FirstSweep({
   const now = useNow(progress?.outcome === "running" ? 1000 : 30_000);
   return (
     <section className="today" aria-label="Today">
-      <header className="place-header pane-header">
+      <PaneTitle>
         <h1 data-place>Today</h1>
-      </header>
+      </PaneTitle>
       <FirstSweepBody
         progress={progress}
         now={now}

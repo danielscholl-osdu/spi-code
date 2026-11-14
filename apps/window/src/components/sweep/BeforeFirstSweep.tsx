@@ -5,6 +5,7 @@ import type { SweepProgress } from "@spi-code/contracts";
 import type { ReactNode } from "react";
 import { useStore } from "zustand";
 import { type PlaceRoute, routeLabel } from "../../app/navigation.js";
+import { PaneTitle } from "../../app/title-row.js";
 import { watchStore } from "../../store/watch.js";
 import "../place/place.css";
 
@@ -50,9 +51,9 @@ export function BeforeFirstSweep({
   if (!waiting) return children;
   return (
     <section className="place" aria-label={routeLabel(route)} data-before-sweep="">
-      <header className="place-header pane-header">
+      <PaneTitle>
         <h1 data-place>{routeLabel(route)}</h1>
-      </header>
+      </PaneTitle>
       <p className="place-before-sweep">{placeLine(route, progress)}</p>
     </section>
   );

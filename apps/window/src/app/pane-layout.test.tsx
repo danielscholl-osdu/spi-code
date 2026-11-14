@@ -294,9 +294,7 @@ describe("pane separators", () => {
     expect(relaunched.column("--sheet-col")).toBe("380px");
     expect(relaunched.separator("Resize sidebar")).toBeNull();
     await act(async () =>
-      relaunched.container
-        .querySelector<HTMLButtonElement>('[aria-label="Toggle right panel"]')
-        ?.click(),
+      relaunched.container.querySelector<HTMLButtonElement>('[aria-label="Close detail"]')?.click(),
     );
     expect(saved().open.rightPanel).toBe(false);
     await relaunched.unmount();
@@ -315,11 +313,10 @@ describe("pane separators", () => {
     expect(saved().open.rightPanel).toBe(true);
   });
 
-  it("restores a saved open right panel before the shell first measures its top row or visits a route", async () => {
+  it("restores a saved open right panel before the shell first visits a route", async () => {
     const previousWatch = watchStore.getState();
     const { visit } = selectionStore.getState();
-    const measure = HTMLElement.prototype.getBoundingClientRect;
-    const openAt: { measure?: boolean; visit?: boolean } = {};
+    const openAt: { visit?: boolean } = {};
     try {
       const body = fixtureLoader(readFixture)("snapshot-1106.json");
       watchStore.setState({ snapshot: { cursor: body.cursor, body }, setup: null });
@@ -334,14 +331,8 @@ describe("pane separators", () => {
         },
       });
       await resizeWindow(1440);
-      vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
-        this: HTMLElement,
-      ) {
-        if (this.matches(".title-bar")) openAt.measure ??= selectionStore.getState().open;
-        return measure.call(this);
-      });
       await mountShell();
-      expect(openAt).toEqual({ measure: true, visit: true });
+      expect(openAt).toEqual({ visit: true });
     } finally {
       vi.restoreAllMocks();
       selectionStore.setState({ visit });

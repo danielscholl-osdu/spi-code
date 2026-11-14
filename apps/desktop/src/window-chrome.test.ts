@@ -31,10 +31,9 @@ it("hides the Windows title bar and draws its caption buttons over the 44 px row
   });
 });
 
-it("matches the overlay height to the first row the window draws its title bar in", () => {
+it("matches the overlay height to the top row every pane draws its header in", () => {
   const css = readFileSync(new URL("../../window/src/style.css", import.meta.url), "utf8");
-  expect(css).toMatch(new RegExp(`\\.title-bar \\{[^}]* height: ${TITLEBAR_HEIGHT}px;`));
-  expect(css).toMatch(new RegExp(`\\.title-bar-controls \\{[^}]* height: ${TITLEBAR_HEIGHT}px;`));
+  expect(css).toMatch(new RegExp(`--pane-header-height: ${TITLEBAR_HEIGHT}px;`));
 });
 
 it.each(["darwin", "win32"])(

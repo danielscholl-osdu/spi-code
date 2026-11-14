@@ -6,49 +6,61 @@
   --centre-content-max-width: 960px;
   --centre-content-padding-block: 20px;
   --centre-content-padding-inline: 24px;
-  --panel-icon-size: 24px;
 }
 
 body { margin: 0; background: var(--surface); color: var(--text); font: 14px/1.5 var(--font-sans); }
-.shell { display: grid; grid-template-columns: var(--sidebar-col) minmax(0, 1fr) var(--sheet-col) var(--panel-col); grid-template-rows: auto minmax(0, 1fr); height: 100dvh; }
-.shell[data-line-presentation="stacked"] { grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr); }
-.shell[data-line-presentation="stacked"] :is(.app-sidebar, .right-panel-frame:not([data-sheet])) { grid-row: 2 / 4; }
-.title-bar { position: relative; grid-column: 1 / -1; grid-row: 1; box-sizing: border-box; height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 8px 0 16px; box-shadow: inset 0 -1px 0 var(--border); background: var(--sidebar); font-size: 12.5px; white-space: nowrap; min-width: 0; -webkit-app-region: drag; }
+.shell { position: relative; display: grid; grid-template-columns: var(--sidebar-col) minmax(0, 1fr) var(--sheet-col) var(--panel-col); grid-template-rows: var(--pane-header-height) minmax(0, 1fr); height: 100dvh; --toggle-x: 12px; }
+.shell[data-line-presentation="stacked"] { grid-template-rows: var(--pane-header-height) minmax(0, 1fr) minmax(0, 1fr); }
+/* Each pane draws its own part of one top row; the empty space in every part drags the window. */
+:is(.centre-row, .sidebar-top, .shell[data-right-presentation="inline"] .panel-tabs, .line-sheet[data-presentation="pinned"] .line-toolbar) { -webkit-app-region: drag; }
 /* Electron 44 inherits app-region; children reset to initial so they add no drag rectangles of their own. */
-.title-bar > * { -webkit-app-region: initial; }
-.title-bar :is(button, select, input, textarea, a, label, summary) { -webkit-app-region: no-drag; }
-/* macOS traffic lights sit at x 16, 14 px apart; Windows caption buttons fill the overlay's right edge. */
-.shell[data-window-controls="inset"] .title-bar { padding-left: 84px; }
-.shell[data-window-controls="overlay"] .title-bar { padding-right: calc(100vw - env(titlebar-area-width, 100vw) - env(titlebar-area-x, 0px) + 8px); }
-.title-bar:has(.strip[data-rows="2"]) { height: 75px; align-items: flex-start; }
-.title-bar-controls { display: flex; flex: none; align-items: center; gap: 10px; height: 44px; }
-.panel-controls { display: flex; align-items: center; gap: 2px; }
+:is(.centre-row, .sidebar-top, .panel-tabs, .line-toolbar) > * { -webkit-app-region: initial; }
+/* Electron subtracts no-drag rectangles in document order, so a later drag part needs a hole where the earlier sidebar toggle sits. */
+:is(.centre-row, .sidebar-top, .panel-tabs, .line-toolbar) :is(button, select, input, textarea, a, label, summary), .toggle-room, .sidebar-toggle { -webkit-app-region: no-drag; }
+/* macOS traffic lights end near x 70; Windows caption buttons fill the overlay's right edge. */
+.shell[data-window-controls="inset"] { --toggle-x: 76px; }
+.shell[data-window-controls="overlay"] { --caption-inset: calc(100vw - env(titlebar-area-width, 100vw) - env(titlebar-area-x, 0px) + 8px); }
+.shell[data-window-controls="overlay"]:not([data-right-presentation="inline"], [data-line-presentation="inline"]) .centre-row { padding-right: var(--caption-inset); }
+.shell[data-window-controls="overlay"][data-right-presentation="inline"] .panel-tabs { padding-right: var(--caption-inset); }
+.shell[data-window-controls="overlay"]:not([data-right-presentation="inline"])[data-line-presentation="inline"] .line-toolbar { padding-right: var(--caption-inset); }
+.sidebar-toggle { position: absolute; top: 8px; left: var(--toggle-x); z-index: 3; }
+.toggle-room { flex: none; align-self: stretch; width: 28px; }
 .panel-toggle { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); }
-.panel-toggle:hover { background: var(--surface-raised); color: var(--text); }
-.panel-toggle[aria-pressed="true"] { color: var(--text-strong); }
-.panel-toggle[aria-disabled="true"] { cursor: default; opacity: 0.5; }
-.panel-toggle[aria-disabled="true"]:hover { background: transparent; }
-.panel-glyph { position: relative; width: 14px; height: 11px; border: 1.5px solid currentColor; border-radius: 2.5px; }
-.panel-glyph::after { content: ""; position: absolute; background: currentColor; }
-.panel-glyph[data-panel="sidebar"]::after { inset: 0 auto 0 3px; width: 1.5px; }
-.panel-glyph[data-panel="terminal"]::after { inset: auto 0 3px 0; height: 1.5px; }
-.panel-glyph[data-panel="right"]::after { inset: 0 3px 0 auto; width: 1.5px; }
+.panel-toggle:hover { background: var(--hover); color: var(--text); }
 .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
-.window-strip { flex: 1; min-width: 0; }
-.middle-frame { position: relative; display: flex; flex-direction: column; grid-column: 2; grid-row: 2; padding: 0; overflow: hidden; min-width: 0; min-height: 0; background: var(--surface); container-type: inline-size; }
-.middle-frame:has(.place-header)::before { content: ""; flex: none; height: var(--pane-header-height); }
-.middle-frame > [role="alert"] { padding: 20px 24px 0; margin: 0; }
-.middle-frame > :not([role="alert"], .place-header, [role="status"], button) { flex: 1; box-sizing: border-box; min-height: 0; padding: var(--centre-content-padding-block) var(--centre-content-padding-inline); overflow: auto; }
-.middle-frame > :is([role="alert"], [role="status"], button) { flex: none; }
-.middle-frame > :is([role="status"], button) { margin: 20px 24px; align-self: flex-start; }
-.middle-frame > * > .place { display: contents; }
-.middle-frame .place-reading,
-.middle-frame > * > :not(.place, .place-header) { max-width: var(--centre-content-max-width); }
+.middle-frame { display: flex; flex-direction: column; grid-column: 2; grid-row: 1 / -1; padding: 0; overflow: hidden; min-width: 0; min-height: 0; background: var(--surface); }
+.shell[data-line-presentation="stacked"] .middle-frame { grid-row: 1 / 3; }
+.centre-bar { padding: 0; background: var(--surface); container-type: inline-size; }
+.centre-row { box-sizing: border-box; display: flex; align-items: center; gap: 8px; width: 100%; height: 100%; padding: 0 10px 0 16px; white-space: nowrap; font-size: 13px; }
+.centre-row > .toggle-room { margin-left: calc(var(--toggle-x) - 16px); }
+.centre-title { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 8px; overflow: hidden; }
+.centre-title h1 { flex: 0 1 auto; min-width: 0; margin: 0; overflow: hidden; text-overflow: ellipsis; color: var(--text-strong); font-size: 14px; font-weight: 600; }
+.centre-title > :not(h1) { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.centre-title time { margin-left: 0; color: var(--text-muted); font-size: 12.5px; }
+.centre-title button { flex: none; height: 24px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; }
+.centre-title button:hover { background: var(--hover); color: var(--text); }
+.window-strip { flex: none; display: flex; align-items: center; }
+.centre-end { flex: 1 1 0; min-width: 0; display: flex; align-items: center; justify-content: flex-end; }
+/* The capsule stays centred while the centre is 1000 px wide, then moves to the end and gives the title its room. */
+@container (width < 1000px) {
+  .centre-title { flex: 1 1 auto; }
+  .centre-end { flex: none; }
+}
+@container (width < 800px) {
+  .centre-title > :not(h1) { display: none; }
+}
+.centre-body { position: relative; display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; overflow: hidden; container-type: inline-size; }
+.centre-body > [role="alert"] { padding: 20px 24px 0; margin: 0; }
+.centre-body > :not([role="alert"], [role="status"], button) { flex: 1; box-sizing: border-box; min-height: 0; padding: var(--centre-content-padding-block) var(--centre-content-padding-inline); overflow: auto; }
+.centre-body > :is([role="alert"], [role="status"], button) { flex: none; }
+.centre-body > :is([role="status"], button) { margin: 20px 24px; align-self: flex-start; }
+.centre-body > * > .place { display: contents; }
+.centre-body .place-reading,
+.centre-body > * > :not(.place) { max-width: var(--centre-content-max-width); }
 /* Today lifts the content cap; the places keep it. */
-.middle-frame .today-frame { max-width: none; }
+.centre-body .today-frame { max-width: none; }
 .pane-header { display: flex; align-items: center; flex: none; box-sizing: border-box; height: var(--pane-header-height); border-bottom: 1px solid var(--border); }
-.middle-frame .place-header { position: absolute; top: 0; left: 0; right: 0; z-index: 1; margin: 0; padding: 0 var(--centre-content-padding-inline); background: var(--surface); }
-.right-panel-frame { grid-column: 4; grid-row: 2; display: grid; min-width: 0; min-height: 0; }
+.right-panel-frame { grid-column: 4; grid-row: 1 / -1; display: grid; min-width: 0; min-height: 0; }
 aside { padding: 16px; overflow: auto; min-width: 0; background: var(--chrome); border-left: 1px solid var(--border); }
 h1, h2 { margin: 0 0 8px; color: var(--text-strong); }
 h1 { font-size: 24px; }
@@ -64,5 +76,5 @@ button:disabled { cursor: default; opacity: 0.6; }
 .card { background: var(--surface); padding: 12px; margin: 8px 0; border: 1px solid var(--border); border-radius: 8px; }
 details { margin-top: 24px; }
 [role="alert"] { color: var(--error-text); }
-.right-panel-frame[data-sheet] { position: fixed; top: var(--topbar-height, 44px); right: 0; bottom: 0; z-index: 40; width: min(var(--right-panel-width), calc(100vw - 48px)); box-shadow: -8px 0 24px #0003; }
-.detail-backdrop { position: fixed; inset: var(--topbar-height, 44px) 0 0; z-index: 39; background: #0003; }
+.right-panel-frame[data-sheet] { position: fixed; top: var(--pane-header-height); right: 0; bottom: 0; z-index: 40; width: min(var(--right-panel-width), calc(100vw - 48px)); box-shadow: -8px 0 24px #0003; }
+.detail-backdrop { position: fixed; inset: var(--pane-header-height) 0 0; z-index: 39; background: #0003; }

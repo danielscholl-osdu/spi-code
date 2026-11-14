@@ -297,6 +297,9 @@ export function ProgramSidebar({
 
   return (
     <Sidebar id="app-sidebar" aria-label="Sidebar" className="app-sidebar">
+      <div className="sidebar-top">
+        <span className="toggle-room" aria-hidden />
+      </div>
       <SidebarHeader>
         <button
           type="button"

@@ -52,11 +52,9 @@ export function RightPanelFrame({
   );
   useEffect(() => {
     if (!open) return;
-    if (
-      document.activeElement instanceof HTMLElement &&
-      !frame.current?.contains(document.activeElement)
-    )
-      opener.current = document.activeElement;
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && !frame.current?.contains(active))
+      opener.current = active === document.body ? null : active;
     if (currentPresentation.current === "sheet")
       frame.current
         ?.querySelector<HTMLButtonElement>("button:not(:disabled)")

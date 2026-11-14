@@ -83,14 +83,6 @@ it("does not box bare section selectors anywhere in the window styles", () => {
   }
 });
 
-it("gives every topbar-height reference in window styles a fallback", () => {
-  for (const { file, css } of styles) {
-    for (const [reference] of css.matchAll(/var\(\s*--topbar-height\b[^)]*\)/g)) {
-      expect(reference, file).toMatch(/,\s*[^)\s]/);
-    }
-  }
-});
-
 it.each(["overlay", "pinned"] as const)(
   "uses flush panes with shared headers and bounded centre content beside a %s Line sheet",
   async (presentation) => {
@@ -108,14 +100,13 @@ it.each(["overlay", "pinned"] as const)(
       expect(tokens.getPropertyValue("--centre-content-max-width").trim()).toBe("960px");
       expect(tokens.getPropertyValue("--centre-content-padding-block").trim()).toBe("20px");
       expect(tokens.getPropertyValue("--centre-content-padding-inline").trim()).toBe("24px");
-      expect(tokens.getPropertyValue("--panel-icon-size").trim()).toBe("24px");
       expect(["", "0px", "normal"]).toContain(getComputedStyle(shell).columnGap);
       for (const selector of [".middle-frame", ".line-sheet", ".right-panel"]) {
         const computed = getComputedStyle(element(view.container, selector));
         expect(computed.padding, selector).toBe("0px");
         expect(["", "0px", "0"]).toContain(computed.borderRadius);
       }
-      for (const selector of [".place-header", ".line-toolbar", ".panel-tabs"]) {
+      for (const selector of [".centre-bar", ".line-toolbar", ".panel-tabs"]) {
         const header = element(view.container, selector);
         expect(header.classList.contains("pane-header"), selector).toBe(true);
         const computed = getComputedStyle(header);
@@ -126,11 +117,6 @@ it.each(["overlay", "pinned"] as const)(
           tokens.getPropertyValue("--border").trim(),
         );
       }
-      const placeHeader = getComputedStyle(element(view.container, ".place-header"));
-      expect(placeHeader.position).toBe("absolute");
-      expect(placeHeader.top).toBe("0px");
-      expect(placeHeader.left).toBe("0px");
-      expect(placeHeader.right).toBe("0px");
       expect(getComputedStyle(element(view.container, ".middle-frame")).overflow).toBe("hidden");
       expect(getComputedStyle(element(view.container, ".line-sheet")).position).toBe("relative");
       const lineBody = element(view.container, ".line-content > .line-body");
@@ -144,10 +130,6 @@ it.each(["overlay", "pinned"] as const)(
       expect(lineBody.querySelector(".line-grid")).not.toBeNull();
       expect(view.container.querySelector(".line-toolbar :is(table, fieldset)")).toBeNull();
       expect(getComputedStyle(element(view.container, ".panel-body")).overflow).toBe("auto");
-      const close = element(view.container, '[aria-label="Close detail"]');
-      expect(close.classList.contains("panel-toggle")).toBe(true);
-      expect(getComputedStyle(close).width).toBe("24px");
-      expect(getComputedStyle(close).height).toBe("24px");
       for (const name of ["attention", "repository", "release", "runs"]) {
         const header = element(
           view.container,
@@ -167,14 +149,12 @@ it.each(["overlay", "pinned"] as const)(
         { kind: "releases" },
       ] satisfies Route[]) {
         await act(async () => navigate(route));
-        const page = element(view.container, "main > *");
+        const page = element(view.container, ".centre-body > *");
         const computed = getComputedStyle(page);
         expect(computed.padding).toBe("20px 24px");
         expect(computed.overflow).toBe("auto");
         expect(["0", "0px"]).toContain(computed.minHeight);
-        for (const content of page.querySelectorAll(
-          ":scope > :not(.place, .place-header), .place-reading",
-        )) {
+        for (const content of page.querySelectorAll(":scope > :not(.place), .place-reading")) {
           expect(getComputedStyle(content).maxWidth).toBe("960px");
           expect(getComputedStyle(content).marginLeft).not.toBe("auto");
         }
@@ -213,7 +193,7 @@ it("keeps the shell error banner inset with the centre's content", async () => {
   const view = await mount();
   try {
     await act(async () => view.receive({ invalid: true }));
-    const alert = element(view.container, '.middle-frame > [role="alert"]');
+    const alert = element(view.container, '.centre-body > [role="alert"]');
     expect(alert.textContent).toBe("Invalid host message");
     expect(getComputedStyle(alert).padding).toBe("20px 24px 0px");
     expect(getComputedStyle(alert).margin).toBe("0px");
@@ -234,10 +214,8 @@ it("keeps Watch gate siblings below a 44 px header instead of making each a full
         },
       }),
     );
-    const header = getComputedStyle(element(view.container, "main > .place-header"));
-    expect(header.height).toBe("44px");
-    expect(header.position).toBe("absolute");
-    for (const selector of ['main > [role="status"]', "main > button"]) {
+    expect(getComputedStyle(element(view.container, "main > .centre-bar")).height).toBe("44px");
+    for (const selector of ['.centre-body > [role="status"]', ".centre-body > button"]) {
       const computed = getComputedStyle(element(view.container, selector));
       expect(computed.minHeight).not.toBe("100%");
       expect(computed.flexGrow).toBe("0");
@@ -255,10 +233,10 @@ it.each(["light", "dark"])(
       await act(async () => selectionStore.getState().openSweepEvidence());
       const main = element(view.container, "main");
       const panel = element(view.container, "aside");
-      const topRow = element(view.container, ".title-bar");
+      const topRow = element(view.container, ".centre-bar");
       const tokens = getComputedStyle(document.documentElement);
       expect(getComputedStyle(topRow).backgroundColor).toBe(
-        tokens.getPropertyValue("--sidebar").trim(),
+        tokens.getPropertyValue("--surface").trim(),
       );
       expect(getComputedStyle(document.body).backgroundColor).toBe(
         tokens.getPropertyValue("--surface").trim(),
@@ -300,80 +278,6 @@ it.each(["light", "dark"])(
       expect(view.container.querySelectorAll("main section.card")).toHaveLength(0);
     } finally {
       await view.cleanup();
-    }
-  },
-);
-
-it.each([true, false])(
-  "offsets narrow sheets and backdrops by the measured top row with strip=%s",
-  async (withStrip) => {
-    const previousViewport = { width: window.innerWidth, height: window.innerHeight };
-    type HappyWindow = {
-      happyDOM: { setViewport(viewport: { width: number; height: number }): void };
-    };
-    const dom = (window as unknown as HappyWindow).happyDOM;
-    dom.setViewport({ width: 740, height: 900 });
-    let titleHeight = 44;
-    const rect = HTMLElement.prototype.getBoundingClientRect;
-    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
-      this: HTMLElement,
-    ) {
-      if (this.matches(".title-bar")) return DOMRect.fromRect({ height: titleHeight });
-      return rect.call(this);
-    });
-    let measure: (() => void) | undefined;
-    const disconnect = vi.fn();
-    const observed: Element[] = [];
-    vi.stubGlobal(
-      "ResizeObserver",
-      class {
-        constructor(callback: () => void) {
-          measure = callback;
-        }
-        observe(element: Element) {
-          observed.push(element);
-        }
-        disconnect = disconnect;
-      },
-    );
-    const view = await mount({
-      views: { today: () => <h1>Today</h1> },
-      fallback: { kind: "today" },
-      ...(withStrip ? { strip: () => <p>Line status</p> } : {}),
-    });
-    try {
-      const sidebarToggle = view.container.querySelector<HTMLButtonElement>(
-        '[aria-label="Toggle sidebar"]',
-      );
-      await act(async () => {
-        sidebarToggle?.click();
-        selectionStore.getState().openSweepEvidence();
-      });
-      const shell = view.container.querySelector<HTMLElement>(".shell");
-      const assertOffsets = (height: number) => {
-        expect(shell?.style.getPropertyValue("--topbar-height")).toBe(`${height}px`);
-        for (const selector of [
-          ".app-sidebar",
-          ".sidebar-backdrop",
-          ".right-panel-frame",
-          ".detail-backdrop",
-        ]) {
-          const computed = getComputedStyle(element(view.container, selector));
-          const offset = selector.endsWith("backdrop")
-            ? computed.inset.split(" ")[0]
-            : computed.top;
-          expect(offset, selector).toBe(`${height}px`);
-        }
-      };
-      assertOffsets(44);
-      expect(observed.map((element) => element.className)).toEqual(["title-bar"]);
-      titleHeight = 75;
-      await act(async () => measure?.());
-      assertOffsets(75);
-    } finally {
-      await view.cleanup();
-      dom.setViewport(previousViewport);
-      expect(disconnect).toHaveBeenCalledOnce();
     }
   },
 );

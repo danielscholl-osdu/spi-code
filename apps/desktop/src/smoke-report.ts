@@ -165,6 +165,15 @@ export const VIEW_SURFACES = [
     qualified: true,
   },
   {
+    id: "sidebar",
+    name: "Sidebar open",
+    route: "today",
+    place: "Today",
+    selector: "#app-sidebar[data-state=expanded]",
+    designSection: "Layout / Top row; window design / Pins",
+    qualified: true,
+  },
+  {
     id: "first-sweep-running",
     name: "First sweep / Failed sign-in and deferred source",
     route: "today",
@@ -256,6 +265,12 @@ export const VIEW_SURFACES = [
   },
 ] as const;
 
+export const BROKEN_PROOFS: Partial<Record<string, RegExp>> = {
+  "detail-related/1440": /^Related value squeezed to 159 px$/,
+  "panes/1440": /^Header top: 4 != 0$/,
+  "strip-20/740": /^Toggle sidebar at .* lies in a drag rectangle$/,
+};
+
 export function geometryRules(surface: string, width: number): SmokeGeometry["rule"][] {
   if (surface.startsWith("settings-sweep-"))
     return ["window", "settings", "sweep-visible", "sweep-reads", "overlay-drag"];
@@ -265,8 +280,9 @@ export function geometryRules(surface: string, width: number): SmokeGeometry["ru
   if (surface.startsWith("first-sweep-")) return ["window", "headers"];
   if (surface.startsWith("settings")) return ["window", "settings"];
   if (surface === "detail-related") return ["window", "related"];
-  if (surface === "panes" && width === 1440) return ["window", "panes", "headers"];
-  if (surface === "strip-20" && width === 740) return ["window", "drag"];
+  if (surface === "panes" && width === 1440) return ["window", "panes", "headers", "drag"];
+  if (["today", "detail", "panes", "strip-20", "sidebar"].includes(surface))
+    return ["window", "headers", "drag"];
   return ["window"];
 }
 
@@ -461,20 +477,21 @@ export function assertSmokeViews(value: unknown): asserts value is SmokeShot[] {
             assert.equal(geometry.overlay, "[role=dialog].settings", "Wrong Sweep overlay");
             assert(geometry.backdrop, "Missing Sweep Settings backdrop");
           }
-          if (id === "panes" && geometry.rule === "headers")
+          if (id === "panes" && viewportWidth === 1440 && geometry.rule === "headers")
             assert.equal(
               geometry.headers.length,
-              3,
-              "Header probe requires centre, Line and Detail",
+              4,
+              "Header probe requires sidebar, centre, Line and Detail",
             );
+          if (id === "strip-20" && geometry.rule === "drag")
+            assert.equal(geometry.services, 20, "Drag probe requires 20 services");
         }
-        if (id === "detail-related" && viewportWidth === 1440 && appearance === "light") {
-          assert.equal(
-            shot.rejectedGeometry,
-            "Related value squeezed to 159 px",
-            "Missing packaged broken-rule proof",
+        const rejects = appearance === "light" && BROKEN_PROOFS[`${id}/${viewportWidth}`];
+        if (rejects)
+          assert(
+            typeof shot.rejectedGeometry === "string" && rejects.test(shot.rejectedGeometry),
+            `Missing packaged broken-rule proof: ${id}/${viewportWidth}`,
           );
-        }
       }
     }
   }

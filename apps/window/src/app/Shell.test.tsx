@@ -15,8 +15,9 @@ import { testSnapshot } from "../store/test-snapshot.js";
 import { watchStore } from "../store/watch.js";
 import { fixtureLoader, installSpi } from "../test-utils/harness.js";
 import { PANES_STORAGE_KEY } from "./pane-layout.js";
-import { closeSheet, navigate, pinSheet } from "./routes.js";
+import { closeSheet, navigate, pinSheet, type Registry, type Route } from "./routes.js";
 import { Shell } from "./Shell.js";
+import { PaneTitle } from "./title-row.js";
 
 const loadFixture = fixtureLoader((path) => readFileSync(path, "utf8"));
 
@@ -220,7 +221,7 @@ it("names every navigated place in the centre header and keeps it in the documen
       expect(document.title).toBe(`SPI Code · ${label}`);
     }
     expect(button("Releases")?.getAttribute("aria-current")).toBe("true");
-    expect(container.querySelector(".title-bar [data-place]")).toBeNull();
+    expect(container.querySelectorAll("[data-place]")).toHaveLength(1);
     expect(container.querySelector("aside")?.getAttribute("aria-label")).toBe("Detail");
   } finally {
     await shell.cleanup();
@@ -233,9 +234,9 @@ it("toggles the sidebar and right panel, omitting the unshipped terminal", async
   const { container } = shell;
   try {
     const toggle = (label: string) =>
-      container.querySelector<HTMLButtonElement>(`header button[aria-label="${label}"]`);
+      container.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
     const sidebar = () => container.querySelector<HTMLElement>('nav[aria-label="Sidebar"]');
-    for (const label of ["Toggle sidebar", "Toggle right panel"]) {
+    for (const label of ["Toggle sidebar", "Close detail"]) {
       expect(toggle(label)?.disabled).toBe(false);
       expect(toggle(label)?.tabIndex).toBe(0);
     }
@@ -251,7 +252,7 @@ it("toggles the sidebar and right panel, omitting the unshipped terminal", async
     expect(sidebar()?.getAttribute("data-state")).toBe("expanded");
 
     expect(container.querySelector("aside")).not.toBeNull();
-    await act(async () => toggle("Toggle right panel")?.click());
+    await act(async () => toggle("Close detail")?.click());
     expect(container.querySelector("aside")).toBeNull();
     expect(toggle("Toggle right panel")?.getAttribute("aria-pressed")).toBe("false");
     await press("i");
@@ -266,6 +267,107 @@ it("toggles the sidebar and right panel, omitting the unshipped terminal", async
   }
 });
 
+it.each([1280, 740])(
+  "keeps one sidebar toggle, outside the sidebar, whether it is shown, hidden or off-canvas at %i px",
+  async (width) => {
+    viewport(width);
+    selectionStore.setState({ open: false });
+    const shell = await mountShell();
+    const { container } = shell;
+    try {
+      const toggles = () => container.querySelectorAll('[aria-label="Toggle sidebar"]');
+      const sidebar = container.querySelector<HTMLElement>("#app-sidebar");
+      const [toggle] = toggles();
+      for (let step = 0; step < 3; step++) {
+        expect(toggles()).toHaveLength(1);
+        expect(toggles()[0]).toBe(toggle);
+        expect(sidebar?.contains(toggle ?? null)).toBe(false);
+        await act(async () => (toggle as HTMLButtonElement | undefined)?.click());
+      }
+      await act(async () => {
+        viewport(width === 740 ? 1280 : 740);
+        window.dispatchEvent(new Event("resize"));
+      });
+      expect(toggles()).toHaveLength(1);
+      expect(toggles()[0]).toBe(toggle);
+    } finally {
+      await shell.cleanup();
+    }
+  },
+);
+
+it.each([1280, 740])(
+  "puts the right-panel toggle at the end of the centre's header while closed and in the panel's header while open at %i px",
+  async (width) => {
+    viewport(width);
+    selectionStore.setState({ open: false });
+    const shell = await mountShell();
+    const { container } = shell;
+    const controls = () =>
+      [
+        ...container.querySelectorAll<HTMLElement>(
+          '[aria-label="Toggle right panel"], [aria-label="Close detail"]',
+        ),
+      ].map((control) =>
+        control.closest(".centre-bar") ? "centre" : control.closest(".panel-tabs") ? "panel" : "",
+      );
+    try {
+      expect(controls()).toEqual(["centre"]);
+      expect(
+        container.querySelector(".centre-end")?.lastElementChild?.getAttribute("aria-label"),
+      ).toBe("Toggle right panel");
+      await press("i");
+      expect(container.querySelector("#app-right-panel")?.hasAttribute("data-sheet")).toBe(
+        width === 740,
+      );
+      expect(controls()).toEqual(["panel"]);
+      await press("i");
+      expect(controls()).toEqual(["centre"]);
+    } finally {
+      await shell.cleanup();
+    }
+  },
+);
+
+it("shows the mounted view's title, chips and Pin in the shell's title row, and only the route's name when a view gives none", async () => {
+  const titled = (route: Route) => (
+    <section data-view={route.kind}>
+      <PaneTitle>
+        <h1 data-place>Titled</h1>
+        <button type="button">Chip</button>
+      </PaneTitle>
+      <p>body</p>
+    </section>
+  );
+  const plain = (route: Route) => <section data-view={route.kind}>plain body</section>;
+  const registry: Registry = {
+    views: { today: titled, upstream: plain },
+    fallback: { kind: "today" },
+  };
+  const harness = installSpi({ onMessage: () => vi.fn() });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<Shell registry={registry} />));
+    const title = () => container.querySelector(".centre-bar .centre-title");
+    expect(title()?.querySelector("h1")?.textContent).toBe("Titled");
+    expect(title()?.querySelector("button")?.textContent).toBe("Chip");
+    expect(container.querySelector(".centre-body header")).toBeNull();
+    expect(container.querySelector(".centre-body [data-view] > p")?.textContent).toBe("body");
+    await act(async () => navigate({ kind: "upstream" }));
+    expect(title()?.querySelector("h1")?.textContent).toBe("Upstream");
+    expect(title()?.querySelector("button")).toBeNull();
+    expect(container.querySelectorAll("[data-place]")).toHaveLength(1);
+    await act(async () => navigate({ kind: "today" }));
+    expect(title()?.querySelector("h1")?.textContent).toBe("Titled");
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    harness.restore();
+  }
+});
+
 it("opens the sidebar at the off-canvas budget step and closes it on Escape, back to its toggle", async () => {
   viewport(740);
   const shell = await mountShell();
@@ -273,7 +375,7 @@ it("opens the sidebar at the off-canvas budget step and closes it on Escape, bac
   try {
     const sidebar = () => container.querySelector<HTMLElement>('nav[aria-label="Sidebar"]');
     const trigger = container.querySelector<HTMLButtonElement>(
-      'header button[aria-label="Toggle sidebar"]',
+      'button[aria-label="Toggle sidebar"]',
     );
     expect(sidebar()?.getAttribute("data-state")).toBe("collapsed");
     expect(sidebar()?.hasAttribute("inert")).toBe(true);
@@ -310,9 +412,8 @@ it.each([740, 900, 980, 1100, 1280])(
     const { container } = shell;
     await act(async () => navigate({ kind: "upstream" }));
     const row = container.querySelector<HTMLButtonElement>("main .place-item-content");
-    const trigger = container.querySelector<HTMLButtonElement>(
-      'header button[aria-controls="app-right-panel"]',
-    );
+    const trigger = () =>
+      container.querySelector<HTMLButtonElement>('.centre-bar [aria-controls="app-right-panel"]');
     try {
       expect(row).not.toBeNull();
       row?.focus();
@@ -334,8 +435,9 @@ it.each([740, 900, 980, 1100, 1280])(
       await press("Escape", {});
       expect(container.querySelector("#app-right-panel")).toBeNull();
       expect(document.activeElement).toBe(row);
-      trigger?.focus();
-      await act(async () => trigger?.click());
+      const opener = trigger();
+      opener?.focus();
+      await act(async () => opener?.click());
       if (width < 1032)
         expect(container.querySelector("#app-right-panel")?.contains(document.activeElement)).toBe(
           true,
@@ -344,7 +446,7 @@ it.each([740, 900, 980, 1100, 1280])(
         container.querySelector<HTMLButtonElement>('[aria-label="Close detail"]')?.click(),
       );
       expect(container.querySelector("#app-right-panel")).toBeNull();
-      expect(document.activeElement).toBe(trigger);
+      expect(document.activeElement).toBe(trigger());
       row?.focus();
       await act(async () => selectionStore.getState().select("halt:legal"));
       await act(async () => selectionStore.getState().clear());
@@ -366,7 +468,7 @@ it("keeps a Flow selection on its service and restores centre-body scroll when r
   if (!flow) throw new Error("Missing recorded Flow row");
   const shell = await mountShell();
   const bodyScroll = () => {
-    const page = shell.container.querySelector<HTMLElement>("main > .service-page");
+    const page = shell.container.querySelector<HTMLElement>(".centre-body > .service-page");
     if (!page) throw new Error("Missing service scrolling body");
     return page;
   };
@@ -814,7 +916,7 @@ it("updates the title-bar sweep line from the live areas with the worst tone, an
       expect(line()?.querySelector("[data-sweep-display]")?.textContent).not.toContain("inferred");
     }
     await act(async () =>
-      container.querySelector<HTMLButtonElement>('[aria-label="Toggle right panel"]')?.click(),
+      container.querySelector<HTMLButtonElement>('[aria-label="Close detail"]')?.click(),
     );
     expect(container.querySelector("#app-right-panel")).toBeNull();
     await act(async () => line()?.click());

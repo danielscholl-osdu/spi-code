@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { type Navigation, PLACES, routeLabel } from "../../app/navigation.js";
 import { PlacePin } from "../../app/PlacePin.js";
 import { scopeRoute } from "../../app/queue.js";
+import { PaneTitle } from "../../app/title-row.js";
 import { plainTitle } from "../../text.js";
 import { instantsIn, TimedText, timedText } from "../../time.js";
 import { FreshChip, FreshItems, freshItemIds } from "./FreshItems.js";
@@ -78,11 +79,11 @@ export function Place({
   }
   return (
     <section className="place" aria-label={name}>
-      <header className="place-header pane-header">
+      <PaneTitle>
         <h1 data-place>{name}</h1>
         {actions}
         {pin && <PlacePin pin={pin} name={name} />}
-      </header>
+      </PaneTitle>
       {(content || tiles || belowTiles) && (
         <section className="place-reading" aria-label={`${name} reading`}>
           {content && (

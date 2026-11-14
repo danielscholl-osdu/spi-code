@@ -26,14 +26,21 @@ ready Readiness and Appearance. The smoke pins its renderer clock to Nov 6,
 are the same on both platforms and in both test time zones.
 Sign-in requests are intercepted in the smoke-only preload path: no live token,
 sign-in or tool probe is used. Dedicated probes measure a long Related label
-and values at a 280 px panel, flush panes with 1 px dividers, three aligned 44 px
-pane headers, Settings' 820 x 560 maximum and 24 px edge margins, and a contiguous
-48 px first-row drag span at 740 px with 20 services. Only the Related and
-20-service probes vary the projection; hand-made rect mutations exercise each
-failure rule in unit tests. The existing smoke artifact uploads all evidence on
-both platforms. Once per packaged run the renderer also shrinks a real Related
-value to 159 px, records the expected rejection in `rejectedGeometry`, then
-restores the value before capturing it. Missing rejection evidence fails.
+and values at a 280 px panel, flush panes with 1 px dividers, and Settings' 820 x 560
+maximum and 24 px edge margins. Today, Detail, the four panes, 20 services and the
+open sidebar run the top-row rules at every width: every visible pane and its header
+start at the window top, each header is 44 px across its pane's interior, and the
+rules under them are 1 px on one line. Every top-row target sits on the row, outside
+the drag shape and inside the titlebar area Windows reports beside its caption
+buttons; there is exactly one sidebar toggle and one right-panel toggle (none while
+Detail is a sheet), and the centre keeps a contiguous 48 px drag span. Only the
+Related and 20-service probes vary the projection; hand-made rect mutations exercise
+each failure rule in unit tests. The existing smoke artifact uploads all evidence on
+both platforms. Once per packaged run, in light, the renderer breaks three rules for
+real (a Related value squeezed to 159 px, the Detail header 4 px low at 1440, the
+centre's no-drag hole under the sidebar toggle removed at 740), records each expected
+rejection in `rejectedGeometry`, then restores and re-measures before capturing.
+Missing rejection evidence fails.
 The fixture clock, pane preferences and sign-in interception
 are removed before the host proof, so they cannot affect its persisted-snapshot
 and supervision checks. The whole capture matrix runs inside `SMOKE_TIMEOUT_MS`.
@@ -92,7 +99,7 @@ in the image, the decision.md sections it answers to, and, on the bad morning, t
 caveat band's text.
 Missing shots, images smaller than 640 x 400 or 1024 PNG bytes, or images
 with 99.5% of pixels in one 4-bit-per-channel RGB bucket fail the smoke.
-Every shot must carry the title-bar sweep line (first-sweep captures carry its
+Every shot must carry the top row's sweep line (first-sweep captures carry its
 running or waiting form); Today, Upstream, the selected
 Detail's place and the affected service must also carry their failed-read or
 truncation qualifier. The sweep segment opens a popover, so probes reach the sweep's

@@ -342,7 +342,7 @@ it("opens each place and the Line with one line before the first snapshot, its s
   watchStore.setState({ snapshot: null, setup: null, progress: midSweep() });
   await mount();
   const main = () => container.querySelector("[data-before-sweep] .place-before-sweep");
-  expect(container.querySelector("[data-before-sweep] h1")?.textContent).toBe("Upstream");
+  expect(container.querySelector("main header h1")?.textContent).toBe("Upstream");
   expect(main()?.textContent).toBe("Upstream opens after the first sweep. It is read 9th of 12.");
   const row = (key: string) =>
     container.querySelector<HTMLElement>(`.app-sidebar [data-sidebar-row="${key}"]`);
